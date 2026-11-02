@@ -263,9 +263,18 @@
     },
     {
       "id": "WT-07",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/theatre_search_year_test.mjs => PASS (adopted from Alpha; vs pre-fix WorldSearch.js => AssertionError)",
+        "world_search_static_delivery_test, other search node tests => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/WorldSearch.js",
+        "tests/theatre_search_year_test.mjs"
+      ],
+      "note": "WorldSearch.pickTheatreTopMatch used by searchTheatre (provider fallback) and native IMDb delivery: trailing year (\"T 2020\"/\"T (2020)\") groups exact/adjacent/other years, title scoring within groups, numeric literal titles kept when an exact title match exists, all rows preserved (no recall/bounds change). Cancellation/paged SearchSurface unchanged.",
+      "updated_utc": "2026-11-02T22:31:10Z"
     },
     {
       "id": "PF-06",

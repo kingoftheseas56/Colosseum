@@ -107,6 +107,29 @@ function pickTopMatch(query, all) {
     return all;
 }
 
+// Release years qualify Theatre results; they are not words in a title (WT-07).
+// "Title 2020" / "Title (2020)" ranks exact-year rows first, adjacent years second, the rest
+// last, with the existing title scoring leading each group. Numeric titles stay literal when
+// the complete query already matches one ("Blade Runner 2049", "1917"). Every input row is
+// kept; only order changes.
+function pickTheatreTopMatch(query, all) {
+    var match = String(query || "").trim().match(/^(.*?)\s*(?:\((19\d{2}|20\d{2})\)|\s+(19\d{2}|20\d{2}))$/);
+    if (!match || !normTitle(match[1]).length
+            || all.some(function(row) { return normTitle(row.title) === normTitle(query); }))
+        return pickTopMatch(query, all);
+    var year = Number(match[2] || match[3]);
+    var exactYear = [], adjacentYear = [], otherYears = [];
+    all.forEach(function(row) {
+        var rowYear = parseInt(row.data && row.data.releaseInfo, 10);
+        if (rowYear === year) exactYear.push(row);
+        else if (Math.abs(rowYear - year) === 1) adjacentYear.push(row);
+        else otherYears.push(row);
+    });
+    return pickTopMatch(match[1], exactYear)
+            .concat(pickTopMatch(match[1], adjacentYear))
+            .concat(pickTopMatch(match[1], otherYears));
+}
+
 function searchTheatre(query, done) {
     if (!query || query.trim().length < 2) { done([], ""); return noopCancel; }
     var q = encodeURIComponent(query.trim());
@@ -125,7 +148,7 @@ function searchTheatre(query, done) {
         var mapLane = function(lane) {
             return lane.map(function(m, i) { var r = mapTheatre(m); r.rank = i; return r; });
         };
-        var all = pickTopMatch(query, mapLane(out.movie).concat(mapLane(out.series)));
+        var all = pickTheatreTopMatch(query, mapLane(out.movie).concat(mapLane(out.series)));
         // Show the list IMMEDIATELY — the old code held every result hostage behind a third,
         // serial /meta/ call for the hero's synopsis. Now the grid paints as soon as both
         // catalogs answer, and the hero enriches in a second done() pass when it lands.
@@ -321,7 +344,7 @@ function searchFor(mode, query, done, catalogEngine, owners) {
         var imdb = owners.imdbCatalog;
         return nativeDelivery(imdb, function() { return imdb.search(q, 40); },
             function() { return imdb.searchState(q, 40); },
-            function(rows) { return pickTopMatch(q, mapNativeTheatre(rows)); }, done);
+            function(rows) { return pickTheatreTopMatch(q, mapNativeTheatre(rows)); }, done);
     }
     if (mode === "Tankoban" && CatalogDelivery.available(owners.malCatalog)
             && typeof owners.malCatalog.searchState === "function")
