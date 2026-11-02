@@ -43,3 +43,6 @@ release/presentation/artwork/** export-ignore
 tests/lanista_capture/assets/** export-ignore
 tests/lanista_capture/seeds/tankoban-reader/manga/journey-manga-series-v1/ch-1/*.png export-ignore
 tests/lanista_fixtures/installed-chronicle/artwork/** export-ignore
+
+# Keep GitHub README showcase media out of generated source archives.
+.github/readme-showcase/** export-ignore
