@@ -53,6 +53,12 @@ Item {
     property string openLedgerKey: ""
     property var ledgerItems: []
     property string mutationMessage: ""
+    // PF-08: why background work is paused/failed. Read-only projection of the native
+    // BackgroundDownloadBridge (epoch-gated host state); Android only, no new lifecycle.
+    property var platformDownloads: typeof PlatformDownloads !== "undefined" ? PlatformDownloads : null
+    property bool backgroundHostApplicable: onAndroid
+    readonly property string backgroundDownloadMessage: backgroundHostApplicable && platformDownloads
+        ? String(platformDownloads.backgroundHostError || "") : ""
     property bool deletingAllDownloads: false
     property bool waitingForDownloadCancellation: false
     property double downloadCancellationDeadline: 0
@@ -663,6 +669,17 @@ Item {
                 width: parent.width
                 text: root.mutationMessage
                 color: "#c98b8b"
+                font.family: theme.ui
+                font.pixelSize: 13
+                wrapMode: Text.Wrap
+            }
+            Text {
+                objectName: "backgroundDownloadMessage"
+                visible: root.backgroundDownloadMessage.length > 0
+                topPadding: 10
+                width: parent.width
+                text: root.backgroundDownloadMessage
+                color: theme.gold
                 font.family: theme.ui
                 font.pixelSize: 13
                 wrapMode: Text.Wrap
