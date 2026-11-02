@@ -127,6 +127,7 @@ Item {
     signal downloadRequested(var row)
     // season mode only: the ask came back with no full-season torrent
     signal seasonNoPacks()
+    readonly property bool androidHost: !!(sheet.Window.window && sheet.Window.window.androidHost)
     signal openExtensionsRequested(bool browseMoreSources)
 
     visible: sheet.open || sheet.opacity > 0.01
@@ -582,13 +583,15 @@ Item {
             anchors.centerIn: parent
             anchors.verticalCenterOffset: extensionsAction.visible ? -((extensionsAction.height + 12) / 2) : 0
             visible: sheet.visibleRows.length === 0
-            width: sheet.phoneLayout ? Math.max(0, table.width - 36) : implicitWidth
-            wrapMode: sheet.phoneLayout ? Text.WordWrap : Text.NoWrap
-            horizontalAlignment: sheet.phoneLayout ? Text.AlignHCenter : Text.AlignLeft
+            width: Math.max(0, table.width - 36)
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
             text: sheet.loading ? "Finding sources…"
                   : (sheet.timedOut ? "Sources timed out. Try again."
                      : (sheet.askedNames.length === 0
-                        ? "No stream source is enabled for this title. Enable one in Extensions."
+                        ? (sheet.androidHost
+                            ? "No stream extension carries this title — add one on the Extensions page."
+                            : "No stream source is enabled for this title. Enable one in Extensions.")
                         : "No sources found."))
             color: sheet.timedOut ? "#e6a3a3" : theme.inkDim
             font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 15 : 16
@@ -598,7 +601,7 @@ Item {
             id: extensionsAction
             objectName: "sourcesSheetExtensionsRoute"
             visible: sheet.open && sheet.mode === "play" && !sheet.loading && !sheet.timedOut
-                     && sheet.rowCount === 0
+                     && sheet.rowCount === 0 && (!sheet.androidHost || sheet.askedCount === 0)
             anchors.top: emptyText.bottom
             anchors.topMargin: 12
             anchors.horizontalCenter: parent.horizontalCenter
@@ -612,7 +615,7 @@ Item {
                 id: extensionsActionLabel
                 objectName: "sourcesSheetExtensionsLabel"
                 anchors.centerIn: parent
-                text: "Find sources by adding extensions"
+                text: sheet.androidHost ? "Extensions" : "Find sources by adding extensions"
                 color: theme.gold
                 font.family: theme.ui
                 font.pixelSize: 13
@@ -623,7 +626,7 @@ Item {
                 objectName: "sourcesSheetExtensionsAction"
                 anchors.fill: parent
                 visible: extensionsAction.visible
-                accessibleName: "Find sources by adding extensions"
+                accessibleName: extensionsActionLabel.text
                 focusRadius: parent.radius
                 onTriggered: {
                     var browseMoreSources = sheet.askedCount > 0

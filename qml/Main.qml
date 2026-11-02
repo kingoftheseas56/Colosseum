@@ -5360,6 +5360,7 @@ Window {
             item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
             item.openExtensionsRequested.connect(function(browseMoreSources) {
                 if (browseMoreSources) win.openPlaySourcesExtensions()
+                else if (win.androidHost) win.openExtensionsPage("theatre")
                 else win.openStreamExtensionSetup()
             })
             // Rebuilt title page only: the world pills, search and a Back pill that names its place.
