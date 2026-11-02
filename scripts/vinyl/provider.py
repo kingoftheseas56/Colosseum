@@ -3,6 +3,7 @@
 Catalogue identities are durable; resolved URLs and headers are transient. Never
 write the resolver response to the library, progress store, logs, or a snapshot.
 """
+import contextlib
 import datetime
 import json
 import math
@@ -50,6 +51,49 @@ VIDEO_MAX_HEADERS = 32
 VIDEO_MAX_HEADER_NAME_CHARS = 128
 VIDEO_MAX_HEADER_VALUE_CHARS = 4096
 VIDEO_MAX_TOTAL_HEADER_CHARS = 16384
+
+# One long-lived anonymous transport per helper process. The C++ provider owns
+# the bounded subprocess lifetime and kills it on cancellation/profile shutdown.
+_SERVER_MODE = False
+_SERVER_AUDIO_DL = None
+_SERVER_VIDEO_DL = None
+_SERVER_MUSIC_CLIENT = None
+_SERVER_MUSIC_REGION = None
+
+
+def _youtube_dl(kind):
+    from yt_dlp import YoutubeDL
+
+    class QuietLogger:
+        def debug(self, message): pass
+        def warning(self, message): pass
+        def error(self, message): pass
+
+    options = {"quiet": True, "no_warnings": True, "logger": QuietLogger(),
+               "format": "bestaudio" if kind == "audio" else VIDEO_FORMAT_SELECTOR,
+               "skip_download": True, "noplaylist": True, "socket_timeout": 20,
+               "retries": 1, "extractor_retries": 1}
+    if not _SERVER_MODE:
+        return YoutubeDL(options)
+    global _SERVER_AUDIO_DL, _SERVER_VIDEO_DL
+    if kind == "audio":
+        if _SERVER_AUDIO_DL is None:
+            _SERVER_AUDIO_DL = YoutubeDL(options)
+        return contextlib.nullcontext(_SERVER_AUDIO_DL)
+    if _SERVER_VIDEO_DL is None:
+        _SERVER_VIDEO_DL = YoutubeDL(options)
+    return contextlib.nullcontext(_SERVER_VIDEO_DL)
+
+
+def _ytmusic_client(region):
+    from ytmusicapi import YTMusic
+    if not _SERVER_MODE:
+        return YTMusic(**ytmusic_location_options(region))
+    global _SERVER_MUSIC_CLIENT, _SERVER_MUSIC_REGION
+    if _SERVER_MUSIC_CLIENT is None or _SERVER_MUSIC_REGION != region:
+        _SERVER_MUSIC_CLIENT = YTMusic(**ytmusic_location_options(region))
+        _SERVER_MUSIC_REGION = region
+    return _SERVER_MUSIC_CLIENT
 
 
 class ProviderError(ValueError):
@@ -473,14 +517,7 @@ def fetch_playlist_page(client, request, key, region):
 def resolve(video):
     if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video):
         raise ValueError("Invalid YouTube video ID")
-    from yt_dlp import YoutubeDL
-    class QuietLogger:
-        def debug(self, message): pass
-        def warning(self, message): pass
-        def error(self, message): pass
-    with YoutubeDL({"quiet": True, "no_warnings": True, "logger": QuietLogger(),
-                    "format": "bestaudio", "skip_download": True, "noplaylist": True,
-                    "socket_timeout": 20, "retries": 1, "extractor_retries": 1}) as client:
+    with _youtube_dl("audio") as client:
         data = client.extract_info("https://music.youtube.com/watch?v=" + video, download=False)
     url = data.get("url", "")
     parsed = urlparse(url)
@@ -501,15 +538,7 @@ def resolve_video(video):
     """
     if not isinstance(video, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video):
         raise InvalidArgumentError("Invalid YouTube video ID")
-    from yt_dlp import YoutubeDL
-    class QuietLogger:
-        def debug(self, message): pass
-        def warning(self, message): pass
-        def error(self, message): pass
-    with YoutubeDL({"quiet": True, "no_warnings": True, "logger": QuietLogger(),
-                    "format": VIDEO_FORMAT_SELECTOR, "skip_download": True,
-                    "noplaylist": True, "socket_timeout": 20, "retries": 1,
-                    "extractor_retries": 1}) as client:
+    with _youtube_dl("video") as client:
         data = client.extract_info("https://www.youtube.com/watch?v=" + video, download=False)
     return _validated_video_resolution(video, data)
 
@@ -2504,8 +2533,7 @@ def handle(request, client=None, mb_client=None, population_client=None):
         releases = request.get("releases")
         yt_client = client
         if yt_client is None and channel_id and releases is None:
-            from ytmusicapi import YTMusic
-            yt_client = YTMusic(**ytmusic_location_options(region))
+            yt_client = _ytmusic_client(region)
         return fetch_artist_identity(
             identifier,
             client=yt_client,
@@ -2516,8 +2544,7 @@ def handle(request, client=None, mb_client=None, population_client=None):
             fetched_at=fetched_at,
         )
     if client is None:
-        from ytmusicapi import YTMusic
-        client = YTMusic(**ytmusic_location_options(region))
+        client = _ytmusic_client(region)
     if operation == "relatedVideo":
         return fetch_related_video(client, value, request)
     if operation == "discover":
@@ -2560,24 +2587,47 @@ def handle(request, client=None, mb_client=None, population_client=None):
     raise ValueError("Unknown operation")
 
 
-def main():
+def _answer(raw):
     try:
-        raw = sys.stdin.buffer.read(1024 * 1024 + 1)
         if len(raw) > 1024 * 1024:
             raise InvalidArgumentError("Catalogue request is too large")
         request = json.loads(raw)
-        response = {"ok": True, "data": handle(request)}
+        return {"ok": True, "data": handle(request)}
     except ImportError:
-        response = {"ok": False, "error": "Vinyl's catalogue helper is not installed.", "errorCode": "missing_dependency"}
+        return {"ok": False, "error": "Vinyl's catalogue helper is not installed.", "errorCode": "missing_dependency"}
     except ProviderError as exc:
-        response = exc.to_dict()
+        return exc.to_dict()
     except ValueError as exc:
-        response = {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc)}
     except Exception:
         # Upstream errors may contain signed URLs, cookies or verbose internals.
-        response = {"ok": False, "error": "YouTube is unavailable for this request. Try again.", "errorCode": "unavailable"}
-    sys.stdout.buffer.write(json.dumps(response, ensure_ascii=True).encode("utf-8"))
+        return {"ok": False, "error": "YouTube is unavailable for this request. Try again.", "errorCode": "unavailable"}
+
+
+def main():
+    raw = sys.stdin.buffer.read(1024 * 1024 + 1)
+    sys.stdout.buffer.write(json.dumps(_answer(raw), ensure_ascii=True).encode("utf-8"))
+
+
+def serve():
+    """Bounded newline-delimited requests; a response is never written to disk."""
+    global _SERVER_MODE
+    _SERVER_MODE = True
+    while True:
+        raw = sys.stdin.buffer.readline(1024 * 1024 + 3)
+        if not raw:
+            break
+        too_large = len(raw) > 1024 * 1024 + 1 or not raw.endswith(b"\n")
+        response = (_answer(b" " * (1024 * 1024 + 1)) if too_large
+                    else _answer(raw[:-1]))
+        sys.stdout.buffer.write(json.dumps(response, ensure_ascii=True).encode("utf-8") + b"\n")
+        sys.stdout.buffer.flush()
+        if too_large:
+            break
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) == 2 and sys.argv[1] == "--serve":
+        serve()
+    else:
+        main()
