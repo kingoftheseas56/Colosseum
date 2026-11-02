@@ -139,8 +139,18 @@ Item {
 
     // ── typed outcomes from the automatic pack path ──────────────────────────
 
+    // PF-14: in-place Cancel while inspecting. Cancels only this acquisition through the
+    // canonical downloader and returns to the retained result list (no repeated search).
+    function cancelInspection() {
+        if (!acquiring || selectionState !== "inspecting") return
+        acquiring = false; selectionState = "results"; pendingRow = null
+        if (comicsApi) comicsApi.cancelDownload(context.issueId)
+    }
+
+    // Typed outcomes below belong to a live acquisition only: a late event after Cancel
+    // (or after a reject) must not revive a picker state.
     function applyArchiveChoices(issueId, files) {
-        if (issueId !== context.issueId) return
+        if (issueId !== context.issueId || !acquiring) return
         archiveFiles = files; selectionState = "ambiguous"
     }
 
@@ -150,7 +160,7 @@ Item {
     }
 
     function applyIncomplete(issueId, missing) {
-        if (issueId !== context.issueId) return
+        if (issueId !== context.issueId || !acquiring) return
         missingIssues = missing || []; selectionState = "incomplete"
     }
 
@@ -165,7 +175,7 @@ Item {
     }
 
     function applyCombined(issueId, files) {
-        if (issueId !== context.issueId) return
+        if (issueId !== context.issueId || !acquiring) return
         combinedFiles = files || []; selectionState = "combined"
     }
 
@@ -574,6 +584,23 @@ Item {
                     visible: !!(sheet.pendingRow && sheet.pendingRow.title)
                     text: sheet.pendingRow ? String(sheet.pendingRow.title || "") : ""
                     color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                }
+                Rectangle {
+                    objectName: "comicTorrentCancelInspection"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Math.min(180, parent.width); height: 48; radius: 12
+                    color: cancelInspectionAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.05)
+                    border.width: 1; border.color: theme.edge
+                    Text {
+                        anchors.centerIn: parent; text: "Cancel"
+                        color: theme.gold; font.family: theme.ui; font.pixelSize: 14
+                    }
+                    KeyboardAction {
+                        id: cancelInspectionAction
+                        anchors.fill: parent
+                        accessibleName: "Cancel comic download"
+                        onTriggered: sheet.cancelInspection()
+                    }
                 }
             }
         }
