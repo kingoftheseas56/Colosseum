@@ -358,9 +358,18 @@
     },
     {
       "id": "WT-11",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_east_blue_containment.qml => 0 (7 passed; supported 1237x556/1185x533/853x533 already fit on base; conditional 354-wide index and 300-short preview failed before fix)",
+        "tst_one_piece_east_blue_native_atlas 17/5 and tst_one_piece_badge_spacing 10/4: same failing tests as base 501b23ed (pre-existing); four_sea, android_beta_universe_touch => 0; android_qml_preflight => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/OnePieceEastBlueAtlas.qml",
+        "tests/qml/tst_android_east_blue_containment.qml"
+      ],
+      "note": "Index width capped to root-36 and x clamped into 18 px gutters (caret follows button; desktop identical). Preview width capped to root-36, height capped to the placement safe band (root-88-18). Preview copy in a Flickable (interactive only when clipped) with OPEN ARC/CLOSE pinned in a wrapping Flow. Placement/focus/hover persistence unchanged. Retained evidence fixture (D: import) not run.",
+      "updated_utc": "2026-11-02T22:41:26Z"
     },
     {
       "id": "WT-01",
