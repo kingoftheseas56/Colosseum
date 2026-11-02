@@ -167,9 +167,10 @@ public:
     }
     Q_INVOKABLE int requestPayload(const QString &lane,const QString &operation,const QString &value,const QVariantMap &payload){
         static const QStringList operations{"search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","resolveVideo","relatedVideo","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","songCandidates","recommendationIdentity","recordingMatch","populationCandidates","lyrics"};
-        static const QStringList lanes{"browse","queue","play","playFallback","video-match","video-stream","playlist-page","search-albums","search-artists","search-songs","search-playlists","taste-artists","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork","home-seed-0","home-seed-1","home-identity","home-population","home-listening-0","home-listening-1","named-collections","lyrics"};
+        static const QStringList lanes{"browse","queue","play","playFallback","prepare-next","video-match","video-stream","playlist-page","search-albums","search-artists","search-songs","search-playlists","taste-artists","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork","home-seed-0","home-seed-1","home-identity","home-population","home-listening-0","home-listening-1","named-collections","lyrics"};
         const bool songLane=lane=="home-song-0"||lane=="home-song-1";
         if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane)||value.size()>300)return -1;
+        if(lane=="prepare-next"&&(operation!="resolve"||payload.value("source")!="youtube"))return -1;
         if(songLane&&operation!="songCandidates")return -1;
         if(operation=="songCandidates"&&!songLane)return -1;
         if(lane.startsWith("home-listening-") && operation!="album" && operation!="artistCandidates")return -1;
