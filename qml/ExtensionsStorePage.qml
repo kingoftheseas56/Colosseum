@@ -25,7 +25,7 @@ Item {
     signal searchClicked()
     signal universeHallRequested()
 
-    property var catalogue: []               // every cleaned add-on, most starred first
+    property var catalogue: StoreApi.withTorrentio([]) // every cleaned add-on, most starred first; the bundled Torrentio card is present while/if the catalogue cannot load
     property string loadError: ""
     property bool loading: true
     property int revision: 0                 // bumps on every Extensions change
