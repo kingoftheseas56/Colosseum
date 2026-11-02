@@ -34,6 +34,28 @@ Item {
         && sheet.Window.window.androidHost && sheet.Window.window.desktopPresentation === true
         ? 16 : theme.margin
 
+    // Height budget (PF-02). The desktop composition pins a 300 banner, 64 filter bar,
+    // quality pills and a 52 table head, leaving H-544 for results. Android desktop
+    // presentation at launch zoom (logical height ~640/zoom, e.g. 556 at 1.15 or 533 at 1.20)
+    // would leave little or no result viewport, so there the banner and fixed chrome yield
+    // to keep at least one complete 150-unit source row plus a peek of the next. Windows and
+    // desktop geometry are unchanged; the phone branch keeps its own layout.
+    readonly property bool androidDesktopPresentation: !!(sheet.Window.window
+        && sheet.Window.window.androidHost && sheet.Window.window.desktopPresentation === true)
+    readonly property real sourceRowHeight: 150
+    readonly property real minResultBudget: sheet.sourceRowHeight + 40
+    readonly property real desktopChromeReserve: (topBar.visible ? 20 + 64 : 0)
+        + (pills.visible ? 14 + pills.height : 0) + 16 + 26 + (tableHead.visible ? 52 : 0) + 12
+    readonly property bool compactHeight: !sheet.phoneLayout && sheet.androidDesktopPresentation
+        && sheet.height - 300 - sheet.desktopChromeReserve < sheet.minResultBudget
+    readonly property real compactChromeReserve: (topBar.visible ? 10 + 52 : 0)
+        + (pills.visible ? 8 + pills.height : 0) + 10 + 12 + (tableHead.visible ? 44 : 0) + 12
+    readonly property real compactBannerMin: 76
+    readonly property real bannerHeight: sheet.phoneLayout ? 200
+        : !sheet.compactHeight ? 300
+        : Math.round(Math.max(sheet.compactBannerMin,
+              Math.min(300, sheet.height - sheet.compactChromeReserve - sheet.minResultBudget)))
+
     property Item backdrop
     property string label: ""
     property string title: ""
@@ -364,7 +386,8 @@ Item {
     Item {
         id: bannerStrip
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: sheet.phoneLayout ? 200 : 300
+        objectName: "sourcesSheetBanner"
+        height: sheet.bannerHeight
         Image {
             anchors.fill: parent
             source: sheet.backdropUrl
@@ -393,18 +416,23 @@ Item {
     BackAction {
         id: sourcesBack
         x: sheet.phoneLayout ? 16 : sheet.headerOuterMargin
-        y: sheet.phoneLayout ? 20 : 30; z: 20
+        y: sheet.phoneLayout ? 20 : (sheet.compactHeight ? 12 : 30); z: 20
         onTriggered: sheet.hide()
     }
 
     // ---- title block, pinned to the bottom of the banner ----
     Column {
+        id: titleBlock
+        objectName: "sourcesSheetTitleBlock"
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: sheet.phoneLayout ? 16 : sheet.headerOuterMargin
+        // Short Android banners share the first line with Back instead of overlapping it.
+        anchors.leftMargin: sheet.phoneLayout ? 16
+            : sheet.compactHeight ? sourcesBack.x + sourcesBack.width + 16 : sheet.headerOuterMargin
         anchors.rightMargin: sheet.phoneLayout ? 16 : sheet.headerOuterMargin
         anchors.top: parent.top
-        anchors.topMargin: bannerStrip.height - height - (sheet.phoneLayout ? 14 : 26)
-        spacing: sheet.phoneLayout ? 8 : 12
+        anchors.topMargin: sheet.compactHeight ? Math.max(sourcesBack.y, bannerStrip.height - height - 12)
+            : bannerStrip.height - height - (sheet.phoneLayout ? 14 : 26)
+        spacing: sheet.phoneLayout ? 8 : (sheet.compactHeight ? 4 : 12)
         Text {
             visible: sheet.mode !== "play" || sheet.metaLine.length > 0
             width: parent.width
@@ -423,7 +451,7 @@ Item {
             width: parent.width
             text: sheet.title.length ? sheet.title : "Sources"
             color: theme.ink; font.family: theme.display
-            font.pixelSize: sheet.phoneLayout ? 30 : 56; font.weight: Font.DemiBold
+            font.pixelSize: sheet.phoneLayout ? 30 : (sheet.compactHeight ? 34 : 56); font.weight: Font.DemiBold
             wrapMode: sheet.phoneLayout ? Text.WordWrap : Text.NoWrap
             maximumLineCount: sheet.phoneLayout ? 3 : 1; elide: Text.ElideRight
             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
@@ -437,8 +465,8 @@ Item {
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
         anchors.rightMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
-        anchors.top: bannerStrip.bottom; anchors.topMargin: sheet.phoneLayout ? 10 : 20
-        height: sheet.phoneLayout ? 52 : 64; radius: 16
+        anchors.top: bannerStrip.bottom; anchors.topMargin: sheet.phoneLayout || sheet.compactHeight ? 10 : 20
+        height: sheet.phoneLayout || sheet.compactHeight ? 52 : 64; radius: 16
         color: tbMa.containsMouse ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(1, 1, 1, 0.06)
         border.width: 1
         border.color: tbMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.45) : theme.edge
@@ -491,7 +519,7 @@ Item {
         property int currentIndex: 0
         anchors.left: parent.left
         anchors.leftMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
-        anchors.top: topBar.bottom; anchors.topMargin: sheet.phoneLayout ? 10 : 14
+        anchors.top: topBar.bottom; anchors.topMargin: sheet.phoneLayout ? 10 : (sheet.compactHeight ? 8 : 14)
         width: Math.max(0, sheet.width - (sheet.phoneLayout ? 32 : 2 * sheet.outerPageMargin))
         spacing: sheet.phoneLayout ? 8 : 12
         visible: sheet.rows.length > 0
@@ -547,16 +575,17 @@ Item {
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
         anchors.rightMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
+        objectName: "sourcesSheetTable"
         anchors.top: pills.visible ? pills.bottom : bannerStrip.bottom
-        anchors.topMargin: sheet.phoneLayout ? 12 : 16
-        anchors.bottom: parent.bottom; anchors.bottomMargin: sheet.phoneLayout ? 16 : 26
+        anchors.topMargin: sheet.phoneLayout ? 12 : (sheet.compactHeight ? 10 : 16)
+        anchors.bottom: parent.bottom; anchors.bottomMargin: sheet.phoneLayout ? 16 : (sheet.compactHeight ? 12 : 26)
         radius: 18
         track: 0
 
         Item {
             id: tableHead
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: sheet.phoneLayout ? 70 : 52
+            height: sheet.phoneLayout ? 70 : (sheet.compactHeight ? 44 : 52)
             visible: sheet.visibleRows.length > 0
             Text {
                 anchors.left: parent.left; anchors.leftMargin: sheet.phoneLayout ? 14 : 26
@@ -642,6 +671,7 @@ Item {
 
         ListView {
             id: list
+            objectName: "sourcesSheetList"
             anchors.left: parent.left; anchors.right: parent.right
             anchors.top: tableHead.bottom; anchors.bottom: parent.bottom
             anchors.topMargin: 4; anchors.bottomMargin: 8
@@ -1101,7 +1131,10 @@ Item {
         visible: sheet.extMenuOpen
         anchors.left: topBar.left; anchors.right: topBar.right
         anchors.top: topBar.bottom; anchors.topMargin: 6
-        height: extMenuCol.implicitHeight + 16
+        // Bounded by the sheet so every extension stays reachable on short viewports.
+        height: Math.max(0, Math.min(extMenuCol.implicitHeight + 16,
+                                     sheet.height - topBar.y - topBar.height - 6 - 12))
+        clip: true
         radius: 16
         color: "#141414"
         border.width: 1; border.color: theme.edge
@@ -1122,46 +1155,65 @@ Item {
                 event.accepted=true
             }
         }
-        Column {
-            id: extMenuCol
-            anchors.left: parent.left; anchors.right: parent.right
-            anchors.top: parent.top; anchors.topMargin: 8
-            Repeater {
-                model: sheet.extMenuOpen ? sheet.extOptions() : []
-                delegate: Item {
-                    id: extOpt
-                    required property var modelData
-                    required property int index
-                    objectName: "extPick_" + extOpt.index
-                    property bool on: sheet.extFilter === extOpt.modelData.name
-                    width: parent.width; height: 52
-                    Rectangle {
-                        anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
-                        radius: 10
-                        color: extMenuFocus.activeFocus && sheet.extMenuIndex === extOpt.index
-                            ? Qt.rgba(0.94, 0.77, 0.29, 0.10)
-                            : (extOptMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : "transparent")
-                    }
-                    Text {
-                        anchors.left: parent.left; anchors.leftMargin: 28
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: extOpt.modelData.label
-                        color: extOpt.on ? theme.gold : theme.ink
-                        font.family: theme.ui; font.pixelSize: 16
-                        font.weight: extOpt.on ? Font.DemiBold : Font.Normal
-                    }
-                    Text {
-                        anchors.right: parent.right; anchors.rightMargin: 28
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: extOpt.modelData.count + (extOpt.modelData.count === 1 ? " source" : " sources")
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
-                    }
-                    MouseArea {
-                        id: extOptMa; anchors.fill: parent; hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            sheet.extMenuIndex = extOpt.index
-                            sheet.activateExtOption(extOpt.index)
+        Flickable {
+            id: extMenuFlick
+            objectName: "extPickerScroll"
+            anchors.fill: parent
+            contentWidth: width
+            contentHeight: extMenuCol.implicitHeight + 16
+            interactive: contentHeight > height
+            boundsBehavior: Flickable.StopAtBounds
+            Connections {
+                target: sheet
+                function onExtMenuIndexChanged() {
+                    var top = 8 + sheet.extMenuIndex * 52
+                    if (top < extMenuFlick.contentY) extMenuFlick.contentY = top - 8
+                    else if (top + 52 > extMenuFlick.contentY + extMenuFlick.height)
+                        extMenuFlick.contentY = Math.min(extMenuFlick.contentHeight - extMenuFlick.height,
+                                                         top + 52 + 8 - extMenuFlick.height)
+                }
+            }
+            Column {
+                id: extMenuCol
+                width: extMenuFlick.width
+                y: 8
+                Repeater {
+                    model: sheet.extMenuOpen ? sheet.extOptions() : []
+                    delegate: Item {
+                        id: extOpt
+                        required property var modelData
+                        required property int index
+                        objectName: "extPick_" + extOpt.index
+                        property bool on: sheet.extFilter === extOpt.modelData.name
+                        width: parent.width; height: 52
+                        Rectangle {
+                            anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
+                            radius: 10
+                            color: extMenuFocus.activeFocus && sheet.extMenuIndex === extOpt.index
+                                ? Qt.rgba(0.94, 0.77, 0.29, 0.10)
+                                : (extOptMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : "transparent")
+                        }
+                        Text {
+                            anchors.left: parent.left; anchors.leftMargin: 28
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: extOpt.modelData.label
+                            color: extOpt.on ? theme.gold : theme.ink
+                            font.family: theme.ui; font.pixelSize: 16
+                            font.weight: extOpt.on ? Font.DemiBold : Font.Normal
+                        }
+                        Text {
+                            anchors.right: parent.right; anchors.rightMargin: 28
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: extOpt.modelData.count + (extOpt.modelData.count === 1 ? " source" : " sources")
+                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
+                        }
+                        MouseArea {
+                            id: extOptMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                sheet.extMenuIndex = extOpt.index
+                                sheet.activateExtOption(extOpt.index)
+                            }
                         }
                     }
                 }
