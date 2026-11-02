@@ -127,6 +127,7 @@ Item {
     signal downloadRequested(var row)
     // season mode only: the ask came back with no full-season torrent
     signal seasonNoPacks()
+    signal openExtensionsRequested()
 
     visible: sheet.open || sheet.opacity > 0.01
     opacity: sheet.open ? 1 : 0
@@ -576,11 +577,14 @@ Item {
         }
 
         Text {
+            id: emptyText
+            objectName: "sourcesSheetEmptyText"
             anchors.centerIn: parent
+            anchors.verticalCenterOffset: extensionsAction.visible ? -((extensionsAction.height + 12) / 2) : 0
             visible: sheet.visibleRows.length === 0
-            width: sheet.phoneLayout ? Math.max(0, table.width - 36) : implicitWidth
-            wrapMode: sheet.phoneLayout ? Text.WordWrap : Text.NoWrap
-            horizontalAlignment: sheet.phoneLayout ? Text.AlignHCenter : Text.AlignLeft
+            width: Math.max(0, table.width - 36)
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
             text: sheet.loading ? "Finding sources…"
                   : (sheet.timedOut ? "Sources timed out. Try again."
                      : (sheet.askedNames.length === 0
@@ -588,6 +592,44 @@ Item {
                         : "No sources found."))
             color: sheet.timedOut ? "#e6a3a3" : theme.inkDim
             font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 15 : 16
+        }
+
+        Rectangle {
+            id: extensionsAction
+            objectName: "sourcesSheetExtensionsRoute"
+            visible: sheet.open && sheet.mode === "play" && !sheet.loading && !sheet.timedOut
+                     && sheet.rowCount === 0 && sheet.askedCount === 0
+            anchors.top: emptyText.bottom
+            anchors.topMargin: 12
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: Math.max(112, extensionsActionLabel.implicitWidth + 32)
+            height: sheet.phoneLayout ? 48 : 44
+            radius: height / 2
+            color: extensionsActionKeyboard.interactionActive ? theme.glassHi : "transparent"
+            border.width: 1
+            border.color: theme.gold
+            Text {
+                id: extensionsActionLabel
+                objectName: "sourcesSheetExtensionsLabel"
+                anchors.centerIn: parent
+                text: "Extensions"
+                color: theme.gold
+                font.family: theme.ui
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+            }
+            KeyboardAction {
+                id: extensionsActionKeyboard
+                objectName: "sourcesSheetExtensionsAction"
+                anchors.fill: parent
+                visible: extensionsAction.visible
+                accessibleName: "Extensions"
+                focusRadius: parent.radius
+                onTriggered: {
+                    sheet.hide()
+                    sheet.openExtensionsRequested()
+                }
+            }
         }
 
         ListView {

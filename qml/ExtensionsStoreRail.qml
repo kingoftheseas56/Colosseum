@@ -16,6 +16,8 @@ Column {
     property bool canSeeAll: true
     readonly property int phoneVisibleCount: 4
     property bool phoneLayout: false
+    property bool limitArtworkToViewport: false
+    property bool artworkActive: true
     signal addonActivated(var addon)
     signal seeAllRequested()
 
@@ -92,6 +94,7 @@ Column {
                 required property var modelData
                 width: mobileCards.width
                 phoneLayout: true
+                artworkActive: rail.artworkActive
                 addon: modelData
                 installed: { rail.revision; return rail.installedFn(modelData) }
                 busy: rail.busy[modelData.slug] === true
@@ -148,6 +151,10 @@ Column {
                     required property var modelData
                     required property int index
                     width: rail.width < 1100 ? 320 : 365
+                    artworkActive: rail.artworkActive
+                        && (!rail.limitArtworkToViewport || flick.width <= 0
+                            || (x + width >= flick.contentX - flick.width * 0.5
+                                && x <= flick.contentX + flick.width * 1.5))
                     addon: modelData
                     installed: { rail.revision; return rail.installedFn(modelData) }
                     busy: rail.busy[modelData.slug] === true

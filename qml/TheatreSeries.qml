@@ -29,6 +29,7 @@ Item {
     signal playLocalRequested(var payload)   // downloaded copy on disk → openLocalVideoSession, no sources sheet
     signal playArrivingRequested(var job)    // still-downloading copy → routeArrivingPlay (disk-first .part play)
     signal openItemRequested(var item)
+    signal openExtensionsRequested()
 
     property string title: ""
     property string mediaType: "movie"
@@ -2437,6 +2438,7 @@ Item {
         id: sources
         z: 60
         backdrop: page.backdrop
+        onOpenExtensionsRequested: page.openExtensionsRequested()
         onPlayRequested: (infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext) => page.playRequested(infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext)
         onDownloadRequested: (row) => {
             if (page.pendingSeasonPick) {

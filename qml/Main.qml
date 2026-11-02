@@ -5286,6 +5286,7 @@ Window {
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
             item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
+            item.openExtensionsRequested.connect(function() { win.openExtensionsPage("theatre") })
             // Rebuilt title page only: the world pills, search and a Back pill that names its place.
             if (item.worldRequested)
                 item.worldRequested.connect(function(w) { win.closeTheatreSeries(); win.openWorld(w) })
