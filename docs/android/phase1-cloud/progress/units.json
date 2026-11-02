@@ -152,9 +152,21 @@
     },
     {
       "id": "BR-SOURCE-REPLACEMENT",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "g++ tests/session_store_harness.cpp + SessionStore moc + FeriaBrowserOperations (Qt6Core) => 0 'SessionStore behavioral tests passed'; same assertions vs pre-fix SessionStore => FAIL",
+        "qmltestrunner tests/qml/tst_android_source_replacement.qml => 0 (6 passed); pre-fix Main => 2 failed (parked='resume', active=no dispatch)",
+        "node tests/android_source_warmup_test.mjs; test_desktop_presentation.py => 0; android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "native/SessionStore.h",
+        "qml/Main.qml",
+        "tests/session_store_harness.cpp",
+        "tests/qml/tst_android_source_replacement.qml"
+      ],
+      "note": "SessionStore.sourceKeyFor (lower(infoHash)+fileIdx; url: pseudo-hash case kept; else localPath > partPath > streamUrl) + sourceReplaced(id) emitted before setActive for same-content new-source reopen; saved position preserved. Main.onSourceReplaced: parked -> drop warm so activation loads new target + saved position; already-active -> capture live position, saveState, re-dispatch (player streamDemandEpoch retires old callbacks). Session harness built manually with g++ (CMake target unchanged); full native build/CTest not run. Media3/Nuvio teardown on device not verified.",
+      "updated_utc": "2026-11-02T22:22:21Z"
     },
     {
       "id": "PF-04",

@@ -2518,6 +2518,26 @@ Window {
             if (Sessions.activeId === id)
                 win.activateSession(Sessions.get(id))
         }
+        function onSourceReplaced(id) {
+            // Same content, a different chosen source (BR-SOURCE-REPLACEMENT). The record
+            // already carries the new target. A parked (warm) session must not resume the
+            // old stream: drop warm ownership so the pending setActive loads the new target
+            // with its saved position. An already-active session never receives
+            // activeChanged, so checkpoint the live position of the old transport first and
+            // re-dispatch here; the player's demand epoch retires the old route's callbacks.
+            if (Sessions.activeId === id) {
+                var rec = Sessions.get(id)
+                if (rec && rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) {
+                    var live = playerLayer.item.captureState()
+                    if (live && Number(live.position) > 0)
+                        Sessions.saveState(id, live)
+                }
+                win.warmPlayerSessionId = ""
+                win.activateSession(Sessions.get(id))
+            } else if (win.warmPlayerSessionId === id) {
+                win.warmPlayerSessionId = ""
+            }
+        }
     }
     Connections {
         target: win
