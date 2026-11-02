@@ -32,6 +32,8 @@ GitHub's [Releases](https://github.com/kingoftheseas56/Colosseum/releases) page 
 
 ## Development and verification
 
+- [Source-pinned architecture](ARCHITECTURE.md) and [feature status](FEATURE-STATUS.md)
+
 - [Test verification](colosseum-test-verification.md)
 - [Lanista assembled-app verification](colosseum-lanista-verification.md)
 - [Verification tooling map](colosseum-verification-tooling-map.md)
