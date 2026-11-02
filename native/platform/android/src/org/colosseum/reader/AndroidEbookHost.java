@@ -84,7 +84,9 @@ public final class AndroidEbookHost {
                 if (!"GET".equals(request.getMethod()) || !"https".equals(uri.getScheme())
                     || !"appassets.androidplatform.net".equals(uri.getEncodedAuthority())) return denied();
                 String path = uri.getPath();
-                if (path == null || !(path.startsWith("/assets/reader2/") || path.startsWith("/publication/")))
+                // The bundled reading typefaces live with the QML runtime.
+                if (path == null || !(path.startsWith("/assets/reader2/") || path.startsWith("/publication/")
+                        || path.startsWith("/assets/colosseum-runtime/assets/fonts/")))
                     return denied();
                 WebResourceResponse response = loader.shouldInterceptRequest(uri);
                 if (response == null) return denied();
