@@ -28,6 +28,8 @@ ReaderOverlay {
 
     // ---- inputs (bound by ReaderChrome from ReaderShell) ----
     property bool open: false
+    property bool touchInput: Qt.platform.os === "android"
+    property var inputMethod: Qt.inputMethod
     property var results: []            // [{ cfi, excerpt:{pre,match,post}, chapterTitle }]
     property int resultCount: 0
     property bool capped: false
@@ -47,12 +49,28 @@ ReaderOverlay {
     readonly property int cardW: Math.min(520, Math.round(width * 0.8))
     readonly property bool hasResults: results && results.length > 0
 
+    // Alpha's viewport cap, using Qt's window-coordinate IME rectangle directly.
+    // Window/item coordinates are already logical pixels; dividing by DPR again would
+    // move the card too far on a high-density display. An adjustResize window may already
+    // end above the keyboard, and floating keyboards can report an empty rectangle.
+    readonly property real keyboardOverlap: {
+        if (!touchInput || !inputMethod || !inputMethod.visible) return 0
+        const keyboard = inputMethod.keyboardRectangle
+        if (!keyboard || keyboard.height <= 0) return 0
+        const top = sheet.surface.mapFromItem(null, 0, keyboard.y).y
+        return Math.min(height, Math.max(0, height - top))
+    }
+    readonly property real availableH: Math.max(0, height - keyboardOverlap - 10)
+    readonly property real cardTop: touchInput
+        ? Math.min(68, Math.max(0, availableH - inrow.height - divider.height)) : 68
+
     // ---------- the floating glass card (mock .search: top 68, centered, min(520,80%)) ----------
     Rectangle {
         id: card
+        objectName: "reader2SearchCard"
         width: sheet.cardW
         x: (sheet.width - width) / 2
-        y: 68
+        y: sheet.cardTop
         radius: 13
         // Near-opaque: dense page text was bleeding through the old 0.88 glass and reading
         // as "shading" behind the results. Keep it a hair off solid so it still reads as glass.
@@ -62,7 +80,10 @@ ReaderOverlay {
         antialiasing: true
         clip: true
 
-        height: inrow.height + divider.height + resultsArea.height
+        height: sheet.touchInput
+            ? Math.min(inrow.height + divider.height + resultsArea.height,
+                       Math.max(0, sheet.availableH - sheet.cardTop))
+            : inrow.height + divider.height + resultsArea.height
         enabled: sheet.open
         opacity: sheet.open ? 1 : 0
         visible: opacity > 0
@@ -171,7 +192,10 @@ ReaderOverlay {
             anchors.left: parent.left
             anchors.right: parent.right
             // content-sized, capped at the mock's 280px scroll region (+16 vertical padding).
-            height: sheet.hasResults ? Math.min(resList.contentHeight + 16, 296) : 64
+            readonly property real preferredHeight: sheet.hasResults ? Math.min(resList.contentHeight + 16, 296) : 64
+            height: sheet.touchInput
+                ? Math.min(preferredHeight, Math.max(0, sheet.availableH - sheet.cardTop - inrow.height - divider.height))
+                : preferredHeight
 
             // quiet empty state: "Type to search" before a search, "No results" after one.
             Text {

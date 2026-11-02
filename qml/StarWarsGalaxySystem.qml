@@ -6,6 +6,7 @@ FocusScope {
     objectName: "starWarsGalaxySystem"
     property var destinations: []
     property bool reducedMotion: false
+    property bool touchInput: Qt.platform.os === "android"
     property real cameraYaw: -0.42
     property real cameraPitch: 0.73
     property real cameraZoom: 1.0
@@ -122,7 +123,24 @@ FocusScope {
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton
             cursorShape: Qt.PointingHandCursor
+            property point startPoint
+            property bool moved: false
+            property bool touchPress: false
+            preventStealing: false
+            onPressed: function(mouse) {
+                startPoint = Qt.point(mouse.x, mouse.y)
+                moved = false
+                touchPress = root.touchInput && mouse.source !== Qt.MouseEventNotSynthesized
+            }
+            onPositionChanged: function(mouse) {
+                if (pressed && touchPress && Math.hypot(mouse.x - startPoint.x, mouse.y - startPoint.y)
+                        > Qt.styleHints.startDragDistance) moved = true
+            }
+            onCanceled: moved = true
+            onEnabledChanged: if (!enabled) moved = true
+            onVisibleChanged: if (!visible) moved = true
             onClicked: {
+                if (moved) return
                 sun.forceActiveFocus()
                 root.skywalkerActivated()
             }
@@ -292,7 +310,24 @@ FocusScope {
                 width: Math.max(gate.r*2 + bodyPad, labelRow.x + labelRow.width + 8) - x
                 height: Math.max(gate.r*2 + bodyPad, labelRow.y + labelRow.height + 8) - y
                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                property point startPoint
+                property bool moved: false
+                property bool touchPress: false
+                preventStealing: false
+                onPressed: function(mouse) {
+                    startPoint = Qt.point(mouse.x, mouse.y)
+                    moved = false
+                    touchPress = root.touchInput && mouse.source !== Qt.MouseEventNotSynthesized
+                }
+                onPositionChanged: function(mouse) {
+                    if (pressed && touchPress && Math.hypot(mouse.x - startPoint.x, mouse.y - startPoint.y)
+                            > Qt.styleHints.startDragDistance) moved = true
+                }
+                onCanceled: moved = true
+                onEnabledChanged: if (!enabled) moved = true
+                onVisibleChanged: if (!visible) moved = true
                 onClicked: {
+                    if (moved) return
                     gate.forceActiveFocus()
                     root.destinationActivated(gate.modelData.id)
                 }

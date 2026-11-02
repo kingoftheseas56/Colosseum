@@ -253,7 +253,11 @@ export class View extends HTMLElement {
         const longPressDelay = 500; // 500ms for longpress
       
         img.addEventListener('touchstart', e => {
+          clearTimeout(longPressTimer);
           longPressTriggered = false;
+          // A second contact cancels the pending single-finger hold; it must not leave
+          // an earlier timer alive or arm a long-press action for a pinch.
+          if (e.touches.length !== 1) return;
           longPressTimer = setTimeout(() => {
             longPressTriggered = true;
             this.#emit('click-image', { img });
@@ -266,6 +270,11 @@ export class View extends HTMLElement {
         });
       
         img.addEventListener('touchmove', e => {
+          clearTimeout(longPressTimer);
+        });
+
+        // Cancellation does not deliver touchend; discard its delayed image action too.
+        img.addEventListener('touchcancel', e => {
           clearTimeout(longPressTimer);
         });
       

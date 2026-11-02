@@ -13,6 +13,7 @@ import "CollectionBackfill.js" as CB
 
 Item {
     id: root
+    property bool touchInput: Qt.platform.os === "android"
 
     // Retained Theatre worlds keep this page instance for filter/scroll state, but the saved
     // library model is only needed while its tab is active. A hidden page therefore keeps its
@@ -20,6 +21,15 @@ Item {
     property bool active: true
     property Flickable pageFlick: null
     readonly property bool pageFlow: pageFlick !== null
+    readonly property rect menuViewport: {
+        if (!root.touchInput || !root.pageFlick)
+            return Qt.rect(0, 0, root.width, root.height)
+        // The page can be taller than its clipped WorldPage scroll viewport.
+        const origin = (root.pageFlick.contentY, root.y, root.pageFlick.mapToItem(root, 0, 0))
+        const top = Math.max(0, origin.y)
+        const bottom = Math.min(root.height, origin.y + root.pageFlick.height)
+        return Qt.rect(0, top, root.width, Math.max(0, bottom - top))
+    }
     readonly property real flowHeight: wallHost.y + wallHost.flowContentHeight + 18
     NumberAnimation {
         id: pageParkAnim
@@ -139,6 +149,22 @@ Item {
         menuFocusReturn = null; menuRow = null; menuRowId = ""
         if (restoreFocus !== false && target)
             Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    // A flick can carry a pressed card outside either clipping viewport before a hold fires.
+    function holdPointVisible(area, x, y) {
+        if (!area || !area.visible || !area.enabled || !root.visible || !root.enabled)
+            return false
+        const wallPoint = area.mapToItem(wall, x, y)
+        if (wallPoint.x < 0 || wallPoint.y < 0
+                || wallPoint.x > wall.width || wallPoint.y > wall.height)
+            return false
+        if (root.pageFlick) {
+            const flowPoint = area.mapToItem(root.pageFlick, x, y)
+            if (flowPoint.x < 0 || flowPoint.y < 0
+                    || flowPoint.x > root.pageFlick.width || flowPoint.y > root.pageFlick.height)
+                return false
+        }
+        return true
     }
     function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : "" }
     function menuActions() {
@@ -335,6 +361,7 @@ Item {
             ? Math.max(0, Math.min(visibleTop, flowContentHeight - windowHeight)) : 0
     GridView {
         id: wall
+        objectName: "theatreLibraryWall"
         anchors.left: parent.left; anchors.right: parent.right
         anchors.top: root.pageFlow ? undefined : parent.top
         anchors.bottom: root.pageFlow ? undefined : parent.bottom
@@ -543,8 +570,50 @@ Item {
 
             HoverHandler { id: cardHover }
             MouseArea {
+                id: cardTap
+                objectName: "theatreLibraryCardTouch_" + String(card.modelData.entry.id)
                 anchors.fill: worldContent; cursorShape: Qt.PointingHandCursor
-                onClicked: root.detailRequested(card.modelData.entry)
+                pressAndHoldInterval: root.touchInput ? 500 : 2147483647
+                property bool holdMenuFired: false
+                property bool touchPress: false
+                property bool pressCanceled: false
+                function cancelTouchPress() {
+                    holdMenuFired = false
+                    touchPress = false
+                    pressCanceled = true
+                }
+                onPressed: (mouse) => {
+                    holdMenuFired = false
+                    pressCanceled = false
+                    // Qt reconstructs the hold event; its source is not the original press source.
+                    touchPress = mouse.source !== Qt.MouseEventNotSynthesized
+                }
+                onPressAndHold: (mouse) => {
+                    if (!root.touchInput || !cardTap.touchPress || cardTap.pressCanceled) {
+                        mouse.accepted = false
+                        return
+                    }
+                    if (!root.holdPointVisible(cardTap, mouse.x, mouse.y)) {
+                        cardTap.cancelTouchPress()
+                        mouse.accepted = false
+                        return
+                    }
+                    cardTap.holdMenuFired = true
+                    wall.currentIndex = card.index
+                    wall.forceActiveFocus(Qt.MouseFocusReason)
+                    // The held card is already visible; keyboard parking would close its menu.
+                    pageParkAnim.stop()
+                    const anchor = cardTap.mapToItem(root, mouse.x, mouse.y)
+                    root.openMenu(card.modelData, anchor.x, anchor.y, wall)
+                }
+                onCanceled: cancelTouchPress()
+                onEnabledChanged: if (!enabled) cancelTouchPress()
+                onVisibleChanged: if (!visible) cancelTouchPress()
+                onClicked: {
+                    if (cardTap.pressCanceled) return
+                    if (cardTap.holdMenuFired) { cardTap.holdMenuFired = false; return }
+                    root.detailRequested(card.modelData.entry)
+                }
             }
         }
     }
@@ -581,6 +650,7 @@ Item {
     }
     Rectangle {
         id: menuPanel
+        objectName: "theatreLibraryMenuPanel"
         z: 56; visible: root.menuRow !== null
         width: 200; radius: 13
         color: Qt.rgba(0.043, 0.047, 0.075, 0.98); border.width: 1; border.color: theme.edge
@@ -601,7 +671,8 @@ Item {
             if (event.key === Qt.Key_Escape) { root.closeMenu(true); event.accepted = true }
         }
         x: Math.max(8, Math.min(root.menuX - width, root.width - width - 8))
-        y: Math.max(8, Math.min(root.menuY, root.height - height - 8))
+        y: Math.max(root.menuViewport.y + 8,
+                    Math.min(root.menuY, root.menuViewport.y + root.menuViewport.height - height - 8))
 
         MouseArea { anchors.fill: parent }   // click-swallower body
 
