@@ -16,7 +16,9 @@ TestCase {
     Component { id: generationSpyFactory; SignalSpy {} }
     function init() {
         videoRequest=null;
-        var imported=NativeSource.importFiles([ManifestPath]);compare(imported.errors.length,0);
+        var path=BridgeFixtures.createIdentityAudio();BridgeFixtures.changeIdentityAudio(path,120*8000);
+        audioUrl="file:///"+path.replace(/\\/g,"/");
+        var imported=NativeSource.importFiles([path]);compare(imported.errors.length,0);
         source=sourceFactory.createObject(test);
         source.requested.connect(function(lane,id,operation,value,options) {
             if(lane==="play")Qt.callLater(function(){source.reply(lane,id,{trackId:value,url:audioUrl,provider:"local"},"");});
@@ -30,8 +32,6 @@ TestCase {
         var album=session.plainData(imported.albums[0]);
         function identify(track){track.videoId="tqxRidAWER8";track.artistIds=["ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ"];}
         album.tracks.forEach(identify);album.editions.forEach(function(e){e.tracks.forEach(identify);});
-        var path=BridgeFixtures.createIdentityAudio();BridgeFixtures.changeIdentityAudio(path,120*8000);
-        audioUrl="file:///"+path.replace(/\\/g,"/");
         session.shownEdition=session.normalize(album);session.playTrack(0);
         tryCompare(session,"loaded",true);session.paused=true;
         tryCompare(session,"hasVideo",true);
