@@ -396,9 +396,19 @@
     },
     {
       "id": "PF-07",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/android_track_labels_test.mjs => 0 (3 tests; base => AssertionError missing helpers)",
+        "tst_player_more_touch, tst_android_subtitle_viewport, tst_player_seek_touch, tst_android_speed_popup_viewport => 0; android_qml_preflight => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/PlayerPage.qml",
+        "qml/SubtitleMenu.qml",
+        "tests/android_track_labels_test.mjs"
+      ],
+      "note": "PlayerPage.subtitleDisplayTitle (generic 'Subtitle'/'Track n'/'#id' titles -> Subtitles.langName(lang)); trackCodecLabel maps Media3 MIME (application/x-subrip->SRT, audio/mp4a-latm->AAC, ...) and hides x-media3-cues; SubtitleMenu.codecLabel for rowMeta. Raw codec/id/url/selected stay in rows. Desktop: mpv codec strings unchanged in PlayerPage; SubtitleMenu fallback meta now shows SRT for 'subrip' (display only).",
+      "updated_utc": "2026-11-02T22:44:33Z"
     },
     {
       "id": "PF-09",

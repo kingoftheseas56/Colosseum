@@ -651,8 +651,19 @@ Item {
         return parts.length ? parts[parts.length - 1] : "Subtitle"
     }
 
+    // PF-07: Media3 titles every embedded track "Subtitle", and fetched files arrive as
+    // "OpenSubtitles v3 #<id>"; neither tells a person anything, so those rows take the
+    // language's name instead. Presentation only: ids/urls/selection are unchanged.
+    function subtitleDisplayTitle(title, lang) {
+        var t = String(title || "").trim()
+        var generic = !t.length || /^(subtitles?|track\s*\d*)$/i.test(t) || /#\d+\s*$/.test(t)
+        if (!generic || !String(lang || "").trim().length)
+            return t.length ? t : "Subtitle"
+        return Subtitles.langName(lang)
+    }
+
     function subtitleRow(track) {
-        var title = track.title || track.label || track.lang || "Subtitle"
+        var title = root.subtitleDisplayTitle(track.title || track.label, track.lang)
         var lang = track.lang || ""
         var hiProbe = (title + " " + lang).toLowerCase()
         return {
@@ -712,6 +723,16 @@ Item {
     // so channel-count/bitrate live under dashed keys reached by bracket access.
     function trackCodecLabel(track) {
         var c = String(track.codec || "").split(" ")[0]
+        // Android (Media3) reports MIME types: "application/x-subrip", "audio/mp4a-latm". Name the
+        // format; Media3's internal "x-media3-cues" names none, so it shows nothing (PF-07).
+        if (c.indexOf("/") > 0) {
+            c = c.toLowerCase().replace(/^[a-z]+\//, "").replace(/^x-/, "")
+            if (c.indexOf("media3-cues") >= 0) return ""
+            var known = { "subrip": "SRT", "vtt": "VTT", "ssa": "SSA", "ass": "ASS", "hdmv-pgs": "PGS",
+                          "pgs": "PGS", "vobsub": "VOBSUB", "ttml+xml": "TTML", "mp4a-latm": "AAC",
+                          "ac3": "AC3", "eac3": "EAC3", "eac3-joc": "EAC3", "true-hd": "TRUEHD", "vnd.dts": "DTS" }
+            return known[c] || c.toUpperCase()
+        }
         return c.length ? c.toUpperCase() : ""
     }
     function trackChannels(track) {

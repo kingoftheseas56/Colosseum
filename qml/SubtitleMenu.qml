@@ -171,6 +171,18 @@ Item {
         return track.label || track.title || track.lang || track.id || "Subtitle";
     }
 
+    // PF-07: readable subtitle format from a codec name or Media3 MIME type; internal
+    // media3-cues shows nothing. Display only.
+    function codecLabel(codec) {
+        var c = String(codec || "").trim().toLowerCase();
+        if (!c.length || c.indexOf("media3-cues") >= 0)
+            return "";
+        c = c.replace(/^[a-z]+\//, "").replace(/^x-/, "");
+        var known = { "subrip": "SRT", "vtt": "VTT", "webvtt": "VTT", "ssa": "SSA", "ass": "ASS",
+                      "pgs": "PGS", "hdmv-pgs": "PGS", "dvdsub": "VOBSUB", "vobsub": "VOBSUB", "ttml+xml": "TTML" };
+        return known[c] || c.toUpperCase();
+    }
+
     function rowMeta(track) {
         // Tier 2 rich rows (2026-07-20): builder pre-computes `tech` (codec · embedded/
         // external, or "provider · fetched" for online). Salient state moves to the
@@ -184,8 +196,9 @@ Item {
         if (track.lang && String(track.lang).trim() !== "")
             parts.push(String(track.lang).toUpperCase());
         parts.push(track.external ? "EXTERNAL" : "EMBEDDED");
-        if (track.codec && String(track.codec).trim() !== "")
-            parts.push(String(track.codec).toUpperCase());
+        var codec = menu.codecLabel(track.codec);
+        if (codec.length)
+            parts.push(codec);
         if (track.forced)
             parts.push("Forced");
         if (track.hearingImpaired)
