@@ -4,7 +4,7 @@
 
 <h1 align="center">Colosseum</h1>
 
-<p align="center"><strong>Everything you watch, read, and listen to, under one roof.</strong></p>
+<p align="center"><strong>One media app for all art.</strong></p>
 
 <p align="center">Movies & TV · Anime · Manga & comics · Books & audiobooks · Local media</p>
 
