@@ -278,9 +278,20 @@
     },
     {
       "id": "PF-06",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/theatre_catalogue_movie_fallback_test.mjs => 0 (4 tests; base => 2 failed)",
+        "theatre_facts_demand, theatre_landing_delivery, theatre_remote_delivery node tests; tst_theatre_removal_dialog => 0; android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/TheatreApi.js",
+        "qml/TheatreSeries.qml",
+        "qml/TheatreSeriesView.qml",
+        "tests/theatre_catalogue_movie_fallback_test.mjs"
+      ],
+      "note": "TheatreApi.catalogueMovieMeta projects only exact tt movie record (id===requested id, type movie, non-empty name|title; releaseInfo/imdbRating/poster|cover) and loadMeta uses it only after Cinemeta and extensions miss. Both title pages pass itemData; currentId() prefers canonicalSourceId so a Collections record whose id is a provider sourceId does not match (fails closed); expectedCanonicalId guard retained. Series never fall back. Other loadMeta callers unchanged.",
+      "updated_utc": "2026-11-02T22:32:30Z"
     },
     {
       "id": "WT-03",

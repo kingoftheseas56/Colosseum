@@ -863,6 +863,7 @@ Item {
         page.animeDoor = String((itemData && itemData.canonicalSourceId)
             ? id : ((itemData && (itemData.sourceId || itemData.id)) || ""))
         var expectedCanonicalId = String((itemData && itemData.canonicalSourceId) || "")
+        // PF-06: the exact catalogue record is a movie-only fallback after provider misses.
         TheatreApi.loadMeta(mediaType, id, function(meta) {
             if (!meta) {
                 errorMsg = "Couldn't load details.";
@@ -921,7 +922,7 @@ Item {
             page.onMetaLoaded();
             loading = false;
             revealGuard.stop();
-        });
+        }, itemData);
     }
 
     function onMetaLoaded() {
