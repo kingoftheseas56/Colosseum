@@ -95,9 +95,20 @@
     },
     {
       "id": "BR-READER-TARGETS",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_beta_reader_touch.qml => 0 (12 passed); vs pre-fix SelectionMenu/LeftPanel => 5 failed",
+        "tst_android_reader_overlay_focus, tst_comicreader_*, tst_k01_reader_keyboard, tst_reader2_activity, tst_reader_keyboard_area_events => 0",
+        "node android_reader_boot/selection_touch/gesture_cancel => OK; android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/reader2/SelectionMenu.qml",
+        "qml/reader2/LeftPanel.qml",
+        "tests/qml/tst_android_beta_reader_touch.qml"
+      ],
+      "note": "Touch (Android) SelectionMenu: 48 swatch/action/Cancel/Save hosts, abutting (spacing 0) and contained to overlay width-24; note card 152 (fits above IME). LeftPanel bookmarks: reserved full-height 48 delete gutter, jump area stops at gutter. Desktop: identical (44/128/300, glyph+6 delete). Existing test updated from 'touch keeps desktop size' to new contract. Native reparenting/focus/IME paths unchanged (overlay_focus test passes). Highlights-tab delete not changed. Device: font scale/real IME pending.",
+      "updated_utc": "2026-11-02T21:56:48Z"
     },
     {
       "id": "WT-02",

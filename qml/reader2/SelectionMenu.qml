@@ -111,9 +111,14 @@ ReaderOverlay {
         { display: Qt.rgba(151 / 255, 187 / 255, 152 / 255, 0.85), value: "#97BB98" }  // moss
     ]
 
+    // Touch input (Android) gets finger-sized hosts: 48-unit swatches/actions/save, contained
+    // in the overlay width. Desktop dimensions are unchanged.
+    readonly property real touchTarget: touchInput ? 48 : 0
     readonly property int cardH: noteEditing
-        ? (touchInput ? Math.min(128, Math.max(0, availableHeight - 20)) : 128) : 44
-    readonly property int cardW: noteEditing ? 300 : (cardRow.implicitWidth + 28)  // 14px pad each side
+        ? (touchInput ? Math.min(152, Math.max(0, availableHeight - 20)) : 128)
+        : (touchInput ? 48 : 44)
+    readonly property int naturalCardW: noteEditing ? 300 : (cardRow.implicitWidth + 28)  // 14px pad each side
+    readonly property int cardW: touchInput ? Math.min(Math.max(0, width - 24), naturalCardW) : naturalCardW
     readonly property var pos: L.selectionMenuPos(menu.sel, menu.width, menu.availableHeight,
                                                   menu.cardW, menu.cardH, 12, 10)
 
@@ -157,7 +162,8 @@ ReaderOverlay {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: 14
-            spacing: 12
+            // touch hosts abut (disjoint) instead of adding gaps beside 48-unit targets
+            spacing: menu.touchInput ? 0 : 12
 
             // three color dots — select: highlight-in-color; existing: re-color.
             Repeater {
@@ -167,7 +173,7 @@ ReaderOverlay {
                     id: dot
                     required property var modelData
                     required property int index
-                    width: 20
+                    width: menu.touchInput ? 48 : 20
                     height: card.height
                     function focusKeyboard() { dotMa.forceActiveFocus(Qt.OtherFocusReason) }
                     Rectangle {
@@ -238,7 +244,7 @@ ReaderOverlay {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                height: Math.max(0, parent.height - 34)
+                height: Math.max(0, parent.height - (menu.touchInput ? 58 : 34))
                 radius: 8
                 color: Qt.rgba(1, 1, 1, 0.05)
                 border.color: Theme.barBorder
@@ -291,13 +297,13 @@ ReaderOverlay {
                 spacing: 16
                 TextAction {
                     label: "Cancel"
-                    btnHeight: 24
+                    btnHeight: menu.touchInput ? 48 : 24
                     onTriggered: menu.dismissed()
                 }
                 Item {
                     objectName: "reader2SelectionSave"
-                    width: saveText.implicitWidth + 8
-                    height: 24
+                    width: Math.max(saveText.implicitWidth + 8, menu.touchTarget)
+                    height: menu.touchInput ? 48 : 24
                     readonly property bool canSave: noteInput.text.trim().length > 0
                     Text {
                         id: saveText
@@ -325,9 +331,9 @@ ReaderOverlay {
     // A small text button used in both the action row and the editor's Cancel/Save.
     component TextAction: Item {
         property alias label: t.text
-        property int btnHeight: 44
+        property int btnHeight: menu.touchInput ? 48 : 44
         signal triggered()
-        width: t.implicitWidth + 8
+        width: Math.max(t.implicitWidth + 8, menu.touchTarget)
         height: btnHeight
         Text {
             id: t
