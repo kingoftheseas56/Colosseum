@@ -255,6 +255,7 @@ Item {
     // --- resume choice (Feature 3): first-load-only Resume / Start over overlay ---
     property real resumePromptMinSec: 30       // only prompt after meaningful progress
     property real resumeRestartThreshold: 0.80 // at/over this fraction of duration, start over silently
+    property bool explicitResumePosition: false // a Continue source pick keeps its requested position (PF-04)
     property bool resumeChoiceOpen: false      // is the overlay visible
     property var resumeChoiceFocusReturnItem: null
     onResumeChoiceOpenChanged: {
@@ -1574,6 +1575,8 @@ Item {
         root.streamRouteUrl = ""
         root.clearStreamRouteRestore()
         root.resetRecoveryResume()
+        var explicitResume = Number((playbackContext || ({})).resumePosition) || 0
+        root.explicitResumePosition = explicitResume > 0
         root.arrivingStreamUrl = ""
         root.arrivingStreamHeaders = ({})
         root.clearActiveDirectHeaders()
@@ -1606,6 +1609,8 @@ Item {
         var savedPos = Number(((prog || ({})).resume || ({})).position || 0)
         if (savedPos > 0)
             root.pendingSeekSec = savedPos
+        else if (root.explicitResumePosition)
+            root.pendingSeekSec = explicitResume
         root.playbackQueue = (playbackContext || ({})).episodeQueue || []
         root.playbackQueueIndex = (playbackContext || ({})).episodeIndex !== undefined
                                   ? Number((playbackContext || ({})).episodeIndex) : -1
@@ -2726,6 +2731,7 @@ Item {
 
 
     function playUrl(url, title) {
+        root.explicitResumePosition = false
         if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
         root.streamDemandActive = false
@@ -2818,6 +2824,7 @@ Item {
     }
 
     function playLocalFile(target) {
+        root.explicitResumePosition = false
         if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
         root.streamDemandActive = false
@@ -2893,6 +2900,7 @@ Item {
     // grade like playLocalFile: subtitles + progress key off the video id, so the
     // landed copy resumes where this live watch leaves off.
     function playRemoteUrl(target) {
+        root.explicitResumePosition = false
         if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
         root.streamDemandActive = false
@@ -3009,7 +3017,8 @@ Item {
             return false
         root.resumePromptConsumed = true
         root.resumeChoiceSec = root.pendingSeekSec
-        if (mpv.duration > 0 && root.resumeChoiceSec / mpv.duration >= root.resumeRestartThreshold) {
+        if (!root.explicitResumePosition && mpv.duration > 0
+                && root.resumeChoiceSec / mpv.duration >= root.resumeRestartThreshold) {
             root.pendingSeekSec = 0
             root.resumeChoiceSec = -1
             root.resumeChoiceOpen = false
