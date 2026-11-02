@@ -5,6 +5,20 @@
 <p align="center"><strong>One media app for all art.</strong></p>
 
 <p align="center">
+  <img alt="Version 1.2.0" src="https://img.shields.io/badge/Version-1.2.0-B8872C?style=flat-square&amp;labelColor=3A3023" />
+  <img alt="MIT License" src="https://img.shields.io/badge/License-MIT-B86C49?style=flat-square&amp;labelColor=3A2D27" />
+  <img alt="Qt" src="https://img.shields.io/badge/Framework-Qt-287F65?style=flat-square&amp;labelColor=253B36" />
+  <img alt="QML" src="https://img.shields.io/badge/Interface-QML-287D9F?style=flat-square&amp;labelColor=273C49" />
+</p>
+
+<p align="center">
+  <img alt="C++" src="https://img.shields.io/badge/Backend-C%2B%2B-77629F?style=flat-square&amp;labelColor=342D42" />
+  <img alt="Windows" src="https://img.shields.io/badge/Desktop-Windows-3977B5?style=flat-square&amp;labelColor=293B4E" />
+  <img alt="Linux" src="https://img.shields.io/badge/Desktop-Linux-728A88?style=flat-square&amp;labelColor=303E40" />
+  <img alt="Android Alpha" src="https://img.shields.io/badge/Mobile-Android_Alpha-8265B0?style=flat-square&amp;labelColor=383244" />
+</p>
+
+<p align="center">
   <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-setup.exe"><strong>Download for Windows</strong></a> ·
   <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-linux-amd64.deb"><strong>Download for Linux</strong></a> ·
   <a href="https://getcolosseum.world/"><strong>Website</strong></a> ·
