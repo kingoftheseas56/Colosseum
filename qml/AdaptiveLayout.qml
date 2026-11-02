@@ -1,6 +1,7 @@
 // AdaptiveLayout - shared desktop and phone presentation policy.
 // Geometry only: content/models/navigation stay in the existing shared QML pages.
 import QtQml
+import "TouchMetrics.js" as TouchMetrics
 
 QtObject {
     id: metrics
@@ -34,5 +35,9 @@ QtObject {
     readonly property real sectionSpacing: phone ? 22 : (tablet ? 28 : 36)
     // Home historically used a slightly tighter 30 px desktop rhythm than WorldPage's 36 px.
     readonly property real homeSectionSpacing: phone ? 22 : (tablet ? 28 : 30)
+    // Input metrics are presentation-independent: Android desktop presentation keeps the
+    // desktop composition but still receives finger-sized hit hosts. Desktop returns 0/identity.
+    readonly property real touchTargetSize: androidHost ? TouchMetrics.minimumTargetSize : 0
+    function targetSize(size) { return androidHost ? Math.max(TouchMetrics.minimumTargetSize, size) : size }
     readonly property real heroHeight: phone ? 260 : (tablet ? 300 : 340)
 }

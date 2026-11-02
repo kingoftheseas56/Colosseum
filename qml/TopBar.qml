@@ -35,6 +35,10 @@ Item {
     // Retained as a no-op hook for shared callers (WorldPage, ExtensionsStorePage);
     // QQmlFileSelector selects qml/+android/TopBar.qml on Android.
     property bool androidHost: false
+    AdaptiveLayout { id: inputMetrics; androidHost: bar.androidHost }
+    readonly property real touchTargetSize: inputMetrics.touchTargetSize
+    readonly property real touchHorizontalInset: bar.touchTargetSize > 0
+        ? Math.min((bar.touchTargetSize - 22) / 2, Math.floor(systemChrome.spacing / 2)) : 0
     property bool wallpaperEnabled: true
     property string clock: "8:29"
     property string ampm: "PM"
@@ -150,7 +154,11 @@ Item {
         property bool showLabel: false
         property bool lit: false      // full-strength (e.g. a running state), regardless of hover
         signal clicked()
-        width: showLabel ? 82 : 22; height: 22
+        // Android: the 22 px glyph rides a 48-unit-tall hit host; horizontally the pointer owner
+        // extends into half of each Row gap so neighbours stay disjoint and the shared
+        // desktop composition (already tight beside the world picker) keeps its widths.
+        width: showLabel ? 82 : 22
+        height: Math.max(22, bar.touchTargetSize)
         Image {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
@@ -173,6 +181,8 @@ Item {
         KeyboardAction {
             id: input
             anchors.fill: parent
+            anchors.leftMargin: -bar.touchHorizontalInset
+            anchors.rightMargin: -bar.touchHorizontalInset
             accessibleName: sysRoot.accessibleName
             focusRadius: 6
             onTriggered: sysRoot.clicked()
