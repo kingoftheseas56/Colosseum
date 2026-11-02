@@ -23,7 +23,7 @@
   <sub>Home · Click the image to explore the interactive website preview</sub>
 </p>
 
-Colosseum is an app that brings worlds of media together: **Theatre** is the world for movies, TV shows, and anime, and has a video player to bring them to life; **Tankoban** is for manga and comics, with a comic reader to cherish them; **Biblio** is for books and audiobooks, along with a book reader to get lost in the vast depths of literature; **Universes** is the world of curated catalogues, bringing together media of every kind from your favorite franchises into a singular entity, a consumable Wikipedia list made just for you; and **Vault** is the world that indexes and organizes your local media into a personal library.
+Colosseum is an app that brings worlds of media together: **Theatre** is the world for movies, TV shows, and anime, and has a video player to bring them to life; **Tankoban** is for manga and comics, with a comic reader to cherish them; **Biblio** is for books and audiobooks, along with a book reader to get lost in the vast depths of literature; **Universes** is the world of curated catalogues, bringing together media of every kind from your favorite franchises into a singular entity, a consumable Wikipedia list made just for you; and **Vault** is the world that turns your homegrown collection of media into an indexed and organized library, so you can explore those familiar files afresh.
 
 All these wildly different mediums, their rich catalogues, sources, readers, and players come together as **one living, breathing media environment.**
 
