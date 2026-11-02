@@ -19,10 +19,20 @@ See `units.json` for per-unit status/tests/files. Summary log (UTC):
 - 22:50 BR-READER-TARGETS — HOST_QML_PASS (selection 48 hosts, bookmark delete gutter).
 - 23:00 WT-02 — HOST_QML_PASS (account IME avoidance/focus reveal).
 - 23:20 WT-04 — HOST_QML_PASS via native PlatformRuntime harness; full tests/qml suite has no new failures vs base (progress/HOST-QML-SUITE.md).
+- 23:35 BR-SOURCE-REPLACEMENT — HOST_QML_PASS (native SessionStore harness built with g++; Main warm/active dispatch QML extract).
+- 23:45 PF-04 — PORTABLE_TEST_PASS (Continue missing download -> exact Sources + explicit resume).
+- 23:50 PF-03 — PORTABLE_TEST_PASS (Theatre/Sources nested native Back).
+- 23:55 WT-10 — PORTABLE_TEST_PASS (Galaxy/DCAU nested Back).
+- 00:05 WT-06 — PORTABLE_TEST_PASS (Featured Read/Details + cancellable deferred read).
+- 00:10 WT-05, WT-07, PF-06 — PORTABLE_TEST_PASS.
+- 00:20 WT-03 — HOST_QML_PASS (advisory decoder compatibility).
+- 00:25 PF-08, PF-14, WT-08 — HOST_QML_PASS.
+- 00:40 WT-11 — HOST_QML_PASS (East Blue containment).
+- WT-01 deliberately sequenced after the smaller portable units (PF-10, PF-07, PF-09, WT-12, WT-14) so they are banked first; then WT-01, PF-02b.
 
 ## Next action
 
-BR-SOURCE-REPLACEMENT (tasks/BR-SOURCE-REPLACEMENT.md).
+PF-10 (tasks/PF-10.md).
 
 ## Blockers
 

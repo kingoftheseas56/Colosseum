@@ -379,9 +379,20 @@
     },
     {
       "id": "PF-10",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "python3 tests/test_android_package_identity.py => OK (4 tests, cmake -P script mode)",
+        "tests/test_android_runtime_bundle.py => OK",
+        "PRE-EXISTING: tests/test_android_build_graph_contract.py 10 FAIL identical with unmodified android.cmake (desktop organ/mpv/apk baseline text assertions)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "native/cmake/AndroidPackageIdentity.cmake",
+        "native/cmake/android.cmake",
+        "tests/test_android_package_identity.py"
+      ],
+      "note": "colosseum_validate_android_identity: package id syntax + lanes (world.getcolosseum.app, world.getcolosseum.app.<lane> incl. authorized .beta, org.qtproject.example[.colosseum[.<id>]]); versionCode positive decimal <=2100000000, no leading zero; app name/versionName single-line without XML-special chars. Called before QT_ANDROID_PACKAGE_NAME/VERSION_CODE assignment. Not run in a real Android configure (no Android toolchain); signer/monotonic versionCode remain release-process checks.",
+      "updated_utc": "2026-11-02T22:43:14Z"
     },
     {
       "id": "PF-07",
