@@ -2228,8 +2228,37 @@ Window {
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
     function openTheatreSeries(item) { win.cancelCatalogueRoute();
         theatreSeriesLayer.pendingItem = item
-        if (theatreSeriesLayer.active && theatreSeriesLayer.item) theatreSeriesLayer.item.itemData = item
+        if (theatreSeriesLayer.active && theatreSeriesLayer.item) {
+            theatreSeriesLayer.item.itemData = item
+            if (item && item.resumeSources && theatreSeriesLayer.item.openResumeSources)
+                theatreSeriesLayer.item.openResumeSources(item.resumeSources)
+        }
         else theatreSeriesLayer.active = true
+    }
+    // PF-04: Continue on a download whose local file is gone. Returns true when it routed to
+    // the exact title/episode Sources sheet (canonical tt/anime ids only); false keeps the
+    // existing local-player path (and its error/retry) for files that are present or ids that
+    // have no catalogue route.
+    function openMissingDownloadSources(entry, r, presentation, title, cover) {
+        if (typeof Download === "undefined" || !Download || typeof Download.localFileAvailable !== "function")
+            return false
+        if (Download.localFileAvailable(String(r.localPath)))
+            return false
+        var sourceId = String(r.subId || entry.id || "")
+        var rootId = EpisodeBrowser.seriesRootId(sourceId)
+        if (!/^(tt\d+|(?:mal|kitsu|anilist|anidb):\d+)$/.test(rootId))
+            return false
+        var sourceType = r.subType === "series" || presentation.type === "series"
+                         || sourceId !== rootId ? "series" : "movie"
+        var showTitle = EpisodeBrowser.showTitleFrom(title)
+        win.openTheatreSeries({ "id": rootId, "type": sourceType, "title": showTitle, "cover": cover,
+            "resumeSources": {
+                "id": sourceId, "type": sourceType, "title": title,
+                "context": { "title": showTitle, "backdrop": cover, "imdbId": rootId,
+                    "season": EpisodeBrowser.seasonOf(sourceId),
+                    "episode": sourceType === "series" ? Number(sourceId.split(":").pop()) || 0 : 0,
+                    "resumePosition": Number(r.position) || 0 } } })
+        return true
     }
     function closeTheatreSeries() { theatreSeriesLayer.active = false; win.restoreNamedCollectionsReturn() }
 
@@ -3435,7 +3464,13 @@ Window {
                                         "title": title, "cover": cover })
                 return
             }
-            // downloaded file first: resume the LOCAL copy at position, never a stream fetch
+            // downloaded file first: resume the LOCAL copy at position, never a stream fetch.
+            // A deleted/moved download (PF-04) reopens the same title/episode's Sources sheet
+            // with its saved position instead of erroring; the user picks the replacement
+            // source explicitly (nothing is chosen for them, progress is not rewritten).
+            if (r.localPath && String(r.localPath).length
+                    && win.openMissingDownloadSources(entry, r, presentation, title, cover))
+                return
             if (r.localPath && String(r.localPath).length)
                 win.openLocalVideoSession({ "path": r.localPath, "id": entry.id || "",
                                             "title": title, "art": cover,
@@ -3593,7 +3628,9 @@ Window {
                         "infoHash": infoHash, "fileIdx": fileIdx || 0, "title": title || "",
                         "backdrop": backdrop || "", "subType": subType || "", "subId": subId || "",
                         "streamCandidates": streamCandidates || [], "playbackContext": playbackContext || ({}),
-                        "position": position || 0 }
+                        // A Continue source pick (PF-04) keeps its saved position; an explicit
+                        // caller position still wins.
+                        "position": position || Number((playbackContext || ({})).resumePosition) || 0 }
         })
     }
     // A downloaded video's session: dedup key = target.id (the stream id, e.g. "tt123:1:2"),
@@ -5321,6 +5358,11 @@ Window {
                 })
             if (item.backLabel !== undefined)
                 item.backLabel = Qt.binding(function() { return worldStack.current.length ? worldStack.current : "Home" })
+            // Cold load continuation (PF-04), after playback signals are connected: only the
+            // latest pending request opens its Sources sheet.
+            if (theatreSeriesLayer.pendingItem && theatreSeriesLayer.pendingItem.resumeSources
+                    && item.openResumeSources)
+                item.openResumeSources(theatreSeriesLayer.pendingItem.resumeSources)
         }
     }
 

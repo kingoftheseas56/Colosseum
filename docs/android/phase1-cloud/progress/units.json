@@ -170,9 +170,24 @@
     },
     {
       "id": "PF-04",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/android_continue_missing_download_test.mjs => 0 (12 cases; adopted from Alpha; vs pre-fix Main => assertion fail)",
+        "node tests/continue_manga_resume_routing_test.mjs => 0 (double updated), android_media3_end_resume, continue_comic_resume => 0",
+        "PRE-EXISTING identical on base: player_recovery_resume_test 3/13, player_local_error_retry_test 6/8",
+        "player QML suites (more/seek/subtitle/speed/source_replacement) => 0; android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/Main.qml",
+        "qml/TheatreSeries.qml",
+        "qml/TheatreSeriesView.qml",
+        "qml/PlayerPage.qml",
+        "tests/android_continue_missing_download_test.mjs",
+        "tests/continue_manga_resume_routing_test.mjs"
+      ],
+      "note": "Main.openMissingDownloadSources (Download.localFileAvailable false + canonical tt/anime root) -> openTheatreSeries with resumeSources (exact episode id, season/episode, resumePosition); warm openTheatreSeries and cold onLoaded (after signal wiring) call page.openResumeSources; openMovieSession defaults target.position to playbackContext.resumePosition; PlayerPage.explicitResumePosition bypasses 80% restart and seeds pendingSeekSec when Progress has none; reset by playUrl/playLocalFile/playRemoteUrl. Present files keep the local player + its retry. Alpha releaseRemovedLocalVideo/Download.removed portion NOT adopted (different mechanism). DownloadStore.localFileAvailable native harness not adopted (native exists; not rebuilt). Evidence is Node VM over production functions, not a QML runtime.",
+      "updated_utc": "2026-11-02T22:24:35Z"
     },
     {
       "id": "PF-03",
