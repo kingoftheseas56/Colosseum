@@ -245,9 +245,21 @@
     },
     {
       "id": "WT-05",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/extensions_store_torrentio_fallback_test.mjs => 0 (7 tests, adopted from Alpha; base => 5 failed)",
+        "extensions_store_contract_test => PASS; extensions_artwork, tst_extensions_release_navigation => 0",
+        "PRE-EXISTING: extensions_store_svelte_contract_test fails 'Store.svelte must exist' on unmodified files",
+        "android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/ExtensionsStoreApi.js",
+        "qml/ExtensionsStorePage.qml",
+        "tests/extensions_store_torrentio_fallback_test.mjs"
+      ],
+      "note": "Pure catalogue normalization: withTorrentio() supplies a normalized Torrentio Store card (stable id/manifestUrl) initially, on success and on failure; remote valid entry keeps metadata; Essentials/rows use stable identity (renamed entry not duplicated). No auto install/enable; native ExtensionsStore management, instance identity, expectedId guard untouched. Physical: offline Store shows card; install remains explicit.",
+      "updated_utc": "2026-11-02T22:30:34Z"
     },
     {
       "id": "WT-07",
