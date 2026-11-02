@@ -62,8 +62,6 @@ All these wildly different mediums, their rich catalogues, sources, readers, and
   </tr>
 </table>
 
-<sub>These are captures of the public **interactive website previews**, not verified screenshots of the 1.2.0 desktop installer. Some demos recreate earlier versions and may differ from the current app. **Universes is the fourth world and Vault is the fifth**; Tributes are separate artistic experiences, not another world.</sub>
-
 ## Get Colosseum 1.2.0
 
 | Platform | Download |
