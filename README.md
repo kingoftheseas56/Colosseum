@@ -19,10 +19,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-setup.exe"><strong>Download for Windows</strong></a> ·
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-linux-amd64.deb"><strong>Download for Linux</strong></a> ·
-  <a href="https://getcolosseum.world/"><strong>Website</strong></a> ·
-  <a href="https://getcolosseum.world/demos/home.html"><strong>Interactive previews</strong></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-setup.exe"><img src="assets/icons/readme-download-windows.svg" alt="Download Colosseum for Windows" width="154" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-linux-amd64.deb"><img src="assets/icons/readme-download-linux.svg" alt="Download Colosseum for Linux" width="154" /></a>
+</p>
+
+<p align="center">
+  <a href="https://getcolosseum.world/"><img src="assets/icons/readme-website.svg" alt="Colosseum website" width="154" /></a>
+  <a href="https://getcolosseum.world/demos/home.html"><img src="assets/icons/readme-previews.svg" alt="Interactive Colosseum previews" width="154" /></a>
 </p>
 
 <p align="center">
