@@ -79,9 +79,19 @@
     },
     {
       "id": "PF-05",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_speed_popup_viewport.qml => 0 (10 passed); pre-fix block (seams injected) => 8 failed: popup y=-16 @1.15, -77 @1.20, -256 @354h",
+        "tst_player_more_touch 7/0, tst_android_subtitle_viewport 8/0, tst_player_seek_touch 9/0 => 0",
+        "android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/PlayerPage.qml",
+        "tests/qml/tst_android_speed_popup_viewport.qml"
+      ],
+      "note": "speedPopup: width min(420, chrome-20), height min(body, chrome-20), clamped placement re-evaluated on popup/chrome resize, body in Flickable (interactive only when clipped), keyboard reveal for speed/sleep/skip, contentY reset on open. Desktop at sufficient size: identical 420 x body, non-interactive. Fixture compiles the production block with seams (no native Media3). Other player popups (audio/fill/watchparty) not changed - same-route checklist only, not claimed defects.",
+      "updated_utc": "2026-11-02T21:54:32Z"
     },
     {
       "id": "BR-READER-TARGETS",
