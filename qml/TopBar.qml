@@ -345,6 +345,7 @@ Item {
         // only the small external badge communicates an actionable state.
         Item {
             id: stremioButton
+            y: bar.androidHost ? (parent.height - height) / 2 : 0
             // Retained worlds each own a TopBar. Name only Theatre's copy so
             // accessibility/automation never resolves a hidden sibling.
             objectName: bar.activeMedium === "Theatre" ? "topBarStremioButton" : ""
@@ -382,6 +383,7 @@ Item {
         // Update — home only. Takes search's throne; the silver badge signals an
         // available release (pulse on unseen, steady once seen).
         Item {
+            y: bar.androidHost ? (parent.height - height) / 2 : 0
             width: 22; height: 22
             visible: bar.activeMedium === ""
             opacity: updateInput.interactionActive ? 1.0 : 0.92
@@ -420,6 +422,7 @@ Item {
         // on home it follows the Update glyph.
         Item {
             id: trackersButton
+            y: bar.androidHost ? (parent.height - height) / 2 : 0
             // Home and every retained world own a TopBar; suffix world copies so automation
             // never resolves a hidden sibling.
             objectName: !bar.lifecycleActive ? ""
@@ -458,6 +461,7 @@ Item {
         // signed in, quiet outline when not. Sits beside Update + Wallpapers.
         Item {
             id: accountButton
+            y: bar.androidHost ? (parent.height - height) / 2 : 0
             width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22
             height: 22
             objectName: "colosseumTopbarAccountButton"
