@@ -1,6 +1,7 @@
 // ExtensionsStoreRail — one Store row: header, then a horizontal rail of ExtensionsStoreCard.
 // Same shape and keyboard contract as ContinueRow (KeyboardCollectionController over a Flickable).
 import QtQuick
+import QtQuick.Controls.Basic
 
 Column {
     id: rail
@@ -131,17 +132,34 @@ Column {
         }
         property int currentIndex: rail.items.length > 0 ? 0 : -1
         width: parent.width
-        height: rail.phoneLayout ? 0 : row.height
-        contentWidth: row.width; contentHeight: height
+        height: rail.phoneLayout ? 0 : row.height + (flick.contentWidth > flick.width ? 16 : 0)
+        contentWidth: row.width; contentHeight: row.height
         clip: true
         focusPolicy: rail.phoneLayout ? Qt.NoFocus : (rail.items.length > 0 ? Qt.TabFocus : Qt.NoFocus)
         flickableDirection: Flickable.HorizontalFlick
         boundsBehavior: Flickable.StopAtBounds
         Keys.onPressed: (event) => keys.handle(event)
+        ScrollBar.horizontal: ScrollBar {
+            id: railBar
+            objectName: rail.automationId.length ? rail.automationId + "ScrollBar" : ""
+            policy: flick.contentWidth > flick.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+            interactive: true
+            height: 12
+            background: Rectangle {
+                implicitHeight: 12
+                radius: 6
+                color: Qt.rgba(1, 1, 1, 0.10)
+            }
+            contentItem: Rectangle {
+                implicitHeight: 8
+                radius: 4
+                color: railBar.pressed ? theme.gold : Qt.rgba(1, 1, 1, railBar.hovered ? 0.82 : 0.62)
+            }
+        }
 
         Row {
             id: row
-            spacing: 22
+            spacing: 18
             Repeater {
                 id: cards
                 // the wide row is not built at all on a phone; hidden cards still load their logos
@@ -149,7 +167,7 @@ Column {
                 delegate: ExtensionsStoreCard {
                     required property var modelData
                     required property int index
-                    width: rail.width < 1100 ? 320 : 365
+                    width: 260
                     addon: modelData
                     installed: { rail.revision; return rail.installedFn(modelData) }
                     disabled: { rail.revision; return rail.disabledFn(modelData) }

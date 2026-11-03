@@ -155,6 +155,7 @@ Item {
     readonly property real pageMargin: adaptive.pageMargin
     // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.
     property real contentBottomInset: 0
+    property bool prominentScrollBar: false
 
     readonly property string layoutClass: adaptive.layoutClass
     // The global Explicit Content preference, threaded in by Main's world-loader onLoaded
@@ -290,7 +291,11 @@ Item {
         pixelAligned: false
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: page }
+        ScrollBar.vertical: HouseScrollBar {
+            objectName: world.medium.length ? world.medium.toLowerCase() + "WorldScrollBar" : "worldPageScrollBar"
+            flick: page
+            prominent: world.prominentScrollBar
+        }
         // Soft top edge (2026-09-29): content leaving under the top bar fades out over 28px
         // instead of being sliced by the clip line mid-glyph (the catalogue name, "Popular").
         // Only layered once the page has scrolled, so the resting page renders as before.

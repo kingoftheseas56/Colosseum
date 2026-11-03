@@ -121,15 +121,15 @@ Item {
         anchors.bottom: parent.bottom
         anchors.left: parent.left; anchors.leftMargin: page.sideMargin
         anchors.right: parent.right; anchors.rightMargin: page.phoneLayout ? page.sideMargin : theme.margin - 22
-        readonly property int cardWidth: width < 1100 ? 320 : 365
-        cellWidth: Math.floor(width / Math.max(1, Math.floor(width / (cardWidth + 22))))
-        cellHeight: Math.round(cardWidth * 220 / 365) + 79 + 34
+        readonly property int cardWidth: 260
+        cellWidth: Math.floor(width / Math.max(1, Math.floor(width / (cardWidth + 18))))
+        cellHeight: Math.round(cardWidth * 220 / 365) + 79 + 26
         clip: true
         focus: page.visible
         keyNavigationEnabled: true
         boundsBehavior: Flickable.StopAtBounds
         model: page.items
-        ScrollBar.vertical: HouseScrollBar { flick: grid }
+        ScrollBar.vertical: HouseScrollBar { flick: grid; prominent: true }
         Keys.onReturnPressed: page.addonActivated(page.items[grid.currentIndex])
         Keys.onUpPressed: (event) => {
             if (page.searching && grid.currentIndex < Math.floor(grid.width / grid.cellWidth)) box.forceActiveFocus()
@@ -163,7 +163,7 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         model: page.phoneLayout ? page.items : []
         focus: page.visible && page.phoneLayout
-        ScrollBar.vertical: HouseScrollBar { flick: phoneList }
+        ScrollBar.vertical: HouseScrollBar { flick: phoneList; prominent: true }
         Keys.onReturnPressed: if (currentIndex >= 0) page.addonActivated(page.items[currentIndex])
         Keys.onEnterPressed: if (currentIndex >= 0) page.addonActivated(page.items[currentIndex])
         Keys.onEscapePressed: page.backRequested()

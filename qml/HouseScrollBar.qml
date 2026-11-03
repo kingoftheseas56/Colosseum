@@ -6,12 +6,13 @@
 // overflows, grabbable, click-track paging — on every page except the video player and the
 // two readers. One file feeds all `ScrollBar.vertical: HouseScrollBar { flick: … }` sites.
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 
 ScrollBar {
     id: bar
 
     property Flickable flick: null
+    property bool prominent: false
 
     orientation: Qt.Vertical
     // present whenever there's actually something to scroll — never a phantom bar
@@ -21,25 +22,27 @@ ScrollBar {
     anchors.top: flick ? flick.top : undefined
     anchors.bottom: flick ? flick.bottom : undefined
     anchors.rightMargin: 0
-    width: 12
+    width: prominent ? 14 : 12
 
     Theme { id: theme }
 
     // the track — a whisper of a rail so the thumb has a lane to live in
     background: Rectangle {
-        implicitWidth: 12
-        color: Qt.rgba(0.97, 0.97, 0.96, bar.hovered || bar.pressed ? 0.06 : 0.03)
+        implicitWidth: bar.prominent ? 14 : 12
+        color: Qt.rgba(0.97, 0.97, 0.96,
+                       bar.prominent ? (bar.hovered || bar.pressed ? 0.16 : 0.10)
+                                     : (bar.hovered || bar.pressed ? 0.06 : 0.03))
         visible: bar.policy !== ScrollBar.AlwaysOff
         Behavior on color { ColorAnimation { duration: 140 } }
     }
 
     // the thumb — the proper handle (the series-view look, ratified 2026-07-13)
     contentItem: Rectangle {
-        implicitWidth: 8
+        implicitWidth: bar.prominent ? 10 : 8
         radius: 4
         color: bar.pressed ? Qt.rgba(0.94, 0.77, 0.29, 0.85)          // gold under the hand
-             : bar.hovered ? Qt.rgba(0.97, 0.97, 0.96, 0.55)
-                           : Qt.rgba(0.97, 0.97, 0.96, 0.30)
+             : bar.hovered ? Qt.rgba(0.97, 0.97, 0.96, bar.prominent ? 0.82 : 0.55)
+                           : Qt.rgba(0.97, 0.97, 0.96, bar.prominent ? 0.62 : 0.30)
         visible: bar.policy !== ScrollBar.AlwaysOff
         Behavior on color { ColorAnimation { duration: 140 } }
     }

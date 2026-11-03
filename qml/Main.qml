@@ -2790,10 +2790,20 @@ Window {
     // tab instead of the default "theatre" — the manga picker's empty-state route
     // passes "tankoban" so enabling Nyaa is one click, not a hunt through tabs.
     property string pendingExtensionConfiguration: ""
-    function openExtensionsPage(world, configurationId) {
-        if (win.guardNamedCollectionsNavigation(function() { win.openExtensionsPage(world, configurationId) })) return
+    property bool pendingStreamExtensionSetup: false
+    function openStreamExtensionSetup() {
+        win.openExtensionsPage("theatre", "", true)
+    }
+    function openPendingStreamExtensionSetup() {
+        if (!pendingStreamExtensionSetup || !extensionsLayer.active || !extensionsLayer.item) return
+        pendingStreamExtensionSetup = false
+        extensionsLayer.item.openSuggestedStreamSource()
+    }
+    function openExtensionsPage(world, configurationId, suggestedStreamSource) {
+        if (win.guardNamedCollectionsNavigation(function() { win.openExtensionsPage(world, configurationId, suggestedStreamSource) })) return
 
         pendingExtensionConfiguration = String(configurationId || "")
+        pendingStreamExtensionSetup = suggestedStreamSource === true
         win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -2804,6 +2814,7 @@ Window {
         extensionsLayer.active = true
         if (world && extensionsLayer.item) extensionsLayer.item.world = world
         win.openPendingExtensionConfiguration()
+        win.openPendingStreamExtensionSetup()
         taskbar.open = false
         if (extensionsLayer.item && extensionsLayer.item.takeKeyboardFocus)
             Qt.callLater(extensionsLayer.item.takeKeyboardFocus)
@@ -2815,6 +2826,7 @@ Window {
     }
     function closeExtensionsPage() {
         pendingExtensionConfiguration = ""
+        pendingStreamExtensionSetup = false
         extensionsLayer.active = false
     }
 
@@ -5253,6 +5265,7 @@ Window {
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
             item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
+            item.openExtensionsRequested.connect(win.openStreamExtensionSetup)
             // Rebuilt title page only: the world pills, search and a Back pill that names its place.
             if (item.worldRequested)
                 item.worldRequested.connect(function(w) { win.closeTheatreSeries(); win.openWorld(w) })
@@ -5928,6 +5941,7 @@ Window {
             // the registry follows the shell visibility policy.
             item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })
             win.openPendingExtensionConfiguration()
+            win.openPendingStreamExtensionSetup()
             item.backRequested.connect(win.closeExtensionsPage)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)

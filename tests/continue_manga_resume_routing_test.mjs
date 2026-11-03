@@ -86,7 +86,7 @@ check(result.route.length===1 && result.route[0].kind==="video",
       "video resume unaffected");
 console.log("PASS " + checked + " production Main.qml Continue routing checks");
 
-const extensionsStart = main.indexOf("    function openExtensionsPage(world, configurationId) {");
+const extensionsStart = main.indexOf("    function openStreamExtensionSetup() {");
 const pendingStart = main.indexOf("    function openPendingExtensionConfiguration() {", extensionsStart);
 const closeStart = main.indexOf("    function closeExtensionsPage() {", pendingStart);
 const updateStart = main.indexOf("    // ---- Update page:", closeStart);
@@ -106,10 +106,12 @@ function makeExtensionsRouter({loaded = true, guard = () => false} = {}) {
     const item = loaded ? {
         world: "",
         openConfiguration(id) { opened.push(id); },
+        openSuggestedStreamSource() { opened.push("torrentio"); },
         takeKeyboardFocus() {}
     } : null;
     const ctx = {
         pendingExtensionConfiguration: "",
+        pendingStreamExtensionSetup: false,
         extensionsLayer: {active: false, item},
         downloadsLayer: {active: true},
         updateLayer: {active: true},
@@ -124,7 +126,8 @@ function makeExtensionsRouter({loaded = true, guard = () => false} = {}) {
         parkFeria() {},
         guardNamedCollectionsNavigation(continuation) { return guard(continuation); },
         openExtensionsPage(...args) { return ctx.openExtensionsPage(...args); },
-        openPendingExtensionConfiguration() { return ctx.openPendingExtensionConfiguration(); }
+        openPendingExtensionConfiguration() { return ctx.openPendingExtensionConfiguration(); },
+        openPendingStreamExtensionSetup() { return ctx.openPendingStreamExtensionSetup(); }
     };
     ctx.win = win;
     runInNewContext(extensionsSource, ctx);
@@ -156,12 +159,38 @@ const configurationId = "colosseum.well.tankoyomi";
     router.ctx.extensionsLayer.item = {
         world: "",
         openConfiguration(id) { router.opened.push(id); },
+        openSuggestedStreamSource() { router.opened.push("torrentio"); },
         takeKeyboardFocus() {}
     };
     router.ctx.openPendingExtensionConfiguration();
     checkExtension(router.opened.length === 1 && router.opened[0] === configurationId
                    && router.ctx.pendingExtensionConfiguration === "",
                    "pending configuration opens and clears when the Loader item arrives");
+}
+
+// A title with no enabled stream source lands on Torrentio's setup action.
+{
+    const router = makeExtensionsRouter();
+    router.ctx.openStreamExtensionSetup();
+    checkExtension(router.ctx.extensionsLayer.active && router.opened.length === 1
+                   && router.opened[0] === "torrentio" && !router.ctx.pendingStreamExtensionSetup,
+                   "ready Extensions item opens Torrentio setup once");
+}
+{
+    const router = makeExtensionsRouter({loaded: false});
+    router.ctx.openStreamExtensionSetup();
+    checkExtension(router.ctx.pendingStreamExtensionSetup && router.opened.length === 0,
+                   "unloaded Extensions item retains the stream setup route");
+    router.ctx.extensionsLayer.item = {
+        openSuggestedStreamSource() { router.opened.push("torrentio"); },
+        takeKeyboardFocus() {}
+    };
+    router.ctx.openPendingStreamExtensionSetup();
+    checkExtension(router.opened.length === 1 && !router.ctx.pendingStreamExtensionSetup,
+                   "Loader completion opens the pending Torrentio setup once");
+    router.ctx.openPendingStreamExtensionSetup();
+    checkExtension(router.opened.length === 1,
+                   "Loader completion cannot reopen an already consumed setup route");
 }
 
 // The navigation guard must keep the original arguments in its deferred callback.
@@ -182,6 +211,23 @@ const configurationId = "colosseum.well.tankoyomi";
     checkExtension(router.opened.length === 1 && router.opened[0] === configurationId
                    && router.ctx.pendingExtensionConfiguration === "",
                    "deferred callback preserves and opens the requested configuration ID");
+}
+
+{
+    let deferred = null;
+    let guarded = true;
+    const router = makeExtensionsRouter({guard(continuation) {
+        if (!guarded) return false;
+        deferred = continuation;
+        return true;
+    }});
+    router.ctx.openStreamExtensionSetup();
+    checkExtension(typeof deferred === "function" && !router.ctx.pendingStreamExtensionSetup,
+                   "guarded title navigation does not leave a stale pending setup route");
+    guarded = false;
+    deferred();
+    checkExtension(router.opened.length === 1 && router.opened[0] === "torrentio",
+                   "accepted guarded navigation reaches Torrentio setup");
 }
 
 // Closing the Extensions page must discard any configuration still waiting on the Loader.

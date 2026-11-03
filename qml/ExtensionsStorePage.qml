@@ -221,11 +221,30 @@ Item {
             return
         }
         root.setBusy(a.slug, true)
-        if (!root.beginInstall(a.manifestUrl, {kind: "store", slug: a.slug, expectedId: a.id})) {
+        if (!root.beginInstall(a.manifestUrl, {kind: "store", slug: a.slug})) {
             root.setBusy(a.slug, false)
             return
         }
         Extensions.install(a.manifestUrl)
+    }
+    function openSuggestedStreamSource() {
+        // The empty Sources sheet should reach the actual first-run action even
+        // when the community catalogue is slow or unavailable.
+        var torrentio = root.essentials.find(function(a) { return a.name === "Torrentio" })
+        var installed = root.installedEntries.find(function(entry) {
+            return entry.id === "com.stremio.torrentio.addon"
+                    && entry.transportUrl === "https://torrentio.strem.fun/manifest.json"
+        })
+        var addon = torrentio || {
+            id: "com.stremio.torrentio.addon", name: "Torrentio",
+            manifestUrl: installed ? installed.transportUrl : "https://torrentio.strem.fun/manifest.json",
+            configureUrl: "https://torrentio.strem.fun/configure",
+            configurable: true, setupRequired: false
+        }
+        root.managingInstalled = false
+        root.seeAllRow = null
+        root.searching = false
+        root.openSetup(addon, null)
     }
     function load() {
         root.loading = true
@@ -483,6 +502,7 @@ Item {
         anchors.fill: parent
         visible: !seeAll.visible && !tankoyomiConfiguration.visible && !management.visible
         medium: "Extensions"
+        prominentScrollBar: true
         topBarBackOnly: true
         topBarTitle: "Extensions"
         topBarSubtitle: "Add-ons and sources for every world."
@@ -656,7 +676,9 @@ Item {
             }
             var operation = {
                 kind: "setup",
-                expectedId: String(root.setup.addon.id || (root.replacingInstance ? root.replacingInstance.id : "")),
+                // Catalogue IDs can lag the live manifest (Comet does). Only a
+                // deliberate replacement must retain its installed identity.
+                expectedId: root.replacingInstance ? String(root.replacingInstance.id) : "",
                 setupGeneration: root.setupGeneration,
                 replacingUrl: root.replacingInstance ? root.replacingInstance.url : "",
                 replacingEnabled: root.replacingInstance ? root.replacingInstance.enabled : true

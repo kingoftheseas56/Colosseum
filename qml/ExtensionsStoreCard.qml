@@ -22,7 +22,7 @@ Item {
     readonly property bool lit: card.selected || action.hovered
     readonly property real h: StoreApi.hue(card.addon.name || "")
 
-    width: 365
+    width: 260
     height: phoneLayout ? mobileInstall.y + mobileInstall.height + 12 : art.height + 12 + 24 + 3 + 40
 
     Theme { id: theme }
@@ -77,7 +77,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: card.lit ? -4.5 : 0
-            width: card.phoneLayout ? 82 : 112; height: width
+            width: card.phoneLayout ? 82 : 86; height: width
             radius: 26
             scale: card.lit ? 1.045 : 1
             color: Qt.rgba(24 / 255, 25 / 255, 31 / 255, 0.92)
@@ -132,7 +132,7 @@ Item {
         width: parent.width
         text: card.addon.title || card.addon.name || ""
         color: theme.ink
-        font.family: theme.ui; font.pixelSize: 18; font.weight: Font.DemiBold
+        font.family: theme.ui; font.pixelSize: card.phoneLayout ? 18 : 16; font.weight: Font.DemiBold
         wrapMode: card.phoneLayout ? Text.WordWrap : Text.NoWrap
         elide: card.phoneLayout ? Text.ElideNone : Text.ElideRight
     }
@@ -143,7 +143,7 @@ Item {
         height: card.phoneLayout ? implicitHeight : 40
         text: card.addon.description || ""
         color: "#aaa69e"
-        font.family: theme.ui; font.pixelSize: 14
+        font.family: theme.ui; font.pixelSize: card.phoneLayout ? 14 : 13
         wrapMode: Text.WordWrap
         maximumLineCount: card.phoneLayout ? 100 : 2
         elide: card.phoneLayout ? Text.ElideNone : Text.ElideRight

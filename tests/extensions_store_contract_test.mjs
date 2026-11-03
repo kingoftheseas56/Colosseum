@@ -131,6 +131,8 @@ const beginInstallSource = extractFunction(store, 'beginInstall');
 const safeInstallMessageSource = extractFunction(store, 'safeInstallMessage');
 const failInstallSource = extractFunction(store, 'failInstallOperation');
 const finishInstallSource = extractFunction(store, 'finishInstallOperation');
+const setupInstallSource = extractFunction(store, 'onInstallRequested');
+const suggestedSourceSource = extractFunction(store, 'openSuggestedStreamSource');
 const isDisabledSource = extractFunction(store, 'isDisabled');
 const enableInstalledUrlSource = extractFunction(store, 'enableInstalledUrl');
 
@@ -156,7 +158,47 @@ function firstRunHarness(rows, options = {}) {
   };
 }
 
+function setupInstallHarness(replacingInstance = null) {
+  const calls = [];
+  const setup = { open: true, addon: { id: 'comet.elfhosted.com.aKyc' }, pendingUrl: '', status: '' };
+  const context = {
+    Extensions: {
+      normalizeUrl: value => String(value).trim(),
+      isInstalled: () => false,
+      install: url => calls.push({ installUrl: url })
+    },
+    root: {
+      setup, replacingInstance, setupGeneration: 1,
+      beginInstall(url, operation) { calls.push({ url, operation }); return true; }
+    }
+  };
+  vm.createContext(context);
+  const onInstallRequested = vm.runInContext(`(${setupInstallSource})`, context);
+  onInstallRequested('https://comet.elfhosted.com/configured/manifest.json');
+  return calls[0].operation;
+}
+
+check(setupInstallHarness().expectedId === ''
+  && setupInstallHarness({ id: 'comet.elfhosted.com', url: 'https://comet.elfhosted.com/old/manifest.json', enabled: true }).expectedId === 'comet.elfhosted.com',
+  'a stale catalogue ID cannot reject a new Comet install, while reconfiguration keeps the installed ID');
+
 const torrentioUrl = 'https://torrentio.strem.fun/manifest.json';
+{
+  const opened = [];
+  const context = { root: {
+    essentials: [], installedEntries: [
+      { id: 'com.stremio.torrentio.addon', transportUrl: torrentioUrl, enabled: false }
+    ],
+    managingInstalled: true, seeAllRow: {}, searching: true,
+    openSetup(addon, replacement) { opened.push({ addon, replacement }); }
+  } };
+  vm.createContext(context);
+  vm.runInContext(`(${suggestedSourceSource})`, context)();
+  check(opened.length === 1 && opened[0].addon.name === 'Torrentio'
+    && opened[0].addon.manifestUrl === torrentioUrl && opened[0].replacement === null
+    && !context.root.managingInstalled && !context.root.searching,
+    'the empty-source route opens seeded Torrentio setup even before the Store catalogue loads');
+}
 const seededTorrentio = firstRunHarness([
   { id: 'com.stremio.torrentio.addon', transportUrl: torrentioUrl, enabled: false, core: false }
 ]);
