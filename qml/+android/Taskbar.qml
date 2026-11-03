@@ -42,42 +42,55 @@ Item {
     signal historyStatsClicked()
     KeyboardSpatialNavigator { id: spatialNav; root: bar }
     Keys.onPressed: (event) => spatialNav.handle(event)
+    onOpenChanged: if (!open) { dockScroll.cancelFlick(); dockScroll.contentX = 0 }
     function reveal() { open = true }
     function focusHistoryStatsAction() { homeInput.forceActiveFocus(Qt.TabFocusReason) }
     function focusCollectionsAction() { homeInput.forceActiveFocus(Qt.TabFocusReason) }
+    Connections {
+        target: bar.Window.window
+        function onActiveFocusItemChanged() {
+            if (!bar.open) return
+            const control = bar.Window.window.activeFocusItem
+            let ancestor = control
+            while (ancestor && ancestor !== dockRow) ancestor = ancestor.parent
+            if (!control || !ancestor) return
+            const position = control.mapToItem(dockRow, 0, 0)
+            if (position.x < dockScroll.contentX) dockScroll.contentX = Math.max(0, position.x)
+            else if (position.x + control.width > dockScroll.contentX + dockScroll.width)
+                dockScroll.contentX = Math.min(dockScroll.contentWidth - dockScroll.width,
+                                               position.x + control.width - dockScroll.width)
+        }
+    }
     function focusUtilityAction(action) {
         open = true
         Qt.callLater(function() { utilities.focusAction(action) })
     }
-    TaskbarUtilities {
-        id: utilities
-        x: bar.leftEdge
-        y: dock.y - height - 10
-        width: Math.min(bar.width - bar.leftEdge * 2, 440)
-        visible: bar.open
-        backdrop: bar.backdrop
-        worldMode: bar.worldMode
-        androidHost: true
-        trackersActive: bar.trackersActive
-        updateAvailable: bar.updateAvailable
-        updateUnseen: bar.updateUnseen
-        reducedMotion: bar.reducedMotion
-        onTriggered: (action, anchorRight, anchorBottom) => {
-            bar.open = action === "sharing"
-            bar.utilityTriggered(action, anchorRight, dock.mapToItem(null, 0, 0).y)
-        }
-    }
+
     Rectangle {
         id: dock
+        objectName: "taskbarDock"
         x: bar.leftEdge
         y: bar.height - height - bar.bottomGap
-        width: bar.closedWidth
+        width: bar.open ? Math.min(bar.width - bar.leftEdge * 2, dockRow.implicitWidth + 16) : bar.closedWidth
         height: bar.closedSize
         radius: 22
         color: "#ed08090d"
         border.color: "#29ffffff"
-        RowLayout {
-            anchors { fill: parent; margins: 8 }
+        Flickable {
+            id: dockScroll
+            objectName: "taskbarDockScroll"
+            anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+            contentWidth: Math.max(width, dockRow.implicitWidth)
+            contentHeight: height
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            interactive: bar.open && contentWidth > width
+            clip: true
+            RowLayout {
+                id: dockRow
+                objectName: "taskbarDockRow"
+                width: dockScroll.contentWidth
+                height: dockScroll.height
             spacing: 8
             Item {
                 Layout.preferredWidth: 48
@@ -92,7 +105,22 @@ Item {
                     onTriggered: bar.open = !bar.open
                 }
             }
-
+            TaskbarUtilities {
+                id: utilities
+                Layout.preferredWidth: implicitWidth
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                visible: bar.open
+                trackersActive: bar.trackersActive
+                updateAvailable: bar.updateAvailable
+                updateUnseen: bar.updateUnseen
+                reducedMotion: bar.reducedMotion
+                onTriggered: (action, anchorRight, anchorBottom) => {
+                    bar.open = action === "sharing"
+                    bar.utilityTriggered(action, anchorRight, dock.mapToItem(null, 0, 0).y)
+                }
+            }
+            }
         }
     }
 }

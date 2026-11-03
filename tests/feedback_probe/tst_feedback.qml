@@ -204,6 +204,106 @@ Item {
             compare(utilitySpy.signalArguments[0][0], "trackers");
         }
 
+        function test_inline_taskbar_utilities_align_inside_wide_dock_data() {
+            return [{tag:"desktop-wide",component:desktopTaskbarHost,width:1920},
+                    {tag:"android-wide",component:androidTaskbarHost,width:1200}]
+        }
+        function test_inline_taskbar_utilities_align_inside_wide_dock(data) {
+            const shell = createTemporaryObject(data.component, parent, {width:data.width, height:800});
+            verify(shell);
+            const bar = findChild(shell, "colosseumTaskbar");
+            const dock = findChild(bar, "taskbarDock");
+            const scroll = findChild(bar, "taskbarDockScroll");
+            const row = findChild(bar, "taskbarDockRow");
+            const utilities = findChild(bar, "taskbarUtilities");
+            verify(dock && scroll && row && utilities);
+            bar.open = true; wait(300);
+            tryCompare(utilities, "visible", true);
+            compare(utilities.parent, row, "Utilities are direct children of the dock row");
+            verify(isDescendantOf(row, scroll), "The dock row lives inside the horizontal viewport");
+            compare(scroll.parent, dock, "The viewport is clipped by the expanded dock");
+
+            const anchor = data.tag === "desktop-wide"
+                ? findChild(bar, "taskbarHistoryStats")
+                : findChild(bar, "colosseumTaskbarHomeButton");
+            verify(anchor && anchor.visible, "Use a real neighboring dock icon as the alignment anchor");
+            const anchorRect = anchor.mapToItem(row, 0, 0);
+            const actionKeys = ["trackers", "updates", "wallpaper", "sharing"];
+            let actionCount = 0;
+            for (let i = 0; i < actionKeys.length; ++i) {
+                const action = findChild(bar, "taskbarUtility_" + actionKeys[i]);
+                if (!action) continue;
+                ++actionCount;
+                const cell = action.parent;
+                compare(cell.width, 46); compare(cell.height, 46);
+                compare(action.width, 46); compare(action.height, 46);
+                const iconRect = action.mapToItem(row, 0, 0);
+                verify(Math.abs((iconRect.y + action.height / 2)
+                                - (anchorRect.y + anchor.height / 2)) <= 1,
+                       actionKeys[i] + " must share the dock icon centerline");
+                const viewportRect = action.mapToItem(scroll, 0, 0);
+                verify(viewportRect.x >= 0 && viewportRect.x + action.width <= scroll.width + 1
+                       && viewportRect.y >= 0 && viewportRect.y + action.height <= scroll.height + 1,
+                       actionKeys[i] + " must be visible inside the wide dock viewport");
+                compare(countTextDescendants(cell), 0,
+                        actionKeys[i] + " has no visible text label; its name is available through Tooltip/accessibility");
+            }
+            verify(actionCount >= 3 && actionCount <= 4,
+                   "The inline dock contains Trackers, Updates, Wallpaper, and optional Wi-Fi sharing");
+            verify(utilities.x >= anchor.x + anchor.width,
+                   "The utilities row follows the existing dock actions");
+            compare(scroll.interactive, false, "A wide dock does not need horizontal scrolling");
+        }
+
+        function test_narrow_desktop_dock_flick_keyboard_and_collapse() {
+            const shell = createTemporaryObject(desktopTaskbarHost, parent, {width:900, height:800});
+            verify(shell);
+            const bar = findChild(shell, "colosseumTaskbar");
+            const dock = findChild(bar, "taskbarDock");
+            const scroll = findChild(bar, "taskbarDockScroll");
+            const row = findChild(bar, "taskbarDockRow");
+            bar.groups = makeTaskbarGroups(24);
+            bar.open = true; wait(300);
+            verify(scroll.contentWidth > scroll.width, "A 900px dock with open sessions overflows its viewport");
+            compare(scroll.interactive, true);
+
+            scroll.contentX = 0;
+            const dragY = scroll.height / 2;
+            dragFlickableLeft(scroll, scroll.width * 0.8, dragY, scroll.width * 0.2, dragY, 8);
+            tryVerify(function() { return scroll.contentX > 0 }, 1000,
+                      "A horizontal flick exposes content beyond the left edge");
+            scroll.cancelFlick();
+
+            const trackers = findChild(bar, "taskbarUtility_trackers");
+            verify(trackers && trackers.visible);
+            scroll.contentX = Math.max(0, scroll.contentWidth - scroll.width);
+            wait(0);
+            utilitySpy.target = bar; utilitySpy.clear();
+            bar.focusUtilityAction("trackers");
+            tryCompare(trackers, "activeFocus", true);
+            tryVerify(function() {
+                const position = trackers.mapToItem(scroll, 0, 0);
+                return position.x >= 0 && position.x + trackers.width <= scroll.width + 1;
+            }, 1000, "Keyboard focus scrolls the utility action into view");
+            keyClick(Qt.Key_Return);
+            compare(utilitySpy.count, 1);
+            compare(utilitySpy.signalArguments[0][0], "trackers");
+            tryCompare(bar, "open", false);
+            tryCompare(scroll, "contentX", 0);
+            tryCompare(dock, "width", bar.closedWidth, 1000);
+            compare(scroll.interactive, false, "Closing the dock disables horizontal scrolling");
+
+            const closedNames = ["colosseumTaskbarHomeButton", "taskbarVaultDoor", "taskbarCollections"];
+            for (let i = 0; i < closedNames.length; ++i) {
+                const control = findChild(bar, closedNames[i]);
+                verify(control && control.visible, closedNames[i] + " stays visible in the closed dock");
+                const position = control.mapToItem(scroll, 0, 0);
+                verify(position.x >= 0 && position.x + control.width <= scroll.width + 1,
+                       closedNames[i] + " remains unclipped when the dock collapses");
+            }
+            compare(row.objectName, "taskbarDockRow");
+        }
+
         function findChild(root, objectName) {
             if (!root) return null;
             if (root.objectName === objectName) return root;
@@ -213,6 +313,34 @@ Item {
                 if (found) return found;
             }
             return null;
+        }
+        function isDescendantOf(item, ancestor) {
+            for (let current = item; current; current = current.parent) {
+                if (current === ancestor) return true;
+            }
+            return false;
+        }
+        function countTextDescendants(root) {
+            if (!root) return 0;
+            let count = root.text !== undefined ? 1 : 0;
+            const kids = root.children || [];
+            for (let i = 0; i < kids.length; ++i) count += countTextDescendants(kids[i]);
+            return count;
+        }
+        function dragFlickableLeft(target, x0, y0, x1, y1, steps) {
+            mousePress(target, x0, y0);
+            for (let i = 1; i <= steps; ++i) {
+                mouseMove(target, x0 + (x1 - x0) * i / steps,
+                          y0 + (y1 - y0) * i / steps, -1);
+            }
+            mouseRelease(target, x1, y1);
+        }
+        function makeTaskbarGroups(count) {
+            const groups = [];
+            for (let i = 0; i < count; ++i) {
+                groups.push({appType:"tankoban", sessions:[{id:"inline-" + i, title:"Session " + i}]});
+            }
+            return groups;
         }
         function findTextNode(root, text) {
             if (!root) return null;
