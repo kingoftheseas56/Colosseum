@@ -113,14 +113,37 @@ Item {
     signal minimizeClicked()
     signal powerClicked()
     signal updateClicked()
-    signal feedbackClicked()
     signal trackersClicked()
     signal boundaryArrowRequested(int key, Item fromItem)
 
+    // Third-party trackers door (AniList, MAL, Trakt, Simkl...). Unlike Stremio it is not one
+    // provider and it serves every world, so it gets a provider-neutral mark in all of them.
+    // Hosts that wire trackersClicked opt in; other TopBar hosts (reader, player) stay unchanged.
     property bool trackersEnabled: false
     property bool trackersActive: false
+    // Aggregate sync state -> dot colour. No dot when nothing is connected, so the icon
+    // never nags someone who doesn't use trackers.
+    readonly property string trackersDotState: {
+        if (typeof TrackerSyncCenter === "undefined" || !TrackerSyncCenter)
+            return ""
+        var state = TrackerSyncCenter.aggregateState || ({})
+        var status = String(state.status || "Empty")
+        if (status === "Attention" || status === "Owner unavailable")
+            return "error"
+        if (status === "Empty" && Number(state.connectedCount || 0) === 0)
+            return ""
+        if (status === "Healthy")
+            return "ok"
+        return "pending"
+    }
+    function focusTrackersButton() {
+        if (trackersButton.visible)
+            trackersInput.forceActiveFocus(Qt.TabFocusReason)
+    }
 
-    // Compatibility state for shared hosts; utilities are rendered by Taskbar.
+    // Update availability flags (home only): drive the silver badge on the home
+    // Update glyph the same way the taskbar badge pulses on updateUnseen. Bound
+    // from Main.qml's Updates singleton; inert on worlds (the glyph is hidden).
     property bool updateAvailable: false
     property bool updateUnseen: false
     property bool reducedMotion: false
@@ -151,11 +174,16 @@ Item {
         bar.ampm = h < 12 ? "AM" : "PM"
         bar.date = Qt.formatDate(now, "dddd, MMMM d")
     }
+    function focusStremioButton() {
+        if (stremioButton.visible)
+            stremioInput.forceActiveFocus(Qt.PopupFocusReason)
+    }
     Timer {
         interval: 1000; running: bar.lifecycleActive; repeat: true; triggeredOnStart: true
         onTriggered: bar.refreshClock()
     }
 
+    // ---- inline: a system icon button (Image renders the local SVG reliably; tint via opacity) ----
     component SysIcon: Item {
         id: sysRoot
         property url source
@@ -309,21 +337,17 @@ Item {
         }
     }
 
-    // Shared top chrome: Feedback, world search, account, and desktop window controls.
+    // ---- right: system icons ----
+    // Universal search is retired on home; the slot belongs to the Update glyph
+    // there (the release chronicle entry, with a silver availability badge).
+    // Worlds keep search — it is wired and functional in WorldPage.qml. The two
+    // are gated on activeMedium, the same home/world discriminator BackAction
+    // uses above, so only one is ever present in the slot.
     Row {
-        id: systemChrome
-        objectName: "topBarSystemChrome"
         visible: !bar.backOnly
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: bar.activeMedium === "" && bar.width < 700 ? 10 : 20
-        FeedbackButton {
-            labelled: false
-            height: 22
-            entryName: bar.visible && bar.lifecycleActive && !bar.backOnly ? "feedbackEntry" : ""
-            anchors.verticalCenter: parent.verticalCenter
-            onClicked: bar.feedbackClicked()
-        }
+        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+        spacing: 20
+        // Search — worlds only.
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each
             // non-Theatre search a world-specific name so Lanista can target
@@ -335,6 +359,121 @@ Item {
             onClicked: bar.searchClicked()
             visible: bar.activeMedium !== ""
         }
+        // Theatre's provider door. The official artwork remains untouched;
+        // only the small external badge communicates an actionable state.
+        Item {
+            id: stremioButton
+            // Retained worlds each own a TopBar. Name only Theatre's copy so
+            // accessibility/automation never resolves a hidden sibling.
+            objectName: bar.activeMedium === "Theatre" ? "topBarStremioButton" : ""
+            width: 22; height: 22
+            visible: bar.activeMedium === "Theatre" && bar.lifecycleActive
+            opacity: stremioInput.interactionActive ? 1.0 : 0.92
+            Image {
+                objectName: "topBarStremioOfficialAsset"
+                anchors.fill: parent
+                source: "../../assets/icons/stremio-official.svg"
+                sourceSize.width: 22; sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+            }
+            Rectangle {
+                objectName: "topBarStremioAttentionBadge"
+                visible: typeof stremioSyncState !== "undefined"
+                    && stremioSyncState
+                    && (stremioSyncState.status === "reconnectRequired"
+                        || stremioSyncState.status === "syncFailed")
+                anchors.right: parent.right; anchors.bottom: parent.bottom
+                anchors.rightMargin: -3; anchors.bottomMargin: -3
+                width: 8; height: 8; radius: 4
+                color: theme.gold
+                border.width: 1; border.color: "#15151a"
+            }
+            KeyboardAction {
+                id: stremioInput
+                objectName: "topBarStremioInput"
+                anchors.fill: parent
+                accessibleName: qsTr("Stremio Sync")
+                focusRadius: 6
+                onTriggered: bar.stremioClicked()
+            }
+        }
+        // Update — home only. Takes search's throne; the silver badge signals an
+        // available release (pulse on unseen, steady once seen).
+        Item {
+            width: 22; height: 22
+            visible: bar.activeMedium === ""
+            opacity: updateInput.interactionActive ? 1.0 : 0.92
+            objectName: "colosseumTopbarUpdateButton"
+            Image {
+                anchors.fill: parent
+                source: "../../assets/icons/update.svg"
+                sourceSize.width: 22; sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+            }
+            Rectangle {
+                objectName: "colosseumTopbarUpdateBadge"
+                visible: bar.updateAvailable
+                anchors.top: parent.top; anchors.right: parent.right
+                anchors.topMargin: -2; anchors.rightMargin: -2
+                width: 9; height: 9; radius: 4.5
+                color: "#f2f2ef"; border.width: 1; border.color: "#15151a"
+                SequentialAnimation on scale {
+                    running: bar.updateUnseen && bar.updateAvailable && !bar.reducedMotion
+                    loops: Animation.Infinite
+                    alwaysRunToEnd: true
+                    NumberAnimation { to: 1.22; duration: 700; easing.type: Easing.InOutQuad }
+                    NumberAnimation { to: 1.0; duration: 700; easing.type: Easing.InOutQuad }
+                    PauseAnimation { duration: 900 }
+                }
+            }
+            KeyboardAction {
+                id: updateInput
+                anchors.fill: parent
+                accessibleName: bar.updateAvailable ? "Update available" : "Updates"
+                focusRadius: 6
+                onTriggered: bar.updateClicked()
+            }
+        }
+        // Third-party trackers — every world and home. Theatre shows it beside Stremio;
+        // on home it follows the Update glyph.
+        Item {
+            id: trackersButton
+            // Home and every retained world own a TopBar; suffix world copies so automation
+            // never resolves a hidden sibling.
+            objectName: !bar.lifecycleActive ? ""
+                        : bar.activeMedium === "" ? "topBarTrackersButton"
+                        : "topBarTrackersButton_" + bar.activeMedium
+            width: 22; height: 22
+            visible: bar.trackersEnabled && bar.lifecycleActive
+            opacity: trackersInput.interactionActive || bar.trackersActive ? 1.0 : 0.92
+            Image {
+                anchors.fill: parent
+                source: "../../assets/icons/trackers.svg"
+                sourceSize.width: 44; sourceSize.height: 44
+                fillMode: Image.PreserveAspectFit
+            }
+            Rectangle {
+                objectName: "topBarTrackersStatusDot"
+                visible: bar.trackersDotState !== ""
+                anchors.right: parent.right; anchors.bottom: parent.bottom
+                anchors.rightMargin: -3; anchors.bottomMargin: -3
+                width: 8; height: 8; radius: 4
+                color: bar.trackersDotState === "ok" ? "#5fd18b"
+                     : bar.trackersDotState === "error" ? "#ef6a5a" : theme.gold
+                border.width: 1; border.color: "#15151a"
+            }
+            KeyboardAction {
+                id: trackersInput
+                objectName: bar.activeMedium === "" ? "topBarTrackersInput" : ""
+                anchors.fill: parent
+                accessibleName: bar.trackersDotState === "error"
+                                ? qsTr("Trackers, attention required") : qsTr("Trackers")
+                focusRadius: 6
+                onTriggered: bar.trackersClicked()
+            }
+        }
+        // Account identity (Bundle 8C first-light): gold-ringed initial when
+        // signed in, quiet outline when not. Sits beside Update + Wallpapers.
         Item {
             id: accountButton
             width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22
@@ -409,6 +548,15 @@ Item {
                     bar.accountClicked(anchor.x, anchor.y)
                 }
             }
+        }
+        // Automation identity (Lanista): the wallpaper control is a production shell
+        // action, so capture journeys address this button directly instead of replacing
+        // the top bar with a harness-only presentation.
+        SysIcon {
+            objectName: "topBarWallpaperButton"
+            source: "../../assets/icons/settings.svg"
+            accessibleName: "Wallpaper"
+            onClicked: bar.wallpaperClicked()
         }
         SysIcon { visible: bar.desktopWindowControlsVisible; source: "../../assets/icons/minimize.svg"; accessibleName: "Minimize"; onClicked: bar.minimizeClicked() }
         // Fullscreen toggle (Hemanth 2026-07-16, supersedes the old never-☐ topbar

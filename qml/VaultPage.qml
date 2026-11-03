@@ -16,7 +16,6 @@ Item {
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
-    signal feedbackClicked()
     // Slice 14: a folder-view row / preview door asked to open a file. Carries only the path —
     // LocalLaunch (C++) re-derives family + vault id + title, so routing/identity has one owner
     // (the same path the picker, drag-drop, and Open Recent funnel through win.openLocalMedia).
@@ -1574,11 +1573,6 @@ Item {
                 anchors.right: parent.right; anchors.rightMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
                 height: 44
-                FeedbackButton {
-                    labelled: false
-                    entryName: root.visible ? "vaultFeedbackEntry" : ""
-                    onClicked: root.feedbackClicked()
-                }
                 VaultAction {
                     id: headerMinimize
                     objectName: "vaultHeaderMinimize"

@@ -49,40 +49,14 @@ Item {
     property bool downloadsActive: false  // the Downloads page is the front surface
     signal extensionsClicked()
     property bool extensionsActive: false // the Extensions page is the front surface
+    signal feedbackClicked()
     signal historyStatsClicked()
     property bool historyStatsActive: false // Your Colosseum (history / highlights / stats) is the front surface
     property bool feriaContext: false
     readonly property string activityLabel: feriaContext ? "Your Feria" : "Your Colosseum"
-    property Item backdrop: null
-    property string worldMode: ""
-    property bool trackersActive: false
-    property bool updateAvailable: false
-    property bool updateUnseen: false
-    property bool reducedMotion: false
-    signal utilityTriggered(string action, real anchorRight, real anchorBottom)
-    Connections {
-        target: bar.Window.window
-        function onActiveFocusItemChanged() {
-            if (!bar.open) return
-            const control = bar.Window.window.activeFocusItem
-            let ancestor = control
-            while (ancestor && ancestor !== dockRow) ancestor = ancestor.parent
-            if (!control || !ancestor) return
-            const position = control.mapToItem(dockRow, 0, 0)
-            if (position.x < dockScroll.contentX) dockScroll.contentX = Math.max(0, position.x)
-            else if (position.x + control.width > dockScroll.contentX + dockScroll.width)
-                dockScroll.contentX = Math.min(dockScroll.contentWidth - dockScroll.width,
-                                               position.x + control.width - dockScroll.width)
-        }
-    }
-    function focusUtilityAction(action) {
-        bar.open = true
-        bar.autoRevealed = false
-        idleTimer.stop()
-        Qt.callLater(function() { utilities.focusAction(action) })
-    }
+    // Third-party trackers (the Sync Center) live in the TopBar's right cluster, not here.
 
-    onOpenChanged: if (!open) { fan.visible = false; dockScroll.cancelFlick(); dockScroll.contentX = 0 }
+    onOpenChanged: if (!open) fan.visible = false
 
     // ---- auto-reveal (2026-07-04): a minimize extends the bar out of the icon so you SEE the
     //      session arrive, then it pulls back after 15s without taskbar interaction. A bar the
@@ -170,21 +144,10 @@ Item {
             onHoveredChanged: if (hovered && bar.autoRevealed) idleTimer.restart()
         }
 
-        Flickable {
-            id: dockScroll
-            objectName: "taskbarDockScroll"
-            anchors { fill: parent; leftMargin: 8; rightMargin: 14 }
-            contentWidth: Math.max(width, dockRow.implicitWidth)
-            contentHeight: height
-            flickableDirection: Flickable.HorizontalFlick
-            boundsBehavior: Flickable.StopAtBounds
-            interactive: bar.open && contentWidth > width
-            clip: true
-            RowLayout {
-                id: dockRow
-                objectName: "taskbarDockRow"
-                width: dockScroll.contentWidth
-                height: dockScroll.height
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 8
+            anchors.rightMargin: 14
             spacing: 14
 
             Item {
@@ -553,22 +516,18 @@ Item {
                 ToolTip.text: bar.activityLabel
             }
 
-            TaskbarUtilities {
-                id: utilities
-                Layout.preferredWidth: implicitWidth
+            FeedbackButton {
+                Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
                 visible: bar.open
-                trackersActive: bar.trackersActive
-                updateAvailable: bar.updateAvailable
-                updateUnseen: bar.updateUnseen
-                reducedMotion: bar.reducedMotion
-                onTriggered: (action, anchorRight, anchorBottom) => {
+                onClicked: {
                     bar.autoRevealed = false
-                    bar.open = action === "sharing"
-                    bar.utilityTriggered(action, anchorRight, dock.mapToItem(null, 0, 0).y)
+                    bar.feedbackClicked()
+                    bar.open = false
                 }
             }
+
             // Session tiles — the dock's fill-width content.
             Row {
                 objectName: "taskbarSessionTiles"
@@ -698,7 +657,6 @@ Item {
                 }
             }
 
-            }
         }
     }
 
