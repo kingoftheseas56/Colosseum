@@ -114,6 +114,8 @@ private:
         QString     title;
         QStringList urls;          // remaining URLs to try (front = current)
         int         urlIdx = 0;
+        quint64     generation = 0; // distinguishes cancelled/recreated jobs
+        QString     lastFailure;
         int         attempt = 0;   // retry attempt for the current URL (0-based)
         QString     suggestedName;
         qint64      expectedBytes = 0;
@@ -133,6 +135,8 @@ private:
                        const QStringList& urls, const QString& suggestedName,
                        qint64 expectedBytes);
     void startAttempt(InFlight& f);
+    void issueAttempt(InFlight& f);
+    void startQueuedDownload();
     void onReadyRead();
     void onFinished();
     void onProgressFromReply(qint64 received, qint64 total);
@@ -165,6 +169,7 @@ private:
 
     QNetworkAccessManager* m_nam = nullptr;
     QHash<QNetworkReply*, ResolveCtx> m_resolving;   // ads.php fetches in flight
+    quint64         m_nextGeneration = 0;
     InFlight*       m_active = nullptr;
     QList<InFlight> m_queue;
     QHash<QString, Entry> m_index;                   // md5 → downloaded entry
