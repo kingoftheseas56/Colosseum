@@ -11,6 +11,7 @@ Column {
     property string automationId: ""
     // Install state lives with the page; `revision` re-evaluates every card when it changes.
     property var installedFn: function(addon) { return false }
+    property var disabledFn: function(addon) { return false }
     property var busy: ({})
     property int revision: 0
     property bool canSeeAll: true
@@ -94,6 +95,7 @@ Column {
                 phoneLayout: true
                 addon: modelData
                 installed: { rail.revision; return rail.installedFn(modelData) }
+                disabled: { rail.revision; return rail.disabledFn(modelData) }
                 busy: rail.busy[modelData.slug] === true
                 onActivated: rail.addonActivated(modelData)
             }
@@ -150,6 +152,7 @@ Column {
                     width: rail.width < 1100 ? 320 : 365
                     addon: modelData
                     installed: { rail.revision; return rail.installedFn(modelData) }
+                    disabled: { rail.revision; return rail.disabledFn(modelData) }
                     busy: rail.busy[modelData.slug] === true
                     selected: flick.activeFocus && flick.currentIndex === index
                     onActivated: rail.addonActivated(modelData)

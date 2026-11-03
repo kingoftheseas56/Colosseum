@@ -14,6 +14,7 @@ Item {
     property var pool: []                    // every add-on the Store shows, most starred first
     property string query: ""
     property var installedFn: function(addon) { return false }
+    property var disabledFn: function(addon) { return false }
     property var busy: ({})
     property int revision: 0
     readonly property bool phoneLayout: {
@@ -142,6 +143,7 @@ Item {
             width: grid.cardWidth
             addon: modelData
             installed: { page.revision; return page.installedFn(modelData) }
+            disabled: { page.revision; return page.disabledFn(modelData) }
             busy: page.busy[modelData.slug] === true
             selected: grid.activeFocus && grid.currentIndex === index
             onActivated: page.addonActivated(modelData)
@@ -172,6 +174,7 @@ Item {
             phoneLayout: true
             addon: modelData
             installed: { page.revision; return page.installedFn(modelData) }
+            disabled: { page.revision; return page.disabledFn(modelData) }
             busy: page.busy[modelData.slug] === true
             selected: phoneList.activeFocus && phoneList.currentIndex === index
             onActivated: page.addonActivated(modelData)

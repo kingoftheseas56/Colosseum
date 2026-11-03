@@ -13,14 +13,19 @@ Item {
     property string status: ""
     property string pendingUrl: ""           // the normalized link last handed to install
     // Setup is optional (configurable, not configurationRequired): the plain link also works.
+    readonly property var baseEntry: sheet.open && typeof Extensions !== "undefined"
+        ? Extensions.installed().find(function(entry) {
+            return entry.transportUrl === Extensions.normalizeUrl(sheet.addon.manifestUrl)
+        }) : null
     readonly property bool canSkip: sheet.open && sheet.addon.setupRequired !== true
                                     && typeof Extensions !== "undefined"
-                                    && !Extensions.isInstalled(sheet.addon.manifestUrl)
+                                    && (!sheet.baseEntry || sheet.baseEntry.enabled !== true)
     readonly property string setupUrl: sheet.open
         ? String(sheet.addon.configureUrl
                  || String(sheet.addon.manifestUrl).replace(/manifest\.json$/, "configure")) : ""
     signal closeRequested()
     signal installRequested(string url)
+    signal enableRequested(string url)
 
     visible: sheet.open
     Theme { id: theme }
@@ -90,7 +95,9 @@ Item {
             Text {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "Setup opens in your browser. Finish it there, copy the add-on link it gives you, then come back and paste it."
+                text: (sheet.baseEntry && sheet.baseEntry.enabled !== true
+                       ? "This add-on is installed but disabled. Enable it below, or use its setup page. " : "")
+                      + "Setup opens in your browser. Finish it there, copy the add-on link it gives you, then come back and paste it."
                 color: theme.inkDim
                 font.family: theme.ui; font.pixelSize: 14
             }
@@ -153,16 +160,19 @@ Item {
                 border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.16)
                 Text {
                     anchors.centerIn: parent
-                    text: "Install without setup"
+                    text: sheet.baseEntry ? "Enable without setup" : "Install without setup"
                     color: theme.inkDim
                     font.family: theme.ui; font.pixelSize: 14
                 }
                 KeyboardAction {
                     id: skipAction
                     anchors.fill: parent
-                    accessibleName: "Install without setup"
+                    accessibleName: sheet.baseEntry ? "Enable without setup" : "Install without setup"
                     focusRadius: 22
-                    onTriggered: sheet.finish(sheet.addon.manifestUrl)
+                    onTriggered: {
+                        if (sheet.baseEntry) sheet.enableRequested(sheet.addon.manifestUrl)
+                        else sheet.finish(sheet.addon.manifestUrl)
+                    }
                 }
             }
 

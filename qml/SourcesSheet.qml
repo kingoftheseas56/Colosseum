@@ -582,7 +582,7 @@ Item {
             text: sheet.loading ? "Finding sources…"
                   : (sheet.timedOut ? "Sources timed out. Try again."
                      : (sheet.askedNames.length === 0
-                        ? "No stream extension carries this title — add one on the Extensions page."
+                        ? "No stream source is enabled for this title. Enable one in Extensions."
                         : "No sources found."))
             color: sheet.timedOut ? "#e6a3a3" : theme.inkDim
             font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 15 : 16

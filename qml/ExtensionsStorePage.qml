@@ -68,6 +68,23 @@ Item {
         if (!a || typeof Extensions === "undefined") return false
         return Extensions.isInstalled(a.id) || Extensions.isInstalled(a.manifestUrl)
     }
+    function isDisabled(a) {
+        if (!a || typeof Extensions === "undefined") return false
+        var matches = root.installedEntries.filter(function(entry) {
+            return entry.id === a.id || entry.transportUrl === a.manifestUrl
+        })
+        return matches.length > 0 && !matches.some(function(entry) { return entry.enabled === true })
+    }
+    function enableInstalledUrl(url) {
+        if (root.pendingInstallOperation) return false
+        var normalized = Extensions.normalizeUrl(url)
+        var existing = Extensions.installed().find(function(entry) { return entry.transportUrl === normalized })
+        if (!existing || existing.core) return false
+        if (existing.enabled === true) return true
+        Extensions.setEnabledInstance(normalized, true)
+        var updated = Extensions.installed().find(function(entry) { return entry.transportUrl === normalized })
+        return !!updated && updated.enabled === true
+    }
     function safeInstallMessage(message) {
         var urlPattern = new RegExp("(?:https?|stremio)://[^\\s\"'<>]+", "gi")
         return String(message).replace(urlPattern, qsTr("[add-on address]"))
@@ -190,10 +207,19 @@ Item {
             root.showInstallError(qsTr("An add-on install is already finishing. Try again shortly."))
             return
         }
-        // An add-on with a setup page opens it in-app, installed or not: a bare install of
-        // Comet/MediaFusion finds nothing, and an installed one is set up again from its card.
+        // An add-on with a setup page opens it in-app, installed or not. A seeded,
+        // disabled source can be enabled there without fetching its manifest again.
         if (a.configurable) { root.openSetup(a, null); return }
-        if (root.isInstalled(a)) return
+        if (root.isInstalled(a)) {
+            if (root.isDisabled(a)) {
+                var existing = root.installedEntries.find(function(entry) {
+                    return entry.transportUrl === a.manifestUrl || entry.id === a.id
+                })
+                if (!existing || !root.enableInstalledUrl(existing.transportUrl))
+                    root.showInstallError(qsTr("Couldn't enable the add-on. Try again in Your Add-ons."))
+            }
+            return
+        }
         root.setBusy(a.slug, true)
         if (!root.beginInstall(a.manifestUrl, {kind: "store", slug: a.slug, expectedId: a.id})) {
             root.setBusy(a.slug, false)
@@ -498,6 +524,7 @@ Item {
             phoneLayout: root.phoneLayout
             items: root.essentials
             installedFn: root.isInstalled
+            disabledFn: root.isDisabled
             busy: root.busy
             revision: root.revision
             onAddonActivated: (a) => root.activate(a)
@@ -514,6 +541,7 @@ Item {
                 phoneLayout: root.phoneLayout
                 items: modelData.items
                 installedFn: root.isInstalled
+                disabledFn: root.isDisabled
                 busy: root.busy
                 revision: root.revision
                 onAddonActivated: (a) => root.activate(a)
@@ -538,6 +566,7 @@ Item {
         searching: root.searching
         pool: root.searchPool
         installedFn: root.isInstalled
+        disabledFn: root.isDisabled
         busy: root.busy
         revision: root.revision
         onAddonActivated: (a) => root.activate(a)
@@ -608,6 +637,11 @@ Item {
     Connections {
         target: setupLoader.item
         function onCloseRequested() { root.closeSetup() }
+        function onEnableRequested(url) {
+            if (!root.setup || !root.setup.open) return
+            if (root.enableInstalledUrl(url)) root.closeSetup()
+            else root.setup.status = qsTr("Couldn't enable the add-on. Try again in Your Add-ons.")
+        }
         function onInstallRequested(url) {
             if (!root.setup || !root.setup.open) return
             root.setup.pendingUrl = Extensions.normalizeUrl(url)

@@ -14,11 +14,17 @@ Item {
     property string status: ""
     property string pendingUrl: ""           // the normalized link last handed to install
     // Setup is optional (configurable, not configurationRequired): the plain link also works.
+    // A house-seeded source may already be installed but disabled on first run.
+    readonly property var baseEntry: sheet.open && typeof Extensions !== "undefined"
+        ? Extensions.installed().find(function(entry) {
+            return entry.transportUrl === Extensions.normalizeUrl(sheet.addon.manifestUrl)
+        }) : null
     readonly property bool canSkip: sheet.open && sheet.addon.setupRequired !== true
                                     && typeof Extensions !== "undefined"
-                                    && !Extensions.isInstalled(sheet.addon.manifestUrl)
+                                    && (!sheet.baseEntry || sheet.baseEntry.enabled !== true)
     signal closeRequested()
     signal installRequested(string url)
+    signal enableRequested(string url)
 
     visible: sheet.open
     Theme { id: theme }
@@ -96,7 +102,9 @@ Item {
             Text {
                 anchors.right: closeBox.left; anchors.rightMargin: 18
                 anchors.verticalCenter: parent.verticalCenter
-                text: sheet.status
+                text: sheet.status.length ? sheet.status
+                     : sheet.baseEntry && sheet.baseEntry.enabled !== true
+                       ? "Installed, but turned off" : ""
                 color: theme.gold
                 font.family: theme.ui; font.pixelSize: 13
             }
@@ -273,16 +281,19 @@ Item {
                     Text {
                         id: skipLabel
                         anchors.centerIn: parent
-                        text: "Install without setup"
+                        text: sheet.baseEntry ? "Enable without setup" : "Install without setup"
                         color: theme.inkDim
                         font.family: theme.ui; font.pixelSize: 13
                     }
                     KeyboardAction {
                         id: skipAction
                         anchors.fill: parent
-                        accessibleName: "Install without setup"
+                        accessibleName: sheet.baseEntry ? "Enable without setup" : "Install without setup"
                         focusRadius: 17
-                        onTriggered: sheet.finish(sheet.addon.manifestUrl)
+                        onTriggered: {
+                            if (sheet.baseEntry) sheet.enableRequested(sheet.addon.manifestUrl)
+                            else sheet.finish(sheet.addon.manifestUrl)
+                        }
                     }
                 }
             }

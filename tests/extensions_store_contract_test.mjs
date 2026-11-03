@@ -42,6 +42,8 @@ const shown = names(api.rows(all, false));
 
 check(api.essentials(all).map(a => a.name).join('|') === api.ESSENTIALS.join('|'),
   'Essentials are the five ledger add-ons, in order');
+check(api.essentials(all)[0]?.name === 'Torrentio',
+  'Torrentio is the first Essential for someone following the no-sources prompt');
 check(!shown.some(n => api.ESSENTIALS.includes(n)), 'Essentials are not repeated in the rows below');
 check(!shown.includes('USA TV') && !shown.includes('Radio Box'), 'Live TV and Radio add-ons are out');
 check(shown.includes('MediaFusion'), 'a film source that also carries Live TV stays');
@@ -129,6 +131,55 @@ const beginInstallSource = extractFunction(store, 'beginInstall');
 const safeInstallMessageSource = extractFunction(store, 'safeInstallMessage');
 const failInstallSource = extractFunction(store, 'failInstallOperation');
 const finishInstallSource = extractFunction(store, 'finishInstallOperation');
+const isDisabledSource = extractFunction(store, 'isDisabled');
+const enableInstalledUrlSource = extractFunction(store, 'enableInstalledUrl');
+
+function firstRunHarness(rows, options = {}) {
+  const calls = [];
+  const context = {
+    Extensions: {
+      normalizeUrl: value => String(value).trim(),
+      installed: () => rows,
+      setEnabledInstance(url, enabled) {
+        calls.push([url, enabled]);
+        if (!options.failSave) rows.find(entry => entry.transportUrl === url).enabled = enabled;
+      }
+    },
+    root: { installedEntries: rows, pendingInstallOperation: null },
+    calls
+  };
+  vm.createContext(context);
+  return {
+    context, calls,
+    isDisabled: vm.runInContext(`(${isDisabledSource})`, context),
+    enableInstalledUrl: vm.runInContext(`(${enableInstalledUrlSource})`, context)
+  };
+}
+
+const torrentioUrl = 'https://torrentio.strem.fun/manifest.json';
+const seededTorrentio = firstRunHarness([
+  { id: 'com.stremio.torrentio.addon', transportUrl: torrentioUrl, enabled: false, core: false }
+]);
+const torrentioCard = { id: 'com.stremio.torrentio.addon', manifestUrl: torrentioUrl };
+check(seededTorrentio.isDisabled.call(seededTorrentio.context.root, torrentioCard)
+  && seededTorrentio.enableInstalledUrl.call(seededTorrentio.context.root, torrentioUrl)
+  && !seededTorrentio.isDisabled.call(seededTorrentio.context.root, torrentioCard)
+  && seededTorrentio.calls.length === 1,
+  'a seeded, disabled Torrentio can be enabled without reinstalling or fetching a manifest');
+
+const failedEnable = firstRunHarness([
+  { id: 'com.stremio.torrentio.addon', transportUrl: torrentioUrl, enabled: false, core: false }
+], { failSave: true });
+check(!failedEnable.enableInstalledUrl.call(failedEnable.context.root, torrentioUrl)
+  && failedEnable.isDisabled.call(failedEnable.context.root, torrentioCard),
+  'an unsaved enable action remains visibly disabled and reports failure');
+
+const configuredTorrentio = firstRunHarness([
+  { id: 'com.stremio.torrentio.addon', transportUrl: torrentioUrl, enabled: false, core: false },
+  { id: 'com.stremio.torrentio.addon', transportUrl: 'https://torrentio.strem.fun/config/manifest.json', enabled: true, core: false }
+]);
+check(!configuredTorrentio.isDisabled.call(configuredTorrentio.context.root, torrentioCard),
+  'an enabled configured instance keeps the Store card from claiming Torrentio is disabled');
 
 function transactionHarness(rows, operation, options = {}) {
   const calls = { enabled: [], removed: [] };

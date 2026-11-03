@@ -13,6 +13,7 @@ Item {
 
     property var addon: ({})
     property bool installed: false
+    property bool disabled: false
     property bool busy: false
     property bool selected: false            // keyboard focus from the row
     property bool phoneLayout: false
@@ -113,12 +114,13 @@ Item {
             radius: 13
             color: Qt.rgba(10 / 255, 11 / 255, 15 / 255, 0.62)
             border.width: 1
-            border.color: card.installed ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.45) : Qt.rgba(1, 1, 1, 0.16)
+            border.color: card.installed && !card.disabled
+                          ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.45) : Qt.rgba(1, 1, 1, 0.16)
             Text {
                 id: badgeText
                 anchors.centerIn: parent
-                text: card.busy ? "Adding…" : "✓ Installed"
-                color: card.installed ? theme.gold : theme.inkDim
+                text: card.busy ? "Adding…" : card.disabled ? "Disabled" : "✓ Installed"
+                color: card.installed && !card.disabled ? theme.gold : theme.inkDim
                 font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
             }
         }
@@ -159,7 +161,7 @@ Item {
         Text {
             anchors.centerIn: parent
             text: card.busy ? "Adding…" : card.installed
-                  ? (card.addon.configurable ? "Set up" : "Installed")
+                  ? (card.addon.configurable ? "Set up" : card.disabled ? "Enable" : "Installed")
                   : (card.addon.configurable ? "Set up" : "Install")
             color: card.installed ? "#ffffff" : "#171717"
             font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
@@ -167,8 +169,8 @@ Item {
         KeyboardAction {
             anchors.fill: parent
             accessibleName: (card.addon.title || card.addon.name || "") + ", "
-                            + (card.installed ? "installed" : "install")
-            enabled: !card.busy && (!card.installed || card.addon.configurable)
+                            + (card.disabled ? "disabled" : card.installed ? "installed" : "install")
+            enabled: !card.busy && (!card.installed || card.disabled || card.addon.configurable)
             focusRadius: 8
             onTriggered: card.activated()
         }
@@ -179,7 +181,8 @@ Item {
         anchors.fill: parent
         z: 0
         accessibleName: (card.addon.title || card.addon.name || "")
-                        + (card.installed ? ", installed" : card.addon.setupRequired ? ", set up" : ", install")
+                        + (card.disabled ? ", disabled" : card.installed ? ", installed"
+                           : card.addon.setupRequired ? ", set up" : ", install")
         focusEnabled: false                    // the row owns keyboard focus
         showFocusFrame: false
         onTriggered: card.activated()

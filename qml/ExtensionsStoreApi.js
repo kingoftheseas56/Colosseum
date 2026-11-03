@@ -10,7 +10,7 @@ var PAGE = 100
 var PER_ROW = 12
 
 // The five a fresh Colosseum needs (Brotherhood/agents/extensions-store-decision-ledger.md).
-var ESSENTIALS = ["OpenSubtitles v3", "Streaming Catalogs", "Comet | ElfHosted", "Anime Kitsu", "Torrentio"]
+var ESSENTIALS = ["Torrentio", "OpenSubtitles v3", "Streaming Catalogs", "Comet | ElfHosted", "Anime Kitsu"]
 
 // [title, subtitle, test] in page order, over the site's own category slugs.
 var ROWS = [
