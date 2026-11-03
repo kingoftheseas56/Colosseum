@@ -3566,9 +3566,9 @@ Item {
                                     Layout.fillWidth: true
                                 }
                                 Button {
-                                    id: importBulkChoiceControl
+                                    id: trackerImportBulkReviewControl
                                     Binding {
-                                        target: importBulkChoiceControl
+                                        target: trackerImportBulkReviewControl
                                         property: theme.defaultFontSizeProperty(Qt.application.font)
                                         when: theme.androidHost
                                         value: theme.defaultFontSize(Qt.application.font)
@@ -3585,9 +3585,9 @@ Item {
                                     onClicked: root.openBulkImportReview()
                                 }
                                 Button {
-                                    id: importBulkChoiceControl
+                                    id: trackerImportBulkClearControl
                                     Binding {
-                                        target: importBulkChoiceControl
+                                        target: trackerImportBulkClearControl
                                         property: theme.defaultFontSizeProperty(Qt.application.font)
                                         when: theme.androidHost
                                         value: theme.defaultFontSize(Qt.application.font)
@@ -4409,9 +4409,9 @@ Item {
                         id: bulkImportChoiceRepeater
                         model: root.bulkImportCommonChoices()
                         delegate: Button {
-                            id: importBulkChoiceControl
+                            id: trackerImportBulkChoiceControl
                             Binding {
-                                target: importBulkChoiceControl
+                                target: trackerImportBulkChoiceControl
                                 property: theme.defaultFontSizeProperty(Qt.application.font)
                                 when: theme.androidHost
                                 value: theme.defaultFontSize(Qt.application.font)
