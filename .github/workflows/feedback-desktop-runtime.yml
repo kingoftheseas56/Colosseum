@@ -1,0 +1,169 @@
+name: Feedback desktop runtime qualification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  feedback:
+    name: Feedback (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-26]
+    defaults:
+      run:
+        shell: bash
+    env:
+      ECM_VERSION: '6.15.0'
+      ECM_SHA256: f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2
+      MPVQT_VERSION: '1.2.0'
+      MPVQT_SHA256: 8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Allocate isolated evidence and record exact checkout
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/feedback-evidence"
+          mkdir -p "$evidence"
+          echo "FEEDBACK_EVIDENCE=$evidence" >> "$GITHUB_ENV"
+          git rev-parse HEAD > "$evidence/source-sha.txt"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          uname -a > "$evidence/runner.txt"
+          node --version >> "$evidence/runner.txt"
+      - name: Install Linux build and GUI dependencies
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build pkg-config libmpv-dev libtorrent-rasterbar-dev \
+            libboost-all-dev libssl-dev libsecret-1-dev libgl1-mesa-dev libegl1-mesa-dev \
+            libxkbcommon-dev libxcb-cursor0 libgl1-mesa-dri libglx-mesa0 \
+            ffmpeg gnome-keyring dbus-daemon dbus-x11 xvfb xauth
+      - name: Install coherent Linux Qt 6.11.1
+        if: runner.os == 'Linux'
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: '6.11.1'
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning qtserialport qtimageformats'
+          aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b'
+          cache: true
+      - name: Build pinned Linux ECM and MpvQt
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          exec > >(tee "$FEEDBACK_EVIDENCE/dependency-build.log") 2>&1
+          curl --fail --location --retry 3 "https://download.kde.org/Attic/frameworks/6.15/extra-cmake-modules-$ECM_VERSION.tar.xz" -o "$RUNNER_TEMP/ecm.tar.xz"
+          echo "$ECM_SHA256  $RUNNER_TEMP/ecm.tar.xz" | sha256sum --check --strict
+          mkdir "$RUNNER_TEMP/ecm-source"
+          tar -xf "$RUNNER_TEMP/ecm.tar.xz" -C "$RUNNER_TEMP/ecm-source" --strip-components=1
+          cmake -S "$RUNNER_TEMP/ecm-source" -B "$RUNNER_TEMP/ecm-build" -G Ninja \
+            -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/ecm-install"
+          cmake --build "$RUNNER_TEMP/ecm-build" --target install --parallel 2
+          curl --fail --location --retry 3 "https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz" -o "$RUNNER_TEMP/mpvqt.tar.xz"
+          echo "$MPVQT_SHA256  $RUNNER_TEMP/mpvqt.tar.xz" | sha256sum --check --strict
+          mkdir "$RUNNER_TEMP/mpvqt-source"
+          tar -xf "$RUNNER_TEMP/mpvqt.tar.xz" -C "$RUNNER_TEMP/mpvqt-source" --strip-components=1
+          cmake -S "$RUNNER_TEMP/mpvqt-source" -B "$RUNNER_TEMP/mpvqt-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/mpvqt-install" \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$RUNNER_TEMP/ecm-install"
+          cmake --build "$RUNNER_TEMP/mpvqt-build" --target install --parallel 2
+      - name: Compile current Linux application
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          exec > >(tee "$FEEDBACK_EVIDENCE/build.log") 2>&1
+          cmake -S native -B "$RUNNER_TEMP/app-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+            -DCOLOSSEUM_BUILD_PLAYER2=OFF -DCOLOSSEUM_PLAYER2_IN_APP=OFF \
+            -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF -DCOLOSSEUM_UPDATE_TESTING=OFF \
+            -DCOLOSSEUM_FERIA_IN_APP=OFF -DCOLOSSEUM_VINYL_IN_APP=OFF \
+            -DCOLOSSEUM_ENABLE_VINYL_QUALIFICATION=OFF -DCOLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=OFF \
+            -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$RUNNER_TEMP/ecm-install;$RUNNER_TEMP/mpvqt-install" \
+            -DMPVQT_PREFIX="$RUNNER_TEMP/mpvqt-install"
+          cmake --build "$RUNNER_TEMP/app-build" --target colosseum_runtime_ready --parallel 2
+          echo "FEEDBACK_APP=$RUNNER_TEMP/app-build/colosseum" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$QT_ROOT_DIR/lib:$RUNNER_TEMP/mpvqt-install/lib:$RUNNER_TEMP/mpvqt-install/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+      - name: Install macOS native build dependencies
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          if [[ -d /Applications/Xcode_26.1.1.app ]]; then
+            sudo xcode-select --switch /Applications/Xcode_26.1.1.app/Contents/Developer
+          fi
+          brew install cmake ninja pkgconf clang-format libtorrent-rasterbar boost openssl@3 mpv ffmpeg python \
+            2>&1 | tee "$FEEDBACK_EVIDENCE/dependency-install.log"
+          sw_vers >> "$FEEDBACK_EVIDENCE/runner.txt"
+          xcodebuild -version >> "$FEEDBACK_EVIDENCE/runner.txt"
+      - name: Compile current macOS application with coherent Qt 6.11.1
+        if: runner.os == 'macOS'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '26.1'
+          COLOSSEUM_BUILD_JOBS: '2'
+          COLOSSEUM_MAC_BUNDLE: '0'
+        run: |
+          set -euo pipefail
+          export COLOSSEUM_MAC_WORK_ROOT="$RUNNER_TEMP/mac-work"
+          export COLOSSEUM_MAC_RECEIPT_PATH="$FEEDBACK_EVIDENCE/build-receipt.json"
+          bash tools/macos-build/build-m1-preview.sh "$GITHUB_WORKSPACE" "$GITHUB_SHA" \
+            2>&1 | tee "$FEEDBACK_EVIDENCE/build.log"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          receipt = json.loads(Path(os.environ['COLOSSEUM_MAC_RECEIPT_PATH']).read_text())
+          with open(os.environ['GITHUB_ENV'], 'a') as stream:
+              stream.write('FEEDBACK_APP=' + receipt['executable'] + '\n')
+              stream.write('QT_ROOT_DIR=' + receipt['qt_prefix'] + '\n')
+              stream.write('DYLD_FRAMEWORK_PATH=' + receipt['qt_prefix'] + '/lib\n')
+              stream.write('DYLD_LIBRARY_PATH=' + receipt['qt_prefix'] + '/lib:' + receipt['dependency_prefix'] + '/lib\n')
+          PY
+      - name: Verify runtime prerequisites
+        run: |
+          set -euo pipefail
+          test -x "$FEEDBACK_APP"
+          test "$("$QT_ROOT_DIR/bin/qmake" -query QT_VERSION)" = 6.11.1
+          "$QT_ROOT_DIR/bin/qmake" -query QT_VERSION > "$FEEDBACK_EVIDENCE/qt-version.txt"
+          node --check tests/feedback_app_runtime.cjs
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            console=$(stat -f '%Su' /dev/console)
+            printf '%s\n' "$console" > "$FEEDBACK_EVIDENCE/gui-console.txt"
+            [[ -n "$console" && "$console" != root && "$console" != loginwindow ]] || {
+              echo 'No logged-in macOS GUI console session'; exit 1;
+            }
+          fi
+      - name: Qualify feedback inside Linux Colosseum and submit once
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24' \
+            node tests/feedback_app_runtime.cjs --app "$FEEDBACK_APP" \
+              --output "$FEEDBACK_EVIDENCE/runtime" --live-submit \
+            2>&1 | tee "$FEEDBACK_EVIDENCE/runtime-driver.log"
+      - name: Qualify feedback inside macOS Colosseum and submit once
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          node tests/feedback_app_runtime.cjs --app "$FEEDBACK_APP" \
+            --output "$FEEDBACK_EVIDENCE/runtime" --live-submit \
+            2>&1 | tee "$FEEDBACK_EVIDENCE/runtime-driver.log"
+      - name: Upload scoped runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: feedback-desktop-runtime-${{ matrix.os }}
+          path: ${{ env.FEEDBACK_EVIDENCE }}/
+          if-no-files-found: warn
+          retention-days: 7
