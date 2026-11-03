@@ -483,6 +483,7 @@ Item {
             onTriggered: root.backRequested()
         }
         Row {
+            visible: Qt.platform.os !== "android"
             anchors.right: parent.right
             anchors.rightMargin: 25
             anchors.verticalCenter: parent.verticalCenter

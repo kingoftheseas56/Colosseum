@@ -272,6 +272,7 @@ Item {
     // window chrome (fullscreen rule removed 2026-07-20): the canonical
     // minimize · fullscreen-toggle · power cluster every page carries.
     Row {
+        visible: Qt.platform.os !== "android"
         z: 30
         anchors.right: parent.right
         anchors.rightMargin: theme.margin

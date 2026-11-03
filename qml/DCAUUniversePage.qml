@@ -219,6 +219,7 @@ Item {
     BackAction { x: theme.margin; y: 28; z: 20; onTriggered: root.navigateBack() }
 
     Row {
+        visible: Qt.platform.os !== "android"
         z: 30
         anchors.right: parent.right
         anchors.rightMargin: theme.margin

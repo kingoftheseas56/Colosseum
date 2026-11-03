@@ -1167,6 +1167,7 @@ Item {
         onTriggered: root.backRequested()
     }
     Row {
+        visible: Qt.platform.os !== "android"
         z: 30
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
