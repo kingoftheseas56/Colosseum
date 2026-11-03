@@ -52,7 +52,7 @@ TestCase {
             '  function saveState(id, st) { var r = records[id]; r.savedState = st; records[id] = r }',
             '}',
             'Item { id: playerLayer; property alias item: player',
-            '  QtObject { id: player; property real position: 0',
+            '  QtObject { id: player; property var position: 0',
             '    function resumeFromMinimize() { win.calls.push("resume") }',
             '    function playTorrent(h, f) { win.calls.push("torrent:" + h + ":" + f) }',
             '    function playLocalFile(t) { win.calls.push("local:" + t.localPath) }',
@@ -106,15 +106,23 @@ TestCase {
         compare(host.warmPlayerSessionId, "s1")
     }
 
-    function test_active_session_switches_with_latest_live_position() {
+    function test_active_session_switches_with_latest_live_position_data() {
+        return [{ tag: "positive", live: 905, expected: 905 },
+                { tag: "rewound-zero", live: 0, expected: 0 },
+                { tag: "undefined", live: undefined, expected: 120 },
+                { tag: "nan", live: NaN, expected: 120 },
+                { tag: "negative", live: -1, expected: 120 },
+                { tag: "infinity", live: Infinity, expected: 120 }]
+    }
+    function test_active_session_switches_with_latest_live_position(data) {
         const store = sessions()
         store.records = { "s1": record("hashA", 0, 120) }   // stale saved position
         store.activeId = "s1"
         host.warmPlayerSessionId = "s1"
-        player().position = 905                             // live position of the old route
+        player().position = data.live                      // live position of the old route
         reopenWithSource(store, "hashB", 1)
-        compare(host.calls.join(","), "torrent:hashB:1,restore:905")
-        compare(store.get("s1").savedState.position, 905)
+        compare(host.calls.join(","), "torrent:hashB:1,restore:" + data.expected)
+        compare(store.get("s1").savedState.position, data.expected)
     }
 
     function test_unrelated_warm_session_is_untouched() {
