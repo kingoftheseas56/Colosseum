@@ -107,11 +107,13 @@ function makeExtensionsRouter({loaded = true, guard = () => false} = {}) {
         world: "",
         openConfiguration(id) { opened.push(id); },
         openSuggestedStreamSource() { opened.push("torrentio"); },
+        openPlaySources() { opened.push("play sources"); },
         takeKeyboardFocus() {}
     } : null;
     const ctx = {
         pendingExtensionConfiguration: "",
         pendingStreamExtensionSetup: false,
+        pendingPlaySourcesBrowse: false,
         extensionsLayer: {active: false, item},
         downloadsLayer: {active: true},
         updateLayer: {active: true},
@@ -127,7 +129,8 @@ function makeExtensionsRouter({loaded = true, guard = () => false} = {}) {
         guardNamedCollectionsNavigation(continuation) { return guard(continuation); },
         openExtensionsPage(...args) { return ctx.openExtensionsPage(...args); },
         openPendingExtensionConfiguration() { return ctx.openPendingExtensionConfiguration(); },
-        openPendingStreamExtensionSetup() { return ctx.openPendingStreamExtensionSetup(); }
+        openPendingStreamExtensionSetup() { return ctx.openPendingStreamExtensionSetup(); },
+        openPendingPlaySourcesBrowse() { return ctx.openPendingPlaySourcesBrowse(); }
     };
     ctx.win = win;
     runInNewContext(extensionsSource, ctx);
@@ -160,6 +163,7 @@ const configurationId = "colosseum.well.tankoyomi";
         world: "",
         openConfiguration(id) { router.opened.push(id); },
         openSuggestedStreamSource() { router.opened.push("torrentio"); },
+        openPlaySources() { router.opened.push("play sources"); },
         takeKeyboardFocus() {}
     };
     router.ctx.openPendingExtensionConfiguration();
@@ -191,6 +195,27 @@ const configurationId = "colosseum.well.tankoyomi";
     router.ctx.openPendingStreamExtensionSetup();
     checkExtension(router.opened.length === 1,
                    "Loader completion cannot reopen an already consumed setup route");
+}
+
+{
+    const router = makeExtensionsRouter();
+    router.ctx.openPlaySourcesExtensions();
+    checkExtension(router.ctx.extensionsLayer.active && router.opened.length === 1
+                   && router.opened[0] === "play sources" && !router.ctx.pendingPlaySourcesBrowse,
+                   "an empty provider response reaches the Play sources list");
+}
+{
+    const router = makeExtensionsRouter({loaded: false});
+    router.ctx.openPlaySourcesExtensions();
+    checkExtension(router.ctx.pendingPlaySourcesBrowse && router.opened.length === 0,
+                   "unloaded Extensions item retains the Play sources route");
+    router.ctx.extensionsLayer.item = {
+        openPlaySources() { router.opened.push("play sources"); },
+        takeKeyboardFocus() {}
+    };
+    router.ctx.openPendingPlaySourcesBrowse();
+    checkExtension(router.opened.length === 1 && !router.ctx.pendingPlaySourcesBrowse,
+                   "Loader completion opens Play sources once");
 }
 
 // The navigation guard must keep the original arguments in its deferred callback.
@@ -228,6 +253,27 @@ const configurationId = "colosseum.well.tankoyomi";
     deferred();
     checkExtension(router.opened.length === 1 && router.opened[0] === "torrentio",
                    "accepted guarded navigation reaches Torrentio setup");
+}
+
+// The title page's empty Sources action chooses setup only when no provider was asked.
+{
+    const routeStart = main.indexOf("            item.openExtensionsRequested.connect(function(browseMoreSources) {");
+    const routeEnd = main.indexOf("            // Rebuilt title page only:", routeStart);
+    assert(routeStart >= 0 && routeEnd > routeStart, "title page Extensions route found");
+    let handler = null;
+    const calls = [];
+    runInNewContext(main.slice(routeStart, routeEnd), {
+        item: {openExtensionsRequested: {connect(fn) { handler = fn; }}},
+        win: {
+            openPlaySourcesExtensions() { calls.push(["browse"]); },
+            openStreamExtensionSetup() { calls.push(["setup"]); }
+        }
+    });
+    handler(false);
+    handler(true);
+    checkExtension(calls.length === 2 && calls[0][0] === "setup"
+                   && calls[1][0] === "browse",
+                   "first install reaches Torrentio setup; an empty provider response reaches Play sources");
 }
 
 // Closing the Extensions page must discard any configuration still waiting on the Loader.

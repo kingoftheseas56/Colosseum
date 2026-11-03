@@ -47,6 +47,7 @@ Item {
     readonly property bool installUrlPreviewReady: root.installUrlManifest !== null
         && installPreviewLogo.artworkResolved
     property bool managingInstalled: false
+    property bool pendingPlaySourcesBrowse: false
     property var pendingInstallOperation: null
     property var replacingInstance: null
     property int profileGeneration: 0
@@ -246,6 +247,18 @@ Item {
         root.searching = false
         root.openSetup(addon, null)
     }
+    function openPlaySources() {
+        root.managingInstalled = false
+        root.searching = false
+        root.seeAllRow = null
+        root.pendingPlaySourcesBrowse = true
+        root.finishPlaySourcesBrowse()
+    }
+    function finishPlaySourcesBrowse() {
+        if (!root.pendingPlaySourcesBrowse || root.loading) return
+        root.pendingPlaySourcesBrowse = false
+        root.seeAllRow = root.rows.find(function(row) { return row.title === "Play sources" }) || null
+    }
     function load() {
         root.loading = true
         root.loadError = ""
@@ -253,6 +266,7 @@ Item {
             root.catalogue = all
             root.loadError = error
             root.loading = false
+            root.finishPlaySourcesBrowse()
         })
     }
 

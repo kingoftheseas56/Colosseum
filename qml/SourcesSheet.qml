@@ -127,7 +127,7 @@ Item {
     signal downloadRequested(var row)
     // season mode only: the ask came back with no full-season torrent
     signal seasonNoPacks()
-    signal openExtensionsRequested()
+    signal openExtensionsRequested(bool browseMoreSources)
 
     visible: sheet.open || sheet.opacity > 0.01
     opacity: sheet.open ? 1 : 0
@@ -596,7 +596,7 @@ Item {
             id: extensionsAction
             objectName: "sourcesSheetExtensionsRoute"
             visible: sheet.open && sheet.mode === "play" && !sheet.loading && !sheet.timedOut
-                     && sheet.rowCount === 0 && sheet.askedCount === 0
+                     && sheet.rowCount === 0
             anchors.top: emptyText.bottom
             anchors.topMargin: 12
             anchors.horizontalCenter: parent.horizontalCenter
@@ -610,7 +610,7 @@ Item {
                 id: extensionsActionLabel
                 objectName: "sourcesSheetExtensionsLabel"
                 anchors.centerIn: parent
-                text: "Open Torrentio in Extensions"
+                text: "Find sources by adding extensions"
                 color: theme.gold
                 font.family: theme.ui
                 font.pixelSize: 13
@@ -621,11 +621,12 @@ Item {
                 objectName: "sourcesSheetExtensionsAction"
                 anchors.fill: parent
                 visible: extensionsAction.visible
-                accessibleName: "Open Torrentio in Extensions"
+                accessibleName: "Find sources by adding extensions"
                 focusRadius: parent.radius
                 onTriggered: {
+                    var browseMoreSources = sheet.askedCount > 0
                     sheet.hide()
-                    sheet.openExtensionsRequested()
+                    sheet.openExtensionsRequested(browseMoreSources)
                 }
             }
         }

@@ -133,6 +133,8 @@ const failInstallSource = extractFunction(store, 'failInstallOperation');
 const finishInstallSource = extractFunction(store, 'finishInstallOperation');
 const setupInstallSource = extractFunction(store, 'onInstallRequested');
 const suggestedSourceSource = extractFunction(store, 'openSuggestedStreamSource');
+const playSourcesSource = extractFunction(store, 'openPlaySources');
+const finishPlaySourcesSource = extractFunction(store, 'finishPlaySourcesBrowse');
 const isDisabledSource = extractFunction(store, 'isDisabled');
 const enableInstalledUrlSource = extractFunction(store, 'enableInstalledUrl');
 
@@ -183,6 +185,24 @@ check(setupInstallHarness().expectedId === ''
   'a stale catalogue ID cannot reject a new Comet install, while reconfiguration keeps the installed ID');
 
 const torrentioUrl = 'https://torrentio.strem.fun/manifest.json';
+{
+  const playSources = { title: 'Play sources', all: [{ name: 'Torrentio' }] };
+  const context = { root: {
+    loading: true, rows: [playSources], managingInstalled: true, searching: true,
+    seeAllRow: null, pendingPlaySourcesBrowse: false,
+    finishPlaySourcesBrowse() { return finish.call(context.root); }
+  } };
+  vm.createContext(context);
+  const finish = vm.runInContext(`(${finishPlaySourcesSource})`, context);
+  const open = vm.runInContext(`(${playSourcesSource})`, context);
+  open();
+  check(context.root.pendingPlaySourcesBrowse && context.root.seeAllRow === null,
+    'the recommended Play sources route waits for the Store catalogue');
+  context.root.loading = false;
+  finish();
+  check(context.root.seeAllRow === playSources && !context.root.pendingPlaySourcesBrowse,
+    'the recommended Play sources list opens once its catalogue arrives');
+}
 {
   const opened = [];
   const context = { root: {

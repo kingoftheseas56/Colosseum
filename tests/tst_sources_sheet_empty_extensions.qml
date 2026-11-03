@@ -10,6 +10,7 @@ Item {
     property var sheet: null
     property int navigationRequests: 0
     property bool sheetOpenAtNavigation: true
+    property bool lastBrowseMoreSources: false
 
     Window {
         id: hostWindow
@@ -28,9 +29,10 @@ Item {
     Connections {
         target: harness.sheet
         ignoreUnknownSignals: true
-        function onOpenExtensionsRequested() {
+        function onOpenExtensionsRequested(browseMoreSources) {
             harness.navigationRequests += 1
             harness.sheetOpenAtNavigation = harness.sheet.open
+            harness.lastBrowseMoreSources = browseMoreSources
         }
     }
 
@@ -41,6 +43,7 @@ Item {
         function init() {
             harness.navigationRequests = 0
             harness.sheetOpenAtNavigation = true
+            harness.lastBrowseMoreSources = false
             harness.sheet = sourcesComponent.createObject(surface)
             verify(harness.sheet !== null, "create the production SourcesSheet")
         }
@@ -65,12 +68,27 @@ Item {
             var action = findChild(harness.sheet, "sourcesSheetExtensionsAction")
             verify(action !== null, "empty provider state exposes its Extensions action")
             verify(action.visible, "the action is visible only for this settled empty state")
-            compare(action.accessibleName, "Open Torrentio in Extensions")
-            compare(findChild(harness.sheet, "sourcesSheetExtensionsLabel").text, "Open Torrentio in Extensions")
+            compare(action.accessibleName, "Find sources by adding extensions")
+            compare(findChild(harness.sheet, "sourcesSheetExtensionsLabel").text, "Find sources by adding extensions")
             mouseClick(action, action.width / 2, action.height / 2, Qt.LeftButton)
             tryCompare(harness.sheet, "open", false)
             compare(harness.navigationRequests, 1)
             compare(harness.sheetOpenAtNavigation, false, "close the sheet before routing away")
+            compare(harness.lastBrowseMoreSources, false, "first install routes to Torrentio setup")
+        }
+
+        function test_askedProviderReturningNoSourcesOffersBrowseRoute() {
+            harness.sheet.show("movie", "tt0063350", "Example film", ({}))
+            harness.sheet.askedNames = ["Example provider"]
+            harness.sheet.loading = false
+            var action = findChild(harness.sheet, "sourcesSheetExtensionsAction")
+            var status = findChild(harness.sheet, "sourcesSheetEmptyText")
+            compare(status.text, "No sources found.")
+            verify(action.visible, "an empty response offers more stream extensions")
+            mouseClick(action, action.width / 2, action.height / 2, Qt.LeftButton)
+            compare(harness.navigationRequests, 1)
+            compare(harness.sheetOpenAtNavigation, false)
+            compare(harness.lastBrowseMoreSources, true, "empty replies open the Store to browse")
         }
 
         function test_loading_results_emptyReply_timeout_andOtherModesHideAction() {
@@ -93,7 +111,7 @@ Item {
 
             harness.sheet.rows = []
             harness.sheet.timedOut = false
-            verify(!action.visible, "an asked provider returning zero sources shows No sources found")
+            verify(action.visible, "an asked provider returning zero sources can browse more extensions")
             compare(status.text, "No sources found.")
 
             harness.sheet.timedOut = true
