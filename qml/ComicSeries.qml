@@ -586,13 +586,13 @@ Item {
                         anchors.bottom: parent.bottom
                         Text {
                             text: "Western Comics · Tankoban"
-                            color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                             font.letterSpacing: 3; font.capitalization: Font.AllUppercase
                         }
                         Text {
                             width: flick.width - 2 * theme.margin - 180
                             text: page.seriesTitle
-                            color: theme.ink; font.family: theme.display; font.pixelSize: 54
+                            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(54)
                             font.weight: Font.DemiBold
                             wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
@@ -601,20 +601,20 @@ Item {
                         Row {
                             spacing: 11
                             Text { text: page.releases.length
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                                 anchors.verticalCenter: parent.verticalCenter }
                             Text { text: "releases" + (page.totalReleases > page.releases.length
                                                        ? " of " + page.totalReleases : "")
-                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                                 anchors.verticalCenter: parent.verticalCenter }
                             Text { visible: page.collections.length > 0; text: "·"
                                 color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
                             Text { visible: page.collections.length > 0
                                 text: page.collections.length + " collected editions"
-                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                                 anchors.verticalCenter: parent.verticalCenter }
                             Text { text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "GetComics"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                            Text { text: "GetComics"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                                 anchors.verticalCenter: parent.verticalCenter }
                         }
 
@@ -648,7 +648,7 @@ Item {
                         anchors.left: parent.left; anchors.right: clearBtn.visible ? clearBtn.left : parent.right
                         anchors.top: parent.top; anchors.bottom: parent.bottom
                         verticalAlignment: TextInput.AlignVCenter
-                        color: theme.ink; font.family: theme.ui; font.pixelSize: 15
+                        color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(15)
                         clip: true; selectByMouse: true
                         onTextChanged: page.filter = text
                     }
@@ -656,7 +656,7 @@ Item {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                         visible: filterInput.text.length === 0 && !filterInput.activeFocus
                         text: "Search releases…"
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 15
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(15)
                     }
                     Item {
                         id: clearBtn
@@ -688,7 +688,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: page.filter.trim().length > 0
                     text: page.shown.length + (page.shown.length === 1 ? " match" : " matches")
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 }
                 // sort (right): Newest · Oldest · A–Z — A–Z is numeric-aware (#2 before #10)
                 Row {
@@ -704,7 +704,7 @@ Item {
                             readonly property bool on: page.sortMode === sopt.modelData.k
                             Text { id: soptText; text: sopt.modelData.l
                                 color: sopt.on ? theme.gold : (soptMa.containsMouse ? theme.ink : theme.inkDim)
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 font.weight: sopt.on ? Font.DemiBold : Font.Normal }
                             Rectangle { visible: sopt.on; anchors.bottom: parent.bottom
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -762,10 +762,10 @@ Item {
                                         anchors.left: parent.left; anchors.leftMargin: 24
                                         anchors.verticalCenter: parent.verticalCenter; spacing: 14
                                         Text { text: section.modelData.label; color: theme.inkDimmer
-                                            font.family: theme.display; font.pixelSize: 13; font.letterSpacing: 3
+                                            font.family: theme.display; font.pixelSize: theme.fontSize(13); font.letterSpacing: 3
                                             anchors.verticalCenter: parent.verticalCenter }
                                         Text { text: section.modelData.items.length; color: theme.ink
-                                            font.family: theme.display; font.pixelSize: 15; font.weight: Font.Bold
+                                            font.family: theme.display; font.pixelSize: theme.fontSize(15); font.weight: Font.Bold
                                             anchors.verticalCenter: parent.verticalCenter }
                                     }
                                     Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
@@ -891,11 +891,11 @@ Item {
                                             anchors.verticalCenter: parent.verticalCenter; spacing: 4
                                             Text { width: parent.width; text: row.modelData.name
                                                 color: rowMa.containsMouse ? theme.gold : theme.ink
-                                                font.family: theme.ui; font.pixelSize: 16; elide: Text.ElideRight }
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(16); elide: Text.ElideRight }
                                             Text { width: parent.width; text: row.statusLine(); visible: text.length > 0
                                                 color: row.dlState === "done" ? theme.gold
                                                      : (row.dlState === "error" ? "#e6a3a3" : theme.inkDimmer)
-                                                font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(13); elide: Text.ElideRight }
                                         }
 
                                         // Stable consume verb: the row and this control always mean Read.
@@ -917,7 +917,7 @@ Item {
                                                 id: readText; anchors.centerIn: parent
                                                 text: page.readActionLabel(row.modelData, row.dlState)
                                                 color: page.pendingReadReleaseId === row.relId ? theme.gold : "#171205"
-                                                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                                             }
                                             MouseArea {
                                                 anchors.fill: parent; z: 5
@@ -945,7 +945,7 @@ Item {
                                                 color: (row.dlState === "done" && trMa.containsMouse) ? "#e6a3a3"
                                                      : row.dlState === "done" ? theme.gold
                                                      : trMa.containsMouse ? theme.gold : theme.inkDim
-                                                font.pixelSize: 16
+                                                font.pixelSize: theme.fontSize(16)
                                                 font.weight: (row.dlState === "done" && !trMa.containsMouse) ? Font.Bold : Font.Normal
                                             }
                                             MouseArea {
@@ -983,7 +983,7 @@ Item {
                 visible: !page.loading && page.releases.length > 0 && page.shown.length === 0
                 x: theme.margin
                 text: "No releases match “" + page.filter.trim() + "”."
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 topPadding: 10
             }
 
@@ -992,7 +992,7 @@ Item {
                 visible: !page.loading && page.errorMsg.length > 0
                 x: theme.margin
                 text: page.errorMsg
-                color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 13
+                color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 topPadding: 18
             }
 
@@ -1066,14 +1066,14 @@ Item {
         Text {
             width: parent.width; horizontalAlignment: Text.AlignHCenter
             text: page.seriesTitle
-            color: theme.ink; font.family: theme.display; font.pixelSize: 34
+            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(34)
             wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
         }
         Text {
             width: parent.width; horizontalAlignment: Text.AlignHCenter
             text: page.errorMsg.length ? page.errorMsg : "Loading…"
             color: page.errorMsg.length ? "#e6a3a3" : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 14
+            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
         }
     }
 

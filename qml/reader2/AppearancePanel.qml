@@ -171,7 +171,7 @@ ReaderOverlay {
             color: Theme.inkTitle
             font.family: Theme.display
             font.weight: Font.Medium
-            font.pixelSize: 16
+            font.pixelSize: Theme.fontSize(16)
         }
 
         // ---------- scrollable body ----------
@@ -251,14 +251,14 @@ ReaderOverlay {
                             wrapMode: Text.WordWrap
                             color: Theme.gold
                             font.family: Theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.fontSize(11)
                         }
                     }
 
                     // Invert images — dark pages only (diagrams shouldn't blast white).
                     Item {
                         width: parent.width
-                        height: 22
+                        height: Theme.androidHost ? 52 : 22
                         visible: panel.curIsDark
                         Text {
                             anchors.left: parent.left
@@ -267,7 +267,7 @@ ReaderOverlay {
                             color: Theme.inkDim
                             font.family: Theme.ui
                             font.weight: Font.DemiBold
-                            font.pixelSize: 13
+                            font.pixelSize: Theme.fontSize(13)
                         }
                         ToggleSwitch {
                             anchors.right: parent.right
@@ -309,19 +309,20 @@ ReaderOverlay {
                     spacing: 10
                     GroupLabel { text: "Size" }
                     Row {
+                        id: sizeRow
                         width: parent.width
                         spacing: 14
-                        StepBtn { label: "A−"; onClicked: panel.changed("sizePct", panel.clampInt(panel.curSizePct - 5, 50, 300)) }
+                        StepBtn { id: sizeDecrease; label: "A−"; onClicked: panel.changed("sizePct", panel.clampInt(panel.curSizePct - 5, 50, 300)) }
                         Text {
-                            width: parent.width - 34 * 2 - 14 * 2
+                            width: Math.max(0, sizeRow.width - sizeDecrease.width - sizeIncrease.width - 2 * sizeRow.spacing)
                             anchors.verticalCenter: parent.verticalCenter
                             horizontalAlignment: Text.AlignHCenter
                             text: panel.curSizePct + " %"
                             color: Theme.inkDim
                             font.family: Theme.ui
-                            font.pixelSize: 13
+                            font.pixelSize: Theme.fontSize(13)
                         }
-                        StepBtn { label: "A+"; onClicked: panel.changed("sizePct", panel.clampInt(panel.curSizePct + 5, 50, 300)) }
+                        StepBtn { id: sizeIncrease; label: "A+"; onClicked: panel.changed("sizePct", panel.clampInt(panel.curSizePct + 5, 50, 300)) }
                     }
                 }
 
@@ -356,7 +357,7 @@ ReaderOverlay {
                     }
                     Item {
                         width: parent.width
-                        height: 34
+                        height: Theme.androidHost ? 52 : 34
                         Text {
                             id: indentCaption
                             anchors.left: parent.left
@@ -365,7 +366,7 @@ ReaderOverlay {
                             text: "Indent"
                             color: Theme.inkFaint
                             font.family: Theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.fontSize(12)
                         }
                         TriSegment {
                             anchors.left: indentCaption.right
@@ -393,7 +394,7 @@ ReaderOverlay {
                     }
                     Item {
                         width: parent.width
-                        height: 34
+                        height: Theme.androidHost ? 52 : 34
                         Text {
                             id: justifyCaption
                             anchors.left: parent.left
@@ -402,7 +403,7 @@ ReaderOverlay {
                             text: "Justify"
                             color: Theme.inkFaint
                             font.family: Theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.fontSize(12)
                         }
                         Segment {
                             anchors.left: justifyCaption.right
@@ -420,7 +421,7 @@ ReaderOverlay {
                     // this supersedes the 2026-07-20 "no vertical scroll / edge-to-edge" ruling.)
                     Item {
                         width: parent.width
-                        height: 34
+                        height: Theme.androidHost ? 52 : 34
                         Text {
                             id: flowCaption
                             anchors.left: parent.left
@@ -429,7 +430,7 @@ ReaderOverlay {
                             text: "Flow"
                             color: Theme.inkFaint
                             font.family: Theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.fontSize(12)
                         }
                         Segment {
                             anchors.left: flowCaption.right
@@ -453,7 +454,7 @@ ReaderOverlay {
                     }
                     Item {
                         width: parent.width
-                        height: 22
+                        height: Theme.androidHost ? 52 : 22
                         Text {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
@@ -461,7 +462,7 @@ ReaderOverlay {
                             color: Theme.inkDim
                             font.family: Theme.ui
                             font.weight: Font.DemiBold
-                            font.pixelSize: 13
+                            font.pixelSize: Theme.fontSize(13)
                         }
                         ToggleSwitch {
                             anchors.right: parent.right
@@ -472,7 +473,7 @@ ReaderOverlay {
                     }
                     Item {
                         width: parent.width
-                        height: 34
+                        height: Theme.androidHost ? 52 : 34
                         opacity: panel.curScrolled ? 0.35 : 1.0      // columns are a page-mode idea
                         enabled: !panel.curScrolled
                         Text {
@@ -483,7 +484,7 @@ ReaderOverlay {
                             text: "Columns"
                             color: Theme.inkFaint
                             font.family: Theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.fontSize(12)
                         }
                         Segment {
                             anchors.left: colCaption.right
@@ -504,7 +505,7 @@ ReaderOverlay {
                     GroupLabel { text: "Reading ruler" }
                     Item {
                         width: parent.width
-                        height: 22
+                        height: Theme.androidHost ? 52 : 22
                         Text {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
@@ -512,7 +513,7 @@ ReaderOverlay {
                             color: Theme.inkDim
                             font.family: Theme.ui
                             font.weight: Font.DemiBold
-                            font.pixelSize: 13
+                            font.pixelSize: Theme.fontSize(13)
                         }
                         ToggleSwitch {
                             anchors.right: parent.right
@@ -577,7 +578,7 @@ ReaderOverlay {
                                 color: Theme.inkDim
                                 selectionColor: Theme.gold
                                 font.family: "Consolas"
-                                font.pixelSize: 12
+                                font.pixelSize: Theme.fontSize(12)
                                 onTextChanged: { if (text !== panel.curCss) cssDebounce.restart() }
                                 Keys.onPressed: function(event) { panel.trapTab(event) }
                                 // Refresh the box when customCss changes from OUTSIDE the editor
@@ -597,7 +598,7 @@ ReaderOverlay {
                             text: "Custom CSS…"
                             color: Theme.inkGhost
                             font.family: Theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.fontSize(12)
                         }
                     }
                     Timer {
@@ -616,7 +617,7 @@ ReaderOverlay {
                         wrapMode: Text.WordWrap
                         color: Theme.inkFaint
                         font.family: Theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.fontSize(11)
                         lineHeight: 1.2
                     }
                 }
@@ -630,7 +631,7 @@ ReaderOverlay {
     component GroupLabel: Text {
         color: Theme.inkGhost
         font.family: Theme.ui
-        font.pixelSize: 11
+        font.pixelSize: Theme.fontSize(11)
         font.weight: Font.Bold
         font.letterSpacing: 1.8
         font.capitalization: Font.AllUppercase
@@ -670,7 +671,7 @@ ReaderOverlay {
                 color: sw.textColor
                 font.family: Theme.ui
                 font.weight: Font.DemiBold
-                font.pixelSize: 11
+                font.pixelSize: Theme.fontSize(11)
             }
         }
         ReaderKeyboardArea { id: swMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: sw.label; keyboardFocused: function() { panel.ensureVisible(sw) }; onClicked: sw.picked() }
@@ -700,13 +701,13 @@ ReaderOverlay {
                 Text {
                     text: "Aa"
                     font.family: fc.face
-                    font.pixelSize: 19
+                    font.pixelSize: Theme.fontSize(19)
                     color: fc.active ? Theme.ink : Theme.inkDim
                 }
                 Text {
                     text: fc.label
                     font.family: Theme.ui
-                    font.pixelSize: 11
+                    font.pixelSize: Theme.fontSize(11)
                     color: Theme.inkGhost
                 }
             }
@@ -719,8 +720,8 @@ ReaderOverlay {
         id: sb
         property string label: ""
         signal clicked()
-        width: 34
-        height: 34
+        width: Theme.androidHost ? 52 : 34
+        height: Theme.androidHost ? 52 : 34
         Rectangle {
             anchors.fill: parent
             radius: 8
@@ -732,7 +733,7 @@ ReaderOverlay {
                 text: sb.label
                 color: Theme.inkDim
                 font.family: "Literata"
-                font.pixelSize: 15
+                font.pixelSize: Theme.fontSize(15)
             }
         }
         ReaderKeyboardArea {
@@ -757,7 +758,7 @@ ReaderOverlay {
         property real stepSize: 0
         property string valueText: ""
         signal moved(real v)
-        height: 22
+        height: Theme.androidHost ? 48 : 22
 
         function frac() {
             return sr.maxValue > sr.minValue
@@ -773,11 +774,11 @@ ReaderOverlay {
             id: capText
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            width: 78
+            width: Theme.androidHost ? Math.max(78, implicitWidth) : 78
             text: sr.caption
             color: Theme.inkFaint
             font.family: Theme.ui
-            font.pixelSize: 12
+            font.pixelSize: Theme.fontSize(12)
         }
         Text {
             id: valText
@@ -788,7 +789,7 @@ ReaderOverlay {
             text: sr.valueText
             color: Theme.inkGhost
             font.family: Theme.ui
-            font.pixelSize: 12
+            font.pixelSize: Theme.fontSize(12)
         }
         Item {
             anchors.left: capText.right
@@ -796,7 +797,7 @@ ReaderOverlay {
             anchors.leftMargin: 12
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
-            height: 22
+            height: Theme.androidHost ? 52 : 22
 
             Rectangle {
                 id: slTrack
@@ -862,7 +863,7 @@ ReaderOverlay {
         property var values: []
         property string current: ""
         signal picked(string v)
-        height: 34
+        height: Theme.androidHost ? 58 : 34
 
         Rectangle {
             anchors.fill: parent
@@ -897,7 +898,7 @@ ReaderOverlay {
         property string rightLabel: ""
         property bool leftActive: true
         signal picked(bool left)
-        height: 34
+        height: Theme.androidHost ? 58 : 34
 
         Rectangle {
             anchors.fill: parent
@@ -932,7 +933,7 @@ ReaderOverlay {
                 color: sgb.active ? Theme.ink : Theme.inkFaint
                 font.family: Theme.ui
                 font.weight: Font.DemiBold
-                font.pixelSize: 12
+                font.pixelSize: Theme.fontSize(12)
             }
         }
         ReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: sgb.label; keyboardFocused: function() { panel.ensureVisible(sgb) }; onClicked: sgb.clicked() }
@@ -943,8 +944,8 @@ ReaderOverlay {
         id: ts
         property bool on: false
         signal toggled()
-        width: 40
-        height: 22
+        width: Theme.androidHost ? 52 : 40
+        height: Theme.androidHost ? 52 : 22
         Rectangle {
             anchors.fill: parent
             radius: height / 2
@@ -985,7 +986,7 @@ ReaderOverlay {
                 color: Theme.inkDim
                 font.family: Theme.ui
                 font.weight: Font.DemiBold
-                font.pixelSize: 12
+                font.pixelSize: Theme.fontSize(12)
             }
             Rectangle {
                 anchors.right: parent.right
@@ -1026,7 +1027,7 @@ ReaderOverlay {
         property bool emphasis: false
         property bool confirming: false
         signal clicked()
-        height: 38
+        height: Theme.androidHost ? 52 : 38
         Rectangle {
             anchors.fill: parent
             radius: 9
@@ -1040,7 +1041,7 @@ ReaderOverlay {
                 color: ab.confirming ? Theme.gold : (ab.emphasis ? Theme.ink : Theme.inkDim)
                 font.family: Theme.ui
                 font.weight: Font.DemiBold
-                font.pixelSize: 12
+                font.pixelSize: Theme.fontSize(12)
             }
         }
         Timer { id: abTimer; interval: 1500; onTriggered: ab.confirming = false }

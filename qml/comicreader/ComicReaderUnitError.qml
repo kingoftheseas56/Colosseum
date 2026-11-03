@@ -39,6 +39,7 @@ import ".."
 
 Item {
     id: root
+    Theme { id: theme }
 
     // The backend's wire code for this page's failure.
     property string code: ""
@@ -70,7 +71,7 @@ Item {
         property string label: ""
         signal activated()
         width: Math.max(76, cap.implicitWidth + 26)
-        height: 28
+        height: theme.androidHost ? 52 : 28
         radius: 6
         color: hover.hovered ? "#241d30" : "#1b1624"
         border.color: hover.hovered ? "#4a3f5e" : "#2f2740"
@@ -80,7 +81,7 @@ Item {
             anchors.centerIn: parent
             text: btn.label
             color: "#d8d4e2"
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             font.family: "Segoe UI"
             font.weight: Font.DemiBold
         }
@@ -119,7 +120,7 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: root.headline
                 color: "#ff8a8a"
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
                 font.family: "Segoe UI"
                 font.weight: Font.DemiBold
             }
@@ -128,7 +129,7 @@ Item {
                 visible: root.pageIndex >= 0
                 text: "Page " + (root.pageIndex + 1)
                 color: "#9a99a5"
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 font.family: "Segoe UI"
             }
             Row {

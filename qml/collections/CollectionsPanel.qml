@@ -187,7 +187,7 @@ Item {
                     text: adapter.error || qsTr("Your collections could not be opened.")
                     color: theme.ink
                     font.family: theme.ui
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     textFormat: Text.PlainText
                     Accessible.role: Accessible.AlertMessage
@@ -233,7 +233,7 @@ Item {
                 textFormat: Text.PlainText
                 color: theme.ink
                 font.family: theme.ui
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                 Accessible.role: Accessible.AlertMessage
             }

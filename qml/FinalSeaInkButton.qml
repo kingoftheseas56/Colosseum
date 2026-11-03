@@ -4,6 +4,7 @@ import QtQuick.Controls.Basic
 
 Button {
     id: root
+    Theme { id: interfaceTypography }
     property string fontFamily: "Georgia"
     property bool reducedMotion: false
     property bool mapArtwork: false
@@ -16,7 +17,7 @@ Button {
     hoverEnabled: true
     focusPolicy: Qt.StrongFocus
     font.family: fontFamily
-    font.pixelSize: 12
+    font.pixelSize: interfaceTypography.fontSize(12)
     Accessible.name: text
 
     Keys.onReturnPressed: function(event) {

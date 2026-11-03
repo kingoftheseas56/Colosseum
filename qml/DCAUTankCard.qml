@@ -28,7 +28,7 @@ FocusScope {
         text: root.caption
         color: theme.ink
         font.family: theme.ui
-        font.pixelSize: 14
+        font.pixelSize: theme.fontSize(14)
         font.weight: Font.DemiBold
         lineHeightMode: Text.FixedHeight
         lineHeight: 16

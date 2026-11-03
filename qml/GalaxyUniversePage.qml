@@ -213,13 +213,13 @@ Item {
                         anchors.left: parent.left; anchors.top: parent.top; anchors.topMargin: 96
                         text: "In a galaxy far far away"
                         color: Qt.rgba(247/255,247/255,245/255,.09)
-                        font.family: theme.display; font.pixelSize: 34
+                        font.family: theme.display; font.pixelSize: theme.fontSize(34)
                     }
                 }
                 Text {
                     text: root.currentDestination ? root.currentDestination.world : ""
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 12
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold; font.letterSpacing: 2.2
                 }
                 Text {
@@ -227,7 +227,7 @@ Item {
                     topPadding: 10
                     text: root.currentDestination ? root.currentDestination.title : ""
                     color: theme.ink
-                    font.family: theme.display; font.pixelSize: 62
+                    font.family: theme.display; font.pixelSize: theme.fontSize(62)
                     wrapMode: Text.WordWrap; lineHeight: .98
                 }
                 Item { width: 1; height: 48 }

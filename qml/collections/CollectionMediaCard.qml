@@ -85,7 +85,7 @@ Item {
                             anchors.centerIn: parent
                             text: qsTr("Reopen unavailable")
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             color: theme.inkDim
                             textFormat: Text.PlainText
                         }
@@ -100,7 +100,7 @@ Item {
                         text: card.media.title
                         color: theme.ink
                         font.family: theme.ui
-                        font.pixelSize: 15
+                        font.pixelSize: theme.fontSize(15)
                         font.weight: Font.DemiBold
                         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         textFormat: Text.PlainText
@@ -110,7 +110,7 @@ Item {
                         text: card.media.creator ? qsTr("%1 · %2").arg(card.media.kindLabel).arg(card.media.creator) : card.media.kindLabel
                         color: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         textFormat: Text.PlainText
                     }
@@ -124,7 +124,7 @@ Item {
             text: card.noteText
             color: theme.inkDim
             font.family: theme.display
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
             font.italic: true
             lineHeight: 1.25
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
@@ -142,7 +142,7 @@ Item {
             color: theme.ink
             placeholderTextColor: theme.inkDimmer
             font.family: theme.ui
-            font.pixelSize: 13
+            font.pixelSize: theme.fontSize(13)
             padding: 10
             selectByMouse: true
             Accessible.name: qsTr("Your note for %1").arg(card.media.title)
@@ -179,7 +179,7 @@ Item {
                 text: qsTr("%1 of %2").arg(card.position + 1).arg(card.itemCount)
                 color: theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 textFormat: Text.PlainText
             }
             CollectionActionButton {

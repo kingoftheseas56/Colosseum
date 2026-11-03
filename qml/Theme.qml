@@ -4,16 +4,28 @@
 // (No qmldir / singleton yet — the concrete token-kit is an open doctrine seam, deliberately TBD.)
 
 import QtQuick
+import "UiTypography.js" as UiTypography
 
 QtObject {
+    property bool androidHost: typeof PlatformRuntime !== "undefined" && PlatformRuntime
+        ? PlatformRuntime.android === true : Qt.platform.os === "android"
     // Android system text preference (WT-04). Custom UI fonts use logical pixels, so the
     // retained PlatformRuntime fontScale notification (Activity Configuration.fontScale,
     // independent of the startup density/visual zoom) is applied explicitly. Desktop and any
     // host without the Android runtime keep 1, so desktop typography is unchanged.
-    readonly property real fontScale: typeof PlatformRuntime !== "undefined" && PlatformRuntime
+    property real fontScale: typeof PlatformRuntime !== "undefined" && PlatformRuntime
         && PlatformRuntime.android === true && typeof PlatformRuntime.fontScale === "number"
         && PlatformRuntime.fontScale > 0 ? PlatformRuntime.fontScale : 1
-    function fontSize(base) { return Math.round(base * fontScale) }
+    function fontSize(base) { return UiTypography.fontSize(base, androidHost, fontScale) }
+    // Native controls already receive the platform's default font/system preference.
+    // Retain its unit and apply only the interface enlargement to that default.
+    function defaultFontSizeProperty(baseFont) {
+        return baseFont.pixelSize > 0 ? "font.pixelSize" : "font.pointSize"
+    }
+    function defaultFontSize(baseFont) {
+        const base = baseFont.pixelSize > 0 ? baseFont.pixelSize : baseFont.pointSize
+        return UiTypography.fontSize(base, androidHost, 1)
+    }
 
     // accent — used sparingly: active pill, focus ring, progress, primary CTA
     readonly property color gold: "#f0c44a"

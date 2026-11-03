@@ -18,6 +18,7 @@ Item {
     property Item contentBackdrop: null
     property real contentTrack: 0
     // The docked copy WorldPage pins under the TopBar is the mock's smaller bar.
+    property bool androidHost: !!(tabs.Window.window && tabs.Window.window.androidHost) || Qt.platform.os === "android"
     property bool compact: false
     property var tabModel: []            // [{ key, label }, …]
     property string currentTab: ""
@@ -81,9 +82,9 @@ Item {
     }
 
     width: parent ? parent.width : 900
-    height: tabs.compact ? 50 : 58
+    height: tabs.androidHost ? bar.height + 4 : (tabs.compact ? 50 : 58)
 
-    Theme { id: theme }
+    Theme { id: theme; objectName: "worldTabsTypography"; androidHost: tabs.androidHost }
 
     // The docked bar lifts off the content like the mock's dock (0 14px 30px rgba(0,0,0,.35)).
     RectangularShadow {
@@ -100,7 +101,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         width: Math.min(parent.width, (tabs.compact ? 130 : 160) * Math.max(1, tabs.tabModel.length))
-        height: tabs.compact ? 46 : 54
+        height: tabs.androidHost ? Math.max(60, theme.fontSize(tabs.compact ? 13 : 14) + 28) : (tabs.compact ? 46 : 54)
         backdrop: tabs.backdrop
         track: tabs.track
         radius: tabs.compact ? 15 : 18
@@ -147,7 +148,7 @@ Item {
                         text: pill.modelData.label
                         color: pill.modelData.key === tabs.currentTab ? "#17120a" : theme.ink
                         font.family: theme.ui
-                        font.pixelSize: tabs.compact ? 13 : 14
+                        font.pixelSize: theme.fontSize(tabs.compact ? 13 : 14)
                         font.weight: Font.DemiBold
                     }
 

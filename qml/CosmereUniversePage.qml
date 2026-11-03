@@ -129,7 +129,7 @@ Item {
                         text: "THE COSMERE  /  A CONNECTED EPIC"
                         color: root.cognitiveBlue
                         font.family: theme.ui
-                        font.pixelSize: 10
+                        font.pixelSize: theme.fontSize(10)
                         font.letterSpacing: 3
                     }
                     Text {
@@ -138,14 +138,14 @@ Item {
                         text: root.uni.name || "Cosmere"
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 54
+                        font.pixelSize: theme.fontSize(54)
                         lineHeight: 0.92
                     }
                     Text {
                         text: root.uni.blurb || root.guide.blurb || ""
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 15
+                        font.pixelSize: theme.fontSize(15)
                         lineHeight: 1.35
                         width: parent.width - 20
                         wrapMode: Text.WordWrap
@@ -154,7 +154,7 @@ Item {
                         text: "Begin with the kind of journey you want."
                         color: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         topPadding: 4
                     }
                 }
@@ -203,7 +203,7 @@ Item {
                         text: "BEGIN HERE"
                         color: root.stormlight
                         font.family: theme.ui
-                        font.pixelSize: 10
+                        font.pixelSize: theme.fontSize(10)
                         font.letterSpacing: 3
                     }
 
@@ -235,9 +235,9 @@ Item {
                     y: 34
                     spacing: 6
                     Text { text: "THE COGNITIVE ATLAS"; color: theme.gold
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
+                           font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 3 }
                     Text { text: "Six systems. One underlying light."; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 31 }
+                           font.family: theme.display; font.pixelSize: theme.fontSize(31) }
                 }
 
                 Item {
@@ -299,9 +299,9 @@ Item {
                 Column {
                     x: theme.margin; anchors.verticalCenter: parent.verticalCenter; spacing: 5
                     Text { text: "WORLD GATES"; color: root.cognitiveBlue
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
+                           font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 3 }
                     Text { text: "Follow a system into Biblio"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 27 }
+                           font.family: theme.display; font.pixelSize: theme.fontSize(27) }
                 }
             }
 
@@ -325,11 +325,11 @@ Item {
                 Column {
                     x: theme.margin; anchors.verticalCenter: parent.verticalCenter; spacing: 6
                     Text { text: "THE COMPLETE SHELVES"; color: theme.gold
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
+                           font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 3 }
                     Text { text: "Every published road through the Cosmere"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 31 }
+                           font.family: theme.display; font.pixelSize: theme.fontSize(31) }
                     Text { text: "Main arcs, novellas, graphic stories, and the books between worlds."
-                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                 }
             }
 
@@ -435,12 +435,12 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 5
             Text { text: starter.guide.short || "ENTRY"; color: root.cognitiveBlue
-                   font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 2 }
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 2 }
             Text { text: starter.guide.label || ""; color: theme.ink
-                   font.family: theme.display; font.pixelSize: 18; width: parent.width
+                   font.family: theme.display; font.pixelSize: theme.fontSize(18); width: parent.width
                    elide: Text.ElideRight }
             Text { text: starter.guide.note || ""; color: theme.inkDimmer
-                   font.family: theme.ui; font.pixelSize: 10; width: parent.width
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(10); width: parent.width
                    wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
         }
         Image {
@@ -459,7 +459,7 @@ Item {
             visible: !starter.available
             text: "RESOLVING"
             color: theme.inkDimmer
-            font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 2
+            font.family: theme.ui; font.pixelSize: theme.fontSize(8); font.letterSpacing: 2
         }
         MouseArea {
             id: starterMa
@@ -492,9 +492,9 @@ Item {
             anchors.left: parent.left; anchors.leftMargin: 42
             anchors.verticalCenter: parent.verticalCenter; spacing: 3
             Text { text: node.world.name || ""; color: theme.ink
-                   font.family: theme.display; font.pixelSize: 18 }
+                   font.family: theme.display; font.pixelSize: theme.fontSize(18) }
             Text { text: node.world.epithet || ""; color: theme.inkDimmer
-                   font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 1 }
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(8); font.letterSpacing: 1 }
         }
         MouseArea { id: nodeMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor; onClicked: node.activated() }
@@ -521,15 +521,15 @@ Item {
         Column {
             x: theme.margin + 18; y: 26; spacing: 5
             Text { text: section.world.name || ""; color: theme.ink
-                   font.family: theme.display; font.pixelSize: 29 }
+                   font.family: theme.display; font.pixelSize: theme.fontSize(29) }
             Text { text: section.world.epithet || ""; color: section.world.accent || root.cognitiveBlue
-                   font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 2 }
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 2 }
         }
         Text {
             anchors.right: parent.right; anchors.rightMargin: theme.margin
             y: 39
             text: (section.world.books || []).length + ((section.world.books || []).length === 1 ? " portal" : " portals")
-            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
         }
         Flickable {
             id: bookWalk
@@ -586,14 +586,14 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 8
             Text { text: gate.portal.label || ""; color: gate.accent
-                   font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 1
                    width: parent.width; wrapMode: Text.WordWrap; maximumLineCount: 2 }
             Text { text: gate.portal.book.title || ""; color: theme.ink
-                   font.family: theme.display; font.pixelSize: 17
+                   font.family: theme.display; font.pixelSize: theme.fontSize(17)
                    width: parent.width; wrapMode: Text.WordWrap; maximumLineCount: 3
                    elide: Text.ElideRight }
             Text { text: "OPEN IN BIBLIO  →"; color: theme.inkDimmer
-                   font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 1 }
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(8); font.letterSpacing: 1 }
         }
         MouseArea { id: gateMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor; onClicked: gate.activated() }

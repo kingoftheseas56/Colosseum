@@ -10,6 +10,7 @@ import "OnePieceAtlasBadgeLayout.js" as BadgeLayout
 
 FocusScope {
     id: root
+    Theme { id: interfaceTypography }
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     focus: true
     property bool reducedMotion: false
@@ -294,8 +295,8 @@ FocusScope {
                 Column {
                     anchors.centerIn: parent
                     spacing: 8
-                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: chartLoader.status === Loader.Error ? "CHART UNAVAILABLE" : "PREPARING NEW WORLD"; color: "#63482b"; font.family: root.displayFamily; font.pixelSize: 20 }
-                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: "The story index remains available."; color: "#806646"; font.family: root.bodyFamily; font.pixelSize: 12 }
+                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: chartLoader.status === Loader.Error ? "CHART UNAVAILABLE" : "PREPARING NEW WORLD"; color: "#63482b"; font.family: root.displayFamily; font.pixelSize: interfaceTypography.fontSize(20) }
+                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: "The story index remains available."; color: "#806646"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(12) }
                 }
             }
             Repeater {
@@ -377,8 +378,8 @@ FocusScope {
         Accessible.description: "Continue to the Final Sea chart after Wano."
         contentItem: Column {
             spacing: 3
-            Text { width: parent.width; text: beyondWanoButton.text; color: "#5c4229"; font.family: root.bodyFamily; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter }
-            Text { width: parent.width; text: "To Final Sea"; color: "#886c47"; font.family: root.bodyFamily; font.pixelSize: 9; font.italic: true; horizontalAlignment: Text.AlignHCenter }
+            Text { width: parent.width; text: beyondWanoButton.text; color: "#5c4229"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); horizontalAlignment: Text.AlignHCenter }
+            Text { width: parent.width; text: "To Final Sea"; color: "#886c47"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(9); font.italic: true; horizontalAlignment: Text.AlignHCenter }
         }
         onClicked: { root.closePreview(false); root.closeIndex(false); root.beyondWanoRequested() }
     }
@@ -405,8 +406,8 @@ FocusScope {
         height: Math.min(538, root.height - y - 24)
         z: 50
         Rectangle { anchors.fill: parent; color: "#efe1bd"; border.color: "#8a6b41" }
-        Text { x: 18; y: 16; text: "PORTS OF THE VOYAGE"; color: "#755435"; font.family: root.displayFamily; font.pixelSize: 19 }
-        Text { x: 18; y: 44; text: "Six arcs · Fish-Man Island through Wano"; color: "#8b7250"; font.family: root.bodyFamily; font.pixelSize: 11 }
+        Text { x: 18; y: 16; text: "PORTS OF THE VOYAGE"; color: "#755435"; font.family: root.displayFamily; font.pixelSize: interfaceTypography.fontSize(19) }
+        Text { x: 18; y: 44; text: "Six arcs · Fish-Man Island through Wano"; color: "#8b7250"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11) }
         ListView {
             id: indexView
             objectName: "newWorldIndexList"
@@ -452,7 +453,7 @@ FocusScope {
         Text {
             x: 18; y: parent.height - 111; width: parent.width - 36
             text: "30 / " + (root.universeContentGeneration, Story.worldContext).title + " takes place at Mary Geoise. Luffy does not visit; it has no voyage marker."
-            color: "#826747"; font.family: root.bodyFamily; font.pixelSize: 11; wrapMode: Text.WordWrap
+            color: "#826747"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); wrapMode: Text.WordWrap
         }
         NewWorldInkButton {
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
@@ -527,7 +528,7 @@ FocusScope {
                         text: root.selectedArc ? root.selectedArc.title.toUpperCase() : "ARC ART UNAVAILABLE"
                         color: "#65472a"
                         font.family: root.bodyFamily
-                        font.pixelSize: 11
+                        font.pixelSize: interfaceTypography.fontSize(11)
                         font.bold: true
                     }
                 }
@@ -540,28 +541,28 @@ FocusScope {
                         id: headingColumn
                         width: parent.width - 88
                         spacing: 5
-                        Text { width: parent.width; text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / " + root.selectedArc.sagaLabel.toUpperCase() : ""; color: "#96764d"; font.family: root.bodyFamily; font.pixelSize: 10; wrapMode: Text.WordWrap }
-                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: root.displayFamily; font.pixelSize: 23; wrapMode: Text.WordWrap }
-                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: 11; font.italic: true; wrapMode: Text.WordWrap }
+                        Text { width: parent.width; text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / " + root.selectedArc.sagaLabel.toUpperCase() : ""; color: "#96764d"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); wrapMode: Text.WordWrap }
+                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: root.displayFamily; font.pixelSize: interfaceTypography.fontSize(23); wrapMode: Text.WordWrap }
+                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); font.italic: true; wrapMode: Text.WordWrap }
                     }
                 }
-                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.summary : ""; color: "#654b31"; font.family: root.bodyFamily; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.12 }
+                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.summary : ""; color: "#654b31"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(12); wrapMode: Text.WordWrap; lineHeight: 1.12 }
                 Text {
                     width: parent.width
                     text: root.selectedArc ? "Anime  " + root.selectedArc.anime + "\nChapters  " + root.selectedArc.chapters + "     Volumes  " + root.selectedArc.volumes : ""
-                    color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: 11
+                    color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11)
                     wrapMode: Text.WordWrap; lineHeight: 1.2
                 }
                 Text {
                     visible: !!root.selectedLocation && !!root.selectedLocation.sublabels
                     width: parent.width
                     text: root.selectedLocation && root.selectedLocation.sublabels ? root.selectedLocation.sublabels.join(" · ") : ""
-                    color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: 11; wrapMode: Text.WordWrap
+                    color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); wrapMode: Text.WordWrap
                 }
                 Text {
                     width: parent.width
                     text: "Arc-index ranges. Open the arc to browse available media."
-                    color: "#8a7252"; font.family: root.bodyFamily; font.pixelSize: 10; font.italic: true; wrapMode: Text.WordWrap
+                    color: "#8a7252"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); font.italic: true; wrapMode: Text.WordWrap
                 }
                 Row {
                     visible: root.selectedVisits.length > 1
@@ -576,7 +577,7 @@ FocusScope {
                             width: (previewColumn.width - 6) / 2
                             height: 44
                             text: modelData.title
-                            fontFamily: root.bodyFamily; font.pixelSize: 10
+                            fontFamily: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10)
                             reducedMotion: root.reducedMotion
                             Accessible.description: "Preview another story at this same geographic location."
                             onActiveFocusChanged: if (activeFocus) root.revealPreviewItem(visitButton)

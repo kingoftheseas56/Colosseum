@@ -203,12 +203,12 @@ Item {
                             Text {
                                 visible: card.yearText.length > 0
                                 text: card.yearText
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                             }
                             Text {
                                 visible: card.ratingValue.length > 0
                                 text: card.ratingText
-                                color: theme.gold; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                             }
                         }
 
@@ -230,7 +230,7 @@ Item {
                                 }
                                 Text {
                                     text: card.ratingValue
-                                    color: theme.ink; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                             }
@@ -238,7 +238,7 @@ Item {
                                 visible: card.hoverSourceText.length > 0
                                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                                 text: card.hoverSourceText
-                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                             }
                         }
                     }
@@ -256,7 +256,7 @@ Item {
         height: card._gallery ? Math.max(card.titleReserve, implicitHeight) : implicitHeight
         text: card.capText
         color: card._gallery ? theme.ink : (card.effectiveHovered ? theme.ink : theme.inkDim)
-        font.family: theme.ui; font.pixelSize: card._m.titlePixels; font.weight: Font.DemiBold
+        font.family: theme.ui; font.pixelSize: theme.fontSize(card._m.titlePixels); font.weight: Font.DemiBold
         wrapMode: card._gallery ? Text.WordWrap : Text.NoWrap
         maximumLineCount: card._m.titleLines
         lineHeight: card._gallery ? 1.15 : 1.0
@@ -282,7 +282,7 @@ Item {
         anchors.top: titleText.top; anchors.topMargin: titleText.contentHeight + 3
         text: card.authorText
         color: theme.inkDim
-        font.family: theme.ui; font.pixelSize: 11
+        font.family: theme.ui; font.pixelSize: theme.fontSize(11)
         elide: Text.ElideRight
         maximumLineCount: 1
     }

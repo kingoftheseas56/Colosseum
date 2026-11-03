@@ -454,7 +454,7 @@ Item {
                        (sheet.metaLine.length ? "  ·  " + sheet.metaLine : "")
                      : sheet.metaLine).toUpperCase()
             color: theme.gold; font.family: theme.ui
-            font.pixelSize: sheet.phoneLayout ? 11 : 12
+            font.pixelSize: theme.fontSize(sheet.phoneLayout ? 11 : 12)
             font.letterSpacing: sheet.phoneLayout ? 1.5 : 4
             wrapMode: sheet.phoneLayout ? Text.WordWrap : Text.NoWrap
             elide: sheet.phoneLayout ? Text.ElideNone : Text.ElideRight
@@ -463,7 +463,7 @@ Item {
             width: parent.width
             text: sheet.title.length ? sheet.title : "Sources"
             color: theme.ink; font.family: theme.display
-            font.pixelSize: sheet.phoneLayout ? 30 : (sheet.compactHeight ? 34 : 56); font.weight: Font.DemiBold
+            font.pixelSize: theme.fontSize(sheet.phoneLayout ? 30 : (sheet.compactHeight ? 34 : 56)); font.weight: Font.DemiBold
             wrapMode: sheet.phoneLayout ? Text.WordWrap : Text.NoWrap
             maximumLineCount: sheet.phoneLayout ? 3 : 1; elide: Text.ElideRight
             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
@@ -505,7 +505,7 @@ Item {
             elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
             text: sheet.extFilter === "all" ? "All" : sheet.extFilter
             color: sheet.extFilter === "all" ? theme.ink : theme.gold
-            font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 18 : 22
+            font.family: theme.ui; font.pixelSize: theme.fontSize(sheet.phoneLayout ? 18 : 22)
         }
         Text {
             anchors.right: parent.right; anchors.rightMargin: sheet.phoneLayout ? 14 : 24
@@ -560,13 +560,13 @@ Item {
                     Text {
                         text: sheet.chipText(pill.modelData)
                         color: pill.on ? "#1a1306" : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 15; font.weight: pill.on ? Font.Bold : Font.Normal
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: pill.on ? Font.Bold : Font.Normal
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text {
                         text: pill.n
                         color: pill.on ? Qt.rgba(0.10, 0.075, 0.02, 0.7) : theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 12
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
@@ -606,7 +606,7 @@ Item {
                 width: sheet.phoneLayout ? parent.width - 28 : implicitWidth
                 text: sheet.visibleRows.length + (sheet.visibleRows.length === 1 ? " source" : " sources")
                       + (sheet.loading ? "  ·  still asking…" : "")
-                color: theme.ink; font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
+                color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(16); font.weight: Font.DemiBold
                 elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
             }
             Text {
@@ -619,7 +619,7 @@ Item {
                 text: sheet.askedNames.length > 2
                       ? "via " + sheet.askedNames.length + " extensions"
                       : "via " + sheet.askedNames.join(" · ")
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 font.letterSpacing: sheet.phoneLayout ? 0 : 1
             }
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
@@ -642,7 +642,7 @@ Item {
                             : "No stream source is enabled for this title. Enable one in Extensions.")
                         : "No sources found."))
             color: sheet.timedOut ? "#e6a3a3" : theme.inkDim
-            font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 15 : 16
+            font.family: theme.ui; font.pixelSize: theme.fontSize(sheet.phoneLayout ? 15 : 16)
         }
 
         Rectangle {
@@ -666,7 +666,7 @@ Item {
                 text: sheet.androidHost ? "Extensions" : "Find sources by adding extensions"
                 color: theme.gold
                 font.family: theme.ui
-                font.pixelSize: 13
+                font.pixelSize: theme.fontSize(13)
                 font.weight: Font.DemiBold
             }
             KeyboardAction {
@@ -759,7 +759,7 @@ Item {
                     Text { anchors.centerIn: parent
                         text: (row.modelData.addonName || "?").charAt(0)
                         color: theme.ink
-                        font.family: theme.display; font.pixelSize: 24; font.weight: Font.DemiBold }
+                        font.family: theme.display; font.pixelSize: theme.fontSize(24); font.weight: Font.DemiBold }
                 }
 
                 // copy column — every element, clean hierarchy
@@ -774,35 +774,35 @@ Item {
                     Row {
                         spacing: 12
                         Text { text: row.modelData.addonName; color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter }
                         Text { text: row.modelData.qualityLine || row.modelData.quality
                             color: theme.gold
-                            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: 0.5
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold; font.letterSpacing: 0.5
                             anchors.verticalCenter: parent.verticalCenter }
                     }
                     Text {
                         width: parent.width
                         text: row.modelData.release
-                        color: theme.ink; font.family: theme.ui; font.pixelSize: 14; elide: Text.ElideRight
+                        color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); elide: Text.ElideRight
                     }
                     Text {
                         width: parent.width
                         text: sheet.metaText(row.modelData)
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight
+                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13); elide: Text.ElideRight
                     }
                     Text {
                         objectName: "sourceCompatibilityWide_" + row.index
                         visible: row.codecUnsupported
                         width: parent.width
                         text: row.codecCompatibilityLabel
-                        color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight
+                        color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: theme.fontSize(12); elide: Text.ElideRight
                     }
                     Row {
                         spacing: 8
                         visible: row.modelData.audio !== undefined
                         Text { text: row.modelData.audio; color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter }
                         Repeater {
                             model: row.modelData.languages || []
@@ -812,7 +812,7 @@ Item {
                                 color: "transparent"; border.width: 1; border.color: theme.edge
                                 anchors.verticalCenter: parent.verticalCenter
                                 Text { id: lg; anchors.centerIn: parent; text: parent.modelData
-                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1 }
+                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 1 }
                             }
                         }
                     }
@@ -825,13 +825,13 @@ Item {
                                 width: tg.implicitWidth + 16; height: 20; radius: 6
                                 color: Qt.rgba(1, 1, 1, 0.05); border.width: 1; border.color: theme.edge
                                 Text { id: tg; anchors.centerIn: parent; text: parent.modelData; color: theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: 0.6 }
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.weight: Font.DemiBold; font.letterSpacing: 0.6 }
                             }
                         }
                     }
                     Text {
                         text: (row.modelData.streamKind || "Torrent") + " · " + (row.modelData.streamLabel || "P2P stream")
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                     }
                 }
 
@@ -847,7 +847,7 @@ Item {
                     Text { anchors.centerIn: parent
                         anchors.horizontalCenterOffset: sheet.mode === "play" ? 2 : 0
                         text: sheet.mode === "play" ? "▶" : "↓"
-                        color: "#1a1306"; font.pixelSize: 18
+                        color: "#1a1306"; font.pixelSize: theme.fontSize(18)
                         font.weight: sheet.mode === "play" ? Font.Normal : Font.DemiBold }
                 }
 
@@ -878,7 +878,7 @@ Item {
                         anchors.centerIn: parent
                         text: row.copiedTick ? "✓" : "⧉"   // ✓ tick / ⧉ two-squares copy glyph
                         color: row.copiedTick ? theme.gold : (copyMa.containsMouse ? theme.ink : theme.inkDim)
-                        font.family: theme.ui; font.pixelSize: 15
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(15)
                     }
                     MouseArea {
                         id: copyMa; anchors.fill: parent; hoverEnabled: true
@@ -908,7 +908,7 @@ Item {
                         anchors.centerIn: parent
                         text: sheet.titleQueued ? "✓" : "↓"   // ✓ on its way / ↓ download this torrent
                         color: sheet.titleQueued ? theme.gold : (dlMa.containsMouse ? theme.ink : theme.inkDim)
-                        font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                     }
                     MouseArea {
                         id: dlMa; anchors.fill: parent; hoverEnabled: true
@@ -950,7 +950,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: (row.modelData.addonName || "?").charAt(0)
                                 color: theme.ink; font.family: theme.display
-                                font.pixelSize: 22; font.weight: Font.DemiBold
+                                font.pixelSize: theme.fontSize(22); font.weight: Font.DemiBold
                             }
                         }
                         Column {
@@ -960,7 +960,7 @@ Item {
                                 width: parent.width
                                 text: row.modelData.addonName || ""
                                 color: theme.ink; font.family: theme.ui
-                                font.pixelSize: 15; font.weight: Font.DemiBold
+                                font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                                 wrapMode: Text.WrapAnywhere
                                 maximumLineCount: 2; elide: Text.ElideRight
                             }
@@ -968,7 +968,7 @@ Item {
                                 width: parent.width
                                 text: row.modelData.qualityLine || row.modelData.quality || ""
                                 color: theme.gold; font.family: theme.ui
-                                font.pixelSize: 13; font.weight: Font.DemiBold
+                                font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                                 wrapMode: Text.WrapAnywhere
                             }
                         }
@@ -976,14 +976,14 @@ Item {
                     Text {
                         width: parent.width
                         text: row.modelData.release || ""
-                        color: theme.ink; font.family: theme.ui; font.pixelSize: 14
+                        color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                         wrapMode: Text.WrapAnywhere
                         maximumLineCount: 2; elide: Text.ElideRight
                     }
                     Text {
                         width: parent.width
                         text: sheet.metaText(row.modelData)
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         wrapMode: Text.WrapAnywhere
                     }
                     Flow {
@@ -992,7 +992,7 @@ Item {
                         Text {
                             text: row.modelData.audio || ""
                             color: theme.ink; font.family: theme.ui
-                            font.pixelSize: 12; font.weight: Font.DemiBold
+                            font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                         }
                         Repeater {
                             model: row.modelData.languages || []
@@ -1005,7 +1005,7 @@ Item {
                                     id: languageText; anchors.centerIn: parent
                                     width: parent.width - 12
                                     text: modelData; color: theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 11
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                                     elide: Text.ElideRight
                                 }
                             }
@@ -1025,7 +1025,7 @@ Item {
                                     id: tagText; anchors.centerIn: parent
                                     width: parent.width - 16
                                     text: modelData; color: theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 11
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                                     elide: Text.ElideRight
                                 }
                             }
@@ -1036,7 +1036,7 @@ Item {
                         text: (row.modelData.streamKind || "Torrent") + " · "
                               + (row.modelData.streamLabel || "P2P stream")
                         color: theme.inkDimmer; font.family: theme.ui
-                        font.pixelSize: 12; font.weight: Font.DemiBold
+                        font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                         wrapMode: Text.WrapAnywhere
                     }
                     Row {
@@ -1047,7 +1047,7 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 text: sheet.mode === "play" ? "▶" : "↓"
-                                color: "#1a1306"; font.pixelSize: 18
+                                color: "#1a1306"; font.pixelSize: theme.fontSize(18)
                             }
                             MouseArea {
                                 objectName: "sourcePlay_" + row.index
@@ -1067,7 +1067,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: row.copiedTick ? "✓" : "⧉"
                                 color: row.copiedTick ? theme.gold : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 16
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(16)
                             }
                             MouseArea {
                                 objectName: "sourceCopy_" + row.index
@@ -1088,7 +1088,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: sheet.titleQueued ? "✓" : "↓"
                                 color: sheet.titleQueued ? theme.gold : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 16
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(16)
                             }
                             MouseArea {
                                 objectName: "sourceDownload_" + row.index
@@ -1140,7 +1140,7 @@ Item {
                     required property string modelData; required property int index
                     width: sourceContextCol.width; height: 36; radius: 8
                     color: sourceContextFocus.activeFocus && sheet.sourceContextChoice === index ? Qt.rgba(1,1,1,0.11) : "transparent"
-                    Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
+                    Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sheet.activateSourceContext(index) }
                 }
             }
@@ -1227,14 +1227,14 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: extOpt.modelData.label
                             color: extOpt.on ? theme.gold : theme.ink
-                            font.family: theme.ui; font.pixelSize: 16
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(16)
                             font.weight: extOpt.on ? Font.DemiBold : Font.Normal
                         }
                         Text {
                             anchors.right: parent.right; anchors.rightMargin: 28
                             anchors.verticalCenter: parent.verticalCenter
                             text: extOpt.modelData.count + (extOpt.modelData.count === 1 ? " source" : " sources")
-                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
+                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 1
                         }
                         MouseArea {
                             id: extOptMa; anchors.fill: parent; hoverEnabled: true

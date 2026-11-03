@@ -1125,7 +1125,7 @@ Item {
                         text: page.mediaType === "series" ? "Series  ·  Theatre" : "Movie  ·  Theatre"
                         color: theme.gold
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         font.letterSpacing: 3
                         font.capitalization: Font.AllUppercase
                     }
@@ -1134,7 +1134,7 @@ Item {
                         text: page.title
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: page.phoneNarrow ? 36 : 60
+                        font.pixelSize: theme.fontSize(page.phoneNarrow ? 36 : 60)
                         font.weight: Font.DemiBold
                         lineHeight: 0.98
                         wrapMode: page.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.WordWrap
@@ -1148,7 +1148,7 @@ Item {
                             visible: page.year.length > 0
                             text: page.year
                             color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                         }
                         Text {
                             visible: page.genresLine.length > 0
@@ -1156,7 +1156,7 @@ Item {
                             width: Math.min(implicitWidth, parent.width)
                             wrapMode: page.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
                             color: theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 14
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                         }
                         Row {
                             visible: page.rating.length > 0
@@ -1170,14 +1170,14 @@ Item {
                                     anchors.centerIn: parent
                                     text: "IMDb"
                                     color: "#111111"
-                                    font.family: theme.ui; font.pixelSize: 10; font.weight: Font.Black
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.weight: Font.Black
                                     font.letterSpacing: -0.45
                                 }
                             }
                             Text {
                                 text: page.rating
                                 color: theme.ink
-                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                         }
@@ -1185,7 +1185,7 @@ Item {
                             visible: page.runtime.length > 0
                             text: page.runtime
                             color: theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 14
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                         }
                     }
                     // On a phone, the secondary facts join the primary facts above the synopsis.
@@ -1200,9 +1200,9 @@ Item {
                                 width: parent.width
                                 spacing: 3
                                 Text { width: parent.width; text: modelData.k
-                                       color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                                       color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                                 Text { width: parent.width; text: modelData.v
-                                       color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                                       color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
                             }
                         }
@@ -1218,7 +1218,7 @@ Item {
                             text: page.synopsis
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 15
+                            font.pixelSize: theme.fontSize(15)
                             lineHeight: 1.45
                             wrapMode: Text.WordWrap
                             maximumLineCount: page.phoneNarrow ? 2147483647 : (page.synopsisExpanded ? 40 : 3)
@@ -1234,7 +1234,7 @@ Item {
                                 x: 4
                                 text: page.synopsisExpanded ? "Less" : "More"
                                 color: synopsisMore.interactionActive ? theme.gold : theme.ink
-                                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                             }
                             KeyboardAction {
                                 id: synopsisMore
@@ -1290,7 +1290,7 @@ Item {
                                         return verb + "  S" + page.episodeSeason(ep) + " · E" + page.episodeDisplayNumber(ep)
                                     }
                                     color: "#1a1306"
-                                    font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                             }
@@ -1336,7 +1336,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: notifPill.on ? "Notifications on" : "Notifications off"
                                 color: notifPill.on ? theme.ink : theme.inkDimmer
-                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                             }
                             KeyboardAction {
                                 id: notificationKeyboard
@@ -1376,13 +1376,13 @@ Item {
                                 width: 104
                                 text: factRow.modelData.k
                                 color: theme.inkDimmer
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                             }
                             Text {
                                 width: factRow.width - 122
                                 text: factRow.modelData.v
                                 color: theme.ink
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 wrapMode: Text.WordWrap
                                 lineHeight: 1.3
                             }
@@ -1506,7 +1506,7 @@ Item {
                                         text: page.episodeDisplayNumber(ep.modelData)
                                         color: ep.nextUp ? theme.gold : theme.ink
                                         font.family: theme.display
-                                        font.pixelSize: 22
+                                        font.pixelSize: theme.fontSize(22)
                                         font.weight: Font.DemiBold
                                         font.features: { "tnum": 1 }
                                     }
@@ -1514,7 +1514,7 @@ Item {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: page.episodeIsSpecial(ep.modelData) ? "SPECIAL" : "S" + page.episodeSeason(ep.modelData)
                                         color: theme.inkDimmer
-                                        font.family: theme.ui; font.pixelSize: 9
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(9)
                                         font.letterSpacing: 1.1; font.weight: Font.DemiBold
                                     }
                                 }
@@ -1544,7 +1544,7 @@ Item {
                                         visible: !ep.still.length
                                         text: "E" + page.episodeDisplayNumber(ep.modelData)
                                         color: Qt.rgba(1, 1, 1, 0.5)
-                                        font.family: theme.display; font.pixelSize: 20
+                                        font.family: theme.display; font.pixelSize: theme.fontSize(20)
                                     }
                                     Rectangle {
                                         anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
@@ -1579,7 +1579,7 @@ Item {
                                                   : (ep.modelData.title && ep.modelData.title.length ? ep.modelData.title
                                                      : "Episode " + page.episodeDisplayNumber(ep.modelData))
                                             color: theme.ink
-                                            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                                            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                                             wrapMode: page.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
                                             maximumLineCount: page.phoneNarrow ? 4 : 1
                                             elide: page.phoneNarrow ? Text.ElideNone : Text.ElideRight
@@ -1591,7 +1591,7 @@ Item {
                                             color: Qt.rgba(1, 1, 1, 0.08)
                                             border.width: 1; border.color: theme.edge
                                             Text { id: spText; anchors.centerIn: parent; text: "SPECIAL"; color: theme.inkDim
-                                                   font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1; font.weight: Font.DemiBold }
+                                                   font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 1; font.weight: Font.DemiBold }
                                         }
                                     }
                                     Text {
@@ -1599,7 +1599,7 @@ Item {
                                         text: page.episodeStatusText(ep.modelData, ep.nextUp, ep.watched, ep.progressRatio, ep.onDisk, ep.inQueue)
                                         visible: text.length > 0
                                         color: ep.nextUp ? theme.gold : (ep.watched ? page.watchedInk : theme.inkDimmer)
-                                        font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                                         wrapMode: page.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
                                         elide: page.phoneNarrow ? Text.ElideNone : Text.ElideRight
                                     }
@@ -1608,7 +1608,7 @@ Item {
                                         width: parent.width
                                         text: ep.modelData.overview || ep.modelData.description || ""
                                         color: theme.inkDimmer
-                                        font.family: theme.ui; font.pixelSize: 13
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                         lineHeight: 1.3
                                         wrapMode: Text.WordWrap
                                         maximumLineCount: page.phoneNarrow ? 3 : 2
@@ -1692,7 +1692,7 @@ Item {
                                             color: ep.onDisk ? page.watchedInk
                                                  : ep.inQueue ? theme.inkDimmer
                                                  : (dlMa.containsMouse ? theme.ink : theme.inkDim)
-                                            font.pixelSize: 16
+                                            font.pixelSize: theme.fontSize(16)
                                             font.weight: Font.DemiBold
                                         }
                                         MouseArea {
@@ -1736,7 +1736,7 @@ Item {
                 x: theme.margin
                 text: page.errorMsg
                 color: "#e6a3a3"
-                font.family: theme.ui; font.pixelSize: 13
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 topPadding: 18
             }
             Item { width: 1; height: 110 }
@@ -1778,12 +1778,12 @@ Item {
                 Text {
                     text: page.ledgerHeading()
                     color: theme.ink
-                    font.family: theme.display; font.pixelSize: 20; font.weight: Font.DemiBold
+                    font.family: theme.display; font.pixelSize: theme.fontSize(20); font.weight: Font.DemiBold
                 }
                 Text {
                     text: page.ledgerCountText()
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.3
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 0.3
                 }
             }
 
@@ -1815,7 +1815,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: orderBtn.modelData === "absolute" ? "Absolute" : "Seasons"
                                 color: orderBtn.on ? theme.gold : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 font.weight: orderBtn.on ? Font.DemiBold : Font.Normal
                             }
                             KeyboardAction {
@@ -1862,7 +1862,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: seasonBtn.modelData === 0 ? "Specials" : ("Season " + seasonBtn.modelData)
                                 color: seasonBtn.on ? theme.gold : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 font.weight: seasonBtn.on ? Font.DemiBold : Font.Normal
                             }
                             KeyboardAction {
@@ -1906,7 +1906,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: page.seasonLabel()
                         color: theme.ink
-                        font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                     }
                     Text {
                         anchors.right: parent.right; anchors.rightMargin: 14
@@ -1978,7 +1978,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: smRow.modelData === 0 ? "Specials" : "Season " + smRow.modelData
                                 color: page.activeSeason === smRow.modelData ? theme.gold : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 font.weight: page.activeSeason === smRow.modelData ? Font.DemiBold : Font.Normal
                             }
                             MouseArea {
@@ -2029,7 +2029,7 @@ Item {
                     Text {
                         text: page.seasonQueued[page.activeSeason] ? "Season queued" : "Download season"
                         color: theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                     }
                 }
                 KeyboardAction {
@@ -2058,7 +2058,7 @@ Item {
                     anchors.centerIn: parent
                     text: "Next · E" + page.nextUpDisplayNumber()
                     color: theme.gold
-                    font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                 }
                 KeyboardAction {
                     id: nextAction
@@ -2086,7 +2086,7 @@ Item {
                     visible: jumpInput.text.length === 0
                     text: "Go to #"
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 }
                 TextInput {
                     id: jumpInput
@@ -2098,7 +2098,7 @@ Item {
                     color: theme.ink
                     selectionColor: theme.gold
                     selectedTextColor: "#111111"
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     validator: IntValidator { bottom: 0; top: 99999 }
                     activeFocusOnTab: true
                     onTextChanged: page.episodeJumpDraft = text
@@ -2164,7 +2164,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: (tick.index * page.episodeRangeSize + 1).toLocaleString(Qt.locale(), "f", 0)
                     color: tick.current ? theme.gold : theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                     style: Text.Outline; styleColor: "#06070b"
                 }
             }
@@ -2230,7 +2230,7 @@ Item {
                     required property string modelData; required property int index
                     width: episodeContextCol.width; height: 36; radius: 8
                     color: episodeContextFocus.activeFocus && page.episodeContextChoice === index ? Qt.rgba(1, 1, 1, 0.11) : "transparent"
-                    Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
+                    Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.activateEpisodeContext(index) }
                 }
             }
@@ -2250,7 +2250,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             text: page.title
             color: theme.ink
-            font.family: theme.display; font.pixelSize: 34
+            font.family: theme.display; font.pixelSize: theme.fontSize(34)
             wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
         }
         Text {
@@ -2258,7 +2258,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             text: page.errorMsg.length ? page.errorMsg : "Loading…"
             color: page.errorMsg.length ? "#e6a3a3" : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 14
+            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
         }
     }
 

@@ -20,14 +20,14 @@ Column {
             Text {
                 text: qsTr("Your Add-ons")
                 color: theme.ink
-                font.family: theme.display; font.pixelSize: 26; font.weight: Font.DemiBold
+                font.family: theme.display; font.pixelSize: theme.fontSize(26); font.weight: Font.DemiBold
             }
             Text {
                 width: parent.width
                 text: qsTr("%1 installed · Manage what powers your worlds.").arg(section.entries.length)
                 wrapMode: Text.WordWrap
                 color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 14
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             }
         }
         ExtensionsActionButton {
@@ -43,7 +43,7 @@ Column {
         text: qsTr("No add-ons installed. Explore Essentials or install from a URL.")
         wrapMode: Text.WordWrap
         color: theme.inkDim
-        font.family: theme.ui; font.pixelSize: 14
+        font.family: theme.ui; font.pixelSize: theme.fontSize(14)
     }
     ListView {
         id: rail

@@ -411,7 +411,7 @@ Item {
         objectName: "loupeChip"
         visible: root.open
         width: chipRow.implicitWidth + 20
-        height: 26
+        height: theme.androidHost ? 64 : 26
         radius: 13
         color: root.cChipBg
         border.width: 1
@@ -420,9 +420,9 @@ Item {
         // inside the reader.
         x: Math.max(root.edgeMargin, Math.min(root.width - width - root.edgeMargin,
                                               root.lensCenterX - width / 2))
-        y: (root.lensBottom + 10 + height <= root.height - root.edgeMargin)
+        y: (root.lensBottom + 10 + height <= root.height - (theme.androidHost ? root.railHeight : 0) - root.edgeMargin)
            ? root.lensBottom + 10
-           : Math.max(root.edgeMargin, root.lensTop - 10 - height)
+           : Math.max((theme.androidHost ? root.chromeTopInset : 0) + root.edgeMargin, root.lensTop - 10 - height)
 
         Row {
             id: chipRow
@@ -435,7 +435,7 @@ Item {
                 text: root.magnificationText(root.magnification)
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 font.bold: true
             }
             Text {
@@ -443,15 +443,17 @@ Item {
                 text: root.pinned ? "Pinned" : "Following"
                 color: root.pinned ? theme.gold : theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
             }
             Item {
                 anchors.verticalCenter: parent.verticalCenter
-                width: 18; height: 18
+                width: theme.androidHost ? 52 : 18; height: width
                 // A REAL glyph, never a text mark (the semantic-icon-audit law).
                 ComicReaderIcon {
                     id: closeGlyph
-                    anchors.fill: parent
+                    anchors.centerIn: parent
+                    width: theme.androidHost ? 28 : parent.width
+                    height: width
                     kind: "close"
                     accessibleName: "Close the loupe"
                     ink: closeMa.containsMouse ? theme.ink : theme.inkDim
@@ -460,7 +462,7 @@ Item {
                     id: closeMa
                     objectName: "loupeClose"
                     anchors.fill: parent
-                    anchors.margins: -4
+                    anchors.margins: theme.androidHost ? 0 : -4
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     keyboardLabel: "Close loupe"

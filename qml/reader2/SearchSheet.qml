@@ -111,8 +111,8 @@ ReaderOverlay {
                 anchors.left: parent.left
                 anchors.leftMargin: 18
                 anchors.verticalCenter: parent.verticalCenter
-                width: 17; height: 17
-                sourceSize.width: 34; sourceSize.height: 34
+                width: Theme.androidHost ? 28 : 17; height: width
+                sourceSize.width: Theme.androidHost ? 56 : 34; sourceSize.height: Theme.androidHost ? 56 : 34
                 fillMode: Image.PreserveAspectFit
                 smooth: true
                 opacity: 0.40                       // inkFaint stroke (mock .inrow svg)
@@ -121,6 +121,8 @@ ReaderOverlay {
 
             TextInput {
                 id: input
+                height: Theme.androidHost ? 48 : implicitHeight
+                verticalAlignment: TextInput.AlignVCenter
                 objectName: "reader2SearchInput"
                 anchors.left: searchIcon.right
                 anchors.leftMargin: 12
@@ -129,7 +131,7 @@ ReaderOverlay {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Theme.ink
                 font.family: Theme.ui
-                font.pixelSize: 14
+                font.pixelSize: Theme.fontSize(14)
                 selectionColor: Theme.gold
                 selectByMouse: true
                 clip: true
@@ -158,7 +160,7 @@ ReaderOverlay {
                     text: "Search this book"
                     color: Theme.inkGhost
                     font.family: Theme.ui
-                    font.pixelSize: 14
+                    font.pixelSize: Theme.fontSize(14)
                 }
             }
 
@@ -171,7 +173,7 @@ ReaderOverlay {
                 text: L.searchCountText(sheet.resultCount, sheet.capped)
                 color: Theme.inkGhost
                 font.family: Theme.ui
-                font.pixelSize: 12
+                font.pixelSize: Theme.fontSize(12)
             }
         }
 
@@ -204,7 +206,7 @@ ReaderOverlay {
                 text: sheet.lastQuery === "" ? "Type to search" : "No results"
                 color: Theme.inkGhost
                 font.family: Theme.ui
-                font.pixelSize: 13
+                font.pixelSize: Theme.fontSize(13)
             }
 
             ListView {
@@ -261,7 +263,7 @@ ReaderOverlay {
                             elide: Text.ElideRight
                             color: Theme.inkGhost
                             font.family: Theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.fontSize(11)
                             font.letterSpacing: 1.4
                             font.capitalization: Font.AllUppercase
                         }
@@ -275,7 +277,7 @@ ReaderOverlay {
                             wrapMode: Text.WordWrap
                             color: Theme.inkDim
                             font.family: "Literata"
-                            font.pixelSize: 13
+                            font.pixelSize: Theme.fontSize(13)
                         }
                     }
                     ReaderKeyboardArea {

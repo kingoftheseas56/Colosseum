@@ -145,20 +145,20 @@ Item {
             Text {
                 visible: picker.label.length > 0 && !picker.hasValue
                 text: picker.label
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 14
+                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
                 visible: picker.hasValue
                 text: picker.hasValue ? picker.current.text : ""
                 color: theme.gold; font.family: theme.ui
-                font.pixelSize: 14; font.weight: Font.DemiBold
+                font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
                 visible: picker.hasValue && !!picker.current.sub
                 text: picker.hasValue && picker.current.sub ? picker.current.sub : ""
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 anchors.verticalCenter: parent.verticalCenter
             }
         }
@@ -166,7 +166,7 @@ Item {
         Text {
             text: pill.showClear ? "✕" : "▾"
             color: pill.showClear ? theme.ink : theme.inkDim
-            font.pixelSize: pill.showClear ? 12 : 11
+            font.pixelSize: theme.fontSize(pill.showClear ? 12 : 11)
             anchors.right: parent.right; anchors.rightMargin: 13
             anchors.verticalCenter: parent.verticalCenter
         }
@@ -302,7 +302,7 @@ Item {
                     visible: opt.isHeader
                     text: opt.isHeader ? opt.modelData.header : ""
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 10
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                     font.letterSpacing: 1.6; font.capitalization: Font.AllUppercase
                     anchors.left: parent.left; anchors.leftMargin: 12
                     anchors.bottom: parent.bottom; anchors.bottomMargin: 6
@@ -322,7 +322,7 @@ Item {
                         id: catText
                         text: opt.isHeader ? "" : opt.modelData.text
                         color: opt.modelData.key === picker.currentKey ? theme.gold : theme.ink
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         font.weight: opt.modelData.key === picker.currentKey ? Font.DemiBold : Font.Normal
                         anchors.left: parent.left; anchors.leftMargin: 12
                         anchors.verticalCenter: parent.verticalCenter
@@ -330,7 +330,7 @@ Item {
                     Text {
                         visible: !!opt.modelData.sub
                         text: opt.modelData.sub || ""
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                         anchors.right: parent.right; anchors.rightMargin: 12
                         anchors.left: catText.right; anchors.leftMargin: 8
                         horizontalAlignment: Text.AlignRight

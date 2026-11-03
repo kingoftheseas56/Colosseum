@@ -6,8 +6,8 @@ import "SystemFocusContainment.js" as SystemFocusContainment
 Item {
     id: party
 
-    width: 40
-    height: 40
+    width: theme.androidHost ? 52 : 40
+    height: theme.androidHost ? 52 : 40
 
     property var controller: null
     property var syncController: null
@@ -23,7 +23,7 @@ Item {
     readonly property int panelWidth: 430
     readonly property int panelMaxHeight: 590
     readonly property int panelRadius: 14
-    readonly property int panelHeaderHeight: 50
+    readonly property int panelHeaderHeight: theme.androidHost ? 66 : 50
     readonly property int panelInset: 14
     readonly property int panelSectionGap: 12
     // Slice 07 Player 1 integration metrics. The atlas stays 430x590 at normal player sizes,
@@ -296,6 +296,7 @@ Item {
             anchors.centerIn: parent
             width: 22
             height: 20
+            scale: theme.androidHost ? 28 / 22 : 1
             opacity: faceChip.enabled ? 1.0 : 0.45
 
             Rectangle {
@@ -479,7 +480,7 @@ Item {
                     text: "Watch Party"
                     color: theme.ink
                     font.family: theme.hud
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                     font.weight: Font.DemiBold
                 }
 
@@ -488,7 +489,7 @@ Item {
                     text: party.inRoom ? party.controller.roomId : ""
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     elide: Text.ElideMiddle
                     width: Math.min(180, implicitWidth)
                 }
@@ -501,8 +502,8 @@ Item {
                 anchors.rightMargin: 9
                 anchors.top: parent.top
                 anchors.topMargin: 7
-                width: 36
-                height: 36
+                width: theme.androidHost ? 52 : 36
+                height: theme.androidHost ? 52 : 36
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Close Watch Party panel"
@@ -521,7 +522,7 @@ Item {
                     text: "×"
                     color: theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: 22
+                    font.pixelSize: theme.fontSize(22)
                 }
                 MouseArea {
                     id: closeMouse
@@ -586,7 +587,7 @@ Item {
                             text: party.lifecycleMessage()
                             color: theme.inkDim
                             font.family: theme.hud
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             wrapMode: Text.Wrap
                         }
                     }
@@ -615,7 +616,7 @@ Item {
                                 text: party.sourceStatusTitle()
                                 color: party.sourceEligible ? theme.gold : theme.ink
                                 font.family: theme.hud
-                                font.pixelSize: 13
+                                font.pixelSize: theme.fontSize(13)
                                 font.weight: Font.DemiBold
                                 wrapMode: Text.Wrap
                             }
@@ -624,7 +625,7 @@ Item {
                                 text: party.sourceStatusDetail()
                                 color: theme.inkDim
                                 font.family: theme.hud
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 wrapMode: Text.Wrap
                             }
                         }
@@ -644,7 +645,7 @@ Item {
                                     : "Start a private room from the source already playing."
                             color: theme.inkDim
                             font.family: theme.hud
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                             wrapMode: Text.Wrap
                         }
 
@@ -676,7 +677,7 @@ Item {
                                     text: "ROOM ID"
                                     color: theme.inkDimmer
                                     font.family: theme.hud
-                                    font.pixelSize: 10
+                                    font.pixelSize: theme.fontSize(10)
                                     font.letterSpacing: 1.2
                                 }
                                 Text {
@@ -685,7 +686,7 @@ Item {
                                     text: party.controller ? party.controller.roomId : ""
                                     color: theme.ink
                                     font.family: theme.hud
-                                    font.pixelSize: 15
+                                    font.pixelSize: theme.fontSize(15)
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideMiddle
                                 }
@@ -694,7 +695,7 @@ Item {
                             ActionButton {
                                 id: copyRoomButton
                                 objectName: "watchPartyCopyRoomId"
-                                width: 74
+                                width: theme.androidHost ? 88 : 74
                                 label: "Copy"
                                 enabled: party.controller && String(party.controller.roomId || "").length > 0
                                 onClicked: party.copyRequested(String(party.controller.roomId || ""))
@@ -719,7 +720,7 @@ Item {
                                 text: "This player is not on the room's exact source yet. Open the room source before playback can sync."
                                 color: theme.inkDim
                                 font.family: theme.hud
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 wrapMode: Text.Wrap
                             }
                         }
@@ -735,7 +736,7 @@ Item {
                                 text: "PLAYBACK CONTROL"
                                 color: theme.inkDimmer
                                 font.family: theme.hud
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 font.letterSpacing: 1.2
                             }
 
@@ -771,7 +772,7 @@ Item {
                                 text: "You're out of sync with the room."
                                 color: theme.inkDim
                                 font.family: theme.hud
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 wrapMode: Text.Wrap
                             }
                             ActionButton {
@@ -796,7 +797,7 @@ Item {
                                 text: "INVITE BY EXACT USERNAME"
                                 color: theme.inkDimmer
                                 font.family: theme.hud
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 font.letterSpacing: 1.2
                             }
 
@@ -806,7 +807,7 @@ Item {
 
                                 Rectangle {
                                     width: parent.width - inviteButton.width - 8
-                                    height: 38
+                                    height: theme.androidHost ? 52 : 38
                                     radius: 10
                                     color: inviteInput.activeFocus
                                            ? Qt.rgba(1, 1, 1, 0.11)
@@ -827,7 +828,7 @@ Item {
                                         selectionColor: theme.gold
                                         selectedTextColor: "#111111"
                                         font.family: theme.hud
-                                        font.pixelSize: 13
+                                        font.pixelSize: theme.fontSize(13)
                                         clip: true
                                         activeFocusOnTab: true
                                         onAccepted: party.runInvite()
@@ -840,14 +841,14 @@ Item {
                                         text: "Username"
                                         color: theme.inkDimmer
                                         font.family: theme.hud
-                                        font.pixelSize: 13
+                                        font.pixelSize: theme.fontSize(13)
                                     }
                                 }
 
                                 ActionButton {
                                     id: inviteButton
                                     objectName: "watchPartyInvite"
-                                    width: 78
+                                    width: theme.androidHost ? 88 : 78
                                     label: party.controller && party.controller.inviteBusy ? "Sending…" : "Invite"
                                     enabled: party.controller
                                              && party.controller.canInvite
@@ -869,7 +870,7 @@ Item {
                                       + " / " + party.participantCapacity
                                 color: theme.inkDimmer
                                 font.family: theme.hud
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 font.letterSpacing: 1.2
                             }
 
@@ -903,7 +904,7 @@ Item {
                                             text: party.participantTitle(modelData)
                                             color: theme.ink
                                             font.family: theme.hud
-                                            font.pixelSize: 12
+                                            font.pixelSize: theme.fontSize(12)
                                             font.weight: Font.DemiBold
                                             elide: Text.ElideRight
                                             maximumLineCount: 1
@@ -913,7 +914,7 @@ Item {
                                             text: party.participantMeta(modelData)
                                             color: theme.inkDimmer
                                             font.family: theme.hud
-                                            font.pixelSize: 10
+                                            font.pixelSize: theme.fontSize(10)
                                             elide: Text.ElideRight
                                             maximumLineCount: 1
                                         }
@@ -931,7 +932,7 @@ Item {
                                 text: "ROOM CHAT"
                                 color: theme.inkDimmer
                                 font.family: theme.hud
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 font.letterSpacing: 1.2
                             }
 
@@ -983,7 +984,7 @@ Item {
                                             text: "Messages live only for this room."
                                             color: theme.inkDimmer
                                             font.family: theme.hud
-                                            font.pixelSize: 11
+                                            font.pixelSize: theme.fontSize(11)
                                             wrapMode: Text.Wrap
                                         }
 
@@ -1000,7 +1001,7 @@ Item {
                                                     text: String(modelData.displayName || "")
                                                     color: theme.ink
                                                     font.family: theme.hud
-                                                    font.pixelSize: 11
+                                                    font.pixelSize: theme.fontSize(11)
                                                     font.weight: Font.DemiBold
                                                     elide: Text.ElideRight
                                                 }
@@ -1011,7 +1012,7 @@ Item {
                                                     text: String(modelData.message || "")
                                                     color: theme.ink
                                                     font.family: theme.hud
-                                                    font.pixelSize: 11
+                                                    font.pixelSize: theme.fontSize(11)
                                                     wrapMode: Text.Wrap
                                                 }
                                             }
@@ -1026,7 +1027,7 @@ Item {
 
                                 Rectangle {
                                     width: parent.width - sendChatButton.width - 8
-                                    height: 38
+                                    height: theme.androidHost ? 52 : 38
                                     radius: 10
                                     color: chatInput.activeFocus
                                            ? Qt.rgba(1, 1, 1, 0.11)
@@ -1047,7 +1048,7 @@ Item {
                                         selectionColor: theme.gold
                                         selectedTextColor: "#111111"
                                         font.family: theme.hud
-                                        font.pixelSize: 13
+                                        font.pixelSize: theme.fontSize(13)
                                         clip: true
                                         activeFocusOnTab: true
                                         maximumLength: 1000
@@ -1062,14 +1063,14 @@ Item {
                                         text: "Message room"
                                         color: theme.inkDimmer
                                         font.family: theme.hud
-                                        font.pixelSize: 13
+                                        font.pixelSize: theme.fontSize(13)
                                     }
                                 }
 
                                 ActionButton {
                                     id: sendChatButton
                                     objectName: "watchPartySendChat"
-                                    width: 68
+                                    width: theme.androidHost ? 88 : 68
                                     label: "Send"
                                     enabled: party.controller
                                              && party.controller.canChat
@@ -1091,7 +1092,7 @@ Item {
                                     delegate: ActionButton {
                                         required property var modelData
                                         objectName: "watchPartyReaction_" + modelData.value
-                                        width: 72
+                                        width: theme.androidHost ? 88 : 72
                                         label: modelData.label
                                         enabled: party.controller && party.controller.canChat
                                         onClicked: if (party.controller)
@@ -1099,7 +1100,7 @@ Item {
                                     }
                                 }
 
-                                Item { width: Math.max(0, parent.width - 3 * 72 - 2 * 7); height: 1 }
+                                Item { width: Math.max(0, parent.width - 3 * (theme.androidHost ? 88 : 72) - 2 * 7); height: 1 }
                             }
                         }
 
@@ -1110,7 +1111,7 @@ Item {
                             text: party.controller ? party.controller.errorText : ""
                             color: theme.inkDim
                             font.family: theme.hud
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             wrapMode: Text.Wrap
                         }
 
@@ -1121,7 +1122,7 @@ Item {
                             text: party.controller ? party.controller.noticeText : ""
                             color: theme.inkDim
                             font.family: theme.hud
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             wrapMode: Text.Wrap
                         }
 
@@ -1182,7 +1183,7 @@ Item {
         property bool danger: false
         signal clicked()
 
-        height: 36
+        height: theme.androidHost ? 52 : 36
         radius: 9
         activeFocusOnTab: enabled
         Accessible.role: Accessible.Button
@@ -1212,7 +1213,7 @@ Item {
                                   : action.danger ? theme.inkDim
                                                   : action.selected ? theme.gold : theme.ink
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             font.weight: Font.DemiBold
         }
 

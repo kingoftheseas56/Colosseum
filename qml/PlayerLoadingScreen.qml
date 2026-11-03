@@ -12,6 +12,7 @@ import QtQuick.Effects
 // active. Harbor shows the same logo with no backdrop; we keep Stremio's backdrop.
 Item {
     id: root
+    Theme { id: theme }
 
     property string title: ""
     property string episodeLine: ""
@@ -104,7 +105,7 @@ Item {
             text: root.title
             color: "#ffffff"
             font.family: root.hudFamily
-            font.pixelSize: Math.max(34, Math.min(64, root.width * 0.036))
+            font.pixelSize: theme.fontSize(Math.max(34, Math.min(64, root.width * 0.036)))
             font.weight: Font.DemiBold
             lineHeight: 1.0
             style: Text.Raised
@@ -120,7 +121,7 @@ Item {
             text: root.episodeLine.toUpperCase()
             color: "#e2e2e6"
             font.family: root.hudFamily
-            font.pixelSize: 13
+            font.pixelSize: theme.fontSize(13)
             font.weight: Font.DemiBold
             font.letterSpacing: 4
             horizontalAlignment: Text.AlignHCenter
@@ -141,7 +142,7 @@ Item {
             text: root.errored ? root.errorText : root.statusText.toUpperCase()
             color: root.errored ? "#e6b8b0" : "#c8c8ce"
             font.family: root.hudFamily
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             font.weight: Font.DemiBold
             font.letterSpacing: 3
             horizontalAlignment: Text.AlignHCenter

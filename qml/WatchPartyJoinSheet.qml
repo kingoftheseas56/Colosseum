@@ -208,7 +208,7 @@ Popup {
                 text: sheet.inRoom ? "Watch Party joined" : "Join Watch Party"
                 color: theme.ink
                 font.family: theme.display
-                font.pixelSize: 37
+                font.pixelSize: theme.fontSize(37)
                 font.weight: Font.Normal
                 font.letterSpacing: -0.7
                 elide: Text.ElideRight
@@ -271,7 +271,7 @@ Popup {
                 text: "ROOM ID"
                 color: theme.gold
                 font.family: theme.ui
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 font.weight: Font.DemiBold
                 font.letterSpacing: 1.7
             }
@@ -295,7 +295,7 @@ Popup {
                     selectionColor: theme.gold
                     selectedTextColor: "#111111"
                     font.family: theme.ui
-                    font.pixelSize: 18
+                    font.pixelSize: theme.fontSize(18)
                     clip: true
                     activeFocusOnTab: true
                     maximumLength: 128
@@ -334,7 +334,7 @@ Popup {
                     text: "DISPLAY NAME FOR THIS ROOM"
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     font.weight: Font.DemiBold
                     font.letterSpacing: 1.7
                 }
@@ -358,7 +358,7 @@ Popup {
                         selectionColor: theme.gold
                         selectedTextColor: "#111111"
                         font.family: theme.ui
-                        font.pixelSize: 15
+                        font.pixelSize: theme.fontSize(15)
                         clip: true
                         activeFocusOnTab: true
                         maximumLength: 80
@@ -463,7 +463,7 @@ Popup {
                     text: "Watch Party is unavailable in this build."
                     color: theme.ink
                     font.family: theme.ui
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                     font.weight: Font.DemiBold
                     wrapMode: Text.Wrap
                 }
@@ -473,7 +473,7 @@ Popup {
                     text: "Room joining will appear here when the service is configured."
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     lineHeight: 1.4
                     wrapMode: Text.Wrap
                 }
@@ -504,7 +504,7 @@ Popup {
                     text: "Room " + (sheet.controller ? sheet.controller.roomId : "")
                     color: theme.gold
                     font.family: theme.ui
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     font.weight: Font.DemiBold
                     elide: Text.ElideMiddle
                 }
@@ -521,7 +521,7 @@ Popup {
                     }
                     color: theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     wrapMode: Text.Wrap
                 }
             }
@@ -544,7 +544,7 @@ Popup {
             text: sheet.controller ? sheet.controller.errorText : ""
             color: theme.inkDim
             font.family: theme.ui
-            font.pixelSize: 11
+            font.pixelSize: theme.fontSize(11)
             wrapMode: Text.Wrap
         }
 
@@ -772,7 +772,7 @@ Popup {
                 text: pill.label
                 color: theme.inkDim
                 font.family: theme.ui
-                font.pixelSize: 13
+                font.pixelSize: theme.fontSize(13)
             }
         }
     }
@@ -806,7 +806,7 @@ Popup {
             text: button.label
             color: (button.primary && button.enabled) ? "#111111" : theme.ink
             font.family: theme.ui
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             font.weight: Font.DemiBold
         }
 

@@ -3,6 +3,7 @@ import QtQuick
 
 FocusScope {
     id: root
+    Theme { id: interfaceTypography }
     required property string markerId
     required property string title
     property url badgeSource: ""
@@ -111,7 +112,7 @@ FocusScope {
             text: root.sealText
             color: "#65472a"
             font.family: root.fontFamily
-            font.pixelSize: Math.max(13, root.diameter * 0.39)
+            font.pixelSize: interfaceTypography.fontSize(Math.max(13, root.diameter * 0.39))
         }
     }
     Text {

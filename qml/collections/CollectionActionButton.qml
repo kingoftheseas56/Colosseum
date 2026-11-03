@@ -21,7 +21,7 @@ Button {
     focusPolicy: Qt.StrongFocus
     hoverEnabled: true
     font.family: theme.ui
-    font.pixelSize: 14
+    font.pixelSize: theme.fontSize(14)
     font.weight: Font.DemiBold
     background: Rectangle {
         radius: 10

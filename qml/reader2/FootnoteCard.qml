@@ -94,7 +94,7 @@ ReaderOverlay {
                 width: bodyFlick.width
                 text: fnCard.text
                 font.family: Theme.display   // Fraunces (loaded serif); Literata not bundled
-                font.pixelSize: 14
+                font.pixelSize: Theme.fontSize(14)
                 lineHeight: 1.4
                 color: Theme.inkTitle
                 wrapMode: Text.WordWrap

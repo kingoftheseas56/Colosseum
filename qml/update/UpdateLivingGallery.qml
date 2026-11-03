@@ -226,7 +226,7 @@ Item {
         text: "COLOSSEUM UPDATE"
         color: Qt.rgba(1, 1, 1, 0.72)
         font.family: "Inter"
-        font.pixelSize: 11
+        font.pixelSize: theme.fontSize(11)
         font.letterSpacing: 2.7
         font.weight: Font.DemiBold
     }
@@ -240,7 +240,7 @@ Item {
         text: root.versionText.length > 0 ? root.versionText : String(root.release.title || "")
         color: "#ffffff"
         font.family: theme.display
-        font.pixelSize: Math.max(38, Math.min(70, root.width * 0.055))
+        font.pixelSize: theme.fontSize(Math.max(38, Math.min(70, root.width * 0.055)))
         font.letterSpacing: -1.0
     }
     Item {
@@ -262,7 +262,7 @@ Item {
                 text: String(root.selectedChapter.section || "RELEASE")
                 color: Qt.rgba(1, 1, 1, 0.72)
                 font.family: "Inter"
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 font.letterSpacing: 2.4
                 font.weight: Font.DemiBold
             }
@@ -272,7 +272,7 @@ Item {
                 text: String(root.selectedChapter.title || root.release.title || "The latest chapter")
                 color: "#ffffff"
                 font.family: theme.display
-                font.pixelSize: Math.max(34, Math.min(58, root.width * 0.045))
+                font.pixelSize: theme.fontSize(Math.max(34, Math.min(58, root.width * 0.045)))
                 font.letterSpacing: -0.7
                 wrapMode: Text.WordWrap
                 width: parent.width
@@ -283,7 +283,7 @@ Item {
                 text: String(root.selectedChapter.body || root.release.summary || "")
                 color: Qt.rgba(1, 1, 1, 0.84)
                 font.family: "Inter"
-                font.pixelSize: 15
+                font.pixelSize: theme.fontSize(15)
                 lineHeight: 1.22
                 wrapMode: Text.WordWrap
                 width: parent.width
@@ -314,7 +314,7 @@ Item {
                       + String(root.chapterCount).padStart(2, "0")
                 color: Qt.rgba(1, 1, 1, 0.94)
                 font.family: theme.display
-                font.pixelSize: 20
+                font.pixelSize: theme.fontSize(20)
             }
             Text {
                 objectName: "colosseumUpdateChapterLabel"
@@ -322,7 +322,7 @@ Item {
                 text: String(root.selectedChapter.section || "RELEASE")
                 color: Qt.rgba(1, 1, 1, 0.62)
                 font.family: "Inter"
-                font.pixelSize: 9
+                font.pixelSize: theme.fontSize(9)
                 font.letterSpacing: 1.8
                 font.weight: Font.DemiBold
             }
@@ -366,7 +366,7 @@ Item {
                         text: String(index + 1).padStart(2, "0")
                         color: Qt.rgba(1, 1, 1, index === root.currentIndex ? 0.98 : 0.56)
                         font.family: "Inter"
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         font.weight: Font.DemiBold
                     }
                     Rectangle {
@@ -415,7 +415,7 @@ Item {
                     text: "Next"
                     color: Qt.rgba(1, 1, 1, parent.enabled ? 0.86 : 0.32)
                     font.family: "Inter"
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     font.weight: Font.DemiBold
                 }
                 MouseArea {

@@ -10,6 +10,7 @@ import "OnePieceAtlasBadgeLayout.js" as BadgeLayout
 
 FocusScope {
     id: root
+    Theme { id: interfaceTypography }
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     focus: true
     property bool reducedMotion: false
@@ -320,8 +321,8 @@ FocusScope {
                 Column {
                     anchors.centerIn: parent
                     spacing: 8
-                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: chartLoader.status === Loader.Error ? "CHART UNAVAILABLE" : "PREPARING PARADISE"; color: "#63482b"; font.family: root.displayFamily; font.pixelSize: 20 }
-                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: "The story index remains available."; color: "#806646"; font.family: root.bodyFamily; font.pixelSize: 12 }
+                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: chartLoader.status === Loader.Error ? "CHART UNAVAILABLE" : "PREPARING PARADISE"; color: "#63482b"; font.family: root.displayFamily; font.pixelSize: interfaceTypography.fontSize(20) }
+                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: "The story index remains available."; color: "#806646"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(12) }
                 }
             }
             Repeater {
@@ -405,8 +406,8 @@ FocusScope {
         Accessible.description: "Continue to the New World atlas beneath the Red Line via Fish-Man Island."
         contentItem: Column {
             spacing: 3
-            Text { width: parent.width; text: newWorldButton.text; color: "#5c4229"; font.family: root.bodyFamily; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter }
-            Text { width: parent.width; text: "via Fish-Man Island"; color: "#886c47"; font.family: root.bodyFamily; font.pixelSize: 9; font.italic: true; horizontalAlignment: Text.AlignHCenter }
+            Text { width: parent.width; text: newWorldButton.text; color: "#5c4229"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); horizontalAlignment: Text.AlignHCenter }
+            Text { width: parent.width; text: "via Fish-Man Island"; color: "#886c47"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(9); font.italic: true; horizontalAlignment: Text.AlignHCenter }
         }
         onClicked: { root.closePreview(false); root.closeIndex(false); root.newWorldRequested() }
     }
@@ -433,8 +434,8 @@ FocusScope {
         height: Math.min(580, root.height - y - 24)
         z: 50
         Rectangle { anchors.fill: parent; color: "#efe1bd"; border.color: "#8a6b41" }
-        Text { x: 18; y: 16; text: "PORTS OF THE VOYAGE"; color: "#755435"; font.family: root.displayFamily; font.pixelSize: 19 }
-        Text { x: 18; y: 44; text: "18 arcs · 16 places · return visits share a seal"; color: "#8b7250"; font.family: root.bodyFamily; font.pixelSize: 11 }
+        Text { x: 18; y: 16; text: "PORTS OF THE VOYAGE"; color: "#755435"; font.family: root.displayFamily; font.pixelSize: interfaceTypography.fontSize(19) }
+        Text { x: 18; y: 44; text: "18 arcs · 16 places · return visits share a seal"; color: "#8b7250"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11) }
         ListView {
             id: indexView
             objectName: "paradiseIndexList"
@@ -569,23 +570,23 @@ FocusScope {
                         id: headingColumn
                         width: parent.width - 88
                         spacing: 5
-                        Text { width: parent.width; text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / " + root.selectedArc.sagaLabel.toUpperCase() : ""; color: "#96764d"; font.family: root.bodyFamily; font.pixelSize: 10; wrapMode: Text.WordWrap }
-                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: root.displayFamily; font.pixelSize: 23; wrapMode: Text.WordWrap }
-                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: 11; font.italic: true; wrapMode: Text.WordWrap }
+                        Text { width: parent.width; text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / " + root.selectedArc.sagaLabel.toUpperCase() : ""; color: "#96764d"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); wrapMode: Text.WordWrap }
+                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: root.displayFamily; font.pixelSize: interfaceTypography.fontSize(23); wrapMode: Text.WordWrap }
+                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); font.italic: true; wrapMode: Text.WordWrap }
                     }
                 }
-                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.summary : ""; color: "#654b31"; font.family: root.bodyFamily; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.12 }
+                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.summary : ""; color: "#654b31"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(12); wrapMode: Text.WordWrap; lineHeight: 1.12 }
                 Text {
                     width: parent.width
                     text: root.selectedArc ? "Anime  " + root.selectedArc.anime + "\nChapters  " + root.selectedArc.chapters + "     Volumes  " + root.selectedArc.volumes : ""
-                    color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: 11
+                    color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11)
                     wrapMode: Text.WordWrap; lineHeight: 1.2
                 }
                 Text {
                     visible: !!root.selectedLocation && !!root.selectedLocation.sublabels
                     width: parent.width
                     text: root.selectedLocation && root.selectedLocation.sublabels ? root.selectedLocation.sublabels.join(" · ") : ""
-                    color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: 11
+                    color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11)
                     wrapMode: Text.WordWrap
                 }
                 Row {
@@ -602,7 +603,7 @@ FocusScope {
                             height: 44
                             text: modelData.title
                             fontFamily: root.bodyFamily
-                            font.pixelSize: 10
+                            font.pixelSize: interfaceTypography.fontSize(10)
                             reducedMotion: root.reducedMotion
                             Accessible.description: "Preview this visit to the same geographic location."
                             onActiveFocusChanged: if (activeFocus) root.revealPreviewItem(visitButton)

@@ -271,14 +271,14 @@ Item {
                         visible: !page.editing
                         spacing: 6
                         CollectionIcon { name: "lock"; strokeColor: theme.inkDimmer; Layout.preferredWidth: 13; Layout.preferredHeight: 13 }
-                        Text { text: qsTr("Private collection"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; textFormat: Text.PlainText }
+                        Text { text: qsTr("Private collection"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11); textFormat: Text.PlainText }
                     }
                     Text {
                         visible: !page.editing
                         Layout.fillWidth: true
                         text: page.collection ? page.collection.name : qsTr("Collection unavailable")
                         font.family: theme.display
-                        font.pixelSize: page.narrow ? 32 : 42
+                        font.pixelSize: theme.fontSize(page.narrow ? 32 : 42)
                         color: theme.ink
                         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         textFormat: Text.PlainText
@@ -289,7 +289,7 @@ Item {
                         text: page.collection ? page.collection.description : qsTr("Return to Your Collections to choose another one.")
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         lineHeight: 1.25
                         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         textFormat: Text.PlainText
@@ -303,7 +303,7 @@ Item {
                         maximumLength: 100
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 28
+                        font.pixelSize: theme.fontSize(28)
                         padding: 10
                         selectByMouse: true
                         Accessible.name: qsTr("Collection name")
@@ -319,7 +319,7 @@ Item {
                         placeholderText: qsTr("Add a description")
                         placeholderTextColor: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 13
+                        font.pixelSize: theme.fontSize(13)
                         padding: 10
                         selectByMouse: true
                         wrapMode: TextEdit.Wrap
@@ -344,7 +344,7 @@ Item {
                         text: page.errorText
                         color: "#efb6a9"
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
                         Accessible.role: Accessible.AlertMessage
@@ -415,7 +415,7 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 12
                     spacing: 10
-                    Text { Layout.fillWidth: true; text: page.reloading ? qsTr("Reload this collection and discard your unsaved edits?") : qsTr("Discard your unsaved edits?"); color: theme.ink; font.family: theme.ui; font.pixelSize: 14; wrapMode: Text.Wrap; textFormat: Text.PlainText }
+                    Text { Layout.fillWidth: true; text: page.reloading ? qsTr("Reload this collection and discard your unsaved edits?") : qsTr("Discard your unsaved edits?"); color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); wrapMode: Text.Wrap; textFormat: Text.PlainText }
                     RowLayout {
                         spacing: 8
                         CollectionActionButton {
@@ -452,7 +452,7 @@ Item {
             RowLayout {
                 visible: page.editing
                 Layout.fillWidth: true
-                Text { Layout.fillWidth: true; text: qsTr("Your order · Notes are optional"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; wrapMode: Text.Wrap; textFormat: Text.PlainText }
+                Text { Layout.fillWidth: true; text: qsTr("Your order · Notes are optional"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); wrapMode: Text.Wrap; textFormat: Text.PlainText }
                 CollectionActionButton {
                     id: undoButton
                     objectName: "undoRemoveTitle"
@@ -510,8 +510,8 @@ Item {
                 width: parent.width - page.sideMargin * 2
                 spacing: 14
                 CollectionIcon { name: "collections"; strokeColor: theme.inkDimmer; Layout.preferredWidth: 36; Layout.preferredHeight: 36; Layout.alignment: Qt.AlignHCenter }
-                Text { Layout.fillWidth: true; text: page.kind === "all" ? qsTr("Room for your next favourite") : qsTr("No titles of this kind yet"); color: theme.ink; font.family: theme.display; font.pixelSize: 26; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; textFormat: Text.PlainText }
-                Text { Layout.fillWidth: true; text: qsTr("Open a title and choose Add to Collections."); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; textFormat: Text.PlainText }
+                Text { Layout.fillWidth: true; text: page.kind === "all" ? qsTr("Room for your next favourite") : qsTr("No titles of this kind yet"); color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(26); wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; textFormat: Text.PlainText }
+                Text { Layout.fillWidth: true; text: qsTr("Open a title and choose Add to Collections."); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13); wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; textFormat: Text.PlainText }
                 CollectionActionButton {
                     objectName: "browseTitleButton"
                     Layout.alignment: Qt.AlignHCenter

@@ -100,7 +100,7 @@ Button {
             text: card.collection.name
             color: theme.ink
             font.family: theme.ui
-            font.pixelSize: 19
+            font.pixelSize: theme.fontSize(19)
             font.weight: Font.DemiBold
             maximumLineCount: 2
             wrapMode: Text.Wrap
@@ -113,7 +113,7 @@ Button {
             text: card.collection.items.length === 0 ? qsTr("Ready for your first title") : qsTr("%1 titles  ·  %2").arg(card.collection.items.length).arg(card.store.summary(card.collection))
             color: theme.inkDimmer
             font.family: theme.ui
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             elide: Text.ElideRight
             textFormat: Text.PlainText
         }

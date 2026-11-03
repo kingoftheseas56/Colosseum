@@ -9,6 +9,7 @@ import "../SystemFocusContainment.js" as SystemFocusContainment
 
 Item {
     id: root
+    Theme { id: interfaceTypography }
 
     property var controller: null
     property string initial: "?"
@@ -239,7 +240,7 @@ Item {
                         text: root.initial
                         color: "#f0df9a"
                         font.family: "Inter"
-                        font.pixelSize: 17
+                        font.pixelSize: interfaceTypography.fontSize(17)
                         font.weight: Font.DemiBold
                     }
                 }
@@ -253,14 +254,14 @@ Item {
                               : qsTr("Not signed in")
                         color: "#f2f2ef"
                         font.family: "Inter"
-                        font.pixelSize: 15
+                        font.pixelSize: interfaceTypography.fontSize(15)
                         font.weight: Font.DemiBold
                     }
                     Text {
                         text: qsTr("Colosseum account")
                         color: "#8f8b80"
                         font.family: "Inter"
-                        font.pixelSize: 11
+                        font.pixelSize: interfaceTypography.fontSize(11)
                     }
                 }
             }
@@ -291,7 +292,7 @@ Item {
                     text: root.syncLine()
                     color: "#b7b3a6"
                     font.family: "Inter"
-                    font.pixelSize: 12
+                    font.pixelSize: interfaceTypography.fontSize(12)
                     elide: Text.ElideRight
                 }
             }
@@ -360,7 +361,7 @@ Item {
                             text: modelData.label
                             color: navItem.activeFocus || navMa.containsMouse ? "#f2f2ef" : "#b7b3a6"
                             font.family: "Inter"
-                            font.pixelSize: 12
+                            font.pixelSize: interfaceTypography.fontSize(12)
                         }
                         MouseArea {
                             id: navMa
@@ -404,7 +405,7 @@ Item {
                     text: qsTr("Retry sync")
                     color: "#f0df9a"
                     font.family: "Inter"
-                    font.pixelSize: 12
+                    font.pixelSize: interfaceTypography.fontSize(12)
                     font.weight: Font.DemiBold
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -442,7 +443,7 @@ Item {
                     text: root.accountPresent ? qsTr("Sign out") : qsTr("Sign in")
                     color: "#d8d4c8"
                     font.family: "Inter"
-                    font.pixelSize: 12
+                    font.pixelSize: interfaceTypography.fontSize(12)
                     font.weight: Font.DemiBold
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
