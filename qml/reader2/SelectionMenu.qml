@@ -116,8 +116,11 @@ ReaderOverlay {
     readonly property real touchTarget: touchInput ? 48 : 0
     readonly property int cardH: noteEditing
         ? (touchInput ? Math.min(152, Math.max(0, availableHeight - 20)) : 128)
-        : (touchInput ? 48 : 44)
-    readonly property int naturalCardW: noteEditing ? 300 : (cardRow.implicitWidth + 28)  // 14px pad each side
+        : (touchInput ? cardRow.implicitHeight : 44)
+    readonly property real actionRowWidth: 3 * (touchInput ? 48 : 20) + 1
+        + (mode === "select" ? noteAction.width + defineAction.width + copyAction.width : deleteAction.width)
+        + (touchInput ? 0 : (mode === "select" ? 6 : 4) * 12)
+    readonly property int naturalCardW: noteEditing ? 300 : (actionRowWidth + 28)  // 14px pad each side
     readonly property int cardW: touchInput ? Math.min(Math.max(0, width - 24), naturalCardW) : naturalCardW
     readonly property var pos: L.selectionMenuPos(menu.sel, menu.width, menu.availableHeight,
                                                   menu.cardW, menu.cardH, 12, 10)
@@ -156,12 +159,13 @@ ReaderOverlay {
         }
 
         // ===== action row (both modes; hidden while the note editor is open) =====
-        Row {
+        Flow {
             id: cardRow
             visible: !menu.noteEditing
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: 14
+            width: menu.touchInput ? Math.max(0, card.width - 28) : menu.actionRowWidth
             // touch hosts abut (disjoint) instead of adding gaps beside 48-unit targets
             spacing: menu.touchInput ? 0 : 12
 
@@ -174,7 +178,7 @@ ReaderOverlay {
                     required property var modelData
                     required property int index
                     width: menu.touchInput ? 48 : 20
-                    height: card.height
+                    height: menu.touchInput ? 48 : 44
                     function focusKeyboard() { dotMa.forceActiveFocus(Qt.OtherFocusReason) }
                     Rectangle {
                         anchors.centerIn: parent
@@ -199,25 +203,32 @@ ReaderOverlay {
             }
 
             // divider
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
+            Item {
                 width: 1
-                height: 20
-                color: Theme.barBorder
+                height: menu.touchInput ? 48 : 44
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 1
+                    height: 20
+                    color: Theme.barBorder
+                }
             }
 
             // ---- select-mode text actions: Note · Define · Copy ----
             TextAction {
+                id: noteAction
                 label: "Note"
                 visible: menu.mode === "select"
                 onTriggered: menu.noteEditing = true
             }
             TextAction {
+                id: defineAction
                 label: "Define"
                 visible: menu.mode === "select"
                 onTriggered: menu.defineRequested()
             }
             TextAction {
+                id: copyAction
                 label: "Copy"
                 visible: menu.mode === "select"
                 onTriggered: menu.copyRequested()
@@ -225,6 +236,7 @@ ReaderOverlay {
 
             // ---- existing-mode action: Delete ----
             TextAction {
+                id: deleteAction
                 label: "Delete"
                 visible: menu.mode === "existing"
                 onTriggered: menu.deleteRequested()
