@@ -2605,7 +2605,7 @@ Window {
                 var rec = Sessions.get(id)
                 if (rec && rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) {
                     var live = playerLayer.item.captureState()
-                    if (live && Number(live.position) > 0)
+                    if (live && Number.isFinite(live.position) && live.position >= 0)
                         Sessions.saveState(id, live)
                 }
                 win.warmPlayerSessionId = ""
