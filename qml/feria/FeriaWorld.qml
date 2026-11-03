@@ -84,6 +84,7 @@ Item {
     signal fullscreenClicked()
     signal minimizeClicked()
     signal powerClicked()
+    signal feedbackClicked()
     onLifecycleActiveChanged: {
         navigationEpoch++
         navigationSuspended = !lifecycleActive
@@ -1119,6 +1120,7 @@ Item {
                     if (shell.viewState === "home") shell.homeRequested()
                     else shell.back()
                 }
+                onFeedbackClicked: shell.feedbackClicked()
                 onSearchClicked: shell.openSearch("")
                 onAccountClicked: shell.openAccount()
                 onFullscreenClicked: shell.fullscreenClicked()

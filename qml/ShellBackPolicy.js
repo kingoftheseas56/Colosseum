@@ -12,6 +12,7 @@ function actionFor(state) {
     // Covers that must never let an Escape leak into hidden application state.
     if (on(s.transitioning) || on(s.bootVisible) || on(s.accountHostVisible))
         return "consume"
+    if (on(s.feedbackActive)) return "feedback"
 
     // Same-window modal/transient surfaces, highest visual/interaction ownership first.
     if (on(s.identityCeremonyOpen)) return "cancelIdentityCeremony"

@@ -1,4 +1,4 @@
-// DlnaSharePopup — "Share on your Wi-Fi": the top-bar access-point glyph's flyout.
+// DlnaSharePopup — "Share on your Wi-Fi": the shell sharing flyout.
 // Plain full-window layer with a click-catcher (same shape as AccountFlyout: modal Popup
 // overlays fight Qt's grab semantics on this shell). Text-led glass card; the glyph is
 // decoration only. Everything is driven by the `dlnaSharing` context property and tolerates it
@@ -33,6 +33,7 @@ Item {
     anchors.fill: parent
     z: 900
 
+    property bool aboveAnchor: false
     property real anchorRight: -1
     property real anchorBottom: -1
     property int edgeMargin: 16
@@ -121,7 +122,7 @@ Item {
            ? Math.max(root.edgeMargin, Math.min(root.width - width - root.edgeMargin, root.anchorRight - width))
            : root.width - width - 96
         y: root.anchorBottom >= 0
-           ? Math.max(root.edgeMargin, Math.min(root.height - height - root.edgeMargin, root.anchorBottom + root.anchorGap))
+           ? Math.max(root.edgeMargin, Math.min(root.height - height - root.edgeMargin, (root.aboveAnchor ? root.anchorBottom - height - root.anchorGap : root.anchorBottom + root.anchorGap)))
            : 66
         width: 300
         height: col.implicitHeight + 32

@@ -293,9 +293,7 @@ Window {
             Qt.callLater(function() { syncCenterLayer.item.focusMainSyncButton() })
             return
         }
-        const theatreWorld = win.theatreWorldItem()
-        if (theatreWorld)
-            Qt.callLater(function() { theatreWorld.focusStremioButton() })
+        win.focusTrackersDoor()
     }
     function requestTheatreRemoval(entry) {
         theatreRemoval.entry = entry
@@ -1217,6 +1215,7 @@ Window {
             transitioning: fullscreenTransition.transitioning,
             bootVisible: boot.visible,
             accountHostVisible: accountHost.visible,
+            feedbackActive: feedbackLayer.active,
             identityCeremonyOpen: identityCeremonyDialog.opened,
             watchPartyJoinOpen: watchPartyJoinSheet.opened,
             wallpaperActive: wallpaperLayer.active,
@@ -1344,6 +1343,7 @@ Window {
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
         switch (action) {
         case "consume": return
+        case "feedback": win.closeFeedback(); return
         case "cancelIdentityCeremony": identityCeremonyDialog.cancelRequested(); return
         case "watchPartyJoin": watchPartyJoinSheet.close(); return
         case "wallpaper": win.closeWallpaperSearch(); return
@@ -2570,20 +2570,7 @@ Window {
     function toggleSyncCenterPage() {
         !syncCenterLayer.active ? win.openSyncCenterPage() : win.closeSyncCenterPage()
     }
-    // The trackers door lives in the TopBar of home and of every world; hand focus back to
-    // whichever of those is in front.
-    function focusTrackersDoor() {
-        for (let i = 0; i < worldRepeater.count; ++i) {
-            const loader = worldRepeater.itemAt(i)
-            if (loader && loader.mode === worldStack.current && loader.item
-                    && loader.item.focusTrackersButton) {
-                const world = loader.item
-                Qt.callLater(function() { world.focusTrackersButton() })
-                return
-            }
-        }
-        Qt.callLater(function() { topbar.focusTrackersButton() })
-    }
+    function focusTrackersDoor() { taskbar.focusUtilityAction("trackers") }
 
     // ---- Arc 35: local-first History, Highlights, and Stats ----
     function openHistoryStatsPage() {
@@ -2862,6 +2849,22 @@ Window {
             Updates.markSeen()
     }
     function closeUpdatePage() { updateLayer.active = false }
+    property Item feedbackInvoker: null
+    function openFeedback() {
+        if (win.guardNamedCollectionsNavigation(function() { win.openFeedback() })) return
+        if (feedbackLayer.active) return
+        win.feedbackInvoker = win.activeFocusItem
+        taskbar.open = false
+        feedbackLayer.active = true
+    }
+    function closeFeedback() {
+        feedbackLayer.active = false
+        const invoker = win.feedbackInvoker
+        win.feedbackInvoker = null
+        Qt.callLater(function() {
+            if (invoker && invoker.visible && invoker.enabled) invoker.forceActiveFocus()
+        })
+    }
     function routeDownloadItem(item) {
         win.closeDownloadsPage()
         if (item.world === "theatre") {
@@ -4137,8 +4140,7 @@ Window {
         onFullscreenClicked: win.toggleFullscreenShell()
         onMinimizeClicked: win.minimizeShell()
         onPowerClicked: win.requestApplicationQuit()
-        // Update glyph (home only, takes the retired search slot). Toggle mirrors
-        // the taskbar launcher: open when closed, close when already front.
+        onFeedbackClicked: win.openFeedback()
         updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
         updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
         reducedMotion: win.reducedMotion
@@ -4738,6 +4740,7 @@ Window {
                     item.backdrop = wall
                     item.homeRequested.connect(win.closeWorld)
                     item.mediumSelected.connect(win.openWorld)
+                    item.feedbackClicked.connect(win.openFeedback)
                     if (mode === "Vinyl") {
                         item.accountClicked.connect(function(anchorRight, anchorBottom) {
                             accountFlyout.toggleAt(anchorRight, anchorBottom)
@@ -5611,6 +5614,7 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.backRequested.connect(win.closeVaultPage)
+            item.feedbackClicked.connect(win.openFeedback)
             win.finishNamedCollectionVaultOpen()
             item.addFolderRequested.connect(function() { vaultFolderDialog.open() })
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
@@ -5846,6 +5850,7 @@ Window {
                 accountCenter.close()
             })
             item.homeRequested.connect(win.closeFeriaPage)
+            item.feedbackClicked.connect(win.openFeedback)
             item.fullscreenClicked.connect(win.toggleFullscreenShell)
             item.minimizeClicked.connect(win.minimizeShell)
             item.powerClicked.connect(function() { win.requestApplicationQuit() })
@@ -6050,6 +6055,22 @@ Window {
         }
     }
 
+    Loader {
+        id: feedbackLayer
+        objectName: "feedbackLayer"
+        anchors.fill: parent
+        z: 950
+        active: false
+        visible: active
+        source: "FeedbackPanel.qml"
+        onLoaded: {
+            item.closeRequested.connect(win.closeFeedback)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.quitRequested.connect(win.requestApplicationQuit)
+        }
+    }
+
     // ---- download feedback (2026-07-18, Hemanth): clicking Download anywhere pops the
     //      taskbar out so the gold jobs badge is SEEN arriving — same auto-reveal (and same
     //      15s pull-back) as a minimize. Fires only when the live-job count GROWS (a finish
@@ -6086,6 +6107,20 @@ Window {
         id: taskbar
         localMediaAvailable: win.localMediaAvailable
         z: 900
+        backdrop: wall
+        worldMode: worldStack.current
+        trackersActive: syncCenterLayer.active
+        updateAvailable: typeof Updates !== "undefined" && Updates.updateAvailable
+        updateUnseen: typeof Updates !== "undefined" && Updates.unseenUpdate
+        reducedMotion: win.reducedMotion
+        onUtilityTriggered: (action, anchorRight, anchorBottom) => {
+            switch (action) {
+            case "trackers": win.toggleSyncCenterPage(); break
+            case "updates": updateLayer.active ? win.closeUpdatePage() : win.openUpdatePage(); break
+            case "wallpaper": win.openWallpaperSearch(worldStack.current || "Home"); break
+            case "sharing": dlnaSharePopup.toggleAt(anchorRight, anchorBottom); break
+            }
+        }
         visible: !win.immersiveSurfaceOpen
             && !win.vinylVideoFullscreen
             && (!win.androidHost || win.desktopPresentation)
@@ -6564,12 +6599,12 @@ Window {
         }
     }
 
-    // "Share on your Wi-Fi" (DLNA) flyout, opened from the top-bar access-point glyph on home
-    // and on every world while sharing runs. Same plain-layer shape as the account flyout.
+    // Wi-Fi sharing opens above the taskbar without covering the dock.
     DlnaSharePopup {
         id: dlnaSharePopup
         objectName: "dlnaSharePopup"
         backdrop: wall
+        aboveAnchor: true
     }
 
     // Account onboarding + session surfaces (Bundle 8C adoption, 2026-08-16).

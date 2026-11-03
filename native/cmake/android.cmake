@@ -2,6 +2,8 @@
 # manifest generation, and APK target properties extracted from native/CMakeLists.txt (A02).
 
 target_sources(colosseum PRIVATE
+    feedback/AndroidFeedbackBrowser.cpp
+    feedback/AndroidFeedbackBrowser.h
     account/AndroidAccountCredentialStore.cpp
     account/AndroidAccountCredentialStore.h
     account/AndroidAccountSensitiveClipboard.h
