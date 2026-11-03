@@ -33,6 +33,7 @@
 //                reader (contract §3). Callers of western comics pass NO pageStore and rely on this.
 
 import QtQuick
+import "../" as Common
 import QtCore                                   // Settings — the house persistence sink
 import "ComicReaderState.js" as ComicReaderState
 // Slice D7 — Lane C (Tankoban/manga/comics) activity hook, CPP-PORT-CONTRACT.md §7/§9/§10.
@@ -45,7 +46,7 @@ import "../ComicActivityHelpers.js" as ComicActivityHelpers
 
 Item {
     id: reader
-    Theme { id: theme }
+    Common.Theme { id: theme }
 
     // ================= public caller contract (byte-compatible with MangaReader.qml) =================
     // --- input properties ---
