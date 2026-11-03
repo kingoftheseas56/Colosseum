@@ -12,6 +12,7 @@ Item {
     id: surf
     objectName: searchMode.length ? searchMode.toLowerCase() + "SearchSurface" : "searchSurface"
     property Item backdrop
+    property bool androidHost: Qt.platform.os === "android"
     property string searchMode: ""                   // "Tankoban" | "Theatre"
     property string placeholder: "Search…"
     property string primaryLabel: "Open"
@@ -60,7 +61,7 @@ Item {
 
     readonly property bool isEmpty: queryInput.text.trim().length === 0
         && !(searchProvider && searchProvider.showSuggestions)
-    readonly property bool phoneNarrow: Qt.platform.os === "android" && width < 840
+    readonly property bool phoneNarrow: surf.androidHost && width < 840
 
     // Harbor's empty-state "Try a genre": chips open an inline, popularity-ranked browse grid in place.
     readonly property var genres: searchProvider ? [] : WorldSearch.genresFor(searchMode)
@@ -289,6 +290,7 @@ Item {
     }
     Rectangle {
         id: field
+        objectName: "worldSearchField"
         // The field stops short of the window-chrome cluster instead of running under it: both were
         // anchored to the same right margin, and their vertical bands overlapped by 12px, so the
         // minimize/fullscreen/power buttons sat on the field's top-right corner. Derived from the
@@ -296,7 +298,7 @@ Item {
         x: surf.phoneNarrow ? 16 : searchBack.x + searchBack.width + 20
         y: surf.phoneNarrow ? 72 : 44
         width: surf.phoneNarrow ? Math.max(0, surf.width - 32)
-                                : surf.width - x - theme.margin - winChrome.width - 24
+                                : surf.width - x - theme.margin - (winChrome.visible ? winChrome.width + 24 : 0)
         height: surf.phoneNarrow ? 56 : 72; radius: 16
         color: Qt.rgba(0, 0, 0, 0.30); border.width: 1; border.color: theme.edge
 
@@ -878,8 +880,10 @@ Item {
     // minimize · fullscreen-toggle · power cluster every page carries.
     Row {
         id: winChrome
+        objectName: "worldSearchWindowControls"
+        width: visible ? implicitWidth : 0
         z: 30
-        visible: Qt.platform.os !== "android" && !surf.phoneNarrow
+        visible: !surf.androidHost && !surf.phoneNarrow
         anchors.right: parent.right
         anchors.rightMargin: theme.margin
         y: 34

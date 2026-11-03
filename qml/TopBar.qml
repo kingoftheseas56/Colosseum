@@ -32,9 +32,8 @@ Item {
     // Retained world pages stay instantiated for state preservation, but hidden bars must not
     // keep their live clock timer waking the GUI every second.
     property bool lifecycleActive: true
-    // Retained as a no-op hook for shared callers (WorldPage, ExtensionsStorePage);
-    // QQmlFileSelector selects qml/+android/TopBar.qml on Android.
-    property bool androidHost: false
+    // Host capability is independent of the desktop-shaped presentation on Android.
+    property bool androidHost: Qt.platform.os === "android"
     AdaptiveLayout { id: inputMetrics; androidHost: bar.androidHost }
     readonly property real touchTargetSize: inputMetrics.touchTargetSize
     readonly property real touchHorizontalInset: bar.touchTargetSize > 0
@@ -524,16 +523,17 @@ Item {
             accessibleName: "Wallpaper"
             onClicked: bar.wallpaperClicked()
         }
-        SysIcon { source: "../assets/icons/minimize.svg"; accessibleName: "Minimize"; onClicked: bar.minimizeClicked() }
+        SysIcon { visible: !bar.androidHost; source: "../assets/icons/minimize.svg"; accessibleName: "Minimize"; onClicked: bar.minimizeClicked() }
         // Fullscreen toggle (Hemanth 2026-07-16, supersedes the old never-☐ topbar
         // rule): glyph shows the ACTION — expand while windowed, contract while
         // fullscreen. Drives the same shell flip as the F11 developer door.
         SysIcon {
+            visible: !bar.androidHost
             source: bar.shellWindowed ? "../assets/icons/fullscreen.svg"
                                       : "../assets/icons/fullscreen-exit.svg"
             accessibleName: bar.shellWindowed ? "Enter fullscreen" : "Exit fullscreen"
             onClicked: bar.fullscreenClicked()
         }
-        SysIcon { source: "../assets/icons/power.svg"; accessibleName: "Quit Colosseum"; onClicked: bar.powerClicked() }
+        SysIcon { visible: !bar.androidHost; source: "../assets/icons/power.svg"; accessibleName: "Quit Colosseum"; onClicked: bar.powerClicked() }
     }
 }
