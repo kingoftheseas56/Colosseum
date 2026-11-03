@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls.Basic
 
 Item {
     id: root
@@ -42,7 +41,4 @@ Item {
         focusRadius: 10
         onTriggered: root.clicked()
     }
-    ToolTip.visible: input.interactionActive && !root.labelled
-    ToolTip.delay: 600
-    ToolTip.text: qsTr("Send feedback")
 }
