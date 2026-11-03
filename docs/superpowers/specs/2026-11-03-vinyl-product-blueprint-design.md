@@ -1,8 +1,8 @@
 # Vinyl: Product Blueprint and Experience Specification
 
-Date: 2026-11-03  
-Status: Draft for Hemanth's written review  
-Purpose: Define the Vinyl experience that technical research and development must deliver.
+- Date: 2026-11-03
+- Status: Draft for Hemanth's written review
+- Purpose: Define the Vinyl experience that technical research and development must deliver.
 
 This is the product specification, experience design and navigation blueprint in one document. It records the agreed direction; it does not claim that every capability already exists. It does not select an algorithmic foundation, live catalogue/enrichment databases, APIs or a backend architecture, and contains no public-API feasibility assessment. GPT-6 Pro owns that research and the subsequent technical recommendations.
 
