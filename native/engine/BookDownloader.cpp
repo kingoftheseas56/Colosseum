@@ -265,7 +265,26 @@ void BookDownloader::downloadBook(const QString& md5In, const QString& suggested
     // Already resolving / downloading / queued → no-op.
     if (isActive(md5)) return;
 
-    // Resolve LibGen's ephemeral get.php URL right before streaming (key ~60s).
+    InFlight job;
+    job.generation = ++m_nextGeneration;
+    job.md5 = md5;
+    job.title = title;
+    job.suggestedName = suggestedName.isEmpty() ? (md5 + QStringLiteral(".epub")) : suggestedName;
+    job.expectedBytes = static_cast<qint64>(expectedBytes);
+    m_queue.append(std::move(job));
+    // Queued notifications use the existing signal; consumers read canonical state.
+    if (m_active || !m_resolving.isEmpty() || m_queue.size() > 1) {
+        QPointer<BookDownloader> guard(this);
+        emit resolving(md5);
+        if (!guard) return;
+    }
+    startQueuedDownload();
+}
+
+void BookDownloader::startResolution(InFlight job)
+{
+    // The resolver and transfer share one slot: signed keys never age in the queue.
+    const QString md5 = job.md5;
     const QUrl target(QStringLiteral("%1/ads.php?md5=%2").arg(QString::fromLatin1(kLibGenBase), md5));
     QNetworkRequest req(target);
     req.setTransferTimeout(requestTimeout(m_nam));
@@ -274,12 +293,7 @@ void BookDownloader::downloadBook(const QString& md5In, const QString& suggested
                      QNetworkRequest::NoLessSafeRedirectPolicy);
 
     QNetworkReply* reply = m_nam->get(req);
-    ResolveCtx ctx;
-    ctx.md5           = md5;
-    ctx.suggestedName = suggestedName.isEmpty() ? (md5 + QStringLiteral(".epub")) : suggestedName;
-    ctx.title         = title;
-    ctx.expectedBytes = static_cast<qint64>(expectedBytes);
-    m_resolving.insert(reply, ctx);
+    m_resolving.insert(reply, std::move(job));
     // The app-owned NAM may destroy replies before this sibling service dies.
     connect(reply, &QObject::destroyed, this, [this, reply]() {
         m_resolving.remove(reply);
@@ -300,26 +314,26 @@ void BookDownloader::downloadBook(const QString& md5In, const QString& suggested
 void BookDownloader::onResolveFinished(QNetworkReply* reply)
 {
     if (!reply) return;
-    const ResolveCtx ctx = m_resolving.take(reply);
+    InFlight job = m_resolving.take(reply);
     const QNetworkReply::NetworkError err = reply->error();
     const QByteArray body = err == QNetworkReply::NoError ? reply->readAll() : QByteArray();
     const QString reason = networkFailure(QStringLiteral("Book link resolution"), reply);
     reply->deleteLater();
 
-    if (ctx.md5.isEmpty()) return;  // cancelled
+    if (job.md5.isEmpty()) return;  // cancelled or retired reply
 
-    if (err != QNetworkReply::NoError) {
-        qWarning() << "[BookDownloader] resolver:" << reason;
-        emit failed(ctx.md5, reason);
+    const QStringList urls = err == QNetworkReply::NoError ? parseResolveHtml(body) : QStringList();
+    if (err != QNetworkReply::NoError || urls.isEmpty()) {
+        const QString failure = err != QNetworkReply::NoError ? reason
+            : QStringLiteral("LibGen /ads.php returned no get.php links");
+        qWarning() << "[BookDownloader] resolver:" << failure;
+        QPointer<BookDownloader> guard(this);
+        emit failed(job.md5, failure);
+        if (guard) startQueuedDownload();
         return;
     }
-    const QStringList urls = parseResolveHtml(body);
-    if (urls.isEmpty()) {
-        emit failed(ctx.md5, QStringLiteral("LibGen /ads.php returned no get.php links"));
-        return;
-    }
-    qInfo() << "[BookDownloader] resolved" << urls.size() << "mirror URL(s) for" << ctx.md5;
-    startDownload(ctx.md5, ctx.title, urls, ctx.suggestedName, ctx.expectedBytes);
+    qInfo() << "[BookDownloader] resolved" << urls.size() << "mirror URL(s) for" << job.md5;
+    startDownload(std::move(job), urls);
 }
 
 QStringList BookDownloader::parseResolveHtml(const QByteArray& html) const
@@ -366,7 +380,9 @@ void BookDownloader::cancelDownload(const QString& md5In)
             QNetworkReply* r = it.key();
             m_resolving.erase(it);
             if (r) { r->disconnect(this); r->abort(); r->deleteLater(); }
+            QPointer<BookDownloader> guard(this);
             emit removed(md5);
+            if (guard) startQueuedDownload();
             return;
         }
     }
@@ -415,24 +431,18 @@ QVariantMap BookDownloader::deleteBook(const QString& md5In)
 // HTTP streaming download (ported from TB2 BookDownloader, HTTP path)
 // ─────────────────────────────────────────────────────────────────────────────
 
-void BookDownloader::startDownload(const QString& md5, const QString& title,
-                                   const QStringList& urls, const QString& suggestedName,
-                                   qint64 expectedBytes)
+void BookDownloader::startDownload(InFlight job, const QStringList& urls)
 {
-    InFlight f;
-    f.generation    = ++m_nextGeneration;
-    f.md5           = md5;
-    f.title         = title;
-    f.urls          = urls;
-    f.suggestedName = sanitizeFilename(suggestedName);
-    f.expectedBytes = expectedBytes;
-
-    if (m_active) {
-        m_queue.append(std::move(f));
-        return;
-    }
-    m_active = new InFlight(std::move(f));
+    job.urls = urls;
+    job.suggestedName = sanitizeFilename(job.suggestedName);
+    const QString md5 = job.md5;
+    const quint64 generation = job.generation;
+    m_active = new InFlight(std::move(job));
+    QPointer<BookDownloader> guard(this);
     startAttempt(*m_active);
+    // Publish the transition even before the first byte/progress notification.
+    if (guard && m_active && m_active->generation == generation)
+        emit resolving(md5);
 }
 
 void BookDownloader::startAttempt(InFlight& f)
@@ -646,10 +656,8 @@ void BookDownloader::cancelAndCleanup(InFlight& f)
 
 void BookDownloader::startQueuedDownload()
 {
-    if (!m_active && !m_queue.isEmpty()) {
-        m_active = new InFlight(std::move(m_queue.takeFirst()));
-        startAttempt(*m_active);
-    }
+    if (!m_active && m_resolving.isEmpty() && !m_queue.isEmpty())
+        startResolution(std::move(m_queue.takeFirst()));
 }
 
 void BookDownloader::closeAndDeletePart(InFlight& f)

@@ -10,7 +10,7 @@
 #include <QDir>
 #include <functional>
 
-static const QString A(32, 'a'), B(32, 'b');
+static const QString A(32, 'a'), B(32, 'b'), C(32, 'c');
 class Fixture : public QTcpServer {
 public:
     std::function<void(QTcpSocket*, const QUrl&)> handle;
@@ -71,6 +71,111 @@ private:
 private slots:
     void init() { clearOwnData(); }
     void cleanup() { clearOwnData(); }
+    void queuedLinksAreResolvedOnlyWhenTransferSlotIsFree() {
+        Fixture server; LocalNam nam(server.serverPort()); nam.setTransferTimeout(3000); BookDownloader books(&nam);
+        QSignalSpy failed(&books,&BookDownloader::failed), done(&books,&BookDownloader::finished);
+        QPointer<QTcpSocket> heldA;
+        int bResolves=0; qint64 bKeyIssuedAt=-1; QElapsedTimer clock; clock.start();
+        QStringList bStates;
+        connect(&books,&BookDownloader::resolving,&books,[&](const QString& md5) {
+            if(md5!=B) return;
+            const QString state=books.statusOf(B).value("state").toString();
+            bStates.append(state);
+            bool found=false;
+            for(const QVariant& value:books.activeBookJobs()) {
+                const auto job=value.toMap();
+                if(job.value("id").toString()==B) { found=true; QCOMPARE(job.value("state").toString(),state); }
+            }
+            QVERIFY(found);
+        });
+        server.handle=[&](QTcpSocket* socket,const QUrl& url) {
+            const QString md5=QUrlQuery(url).queryItemValue("md5");
+            if(url.path()=="/ads.php") {
+                if(md5==B) { ++bResolves; bKeyIssuedAt=clock.elapsed(); }
+                Fixture::send(socket,Fixture::links(md5));
+            } else if(md5==A) heldA=socket;
+            else if(clock.elapsed()-bKeyIssuedAt>300) Fixture::send(socket,"<html>expired</html>",200,"text/html");
+            else Fixture::send(socket,"PKfresh");
+        };
+        books.downloadBook(A,"a.epub");
+        QTRY_VERIFY_WITH_TIMEOUT(heldA,1000);
+        books.downloadBook(B,"b.epub"); QTest::qWait(600);
+        const QString waitingState=books.statusOf(B).value("state").toString();
+        const int earlyResolves=bResolves;
+        QVERIFY(heldA); Fixture::send(heldA,"PKfirst");
+        QTRY_VERIFY_WITH_TIMEOUT(done.size()+failed.size()>=2,2000);
+        QCOMPARE(earlyResolves,0); QCOMPARE(waitingState,"queued");
+        QCOMPARE(bResolves,1); QCOMPARE(failed.size(),0); QCOMPARE(done.size(),2);
+        QCOMPARE(done[0][0].toString(),A); QCOMPARE(done[1][0].toString(),B);
+        QCOMPARE(bStates,QStringList({"queued","resolving","downloading"}));
+    }
+    void cancellingQueuedBookNeverResolvesIt() {
+        Fixture server; LocalNam nam(server.serverPort()); nam.setTransferTimeout(3000); BookDownloader books(&nam);
+        QSignalSpy done(&books,&BookDownloader::finished), removed(&books,&BookDownloader::removed), failed(&books,&BookDownloader::failed);
+        QPointer<QTcpSocket> heldA; int bRequests=0;
+        server.handle=[&](QTcpSocket* socket,const QUrl& url) {
+            const QString md5=QUrlQuery(url).queryItemValue("md5");
+            if(md5==B) ++bRequests;
+            if(url.path()=="/ads.php") Fixture::send(socket,Fixture::links(md5));
+            else if(md5==A) heldA=socket;
+            else Fixture::send(socket,"PKother");
+        };
+        books.downloadBook(A,"a.epub"); QTRY_VERIFY_WITH_TIMEOUT(heldA,1000);
+        books.downloadBook(B,"b.epub"); QTest::qWait(150); books.cancelDownload(B);
+        QCOMPARE(books.statusOf(B).value("state").toString(),"none");
+        QVERIFY(heldA); Fixture::send(heldA,"PKfirst");
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,1000); QTest::qWait(150);
+        QCOMPARE(bRequests,0); QCOMPARE(removed.size(),1); QCOMPARE(failed.size(),0);
+    }
+    void resolverFailureAdvancesQueue_data() {
+        QTest::addColumn<int>("failureMode");
+        QTest::newRow("http-error") << 0;
+        QTest::newRow("no-links") << 1;
+        QTest::newRow("cancelled") << 2;
+    }
+    void resolverFailureAdvancesQueue() {
+        QFETCH(int,failureMode);
+        Fixture server; LocalNam nam(server.serverPort()); nam.setTransferTimeout(3000); BookDownloader books(&nam);
+        QSignalSpy done(&books,&BookDownloader::finished), failed(&books,&BookDownloader::failed), removed(&books,&BookDownloader::removed);
+        QPointer<QTcpSocket> heldResolver; QStringList resolves;
+        server.handle=[&](QTcpSocket* socket,const QUrl& url) {
+            const QString md5=QUrlQuery(url).queryItemValue("md5");
+            if(url.path()=="/ads.php") { resolves.append(md5); if(md5==A) heldResolver=socket; else Fixture::send(socket,Fixture::links(md5)); }
+            else Fixture::send(socket,"PKnext");
+        };
+        // A terminal handler adds C while B is already queued. B must retain priority.
+        auto addC=[&](const QString& md5) { if(md5==A) books.downloadBook(C,"c.epub"); };
+        connect(&books,&BookDownloader::failed,&books,[&](const QString& md5,const QString&) { addC(md5); });
+        connect(&books,&BookDownloader::removed,&books,addC);
+        books.downloadBook(A,"a.epub"); QTRY_VERIFY_WITH_TIMEOUT(heldResolver,1000);
+        books.downloadBook(B,"b.epub"); QTest::qWait(100);
+        const QStringList requestsBeforeRelease=resolves;
+        if(failureMode==0) Fixture::send(heldResolver,"error",503);
+        else if(failureMode==1) Fixture::send(heldResolver,"no links",200,"text/html");
+        else books.cancelDownload(A);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,2000);
+        QCOMPARE(requestsBeforeRelease,QStringList({A}));
+        QCOMPARE(resolves,QStringList({A,B,C}));
+        QCOMPARE(done[0][0].toString(),B); QCOMPARE(done[1][0].toString(),C);
+        QCOMPARE(failed.size(),failureMode==2 ? 0 : 1); QCOMPARE(removed.size(),failureMode==2 ? 1 : 0);
+        QCOMPARE(books.statusOf(A).value("state").toString(),"none");
+    }
+    void successHandlerCannotJumpAheadOfQueuedBook() {
+        Fixture server; LocalNam nam(server.serverPort()); nam.setTransferTimeout(3000); BookDownloader books(&nam);
+        QSignalSpy done(&books,&BookDownloader::finished); QPointer<QTcpSocket> heldA; QStringList resolves;
+        server.handle=[&](QTcpSocket* socket,const QUrl& url) {
+            const QString md5=QUrlQuery(url).queryItemValue("md5");
+            if(url.path()=="/ads.php") { resolves.append(md5); Fixture::send(socket,Fixture::links(md5)); }
+            else if(md5==A) heldA=socket;
+            else Fixture::send(socket,"PKnext");
+        };
+        connect(&books,&BookDownloader::finished,&books,[&](const QString& md5,const QString&) { if(md5==A) books.downloadBook(C,"c.epub"); });
+        books.downloadBook(A,"a.epub"); QTRY_VERIFY_WITH_TIMEOUT(heldA,1000);
+        books.downloadBook(B,"b.epub"); QTest::qWait(100); Fixture::send(heldA,"PKfirst");
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),3,2000);
+        QCOMPARE(resolves,QStringList({A,B,C}));
+        QCOMPARE(done[0][0].toString(),A); QCOMPARE(done[1][0].toString(),B); QCOMPARE(done[2][0].toString(),C);
+    }
     void networkManagerMayBeDestroyedFirst() {
         Fixture server;
         auto* nam = new LocalNam(server.serverPort());
