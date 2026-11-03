@@ -32,8 +32,14 @@ TestCase {
         id: dictionaryComponent
         Reader.DictCard { width: 960; height: 640; word: "reading"; dictState: "loading" }
     }
+    Component {
+        id: appearanceComponent
+        Reader.AppearancePanel { width: 960; height: 640 }
+    }
     SignalSpy { id: dismissed; signalName: "dismissed" }
     SignalSpy { id: external; signalName: "openExternal" }
+    SignalSpy { id: appearanceClosed; signalName: "closeRequested" }
+    SignalSpy { id: appearanceChanged; signalName: "changed" }
 
     function popup(factory) {
         const item = createTemporaryObject(factory, hostWindow.contentItem)
@@ -113,5 +119,50 @@ TestCase {
         tryCompare(hostWindow, "activeFocusItem", card)
         hostWindow.keyboard.keyClick(Qt.Key_Escape)
         tryCompare(dismissed, "count", 1)
+    }
+    function test_appearance_focus_and_settings_data() {
+        return [{ tag: "desktop", reparent: false },
+                { tag: "native_surface", reparent: true }]
+    }
+    function test_appearance_focus_and_settings(data) {
+        const panel = createTemporaryObject(appearanceComponent, hostWindow.contentItem)
+        verify(panel !== null)
+        const overlay = data.reparent ? makeWindow() : hostWindow
+        const originalParent = panel.surface.parent
+        appearanceClosed.target = panel; appearanceClosed.clear()
+        appearanceChanged.target = panel; appearanceChanged.clear()
+        try {
+            if (data.reparent) panel.surface.parent = overlay.contentItem
+            overlay.requestActivate()
+            panel.open = true
+            tryVerify(function() { return overlay.activeFocusItem
+                                         && overlay.activeFocusItem.keyboardLabel === "Paper" })
+            verify(panel.focusBelongsHere(overlay.activeFocusItem))
+            overlay.keyboard.keyClick(Qt.Key_Return)
+            tryCompare(appearanceChanged, "count", 1)
+            compare(appearanceChanged.signalArguments[0][0], "theme")
+            compare(appearanceChanged.signalArguments[0][1], "paper")
+            overlay.keyboard.keyClick(Qt.Key_Tab)
+            tryCompare(overlay.activeFocusItem, "keyboardLabel", "Sepia")
+            overlay.keyboard.keyClick(Qt.Key_Backtab, Qt.ShiftModifier)
+            tryCompare(overlay.activeFocusItem, "keyboardLabel", "Paper")
+            overlay.keyboard.keyClick(Qt.Key_Escape)
+            tryCompare(appearanceClosed, "count", 1)
+            panel.open = false
+            compare(panel.overlayActive, false)
+            panel.open = true
+            tryVerify(function() { return overlay.activeFocusItem
+                                         && overlay.activeFocusItem.keyboardLabel === "Paper" })
+            mouseClick(panel.surface, 10, 100)
+            tryCompare(appearanceClosed, "count", 2)
+        } finally {
+            panel.surface.parent = originalParent
+        }
+    }
+    function test_appearance_uses_android_native_overlay() {
+        const panel = createTemporaryObject(appearanceComponent, hostWindow.contentItem)
+        verify(panel !== null)
+        compare(panel.nativeWindow, true)
+        compare(panel.nativeOverlay, Qt.platform.os === "android")
     }
 }
