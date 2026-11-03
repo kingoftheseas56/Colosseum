@@ -26,11 +26,9 @@ TestCase {
     }
 
     SignalSpy { id: boundarySpy; target: bar; signalName: "boundaryArrowRequested" }
-    SignalSpy { id: stremioSpy; target: bar; signalName: "stremioClicked" }
     SignalSpy { id: mediumSpy; target: bar; signalName: "mediumSelected" }
-    SignalSpy { id: searchSpy; target: bar; signalName: "searchClicked" }
 
-    function test_compact_world_picker_does_not_overlap_search_data() {
+    function test_compact_world_picker_clears_system_chrome_data() {
         return [{tag: "Tankoban", medium: "Tankoban"},
                 {tag: "Biblio", medium: "Biblio"},
                 {tag: "Theatre", medium: "Theatre"},
@@ -43,50 +41,61 @@ TestCase {
         property string username: ""
         property bool accountFeaturesAvailable: true
     }
-    function test_system_controls_have_space_with_local_account_data() {
+    function test_system_chrome_keeps_required_controls_data() {
         return [{tag:"904", width:904}, {tag:"1040", width:1040},
                 {tag:"1172", width:1172}, {tag:"1500", width:1500}]
     }
-    function test_system_controls_have_space_with_local_account(data) {
+    function test_system_chrome_keeps_required_controls(data) {
         bar.width = data.width
         bar.activeMedium = "Theatre"
-        bar.trackersEnabled = true
         bar.accountController = localAccount
         wait(30)
         var picker = findChild(bar, "topBarWorldPicker")
         var systems = findChild(bar, "topBarSystemChrome")
         var left = findChild(bar, "topBarLeftChrome")
-        verify(systems.spacing >= (data.width < 1000 ? 12 : 20),
-               "System controls need breathing room at the active window size")
+        var feedback = findChild(bar, "feedbackEntry")
+        var search = findChild(bar, "topBarSearch")
+        var account = findChild(bar, "colosseumTopbarAccountButton")
+        var deviceLabel = findChild(bar, "colosseumTopbarDeviceLabel")
+        verify(feedback !== null && feedback.visible)
+        compare(feedback.parent.width, 44, "Feedback stays icon-only in the top bar")
+        verify(search !== null && search.visible, "Search stays in the top bar for Theatre")
+        verify(account !== null && account.visible, "Device/login stays in the top bar")
+        verify(deviceLabel !== null && deviceLabel.visible)
+        compare(deviceLabel.text, "Device")
+        var minimize = findAccessibleName(bar, "Minimize")
+        var fullscreen = findAccessibleNameEither(bar, "Enter fullscreen", "Exit fullscreen")
+        var quit = findAccessibleName(bar, "Quit Colosseum")
+        verify(minimize && minimize.visible, "Minimize stays in the desktop top bar")
+        verify(fullscreen && fullscreen.visible, "Fullscreen stays in the desktop top bar")
+        verify(quit && quit.visible, "Quit stays in the desktop top bar")
         verify(picker.x >= left.x + left.width + 8, "Picker must clear the left controls")
         verify(picker.x + picker.width + 8 <= systems.x, "Picker must clear the right controls")
         verify(systems.x >= 0 && systems.x + systems.width <= bar.width + 1)
         bar.accountController = null
-        bar.trackersEnabled = false
         bar.width = 1040
     }
-    function test_compact_world_picker_does_not_overlap_search(data) {
+    function test_compact_world_picker_clears_system_chrome(data) {
         bar.width = 904 // 1024px window minus the production side margins
         bar.activeMedium = data.medium
-        bar.trackersEnabled = true
+        bar.accountController = localAccount
         wait(30)
         var picker = findChild(bar, "topBarWorldPicker")
         var systems = findChild(bar, "topBarSystemChrome")
         verify(picker.x + picker.width + 8 <= systems.x,
-               "World picker must leave space before system controls")
+               "World picker must leave space before top bar system controls")
         var feria = findChild(bar, "modePillFocus_Feria")
         var universes = findChild(bar, "modePillFocus_Universes")
         verify(feria !== null)
         compare(feria.enabled, false)
-        mediumSpy.clear(); searchSpy.clear()
+        mediumSpy.clear()
         mouseClick(feria)
         compare(mediumSpy.count, 0)
         mouseClick(universes)
         compare(mediumSpy.count, 1)
         compare(mediumSpy.signalArguments[0][0], "Universes")
-        compare(searchSpy.count, 0)
         bar.width = 1040
-        bar.trackersEnabled = false
+        bar.accountController = null
     }
 
     function findChild(root, objectName) {
@@ -98,6 +107,21 @@ TestCase {
             if (found) return found
         }
         return null
+    }
+
+    function findAccessibleName(root, name) {
+        if (!root) return null
+        if (root.accessibleName === name) return root
+        var kids = root.children || []
+        for (var i = 0; i < kids.length; i++) {
+            var found = findAccessibleName(kids[i], name)
+            if (found) return found
+        }
+        return null
+    }
+
+    function findAccessibleNameEither(root, first, second) {
+        return findAccessibleName(root, first) || findAccessibleName(root, second)
     }
 
     function focusableFace(root) {
@@ -115,8 +139,8 @@ TestCase {
     function init() {
         testWindow.requestActivate()
         boundarySpy.clear()
-        stremioSpy.clear()
         mediumSpy.clear()
+        bar.accountController = null
         bar.activeMedium = ""
         bar.lifecycleActive = true
         testWindow.feriaComingSoon = true
@@ -134,35 +158,26 @@ TestCase {
         compare(mediumSpy.signalArguments[0][0], "Feria")
     }
 
-    function test_stremio_is_theatre_only_and_between_search_and_account() {
+    function test_topbar_has_feedback_search_account_and_window_controls() {
         bar.activeMedium = "Theatre"
+        bar.accountController = localAccount
         wait(0)
-        var stremio = findChild(bar, "topBarStremioButton")
+        var feedback = findChild(bar, "feedbackEntry")
         var search = findChild(bar, "topBarSearch")
         var account = findChild(bar, "colosseumTopbarAccountButton")
-        verify(stremio !== null)
-        var asset = findChild(stremio, "topBarStremioOfficialAsset")
-        verify(asset !== null)
-        verify(String(asset.source).indexOf("assets/icons/stremio-official.svg") >= 0)
-        bar.activeMedium = "Biblio"
-        compare(stremio.visible, false)
-        bar.activeMedium = "Tankoban"
-        compare(stremio.visible, false)
-        bar.activeMedium = "Theatre"
-        wait(0)
-        compare(stremio.visible, true)
-        compare(search.parent, stremio.parent)
-        compare(stremio.parent, account.parent)
-        var siblings = search.parent.children
-        verify(siblings.indexOf(search) < siblings.indexOf(stremio))
-        verify(siblings.indexOf(stremio) < siblings.indexOf(account))
-        var face = focusableFace(stremio)
-        verify(face !== null)
-        face.forceActiveFocus(Qt.OtherFocusReason)
-        keyClick(Qt.Key_Return)
-        compare(stremioSpy.count, 1)
-        bar.lifecycleActive = false
-        compare(stremio.visible, false)
+        verify(feedback !== null && feedback.visible)
+        compare(feedback.parent.width, 44)
+        verify(search !== null && search.visible)
+        verify(account !== null && account.visible)
+        verify(findAccessibleName(bar, "Minimize").visible)
+        verify(findAccessibleNameEither(bar, "Enter fullscreen", "Exit fullscreen").visible)
+        verify(findAccessibleName(bar, "Quit Colosseum").visible)
+        verify(findChild(bar, "topBarStremioButton") === null)
+        verify(findChild(bar, "taskbarUtility_trackers") === null)
+        verify(findChild(bar, "taskbarUtility_updates") === null)
+        verify(findChild(bar, "topBarWallpaperButton") === null)
+        verify(findChild(bar, "topBarDlnaButton") === null)
+        bar.accountController = null
     }
 
     function test_right_moves_between_visible_mode_pills() {
@@ -209,19 +224,13 @@ TestCase {
         compare(feriaPill.active, false)
     }
 
-    function test_wallpaper_and_compact_browser_chrome_flags() {
-        var wall = findChild(bar, "topBarWallpaperButton")
-        verify(wall !== null)
-        compare(wall.visible, true)
-        bar.wallpaperEnabled = false
-        compare(wall.visible, false)
-        bar.wallpaperEnabled = true
-        compare(wall.visible, true)
+    function test_compact_browser_chrome_flag() {
         bar.width = 1240
         compare(bar.compactChrome, false)
         bar.compactBrowserChrome = true
         compare(bar.compactChrome, true)
         bar.compactBrowserChrome = false
         compare(bar.compactChrome, false)
+        bar.width = 1040
     }
 }

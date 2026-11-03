@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="dark" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Feedback · Colosseum</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./feedback.mjs"></script>
+  </head>
+  <body>
+    <main>
+      <header class="masthead">
+        <a class="brand" href="#" aria-label="Colosseum feedback"
+          ><img
+            src="./assets/colosseum.svg"
+            width="30"
+            height="30"
+            alt=""
+          /><span>COLOSSEUM</span></a
+        >
+        <span class="private-note"
+          ><span aria-hidden="true">◈</span> Sent privately to the team</span
+        >
+      </header>
+      <div class="layout">
+        <section class="intro" aria-labelledby="heading">
+          <p class="eyebrow">Help shape Colosseum</p>
+          <h1 id="heading">What could <br />be <em>better?</em></h1>
+          <p class="lede">
+            Something went wrong, or something is missing. Tell us about it
+            here.
+          </p>
+          <div class="context">
+            <span id="environment" role="group" aria-label="Colosseum · Web"><img src="./assets/colosseum.svg" alt="" width="18" height="18" /><span id="app-version">Colosseum</span><span class="context-separator" aria-hidden="true"></span><img id="platform-icon" src="./assets/platform-web.svg" alt="" width="18" height="18" /><span id="platform-label">Web</span></span>
+          </div>
+          <p class="quiet">
+            No account needed. Leave an email only if you’d like us to get back
+            to you.
+          </p>
+        </section>
+        <section class="form-panel" aria-label="Send feedback">
+          <form id="feedback-form" novalidate>
+            <fieldset class="kind-field">
+              <legend>I’m here to…</legend>
+              <div class="kind-options">
+                <label class="kind"
+                  ><input type="radio" name="kind" value="bug" checked /><span
+                    ><svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M8 9h8v8a4 4 0 0 1-8 0V9Zm2 0V7a2 2 0 0 1 4 0v2M4 12h4m8 0h4M4 17h4m8 0h4M6 6l3 3m6 0 3-3M12 12v8"
+                      /></svg
+                    >Report a bug</span
+                  ></label
+                >
+                <label class="kind"
+                  ><input type="radio" name="kind" value="idea" /><span
+                    ><svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M9 18h6m-5 3h4M8.5 14.5a6 6 0 1 1 7 0C14 15.5 15 18 13 18h-2c-2 0-1-2.5-2.5-3.5Z"
+                      /></svg
+                    >Suggest a feature</span
+                  ></label
+                >
+                <label class="kind"><input type="radio" name="kind" value="universe" /><span><img src="./assets/universes-atom.svg" alt="" width="19" height="19" />Universe request</span></label>
+              </div>
+            </fieldset>
+            <div class="field">
+              <label id="area-label" for="area-trigger"
+                >Where in Colosseum?
+                <span class="optional">optional</span></label
+              >
+              <div class="area-picker">
+                <button id="area-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="area-menu" aria-labelledby="area-label area-value"><img id="area-icon" src="./assets/colosseum.svg" alt="" width="22" height="22" /><span id="area-value">General / I’m not sure</span><span class="chevron" aria-hidden="true">⌄</span></button>
+                <div id="area-menu" role="listbox" aria-labelledby="area-label" tabindex="-1" hidden></div>
+              </div>
+              <select id="area" name="area" hidden aria-hidden="true" tabindex="-1">
+                <option value="General">General / I’m not sure</option>
+                <option>Tankoban</option>
+                <option>Biblio</option>
+                <option>Theatre</option>
+                <option>Universes</option>
+                <option>Vault</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="title">Give it a short title</label
+              ><input
+                id="title"
+                name="title"
+                maxlength="120"
+                required
+                placeholder="What happened?"
+                aria-describedby="title-error"
+              />
+              <p class="field-error" id="title-error"></p>
+            </div>
+            <div class="field">
+              <label for="message" id="message-label">What happened?</label>
+              <p class="hint" id="message-hint">
+                Tell us what you were doing, what you expected, and what
+                happened instead.
+              </p>
+              <textarea
+                id="message"
+                name="message"
+                minlength="20"
+                maxlength="6000"
+                rows="5"
+                required
+                aria-describedby="message-hint message-error"
+              ></textarea>
+              <div class="field-bottom">
+                <p class="field-error" id="message-error"></p>
+                <span id="character-count">0 / 6,000</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="email"
+                >Email <span class="optional">optional</span></label
+              ><input
+                id="email"
+                name="email"
+                type="email"
+                maxlength="254"
+                autocomplete="email"
+                placeholder="Only if you’d like a reply"
+                aria-describedby="email-error"
+              />
+              <p class="field-error" id="email-error"></p>
+            </div>
+            <div class="honeypot" aria-hidden="true">
+              <label
+                >Leave this empty<input
+                  name="_gotcha"
+                  tabindex="-1"
+                  autocomplete="off"
+              /></label>
+            </div>
+            <div id="challenge"></div>
+            <p class="privacy">
+              Your app version and platform are included above. Please leave out
+              passwords, account keys, and private file paths.
+            </p>
+            <p id="status" class="status" role="status" aria-live="polite">
+              Connecting…
+            </p>
+            <div class="actions">
+              <button class="secondary" id="clear-draft" type="button">
+                Clear draft</button
+              ><button class="primary" id="send" type="submit" disabled>
+                Send feedback <span aria-hidden="true">↗</span>
+              </button>
+            </div>
+            <p class="draft-note" id="draft-note">
+              Your draft is kept on this device until sent or cleared.
+            </p>
+          </form>
+          <section
+            id="success"
+            hidden
+            tabindex="-1"
+            aria-labelledby="success-heading"
+          >
+            <div class="success-mark" aria-hidden="true">✓</div>
+            <p class="eyebrow">Feedback received</p>
+            <h2 id="success-heading">Thank you for<br />helping us improve.</h2>
+            <p>
+              Your message reached the Colosseum team. If you left an email, we
+              can reply there.
+            </p>
+            <p class="reference" id="reference"></p>
+            <button class="primary" id="another" type="button">
+              Send another message
+            </button>
+          </section>
+        </section>
+      </div>
+      <footer>Made for the way you read, watch, and explore.</footer>
+      <noscript>Enable JavaScript to send feedback from this page.</noscript>
+    </main>
+  </body>
+</html>

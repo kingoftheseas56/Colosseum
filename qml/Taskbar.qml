@@ -51,7 +51,39 @@ Item {
     property bool historyStatsActive: false // Your Colosseum (history / highlights / stats) is the front surface
     property bool feriaContext: false
     readonly property string activityLabel: feriaContext ? "Your Feria" : "Your Colosseum"
-    // Third-party trackers (the Sync Center) live in the TopBar's right cluster, not here.
+    property Item backdrop: null
+    property string worldMode: ""
+    property bool trackersActive: false
+    property bool updateAvailable: false
+    property bool updateUnseen: false
+    property bool reducedMotion: false
+    signal utilityTriggered(string action, real anchorRight, real anchorBottom)
+    function focusUtilityAction(action) {
+        bar.open = true
+        bar.autoRevealed = false
+        idleTimer.stop()
+        Qt.callLater(function() { utilities.focusAction(action) })
+    }
+
+    TaskbarUtilities {
+        id: utilities
+        x: dock.x
+        y: dock.y - height - 10
+        width: Math.min(dock.width, 440)
+        visible: bar.open
+        backdrop: bar.backdrop
+        worldMode: bar.worldMode
+        trackersActive: bar.trackersActive
+        updateAvailable: bar.updateAvailable
+        updateUnseen: bar.updateUnseen
+        reducedMotion: bar.reducedMotion
+        HoverHandler { id: utilitiesHover }
+        onTriggered: (action, anchorRight, anchorBottom) => {
+            bar.autoRevealed = false
+            bar.open = action === "sharing"
+            bar.utilityTriggered(action, anchorRight, dock.mapToItem(null, 0, 0).y)
+        }
+    }
 
     onOpenChanged: if (!open) fan.visible = false
 
@@ -84,7 +116,7 @@ Item {
         id: idleTimer
         interval: 15000
         onTriggered: {
-            if (dockHover.hovered || fanHover.hovered) { restart(); return }   // still engaged
+            if (dockHover.hovered || fanHover.hovered || utilitiesHover.hovered) { restart(); return }   // still engaged
             if (bar.autoRevealed) { bar.open = false; bar.autoRevealed = false }
         }
     }
@@ -117,6 +149,7 @@ Item {
 
     Rectangle {
         id: dock
+        objectName: "taskbarDock"
         x: bar.leftEdge
         y: parent.height - height - bar.bottomGap
         width: bar.open ? Math.min(parent.width - (bar.leftEdge * 2), 1720) : bar.closedWidth
