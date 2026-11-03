@@ -230,7 +230,7 @@ Item {
             width: 250; height: 38; leftPadding: 16; rightPadding: 16
             placeholderText: "Search your library"; placeholderTextColor: theme.inkDimmer
             color: theme.ink; selectionColor: theme.gold; selectedTextColor: "#111111"
-            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+            font.family: theme.ui; font.pixelSize: 14
             background: Rectangle {
                 radius: 19; color: Qt.rgba(0.03, 0.04, 0.06, 0.62)
                 border.width: 1; border.color: searchField.activeFocus ? theme.gold : theme.edge
@@ -252,12 +252,12 @@ Item {
             id: fragRow; anchors.verticalCenter: parent.verticalCenter; spacing: 0
             Text {
                 text: parent.parent.value; color: parent.parent.active ? theme.gold : theme.ink
-                font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
             }
             Text {
                 text: " " + parent.parent.label
                 color: parent.parent.active ? theme.gold : theme.inkDim
-                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+                font.family: theme.ui; font.pixelSize: 14
             }
         }
         Rectangle {
@@ -296,7 +296,7 @@ Item {
             Text {
                 id: pillText; anchors.centerIn: parent; text: parent.label
                 color: parent.active ? "#17120a" : theme.ink
-                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
             }
             HoverHandler { id: pillHover }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: parent.picked() }
@@ -452,7 +452,7 @@ Item {
                         anchors.centerIn: parent; width: parent.width - 24
                         text: card.modelData.entry.title || "Untitled"
                         color: Qt.rgba(1, 1, 1, 0.8); font.family: theme.display
-                        font.pixelSize: theme.fontSize(17); font.weight: Font.DemiBold
+                        font.pixelSize: 17; font.weight: Font.DemiBold
                         horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                         maximumLineCount: 4; elide: Text.ElideRight
                     }
@@ -473,7 +473,7 @@ Item {
                     radius: 7; height: 20; width: newLabel.implicitWidth + 16; color: theme.gold
                     Text {
                         id: newLabel; anchors.centerIn: parent; text: "+" + card.modelData.newCount
-                        color: "#17120a"; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
+                        color: "#17120a"; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
                     }
                 }
                 // downloaded ↓ chip — bottom-right
@@ -552,7 +552,7 @@ Item {
                 anchors.top: worldContent.bottom; anchors.topMargin: 9
                 text: card.modelData.entry.title || "Untitled"
                 color: card.watched ? theme.inkDim : theme.ink
-                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
                 elide: Text.ElideRight; maximumLineCount: 1
             }
             Text {
@@ -565,7 +565,7 @@ Item {
                     if (card.modelData.isSeries && card.modelData.airing) parts.push(root.cap(card.modelData.airing))
                     return parts.join(" · ")
                 }
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); elide: Text.ElideRight
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight
             }
 
             HoverHandler { id: cardHover }
@@ -625,12 +625,12 @@ Item {
         visible: root.allRows.length === 0
         Text {
             anchors.horizontalCenter: parent.horizontalCenter; text: "Your library is empty"
-            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(30)
+            color: theme.ink; font.family: theme.display; font.pixelSize: 30
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "Press play on anything, or tap + Library — it lands here."
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
         }
     }
     Column {
@@ -638,7 +638,7 @@ Item {
         visible: root.allRows.length > 0 && root.visibleRows.length === 0
         Text {
             anchors.horizontalCenter: parent.horizontalCenter; text: "Nothing matches these filters"
-            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(30)
+            color: theme.ink; font.family: theme.display; font.pixelSize: 30
         }
     }
     }
@@ -699,7 +699,7 @@ Item {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter; text: parent.parent.label
                     color: parent.parent.warn ? "#e08a8a" : theme.ink
-                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                    font.family: theme.ui; font.pixelSize: 13
                 }
             }
             HoverHandler { id: miHover }

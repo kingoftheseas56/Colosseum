@@ -35,8 +35,6 @@ Item {
 
     // ================= the shell seam =================
     property var reader: null
-    readonly property real chromeBottom: commandStrip.y + commandStrip.height
-    readonly property real chromeRailHeight: progressRail.height
 
     // ---- read-only reading state bound off the shell ----
     readonly property int    currentPage:   reader ? reader.currentPage   : 1
@@ -259,7 +257,7 @@ Item {
         property string glyphKindProp: ""
         property alias glyphKind: vbGlyph.kind
         property string verbName: ""
-        property int side: theme.androidHost ? 52 : 30
+        property int side: 30
         signal tapped()
         implicitWidth: side
         implicitHeight: side
@@ -284,7 +282,7 @@ Item {
                 anchors.centerIn: parent
                 kind: vb.glyphKindProp
                 accessibleName: vb.verbName
-                width: theme.androidHost ? 28 : Math.round(vb.side * 0.5); height: width
+                width: Math.round(vb.side * 0.5); height: width
                 ink: theme.ink
             }
         }
@@ -306,8 +304,8 @@ Item {
         property string verbName: ""
         property bool enabledArrow: true
         signal tapped()
-        implicitWidth: theme.androidHost ? 52 : 30
-        implicitHeight: theme.androidHost ? 52 : 30
+        implicitWidth: 30
+        implicitHeight: 30
         opacity: ra.enabledArrow ? (raMa.containsMouse ? 1.0 : 0.82) : 0.28
         Behavior on opacity { NumberAnimation { duration: 90 } }
         ComicReaderIcon {
@@ -315,7 +313,7 @@ Item {
             anchors.centerIn: parent
             kind: ra.glyphKindProp
             accessibleName: ra.verbName
-            width: theme.androidHost ? 28 : 19; height: width
+            width: 19; height: 19
             ink: hud.cRailInk
         }
         ComicReaderKeyboardArea {
@@ -349,7 +347,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: theme.androidHost ? 64 : 38
+            height: 38
             color: hud.cTitleBar
 
             // click-swallower: an empty-strip click must not fall through and turn a page
@@ -382,7 +380,7 @@ Item {
                 text: hud.curLabel.length ? (hud.seriesTitle + "  ·  " + hud.curLabel) : hud.seriesTitle
                 color: theme.inkDim
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(12)
+                font.pixelSize: 12
                 font.letterSpacing: 0.6
                 elide: Text.ElideRight
             }
@@ -407,7 +405,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: titleBar.bottom
-            height: commandBar.implicitHeight
+            height: 46
             color: hud.cCommandBar
 
             Rectangle {                                  // hairline under the bar
@@ -580,7 +578,7 @@ Item {
                 text: hud.seriesTitle
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(19)
+                font.pixelSize: 19
                 elide: Text.ElideRight
             }
         }
@@ -604,7 +602,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            height: theme.androidHost ? 72 : 54
+            height: 54
             color: hud.cRailGold
 
             // click-swallower (floating-panel/click-swallower house law): a click on the rail's
@@ -632,7 +630,7 @@ Item {
                 text: hud.counterCurrentText()
                 color: hud.cRailInk
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(17)
+                font.pixelSize: 17
                 font.bold: true
             }
             RailArrow {
@@ -655,7 +653,7 @@ Item {
                 text: hud.counterTotalText()
                 color: hud.cRailInk
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(17)
+                font.pixelSize: 17
             }
 
             // ------- the scrub affordance -------
@@ -670,7 +668,7 @@ Item {
                 anchors.leftMargin: 20
                 anchors.rightMargin: 20
                 anchors.verticalCenter: parent.verticalCenter
-                height: theme.androidHost ? 48 : 14
+                height: 14
 
                 Rectangle {
                     id: scrubTrack
@@ -749,7 +747,7 @@ Item {
                                   : hud.pageForRatio(scrubTrack.knobRatio)
                             color: theme.gold
                             font.family: theme.hud
-                            font.pixelSize: theme.fontSize(12)
+                            font.pixelSize: 12
                             font.bold: true
                         }
                     }
@@ -821,7 +819,7 @@ Item {
             anchors.centerIn: parent
             color: theme.ink
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(13)
+            font.pixelSize: 13
             font.bold: true
         }
         Timer { id: hudToastTimer; interval: 900; onTriggered: hudToast.opacity = 0 }

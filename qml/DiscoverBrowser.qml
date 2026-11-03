@@ -38,7 +38,7 @@ Item {
 
     // Same phone gate as the world tab bar: Android, window under 840 wide.
     readonly property bool phoneNarrow: browser.androidHost && (browser.Window.window ? browser.Window.window.width : browser.width) < 840
-    readonly property bool stackedTypeHeader: typeRepeater.count > 2 && masthead.width < typeSwitch.width + (browser.androidHost ? Math.max(180, kicker.implicitWidth) + 44 : 180)
+    readonly property bool stackedTypeHeader: typeRepeater.count > 2 && masthead.width < typeSwitch.width + 180
 
     // ── automation identity (Lanista; Discover sidebar plan Slice 0) ──
     // World-namespaced by the host (theatre/biblio/tankoban): a bare shared stem would resolve
@@ -198,7 +198,7 @@ Item {
 
     signal itemOpenRequested(var item)       // a click / Enter on a poster opens the detail page
 
-    Theme { id: theme; objectName: "discoverTypography"; androidHost: browser.androidHost }
+    Theme { id: theme }
 
     // ── derived reads (adapterRev is a dependency so a registry change re-derives them) ──
     readonly property var currentCatalog: {
@@ -701,8 +701,7 @@ Item {
         anchors.leftMargin: browser.contentLeft
         anchors.right: parent.right
         height: browser.stackedTypeHeader
-                ? typeSwitch.height + shelf.height + 32 + (browser.showBackAction ? 22 : 0)
-                : (browser.androidHost ? Math.max(76, shelf.height + 18, typeSwitch.height + 24) : 76)
+                ? typeSwitch.height + shelf.height + 32 + (browser.showBackAction ? 22 : 0) : 76
 
         Rectangle {
             id: mastheadRule
@@ -722,7 +721,7 @@ Item {
             anchors.topMargin: 6
             text: "‹ Back"
             color: backMa.containsMouse ? theme.gold : theme.inkDim
-            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
             MouseArea {
                 id: backMa
                 anchors.fill: parent
@@ -741,7 +740,7 @@ Item {
             anchors.left: parent.left
             anchors.bottom: mastheadRule.top
             anchors.bottomMargin: browser.stackedTypeHeader ? shelf.height + 22 : 12
-            spacing: browser.androidHost ? 18 : (browser.phoneNarrow ? 18 : 28)
+            spacing: browser.phoneNarrow ? 18 : 28
             property int currentIndex: 0
             focusPolicy: typeRepeater.count > 0 ? Qt.TabFocus : Qt.NoFocus
             function syncCurrent() {
@@ -769,15 +768,14 @@ Item {
                     objectName: browser.automationPrefix.length
                                 ? browser.automationPrefix + "DiscoverType_" + typeTab.modelData.key : ""
                     width: tlabel.implicitWidth
-                    height: browser.androidHost ? Math.max(48, tlabel.implicitHeight + 9) : tlabel.implicitHeight + 9
+                    height: tlabel.implicitHeight + 9
                     Text {
                         id: tlabel
-                        anchors.verticalCenter: browser.androidHost ? parent.verticalCenter : undefined
-                        anchors.top: browser.androidHost ? undefined : parent.top
+                        anchors.top: parent.top
                         text: typeTab.modelData.label
                         color: typeTab.active ? theme.ink
                              : (tHov.hovered ? theme.ink : theme.inkDim)
-                        font.family: theme.ui; font.pixelSize: theme.fontSize(browser.phoneNarrow ? 15 : 17); font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: browser.phoneNarrow ? 15 : 17; font.weight: Font.DemiBold
                         // readable on any wallpaper (2026-09-29): the idle lenses sat at inkDimmer
                         // and vanished into bright/warm art; a soft drop shadow carries them.
                         style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
@@ -811,9 +809,7 @@ Item {
             anchors.rightMargin: browser.headingRightInset
             anchors.bottom: mastheadRule.top
             anchors.bottomMargin: 9
-            readonly property real availableWidth: Math.max(0, masthead.width - browser.headingRightInset - (browser.stackedTypeHeader ? 0 : typeSwitch.width + 28))
-            width: browser.androidHost ? Math.min(availableWidth, Math.max(summary.width, byline.implicitWidth, kicker.implicitWidth))
-                                       : Math.max(summary.width, byline.implicitWidth, kicker.implicitWidth)
+            width: Math.max(summary.width, byline.implicitWidth, kicker.implicitWidth)
             height: kicker.implicitHeight + 4 + summary.height + 7 + byline.implicitHeight
 
             Text {
@@ -822,7 +818,7 @@ Item {
                 anchors.right: parent.right; anchors.top: parent.top
                 text: "NOW BROWSING"
                 color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: theme.fontSize(10); style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                font.family: theme.ui; font.pixelSize: 10; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
                 font.letterSpacing: 2.5; font.capitalization: Font.AllUppercase
             }
             Row {
@@ -843,19 +839,19 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: browser.currentCatalog ? browser.currentCatalog.title : "—"
                     color: (catMa.containsMouse || browser.catalogMenuOpen) ? "#ffffff" : theme.ink
-                    font.family: theme.display; font.pixelSize: theme.fontSize(browser.phoneNarrow ? 22 : 30); font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                    font.family: theme.display; font.pixelSize: browser.phoneNarrow ? 22 : 30; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
                     // phone width: the catalogue name gives way to the type tabs instead of printing over them
-                    width: browser.androidHost ? Math.min(implicitWidth, Math.max(0, shelf.availableWidth - (browser.categoryPickable ? categoryArrow.implicitWidth + summary.spacing : 0)))
-                           : (browser.phoneNarrow || browser.stackedTypeHeader ? Math.min(implicitWidth, Math.max(60, shelf.parent.width - browser.headingRightInset - (browser.stackedTypeHeader ? 0 : typeSwitch.width) - 44)) : implicitWidth)
-                    elide: browser.androidHost || browser.phoneNarrow || browser.stackedTypeHeader ? Text.ElideRight : Text.ElideNone
+                    width: browser.phoneNarrow || browser.stackedTypeHeader
+                           ? Math.min(implicitWidth, Math.max(60, shelf.parent.width - browser.headingRightInset - (browser.stackedTypeHeader ? 0 : typeSwitch.width) - 44))
+                           : implicitWidth
+                    elide: browser.phoneNarrow || browser.stackedTypeHeader ? Text.ElideRight : Text.ElideNone
                 }
                 Text {
-                    id: categoryArrow
                     visible: browser.categoryPickable
                     anchors.verticalCenter: parent.verticalCenter
                     text: "▾"
                     color: (catMa.containsMouse || browser.catalogMenuOpen) ? theme.gold : theme.inkDimmer
-                    font.pixelSize: theme.fontSize(14)
+                    font.pixelSize: 14
                 }
             }
             MouseArea {
@@ -880,10 +876,8 @@ Item {
                 anchors.top: summary.bottom; anchors.topMargin: 7
                 // honest attribution — the owning source (as the sidebar names it). NO invented total.
                 text: browser.currentSource
-                width: browser.androidHost ? Math.min(implicitWidth, shelf.availableWidth) : implicitWidth
-                elide: Text.ElideRight
                 color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: theme.fontSize(13); style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                font.family: theme.ui; font.pixelSize: 13; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
             }
         }
 
@@ -895,7 +889,7 @@ Item {
             anchors.right: shelf.right
             anchors.top: parent.bottom
             anchors.topMargin: 6
-            width: browser.androidHost ? Math.min(260, masthead.width - browser.headingRightInset) : 260
+            width: 260
             height: Math.min(392, menuList.contentHeight + 12)
             radius: 13
             z: 60
@@ -934,7 +928,7 @@ Item {
                     objectName: browser.automationPrefix.length
                                 ? browser.automationPrefix + "DiscoverCategory_" + String(mrow.modelData.key).replace(/[^A-Za-z0-9]/g, "_") : ""
                     width: menuList.width
-                    height: browser.androidHost ? Math.max(48, theme.fontSize(13) + 20) : 38
+                    height: 38
                     radius: 9
                     color: mrow.sel ? Qt.rgba(240/255, 196/255, 74/255, 0.16)
                          : (mrowMa.containsMouse || mrow.keyboardSelected) ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
@@ -943,7 +937,7 @@ Item {
                     Text {
                         text: mrow.modelData.text
                         color: mrow.sel ? theme.gold : theme.ink
-                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                        font.family: theme.ui; font.pixelSize: 13
                         font.weight: mrow.sel ? Font.DemiBold : Font.Normal
                         anchors.left: parent.left; anchors.leftMargin: 12
                         anchors.right: parent.right; anchors.rightMargin: 12
@@ -992,7 +986,7 @@ Item {
             height: 40; verticalAlignment: Text.AlignVCenter
             // full ink + DemiBold: at 11px regular inkDim it still sank into warm wallpapers
             color: theme.ink
-            font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold; font.letterSpacing: 1.5
+            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold; font.letterSpacing: 1.5
             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.85)
             font.capitalization: Font.AllUppercase
         }
@@ -1026,7 +1020,7 @@ Item {
             anchors.right: parent.right; anchors.rightMargin: 16
             anchors.verticalCenter: parent.verticalCenter
             text: browser.bannerText
-            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+            color: theme.ink; font.family: theme.ui; font.pixelSize: 13
             elide: Text.ElideRight
         }
         MouseArea {
@@ -1247,7 +1241,7 @@ Item {
                 visible: !browser.loading && !browser.pageFailed && browser.items.length === 0
                 anchors.centerIn: parent
                 text: browser.catalogueDownloading ? browser._downloadingText : browser.emptyMessage
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
             }
         }
 

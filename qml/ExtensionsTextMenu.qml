@@ -38,7 +38,7 @@ Menu {
                 color: item.enabled ? theme.ink : theme.inkDimmer
                 opacity: item.enabled ? 1 : 0.5
                 font.family: theme.ui
-                font.pixelSize: theme.fontSize(13)
+                font.pixelSize: 13
             }
             Text {
                 id: shortcut
@@ -47,7 +47,7 @@ Menu {
                 text: item.shortcutLabel
                 color: item.enabled ? theme.inkDimmer : theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: theme.fontSize(11)
+                font.pixelSize: 11
             }
         }
         background: Rectangle {

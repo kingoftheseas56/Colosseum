@@ -6,12 +6,12 @@ TextField {
     id: root
     Theme { id: theme }
     property alias clearControl: clearButton
-    implicitHeight: Math.max(44, contentHeight + topPadding + bottomPadding)
+    implicitHeight: 44
     implicitWidth: 260
     color: theme.ink
     placeholderTextColor: theme.inkDimmer
     font.family: theme.ui
-    font.pixelSize: theme.fontSize(14)
+    font.pixelSize: 14
     selectionColor: "#66f0c44a"
     selectedTextColor: theme.ink
     leftPadding: 40

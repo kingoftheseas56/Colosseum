@@ -133,7 +133,7 @@ AccountPageFrame {
             : root.controller.lastErrorMessage
         color: "#f0a3a3"
         font.family: errorTheme.ui
-        font.pixelSize: errorTheme.fontSize(12)
+        font.pixelSize: 12
         wrapMode: Text.WordWrap
         Theme { id: errorTheme }
     }

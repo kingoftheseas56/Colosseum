@@ -8,7 +8,6 @@ import "OnePieceNewWorldAdapter.js" as Adapter
 
 Item {
     id: root
-    Theme { id: interfaceTypography }
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     width: 1680
     height: 960
@@ -144,16 +143,16 @@ Item {
     Text {
         x: 86; y: 276; width: 250; rotation: 90; transformOrigin: Item.TopLeft
         text: "RED LINE"; color: "#795337"
-        font.family: root.displayFamily; font.pixelSize: interfaceTypography.fontSize(25); font.letterSpacing: 5
+        font.family: root.displayFamily; font.pixelSize: 25; font.letterSpacing: 5
     }
     Column {
         x: 205; y: 90; width: 350; spacing: 6
-        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "THE GRAND LINE"; color: "#90734d"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(13); font.letterSpacing: 4 }
-        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "NEW WORLD"; color: "#6b4c31"; font.family: root.displayFamily; font.pixelSize: interfaceTypography.fontSize(34); font.letterSpacing: 3 }
+        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "THE GRAND LINE"; color: "#90734d"; font.family: root.bodyFamily; font.pixelSize: 13; font.letterSpacing: 4 }
+        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "NEW WORLD"; color: "#6b4c31"; font.family: root.displayFamily; font.pixelSize: 34; font.letterSpacing: 3 }
         Rectangle { anchors.horizontalCenter: parent.horizontalCenter; width: 234; height: 1; color: "#667f5b37" }
-        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "FROM THE RED LINE TO WANO"; color: "#96764b"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); font.letterSpacing: 1.2 }
+        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "FROM THE RED LINE TO WANO"; color: "#96764b"; font.family: root.bodyFamily; font.pixelSize: 10; font.letterSpacing: 1.2 }
     }
-    Text { x: 735; y: 78; width: 300; text: "CALM BELT"; color: "#8a8062"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(12); font.letterSpacing: 4; horizontalAlignment: Text.AlignHCenter }
+    Text { x: 735; y: 78; width: 300; text: "CALM BELT"; color: "#8a8062"; font.family: root.bodyFamily; font.pixelSize: 12; font.letterSpacing: 4; horizontalAlignment: Text.AlignHCenter }
 
     // Explicit depth section. Its rectangle is an inset footprint, not sea geography.
     Shape {
@@ -168,7 +167,7 @@ Item {
             PathSvg { path: "M13 42 Q33 33 48 43 T86 43 M190 47 Q207 37 224 47 T262 47 M30 204 Q55 194 75 205 T119 205 M211 207 Q235 196 254 207 T300 207" }
         }
     }
-    Text { x: 182; y: 648; width: 315; text: "10,000 m beneath the Red Line"; color: "#7c775c"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); font.italic: true; horizontalAlignment: Text.AlignHCenter }
+    Text { x: 182; y: 648; width: 315; text: "10,000 m beneath the Red Line"; color: "#7c775c"; font.family: root.bodyFamily; font.pixelSize: 11; font.italic: true; horizontalAlignment: Text.AlignHCenter }
 
     Repeater {
         model: (root.universeContentGeneration, Atlas.regions)
@@ -221,7 +220,7 @@ Item {
             PathSvg { path: root.bridgeInk() }
         }
     }
-    Text { x: 696; y: 556; text: "Iron bridge"; color: "#8b7652"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); font.italic: true; visible: root.detailLevel >= 1.5 }
+    Text { x: 696; y: 556; text: "Iron bridge"; color: "#8b7652"; font.family: root.bodyFamily; font.pixelSize: 10; font.italic: true; visible: root.detailLevel >= 1.5 }
 
     Shape {
         anchors.fill: parent
@@ -287,18 +286,18 @@ Item {
             text: modelData.label
             color: "#765336"
             font.family: root.displayFamily
-            font.pixelSize: interfaceTypography.fontSize(modelData.size)
+            font.pixelSize: modelData.size
             font.letterSpacing: modelData.minor ? 0 : 0.5
             horizontalAlignment: Text.AlignHCenter
             style: Text.Outline; styleColor: "#ddc69a"
         }
     }
-    Text { x: 718; y: 432; width: 261; text: "MOVING WITH ZUNESHA"; color: "#8d7450"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); font.letterSpacing: 1.5; horizontalAlignment: Text.AlignHCenter }
-    Text { visible: root.detailLevel >= 1.25; x: 1318; y: 288; width: 270; text: "CLOSED COUNTRY · RAISED INLAND SEA"; color: "#8e7350"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); font.letterSpacing: 0.7; horizontalAlignment: Text.AlignHCenter }
-    Text { visible: root.detailLevel >= 1.25; x: 1050; y: 803; text: "Mirror transit"; color: "#887161"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); font.italic: true }
-    Text { visible: root.detailLevel >= 1.25; x: 1080; y: 214; width: 171; text: "Advance party to Wano"; color: "#827557"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); font.italic: true; rotation: 14 }
-    Text { x: 1475; y: 424; text: "Mount Fuji"; visible: root.detailLevel >= 1.5; color: "#806849"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); font.italic: true }
-    Text { x: 1360; y: 532; text: "Flower Capital"; visible: root.detailLevel >= 1.5; color: "#806849"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); font.italic: true }
+    Text { x: 718; y: 432; width: 261; text: "MOVING WITH ZUNESHA"; color: "#8d7450"; font.family: root.bodyFamily; font.pixelSize: 10; font.letterSpacing: 1.5; horizontalAlignment: Text.AlignHCenter }
+    Text { visible: root.detailLevel >= 1.25; x: 1318; y: 288; width: 270; text: "CLOSED COUNTRY · RAISED INLAND SEA"; color: "#8e7350"; font.family: root.bodyFamily; font.pixelSize: 10; font.letterSpacing: 0.7; horizontalAlignment: Text.AlignHCenter }
+    Text { visible: root.detailLevel >= 1.25; x: 1050; y: 803; text: "Mirror transit"; color: "#887161"; font.family: root.bodyFamily; font.pixelSize: 10; font.italic: true }
+    Text { visible: root.detailLevel >= 1.25; x: 1080; y: 214; width: 171; text: "Advance party to Wano"; color: "#827557"; font.family: root.bodyFamily; font.pixelSize: 11; font.italic: true; rotation: 14 }
+    Text { x: 1475; y: 424; text: "Mount Fuji"; visible: root.detailLevel >= 1.5; color: "#806849"; font.family: root.bodyFamily; font.pixelSize: 11; font.italic: true }
+    Text { x: 1360; y: 532; text: "Flower Capital"; visible: root.detailLevel >= 1.5; color: "#806849"; font.family: root.bodyFamily; font.pixelSize: 11; font.italic: true }
 
     Item {
         x: 505; y: 789; width: 66; height: 66
@@ -316,7 +315,7 @@ Item {
             }
         }
         Rectangle { anchors.centerIn: parent; width: 16; height: 16; radius: 8; color: "#dbc494"; border.color: "#846542" }
-        Text { anchors.horizontalCenter: parent.horizontalCenter; y: -18; text: "N"; color: "#846542"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(12) }
+        Text { anchors.horizontalCenter: parent.horizontalCenter; y: -18; text: "N"; color: "#846542"; font.family: root.bodyFamily; font.pixelSize: 12 }
     }
     Row {
         x: 595; y: 792; spacing: 10
@@ -330,13 +329,13 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 245
             text: (root.universeContentGeneration, Story.worldContext).title.toUpperCase()
-            color: "#8b704b"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(12)
+            color: "#8b704b"; font.family: root.bodyFamily; font.pixelSize: 12
             wrapMode: Text.WordWrap
         }
     }
     Column {
         x: 531; y: 872; width: 678; spacing: 7
-        Text { text: "- - -   Luffy's voyage     · · ·   Parallel advance party     - · -   Mirror transit"; color: "#826947"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11) }
+        Text { text: "- - -   Luffy's voyage     · · ·   Parallel advance party     - · -   Mirror transit"; color: "#826947"; font.family: root.bodyFamily; font.pixelSize: 11 }
     }
     Rectangle { x: 19; y: 19; width: 1642; height: 922; color: "transparent"; border.width: 2; border.color: "#997446" }
     Rectangle { x: 25; y: 25; width: 1630; height: 910; color: "transparent"; border.width: 0.7; border.color: "#aa8e62" }

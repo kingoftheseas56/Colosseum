@@ -128,7 +128,7 @@ Popup {
                 Layout.fillWidth: true
                 text: root.createOnly ? qsTr("New collection") : qsTr("Add to Collections")
                 font.family: theme.display
-                font.pixelSize: theme.fontSize(root.width < 480 ? 25 : 29)
+                font.pixelSize: root.width < 480 ? 25 : 29
                 color: theme.ink
                 wrapMode: Text.WordWrap
             }
@@ -147,7 +147,7 @@ Popup {
             text: root.creating ? qsTr("Give it a name. Make it yours over time.") : qsTr("Keep this title in one collection, or a few.")
             color: theme.inkDimmer
             font.family: theme.ui
-            font.pixelSize: theme.fontSize(13)
+            font.pixelSize: 13
             wrapMode: Text.WordWrap
         }
         Rectangle {
@@ -164,8 +164,8 @@ Popup {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 4
-                    Text { Layout.fillWidth: true; text: root.titleData.title; textFormat: Text.PlainText; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(16); font.weight: Font.DemiBold; elide: Text.ElideRight }
-                    Text { Layout.fillWidth: true; text: root.titleData.year || root.titleData.creator ? qsTr("%1 · %2").arg(root.titleData.kindLabel).arg(root.titleData.year || root.titleData.creator) : root.titleData.kindLabel; textFormat: Text.PlainText; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); elide: Text.ElideRight }
+                    Text { Layout.fillWidth: true; text: root.titleData.title; textFormat: Text.PlainText; color: theme.ink; font.family: theme.ui; font.pixelSize: 16; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                    Text { Layout.fillWidth: true; text: root.titleData.year || root.titleData.creator ? qsTr("%1 · %2").arg(root.titleData.kindLabel).arg(root.titleData.year || root.titleData.creator) : root.titleData.kindLabel; textFormat: Text.PlainText; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight }
                 }
                 CollectionIcon { name: root.titleData.kind; strokeColor: theme.inkDimmer; Layout.preferredWidth: 20; Layout.preferredHeight: 20 }
             }
@@ -206,7 +206,7 @@ Popup {
                 text: root.store.collections.length ? qsTr("No collections match that name.\nCreate one below, or clear your search.") : qsTr("Your first collection starts here.\nGive this story a place to stay.")
                 color: theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: theme.fontSize(14)
+                font.pixelSize: 14
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 lineHeight: 1.5
@@ -227,7 +227,7 @@ Popup {
             visible: root.creating
             Layout.fillWidth: true
             spacing: 8
-            Text { text: qsTr("Collection name"); color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+            Text { text: qsTr("Collection name"); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
             TextField {
                 id: collectionName
                 objectName: "collectionNameField"
@@ -238,7 +238,7 @@ Popup {
                 placeholderTextColor: theme.inkDimmer
                 color: theme.ink
                 font.family: theme.ui
-                font.pixelSize: theme.fontSize(15)
+                font.pixelSize: 15
                 leftPadding: 13
                 rightPadding: 13
                 selectByMouse: true
@@ -258,14 +258,14 @@ Popup {
             textFormat: Text.PlainText
             color: "#e5a4a4"
             font.family: theme.ui
-            font.pixelSize: theme.fontSize(13)
+            font.pixelSize: 13
             wrapMode: Text.WordWrap
         }
         Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#1cffffff" }
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { visible: !root.creating && root.width >= 420; Layout.fillWidth: true; text: qsTr("Private, just for you"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
+            Text { visible: !root.creating && root.width >= 420; Layout.fillWidth: true; text: qsTr("Private, just for you"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
             Item { visible: root.creating || root.width < 420; Layout.fillWidth: true }
             CollectionActionButton { id: cancelButton; objectName: "pickerCancel"; visible: !root.creating; text: qsTr("Cancel"); emphasis: "ghost"; onClicked: root.close() }
             CollectionActionButton { id: doneButton; objectName: "pickerDone"; visible: !root.creating; text: qsTr("Save"); enabled: root.store.healthy && !root.committing; emphasis: "primary"; onClicked: root.saveMemberships() }

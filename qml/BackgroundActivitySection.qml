@@ -7,7 +7,6 @@ import QtQuick
 // Prop-driven (registry injected) so harnesses can feed a fake.
 Column {
     id: root
-    Theme { id: interfaceTypography }
     property var registry: null
     readonly property var rows: registry ? registry.activities : []
     readonly property int rowCount: rows.length
@@ -17,7 +16,7 @@ Column {
     Text {
         text: "Background activity"
         color: "#9a9a9a"
-        font.pixelSize: interfaceTypography.fontSize(12)
+        font.pixelSize: 12
     }
 
     Repeater {
@@ -38,7 +37,7 @@ Column {
                     elide: Text.ElideRight
                     text: modelData.title + "  ·  " + modelData.stage
                     color: "#e8e8e8"
-                    font.pixelSize: interfaceTypography.fontSize(13)
+                    font.pixelSize: 13
                 }
                 Rectangle {
                     width: parent.width
@@ -61,7 +60,7 @@ Column {
                 anchors.verticalCenter: parent.verticalCenter
                 text: modelData.paused ? "Resume" : "Pause"
                 color: "#bdbdbd"
-                font.pixelSize: interfaceTypography.fontSize(12)
+                font.pixelSize: 12
 
                 MouseArea {
                     anchors.fill: parent

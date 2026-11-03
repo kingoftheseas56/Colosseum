@@ -5,7 +5,6 @@ import ".."
 
 AccountPageFrame {
     id: root
-    Theme { id: interfaceTypography }
     objectName: "accountCreate"
 
     property var controller: null
@@ -123,7 +122,7 @@ AccountPageFrame {
             : root.controller.lastErrorMessage
         color: "#f0a3a3"
         font.family: validationTheme.ui
-        font.pixelSize: interfaceTypography.fontSize(12)
+        font.pixelSize: 12
         wrapMode: Text.WordWrap
         Theme { id: validationTheme }
     }
@@ -146,7 +145,7 @@ AccountPageFrame {
         text: "or"
         color: dividerTheme.inkDimmer
         font.family: dividerTheme.ui
-        font.pixelSize: interfaceTypography.fontSize(11)
+        font.pixelSize: 11
         horizontalAlignment: Text.AlignHCenter
         Theme { id: dividerTheme }
     }
@@ -184,7 +183,7 @@ AccountPageFrame {
         text: "Your recovery key is created after your account is created."
         color: footerTheme.inkDimmer
         font.family: footerTheme.ui
-        font.pixelSize: interfaceTypography.fontSize(11)
+        font.pixelSize: 11
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.WordWrap
         Theme { id: footerTheme }

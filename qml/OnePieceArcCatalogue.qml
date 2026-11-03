@@ -213,7 +213,7 @@ Item {
                     text: root.seaLabel.toUpperCase() + "  /  STORY CATALOGUE"
                     color: theme.gold
                     font.family: theme.ui
-                    font.pixelSize: theme.fontSize(10)
+                    font.pixelSize: 10
                     font.bold: true
                     font.letterSpacing: 2.6
                 }
@@ -221,7 +221,7 @@ Item {
                     text: root.arc ? root.arc.title : ""
                     color: theme.ink
                     font.family: theme.display
-                    font.pixelSize: theme.fontSize(44)
+                    font.pixelSize: 44
                     font.bold: true
                 }
                 Text {
@@ -229,7 +229,7 @@ Item {
                     text: root.arc ? root.arc.summary || "" : ""
                     color: theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: theme.fontSize(13)
+                    font.pixelSize: 13
                     wrapMode: Text.WordWrap
                     lineHeight: 1.25
                 }
@@ -466,7 +466,7 @@ Item {
         text: root.arc ? root.arc.title.toUpperCase() + " · " + root.sagaLabel.toUpperCase() : ""
         color: theme.inkDim
         font.family: theme.ui
-        font.pixelSize: theme.fontSize(10)
+        font.pixelSize: 10
         font.bold: true
         font.letterSpacing: 2.0
     }

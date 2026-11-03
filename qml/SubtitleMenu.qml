@@ -13,11 +13,7 @@ Item {
     width: faceChip.width
     height: faceChip.height
 
-    readonly property int appearancePaneWidth: theme.androidHost ? 400 : 280
-    // The existing Android scroll canvas gives the enlarged atlas controls room.
-    readonly property real rowExpansion: theme.androidHost ? 52 / 32 : 1
-    function interfaceY(value) { return value * rowExpansion }
-    property bool touchInput: theme.androidHost
+    property bool touchInput: Qt.platform.os === "android"
     property bool panelOpen: false
     property var player: null
     property var tracks: []
@@ -368,8 +364,8 @@ Item {
     // (Lucide 0.460 has no 'subtitles') with a small gold ACTIVE DOT when subtitles are on. No text.
     Item {
         id: faceChip
-        width: theme.androidHost ? 52 : 40
-        height: theme.androidHost ? 52 : 40
+        width: 40
+        height: 40
         Rectangle {
             anchors.fill: parent
             radius: width / 2
@@ -473,7 +469,7 @@ Item {
                 text: "Subtitles"
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(19)
+                font.pixelSize: 19
                 font.weight: Font.DemiBold
             }
             Text {
@@ -484,7 +480,7 @@ Item {
                 color: theme.inkDimmer
                 font.family: theme.hud
                 font.features: ({ "tnum": 1 })
-                font.pixelSize: theme.fontSize(13)
+                font.pixelSize: 13
             }
             Text {
                 id: autoStatus
@@ -496,7 +492,7 @@ Item {
                 text: menu.selectionError
                 color: "#ff8a8a"
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(12)
+                font.pixelSize: 12
                 elide: Text.ElideRight
                 horizontalAlignment: Text.AlignRight
             }
@@ -551,8 +547,8 @@ Item {
             objectName: "subtitleBodyScroll"
             // Keep beta's desktop rows and right drawer on their original canvas.
             // Only the Android viewport is bounded; overflow remains finger-reachable.
-            contentWidth: menu.touchInput ? Math.max(width, menu.panelWidth + 280) : width
-            contentHeight: menu.touchInput ? Math.max(height, menu.interfaceY(menu.panelHeight - header.height)) : height
+            contentWidth: menu.touchInput ? Math.max(width, menu.panelWidth) : width
+            contentHeight: menu.touchInput ? Math.max(height, menu.panelHeight - header.height) : height
             interactive: menu.touchInput && (contentWidth > width || contentHeight > height)
             flickableDirection: Flickable.HorizontalAndVerticalFlick
             boundsBehavior: Flickable.StopAtBounds
@@ -570,7 +566,7 @@ Item {
                 anchors.left: parent.left
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                width: menu.appearanceOpen ? parent.width - menu.appearancePaneWidth : parent.width
+                width: menu.appearanceOpen ? parent.width - 280 : parent.width
 
                 Behavior on width { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
@@ -582,9 +578,9 @@ Item {
                     Row {
                         id: toolbar
                         x: 20
-                        y: menu.interfaceY(18)
+                        y: 18
                         width: parent.width - 40
-                        height: theme.androidHost ? 52 : 36
+                        height: 36
                         spacing: 10
 
                         ToggleButton {
@@ -596,7 +592,7 @@ Item {
                         Row {
                             id: sourceStrip
                             spacing: 4
-                            height: theme.androidHost ? 52 : 36
+                            height: 36
                             property int keyboardIndex: menu.source === "embedded" ? 1 : menu.source === "external" ? 2 : 0
                             focusPolicy: menu.panelOpen ? Qt.TabFocus : Qt.NoFocus
                             function enabledAt(index) { return index === 0 || (index === 1 ? menu.embeddedCount > 0 : menu.externalCount > 0) }
@@ -648,14 +644,14 @@ Item {
                         id: languageCollection
                         anchors.right: parent.right
                         anchors.rightMargin: 20
-                        y: menu.interfaceY(77)
+                        y: 77
                         width: 142
-                        height: theme.androidHost ? 52 : 36
+                        height: 36
                         model: menu.languageOptions()
                         textRole: "label"
                         currentIndex: menu.languageIndex()
                         font.family: theme.hud
-                        font.pixelSize: theme.fontSize(14)
+                        font.pixelSize: 14
                         onActivated: function(index) {
                             var row = menu.languageOptions()[index]
                             if (row) menu.lang = row.key
@@ -667,7 +663,7 @@ Item {
                             text: languageCollection.displayText
                             color: theme.inkDim
                             font.family: theme.hud
-                            font.pixelSize: theme.fontSize(14)
+                            font.pixelSize: 14
                             elide: Text.ElideRight
                         }
                         indicator: PlayerIcon {
@@ -692,8 +688,8 @@ Item {
                     Row {
                         id: filters
                         x: 20
-                        y: menu.interfaceY(79)
-                        height: theme.androidHost ? 52 : 32
+                        y: 79
+                        height: 32
                         spacing: 7
 
                         FilterPill { text: "All"; selected: menu.filterMode === "all"; onClicked: menu.filterMode = "all" }
@@ -704,7 +700,7 @@ Item {
                     ListView {
                         id: variants
                         x: 20
-                        y: menu.interfaceY(126)
+                        y: 126
                         width: parent.width - 40
                         height: Math.max(40, footer.y - y - 8)
                         clip: true
@@ -737,12 +733,12 @@ Item {
                     Text {
                         visible: menu.visibleTracks.length === 0
                         anchors.horizontalCenter: parent.horizontalCenter
-                        y: menu.interfaceY(184)
+                        y: 184
                         width: parent.width - 80
                         text: menu.loading ? "Finding subtitles..." : "No tracks match these filters."
                         color: theme.inkDimmer
                         font.family: theme.hud
-                        font.pixelSize: theme.fontSize(13)
+                        font.pixelSize: 13
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
@@ -754,7 +750,7 @@ Item {
                         anchors.bottom: parent.bottom
                         anchors.bottomMargin: 13
                         width: Math.min(320, parent.width - 40)
-                        height: theme.androidHost ? 64 : 48
+                        height: 48
                         radius: 13
                         color: Qt.rgba(1, 1, 1, 0.025)
                         border.width: 1
@@ -795,14 +791,14 @@ Item {
                     Row {
                         id: searchHead
                         x: 20
-                        y: menu.interfaceY(20)
+                        y: 20
                         width: parent.width - 40
-                        height: theme.androidHost ? 52 : 38
+                        height: 38
                         spacing: 8
 
                         Rectangle {
                             width: parent.width - 86
-                            height: theme.androidHost ? 52 : 38
+                            height: 38
                             radius: 11
                             color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.05)
                             border.width: 1
@@ -816,13 +812,13 @@ Item {
                                 text: menu.searchId.length ? ("IMDb " + menu.searchId) : "Online search needs a matched title"
                                 color: menu.searchId.length ? theme.ink : theme.inkDimmer
                                 font.family: theme.hud
-                                font.pixelSize: theme.fontSize(14)
+                                font.pixelSize: 14
                                 elide: Text.ElideRight
                             }
                         }
                         Rectangle {
                             width: 78
-                            height: theme.androidHost ? 52 : 38
+                            height: 38
                             radius: 11
                             color: menu.searchId.length ? theme.gold : Qt.rgba(1, 1, 1, 0.07)
                             opacity: menu.searchLoading ? 0.7 : 1
@@ -831,7 +827,7 @@ Item {
                                 text: menu.searchLoading ? "..." : "Search"
                                 color: menu.searchId.length ? "#111111" : theme.inkDimmer
                                 font.family: theme.hud
-                                font.pixelSize: theme.fontSize(13)
+                                font.pixelSize: 13
                                 font.weight: Font.DemiBold
                             }
                             MouseArea {
@@ -853,7 +849,7 @@ Item {
                     ListView {
                         id: searchList
                         x: 20
-                        y: menu.interfaceY(76)
+                        y: 76
                         width: parent.width - 40
                         height: Math.max(40, searchFooter.y - y - 8)
                         clip: true
@@ -894,14 +890,14 @@ Item {
                     Text {
                         visible: !menu.searchId.length || menu.searchResults === null || (menu.searchResults && menu.searchResults.length === 0)
                         anchors.horizontalCenter: parent.horizontalCenter
-                        y: menu.interfaceY(150)
+                        y: 150
                         width: parent.width - 80
                         text: !menu.searchId.length ? "Online search needs a matched title (IMDb id). Use Load file instead."
                              : menu.searchResults === null ? "Press Search to find subtitles online."
                              : "No subtitles found."
                         color: theme.inkDimmer
                         font.family: theme.hud
-                        font.pixelSize: theme.fontSize(13)
+                        font.pixelSize: 13
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
@@ -944,7 +940,7 @@ Item {
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
-                width: menu.appearancePaneWidth
+                width: 280
                 color: Qt.rgba(5 / 255, 7 / 255, 10 / 255, 0.72)
                 border.width: 0
 
@@ -958,61 +954,61 @@ Item {
                 Text {
                     id: appearanceTitle
                     x: 18
-                    y: menu.interfaceY(18)
+                    y: 18
                     text: "Appearance"
                     color: theme.ink
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(14)
+                    font.pixelSize: 14
                     font.weight: Font.DemiBold
                 }
                 FooterButton {
                     anchors.right: parent.right
                     anchors.rightMargin: 18
-                    y: menu.interfaceY(13)
+                    y: 13
                     width: 88
-                    height: theme.androidHost ? 52 : 30
+                    height: 30
                     text: "Reset"
                     icon: "reset"
                     onClicked: menu.resetAppearance()
                 }
                 Text {
                     x: 18
-                    y: menu.interfaceY(42)
+                    y: 42
                     text: "Changes apply live and persist."
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(11)
+                    font.pixelSize: 11
                 }
 
                 Text {
                     x: 18
-                    y: menu.interfaceY(72)
+                    y: 72
                     text: "FONT"
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(10)
+                    font.pixelSize: 10
                     font.weight: Font.Bold
                     font.letterSpacing: 1.2
                 }
                 Text {
                     anchors.right: parent.right
                     anchors.rightMargin: 18
-                    y: menu.interfaceY(72)
+                    y: 72
                     text: subtitleStylePrefs.fontFamily
                     color: theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(11)
+                    font.pixelSize: 11
                 }
                 Controls.ComboBox {
                     id: fontPicker
                     x: 18
-                    y: menu.interfaceY(90)
+                    y: 90
                     width: parent.width - 36
-                    height: theme.androidHost ? 52 : 38
+                    height: 38
                     model: menu.fontFamilies
                     currentIndex: Math.max(0, menu.fontFamilies.indexOf(subtitleStylePrefs.fontFamily))
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(13)
+                    font.pixelSize: 13
                     onActivated: function(index) {
                         subtitleStylePrefs.fontFamily = menu.fontFamilies[index]
                         menu.setStyleOption("sub-font", subtitleStylePrefs.fontFamily)
@@ -1024,7 +1020,7 @@ Item {
                         text: fontPicker.displayText
                         color: theme.ink
                         font.family: subtitleStylePrefs.fontFamily
-                        font.pixelSize: theme.fontSize(13)
+                        font.pixelSize: 13
                         elide: Text.ElideRight
                     }
                     indicator: PlayerIcon {
@@ -1049,7 +1045,7 @@ Item {
                 StyleSlider {
                     id: sizeSlider
                     x: 18
-                    y: menu.interfaceY(139)
+                    y: 139
                     width: parent.width - 36
                     label: "SIZE"
                     valueText: Math.round(subtitleStylePrefs.scale * 100) + "%"
@@ -1065,18 +1061,18 @@ Item {
 
                 Text {
                     x: 18
-                    y: menu.interfaceY(202)
+                    y: 202
                     text: "TEXT COLOR"
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(10)
+                    font.pixelSize: 10
                     font.weight: Font.Bold
                     font.letterSpacing: 1.2
                 }
                 Swatches {
                     id: textSwatches
                     x: 18
-                    y: menu.interfaceY(219)
+                    y: 219
                     width: parent.width - 36
                     label: ""
                     selected: subtitleStylePrefs.textColor
@@ -1090,7 +1086,7 @@ Item {
                 StyleSlider {
                     id: outlineSlider
                     x: 18
-                    y: menu.interfaceY(262)
+                    y: 262
                     width: parent.width - 36
                     label: "OUTLINE"
                     valueText: Number(subtitleStylePrefs.outlineSize).toFixed(1)
@@ -1107,7 +1103,7 @@ Item {
                 StyleSlider {
                     id: positionSlider
                     x: 18
-                    y: menu.interfaceY(323)
+                    y: 323
                     width: parent.width - 36
                     label: "VERTICAL POSITION"
                     valueText: String(subtitleStylePrefs.position)
@@ -1124,7 +1120,7 @@ Item {
                 Rectangle {
                     id: preview
                     x: 18
-                    y: menu.interfaceY(388)
+                    y: 388
                     width: parent.width - 36
                     height: 46
                     radius: 12
@@ -1169,8 +1165,8 @@ Item {
         property bool active: false
         property string accessibleName: ""
         signal clicked()
-        width: theme.androidHost ? 52 : 44
-        height: theme.androidHost ? 52 : 44
+        width: 44
+        height: 44
         Rectangle {
             anchors.fill: parent
             radius: 14
@@ -1183,9 +1179,8 @@ Item {
         }
         PlayerIcon {
             anchors.centerIn: parent
-            width: theme.androidHost ? 52 : 20
-            height: width
-            iconSize: theme.androidHost ? 28 : Math.round(width * 0.46)
+            width: 20
+            height: 20
             kind: button.icon
             ink: button.active ? theme.gold : mouse.containsMouse ? theme.ink : theme.inkDim
             accessibleName: button.accessibleName
@@ -1210,7 +1205,7 @@ Item {
         property bool active: false
         signal clicked()
         width: 78
-        height: theme.androidHost ? 52 : 36
+        height: 36
         radius: 11
         color: toggleMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.075) : Qt.rgba(1, 1, 1, 0.055)
         border.width: 1
@@ -1229,7 +1224,7 @@ Item {
                     text: button.active ? "\u2713" : ""
                     color: "#111111"
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(12)
+                    font.pixelSize: 12
                     font.weight: Font.Bold
                 }
             }
@@ -1238,7 +1233,7 @@ Item {
                 text: button.active ? "On" : "Off"
                 color: button.active ? theme.ink : theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(14)
+                font.pixelSize: 14
                 font.weight: Font.Medium
             }
         }
@@ -1267,7 +1262,7 @@ Item {
         property bool keyboardHighlighted: false
         signal clicked()
         width: Math.max(74, label.implicitWidth + 22)
-        height: theme.androidHost ? 52 : 36
+        height: 36
         radius: 9
         color: button.selected ? Qt.rgba(1, 1, 1, 0.09)
                                : segmentMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent"
@@ -1280,7 +1275,7 @@ Item {
             text: button.text
             color: button.selected ? theme.ink : theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(14)
+            font.pixelSize: 14
             font.weight: Font.Medium
         }
         MouseArea {
@@ -1306,7 +1301,7 @@ Item {
         property bool selected: false
         signal clicked()
         width: Math.max(52, label.implicitWidth + 22)
-        height: theme.androidHost ? 52 : 32
+        height: 32
         radius: 16
         color: pill.selected ? theme.gold
                              : filterMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(1, 1, 1, 0.025)
@@ -1318,7 +1313,7 @@ Item {
             text: pill.text
             color: pill.selected ? "#171306" : theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(12)
+            font.pixelSize: 12
             font.weight: pill.selected ? Font.DemiBold : Font.Medium
         }
         MouseArea {
@@ -1345,7 +1340,7 @@ Item {
         property real stepSize: 0.1
         property real value: 0
         signal moved(real value)
-        height: theme.androidHost ? 76 : 54
+        height: 54
 
         Text {
             anchors.left: parent.left
@@ -1353,7 +1348,7 @@ Item {
             text: control.label
             color: theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(10)
+            font.pixelSize: 10
             font.weight: Font.Bold
             font.letterSpacing: 1.2
         }
@@ -1363,14 +1358,14 @@ Item {
             text: control.valueText
             color: theme.inkDim
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(11)
+            font.pixelSize: 11
         }
         Controls.Slider {
             id: slider
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            height: theme.androidHost ? 48 : 30
+            height: 30
             from: control.from
             to: control.to
             stepSize: control.stepSize
@@ -1421,7 +1416,7 @@ Item {
                 swatches.picked(String(colors[keyboardIndex])); event.accepted = true
             }
         }
-        height: theme.androidHost ? 52 : 34
+        height: 34
         Row {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
@@ -1432,8 +1427,8 @@ Item {
                     id: dot
                     required property int index
                     required property string modelData
-                    width: theme.androidHost ? 48 : 28
-                    height: width
+                    width: 28
+                    height: 28
                     radius: 8
                     color: modelData
                     border.width: (swatches.activeFocus && swatches.keyboardIndex === dot.index)
@@ -1480,7 +1475,7 @@ Item {
                 text: row.selected ? "\u2713" : row.pending ? "..." : ""
                 color: "#111111"
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(11)
+                font.pixelSize: 11
                 font.weight: Font.Bold
             }
         }
@@ -1492,7 +1487,7 @@ Item {
             text: menu.rowLabel(row.track)
             color: theme.ink
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(14)
+            font.pixelSize: 14
             font.weight: Font.DemiBold
             elide: Text.ElideRight
         }
@@ -1518,7 +1513,7 @@ Item {
                 text: String(row.track.tag || "")
                 color: String(row.track.tag || "").toLowerCase() === "default" ? theme.gold : theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(10)
+                font.pixelSize: 10
             }
         }
 
@@ -1529,7 +1524,7 @@ Item {
             text: menu.rowMeta(row.track)
             color: theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(11)
+            font.pixelSize: 11
             font.letterSpacing: 0.2
             elide: Text.ElideRight
         }
@@ -1555,7 +1550,7 @@ Item {
         property string text: ""
         property string icon: ""
         signal clicked()
-        height: theme.androidHost ? 52 : 36
+        height: 36
         radius: 10
         color: footerMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent"
         border.width: 1
@@ -1566,9 +1561,9 @@ Item {
             spacing: 8
             PlayerIcon {
                 anchors.verticalCenter: parent.verticalCenter
-                width: theme.androidHost ? 28 : 16
-                height: width
-                iconSize: theme.androidHost ? 28 : 15
+                width: 16
+                height: 16
+                iconSize: 15
                 kind: button.icon
                 ink: footerMouse.containsMouse ? theme.ink : theme.inkDim
                 accessibleName: button.text
@@ -1578,7 +1573,7 @@ Item {
                 text: button.text
                 color: footerMouse.containsMouse ? theme.ink : theme.inkDim
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(14)
+                font.pixelSize: 14
                 font.weight: Font.Medium
             }
         }
@@ -1602,8 +1597,8 @@ Item {
         property real value: 0
         signal step(real delta)
         signal reset()
-        width: theme.androidHost ? 264 : 210
-        height: theme.androidHost ? 52 : 36
+        width: 210
+        height: 36
 
         Row {
             anchors.right: parent.right
@@ -1615,14 +1610,14 @@ Item {
                 text: "SYNC"
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(10)
+                font.pixelSize: 10
                 font.weight: Font.Bold
                 font.letterSpacing: 1.1
             }
 
             Rectangle {
-                width: theme.androidHost ? 176 : 128
-                height: theme.androidHost ? 56 : 34
+                width: 128
+                height: 34
                 radius: 10
                 color: Qt.rgba(1, 1, 1, 0.035)
 
@@ -1638,7 +1633,7 @@ Item {
 
                     Rectangle {
                         width: 58
-                        height: theme.androidHost ? 52 : 28
+                        height: 28
                         radius: 7
                         color: delayValueMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent"
                         Text {
@@ -1647,7 +1642,7 @@ Item {
                             color: theme.ink
                             font.family: theme.hud
                             font.features: ({ "tnum": 1 })
-                            font.pixelSize: theme.fontSize(13)
+                            font.pixelSize: 13
                             font.weight: Font.DemiBold
                         }
                         MouseArea {
@@ -1680,16 +1675,16 @@ Item {
         property string icon: ""
         property string accessibleName: ""
         signal clicked()
-        width: theme.androidHost ? 52 : 28
-        height: theme.androidHost ? 52 : 28
+        width: 28
+        height: 28
         radius: 8
         color: compactMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.075) : "transparent"
 
         PlayerIcon {
             anchors.centerIn: parent
-            width: theme.androidHost ? 28 : 14
-            height: width
-            iconSize: theme.androidHost ? 28 : 14
+            width: 14
+            height: 14
+            iconSize: 14
             kind: button.icon
             ink: compactMouse.containsMouse ? theme.ink : theme.inkDimmer
             accessibleName: button.accessibleName

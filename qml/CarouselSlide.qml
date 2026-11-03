@@ -108,7 +108,7 @@ Item {
             visible: !slideRoot.narrowLayout
             text: slideRoot.slide.ghost !== undefined ? slideRoot.slide.ghost : ""
             color: Qt.rgba(1, 1, 1, 0.06)
-            font.family: theme.display; font.bold: true; font.pixelSize: theme.fontSize(150)
+            font.family: theme.display; font.bold: true; font.pixelSize: 150
             anchors.right: parent.right; anchors.rightMargin: 40
             anchors.top: parent.top; anchors.topMargin: -30
         }
@@ -123,16 +123,16 @@ Item {
             spacing: slideRoot.compactCopy ? 8 : (slideRoot.televisionMode ? 12 : 10)
             Text { text: slideRoot.kicker.toUpperCase(); color: theme.gold
                 visible: text.length > 0
-                font.family: theme.ui; font.pixelSize: theme.fontSize(slideRoot.televisionMode ? 13 : 11); font.letterSpacing: 3 }
+                font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 13 : 11; font.letterSpacing: 3 }
             Text { text: slideRoot.slide.title !== undefined ? slideRoot.slide.title : ""
                 color: theme.ink; font.family: theme.display
-                font.pixelSize: theme.fontSize(slideRoot.televisionMode ? 58 : (slideRoot.narrowLayout ? 34 : (slideRoot.compactCopy ? 42 : 50)))
+                font.pixelSize: slideRoot.televisionMode ? 58 : (slideRoot.narrowLayout ? 34 : (slideRoot.compactCopy ? 42 : 50))
                 lineHeight: 0.96; maximumLineCount: 2; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap }
             Text { text: slideRoot.slide.blurb !== undefined ? slideRoot.slide.blurb : ""
                 visible: text.length > 0
                 color: theme.inkDim; font.family: theme.ui
-                font.pixelSize: theme.fontSize(slideRoot.compactCopy ? 13 : (slideRoot.televisionMode ? 16 : 14))
+                font.pixelSize: slideRoot.compactCopy ? 13 : (slideRoot.televisionMode ? 16 : 14)
                 maximumLineCount: slideRoot.compactCopy ? 2 : 3; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.25 }
             Row {
@@ -147,7 +147,7 @@ Item {
                         objectName: slideRoot.slideIndex >= 0 ? "featuredPrimaryLabel_" + slideRoot.slideIndex : ""
                         anchors.centerIn: parent; text: slideRoot.primaryLabel; color: "#1a1408"
                         visible: slideRoot.primaryIcon.length === 0
-                        font.family: theme.ui; font.pixelSize: theme.fontSize(slideRoot.televisionMode ? 16 : 14); font.weight: Font.DemiBold }
+                        font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 16 : 14; font.weight: Font.DemiBold }
                     PlayerIcon {
                         objectName: slideRoot.slideIndex >= 0 ? "featuredPrimaryIcon_" + slideRoot.slideIndex : ""
                         anchors.centerIn: parent
@@ -177,7 +177,7 @@ Item {
                     width: sl.implicitWidth + (slideRoot.televisionMode ? 44 : (slideRoot.narrowLayout ? 26 : 36))
                     color: Qt.rgba(1, 1, 1, 0.10); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.18)
                     Text { id: sl; anchors.centerIn: parent; text: slideRoot.secondaryLabel; color: theme.ink
-                        font.family: theme.ui; font.pixelSize: theme.fontSize(slideRoot.televisionMode ? 16 : 14); font.weight: Font.Medium }
+                        font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 16 : 14; font.weight: Font.Medium }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: slideRoot.secondaryClicked() }
                     KeyboardAction {

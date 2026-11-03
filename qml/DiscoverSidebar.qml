@@ -113,12 +113,12 @@ Item {
             Text {
                 text: "WORLD"
                 color: theme.gold
-                font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 2.8
+                font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.8
             }
             Text {
                 text: rail.worldName
                 color: theme.ink
-                font.family: theme.display; font.pixelSize: theme.fontSize(27); font.letterSpacing: -0.54
+                font.family: theme.display; font.pixelSize: 27; font.letterSpacing: -0.54
             }
         }
     }
@@ -147,7 +147,7 @@ Item {
                 leftPadding: 12
                 text: rail.host.textNoCatalogue
                 wrapMode: Text.WordWrap
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11); lineHeight: 1.45
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; lineHeight: 1.45
             }
 
             Repeater {
@@ -202,7 +202,7 @@ Item {
                             elide: Text.ElideRight
                             color: (src.current || srcAction.interactionActive) ? theme.ink : theme.inkDim
                             Behavior on color { ColorAnimation { duration: 160 } }
-                            font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
                         }
                     }
                     KeyboardAction {

@@ -51,7 +51,7 @@ Button {
                 text: root.collection.name
                 textFormat: Text.PlainText
                 font.family: theme.ui
-                font.pixelSize: theme.fontSize(15)
+                font.pixelSize: 15
                 font.weight: Font.DemiBold
                 color: theme.ink
                 elide: Text.ElideRight
@@ -59,7 +59,7 @@ Button {
             Text {
                 text: qsTr("%1 titles").arg(root.collection.items.length)
                 font.family: theme.ui
-                font.pixelSize: theme.fontSize(12)
+                font.pixelSize: 12
                 color: theme.inkDimmer
             }
         }

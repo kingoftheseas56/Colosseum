@@ -54,7 +54,7 @@ Item {
                       + ("0" + Math.floor((banner._remaining % 60000) / 1000)).slice(-2)
                 color: theme.inkDim
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(13)
+                font.pixelSize: 13
             }
         }
     }

@@ -11,10 +11,7 @@ Item {
     // The player's internal icon vocabulary (RoundButton.icon). Mapped to a vendored filename.
     property string kind: ""
     property color  ink: "#f7f7f5"
-    property bool androidHost: typeof PlatformRuntime !== "undefined" && PlatformRuntime
-        ? PlatformRuntime.android === true : Qt.platform.os === "android"
-    property real   iconSize: androidHost ? Math.min(32, Math.min(width, height) * 0.56)
-                                         : Math.round(Math.min(width, height) * 0.46)
+    property real   iconSize: Math.round(Math.min(width, height) * 0.46)
     property string accessibleName: ""
 
     Accessible.name: accessibleName

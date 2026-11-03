@@ -7,7 +7,6 @@ import "MangaBrowseDelivery.js" as MangaBrowse
 
 Column {
     id: mangaTab
-    Theme { id: interfaceTypography }
     property Flickable pageFlick: null
     property Item backdrop: null
     property var parkRowHandler: null
@@ -142,7 +141,7 @@ Column {
         visible: mangaTab.shelvesLoading || mangaTab.shelfError.length > 0
         text: mangaTab.shelvesLoading ? "Loading manga shelves…" : "More manga shelves are unavailable. Retry"
         color: "#b8bcc8"
-        font.pixelSize: interfaceTypography.fontSize(14)
+        font.pixelSize: 14
         wrapMode: Text.Wrap
         activeFocusOnTab: !mangaTab.shelvesLoading
         Accessible.role: Accessible.Button

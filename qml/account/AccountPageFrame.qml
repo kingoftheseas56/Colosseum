@@ -166,7 +166,7 @@ Item {
                     text: root.eyebrow
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: theme.fontSize(12)
+                    font.pixelSize: 12
                     font.weight: Font.DemiBold
                     font.letterSpacing: 2.6
                     wrapMode: Text.WordWrap
@@ -179,7 +179,7 @@ Item {
                     text: root.headline
                     color: theme.ink
                     font.family: theme.display
-                    font.pixelSize: theme.fontSize(root.compact ? 50 : Math.min(76, Math.max(56, root.width * 0.052)))
+                    font.pixelSize: root.compact ? 50 : Math.min(76, Math.max(56, root.width * 0.052))
                     font.weight: Font.Medium
                     font.letterSpacing: -1.2
                     lineHeight: 0.99
@@ -202,7 +202,7 @@ Item {
                     text: root.detail
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: theme.fontSize(14)
+                    font.pixelSize: 14
                     lineHeight: 1.7
                     wrapMode: Text.WordWrap
                 }

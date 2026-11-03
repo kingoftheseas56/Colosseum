@@ -277,7 +277,7 @@ ReaderOverlay {
                         width: noteFlick.width
                         wrapMode: TextEdit.Wrap
                         font.family: Theme.ui
-                        font.pixelSize: Theme.fontSize(13)
+                        font.pixelSize: 13
                         color: Theme.ink
                         selectionColor: Theme.gold
                         selectByMouse: true
@@ -297,7 +297,7 @@ ReaderOverlay {
                     visible: noteInput.text.length === 0
                     text: "Add a note…"
                     font.family: Theme.ui
-                    font.pixelSize: Theme.fontSize(13)
+                    font.pixelSize: 13
                     color: Theme.inkFaint
                 }
             }
@@ -322,7 +322,7 @@ ReaderOverlay {
                         anchors.centerIn: parent
                         text: "Save"
                         font.family: Theme.ui
-                        font.pixelSize: Theme.fontSize(13)
+                        font.pixelSize: 13
                         font.weight: Font.DemiBold
                         color: parent.canSave ? (saveMa.containsMouse ? Theme.gold : Theme.ink)
                                               : Theme.inkGhost
@@ -351,7 +351,7 @@ ReaderOverlay {
             id: t
             anchors.centerIn: parent
             font.family: Theme.ui
-            font.pixelSize: Theme.fontSize(13)
+            font.pixelSize: 13
             font.weight: Font.DemiBold
             color: ma.containsMouse ? Theme.ink : Theme.inkDim
         }

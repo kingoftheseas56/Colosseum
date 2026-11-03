@@ -158,20 +158,20 @@ Item {
                         Text { text: root.mediaKind === "anime" ? "THEATRE · ANIME · "
                                     : root.mediaKind === "movie" ? "THEATRE · MOVIES · " : "THEATRE · SHOWS · "
                                color: theme.inkDimmer
-                               font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.4; font.weight: Font.DemiBold }
+                               font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.4; font.weight: Font.DemiBold }
                         Text { text: "GENRE"; color: theme.gold
-                               font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.4; font.bold: true }
+                               font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.4; font.bold: true }
                     }
                     Text {
                         text: root.genreName; color: theme.ink
-                        font.family: theme.display; font.pixelSize: theme.fontSize(72); font.letterSpacing: -1
+                        font.family: theme.display; font.pixelSize: 72; font.letterSpacing: -1
                         topPadding: 8
                     }
                     Text {
                         text: root.genreData.desc
                         visible: text.length > 0
                         color: theme.inkDim; font.family: theme.display; font.italic: true
-                        font.pixelSize: theme.fontSize(18); font.weight: Font.Light
+                        font.pixelSize: 18; font.weight: Font.Light
                         lineHeight: 1.42; wrapMode: Text.WordWrap
                         width: parent.width; topPadding: 14
                         maximumLineCount: 3; elide: Text.ElideRight
@@ -183,7 +183,7 @@ Item {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             textFormat: Text.StyledText
-                            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+                            font.family: theme.ui; font.pixelSize: 14
                             text: root.loading
                                   ? "<font color='#9a99a5'>Loading…</font>"
                                   : (root.genreData.count > 0
@@ -218,7 +218,7 @@ Item {
                             Text {
                                 id: gpl; anchors.centerIn: parent; text: modelData
                                 color: selected ? theme.gold : (gpMa.containsMouse ? theme.ink : theme.inkDim)
-                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                                font.family: theme.ui; font.pixelSize: 13
                                 font.weight: selected ? Font.DemiBold : Font.Normal
                             }
                             MouseArea {
@@ -245,7 +245,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Explore"
                             color: theme.gold
-                            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                            font.family: theme.ui; font.pixelSize: 13
                             font.weight: Font.DemiBold
                         }
                         MouseArea {
@@ -269,7 +269,7 @@ Item {
                     Text {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                         text: root.sortMode === "score" ? "TOP RATED" : "MOST WATCHED"
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                         font.weight: Font.DemiBold; font.letterSpacing: 1.6
                     }
                     Row {
@@ -284,7 +284,7 @@ Item {
                             Text {
                                 id: srt; anchors.centerIn: parent
                                 textFormat: Text.StyledText
-                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                                font.family: theme.ui; font.pixelSize: 13
                                 text: "<font color='#c9c8d0'>Sorted by </font><b><font color='#f7f7f5'>"
                                       + (root.sortMode === "score" ? "Score" : "Watchers") + "</font></b> ⇅"
                             }
@@ -309,7 +309,7 @@ Item {
                                     border.width: 1; border.color: theme.edge
                                     Text { anchors.centerIn: parent; text: modelData.g
                                            color: (root.compact === modelData.c) ? theme.ink : theme.inkDimmer
-                                           font.pixelSize: theme.fontSize(15) }
+                                           font.pixelSize: 15 }
                                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                                 onClicked: root.compact = modelData.c }
                                     KeyboardAction {
@@ -377,7 +377,7 @@ Item {
                 Text {
                     visible: !root.loading && root.genreData.cards.length === 0
                     text: "Nothing in this genre yet — try another."
-                    color: theme.inkDimmer; font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(16)
+                    color: theme.inkDimmer; font.family: theme.display; font.italic: true; font.pixelSize: 16
                     topPadding: 30
                 }
 
@@ -439,7 +439,7 @@ Item {
             Text {
                 anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12
                 text: dc.rank < 10 ? "0" + dc.rank : "" + dc.rank
-                color: theme.inkDimmer; font.family: theme.display; font.pixelSize: theme.fontSize(15)
+                color: theme.inkDimmer; font.family: theme.display; font.pixelSize: 15
                 opacity: 0.7; z: 2
             }
 
@@ -463,7 +463,7 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         text: dc.card.title || ""; color: theme.ink
-                        font.family: theme.display; font.pixelSize: theme.fontSize(18); font.weight: Font.Medium
+                        font.family: theme.display; font.pixelSize: 18; font.weight: Font.Medium
                         font.letterSpacing: -0.2; lineHeight: 1.08
                         wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                         rightPadding: 22
@@ -472,7 +472,7 @@ Item {
                         Layout.fillWidth: true; topPadding: 6
                         text: [dc.card.type, dc.card.year, dc.card.status].filter(function(s){return s}).join(" · ")
                               + "  ·  " + (dc.card.metaCounts || "")
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                         elide: Text.ElideRight
                     }
                     // genre chips (current genre lit gold)
@@ -489,14 +489,14 @@ Item {
                                 border.color: selected ? Qt.rgba(0.94,0.77,0.29,0.45) : Qt.rgba(1,1,1,0.10)
                                 Text { id: chl; anchors.centerIn: parent; text: modelData
                                        color: selected ? theme.gold : theme.inkDim
-                                       font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
+                                       font.family: theme.ui; font.pixelSize: 11 }
                             }
                         }
                     }
                     Text {
                         Layout.fillWidth: true; Layout.fillHeight: true; topPadding: 10
                         text: dc.card.synopsis || ""
-                        color: theme.inkDim; font.family: theme.display; font.pixelSize: theme.fontSize(13)
+                        color: theme.inkDim; font.family: theme.display; font.pixelSize: 13
                         font.weight: Font.Light; lineHeight: 1.4
                         wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
                         clip: true
@@ -509,14 +509,14 @@ Item {
                             Text { text: "★"; color: theme.gold; font.pixelSize: 13
                                    anchors.verticalCenter: parent.verticalCenter }
                             Text { text: (dc.card.score !== null && dc.card.score !== undefined) ? dc.card.score : "—"
-                                   color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
+                                   color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
                                    anchors.verticalCenter: parent.verticalCenter }
                         }
                         Text { visible: (dc.card.members || "") !== ""
                                text: (dc.card.members || "0") + " watchers"
-                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
                         Text { Layout.fillWidth: true; text: dc.card.authors || ""
-                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                                elide: Text.ElideRight }
                         // + Library (self-contained added state until the library store lands)
                         Rectangle {
@@ -530,7 +530,7 @@ Item {
                             Text { id: addl; anchors.centerIn: parent
                                    text: parent.added ? "✓ In Library" : "+ Library"
                                    color: parent.added ? theme.gold : theme.inkDim
-                                   font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold }
+                                   font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
                             MouseArea { id: addMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: dc.toggleLibrary() }
@@ -585,13 +585,13 @@ Item {
                     color: Qt.rgba(0,0,0,0.62)
                     Text { id: scl; anchors.centerIn: parent
                            text: "★ " + ((ct.card.score !== null && ct.card.score !== undefined) ? ct.card.score : "—")
-                           color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold }
+                           color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold }
                 }
             }
             Text {
                 anchors.top: cv.bottom; anchors.topMargin: 7
                 width: parent.width; text: ct.card.title || ""
-                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                color: theme.ink; font.family: theme.ui; font.pixelSize: 13
                 wrapMode: Text.WordWrap; maximumLineCount: 1; elide: Text.ElideRight
             }
             MouseArea { id: ctMa; anchors.fill: parent; hoverEnabled: true

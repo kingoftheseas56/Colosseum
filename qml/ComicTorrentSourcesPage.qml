@@ -310,7 +310,7 @@ Item {
         Text {
             width: parent.width
             text: "ALTERNATE SOURCES · COLLECTED EDITION"
-            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+            color: theme.gold; font.family: theme.ui; font.pixelSize: 12
             font.letterSpacing: 4; elide: Text.ElideRight
         }
         Text {
@@ -318,7 +318,7 @@ Item {
             text: sheet.context.editionTitle ? String(sheet.context.editionTitle)
                   : (sheet.context.seriesTitle ? String(sheet.context.seriesTitle) : "Alternate sources")
             color: theme.ink; font.family: theme.display
-            font.pixelSize: theme.fontSize(sheet.compactHeight ? 34 : 56); font.weight: Font.DemiBold
+            font.pixelSize: sheet.compactHeight ? 34 : 56; font.weight: Font.DemiBold
             maximumLineCount: 1; elide: Text.ElideRight
             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
         }
@@ -326,7 +326,7 @@ Item {
             width: parent.width
             visible: sheet.identityLine.length > 0
             text: sheet.identityLine
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
             font.letterSpacing: 1; elide: Text.ElideRight
         }
     }
@@ -355,7 +355,7 @@ Item {
                 anchors.leftMargin: 22; anchors.rightMargin: 22
                 verticalAlignment: TextInput.AlignVCenter
                 clip: true
-                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(16)
+                color: theme.ink; font.family: theme.ui; font.pixelSize: 16
                 selectByMouse: true
                 selectionColor: Qt.rgba(0.94, 0.77, 0.29, 0.35)
                 text: sheet.queryText
@@ -365,7 +365,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: queryInput.text.length === 0
                     text: "Search another title or ISBN"
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(16)
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 16
                 }
             }
         }
@@ -378,7 +378,7 @@ Item {
             Behavior on color { ColorAnimation { duration: 140 } }
             Text {
                 anchors.centerIn: parent; text: "Search"; color: "#1a1306"
-                font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
             }
             MouseArea {
                 id: sbMa; anchors.fill: parent; hoverEnabled: true
@@ -421,13 +421,13 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: sheet.visibleRows.length + (sheet.visibleRows.length === 1 ? " result" : " results")
                           + (sheet.loading ? "   ·   still searching…" : "")
-                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(16); font.weight: Font.DemiBold
+                    color: theme.ink; font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
                 }
                 Text {
                     anchors.right: parent.right; anchors.rightMargin: 26
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Pirate Bay · ExtraTorrents · Torrents-CSV"
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 1
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
                 }
                 Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
             }
@@ -443,7 +443,7 @@ Item {
                          ? "Some sources did not answer. Showing the results that arrived."
                          : "No torrents matched this query. Try another title or ISBN.")
                 color: sheet.errors.length > 0 ? "#e6a3a3" : theme.inkDim
-                font.family: theme.ui; font.pixelSize: theme.fontSize(16)
+                font.family: theme.ui; font.pixelSize: 16
             }
 
             ListView {
@@ -478,7 +478,7 @@ Item {
                         Text {
                             anchors.centerIn: parent
                             text: String(row.modelData.sourceName || "?").charAt(0).toUpperCase()
-                            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(24); font.weight: Font.DemiBold
+                            color: theme.ink; font.family: theme.display; font.pixelSize: 24; font.weight: Font.DemiBold
                         }
                     }
 
@@ -492,20 +492,20 @@ Item {
                             spacing: 12
                             Text {
                                 text: row.modelData.sourceName || "Torrent"
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                             Text {
                                 text: sheet.confidenceLabel(row.modelData.confidence)
                                 color: sheet.confidenceColor(row.modelData.confidence)
-                                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold; font.letterSpacing: 0.5
+                                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: 0.5
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                         }
                         Text {
                             width: parent.width
                             text: row.modelData.title || ""
-                            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); elide: Text.ElideRight
+                            color: theme.ink; font.family: theme.ui; font.pixelSize: 14; elide: Text.ElideRight
                         }
                         // Restrained evidence: a FORMAT RANGE / coverage badge, an ISSUES
                         // badge, and an uploader-trust marker — the SAME gold evidence
@@ -519,7 +519,7 @@ Item {
                                 border.color: Qt.rgba(0.94, 0.77, 0.29, 0.4)
                                 Text {
                                     id: covText; anchors.centerIn: parent; text: "FORMAT RANGE"
-                                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(10)
+                                    color: theme.gold; font.family: theme.ui; font.pixelSize: 10
                                     font.weight: Font.DemiBold; font.letterSpacing: 0.6
                                 }
                             }
@@ -529,7 +529,7 @@ Item {
                                 color: Qt.rgba(1, 1, 1, 0.05); border.width: 1; border.color: theme.edge
                                 Text {
                                     id: issText; anchors.centerIn: parent; text: "ISSUES"
-                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(10)
+                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 10
                                     font.weight: Font.DemiBold; font.letterSpacing: 0.6
                                 }
                             }
@@ -541,7 +541,7 @@ Item {
                                 Text {
                                     id: upText; anchors.centerIn: parent
                                     text: "TRUSTED · " + String(row.modelData.uploader || "")
-                                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(10)
+                                    color: theme.gold; font.family: theme.ui; font.pixelSize: 10
                                     font.weight: Font.DemiBold; font.letterSpacing: 0.6
                                 }
                             }
@@ -553,7 +553,7 @@ Item {
                                 if (row.modelData.seeders !== undefined) p.push("\u{1F464} " + row.modelData.seeders)
                                 return p.join("   ·   ")
                             }
-                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
+                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                         }
                     }
 
@@ -597,13 +597,13 @@ Item {
                 Text {
                     width: parent.width; horizontalAlignment: Text.AlignHCenter
                     text: "Inspecting pack…"
-                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(20); font.weight: Font.DemiBold
+                    color: theme.ink; font.family: theme.display; font.pixelSize: 20; font.weight: Font.DemiBold
                 }
                 Text {
                     width: parent.width; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                     visible: !!(sheet.pendingRow && sheet.pendingRow.title)
                     text: sheet.pendingRow ? String(sheet.pendingRow.title || "") : ""
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                 }
                 Rectangle {
                     objectName: "comicTorrentCancelInspection"
@@ -613,7 +613,7 @@ Item {
                     border.width: 1; border.color: theme.edge
                     Text {
                         anchors.centerIn: parent; text: "Cancel"
-                        color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+                        color: theme.gold; font.family: theme.ui; font.pixelSize: 14
                     }
                     KeyboardAction {
                         id: cancelInspectionAction
@@ -645,12 +645,12 @@ Item {
                 Text {
                     width: parent.width
                     text: "This pack is missing issues this edition needs."
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(17); wrapMode: Text.WordWrap
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: 17; wrapMode: Text.WordWrap
                 }
                 Text {
                     width: parent.width
                     text: (sheet.missingIssues || []).join("   ·   ")
-                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(14); wrapMode: Text.WordWrap
+                    color: theme.gold; font.family: theme.ui; font.pixelSize: 14; wrapMode: Text.WordWrap
                 }
                 Row {
                     spacing: 14
@@ -659,7 +659,7 @@ Item {
                         color: anotherMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                         border.width: 1; border.color: theme.edge
                         Text { anchors.centerIn: parent; text: "Try another source"; color: theme.ink
-                            font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
+                            font.family: theme.ui; font.pixelSize: 14 }
                         MouseArea { id: anotherMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.rejectIncomplete(false) }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Try another source"
@@ -670,7 +670,7 @@ Item {
                         color: manualMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                         border.width: 1; border.color: theme.edge
                         Text { anchors.centerIn: parent; text: "Search manually"; color: theme.ink
-                            font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
+                            font.family: theme.ui; font.pixelSize: 14 }
                         MouseArea { id: manualMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.rejectIncomplete(true) }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search manually"
@@ -692,7 +692,7 @@ Item {
                 Text {
                     width: parent.width
                     text: "Only a combined archive covers this edition — it likely includes other editions too."
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(17); wrapMode: Text.WordWrap
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: 17; wrapMode: Text.WordWrap
                 }
                 Row {
                     spacing: 14
@@ -701,7 +701,7 @@ Item {
                         color: combBackMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                         border.width: 1; border.color: theme.edge
                         Text { anchors.centerIn: parent; text: "Go back"; color: theme.ink
-                            font.family: theme.ui; font.pixelSize: theme.fontSize(15) }
+                            font.family: theme.ui; font.pixelSize: 15 }
                         MouseArea { id: combBackMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.rejectCombined() }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Go back"
@@ -712,7 +712,7 @@ Item {
                         color: combGoMa.containsMouse ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.85)
                         Behavior on color { ColorAnimation { duration: 140 } }
                         Text { anchors.centerIn: parent; text: "Download whole archive anyway"; color: "#1a1306"
-                            font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold }
+                            font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
                         MouseArea { id: combGoMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.confirmCombined() }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Download whole archive anyway"
@@ -745,13 +745,13 @@ Item {
                 Text {
                     width: parent.width
                     text: "This release does not closely match the collected edition."
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(17); wrapMode: Text.WordWrap
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: 17; wrapMode: Text.WordWrap
                 }
                 Text {
                     width: parent.width
                     visible: !!(sheet.pendingRow && sheet.pendingRow.title)
                     text: sheet.pendingRow ? String(sheet.pendingRow.title || "") : ""
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13); wrapMode: Text.WordWrap
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.WordWrap
                 }
                 Row {
                     anchors.right: parent.right
@@ -761,7 +761,7 @@ Item {
                         color: backMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                         border.width: 1; border.color: theme.edge
                         Text { anchors.centerIn: parent; text: "Go back"; color: theme.ink
-                            font.family: theme.ui; font.pixelSize: theme.fontSize(15) }
+                            font.family: theme.ui; font.pixelSize: 15 }
                         MouseArea { id: backMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.cancelWeakSelection() }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Go back"
@@ -771,7 +771,7 @@ Item {
                         width: 150; height: 44; radius: 12; color: caMa.containsMouse ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.85)
                         Behavior on color { ColorAnimation { duration: 140 } }
                         Text { anchors.centerIn: parent; text: "Choose anyway"; color: "#1a1306"
-                            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold }
+                            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
                         MouseArea { id: caMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.confirmWeakSelection() }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Choose source anyway"

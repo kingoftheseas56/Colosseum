@@ -57,13 +57,13 @@ Item {
             anchors.left: parent.left; anchors.leftMargin: 26
             anchors.verticalCenter: parent.verticalCenter
             text: picker.files.length + (picker.files.length === 1 ? " comic archive" : " comic archives")
-            color: t.ink; font.family: t.display; font.pixelSize: t.fontSize(16); font.weight: Font.DemiBold
+            color: t.ink; font.family: t.display; font.pixelSize: 16; font.weight: Font.DemiBold
         }
         Text {
             anchors.right: parent.right; anchors.rightMargin: 26
             anchors.verticalCenter: parent.verticalCenter
             text: "CHOOSE ONE"; color: t.gold; font.family: t.ui
-            font.pixelSize: t.fontSize(12); font.letterSpacing: 3
+            font.pixelSize: 12; font.letterSpacing: 3
         }
         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: t.edge }
     }
@@ -98,7 +98,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: picker.extensionOf(fileRow.modelData)
-                    color: t.inkDim; font.family: t.ui; font.pixelSize: t.fontSize(12); font.weight: Font.DemiBold
+                    color: t.inkDim; font.family: t.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                 }
             }
             Column {
@@ -109,11 +109,11 @@ Item {
                 Text {
                     width: parent.width
                     text: picker.nameOf(fileRow.modelData)
-                    color: t.ink; font.family: t.ui; font.pixelSize: t.fontSize(15); elide: Text.ElideMiddle
+                    color: t.ink; font.family: t.ui; font.pixelSize: 15; elide: Text.ElideMiddle
                 }
                 Text {
                     text: picker.sizeTextOf(fileRow.modelData)
-                    color: t.inkDim; font.family: t.ui; font.pixelSize: t.fontSize(13)
+                    color: t.inkDim; font.family: t.ui; font.pixelSize: 13
                 }
             }
             Rectangle {

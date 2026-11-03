@@ -40,7 +40,7 @@ Popup {
             text: qsTr("Delete this collection?")
             color: theme.ink
             font.family: theme.display
-            font.pixelSize: theme.fontSize(27)
+            font.pixelSize: 27
             wrapMode: Text.Wrap
         }
         Text {
@@ -49,7 +49,7 @@ Popup {
             textFormat: Text.PlainText
             color: theme.ink
             font.family: theme.ui
-            font.pixelSize: theme.fontSize(16)
+            font.pixelSize: 16
             font.weight: Font.DemiBold
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
         }
@@ -58,7 +58,7 @@ Popup {
             text: qsTr("Only this collection will be removed. Your Libraries, downloads, and progress stay as they are.")
             color: theme.inkDim
             font.family: theme.ui
-            font.pixelSize: theme.fontSize(14)
+            font.pixelSize: 14
             wrapMode: Text.Wrap
         }
         Text {
@@ -68,7 +68,7 @@ Popup {
             textFormat: Text.PlainText
             color: "#efb6a9"
             font.family: theme.ui
-            font.pixelSize: theme.fontSize(13)
+            font.pixelSize: 13
             wrapMode: Text.Wrap
             Accessible.role: Accessible.AlertMessage
         }

@@ -88,10 +88,7 @@ TestCase {
         item.androidHost = true
         wait(30)
         noActiveWindowActions(item)
-        compare(chrome.spacing, 4)
-        verify(chrome.width < desktopWidth)
-        compare(child(item, "topBarSearch_Biblio").width, 48)
-        compare(child(item, "topBarWallpaperButton").width, 48)
+        compare(chrome.width, desktopWidth - 3 * 22 - 3 * chrome.spacing)
         compare(child(item, "topBarSearch_Biblio").visible, true)
         compare(child(item, "topBarWallpaperButton").visible, true)
         item.androidHost = false
@@ -151,9 +148,7 @@ TestCase {
         const posterWidth = poster.width; const posterHeight = poster.height; const wallWidth = wall.width
         const beforePoster = poster.mapToItem(item, 0, 0)
         const beforeWall = wall.mapToItem(item, 0, 0)
-        const heading = child(item,"layoutDiscoverHeadingGroup")
-        const beforeHeaderHeight = heading.parent.height
-        const fields = ["layoutDiscoverHeadingGroup","layoutDiscoverHeadingKicker","layoutDiscoverSummary","layoutDiscoverHeadingProvider"]
+        const fields = ["layoutDiscoverHeadingGroup","layoutDiscoverHeadingKicker","layoutDiscoverSummary","layoutDiscoverHeadingTitle","layoutDiscoverHeadingProvider"]
         const before = fields.map(function(name) { return rightIn(child(item,name),item) })
         item.androidHost = true
         wait(30)
@@ -161,9 +156,9 @@ TestCase {
         compare(child(item,"layoutDiscoverHeadingProvider").text, data.provider)
         compare(poster.width, posterWidth); compare(poster.height, posterHeight); compare(wall.width, wallWidth)
         fuzzyCompare(wall.mapToItem(item,0,0).x,beforeWall.x,0.01)
-        fuzzyCompare(wall.mapToItem(item,0,0).y,beforeWall.y + heading.parent.height - beforeHeaderHeight,0.01)
+        fuzzyCompare(wall.mapToItem(item,0,0).y,beforeWall.y,0.01)
         fuzzyCompare(poster.mapToItem(item,0,0).x,beforePoster.x,0.01)
-        fuzzyCompare(poster.mapToItem(item,0,0).y,beforePoster.y + heading.parent.height - beforeHeaderHeight,0.01)
+        fuzzyCompare(poster.mapToItem(item,0,0).y,beforePoster.y,0.01)
         fuzzyCompare(rightIn(child(item,"discoverCatalogMenu"),item),rightIn(child(item,"layoutDiscoverHeadingGroup"),item),0.01)
         if (data.longTitle) {
             compare(item.stackedTypeHeader, true)

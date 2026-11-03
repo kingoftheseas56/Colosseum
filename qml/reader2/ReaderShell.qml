@@ -1419,21 +1419,11 @@ FocusScope {
             spacing: 14
 
             Text {
-                id: openErrorHeadline
                 anchors.horizontalCenter: parent.horizontalCenter
-                Binding {
-                    target: openErrorHeadline
-                    property: "width"
-                    when: Theme.androidHost
-                    value: openErrorHeadline.parent.width
-                    restoreMode: Binding.RestoreBindingOrValue
-                }
-                wrapMode: Theme.androidHost ? Text.WordWrap : Text.NoWrap
-                horizontalAlignment: Text.AlignHCenter
                 text: "Couldn't open this book"
                 color: Theme.ink
                 font.family: Theme.display
-                font.pixelSize: Theme.fontSize(22)
+                font.pixelSize: 22
             }
             Text {
                 width: parent.width
@@ -1441,14 +1431,14 @@ FocusScope {
                 text: shell.openErrorText
                 color: Theme.inkFaint
                 font.family: Theme.ui
-                font.pixelSize: Theme.fontSize(13)
+                font.pixelSize: 13
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
             }
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: backLabel.width + 34
-                height: Theme.androidHost ? 52 : 38
+                height: 38
                 radius: 19
                 color: Theme.bar
                 border.color: Theme.barBorder
@@ -1460,7 +1450,7 @@ FocusScope {
                     color: backMa.containsMouse ? Theme.ink : Theme.inkDim
                     font.family: Theme.ui
                     font.weight: Font.DemiBold
-                    font.pixelSize: Theme.fontSize(14)
+                    font.pixelSize: 14
                 }
                 ReaderKeyboardArea {
                     id: backMa

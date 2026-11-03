@@ -207,15 +207,6 @@ Item {
         onClicked: tap()
     }
 
-    function ensureVisible(item) {
-        if (!theme.androidHost || !item) return
-        const p = item.mapToItem(panelViewport.contentItem, 0, 0)
-        if (p.y < panelViewport.contentY)
-            panelViewport.contentY = Math.max(0, p.y - 8)
-        else if (p.y + item.height > panelViewport.contentY + panelViewport.height)
-            panelViewport.contentY = Math.min(Math.max(0, panelViewport.contentHeight - panelViewport.height), p.y + item.height - panelViewport.height + 8)
-    }
-
     // ================= vocabulary =================
     // Ported from ComicReaderImagePopover so the two anchored panels read as ONE family while both
     // exist — the same thing that panel did with the settings sheet's switch, and for the same
@@ -227,7 +218,7 @@ Item {
         property bool active: false
         property string label: ""
         signal tapped()
-        implicitHeight: theme.androidHost ? 48 : 22
+        implicitHeight: 22
         implicitWidth: chipText.implicitWidth + 18
         radius: 7
         color: chip.active ? root.cGoldChipBg : "transparent"
@@ -239,10 +230,10 @@ Item {
             text: chip.label
             color: chip.active ? theme.gold : theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(12)
+            font.pixelSize: 12
             font.bold: chip.active
         }
-        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: chip.label; keyboardFocused: function() { root.ensureVisible(chip) }; onClicked: chip.tapped() }
+        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: chip.label; onClicked: chip.tapped() }
     }
 
     // A continuous control. `value` is a PLAIN property the owner assigns, never a binding: a bound
@@ -262,7 +253,7 @@ Item {
         property bool held: false
         signal moved(real value)
 
-        implicitHeight: theme.androidHost ? 64 : 44
+        implicitHeight: 44
         width: parent ? parent.width : 0
 
         onExternalValueChanged: if (!held) value = externalValue
@@ -296,7 +287,7 @@ Item {
             text: slider.label
             color: theme.inkDim
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(12)
+            font.pixelSize: 12
         }
         Text {
             objectName: slider.objectName.length ? (slider.objectName + "Readout") : ""
@@ -305,7 +296,7 @@ Item {
             text: slider.readout
             color: theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(11)
+            font.pixelSize: 11
         }
 
         Rectangle {
@@ -335,11 +326,10 @@ Item {
 
             ComicReaderKeyboardArea {
                 anchors.fill: parent
-                anchors.topMargin: theme.androidHost ? -23 : -11
-                anchors.bottomMargin: theme.androidHost ? -23 : -11
+                anchors.topMargin: -11
+                anchors.bottomMargin: -11
                 cursorShape: Qt.PointingHandCursor
                 keyboardLabel: slider.label
-                keyboardFocused: function() { root.ensureVisible(slider) }
                 keyboardRole: Accessible.Slider
                 keyboardDecrease: function() {
                     var d = slider.step > 0 ? slider.step : Math.max(0.01, (slider.to - slider.from) / 20)
@@ -369,7 +359,7 @@ Item {
         width: 322
         // Content-sized: the panel is exactly as tall as what it holds, which is what makes the
         // Long Strip block GROW the same panel rather than opening a second surface.
-        height: theme.androidHost ? Math.min(column.implicitHeight + 28, Math.max(0, root.height - root.railHeight - y - 10)) : column.implicitHeight + 28
+        height: column.implicitHeight + 28
         // Centred under the command that raised it, and clamped inside the reader so a command near
         // an edge can never push the panel off screen.
         x: {
@@ -402,14 +392,6 @@ Item {
             onClicked: tap()
         }
 
-        Flickable {
-            id: panelViewport
-            anchors.fill: parent
-            contentHeight: column.implicitHeight + 28
-            contentWidth: width
-            interactive: theme.androidHost && contentHeight > height
-            clip: theme.androidHost
-            boundsBehavior: Flickable.StopAtBounds
         Column {
             id: column
             objectName: "layoutPanelColumn"
@@ -430,7 +412,7 @@ Item {
                     objectName: "layoutChoice_" + modelData
                     readonly property bool active: root.layout === modelData
                     width: parent.width
-                    height: theme.androidHost ? 52 : 32
+                    height: 32
                     function tap() { root.setLayout(modelData) }
 
                     // A REAL glyph, never a text mark (semantic-icon-audit law) — the same three
@@ -440,7 +422,7 @@ Item {
                         id: choiceIcon
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        width: theme.androidHost ? 28 : 16; height: width
+                        width: 16; height: 16
                         kind: root.layoutGlyph(choice.modelData)
                         accessibleName: root.layoutLabel(choice.modelData)
                         ink: choice.active ? theme.gold : (choiceMa.containsMouse ? theme.ink : theme.inkDim)
@@ -452,12 +434,11 @@ Item {
                         text: root.layoutLabel(choice.modelData)
                         color: choice.active ? theme.gold : (choiceMa.containsMouse ? theme.ink : theme.inkDim)
                         font.family: theme.hud
-                        font.pixelSize: theme.fontSize(13)
+                        font.pixelSize: 13
                         font.bold: choice.active
                     }
                     ComicReaderKeyboardArea {
                         id: choiceMa
-                        keyboardFocused: function() { root.ensureVisible(choice) }
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
@@ -497,14 +478,14 @@ Item {
                 // ---- Page spacing. Seamless is the default and stays it. ----
                 Item {
                     width: parent.width
-                    height: theme.androidHost ? 52 : 32
+                    height: 32
                     Text {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Page spacing"
                         color: theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: theme.fontSize(12)
+                        font.pixelSize: 12
                     }
                     Row {
                         anchors.right: parent.right
@@ -533,7 +514,7 @@ Item {
                 Item {
                     objectName: "layoutAutoScrollRow"
                     width: parent.width
-                    height: theme.androidHost ? 52 : 34
+                    height: 34
                     function tap() { root.toggleAutoScroll() }
                     Text {
                         anchors.left: parent.left
@@ -541,7 +522,7 @@ Item {
                         text: "Auto-scroll"
                         color: theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: theme.fontSize(12)
+                        font.pixelSize: 12
                     }
                     Chip {
                         id: autoChip
@@ -570,7 +551,6 @@ Item {
 
                 Item { width: 1; height: 2 }
             }
-        }
         }
     }
 }
