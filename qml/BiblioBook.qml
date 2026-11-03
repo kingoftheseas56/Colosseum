@@ -19,6 +19,12 @@ Item {
     objectName: "biblioBookDetail"   // test-only seam: Lanista qml-get reads localPath/readError/pendingReadTransport
     property var book: ({})
     property Item backdrop
+    property bool androidHost: Qt.platform.os === "android"
+    property real safeAreaLeft: detail.SafeArea.margins.left
+    property real safeAreaRight: detail.SafeArea.margins.right
+    readonly property real outerLeftInset: Math.max(layout.outerPageMargin, detail.safeAreaLeft)
+    readonly property real outerRightInset: Math.max(layout.outerPageMargin, detail.safeAreaRight)
+    AdaptiveLayout { id: layout; androidHost: detail.androidHost; viewportWidth: detail.width }
     property var editions: []
     property bool edLoading: false
     property string localPath: ""        // a downloaded edition of this book on disk ("" = none yet)
@@ -726,9 +732,10 @@ Item {
     // ── top bar ────────────────────────────────────────────────────────────
     Glass {
         id: bar
+        objectName: "biblioBookHeader"
         backdrop: detail.backdrop
-        x: theme.margin; y: 22
-        width: detail.width - theme.margin * 2
+        x: detail.outerLeftInset; y: 22
+        width: detail.width - detail.outerLeftInset - detail.outerRightInset
         height: 64; radius: 16
 
         Row {
@@ -751,6 +758,9 @@ Item {
             }
         }
         Row {
+            objectName: "biblioBookWindowControls"
+            visible: !detail.androidHost
+            width: visible ? implicitWidth : 0
             anchors.right: parent.right; anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
@@ -797,8 +807,9 @@ Item {
 
         Item {
             id: body
-            x: theme.margin
-            width: detail.width - theme.margin * 2
+            objectName: "biblioBookBody"
+            x: detail.outerLeftInset
+            width: detail.width - detail.outerLeftInset - detail.outerRightInset
             implicitHeight: Math.max(coverCol.implicitHeight, textCol.implicitHeight) + 36
 
             // ── cover column ──
