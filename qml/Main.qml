@@ -291,7 +291,9 @@ Window {
             Qt.callLater(function() { syncCenterLayer.item.focusMainSyncButton() })
             return
         }
-        win.focusTrackersDoor()
+        const theatreWorld = win.theatreWorldItem()
+        if (theatreWorld)
+            Qt.callLater(function() { theatreWorld.focusStremioButton() })
     }
     function requestTheatreRemoval(entry) {
         theatreRemoval.entry = entry
@@ -2548,7 +2550,20 @@ Window {
     function toggleSyncCenterPage() {
         !syncCenterLayer.active ? win.openSyncCenterPage() : win.closeSyncCenterPage()
     }
-    function focusTrackersDoor() { taskbar.focusUtilityAction("trackers") }
+    // The trackers door lives in the TopBar of home and of every world; hand focus back to
+    // whichever of those is in front.
+    function focusTrackersDoor() {
+        for (let i = 0; i < worldRepeater.count; ++i) {
+            const loader = worldRepeater.itemAt(i)
+            if (loader && loader.mode === worldStack.current && loader.item
+                    && loader.item.focusTrackersButton) {
+                const world = loader.item
+                Qt.callLater(function() { world.focusTrackersButton() })
+                return
+            }
+        }
+        Qt.callLater(function() { topbar.focusTrackersButton() })
+    }
 
     // ---- Arc 35: local-first History, Highlights, and Stats ----
     function openHistoryStatsPage() {
@@ -4141,7 +4156,8 @@ Window {
         onFullscreenClicked: win.toggleFullscreenShell()
         onMinimizeClicked: win.minimizeShell()
         onPowerClicked: win.requestApplicationQuit()
-        onFeedbackClicked: win.openFeedback()
+        // Update glyph (home only, takes the retired search slot). Toggle mirrors
+        // the taskbar launcher: open when closed, close when already front.
         updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
         updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
         reducedMotion: win.reducedMotion
@@ -4731,7 +4747,6 @@ Window {
                     item.backdrop = wall
                     item.homeRequested.connect(win.closeWorld)
                     item.mediumSelected.connect(win.openWorld)
-                    item.feedbackClicked.connect(win.openFeedback)
                     if (mode === "Vinyl") {
                         item.accountClicked.connect(function(anchorRight, anchorBottom) {
                             accountFlyout.toggleAt(anchorRight, anchorBottom)
@@ -5608,7 +5623,6 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.backRequested.connect(win.closeVaultPage)
-            item.feedbackClicked.connect(win.openFeedback)
             win.finishNamedCollectionVaultOpen()
             item.addFolderRequested.connect(function() { vaultFolderDialog.open() })
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
@@ -5844,7 +5858,6 @@ Window {
                 accountCenter.close()
             })
             item.homeRequested.connect(win.closeFeriaPage)
-            item.feedbackClicked.connect(win.openFeedback)
             item.fullscreenClicked.connect(win.toggleFullscreenShell)
             item.minimizeClicked.connect(win.minimizeShell)
             item.powerClicked.connect(function() { win.requestApplicationQuit() })
@@ -6102,20 +6115,7 @@ Window {
     Taskbar {
         id: taskbar
         z: 900
-        backdrop: wall
-        worldMode: worldStack.current
-        trackersActive: syncCenterLayer.active
-        updateAvailable: typeof Updates !== "undefined" && Updates.updateAvailable
-        updateUnseen: typeof Updates !== "undefined" && Updates.unseenUpdate
-        reducedMotion: win.reducedMotion
-        onUtilityTriggered: (action, anchorRight, anchorBottom) => {
-            switch (action) {
-            case "trackers": win.toggleSyncCenterPage(); break
-            case "updates": updateLayer.active ? win.closeUpdatePage() : win.openUpdatePage(); break
-            case "wallpaper": win.openWallpaperSearch(worldStack.current || "Home"); break
-            case "sharing": dlnaSharePopup.toggleAt(anchorRight, anchorBottom); break
-            }
-        }
+        onFeedbackClicked: win.openFeedback()
         visible: !win.immersiveSurfaceOpen
             && !win.vinylVideoFullscreen
             && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
@@ -6588,12 +6588,12 @@ Window {
         }
     }
 
-    // Wi-Fi sharing opens above the taskbar without covering the dock.
+    // "Share on your Wi-Fi" (DLNA) flyout, opened from the top-bar access-point glyph on home
+    // and on every world while sharing runs. Same plain-layer shape as the account flyout.
     DlnaSharePopup {
         id: dlnaSharePopup
         objectName: "dlnaSharePopup"
         backdrop: wall
-        aboveAnchor: true
     }
 
     // Account onboarding + session surfaces (Bundle 8C adoption, 2026-08-16).

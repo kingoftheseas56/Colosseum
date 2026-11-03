@@ -211,35 +211,23 @@ async function main() {
     await until(async () => (await get('colosseumTaskbar', ['open'])).open === true, 'actual taskbar opens');
     await delay(500); // The production dock width transition lasts 240 ms.
     const dock = await command(address, 'ui-query', { object: 'taskbarDock' });
-    evidence.taskbar = { dock, utilities: {} };
-    for (const action of ['trackers', 'updates', 'wallpaper', 'sharing']) {
-      let item;
-      try { item = await command(address, 'ui-query', { object: `taskbarUtility_${action}` }); }
-      catch (error) {
-        if (action === 'sharing' && error.message.includes('NO_SUCH_ITEM')) {
-          evidence.taskbar.sharingAvailable = false; continue;
-        }
-        throw error;
-      }
-      const cx = item.rect.x + item.rect.width / 2;
-      const cy = item.rect.y + item.rect.height / 2;
-      assert(item.visible && item.enabled && item.rect.width > 0 && item.rect.height > 0,
-        `Taskbar utility unavailable: ${action}`);
-      assert(cx >= dock.rect.x && cx <= dock.rect.x + dock.rect.width &&
-        cy >= dock.rect.y && cy <= dock.rect.y + dock.rect.height,
-        `Taskbar utility outside native dock row: ${action}`);
-      evidence.taskbar.utilities[action] = item;
-      if (action === 'sharing') evidence.taskbar.sharingAvailable = true;
-    }
+    const feedback = await command(address, 'ui-query', { object: 'feedbackEntry' });
+    const cx = feedback.rect.x + feedback.rect.width / 2;
+    const cy = feedback.rect.y + feedback.rect.height / 2;
+    assert(feedback.visible && feedback.enabled && feedback.rect.width > 0 && feedback.rect.height > 0,
+      'Feedback is unavailable in the taskbar');
+    assert(cx >= dock.rect.x && cx <= dock.rect.x + dock.rect.width &&
+      cy >= dock.rect.y && cy <= dock.rect.y + dock.rect.height,
+      'Feedback is outside the taskbar dock');
+    evidence.taskbar = { dock, feedback };
     const dockShot = await command(address, 'get-state', { grab: { target: 'window' } });
     assert(dockShot.grabPath && fs.existsSync(dockShot.grabPath), 'Taskbar screenshot unavailable');
-    fs.copyFileSync(dockShot.grabPath, path.join(args.output, 'taskbar-inline-app.png'));
+    fs.copyFileSync(dockShot.grabPath, path.join(args.output, 'taskbar-feedback-app.png'));
     evidence.taskbar.windowState = dockShot.windows;
-    evidence.stages.inlineTaskbarUtilities = true;
-    await click('colosseumTaskbarHomeButton');
-    await until(async () => (await get('colosseumTaskbar', ['open'])).open === false, 'actual taskbar closes');
+    evidence.stages.feedbackTaskbar = true;
     await click('feedbackEntry');
     await until(async () => (await get('feedbackLayer', ['active'])).active, 'real feedback layer');
+    assert.equal((await get('colosseumTaskbar', ['open'])).open, false, 'Feedback closes the taskbar');
     const target = await until(async () => {
       check();
       const list = await (await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(3000) })).json();
@@ -343,6 +331,9 @@ async function main() {
     await click('feedbackBack');
     await until(async () => !(await get('feedbackLayer', ['active'])).active, 'feedback Back');
     cdp.socket.close(); cdp = null;
+    if (!(await get('colosseumTaskbar', ['open'])).open) await click('colosseumTaskbarHomeButton');
+    await until(async () => (await get('colosseumTaskbar', ['open'])).open, 'taskbar opens for feedback reopen');
+    await delay(300);
     await click('feedbackEntry');
     await until(async () => (await get('feedbackLayer', ['active'])).active, 'feedback reopen');
     const reopened = await until(async () => {

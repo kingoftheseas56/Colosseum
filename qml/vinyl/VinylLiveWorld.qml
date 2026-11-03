@@ -75,7 +75,6 @@ Item {
     signal minimizeClicked()
     signal fullscreenClicked()
     signal powerClicked()
-    signal feedbackClicked()
     signal playbackRequested()
     signal accountClicked(real anchorRight, real anchorBottom)
     signal dlnaClicked(real anchorRight, real anchorBottom)
@@ -695,7 +694,6 @@ Item {
         onHomeRequested:root.homeRequested()
         onMediumSelected:medium=>root.mediumSelected(medium)
         onSearchClicked:root.enterDiscoverSearch(true,false)
-        onFeedbackClicked: root.feedbackClicked()
         onMinimizeClicked:root.minimizeClicked();onFullscreenClicked:root.fullscreenClicked();onPowerClicked:root.powerClicked()
     }
     Flickable {
