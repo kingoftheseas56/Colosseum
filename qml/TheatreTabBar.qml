@@ -115,7 +115,7 @@ Item {
                         text: pill.modelData.label
                         color: pill.modelData.key === tabs.currentTab ? "#17120a" : theme.ink
                         font.family: theme.ui
-                        font.pixelSize: tabs.televisionMode ? 16 : (tabs.compactLayout ? 12 : 14)
+                        font.pixelSize: theme.fontSize(tabs.televisionMode ? 16 : (tabs.compactLayout ? 12 : 14))
                         font.weight: Font.DemiBold
                     }
 

@@ -63,7 +63,7 @@ Item {
                         text: qsTr("Your Collections")
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: root.width < 650 ? 33 : 40
+                        font.pixelSize: theme.fontSize(root.width < 650 ? 33 : 40)
                         wrapMode: Text.Wrap
                     }
                     Text {
@@ -71,7 +71,7 @@ Item {
                         text: qsTr("The things you want to keep together.")
                         color: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         wrapMode: Text.Wrap
                     }
                 }
@@ -151,7 +151,7 @@ Item {
                     text: root.hasCollections ? qsTr("No collections by that name") : qsTr("Make a little room for what you love")
                     color: theme.ink
                     font.family: theme.display
-                    font.pixelSize: 27
+                    font.pixelSize: theme.fontSize(27)
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.Wrap
                 }
@@ -160,7 +160,7 @@ Item {
                     text: root.hasCollections ? qsTr("Try another name, or clear your search.") : qsTr("Start with a name. Add titles whenever you find them.")
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.Wrap
                 }

@@ -2,6 +2,7 @@ import QtQuick 6
 
 FocusScope {
     id: root
+    Theme { id: theme }
     objectName: "playerLoadFailure"
     signal retryRequested()
     signal backRequested()
@@ -17,7 +18,7 @@ FocusScope {
             width: parent.width
             text: "Couldn't open the video player"
             color: "white"
-            font.pixelSize: 24
+            font.pixelSize: theme.fontSize(24)
             wrapMode: Text.Wrap
             horizontalAlignment: Text.AlignHCenter
         }
@@ -25,7 +26,7 @@ FocusScope {
             width: parent.width
             text: "Try again, or go back to choose another video. If this continues, restart Colosseum."
             color: "#bec5d2"
-            font.pixelSize: 15
+            font.pixelSize: theme.fontSize(15)
             wrapMode: Text.Wrap
             horizontalAlignment: Text.AlignHCenter
         }
@@ -33,8 +34,8 @@ FocusScope {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 12
             Rectangle {
-                width: 144; height: 44; radius: 22; color: "#f2cd55"
-                Text { anchors.centerIn: parent; text: "Try again"; color: "#101218"; font.pixelSize: 15 }
+                width: 144; height: theme.androidHost ? 52 : 44; radius: 22; color: "#f2cd55"
+                Text { anchors.centerIn: parent; text: "Try again"; color: "#101218"; font.pixelSize: theme.fontSize(15) }
                 KeyboardAction {
                     objectName: "playerLoadRetry"
                     anchors.fill: parent
@@ -44,8 +45,8 @@ FocusScope {
                 }
             }
             Rectangle {
-                width: 112; height: 44; radius: 22; color: "#303642"
-                Text { anchors.centerIn: parent; text: "Back"; color: "white"; font.pixelSize: 15 }
+                width: 112; height: theme.androidHost ? 52 : 44; radius: 22; color: "#303642"
+                Text { anchors.centerIn: parent; text: "Back"; color: "white"; font.pixelSize: theme.fontSize(15) }
                 KeyboardAction {
                     objectName: "playerLoadBack"
                     anchors.fill: parent

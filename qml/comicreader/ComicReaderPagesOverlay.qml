@@ -379,7 +379,7 @@ Item {
                     text: String(cell.index + 1)
                     color: cell.isCurrent ? theme.gold : theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: cell.isCurrent ? 14 : 12
+                    font.pixelSize: theme.fontSize(cell.isCurrent ? 14 : 12)
                     font.bold: cell.isCurrent
                 }
 

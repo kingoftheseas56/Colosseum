@@ -28,7 +28,7 @@ ReaderOverlay {
     signal returnRequested()
 
     // total height: rail row (22) + meta gap (8) + meta (~16) + bottom padding (18)
-    height: 22 + 8 + metaRow.height + 18
+    height: railRow.height + 8 + metaRow.height + 18
 
     enabled: shown
     opacity: shown ? 1 : 0
@@ -44,7 +44,7 @@ ReaderOverlay {
     // ---------- the rail ----------
     Item {
         id: railRow
-        height: 22
+        height: Theme.androidHost ? 48 : 22
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.leftMargin: 28
@@ -122,7 +122,7 @@ ReaderOverlay {
     // ---------- meta row ----------
     Item {
         id: metaRow
-        height: 18
+        height: Math.max(18, Theme.fontSize(13) + 4)
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.leftMargin: 28
@@ -136,12 +136,12 @@ ReaderOverlay {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 0
             visible: root.pagesInChapter > 0
-            Text { text: "Page "; color: Theme.inkFaint; font.family: Theme.ui; font.pixelSize: 13 }
+            Text { text: "Page "; color: Theme.inkFaint; font.family: Theme.ui; font.pixelSize: Theme.fontSize(13) }
             Text {
                 text: root.pageInChapter + " of " + root.pagesInChapter
-                color: Theme.inkDim; font.family: Theme.ui; font.weight: Font.Medium; font.pixelSize: 13
+                color: Theme.inkDim; font.family: Theme.ui; font.weight: Font.Medium; font.pixelSize: Theme.fontSize(13)
             }
-            Text { text: " in chapter"; color: Theme.inkFaint; font.family: Theme.ui; font.pixelSize: 13 }
+            Text { text: " in chapter"; color: Theme.inkFaint; font.family: Theme.ui; font.pixelSize: Theme.fontSize(13) }
         }
 
         // right: "X% of book"
@@ -151,9 +151,9 @@ ReaderOverlay {
             spacing: 0
             Text {
                 text: root.percentOfBook + "%"
-                color: Theme.inkDim; font.family: Theme.ui; font.weight: Font.Medium; font.pixelSize: 13
+                color: Theme.inkDim; font.family: Theme.ui; font.weight: Font.Medium; font.pixelSize: Theme.fontSize(13)
             }
-            Text { text: " of book"; color: Theme.inkFaint; font.family: Theme.ui; font.pixelSize: 13 }
+            Text { text: " of book"; color: Theme.inkFaint; font.family: Theme.ui; font.pixelSize: Theme.fontSize(13) }
         }
     }
 
@@ -167,7 +167,7 @@ ReaderOverlay {
         anchors.bottom: railRow.top
         anchors.bottomMargin: 12
         radius: height / 2
-        height: 34
+        height: Theme.androidHost ? 52 : 34
         width: chipRow.width + 32
         color: Theme.bar
         border.color: Theme.barBorder
@@ -180,7 +180,7 @@ ReaderOverlay {
             Image {
                 anchors.verticalCenter: parent.verticalCenter
                 source: Qt.resolvedUrl("../../assets/icons/reader2/return.svg")
-                width: 15; height: 15
+                width: Theme.androidHost ? 28 : 15; height: width
                 sourceSize.width: 30; sourceSize.height: 30
                 fillMode: Image.PreserveAspectFit
                 smooth: true
@@ -193,7 +193,7 @@ ReaderOverlay {
                 color: chipMa.containsMouse ? Theme.ink : Theme.inkDim
                 font.family: Theme.ui
                 font.weight: Font.DemiBold
-                font.pixelSize: 13
+                font.pixelSize: Theme.fontSize(13)
             }
         }
         ReaderKeyboardArea {

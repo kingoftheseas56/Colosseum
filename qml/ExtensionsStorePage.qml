@@ -500,7 +500,7 @@ Item {
             text: root.loading ? "Opening the Store…"
                                : "The Store couldn't reach stremio-addons.net (" + root.loadError + "). Try again in a moment."
             color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 14
+            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
         }
 
         ExtensionsStoreRail {
@@ -545,7 +545,7 @@ Item {
             width: parent.width
             text: "Community add-ons and stars from stremio-addons.net. Their authors run them, not Colosseum."
             color: Qt.rgba(1, 1, 1, 0.34)
-            font.family: theme.ui; font.pixelSize: 12
+            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
         }
     }
 
@@ -612,7 +612,7 @@ Item {
             elide: Text.ElideRight
             text: root.installError
             color: theme.ink
-            font.family: theme.ui; font.pixelSize: 13
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
         }
     }
 
@@ -702,7 +702,7 @@ Item {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                         text: "Install from URL"
                         color: theme.ink
-                        font.family: theme.display; font.pixelSize: 28; font.weight: Font.DemiBold
+                        font.family: theme.display; font.pixelSize: theme.fontSize(28); font.weight: Font.DemiBold
                     }
                     Rectangle {
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
@@ -722,13 +722,13 @@ Item {
                     width: parent.width
                     text: "Add a Stremio-compatible extension, even if it isn't in the Store."
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 14
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                     wrapMode: Text.WordWrap
                 }
                 Text {
                     text: "ADD-ON ADDRESS"
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                 }
                 Rectangle {
                     width: parent.width; height: 50; radius: 14
@@ -743,7 +743,7 @@ Item {
                         color: theme.ink
                         placeholderText: "https://example.com/manifest.json"
                         placeholderTextColor: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         background: null
                         selectByMouse: true
                         // Qt 6.9+ intercepts mouse, touch and keyboard context requests.
@@ -765,7 +765,7 @@ Item {
                     width: parent.width
                     text: "HTTPS and stremio:// links are supported."
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 12
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 }
                 Rectangle {
                     visible: root.installUrlPreviewReady
@@ -793,14 +793,14 @@ Item {
                                 text: root.installUrlManifest
                                       ? String(root.installUrlManifest.name || "Unnamed extension") : ""
                                 color: theme.ink
-                                font.family: theme.ui; font.pixelSize: 16; font.weight: Font.DemiBold
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(16); font.weight: Font.DemiBold
                             }
                             Text {
                                 width: parent.width; wrapMode: Text.WordWrap
                                 maximumLineCount: 2; elide: Text.ElideRight
                                 text: root.installUrlManifest
                                       ? String(root.installUrlManifest.description || "No description provided.") : ""
-                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                             }
                         }
                     }
@@ -809,7 +809,7 @@ Item {
                         anchors.bottom: parent.bottom; anchors.margins: 14
                         elide: Text.ElideRight
                         text: "Provides: " + root.manifestResources(root.installUrlManifest)
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     }
                 }
                 Text {
@@ -817,14 +817,14 @@ Item {
                     width: parent.width
                     text: root.installUrlError
                     color: "#ffb4ab"
-                    font.family: theme.ui; font.pixelSize: 12
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     wrapMode: Text.WordWrap
                 }
                 Text {
                     visible: root.installUrlComplete
                     text: "Added to your extensions."
                     color: theme.gold
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 }
             }
             Row {
@@ -837,7 +837,7 @@ Item {
                     border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.17)
                     Text {
                         anchors.centerIn: parent; text: "Cancel"
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                     }
                     KeyboardAction {
                         id: cancelUrlAction
@@ -862,7 +862,7 @@ Item {
                                    : root.needsSetup(root.installUrlManifest) ? "Set up add-on" : "Install add-on")
                                 : "Preview add-on"
                         color: "#17150f"
-                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                     }
                     KeyboardAction {
                         id: installUrlPrimary

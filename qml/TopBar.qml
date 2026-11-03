@@ -21,7 +21,18 @@ Item {
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
     property bool compactBrowserChrome: false
-    readonly property bool compactChrome: compactBrowserChrome || width < 1100
+    // Yield the Home label before the clock/date, then use existing compact chrome.
+    readonly property bool compactHomeLabel: androidHost
+        && width < leftChrome.fullWidth + worldPicker.width + systemChrome.width + 24
+    readonly property bool compactChrome: compactBrowserChrome || (androidHost
+        ? width < clockColumn.implicitWidth + (activeMedium !== "" ? bar.homeIconWidth + leftChrome.spacing : 0)
+                  + worldPicker.width + systemChrome.width + 24
+        : width < 1100)
+    readonly property real homeIconWidth: androidHost ? 52 : 28
+    readonly property real homeLabelChromeWidth: androidHost ? 45 : 37
+    readonly property real naturalPickerWidth: tankobanPill.naturalWidth + biblioPill.naturalWidth
+        + theatrePill.naturalWidth + universesPill.naturalWidth + feriaPill.naturalWidth + vinylPill.naturalWidth + 18
+    readonly property real androidPillPadding: width < leftChrome.fullWidth + naturalPickerWidth + systemChrome.width + 24 ? 6 : 12
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // World roots keep the historical Home destination; nested surfaces can name their
     // owning world without inventing a second Back control.
@@ -36,8 +47,9 @@ Item {
     property bool androidHost: Qt.platform.os === "android"
     AdaptiveLayout { id: inputMetrics; androidHost: bar.androidHost }
     readonly property real touchTargetSize: inputMetrics.touchTargetSize
-    readonly property real touchHorizontalInset: bar.touchTargetSize > 0
-        ? Math.min((bar.touchTargetSize - 22) / 2, Math.floor(systemChrome.spacing / 2)) : 0
+    readonly property real systemGlyphSize: androidHost ? 28 : 22
+    readonly property real systemTargetSize: Math.max(systemGlyphSize, touchTargetSize)
+    readonly property real horizontalGroupGap: androidHost ? 8 : 12
     property bool wallpaperEnabled: true
     property string clock: "8:29"
     property string ampm: "PM"
@@ -119,9 +131,9 @@ Item {
     readonly property bool shellWindowed:
         typeof WindowMode !== "undefined" && WindowMode.shellWindowed
 
-    implicitHeight: 56
+    implicitHeight: androidHost ? Math.max(56, leftChrome.height, worldPicker.height, systemChrome.height) : 56
 
-    Theme { id: theme }
+    Theme { id: theme; objectName: "topBarTypography"; androidHost: bar.androidHost }
 
     // ---- live wall clock: the bar owns its own time, so the home page AND every
     //      world / reader / player page that reuses this chrome show the real minute
@@ -153,35 +165,33 @@ Item {
         property bool showLabel: false
         property bool lit: false      // full-strength (e.g. a running state), regardless of hover
         signal clicked()
-        // Android: the 22 px glyph rides a 48-unit-tall hit host; horizontally the pointer owner
-        // extends into half of each Row gap so neighbours stay disjoint and the shared
-        // desktop composition (already tight beside the world picker) keeps its widths.
-        width: showLabel ? 82 : 22
-        height: Math.max(22, bar.touchTargetSize)
+        // Each Android action owns a disjoint finger-sized target around its artwork.
+        width: showLabel ? (bar.androidHost ? Math.max(bar.systemTargetSize, sysLabel.x + sysLabel.implicitWidth + 8) : 82) : bar.systemTargetSize
+        height: bar.systemTargetSize
         Image {
-            anchors.left: parent.left
+            id: sysGlyph
+            x: sysRoot.showLabel ? 0 : (sysRoot.width - width) / 2
             anchors.verticalCenter: parent.verticalCenter
-            width: 22; height: 22
+            width: bar.systemGlyphSize; height: width
             source: sysRoot.source
-            sourceSize.width: 22; sourceSize.height: 22
+            sourceSize.width: bar.systemGlyphSize; sourceSize.height: bar.systemGlyphSize
             fillMode: Image.PreserveAspectFit
             opacity: (sysRoot.lit || input.interactionActive) ? 1.0 : 0.72
         }
         Text {
+            id: sysLabel
             visible: sysRoot.showLabel
             anchors.left: parent.left
-            anchors.leftMargin: 30
+            anchors.leftMargin: bar.androidHost ? bar.systemGlyphSize + 8 : 30
             anchors.verticalCenter: parent.verticalCenter
             text: sysRoot.accessibleName
             color: input.interactionActive ? theme.ink : theme.inkDim
             font.family: theme.ui
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
         }
         KeyboardAction {
             id: input
             anchors.fill: parent
-            anchors.leftMargin: -bar.touchHorizontalInset
-            anchors.rightMargin: -bar.touchHorizontalInset
             accessibleName: sysRoot.accessibleName
             focusRadius: 6
             onTriggered: sysRoot.clicked()
@@ -202,8 +212,9 @@ Item {
         property bool comingSoon: false
         readonly property bool active: !pill.comingSoon && bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + (bar.width < 900 ? 16 : (bar.width < 1100 ? 24 : 34))
-        implicitHeight: 34
+        readonly property real naturalWidth: pillContent.implicitWidth + 12
+        implicitWidth: pillContent.implicitWidth + (bar.androidHost ? bar.androidPillPadding : (bar.width < 900 ? 16 : (bar.width < 1100 ? 24 : 34)))
+        implicitHeight: bar.androidHost ? Math.max(48, pillContent.implicitHeight + 12) : 34
 
         Rectangle {
             anchors.fill: parent; radius: 999
@@ -219,18 +230,18 @@ Item {
                 text: pill.label
                 color: pill.active ? "#1a1408" : (pillInput.interactionActive && !pill.comingSoon ? theme.ink : theme.inkDim)
                 opacity: pill.comingSoon ? 0.6 : 1.0
-                font.family: theme.ui; font.pixelSize: 14
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 font.weight: pill.active ? Font.DemiBold : Font.Medium
                 anchors.verticalCenter: parent.verticalCenter
             }
             Rectangle {   // Original inline "SOON" marker — no world yet
                 visible: pill.comingSoon
                 anchors.verticalCenter: parent.verticalCenter
-                radius: 4; height: 15; width: soonText.implicitWidth + 10
+                radius: 4; height: Math.max(15, soonText.implicitHeight + 3); width: soonText.implicitWidth + 10
                 color: Qt.rgba(1,1,1,0.10)
                 Text {
                     id: soonText; anchors.centerIn: parent; text: "SOON"
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 0.8
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(8); font.letterSpacing: 0.8
                 }
             }
         }
@@ -245,16 +256,22 @@ Item {
         }
     }
 
+    TextMetrics { id: homeLabelMetrics; text: bar.backLabel; font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
+
     // ---- left: "‹ Home" (world only) + clock/date ----
     Row {
         id: leftChrome
         objectName: "topBarLeftChrome"
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-        spacing: 18
+        spacing: bar.androidHost ? 8 : 18
+        readonly property real fullWidth: (bar.activeMedium !== "" ? homeLabelMetrics.width + bar.homeLabelChromeWidth + spacing : 0) + clockColumn.implicitWidth
         BackAction {
+            id: backControl
+            width: bar.androidHost ? Math.max(bar.homeIconWidth, implicitWidth) : implicitWidth
+            height: bar.androidHost ? Math.max(52, implicitHeight) : implicitHeight
             // world-root variant: destination label, dim→bright hover (never gold up here)
             visible: bar.activeMedium !== ""
-            label: bar.compactChrome || (bar.backOnly && bar.pageTitle.length) ? "" : bar.backLabel
+            label: bar.compactChrome || bar.compactHomeLabel || (bar.backOnly && bar.pageTitle.length) ? "" : bar.backLabel
             labelSize: 14
             idleColor: theme.inkDim
             hoverColor: theme.ink
@@ -265,50 +282,54 @@ Item {
             visible: bar.backOnly && bar.pageTitle.length > 0
             spacing: 2
             anchors.verticalCenter: parent.verticalCenter
-            Text { text: bar.pageTitle; color: theme.ink; font.family: theme.display; font.pixelSize: 24 }
+            Text { text: bar.pageTitle; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(24) }
             Text {
                 visible: bar.pageSubtitle.length > 0
-                text: bar.pageSubtitle; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                text: bar.pageSubtitle; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
             }
         }
         Column {
+            id: clockColumn
             objectName: "topBarClock"
             visible: !bar.backOnly && !bar.compactChrome
             spacing: 3
             anchors.verticalCenter: parent.verticalCenter
             Row {
                 spacing: 5
-                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: 32 }
-                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
+                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(32) }
+                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(16)
                     anchors.bottom: parent.bottom; anchors.bottomMargin: 4 }
             }
-            Text { text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+            Text { text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
         }
     }
 
     // ---- center: library pills in a glass capsule ----
     Glass {
+        id: worldPicker
         objectName: "topBarWorldPicker"
         visible: !bar.backOnly
         backdrop: bar.backdrop
         anchors.verticalCenter: parent.verticalCenter
-        x: Math.max(leftChrome.width + 12,
-                    Math.min((bar.width - width) / 2, systemChrome.x - width - 12))
+        x: Math.max(leftChrome.width + bar.horizontalGroupGap,
+                    Math.min((bar.width - width) / 2, systemChrome.x - width - bar.horizontalGroupGap))
         radius: 999
-        width: pillsRow.implicitWidth + 14; height: 46
+        width: pillsRow.implicitWidth + (bar.androidHost ? 8 : 14); height: bar.androidHost ? pillsRow.height + 8 : 46
         Row {
             id: pillsRow
             anchors.centerIn: parent
-            spacing: 4
-            Pill { label: "Tankoban" }
-            Pill { label: "Biblio" }
-            Pill { label: "Theatre" }
-            Pill { label: "Universes" }
+            spacing: bar.androidHost ? 2 : 4
+            Pill { id: tankobanPill; label: "Tankoban" }
+            Pill { id: biblioPill; label: "Biblio" }
+            Pill { id: theatrePill; label: "Theatre" }
+            Pill { id: universesPill; label: "Universes" }
             Pill {
+                id: feriaPill
                 label: "Feria"
                 comingSoon: !bar.Window.window || bar.Window.window.feriaComingSoon !== false
             }
             Pill {
+                id: vinylPill
                 label: "Vinyl"
                 readonly property bool qualificationEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
                 comingSoon: !qualificationEnabled
@@ -328,7 +349,7 @@ Item {
         objectName: "topBarSystemChrome"
         visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: bar.width < 1000 ? 12 : (bar.width < 1200 ? 20 : 24)
+        spacing: bar.androidHost ? 4 : (bar.width < 1000 ? 12 : (bar.width < 1200 ? 20 : 24))
         // Search — worlds only, except Universes (no search behaviour there yet).
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each
@@ -348,14 +369,15 @@ Item {
             // Retained worlds each own a TopBar. Name only Theatre's copy so
             // accessibility/automation never resolves a hidden sibling.
             objectName: bar.activeMedium === "Theatre" ? "topBarStremioButton" : ""
-            width: 22; height: 22
+            width: bar.systemTargetSize; height: bar.systemTargetSize
             visible: bar.activeMedium === "Theatre" && bar.lifecycleActive
             opacity: stremioInput.interactionActive ? 1.0 : 0.92
             Image {
                 objectName: "topBarStremioOfficialAsset"
-                anchors.fill: parent
+                anchors.centerIn: parent
+                width: bar.systemGlyphSize; height: width
                 source: "../assets/icons/stremio-official.svg"
-                sourceSize.width: 22; sourceSize.height: 22
+                sourceSize.width: bar.systemGlyphSize; sourceSize.height: bar.systemGlyphSize
                 fillMode: Image.PreserveAspectFit
             }
             Rectangle {
@@ -365,7 +387,7 @@ Item {
                     && (stremioSyncState.status === "reconnectRequired"
                         || stremioSyncState.status === "syncFailed")
                 anchors.right: parent.right; anchors.bottom: parent.bottom
-                anchors.rightMargin: -3; anchors.bottomMargin: -3
+                anchors.rightMargin: bar.androidHost ? (bar.systemTargetSize - bar.systemGlyphSize) / 2 - 3 : -3; anchors.bottomMargin: anchors.rightMargin
                 width: 8; height: 8; radius: 4
                 color: theme.gold
                 border.width: 1; border.color: "#15151a"
@@ -382,21 +404,22 @@ Item {
         // Update — home only. Takes search's throne; the silver badge signals an
         // available release (pulse on unseen, steady once seen).
         Item {
-            width: 22; height: 22
+            width: bar.systemTargetSize; height: bar.systemTargetSize
             visible: bar.activeMedium === ""
             opacity: updateInput.interactionActive ? 1.0 : 0.92
             objectName: "colosseumTopbarUpdateButton"
             Image {
-                anchors.fill: parent
+                anchors.centerIn: parent
+                width: bar.systemGlyphSize; height: width
                 source: "../assets/icons/update.svg"
-                sourceSize.width: 22; sourceSize.height: 22
+                sourceSize.width: bar.systemGlyphSize; sourceSize.height: bar.systemGlyphSize
                 fillMode: Image.PreserveAspectFit
             }
             Rectangle {
                 objectName: "colosseumTopbarUpdateBadge"
                 visible: bar.updateAvailable
                 anchors.top: parent.top; anchors.right: parent.right
-                anchors.topMargin: -2; anchors.rightMargin: -2
+                anchors.topMargin: bar.androidHost ? (bar.systemTargetSize - bar.systemGlyphSize) / 2 - 2 : -2; anchors.rightMargin: anchors.topMargin
                 width: 9; height: 9; radius: 4.5
                 color: "#f2f2ef"; border.width: 1; border.color: "#15151a"
                 SequentialAnimation on scale {
@@ -425,11 +448,12 @@ Item {
             objectName: !bar.lifecycleActive ? ""
                         : bar.activeMedium === "" ? "topBarTrackersButton"
                         : "topBarTrackersButton_" + bar.activeMedium
-            width: 22; height: 22
+            width: bar.systemTargetSize; height: bar.systemTargetSize
             visible: bar.trackersEnabled && bar.lifecycleActive
             opacity: trackersInput.interactionActive || bar.trackersActive ? 1.0 : 0.92
             Image {
-                anchors.fill: parent
+                anchors.centerIn: parent
+                width: bar.systemGlyphSize; height: width
                 source: "../assets/icons/trackers.svg"
                 sourceSize.width: 44; sourceSize.height: 44
                 fillMode: Image.PreserveAspectFit
@@ -438,7 +462,7 @@ Item {
                 objectName: "topBarTrackersStatusDot"
                 visible: bar.trackersDotState !== ""
                 anchors.right: parent.right; anchors.bottom: parent.bottom
-                anchors.rightMargin: -3; anchors.bottomMargin: -3
+                anchors.rightMargin: bar.androidHost ? (bar.systemTargetSize - bar.systemGlyphSize) / 2 - 3 : -3; anchors.bottomMargin: anchors.rightMargin
                 width: 8; height: 8; radius: 4
                 color: bar.trackersDotState === "ok" ? "#5fd18b"
                      : bar.trackersDotState === "error" ? "#ef6a5a" : theme.gold
@@ -458,13 +482,15 @@ Item {
         // signed in, quiet outline when not. Sits beside Update + Wallpapers.
         Item {
             id: accountButton
-            width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22
-            height: 22
+            width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : bar.systemTargetSize
+            height: bar.systemTargetSize
             objectName: "colosseumTopbarAccountButton"
             visible: bar.accountEntryAvailable
             opacity: accountInput.interactionActive ? 1.0 : 0.92
             Rectangle {
-                anchors.fill: parent
+                anchors.centerIn: parent
+                width: bar.localDevice ? parent.width : bar.systemGlyphSize
+                height: bar.androidHost ? Math.max(bar.systemGlyphSize, localDeviceText.implicitHeight + 10) : parent.height
                 radius: bar.localDevice ? 11 : width / 2
                 color: bar.accountPresent
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.16)
@@ -499,7 +525,7 @@ Item {
                     text: qsTr("Device")
                     color: theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.weight: Font.DemiBold
                 }
                 Text {
@@ -511,7 +537,7 @@ Item {
                     }
                     color: "#f0df9a"
                     font.family: "Inter"
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     font.weight: Font.DemiBold
                 }
             }

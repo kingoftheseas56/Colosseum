@@ -7,6 +7,7 @@ import QtQuick.Shapes
 
 Item {
     id: artwork
+    Theme { id: interfaceTypography }
     objectName: "FinalSeaNativeArtwork"
     readonly property int designWidth: 1672
     readonly property int designHeight: 941
@@ -455,7 +456,7 @@ Item {
         x: 208; y: 64; width: 320; height: 24
         text: "THE GRAND LINE"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 16; font.letterSpacing: 5.2; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(16); font.letterSpacing: 5.2; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -465,7 +466,7 @@ Item {
         x: 130; y: 95; width: 476; height: 75
         text: "THE FINAL SEA"
         font.family: artwork.displayFontFamily
-        font.pixelSize: 50; font.letterSpacing: 2.3; font.bold: true
+        font.pixelSize: interfaceTypography.fontSize(50); font.letterSpacing: 2.3; font.bold: true
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -475,7 +476,7 @@ Item {
         x: 188; y: 181; width: 359; height: 19.5
         text: "FINAL SAGA · CURRENT VOYAGE"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 13; font.letterSpacing: 3.15; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(13); font.letterSpacing: 3.15; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -485,7 +486,7 @@ Item {
         x: 1220; y: 108; width: 242; height: 61.5
         text: "ELBAF"
         font.family: artwork.displayFontFamily
-        font.pixelSize: 41; font.letterSpacing: 5; font.bold: true
+        font.pixelSize: interfaceTypography.fontSize(41); font.letterSpacing: 5; font.bold: true
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -495,7 +496,7 @@ Item {
         x: 1151; y: 154; width: 380; height: 18
         text: "WARLAND KINGDOM · JEWEL TREE ADAM"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 12; font.letterSpacing: 2.6; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(12); font.letterSpacing: 2.6; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -505,7 +506,7 @@ Item {
         x: 465; y: 331; width: 117; height: 16.5
         text: "LABOPHASE"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 11; font.letterSpacing: 1.1; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(11); font.letterSpacing: 1.1; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -515,7 +516,7 @@ Item {
         x: 430; y: 603; width: 192; height: 46.5
         text: "EGGHEAD"
         font.family: artwork.displayFontFamily
-        font.pixelSize: 31; font.letterSpacing: 2.1; font.bold: true
+        font.pixelSize: interfaceTypography.fontSize(31); font.letterSpacing: 2.1; font.bold: true
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -525,7 +526,7 @@ Item {
         x: 440; y: 642; width: 173; height: 18
         text: "FUTURE ISLAND"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 12; font.letterSpacing: 2.4; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(12); font.letterSpacing: 2.4; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -535,7 +536,7 @@ Item {
         x: 72; y: 635; width: 88; height: 33
         text: "WANO"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 22; font.letterSpacing: 1.3; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(22); font.letterSpacing: 1.3; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -545,7 +546,7 @@ Item {
         x: 788; y: 493; width: 223; height: 22.5
         text: "SLEEPING MIST"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 15; font.letterSpacing: 3.2; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(15); font.letterSpacing: 3.2; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -555,7 +556,7 @@ Item {
         x: 1507; y: 285; width: 89; height: 19.5
         text: "HEAVEN"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 13; font.letterSpacing: 1.2; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(13); font.letterSpacing: 1.2; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -565,7 +566,7 @@ Item {
         x: 1509; y: 460; width: 120; height: 19.5
         text: "SUN WORLD"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 13; font.letterSpacing: 1.3; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(13); font.letterSpacing: 1.3; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -575,7 +576,7 @@ Item {
         x: 1497; y: 651; width: 140; height: 18
         text: "UNDERWORLD"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 12; font.letterSpacing: 1.2; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(12); font.letterSpacing: 1.2; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -585,7 +586,7 @@ Item {
         x: 1547; y: 756; width: 24; height: 21
         text: "N"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 14; font.letterSpacing: 0.4; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(14); font.letterSpacing: 0.4; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -595,7 +596,7 @@ Item {
         x: 1483; y: 816; width: 24; height: 21
         text: "W"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 14; font.letterSpacing: 0.4; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(14); font.letterSpacing: 0.4; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -605,7 +606,7 @@ Item {
         x: 1614; y: 816; width: 24; height: 21
         text: "E"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 14; font.letterSpacing: 0.4; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(14); font.letterSpacing: 0.4; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -615,7 +616,7 @@ Item {
         x: 1547; y: 875; width: 24; height: 21
         text: "S"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 14; font.letterSpacing: 0.4; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(14); font.letterSpacing: 0.4; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering
@@ -641,7 +642,7 @@ Item {
         x: 795; y: 868; width: 136; height: 24
         text: "Straw Hat voyage"
         font.family: artwork.labelFontFamily
-        font.pixelSize: 16; font.letterSpacing: 0; font.bold: false
+        font.pixelSize: interfaceTypography.fontSize(16); font.letterSpacing: 0; font.bold: false
         color: "#563617"; opacity: 1
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.QtRendering

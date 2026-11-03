@@ -45,14 +45,14 @@ Item {
                 text: qsTr("Remove from your library?")
                 color: theme.ink
                 font.family: theme.display
-                font.pixelSize: 28
+                font.pixelSize: theme.fontSize(28)
             }
             Text {
                 width: parent.width
                 text: root.entry && root.entry.title ? String(root.entry.title) : qsTr("This title")
                 color: theme.inkDim
                 font.family: theme.ui
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
                 elide: Text.ElideRight
             }
             Action {
@@ -92,7 +92,7 @@ Item {
             text: action.label
             color: action.quiet ? theme.inkDim : theme.ink
             font.family: theme.ui
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
             font.weight: Font.DemiBold
         }
         KeyboardAction {

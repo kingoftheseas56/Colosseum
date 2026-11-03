@@ -104,7 +104,7 @@ FocusScope {
         x: theme.margin; y: 88
         text: "In a galaxy far far away"
         color: theme.ink
-        font.family: theme.display; font.pixelSize: Math.max(44, Math.round(58 * root.viewportScale))
+        font.family: theme.display; font.pixelSize: theme.fontSize(Math.max(44, Math.round(58 * root.viewportScale)))
         font.weight: Font.Normal
     }
     FocusScope {
@@ -186,7 +186,7 @@ FocusScope {
             Rectangle { width: 6; height: 6; radius: 3; color: theme.gold; opacity: sun.hot ? 1.0 : .62 }
             Text {
                 text: "SKYWALKER SAGA"; color: sun.hot ? theme.gold : theme.ink
-                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                 font.letterSpacing: .8
             }
         }
@@ -296,7 +296,7 @@ FocusScope {
                 Text {
                     text: gate.modelData.name
                     color: gate.hot ? theme.gold : Qt.rgba(247/255,247/255,245/255,.82)
-                    font.family: theme.ui; font.pixelSize: 9; font.weight: Font.Bold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.weight: Font.Bold
                     font.letterSpacing: 1.0
                     Behavior on color { ColorAnimation { duration: 120 } }
                 }

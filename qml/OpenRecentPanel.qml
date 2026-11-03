@@ -8,6 +8,7 @@ import QtQuick.Window
 // a dead file (available == false) is dimmed and offers nothing. No color — grays/white only.
 Rectangle {
     id: panel
+    Theme { id: interfaceTypography }
 
     property var model: []
     property Item focusReturnItem: null
@@ -70,7 +71,7 @@ Rectangle {
             Text {
                 anchors.left: parent.left; anchors.leftMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Recent"; color: "#e9e9ec"; font.pixelSize: 13; font.weight: Font.DemiBold
+                text: "Recent"; color: "#e9e9ec"; font.pixelSize: interfaceTypography.fontSize(13); font.weight: Font.DemiBold
             }
             Text {
                 objectName: "openRecentClear"
@@ -78,7 +79,7 @@ Rectangle {
                 anchors.right: parent.right; anchors.rightMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Clear"; color: clearMa.containsMouse ? "#ffffff" : "#9a9aa4"
-                font.pixelSize: 12; font.underline: true
+                font.pixelSize: interfaceTypography.fontSize(12); font.underline: true
                 MouseArea {
                     id: clearMa
                     anchors.fill: parent; anchors.margins: -6
@@ -101,7 +102,7 @@ Rectangle {
         Text {
             visible: panel.rowCount === 0
             width: parent.width; height: 40
-            text: "No recent files yet"; color: "#7a7a84"; font.pixelSize: 12
+            text: "No recent files yet"; color: "#7a7a84"; font.pixelSize: interfaceTypography.fontSize(12)
             horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
         }
 
@@ -136,11 +137,11 @@ Rectangle {
                         Text {
                             width: parent.width
                             text: modelData.title && modelData.title.length ? modelData.title : "(untitled)"
-                            color: "#e9e9ec"; font.pixelSize: 13; elide: Text.ElideRight
+                            color: "#e9e9ec"; font.pixelSize: interfaceTypography.fontSize(13); elide: Text.ElideRight
                         }
                         Text {
                             text: modelData.available ? "Local" : "Unavailable"
-                            color: "#8a8a92"; font.pixelSize: 10
+                            color: "#8a8a92"; font.pixelSize: interfaceTypography.fontSize(10)
                         }
                     }
                 }

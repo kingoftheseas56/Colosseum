@@ -63,7 +63,7 @@ Column {
             id: railTitle
             text: rail.title
             color: theme.ink
-            font.family: theme.display; font.pixelSize: 20; font.weight: Font.DemiBold
+            font.family: theme.display; font.pixelSize: theme.fontSize(20); font.weight: Font.DemiBold
         }
         Item { width: Math.max(0, parent.width - railTitle.width - seeAllText.width - 16); height: 1 }
         Text {
@@ -71,7 +71,7 @@ Column {
             visible: rail.showSeeAll
             text: "See All"
             color: seeAllMa.containsMouse ? theme.gold : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
             MouseArea {
                 id: seeAllMa
                 anchors.fill: parent
@@ -136,7 +136,7 @@ Column {
                             visible: rail.ranked
                             text: String(card.index + 1)
                             color: Qt.rgba(1, 1, 1, 0.16)
-                            font.family: theme.display; font.bold: true; font.pixelSize: 92
+                            font.family: theme.display; font.bold: true; font.pixelSize: theme.fontSize(92)
                             anchors.left: parent.left
                             anchors.bottom: cover.bottom
                             anchors.bottomMargin: -6
@@ -175,13 +175,13 @@ Column {
                                     visible: card.ratingVisible
                                     text: "★ " + card.ratingText
                                     color: theme.gold
-                                    font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                                 }
                                 Text {
                                     visible: card.sourceVisible
                                     text: card.sourceText
                                     color: theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 10
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                                     elide: Text.ElideRight
                                     width: parent.width
                                 }
@@ -201,7 +201,7 @@ Column {
                             id: cardTitle
                             text: card.titleText
                             color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                             anchors.left: cover.left; anchors.right: parent.right
                             anchors.top: cover.bottom; anchors.topMargin: 8
                             elide: Text.ElideRight; maximumLineCount: 1
@@ -210,7 +210,7 @@ Column {
                             visible: card.authorText.length > 0
                             text: card.authorText
                             color: theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 11
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                             anchors.left: cover.left; anchors.right: parent.right
                             anchors.top: cardTitle.bottom; anchors.topMargin: 2
                             elide: Text.ElideRight; maximumLineCount: 1

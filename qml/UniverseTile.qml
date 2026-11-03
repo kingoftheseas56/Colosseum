@@ -91,7 +91,7 @@ Item {
             Behavior on opacity { NumberAnimation { duration: 220 } }
             text: tile.e.title || ""
             color: theme.inkDimmer
-            font.family: theme.display; font.pixelSize: 15
+            font.family: theme.display; font.pixelSize: theme.fontSize(15)
             wrapMode: Text.WordWrap
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: Text.AlignHCenter
@@ -105,7 +105,7 @@ Item {
                 anchors.centerIn: parent
                 text: tile.order + 1
                 color: theme.gold
-                font.family: theme.ui; font.pixelSize: 13; font.bold: true
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.bold: true
             }
         }
         Text {
@@ -114,7 +114,7 @@ Item {
             visible: !!tile.e.note
             text: (tile.e.note || "").toUpperCase()
             color: theme.gold
-            font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 2
+            font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 2
         }
         KeyboardAction {
             id: tileKey
@@ -140,7 +140,7 @@ Item {
             width: parent.width
             text: tile.e.title || ""
             color: theme.ink
-            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
             elide: Text.ElideRight
             maximumLineCount: 2
             wrapMode: Text.WordWrap
@@ -150,7 +150,7 @@ Item {
             visible: !!tile.e.year
             text: tile.e.year || ""
             color: theme.inkDimmer
-            font.family: theme.ui; font.pixelSize: 11
+            font.family: theme.ui; font.pixelSize: theme.fontSize(11)
         }
     }
 }

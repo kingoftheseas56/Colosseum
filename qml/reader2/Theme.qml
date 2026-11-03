@@ -10,8 +10,16 @@
 // [Agent 2 (Claude), biblio]
 pragma Singleton
 import QtQuick
+import "../UiTypography.js" as UiTypography
 
 QtObject {
+    property bool androidHost: typeof PlatformRuntime !== "undefined" && PlatformRuntime
+        ? PlatformRuntime.android === true : Qt.platform.os === "android"
+    property real fontScale: typeof PlatformRuntime !== "undefined" && PlatformRuntime
+        && PlatformRuntime.android === true && typeof PlatformRuntime.fontScale === "number"
+        && PlatformRuntime.fontScale > 0 ? PlatformRuntime.fontScale : 1
+    function fontSize(base) { return UiTypography.fontSize(base, androidHost, fontScale) }
+
     // accent — progress fill, knob, active tick/label. Used SPARINGLY.
     readonly property color gold: "#F0C24A"
 

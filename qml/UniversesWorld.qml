@@ -125,14 +125,14 @@ WorldPage {
             anchors.left: parent.left; anchors.bottom: parent.bottom
             text: "Explore Universes"
             color: theme.ink
-            font.family: theme.display; font.pixelSize: 26
+            font.family: theme.display; font.pixelSize: theme.fontSize(26)
         }
         Text {
             objectName: "universesCount"
             anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 4
             text: universes.shown.length + (universes.shown.length === 1 ? " universe" : " universes")
             color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 13
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
         }
     }
 
@@ -216,7 +216,7 @@ WorldPage {
             visible: universes.shown.length === 0
             text: "No universes hold this yet."
             color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 14
+            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             topPadding: 24; bottomPadding: 24
         }
 

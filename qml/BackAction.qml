@@ -36,13 +36,13 @@ Item {
     Theme { id: theme }
 
     readonly property color _c: input.interactionActive ? hoverColor : idleColor
-    readonly property int _chev: variant === "plain" ? 20 : (variant === "capsule" ? 18 : 24)
+    readonly property int _chev: theme.androidHost ? 28 : variant === "plain" ? 20 : (variant === "capsule" ? 18 : 24)
     readonly property bool automationActiveFocus: input.activeFocus
 
-    implicitWidth: variant === "capsule" ? 42
+    implicitWidth: theme.androidHost && iconOnly ? 52 : variant === "capsule" ? 42
                  : variant === "immersive" ? 34
                  : chevron.width + (labelText.visible ? 9 + labelText.implicitWidth : 0) + 8
-    implicitHeight: Math.max(34, labelText.visible ? labelText.implicitHeight + 8 : 0)
+    implicitHeight: Math.max(theme.androidHost ? 52 : 34, labelText.visible ? labelText.implicitHeight + 8 : 0)
     width: implicitWidth
     height: implicitHeight
 

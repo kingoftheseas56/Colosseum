@@ -135,13 +135,13 @@ Item {
                 width: parent.width - 158 - 26
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
-                Text { text: "Comics"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                Text { text: "Comics"; color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                     font.letterSpacing: 3.4; font.capitalization: Font.AllUppercase }
                 Text { width: parent.width; text: seriesTitle
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 50; font.weight: Font.DemiBold
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(50); font.weight: Font.DemiBold
                     wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
                 Text { visible: heroCreators.length > 0; width: parent.width; text: "by " + heroCreators
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                     elide: Text.ElideRight }
                 Text {
                     text: {
@@ -153,10 +153,10 @@ Item {
                         if (coverageLabel().length) b.push(coverageLabel())
                         return b.join("   ·   ")
                     }
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 14
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 }
                 Text { visible: heroSynopsis.length > 0; width: Math.min(parent.width, 620)
-                    text: heroSynopsis; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                    text: heroSynopsis; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                     wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
                     lineHeight: 1.35; topPadding: 5 }
                 LibraryButton {
@@ -183,11 +183,11 @@ Item {
 
                 Row {                                     // section header
                     width: parent.width; spacing: 14
-                    Text { text: modelData.format; color: theme.gold; font.family: theme.ui; font.pixelSize: 12
+                    Text { text: modelData.format; color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         font.letterSpacing: 2.8; font.capitalization: Font.AllUppercase
                         anchors.verticalCenter: parent.verticalCenter }
                     Text { text: modelData.editions.length; color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12); anchors.verticalCenter: parent.verticalCenter }
                     Rectangle { width: parent.width - x; height: 1; color: Qt.rgba(0.94,0.77,0.29,0.34)
                         anchors.verticalCenter: parent.verticalCenter }
                 }
@@ -310,7 +310,7 @@ Item {
                             Text { width: parent.width; text: ledger.displayTitle(ed.modelData.display_title || ed.modelData.title)
                                 color: edMa.containsMouse && ed.canAcquire ? theme.gold : theme.ink
                                 opacity: 1
-                                font.family: theme.display; font.pixelSize: 21; font.weight: Font.Medium
+                                font.family: theme.display; font.pixelSize: theme.fontSize(21); font.weight: Font.Medium
                                 elide: Text.ElideRight }
                             // "Collects #1-6" lines REMOVED (Hemanth 2026-07-17, reversing his
                             // 2026-07-13 headline-datum call): GCD titles collected editions like
@@ -324,13 +324,13 @@ Item {
                                         Text { visible: index > 0; text: "·"; color: theme.inkDimmer; opacity: 0.5
                                             font.family: theme.ui; font.pixelSize: 14 }
                                         Text { text: modelData; color: index === 0 ? theme.inkDim : theme.inkDimmer
-                                            font.family: theme.ui; font.pixelSize: 14 }
+                                            font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
                                     }
                                 }
                             }
                             Text { width: parent.width; visible: !!ed.modelData.description
                                 text: ed.modelData.description || ""
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; lineHeight: 1.3 }
                         }
 
@@ -345,22 +345,22 @@ Item {
                             Text {
                                 visible: ed.officialSources.length > 0
                                 text: ed.officialSources.length + " verified source" + (ed.officialSources.length === 1 ? "" : "s")
-                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                             }
                             Repeater {
                                 model: ed.officialSources
                                 delegate: Row {
                                     required property var modelData
                                     width: sourceRail.width; height: 22; spacing: 10
-                                    Text { text: modelData.format || modelData.kind || "GetComics"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11 }
-                                    Text { text: modelData.date || ""; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
-                                    Text { width: parent.width - x; text: modelData.title || ""; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; elide: Text.ElideRight }
+                                    Text { text: modelData.format || modelData.kind || "GetComics"; color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
+                                    Text { text: modelData.date || ""; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
+                                    Text { width: parent.width - x; text: modelData.title || ""; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11); elide: Text.ElideRight }
                                 }
                             }
                             Text {
                                 visible: ed.communitySources.length > 0
                                 text: "Community Collections · " + ed.communitySources.length
-                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12; topPadding: 3
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12); topPadding: 3
                             }
                             Repeater {
                                 model: ed.communitySources
@@ -368,7 +368,7 @@ Item {
                                     required property var modelData
                                     width: sourceRail.width
                                     text: (modelData.format || modelData.kind || "Community") + " · " + (modelData.title || "")
-                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; elide: Text.ElideRight
+                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11); elide: Text.ElideRight
                                 }
                             }
                         }
@@ -389,7 +389,7 @@ Item {
                                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                                 width: 48; horizontalAlignment: Text.AlignHCenter; visible: ed.inFlight
                                 text: ed.dlTotal > 0 ? Math.round(ed.dlDone / ed.dlTotal * 100) + "%" : "…"
-                                color: theme.gold; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold }
                             Image {                          // verified GetComics download
                                 anchors.centerIn: parent
                                 visible: ed.hasSource && !ed.inFlight && ed.dlState !== "done"
@@ -425,7 +425,7 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 text: ed.cancelPending ? "Cancelling…" : "Cancel"
-                                color: theme.gold; font.family: theme.ui; font.pixelSize: 13
+                                color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                             }
                             KeyboardAction {
                                 id: cancelAction

@@ -22,7 +22,7 @@ Column {
     Text {
         text: "MORE LIKE THIS"
         color: theme.inkDim
-        font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.5
+        font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.5
     }
     ListView {
         id: moreLikeList
@@ -77,7 +77,7 @@ Column {
                 wrapMode: mlt.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
                 maximumLineCount: mlt.phoneNarrow ? 3 : 1
                 elide: mlt.phoneNarrow ? Text.ElideNone : Text.ElideRight
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 12
+                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
             }
         }
     }

@@ -7,6 +7,7 @@ import "TheatreApi.js" as TheatreApi
 
 Rectangle {
     id: splash
+    Theme { id: interfaceTypography }
     signal finished()
     color: "#08080d"
 
@@ -101,7 +102,7 @@ Rectangle {
         }
         Text {
             text: "COLOSSEUM"; color: "#f0c44a"
-            font.family: "Georgia"; font.pixelSize: 40; font.letterSpacing: 8
+            font.family: "Georgia"; font.pixelSize: interfaceTypography.fontSize(40); font.letterSpacing: 8
             anchors.horizontalCenter: parent.horizontalCenter
         }
         Rectangle {   // progress track
@@ -115,7 +116,7 @@ Rectangle {
         }
         Text {
             text: "Loading library… " + Math.round(splash.progress * 100) + "%"
-            color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: 12
+            color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: interfaceTypography.fontSize(12)
             anchors.horizontalCenter: parent.horizontalCenter
         }
     }

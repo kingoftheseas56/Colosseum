@@ -36,6 +36,21 @@ Item {
 
     // ================= the shell seam =================
     property var reader: null
+    function revealControl(item) {
+        if (!theme.androidHost || !item) return
+        let node = item
+        while (node && node !== content) node = node.parent
+        if (node !== content) return
+        let row = item.parent
+        while (row && row !== content) {
+            if (typeof row.revealItem === "function") { row.revealItem(item); break }
+            row = row.parent
+        }
+        const p = item.mapToItem(settingsViewport.contentItem, 0, 0)
+        if (p.y < settingsViewport.contentY) settingsViewport.contentY = Math.max(0, p.y - 8)
+        else if (p.y + item.height > settingsViewport.contentY + settingsViewport.height)
+            settingsViewport.contentY = Math.min(Math.max(0, settingsViewport.contentHeight - settingsViewport.height), p.y + item.height - settingsViewport.height + 8)
+    }
 
     // ---- open state (source of truth; the shell binds modalOpen off `opened`) ----
     property bool _open: false
@@ -121,8 +136,8 @@ Item {
         property bool active: false
         property string label: ""
         signal tapped()
-        implicitHeight: 22
-        implicitWidth: chipText.implicitWidth + 20
+        implicitHeight: theme.androidHost ? 52 : 22
+        implicitWidth: Math.max(theme.androidHost ? 52 : 0, chipText.implicitWidth + 20)
         radius: 7
         color: chip.active ? root.cGoldChipBg : "transparent"
         border.width: 1
@@ -133,10 +148,10 @@ Item {
             text: chip.label
             color: chip.active ? theme.gold : theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             font.bold: chip.active
         }
-        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: chip.tapped() }
+        ComicReaderKeyboardArea { onActiveFocusChanged: if (activeFocus) root.revealControl(parent); anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: chip.tapped() }
     }
 
     // a settings row: left label, right a set of chips; a hairline under it
@@ -144,20 +159,43 @@ Item {
         id: srow
         default property alias setContent: setRow.data
         property string label: ""
-        implicitHeight: 37
+        implicitHeight: theme.androidHost ? 96 : 37
         Text {
             anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenter: theme.androidHost ? undefined : parent.verticalCenter
+            anchors.top: theme.androidHost ? parent.top : undefined
+            anchors.topMargin: theme.androidHost ? 6 : 0
             text: srow.label
             color: theme.inkDim
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
         }
-        Row {
-            id: setRow
+        Flickable {
+            id: choicesViewport
             anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 5
+            anchors.verticalCenter: theme.androidHost ? undefined : parent.verticalCenter
+            anchors.bottom: theme.androidHost ? parent.bottom : undefined
+            anchors.bottomMargin: theme.androidHost ? 8 : 0
+            width: theme.androidHost ? parent.width : setRow.implicitWidth
+            height: setRow.height
+            contentWidth: Math.max(width, setRow.implicitWidth)
+            contentHeight: height
+            interactive: theme.androidHost && contentWidth > width
+            clip: theme.androidHost
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            function revealItem(item) {
+                const p = item.mapToItem(contentItem, 0, 0)
+                if (p.x < contentX) contentX = Math.max(0, p.x - 8)
+                else if (p.x + item.width > contentX + width)
+                    contentX = Math.min(Math.max(0, contentWidth - width), p.x + item.width - width + 8)
+            }
+            Row {
+                id: setRow
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 5
+            }
         }
         Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: root.cRowLine }
     }
@@ -171,7 +209,7 @@ Item {
         property string label: ""
         property string iconObjectName: ""
         signal tapped()
-        implicitHeight: 58
+        implicitHeight: theme.androidHost ? 80 : 58
         radius: 9
         color: "transparent"
         border.width: 1
@@ -182,7 +220,7 @@ Item {
             ComicReaderIcon {
                 objectName: tile.iconObjectName
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: 16; height: 16
+                width: theme.androidHost ? 28 : 16; height: width
                 kind: tile.kind
                 ink: tileHover.hovered ? theme.ink : theme.inkDim
                 accessibleName: tile.label
@@ -192,11 +230,11 @@ Item {
                 text: tile.label
                 color: tileHover.hovered ? theme.ink : theme.inkDim
                 font.family: theme.hud
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
             }
         }
         HoverHandler { id: tileHover }
-        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tile.tapped() }
+        ComicReaderKeyboardArea { onActiveFocusChanged: if (activeFocus) root.revealControl(parent); anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tile.tapped() }
     }
 
     // a pill switch — the mock's `.sw`. Gold only when ON, same law as the chips.
@@ -204,8 +242,8 @@ Item {
         id: sw
         property bool checked: false
         signal tapped()
-        implicitWidth: 34
-        implicitHeight: 18
+        implicitWidth: theme.androidHost ? 52 : 34
+        implicitHeight: theme.androidHost ? 48 : 18
         radius: height / 2
         color: sw.checked ? root.cGoldChipBg : "transparent"
         border.width: 1
@@ -213,12 +251,12 @@ Item {
         Rectangle {
             width: 12; height: 12
             radius: 6
-            y: 2
+            y: (parent.height - height) / 2
             x: sw.checked ? sw.width - width - 3 : 3
             color: sw.checked ? theme.gold : theme.inkDimmer
             Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
         }
-        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sw.tapped() }
+        ComicReaderKeyboardArea { onActiveFocusChanged: if (activeFocus) root.revealControl(parent); anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sw.tapped() }
     }
 
     // a danger action — the mock's bordered red pill. Unarmed it just names itself; ARMED it says
@@ -229,26 +267,30 @@ Item {
         property bool armed: false
         property string label: ""
         signal tapped()
-        implicitHeight: 28
+        implicitHeight: theme.androidHost ? Math.max(52, dangerText.implicitHeight + 16) : 28
         radius: 8
         color: danger.armed ? root.cDangerFill : "transparent"
         border.width: 1
         border.color: danger.armed ? root.cDanger : root.cDangerBorder
         Text {
+            id: dangerText
             anchors.centerIn: parent
+            width: theme.androidHost ? parent.width - 16 : implicitWidth
+            wrapMode: theme.androidHost ? Text.WordWrap : Text.NoWrap
+            horizontalAlignment: Text.AlignHCenter
             text: danger.armed ? "Tap again to confirm" : danger.label
             color: root.cDanger
             font.family: theme.hud
-            font.pixelSize: 12          // mock says 11.5px; pixelSize is an int — 12 matches the chips
+            font.pixelSize: theme.fontSize(12)          // mock says 11.5px; pixelSize is an int — 12 matches the chips
             font.bold: danger.armed
         }
-        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: danger.tapped() }
+        ComicReaderKeyboardArea { onActiveFocusChanged: if (activeFocus) root.revealControl(parent); anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: danger.tapped() }
     }
 
     component SectionLabel: Text {
         color: theme.inkDimmer
         font.family: theme.hud
-        font.pixelSize: 10
+        font.pixelSize: theme.fontSize(10)
         font.letterSpacing: 2
         font.capitalization: Font.AllUppercase
     }
@@ -265,7 +307,7 @@ Item {
         Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
         signal tapped()
         onTapped: root.dismiss()
-        ComicReaderKeyboardArea { anchors.fill: parent; enabled: root.opened; onClicked: scrim.tapped() }
+        ComicReaderKeyboardArea { onActiveFocusChanged: if (activeFocus) root.revealControl(parent); anchors.fill: parent; enabled: root.opened; onClicked: scrim.tapped() }
     }
 
     // ============================================================================================
@@ -288,11 +330,22 @@ Item {
         Rectangle { anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom; width: 1; color: root.cEdge }
 
         // click-swallower: a tap on the sheet body must NOT fall through to the scrim beneath
-        ComicReaderKeyboardArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
+        ComicReaderKeyboardArea { onActiveFocusChanged: if (activeFocus) root.revealControl(parent); anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
 
+        Flickable {
+            id: settingsViewport
+            objectName: "settingsViewport"
+            anchors.fill: parent
+            contentWidth: width
+            contentHeight: content.implicitHeight + 20
+            interactive: theme.androidHost && contentHeight > height
+            clip: theme.androidHost
+            boundsBehavior: Flickable.StopAtBounds
         Column {
             id: content
-            anchors.fill: parent
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
             anchors.leftMargin: 22
             anchors.rightMargin: 22
             anchors.topMargin: 20
@@ -301,21 +354,21 @@ Item {
             // ---- title row: "Reader settings" + close X ----
             Item {
                 width: parent.width
-                height: 34
+                height: theme.androidHost ? 64 : 34
                 Text {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Reader settings"
                     color: theme.ink
                     font.family: theme.hud
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     font.bold: true
                     font.letterSpacing: 0.3
                 }
                 Item {
                     id: closeX
                     objectName: "settingsCloseX"
-                    width: 24; height: 24
+                    width: theme.androidHost ? 52 : 24; height: width
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     signal tapped()
@@ -323,10 +376,10 @@ Item {
                     ComicReaderIcon {
                         anchors.centerIn: parent
                         kind: "close"
-                        width: 15; height: 15
+                        width: theme.androidHost ? 28 : 15; height: width
                         ink: theme.inkDimmer
                     }
-                    ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: closeX.tapped() }
+                    ComicReaderKeyboardArea { onActiveFocusChanged: if (activeFocus) root.revealControl(parent); anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: closeX.tapped() }
                 }
             }
 
@@ -388,7 +441,7 @@ Item {
                         text: root.zoomPercent + "%"
                         color: theme.gold
                         font.family: theme.hud
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         font.bold: true
                     }
                 }
@@ -465,14 +518,14 @@ Item {
             // state, not a choice among peers.
             Item {
                 width: parent.width
-                height: 37
+                height: theme.androidHost ? 64 : 37
                 Text {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Memory saver"
                     color: theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                 }
                 Switch {
                     objectName: "settingsMemorySaver"
@@ -486,7 +539,7 @@ Item {
             // The two destructive actions, side by side at the very bottom (mock .dangerrow).
             Row {
                 width: parent.width
-                height: 40
+                height: theme.androidHost ? 64 : 40
                 spacing: 7
                 readonly property real cellW: (width - spacing) / 2
 
@@ -507,6 +560,7 @@ Item {
                     onTapped: root.armDanger("resetSeries", function () { if (root.reader) root.reader.resetSeries() })
                 }
             }
+        }
         }
     }
 }

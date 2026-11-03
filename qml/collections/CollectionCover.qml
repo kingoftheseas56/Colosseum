@@ -3,6 +3,7 @@ import ".."
 
 Rectangle {
     id: root
+    Theme { id: interfaceTypography }
     property url source
     property string title: ""
     property bool preserve: false
@@ -20,7 +21,7 @@ Rectangle {
         textFormat: Text.PlainText
         color: "#c9c8d0"
         font.family: "Segoe UI"
-        font.pixelSize: 13
+        font.pixelSize: interfaceTypography.fontSize(13)
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         wrapMode: Text.Wrap

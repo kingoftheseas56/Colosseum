@@ -146,8 +146,8 @@ Item {
                     Column {
                         width: parent.width - 52
                         spacing: 5
-                        Text { text: root.heading(); color: theme.ink; font.family: theme.display; font.pixelSize: 30 }
-                        Text { width: parent.width; text: root.detail(); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.WordWrap }
+                        Text { text: root.heading(); color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(30) }
+                        Text { width: parent.width; text: root.detail(); color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13); wrapMode: Text.WordWrap }
                     }
                 }
                 Rectangle { width: parent.width; height: 1; color: theme.edge }
@@ -155,10 +155,10 @@ Item {
                     columns: 2
                     columnSpacing: 28
                     rowSpacing: 8
-                    Text { text: qsTr("Account"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
-                    Text { text: root.syncState && root.syncState.accountDisplayName ? root.syncState.accountDisplayName : qsTr("Not connected"); color: theme.ink; font.family: theme.ui; font.pixelSize: 12 }
-                    Text { text: qsTr("Last sync"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
-                    Text { text: root.formatLastSync(root.syncState ? root.syncState.lastSuccessAt : 0); color: theme.ink; font.family: theme.ui; font.pixelSize: 12 }
+                    Text { text: qsTr("Account"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
+                    Text { text: root.syncState && root.syncState.accountDisplayName ? root.syncState.accountDisplayName : qsTr("Not connected"); color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
+                    Text { text: qsTr("Last sync"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
+                    Text { text: root.formatLastSync(root.syncState ? root.syncState.lastSuccessAt : 0); color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                 }
                 Text {
                     objectName: "stremioSyncResult"
@@ -167,7 +167,7 @@ Item {
                     text: visible ? root.syncState.lastResultSummary : ""
                     color: theme.gold
                     font.family: theme.ui
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     wrapMode: Text.WordWrap
                 }
                 Text {
@@ -178,7 +178,7 @@ Item {
                         : qsTr("Disconnecting stops sync and removes this device's credential. Everything already merged stays in Colosseum.")
                     color: theme.ink
                     font.family: theme.ui
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     wrapMode: Text.WordWrap
                 }
                 Flickable {
@@ -254,7 +254,7 @@ Item {
         border.width: primary ? 0 : 1
         border.color: theme.edge
         opacity: enabled ? 1 : 0.5
-        Text { id: labelText; anchors.centerIn: parent; text: action.label; color: action.primary ? "#17130a" : theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+        Text { id: labelText; anchors.centerIn: parent; text: action.label; color: action.primary ? "#17130a" : theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold }
         KeyboardAction {
             id: actionInput; anchors.fill: parent; accessibleName: action.label; focusRadius: action.radius
             onActiveFocusChanged: if (activeFocus) root.revealPanelAction(action)

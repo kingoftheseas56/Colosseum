@@ -11,6 +11,7 @@ import QtQuick.Shapes
 // Texture: six static washes/folds retained; ink displacement and micro-hatch omitted.
 Item {
     id: root
+    Theme { id: interfaceTypography }
     objectName: "eastBlueChart"
     readonly property int intrinsicWidth: 1680
     readonly property int intrinsicHeight: 960
@@ -1853,7 +1854,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -1868,7 +1869,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 12
+                font.pixelSize: interfaceTypography.fontSize(12)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#c7785b38"
@@ -1883,7 +1884,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 12
+                font.pixelSize: interfaceTypography.fontSize(12)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#c7785b38"
@@ -1898,7 +1899,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -1913,7 +1914,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.bodyFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -1928,7 +1929,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -1943,7 +1944,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.bodyFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -1958,7 +1959,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -1973,7 +1974,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.bodyFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -1988,7 +1989,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2003,7 +2004,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.bodyFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2018,7 +2019,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2033,7 +2034,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.bodyFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2048,7 +2049,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2063,7 +2064,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.bodyFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2078,7 +2079,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2093,7 +2094,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2108,7 +2109,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2123,7 +2124,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.bodyFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2138,7 +2139,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2153,7 +2154,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2168,7 +2169,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2183,7 +2184,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2198,7 +2199,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2213,7 +2214,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2228,7 +2229,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#ff000000"
@@ -2243,7 +2244,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#7a775536"
@@ -2258,7 +2259,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.NoWrap
                 font.family: root.displayFontFamily
-                font.pixelSize: 16
+                font.pixelSize: interfaceTypography.fontSize(16)
                 font.hintingPreference: Font.PreferNoHinting
                 renderType: Text.CurveRendering
                 color: "#7a775536"

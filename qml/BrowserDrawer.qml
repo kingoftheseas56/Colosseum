@@ -230,7 +230,7 @@ Item {
                             anchors.centerIn: parent
                             text: tabPill.modelData === "episodes" ? "EPISODES" : "SOURCES"
                             color: drawer.tab === tabPill.modelData ? theme.gold : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 1
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: drawer.tab = tabPill.modelData }
                     }
@@ -271,7 +271,7 @@ Item {
                             anchors.centerIn: parent
                             text: seasonPill.modelData === 0 ? "Specials" : "S" + seasonPill.modelData
                             color: drawer.activeSeason === seasonPill.modelData ? theme.gold : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 11
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: drawer.activeSeason = seasonPill.modelData }
                     }
@@ -283,18 +283,18 @@ Item {
             Text {
                 visible: drawer.tab === "episodes" && drawer.metaState === "loading"
                 text: "Loading seasons…"
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
             }
             Row {
                 visible: drawer.tab === "episodes" && drawer.metaState === "error" && drawer.queue.length > 0
                 spacing: 8
                 Text {
                     text: "Couldn't load other seasons."
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 }
                 Text {
                     text: "Retry"
-                    color: theme.gold; font.family: theme.ui; font.pixelSize: 12
+                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: { drawer.metaState = "idle"; drawer.ensureMeta() } }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Retry seasons"; onTriggered: { drawer.metaState = "idle"; drawer.ensureMeta() } }
@@ -348,7 +348,7 @@ Item {
                         width: 30
                         anchors.verticalCenter: parent.verticalCenter
                         text: "E" + epRow.modelData.num
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                     }
                     Text {
                         width: parent.width - 30 - 56 - 20
@@ -357,7 +357,7 @@ Item {
                         elide: Text.ElideRight
                         color: epRow.st.state === "now" ? "#f0e6c8"
                              : epRow.st.state === "watched" ? theme.inkDimmer : theme.ink
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     }
                     Rectangle {
                         width: 46; height: 3; radius: 2
@@ -442,21 +442,21 @@ Item {
                         Text {
                             text: srcRow.modelData.sourceName || "Source"
                             color: srcRow.st === "dead" ? theme.inkDimmer : theme.ink
-                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                         }
                         Text {
                             text: srcRow.modelData.quality || ""
-                            color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                         }
                         Text {
                             visible: srcRow.st === "now"
                             text: "PLAYING"
-                            color: theme.gold; font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1
+                            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 1
                         }
                         Text {
                             visible: srcRow.st === "dead"
                             text: "didn't start"
-                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10
+                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                         }
                     }
                     Text {
@@ -465,7 +465,7 @@ Item {
                               (Number(srcRow.modelData.seeders) > 0 ? "  ·  " + srcRow.modelData.seeders + " seeders" : "")
                         elide: Text.ElideRight
                         color: srcRow.st === "dead" ? theme.inkDimmer : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 11
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                     }
                 }
                 // copy link — same affordance the sources sheet ships (2026-07-08)
@@ -480,7 +480,7 @@ Item {
                         anchors.centerIn: parent
                         text: srcRow.copiedTick ? "✓" : "⧉"
                         color: srcRow.copiedTick ? theme.gold : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     }
                     MouseArea {
                         id: copySrcMa
@@ -520,7 +520,7 @@ Item {
                 topPadding: 30
                 text: "This is a downloaded file — no live sources."
                 color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 12
+                font.family: theme.ui; font.pixelSize: theme.fontSize(12)
             }
         }
 

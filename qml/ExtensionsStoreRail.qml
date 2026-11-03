@@ -49,7 +49,7 @@ Column {
                 wrapMode: rail.phoneLayout ? Text.WordWrap : Text.NoWrap
                 text: rail.title
                 color: theme.ink
-                font.family: theme.display; font.pixelSize: 26; font.weight: Font.DemiBold
+                font.family: theme.display; font.pixelSize: theme.fontSize(26); font.weight: Font.DemiBold
             }
             Text {
                 width: rail.phoneLayout ? head.width : implicitWidth
@@ -57,7 +57,7 @@ Column {
                 visible: rail.sub.length > 0
                 text: rail.sub
                 color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 14
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             }
         }
         Text {
@@ -66,7 +66,7 @@ Column {
             anchors.right: parent.right; anchors.bottom: parent.bottom
             text: "See all ›"
             color: seeAllAction.interactionActive ? theme.ink : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 15
+            font.family: theme.ui; font.pixelSize: theme.fontSize(15)
             KeyboardAction {
                 id: seeAllAction
                 objectName: rail.automationId.length > 0 ? rail.automationId + "SeeAll" : ""

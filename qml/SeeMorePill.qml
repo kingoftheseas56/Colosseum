@@ -23,13 +23,13 @@ Item {
             Text {
                 text: root.expanded ? "Show less" : ("See more · " + root.extra)
                 color: input.interactionActive ? theme.gold : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 13
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
                 text: root.expanded ? "▴" : "▾"
                 color: input.interactionActive ? theme.gold : theme.inkDimmer
-                font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter
+                font.pixelSize: theme.fontSize(11); anchors.verticalCenter: parent.verticalCenter
             }
         }
         KeyboardAction {

@@ -5,6 +5,7 @@ import QtQuick
 
 Rectangle {
     id: tray
+    Theme { id: interfaceTypography }
     objectName: "nextToOpenTray"
 
     property var model: []
@@ -32,13 +33,13 @@ Rectangle {
                 anchors.left: parent.left; anchors.leftMargin: 7
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Next to Open"
-                color: "#ededf1"; font.pixelSize: 14; font.weight: Font.DemiBold
+                color: "#ededf1"; font.pixelSize: interfaceTypography.fontSize(14); font.weight: Font.DemiBold
             }
             Text {
                 anchors.right: parent.right; anchors.rightMargin: 7
                 anchors.verticalCenter: parent.verticalCenter
                 text: tray.stagedCount
-                color: "#b9b9c2"; font.pixelSize: 12
+                color: "#b9b9c2"; font.pixelSize: interfaceTypography.fontSize(12)
             }
         }
 
@@ -62,14 +63,14 @@ Rectangle {
                     Text {
                         width: parent.width
                         text: modelData.title || modelData.path || "Untitled"
-                        color: "#ededf1"; font.pixelSize: 12; elide: Text.ElideRight
+                        color: "#ededf1"; font.pixelSize: interfaceTypography.fontSize(12); elide: Text.ElideRight
                     }
                     Text {
                         width: parent.width
                         text: modelData.accepted ? (modelData.family || "Local") :
                                                     "Unavailable â€” " + (modelData.reject || "cannot open")
                         color: modelData.accepted ? "#92929c" : "#c1a8a8"
-                        font.pixelSize: 10; elide: Text.ElideRight
+                        font.pixelSize: interfaceTypography.fontSize(10); elide: Text.ElideRight
                     }
                 }
 

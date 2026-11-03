@@ -126,7 +126,7 @@ Item {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; height: 34
             color: Qt.rgba(0.08, 0.04, 0.05, 0.92)
             Text { anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; verticalAlignment: Text.AlignVCenter
-                text: root.errorText; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight; maximumLineCount: 1 }
+                text: root.errorText; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: theme.fontSize(12); elide: Text.ElideRight; maximumLineCount: 1 }
         }
     }
 

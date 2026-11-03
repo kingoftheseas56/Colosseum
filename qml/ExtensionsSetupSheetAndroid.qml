@@ -117,7 +117,7 @@ Item {
                         elide: Text.ElideRight
                         text: sheet.addon ? "Set up " + (sheet.addon.title || sheet.addon.name) : ""
                         color: theme.ink
-                        font.family: theme.display; font.pixelSize: 22
+                        font.family: theme.display; font.pixelSize: theme.fontSize(22)
                     }
                     Rectangle {
                         id: closeBox
@@ -142,7 +142,7 @@ Item {
                     wrapMode: Text.WordWrap
                     text: "Setup opens in your browser. Finish it there, copy the add-on link it gives you, then come back and paste it."
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 14
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 }
 
                 Rectangle {
@@ -152,7 +152,7 @@ Item {
                         anchors.centerIn: parent
                         text: "Open setup page"
                         color: "#111217"
-                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                     }
                     KeyboardAction {
                         anchors.fill: parent
@@ -170,7 +170,7 @@ Item {
                     placeholderText: "Paste the add-on link the page gave you"
                     color: theme.ink
                     placeholderTextColor: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     background: Rectangle { radius: 16; color: Qt.rgba(1, 1, 1, 0.06); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12) }
                     onAccepted: if (text.trim().length) sheet.finish(text.trim())
                 }
@@ -183,7 +183,7 @@ Item {
                         anchors.centerIn: parent
                         text: paste.text.trim().length ? "Install" : "Paste link"
                         color: theme.ink
-                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                     }
                     KeyboardAction {
                         id: clipAction
@@ -206,7 +206,7 @@ Item {
                         anchors.centerIn: parent
                         text: "Install without setup"
                         color: theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 14
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                     }
                     KeyboardAction {
                         id: skipAction
@@ -223,7 +223,7 @@ Item {
                     wrapMode: Text.WordWrap
                     text: sheet.status
                     color: theme.gold
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 }
             }
         }

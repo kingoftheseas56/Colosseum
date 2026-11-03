@@ -43,7 +43,7 @@ Rectangle {
                 width: parent.width
                 text: qsTr("Continue reading")
                 color: "#211806"; font.family: theme.ui
-                font.pixelSize: 14; font.weight: Font.Bold
+                font.pixelSize: theme.fontSize(14); font.weight: Font.Bold
                 elide: Text.ElideRight
             }
             Rectangle {
@@ -59,7 +59,7 @@ Rectangle {
                     verticalAlignment: Text.AlignVCenter
                     text: root.metadata
                     color: "#463417"; font.family: theme.ui
-                    font.pixelSize: 10; font.weight: Font.Medium
+                    font.pixelSize: theme.fontSize(10); font.weight: Font.Medium
                     elide: Text.ElideRight
                 }
             }

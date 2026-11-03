@@ -179,14 +179,14 @@ Item {
                 text: rail.contextLabel
                 color: theme.gold
                 font.family: theme.ui
-                font.pixelSize: 10
+                font.pixelSize: theme.fontSize(10)
                 font.letterSpacing: 2.8
             }
             Text {
                 text: rail.worldName
                 color: theme.ink
                 font.family: theme.display
-                font.pixelSize: 27
+                font.pixelSize: theme.fontSize(27)
                 font.letterSpacing: -0.54
             }
         }
@@ -288,7 +288,7 @@ Item {
                         color: (rowItem.current || rowAction.interactionActive) ? theme.ink : theme.inkDim
                         Behavior on color { ColorAnimation { duration: 160 } }
                         font.family: theme.ui
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         font.weight: Font.DemiBold
                     }
                     KeyboardAction {

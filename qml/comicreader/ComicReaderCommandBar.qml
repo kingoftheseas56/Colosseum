@@ -29,7 +29,8 @@ Item {
 
     // Android phone width: the six commands show as icons only (their names stay as accessible
     // labels). Named, the row is wider than a phone and ran off the left edge.
-    readonly property bool compact: Qt.platform.os === "android" && width < 600
+    property bool androidHost: theme.androidHost
+    readonly property bool compact: androidHost && width < Math.max(900, theme.fontSize(14) * 58)
     objectName: "readerCommandBar"
 
     // ---- shell facts, bound in by the HUD (never written back) ----
@@ -44,7 +45,7 @@ Item {
 
     signal commandTriggered(string command)
 
-    implicitHeight: 46
+    implicitHeight: androidHost ? 68 : 46
     height: implicitHeight
 
     Theme { id: theme }
@@ -177,8 +178,8 @@ Item {
                 readonly property bool on: bar.activeFor(modelData)
                 // width/height come from the content: a command is its icon and its name, nothing else.
                 // phone: icon only in a 44px slot; six named commands are wider than the screen
-                width: bar.compact ? 44 : cmdRow.implicitWidth
-                height: 30
+                width: bar.androidHost ? Math.max(52, cmdRow.implicitWidth) : cmdRow.implicitWidth
+                height: bar.androidHost ? 52 : 30
                 // settle this command's own content so the anchor seam can measure it in the same
                 // beat a label changed, rather than a polish pass later
                 function relayout() { cmdRow.forceLayout() }
@@ -193,7 +194,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         kind: bar.glyphFor(cmd.modelData)
                         accessibleName: bar.labelFor(cmd.modelData)
-                        width: 18; height: 18
+                        width: bar.androidHost ? 28 : 18; height: width
                         // NO pill, NO chip: the state lives in the ink, exactly as the approved mock
                         // renders it (idle near-white, active gold, hover full white).
                         ink: cmd.on ? theme.gold : (cmdMa.containsMouse ? theme.ink : theme.inkDim)
@@ -204,7 +205,7 @@ Item {
                         text: bar.labelFor(cmd.modelData)
                         color: cmd.on ? theme.gold : (cmdMa.containsMouse ? theme.ink : theme.inkDim)
                         font.family: theme.hud
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         font.bold: cmd.on
                     }
                 }
@@ -213,10 +214,10 @@ Item {
                     id: cmdMa
                     anchors.fill: parent
                     // a comfortable target without drawing a box for it
-                    anchors.topMargin: -8
-                    anchors.bottomMargin: -8
-                    anchors.leftMargin: bar.compact ? 0 : -8
-                    anchors.rightMargin: bar.compact ? 0 : -8
+                    anchors.topMargin: bar.androidHost ? 0 : -8
+                    anchors.bottomMargin: bar.androidHost ? 0 : -8
+                    anchors.leftMargin: bar.androidHost ? 0 : -8
+                    anchors.rightMargin: bar.androidHost ? 0 : -8
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     keyboardLabel: bar.labelFor(cmd.modelData)

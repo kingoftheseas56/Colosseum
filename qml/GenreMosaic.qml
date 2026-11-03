@@ -74,14 +74,14 @@ Column {
 
                 Text {
                     text: cell.modelData.name; color: theme.ink
-                    font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
+                    font.family: theme.display; font.pixelSize: theme.fontSize(16); font.weight: Font.DemiBold
                     anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 13
                     style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.6)
                 }
                 Text {
                     text: cell.modelData.count !== undefined ? cell.modelData.count : ""
                     color: Qt.rgba(1, 1, 1, 0.82)
-                    font.family: theme.ui; font.pixelSize: 11
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                     anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 12
                 }
                 Rectangle {

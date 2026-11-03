@@ -6,6 +6,7 @@ import "OnePieceParadiseAtlasData.js" as Atlas
 
 Item {
     id: root
+    Theme { id: interfaceTypography }
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     width: 1680
     height: 960
@@ -155,23 +156,23 @@ Item {
     Text {
         x: 63; y: 176; width: 270; rotation: 90; transformOrigin: Item.TopLeft
         text: "R E D   L I N E"; color: "#795337"
-        font.family: root.displayFamily; font.pixelSize: 25
+        font.family: root.displayFamily; font.pixelSize: interfaceTypography.fontSize(25)
     }
     Text {
         x: 1600; y: 397; width: 270; rotation: 90; transformOrigin: Item.TopLeft
         text: "R E D   L I N E"; color: "#795337"
-        font.family: root.displayFamily; font.pixelSize: 25
+        font.family: root.displayFamily; font.pixelSize: interfaceTypography.fontSize(25)
     }
 
     Column {
         x: 204; y: 88; width: 330; spacing: 6
-        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "THE GRAND LINE"; color: "#90734d"; font.family: root.bodyFamily; font.pixelSize: 13; font.letterSpacing: 4 }
-        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "PARADISE"; color: "#6b4c31"; font.family: root.displayFamily; font.pixelSize: 34; font.letterSpacing: 3 }
+        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "THE GRAND LINE"; color: "#90734d"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(13); font.letterSpacing: 4 }
+        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "PARADISE"; color: "#6b4c31"; font.family: root.displayFamily; font.pixelSize: interfaceTypography.fontSize(34); font.letterSpacing: 3 }
         Rectangle { anchors.horizontalCenter: parent.horizontalCenter; width: 198; height: 1; color: "#667f5b37" }
-        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "FIRST HALF OF THE GRAND LINE"; color: "#96764b"; font.family: root.bodyFamily; font.pixelSize: 10; font.letterSpacing: 1.2 }
+        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "FIRST HALF OF THE GRAND LINE"; color: "#96764b"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); font.letterSpacing: 1.2 }
     }
-    Text { x: 1110; y: 186; width: 340; text: "C A L M   B E L T"; color: "#8a8062"; font.family: root.bodyFamily; font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter }
-    Text { x: 690; y: 727; width: 410; text: "C A L M   B E L T"; color: "#8a8062"; font.family: root.bodyFamily; font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter }
+    Text { x: 1110; y: 186; width: 340; text: "C A L M   B E L T"; color: "#8a8062"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(12); horizontalAlignment: Text.AlignHCenter }
+    Text { x: 690; y: 727; width: 410; text: "C A L M   B E L T"; color: "#8a8062"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(12); horizontalAlignment: Text.AlignHCenter }
 
     // The sky plate is an altitude inset, not an island in the upper Calm Belt.
     Shape {
@@ -270,7 +271,7 @@ Item {
                 text: parent.modelData.label
                 color: "#765336"
                 font.family: root.displayFamily
-                font.pixelSize: parent.modelData.size
+                font.pixelSize: interfaceTypography.fontSize(parent.modelData.size)
                 font.letterSpacing: parent.modelData.minor ? 0 : 0.5
                 horizontalAlignment: Text.AlignHCenter
                 style: Text.Outline; styleColor: "#ddc69a"
@@ -281,7 +282,7 @@ Item {
                 text: parent.modelData.detail
                 color: "#84694a"
                 font.family: root.bodyFamily
-                font.italic: true; font.pixelSize: 11
+                font.italic: true; font.pixelSize: interfaceTypography.fontSize(11)
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 style: Text.Outline; styleColor: "#ddc69a"
@@ -289,14 +290,14 @@ Item {
         }
     }
 
-    Text { x: 766; y: 109; width: 195; text: "WHITE-WHITE SEA"; color: "#8a7a5b"; font.family: root.bodyFamily; font.pixelSize: 10; font.letterSpacing: 1.5; horizontalAlignment: Text.AlignHCenter }
-    Text { visible: root.detailLevel >= 1.25; x: 760; y: 263; width: 220; text: "Upper Yard, once part of Jaya"; color: "#8a7a5b"; font.family: root.bodyFamily; font.pixelSize: 11; font.italic: true; horizontalAlignment: Text.AlignHCenter }
-    Text { visible: root.detailLevel >= 1.25; x: 710; y: 161; text: "Angel Island"; color: "#8a7a5b"; font.family: root.bodyFamily; font.pixelSize: 10; font.italic: true }
-    Text { visible: root.detailLevel >= 1.25; x: 843; y: 230; text: "Shandora"; color: "#8a7a5b"; font.family: root.bodyFamily; font.pixelSize: 10; font.italic: true }
-    Text { visible: root.detailLevel >= 1.25; x: 796; y: 335; text: "Knock Up Stream"; rotation: -66; color: "#967853"; font.family: root.bodyFamily; font.pixelSize: 11; font.italic: true }
-    Text { visible: root.detailLevel >= 1.25; x: 932; y: 322; text: "White Sea"; color: "#8b7b5b"; font.family: root.bodyFamily; font.pixelSize: 11; font.italic: true }
-    Text { x: 1240; y: 673; width: 260; text: "FLORIAN TRIANGLE"; color: "#857352"; font.family: root.displayFamily; font.pixelSize: 11; font.letterSpacing: 1.5; horizontalAlignment: Text.AlignHCenter }
-    Text { visible: root.detailLevel >= 1.25; x: 1145; y: 516; text: "Sea train"; rotation: -64; color: "#8b7755"; font.family: root.bodyFamily; font.pixelSize: 10; font.italic: true }
+    Text { x: 766; y: 109; width: 195; text: "WHITE-WHITE SEA"; color: "#8a7a5b"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); font.letterSpacing: 1.5; horizontalAlignment: Text.AlignHCenter }
+    Text { visible: root.detailLevel >= 1.25; x: 760; y: 263; width: 220; text: "Upper Yard, once part of Jaya"; color: "#8a7a5b"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); font.italic: true; horizontalAlignment: Text.AlignHCenter }
+    Text { visible: root.detailLevel >= 1.25; x: 710; y: 161; text: "Angel Island"; color: "#8a7a5b"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); font.italic: true }
+    Text { visible: root.detailLevel >= 1.25; x: 843; y: 230; text: "Shandora"; color: "#8a7a5b"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); font.italic: true }
+    Text { visible: root.detailLevel >= 1.25; x: 796; y: 335; text: "Knock Up Stream"; rotation: -66; color: "#967853"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); font.italic: true }
+    Text { visible: root.detailLevel >= 1.25; x: 932; y: 322; text: "White Sea"; color: "#8b7b5b"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(11); font.italic: true }
+    Text { x: 1240; y: 673; width: 260; text: "FLORIAN TRIANGLE"; color: "#857352"; font.family: root.displayFamily; font.pixelSize: interfaceTypography.fontSize(11); font.letterSpacing: 1.5; horizontalAlignment: Text.AlignHCenter }
+    Text { visible: root.detailLevel >= 1.25; x: 1145; y: 516; text: "Sea train"; rotation: -64; color: "#8b7755"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(10); font.italic: true }
 
     // Compass and key remain quiet secondary ink, outside the island chain.
     Item {
@@ -315,16 +316,16 @@ Item {
             }
         }
         Rectangle { anchors.centerIn: parent; width: 17; height: 17; radius: 8.5; color: "#dbc494"; border.color: "#846542" }
-        Text { anchors.horizontalCenter: parent.horizontalCenter; y: -19; text: "N"; color: "#846542"; font.family: root.bodyFamily; font.pixelSize: 13 }
+        Text { anchors.horizontalCenter: parent.horizontalCenter; y: -19; text: "N"; color: "#846542"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(13) }
     }
     Column {
         x: 216; y: 852; width: 534; spacing: 9
         Row {
             spacing: 14
             Text { text: "- - -"; color: "#8a5438"; font.family: root.bodyFamily; font.pixelSize: 13 }
-            Text { text: "Straw Hat voyage"; color: "#846b49"; font.family: root.bodyFamily; font.pixelSize: 12 }
+            Text { text: "Straw Hat voyage"; color: "#846b49"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(12) }
             Text { text: "· · ·"; color: "#6c644b"; font.family: root.bodyFamily; font.pixelSize: 13 }
-            Text { text: "Luffy's detour / returns"; color: "#846b49"; font.family: root.bodyFamily; font.pixelSize: 12 }
+            Text { text: "Luffy's detour / returns"; color: "#846b49"; font.family: root.bodyFamily; font.pixelSize: interfaceTypography.fontSize(12) }
         }
     }
 

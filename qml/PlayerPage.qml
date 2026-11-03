@@ -4779,7 +4779,7 @@ Item {
                         visible: !tight
                         color: theme.inkDimmer
                         font.family: theme.hud
-                        font.pixelSize: 10
+                        font.pixelSize: theme.fontSize(10)
                         font.weight: Font.DemiBold
                         font.letterSpacing: 2
                     }
@@ -4787,7 +4787,7 @@ Item {
                         text: root.mediaTitle || mpv.mediaTitle
                         color: theme.ink
                         font.family: theme.hud
-                        font.pixelSize: tight ? 16 : 19
+                        font.pixelSize: theme.fontSize(tight ? 16 : 19)
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                         width: Math.min(implicitWidth, chrome.width * 0.5)
@@ -4797,7 +4797,7 @@ Item {
                         visible: text.length > 0 && !tight
                         color: theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         elide: Text.ElideRight
                         width: Math.min(implicitWidth, chrome.width * 0.4)
                     }
@@ -4814,7 +4814,7 @@ Item {
                 visible: !tight && root.nowClock.length > 0
                 text: root.nowClock
                 color: theme.inkDim
-                font.family: theme.hud; font.pixelSize: 13; font.letterSpacing: 0.5
+                font.family: theme.hud; font.pixelSize: theme.fontSize(13); font.letterSpacing: 0.5
                 font.features: ({ "tnum": 1 })
                 style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.45)
             }
@@ -4887,7 +4887,7 @@ Item {
                     text: "Resume from " + root.fmtTime(root.resumeChoiceSec)
                     color: theme.ink
                     font.family: theme.hud
-                    font.pixelSize: 18
+                    font.pixelSize: theme.fontSize(18)
                     font.weight: Font.DemiBold
                     wrapMode: Text.WordWrap
                 }
@@ -4896,7 +4896,7 @@ Item {
                     text: "Pick up where you left off, or start this video from the beginning."
                     color: theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     wrapMode: Text.WordWrap
                 }
                 Row {
@@ -4947,7 +4947,7 @@ Item {
                 text: "End this session?"
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: 16
+                font.pixelSize: theme.fontSize(16)
                 font.weight: Font.DemiBold
             }
             Text {
@@ -4957,7 +4957,7 @@ Item {
                 text: "Your spot stays in Continue Watching."
                 color: theme.inkDim
                 font.family: theme.hud
-                font.pixelSize: 13
+                font.pixelSize: theme.fontSize(13)
                 wrapMode: Text.WordWrap
             }
             Row {
@@ -4978,7 +4978,7 @@ Item {
                         text: "Keep watching"
                         color: theme.ink
                         font.family: theme.hud
-                        font.pixelSize: 13
+                        font.pixelSize: theme.fontSize(13)
                     }
                     MouseArea {
                         id: keepArea
@@ -5008,7 +5008,7 @@ Item {
                         text: "End session"
                         color: theme.ink
                         font.family: theme.hud
-                        font.pixelSize: 13
+                        font.pixelSize: theme.fontSize(13)
                         font.weight: Font.DemiBold
                     }
                     MouseArea {
@@ -5141,7 +5141,7 @@ Item {
                         text: "More controls"
                         color: theme.inkDimmer
                         font.family: theme.hud
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         font.weight: Font.DemiBold
                         bottomPadding: 4
                     }
@@ -5189,7 +5189,7 @@ Item {
                                 text: modelData.label
                                 color: theme.ink
                                 font.family: theme.hud
-                                font.pixelSize: 13
+                                font.pixelSize: theme.fontSize(13)
                             }
                             // What this control is currently set to. Gold, matching the seek bar and
                             // volume accent, so the menu carries information and not only verbs.
@@ -5202,7 +5202,7 @@ Item {
                                 visible: text.length > 0
                                 color: theme.gold
                                 font.family: theme.hud
-                                font.pixelSize: 12
+                                font.pixelSize: theme.fontSize(12)
                                 font.weight: Font.DemiBold
                             }
                             MouseArea {
@@ -5272,14 +5272,14 @@ Item {
                         text: "Live guide"
                         color: theme.ink
                         font.family: theme.hud
-                        font.pixelSize: 18
+                        font.pixelSize: theme.fontSize(18)
                         font.weight: Font.DemiBold
                     }
                     Text {
                         text: (typeof Live !== "undefined" && Live.activeChannel.name) ? Live.activeChannel.name : "Live channel"
                         color: theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                     }
                 }
                 Rectangle {
@@ -5300,7 +5300,7 @@ Item {
                         text: (typeof Live !== "undefined") ? Live.query : ""
                         color: theme.ink
                         font.family: theme.hud
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         clip: true
                         onTextChanged: if (typeof Live !== "undefined") Live.setQuery(text)
                         Text {
@@ -5309,7 +5309,7 @@ Item {
                             visible: liveSearch.text.length === 0
                             color: theme.inkDimmer
                             font.family: theme.hud
-                            font.pixelSize: 14
+                            font.pixelSize: theme.fontSize(14)
                         }
                     }
                 }
@@ -5346,7 +5346,7 @@ Item {
                         text: modelData.name || "Live channel"
                         color: theme.ink
                         font.family: theme.hud
-                        font.pixelSize: 15
+                        font.pixelSize: theme.fontSize(15)
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
@@ -5357,7 +5357,7 @@ Item {
                         text: modelData.group || modelData.program || "Live"
                         color: theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         elide: Text.ElideRight
                     }
                     MouseArea {
@@ -5403,7 +5403,7 @@ Item {
                 text: "DVR record"
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: 18
+                font.pixelSize: theme.fontSize(18)
                 font.weight: Font.DemiBold
             }
             Text {
@@ -5413,7 +5413,7 @@ Item {
                 text: (typeof Live !== "undefined" && Live.activeChannel.name) ? Live.activeChannel.name : "Live channel"
                 color: theme.inkDim
                 font.family: theme.hud
-                font.pixelSize: 13
+                font.pixelSize: theme.fontSize(13)
                 elide: Text.ElideRight
             }
             Text {
@@ -5423,7 +5423,7 @@ Item {
                 text: (typeof Live !== "undefined" && Live.defaultRecordingDir) ? Live.defaultRecordingDir : ""
                 color: theme.inkDim
                 font.family: theme.hud
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 elide: Text.ElideMiddle
             }
             Row {
@@ -5473,7 +5473,7 @@ Item {
                         text: modelData.channelName || "Live channel"
                         color: theme.ink
                         font.family: theme.hud
-                        font.pixelSize: 13
+                        font.pixelSize: theme.fontSize(13)
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
@@ -5484,7 +5484,7 @@ Item {
                         text: (modelData.state || "recording") + " / " + (modelData.elapsedSec || 0) + "s / " + Math.round((modelData.bytesWritten || 0) / 1024) + " KB"
                         color: modelData.state === "recording" ? theme.gold : theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                     }
                     Text {
                         x: 14
@@ -5493,7 +5493,7 @@ Item {
                         text: modelData.error || modelData.outputPath || ""
                         color: modelData.error ? theme.danger : theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         elide: Text.ElideMiddle
                     }
                     RoomActionButton {
@@ -5546,7 +5546,7 @@ Item {
                     text: "A-B loop"
                     color: root.abLoopActive ? theme.gold : theme.ink
                     font.family: theme.hud
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold
                 }
                 Text {
@@ -5556,7 +5556,7 @@ Item {
                           + (root.abLoopB >= 0 ? root.fmtTime(root.abLoopB) : "--:--")
                     color: theme.inkDim
                     font.family: theme.hud; font.features: ({ "tnum": 1 })
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                 }
                 RoundButton {
                     anchors.verticalCenter: parent.verticalCenter
@@ -5596,7 +5596,7 @@ Item {
                     text: "Playback stats"
                     color: theme.gold
                     font.family: theme.hud
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     font.weight: Font.DemiBold
                     font.capitalization: Font.AllUppercase
                     font.letterSpacing: 1.8
@@ -5617,7 +5617,7 @@ Item {
                             text: modelData
                             color: theme.inkDimmer
                             font.family: theme.hud
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             elide: Text.ElideRight
                         }
                         Text {
@@ -5626,7 +5626,7 @@ Item {
                             text: root.statsValue(modelData)
                             color: theme.ink
                             font.family: theme.hud; font.features: ({ "tnum": 1 })
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             horizontalAlignment: Text.AlignRight
                             elide: Text.ElideRight
                         }
@@ -5657,7 +5657,7 @@ Item {
                     text: root.frameGrabToastText
                     color: theme.ink
                     font.family: theme.hud
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold
                 }
                 Text {
@@ -5665,7 +5665,7 @@ Item {
                     text: "Open folder"
                     color: theme.gold
                     font.family: theme.hud
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold
                     MouseArea {
                         anchors.fill: parent
@@ -5697,7 +5697,7 @@ Item {
                 text: root.subtitleDropToastText
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
                 width: Math.min(implicitWidth, parent.width - 26)
@@ -5726,7 +5726,7 @@ Item {
                     text: root.gifState === "encoding" ? "Encoding GIF..." : "Recording GIF " + root.gifElapsedSec + "s"
                     color: root.gifState === "encoding" ? theme.gold : theme.ink
                     font.family: theme.hud
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold
                 }
                 Text {
@@ -5735,7 +5735,7 @@ Item {
                     text: "Stop"
                     color: theme.gold
                     font.family: theme.hud
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold
                     MouseArea {
                         anchors.fill: parent
@@ -5750,7 +5750,7 @@ Item {
                     text: "Discard"
                     color: theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold
                     MouseArea {
                         anchors.fill: parent
@@ -5821,13 +5821,13 @@ Item {
                 Text {
                     text: root.skipLabel(skipPill.activeSkip)
                     color: theme.ink
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: "Skip"
                     color: theme.inkDim
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
@@ -5895,14 +5895,14 @@ Item {
                             text: "Up next  •  Playing in " + root.upNextRemainingSec + "s"
                             color: theme.gold
                             font.family: theme.hud
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             font.weight: Font.DemiBold
                         }
                         Text {
                             text: root.upNextTitle()
                             color: theme.ink
                             font.family: theme.hud
-                            font.pixelSize: 14
+                            font.pixelSize: theme.fontSize(14)
                             font.weight: Font.DemiBold
                             elide: Text.ElideRight
                             width: parent.width
@@ -5929,7 +5929,7 @@ Item {
                             text: "Cancel"
                             color: theme.ink
                             font.family: theme.hud
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                             font.weight: Font.DemiBold
                         }
                         MouseArea {
@@ -5953,7 +5953,7 @@ Item {
                             text: "Play now"
                             color: "#12100a"
                             font.family: theme.hud
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                             font.weight: Font.Bold
                         }
                         MouseArea {
@@ -6017,7 +6017,7 @@ Item {
                     width: parent.width
                     text: root.mediaTitle
                     color: theme.ink
-                    font.family: theme.hud; font.pixelSize: 26; font.weight: Font.DemiBold
+                    font.family: theme.hud; font.pixelSize: theme.fontSize(26); font.weight: Font.DemiBold
                     font.capitalization: Font.AllUppercase; font.letterSpacing: 4
                     elide: Text.ElideRight
                 }
@@ -6027,7 +6027,7 @@ Item {
                     text: root.pauseFactsLine()
                     visible: text.length > 0
                     color: theme.inkDim
-                    font.family: theme.hud; font.pixelSize: 12; font.features: ({ "tnum": 1 })
+                    font.family: theme.hud; font.pixelSize: theme.fontSize(12); font.features: ({ "tnum": 1 })
                     elide: Text.ElideRight
                 }
                 Text {
@@ -6035,7 +6035,7 @@ Item {
                     text: root.pauseQualityLine()
                     visible: text.length > 0
                     color: theme.inkDimmer
-                    font.family: theme.hud; font.pixelSize: 11; font.letterSpacing: 2
+                    font.family: theme.hud; font.pixelSize: theme.fontSize(11); font.letterSpacing: 2
                     font.features: ({ "tnum": 1 })
                     elide: Text.ElideRight
                 }
@@ -6045,7 +6045,7 @@ Item {
                     visible: text.length > 0
                     topPadding: 4
                     color: theme.inkDim
-                    font.family: theme.hud; font.pixelSize: 12
+                    font.family: theme.hud; font.pixelSize: theme.fontSize(12)
                     lineHeight: 1.35
                     wrapMode: Text.WordWrap
                     maximumLineCount: 3
@@ -6080,7 +6080,7 @@ Item {
             anchors.leftMargin: 0
             anchors.rightMargin: 0
             anchors.bottomMargin: 0
-            height: tight ? 116 : 126
+            height: theme.androidHost ? (playerControlStrip.stacked ? playerControlStrip.height + 70 : 146) : (tight ? 116 : 126)
             radius: 0
             color: "transparent"
             border.width: 0
@@ -6124,7 +6124,7 @@ Item {
                     text: root.stateLineText
                     visible: text.length > 0
                     color: theme.ink
-                    font.family: theme.hud; font.pixelSize: 14; font.weight: Font.DemiBold
+                    font.family: theme.hud; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                     font.features: ({ "tnum": 1 })
                     style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.45)
                 }
@@ -6134,7 +6134,7 @@ Item {
                     text: root.endsAtClock.length > 0 ? "ENDS  " + root.endsAtClock : ""
                     visible: root.endsAtClock.length > 0
                     color: theme.inkDim
-                    font.family: theme.hud; font.pixelSize: 12; font.letterSpacing: 1.5
+                    font.family: theme.hud; font.pixelSize: theme.fontSize(12); font.letterSpacing: 1.5
                     font.features: ({ "tnum": 1 })
                     style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.45)
                 }
@@ -6158,7 +6158,7 @@ Item {
                     text: root.fmtTime(root.displayPosition())
                     color: theme.ink
                     font.family: theme.hud; font.features: ({ "tnum": 1 })
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     horizontalAlignment: Text.AlignLeft
                 }
 
@@ -6276,7 +6276,7 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             color: Qt.rgba(1, 1, 1, 0.72)
                             font.family: theme.hud
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                         }
                         Text {
                             id: previewText
@@ -6286,7 +6286,7 @@ Item {
                             text: root.fmtTime(root.seekPreview)
                             color: theme.ink
                             font.family: theme.hud; font.features: ({ "tnum": 1 })
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                             font.weight: Font.DemiBold
                         }
                     }
@@ -6373,7 +6373,7 @@ Item {
                           : root.fmtTime(mpv.duration)
                     color: durationMa.containsMouse ? theme.ink : theme.inkDim
                     font.family: theme.hud; font.features: ({ "tnum": 1 })
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     horizontalAlignment: Text.AlignRight
                     MouseArea {
                         id: durationMa
@@ -6395,13 +6395,19 @@ Item {
             }
 
             Item {
+                id: playerControlStrip
+                objectName: "playerControlStrip"
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 anchors.leftMargin: tight ? 14 : 18
                 anchors.rightMargin: tight ? 14 : 18
                 anchors.bottomMargin: 8
-                height: tight ? 56 : 64
+                // Natural row widths depend on the roster, never on this layout choice.
+                readonly property bool stacked: theme.androidHost
+                    && transportRow.width + 2 * (Math.max(leftUtilityRow.width, playerRightControlCluster.width) + 12) > width
+                readonly property real utilityHeight: Math.max(leftUtilityRow.height, playerRightControlCluster.height)
+                height: stacked ? utilityHeight + 12 + transportRow.height : (tight ? 56 : 64)
 
                 // Utility icons live LEFT of the playback arrows, chips live right — the
                 // two sides stay apart and nothing may crowd the transport (Hemanth
@@ -6410,8 +6416,10 @@ Item {
                 // overflow panel at barSnug.
                 Row {
                     id: leftUtilityRow
+                    objectName: "playerLeftUtilityRow"
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
+                    anchors.verticalCenterOffset: playerControlStrip.stacked ? -(transportRow.height + 12) / 2 : 0
                     spacing: 6
 
                     VolumeControl {
@@ -6466,7 +6474,9 @@ Item {
 
                 Row {
                     id: transportRow
+                    objectName: "playerTransportRow"
                     anchors.centerIn: parent
+                    anchors.verticalCenterOffset: playerControlStrip.stacked ? (playerControlStrip.utilityHeight + 12) / 2 : 0
                     spacing: 8
                     RoundButton {
                         visible: root.hasAdjacentEpisode("prev")
@@ -6511,6 +6521,7 @@ Item {
                     objectName: "playerRightControlCluster"
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
+                    anchors.verticalCenterOffset: playerControlStrip.stacked ? -(transportRow.height + 12) / 2 : 0
                     spacing: 6
 
                     // retry/stream/download moved to leftUtilityRow (2026-07-08) — the
@@ -6651,7 +6662,7 @@ Item {
         property bool primary: false
         signal clicked()
         width: Math.max(96, rcbText.implicitWidth + 28)
-        height: 38
+        height: theme.androidHost ? 52 : 38
         radius: 8
         color: rcb.primary ? theme.gold
                            : (rcbMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.08))
@@ -6661,7 +6672,7 @@ Item {
             text: rcb.label
             color: rcb.primary ? "#111111" : theme.ink
             font.family: theme.hud
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
             font.weight: Font.DemiBold
         }
         MouseArea {
@@ -6687,7 +6698,7 @@ Item {
         property bool keyboardEnabled: true
         signal clicked()
         width: Math.max(92, actionText.implicitWidth + 22)
-        height: 34
+        height: theme.androidHost ? 52 : 34
         Rectangle {
             anchors.fill: parent
             radius: 9
@@ -6703,7 +6714,7 @@ Item {
             text: rab.label
             color: rab.active ? theme.gold : theme.ink
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             font.weight: Font.DemiBold
         }
         MouseArea {
@@ -6732,8 +6743,8 @@ Item {
         property bool hero: false
         property bool active: false
         signal clicked()
-        width: size
-        height: size
+        width: theme.androidHost ? Math.max(rb.hero ? 64 : 52, size) : size
+        height: width
         scale: press.pressed ? 0.95 : (press.containsMouse ? 1.04 : 1)
         Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
         Rectangle {
@@ -6786,7 +6797,7 @@ Item {
     component VolumeControl: Item {
         id: vc
         width: 190
-        height: 48
+        height: theme.androidHost ? 52 : 48
         RoundButton {
             id: muteButton
             anchors.left: parent.left
@@ -6894,8 +6905,8 @@ Item {
         signal delayStep(real delta)
         signal resetDelay()
 
-        width: 48
-        height: 48
+        width: theme.androidHost ? 52 : 48
+        height: theme.androidHost ? 52 : 48
         RoundButton {
             anchors.fill: parent
             size: 48
@@ -6928,7 +6939,7 @@ Item {
                 text: menu.title
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
                 font.weight: Font.DemiBold
             }
             Text {
@@ -6938,7 +6949,7 @@ Item {
                 text: menu.count
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
             }
             Rectangle { x: 0; y: 48; width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
 
@@ -6959,7 +6970,7 @@ Item {
                     text: "Off"
                     color: !menu.active ? theme.ink : theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     font.weight: Font.DemiBold
                 }
                 MouseArea {
@@ -7009,7 +7020,7 @@ Item {
                         text: root.trackTitle(modelData, menu.title === "Audio" ? "Audio track" : "Subtitle")
                         color: theme.ink
                         font.family: theme.hud
-                        font.pixelSize: 13
+                        font.pixelSize: theme.fontSize(13)
                         font.weight: Font.Medium
                         elide: Text.ElideRight
                     }
@@ -7020,7 +7031,7 @@ Item {
                         text: root.trackMeta(modelData)
                         color: theme.inkDimmer
                         font.family: theme.hud
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         elide: Text.ElideRight
                     }
                     MouseArea {
@@ -7044,7 +7055,7 @@ Item {
                 text: menu.emptyText
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 13
+                font.pixelSize: theme.fontSize(13)
                 wrapMode: Text.WordWrap
             }
 
@@ -7054,14 +7065,14 @@ Item {
                 anchors.leftMargin: 14
                 anchors.rightMargin: 12
                 anchors.bottom: parent.bottom
-                height: 40
+                height: theme.androidHost ? 52 : 40
                 spacing: 8
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "SYNC"
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     font.weight: Font.Bold
                 }
                 DelayButton { text: "-0.1"; onClicked: menu.delayStep(-0.1) }
@@ -7071,7 +7082,7 @@ Item {
                     text: (menu.syncValue >= 0 ? "+" : "") + menu.syncValue.toFixed(2) + "s"
                     color: theme.ink
                     font.family: theme.hud; font.features: ({ "tnum": 1 })
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     horizontalAlignment: Text.AlignHCenter
                 }
                 DelayButton { text: "+0.1"; onClicked: menu.delayStep(0.1) }
@@ -7086,6 +7097,8 @@ Item {
 
     component SpeedMenuButton: Item {
         id: sm
+        readonly property int rowHeight: theme.androidHost ? 52 : 36
+        readonly property int rowPitch: rowHeight + 2
         property bool panelOpen: false
         property bool nonDefault: Math.abs(mpv.speed - 1) > 0.001
         property var focusReturnItem: null
@@ -7097,8 +7110,8 @@ Item {
                 Qt.callLater(function() { speedChoiceRepeater.forceActiveFocus(Qt.PopupFocusReason) })
             } else if (sm.focusReturnItem) { var target = sm.focusReturnItem; sm.focusReturnItem = null; root.restoreKeyboardFocus(target) }
         }
-        width: 40
-        height: 40
+        width: theme.androidHost ? 52 : 40
+        height: theme.androidHost ? 52 : 40
         RoundButton {
             anchors.fill: parent
             size: 40
@@ -7130,7 +7143,7 @@ Item {
                 color: "#101014"
                 font.family: theme.hud
                 font.features: ({ "tnum": 1 })
-                font.pixelSize: 8
+                font.pixelSize: theme.fontSize(8)
                 font.weight: Font.DemiBold
             }
         }
@@ -7143,7 +7156,7 @@ Item {
             text: root.sleepTimerLabel()
             color: theme.gold
             font.family: theme.hud; font.features: ({ "tnum": 1 })
-            font.pixelSize: 10
+            font.pixelSize: theme.fontSize(10)
             font.weight: Font.DemiBold
             style: Text.Outline
             styleColor: Qt.rgba(0, 0, 0, 0.85)
@@ -7162,9 +7175,9 @@ Item {
             // is unchanged; on short/narrow viewports the body scrolls inside the panel.
             width: Math.min(420, Math.max(1, chrome.width - 20))
             // Two speed/sleep columns, then a full-width "Skip step" footer section below both.
-            readonly property int columnsHeight: 46 + Math.max(root.speedChoices.length, root.sleepPresets.length + (root.sleepTimerActive ? 1 : 0)) * 38
+            readonly property int columnsHeight: 46 + Math.max(root.speedChoices.length, root.sleepPresets.length + (root.sleepTimerActive ? 1 : 0)) * sm.rowPitch
             readonly property int skipStepTop: columnsHeight + 8
-            readonly property real bodyHeight: skipStepTop + 66
+            readonly property real bodyHeight: skipStepTop + (theme.androidHost ? 90 : 66)
             height: Math.min(bodyHeight, Math.max(1, chrome.height - 20))
             function positionPopup() {
                 if (!visible) return
@@ -7184,17 +7197,17 @@ Item {
             // Keyboard focus keeps the chosen row inside the scrolled body.
             Connections {
                 target: speedChoiceRepeater
-                function onKeyboardIndexChanged() { speedScroll.reveal(46 + speedChoiceRepeater.keyboardIndex * 38, 36) }
-                function onActiveFocusChanged() { if (speedChoiceRepeater.activeFocus) speedScroll.reveal(46 + speedChoiceRepeater.keyboardIndex * 38, 36) }
+                function onKeyboardIndexChanged() { speedScroll.reveal(46 + speedChoiceRepeater.keyboardIndex * sm.rowPitch, sm.rowHeight) }
+                function onActiveFocusChanged() { if (speedChoiceRepeater.activeFocus) speedScroll.reveal(46 + speedChoiceRepeater.keyboardIndex * sm.rowPitch, sm.rowHeight) }
             }
             Connections {
                 target: sleepChoiceRepeater
-                function onKeyboardIndexChanged() { speedScroll.reveal(46 + sleepChoiceRepeater.keyboardIndex * 38, 36) }
-                function onActiveFocusChanged() { if (sleepChoiceRepeater.activeFocus) speedScroll.reveal(46 + sleepChoiceRepeater.keyboardIndex * 38, 36) }
+                function onKeyboardIndexChanged() { speedScroll.reveal(46 + sleepChoiceRepeater.keyboardIndex * sm.rowPitch, sm.rowHeight) }
+                function onActiveFocusChanged() { if (sleepChoiceRepeater.activeFocus) speedScroll.reveal(46 + sleepChoiceRepeater.keyboardIndex * sm.rowPitch, sm.rowHeight) }
             }
             Connections {
                 target: skipStepRepeater
-                function onActiveFocusChanged() { if (skipStepRepeater.activeFocus) speedScroll.reveal(speedPopup.skipStepTop, 58) }
+                function onActiveFocusChanged() { if (skipStepRepeater.activeFocus) speedScroll.reveal(speedPopup.skipStepTop, theme.androidHost ? 82 : 58) }
             }
             radius: 14
             color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
@@ -7239,7 +7252,7 @@ Item {
                 text: "Playback speed"
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 font.weight: Font.DemiBold
                 font.capitalization: Font.AllUppercase
                 font.letterSpacing: 1.6
@@ -7250,7 +7263,7 @@ Item {
                 text: "Sleep timer"
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 font.weight: Font.DemiBold
                 font.capitalization: Font.AllUppercase
                 font.letterSpacing: 1.6
@@ -7280,9 +7293,9 @@ Item {
                     required property int index
                     required property real modelData
                     x: 8
-                    y: 46 + index * 38
+                    y: 46 + index * sm.rowPitch
                     width: parent.width / 2 - 16
-                    height: 36
+                    height: sm.rowHeight
                     radius: 9
                     property bool selected: Math.abs(mpv.speed - modelData) < 0.01
                     function choose() { mpv.speed = modelData; sm.panelOpen = false; root.wakeChrome() }
@@ -7297,7 +7310,7 @@ Item {
                         text: Math.abs(modelData - 1) < 0.01 ? "Normal" : ((Math.round(modelData * 100) / 100) + "×")
                         color: parent.selected ? theme.gold : theme.ink
                         font.family: theme.hud
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         font.weight: parent.selected ? Font.DemiBold : Font.Medium
                     }
                     // Harbor: "default" hint on the Normal row.
@@ -7309,7 +7322,7 @@ Item {
                         text: "DEFAULT"
                         color: theme.inkDimmer
                         font.family: theme.hud
-                        font.pixelSize: 10
+                        font.pixelSize: theme.fontSize(10)
                         font.letterSpacing: 1.4
                     }
                     MouseArea {
@@ -7340,9 +7353,9 @@ Item {
                     required property int index
                     required property var modelData
                     x: parent.width / 2 + 8
-                    y: 46 + index * 38
+                    y: 46 + index * sm.rowPitch
                     width: parent.width / 2 - 16
-                    height: 36
+                    height: sm.rowHeight
                     radius: 9
                     property bool selected: root.sleepPresetSelected(modelData)
                     function choose() { root.setSleepTimer(modelData); sm.panelOpen = false; root.wakeChrome() }
@@ -7357,7 +7370,7 @@ Item {
                         text: modelData.label
                         color: parent.selected ? theme.gold : theme.ink
                         font.family: theme.hud
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         font.weight: parent.selected ? Font.DemiBold : Font.Medium
                         elide: Text.ElideRight
                     }
@@ -7369,7 +7382,7 @@ Item {
                         text: root.sleepTimerLabel()
                         color: theme.inkDimmer
                         font.family: theme.hud; font.features: ({ "tnum": 1 })
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                     }
                     MouseArea {
                         id: sleepMouse
@@ -7386,9 +7399,9 @@ Item {
                 focusPolicy: visible && sm.panelOpen ? Qt.TabFocus : Qt.NoFocus
                 Keys.onPressed: function(event) { if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.cancelSleepTimer(); sm.panelOpen = false; event.accepted = true } else if (event.key === Qt.Key_Escape) { sm.panelOpen = false; event.accepted = true } }
                 x: parent.width / 2 + 8
-                y: 46 + root.sleepPresets.length * 38
+                y: 46 + root.sleepPresets.length * sm.rowPitch
                 width: parent.width / 2 - 16
-                height: 36
+                height: sm.rowHeight
                 radius: 9
                 color: cancelSleepMouse.containsMouse ? Qt.rgba(0.85, 0.18, 0.20, 0.16) : "transparent"
                 Text {
@@ -7398,7 +7411,7 @@ Item {
                     text: "Cancel timer"
                     color: "#ff8a8a"
                     font.family: theme.hud
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                     font.weight: Font.DemiBold
                 }
                 MouseArea {
@@ -7425,7 +7438,7 @@ Item {
                 text: "Skip step"
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 font.weight: Font.DemiBold
                 font.capitalization: Font.AllUppercase
                 font.letterSpacing: 1.6
@@ -7451,8 +7464,8 @@ Item {
                     delegate: Rectangle {
                         required property int index
                         required property int modelData
-                        width: 46
-                        height: 28
+                        width: theme.androidHost ? 52 : 46
+                        height: theme.androidHost ? 52 : 28
                         radius: 7
                         color: playerSettings.seekStepSeconds === modelData ? Qt.rgba(1, 1, 1, 0.16) : (pillArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05))
                         border.width: skipStepRepeater.activeFocus && skipStepRepeater.keyboardIndex === index ? 2 : 1
@@ -7462,7 +7475,7 @@ Item {
                             text: modelData + "s"
                             color: theme.ink
                             font.family: theme.hud
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                         }
                         MouseArea {
                             id: pillArea
@@ -7481,6 +7494,8 @@ Item {
 
     component FillMenuButton: Item {
         id: fm
+        readonly property int rowHeight: theme.androidHost ? 52 : 32
+        readonly property int rowPitch: rowHeight + 2
         property bool panelOpen: false
         property var focusReturnItem: null
         onPanelOpenChanged: {
@@ -7490,8 +7505,8 @@ Item {
                 Qt.callLater(function() { fillChoiceRepeater.forceActiveFocus(Qt.PopupFocusReason) })
             } else if (fm.focusReturnItem) { var target = fm.focusReturnItem; fm.focusReturnItem = null; root.restoreKeyboardFocus(target) }
         }
-        width: 48
-        height: 48
+        width: theme.androidHost ? 52 : 48
+        height: theme.androidHost ? 52 : 48
         RoundButton {
             anchors.fill: parent
             size: 48
@@ -7513,15 +7528,17 @@ Item {
             // Reparented to the full-screen chrome layer: a popover nested in the short
             // bottom dock loses clicks on any row that renders above the dock (Qt bounds
             // pointer delivery to the dock ancestor). In chrome the whole panel is clickable.
+            objectName: "playerFillPanel"
             parent: chrome
             visible: fm.panelOpen
             z: 40
             width: 188
-            height: 56 + root.fillModes.length * 34
+            readonly property real bodyHeight: 56 + root.fillModes.length * fm.rowPitch
+            height: theme.androidHost ? Math.min(bodyHeight, Math.max(1, chrome.height - 20)) : bodyHeight
             onVisibleChanged: if (visible) {
                 var p = fm.mapToItem(chrome, 0, 0)
                 x = root.clamp(p.x + fm.width / 2 - width / 2, 10, chrome.width - width - 10)
-                y = p.y - height - 12
+                y = theme.androidHost ? root.clamp(p.y - height - 12, 10, chrome.height - height - 10) : p.y - height - 12
             }
             radius: 14
             color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
@@ -7538,19 +7555,36 @@ Item {
                 border.width: 1
                 border.color: Qt.rgba(1, 1, 1, 0.14)
             }
+
+            Flickable {
+                id: fillScroll
+                anchors.fill: parent
+                contentWidth: width
+                contentHeight: fillPopup.bodyHeight
+                interactive: theme.androidHost && contentHeight > height
+                clip: theme.androidHost
+                boundsBehavior: Flickable.StopAtBounds
+                function revealChoice() {
+                    const top = 48 + fillChoiceRepeater.keyboardIndex * fm.rowPitch
+                    if (top < contentY) contentY = Math.max(0, top - 8)
+                    else if (top + fm.rowHeight > contentY + height)
+                        contentY = Math.min(Math.max(0, contentHeight - height), top + fm.rowHeight - height + 8)
+                }
             Text {
                 x: 18
                 y: 15
                 text: "Video"
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
                 font.weight: Font.DemiBold
             }
             Repeater {
                 id: fillChoiceRepeater
                 property int keyboardIndex: Math.max(0, root.fillModeIndex)
                 model: root.fillModes
+                onKeyboardIndexChanged: fillScroll.revealChoice()
+                onActiveFocusChanged: if (activeFocus) fillScroll.revealChoice()
                 focusPolicy: fm.panelOpen ? Qt.TabFocus : Qt.NoFocus
                 Keys.onPressed: function(event) {
                     if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
@@ -7564,9 +7598,9 @@ Item {
                     required property int index
                     required property var modelData
                     x: 8
-                    y: 48 + index * 34
+                    y: 48 + index * fm.rowPitch
                     width: parent.width - 16
-                    height: 32
+                    height: fm.rowHeight
                     radius: 8
                     property bool selected: root.fillModeIndex === index
                     border.width: fillChoiceRepeater.activeFocus && fillChoiceRepeater.keyboardIndex === index ? 2 : 0
@@ -7577,7 +7611,7 @@ Item {
                         text: modelData.label
                         color: parent.selected ? theme.gold : theme.ink
                         font.family: theme.hud
-                        font.pixelSize: 13
+                        font.pixelSize: theme.fontSize(13)
                         font.weight: Font.DemiBold
                     }
                     MouseArea {
@@ -7588,6 +7622,7 @@ Item {
                         onClicked: root.applyFill(index)
                     }
                 }
+            }
             }
         }
     }
@@ -7608,7 +7643,7 @@ Item {
             text: db.text
             color: theme.inkDim
             font.family: theme.hud; font.features: ({ "tnum": 1 })
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             font.weight: Font.DemiBold
         }
         MouseArea {

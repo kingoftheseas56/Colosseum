@@ -17,7 +17,7 @@ Button {
         text: control.text
         color: control.destructive ? "#ffb4ab" : theme.ink
         font.family: theme.ui
-        font.pixelSize: 13
+        font.pixelSize: theme.fontSize(13)
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
     }

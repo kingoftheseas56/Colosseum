@@ -1259,14 +1259,14 @@ Item {
         Text {
             width: parent.width; horizontalAlignment: Text.AlignHCenter
             text: page.seriesTitle
-            color: theme.ink; font.family: theme.display; font.pixelSize: 34
+            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(34)
             wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
         }
         Text {
             width: parent.width; horizontalAlignment: Text.AlignHCenter
             text: page.errorText.length ? page.errorText : "Loading…"
             color: page.errorMsg.length ? "#e6a3a3" : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 14
+            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
         }
     }
 

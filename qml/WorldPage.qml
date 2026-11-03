@@ -369,6 +369,7 @@ Item {
     }
     WorldTabBar {
         id: tabDock
+        androidHost: world.androidHost
         objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "TabDock" : "worldTabDock"
         tabPrefix: world.medium.length > 0 ? world.medium.toLowerCase() + "TabDock" : "worldTabDock"
         compact: true

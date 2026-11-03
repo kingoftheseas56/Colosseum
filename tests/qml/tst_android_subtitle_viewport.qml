@@ -47,7 +47,7 @@ TestCase {
     }
     function list(search) {
         const found = find(body, function(item) {
-            return item.y === (search ? 76 : 126) && item.contentY !== undefined && item.count !== undefined
+            return item.y === menu.interfaceY(search ? 76 : 126) && item.contentY !== undefined && item.count !== undefined
         })
         verify(found !== null, search ? "Search results ListView" : "Tracks ListView")
         return found
@@ -61,6 +61,10 @@ TestCase {
         return out
     }
     function makeMenu(width, height, touchInput) {
+        if(typeof FontTestFixture !== "undefined") {
+            FontTestFixture.useDesktopRuntime(!touchInput)
+            FontTestFixture.setScale(1.3)
+        }
         window.width = width; window.height = height
         window.requestActivate()
         window.contentItem.forceActiveFocus(Qt.OtherFocusReason)
@@ -72,6 +76,9 @@ TestCase {
         verify(menu !== null)
         // Baseline has no gate: still instantiate it and fail the actual bounds check.
         if (menu.touchInput !== undefined) menu.touchInput = touchInput
+        for (let resource of menu.resources) {
+            if (typeof FontTestFixture === "undefined" && typeof resource.fontSize === "function") { resource.androidHost = touchInput; resource.fontScale = 1.3 }
+        }
         menu.panelOpen = true
         waitForRendering(menu)
         panel = find(window.contentItem, function(item) {
@@ -138,7 +145,7 @@ TestCase {
         menu.panelOpen = true; menu.appearanceOpen = true
         wait(180)
         compare(label("Appearance").parent.width, 280)
-        compare(variants.width, 440)
+        tryCompare(variants, "width", 440)
     }
     function test_small_landscape_filters_drag_without_activation_and_footer_is_reachable() {
         makeMenu(792, 354, true)
@@ -153,7 +160,11 @@ TestCase {
         compare(menu.filterMode, "all", "Scrolling a filter must not toggle it on release")
         compare(picked.count, 0); compare(online.count, 0)
         const more = textButton("Find more")
-        verify(inside(more, body), "The unchanged footer must be reachable by scrolling")
+        for (let attempt = 0; attempt < 6 && !inside(more, body); ++attempt) {
+            const start = body.mapToItem(window.contentItem, 5, body.height - 20)
+            dragFrom(start, 0, -180); settle(body)
+        }
+        verify(inside(more, body), "Footer pos="+JSON.stringify(more.mapToItem(body,0,0))+" size="+more.width+","+more.height+" scroll="+body.contentY+" extent="+body.contentHeight+" viewport="+body.width+","+body.height)
         tap(more)
         compare(menu.searching, true)
         tryCompare(body, "contentY", 0)
@@ -170,7 +181,7 @@ TestCase {
         waitForRendering(panel)
         const results = list(data.search)
         const originalBodyY = body.contentY
-        const p = results.mapToItem(window.contentItem, 90, 80)
+        const p = results.mapToItem(window.contentItem, 90, 25)
         dragFrom(p, 0, -65)
         settle(results); settle(body)
         verify(results.contentY > 0, "The nested production ListView must receive the row drag")
@@ -185,19 +196,49 @@ TestCase {
         compare(menu.appearanceOpen, true)
         wait(180)
         const drawer = label("Appearance").parent
-        compare(drawer.width, 280)
+        compare(drawer.width, 400)
         verify(inside(label("Appearance"), body))
         const p = body.mapToItem(window.contentItem, body.width - 270, body.height - 15)
         dragFrom(p, 0, -180)
         settle(body)
-        const position = find(drawer, function(item) { return item.label === "VERTICAL POSITION" && item.height === 54 })
+        const position = find(drawer, function(item) { return item.label === "VERTICAL POSITION" && item.height === 76 })
         verify(position !== null)
+        for (let attempt=0;attempt<5 && (!inside(position,body) || !inside(label("Subtitle preview").parent,body));++attempt) {
+            const start=body.mapToItem(window.contentItem,body.width-5,body.height-20)
+            dragFrom(start,0,-180);settle(body)
+        }
         verify(inside(position, body))
         verify(inside(label("Subtitle preview").parent, body))
         compare(picked.count, 0); compare(online.count, 0)
         tap(control("Subtitle appearance"))
         compare(menu.appearanceOpen, false)
         tryCompare(body, "contentX", 0); tryCompare(body, "contentY", 0)
+    }
+    function all(item,predicate) {
+        let result=[]
+        for(let child of item.children) {
+            if(predicate(child)) result.push(child)
+            result=result.concat(all(child,predicate))
+        }
+        return result
+    }
+    function test_android_action_rows_and_sync_targets() {
+        makeMenu(1192,533,true)
+        const buttons=all(panel,item=>item.visible && typeof item.clicked === "function")
+        verify(buttons.length>=10)
+        for(let button of buttons) {
+            verify(button.width>=48,"Width for "+(button.text||button.accessibleName||"toggle")+": "+button.width)
+            verify(button.height>=48,"Height for "+(button.text||button.accessibleName||"toggle")+": "+button.height)
+        }
+        const earlier=control("Move subtitles earlier by 0.1 seconds")
+        const later=control("Move subtitles later by 0.1 seconds")
+        const a=earlier.mapToItem(panel,0,0), b=later.mapToItem(panel,0,0)
+        verify(a.x+earlier.width<=b.x,"Sync targets stay disjoint")
+        menu.appearanceOpen=true; wait(180)
+        const drawer=label("Appearance").parent
+        const sliders=all(drawer,item=>typeof item.from === "number" && typeof item.to === "number" && typeof item.moved === "function")
+        verify(sliders.length>=2)
+        for(let slider of sliders) verify(slider.height>=48)
     }
     function test_resize_and_keyboard_focus_reveal_the_existing_controls() {
         makeMenu(1000, 800, true)
