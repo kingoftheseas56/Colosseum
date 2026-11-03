@@ -88,6 +88,10 @@ cmake -S "$work/sdk-probe" -B "$work/sdk-probe-build" -G Ninja \
 printf 'QT_PREFIX=%s\n' "$qtbase"
 export PKG_CONFIG_PATH="$(brew --prefix mpv)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 pkg-config --modversion mpv
+# MpvQt 1.2 finds client.h inside include/mpv, but its source includes
+# <mpv/client.h>. Supply the parent include root to both dependency consumers.
+mpv_include="$(brew --prefix mpv)/include"
+[[ -f "$mpv_include/mpv/client.h" ]] || fail "Homebrew libmpv header missing: $mpv_include/mpv/client.h"
 jobs=${COLOSSEUM_BUILD_JOBS:-2}
 [[ $jobs =~ ^[1-9][0-9]*$ ]] || fail 'COLOSSEUM_BUILD_JOBS must be a positive integer'
 deps="$work/deps"
@@ -109,6 +113,7 @@ fetch_source mpvqt https://download.kde.org/stable/mpvqt/mpvqt-1.2.0.tar.xz \
 cmake -S "$work/mpvqt-source" -B "$work/mpvqt-build" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DBUILD_TESTING=OFF \
     -DKDE_CLANG_FORMAT_EXECUTABLE:FILEPATH="$formatter" \
+    -DLibmpv_INCLUDE_DIRS:PATH="$mpv_include" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="$deployment" \
     -DCMAKE_INSTALL_PREFIX="$deps" -DCMAKE_PREFIX_PATH="$qtbase;$deps" \
     -DQT_ADDITIONAL_PACKAGES_PREFIX_PATH="$qtbase"
@@ -122,6 +127,7 @@ cmake -S "$repo/native" -B "$work/app" -G Ninja \
     -DBUILD_TESTING=OFF -DCOLOSSEUM_BUILD_PLAYER2=OFF \
     -DCMAKE_PREFIX_PATH="$qtbase;$deps;$(brew --prefix libtorrent-rasterbar);$(brew --prefix boost);$(brew --prefix openssl@3)" \
     -DQT_ADDITIONAL_PACKAGES_PREFIX_PATH="$qtbase" \
+    -DLibmpv_INCLUDE_DIRS:PATH="$mpv_include" \
     -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" -DMPVQT_PREFIX="$deps" \
     -DCOLOSSEUM_FERIA_IN_APP=OFF -DCOLOSSEUM_VINYL_IN_APP=OFF \
     -DCOLOSSEUM_PLAYER2_IN_APP=OFF -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF \

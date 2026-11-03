@@ -2,6 +2,13 @@ name: Feedback desktop runtime qualification
 
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Desktop platform to qualify
+        required: true
+        default: all
+        type: choice
+        options: [all, linux, macos]
 
 permissions:
   contents: read
@@ -14,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-26]
+        os: ${{ fromJSON(inputs.platform == 'linux' && '["ubuntu-24.04"]' || inputs.platform == 'macos' && '["macos-26"]' || '["ubuntu-24.04","macos-26"]') }}
     defaults:
       run:
         shell: bash
