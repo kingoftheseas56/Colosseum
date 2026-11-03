@@ -6,14 +6,14 @@ A static page shared by the desktop WebEngine and Android WebView hosts. The app
 
 `public/config.json` uses the public Formspark endpoint supplied for Colosseum. No private API token is required or stored. Formspark currently gives the first workspace 250 accepted submissions in total, not per month. The implementation also supports Web3Forms, whose currently advertised free plan allows 250 submissions each month. Do not purchase a plan or credit bundle as part of this feature.
 
-The browser checks and automated tests intercept submissions. They verify mocked POST handling only; they do not consume the live form's allowance or prove mailbox delivery. No real hosted submission has been confirmed yet. The first delivery check should send one clearly labelled report from the hosted page and verify it arrives in both Formspark and the configured mailbox. After that first delivery test, continue the deeper creative redesign of the feedback experience.
+The browser checks and automated tests intercept submissions. They verify mocked POST handling only; they do not consume the live form's allowance or prove mailbox delivery. Live Windows app-to-Formspark delivery was verified on 2026-11-03: the Formspark dashboard recorded one Universe Request for Universes from app version 1.2.0 on Windows, with a title, message, and reference; no reply-to email was supplied. This confirms that the app submission reached Formspark. The dashboard receipt does not confirm an email notification reached the configured mailbox, and Android APK/device delivery remains unverified. The deeper creative redesign remains separate future work.
 
 ## Formspark setup
 
 1. In the Formspark dashboard, open the **Colosseum feedback** form associated with `https://submit-form.com/VADEhLJlB`.
 2. Enable email notifications to the inbox you want to use for reports. Verify that receiving address if prompted. Use this same inbox for any future provider.
 3. Keep the form accepting anonymous messages; the reply email is optional. Standard spam filtering is sufficient to begin testing. A Turnstile site key can optionally be configured below; its matching secret belongs only in Formspark's form settings.
-4. Once the page is hosted, send one clearly labelled test message and confirm it appears both in Formspark and in the receiving mailbox, including spam/junk folders. This consumes one accepted submission.
+4. Verify that the Formspark email notification reaches the configured inbox, including spam/junk folders. The Windows app's live Formspark receipt was confirmed on 2026-11-03; mailbox notification delivery is still unverified.
 5. Review the remaining allowance periodically. Prepare a provider switch with headroom rather than waiting for the last submission. No payment is needed for the implemented switch.
 
 ## Build and host
@@ -69,6 +69,6 @@ qmltestrunner -input tests/feedback_probe -o feedback-qml.txt,txt
 
 `tests/feedback_android_compile` is a small Qt Gui CMake target for compiling the actual JNI/foreign-window owner with an Android Qt toolchain. Compile `FeedbackWebHost.java` and `FeedbackNavigationPolicy.java` against the Android SDK, then run `tests/android/FeedbackNavigationPolicyTest.java` on the JVM. These checks do not replace a packaged APK/device check.
 
-Before release, verify the actual Windows build and Android APK: open from Home, send one real report, confirm the destination mailbox, exercise reload/offline errors, keyboard focus/Back, Android IME, rotation, minimize/resume, and repeated open/close. Test OnePlus 11R and Nokia T20 separately. Do not include passwords, account credentials, private paths, or real media history in test messages.
+The Windows app-to-Formspark delivery was confirmed on 2026-11-03. Email notification delivery and the Android APK/device journey remain unverified. Before Android release, verify the packaged APK: open from Home, send a real report, confirm the destination mailbox, and exercise reload/offline errors, keyboard focus/Back, Android IME, rotation, minimize/resume, and repeated open/close. Test OnePlus 11R and Nokia T20 separately. Do not include passwords, account credentials, private paths, or real media history in test messages.
 
 Official service references: [Formspark plans](https://www.formspark.io/pricing/), [Formspark limits](https://documentation.formspark.io/troubleshooting/limits-and-plans.html), [Formspark submission contract](https://documentation.formspark.io/examples/ajax.html), [Web3Forms pricing](https://web3forms.com/pricing), [Web3Forms submission contract](https://docs.web3forms.com/getting-started/api-reference).
