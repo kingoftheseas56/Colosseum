@@ -1,18 +1,31 @@
 <p align="center">
-  <img src="assets/icons/colosseum.svg" alt="Colosseum" width="86" />
+  <img src="assets/icons/colosseum-wordmark.svg" alt="Colosseum" width="640" />
 </p>
 
-<h1 align="center">Colosseum</h1>
-
-<p align="center"><strong>Everything you watch, read, and listen to, under one roof.</strong></p>
-
-<p align="center">Movies & TV · Anime · Manga & comics · Books & audiobooks · Local media</p>
+<p align="center"><strong>One media app for all art.</strong></p>
 
 <p align="center">
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-setup.exe"><strong>Download for Windows</strong></a> ·
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-linux-amd64.deb"><strong>Download for Linux</strong></a> ·
-  <a href="https://getcolosseum.world/"><strong>Website</strong></a> ·
-  <a href="https://getcolosseum.world/demos/home.html"><strong>Interactive previews</strong></a>
+  <img alt="Version 1.2.0" src="https://img.shields.io/badge/Version-1.2.0-B8872C?style=flat-square&amp;labelColor=3A3023" />
+  <img alt="MIT License" src="https://img.shields.io/badge/License-MIT-B86C49?style=flat-square&amp;labelColor=3A2D27" />
+  <img alt="Qt" src="https://img.shields.io/badge/Framework-Qt-287F65?style=flat-square&amp;labelColor=253B36" />
+  <img alt="QML" src="https://img.shields.io/badge/Interface-QML-287D9F?style=flat-square&amp;labelColor=273C49" />
+</p>
+
+<p align="center">
+  <img alt="C++" src="https://img.shields.io/badge/Backend-C%2B%2B-77629F?style=flat-square&amp;labelColor=342D42" />
+  <img alt="Windows" src="https://img.shields.io/badge/Desktop-Windows-3977B5?style=flat-square&amp;labelColor=293B4E" />
+  <img alt="Linux" src="https://img.shields.io/badge/Desktop-Linux-728A88?style=flat-square&amp;labelColor=303E40" />
+  <img alt="Android Alpha" src="https://img.shields.io/badge/Mobile-Android_Alpha-8265B0?style=flat-square&amp;labelColor=383244" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-setup.exe"><img src="assets/icons/readme-download-windows.svg" alt="Download Colosseum for Windows" width="154" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-linux-amd64.deb"><img src="assets/icons/readme-download-linux.svg" alt="Download Colosseum for Linux" width="154" /></a>
+</p>
+
+<p align="center">
+  <a href="https://getcolosseum.world/"><img src="assets/icons/readme-website.svg" alt="Colosseum website" width="154" /></a>
+  <a href="https://getcolosseum.world/demos/home.html"><img src="assets/icons/readme-previews.svg" alt="Interactive Colosseum previews" width="154" /></a>
 </p>
 
 <p align="center">
@@ -23,7 +36,9 @@
   <sub>Home · Click the image to explore the interactive website preview</sub>
 </p>
 
-Colosseum is a fullscreen-first Qt/QML app with **five distinct worlds**: Theatre for video, Tankoban for manga and comics, Biblio for books and audiobooks, Universes for connected franchise stories, and Vault for your own files. They share Home, Continue, Collections, Downloads, and open sessions. An account is **not required** for normal local use.
+Colosseum is an app that brings worlds of media together: **Theatre** is the world for movies, TV shows, and anime, and has a video player to bring them to life; **Tankoban** is for manga and comics, with a comic reader to cherish them; **Biblio** is for books and audiobooks, along with a book reader to get lost in the vast depths of literature; **Universes** is the world of curated catalogues, bringing together media of every kind from your favorite franchises into a singular entity, a consumable Wikipedia list made just for you; and **Vault** is the world that turns your homegrown collection of media into an indexed and organized library, so you can explore those familiar files afresh.
+
+All these wildly different mediums, their rich catalogues, sources, readers, and players come together as **one living, breathing media environment.**
 
 ## Explore Colosseum
 
@@ -59,8 +74,6 @@ Colosseum is a fullscreen-first Qt/QML app with **five distinct worlds**: Theatr
     </td>
   </tr>
 </table>
-
-<sub>These are captures of the public **interactive website previews**, not verified screenshots of the 1.2.0 desktop installer. Some demos recreate earlier versions and may differ from the current app. **Universes is the fourth world and Vault is the fifth**; Tributes are separate artistic experiences, not another world.</sub>
 
 ## Get Colosseum 1.2.0
 

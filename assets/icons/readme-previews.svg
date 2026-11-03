@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="50" viewBox="0 0 160 50" role="img" aria-label="Explore Colosseum interactive previews">
+  <title>Explore Colosseum interactive previews</title>
+  <rect x="1" y="1" width="158" height="48" rx="9" fill="#302D40" stroke="#82779E" stroke-width="1.5"/>
+  <g fill="none" stroke="#C8BDDE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="14.5" y="17" width="23" height="18" rx="2.5"/><path d="M14.5 22h23" /><path d="m24 24.5 6 4-6 4z" fill="#C8BDDE" stroke="none"/></g>
+  <text x="47" y="22" fill="#F5F0E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">Interactive</text>
+  <text x="47" y="36" fill="#C8BDDE" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="600" letter-spacing="1">PREVIEWS</text>
+</svg>
