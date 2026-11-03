@@ -19,6 +19,7 @@ function action(state) { return mod.actionFor(state || {}); }
 // Highest shell shields consume Escape without mutating the surface underneath.
 eq(action({ transitioning: true, playerOpen: true }), 'consume', 'fullscreen transition owns Escape');
 eq(action({ bootVisible: true, worldOpen: true }), 'consume', 'boot splash owns Escape');
+eq(action({ feedbackActive: true, playerOpen: true, taskbarOpen: true }), 'feedback', 'feedback closes before retained app surfaces');
 eq(action({ accountHostVisible: true, worldOpen: true }), 'consume', 'mandatory account flow owns Escape');
 eq(action({ stremioSyncOpen: true }), 'stremioSync', 'Stremio Main Sync overlay owns Escape');
 eq(action({ stremioSyncOpen: true, syncCenterActive: true }), 'stremioSync', 'Main Sync closes before its underlying Sync Center page');

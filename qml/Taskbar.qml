@@ -53,9 +53,36 @@ Item {
     property bool historyStatsActive: false // Your Colosseum (history / highlights / stats) is the front surface
     property bool feriaContext: false
     readonly property string activityLabel: feriaContext ? "Your Feria" : "Your Colosseum"
-    // Third-party trackers (the Sync Center) live in the TopBar's right cluster, not here.
+    property Item backdrop: null
+    property string worldMode: ""
+    property bool trackersActive: false
+    property bool updateAvailable: false
+    property bool updateUnseen: false
+    property bool reducedMotion: false
+    signal utilityTriggered(string action, real anchorRight, real anchorBottom)
+    Connections {
+        target: bar.Window.window
+        function onActiveFocusItemChanged() {
+            if (!bar.open) return
+            const control = bar.Window.window.activeFocusItem
+            let ancestor = control
+            while (ancestor && ancestor !== dockRow) ancestor = ancestor.parent
+            if (!control || !ancestor) return
+            const position = control.mapToItem(dockRow, 0, 0)
+            if (position.x < dockScroll.contentX) dockScroll.contentX = Math.max(0, position.x)
+            else if (position.x + control.width > dockScroll.contentX + dockScroll.width)
+                dockScroll.contentX = Math.min(dockScroll.contentWidth - dockScroll.width,
+                                               position.x + control.width - dockScroll.width)
+        }
+    }
+    function focusUtilityAction(action) {
+        bar.open = true
+        bar.autoRevealed = false
+        idleTimer.stop()
+        Qt.callLater(function() { utilities.focusAction(action) })
+    }
 
-    onOpenChanged: if (!open) fan.visible = false
+    onOpenChanged: if (!open) { fan.visible = false; dockScroll.cancelFlick(); dockScroll.contentX = 0 }
 
     // ---- auto-reveal (2026-07-04): a minimize extends the bar out of the icon so you SEE the
     //      session arrive, then it pulls back after 15s without taskbar interaction. A bar the
@@ -119,6 +146,7 @@ Item {
 
     Rectangle {
         id: dock
+        objectName: "taskbarDock"
         x: bar.leftEdge
         y: parent.height - height - bar.bottomGap
         width: bar.open ? Math.min(parent.width - (bar.leftEdge * 2), 1720) : bar.closedWidth
@@ -142,10 +170,21 @@ Item {
             onHoveredChanged: if (hovered && bar.autoRevealed) idleTimer.restart()
         }
 
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 8
-            anchors.rightMargin: 14
+        Flickable {
+            id: dockScroll
+            objectName: "taskbarDockScroll"
+            anchors { fill: parent; leftMargin: 8; rightMargin: 14 }
+            contentWidth: Math.max(width, dockRow.implicitWidth)
+            contentHeight: height
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            interactive: bar.open && contentWidth > width
+            clip: true
+            RowLayout {
+                id: dockRow
+                objectName: "taskbarDockRow"
+                width: dockScroll.contentWidth
+                height: dockScroll.height
             spacing: 14
 
             Item {
@@ -514,6 +553,22 @@ Item {
                 ToolTip.text: bar.activityLabel
             }
 
+            TaskbarUtilities {
+                id: utilities
+                Layout.preferredWidth: implicitWidth
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                visible: bar.open
+                trackersActive: bar.trackersActive
+                updateAvailable: bar.updateAvailable
+                updateUnseen: bar.updateUnseen
+                reducedMotion: bar.reducedMotion
+                onTriggered: (action, anchorRight, anchorBottom) => {
+                    bar.autoRevealed = false
+                    bar.open = action === "sharing"
+                    bar.utilityTriggered(action, anchorRight, dock.mapToItem(null, 0, 0).y)
+                }
+            }
             // Session tiles — the dock's fill-width content.
             Row {
                 objectName: "taskbarSessionTiles"
@@ -643,6 +698,7 @@ Item {
                 }
             }
 
+            }
         }
     }
 

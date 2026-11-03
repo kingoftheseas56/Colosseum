@@ -6,6 +6,7 @@
 #include "player/androidmedia3item.h"
 #include "player/androidseekthumbnailer.h"
 #include "reader2/AndroidEbookRenderer.h"
+#include "feedback/AndroidFeedbackBrowser.h"
 
 #include <QDebug>
 #include <QDir>
@@ -87,6 +88,8 @@ void installAndroidEngineBindings(QQmlApplicationEngine *engine,
                                   QGuiApplication *app) {
     if (!engine)
         return;
+    engine->rootContext()->setContextProperty(
+        QStringLiteral("AndroidFeedbackBrowser"), new AndroidFeedbackBrowser(app));
     engine->rootContext()->setContextProperty(
         QStringLiteral("AndroidEbookRenderer"),
         new AndroidEbookRenderer(reader2Bridge, app));
