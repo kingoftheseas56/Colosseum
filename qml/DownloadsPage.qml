@@ -215,7 +215,7 @@ Item {
         return true;
     }
     function isLiveState(state) {
-        return state === "queued" || state === "resolving"
+        return state === "stopping" || state === "finishing" || state === "queued" || state === "resolving"
                 || state === "downloading" || state === "paused"
                 || state === "extracting"
                 // manga-volume acquisition states (MangaTankobanService) — a group entirely
@@ -777,6 +777,8 @@ Item {
                                                     var r0 = grp.modelData.rows[0];
                                                     if (r0.state === "failed")
                                                         return wn + " · " + (r0.error || "download failed");
+                                                    if (r0.state === "stopping") return qsTr("Stopping…");
+                                                    if (r0.state === "finishing") return qsTr("Finishing…");
                                                     if (r0.state === "queued")
                                                         return wn + " · queued — waits its turn";
                                                     if (r0.state === "paused")

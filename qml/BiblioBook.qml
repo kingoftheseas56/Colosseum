@@ -129,26 +129,32 @@ Item {
         detail.loadEditions()
     }
     function loadEditions() {
-        if (!detail.book || !detail.book.title) return
         var gen = ++detail.sourceGeneration
+        detail.abInfoHash = ""
+        abCol.abActiveSlug = ""
+        abCol.abState = "idle"
+        if (!detail.book || !detail.book.title) return
+        var key = detail.pairKey
+        abCol.syncStatus()
         detail.loadLibgenEditions()
         // audiobook lane: is one already downloaded? then find one to download.
         detail.audioLocal = (typeof Audiobooks !== 'undefined') && Audiobooks.isDownloaded(detail.pairKey)
         detail.abLoading = true; detail.abRows = []
         Abb.resolveAudiobook(detail.book.title, detail.book.author, function(res) {
-            if (gen !== detail.sourceGeneration) return
+            if (gen !== detail.sourceGeneration || key !== detail.pairKey) return
             detail.abRows = (res && res.rows) ? res.rows : []
             detail.abLoading = false
-            // Pre-warm the stream engine on the top match while the user reads: a COLD engine
-            // can't fetch a torrent's peers fast (empty DHT), but by the time they click Download
-            // it's warm. Best-effort — never blocks the UI. (root-caused 2026-07-12: cold /create
-            // hangs 60s+; a warm engine resolves in seconds.)
-            if (!detail.audioLocal && detail.abRows.length > 0 && typeof Stream !== 'undefined') {
-                Abb.fetchInfoHash(detail.abRows[0].slug, function(d) {
+            // Discover the hash for both platforms; desktop also prefetches playback.
+            if (!detail.audioLocal && detail.abRows.length > 0) {
+                var slug = detail.abRows[0].slug
+                Abb.fetchInfoHash(slug, function(d) {
+                    if (gen !== detail.sourceGeneration || key !== detail.pairKey
+                            || detail.abRows.length === 0 || detail.abRows[0].slug !== slug
+                            || (abCol.abActiveSlug !== "" && abCol.abActiveSlug !== slug)) return
                     if (d && d.infoHash) {
-                        detail.abInfoHash = d.infoHash;
-                        if (Qt.platform.os === "android") Stream.warmSource(d.infoHash, 0)
-                        else Stream.prefetch(d.infoHash, 0)
+                        detail.abInfoHash = d.infoHash
+                        if (Qt.platform.os !== "android" && typeof Stream !== 'undefined')
+                            Stream.prefetch(d.infoHash, 0)
                     }
                 })
             }
@@ -615,14 +621,24 @@ Item {
         if (String(st.state||"") === "done" || detail._inFlight(String(st.state||""))) return
         detail.downloadEdition(row)
     }
+    function audiobookBusy(state) {
+        return state === "resolving" || state === "queued" || state === "downloading"
+                || state === "stopping" || state === "finishing"
+    }
     function activateAudiobookRow(row) {
         if (!row) return
         var rowState = row.slug === abCol.abActiveSlug ? abCol.abState : "idle"
         if (rowState === "done") { if (detail.localPath) detail.readRequested(detail.localPath, detail.book); return }
-        if (abCol.abState === "downloading" || abCol.abState === "resolving") return
+        if (detail.audiobookBusy(abCol.abState)) return
+        abCol.syncStatus()
+        if (detail.audiobookBusy(abCol.abState)) return
         if (typeof Audiobooks === 'undefined') return
         abCol.abActiveSlug = row.slug; abCol.abState = "resolving"
-        Abb.fetchInfoHash(row.slug, function(d) {
+        var gen = detail.sourceGeneration
+        var key = detail.pairKey
+        var slug = row.slug
+        Abb.fetchInfoHash(slug, function(d) {
+            if (gen !== detail.sourceGeneration || key !== detail.pairKey || slug !== abCol.abActiveSlug) return
             if (!d || !d.infoHash) { abCol.abState = "failed"; return }
             detail.abInfoHash = d.infoHash
             var bookId = (detail.localPath && typeof Reader2Bridge !== 'undefined') ? Reader2Bridge.bookKey(detail.localPath) : ""
@@ -1246,31 +1262,38 @@ Item {
                         property real abPct: 0
                         Connections {
                             target: (typeof Audiobooks !== 'undefined') ? Audiobooks : null
-                            function onResolving(key) { if (key === detail.pairKey) abCol.abState = "resolving" }
+                            function onResolving(key) { if (key === detail.pairKey) abCol.syncStatus() }
                             function onProgress(key, rcv, tot) { if (key === detail.pairKey) { abCol.abState = "downloading"; abCol.abPct = tot > 0 ? rcv / tot : 0 } }
                             function onFinished(key, path) { if (key === detail.pairKey) { abCol.abState = "done"; abCol.abPct = 1; detail.audioLocal = true } }
                             function onFailed(key, why) { if (key === detail.pairKey) abCol.abState = "failed" }
+                            function onRemoved(key) {
+                                if (key !== detail.pairKey) return
+                                abCol.syncStatus()
+                                detail.audioLocal = Audiobooks.isDownloaded(key)
+                            }
                         }
                         // REHYDRATE on page (re)entry: the download runs in C++ and survives leaving
                         // this page, but abState/abPct are page-local and reset — without this seed a
                         // running download read as "stopped" (the 2026-07-18 report). Which ROW was
                         // picked (abActiveSlug) is unrecoverable by design; the banner below carries
                         // slug-less background progress instead.
-                        Component.onCompleted: {
+                        function syncStatus() {
                             if (typeof Audiobooks === 'undefined' || !detail.pairKey) return
                             var st = Audiobooks.statusOf(detail.pairKey)
-                            if (st && (st.state === "downloading" || st.state === "resolving")) {
-                                abCol.abState = st.state
-                                abCol.abPct = (st.total > 0) ? st.received / st.total : 0
-                            }
+                            abCol.abState = st && st.state && st.state !== "none" ? st.state : "idle"
+                            abCol.abPct = st && st.total > 0 ? st.received / st.total : 0
                         }
+                        Component.onCompleted: syncStatus()
                         Item {                              // background download banner (rehydrated state)
                             visible: abCol.abActiveSlug === ""
-                                     && (abCol.abState === "downloading" || abCol.abState === "resolving")
+                                     && detail.audiobookBusy(abCol.abState)
                             width: parent.width; height: visible ? 40 : 0
                             Text {
                                 anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter
-                                text: abCol.abState === "resolving" ? "Downloading in the background — resolving…"
+                                text: abCol.abState === "stopping" ? "Stopping audiobook download…"
+                                    : abCol.abState === "finishing" ? "Finishing audiobook download…"
+                                    : abCol.abState === "queued" ? "Audiobook download queued"
+                                    : abCol.abState === "resolving" ? "Downloading in the background — resolving…"
                                     : ("Downloading in the background — " + Math.round(abCol.abPct * 100) + "%")
                                 color: theme.gold; font.family: theme.ui; font.pixelSize: 13
                             }
@@ -1313,7 +1336,7 @@ Item {
                                     anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter
                                     text: abRow.rowState === "done" ? "✓"
                                         : abRow.rowState === "downloading" ? (Math.round(abCol.abPct*100) + "%")
-                                        : abRow.rowState === "resolving" ? "…"
+                                        : detail.audiobookBusy(abRow.rowState) ? "…"
                                         : abRow.rowState === "failed" ? "retry" : "↓"
                                     color: abRow.rowState === "done" ? theme.gold : (abRowMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui; font.pixelSize: (abRow.rowState === "downloading" || abRow.rowState === "failed") ? 12 : 16

@@ -10,6 +10,7 @@
 #include <QString>
 #include <QVector>
 #include <QDateTime>
+#include <map>
 #include <QStringList>
 
 #ifdef HAS_LIBTORRENT
@@ -138,6 +139,10 @@ public:
     void    resumeTorrent(const QString& infoHash);
     void    pauseTorrent(const QString& infoHash);
     void    removeTorrent(const QString& infoHash, bool deleteFiles = false);
+    // Scoped asynchronous removal: accepted requests settle only for the exact
+    // retained handle and verified live storage path. Existing removals are unchanged.
+    bool requestOwnedRemoval(const QString& token, const QString& infoHash,
+                             const QString& expectedCanonicalPath, bool erase);
     void    forceStart(const QString& infoHash);
     void    forceRecheck(const QString& infoHash);
     void    forceReannounce(const QString& infoHash);
@@ -348,6 +353,7 @@ public:
     static const QStringList& defaultTrackerPool();
 
 signals:
+    void ownedRemovalSettled(const QString& token, bool success, int errorCode);
     void metadataReady(const QString& infoHash, const QString& name,
                        qint64 totalSize, const QJsonArray& files);
     void torrentProgress(const QString& infoHash, float progress,
@@ -383,6 +389,23 @@ private:
     // Alert worker runs on a dedicated QThread
     class AlertWorker;
     friend class AlertWorker;
+
+    friend class AudiobookOwnedRemovalTest;
+    struct PendingOwnedRemoval {
+        QString token, hash, path;
+        bool erase = false, removed = false, deletion = false;
+        bool flushed = false;
+        int error = 0;
+        bool observe(bool wasRemoved, bool deletionFinished, int deletionError, bool cacheFlushed = false) {
+            removed = removed || wasRemoved;
+            flushed = flushed || cacheFlushed;
+            if (erase && deletionFinished && !deletion) { deletion = true; error = deletionError; }
+            return removed && (erase ? deletion : flushed);
+        }
+    };
+    std::map<lt::torrent_handle, PendingOwnedRemoval> m_ownedRemovals;
+    void observeOwnedRemoval(const lt::torrent_handle& handle, bool removed,
+                             bool deletionFinished, int deletionError, bool cacheFlushed = false);
 
     lt::session        m_session;
     QThread            m_alertThread;
