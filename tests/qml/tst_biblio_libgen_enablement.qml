@@ -26,6 +26,8 @@ TestCase {
         property int downloads: 0
         property int deletions: 0
         property string state: "none"
+        signal resolving(string md5)
+        signal failed(string md5, string reason)
         signal finished(string md5, string path)
         function statusOf(id) { return { state: state, received: 0, total: 0 } }
         function localBook(id) { return state === "done" ? "/fixture/book.epub" : "" }
@@ -40,6 +42,7 @@ TestCase {
         signal resultsReady(var rows)
         signal searchFinished()
         function search(title, author) { searches++ }
+        function download(id, title, author) {}
         function statusOf(id) { return { state: "none" } }
         function downloadedBooks() { return [] }
         function downloadedFiles() { return [] }
@@ -214,6 +217,104 @@ TestCase {
         })
         verify(item !== null)
         compare(searches, 1)
+    }
+    function test_explicit_failure_surfaces_reason_for_current_title() {
+        enable(true)
+        const item = page(extensions)
+        callbacks[0]([edition()])
+        item.downloadEdition(edition())
+        books.failed(edition().md5, "HTTP status 503")
+        verify(item.readError.indexOf("HTTP status 503") >= 0)
+    }
+    function test_queued_notification_uses_canonical_status() {
+        enable(true)
+        const item = page(extensions)
+        callbacks[0]([edition()])
+        books.state = "queued"
+        item.readBook()
+        books.resolving(edition().md5)
+        compare(item.pendingReadState, "queued")
+        const row = findChild(item, "biblioEdition_" + edition().md5)
+        verify(row !== null)
+        compare(row.dlState, "queued")
+        books.state = "none"
+        books.resolving(edition().md5)
+        compare(row.dlState, "resolving")
+        compare(item.pendingReadState, "resolving")
+    }
+    function test_unrelated_and_previous_title_failure_do_not_contaminate_error() {
+        enable(true)
+        const item = page(extensions)
+        callbacks[0]([edition()])
+        item.downloadEdition(edition())
+        item.readError = "Keep current message"
+        books.failed("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "Unrelated failure")
+        compare(item.readError, "Keep current message")
+        item.book = { title: "New title", author: "Author" }
+        item.editions = [edition()]
+        item.readError = "New title message"
+        books.failed(edition().md5, "Previous title failure")
+        compare(item.readError, "New title message")
+    }
+    function test_explicit_failure_does_not_disturb_another_pending_read() {
+        enable(true)
+        const item = page(extensions)
+        callbacks[0]([edition()])
+        item.downloadEdition(edition())
+        const other = { md5: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", format: "epub" }
+        const gen = item._beginReadIntent()
+        item._targetReadCandidate(item._candidate("books", other.md5, "EPUB", "", other), gen)
+        item.readError = "Foreground message"
+        const state = item.pendingReadState
+        books.failed(edition().md5, "Explicit job failure")
+        compare(item.readError, "Foreground message")
+        compare(item.pendingReadAcquisitionId, other.md5)
+        compare(item.pendingReadState, state)
+        verify(item.pendingReadActive)
+    }
+    function test_removed_row_failure_is_not_presented() {
+        enable(true)
+        const item = page(extensions)
+        callbacks[0]([edition()])
+        item.downloadEdition(edition())
+        item.editions = []
+        books.failed(edition().md5, "Retired row failure")
+        compare(item.readError, "")
+    }
+    function test_newer_action_retires_explicit_failure_intent_data() {
+        return [ { tag: "done edition", action: "done" },
+                 { tag: "active edition", action: "active" },
+                 { tag: "disabled edition", action: "disabled" },
+                 { tag: "external row without link", action: "external" },
+                 { tag: "torrent", action: "torrent" },
+                 { tag: "local Read", action: "read" } ]
+    }
+    function test_newer_action_retires_explicit_failure_intent(data) {
+        enable(true)
+        const item = page(extensions)
+        const newer = { md5: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", format: "epub" }
+        callbacks[0]([edition(), newer])
+        item.downloadEdition(edition())
+        item.readError = "Previous message"
+        if (data.action === "done" || data.action === "active") {
+            books.state = data.action === "done" ? "done" : "downloading"
+            item.downloadEdition(newer)
+        } else if (data.action === "disabled") {
+            enable(false)
+            item.editions = [edition(), newer]
+            item.downloadEdition(newer)
+        } else if (data.action === "external") {
+            item.downloadEdition({ source: "external" })
+        } else if (data.action === "torrent") {
+            item.downloadTorrent({ infoHash: "fixture-torrent" })
+        } else {
+            books.state = "done"
+            item.readBook()
+            compare(reads.count, 1)
+        }
+        const currentError = item.readError
+        books.failed(edition().md5, "Obsolete A failure")
+        compare(item.readError, currentError)
     }
     function test_old_book_callback_cannot_replace_new_book() {
         enable(true)

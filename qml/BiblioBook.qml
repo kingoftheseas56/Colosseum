@@ -59,6 +59,8 @@ Item {
     property real pendingReadReceived: 0
     property real pendingReadTotal: 0
     property string readError: ""
+    property string explicitEditionMd5: ""
+    property string explicitEditionBookIdentity: ""
     property bool readChoiceOpen: false
     property var readChoiceRows: []
     property int readChoiceIndex: 0
@@ -111,6 +113,8 @@ Item {
 
     // ── editions: live LibGen search for this book (recreates TB2's scraper) ──
     onBookChanged: {
+        detail.explicitEditionMd5 = ""
+        detail.explicitEditionBookIdentity = ""
         detail._invalidateReadIntent()
         detail.readChoiceOpen = false
         detail.readChoiceRows = []
@@ -521,6 +525,7 @@ Item {
         return false
     }
     function readBook() {
+        detail.explicitEditionMd5 = ""
         detail.refreshLocal()
         if (detail.localPath.length) {
             detail._invalidateReadIntent()
@@ -535,6 +540,7 @@ Item {
     // foreground Read before starting, so their completion can only stop at Ready.
     function downloadEdition(ed) {
         if (!ed) return
+        detail.explicitEditionMd5 = ""
         detail._invalidateReadIntent()
         detail.readError = ""
         if (ed.md5 && detail.booksRef) {
@@ -546,6 +552,8 @@ Item {
             }
             detail.clearExistingCopies()
             detail.collectBook()
+            detail.explicitEditionMd5 = String(ed.md5)
+            detail.explicitEditionBookIdentity = detail._bookIdentity()
             detail.booksRef.downloadBook(ed.md5, detail.dlName(ed),
                                          detail.book.title || "", 0, detail.book.author || "")
         } else if (ed.url) {
@@ -554,8 +562,25 @@ Item {
             Qt.openUrlExternally(ed.url)
         }
     }
+    function editionFailure(md5, reason) {
+        if (detail.explicitEditionMd5 !== String(md5)
+                || detail.explicitEditionBookIdentity !== detail._bookIdentity()) return
+        detail.explicitEditionMd5 = ""
+        if (detail.pendingReadActive) return
+        for (var i = 0; i < detail.editions.length; ++i) {
+            if (String(detail.editions[i].md5 || "") === String(md5)) {
+                detail.readError = "Download failed · " + (reason || "try again")
+                return
+            }
+        }
+    }
+    function bookResolvingState(md5) {
+        var state = String(detail._status(detail.booksRef, String(md5)).state || "")
+        return state === "queued" || state === "downloading" || state === "done" ? state : "resolving"
+    }
     function downloadTorrent(row) {
         if (!row || !row.infoHash || !detail.bookTorrentsRef) return
+        detail.explicitEditionMd5 = ""
         detail._invalidateReadIntent()
         detail.readError = ""
         var hash = String(row.infoHash).toLowerCase()
@@ -644,7 +669,7 @@ Item {
         ignoreUnknownSignals: true
         function onResolving(md5) {
             if (detail.pendingReadTransport === "books" && String(md5) === detail.pendingReadAcquisitionId) {
-                detail.pendingReadState = "resolving"; detail.pendingReadReceived = 0; detail.pendingReadTotal = 0
+                detail.pendingReadState = detail.bookResolvingState(md5); detail.pendingReadReceived = 0; detail.pendingReadTotal = 0
             }
         }
         function onProgress(md5, received, total) {
@@ -654,11 +679,16 @@ Item {
             }
         }
         function onFinished(md5, path) {
+            if (detail.explicitEditionMd5 === String(md5)) detail.explicitEditionMd5 = ""
             detail.refreshLocal()
             detail._finishRead("books", String(md5), detail.pendingReadGeneration)
         }
-        function onFailed(md5, reason) { detail._failRead("books", String(md5), reason) }
+        function onFailed(md5, reason) {
+            detail.editionFailure(md5, reason)
+            detail._failRead("books", String(md5), reason)
+        }
         function onRemoved(md5) {
+            if (detail.explicitEditionMd5 === String(md5)) detail.explicitEditionMd5 = ""
             detail.refreshLocal()
             if (detail.pendingReadTransport === "books" && String(md5) === detail.pendingReadAcquisitionId)
                 detail._failRead("books", String(md5), "edition removed")
@@ -1102,6 +1132,7 @@ Item {
                             model: detail.editions
                             delegate: Item {
                                 id: edRow
+                                objectName: "biblioEdition_" + String(modelData.md5 || index)
                                 required property var modelData
                                 required property int index
                                 width: parent.width; height: 52
@@ -1114,7 +1145,7 @@ Item {
                                 Connections {
                                     target: detail.booksRef
                                     ignoreUnknownSignals: true
-                                    function onResolving(md5) { if (md5 === edRow.modelData.md5) edRow.dlState = "resolving" }
+                                    function onResolving(md5) { if (md5 === edRow.modelData.md5) edRow.dlState = detail.bookResolvingState(md5) }
                                     function onProgress(md5, rcv, tot) { if (md5 === edRow.modelData.md5) { edRow.dlState = "downloading"; edRow.dlPct = tot > 0 ? rcv / tot : 0 } }
                                     function onFinished(md5, path) { if (md5 === edRow.modelData.md5) { edRow.dlState = "done"; edRow.dlPct = 1 } }
                                     function onFailed(md5, why) { if (md5 === edRow.modelData.md5) edRow.dlState = "failed" }
@@ -1150,12 +1181,13 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: edRow.dlState === "done" ? "✓"
                                         : edRow.dlState === "downloading" ? (Math.round(edRow.dlPct * 100) + "%")
+                                        : edRow.dlState === "queued" ? "queued"
                                         : edRow.dlState === "resolving" ? "…"
                                         : edRow.dlState === "failed" ? "retry"
                                         : (edRow.modelData.md5 ? "↓" : "↗")
                                     color: edRow.dlState === "done" ? theme.gold : (edMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui
-                                    font.pixelSize: (edRow.dlState === "downloading" || edRow.dlState === "failed") ? 12 : 16
+                                    font.pixelSize: (edRow.dlState === "downloading" || edRow.dlState === "failed" || edRow.dlState === "queued") ? 12 : 16
                                 }
                                 MouseArea { id: edMa; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: edRow.dlState === "done" ? Qt.ArrowCursor : Qt.PointingHandCursor
