@@ -19,7 +19,7 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: open
-    nativeWindow: false
+    nativeWindow: true
     id: panel
 
     // ---- inputs (bound by ReaderChrome from ReaderShell's shell.appearance) ----
@@ -80,14 +80,14 @@ ReaderOverlay {
     }
     function focusBelongsHere(item) {
         var p = item
-        while (p) { if (p === panel) return true; p = p.parent }
+        while (p) { if (p === panel || p === panel.surface) return true; p = p.parent }
         return false
     }
     function trapTab(event) {
         var tab = event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab
         if (!open || !tab) return false
         var backwards = event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)
-        var w = panel.Window.window
+        var w = panel.surface.Window.window
         var current = w ? w.activeFocusItem : null
         if (!current || !focusBelongsHere(current)) { paperSwatch.focusKeyboard(); event.accepted = true; return true }
         var next = current
