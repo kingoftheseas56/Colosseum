@@ -9,6 +9,11 @@ on:
         default: all
         type: choice
         options: [all, linux, macos]
+      live_submit:
+        description: Send one labelled live feedback submission per selected platform
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -151,20 +156,26 @@ jobs:
               echo 'No logged-in macOS GUI console session'; exit 1;
             }
           fi
-      - name: Qualify feedback inside Linux Colosseum and submit once
+      - name: Qualify feedback inside Linux Colosseum
         if: runner.os == 'Linux'
+        env:
+          FEEDBACK_LIVE_SUBMIT: ${{ inputs.live_submit }}
         run: |
           set -euo pipefail
+          driver_args=(tests/feedback_app_runtime.cjs --app "$FEEDBACK_APP" --output "$FEEDBACK_EVIDENCE/runtime")
+          if [[ "$FEEDBACK_LIVE_SUBMIT" == true ]]; then driver_args+=(--live-submit); fi
           dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24' \
-            node tests/feedback_app_runtime.cjs --app "$FEEDBACK_APP" \
-              --output "$FEEDBACK_EVIDENCE/runtime" --live-submit \
+            node "${driver_args[@]}" \
             2>&1 | tee "$FEEDBACK_EVIDENCE/runtime-driver.log"
-      - name: Qualify feedback inside macOS Colosseum and submit once
+      - name: Qualify feedback inside macOS Colosseum
         if: runner.os == 'macOS'
+        env:
+          FEEDBACK_LIVE_SUBMIT: ${{ inputs.live_submit }}
         run: |
           set -euo pipefail
-          node tests/feedback_app_runtime.cjs --app "$FEEDBACK_APP" \
-            --output "$FEEDBACK_EVIDENCE/runtime" --live-submit \
+          driver_args=(tests/feedback_app_runtime.cjs --app "$FEEDBACK_APP" --output "$FEEDBACK_EVIDENCE/runtime")
+          if [[ "$FEEDBACK_LIVE_SUBMIT" == true ]]; then driver_args+=(--live-submit); fi
+          node "${driver_args[@]}" \
             2>&1 | tee "$FEEDBACK_EVIDENCE/runtime-driver.log"
       - name: Upload scoped runtime evidence
         if: always()

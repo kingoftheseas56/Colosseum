@@ -8,6 +8,26 @@ Item {
     Rectangle { id: feedbackBackdrop; anchors.fill: parent; color: "#08090d" }
 
     Component { id: panelComponent; App.FeedbackPanel { browserSource: Qt.resolvedUrl("MockBrowser.qml") } }
+    Component {
+        id: coveredShellComponent
+        Item {
+            property int underlyingClicks: 0
+            property int underlyingWheels: 0
+            MouseArea {
+                objectName: "underlyingInput"
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.AllButtons
+                onClicked: parent.underlyingClicks++
+                onWheel: parent.underlyingWheels++
+            }
+            App.FeedbackPanel {
+                objectName: "coveredFeedbackPanel"
+                anchors.fill: parent
+                browserSource: Qt.resolvedUrl("MockBrowser.qml")
+            }
+        }
+    }
     Component { id: vaultComponent; App.VaultPage { backdrop: feedbackBackdrop } }
     Component {
         id: desktopTopBarHost
@@ -53,6 +73,37 @@ Item {
     TestCase {
         name: "FeedbackShell"
         when: windowShown
+
+        function test_panel_blocks_underlying_pointer_input() {
+            const shell = createTemporaryObject(coveredShellComponent, parent, {width:1200, height:800});
+            verify(shell);
+            const panel = findChild(shell, "coveredFeedbackPanel");
+            const loader = findChild(panel, "feedbackBrowserLoader");
+            tryCompare(loader, "status", Loader.Ready);
+            const label = findTextNode(panel, "Feedback");
+            verify(label);
+            const header = label.mapToItem(panel, label.width / 2, label.height / 2);
+            for (const button of [Qt.LeftButton, Qt.RightButton, Qt.MiddleButton]) {
+                mouseClick(panel, header.x, header.y, button);
+                compare(shell.underlyingClicks, 0, "Unused feedback header must block the underlying world buttons");
+                mouseClick(panel, panel.width / 2, 8, button);
+                mouseClick(panel, panel.width / 2, panel.height - 8, button);
+                compare(shell.underlyingClicks, 0, "Empty panel space must block underlying input");
+            }
+            mouseMove(panel, header.x, header.y);
+            compare(findChild(shell, "underlyingInput").containsMouse, false);
+            mouseWheel(panel, header.x, header.y, 0, 120);
+            compare(shell.underlyingWheels, 0, "Wheel input must not scroll the covered world");
+
+            closeSpy.target = panel; closeSpy.clear();
+            mouseClick(findChild(panel, "feedbackBack"));
+            compare(closeSpy.count, 1, "The foreground Back control remains clickable");
+            const firstBrowser = loader.item;
+            mouseClick(findChild(panel, "feedbackRefresh"));
+            tryVerify(function() { return loader.status === Loader.Ready && loader.item !== firstBrowser }, 1000,
+                      "The foreground Refresh control still reloads the mock browser");
+            compare(shell.underlyingClicks, 0);
+        }
 
         function test_panel_data() {
             return [{tag:"phone",w:360,h:740}, {tag:"tablet",w:800,h:1280}, {tag:"desktop",w:1200,h:800}]
