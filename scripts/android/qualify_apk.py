@@ -145,8 +145,20 @@ def _elf_receipt(name: str, blob: bytes) -> dict:
     for i in range(phnum):
         off = phoff + i * phentsize
         if struct.unpack_from("<I", blob, off)[0] == 1:
-            aligns.append(struct.unpack_from("<Q", blob, off + 48)[0])
-    if not aligns or any(value < 16384 for value in aligns):
+            offset, vaddr, _, filesz, memsz, align = struct.unpack_from("<6Q", blob, off + 8)
+            if align < 16384:
+                raise ValueError(f"{name} has PT_LOAD alignment below 16 KiB")
+            if align & (align - 1):
+                raise ValueError(f"{name} has PT_LOAD alignment that is not a power of two")
+            if offset % align != vaddr % align:
+                raise ValueError(f"{name} has incongruent PT_LOAD file offset and virtual address")
+            if filesz > memsz:
+                raise ValueError(f"{name} PT_LOAD file size exceeds memory size")
+            # Memory-only segments have no file range to validate.
+            if filesz and offset + filesz > len(blob):
+                raise ValueError(f"{name} has PT_LOAD file range outside the ELF")
+            aligns.append(align)
+    if not aligns:
         raise ValueError(f"{name} has PT_LOAD alignment below 16 KiB")
     return {"path": name, "bytes": len(blob), "sha256": hashlib.sha256(blob).hexdigest(),
             "ptLoadAlignments": aligns}

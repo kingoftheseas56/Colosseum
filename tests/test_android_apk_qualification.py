@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT / "scripts" / "android"))
 import qualify_apk  # noqa: E402
 
 
-def elf(machine=183, align=16384, cls=2):
+def elf(machine=183, align=16384, cls=2, offset=0, vaddr=0, filesz=120, memsz=120):
     header = bytearray(64)
     header[:4] = b"\x7fELF"
     header[4] = cls
@@ -28,6 +28,8 @@ def elf(machine=183, align=16384, cls=2):
     struct.pack_into("<HH", header, 54, 56, 1)    # e_phentsize, e_phnum
     ph = bytearray(56)
     struct.pack_into("<I", ph, 0, 1)              # PT_LOAD
+    struct.pack_into("<QQ", ph, 8, offset, vaddr)
+    struct.pack_into("<QQ", ph, 32, filesz, memsz)
     struct.pack_into("<Q", ph, 48, align)
     return bytes(header + ph)
 
@@ -107,6 +109,36 @@ class InspectTests(unittest.TestCase):
             zf.writestr("lib/arm64-v8a/libc.so", elf())
         with self.assertRaises(ValueError):
             qualify_apk.inspect_apk(str(nomanifest))
+
+    def test_rejects_invalid_load_segment_alignment_and_bounds(self):
+        cases = {
+            "zero_alignment": (elf(align=0), "alignment"),
+            "non_power_of_two": (elf(align=24576), "power of two"),
+            "incongruent_16k": (elf(vaddr=4096), "incongruent"),
+            # Congruent modulo 16 KiB, but not the declared 32 KiB alignment.
+            "incongruent_32k": (elf(align=32768, vaddr=16384), "incongruent"),
+            "filesz_exceeds_memsz": (elf(memsz=119), "file size exceeds memory size"),
+            "file_end_outside_blob": (elf(filesz=121, memsz=121), "file range"),
+            "file_start_outside_blob": (elf(offset=16384, filesz=1, memsz=1), "file range"),
+        }
+        for label, (blob, message) in cases.items():
+            with self.subTest(label=label), self.assertRaisesRegex(ValueError, message):
+                apk = make_apk(self.dir / f"{label}.apk", libs={"lib/arm64-v8a/libc.so": blob})
+                qualify_apk.inspect_apk(str(apk))
+
+    def test_accepts_valid_file_backed_and_memory_only_load_segments(self):
+        cases = {
+            "nonzero_congruent_offsets": elf(offset=64, vaddr=16448, filesz=56, memsz=128),
+            "larger_alignment": elf(align=65536),
+            # No bytes are read from p_offset when p_filesz is zero.
+            "memory_only": elf(offset=16384, vaddr=32768, filesz=0, memsz=4096),
+            "empty": elf(filesz=0, memsz=0),
+        }
+        for label, blob in cases.items():
+            with self.subTest(label=label):
+                apk = make_apk(self.dir / f"{label}.apk", libs={"lib/arm64-v8a/libc.so": blob})
+                receipt = qualify_apk.inspect_apk(str(apk))
+                self.assertEqual(receipt["nativeLibraries"][0]["bytes"], len(blob))
 
     def test_engine_member_must_match_prefix(self):
         engine = elf() + b"engine-v0.1.5"
