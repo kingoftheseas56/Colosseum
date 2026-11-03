@@ -29,6 +29,21 @@ Item {
 
     // Arc 19: injectable service seams preserve production defaults while letting the
     // foreground Read contract run deterministically in an offscreen harness.
+    property var extensionsRef: (typeof Extensions !== "undefined") ? Extensions : null
+    readonly property bool libgenEnabled: {
+        var owner = detail.extensionsRef
+        if (!owner || !owner.installed) return false
+        var rows = (owner.revision, owner.installed()) || []
+        for (var i = 0; i < rows.length; ++i)
+            if (rows[i].id === "colosseum.well.libgen") return rows[i].enabled === true
+        return false
+    }
+    property int libgenGeneration: 0
+    onLibgenEnabledChanged: {
+        detail.loadLibgenEditions()
+        if (!detail.libgenEnabled)
+            detail._resolvePendingLookup(detail.pendingReadGeneration)
+    }
     property var booksRef: (typeof Books !== "undefined") ? Books : null
     property var bookTorrentsRef: (typeof BookTorrents !== "undefined") ? BookTorrents : null
     property var collectionRef: (typeof Collection !== "undefined") ? Collection : null
@@ -106,15 +121,7 @@ Item {
     function loadEditions() {
         if (!detail.book || !detail.book.title) return
         var gen = ++detail.sourceGeneration
-        detail.edLoading = true
-        detail.editions = []
-        BiblioApi.searchLibgen(detail.book.title, detail.book.author, function(eds) {
-            if (gen !== detail.sourceGeneration) return
-            detail.editions = eds
-            detail.edLoading = false
-            detail.refreshLocal()
-            detail._resolvePendingLookup(detail.pendingReadGeneration)
-        })
+        detail.loadLibgenEditions()
         // audiobook lane: is one already downloaded? then find one to download.
         detail.audioLocal = (typeof Audiobooks !== 'undefined') && Audiobooks.isDownloaded(detail.pairKey)
         detail.abLoading = true; detail.abRows = []
@@ -137,6 +144,22 @@ Item {
             }
         })
         detail.loadTorrents()
+        detail.refreshLocal()
+    }
+
+    function loadLibgenEditions() {
+        var gen = ++detail.libgenGeneration
+        detail.editions = []
+        detail.edLoading = false
+        if (!detail.libgenEnabled || !detail.book || !detail.book.title) return
+        detail.edLoading = true
+        BiblioApi.searchLibgen(detail.book.title, detail.book.author, function(eds) {
+            if (gen !== detail.libgenGeneration || !detail.libgenEnabled) return
+            detail.editions = eds
+            detail.edLoading = false
+            detail.refreshLocal()
+            detail._resolvePendingLookup(detail.pendingReadGeneration)
+        })
     }
 
     // ── torrents: live federated indexer search for this book (BookTorrents facade) ──
@@ -381,6 +404,12 @@ Item {
         if (transport === "torrent") id = id.toLowerCase()
         var state = detail._status(service, id)
         var stateName = String(state.state || "none")
+        if (transport === "books" && stateName !== "done" && !detail._inFlight(stateName)
+                && !detail.libgenEnabled) {
+            detail._invalidateReadIntent()
+            detail.readError = "LibGen is disabled in Extensions"
+            return false
+        }
         detail.pendingReadTransport = transport
         detail.pendingReadAcquisitionId = id
         detail.pendingReadState = stateName
@@ -511,6 +540,10 @@ Item {
         if (ed.md5 && detail.booksRef) {
             var st = detail._status(detail.booksRef, String(ed.md5))
             if (String(st.state || "") === "done" || detail._inFlight(String(st.state || ""))) return
+            if (!detail.libgenEnabled) {
+                detail.readError = "LibGen is disabled in Extensions"
+                return
+            }
             detail.clearExistingCopies()
             detail.collectBook()
             detail.booksRef.downloadBook(ed.md5, detail.dlName(ed),
@@ -1058,7 +1091,8 @@ Item {
                             Text {
                                 anchors.left: parent.left; anchors.leftMargin: 18
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: detail.edLoading ? "Searching LibGen…" : "No editions found"
+                                text: !detail.libgenEnabled ? "LibGen is disabled in Extensions"
+                                      : (detail.edLoading ? "Searching LibGen…" : "No editions found")
                                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
                             }
                         }

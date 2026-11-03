@@ -185,6 +185,7 @@ Window {
         var p = comp.createObject(harness, {
             width: harness.width,
             height: harness.height,
+            extensionsRef: { revision: 0, installed: function() { return [{ id: "colosseum.well.libgen", enabled: true }] } },
             booksRef: books,
             bookTorrentsRef: torrents,
             collectionRef: collection,
