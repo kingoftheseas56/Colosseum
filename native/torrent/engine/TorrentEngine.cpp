@@ -114,7 +114,19 @@ private:
         m_engine->m_session.pop_alerts(&alerts);
 
         for (auto* a : alerts) {
-            if (auto* mra = lt::alert_cast<lt::metadata_received_alert>(a)) {
+            if (auto* removed = lt::alert_cast<lt::torrent_removed_alert>(a)) {
+                m_engine->observeOwnedRemoval(removed->handle, true, false, 0);
+            }
+            else if (auto* flushed = lt::alert_cast<lt::cache_flushed_alert>(a)) {
+                m_engine->observeOwnedRemoval(flushed->handle, false, false, 0, true);
+            }
+            else if (auto* deleted = lt::alert_cast<lt::torrent_deleted_alert>(a)) {
+                m_engine->observeOwnedRemoval(deleted->handle, false, true, 0);
+            }
+            else if (auto* failed = lt::alert_cast<lt::torrent_delete_failed_alert>(a)) {
+                m_engine->observeOwnedRemoval(failed->handle, false, true, failed->error.value());
+            }
+            else if (auto* mra = lt::alert_cast<lt::metadata_received_alert>(a)) {
                 auto hash = m_engine->canonicalKeyForHandle(mra->handle);
                 QString name;
                 qint64 totalSize = 0;
@@ -1054,6 +1066,46 @@ void TorrentEngine::removeTorrent(const QString& infoHash, bool deleteFiles)
     QFile::remove(m_cacheDir + "/resume/" + infoHash + ".fastresume");
 }
 
+bool TorrentEngine::requestOwnedRemoval(const QString& token, const QString& hash,
+                                       const QString& expectedPath, bool erase)
+{
+    QMutexLocker lock(&m_mutex);
+    if (token.isEmpty() || token.size() > 128 || expectedPath.isEmpty()) return false;
+    for (const auto& pending : m_ownedRemovals)
+        if (pending.second.token == token) return false;
+    auto record = m_records.find(hash);
+    if (record == m_records.end() || !record->handle.is_valid()) return false;
+    const auto handle = record->handle;
+    const QString actual = QFileInfo(QString::fromStdString(handle.status().save_path)).canonicalFilePath();
+    if (actual.isEmpty() || actual != expectedPath || m_ownedRemovals.count(handle)) return false;
+    // Keep the weak-owner identity before removing its external hash registration.
+    m_ownedRemovals.emplace(handle, PendingOwnedRemoval{token, hash, actual, erase});
+    const auto pinnedId = handle.id(); // retire the old pin, never use it for acknowledgment
+    m_session.remove_torrent(handle, erase ? lt::session::delete_files : lt::remove_flags_t{});
+    m_handleKeyById.remove(pinnedId);
+    m_records.erase(record);
+    QFile::remove(m_cacheDir + "/resume/" + hash + ".fastresume");
+    return true;
+}
+
+void TorrentEngine::observeOwnedRemoval(const lt::torrent_handle& handle, bool removed,
+                                       bool deletionFinished, int deletionError, bool cacheFlushed)
+{
+    QString token;
+    int error = 0;
+    {
+        QMutexLocker lock(&m_mutex);
+        // Equality/order remains valid after expiration; handle.id()/hash do not.
+        auto pending = m_ownedRemovals.find(handle);
+        if (pending == m_ownedRemovals.end()
+            || !pending->second.observe(removed, deletionFinished, deletionError, cacheFlushed)) return;
+        token = pending->second.token;
+        error = pending->second.error;
+        m_ownedRemovals.erase(pending);
+    }
+    emit ownedRemovalSettled(token, error == 0, error);
+}
+
 void TorrentEngine::forceStart(const QString& infoHash)
 {
     QMutexLocker lock(&m_mutex);
@@ -1971,6 +2023,7 @@ void TorrentEngine::flattenFiles(const QString&) {}
 void TorrentEngine::resumeTorrent(const QString&) {}
 void TorrentEngine::pauseTorrent(const QString&) {}
 void TorrentEngine::removeTorrent(const QString&, bool) {}
+bool TorrentEngine::requestOwnedRemoval(const QString&, const QString&, const QString&, bool) { return false; }
 void TorrentEngine::forceStart(const QString&) {}
 void TorrentEngine::forceRecheck(const QString&) {}
 void TorrentEngine::forceReannounce(const QString&) {}
