@@ -135,7 +135,7 @@ Item {
         color: "#cc171720"; border.width: 1; border.color: theme.gold
         Text {
             id: message; anchors.centerIn: parent; text: root.feedback
-            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(18)
+            color: theme.ink; font.family: theme.ui; font.pixelSize: 18
         }
     }
     Rectangle {
@@ -144,7 +144,7 @@ Item {
         anchors.centerIn: parent
         width: 148; height: 48; radius: 24; color: "#e6171720"
         border.width: 1; border.color: theme.gold
-        Text { anchors.centerIn: parent; text: "Unlock controls"; color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(15) }
+        Text { anchors.centerIn: parent; text: "Unlock controls"; color: theme.gold; font.family: theme.ui; font.pixelSize: 15 }
         KeyboardAction { anchors.fill: parent; accessibleName: "Unlock player controls"; onTriggered: root.unlockRequested() }
     }
 }

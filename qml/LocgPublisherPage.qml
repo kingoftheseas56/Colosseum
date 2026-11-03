@@ -172,17 +172,17 @@ Item {
                 spacing: 10
                 Text {
                     text: "LOCG · Tankoban"
-                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
+                    color: theme.gold; font.family: theme.ui; font.pixelSize: 11
                     font.letterSpacing: 3; font.capitalization: Font.AllUppercase
                 }
                 Text {
                     text: page.box.label || ""
-                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(48)
+                    color: theme.ink; font.family: theme.display; font.pixelSize: 48
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: page.items.length + " series" + (page.hasMore ? " so far" : "")
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                 }
                 // sort control (Newest / A–Z) — view-only reorder
                 Row {
@@ -202,7 +202,7 @@ Item {
                             border.color: (on || sortKey.activeFocus) ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.edge
                             Text { id: pillT; anchors.centerIn: parent; text: modelData.l
                                 color: parent.on ? theme.gold : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+                                font.family: theme.ui; font.pixelSize: 13 }
                             KeyboardAction {
                                 id: sortKey
                                 anchors.fill: parent
@@ -256,7 +256,7 @@ Item {
                                     horizontalAlignment: Text.AlignHCenter
                                     text: tile.modelData.title
                                     wrapMode: Text.WordWrap
-                                    color: theme.inkDim; font.family: theme.display; font.pixelSize: theme.fontSize(15)
+                                    color: theme.inkDim; font.family: theme.display; font.pixelSize: 15
                                 }
                             }
                             Image {
@@ -284,7 +284,7 @@ Item {
                             width: parent.width
                             text: tile.modelData.title
                             color: (tileMa.containsMouse || (grid.activeFocus && grid.currentIndex === tile.index)) ? theme.gold : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                            font.family: theme.ui; font.pixelSize: 13
                             elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter
                         }
                     }
@@ -323,6 +323,6 @@ Item {
         anchors.centerIn: parent
         visible: page.loading
         text: "Loading…"
-        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(16)
+        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
     }
 }

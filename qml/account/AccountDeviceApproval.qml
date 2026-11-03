@@ -5,7 +5,6 @@ import ".."
 
 AccountPageFrame {
     id: root
-    Theme { id: interfaceTypography }
     objectName: "accountDeviceApproval"
 
     property var controller: null
@@ -75,7 +74,7 @@ AccountPageFrame {
                 text: "Waiting for another device…"
                 color: waitingTheme.inkDim
                 font.family: waitingTheme.ui
-                font.pixelSize: interfaceTypography.fontSize(12)
+                font.pixelSize: 12
             }
         }
     }
@@ -118,7 +117,7 @@ AccountPageFrame {
             : root.controller.lastErrorMessage
         color: "#f0a3a3"
         font.family: errorTheme.ui
-        font.pixelSize: interfaceTypography.fontSize(12)
+        font.pixelSize: 12
         wrapMode: Text.WordWrap
 
         Theme { id: errorTheme }

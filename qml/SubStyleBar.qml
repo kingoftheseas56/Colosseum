@@ -43,14 +43,6 @@ Item {
     Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(bar.Window.window, bar, true) }
     Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(bar.Window.window, bar, false) }
 
-    function revealControl(item) {
-        if (!theme.androidHost || !item) return
-        const p = item.mapToItem(styleScroll.contentItem, 0, 0)
-        if (p.x < styleScroll.contentX) styleScroll.contentX = Math.max(0, p.x - 8)
-        else if (p.x + item.width > styleScroll.contentX + styleScroll.width)
-            styleScroll.contentX = Math.min(Math.max(0, styleScroll.contentWidth - styleScroll.width), p.x + item.width - styleScroll.width + 8)
-    }
-
     Settings {
         id: prefs
         category: "subtitleStyle"
@@ -104,7 +96,7 @@ Item {
         anchors.topMargin: 68
         anchors.horizontalCenter: parent.horizontalCenter
         width: Math.min(parent.width - 56, 760)
-        height: theme.androidHost ? 68 : 56
+        height: 56
         radius: 14
         color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
         border.width: 1
@@ -115,16 +107,7 @@ Item {
         // Absorb background clicks so the bar body never dismisses itself (parity spec F2).
         MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: {} }
 
-        Flickable {
-            id: styleScroll
-            anchors.fill: parent
-            contentWidth: theme.androidHost ? Math.max(width, styleRow.width + 16) : width
-            contentHeight: height
-            interactive: theme.androidHost && contentWidth > width
-            clip: theme.androidHost
-            boundsBehavior: Flickable.StopAtBounds
         Row {
-            id: styleRow
             anchors.centerIn: parent
             spacing: 8
 
@@ -201,7 +184,6 @@ Item {
                 }
             }
         }
-        }
     }
 
     component Cluster: Rectangle {
@@ -210,8 +192,8 @@ Item {
         property string valueText: ""
         signal minus()
         signal plus()
-        width: theme.androidHost ? 230 : 110
-        height: theme.androidHost ? 56 : 44
+        width: 110
+        height: 44
         radius: 10
         color: Qt.rgba(1, 1, 1, 0.07)
         Row {
@@ -222,7 +204,7 @@ Item {
                 text: cluster.label
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(10)
+                font.pixelSize: 10
                 font.weight: Font.Bold
             }
             MiniButton { text: "-"; onClicked: cluster.minus() }
@@ -232,7 +214,7 @@ Item {
                 text: cluster.valueText
                 color: theme.ink
                 font.family: theme.hud; font.features: ({ "tnum": 1 })
-                font.pixelSize: theme.fontSize(12)
+                font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
             }
             MiniButton { text: "+"; onClicked: cluster.plus() }
@@ -244,8 +226,8 @@ Item {
         property string label: ""
         property string valueText: ""
         signal cycle()
-        width: theme.androidHost ? 160 : 112
-        height: theme.androidHost ? 56 : 44
+        width: 112
+        height: 44
         radius: 10
         color: Qt.rgba(1, 1, 1, 0.07)
         Row {
@@ -256,7 +238,7 @@ Item {
                 text: cluster.label
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(10)
+                font.pixelSize: 10
                 font.weight: Font.Bold
             }
             Text {
@@ -264,7 +246,7 @@ Item {
                 text: cluster.valueText
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(12)
+                font.pixelSize: 12
                 font.weight: Font.DemiBold
             }
         }
@@ -274,7 +256,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: cluster.cycle()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: cluster.label + " " + cluster.valueText; onActiveFocusChanged: if (activeFocus) bar.revealControl(cluster); onTriggered: cluster.cycle() }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: cluster.label + " " + cluster.valueText; onTriggered: cluster.cycle() }
     }
 
     component Swatches: Rectangle {
@@ -285,7 +267,6 @@ Item {
         property int keyboardIndex: Math.max(0, colors.map(function(c) { return String(c).toLowerCase() }).indexOf(String(selected).toLowerCase()))
         signal picked(string color)
         focusPolicy: bar.open && colors.length > 0 ? Qt.TabFocus : Qt.NoFocus
-        onActiveFocusChanged: if (activeFocus) bar.revealControl(swatches)
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
                 var next = keyboardIndex + (event.key === Qt.Key_Left ? -1 : 1)
@@ -294,8 +275,8 @@ Item {
             else if (event.key === Qt.Key_End) { keyboardIndex = colors.length - 1; event.accepted = true }
             else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { swatches.picked(String(colors[keyboardIndex])); event.accepted = true }
         }
-        width: theme.androidHost ? 280 : 126
-        height: theme.androidHost ? 56 : 44
+        width: 126
+        height: 44
         radius: 10
         color: Qt.rgba(1, 1, 1, 0.07)
         Row {
@@ -306,7 +287,7 @@ Item {
                 text: swatches.label
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(10)
+                font.pixelSize: 10
                 font.weight: Font.Bold
             }
             Repeater {
@@ -315,8 +296,8 @@ Item {
                     id: dot
                     required property int index
                     required property string modelData
-                    width: theme.androidHost ? 48 : 18
-                    height: width
+                    width: 18
+                    height: 18
                     radius: 9
                     color: modelData
                     border.width: (swatches.activeFocus && swatches.keyboardIndex === dot.index) || swatches.selected.toLowerCase() === modelData.toLowerCase() ? 2 : 1
@@ -336,8 +317,8 @@ Item {
         id: button
         property string text: ""
         signal clicked()
-        width: theme.androidHost ? 52 : 22
-        height: theme.androidHost ? 52 : 24
+        width: 22
+        height: 24
         radius: 6
         color: miniMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
         Text {
@@ -345,7 +326,7 @@ Item {
             text: button.text
             color: theme.ink
             font.family: theme.hud; font.features: ({ "tnum": 1 })
-            font.pixelSize: theme.fontSize(13)
+            font.pixelSize: 13
             font.weight: Font.Bold
         }
         MouseArea {
@@ -355,6 +336,6 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: button.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.text; onActiveFocusChanged: if (activeFocus) bar.revealControl(button); onTriggered: button.clicked() }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.text; onTriggered: button.clicked() }
     }
 }

@@ -266,7 +266,7 @@ ReaderOverlay {
                     text: "No chapters"
                     color: Theme.inkGhost
                     font.family: Theme.ui
-                    font.pixelSize: Theme.fontSize(13)
+                    font.pixelSize: 13
                 }
 
                 ListView {
@@ -313,7 +313,7 @@ ReaderOverlay {
                                 horizontalAlignment: Text.AlignLeft
                                 color: chrow.rowState === "current" ? Theme.gold : Theme.inkGhost
                                 font.family: Theme.ui
-                                font.pixelSize: Theme.fontSize(11)
+                                font.pixelSize: 11
                             }
                             Text {
                                 id: chLabel
@@ -321,7 +321,7 @@ ReaderOverlay {
                                 text: (chrow.modelData && chrow.modelData.label) ? String(chrow.modelData.label) : ""
                                 wrapMode: Text.WordWrap
                                 font.family: Theme.ui
-                                font.pixelSize: Theme.fontSize(14)
+                                font.pixelSize: 14
                                 color: chrow.rowState === "current" ? Theme.gold
                                      : (chrow.rowState === "read" ? Theme.inkGhost : Theme.inkDim)
                             }
@@ -349,7 +349,7 @@ ReaderOverlay {
                     text: "No bookmarks yet"
                     color: Theme.inkGhost
                     font.family: Theme.ui
-                    font.pixelSize: Theme.fontSize(13)
+                    font.pixelSize: 13
                 }
 
                 ListView {
@@ -404,7 +404,7 @@ ReaderOverlay {
                                 visible: bmRow.r.where !== ""
                                 elide: Text.ElideRight
                                 font.family: Theme.ui
-                                font.pixelSize: Theme.fontSize(11)
+                                font.pixelSize: 11
                                 font.letterSpacing: 1.6
                                 font.capitalization: Font.AllUppercase
                                 color: Theme.inkGhost
@@ -415,7 +415,7 @@ ReaderOverlay {
                                 visible: bmRow.r.snippet !== ""
                                 wrapMode: Text.WordWrap
                                 font.family: Theme.display
-                                font.pixelSize: Theme.fontSize(14)
+                                font.pixelSize: 14
                                 color: Theme.inkDim
                             }
                         }
@@ -440,7 +440,7 @@ ReaderOverlay {
                             visible: panel.touchInput || bmMa.containsMouse || bmDelMa.containsMouse
                             text: "×"
                             font.family: Theme.ui
-                            font.pixelSize: Theme.fontSize(15)
+                            font.pixelSize: 15
                             color: bmDelMa.containsMouse ? Theme.ink : Theme.inkFaint
                         }
                         // Desktop: the glyph plus a 6 px margin. Touch: the reserved gutter
@@ -473,7 +473,7 @@ ReaderOverlay {
                     text: "No highlights yet"
                     color: Theme.inkGhost
                     font.family: Theme.ui
-                    font.pixelSize: Theme.fontSize(13)
+                    font.pixelSize: 13
                 }
 
                 ListView {
@@ -521,7 +521,7 @@ ReaderOverlay {
                                 visible: hlRow.r.where !== ""
                                 elide: Text.ElideRight
                                 font.family: Theme.ui
-                                font.pixelSize: Theme.fontSize(11)
+                                font.pixelSize: 11
                                 font.letterSpacing: 1.6
                                 font.capitalization: Font.AllUppercase
                                 color: Theme.inkGhost
@@ -547,7 +547,7 @@ ReaderOverlay {
                                     text: hlRow.r.text
                                     wrapMode: Text.WordWrap
                                     font.family: Theme.display
-                                    font.pixelSize: Theme.fontSize(14)
+                                    font.pixelSize: 14
                                     color: Theme.inkDim
                                 }
                             }
@@ -559,7 +559,7 @@ ReaderOverlay {
                                 text: hlRow.r.note
                                 wrapMode: Text.WordWrap
                                 font.family: Theme.ui
-                                font.pixelSize: Theme.fontSize(13)
+                                font.pixelSize: 13
                                 color: Theme.inkFaint
                                 Rectangle {
                                     anchors.left: parent.left
@@ -604,7 +604,7 @@ ReaderOverlay {
                     horizontalAlignment: Text.AlignHCenter
                     color: Theme.inkGhost
                     font.family: Theme.ui
-                    font.pixelSize: Theme.fontSize(13)
+                    font.pixelSize: 13
                     lineHeight: 1.4
                 }
 
@@ -675,7 +675,7 @@ ReaderOverlay {
                                     maximumLineCount: 2
                                     elide: Text.ElideRight
                                     font.family: Theme.ui
-                                    font.pixelSize: Theme.fontSize(14)
+                                    font.pixelSize: 14
                                     font.weight: Font.DemiBold
                                     color: Theme.inkTitle
                                 }
@@ -684,7 +684,7 @@ ReaderOverlay {
                                     text: panel.audioMetaLine
                                     elide: Text.ElideRight
                                     font.family: Theme.ui
-                                    font.pixelSize: Theme.fontSize(12)
+                                    font.pixelSize: 12
                                     color: Theme.inkFaint
                                 }
                                 // gold pill: "Downloaded for this book" (mock .paired)
@@ -698,7 +698,7 @@ ReaderOverlay {
                                     Text {
                                         text: "Downloaded for this book"
                                         font.family: Theme.ui
-                                        font.pixelSize: Theme.fontSize(11)
+                                        font.pixelSize: 11
                                         font.weight: Font.Bold
                                         font.letterSpacing: 1.4
                                         font.capitalization: Font.AllUppercase
@@ -728,7 +728,7 @@ ReaderOverlay {
                             Text {
                                 text: "Follow my reading"
                                 font.family: Theme.ui
-                                font.pixelSize: Theme.fontSize(13)
+                                font.pixelSize: 13
                                 font.weight: Font.DemiBold
                                 color: Theme.inkDim
                             }
@@ -737,7 +737,7 @@ ReaderOverlay {
                                 text: "Audio keeps pace with your page turns"
                                 elide: Text.ElideRight
                                 font.family: Theme.ui
-                                font.pixelSize: Theme.fontSize(11)
+                                font.pixelSize: 11
                                 color: Theme.inkGhost
                             }
                         }
@@ -745,7 +745,7 @@ ReaderOverlay {
                         // the pill switch (mock .switch): 40×22 track + 16px knob.
                         Rectangle {
                             id: followSwitch
-                            width: Theme.androidHost ? 52 : 40; height: Theme.androidHost ? 52 : 22; radius: height / 2
+                            width: 40; height: 22; radius: 11
                             anchors.right: parent.right
                             anchors.rightMargin: 14
                             anchors.verticalCenter: parent.verticalCenter
@@ -760,7 +760,7 @@ ReaderOverlay {
                             }
                             ReaderKeyboardArea {
                                 anchors.fill: parent
-                                anchors.margins: Theme.androidHost ? 0 : -6
+                                anchors.margins: -6
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: panel.followToggled(!panel.followOn)
                             }
@@ -800,7 +800,7 @@ ReaderOverlay {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "Sync status"
                                     font.family: Theme.ui
-                                    font.pixelSize: Theme.fontSize(11)
+                                    font.pixelSize: 11
                                     font.weight: Font.Bold
                                     font.letterSpacing: 1.4
                                     font.capitalization: Font.AllUppercase
@@ -812,7 +812,7 @@ ReaderOverlay {
                                     visible: !panel.textSyncAllReady
                                     text: panel.textSyncStatus.paused ? "Resume" : "Pause"
                                     font.family: Theme.ui
-                                    font.pixelSize: Theme.fontSize(12)
+                                    font.pixelSize: 12
                                     font.weight: Font.DemiBold
                                     color: tsPauseMa.containsMouse ? Theme.ink : Theme.inkDim
                                     ReaderKeyboardArea {
@@ -832,7 +832,7 @@ ReaderOverlay {
                                 text: panel.textSyncSummaryText
                                 wrapMode: Text.WordWrap
                                 font.family: Theme.ui
-                                font.pixelSize: Theme.fontSize(13)
+                                font.pixelSize: 13
                                 color: Theme.inkDim
                             }
                             // K chapters ready (redundant once the summary says "All N ready")
@@ -841,7 +841,7 @@ ReaderOverlay {
                                 visible: !panel.textSyncAllReady && panel.textSyncReadyText !== ""
                                 text: panel.textSyncReadyText
                                 font.family: Theme.ui
-                                font.pixelSize: Theme.fontSize(11)
+                                font.pixelSize: 11
                                 color: Theme.inkGhost
                             }
 
@@ -860,7 +860,7 @@ ReaderOverlay {
                                         readonly property int chIndex: (tsRow.modelData && Number.isFinite(tsRow.modelData.index))
                                                                        ? tsRow.modelData.index : tsRow.index
                                         width: parent.width
-                                        height: Theme.androidHost ? 52 : 30
+                                        height: 30
                                         Text {
                                             id: tsRowNum
                                             anchors.left: parent.left
@@ -868,7 +868,7 @@ ReaderOverlay {
                                             width: 24
                                             text: String(tsRow.chIndex + 1)
                                             font.family: Theme.ui
-                                            font.pixelSize: Theme.fontSize(11)
+                                            font.pixelSize: 11
                                             color: Theme.inkGhost
                                         }
                                         Text {
@@ -880,7 +880,7 @@ ReaderOverlay {
                                             text: L.chapterStateText(tsRow.modelData)
                                             elide: Text.ElideRight
                                             font.family: Theme.ui
-                                            font.pixelSize: Theme.fontSize(12)
+                                            font.pixelSize: 12
                                             color: tsRow.failed ? Theme.gold : Theme.inkDim
                                         }
                                         Text {
@@ -890,7 +890,7 @@ ReaderOverlay {
                                             visible: tsRow.failed
                                             text: "Retry"
                                             font.family: Theme.ui
-                                            font.pixelSize: Theme.fontSize(12)
+                                            font.pixelSize: 12
                                             font.weight: Font.DemiBold
                                             color: tsRetryMa.containsMouse ? Theme.ink : Theme.inkDim
                                             ReaderKeyboardArea {
@@ -916,7 +916,7 @@ ReaderOverlay {
                                     visible: !panel.restartArmed
                                     text: "Restart sync"
                                     font.family: Theme.ui
-                                    font.pixelSize: Theme.fontSize(12)
+                                    font.pixelSize: 12
                                     color: tsRestartMa.containsMouse ? Theme.ink : Theme.inkGhost
                                     ReaderKeyboardArea {
                                         id: tsRestartMa
@@ -937,14 +937,14 @@ ReaderOverlay {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: "Re-run all chapters?"
                                         font.family: Theme.ui
-                                        font.pixelSize: Theme.fontSize(12)
+                                        font.pixelSize: 12
                                         color: Theme.inkDim
                                     }
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: "Confirm"
                                         font.family: Theme.ui
-                                        font.pixelSize: Theme.fontSize(12)
+                                        font.pixelSize: 12
                                         font.weight: Font.DemiBold
                                         color: tsConfirmMa.containsMouse ? Theme.gold : Theme.inkDim
                                         ReaderKeyboardArea {
@@ -960,7 +960,7 @@ ReaderOverlay {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: "Cancel"
                                         font.family: Theme.ui
-                                        font.pixelSize: Theme.fontSize(12)
+                                        font.pixelSize: 12
                                         color: tsCancelMa.containsMouse ? Theme.ink : Theme.inkGhost
                                         ReaderKeyboardArea {
                                             id: tsCancelMa
@@ -1000,7 +1000,7 @@ ReaderOverlay {
                             Text {
                                 text: "Text sync"
                                 font.family: Theme.ui
-                                font.pixelSize: Theme.fontSize(11)
+                                font.pixelSize: 11
                                 font.weight: Font.Bold
                                 font.letterSpacing: 1.4
                                 font.capitalization: Font.AllUppercase
@@ -1024,23 +1024,23 @@ ReaderOverlay {
                                 readonly property bool wordShown: panel.readAlongMode !== "sentence"
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: parent.width - 3 * (Theme.androidHost ? 52 : 34) - 2 * parent.spacing
+                                    width: parent.width - 3 * 34 - 2 * parent.spacing
                                     text: "Word size"
                                     font.family: Theme.ui
-                                    font.pixelSize: Theme.fontSize(13)
+                                    font.pixelSize: 13
                                     color: parent.wordShown ? Theme.inkDim : Theme.inkGhost
                                 }
                                 RaStep { symbol: "−"; enabledStep: parent.wordShown && panel.readAlongWordScale > 1.0
                                          onStepped: panel.readAlongScaleChanged(Math.max(1.0, panel.readAlongWordScale - 0.1)) }
                                 Rectangle {
-                                    width: Theme.androidHost ? 52 : 34; height: Theme.androidHost ? 52 : 30; radius: 8
+                                    width: 34; height: 30; radius: 8
                                     anchors.verticalCenter: parent.verticalCenter
                                     color: "transparent"
                                     Text {
                                         anchors.centerIn: parent
                                         text: (Math.round(panel.readAlongWordScale * 10) / 10).toFixed(1) + "×"
                                         font.family: Theme.ui
-                                        font.pixelSize: Theme.fontSize(12)
+                                        font.pixelSize: 12
                                         font.weight: Font.DemiBold
                                         color: parent.parent.wordShown ? Theme.inkTitle : Theme.inkGhost
                                     }
@@ -1090,7 +1090,7 @@ ReaderOverlay {
                             leftPadding: 4
                             bottomPadding: 8
                             font.family: Theme.ui
-                            font.pixelSize: Theme.fontSize(11)
+                            font.pixelSize: 11
                             font.weight: Font.Bold
                             font.letterSpacing: 1.4
                             font.capitalization: Font.AllUppercase
@@ -1126,7 +1126,7 @@ ReaderOverlay {
                                     text: String(plRow.modelData)
                                     elide: Text.ElideRight
                                     font.family: Theme.ui
-                                    font.pixelSize: Theme.fontSize(13)
+                                    font.pixelSize: 13
                                     color: plRow.current ? Theme.inkTitle : Theme.inkDim
                                 }
                                 Text {
@@ -1137,7 +1137,7 @@ ReaderOverlay {
                                     text: plRow.current ? (panel.audioPlaying ? "playing" : "paused")
                                                         : (plRow.index + 1)
                                     font.family: Theme.ui
-                                    font.pixelSize: Theme.fontSize(11)
+                                    font.pixelSize: 11
                                     color: plRow.current ? Theme.gold : Theme.inkGhost
                                 }
                                 ReaderKeyboardArea {
@@ -1195,7 +1195,7 @@ ReaderOverlay {
         property string label: ""
         property string mode: ""
         readonly property bool active: panel.readAlongMode === raSeg.mode
-        height: Theme.androidHost ? 52 : 34
+        height: 34
         Rectangle {
             anchors.fill: parent
             anchors.margins: 2
@@ -1211,7 +1211,7 @@ ReaderOverlay {
             text: raSeg.label
             elide: Text.ElideRight
             font.family: Theme.ui
-            font.pixelSize: Theme.fontSize(11)
+            font.pixelSize: 11
             font.weight: raSeg.active ? Font.DemiBold : Font.Normal
             color: raSeg.active ? Theme.gold : Theme.inkDim
         }
@@ -1231,7 +1231,7 @@ ReaderOverlay {
         property string symbol: ""
         property bool enabledStep: true
         signal stepped()
-        width: Theme.androidHost ? 52 : 34; height: Theme.androidHost ? 52 : 30; radius: 8
+        width: 34; height: 30; radius: 8
         anchors.verticalCenter: parent.verticalCenter
         color: raStepMa.containsMouse && raStep.enabledStep ? Theme.rowHover : "transparent"
         border.color: Theme.barBorder
@@ -1240,7 +1240,7 @@ ReaderOverlay {
             anchors.centerIn: parent
             text: raStep.symbol
             font.family: Theme.ui
-            font.pixelSize: Theme.fontSize(16)
+            font.pixelSize: 16
             color: raStep.enabledStep ? Theme.inkDim : Theme.inkGhost
         }
         ReaderKeyboardArea {
@@ -1262,7 +1262,7 @@ ReaderOverlay {
         property bool tabEnabled: true
         property string tip: ""
         signal picked()
-        height: Theme.androidHost ? 52 : 36
+        height: 36
         function focusKeyboard() { tabMa.forceActiveFocus(Qt.OtherFocusReason) }
 
         Image {
@@ -1270,7 +1270,7 @@ ReaderOverlay {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: 7
-            width: Theme.androidHost ? 28 : 17; height: width
+            width: 17; height: 17
             source: tab.icon !== "" ? Qt.resolvedUrl("../../assets/icons/reader2/" + tab.icon) : ""
             sourceSize: Qt.size(34, 34)     // 2x for crisp scaling
             // icons ship white; dim inactive/disabled states via opacity (no recolor pass needed)
@@ -1311,7 +1311,7 @@ ReaderOverlay {
                 text: tab.tip
                 color: Theme.inkDim
                 font.family: Theme.ui
-                font.pixelSize: Theme.fontSize(12)
+                font.pixelSize: 12
             }
         }
     }

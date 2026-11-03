@@ -199,14 +199,14 @@ Item {
                 objectName: "colosseumUpdateStatusText"
                 text: root.statusCopy(updates ? updates.state : 0)
                 color: theme.ink
-                font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.Medium
+                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium
             }
             Text {
                 objectName: "colosseumUpdateStatusMetadata"
                 text: root.taskbarMetadata
                 visible: text.length > 0
                 color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                font.family: theme.ui; font.pixelSize: 12
             }
         }
         // Progress column — shown only during Downloading / Paused.
@@ -224,7 +224,7 @@ Item {
                     objectName: "colosseumUpdateProgressText"
                     text: root.progressText
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                    font.family: theme.ui; font.pixelSize: 12
                 }
                 Rectangle {
                     objectName: "colosseumUpdateProgressTrack"
@@ -267,7 +267,7 @@ Item {
                 Text {
                     text: root.primaryLabel
                     color: theme.ink
-                    font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
@@ -310,7 +310,7 @@ Item {
                 objectName: "colosseumUpdateMinimize"
                 text: "\u2014"
                 color: activeFocus ? theme.gold : (minMa.containsMouse ? theme.ink : theme.inkDim)
-                font.pixelSize: theme.fontSize(17)
+                font.pixelSize: 17
                 font.underline: activeFocus
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
@@ -333,7 +333,7 @@ Item {
                 objectName: "colosseumUpdateFullscreen"
                 text: "\u26F6"
                 color: activeFocus ? theme.gold : (fullMa.containsMouse ? theme.ink : theme.inkDim)
-                font.pixelSize: theme.fontSize(17)
+                font.pixelSize: 17
                 font.underline: activeFocus
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
@@ -356,7 +356,7 @@ Item {
                 objectName: "colosseumUpdateClose"
                 text: "\u23FB"
                 color: activeFocus ? theme.gold : (powerMa.containsMouse ? theme.ink : theme.inkDim)
-                font.pixelSize: theme.fontSize(17)
+                font.pixelSize: 17
                 font.underline: activeFocus
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button

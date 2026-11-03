@@ -547,13 +547,13 @@ Item {
                 Text {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                     text: "Explore"
-                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(26); font.weight: Font.DemiBold
+                    color: theme.ink; font.family: theme.display; font.pixelSize: 26; font.weight: Font.DemiBold
                 }
                 Text {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                     text: page.editMode ? "Done" : "Customize shelves"
                     color: custMa.containsMouse || customizeAction.activeFocus ? theme.ink : theme.inkDim
-                    font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
                     MouseArea {
                         id: custMa
                         anchors.fill: parent; anchors.margins: -8
@@ -687,7 +687,7 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 text: rowBlock.modelData.hidden ? "Show" : "Hide"
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: 11
                             }
                             MouseArea {
                                 id: hideMa; anchors.fill: parent; hoverEnabled: true
@@ -776,7 +776,7 @@ Item {
                         Text {
                             anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 14
                             text: tile.modelData.title
-                            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(18); font.weight: Font.DemiBold
+                            color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold
                         }
                         MouseArea {
                             anchors.fill: parent

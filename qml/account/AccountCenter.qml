@@ -10,7 +10,6 @@ import "../SystemFocusContainment.js" as SystemFocusContainment
 
 Rectangle {
     id: root
-    Theme { id: interfaceTypography }
     objectName: "accountCenter"
 
     property var controller: null
@@ -337,7 +336,7 @@ Rectangle {
                             text: root.feriaOnly ? "F" : root.accountPresent ? root.initial : "?"
                             color: "#f0df9a"
                             font.family: "Inter"
-                            font.pixelSize: interfaceTypography.fontSize(16)
+                            font.pixelSize: 16
                             font.weight: Font.DemiBold
                         }
                     }
@@ -353,7 +352,7 @@ Rectangle {
                                 : qsTr("Not signed in")
                             color: "#f2f2ef"
                             font.family: "Inter"
-                            font.pixelSize: interfaceTypography.fontSize(14)
+                            font.pixelSize: 14
                             font.weight: Font.DemiBold
                         }
 
@@ -361,7 +360,7 @@ Rectangle {
                             text: root.feriaOnly ? qsTr("Apps and services") : qsTr("Colosseum account")
                             color: "#7d7a6f"
                             font.family: "Inter"
-                            font.pixelSize: interfaceTypography.fontSize(10)
+                            font.pixelSize: 10
                         }
                     }
                 }
@@ -393,7 +392,7 @@ Rectangle {
                                 color: root.activeSection === modelData.id
                                     ? "#f0df9a"
                                     : "#8f8b80"
-                                font.pixelSize: interfaceTypography.fontSize(13)
+                                font.pixelSize: 13
                             }
 
                             Text {
@@ -402,7 +401,7 @@ Rectangle {
                                     ? "#f2f2ef"
                                     : "#b7b3a6"
                                 font.family: "Inter"
-                                font.pixelSize: interfaceTypography.fontSize(13)
+                                font.pixelSize: 13
                                 font.weight: root.activeSection === modelData.id
                                     ? Font.DemiBold
                                     : Font.Normal
@@ -428,7 +427,7 @@ Rectangle {
                     color: railSessionAction.activeFocus || railOutMa.containsMouse
                         ? "#d8d4c8" : "#8f8b80"
                     font.family: "Inter"
-                    font.pixelSize: interfaceTypography.fontSize(12)
+                    font.pixelSize: 12
                     activeFocusOnTab: root.visible && visible
                     Accessible.role: Accessible.Button
                     Accessible.name: text
@@ -477,7 +476,7 @@ Rectangle {
                 color: backAction.activeFocus || backMa.containsMouse
                     ? "#b7b3a6" : "#8f8b80"
                 font.family: "Inter"
-                font.pixelSize: interfaceTypography.fontSize(12)
+                font.pixelSize: 12
                 activeFocusOnTab: root.visible
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Back from Account Centre")

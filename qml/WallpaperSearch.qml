@@ -186,7 +186,7 @@ Item {
                     text: "Wallpapers"
                     color: "#f3f0e8"
                     font.family: theme.display
-                    font.pixelSize: theme.fontSize(34)
+                    font.pixelSize: 34
                     Layout.fillWidth: true
                 }
 
@@ -194,7 +194,7 @@ Item {
                     objectName: "wallpaperSearchClose"
                     text: "x"
                     color: closeMa.containsMouse ? "#ffffff" : "#aaa7a0"
-                    font.pixelSize: theme.fontSize(20)
+                    font.pixelSize: 20
 
                     MouseArea {
                         id: closeMa
@@ -229,7 +229,7 @@ Item {
                         color: "#f7f4ee"
                         selectionColor: "#c9a44a"
                         selectedTextColor: "#101010"
-                        font.pixelSize: theme.fontSize(15)
+                        font.pixelSize: 15
                         Keys.onReturnPressed: root.runSearch()
                     }
                 }
@@ -244,7 +244,7 @@ Item {
                         anchors.centerIn: parent
                         text: "Search"
                         color: "#15110a"
-                        font.pixelSize: theme.fontSize(14)
+                        font.pixelSize: 14
                         font.weight: Font.DemiBold
                     }
 
@@ -285,7 +285,7 @@ Item {
                             anchors.centerIn: parent
                             text: sortPill.modelData.label
                             color: root.sorting === sortPill.modelData.mode ? "#15110a" : "#e8e4dc"
-                            font.pixelSize: theme.fontSize(12)
+                            font.pixelSize: 12
                             font.weight: root.sorting === sortPill.modelData.mode ? Font.DemiBold : Font.Normal
                         }
 
@@ -307,7 +307,7 @@ Item {
                 Layout.fillWidth: true
                 text: root.statusText
                 color: "#b8b2a8"
-                font.pixelSize: theme.fontSize(12)
+                font.pixelSize: 12
             }
 
             // ---- Everything below the search controls — both Colosseum shelves, the KDE
@@ -373,7 +373,7 @@ Item {
                             anchors.rightMargin: 8
                             text: nativeTile.modelData.title
                             color: "#e8e2d4"
-                            font.pixelSize: theme.fontSize(10)
+                            font.pixelSize: 10
                             elide: Text.ElideRight
                         }
                     }
@@ -391,7 +391,7 @@ Item {
                 text: "Colosseum Animated"
                 color: "#d8d2c4"
                 font.family: theme.display
-                font.pixelSize: theme.fontSize(16)
+                font.pixelSize: 16
             }
 
             ListView {
@@ -429,7 +429,7 @@ Item {
                 text: "Colosseum Native"
                 color: "#d8d2c4"
                 font.family: theme.display
-                font.pixelSize: theme.fontSize(16)
+                font.pixelSize: 16
             }
 
             ListView {
@@ -471,7 +471,7 @@ Item {
                 text: "KDE Plasma"
                 color: "#d8d2c4"
                 font.family: theme.display
-                font.pixelSize: theme.fontSize(16)
+                font.pixelSize: 16
             }
 
             ListView {
@@ -543,14 +543,14 @@ Item {
                                 width: parent.width
                                 text: kdeTile.modelData.title
                                 color: "#e8e2d4"
-                                font.pixelSize: theme.fontSize(10)
+                                font.pixelSize: 10
                                 elide: Text.ElideRight
                             }
                             Text {
                                 width: parent.width
                                 text: kdeTile.modelData.artist
                                 color: "#9a958c"
-                                font.pixelSize: theme.fontSize(8)
+                                font.pixelSize: 8
                                 elide: Text.ElideRight
                             }
                         }
@@ -623,7 +623,7 @@ Item {
                             anchors.centerIn: parent
                             text: resultTile.modelData.source
                             color: "#d8d4cc"
-                            font.pixelSize: theme.fontSize(9)
+                            font.pixelSize: 9
                         }
                     }
 
@@ -652,7 +652,7 @@ Item {
                             anchors.centerIn: parent
                             text: root.loading ? "Loading..." : "Load more"
                             color: root.loading ? "#b8b2a8" : "#15110a"
-                            font.pixelSize: theme.fontSize(13)
+                            font.pixelSize: 13
                             font.weight: Font.DemiBold
                         }
 
@@ -705,13 +705,13 @@ Item {
                 elide: Text.ElideRight
                 color: "#f6f2ea"
                 font.family: theme.display
-                font.pixelSize: theme.fontSize(18)
+                font.pixelSize: 18
             }
 
             Text {
                 text: root.selectedPick.spec || ""
                 color: "#aaa59c"
-                font.pixelSize: theme.fontSize(12)
+                font.pixelSize: 12
             }
 
             Row {
@@ -737,7 +737,7 @@ Item {
                             anchors.centerIn: parent
                             text: scopeButton.modelData.label
                             color: scopeButton.modelData.scope === "all" || buttonMa.containsMouse ? "#15110a" : "#f0eee8"
-                            font.pixelSize: theme.fontSize(13)
+                            font.pixelSize: 13
                             font.weight: Font.DemiBold
                         }
 

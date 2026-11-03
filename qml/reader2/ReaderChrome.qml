@@ -404,14 +404,6 @@ Item {
     // house click-swallower, so taps here never fall through to the page-turn zones.
     Rectangle {
         id: audioHud
-        objectName: "bookReaderAudioHud"
-        function revealControl(item) {
-            if (!Theme.androidHost || !item) return
-            const p = item.mapToItem(audioControlsCanvas, 0, 0)
-            if (p.x < audioControlsScroll.contentX) audioControlsScroll.contentX = Math.max(0, p.x - 8)
-            else if (p.x + item.width > audioControlsScroll.contentX + audioControlsScroll.width)
-                audioControlsScroll.contentX = Math.min(Math.max(0, audioControlsScroll.contentWidth - audioControlsScroll.width), p.x + item.width - audioControlsScroll.width + 8)
-        }
         visible: opacity > 0.01 && chrome.audioAttached
         opacity: (chrome.awake && chrome.audioAttached) ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 160 } }
@@ -419,8 +411,8 @@ Item {
         anchors.bottom: bottomRail.top
         anchors.bottomMargin: 10
         property bool showRemaining: false        // scrub total ↔ remaining (click the total)
-        width: Math.min(Theme.androidHost ? 900 : 600, (parent ? parent.width : 648) - (Theme.androidHost ? 32 : 48))
-        height: Theme.androidHost ? transport.y + transport.height + 16 : 138
+        width: Math.min(600, (parent ? parent.width : 648) - 48)
+        height: 138
         radius: 24
         color: Theme.bar
         border.color: Theme.barBorder
@@ -442,7 +434,7 @@ Item {
             property string label: ""
             property int box: 40                              // round-button diameter
             signal clicked()
-            width: Theme.androidHost ? Math.max(52, box) : box; height: width
+            width: box; height: box
             function focusKeyboard() { hgbMa.focusKeyboard() }
             anchors.verticalCenter: parent.verticalCenter
             scale: hgbMa.pressed ? 0.95 : (hgbMa.containsMouse ? 1.04 : 1.0)
@@ -455,7 +447,7 @@ Item {
             }
             AudioGlyph {
                 anchors.centerIn: parent
-                width: Theme.androidHost ? 28 : Math.round(hgb.box * 0.62); height: width
+                width: Math.round(hgb.box * 0.62); height: Math.round(hgb.box * 0.62)
                 kind: hgb.kind
                 label: hgb.label
                 ink: Theme.ink
@@ -465,18 +457,16 @@ Item {
             ReaderKeyboardArea { id: hgbMa; anchors.fill: parent
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         keyboardLabel: hgb.label !== "" ? hgb.label : hgb.kind
-                        keyboardFocused: function() { audioHud.revealControl(hgb) }
                         onClicked: hgb.clicked() }
         }
 
         // ---- tier 1 · now-playing chapter line (Fraunces — the book's own serif) ----
         Item {
             id: chapterLine
-            objectName: "bookReaderAudioChapter"
             anchors.top: parent.top; anchors.topMargin: 16
             anchors.left: parent.left; anchors.right: parent.right
             anchors.leftMargin: 22; anchors.rightMargin: 22
-            height: Theme.androidHost ? 52 : 22
+            height: 22
             readonly property int idx: chrome.audioCurrentIndex
             readonly property int count: chrome.audioPlaylist ? chrome.audioPlaylist.length : 0
             readonly property string chapTitle: (idx >= 0 && idx < count)
@@ -489,7 +479,7 @@ Item {
                 text: chapterLine.chapTitle
                 elide: Text.ElideRight
                 color: clMa.containsMouse ? Theme.ink : Theme.inkTitle
-                font.family: Theme.display; font.weight: Font.Medium; font.pixelSize: Theme.fontSize(16)
+                font.family: Theme.display; font.weight: Font.Medium; font.pixelSize: 16
             }
             Text {
                 id: chapPos
@@ -498,7 +488,7 @@ Item {
                 text: chapterLine.idx >= 0 ? ((chapterLine.idx + 1) + " of " + chapterLine.count)
                                            : (chapterLine.count + " chapters")
                 color: Theme.inkFaint
-                font.family: Theme.ui; font.pixelSize: Theme.fontSize(12); font.weight: Font.Medium
+                font.family: Theme.ui; font.pixelSize: 12; font.weight: Font.Medium
                 font.features: ({ "tnum": 1 })
             }
             ReaderKeyboardArea { id: clMa; anchors.fill: parent; hoverEnabled: true
@@ -508,31 +498,27 @@ Item {
         // ---- tier 2 · the scrubber (elapsed · rail w/ time tooltip · total) ----
         Item {
             id: scrubRow
-            objectName: "bookReaderAudioScrubRow"
             anchors.top: chapterLine.bottom; anchors.topMargin: 10
             anchors.left: parent.left; anchors.right: parent.right
             anchors.leftMargin: 22; anchors.rightMargin: 22
-            height: Theme.androidHost ? 48 : 20
+            height: 20
 
             Text {
                 id: posLabel
                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                 text: chrome.audioPosLabel !== "" ? chrome.audioPosLabel : "0:00"
                 color: Theme.ink
-                font.family: Theme.ui; font.pixelSize: Theme.fontSize(12); font.features: ({ "tnum": 1 })
+                font.family: Theme.ui; font.pixelSize: 12; font.features: ({ "tnum": 1 })
             }
             Text {
                 id: durLabel
-                width: Theme.androidHost ? Math.max(48, implicitWidth) : implicitWidth
-                height: Theme.androidHost ? 48 : implicitHeight
-                verticalAlignment: Text.AlignVCenter
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                 text: (audioHud.showRemaining && chrome.audioDurationSec > 0)
                       ? ("-" + L.fmtClock_(Math.max(0, (1 - Math.max(0, Math.min(1, chrome.audioProgress))) * chrome.audioDurationSec)))
                       : (chrome.audioDurLabel !== "" ? chrome.audioDurLabel : "–:––")
                 color: durMa.containsMouse ? Theme.ink : Theme.inkDim
-                font.family: Theme.ui; font.pixelSize: Theme.fontSize(12); font.features: ({ "tnum": 1 })
-                ReaderKeyboardArea { id: durMa; anchors.fill: parent; anchors.margins: Theme.androidHost ? 0 : -4
+                font.family: Theme.ui; font.pixelSize: 12; font.features: ({ "tnum": 1 })
+                ReaderKeyboardArea { id: durMa; anchors.fill: parent; anchors.margins: -4
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             keyboardLabel: "Toggle elapsed and remaining time"
                             enabled: chrome.audioDurationSec > 0
@@ -570,7 +556,7 @@ Item {
                 ReaderKeyboardArea {
                     id: railMa
                     anchors.fill: parent
-                    anchors.topMargin: Theme.androidHost ? 0 : -6; anchors.bottomMargin: Theme.androidHost ? 0 : -6
+                    anchors.topMargin: -6; anchors.bottomMargin: -6
                     hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     keyboardLabel: "Audiobook position"
                     keyboardRole: Accessible.Slider
@@ -601,7 +587,7 @@ Item {
                         anchors.centerIn: parent
                         text: L.fmtClock_(railMa.frac() * chrome.audioDurationSec)
                         color: Theme.ink
-                        font.family: Theme.ui; font.pixelSize: Theme.fontSize(12); font.weight: Font.DemiBold
+                        font.family: Theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                         font.features: ({ "tnum": 1 })
                     }
                 }
@@ -613,7 +599,7 @@ Item {
                     visible: chrome.readAlongAvailable && chrome.readAlongPreviewActive && chrome.readAlongPreviewLabel !== ""
                     text: chrome.readAlongPreviewLabel
                     color: Theme.gold
-                    font.family: Theme.ui; font.pixelSize: Theme.fontSize(11); font.weight: Font.DemiBold
+                    font.family: Theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
                 }
             }
         }
@@ -621,28 +607,13 @@ Item {
         // ---- tier 3 · transport: [volume] · [prev · −10 · PLAY · +10 · next] · [speed · list] ----
         Item {
             id: transport
-            objectName: "bookReaderAudioTransport"
             anchors.top: scrubRow.bottom; anchors.topMargin: 8
             anchors.left: parent.left; anchors.right: parent.right
             anchors.leftMargin: 22; anchors.rightMargin: 22
-            height: Theme.androidHost ? 72 : 52
+            height: 52
 
-            Flickable {
-                id: audioControlsScroll
-                objectName: "bookReaderAudioControlsScroll"
-                anchors.fill: parent
-                contentWidth: Theme.androidHost ? Math.max(width, audioTransportControls.width + 2 * Math.max(audioVolumeControls.width, audioUtilityControls.width) + 48) : width
-                contentHeight: height
-                interactive: Theme.androidHost && contentWidth > width
-                clip: Theme.androidHost
-                boundsBehavior: Flickable.StopAtBounds
-                Item {
-                    id: audioControlsCanvas
-                    width: audioControlsScroll.contentWidth
-                    height: audioControlsScroll.height
             // LEFT zone · volume (the video HUD places volume on the left)
             Row {
-                id: audioVolumeControls
                 anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                 spacing: 6
                 HudGlyphButton {
@@ -652,7 +623,7 @@ Item {
                 }
                 Item {
                     id: volRail
-                    width: 58; height: Theme.androidHost ? 48 : 20
+                    width: 58; height: 20
                     anchors.verticalCenter: parent.verticalCenter
                     Rectangle {                   // track
                         anchors.left: parent.left; anchors.right: parent.right
@@ -676,7 +647,7 @@ Item {
                     }
                     ReaderKeyboardArea {
                         id: volMa
-                        anchors.fill: parent; anchors.topMargin: Theme.androidHost ? 0 : -6; anchors.bottomMargin: Theme.androidHost ? 0 : -6
+                        anchors.fill: parent; anchors.topMargin: -6; anchors.bottomMargin: -6
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         keyboardLabel: "Audiobook volume"
                         keyboardRole: Accessible.Slider
@@ -693,7 +664,6 @@ Item {
 
             // CENTER zone · transport
             Row {
-                id: audioTransportControls
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 10
@@ -701,19 +671,19 @@ Item {
                 HudGlyphButton { kind: "seekBack"; label: "10"; box: 40; onClicked: chrome.audioSkipRequested(-10) }
                 Rectangle {                       // HERO play — white circle, dark forged-line glyph
                     anchors.verticalCenter: parent.verticalCenter
-                    width: Theme.androidHost ? 64 : 48; height: width; radius: width / 2; color: Theme.ink
+                    width: 48; height: 48; radius: 24; color: Theme.ink
                     scale: heroMa.pressed ? 0.95 : (heroMa.containsMouse ? 1.05 : 1.0)
                     Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
                     AudioGlyph {
                         anchors.centerIn: parent
-                        width: Theme.androidHost ? 28 : 30; height: width
+                        width: 30; height: 30
                         // nudge the play triangle right for optical centering (family convention)
                         anchors.horizontalCenterOffset: chrome.audioPlaying ? 0 : 1
                         kind: chrome.audioPlaying ? "pause" : "play"
                         ink: "#14161d"
                     }
                     ReaderKeyboardArea { id: heroMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor; keyboardLabel: chrome.audioPlaying ? "Pause audiobook" : "Play audiobook"; keyboardFocused: function() { audioHud.revealControl(heroMa.parent) }; onClicked: chrome.audioPlayToggled() }
+                                cursorShape: Qt.PointingHandCursor; keyboardLabel: chrome.audioPlaying ? "Pause audiobook" : "Play audiobook"; onClicked: chrome.audioPlayToggled() }
                 }
                 HudGlyphButton { kind: "seekForward"; label: "10"; box: 40; onClicked: chrome.audioSkipRequested(10) }
                 HudGlyphButton { kind: "nextChapter"; box: 40; onClicked: chrome.audioNextChapterRequested() }
@@ -721,11 +691,10 @@ Item {
 
             // RIGHT zone · utilities (speed · chapter list)
             Row {
-                id: audioUtilityControls
                 anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                 spacing: 4
                 Item {                            // speed — gauge glyph + rate, pill hover
-                    width: Math.max(Theme.androidHost ? 52 : 0, speedInner.implicitWidth + 16); height: Theme.androidHost ? 52 : 34
+                    width: speedInner.implicitWidth + 16; height: 34
                     anchors.verticalCenter: parent.verticalCenter
                     Rectangle {
                         anchors.fill: parent; radius: 17
@@ -738,23 +707,21 @@ Item {
                         spacing: 5
                         AudioGlyph {
                             anchors.verticalCenter: parent.verticalCenter
-                            width: Theme.androidHost ? 28 : 22; height: width; kind: "speed"; ink: Theme.ink
+                            width: 22; height: 22; kind: "speed"; ink: Theme.ink
                             opacity: spdMa.containsMouse ? 1.0 : 0.62
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: chrome.audioSpeedLabel
                             color: spdMa.containsMouse ? Theme.ink : Theme.inkDim
-                            font.family: Theme.ui; font.pixelSize: Theme.fontSize(13); font.weight: Font.DemiBold
+                            font.family: Theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
                             font.features: ({ "tnum": 1 })
                         }
                     }
                     ReaderKeyboardArea { id: spdMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor; keyboardLabel: "Playback speed " + chrome.audioSpeedLabel; keyboardFocused: function() { audioHud.revealControl(spdMa.parent) }; onClicked: chrome.audioSpeedCycled() }
+                                cursorShape: Qt.PointingHandCursor; keyboardLabel: "Playback speed " + chrome.audioSpeedLabel; onClicked: chrome.audioSpeedCycled() }
                 }
                 HudGlyphButton { id: playlistButton; kind: "playlist"; label: "Audiobook chapters"; box: 36; onClicked: chrome.openPanelTo("audio", "audioPlaylist") }
-            }
-                }
             }
         }
     }
@@ -772,7 +739,7 @@ Item {
         anchors.bottom: audioHud.visible ? audioHud.top : bottomRail.top
         anchors.bottomMargin: 10
         width: returnRow.implicitWidth + 30
-        height: Theme.androidHost ? 52 : 34
+        height: 34
         radius: 17
         color: Theme.bar
         border.color: Theme.gold
@@ -790,7 +757,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Return to narration"
                 color: returnMa.containsMouse ? Theme.ink : Theme.inkDim
-                font.family: Theme.ui; font.pixelSize: Theme.fontSize(12); font.weight: Font.DemiBold
+                font.family: Theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
             }
         }
         ReaderKeyboardArea {

@@ -107,7 +107,7 @@ Item {
                 visible: logo.status !== Image.Ready
                 text: String(card.addon.title || card.addon.name || "?").charAt(0).toUpperCase()
                 color: theme.inkDim
-                font.family: theme.display; font.pixelSize: theme.fontSize(42)
+                font.family: theme.display; font.pixelSize: 42
             }
         }
 
@@ -126,7 +126,7 @@ Item {
                 anchors.centerIn: parent
                 text: card.busy ? "Adding…" : "✓ Installed"
                 color: card.installed ? theme.gold : theme.inkDim
-                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
             }
         }
     }
@@ -137,7 +137,7 @@ Item {
         width: parent.width
         text: card.addon.title || card.addon.name || ""
         color: theme.ink
-        font.family: theme.ui; font.pixelSize: theme.fontSize(18); font.weight: Font.DemiBold
+        font.family: theme.ui; font.pixelSize: 18; font.weight: Font.DemiBold
         wrapMode: card.phoneLayout ? Text.WordWrap : Text.NoWrap
         elide: card.phoneLayout ? Text.ElideNone : Text.ElideRight
     }
@@ -148,7 +148,7 @@ Item {
         height: card.phoneLayout ? implicitHeight : 40
         text: card.addon.description || ""
         color: "#aaa69e"
-        font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+        font.family: theme.ui; font.pixelSize: 14
         wrapMode: Text.WordWrap
         maximumLineCount: card.phoneLayout ? 100 : 2
         elide: card.phoneLayout ? Text.ElideNone : Text.ElideRight
@@ -169,7 +169,7 @@ Item {
                   ? (card.addon.configurable ? "Set up" : "Installed")
                   : (card.addon.configurable ? "Set up" : "Install")
             color: card.installed ? "#ffffff" : "#171717"
-            font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
         }
         KeyboardAction {
             anchors.fill: parent

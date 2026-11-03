@@ -5,7 +5,6 @@ import ".."
 
 AccountPageFrame {
     id: root
-    Theme { id: interfaceTypography }
     objectName: "accountSignIn"
 
     property var controller: null
@@ -91,7 +90,7 @@ AccountPageFrame {
             : root.controller.lastErrorMessage
         color: "#f0a3a3"
         font.family: errorTheme.ui
-        font.pixelSize: interfaceTypography.fontSize(12)
+        font.pixelSize: 12
         wrapMode: Text.WordWrap
 
         Theme { id: errorTheme }
@@ -115,7 +114,7 @@ AccountPageFrame {
         text: "or"
         color: orTheme.inkDimmer
         font.family: orTheme.ui
-        font.pixelSize: interfaceTypography.fontSize(11)
+        font.pixelSize: 11
         horizontalAlignment: Text.AlignHCenter
         Theme { id: orTheme }
     }
@@ -153,7 +152,7 @@ AccountPageFrame {
         text: "No email or phone number required."
         color: footerTheme.inkDimmer
         font.family: footerTheme.ui
-        font.pixelSize: interfaceTypography.fontSize(11)
+        font.pixelSize: 11
         horizontalAlignment: Text.AlignHCenter
         Theme { id: footerTheme }
     }

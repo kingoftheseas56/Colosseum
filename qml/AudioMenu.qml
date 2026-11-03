@@ -93,7 +93,7 @@ Item {
         if (overlayParent) {
             var p = menu.mapToItem(overlayParent, 0, 0);
             panel.x = clampX(p.x + menu.width - panel.width, 10, overlayParent.width - panel.width - 10);
-            panel.y = theme.androidHost ? clampX(p.y - panel.height - 10, 10, overlayParent.height - panel.height - 10) : p.y - panel.height - 10;
+            panel.y = p.y - panel.height - 10;
         } else {
             panel.x = menu.width - panel.width;
             panel.y = -panel.height - 10;
@@ -106,8 +106,8 @@ Item {
     // glyph — no text pill, no live value on the face. Gold when the panel is open.
     Item {
         id: faceChip
-        width: theme.androidHost ? 52 : 40
-        height: theme.androidHost ? 52 : 40
+        width: 40
+        height: 40
         Rectangle {
             anchors.fill: parent
             radius: width / 2
@@ -158,8 +158,8 @@ Item {
         parent: menu.overlayParent ? menu.overlayParent : menu
         visible: menu.panelOpen
         z: menu.overlayParent ? 40 : 30
-        width: theme.androidHost && menu.overlayParent ? Math.min(360, menu.overlayParent.width - 20) : 360
-        height: Math.min(theme.androidHost && menu.overlayParent ? menu.overlayParent.height - 20 : 360, 94 + Math.max(1, (menu.tracks || []).length) * 54 + (theme.androidHost ? 96 : 44))
+        width: 360
+        height: Math.min(360, 94 + Math.max(1, (menu.tracks || []).length) * 54 + 44)
         onVisibleChanged: if (visible) menu.positionPanel(audioPopover)
         radius: 14
         // Native chrome (spec 2026-07-08): house popover surface.
@@ -181,7 +181,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: theme.androidHost ? 64 : 50
+            height: 50
             leftPadding: 16
             rightPadding: 8
             spacing: 8
@@ -191,7 +191,7 @@ Item {
                 text: "Audio"
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(14)
+                font.pixelSize: 14
                 font.weight: Font.DemiBold
             }
             Text {
@@ -199,7 +199,7 @@ Item {
                 text: (menu.tracks || []).length
                 color: theme.inkDimmer
                 font.family: theme.hud; font.features: ({ "tnum": 1 })
-                font.pixelSize: theme.fontSize(12)
+                font.pixelSize: 12
             }
             Item { width: 1; height: 1; LayoutMirroring.enabled: false }
         }
@@ -214,7 +214,7 @@ Item {
 
         Rectangle {
             x: 0
-            y: head.height
+            y: 50
             width: parent.width
             height: 1
             color: Qt.rgba(1, 1, 1, 0.08)
@@ -224,9 +224,9 @@ Item {
             id: audioList
             visible: menu.many
             x: 8
-            y: head.height + 8
+            y: 58
             width: parent.width - 16
-            height: parent.height - y - (theme.androidHost ? 96 : 44)
+            height: parent.height - y - 44
             clip: true
             spacing: 2
             boundsBehavior: Flickable.StopAtBounds
@@ -259,7 +259,7 @@ Item {
                         text: row.selected ? "✓" : ""
                         color: "#111111"
                         font.family: theme.hud
-                        font.pixelSize: theme.fontSize(10)
+                        font.pixelSize: 10
                         font.weight: Font.Bold
                     }
                 }
@@ -281,7 +281,7 @@ Item {
                     text: menu.rowLabel(row.modelData)
                     color: theme.ink
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(14)
+                    font.pixelSize: 14
                     font.weight: row.selected ? Font.DemiBold : Font.Medium
                     elide: Text.ElideRight
                 }
@@ -296,7 +296,7 @@ Item {
                     text: String(row.modelData.tag || "").toUpperCase()
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(10)
+                    font.pixelSize: 10
                     font.letterSpacing: 1.5
                 }
                 Text {
@@ -306,7 +306,7 @@ Item {
                     text: menu.rowMeta(row.modelData)
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(10)
+                    font.pixelSize: 10
                     elide: Text.ElideRight
                 }
                 MouseArea {
@@ -335,7 +335,7 @@ Item {
             text: "This file has one audio track."
             color: theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(13)
+            font.pixelSize: 13
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
         }
@@ -360,8 +360,8 @@ Item {
     component CloseButton: Item {
         id: closeButton
         signal clicked()
-        width: theme.androidHost ? 52 : 36
-        height: theme.androidHost ? 52 : 36
+        width: 36
+        height: 36
         Rectangle {
             anchors.fill: parent
             radius: 18
@@ -372,7 +372,7 @@ Item {
             text: "x"
             color: closeMouse.containsMouse ? theme.ink : theme.inkDim
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(16)
+            font.pixelSize: 16
             font.weight: Font.DemiBold
         }
         MouseArea {
@@ -391,7 +391,7 @@ Item {
         property string label: ""
         signal step(real delta)
         signal reset()
-        height: theme.androidHost ? 96 : 44
+        height: 44
         color: "transparent"
         Rectangle {
             anchors.top: parent.top
@@ -399,28 +399,18 @@ Item {
             height: 1
             color: Qt.rgba(1, 1, 1, 0.08)
         }
-        Text {
-            visible: theme.androidHost
-            x: 14; y: 8
-            text: delayRow.label
-            color: theme.inkDimmer
-            font.family: theme.hud
-            font.pixelSize: theme.fontSize(10)
-        }
         Row {
             anchors.fill: parent
-            anchors.topMargin: theme.androidHost ? 32 : 0
             anchors.leftMargin: 14
             anchors.rightMargin: 12
             spacing: 6
             Text {
-                visible: !theme.androidHost
                 width: 128
                 anchors.verticalCenter: parent.verticalCenter
                 text: delayRow.label
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: theme.fontSize(10)
+                font.pixelSize: 10
                 font.weight: Font.Bold
                 font.letterSpacing: 1.4
             }
@@ -431,13 +421,13 @@ Item {
                 text: menu.fmtSigned(delayRow.value)
                 color: theme.ink
                 font.family: theme.hud; font.features: ({ "tnum": 1 })
-                font.pixelSize: theme.fontSize(12)
+                font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
             }
             StepButton { text: "+0.1"; onClicked: delayRow.step(0.1) }
             StepButton {
                 visible: Math.abs(delayRow.value) > 0.0001
-                width: theme.androidHost ? 52 : 32
+                width: 32
                 text: "0"
                 onClicked: delayRow.reset()
             }
@@ -448,8 +438,8 @@ Item {
         id: stepButton
         property string text: ""
         signal clicked()
-        width: theme.androidHost ? 52 : 44
-        height: theme.androidHost ? 52 : 24
+        width: 44
+        height: 24
         Rectangle {
             anchors.fill: parent
             radius: 6
@@ -462,7 +452,7 @@ Item {
             text: stepButton.text
             color: theme.inkDim
             font.family: theme.hud; font.features: ({ "tnum": 1 })
-            font.pixelSize: theme.fontSize(11)
+            font.pixelSize: 11
             font.weight: Font.DemiBold
         }
         MouseArea {

@@ -42,12 +42,12 @@ TestCase {
     function test_theme_follows_native_notification_dynamically() {
         const theme = themeComponent.createObject(testCase)
         compare(theme.fontScale, 1)
-        compare(theme.fontSize(13), 16)
+        compare(theme.fontSize(13), 13)
         FontTestFixture.setScale(1.3)
         compare(theme.fontScale, 1.3)
-        compare(theme.fontSize(13), 20)
+        compare(theme.fontSize(13), 17)
         FontTestFixture.setScale(2)
-        compare(theme.fontSize(13), 31)
+        compare(theme.fontSize(13), 26)
         // Desktop runtime: the preference never applies.
         FontTestFixture.useDesktopRuntime(true)
         FontTestFixture.setDesktopScale(2)
@@ -60,9 +60,6 @@ TestCase {
         return [{ tag: "1.0", scale: 1.0 }, { tag: "1.3", scale: 1.3 }, { tag: "2.0", scale: 2.0 }]
     }
     function test_common_controls_scale_and_contain_text(data) {
-        // Capture the unrounded desktop base; scaling an already-rounded Android font
-        // would incorrectly round twice when composing the system preference.
-        FontTestFixture.useDesktopRuntime(true)
         const comps = [backComponent, headerComponent, fieldComponent, buttonComponent, panelComponent]
         const base = []
         for (let c = 0; c < comps.length; ++c) {
@@ -70,14 +67,13 @@ TestCase {
             verify(item !== null)
             base.push({ item: item, sizes: texts(item, []).map(t => t.font.pixelSize), height: item.height })
         }
-        FontTestFixture.useDesktopRuntime(false)
         FontTestFixture.setScale(data.scale)
         wait(20)
         for (let c = 0; c < base.length; ++c) {
             const item = base[c].item
             const now = texts(item, [])
             for (let i = 0; i < now.length; ++i) {
-                compare(now[i].font.pixelSize, Math.round(base[c].sizes[i] * 1.20 * data.scale),
+                compare(now[i].font.pixelSize, Math.round(base[c].sizes[i] * data.scale),
                         "component " + c + " text " + i)
                 if (!now[i].visible || now[i].text.length === 0) continue
                 // Text stays inside its host vertically (no clipping under fixed heights).

@@ -412,7 +412,7 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
             text: page.editMode ? "Done" : "Customize rows"
             color: custMa.containsMouse ? theme.ink : theme.inkDim
-            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
             MouseArea {
                 id: custMa; anchors.fill: parent; anchors.margins: -8
                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -452,7 +452,7 @@ Column {
     Text {
         visible: !page.loading && page.mainRows.length === 0 && page.extensionRows.length === 0
         text: page.errorText.length ? page.errorText : "Nothing loaded here yet."
-        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
     }
 
     // ── the main shelves (Top 10 first, service rows in their contextual slots) ──
@@ -516,7 +516,7 @@ Column {
         id: extHeading
         visible: page.hasExtensionSection
         text: "From Your Extensions"
-        color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(18); font.weight: Font.DemiBold
+        color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold
     }
     Repeater {
         id: extShelfRepeater

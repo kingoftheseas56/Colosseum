@@ -94,7 +94,7 @@ ReaderOverlay {
             anchors.margins: dictCard.pad
             text: dictCard.word
             font.family: Theme.display
-            font.pixelSize: Theme.fontSize(22)
+            font.pixelSize: 22
             font.weight: Font.Medium
             color: Theme.ink
             elide: Text.ElideRight
@@ -134,7 +134,7 @@ ReaderOverlay {
                             text: entry.modelData.partOfSpeech || ""
                             visible: text.length > 0
                             font.family: Theme.ui
-                            font.pixelSize: Theme.fontSize(11)
+                            font.pixelSize: 11
                             font.italic: true
                             color: Theme.gold
                             width: parent.width
@@ -150,14 +150,14 @@ ReaderOverlay {
                                 Text {
                                     text: (index + 1) + "."
                                     font.family: Theme.ui
-                                    font.pixelSize: Theme.fontSize(13)
+                                    font.pixelSize: 13
                                     color: Theme.inkGhost
                                 }
                                 Text {
                                     width: parent.width - 18
                                     text: modelData
                                     font.family: Theme.ui
-                                    font.pixelSize: Theme.fontSize(13)
+                                    font.pixelSize: 13
                                     lineHeight: 1.35
                                     color: Theme.inkDim
                                     wrapMode: Text.WordWrap
@@ -181,7 +181,7 @@ ReaderOverlay {
             anchors.rightMargin: dictCard.pad
             text: dictCard.dictState === "loading" ? "Looking upâ€¦" : "No definition found."
             font.family: Theme.ui
-            font.pixelSize: Theme.fontSize(13)
+            font.pixelSize: 13
             color: Theme.inkFaint
             wrapMode: Text.WordWrap
         }
@@ -200,7 +200,7 @@ ReaderOverlay {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Open in Wiktionary"
                 font.family: Theme.ui
-                font.pixelSize: Theme.fontSize(13)
+                font.pixelSize: 13
                 font.weight: Font.DemiBold
                 color: openMa.containsMouse ? Theme.gold : Theme.inkDim
             }

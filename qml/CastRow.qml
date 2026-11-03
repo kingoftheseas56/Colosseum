@@ -28,7 +28,7 @@ Column {
     Text {
         text: "CAST"
         color: theme.inkDim
-        font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.5
+        font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.5
     }
     Flow {
         width: parent.width
@@ -58,7 +58,7 @@ Column {
                         visible: (faceCol.modelData.image || "") === ""
                         text: castRow.initials(faceCol.modelData.name)
                         color: theme.inkDim
-                        font.family: theme.ui; font.pixelSize: theme.fontSize(22); font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: 22; font.weight: Font.DemiBold
                     }
                 }
                 Text {
@@ -66,7 +66,7 @@ Column {
                     text: faceCol.modelData.name || ""
                     wrapMode: castRow.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
                     elide: castRow.phoneNarrow ? Text.ElideNone : Text.ElideRight
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: 12
                 }
                 Text {
                     width: parent.width; horizontalAlignment: Text.AlignHCenter
@@ -74,7 +74,7 @@ Column {
                     wrapMode: castRow.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
                     elide: castRow.phoneNarrow ? Text.ElideNone : Text.ElideRight
                     visible: (faceCol.modelData.role || "") !== ""
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
                 }
             }
         }
@@ -103,7 +103,7 @@ Column {
             Text {
                 width: parent.width; horizontalAlignment: Text.AlignHCenter
                 text: "All cast"; color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                font.family: theme.ui; font.pixelSize: 12
             }
         }
     }

@@ -56,7 +56,7 @@ Column {
             anchors.centerIn: parent
             text: chev.glyph
             color: chevMa.containsMouse ? theme.gold : theme.ink
-            font.family: theme.display; font.pixelSize: theme.fontSize(42)
+            font.family: theme.display; font.pixelSize: 42
             Behavior on color { ColorAnimation { duration: 120 } }
         }
         MouseArea {
@@ -191,7 +191,7 @@ Column {
                             id: num
                             text: (rank.index + 1)
                             color: Qt.rgba(1, 1, 1, 0.16)
-                            font.family: theme.display; font.bold: true; font.pixelSize: theme.fontSize(132)
+                            font.family: theme.display; font.bold: true; font.pixelSize: 132
                             anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.bottomMargin: -8
                         }
                         PortraitTile {

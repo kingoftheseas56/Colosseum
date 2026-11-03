@@ -9,7 +9,6 @@ import "FinalSeaGeometry.js" as Geometry
 
 FocusScope {
     id: root
-    Theme { id: interfaceTypography }
     function resolveContentAsset(path) { root.universeContentGeneration; return UniverseContent.asset(path) }
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     focus: true
@@ -403,7 +402,7 @@ FocusScope {
                     anchors.centerIn: parent
                     text: "NOW · ONGOING"
                     font.family: root.bodyFamily
-                    font.pixelSize: interfaceTypography.fontSize(Math.max(8, 12 * root.stageGeometry.scale))
+                    font.pixelSize: Math.max(8, 12 * root.stageGeometry.scale)
                     color: "#63472b"
                 }
             }
@@ -528,7 +527,7 @@ FocusScope {
             text: "THE CURRENT VOYAGE"
             color: "#755435"
             font.family: root.displayFamily
-            font.pixelSize: interfaceTypography.fontSize(19)
+            font.pixelSize: 19
         }
         Text {
             x: 18
@@ -536,7 +535,7 @@ FocusScope {
             text: "32 Egghead · 33 Elbaf"
             color: "#8b7250"
             font.family: root.bodyFamily
-            font.pixelSize: interfaceTypography.fontSize(11)
+            font.pixelSize: 11
         }
 
         ListView {
@@ -682,7 +681,7 @@ FocusScope {
                         text: root.selectedArc ? root.selectedArc.title.toUpperCase() : "ARC ART UNAVAILABLE"
                         color: "#65472a"
                         font.family: root.bodyFamily
-                        font.pixelSize: interfaceTypography.fontSize(11)
+                        font.pixelSize: 11
                         font.bold: true
                     }
                 }
@@ -711,7 +710,7 @@ FocusScope {
                                   : ""
                             color: "#96764d"
                             font.family: root.bodyFamily
-                            font.pixelSize: interfaceTypography.fontSize(10)
+                            font.pixelSize: 10
                             wrapMode: Text.WordWrap
                         }
                         Text {
@@ -719,7 +718,7 @@ FocusScope {
                             text: root.selectedArc ? root.selectedArc.title : ""
                             color: "#523a25"
                             font.family: root.displayFamily
-                            font.pixelSize: interfaceTypography.fontSize(23)
+                            font.pixelSize: 23
                             wrapMode: Text.WordWrap
                         }
                         Text {
@@ -727,7 +726,7 @@ FocusScope {
                             text: root.selectedArc ? root.selectedArc.place : ""
                             color: "#896c48"
                             font.family: root.bodyFamily
-                            font.pixelSize: interfaceTypography.fontSize(11)
+                            font.pixelSize: 11
                             font.italic: true
                             wrapMode: Text.WordWrap
                         }
@@ -739,7 +738,7 @@ FocusScope {
                     text: root.selectedArc ? root.selectedArc.summary : ""
                     color: "#654b31"
                     font.family: root.bodyFamily
-                    font.pixelSize: interfaceTypography.fontSize(12)
+                    font.pixelSize: 12
                     wrapMode: Text.WordWrap
                     lineHeight: 1.12
                 }
@@ -753,7 +752,7 @@ FocusScope {
                           : ""
                     color: "#896c48"
                     font.family: root.bodyFamily
-                    font.pixelSize: interfaceTypography.fontSize(11)
+                    font.pixelSize: 11
                     wrapMode: Text.WordWrap
                     lineHeight: 1.2
                 }
@@ -768,7 +767,7 @@ FocusScope {
                           + ". The arc has no endpoint here."
                     color: "#846c4b"
                     font.family: root.bodyFamily
-                    font.pixelSize: interfaceTypography.fontSize(10)
+                    font.pixelSize: 10
                     font.italic: true
                     wrapMode: Text.WordWrap
                 }
@@ -781,7 +780,7 @@ FocusScope {
                     visible: text.length > 0
                     color: "#896c48"
                     font.family: root.bodyFamily
-                    font.pixelSize: interfaceTypography.fontSize(11)
+                    font.pixelSize: 11
                     wrapMode: Text.WordWrap
                 }
 
@@ -790,7 +789,7 @@ FocusScope {
                     text: "Open the arc to browse available media. Ongoing ranges use the current catalogue snapshot."
                     color: "#8a7252"
                     font.family: root.bodyFamily
-                    font.pixelSize: interfaceTypography.fontSize(10)
+                    font.pixelSize: 10
                     font.italic: true
                     wrapMode: Text.WordWrap
                 }

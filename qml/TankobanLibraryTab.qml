@@ -186,7 +186,7 @@ Item {
             width: 220; height: 38; leftPadding: 16; rightPadding: 16
             placeholderText: "Search your library"; placeholderTextColor: theme.inkDimmer
             color: theme.ink; selectionColor: theme.gold; selectedTextColor: "#111111"
-            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+            font.family: theme.ui; font.pixelSize: 14
             background: Rectangle {
                 radius: 19; color: Qt.rgba(0.03, 0.04, 0.06, 0.62)
                 border.width: 1; border.color: searchField.activeFocus ? theme.gold : theme.edge
@@ -389,14 +389,14 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: root.allRows.length === 0 ? "Your library is empty" : "No matches"
-            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(30)
+            color: theme.ink; font.family: theme.display; font.pixelSize: 30
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: root.allRows.length === 0
                 ? "Save a manga or comic series — it lands here."
                 : "Try a different filter or search."
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
         }
     }
     }
@@ -458,7 +458,7 @@ Item {
         Text {
             id: pillText; anchors.centerIn: parent; text: parent.label
             color: parent.active ? "#17120a" : theme.ink
-            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
         }
         HoverHandler { id: pillHover }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: parent.picked() }
@@ -478,7 +478,7 @@ Item {
             Text {
                 anchors.centerIn: parent; text: label
                 color: warn ? "#d9534f" : theme.ink
-                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+                font.family: theme.ui; font.pixelSize: 14
             }
             HoverHandler { id: rowHover }
         }

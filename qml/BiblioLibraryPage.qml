@@ -252,7 +252,7 @@ Item {
             width: 250; height: 38; leftPadding: 16; rightPadding: 16
             placeholderText: "Search by title or author"; placeholderTextColor: theme.inkDimmer
             color: theme.ink; selectionColor: theme.gold; selectedTextColor: "#111111"
-            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+            font.family: theme.ui; font.pixelSize: 14
             background: Rectangle {
                 radius: 19; color: Qt.rgba(0.03, 0.04, 0.06, 0.62)
                 border.width: 1; border.color: searchField.activeFocus ? theme.gold : theme.edge
@@ -279,7 +279,7 @@ Item {
             Text {
                 id: pillText; anchors.centerIn: parent; text: parent.label
                 color: parent.active ? "#17120a" : theme.ink
-                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
             }
             HoverHandler { id: pillHover }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: parent.picked() }
@@ -465,7 +465,7 @@ Item {
                         anchors.centerIn: parent; width: parent.width - 24
                         text: card.modelData.entry.title || "Untitled"
                         color: Qt.rgba(1, 1, 1, 0.8); font.family: theme.display
-                        font.pixelSize: theme.fontSize(17); font.weight: Font.DemiBold
+                        font.pixelSize: 17; font.weight: Font.DemiBold
                         horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                         maximumLineCount: 4; elide: Text.ElideRight
                     }
@@ -544,7 +544,7 @@ Item {
                 anchors.left: parent.left; anchors.right: parent.right
                 anchors.top: worldContent.bottom; anchors.topMargin: 9
                 text: card.modelData.entry.title || "Untitled"
-                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+                color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
                 elide: Text.ElideRight; maximumLineCount: 1
             }
             // author (secondary line — the biblio-specific card difference vs Theatre's video card)
@@ -552,7 +552,7 @@ Item {
                 anchors.left: parent.left; anchors.right: parent.right
                 anchors.top: worldContent.bottom; anchors.topMargin: 28
                 text: card.modelData.author || ""
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                 elide: Text.ElideRight; maximumLineCount: 1
             }
 
@@ -616,12 +616,12 @@ Item {
         visible: root.allRows.length === 0
         Text {
             anchors.horizontalCenter: parent.horizontalCenter; text: "Your library is empty"
-            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(30)
+            color: theme.ink; font.family: theme.display; font.pixelSize: 30
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "Save a book with + Library — it lands here."
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
         }
     }
     Column {
@@ -630,7 +630,7 @@ Item {
         visible: root.allRows.length > 0 && root.visibleRows.length === 0
         Text {
             anchors.horizontalCenter: parent.horizontalCenter; text: "Nothing matches"
-            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(30)
+            color: theme.ink; font.family: theme.display; font.pixelSize: 30
         }
     }
     }
@@ -684,7 +684,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 14
                 text: parent.label
                 color: parent.warn ? "#e08a8a" : theme.ink
-                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                font.family: theme.ui; font.pixelSize: 13
             }
             HoverHandler { id: miHover }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: parent.picked() }

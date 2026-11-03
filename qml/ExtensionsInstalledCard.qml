@@ -58,7 +58,7 @@ Rectangle {
                     textFormat: Text.PlainText
                     elide: Text.ElideRight
                     color: theme.ink
-                    font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
                 }
                 Text {
                     width: parent.width
@@ -66,7 +66,7 @@ Rectangle {
                           + (card.instanceLabel.length ? " · " + card.instanceLabel : "")
                     elide: Text.ElideRight
                     color: card.isEnabled ? theme.gold : theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                    font.family: theme.ui; font.pixelSize: 12
                 }
             }
         }
@@ -76,7 +76,7 @@ Rectangle {
             textFormat: Text.PlainText
             elide: Text.ElideRight
             color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+            font.family: theme.ui; font.pixelSize: 12
         }
         Flow {
             visible: card.management

@@ -80,14 +80,14 @@ Item {
         Text {
             text: qsTr("Your Add-ons")
             color: theme.ink
-            font.family: theme.display; font.pixelSize: theme.fontSize(page.width < 840 ? 28 : 40)
+            font.family: theme.display; font.pixelSize: page.width < 840 ? 28 : 40
         }
         Text {
             width: parent.width
             text: qsTr("%1 installed · Includes disabled add-ons. Core add-ons stay on.").arg(page.entries.length)
             color: theme.inkDim
             wrapMode: Text.WordWrap
-            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+            font.family: theme.ui; font.pixelSize: 14
         }
         Text {
             width: parent.width
@@ -95,7 +95,7 @@ Item {
             text: page.actionError
             color: "#ffb4ab"
             wrapMode: Text.WordWrap
-            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+            font.family: theme.ui; font.pixelSize: 13
         }
     }
     ListView {
@@ -161,7 +161,7 @@ Item {
             text: qsTr("No add-ons installed. Return to the Store to add one.")
             wrapMode: Text.WordWrap
             color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+            font.family: theme.ui; font.pixelSize: 14
         }
     }
     Dialog {
@@ -185,21 +185,21 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
                 color: theme.ink
-                font.family: theme.display; font.pixelSize: theme.fontSize(24)
+                font.family: theme.display; font.pixelSize: 24
             }
             Text {
                 width: parent.width
                 visible: page.removalInstanceLabel.length > 0
                 text: page.removalInstanceLabel
                 color: theme.gold
-                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                font.family: theme.ui; font.pixelSize: 13
             }
             Text {
                 width: parent.width
                 text: qsTr("This removes only this installation and its saved configuration. You can add it again from the Store.")
                 wrapMode: Text.WordWrap
                 color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+                font.family: theme.ui; font.pixelSize: 14
             }
             Row {
                 spacing: 10

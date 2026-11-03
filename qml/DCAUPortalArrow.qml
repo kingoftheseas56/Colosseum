@@ -26,7 +26,7 @@ FocusScope {
             text: root.glyph
             color: hover.hovered || root.activeFocus ? theme.gold : "#d9d9de"
             font.family: theme.ui
-            font.pixelSize: theme.fontSize(25)
+            font.pixelSize: 25
         }
     }
 

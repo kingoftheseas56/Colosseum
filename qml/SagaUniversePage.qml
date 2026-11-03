@@ -473,13 +473,13 @@ Item {
                     Text {
                         text: "SAGA"
                         color: theme.inkDim; font.family: root.uiFace
-                        font.pixelSize: theme.fontSize(11); font.letterSpacing: 3
+                        font.pixelSize: 11; font.letterSpacing: 3
                     }
                     Text {
                         width: parent.width
                         text: root.uni.name || root.universeName
                         color: root.paper; font.family: root.displayFace
-                        font.pixelSize: theme.fontSize(root.compact ? 40 : 72)
+                        font.pixelSize: root.compact ? 40 : 72
                         lineHeight: 1.05; wrapMode: Text.WordWrap
                     }
                     Flow {
@@ -493,7 +493,7 @@ Item {
                                 color: theme.glassTint; border.width: 1; border.color: theme.edge
                                 Text { id: factText; anchors.centerIn: parent; text: fact.modelData
                                        color: theme.inkDim; font.family: root.uiFace
-                                       font.pixelSize: theme.fontSize(12); font.weight: Font.Medium }
+                                       font.pixelSize: 12; font.weight: Font.Medium }
                             }
                         }
                     }
@@ -612,14 +612,14 @@ Item {
                                                 border.width: 1; border.color: theme.edge
                                                 Text { anchors.centerIn: parent; text: head.modelData.n
                                                        color: root.paper; font.family: root.uiFace
-                                                       font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold }
+                                                       font.pixelSize: 12; font.weight: Font.DemiBold }
                                             }
                                             Text {
                                                 y: 2
                                                 width: Math.min(implicitWidth, head.width - 34)
                                                 text: head.modelData.short
                                                 color: root.paper; font.family: root.uiFace
-                                                font.pixelSize: theme.fontSize(12); font.weight: Font.Medium
+                                                font.pixelSize: 12; font.weight: Font.Medium
                                                 lineHeight: 1.1; wrapMode: Text.WordWrap
                                                 maximumLineCount: 3; elide: Text.ElideRight
                                             }
@@ -642,7 +642,7 @@ Item {
                                             anchors.verticalCenter: rowRule.verticalCenter
                                             text: gridRow.modelData.label
                                             color: theme.inkDimmer; font.family: root.uiFace
-                                            font.pixelSize: theme.fontSize(10); font.letterSpacing: 2
+                                            font.pixelSize: 10; font.letterSpacing: 2
                                         }
                                         Rectangle {
                                             id: rowRule
@@ -757,15 +757,15 @@ Item {
                             spacing: 6
                             Text { text: root.shownWhere
                                    color: theme.inkDimmer; font.family: root.uiFace
-                                   font.pixelSize: theme.fontSize(10); font.letterSpacing: 2 }
+                                   font.pixelSize: 10; font.letterSpacing: 2 }
                             Text { width: parent.width; text: root.shown ? root.shown.title : ""
-                                   color: root.paper; font.family: root.displayFace; font.pixelSize: theme.fontSize(24)
+                                   color: root.paper; font.family: root.displayFace; font.pixelSize: 24
                                    wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
                             Text { width: parent.width; visible: text.length > 0; text: root.shownMeta
-                                   color: theme.inkDim; font.family: root.uiFace; font.pixelSize: theme.fontSize(12)
+                                   color: theme.inkDim; font.family: root.uiFace; font.pixelSize: 12
                                    elide: Text.ElideRight }
                             Text { width: parent.width; visible: text.length > 0; text: root.shownSummary
-                                   color: theme.inkDim; font.family: root.uiFace; font.pixelSize: theme.fontSize(13)
+                                   color: theme.inkDim; font.family: root.uiFace; font.pixelSize: 13
                                    lineHeight: 1.25; wrapMode: Text.WordWrap
                                    maximumLineCount: root.sideDetail ? 6 : 2; elide: Text.ElideRight }
                         }
@@ -786,7 +786,7 @@ Item {
                                 text: !root.canOpen(root.shown) ? "Details pending"
                                       : (root.shown && root.shown.medium === "manga" ? "Opens in Tankoban"
                                          : (root.isBook(root.shown) ? "Opens in Biblio" : "Opens in Theatre"))
-                                color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(11)
+                                color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11
                             }
                         }
                     }
@@ -824,7 +824,7 @@ Item {
                                 spacing: 10
                                 onImplicitHeightChanged: blockGrid.tallest = Math.max(blockGrid.tallest, implicitHeight)
                                 Text { text: block.modelData.title; color: root.paper
-                                       font.family: root.displayFace; font.pixelSize: theme.fontSize(20) }
+                                       font.family: root.displayFace; font.pixelSize: 20 }
                                 Flow {
                                     width: parent.width
                                     spacing: 40
@@ -872,11 +872,11 @@ Item {
                         width: parent.width - (root.compact ? 52 : 270)
                         spacing: 7
                         Text { text: "COMICS"; color: theme.inkDimmer
-                               font.family: root.uiFace; font.pixelSize: theme.fontSize(10); font.letterSpacing: 3 }
+                               font.family: root.uiFace; font.pixelSize: 10; font.letterSpacing: 3 }
                         Text {
                             text: "Graphic adaptations"
                             width: parent.width; elide: Text.ElideRight
-                            color: theme.ink; font.family: root.displayFace; font.pixelSize: theme.fontSize(19)
+                            color: theme.ink; font.family: root.displayFace; font.pixelSize: 19
                         }
                     }
                     Text {
@@ -886,7 +886,7 @@ Item {
                         text: root.comicsBox && root.comicsBox.count
                               ? "Browse " + root.comicsBox.count + " releases" : "Browse the archive"
                         color: theme.ink; font.family: root.uiFace
-                        font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+                        font.pixelSize: 13; font.weight: Font.DemiBold
                     }
                     KeyboardAction {
                         id: sagaComicsKey
@@ -977,14 +977,14 @@ Item {
                                         const words = person.modelData.name.split(" ")
                                         return words[0].charAt(0) + words[words.length - 1].charAt(0)
                                     }
-                                    color: theme.inkDimmer; font.family: root.displayFace; font.pixelSize: theme.fontSize(34)
+                                    color: theme.inkDimmer; font.family: root.displayFace; font.pixelSize: 34
                                 }
                             }
                             Text { topPadding: 8; width: parent.width; text: person.modelData.name
                                    color: root.paper; font.family: root.uiFace
-                                   font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold; elide: Text.ElideRight }
+                                   font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideRight }
                             Text { width: parent.width; text: person.modelData.role
-                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(12)
+                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 12
                                    wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
                         }
                     }
@@ -1007,10 +1007,10 @@ Item {
                         spacing: 8
                         Text { visible: text.length > 0; width: Math.min(860, parent.width)
                                text: root.guide.blurb || ""
-                               color: root.paper; font.family: root.uiFace; font.pixelSize: theme.fontSize(15)
+                               color: root.paper; font.family: root.uiFace; font.pixelSize: 15
                                lineHeight: 1.3; wrapMode: Text.WordWrap }
                         Text { visible: text.length > 0; text: root.guide.blurbSource || ""
-                               color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(11) }
+                               color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11 }
                         Rectangle { visible: !!root.guide.blurb; width: parent.width; height: 1; color: root.hair }
                         Grid {
                             topPadding: 14
@@ -1026,9 +1026,9 @@ Item {
                                     spacing: 5
                                     Text { text: infoCell.modelData[0]
                                            color: theme.inkDimmer; font.family: root.uiFace
-                                           font.pixelSize: theme.fontSize(10); font.letterSpacing: 2 }
+                                           font.pixelSize: 10; font.letterSpacing: 2 }
                                     Text { width: parent.width; text: infoCell.modelData[1]
-                                           color: root.paper; font.family: root.uiFace; font.pixelSize: theme.fontSize(15)
+                                           color: root.paper; font.family: root.uiFace; font.pixelSize: 15
                                            elide: Text.ElideRight }
                                 }
                             }
@@ -1072,9 +1072,9 @@ Item {
                                 anchors.margins: 14
                                 spacing: 3
                                 Text { text: "SAGA"; color: theme.inkDim; font.family: root.uiFace
-                                       font.pixelSize: theme.fontSize(9); font.letterSpacing: 2 }
+                                       font.pixelSize: 9; font.letterSpacing: 2 }
                                 Text { width: parent.width; text: sibling.modelData.name
-                                       color: root.paper; font.family: root.displayFace; font.pixelSize: theme.fontSize(19)
+                                       color: root.paper; font.family: root.displayFace; font.pixelSize: 19
                                        elide: Text.ElideRight }
                             }
                             KeyboardAction {
@@ -1145,7 +1145,7 @@ Item {
                             anchors.centerIn: parent
                             text: tab.modelData.title
                             color: tab.active ? "#090c13" : (tabKey.hovered ? root.paper : theme.inkDim)
-                            font.family: root.uiFace; font.pixelSize: theme.fontSize(13)
+                            font.family: root.uiFace; font.pixelSize: 13
                             font.weight: tab.active ? Font.DemiBold : Font.Medium
                         }
                         KeyboardAction {
@@ -1199,7 +1199,7 @@ Item {
         topPadding: 40
         spacing: 16
         Text { text: section.title; color: root.paper
-               font.family: root.displayFace; font.pixelSize: theme.fontSize(22) }
+               font.family: root.displayFace; font.pixelSize: 22 }
     }
 
     component SagaAction: Rectangle {
@@ -1222,14 +1222,14 @@ Item {
                 id: actionLabel
                 text: actionButton.text
                 color: actionButton.primary && !actionKey.pressed ? "#090c13" : root.paper
-                font.family: root.uiFace; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+                font.family: root.uiFace; font.pixelSize: 13; font.weight: Font.DemiBold
             }
             Text {
                 visible: actionButton.sub.length > 0
                 anchors.baseline: actionLabel.baseline
                 text: actionButton.sub
                 color: actionButton.primary && !actionKey.pressed ? Qt.rgba(0.035, 0.047, 0.075, 0.62) : theme.inkDim
-                font.family: root.uiFace; font.pixelSize: theme.fontSize(12); font.weight: Font.Medium
+                font.family: root.uiFace; font.pixelSize: 12; font.weight: Font.Medium
             }
         }
         KeyboardAction {
@@ -1259,7 +1259,7 @@ Item {
             anchors.centerIn: parent
             text: chevron.atRight ? "›" : "‹"
             color: edgeAction.hovered ? theme.gold : theme.ink
-            font.family: root.displayFace; font.pixelSize: theme.fontSize(42)
+            font.family: root.displayFace; font.pixelSize: 42
         }
         // Pointer-only by design: the keyboard walks the grid itself and the grid scrolls to follow.
         KeyboardAction {
@@ -1291,7 +1291,7 @@ Item {
                 anchors.centerIn: parent; width: parent.width - 24
                 text: tile.item ? tile.item.title : ""
                 color: theme.inkDim; font.family: root.displayFace
-                font.pixelSize: theme.fontSize(16); wrapMode: Text.WordWrap
+                font.pixelSize: 16; wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
                 visible: art.status !== Image.Ready
             }
@@ -1330,7 +1330,7 @@ Item {
                 visible: tile.banner && logo.status !== Image.Ready && art.status === Image.Ready
                 x: 18; anchors.bottom: parent.bottom; anchors.bottomMargin: 18
                 text: tile.item ? tile.item.title : ""
-                color: root.paper; font.family: root.displayFace; font.pixelSize: theme.fontSize(26)
+                color: root.paper; font.family: root.displayFace; font.pixelSize: 26
             }
             Rectangle {   // read / watched
                 visible: tile.done >= 1
@@ -1349,7 +1349,7 @@ Item {
                 width: upTag.implicitWidth + 12; height: upTag.implicitHeight + 6
                 Text { id: upTag; anchors.centerIn: parent
                        text: "UPCOMING"; color: root.paper
-                       font.family: root.uiFace; font.pixelSize: theme.fontSize(9); font.letterSpacing: 2 }
+                       font.family: root.uiFace; font.pixelSize: 9; font.letterSpacing: 2 }
             }
             Rectangle {   // where you are in it
                 visible: tile.done > 0 && tile.done < 1
@@ -1382,7 +1382,7 @@ Item {
             width: parent.width; height: 28
             visible: shelf.label.length > 0
             Text { id: shelfLabel; anchors.verticalCenter: parent.verticalCenter; text: shelf.label
-                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(10); font.letterSpacing: 2 }
+                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 10; font.letterSpacing: 2 }
             Rectangle { x: shelfLabel.width + 12; anchors.verticalCenter: parent.verticalCenter
                         width: Math.max(0, parent.width - x); height: 1; color: root.hair }
         }
@@ -1408,7 +1408,7 @@ Item {
                             onHoveredIn: shelfFocus.index = entry.index
                         }
                         Text { topPadding: 10; width: parent.width; text: entry.modelData.title
-                               color: root.paper; font.family: root.uiFace; font.pixelSize: theme.fontSize(12)
+                               color: root.paper; font.family: root.uiFace; font.pixelSize: 12
                                lineHeight: 1.1; wrapMode: Text.WordWrap
                                maximumLineCount: 2; elide: Text.ElideRight }
                         Text { topPadding: 3; width: parent.width
@@ -1416,7 +1416,7 @@ Item {
                                      : (entry.modelData.medium === "manga" ? ""
                                         : (root.isBook(entry.modelData) ? (entry.modelData.author || "")
                                            : (entry.modelData.year ? String(entry.modelData.year) : "")))
-                               color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(11)
+                               color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11
                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
                     }
                 }

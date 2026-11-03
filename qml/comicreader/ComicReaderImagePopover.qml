@@ -191,15 +191,6 @@ Item {
         onClicked: tap()
     }
 
-    function ensureVisible(item) {
-        if (!theme.androidHost || !item) return
-        const p = item.mapToItem(panelViewport.contentItem, 0, 0)
-        if (p.y < panelViewport.contentY)
-            panelViewport.contentY = Math.max(0, p.y - 8)
-        else if (p.y + item.height > panelViewport.contentY + panelViewport.height)
-            panelViewport.contentY = Math.min(Math.max(0, panelViewport.contentHeight - panelViewport.height), p.y + item.height - panelViewport.height + 8)
-    }
-
     // ================= vocabulary =================
 
     // a single choice chip — gold ONLY when active (the active-choice-only-gold law)
@@ -208,7 +199,7 @@ Item {
         property bool active: false
         property string label: ""
         signal tapped()
-        implicitHeight: theme.androidHost ? 48 : 22
+        implicitHeight: 22
         implicitWidth: chipText.implicitWidth + 18
         radius: 7
         color: chip.active ? root.cGoldChipBg : "transparent"
@@ -220,10 +211,10 @@ Item {
             text: chip.label
             color: chip.active ? theme.gold : theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(12)
+            font.pixelSize: 12
             font.bold: chip.active
         }
-        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: chip.label; keyboardFocused: function() { root.ensureVisible(chip) }; onClicked: chip.tapped() }
+        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: chip.label; onClicked: chip.tapped() }
     }
 
     // a pill switch — gold only when ON, same law as the chips (ported from the
@@ -232,8 +223,8 @@ Item {
         id: sw
         property bool checked: false
         signal tapped()
-        implicitWidth: theme.androidHost ? 52 : 34
-        implicitHeight: theme.androidHost ? 48 : 18
+        implicitWidth: 34
+        implicitHeight: 18
         radius: height / 2
         color: sw.checked ? root.cGoldChipBg : "transparent"
         border.width: 1
@@ -241,7 +232,7 @@ Item {
         Rectangle {
             width: 12; height: 12
             radius: 6
-            y: (sw.height - height) / 2
+            y: 2
             x: sw.checked ? sw.width - width - 3 : 3
             color: sw.checked ? theme.gold : theme.inkDimmer
         }
@@ -268,7 +259,7 @@ Item {
         property bool held: false
         signal moved(real value)
 
-        implicitHeight: theme.androidHost ? 64 : 44
+        implicitHeight: 44
         width: parent ? parent.width : 0
 
         onExternalValueChanged: if (!held) value = externalValue
@@ -300,7 +291,7 @@ Item {
             text: slider.label
             color: theme.inkDim
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(12)
+            font.pixelSize: 12
         }
         Text {
             objectName: slider.objectName.length ? (slider.objectName + "Readout") : ""
@@ -309,7 +300,7 @@ Item {
             text: slider.readout
             color: theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: theme.fontSize(11)
+            font.pixelSize: 11
         }
 
         Rectangle {
@@ -339,11 +330,10 @@ Item {
 
             ComicReaderKeyboardArea {
                 anchors.fill: parent
-                anchors.topMargin: theme.androidHost ? -23 : -11
-                anchors.bottomMargin: theme.androidHost ? -23 : -11
+                anchors.topMargin: -11
+                anchors.bottomMargin: -11
                 cursorShape: Qt.PointingHandCursor
                 keyboardLabel: slider.label
-                keyboardFocused: function() { root.ensureVisible(slider) }
                 keyboardRole: Accessible.Slider
                 keyboardDecrease: function() {
                     slider.moveTo(slider.value - Math.max(1, (slider.to - slider.from) / 20))
@@ -369,7 +359,7 @@ Item {
         // Content-sized: the panel is exactly as tall as what it holds, which is
         // what makes the Advanced disclosure GROW the same panel rather than
         // opening a second surface.
-        height: theme.androidHost ? Math.min(column.implicitHeight + 28, Math.max(0, root.height - root.railHeight - y - 10)) : column.implicitHeight + 28
+        height: column.implicitHeight + 28
         // Centred under the command that raised it, clamped inside the reader so a command near an
         // edge can never push the panel off screen. See `anchorX` for the -1 fallback.
         x: {
@@ -403,14 +393,6 @@ Item {
             onClicked: tap()
         }
 
-        Flickable {
-            id: panelViewport
-            anchors.fill: parent
-            contentHeight: column.implicitHeight + 28
-            contentWidth: width
-            interactive: theme.androidHost && contentHeight > height
-            clip: theme.androidHost
-            boundsBehavior: Flickable.StopAtBounds
         Column {
             id: column
             objectName: "imagePanelColumn"
@@ -425,14 +407,14 @@ Item {
             // ---- PRIMARY: Quality ----
             Item {
                 width: parent.width
-                height: theme.androidHost ? 52 : 30
+                height: 30
                 Text {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Quality"
                     color: theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(12)
+                    font.pixelSize: 12
                 }
                 Row {
                     anchors.right: parent.right
@@ -464,14 +446,14 @@ Item {
             // ---- PRIMARY: Night filter ----
             Item {
                 width: parent.width
-                height: theme.androidHost ? 52 : 30
+                height: 30
                 Text {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Night filter"
                     color: theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(12)
+                    font.pixelSize: 12
                 }
                 Switch {
                     objectName: "imageNightFilter"
@@ -489,7 +471,7 @@ Item {
             Item {
                 objectName: "imageAdvancedDisclosure"
                 width: parent.width
-                height: theme.androidHost ? 52 : 34
+                height: 34
                 function tap() { root.toggleAdvanced() }
                 Text {
                     id: discloseLabel
@@ -498,7 +480,7 @@ Item {
                     text: "Advanced image tools"
                     color: discloseMa.containsMouse || root.advancedOpen ? theme.ink : theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: theme.fontSize(12)
+                    font.pixelSize: 12
                 }
                 // A REAL glyph, never a text arrow (semantic-icon-audit law). The
                 // chevron the reader already owns, turned a quarter to point down
@@ -516,7 +498,6 @@ Item {
                 }
                 ComicReaderKeyboardArea {
                     id: discloseMa
-                    keyboardFocused: function() { root.ensureVisible(discloseMa.parent) }
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
@@ -554,14 +535,14 @@ Item {
 
                 Item {
                     width: parent.width
-                    height: theme.androidHost ? 52 : 32
+                    height: 32
                     Text {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Rotate"
                         color: theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: theme.fontSize(12)
+                        font.pixelSize: 12
                     }
                     Row {
                         anchors.right: parent.right
@@ -582,14 +563,14 @@ Item {
 
                 Item {
                     width: parent.width
-                    height: theme.androidHost ? 52 : 32
+                    height: 32
                     Text {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Auto-crop"
                         color: theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: theme.fontSize(12)
+                        font.pixelSize: 12
                     }
                     Switch {
                         objectName: "imageAutoCrop"
@@ -600,7 +581,6 @@ Item {
                     }
                 }
             }
-        }
         }
     }
 }

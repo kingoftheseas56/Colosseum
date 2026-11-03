@@ -5,7 +5,6 @@ import ".."
 
 AccountPageFrame {
     id: root
-    Theme { id: interfaceTypography }
     readonly property bool manualReplacement: purpose === "manualReplacement"
 
     objectName: manualReplacement
@@ -127,7 +126,7 @@ AccountPageFrame {
                         : "Your recovery key")
                     color: keyTheme.inkDim
                     font.family: keyTheme.ui
-                    font.pixelSize: interfaceTypography.fontSize(11)
+                    font.pixelSize: 11
                     font.weight: Font.DemiBold
                 }
 
@@ -145,7 +144,7 @@ AccountPageFrame {
                         text: "Shown once"
                         color: keyTheme.gold
                         font.family: keyTheme.ui
-                        font.pixelSize: interfaceTypography.fontSize(9)
+                        font.pixelSize: 9
                         font.weight: Font.DemiBold
                     }
                 }
@@ -157,7 +156,7 @@ AccountPageFrame {
                 text: root.presenter ? root.presenter.recoveryKey : ""
                 color: keyTheme.ink
                 font.family: "Cascadia Mono"
-                font.pixelSize: interfaceTypography.fontSize(16)
+                font.pixelSize: 16
                 font.letterSpacing: 0.8
                 wrapMode: Text.WrapAnywhere
                 textFormat: Text.PlainText
@@ -211,7 +210,7 @@ AccountPageFrame {
                 text: "Recovery key copied."
                 color: toastTheme.gold
                 font.family: toastTheme.ui
-                font.pixelSize: interfaceTypography.fontSize(11)
+                font.pixelSize: 11
                 font.weight: Font.DemiBold
             }
         }
@@ -230,7 +229,7 @@ AccountPageFrame {
         text: "Couldn’t copy the recovery key safely. Save it manually."
         color: "#f0a3a3"
         font.family: failedTheme.ui
-        font.pixelSize: interfaceTypography.fontSize(11)
+        font.pixelSize: 11
         wrapMode: Text.WordWrap
         horizontalAlignment: Text.AlignHCenter
         Theme { id: failedTheme }
@@ -248,7 +247,7 @@ AccountPageFrame {
             : "You can generate a new recovery key later while signed in.")
         color: footerTheme.inkDimmer
         font.family: footerTheme.ui
-        font.pixelSize: interfaceTypography.fontSize(11)
+        font.pixelSize: 11
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.WordWrap
         Theme { id: footerTheme }
@@ -262,7 +261,7 @@ AccountPageFrame {
         text: "Generating a new one kills the old key."
         color: secondFooterTheme.inkDimmer
         font.family: secondFooterTheme.ui
-        font.pixelSize: interfaceTypography.fontSize(11)
+        font.pixelSize: 11
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.WordWrap
         Theme { id: secondFooterTheme }

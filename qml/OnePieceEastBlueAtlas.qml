@@ -8,7 +8,6 @@ import "OnePieceEastBlueData.js" as EastBlue
 
 FocusScope {
     id: root
-    Theme { id: interfaceTypography }
     function resolveContentAsset(path) { root.universeContentGeneration; return UniverseContent.asset(path) }
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
 
@@ -342,7 +341,7 @@ FocusScope {
                 visible: mapPlate.status !== Loader.Ready
                 color: "#e7d5aa"
                 border.color: "#80633e"
-                Text { anchors.centerIn: parent; text: "EAST BLUE ATLAS ART UNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(12); font.bold: true }
+                Text { anchors.centerIn: parent; text: "EAST BLUE ATLAS ART UNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 12; font.bold: true }
             }
 
             Repeater {
@@ -430,7 +429,7 @@ FocusScope {
                             radius: width / 2
                             color: "#d8bd8a"
                             border.color: "#80633e"
-                            Text { anchors.centerIn: parent; text: "ARC"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(9); font.bold: true }
+                            Text { anchors.centerIn: parent; text: "ARC"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 9; font.bold: true }
                         }
                     }
 
@@ -485,14 +484,14 @@ FocusScope {
                 activeFocusOnTab: true
                 focusPolicy: Qt.StrongFocus
                 font.family: atlasBodyFont.name
-                font.pixelSize: interfaceTypography.fontSize(Math.max(8, 11 * root.zoom))
+                font.pixelSize: Math.max(8, 11 * root.zoom)
                 font.bold: true
                 palette.buttonText: "#584126"
                 contentItem: Text {
                     text: paradiseButton.text
                     color: paradiseButton.palette.buttonText
                     font.family: atlasBodyFont.name
-                    font.pixelSize: interfaceTypography.fontSize(Math.max(8, 11 * root.zoom))
+                    font.pixelSize: Math.max(8, 11 * root.zoom)
                     font.bold: true
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -527,7 +526,7 @@ FocusScope {
             text: "−"; width: 44; height: 44
             Accessible.name: "Zoom out"
             font.family: atlasBodyFont.name
-            contentItem: Text { text: zoomOutButton.text; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(14); color: zoomOutButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            contentItem: Text { text: zoomOutButton.text; font.family: atlasBodyFont.name; font.pixelSize: 14; color: zoomOutButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             onClicked: root.zoom = Math.max(1.0, root.zoom - 0.25)
         }
         Button {
@@ -535,7 +534,7 @@ FocusScope {
             objectName: "eastBlueZoomReset"
             text: "100%"; width: 58; height: 44
             font.family: atlasBodyFont.name
-            contentItem: Text { text: zoomResetButton.text; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(11); color: zoomResetButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            contentItem: Text { text: zoomResetButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; color: zoomResetButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             onClicked: root.zoom = 1.0
         }
         Button {
@@ -544,7 +543,7 @@ FocusScope {
             text: "+"; width: 44; height: 44
             Accessible.name: "Zoom in"
             font.family: atlasBodyFont.name
-            contentItem: Text { text: zoomInButton.text; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(14); color: zoomInButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            contentItem: Text { text: zoomInButton.text; font.family: atlasBodyFont.name; font.pixelSize: 14; color: zoomInButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             onClicked: root.zoom = Math.min(2.0, root.zoom + 0.25)
         }
     }
@@ -591,7 +590,7 @@ FocusScope {
                 text: "INDEX"
                 color: "#584126"
                 font.family: atlasBodyFont.name
-                font.pixelSize: interfaceTypography.fontSize(12)
+                font.pixelSize: 12
                 font.bold: true
             }
         }
@@ -636,8 +635,8 @@ FocusScope {
             anchors.fill: parent
             anchors.margins: 16
             spacing: 7
-            Text { text: root.nonCanonMode ? "EAST BLUE / INDEX" : "THE EAST BLUE SAGA"; color: "#9b774a"; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(10); font.letterSpacing: 1.4 }
-            Text { text: root.nonCanonMode ? "Non-canon material" : "Ports of the voyage"; color: "#523a25"; font.family: atlasDisplayFont.name; font.pixelSize: interfaceTypography.fontSize(23) }
+            Text { text: root.nonCanonMode ? "EAST BLUE / INDEX" : "THE EAST BLUE SAGA"; color: "#9b774a"; font.family: atlasBodyFont.name; font.pixelSize: 10; font.letterSpacing: 1.4 }
+            Text { text: root.nonCanonMode ? "Non-canon material" : "Ports of the voyage"; color: "#523a25"; font.family: atlasDisplayFont.name; font.pixelSize: 23 }
 
             Flickable {
                 id: indexFlick
@@ -663,7 +662,7 @@ FocusScope {
                             height: 46
                             text: String(index + 1).padStart(2, "0") + "   " + (root.universeContentGeneration, EastBlue.arc)((root.universeContentGeneration, AtlasData.canonMarkers)[index].id).title
                             font.family: atlasBodyFont.name
-                            font.pixelSize: interfaceTypography.fontSize(14)
+                            font.pixelSize: 14
                             palette.buttonText: "#523a25"
                             activeFocusOnTab: true
                             focusPolicy: Qt.StrongFocus
@@ -680,7 +679,7 @@ FocusScope {
                             contentItem: Text {
                                 text: canonRowButton.text
                                 font.family: atlasBodyFont.name
-                                font.pixelSize: interfaceTypography.fontSize(14)
+                                font.pixelSize: 14
                                 color: canonRowButton.palette.buttonText
                                 horizontalAlignment: Text.AlignLeft
                                 verticalAlignment: Text.AlignVCenter
@@ -701,12 +700,12 @@ FocusScope {
                         height: 44
                         text: "NON-CANON MATERIAL"
                         font.family: atlasBodyFont.name
-                        font.pixelSize: interfaceTypography.fontSize(11)
+                        font.pixelSize: 11
                         font.bold: true
                         contentItem: Text {
                             text: nonCanonToggleButton.text
                             font.family: atlasBodyFont.name
-                            font.pixelSize: interfaceTypography.fontSize(11)
+                            font.pixelSize: 11
                             font.bold: true
                             color: nonCanonToggleButton.palette.buttonText
                             horizontalAlignment: Text.AlignLeft
@@ -740,15 +739,15 @@ FocusScope {
                                     visible: nonCanonPoster.status === Image.Error
                                     color: "#d8bd8a"
                                     border.color: "#80633e"
-                                    Text { anchors.centerIn: parent; text: "POSTER\nUNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(8); horizontalAlignment: Text.AlignHCenter }
+                                    Text { anchors.centerIn: parent; text: "POSTER\nUNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 8; horizontalAlignment: Text.AlignHCenter }
                                 }
                             }
                             Column {
                                 width: Math.max(110, parent.width - 160)
                                 spacing: 2
-                                Text { width: parent.width; text: nonCanonRow.modelData.title; color: "#523a25"; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(13); wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
-                                Text { text: nonCanonRow.modelData.year + " · " + nonCanonRow.modelData.kindLabel; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(10) }
-                                Text { width: parent.width; text: nonCanonRow.modelData.placement; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(10); wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
+                                Text { width: parent.width; text: nonCanonRow.modelData.title; color: "#523a25"; font.family: atlasBodyFont.name; font.pixelSize: 13; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
+                                Text { text: nonCanonRow.modelData.year + " · " + nonCanonRow.modelData.kindLabel; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: 10 }
+                                Text { width: parent.width; text: nonCanonRow.modelData.placement; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
                             }
                             Button {
                                 id: nonCanonActionButton
@@ -759,7 +758,7 @@ FocusScope {
                                 contentItem: Text {
                                     text: nonCanonActionButton.text
                                     font.family: atlasBodyFont.name
-                                    font.pixelSize: interfaceTypography.fontSize(12)
+                                    font.pixelSize: 12
                                     color: nonCanonActionButton.enabled ? nonCanonActionButton.palette.buttonText : "#9c927e"
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
@@ -785,7 +784,7 @@ FocusScope {
                         contentItem: Text {
                             text: backToIndexRowButton.text
                             font.family: atlasBodyFont.name
-                            font.pixelSize: interfaceTypography.fontSize(12)
+                            font.pixelSize: 12
                             color: backToIndexRowButton.palette.buttonText
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
@@ -807,7 +806,7 @@ FocusScope {
                 contentItem: Text {
                     text: backToIndexButton.text
                             font.family: atlasBodyFont.name
-                            font.pixelSize: interfaceTypography.fontSize(11)
+                            font.pixelSize: 11
                             font.bold: true
                     color: backToIndexButton.palette.buttonText
                     horizontalAlignment: Text.AlignHCenter
@@ -885,7 +884,7 @@ FocusScope {
                     visible: previewPoster.status === Image.Error
                     color: "#d8bd8a"
                     border.color: "#80633e"
-                    Text { anchors.centerIn: parent; text: "POSTER\nUNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(11); horizontalAlignment: Text.AlignHCenter }
+                    Text { anchors.centerIn: parent; text: "POSTER\nUNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter }
                 }
             }
             Item {
@@ -907,10 +906,10 @@ FocusScope {
                         id: previewCopyColumn
                         width: previewCopy.width
                         spacing: 6
-                        Text { text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / EAST BLUE" : ""; color: "#9b774a"; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(10); font.letterSpacing: 1.2 }
-                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: atlasDisplayFont.name; font.pixelSize: interfaceTypography.fontSize(24); wrapMode: Text.WordWrap }
-                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(12); font.italic: true; wrapMode: Text.WordWrap }
-                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.summary : ""; color: "#654b31"; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(12); wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight }
+                        Text { text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / EAST BLUE" : ""; color: "#9b774a"; font.family: atlasBodyFont.name; font.pixelSize: 10; font.letterSpacing: 1.2 }
+                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: atlasDisplayFont.name; font.pixelSize: 24; wrapMode: Text.WordWrap }
+                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: 12; font.italic: true; wrapMode: Text.WordWrap }
+                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.summary : ""; color: "#654b31"; font.family: atlasBodyFont.name; font.pixelSize: 12; wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight }
                     }
                 }
                 Flow {
@@ -929,7 +928,7 @@ FocusScope {
                         // Clicking must not park the scope's focus flag on a control
                         // that hides with the preview; keyboard users still reach it by Tab.
                         focusPolicy: Qt.TabFocus
-                    contentItem: Text { text: openArcButton.text; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(11); font.bold: true; color: openArcButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    contentItem: Text { text: openArcButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; font.bold: true; color: openArcButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                         onClicked: root.openSelectedArc()
                     }
                     Button {
@@ -939,7 +938,7 @@ FocusScope {
                         width: 80
                         height: 44
                         focusPolicy: Qt.TabFocus
-                    contentItem: Text { text: closePreviewButton.text; font.family: atlasBodyFont.name; font.pixelSize: interfaceTypography.fontSize(11); color: closePreviewButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    contentItem: Text { text: closePreviewButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; color: closePreviewButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                         onClicked: root.closePreview()
                     }
                 }

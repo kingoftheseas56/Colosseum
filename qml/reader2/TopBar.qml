@@ -38,12 +38,17 @@ ReaderOverlay {
 
     enabled: shown                        // when asleep, clicks fall through to the turn/tap zones
 
-    // Android uses touch-sized controls at every canvas width. Hide secondary metadata
-    // when the enlarged action cluster needs its room; keep the title beside Back so
-    // long chapter names cannot force it underneath the right-hand actions.
-    property bool onAndroid: Theme.androidHost
-    readonly property bool compact: onAndroid && width < Math.max(600, Theme.fontSize(13) * 48)
-    readonly property bool leftTitle: onAndroid
+    // Android phone width. This bar lives in its own native overlay window there, so the app
+    // window's androidHost is out of reach: gate on the platform and on the bar's own width.
+    // Compact = back, the book title, the four reader actions. The chapter name and the author
+    // do not fit beside 44px targets at 412 and are dropped from the bar (Contents still lists
+    // chapters). The window verbs never show on Android: Close is the same goBack as Back.
+    readonly property bool onAndroid: Qt.platform.os === "android"
+    // Under 600 is a phone. A portrait tablet (the Nokia T20 is 686 wide) keeps the full bar.
+    readonly property bool compact: onAndroid && width < 600
+    // Any Android width under 840 puts the title left of the actions. Centred, the title must
+    // clear the wider side cluster on BOTH sides, which left it 86px at the T20's 686.
+    readonly property bool leftTitle: onAndroid && width < 840
 
     Rectangle { anchors.fill: parent; color: Theme.scrim; visible: Qt.platform.os === "android"; opacity: 0.88; z: -1 }
 
@@ -59,11 +64,11 @@ ReaderOverlay {
     component IconButton: Item {
         id: ib
         property alias source: img.source
-        property int box: root.onAndroid ? 28 : 19
+        property int box: 19
         property string label: "Action"
         signal clicked()
-        implicitWidth: root.onAndroid ? Math.max(52, box + 10) : box + 10
-        implicitHeight: root.onAndroid ? Math.max(52, box + 10) : box + 10
+        implicitWidth: root.compact ? Math.max(44, box + 10) : box + 10
+        implicitHeight: root.compact ? Math.max(44, box + 10) : box + 10
         function focusKeyboard() { ma.forceActiveFocus(Qt.OtherFocusReason) }
         Image {
             id: img
@@ -94,7 +99,7 @@ ReaderOverlay {
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
         anchors.leftMargin: root.compact ? 6 : 22
-        box: root.onAndroid ? 28 : 22
+        box: 22
         label: "Back"
         source: Qt.resolvedUrl("../../assets/icons/reader2/back.svg")
         onClicked: root.backRequested()
@@ -134,7 +139,7 @@ ReaderOverlay {
             color: Theme.inkTitle
             font.family: Theme.display
             font.weight: Font.Medium
-            font.pixelSize: Theme.fontSize(17)
+            font.pixelSize: 17
         }
         Text {
             id: authorText
@@ -150,7 +155,7 @@ ReaderOverlay {
             elide: Text.ElideRight
             color: Theme.inkFaint
             font.family: Theme.ui
-            font.pixelSize: Theme.fontSize(13)
+            font.pixelSize: 13
         }
     }
 
@@ -174,7 +179,7 @@ ReaderOverlay {
             elide: Text.ElideRight
             color: Theme.inkDim
             font.family: Theme.ui
-            font.pixelSize: Theme.fontSize(13)
+            font.pixelSize: 13
             rightPadding: 4
         }
         IconButton { id: searchBtn; anchors.verticalCenter: parent.verticalCenter

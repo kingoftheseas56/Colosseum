@@ -38,7 +38,7 @@ Rectangle {
         text: qsTr("Add to Collections")
         color: root.available ? theme.ink : theme.inkDimmer
         font.family: theme.ui
-        font.pixelSize: theme.fontSize(15)
+        font.pixelSize: 15
         font.weight: Font.DemiBold
         textFormat: Text.PlainText
     }

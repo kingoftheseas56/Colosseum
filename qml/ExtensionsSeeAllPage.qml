@@ -81,7 +81,7 @@ Item {
             placeholderText: "Search " + page.pool.length + " add-ons"
             color: theme.ink
             placeholderTextColor: Qt.rgba(1, 1, 1, 0.32)
-            font.family: theme.display; font.pixelSize: theme.fontSize(page.phoneLayout ? 26 : 40)
+            font.family: theme.display; font.pixelSize: page.phoneLayout ? 26 : 40
             leftPadding: 0
             background: Rectangle {
                 y: parent.height - 1; width: parent.width; height: 1
@@ -98,7 +98,7 @@ Item {
             wrapMode: page.phoneLayout ? Text.WordWrap : Text.NoWrap
             text: page.row ? page.row.title : ""
             color: theme.ink
-            font.family: theme.display; font.pixelSize: theme.fontSize(page.phoneLayout ? 28 : 40); font.weight: Font.DemiBold
+            font.family: theme.display; font.pixelSize: page.phoneLayout ? 28 : 40; font.weight: Font.DemiBold
         }
         Text {
             width: page.phoneLayout ? parent.width : implicitWidth
@@ -108,7 +108,7 @@ Item {
                                                  + " match." : "Names, what they do, or a category: anime, subtitles, debrid, Hindi…")
                   : page.row ? (page.row.sub + "  " + page.items.length + " add-ons.") : ""
             color: theme.inkDimmer
-            font.family: theme.ui; font.pixelSize: theme.fontSize(15)
+            font.family: theme.ui; font.pixelSize: 15
         }
     }
 
@@ -188,6 +188,6 @@ Item {
         wrapMode: page.phoneLayout ? Text.WordWrap : Text.NoWrap
         text: "No add-on matches that. Try a site name, a language or a genre."
         color: theme.inkDim
-        font.family: theme.ui; font.pixelSize: theme.fontSize(15)
+        font.family: theme.ui; font.pixelSize: 15
     }
 }

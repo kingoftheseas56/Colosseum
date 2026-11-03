@@ -321,7 +321,7 @@ Item {
                     Text {
                         anchors.centerIn: parent; visible: page.cover.length === 0
                         text: "Comics"; color: theme.inkDimmer
-                        font.family: theme.display; font.pixelSize: theme.fontSize(26)
+                        font.family: theme.display; font.pixelSize: 26
                     }
                 }
                 Column {
@@ -330,19 +330,19 @@ Item {
                     width: pageCol.width - 196 - 34
                     Text {
                         text: "Comics · Tankoban"
-                        color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
+                        color: theme.gold; font.family: theme.ui; font.pixelSize: 11
                         font.letterSpacing: 3; font.capitalization: Font.AllUppercase
                     }
                     Text {
                         width: parent.width
                         text: page.seriesTitle
-                        color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(48)
+                        color: theme.ink; font.family: theme.display; font.pixelSize: 48
                         font.weight: Font.DemiBold
                         wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
                     }
                     Text {
                         text: page.metaLine()
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(15)
+                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 15
                     }
                     // Continue affordance
                     Rectangle {
@@ -352,14 +352,14 @@ Item {
                         Row {
                             id: contRow; anchors.centerIn: parent; spacing: 10
                             Text { text: "▸"; color: "#1a1306"; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "Continue"; color: "#1a1306"; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: "Continue"; color: "#1a1306"; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                             Text {
                                 visible: !!page.resumeRec && !!page.resumeRec.resume
                                 text: {
                                     var r = page.resumeRec && page.resumeRec.resume ? page.resumeRec.resume : ({})
                                     return r.chapterLabel ? r.chapterLabel : "Resume"
                                 }
-                                color: Qt.rgba(0.1, 0.075, 0.02, 0.66); font.family: theme.ui; font.pixelSize: theme.fontSize(13); anchors.verticalCenter: parent.verticalCenter
+                                color: Qt.rgba(0.1, 0.075, 0.02, 0.66); font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter
                             }
                         }
                         MouseArea {
@@ -383,7 +383,7 @@ Item {
                     Text {
                         visible: page.errorMsg.length > 0
                         text: page.errorMsg
-                        color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+                        color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 14
                     }
 
                     LibraryButton {
@@ -416,9 +416,9 @@ Item {
                         Row {
                             anchors.left: parent.left; anchors.leftMargin: 24
                             anchors.verticalCenter: parent.verticalCenter; spacing: 14
-                            Text { text: "Issues"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(20); anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: "Issues"; color: theme.ink; font.family: theme.display; font.pixelSize: 20; anchors.verticalCenter: parent.verticalCenter }
                             Text { text: page.gcIssueRows.length + " issues · #1 first"
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13); anchors.verticalCenter: parent.verticalCenter }
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
                         }
                         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
                     }
@@ -515,7 +515,7 @@ Item {
                                 clip: true
                                 Text { anchors.centerIn: parent; visible: thumbImg.status !== Image.Ready
                                     text: (row.modelData.label || "").replace(/[^0-9]/g, "") || "#"
-                                    color: theme.inkDimmer; font.family: theme.display; font.pixelSize: theme.fontSize(17) }
+                                    color: theme.inkDimmer; font.family: theme.display; font.pixelSize: 17 }
                                 Image { id: thumbImg; anchors.fill: parent; anchors.margins: 1
                                     source: row.thumbUrl; visible: status === Image.Ready
                                     fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
@@ -530,11 +530,11 @@ Item {
                                 Text { width: parent.width; text: row.modelData.label || ""
                                     color: rowMa.containsMouse && !row.gcUnmatched ? theme.gold : theme.ink
                                     opacity: row.gcUnmatched ? 0.45 : 1.0
-                                    font.family: theme.ui; font.pixelSize: theme.fontSize(16); elide: Text.ElideRight }
+                                    font.family: theme.ui; font.pixelSize: 16; elide: Text.ElideRight }
                                 Text { width: parent.width; text: row.statusLine(); visible: text.length > 0
                                     color: row.dlState === "done" ? theme.gold
                                          : (row.dlState === "error" ? "#e6a3a3" : theme.inkDim)   // dead → dim, informational
-                                    font.family: theme.ui; font.pixelSize: theme.fontSize(13); elide: Text.ElideRight }
+                                    font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
                             }
 
                             // date (right-aligned, before the trailing action)
@@ -543,7 +543,7 @@ Item {
                                 anchors.right: trailing.left; anchors.rightMargin: 16
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: row.dlState === "none" ? (row.modelData.date || "") : ""
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
                             }
 
                             // trailing action glyph
@@ -555,7 +555,7 @@ Item {
                                 Text { anchors.centerIn: parent
                                     text: (row.gcUnmatched || row.dlState === "dead") ? ""
                                         : (row.dlState === "done" ? "▸" : (row.inFlight ? "…" : "↓"))
-                                    color: theme.inkDim; font.pixelSize: theme.fontSize(18) }
+                                    color: theme.inkDim; font.pixelSize: 18 }
                             }
 
                             // gold progress line while downloading
@@ -602,9 +602,9 @@ Item {
                         Row {
                             anchors.left: parent.left; anchors.leftMargin: 24
                             anchors.verticalCenter: parent.verticalCenter; spacing: 14
-                            Text { text: "Collected editions"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(20); anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: "Collected editions"; color: theme.ink; font.family: theme.display; font.pixelSize: 20; anchors.verticalCenter: parent.verticalCenter }
                             Text { text: ((page.gcMatch && page.gcMatch.collections) || []).length + " on GetComics"
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13); anchors.verticalCenter: parent.verticalCenter }
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
                         }
                         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
                     }
@@ -675,11 +675,11 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter; spacing: 4
                                 Text { width: parent.width; text: crow.modelData.name || ""
                                     color: crowMa.containsMouse ? theme.gold : theme.ink
-                                    font.family: theme.ui; font.pixelSize: theme.fontSize(16); elide: Text.ElideRight }
+                                    font.family: theme.ui; font.pixelSize: 16; elide: Text.ElideRight }
                                 Text { width: parent.width; text: crow.statusLine(); visible: text.length > 0
                                     color: crow.dlState === "done" ? theme.gold
                                          : (crow.dlState === "error" ? "#e6a3a3" : theme.inkDim)
-                                    font.family: theme.ui; font.pixelSize: theme.fontSize(13); elide: Text.ElideRight }
+                                    font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
                             }
                             Item {
                                 id: ctrail
@@ -689,7 +689,7 @@ Item {
                                 Text { anchors.centerIn: parent
                                     text: crow.dlState === "dead" ? ""
                                         : (crow.dlState === "done" ? "▸" : (crow.inFlight ? "…" : "↓"))
-                                    color: theme.inkDim; font.pixelSize: theme.fontSize(18) }
+                                    color: theme.inkDim; font.pixelSize: 18 }
                             }
                             Rectangle {
                                 anchors.bottom: parent.bottom; anchors.left: parent.left
@@ -728,7 +728,7 @@ Item {
         anchors.centerIn: parent
         visible: page.loading
         text: "Loading…"
-        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(16)
+        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
     }
 
     // honest empty state: catalogued, but no reading source carries it yet. This is a LIVE-path-
@@ -738,8 +738,8 @@ Item {
         visible: page.notAvailable && !page.dbSeries
         anchors.centerIn: parent
         spacing: 8
-        Text { text: "Not available from sources yet"; color: "#e8e8e8"; font.pixelSize: theme.fontSize(18); anchors.horizontalCenter: parent.horizontalCenter }
-        Text { text: "This series is catalogued, but no reading source carries it."; color: "#9a9a9a"; font.pixelSize: theme.fontSize(13); anchors.horizontalCenter: parent.horizontalCenter }
+        Text { text: "Not available from sources yet"; color: "#e8e8e8"; font.pixelSize: 18; anchors.horizontalCenter: parent.horizontalCenter }
+        Text { text: "This series is catalogued, but no reading source carries it."; color: "#9a9a9a"; font.pixelSize: 13; anchors.horizontalCenter: parent.horizontalCenter }
     }
 
     // ---- reader overlay: Comics store + comic progress; chapters = newest-first ----

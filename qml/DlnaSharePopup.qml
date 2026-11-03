@@ -159,7 +159,7 @@ Item {
                     text: qsTr("Share on your Wi-Fi")
                     color: theme.ink
                     font.family: theme.ui
-                    font.pixelSize: theme.fontSize(15)
+                    font.pixelSize: 15
                     font.weight: Font.Medium
                     elide: Text.ElideRight
                 }
@@ -202,7 +202,7 @@ Item {
                 text: qsTr("Anyone on this network can see and download what's shared.")
                 color: theme.inkDim
                 font.family: theme.ui
-                font.pixelSize: theme.fontSize(13)
+                font.pixelSize: 13
                 lineHeight: 1.25
                 wrapMode: Text.WordWrap
             }
@@ -227,7 +227,7 @@ Item {
                         text: qsTr("TVs see it as")
                         color: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: theme.fontSize(13)
+                        font.pixelSize: 13
                     }
                     Text {
                         anchors.left: nameLabel.right
@@ -238,7 +238,7 @@ Item {
                         text: root.friendlyName
                         color: theme.ink
                         font.family: theme.ui
-                        font.pixelSize: theme.fontSize(13)
+                        font.pixelSize: 13
                         elide: Text.ElideRight
                     }
                 }
@@ -253,7 +253,7 @@ Item {
                         text: qsTr("Sharing")
                         color: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: theme.fontSize(13)
+                        font.pixelSize: 13
                     }
                     Text {
                         objectName: "dlnaShareItemCount"
@@ -262,7 +262,7 @@ Item {
                         text: root.itemsLine()
                         color: theme.ink
                         font.family: theme.ui
-                        font.pixelSize: theme.fontSize(13)
+                        font.pixelSize: 13
                     }
                 }
 
@@ -272,7 +272,7 @@ Item {
                     text: root.typesLine()
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: theme.fontSize(12)
+                    font.pixelSize: 12
                     wrapMode: Text.WordWrap
                 }
 
@@ -283,7 +283,7 @@ Item {
                     text: qsTr("Starting…")
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: theme.fontSize(12)
+                    font.pixelSize: 12
                 }
 
                 Text {
@@ -293,7 +293,7 @@ Item {
                     text: root.errorText
                     color: "#f2b27a"
                     font.family: theme.ui
-                    font.pixelSize: theme.fontSize(12)
+                    font.pixelSize: 12
                     lineHeight: 1.2
                     wrapMode: Text.WordWrap
                 }
@@ -306,7 +306,7 @@ Item {
                     text: root.networkLabel
                     color: Qt.rgba(1, 1, 1, 0.42)
                     font.family: theme.ui
-                    font.pixelSize: theme.fontSize(11)
+                    font.pixelSize: 11
                 }
             }
         }

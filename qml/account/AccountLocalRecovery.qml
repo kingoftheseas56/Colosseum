@@ -57,7 +57,7 @@ AccountPageFrame {
         visible: root.storageErrorCode.length > 0
         color: theme.inkDimmer
         font.family: theme.ui
-        font.pixelSize: theme.fontSize(11)
+        font.pixelSize: 11
         wrapMode: Text.WordWrap
 
         Theme { id: theme }

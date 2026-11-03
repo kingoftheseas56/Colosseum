@@ -33,7 +33,6 @@
 //                reader (contract §3). Callers of western comics pass NO pageStore and rely on this.
 
 import QtQuick
-import "../" as Common
 import QtCore                                   // Settings — the house persistence sink
 import "ComicReaderState.js" as ComicReaderState
 // Slice D7 — Lane C (Tankoban/manga/comics) activity hook, CPP-PORT-CONTRACT.md §7/§9/§10.
@@ -46,7 +45,6 @@ import "../ComicActivityHelpers.js" as ComicActivityHelpers
 
 Item {
     id: reader
-    Common.Theme { id: theme }
 
     // ================= public caller contract (byte-compatible with MangaReader.qml) =================
     // --- input properties ---
@@ -2103,8 +2101,6 @@ Item {
     // marks and the rail's ticks together instead of leaving two lists to drift.
     ComicReaderPagesOverlay {
         id: pagesOverlay
-        chromeTopInset: hud.chromeBottom
-        railHeight: hud.chromeRailHeight
         objectName: "pagesOverlay"
         core: reader.core
         pageCount: reader.max
@@ -2132,8 +2128,6 @@ Item {
     // fields it omitted. The shell owns the throttle and the persistence; the panel owns neither.
     ComicReaderImagePopover {
         id: imagePopover
-        chromeTopInset: hud.chromeBottom
-        railHeight: hud.chromeRailHeight
         objectName: "imagePopover"
         profile: reader.renderProfile
         open: reader.activeOverlay === "image"
@@ -2153,8 +2147,6 @@ Item {
     // persistence, and the one Auto-scroll flag.
     ComicReaderLayoutPopover {
         id: layoutPopover
-        chromeTopInset: hud.chromeBottom
-        railHeight: hud.chromeRailHeight
         objectName: "layoutPopover"
         open: reader.activeOverlay === "layout"
         anchorX: reader.commandAnchorX("layout")
@@ -2190,8 +2182,6 @@ Item {
     // the chrome bands, which is what keeps the Loupe command, Back and the gold rail clickable.
     ComicReaderLoupe {
         id: loupe
-        chromeTopInset: hud.chromeBottom
-        railHeight: hud.chromeRailHeight
         objectName: "loupe"
         open: reader.activeOverlay === "loupe"
         pages: reader.loupePageRects
@@ -2237,7 +2227,7 @@ Item {
             border.color: Qt.rgba(1,1,1,0.16); border.width: 1
             Column {
                 anchors.fill: parent; anchors.margins: 14; spacing: 10
-                Text { text: "Page pairing"; color: "white"; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold }
+                Text { text: "Page pairing"; color: "white"; font.pixelSize: 15; font.weight: Font.DemiBold }
                 Row {
                     width: parent.width; height: 58; spacing: 10
                     Repeater {
@@ -2249,7 +2239,7 @@ Item {
                             border.color: reader.contextChooserHalf === index ? "#F0C24A" : Qt.rgba(1,1,1,0.12)
                             border.width: reader.contextChooserHalf === index ? 2 : 1
                             readonly property int page0: index === 0 ? reader.keyboardContextLeftPage : reader.keyboardContextRightPage
-                            Text { anchors.centerIn: parent; text: (index === 0 ? "Left page · p." : "Right page · p.") + (parent.page0 + 1); color: "white"; font.pixelSize: theme.fontSize(13) }
+                            Text { anchors.centerIn: parent; text: (index === 0 ? "Left page · p." : "Right page · p.") + (parent.page0 + 1); color: "white"; font.pixelSize: 13 }
                             ComicReaderKeyboardArea {
                                 anchors.fill: parent; keyboardTabStop: false; cursorShape: Qt.PointingHandCursor
                                 onClicked: { reader.contextChooserHalf = parent.index; reader.activateKeyboardContextHalf() }

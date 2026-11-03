@@ -404,13 +404,13 @@ Item {
                     Text {
                         text: root.kicker
                         color: theme.inkDim; font.family: root.uiFace
-                        font.pixelSize: theme.fontSize(11); font.letterSpacing: 3
+                        font.pixelSize: 11; font.letterSpacing: 3
                     }
                     Text {
                         width: parent.width
                         text: root.uni.name || root.universeName
                         color: root.paper; font.family: root.displayFace
-                        font.pixelSize: theme.fontSize(root.compact ? 40 : 72)
+                        font.pixelSize: root.compact ? 40 : 72
                         lineHeight: 1.05; wrapMode: Text.WordWrap
                     }
                     Flow {
@@ -425,7 +425,7 @@ Item {
                                 color: theme.glassTint; border.width: 1; border.color: theme.edge
                                 Text { id: factText; anchors.centerIn: parent; text: fact.modelData
                                        color: theme.inkDim; font.family: root.uiFace
-                                       font.pixelSize: theme.fontSize(12); font.weight: Font.Medium }
+                                       font.pixelSize: 12; font.weight: Font.Medium }
                             }
                         }
                     }
@@ -435,7 +435,7 @@ Item {
                         width: parent.width
                         text: root.uni.catalogueNotice || ""
                         color: theme.inkDimmer
-                        font.family: root.uiFace; font.pixelSize: theme.fontSize(13)
+                        font.family: root.uiFace; font.pixelSize: 13
                         wrapMode: Text.WordWrap
                     }
                     Flow {
@@ -579,10 +579,10 @@ Item {
                         spacing: 8
                         Text { visible: text.length > 0; width: Math.min(860, parent.width)
                                text: root.uni.blurb || ""
-                               color: root.paper; font.family: root.uiFace; font.pixelSize: theme.fontSize(15)
+                               color: root.paper; font.family: root.uiFace; font.pixelSize: 15
                                lineHeight: 1.6; wrapMode: Text.WordWrap }
                         Text { visible: text.length > 0; text: root.uni.blurbSource || ""
-                               color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(11) }
+                               color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11 }
                         Rectangle { visible: root.uni.blurb.length > 0; width: parent.width; height: 1; color: root.hair }
                         Grid {
                             topPadding: 22
@@ -598,9 +598,9 @@ Item {
                                     spacing: 5
                                     Text { text: infoCell.modelData[0]
                                            color: theme.inkDimmer; font.family: root.uiFace
-                                           font.pixelSize: theme.fontSize(10); font.letterSpacing: 2 }
+                                           font.pixelSize: 10; font.letterSpacing: 2 }
                                     Text { width: parent.width; text: infoCell.modelData[1]
-                                           color: root.paper; font.family: root.uiFace; font.pixelSize: theme.fontSize(15)
+                                           color: root.paper; font.family: root.uiFace; font.pixelSize: 15
                                            elide: Text.ElideRight }
                                 }
                             }
@@ -645,9 +645,9 @@ Item {
                                 anchors.bottom: parent.bottom; anchors.margins: 14
                                 spacing: 3
                                 Text { text: root.kicker; color: theme.inkDim; font.family: root.uiFace
-                                       font.pixelSize: theme.fontSize(9); font.letterSpacing: 2 }
+                                       font.pixelSize: 9; font.letterSpacing: 2 }
                                 Text { width: parent.width; text: sibling.modelData.name
-                                       color: root.paper; font.family: root.displayFace; font.pixelSize: theme.fontSize(19)
+                                       color: root.paper; font.family: root.displayFace; font.pixelSize: 19
                                        elide: Text.ElideRight }
                             }
                             KeyboardAction {
@@ -767,7 +767,7 @@ Item {
                                 id: tabText
                                 text: tab.modelData.title
                                 color: tab.active ? "#090c13" : (tabKey.hovered ? root.paper : theme.inkDim)
-                                font.family: root.uiFace; font.pixelSize: theme.fontSize(13)
+                                font.family: root.uiFace; font.pixelSize: 13
                                 font.weight: tab.active ? Font.DemiBold : Font.Medium
                             }
                             Text {
@@ -775,7 +775,7 @@ Item {
                                 visible: tab.modelData.count > 0
                                 text: tab.modelData.count
                                 color: tab.active ? Qt.rgba(9 / 255, 12 / 255, 19 / 255, 0.55) : theme.inkDimmer
-                                font.family: root.uiFace; font.pixelSize: theme.fontSize(11)
+                                font.family: root.uiFace; font.pixelSize: 11
                             }
                         }
                         KeyboardAction {
@@ -829,7 +829,7 @@ Item {
         spacing: 14
         Text {
             text: section.title; color: root.paper
-            font.family: root.displayFace; font.pixelSize: theme.fontSize(22)
+            font.family: root.displayFace; font.pixelSize: 22
         }
     }
 
@@ -853,14 +853,14 @@ Item {
                 id: actionLabel
                 text: actionButton.text
                 color: actionButton.primary && !actionKey.pressed ? "#090c13" : root.paper
-                font.family: root.uiFace; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+                font.family: root.uiFace; font.pixelSize: 13; font.weight: Font.DemiBold
             }
             Text {
                 visible: actionButton.sub.length > 0
                 anchors.baseline: actionLabel.baseline
                 text: actionButton.sub
                 color: actionButton.primary && !actionKey.pressed ? Qt.rgba(0.035, 0.047, 0.075, 0.62) : theme.inkDim
-                font.family: root.uiFace; font.pixelSize: theme.fontSize(12); font.weight: Font.Medium
+                font.family: root.uiFace; font.pixelSize: 12; font.weight: Font.Medium
             }
         }
         KeyboardAction {
@@ -944,10 +944,10 @@ Item {
                     id: headingLeft
                     spacing: 12
                     Text { text: medium.title; color: root.paper
-                           font.family: root.displayFace; font.pixelSize: theme.fontSize(22)
+                           font.family: root.displayFace; font.pixelSize: 22
                            anchors.baseline: countText.baseline }
                     Text { id: countText; text: medium.total
-                           color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(12) }
+                           color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 12 }
                 }
             }
 
@@ -1010,7 +1010,7 @@ Item {
                                             id: runLabel
                                             text: String(run.modelData.label).toUpperCase()
                                             color: theme.inkDimmer; font.family: root.uiFace
-                                            font.pixelSize: theme.fontSize(10); font.letterSpacing: 2
+                                            font.pixelSize: 10; font.letterSpacing: 2
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
                                         Rectangle {
@@ -1064,12 +1064,12 @@ Item {
                                                    text: work.modelData.live === true
                                                          ? String(work.modelData.title).replace(/\s+[—-]\s+Live Action$/i, "")
                                                          : work.modelData.title
-                                                   color: root.paper; font.family: root.uiFace; font.pixelSize: theme.fontSize(12)
+                                                   color: root.paper; font.family: root.uiFace; font.pixelSize: 12
                                                    lineHeight: 1.35; wrapMode: Text.WordWrap
                                                    maximumLineCount: 2; elide: Text.ElideRight }
                                             Text { visible: text.length > 0; topPadding: 3; width: parent.width
                                                    text: work.modelData.year ? String(work.modelData.year) : ""
-                                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(11) }
+                                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11 }
                                         }
                                     }
                                 }
@@ -1198,10 +1198,10 @@ Item {
                 Row {
                     spacing: 12
                     Text { text: table.title; color: root.paper
-                           font.family: root.displayFace; font.pixelSize: theme.fontSize(22)
+                           font.family: root.displayFace; font.pixelSize: 22
                            anchors.baseline: tableCount.baseline }
                     Text { id: tableCount; text: table.total
-                           color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(12) }
+                           color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 12 }
                 }
                 Text {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
@@ -1209,7 +1209,7 @@ Item {
                     text: (String(table.shelf.order || "")
                            + (table.shelf.asOf ? "  ·  as of " + table.shelf.asOf : "")).toUpperCase()
                     color: theme.inkDimmer; font.family: root.uiFace
-                    font.pixelSize: theme.fontSize(11); font.letterSpacing: 2
+                    font.pixelSize: 11; font.letterSpacing: 2
                 }
             }
 
@@ -1262,7 +1262,7 @@ Item {
                             horizontalAlignment: Text.AlignRight
                             text: line.index + 1
                             color: line.index < 3 ? root.paper : theme.inkDimmer
-                            font.family: root.displayFace; font.pixelSize: theme.fontSize(24)
+                            font.family: root.displayFace; font.pixelSize: 24
                         }
                         Rectangle {
                             x: 50; anchors.verticalCenter: parent.verticalCenter
@@ -1286,11 +1286,11 @@ Item {
                             spacing: 3
                             Text { width: parent.width; text: line.modelData.title
                                    color: root.paper; font.family: root.uiFace
-                                   font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold; elide: Text.ElideRight }
+                                   font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight }
                             Text { width: parent.width; visible: text.length > 0
                                    text: line.modelData.by || ""
                                    color: theme.inkDimmer; font.family: root.uiFace
-                                   font.pixelSize: theme.fontSize(12); elide: Text.ElideRight }
+                                   font.pixelSize: 12; elide: Text.ElideRight }
                             Rectangle {      // where you are in it (gold marks progress only)
                                 visible: line.done > 0 && line.done < 1
                                 width: Math.min(parent.width, 220); height: 3; radius: 2
@@ -1304,10 +1304,10 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 3
                             Text { anchors.right: parent.right; text: table.years(line.modelData)
-                                   color: theme.inkDim; font.family: root.uiFace; font.pixelSize: theme.fontSize(12) }
+                                   color: theme.inkDim; font.family: root.uiFace; font.pixelSize: 12 }
                             Text { anchors.right: parent.right; visible: line.modelData.volumes > 0
                                    text: line.modelData.volumes + " volumes"
-                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(11) }
+                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11 }
                         }
                         MouseArea {
                             id: lineMouse
@@ -1370,7 +1370,7 @@ Item {
             anchors.centerIn: parent
             text: chevron.atRight ? "›" : "‹"
             color: edgeAction.hovered ? theme.gold : theme.ink
-            font.family: root.displayFace; font.pixelSize: theme.fontSize(42)
+            font.family: root.displayFace; font.pixelSize: 42
         }
         KeyboardAction {
             id: edgeAction; anchors.fill: parent
@@ -1428,7 +1428,7 @@ Item {
                 anchors.centerIn: parent; width: parent.width - 24
                 text: tile.item ? tile.item.title : ""
                 color: theme.inkDim; font.family: root.displayFace
-                font.pixelSize: theme.fontSize(16); wrapMode: Text.WordWrap
+                font.pixelSize: 16; wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
                 visible: art.status !== Image.Ready
             }
@@ -1456,7 +1456,7 @@ Item {
                        text: tile.item && tile.item.live === true ? "LIVE ACTION"
                              : "UPCOMING"
                        color: root.paper
-                       font.family: root.uiFace; font.pixelSize: theme.fontSize(9); font.letterSpacing: 2 }
+                       font.family: root.uiFace; font.pixelSize: 9; font.letterSpacing: 2 }
             }
             Rectangle {   // read / watched
                 visible: tile.done >= 1
