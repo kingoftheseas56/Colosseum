@@ -21,7 +21,16 @@ Item {
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
     property bool compactBrowserChrome: false
-    readonly property bool compactChrome: compactBrowserChrome || width < 1200
+    readonly property bool compactChrome: compactBrowserChrome || width < (androidHost ? 1100 : 1200)
+    // Clock/date shows only when its implicit width fits in what is left after the
+    // other left items, the world pills and the right-side controls (no overlap).
+    readonly property real leftOtherWidth:
+        (backAction.visible ? backAction.implicitWidth : 0)
+        + (leftTitle.visible ? leftTitle.implicitWidth : 0)
+    readonly property int leftOtherCount: (backAction.visible ? 1 : 0) + (leftTitle.visible ? 1 : 0)
+    readonly property real clockFreeSpace: width - systemChrome.implicitWidth - (pillsRow.implicitWidth + 14)
+        - 24 - leftOtherWidth - leftOtherCount * 18
+    readonly property bool clockFits: !backOnly && width > 0 && clockBlock.implicitWidth <= clockFreeSpace
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // World roots keep the historical Home destination; nested surfaces can name their
     // owning world without inventing a second Back control.
@@ -197,7 +206,7 @@ Item {
         property bool comingSoon: false
         readonly property bool active: !pill.comingSoon && bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + (bar.width < 900 ? 16 : (bar.width < 1100 ? 24 : 34))
+        implicitWidth: pillContent.implicitWidth + (bar.width < 900 ? (bar.androidHost ? 12 : 16) : (bar.width < 1100 ? 24 : 34))
         implicitHeight: 34
 
         Rectangle {
@@ -258,6 +267,7 @@ Item {
             onTriggered: bar.homeRequested()
         }
         Column {
+            id: leftTitle
             visible: bar.backOnly && bar.pageTitle.length > 0
             spacing: 2
             anchors.verticalCenter: parent.verticalCenter
@@ -268,11 +278,13 @@ Item {
             }
         }
         Column {
+            id: clockBlock
             objectName: "topBarClock"
             readonly property real textWidth: Math.max(clockTime.implicitWidth + 5 + clockPeriod.implicitWidth,
                                                        clockDate.implicitWidth)
             readonly property real leftWidth: textWidth + (backAction.visible ? backAction.width + leftChrome.spacing : 0)
-            visible: !bar.backOnly && !bar.compactBrowserChrome
+            visible: bar.androidHost ? bar.clockFits
+                : !bar.backOnly && !bar.compactBrowserChrome
                      && leftWidth + 24 + worldPicker.width <= systemChrome.x
             spacing: 3
             anchors.verticalCenter: parent.verticalCenter
