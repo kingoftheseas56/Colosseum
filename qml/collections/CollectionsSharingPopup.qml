@@ -44,6 +44,10 @@ Popup {
     property string confirmation: ""
     property int confirmationRevision: 0
     readonly property var collection: store.getCollection(collectionId)
+    readonly property bool hasSavedPersonalPresentation: {
+        const presentation = root.collection ? root.collection.presentation || {} : {}
+        return !!(presentation.dedication || presentation.signature || presentation.cover_data)
+    }
     readonly property var received: controller ? controller.received : ({})
     readonly property var receivedSnapshot: received.snapshot || ({})
     readonly property var ownLinks: controller && controller.signedIn ? controller.publications || [] : []
@@ -338,6 +342,10 @@ Popup {
                     LabelText { text: root.collection ? root.collection.name : ""; color: theme.ink; font.pixelSize: 18 }
                     LabelText { text: qsTr("Your collection stays private until you create a link. Later edits need Publish changes.") }
                     Field { visible: !!root.ordinaryLink; readOnly: true; text: root.ordinaryLink ? root.controller.linkFor(root.ordinaryLink.share_id) : ""; Accessible.name: qsTr("Shareable collection link") }
+                    LabelText {
+                        visible: !root.ordinaryLink && root.hasSavedPersonalPresentation
+                        text: qsTr("Saved gift details (dedication, signature and cover) will be included in this link.")
+                    }
                     CollectionActionButton {
                         objectName: "publishOrdinaryCollection"
                         Layout.fillWidth: true
@@ -559,6 +567,11 @@ Popup {
                                     Layout.fillWidth: true
                                     visible: root.confirmation.endsWith(":" + linkRow.modelData.share_id)
                                     LabelText { text: root.confirmation.indexOf("update:") === 0 ? qsTr("Replace this link with the current collection? Enter the current or new passphrase, or explicitly remove protection.") : qsTr("Revoke this link? Existing kept copies will remain.") }
+                                    LabelText {
+                                        visible: root.confirmation.indexOf("update:") === 0
+                                            && linkRow.modelData.kind === "collection" && root.hasSavedPersonalPresentation
+                                        text: qsTr("Saved gift details (dedication, signature and cover) will be included in this link.")
+                                    }
                                     Connections {
                                         target: root
                                         function onConfirmationChanged() { updatePassphrase.text = ""; removeProtection.checked = false }
