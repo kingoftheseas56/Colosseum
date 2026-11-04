@@ -3,7 +3,7 @@ project(ColosseumNamedCollectionsChecks LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui)
 get_filename_component(COLOSSEUM_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 add_executable(named_collections_store_test
     named_collections_store_test.cpp
@@ -12,7 +12,7 @@ add_executable(named_collections_store_test
     "${COLOSSEUM_SOURCE_ROOT}/native/account/ProfilePaths.cpp"
     "${COLOSSEUM_SOURCE_ROOT}/native/account/ProfilePaths.h")
 target_include_directories(named_collections_store_test PRIVATE "${COLOSSEUM_SOURCE_ROOT}/native")
-target_link_libraries(named_collections_store_test PRIVATE Qt6::Core)
+target_link_libraries(named_collections_store_test PRIVATE Qt6::Core Qt6::Gui)
 if(MSVC)
     target_compile_options(named_collections_store_test PRIVATE /utf-8)
 endif()
@@ -27,7 +27,7 @@ add_executable(profile_collections_preservation_test
     "${COLOSSEUM_SOURCE_ROOT}/native/account/ProfilePaths.cpp"
     "${COLOSSEUM_SOURCE_ROOT}/native/account/ProfilePaths.h")
 target_include_directories(profile_collections_preservation_test PRIVATE "${COLOSSEUM_SOURCE_ROOT}/native")
-target_link_libraries(profile_collections_preservation_test PRIVATE Qt6::Core)
+target_link_libraries(profile_collections_preservation_test PRIVATE Qt6::Core Qt6::Gui)
 if(MSVC)
     target_compile_options(profile_collections_preservation_test PRIVATE /utf-8)
 endif()

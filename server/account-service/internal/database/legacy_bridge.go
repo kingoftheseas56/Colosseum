@@ -41,10 +41,12 @@ var verifiedCanonicalNames = []string{
 	"0008_domain_sync_semantics.sql",
 	"0009_profile_attachments.sql",
 	"0010_ratings_reviews_sync.sql",
+	"0011_collection_publications.sql",
 }
 
 // Independent, reviewed SHA-256 of canonicalMigrationSQL for the exact
-// 11869834 target sources. In particular, 0005 and 0009 are substituted by
+// historical target sources plus explicitly pinned additive migrations.
+// In particular, 0005 and 0009 are substituted by
 // forward bridge DDL; a same-name edited canonical file is NOT equivalent.
 // Each digest is indexed by the corresponding verifiedCanonicalNames entry.
 var verifiedCanonicalSHA256 = [...]string{
@@ -58,6 +60,7 @@ var verifiedCanonicalSHA256 = [...]string{
 	"b2f97d1f90b475a8c91ec44f0f9644857ba3d9b4999539f48d736ac60ded1bd7", // 0008_domain_sync_semantics.sql
 	"3f4a2b59e0c4ae7d676571e0c17b89e5371d1f359a299fcbb40764c50f613b6c", // 0009_profile_attachments.sql
 	"b4cd7041a534459fe49c2c36c3cc1cac5fca9795849f2f9e5c21e7a5c0b3e8fe", // 0010_ratings_reviews_sync.sql
+	"f4276dd8012496a877b6ce65793f0c6c51c34a03ceddd575498e6567a8cf11eb", // 0011_collection_publications.sql
 }
 
 // RunLegacyBridge is a fixture/test entrypoint using the same transaction and
@@ -135,7 +138,7 @@ func runLegacyBridgeWithSource(ctx context.Context, beginner migrationBeginner,
 	if err := executeLegacySQL(ctx, tx, "legacy_bridge_005.sql"); err != nil {
 		return err
 	}
-	// Versions 0006-0008 and 0010 are genuinely executed from their
+	// Versions 0006-0008 and 0010-0011 are genuinely executed from their
 	// untouched canonical files. 0005 and 0009 have equivalent forward DDL
 	// because their CREATE TABLEs would collide with historical objects.
 	for _, name := range []string{
@@ -152,6 +155,9 @@ func runLegacyBridgeWithSource(ctx context.Context, beginner migrationBeginner,
 	}
 	if err := executeCanonicalBridgeMigration(ctx, tx, canonical,
 		"0010_ratings_reviews_sync.sql"); err != nil {
+		return err
+	}
+	if err := executeCanonicalBridgeMigration(ctx, tx, canonical, "0011_collection_publications.sql"); err != nil {
 		return err
 	}
 

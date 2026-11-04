@@ -620,6 +620,7 @@ AccountRuntime::AccountRuntime(
     : QObject(parent),
       m_transport(AccountServiceEndpoint::configuredUrl()),
       m_client(&m_transport),
+      m_collectionPublications(&m_client, AccountServiceEndpoint::configuredUrl()),
       m_credentialStore(createAccountCredentialStore()),
       m_stremioCredentials(credentials.stremio.load && credentials.stremio.save
                               && credentials.stremio.clear
@@ -677,6 +678,10 @@ AccountRuntime::AccountRuntime(
         &m_profileCoordinator);
     m_controller.setSyncEngine(
         &m_syncEngine);
+    connect(&m_controller, &AccountController::modeChanged, this, [this] {
+        m_collectionPublications.activate(m_profileStores.namedCollectionsStore(),
+            m_controller.modeValue() == AccountController::Mode::SignedIn);
+    });
     m_stremioSync.setCredentialCallbacks(
         m_stremioCredentials.save,
         m_stremioCredentials.clear,
@@ -780,6 +785,7 @@ AccountRuntime::AccountRuntime(
             storesAboutToChange,
         this,
         [this]() {
+            m_collectionPublications.deactivate();
             m_ratingsReviewsDelivery.deactivateProfile();
             // Store replacement is a sync boundary. Preserve the current
             // profile's outbox while its adapters still point at the old
@@ -815,6 +821,7 @@ AccountRuntime::AccountRuntime(
         &ProfileStoreRuntime::storesChanged,
         this,
         [this]() {
+            m_collectionPublications.activate(m_profileStores.namedCollectionsStore(), m_controller.modeValue() == AccountController::Mode::SignedIn);
             activateRatingsReviewsDelivery();
             activateExtensionsProfile();
             activateStremioProfile();
@@ -1790,6 +1797,9 @@ void AccountRuntime::prepareForQml(QQmlApplicationEngine *engine) {
         return;
 
     m_profileStores.prepareForQml(engine);
+    m_collectionPublications.activate(m_profileStores.namedCollectionsStore(),
+        m_controller.modeValue() == AccountController::Mode::SignedIn);
+    engine->rootContext()->setContextProperty(QStringLiteral("CollectionPublications"), &m_collectionPublications);
     activateRatingsReviewsDelivery();
 
     engine->rootContext()->setContextProperty(

@@ -9,6 +9,9 @@ Item {
     objectName: "collectionsPanel"
     required property var nativeStore
     property Item wallpaperItem: null
+    property var publicationController: null
+    property bool sharingActive: false
+    property var openedGiftIds: ({})
     property bool showing: false
     property int bottomInset: 96
     property string collectionId: ""
@@ -29,10 +32,10 @@ Item {
     signal quitRequested()
     signal navigationCanceled()
     signal openReferenceRequested(var reference)
-    visible: showing || pickerActive || deleteActive || message.length > 0
+    visible: showing || pickerActive || deleteActive || sharingActive || message.length > 0
     focus: showing
     Theme { id: theme }
-    CollectionsAdapter { id: adapter; nativeStore: panel.nativeStore }
+    CollectionsAdapter { id: adapter; nativeStore: panel.nativeStore; activeCollectionId: panel.collectionId }
 
     function detailPage() {
         return pageLoader.status === Loader.Ready && pageLoader.item
@@ -69,6 +72,7 @@ Item {
         return true
     }
     function requestEscape() {
+        if (sharingLoader.status === Loader.Ready) { sharingLoader.item.close(); return true }
         if (pickerLoader.status === Loader.Ready) { pickerLoader.item.close(); return true }
         if (deleteLoader.status === Loader.Ready) { deleteLoader.item.close(); return true }
         if (!panel.showing) return false
@@ -121,6 +125,8 @@ Item {
     }
     function profileChanged() {
         panel.profileGeneration++
+        panel.openedGiftIds = ({})
+        panel.sharingActive = false
         const detail = panel.detailPage()
         if (detail) detail.abortEdit()
         panel.pickerOpener = null
@@ -245,6 +251,8 @@ Item {
         YourCollectionsPage {
             store: adapter
             onBackRequested: panel.requestClose()
+            sharingAvailable: !!panel.publicationController
+            onSharingRequested: panel.sharingActive = true
             onCreateRequested: function(opener) { panel.createCollection(opener) }
             onCollectionRequested: function(id) { panel.collectionId = id }
         }
@@ -254,6 +262,17 @@ Item {
         CollectionPage {
             store: adapter
             collectionId: panel.collectionId
+            sharingAvailable: !!panel.publicationController
+            onSharingRequested: panel.sharingActive = true
+            onCopyGiftRequested: function(name) { panel.publicationController.makeOwnVersion(panel.collectionId, name) }
+            Component.onCompleted: if (panel.openedGiftIds[panel.collectionId]) giftOpened = true
+            onGiftOpenedChanged: {
+                if (giftOpened && panel.collectionId) {
+                    const opened = Object.assign({}, panel.openedGiftIds)
+                    opened[panel.collectionId] = true
+                    panel.openedGiftIds = opened
+                }
+            }
             onBackRequested: {
                 if (panel.pendingDestination === "close") panel.finishClose()
                 else { panel.pendingDestination = ""; panel.collectionId = "" }
@@ -267,6 +286,28 @@ Item {
             }
             onDeleteRequested: function(opener) { panel.deleteOpener = opener; panel.deleteActive = true }
         }
+    }
+    Connections {
+        target: panel.publicationController
+        function onChanged() {
+            if (!panel.sharingActive && panel.publicationController && panel.publicationController.error)
+                panel.showMessage(panel.publicationController.error)
+        }
+        function onCopied(id) { panel.collectionId = id; panel.showing = true; panel.notify(qsTr("Your own editable version is ready.")) }
+    }
+    Loader {
+        id: sharingLoader
+        active: panel.sharingActive
+        sourceComponent: Component {
+            CollectionsSharingPopup {
+                store: adapter
+                controller: panel.publicationController
+                collectionId: panel.collectionId
+                onDismissed: panel.sharingActive = false
+                onCollectionOpened: function(id) { panel.collectionId = id; panel.showing = true }
+            }
+        }
+        onLoaded: if (item) item.open()
     }
     Loader {
         id: pickerLoader

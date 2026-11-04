@@ -108,6 +108,12 @@ public:
     }
 #endif
 
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+    // Compiled only into synthetic qualification builds. No wire endpoint.
+    void dispatchCollectionsFixture(const QJsonObject &request,
+        std::function<void(QJsonObject)> observedReply);
+#endif
+
     static constexpr const char* kSchema = "colosseum.dev.v1.0";
 
     // ── THE REPLY TOKEN — read this before adding a command ─────────────────
@@ -165,6 +171,9 @@ public:
             int seq = -1;
             bool sent = false;
             ReplyHook hook;
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+            std::function<void(QJsonObject)> fixtureReply;
+#endif
         };
         void send(QJsonObject line);
         QSharedPointer<State> m_state;
@@ -205,6 +214,7 @@ private:
     void onNewConnection();
     void onReadyRead(QLocalSocket* sock);
     void dispatch(QLocalSocket* sock, const QJsonObject& req);
+    void dispatchRequest(const QJsonObject& req, Replier reply);
 
     // Task 1
     QJsonObject cmdPing() const;

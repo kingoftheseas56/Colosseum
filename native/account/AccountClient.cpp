@@ -513,6 +513,8 @@ quint64 AccountClient::send(
     request.path = path;
     request.body = body;
     request.timeoutMs = qMax(1, timeoutMs);
+    if (operation >= AccountOperation::CollectionPublish)
+        request.maxReplyBytes = 2 * 1024 * 1024;
     if (authenticated)
         request.bearerToken = m_accessToken;
 
@@ -528,4 +530,20 @@ quint64 AccountClient::send(
 QString AccountClient::encodedPathSegment(const QString &value) {
     return QString::fromLatin1(
         QUrl::toPercentEncoding(value.trimmed()));
+}
+
+quint64 AccountClient::publishCollection(const QJsonObject &body) {
+    return send(AccountOperation::CollectionPublish, "POST", "/v1/collections/publications", body, true, 30000);
+}
+quint64 AccountClient::updateCollectionPublication(const QString &id, const QJsonObject &body) {
+    return send(AccountOperation::CollectionUpdate, "PUT", "/v1/collections/publications/" + encodedPathSegment(id), body, true, 30000);
+}
+quint64 AccountClient::listCollectionPublications() {
+    return send(AccountOperation::CollectionList, "GET", "/v1/collections/publications", {}, true);
+}
+quint64 AccountClient::revokeCollectionPublication(const QString &id, const QJsonObject &body) {
+    return send(AccountOperation::CollectionRevoke, "DELETE", "/v1/collections/publications/" + encodedPathSegment(id), body, true);
+}
+quint64 AccountClient::openSharedCollection(const QString &id, const QString &passphrase) {
+    return send(AccountOperation::CollectionOpen, "POST", "/v1/collections/shared/" + encodedPathSegment(id) + "/open", {{"passphrase", passphrase}}, false, 30000);
 }

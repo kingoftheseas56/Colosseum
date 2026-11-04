@@ -1977,7 +1977,7 @@ add_executable(tst_privacy_policy
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h"
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h")
 target_include_directories(tst_privacy_policy PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_privacy_policy PRIVATE Qt6::Core Qt6::Qml Qt6::Sql Qt6::Test)
+target_link_libraries(tst_privacy_policy PRIVATE Qt6::Gui Qt6::Core Qt6::Qml Qt6::Sql Qt6::Test)
 set_target_properties(tst_privacy_policy PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_privacy_policy POST_BUILD
@@ -2146,6 +2146,8 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionPublicationController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionPublicationController.h"
     "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
@@ -2264,6 +2266,8 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionPublicationController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionPublicationController.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
@@ -2951,6 +2955,8 @@ add_executable(tst_no_account_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionPublicationController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionPublicationController.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
@@ -3167,7 +3173,7 @@ target_sources(tst_account_adoption PRIVATE
     "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerImportStore.h"
     "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.h")
-target_link_libraries(tst_account_adoption PRIVATE
+target_link_libraries(tst_account_adoption PRIVATE Qt6::Gui
     Qt6::Core
     Qt6::Qml
     Qt6::Sql
@@ -3316,7 +3322,7 @@ target_sources(tst_account_shared_pc PRIVATE
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.h"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h")
-target_link_libraries(tst_account_shared_pc PRIVATE
+target_link_libraries(tst_account_shared_pc PRIVATE Qt6::Gui
     Qt6::Core
     Qt6::Qml
     Qt6::Sql
@@ -3417,7 +3423,7 @@ target_sources(tst_profile_activity_isolation PRIVATE
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.h"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h")
-target_link_libraries(tst_profile_activity_isolation PRIVATE
+target_link_libraries(tst_profile_activity_isolation PRIVATE Qt6::Gui
     Qt6::Core
     Qt6::Qml
     Qt6::Sql
@@ -5673,3 +5679,7 @@ add_subdirectory(named_collections)
 add_subdirectory(collections_identity)
 add_subdirectory(collections_qml)
 add_subdirectory(collections_runtime)
+
+# Explicit collection publication and retained-edition contracts.
+add_subdirectory(collections_sharing_store)
+add_subdirectory(collections_publication_controller)
