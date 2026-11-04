@@ -26,7 +26,6 @@ TestCase {
     }
 
     SignalSpy { id: boundarySpy; target: bar; signalName: "boundaryArrowRequested" }
-    SignalSpy { id: stremioSpy; target: bar; signalName: "stremioClicked" }
     SignalSpy { id: mediumSpy; target: bar; signalName: "mediumSelected" }
     SignalSpy { id: searchSpy; target: bar; signalName: "searchClicked" }
 
@@ -115,7 +114,6 @@ TestCase {
     function init() {
         testWindow.requestActivate()
         boundarySpy.clear()
-        stremioSpy.clear()
         mediumSpy.clear()
         bar.activeMedium = ""
         bar.lifecycleActive = true
@@ -134,35 +132,12 @@ TestCase {
         compare(mediumSpy.signalArguments[0][0], "Feria")
     }
 
-    function test_stremio_is_theatre_only_and_between_search_and_account() {
+    function test_stremio_lives_in_trackers_not_the_topbar() {
         bar.activeMedium = "Theatre"
         wait(0)
-        var stremio = findChild(bar, "topBarStremioButton")
-        var search = findChild(bar, "topBarSearch")
-        var account = findChild(bar, "colosseumTopbarAccountButton")
-        verify(stremio !== null)
-        var asset = findChild(stremio, "topBarStremioOfficialAsset")
-        verify(asset !== null)
-        verify(String(asset.source).indexOf("assets/icons/stremio-official.svg") >= 0)
-        bar.activeMedium = "Biblio"
-        compare(stremio.visible, false)
-        bar.activeMedium = "Tankoban"
-        compare(stremio.visible, false)
-        bar.activeMedium = "Theatre"
-        wait(0)
-        compare(stremio.visible, true)
-        compare(search.parent, stremio.parent)
-        compare(stremio.parent, account.parent)
-        var siblings = search.parent.children
-        verify(siblings.indexOf(search) < siblings.indexOf(stremio))
-        verify(siblings.indexOf(stremio) < siblings.indexOf(account))
-        var face = focusableFace(stremio)
-        verify(face !== null)
-        face.forceActiveFocus(Qt.OtherFocusReason)
-        keyClick(Qt.Key_Return)
-        compare(stremioSpy.count, 1)
-        bar.lifecycleActive = false
-        compare(stremio.visible, false)
+        compare(findChild(bar, "topBarStremioButton"), null)
+        verify(findChild(bar, "topBarSearch") !== null)
+        verify(findChild(bar, "colosseumTopbarAccountButton") !== null)
     }
 
     function test_right_moves_between_visible_mode_pills() {
