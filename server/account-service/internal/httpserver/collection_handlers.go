@@ -98,13 +98,18 @@ func (h *Handler) listCollectionPublications(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, 200, map[string]any{"publications": p})
 }
 func (h *Handler) openCollectionPublication(w http.ResponseWriter, r *http.Request) {
+	networkKey := clientNetworkKey(r, h.trustedProxies...)
+	if networkKey == "" {
+		WriteAPIError(w, http.StatusServiceUnavailable, "source_unavailable", "The request source could not be verified. Try again later.")
+		return
+	}
 	var in struct {
 		Passphrase string `json:"passphrase"`
 	}
 	if r.Method == http.MethodPost && !decodeCollectionJSON(w, r, &in) {
 		return
 	}
-	p, err := h.accounts.OpenCollectionPublication(r.Context(), r.PathValue("shareID"), in.Passphrase, clientNetworkKey(r))
+	p, err := h.accounts.OpenCollectionPublication(r.Context(), r.PathValue("shareID"), in.Passphrase, networkKey)
 	if err != nil {
 		writeCollectionError(w, err)
 		return

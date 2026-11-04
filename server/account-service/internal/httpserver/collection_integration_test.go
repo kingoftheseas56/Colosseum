@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"testing"
 	"time"
@@ -108,6 +110,64 @@ func TestCollectionAssembledHTTPJourney(t *testing.T) {
 	if opened.Header().Get("Cache-Control") != "no-store" {
 		t.Fatal("cacheable gift")
 	}
+
+	t.Run("verified proxy buckets and spoof resistance", func(t *testing.T) {
+		proxyHandler := NewWithOptions(pool, service, time.Second, nil, Options{TrustedProxyCIDRs: []netip.Prefix{netip.MustParsePrefix("10.20.0.5/32")}, CollectionsAllowedWebOrigins: []string{"https://getcolosseum.world"}})
+		open := func(peer, chain, phrase string) *httptest.ResponseRecorder {
+			body, _ := json.Marshal(map[string]string{"passphrase": phrase})
+			r := httptest.NewRequest("POST", url+"/open", bytes.NewReader(body))
+			r.RemoteAddr = peer
+			r.Header.Set("X-Forwarded-For", chain)
+			r.Header.Set("Origin", "https://getcolosseum.world")
+			w := httptest.NewRecorder()
+			proxyHandler.ServeHTTP(w, r)
+			if w.Header().Get("Access-Control-Allow-Origin") != "https://getcolosseum.world" || w.Header().Get("Cache-Control") != "no-store" {
+				t.Fatalf("missing CORS on open: %v", w.Header())
+			}
+			return w
+		}
+		for i := 0; i < 10; i++ {
+			w := open("10.20.0.5:12", fmt.Sprintf("198.51.100.%d, 203.0.113.51", i+1), "incorrect")
+			if w.Code != 403 {
+				t.Fatalf("attempt %d: %d %s", i, w.Code, w.Body.String())
+			}
+		}
+		if w := open("10.20.0.5:12", "198.51.100.90, 203.0.113.51", "gift passphrase"); w.Code != 429 {
+			t.Fatalf("spoof bypass: %d %s", w.Code, w.Body.String())
+		}
+		if w := open("10.20.0.5:12", "203.0.113.52", "gift passphrase"); w.Code != 200 {
+			t.Fatalf("independent client locked: %d %s", w.Code, w.Body.String())
+		}
+		for _, chain := range []string{"", "invalid", "203.0.113.53,", "203.0.113.53, 10.20.0.6"} {
+			if w := open("10.20.0.5:12", chain, "gift passphrase"); w.Code != 503 {
+				t.Fatalf("ambiguous source accepted: %d", w.Code)
+			}
+		}
+		// The source-wide bucket also remains bound to the verified rightmost client.
+		missing := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+		for i := 0; i < 121; i++ {
+			r := httptest.NewRequest("GET", "/v1/collections/shared/"+missing, nil)
+			r.RemoteAddr = "10.20.0.5:12"
+			r.Header.Set("X-Forwarded-For", fmt.Sprintf("198.51.100.%d, 203.0.113.54", i%200+1))
+			w := httptest.NewRecorder()
+			proxyHandler.ServeHTTP(w, r)
+			want := 404
+			if i == 120 {
+				want = 429
+			}
+			if w.Code != want {
+				t.Fatalf("source limit attempt %d: %d %s", i, w.Code, w.Body.String())
+			}
+		}
+		r := httptest.NewRequest("GET", "/v1/collections/shared/"+missing, nil)
+		r.RemoteAddr = "10.20.0.5:12"
+		r.Header.Set("X-Forwarded-For", "203.0.113.55")
+		w := httptest.NewRecorder()
+		proxyHandler.ServeHTTP(w, r)
+		if w.Code != 404 {
+			t.Fatalf("independent source bucket: %d", w.Code)
+		}
+	})
 	revoke := account.RevokeCollectionInput{OperationID: "22222222-2222-4222-8222-222222222222", ExpectedRevision: 1}
 	target := "/v1/collections/publications/" + gift.ShareID
 	if w := request("DELETE", target, other.Session.AccessToken, revoke); w.Code != 404 {

@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +31,7 @@ type Handler struct {
 	accounts         *account.Service
 	readinessTimeout time.Duration
 	logger           *slog.Logger
+	trustedProxies   []netip.Prefix
 }
 
 func New(
@@ -39,6 +41,17 @@ func New(
 	logger *slog.Logger,
 	schemaCheckers ...SchemaChecker,
 ) http.Handler {
+	return NewWithOptions(pinger, accounts, readinessTimeout, logger, Options{}, schemaCheckers...)
+}
+
+// Options configures only operator-verified proxy networks and exact web origins.
+// Neither deployment-environment labels nor request headers establish trust.
+type Options struct {
+	TrustedProxyCIDRs            []netip.Prefix
+	CollectionsAllowedWebOrigins []string
+}
+
+func NewWithOptions(pinger Pinger, accounts *account.Service, readinessTimeout time.Duration, logger *slog.Logger, options Options, schemaCheckers ...SchemaChecker) http.Handler {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
@@ -47,6 +60,7 @@ func New(
 		accounts:         accounts,
 		readinessTimeout: readinessTimeout,
 		logger:           logger,
+		trustedProxies:   append([]netip.Prefix(nil), options.TrustedProxyCIDRs...),
 	}
 	if len(schemaCheckers) > 0 {
 		handler.schemaChecker = schemaCheckers[0]
@@ -54,8 +68,12 @@ func New(
 
 	mux := http.NewServeMux()
 	mux.Handle("/collections/", collectionviewer.Handler())
-	mux.HandleFunc("GET /v1/collections/shared/{shareID}", handler.openCollectionPublication)
-	mux.HandleFunc("POST /v1/collections/shared/{shareID}/open", handler.openCollectionPublication)
+	anonymous := http.NewServeMux()
+	anonymous.HandleFunc("GET /v1/collections/shared/{shareID}", handler.openCollectionPublication)
+	anonymous.HandleFunc("POST /v1/collections/shared/{shareID}/open", handler.openCollectionPublication)
+	publicCollections := collectionCORS(options.CollectionsAllowedWebOrigins, anonymous)
+	mux.Handle("/v1/collections/shared/{shareID}", publicCollections)
+	mux.Handle("/v1/collections/shared/{shareID}/open", publicCollections)
 	mux.HandleFunc("GET /healthz", handler.health)
 	mux.HandleFunc("GET /readyz", handler.ready)
 

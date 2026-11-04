@@ -11,6 +11,8 @@ func setRequiredTestEnvironment(t *testing.T) {
 	t.Helper()
 	key := base64.StdEncoding.EncodeToString(make([]byte, 32))
 	t.Setenv("COLOSSEUM_ACCOUNT_ENV", "test")
+	t.Setenv("TRUSTED_PROXY_CIDRS", "")
+	t.Setenv("COLLECTIONS_ALLOWED_WEB_ORIGINS", "")
 	t.Setenv("DATABASE_URL", "postgres://localhost/colosseum_account_test?sslmode=disable")
 	t.Setenv("RECOVERY_HMAC_KEY", key)
 	t.Setenv("ABUSE_HMAC_KEY", key)
@@ -164,5 +166,38 @@ func TestLoadMaintenanceDoesNotRequireAuthenticationSecrets(t *testing.T) {
 	}
 	if cfg.DatabaseMaxConnections != 2 {
 		t.Fatalf("DatabaseMaxConnections = %d, want 2", cfg.DatabaseMaxConnections)
+	}
+}
+
+func TestLoadCollectionOrigins(t *testing.T) {
+	for _, raw := range []string{"https://getcolosseum.world,https://www.getcolosseum.world", "http://localhost:8080"} {
+		setRequiredTestEnvironment(t)
+		t.Setenv("COLLECTIONS_ALLOWED_WEB_ORIGINS", raw)
+		cfg, err := Load()
+		if err != nil || strings.Join(cfg.CollectionsAllowedWebOrigins, ",") != raw {
+			t.Fatalf("origins: %v %v", cfg.CollectionsAllowedWebOrigins, err)
+		}
+	}
+	for _, raw := range []string{"*", "null", "https://user@host", "https://host/", "https://host/path", "https://host?x=1", "https://host#x", "https://host:", "https://host:99999", "ftp://host", "https://[example.com]", "https://[127.0.0.1]", "https://host,", "https://host\\evil"} {
+		setRequiredTestEnvironment(t)
+		t.Setenv("COLLECTIONS_ALLOWED_WEB_ORIGINS", raw)
+		if _, err := Load(); err == nil {
+			t.Fatalf("accepted origin %q", raw)
+		}
+	}
+}
+
+func TestLoadTrustedProxyCIDRs(t *testing.T) {
+	setRequiredTestEnvironment(t)
+	t.Setenv("TRUSTED_PROXY_CIDRS", "10.20.0.5/32,2001:db8:abcd::/48")
+	cfg, err := Load()
+	if err != nil || len(cfg.TrustedProxyCIDRs) != 2 || cfg.TrustedProxyCIDRs[0].String() != "10.20.0.5/32" || cfg.TrustedProxyCIDRs[1].String() != "2001:db8:abcd::/48" {
+		t.Fatalf("CIDRs: %v %v", cfg.TrustedProxyCIDRs, err)
+	}
+	for _, raw := range []string{"0.0.0.0/0", "::/0", "bad", "::ffff:10.20.0.5/128", "10.20.0.5/32,"} {
+		t.Setenv("TRUSTED_PROXY_CIDRS", raw)
+		if _, err := Load(); err == nil {
+			t.Fatalf("accepted CIDRs %q", raw)
+		}
 	}
 }

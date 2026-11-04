@@ -134,3 +134,48 @@ contract.
 Keep provider logs, migration-job status, `/healthz` and `/readyz` checks, and
 database backup/restore evidence together for the exact image and schema receipt
 under review. None of those receipts are present in this source tree today.
+
+## Anonymous Collections web API preflight
+
+The static website calls the account-service origin directly. Enable browser
+reads only with exact origins in the runtime setting:
+
+```text
+COLLECTIONS_ALLOWED_WEB_ORIGINS=https://getcolosseum.world,https://www.getcolosseum.world
+```
+
+The default is an empty allowlist. Entries must be HTTP(S) scheme/host/port
+origins with no path (including a trailing slash), credentials, query, fragment,
+or wildcard. The anonymous shared-collection GET and passphrase-open POST APIs
+support CORS with Content-Type only; authenticated APIs do not. Responses stay
+no-store and never grant credentialed CORS. The service's own viewer and native
+clients continue to work without Origin.
+
+`TRUSTED_PROXY_CIDRS` is an optional comma-separated list of operator-verified
+IPv4/IPv6 proxy networks. It defaults to empty and rejects catch-all networks.
+For anonymous collection abuse limits, forwarded chains are used only when the
+socket peer is trusted. Parsing is bounded to 4096 bytes and 32 addresses;
+trusted hops are removed from the right, and the first untrusted public address
+identifies the client. IPv6 addresses share their /64 bucket. A missing,
+malformed or ambiguous trusted chain returns `503 source_unavailable` before
+opening a collection. Untrusted public peers cannot assert identity through
+forwarded headers. Environment labels and Fly/Cloudflare client-IP headers do
+not establish trust.
+
+Before production enablement, the operator must record the actual public and
+private ingress topology, exact trusted CIDRs, and how each hop overwrites or
+appends X-Forwarded-For. Include direct/private bypass paths and topology-change
+behavior in that verification. The static website adds no proxy hop. Missing
+verified ingress information blocks rollout; do not substitute broad CIDRs or
+unconditional forwarding-header trust.
+
+Use the separately authorized deployment checkpoint to obtain an isolated clone
+of the verified production baseline. Record its deployed migration lineage,
+checksums and physical-schema metadata before applying migration 0011 with the
+exact migration binary built from the reviewed service commit. Compare all
+previous receipts, preexisting schema metadata and representative state after
+migration; rerun the command to prove idempotence. A synthetic local 0010
+fixture or an empty-database test is not that production-clone rehearsal. Retain
+backup/rollback and runtime-role schema-gate receipts, then deploy only through
+the approved release sequence above. No production migration or setting change
+is authorized merely by this document.
