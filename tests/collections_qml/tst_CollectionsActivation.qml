@@ -9,6 +9,7 @@ Item {
         QtObject {
             id: controller
             property bool busy: false
+            property bool receivingReady: true
             property bool signedIn: true
             property bool retryResetAvailable: false
             property string error: ""
@@ -22,6 +23,7 @@ Item {
             property string queuedUrl: ""
             property string queuedTicket: ""
             signal changed()
+            signal saved(string id, bool alreadySaved)
             signal kept(string id)
             signal copied(string id)
             function refresh() { refreshCount++ }

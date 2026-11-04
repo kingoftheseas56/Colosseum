@@ -423,7 +423,7 @@ Item {
                 CollectionActionButton {
                     objectName: "shareCollectionButton"
                     visible: page.sharingAvailable && !(page.collection && page.collection.keptGift)
-                    text: qsTr("Share / make a gift")
+                    text: qsTr("Share")
                     onClicked: page.sharingRequested()
                     onActiveFocusChanged: if (activeFocus) page.revealItem(this)
                 }

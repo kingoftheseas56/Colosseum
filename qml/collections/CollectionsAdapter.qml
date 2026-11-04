@@ -68,7 +68,10 @@ QtObject {
         return adapter.groups.some(function(row) { return row.key === kind }) ? kind : "other"
     }
     function media(key, collectionId) {
-        const ref = adapter.reference(key, collectionId) || {}
+        return adapter.mediaForReference(adapter.reference(key, collectionId) || {})
+    }
+    function mediaForReference(ref) {
+        const key = ref.key || ""
         const reopen = ref.route ? ref : CollectionsReferences.sharedReopenReference(ref,
             typeof VaultLibrary !== "undefined" && Qt.platform.os !== "android" ? VaultLibrary : null,
             typeof CollectionsIdentity !== "undefined" ? CollectionsIdentity : null)

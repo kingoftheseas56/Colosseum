@@ -15,6 +15,8 @@ Item {
             id: store
             property int revision: 1
             property bool healthy: true
+            property var collections: []
+            function mediaForReference(ref) { return media(ref.key || "") }
             function filterOptions(items) { return [] }
             function media(key) { return {id:key,title:"An exact title",kind:"book",kindLabel:"Book",world:"Biblio",creator:"",year:"",cover:"",available:false,reference:{}} }
             property var row: ({id:"c1", name:"Across worlds", keptGift:false, presentation:{preset:"midnight",dedication:"For you",signature:"From me",cover_data:""}})
@@ -23,6 +25,7 @@ Item {
         QtObject {
             id: controller
             property bool busy: false
+            property bool receivingReady: true
             property bool retryResetAvailable: false
             property bool signedIn: true
             property string error: ""
@@ -30,15 +33,21 @@ Item {
             property var received: ({})
             property var publications: []
             property var called: ({})
+            signal changed()
+            signal saved(string id, bool alreadySaved)
+            onSignedInChanged: changed()
             signal kept(string id)
             signal copied(string id)
-            function refresh() {}
+            function refresh() { changed(); return true }
+            function linkFor(id) { return "https://getcolosseum.world/c/" + id }
+            function receivedReference(index) { return received.snapshot.members[index] }
+            function clearReceived() { received = ({}) }
             function startNewPublicationRequest() { called={op:"reset"}; retryResetAvailable=false; return true }
             function savePresentation(id,p,rev) { called={op:"save",id:id,p:p,rev:rev}; store.revision++; return true }
-            function publish(id,gift,phrase) { called={op:"publish",id:id,gift:gift,phrase:phrase} }
+            function publish(id,gift,phrase) { called={op:"publish",id:id,gift:gift,phrase:phrase}; return true }
             function publishChanges(id,rev,cid,phrase) { called={op:"update",id:id,rev:rev,cid:cid,phrase:phrase} }
             function revoke(id,rev) { called={op:"revoke",id:id,rev:rev} }
-            function openLink(url,phrase) { called={op:"open",url:url,phrase:phrase} }
+            function openLink(url,phrase) { called={op:"open",url:url,phrase:phrase}; return true }
             function keepReceivedGift() { called={op:"keep"} }
             function openEditionFile(url) { called={op:"file",url:url} }
             function loadCover(url) { return "" }
@@ -56,14 +65,15 @@ Item {
         function init() {
             store.row={id:"c1", name:"Across worlds", keptGift:false, presentation:{preset:"midnight",dedication:"For you",signature:"From me",cover_data:""}}
             controller.busy=false; controller.retryResetAvailable=false; controller.signedIn=true; controller.error=""; controller.message=""; controller.called={}; controller.received={}; controller.publications=[]
-            popup.collectionId="c1"; popup.tab="publish"; popup.open(); tryCompare(popup,"opened",true)
+            popup.collectionId="c1"; popup.initialView="share"; popup.open(); tryCompare(popup,"opened",true)
         }
         function cleanup() { popup.close(); tryCompare(popup,"opened",false) }
         function control(name) { const c=findChild(popup,name); verify(c!==null,name); return c }
         function test_offline_draft() {
             controller.signedIn=false
-            verify(!control("publishGiftEdition").enabled)
-            verify(!control("publishOrdinaryCollection").enabled)
+            verify(control("publishOrdinaryCollection").enabled)
+            control("makeCollectionGift").clicked()
+            verify(control("publishGiftEdition").enabled)
             const oldRevision=store.revision
             control("giftDedication").text="Saved locally"
             control("saveGiftDraft").clicked()
@@ -71,6 +81,7 @@ Item {
             compare(controller.called.p.dedication,"Saved locally")
         }
         function test_explicit_publish() {
+            control("makeCollectionGift").clicked()
             control("giftDedication").text="An unsent draft"
             compare(controller.called.op,undefined)
             control("publishGiftEdition").clicked()
@@ -79,7 +90,7 @@ Item {
             grabImage(window.contentItem).save("collections-sharing-desktop.png")
         }
         function test_receive_passphrase_and_gift() {
-            popup.tab="receive"
+            control("receiveCollectionEntry").clicked()
             control("receiveCollectionLink").text="https://example.test/collections/s/opaque"
             control("receivePassphrase").text="test phrase"
             control("openSharedCollection").clicked()
@@ -113,7 +124,10 @@ Item {
             verify(findChild(gift,"openCollectionGift").visible)
         }
         function test_close_clears_passphrases() {
+            control("collectionLinkSettings").clicked()
             control("publishPassphrase").text="private"
+            control("finishLinkSettings").clicked()
+            control("receiveCollectionEntry").clicked()
             control("receivePassphrase").text="private"
             popup.close(); tryCompare(popup,"opened",false)
             compare(control("publishPassphrase").text,"")
@@ -121,6 +135,7 @@ Item {
         }
         function test_unknown_publish_requires_explicit_reset() {
             controller.retryResetAvailable=true
+            control("makeCollectionGift").clicked()
             control("requestNewPublication").clicked()
             compare(controller.called.op,undefined)
             verify(control("confirmNewPublication").visible)
