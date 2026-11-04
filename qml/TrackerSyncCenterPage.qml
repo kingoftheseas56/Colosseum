@@ -1935,6 +1935,151 @@ Item {
                 }
             }
 
+            ColumnLayout {
+                id: mainSyncSection
+                objectName: "trackerMainSyncSection"
+                Layout.fillWidth: true
+                Layout.bottomMargin: 28
+                spacing: 12
+
+                Text {
+                    objectName: "trackerExternalServicesTitle"
+                    text: "External services"
+                    color: theme.ink
+                    font.family: theme.display
+                    font.pixelSize: 25
+                }
+                Text {
+                    objectName: "trackerExternalServicesDescription"
+                    text: "Manage connections to external libraries."
+                    color: theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 11
+                }
+
+                Rectangle {
+                    objectName: "trackerStremioCard"
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: root.width >= 640 ? 116 : 190
+                    radius: 16
+                    color: Qt.rgba(6 / 255, 7 / 255, 11 / 255, 0.96)
+                    border.width: 1
+                    border.color: theme.edge
+
+                    GridLayout {
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        columns: root.width >= 640 ? 3 : 2
+                        columnSpacing: 16
+                        rowSpacing: 12
+
+                        Image {
+                            objectName: "trackerStremioIcon"
+                            source: "../assets/icons/stremio-official.svg"
+                            Layout.preferredWidth: 50
+                            Layout.preferredHeight: 50
+                            fillMode: Image.PreserveAspectFit
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Text {
+                                text: "Stremio"
+                                color: theme.ink
+                                font.family: theme.display
+                                font.pixelSize: 24
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: "Library, progress, and History"
+                                color: theme.inkDim
+                                font.family: theme.ui
+                                font.pixelSize: 11
+                            }
+                            RowLayout {
+                                visible: root.width >= 760
+                                spacing: 6
+                                Repeater {
+                                    model: ["Library", "Progress", "History"]
+                                    delegate: Rectangle {
+                                        id: stremioTag
+                                        required property string modelData
+                                        objectName: "trackerStremioCapabilityTag_"
+                                                     + modelData.toLowerCase()
+                                        implicitWidth: tagLabel.implicitWidth + 14
+                                        implicitHeight: 21
+                                        radius: 5
+                                        color: Qt.rgba(255 / 255, 255 / 255, 255 / 255, 0.075)
+                                        border.width: 0
+                                        Text {
+                                            id: tagLabel
+                                            objectName: "trackerStremioCapabilityLabel_"
+                                                         + stremioTag.modelData.toLowerCase()
+                                            anchors.centerIn: parent
+                                            text: stremioTag.modelData
+                                            color: theme.inkDim
+                                            font.family: theme.ui
+                                            font.pixelSize: 10
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        ColumnLayout {
+                            Layout.columnSpan: root.width >= 640 ? 1 : 2
+                            Layout.alignment: Qt.AlignRight
+                            spacing: 7
+                            Rectangle {
+                                objectName: "trackerStremioStatusBadge"
+                                Layout.alignment: Qt.AlignRight
+                                implicitWidth: stremioStatusText.implicitWidth + 24
+                                implicitHeight: 28
+                                radius: 10
+                                color: theme.glassTint
+                                border.width: 1
+                                border.color: theme.edge
+                                Text {
+                                    id: stremioStatusText
+                                    anchors.centerIn: parent
+                                    text: root.stremioStatusLabel()
+                                    color: theme.inkDim
+                                    font.family: theme.ui
+                                    font.pixelSize: 11
+                                }
+                            }
+                            Button {
+                                id: mainSyncButton
+                                objectName: "trackerMainSyncButton"
+                                Layout.alignment: Qt.AlignRight
+                                Layout.preferredWidth: 142
+                                Layout.preferredHeight: 40
+                                activeFocusOnTab: true
+                                Accessible.name: "Open Stremio settings"
+                                onClicked: root.mainSyncRequested()
+                                background: Rectangle {
+                                    radius: 9
+                                    color: mainSyncButton.down || mainSyncButton.hovered
+                                           ? theme.glassHi : theme.glassTint
+                                    border.width: mainSyncButton.activeFocus ? 2 : 1
+                                    border.color: theme.gold
+                                }
+                                contentItem: Text {
+                                    text: "Open settings ›"
+                                    color: theme.gold
+                                    font.family: theme.ui
+                                    font.pixelSize: 11
+                                    font.weight: Font.DemiBold
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             Rectangle {
                 objectName: "trackerAttentionRegion"
                 Layout.fillWidth: true
@@ -2157,7 +2302,7 @@ Item {
                 id: catalogueSection
                 objectName: "trackerCatalogueSection"
                 Layout.fillWidth: true
-                Layout.bottomMargin: 28
+                Layout.bottomMargin: 0
                 spacing: 16
 
                 RowLayout {
@@ -2281,150 +2426,6 @@ Item {
                                         font.family: theme.ui
                                         font.pixelSize: 10
                                     }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            ColumnLayout {
-                id: mainSyncSection
-                objectName: "trackerMainSyncSection"
-                Layout.fillWidth: true
-                Layout.bottomMargin: 0
-                spacing: 12
-
-                Text {
-                    objectName: "trackerExternalServicesTitle"
-                    text: "External services"
-                    color: theme.ink
-                    font.family: theme.display
-                    font.pixelSize: 25
-                }
-                Text {
-                    objectName: "trackerExternalServicesDescription"
-                    text: "Manage connections to external libraries."
-                    color: theme.inkDim
-                    font.family: theme.ui
-                    font.pixelSize: 11
-                }
-
-                Rectangle {
-                    objectName: "trackerStremioCard"
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: root.width >= 640 ? 116 : 190
-                    radius: 16
-                    color: Qt.rgba(6 / 255, 7 / 255, 11 / 255, 0.96)
-                    border.width: 1
-                    border.color: theme.edge
-
-                    GridLayout {
-                        anchors.fill: parent
-                        anchors.margins: 18
-                        columns: root.width >= 640 ? 3 : 2
-                        columnSpacing: 16
-                        rowSpacing: 12
-
-                        Image {
-                            objectName: "trackerStremioIcon"
-                            source: "../assets/icons/stremio-official.svg"
-                            Layout.preferredWidth: 50
-                            Layout.preferredHeight: 50
-                            fillMode: Image.PreserveAspectFit
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 6
-                            Text {
-                                text: "Stremio"
-                                color: theme.ink
-                                font.family: theme.display
-                                font.pixelSize: 24
-                                font.weight: Font.DemiBold
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                wrapMode: Text.WordWrap
-                                text: "Library, progress, and History"
-                                color: theme.inkDim
-                                font.family: theme.ui
-                                font.pixelSize: 11
-                            }
-                            RowLayout {
-                                visible: root.width >= 760
-                                spacing: 6
-                                Repeater {
-                                    model: ["Library", "Progress", "History"]
-                                    delegate: Rectangle {
-                                        id: stremioTag
-                                        required property string modelData
-                                        objectName: "trackerStremioCapabilityTag_"
-                                                     + modelData.toLowerCase()
-                                        implicitWidth: tagLabel.implicitWidth + 14
-                                        implicitHeight: 21
-                                        radius: 5
-                                        color: Qt.rgba(255 / 255, 255 / 255, 255 / 255, 0.075)
-                                        border.width: 0
-                                        Text {
-                                            id: tagLabel
-                                            objectName: "trackerStremioCapabilityLabel_"
-                                                         + stremioTag.modelData.toLowerCase()
-                                            anchors.centerIn: parent
-                                            text: stremioTag.modelData
-                                            color: theme.inkDim
-                                            font.family: theme.ui
-                                            font.pixelSize: 10
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        ColumnLayout {
-                            Layout.columnSpan: root.width >= 640 ? 1 : 2
-                            Layout.alignment: Qt.AlignRight
-                            spacing: 7
-                            Rectangle {
-                                objectName: "trackerStremioStatusBadge"
-                                Layout.alignment: Qt.AlignRight
-                                implicitWidth: stremioStatusText.implicitWidth + 24
-                                implicitHeight: 28
-                                radius: 10
-                                color: theme.glassTint
-                                border.width: 1
-                                border.color: theme.edge
-                                Text {
-                                    id: stremioStatusText
-                                    anchors.centerIn: parent
-                                    text: root.stremioStatusLabel()
-                                    color: theme.inkDim
-                                    font.family: theme.ui
-                                    font.pixelSize: 11
-                                }
-                            }
-                            Button {
-                                id: mainSyncButton
-                                objectName: "trackerMainSyncButton"
-                                Layout.alignment: Qt.AlignRight
-                                Layout.preferredWidth: 142
-                                Layout.preferredHeight: 40
-                                activeFocusOnTab: true
-                                Accessible.name: "Open Stremio settings"
-                                onClicked: root.mainSyncRequested()
-                                background: Rectangle {
-                                    radius: 9
-                                    color: mainSyncButton.down || mainSyncButton.hovered
-                                           ? theme.glassHi : theme.glassTint
-                                    border.width: mainSyncButton.activeFocus ? 2 : 1
-                                    border.color: theme.gold
-                                }
-                                contentItem: Text {
-                                    text: "Open settings ›"
-                                    color: theme.gold
-                                    font.family: theme.ui
-                                    font.pixelSize: 11
-                                    font.weight: Font.DemiBold
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
                                 }
                             }
                         }
