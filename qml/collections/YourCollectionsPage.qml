@@ -38,7 +38,7 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
         clip: true
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOff }
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
         Column {
             id: content
             x: root.pageMargin
