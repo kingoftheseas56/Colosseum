@@ -28,10 +28,16 @@ void CollectionPublicationController::activate(NamedCollectionsStore *store, boo
     if (m_store != store) {
         deactivate();
         m_store = store;
+        if (store) {
+            connect(store, &NamedCollectionsStore::errorChanged, this, &CollectionPublicationController::changed);
+            connect(store, &QObject::destroyed, this, [this] { deactivate(); });
+        }
     }
     if (m_signedIn != signedIn) {
         ++m_generation;
         m_request = 0;
+        m_receivingRequest = false;
+        m_received.clear();
         m_publications.clear();
         m_signedIn = signedIn;
     }
@@ -40,6 +46,8 @@ void CollectionPublicationController::activate(NamedCollectionsStore *store, boo
 void CollectionPublicationController::deactivate() {
     ++m_generation;
     m_request = 0;
+    m_receivingRequest = false;
+    if (m_store) disconnect(m_store, nullptr, this, nullptr);
     m_store = nullptr;
     m_signedIn = false;
     m_publications.clear();
@@ -61,6 +69,7 @@ bool CollectionPublicationController::ready(bool accountRequired) {
     if (!m_store || !m_store->healthy()) return fail(tr("Collections are unavailable while your profile is changing."));
     if (accountRequired && (!m_signedIn || !m_client || m_client->accessToken().isEmpty()))
         return fail(tr("Sign in to a Colosseum account to publish or manage links. Gift drafts stay on this device."));
+    m_receivingRequest = false;
     m_requestCollectionId.clear();
     m_requestShareId.clear();
     m_operationKey.clear();
@@ -172,9 +181,11 @@ bool CollectionPublicationController::openLink(const QString &value, const QStri
     const auto id = Colosseum::Collections::shareIdFromUrl(value.trimmed(), m_webOrigin, m_serviceUrl);
     if (!id) return fail(tr("This collection link is invalid."));
     m_requestShareId = *id;
+    m_receivingRequest = true;
     m_request = m_client->openSharedCollection(*id, passphrase); emit changed(); return true;
 }
 bool CollectionPublicationController::acceptReceived(const QJsonObject &body) {
+    if (!receivingReady()) return fail(tr("Collections are unavailable while your profile is changing."));
     const QString id = body.value("share_id").toString();
     const QString kind = body.value("kind").toString();
     const int revision = body.value("revision").toInt();
@@ -185,6 +196,7 @@ bool CollectionPublicationController::acceptReceived(const QJsonObject &body) {
         || revision < 1 || (kind == QLatin1String("gift") && revision != 1)
         || (body.contains("revoked") && !body.value("revoked").isBool()) || body.value("revoked").toBool() || !NamedCollectionsStore::validateShareSnapshot(snapshot, &error))
         return fail(error.isEmpty() ? tr("This edition is invalid or unavailable.") : error);
+    m_receivedGeneration = m_generation;
     m_received = {{"share_id", id}, {"kind", kind}, {"revision", revision}, {"snapshot", snapshot}};
     return true;
 }
@@ -204,7 +216,7 @@ bool CollectionPublicationController::openEditionFile(const QUrl &url) {
 }
 bool CollectionPublicationController::keepReceivedGift() {
     if (!ready(false)) return false;
-    if (m_received.value("kind").toString() != QLatin1String("gift")) return fail(tr("Only gift editions can be kept as gifts."));
+    if (m_receivedGeneration != m_generation || m_received.value("kind").toString() != QLatin1String("gift")) return fail(tr("Only gift editions can be kept as gifts."));
     const auto result = m_store->keepGift(m_received.value("share_id").toString(), m_received.value("revision").toInt(), m_received.value("snapshot").toMap());
     if (!result.value("ok").toBool()) return fail(result.value("error").toString());
     m_message = tr("Gift kept on this device, including its presentation, for offline viewing.");
@@ -253,10 +265,19 @@ QString CollectionPublicationController::loadCover(const QUrl &url) {
     return QStringLiteral("data:image/") + (format == "png" ? QStringLiteral("png") : QStringLiteral("jpeg"))
         + QStringLiteral(";base64,") + QString::fromLatin1(sanitized.toBase64());
 }
-void CollectionPublicationController::clearReceived() { m_received.clear(); emit changed(); }
+void CollectionPublicationController::clearReceived() {
+    // Closing receiving must not discard an unrelated publication/list receipt.
+    if (m_request && m_receivingRequest) {
+        m_request = 0;
+        m_receivingRequest = false;
+    }
+    m_received.clear();
+    emit changed();
+}
 void CollectionPublicationController::complete(quint64 id, AccountOperation operation, quint64 tokenGeneration, const AccountTransportReply &reply) {
     if (id != m_request || m_requestGeneration != m_generation) return;
     m_request = 0;
+    m_receivingRequest = false;
     if (operation != AccountOperation::CollectionOpen && tokenGeneration != m_client->accessTokenGeneration()) {
         fail(tr("Your account session changed. Refresh your publications before trying again.")); return;
     }
@@ -374,4 +395,27 @@ bool CollectionPublicationController::startNewPublicationRequest() {
     m_message = tr("A new publication request can now be started. Any earlier shared link still exists until you revoke it.");
     emit changed();
     return true;
+}
+
+bool CollectionPublicationController::receivingReady() const {
+    return m_store && m_store->healthy();
+}
+bool CollectionPublicationController::saveReceivedCollection() {
+    if (!ready(false)) return false;
+    if (m_receivedGeneration != m_generation || m_received.value("kind").toString() != QLatin1String("collection"))
+        return fail(tr("Open a shared collection before saving it."));
+    const auto result = m_store->saveSharedCollection(m_received.value("share_id").toString(),
+        m_received.value("revision").toInt(), m_received.value("snapshot").toMap());
+    if (!result.value("ok").toBool()) return fail(result.value("error").toString());
+    const bool alreadySaved = result.value("alreadySaved").toBool();
+    m_message = alreadySaved ? tr("This revision is already saved. Your edits have been preserved.")
+                            : tr("Your independent editable collection is saved on this device.");
+    emit changed(); emit saved(result.value("collectionId").toString(), alreadySaved); return true;
+}
+QVariantMap CollectionPublicationController::receivedReference(int index) const {
+    if (!receivingReady() || m_receivedGeneration != m_generation) return {};
+    const auto members = m_received.value("snapshot").toMap().value("members").toList();
+    if (index < 0 || index >= members.size()) return {};
+    QVariantMap reference;
+    return NamedCollectionsStore::sharedMemberReference(members.at(index).toMap(), &reference) ? reference : QVariantMap();
 }

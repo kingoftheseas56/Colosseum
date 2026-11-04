@@ -23,7 +23,7 @@
 
 namespace {
 QString importKey(const QVariantMap &member);
-constexpr int kSchema = 3;
+constexpr int kSchema = 4;
 constexpr qsizetype kMaxFileBytes = 8 * 1024 * 1024;
 constexpr qsizetype kMaxReferenceBytes = 64 * 1024;
 constexpr int kMaxCollections = 500;
@@ -219,7 +219,9 @@ QVariantMap NamedCollectionsStore::row(const List &list)
         {QStringLiteral("presentation"), list.presentation},
         {QStringLiteral("giftSnapshot"), list.giftSnapshot},
         {QStringLiteral("shareId"), list.shareId},
-        {QStringLiteral("editionRevision"), list.editionRevision}};
+        {QStringLiteral("editionRevision"), list.editionRevision},
+        {QStringLiteral("savedShareId"), list.savedShareId}, {QStringLiteral("savedRevision"), list.savedRevision},
+        {QStringLiteral("savedSnapshotHash"), list.savedSnapshotHash}};
 }
 
 QVariantList NamedCollectionsStore::collections() const
@@ -458,7 +460,9 @@ QByteArray NamedCollectionsStore::serialize(const QVector<List> &lists)
             {QStringLiteral("giftSnapshot"), QJsonObject::fromVariantMap(list.giftSnapshot)},
             {QStringLiteral("shareId"), list.shareId}, {QStringLiteral("editionRevision"), list.editionRevision},
             {QStringLiteral("copyOperation"), list.copyOperation}, {QStringLiteral("copySource"), list.copySource},
-            {QStringLiteral("copyRequestName"), list.copyRequestName}});
+            {QStringLiteral("copyRequestName"), list.copyRequestName},
+            {QStringLiteral("savedShareId"), list.savedShareId}, {QStringLiteral("savedRevision"), list.savedRevision},
+            {QStringLiteral("savedSnapshotHash"), list.savedSnapshotHash}});
     }
     return QJsonDocument(QJsonObject{{QStringLiteral("schemaVersion"), kSchema},
         {QStringLiteral("collections"), rows}}).toJson(QJsonDocument::Compact);
@@ -476,7 +480,7 @@ bool NamedCollectionsStore::parse(const QByteArray &bytes, QVector<List> *lists,
     const QJsonObject root = document.object();
     const int schema = root.value(QStringLiteral("schemaVersion")).toInt(-1);
     if (!root.value(QStringLiteral("schemaVersion")).isDouble()
-        || (schema != 2 && schema != kSchema)
+        || (schema != 2 && schema != 3 && schema != kSchema)
         || root.value(QStringLiteral("schemaVersion")).toDouble() != schema) {
         if (error) *error = tr("This collections file uses an unsupported version. It has not been changed.");
         return false;
@@ -489,14 +493,16 @@ bool NamedCollectionsStore::parse(const QByteArray &bytes, QVector<List> *lists,
     QSet<QString> ids;
     QSet<QString> keptShares;
     QSet<QString> copyOperations;
+    QHash<QString, QString> savedHashes;
     QHash<QString, QVariantMap> identities;
     for (const QJsonValue &value : rows) {
         if (!value.isObject()) return invalid();
         const QJsonObject object = value.toObject();
         QStringList fields = {QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("description"),
                 QStringLiteral("createdAt"), QStringLiteral("updatedAt"), QStringLiteral("items")};
-        if (schema == 3) fields += {QStringLiteral("presentation"), QStringLiteral("giftSnapshot"),
+        if (schema >= 3) fields += {QStringLiteral("presentation"), QStringLiteral("giftSnapshot"),
             QStringLiteral("shareId"), QStringLiteral("editionRevision"), QStringLiteral("copyOperation"), QStringLiteral("copySource"), QStringLiteral("copyRequestName")};
+        if (schema == 4) fields += {QStringLiteral("savedShareId"), QStringLiteral("savedRevision"), QStringLiteral("savedSnapshotHash")};
         if (!exactKeys(object, fields)) return invalid();
         List list;
         list.id = object.value(QStringLiteral("id")).toString();
@@ -533,7 +539,7 @@ bool NamedCollectionsStore::parse(const QByteArray &bytes, QVector<List> *lists,
             identities.insert(key, reference);
             list.members.append({reference, rawNote.toString()});
         }
-        if (schema == 3) {
+        if (schema >= 3) {
             if (!object.value("presentation").isObject() || !object.value("giftSnapshot").isObject()
                 || !object.value("shareId").isString() || !object.value("copyOperation").isString()
                 || !object.value("copySource").isString() || !object.value("copyRequestName").isString()) return invalid();
@@ -569,21 +575,28 @@ bool NamedCollectionsStore::parse(const QByteArray &bytes, QVector<List> *lists,
                     const auto wire = snapshotMembers.at(i).toMap();
                     const auto &saved = list.members.at(i);
                     if (saved.note != wire.value("note").toString()) return invalid();
-                    for (const auto &field : {"world", "kind", "source", "title", "creator", "year"})
-                        if (saved.reference.value(field) != wire.value(field)) return invalid();
-                    QVariantMap allowedPayload;
-                    if (!wire.value("canonical_source_id").toString().isEmpty()) allowedPayload.insert("canonicalSourceId", wire.value("canonical_source_id"));
-                    if (!wire.value("album_source_id").toString().isEmpty()) allowedPayload.insert("albumId", wire.value("album_source_id"));
-                    if (!wire.value("album_browse_id").toString().isEmpty()) allowedPayload.insert("browseId", wire.value("album_browse_id"));
-                    if (!wire.value("comic_post_ids").toList().isEmpty()) allowedPayload.insert("posts", wire.value("comic_post_ids"));
-                    if (saved.reference.value("key").toString() != importKey(wire)
-                        || saved.reference.value("payload").toMap() != allowedPayload
-                        || saved.reference.value("sourceId") != wire.value("source_id")
-                        || saved.reference.value("editionId") != wire.value("edition_id")
-                        || saved.reference.value("mediaId") != wire.value("canonical_id")
-                        || !saved.reference.value("route").toString().isEmpty()
-                        || !saved.reference.value("cover").toString().isEmpty()) return invalid();
+                    QVariantMap expected;
+                    if (!sharedMemberReference(wire, &expected) || saved.reference != expected) return invalid();
                 }
+            }
+        }
+        if (schema == 4) {
+            if (!object.value("savedShareId").isString() || !object.value("savedRevision").isDouble()
+                || !object.value("savedSnapshotHash").isString()) return invalid();
+            list.savedShareId = object.value("savedShareId").toString();
+            list.savedRevision = object.value("savedRevision").toInt(-1);
+            list.savedSnapshotHash = object.value("savedSnapshotHash").toString();
+            if (object.value("savedRevision").toDouble() != list.savedRevision) return invalid();
+            if (list.savedShareId.isEmpty()) {
+                if (list.savedRevision != 0 || !list.savedSnapshotHash.isEmpty()) return invalid();
+            } else {
+                if (list.savedShareId.size() != 43 || !QRegularExpression("^[A-Za-z0-9_-]{43}$").match(list.savedShareId).hasMatch()
+                    || list.savedRevision < 1 || list.savedSnapshotHash.size() != 64
+                    || !QRegularExpression("^[0-9a-f]{64}$").match(list.savedSnapshotHash).hasMatch()
+                    || !list.shareId.isEmpty() || !list.copyOperation.isEmpty()) return invalid();
+                const QString provenance = list.savedShareId + QLatin1Char(':') + QString::number(list.savedRevision);
+                if (savedHashes.contains(provenance) && savedHashes.value(provenance) != list.savedSnapshotHash) return invalid();
+                savedHashes.insert(provenance, list.savedSnapshotHash);
             }
         }
         ids.insert(list.id);
@@ -603,6 +616,15 @@ bool NamedCollectionsStore::mergeForAdoption(const QByteArray &account, const QB
     QVector<List> combined, incoming;
     if (!parse(account, &combined, error) || !parse(local, &incoming, error)) return false;
     for (List list : incoming) {
+        if (!list.savedShareId.isEmpty()) {
+            for (const auto &saved : combined) {
+                if (saved.savedShareId == list.savedShareId && saved.savedRevision == list.savedRevision
+                    && saved.savedSnapshotHash != list.savedSnapshotHash) {
+                    if (error) *error = tr("Two profiles contain conflicting originals for the same collection revision. Both originals have been preserved.");
+                    return false;
+                }
+            }
+        }
         if (!list.shareId.isEmpty()) {
             bool retained = false;
             for (const auto &saved : combined) {
@@ -834,6 +856,48 @@ bool NamedCollectionsStore::validPresentation(const QVariantMap &input)
         && safeImageData(input.value("cover_data").toString());
 }
 
+bool NamedCollectionsStore::validSharedMember(const QVariantMap &member)
+{
+    static const QRegularExpression namespacePattern("^[a-z][a-z0-9._-]{0,63}$");
+    static const QRegularExpression idPattern("^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$");
+    static const QRegularExpression privatePrefix("^(?:file:|http:|https:|content:|data:|magnet:|ftp:|[A-Za-z]:)", QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression canonicalPattern("^ct1:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
+    QVariantMap texts = member;
+    texts.remove("comic_post_ids");
+    if (member.value("comic_post_ids").metaType().id() != QMetaType::QVariantList
+        || !stringFields(texts, {{"world", 80}, {"kind", 80}, {"source", 80}, {"source_id", 256},
+            {"edition_id", 256}, {"canonical_id", 40}, {"canonical_source_id", 40},
+            {"album_source_id", 256}, {"album_browse_id", 256},
+            {"title", 300}, {"creator", 200}, {"year", 32}, {"note", 500}}, true)) return false;
+    if (!QStringList{"theatre", "tankoban", "biblio", "vinyl", "vault"}.contains(member.value("world").toString())
+        || !QStringList{"movie", "film", "series", "manga", "comic", "book", "album", "song", "artist", "other"}.contains(member.value("kind").toString())
+        || !namespacePattern.match(member.value("source").toString()).hasMatch()) return false;
+    const QString sourceId = member.value("source_id").toString();
+    if (!idPattern.match(sourceId).hasMatch() || privatePrefix.match(sourceId).hasMatch()) return false;
+    const auto edition = member.value("edition_id").toString();
+    if (!edition.isEmpty() && (!idPattern.match(edition).hasMatch() || privatePrefix.match(edition).hasMatch())) return false;
+    for (const auto &field : {"album_source_id", "album_browse_id"}) {
+        const auto albumId = member.value(field).toString();
+        if (!albumId.isEmpty() && (member.value("world") != "vinyl" || !idPattern.match(albumId).hasMatch()
+            || privatePrefix.match(albumId).hasMatch())) return false;
+    }
+    const auto posts = member.value("comic_post_ids").toList();
+    if (posts.size() > 500 || (!posts.isEmpty() && member.value("source") != "getcomics" && member.value("source") != "gcd")) return false;
+    QSet<QString> postIds;
+    for (const auto &post : posts) {
+        if (post.metaType().id() != QMetaType::QString || !QRegularExpression("^[1-9][0-9]{0,19}$").match(post.toString()).hasMatch()
+            || postIds.contains(post.toString())) return false;
+        postIds.insert(post.toString());
+    }
+    const auto canonical = member.value("canonical_id").toString();
+    if (!canonical.isEmpty() && (!canonicalPattern.match(canonical).hasMatch()
+        || QUuid(canonical.mid(4)).isNull())) return false;
+    const auto canonicalSource = member.value("canonical_source_id").toString();
+    if (!canonicalSource.isEmpty() && (member.value("world") != "theatre"
+        || !QRegularExpression("^tt[0-9]{1,20}$").match(canonicalSource).hasMatch())) return false;
+    return true;
+}
+
 bool NamedCollectionsStore::validSnapshot(const QVariantMap &input)
 {
     const auto schemaType = input.value("schema_version").metaType().id();
@@ -851,49 +915,13 @@ bool NamedCollectionsStore::validSnapshot(const QVariantMap &input)
     const auto members = input.value("members").toList();
     if (members.size() > 500) return false;
     QSet<QString> seen;
-    const QRegularExpression namespacePattern("^[a-z][a-z0-9._-]{0,63}$");
-    const QRegularExpression idPattern("^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$");
-    const QRegularExpression privatePrefix("^(?:file:|http:|https:|content:|data:|magnet:|ftp:|[A-Za-z]:)", QRegularExpression::CaseInsensitiveOption);
-    const QRegularExpression canonicalPattern("^ct1:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
     for (const auto &value : members) {
         if (value.metaType().id() != QMetaType::QVariantMap) return false;
         const auto member = value.toMap();
-        QVariantMap texts = member;
-        texts.remove("comic_post_ids");
-        if (member.value("comic_post_ids").metaType().id() != QMetaType::QVariantList
-            || !stringFields(texts, {{"world", 80}, {"kind", 80}, {"source", 80}, {"source_id", 256},
-                {"edition_id", 256}, {"canonical_id", 40}, {"canonical_source_id", 40},
-                {"album_source_id", 256}, {"album_browse_id", 256},
-                {"title", 300}, {"creator", 200}, {"year", 32}, {"note", 500}}, true)) return false;
-        if (!QStringList{"theatre", "tankoban", "biblio", "vinyl", "vault"}.contains(member.value("world").toString())
-            || !QStringList{"movie", "film", "series", "manga", "comic", "book", "album", "song", "artist", "other"}.contains(member.value("kind").toString())
-            || !namespacePattern.match(member.value("source").toString()).hasMatch()) return false;
-        const QString sourceId = member.value("source_id").toString();
-        if (!idPattern.match(sourceId).hasMatch() || privatePrefix.match(sourceId).hasMatch()) return false;
-        const auto edition = member.value("edition_id").toString();
-        if (!edition.isEmpty() && (!idPattern.match(edition).hasMatch() || privatePrefix.match(edition).hasMatch())) return false;
-        for (const auto &field : {"album_source_id", "album_browse_id"}) {
-            const auto albumId = member.value(field).toString();
-            if (!albumId.isEmpty() && (member.value("world") != "vinyl" || !idPattern.match(albumId).hasMatch()
-                || privatePrefix.match(albumId).hasMatch())) return false;
-        }
-        const auto posts = member.value("comic_post_ids").toList();
-        if (posts.size() > 500 || (!posts.isEmpty() && member.value("source") != "getcomics" && member.value("source") != "gcd")) return false;
-        QSet<QString> postIds;
-        for (const auto &post : posts) {
-            if (post.metaType().id() != QMetaType::QString || !QRegularExpression("^[1-9][0-9]{0,19}$").match(post.toString()).hasMatch()
-                || postIds.contains(post.toString())) return false;
-            postIds.insert(post.toString());
-        }
-        const auto canonical = member.value("canonical_id").toString();
-        if (!canonical.isEmpty() && (!canonicalPattern.match(canonical).hasMatch()
-            || QUuid(canonical.mid(4)).isNull())) return false;
-        const auto canonicalSource = member.value("canonical_source_id").toString();
-        if (!canonicalSource.isEmpty() && (member.value("world") != "theatre"
-            || !QRegularExpression("^tt[0-9]{1,20}$").match(canonicalSource).hasMatch())) return false;
+        if (!validSharedMember(member)) return false;
         const QString key = importKey(member);
         const QString tuple = QString::fromUtf8(QJsonDocument(QJsonArray{member.value("world").toString(), member.value("kind").toString(),
-            member.value("source").toString(), sourceId, edition}).toJson(QJsonDocument::Compact));
+            member.value("source").toString(), member.value("source_id").toString(), member.value("edition_id").toString()}).toJson(QJsonDocument::Compact));
         if (seen.contains(key) || seen.contains(tuple)) return false;
         seen.insert(key);
         seen.insert(tuple);
@@ -990,22 +1018,8 @@ QVariantMap NamedCollectionsStore::keepGift(const QString &shareId, int editionR
     list.createdAt = list.updatedAt = QDateTime::currentMSecsSinceEpoch();
     for (const auto &value : snapshot.value("members").toList()) {
         const auto item = value.toMap();
-        QVariantMap raw;
-        for (const auto &field : {"world", "kind", "source", "title", "creator", "year"}) raw.insert(field, item.value(field));
-        raw.insert("key", importKey(item));
-        raw.insert("sourceId", item.value("source_id"));
-        raw.insert("editionId", item.value("edition_id"));
-        raw.insert("mediaId", item.value("canonical_id"));
-        raw.insert("route", QString());
-        raw.insert("cover", QString());
-        QVariantMap payload;
-        if (!item.value("canonical_source_id").toString().isEmpty()) payload.insert("canonicalSourceId", item.value("canonical_source_id"));
-        if (!item.value("album_source_id").toString().isEmpty()) payload.insert("albumId", item.value("album_source_id"));
-        if (!item.value("album_browse_id").toString().isEmpty()) payload.insert("browseId", item.value("album_browse_id"));
-        if (!item.value("comic_post_ids").toList().isEmpty()) payload.insert("posts", item.value("comic_post_ids"));
-        raw.insert("payload", payload);
         QVariantMap reference;
-        if (!normalizedReference(raw, &reference)) { fail(tr("A gift reference cannot be retained safely.")); return result(false); }
+        if (!sharedMemberReference(item, &reference)) { fail(tr("A gift reference cannot be retained safely.")); return result(false); }
         list.members.append({reference, item.value("note").toString()});
     }
     QVector<List> next = m_lists;
@@ -1053,4 +1067,62 @@ bool NamedCollectionsStore::validateShareSnapshot(const QVariantMap &snapshot, Q
     const bool valid = validSnapshot(snapshot);
     if (error) *error = valid ? QString() : tr("This shared collection is invalid or exceeds the supported limits.");
     return valid;
+}
+
+QVariantMap NamedCollectionsStore::saveSharedCollection(const QString &shareId, int revision, const QVariantMap &snapshot)
+{
+    const auto reply = [&](bool ok, const QString &id = QString(), bool alreadySaved = false) {
+        auto value = result(ok, id); value.insert("alreadySaved", ok && alreadySaved); return value;
+    };
+    if (!mutableState()) return reply(false);
+    if (shareId.size() != 43 || !QRegularExpression("^[A-Za-z0-9_-]{43}$").match(shareId).hasMatch()
+        || revision < 1 || !validSnapshot(snapshot)) {
+        fail(tr("This shared collection is invalid or exceeds the supported limits.")); return reply(false);
+    }
+    const QString hash = QString::fromLatin1(QCryptographicHash::hash(
+        QJsonDocument(QJsonObject::fromVariantMap(snapshot)).toJson(QJsonDocument::Compact), QCryptographicHash::Sha256).toHex());
+    QString savedId;
+    for (const auto &list : m_lists) {
+        if (list.savedShareId != shareId || list.savedRevision != revision) continue;
+        if (list.savedSnapshotHash != hash) {
+            fail(tr("This link returned a different original for an already saved revision. Your collections have not changed.")); return reply(false);
+        }
+        if (savedId.isEmpty()) savedId = list.id;
+    }
+    // Even an idempotent retry verifies the current disk generation under lock.
+    if (!savedId.isEmpty()) return reply(commit(m_lists), savedId, true);
+    if (m_lists.size() >= kMaxCollections) { fail(tr("The local collection limit has been reached.")); return reply(false); }
+    List list;
+    list.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    list.name = uniqueName(m_lists, snapshot.value("name").toString());
+    list.description = snapshot.value("description").toString();
+    list.presentation = snapshot.value("presentation").toMap();
+    list.savedShareId = shareId; list.savedRevision = revision; list.savedSnapshotHash = hash;
+    list.createdAt = list.updatedAt = QDateTime::currentMSecsSinceEpoch();
+    for (const auto &value : snapshot.value("members").toList()) {
+        const auto member = value.toMap(); QVariantMap reference;
+        if (!sharedMemberReference(member, &reference)) { fail(tr("A collection reference cannot be retained safely.")); return reply(false); }
+        list.members.append({reference, member.value("note").toString()});
+    }
+    QVector<List> next = m_lists; next.prepend(list);
+    return reply(commit(std::move(next)), list.id);
+}
+bool NamedCollectionsStore::sharedMemberReference(const QVariantMap &member, QVariantMap *reference)
+{
+    if (!reference || !validSharedMember(member)) return false;
+    QVariantMap raw;
+    for (const auto &field : {"world", "kind", "source", "title", "creator", "year"}) raw.insert(field, member.value(field));
+    raw.insert("key", importKey(member));
+    raw.insert("sourceId", member.value("source_id"));
+    raw.insert("editionId", member.value("edition_id"));
+    raw.insert("mediaId", member.value("canonical_id"));
+    raw.insert("route", QString());
+    raw.insert("cover", QString());
+    QVariantMap payload;
+    if (!member.value("canonical_source_id").toString().isEmpty()) payload.insert("canonicalSourceId", member.value("canonical_source_id"));
+    if (!member.value("album_source_id").toString().isEmpty()) payload.insert("albumId", member.value("album_source_id"));
+    if (!member.value("album_browse_id").toString().isEmpty()) payload.insert("browseId", member.value("album_browse_id"));
+    if (!member.value("comic_post_ids").toList().isEmpty()) payload.insert("posts", member.value("comic_post_ids"));
+    raw.insert("payload", payload);
+    return normalizedReference(raw, reference);
 }

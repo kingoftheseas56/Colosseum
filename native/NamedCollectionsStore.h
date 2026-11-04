@@ -58,6 +58,8 @@ public:
     Q_INVOKABLE QVariantMap shareSnapshot(const QString &collectionId) const;
     Q_INVOKABLE bool savePresentation(const QString &collectionId,
         const QVariantMap &presentation, int expectedRevision);
+    static bool sharedMemberReference(const QVariantMap &member, QVariantMap *reference);
+    Q_INVOKABLE QVariantMap saveSharedCollection(const QString &shareId, int revision, const QVariantMap &snapshot);
     Q_INVOKABLE QVariantMap keepGift(const QString &shareId, int editionRevision,
         const QVariantMap &snapshot);
     Q_INVOKABLE QVariantMap makeOwnVersion(const QString &keptCollectionId,
@@ -84,6 +86,9 @@ private:
         QString copyOperation;
         QString copySource;
         QString copyRequestName;
+        QString savedShareId;
+        int savedRevision = 0;
+        QString savedSnapshotHash;
 
     };
     struct Draft { QString collectionId; int revision = 0; };
@@ -94,6 +99,7 @@ private:
     static bool normalizedReference(const QVariantMap &input, QVariantMap *output);
     static bool validPresentation(const QVariantMap &input);
     static bool validSnapshot(const QVariantMap &input);
+    static bool validSharedMember(const QVariantMap &member);
     static QString uniqueName(const QVector<List> &lists, const QString &name);
     static bool sameIdentity(const QVariantMap &left, const QVariantMap &right);
     static int indexForId(const QVector<List> &lists, const QString &id);

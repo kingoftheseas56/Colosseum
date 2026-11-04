@@ -17,6 +17,12 @@ Extend the existing profile-owned NamedCollectionsStore, account-service authent
 - Kept gift editions remain immutable alongside editable independent copies. Copies reset personal notes, dedication, signature and decorations.
 - Original source namespace, identity and edition survive import; only exact available recipient routes may open. Missing references stay visible.
 
+## Local collection compatibility
+
+Local named collections now write schema 4 and read schemas 2, 3 and 4. Older files remain unchanged on reads and no-op retries; a successful mutation writes schema 4 atomically. Clients that only understand schema 2 or 3 reject schema 4 without rewriting it, so downgrading the application does not make these collections accessible to that older client. Keep the newer client or restore a separately retained compatible backup; do not strip provenance fields to force a downgrade.
+
+An ordinary Save creates an editable local collection with its original share ID, revision and snapshot SHA-256 recorded in the same transaction as its members. Repeat saves preserve recipient edits; a new published revision creates another copy. Gift editions remain immutable, and their independent-copy reset behavior is unchanged. The portable wire snapshot remains schema 1.
+
 ## Work sequence
 
 1. Agree wire/native contracts and adversarial cases; establish baseline tests.

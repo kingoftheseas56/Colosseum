@@ -10,6 +10,7 @@ class NamedCollectionsStore;
 // or account owner. No session material crosses its QML interface.
 class CollectionPublicationController final : public QObject {
     Q_OBJECT
+    Q_PROPERTY(bool receivingReady READ receivingReady NOTIFY changed)
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
     Q_PROPERTY(bool retryResetAvailable READ retryResetAvailable NOTIFY changed)
     Q_PROPERTY(bool signedIn READ signedIn NOTIFY changed)
@@ -21,6 +22,9 @@ public:
     explicit CollectionPublicationController(AccountClient *client, const QUrl &serviceUrl, const QUrl &webOrigin, QObject *parent = nullptr);
     void activate(NamedCollectionsStore *store, bool signedIn);
     void deactivate();
+    bool receivingReady() const;
+    Q_INVOKABLE bool saveReceivedCollection();
+    Q_INVOKABLE QVariantMap receivedReference(int index) const;
     bool busy() const { return m_request != 0; }
     bool retryResetAvailable() const { return !busy() && !m_retryOperationKey.isEmpty(); }
     bool signedIn() const { return m_signedIn; }
@@ -44,6 +48,7 @@ public:
     Q_INVOKABLE void clearReceived();
 signals:
     void changed();
+    void saved(const QString &collectionId, bool alreadySaved);
     void kept(const QString &collectionId);
     void copied(const QString &collectionId);
 private:
@@ -61,6 +66,8 @@ private:
     QUrl m_serviceUrl;
     QUrl m_webOrigin;
     quint64 m_request = 0;
+    bool m_receivingRequest = false;
+    quint64 m_receivedGeneration = 0;
     quint64 m_generation = 0;
     quint64 m_requestGeneration = 0;
     bool m_signedIn = false;

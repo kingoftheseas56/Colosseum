@@ -9,6 +9,8 @@ add_executable(collections_sharing_store_test
     ../../native/NamedCollectionsStore.cpp
     ../../native/NamedCollectionsStore.h)
 target_include_directories(collections_sharing_store_test PRIVATE ../../native)
+target_compile_definitions(collections_sharing_store_test PRIVATE
+    COLOSSEUM_MIXED_SHARE_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/../collections_sharing/fixtures/mixed-gift-v1.json")
 target_link_libraries(collections_sharing_store_test PRIVATE Qt6::Core Qt6::Gui)
 if(MSVC)
     target_compile_options(collections_sharing_store_test PRIVATE /utf-8)

@@ -8,6 +8,7 @@
 #include <QLockFile>
 #include <QUuid>
 #include <QDebug>
+#include <QCryptographicHash>
 
 namespace {
 int checks = 0;
@@ -25,6 +26,109 @@ QVariantMap presentation() {
         {"cover_data", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGMQNA4FAADyAJqKCOUZAAAAAElFTkSuQmCC"}};
 }
 QString id(const QVariantMap &result) { check(result.value("ok").toBool(), qPrintable(result.value("error").toString())); return result.value("collectionId").toString(); }
+
+void write(const QString &path, const QByteArray &data) {
+    QFile f(path); check(f.open(QIODevice::WriteOnly|QIODevice::Truncate), "open fixture write");
+    check(f.write(data)==data.size(), "complete fixture write");
+}
+void ordinarySaveIsEditableAndIndependent(const QString &path, const QVariantMap &snapshot) {
+    NamedCollectionsStore store(path);
+    const QString share(43,'o');
+    const auto saved=store.saveSharedCollection(share,1,snapshot); check(saved.value("ok").toBool(),"ordinary Save must create an independent collection"); const QString savedId=id(saved);
+    check(!saved.value("alreadySaved").toBool(), "ordinary first Save is new");
+    const auto row=store.collection(savedId);
+    check(!row.value("keptGift").toBool() && row.value("giftSnapshot").toMap().isEmpty(), "ordinary Save has no gift immutability");
+    check(row.value("description")==snapshot.value("description") && row.value("presentation")==snapshot.value("presentation"), "ordinary Save retains published description/presentation");
+    QVariantMap expected; check(NamedCollectionsStore::sharedMemberReference(snapshot.value("members").toList()[0].toMap(),&expected), "wire conversion validated");
+    check(row.value("members").toList()[0].toMap()==expected, "ordinary Save uses exact shared reference");
+    check(row.value("savedShareId")==share && row.value("savedRevision").toInt()==1, "ordinary provenance returned");
+    check(row.value("savedSnapshotHash").toString()==QString::fromLatin1(QCryptographicHash::hash(QJsonDocument(QJsonObject::fromVariantMap(snapshot)).toJson(QJsonDocument::Compact),QCryptographicHash::Sha256).toHex()), "canonical original snapshot hash");
+    auto edit=store.beginEdit(savedId); check(!edit.isEmpty(), "ordinary editable");
+    const auto key=expected.value("key").toString();
+    check(store.saveEdit(edit.value("token").toString(),"Recipient edits","Recipient description",edit.value("items").toStringList(),{{key,"Recipient note"}}), "ordinary recipient edit");
+    const auto before=bytes(path); const int generation=store.revision();
+    const auto retry=store.saveSharedCollection(share,1,snapshot);
+    check(id(retry)==savedId && retry.value("alreadySaved").toBool(), "repeatedSavePreservesRecipientEdits selects prior copy");
+    check(bytes(path)==before && store.revision()==generation && store.collection(savedId).value("name")=="Recipient edits", "retry does not rewrite edited copy");
+    NamedCollectionsStore reload(path); check(reload.healthy() && reload.collection(savedId)==store.collection(savedId), "schema4RoundTrips all edits/provenance offline");
+    auto changed=snapshot; changed["name"]="Changed sender";
+    check(!store.saveSharedCollection(share,1,changed).value("ok").toBool(), "conflictingSameRevisionIsRejected");
+    check(bytes(path)==before && store.revision()==generation, "conflicting save preserves disk/memory generation");
+    const auto next=store.saveSharedCollection(share,2,changed);
+    check(id(next)!=savedId && store.collections().size()==2, "newRevisionMakesSeparateCopy");
+    check(store.collection(savedId).value("name")=="Recipient edits", "new revision preserves older recipient edits");
+    // Every repeat path must still take the disk-generation and lock check.
+    NamedCollectionsStore stale(path); NamedCollectionsStore writer(path);
+    check(!writer.createCollection("External writer").isEmpty(), "external disk generation");
+    const auto external=bytes(path); const int staleGeneration=stale.revision();
+    check(!stale.saveSharedCollection(share,1,snapshot).value("ok").toBool(), "same-revision no-op verifies disk generation");
+    check(bytes(path)==external && stale.revision()==staleGeneration && stale.collections().size()==2, "stale no-op preserves both memory/disk");
+    check(stale.reload(), "reload stale ordinary store");
+    const auto blocked=QFileInfo(path).absolutePath()+"/blocked-parent";write(blocked,"file");
+    NamedCollectionsStore unwritable(blocked+"/collections.json");
+    check(!unwritable.saveSharedCollection(share,1,snapshot).value("ok").toBool() && unwritable.collections().isEmpty()
+        && unwritable.revision()==0 && bytes(blocked)=="file", "failed directory write creates no members or provenance");
+    const auto lockedBytes=bytes(path); const auto lockedRows=stale.collections(); const int lockedGeneration=stale.revision();
+    { QLockFile lock(path+".lock"); check(lock.tryLock(), "lock ordinary fixture");
+      check(!stale.saveSharedCollection(share,1,snapshot).value("ok").toBool(), "repeat verifies writer lock");
+      check(!stale.saveSharedCollection(QString(43,'q'),1,snapshot).value("ok").toBool(), "atomic failed Save rejects before insertion"); }
+    check(bytes(path)==lockedBytes && stale.collections()==lockedRows && stale.revision()==lockedGeneration, "invalidOrFailedWritePreservesOriginal");
+    check(!stale.saveSharedCollection(share,0,snapshot).value("ok").toBool(), "zero revision rejected");
+    auto bad=snapshot;bad["name"]=false;
+    check(!stale.saveSharedCollection(share,3,bad).value("ok").toBool() && bytes(path)==lockedBytes, "malformed snapshot preserved");
+    QVariantMap unsafe=snapshot.value("members").toList()[0].toMap();unsafe["source_id"]=false;
+    QVariantMap untouched{{"sentinel",true}}; check(!NamedCollectionsStore::sharedMemberReference(unsafe,&untouched) && untouched.value("sentinel").toBool(), "shared converter rejects primitive coercion without output mutation");
+}
+void adoptionPreservesDivergentSavedCopies(const QString &root,const QVariantMap &snapshot) {
+    const auto a=root+"/adopt-a.json",b=root+"/adopt-b.json",out=root+"/adopt-out.json";
+    NamedCollectionsStore first(a);const QString share(43,'v'); const auto savedId=id(first.saveSharedCollection(share,1,snapshot));
+    write(b,bytes(a));NamedCollectionsStore second(b);
+    auto edit=second.beginEdit(savedId);check(second.saveEdit(edit.value("token").toString(),"Divergent","Other description",edit.value("items").toStringList(),{}),"divergent recipient edits");
+    const auto originalA=bytes(a),originalB=bytes(b);QByteArray merged;QString error;
+    check(NamedCollectionsStore::mergeForAdoption(originalA,originalB,&merged,&error),"ordinary adoption succeeds");write(out,merged);NamedCollectionsStore combined(out);
+    check(combined.healthy() && combined.collections().size()==2,"adoption retains both same-hash divergent editable copies");
+    for(const auto &value:combined.collections()){const auto row=value.toMap();check(row.value("savedShareId")==share && !combined.beginEdit(row.value("id").toString()).isEmpty(),"adopted provenance/editability");}
+    QByteArray repeated;check(NamedCollectionsStore::mergeForAdoption(merged,originalB,&repeated,&error) && repeated==merged,"adoption retry stable");
+    const auto beforeRetry=bytes(out); const int generation=combined.revision();
+    check(combined.saveSharedCollection(share,1,snapshot).value("alreadySaved").toBool() && bytes(out)==beforeRetry && combined.revision()==generation,"Save after adoption preserves both divergent copies");
+    NamedCollectionsStore different(root+"/adopt-conflict.json");auto altered=snapshot;altered["description"]="Conflicting received original";
+    id(different.saveSharedCollection(share,1,altered));QByteArray sentinel="untouched";
+    check(!NamedCollectionsStore::mergeForAdoption(originalA,bytes(different.filePath()),&sentinel,&error) && sentinel=="untouched","adoption conflicting original hashes rejected atomically");
+    check(bytes(a)==originalA && bytes(b)==originalB,"adoption originals preserved");
+    NamedCollectionsStore external(out);check(!external.createCollection("After adoption").isEmpty(),"adoption external writer");
+    const auto externalBytes=bytes(out);const auto oldRows=combined.collections();const int oldGeneration=combined.revision();
+    check(!combined.saveSharedCollection(share,1,snapshot).value("ok").toBool(),"adopted duplicate no-op checks disk generation");
+    check(bytes(out)==externalBytes && combined.collections()==oldRows && combined.revision()==oldGeneration,"stale adopted retry preserves both divergent copies and newer disk");
+}
+void schema2And3UpgradeLosslessly(const QString &root,const QByteArray &ordinary,const QByteArray &gift) {
+    for(int schema:{2,3}) {
+        auto object=QJsonDocument::fromJson(schema==2?ordinary:gift).object();object["schemaVersion"]=schema;
+        auto rows=object["collections"].toArray();for(int i=0;i<rows.size();++i){auto row=rows[i].toObject();
+            for(const auto &field:{"savedShareId","savedRevision","savedSnapshotHash"})row.remove(field);
+            if(schema==2)for(const auto &field:{"presentation","giftSnapshot","shareId","editionRevision","copyOperation","copySource","copyRequestName"})row.remove(field);
+            rows[i]=row;}object["collections"]=rows;
+        const auto original=QJsonDocument(object).toJson(QJsonDocument::Compact);const auto path=root+QString("/schema%1.json").arg(schema);write(path,original);
+        NamedCollectionsStore old(path);check(old.healthy() && bytes(path)==original,"old schema reads without rewrite");const auto previous=old.collections();
+        if(schema==3){const auto giftRow=previous[0].toMap();check(old.keepGift(giftRow.value("shareId").toString(),1,giftRow.value("giftSnapshot").toMap()).value("ok").toBool() && bytes(path)==original,"schema3 idempotent keep does not rewrite/upgrade");}
+        else {const auto row=previous[0].toMap();const auto draft=old.beginEdit(row.value("id").toString());check(old.saveEdit(draft.value("token").toString(),row.value("name").toString(),row.value("description").toString(),row.value("items").toStringList(),row.value("notes").toMap()) && bytes(path)==original,"schema2 no-op edit does not rewrite/upgrade");}
+        check(!old.createCollection("Successful upgrade").isEmpty(),"old schema mutation succeeds");
+        check(QJsonDocument::fromJson(bytes(path)).object()["schemaVersion"].toInt()==4,"successful mutation upgrades to4");
+        for(const auto &row:previous)check(old.collection(row.toMap().value("id").toString())==row.toMap(),"old collections upgraded losslessly");
+        NamedCollectionsStore reload(path);check(reload.healthy() && reload.collections()==old.collections(),"upgraded file reloads exactly");
+    }
+}
+void malformedProvenanceNeverRewrites(const QString &root,const QByteArray &valid) {
+    auto object=QJsonDocument::fromJson(valid).object();auto rows=object["collections"].toArray();
+    const auto original=rows[0].toObject();int index=0;
+    QList<QPair<QString,QJsonValue>> cases={{"savedShareId",true},{"savedShareId",QString(42,'a')},{"savedShareId",QString()},
+        {"savedRevision","1"},{"savedRevision",true},{"savedRevision",1.5},{"savedRevision",0},{"savedRevision",-1},
+        {"savedSnapshotHash",true},{"savedSnapshotHash",QString(64,'A')},{"savedSnapshotHash",QString(63,'a')},{"savedSnapshotHash",QString()}};
+    for(const auto &item:cases){auto row=original;row[item.first]=item.second;auto badRows=rows;badRows[0]=row;auto bad=object;bad["collections"]=badRows;
+        const auto path=root+QString("/malformed%1.json").arg(index++);const auto data=QJsonDocument(bad).toJson();write(path,data);NamedCollectionsStore rejected(path);
+        check(!rejected.healthy() && !rejected.saveSharedCollection(QString(43,'k'),1,QVariantMap()).value("ok").toBool() && bytes(path)==data,"malformed provenance rejected without rewrite");}
+    for(int schema:{1,5,99}){auto bad=object;bad["schemaVersion"]=schema;const auto path=root+QString("/future%1.json").arg(schema);const auto data=QJsonDocument(bad).toJson();write(path,data);NamedCollectionsStore rejected(path);
+        check(!rejected.healthy() && rejected.createCollection("Never").isEmpty() && bytes(path)==data,"unknown schema preserved");}
+}
 }
 int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
@@ -43,10 +147,15 @@ int main(int argc, char **argv) {
     check(!projected.contains("private") && !projected.contains("credential") && !projected.contains("payload")
         && !projected.contains("local-key") && !projected.contains("route") && !projected.contains("file:"), "projection excludes reopen data");
     const QByteArray ownerBefore = bytes(ownerPath);
+    ordinarySaveIsEditableAndIndependent(dir.filePath("ordinary.json"),snapshot);
+    adoptionPreservesDivergentSavedCopies(dir.path(),snapshot);
     const QString shareId(43, 'a');
     const QString kept = id(recipient.keepGift(shareId, 1, snapshot));
     check(recipient.collection(kept).value("keptGift").toBool(), "kept marker");
     const QByteArray keptBytes = bytes(recipientPath);
+    schema2And3UpgradeLosslessly(dir.path(),ownerBefore,keptBytes);
+    NamedCollectionsStore provenance(dir.filePath("provenance.json"));id(provenance.saveSharedCollection(QString(43,'a'),1,snapshot));
+    malformedProvenanceNeverRewrites(dir.path(),bytes(provenance.filePath()));
     const int keptRevision = recipient.revision();
     check(id(recipient.keepGift(shareId, 1, snapshot)) == kept && recipient.revision() == keptRevision, "keep retry deduplicated");
     check(recipient.beginEdit(kept).isEmpty(), "kept gift immutable editor");
@@ -119,12 +228,12 @@ int main(int argc, char **argv) {
     // Existing schema 2 remains readable and upgrades only on an actual write.
     auto legacy = QJsonDocument::fromJson(ownerBefore).object(); legacy["schemaVersion"] = 2;
     auto rows = legacy["collections"].toArray();
-    for (int i = 0; i < rows.size(); ++i) { auto row = rows[i].toObject(); for (const auto &key : {"presentation","giftSnapshot","shareId","editionRevision","copyOperation","copySource","copyRequestName"}) row.remove(key); rows[i] = row; }
+    for (int i = 0; i < rows.size(); ++i) { auto row = rows[i].toObject(); for (const auto &key : {"presentation","giftSnapshot","shareId","editionRevision","copyOperation","copySource","copyRequestName","savedShareId","savedRevision","savedSnapshotHash"}) row.remove(key); rows[i] = row; }
     legacy["collections"] = rows;
     QFile legacyFile(dir.filePath("legacy.json")); check(legacyFile.open(QIODevice::WriteOnly), "legacy fixture"); legacyFile.write(QJsonDocument(legacy).toJson()); legacyFile.close();
     NamedCollectionsStore legacyStore(legacyFile.fileName()); check(legacyStore.healthy(), "schema 2 readable");
     check(!legacyStore.createCollection("Upgrade").isEmpty(), "legacy mutation");
-    check(QJsonDocument::fromJson(bytes(legacyFile.fileName())).object()["schemaVersion"].toInt() == 3, "schema upgraded on commit");
+    check(QJsonDocument::fromJson(bytes(legacyFile.fileName())).object()["schemaVersion"].toInt() == 4, "schema upgraded on commit");
     bad = snapshot; present = presentation();
     auto damaged = QByteArray::fromBase64(present.value("cover_data").toString().section(',', 1).toLatin1());
     damaged[damaged.size() / 2] = char(damaged.at(damaged.size() / 2) ^ 0x33);
@@ -141,13 +250,24 @@ int main(int argc, char **argv) {
     QByteArray merged; QString mergeError;
     check(NamedCollectionsStore::mergeForAdoption(keptBytes, keptBytes, &merged, &mergeError), "kept gift adoption deduplicates");
     check(QJsonDocument::fromJson(merged).object()["collections"].toArray().size() == 1, "adoption retains one edition");
-    if (argc > 1) {
-        QFile sharedFixture(QString::fromLocal8Bit(argv[1]));
+    {
+        QFile sharedFixture(argc > 1 ? QString::fromLocal8Bit(argv[1]) : QStringLiteral(COLOSSEUM_MIXED_SHARE_FIXTURE));
         check(sharedFixture.open(QIODevice::ReadOnly), "open shared wire fixture");
         auto shared = QJsonDocument::fromJson(sharedFixture.readAll()).object().toVariantMap();
         check(NamedCollectionsStore::validateShareSnapshot(shared), "cross-language mixed media wire fixture valid");
+        const auto ordinaryMixedId=id(restarted.saveSharedCollection(QString(43,'e'),2,shared));
+        auto wireMembers=shared.value("members").toList();
+        for(int i=0;i<wireMembers.size();++i){const auto wire=wireMembers[i].toMap();const auto saved=restarted.items(ordinaryMixedId)[i].toMap();
+            check(saved.value("world")==wire.value("world") && saved.value("kind")==wire.value("kind") && saved.value("source")==wire.value("source")
+                && saved.value("sourceId")==wire.value("source_id") && saved.value("editionId")==wire.value("edition_id") && saved.value("mediaId")==wire.value("canonical_id"),"mixed ordinary exact source/canonical/edition assertions");
+            QVariantMap payload;if(!wire.value("canonical_source_id").toString().isEmpty())payload.insert("canonicalSourceId",wire.value("canonical_source_id"));
+            if(!wire.value("album_source_id").toString().isEmpty())payload.insert("albumId",wire.value("album_source_id"));
+            if(!wire.value("album_browse_id").toString().isEmpty())payload.insert("browseId",wire.value("album_browse_id"));
+            if(!wire.value("comic_post_ids").toList().isEmpty())payload.insert("posts",wire.value("comic_post_ids"));
+            check(saved.value("payload").toMap()==payload && saved.value("route").toString().isEmpty() && saved.value("cover").toString().isEmpty() && saved.value("note")==wire.value("note"),"mixed ordinary retains exact safe assertions/notes without provider lookup");}
         const auto mixedId = id(restarted.keepGift(QString(43, 'd'), 1, shared));
         NamedCollectionsStore mixedRestart(recipientPath);
+        check(mixedRestart.healthy() && mixedRestart.collection(ordinaryMixedId)==restarted.collection(ordinaryMixedId),"mixed ordinary schema4 exact offline reload");
         check(mixedRestart.healthy() && mixedRestart.collection(mixedId).value("giftSnapshot").toMap() == shared, "mixed fixture exact restart");
     }
     qInfo() << "PASS" << checks << "Collections sharing persistence checks";

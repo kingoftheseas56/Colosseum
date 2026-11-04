@@ -4,6 +4,8 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QFile>
+#include <QDir>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QSignalSpy>
@@ -28,6 +30,60 @@ class Checks : public QObject {
     }
     QJsonObject envelope() { return {{"share_id",share},{"kind","gift"},{"revision",1},{"snapshot",snapshot()},{"revoked",false}}; }
 private slots:
+    void ordinarySaveAndNativePreviewDoNotMutateOtherOwners() {
+        QTemporaryDir dir; NamedCollectionsStore store(dir.filePath("c.json"));
+        QVERIFY(!store.createCollection("Untouched").isEmpty());
+        QFile beforeFile(store.filePath());QVERIFY(beforeFile.open(QIODevice::ReadOnly));const auto before=beforeFile.readAll();beforeFile.close();
+        Transport transport; AccountClient client(&transport);CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world"));
+        controller.activate(&store,false);QVERIFY(controller.receivingReady());
+        auto ordinary=envelope();ordinary["kind"]="collection";
+        QVERIFY(controller.openLink("https://getcolosseum.world/c/"+share));transport.finish({200,ordinary,{},{},false});QTRY_VERIFY(!controller.busy());
+        const auto request=transport.id;
+        const auto reference=controller.receivedReference(0);QVERIFY(!reference.isEmpty());
+        QCOMPARE(reference.value("sourceId").toString(),QString("13"));QVERIFY(reference.value("cover").toString().isEmpty());QVERIFY(reference.value("route").toString().isEmpty());
+        QVERIFY(controller.receivedReference(-1).isEmpty());QVERIFY(controller.receivedReference(1).isEmpty());
+        QCOMPARE(transport.id,request);QCOMPARE(store.collections().size(),1);
+        QVERIFY(beforeFile.open(QIODevice::ReadOnly));QCOMPARE(beforeFile.readAll(),before);beforeFile.close();
+        QSignalSpy saved(&controller,&CollectionPublicationController::saved);
+        QVERIFY(controller.saveReceivedCollection());QCOMPARE(saved.size(),1);QVERIFY(!saved[0][1].toBool());
+        const auto id=saved[0][0].toString();QVERIFY(!store.beginEdit(id).isEmpty());
+        QVERIFY(controller.saveReceivedCollection());QCOMPARE(saved.size(),2);QCOMPARE(saved[1][0].toString(),id);QVERIFY(saved[1][1].toBool());
+        QCOMPARE(store.collections().size(),2);QCOMPARE(transport.id,request);
+        const auto files=QDir(dir.path()).entryList(QDir::Files);QCOMPARE(files,QStringList{"c.json"});
+        NamedCollectionsStore reload(store.filePath());QVERIFY(reload.healthy());QCOMPARE(reload.collection(id),store.collection(id));
+        controller.clearReceived();QVERIFY(!controller.saveReceivedCollection());QVERIFY(controller.receivedReference(0).isEmpty());
+    }
+    void profileChangeRejectsStaleSave() {
+        QTemporaryDir dir; NamedCollectionsStore a(dir.filePath("a.json")),b(dir.filePath("b.json"));
+        Transport transport;AccountClient client(&transport);CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world"));
+        auto ordinary=envelope();ordinary["kind"]="collection";
+        controller.activate(&a,false);QVERIFY(controller.openLink("https://getcolosseum.world/c/"+share));transport.finish({200,ordinary,{},{},false});QTRY_VERIFY(!controller.busy());
+        controller.deactivate();QVERIFY(!controller.receivingReady());QVERIFY(!controller.saveReceivedCollection());
+        controller.activate(&b,false);QVERIFY(controller.receivingReady());QVERIFY(!controller.saveReceivedCollection());
+        QVERIFY(controller.openLink("https://getcolosseum.world/c/"+share));controller.deactivate();controller.activate(&a,false);
+        transport.finish({200,ordinary,{},{},false});QCoreApplication::processEvents();QVERIFY(controller.received().isEmpty());QVERIFY(!controller.saveReceivedCollection());
+        QVERIFY(a.collections().isEmpty());QVERIFY(b.collections().isEmpty());QVERIFY(!QFileInfo::exists(a.filePath()));QVERIFY(!QFileInfo::exists(b.filePath()));
+    }
+    void clearReceivedCancelsOnlyReceivingRequest() {
+        QTemporaryDir dir;NamedCollectionsStore store(dir.filePath("c.json"));const auto localId=store.createCollection("Local");
+        Transport transport;AccountClient client(&transport);client.setAccessToken("token");CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world"));controller.activate(&store,true);
+        QVERIFY(controller.openLink("https://getcolosseum.world/c/"+share));controller.clearReceived();QVERIFY(!controller.busy());
+        transport.finish({200,envelope(),{},{},false});QCoreApplication::processEvents();QVERIFY(controller.received().isEmpty());
+        QVERIFY(controller.publish(localId,false));controller.clearReceived();QVERIFY(controller.busy());
+        auto receipt=envelope();receipt["kind"]="collection";receipt["snapshot"]=transport.request.body.value("snapshot");transport.finish({201,receipt,{},{},false});QTRY_VERIFY(!controller.busy());
+        QCOMPARE(controller.publications().size(),1);QVERIFY(controller.error().isEmpty());QVERIFY(!controller.retryResetAvailable());
+        QVERIFY(controller.refresh());controller.clearReceived();QVERIFY(controller.busy());
+        transport.finish({200,{{"publications",QJsonArray{receipt}}},{},{},false});QTRY_VERIFY(!controller.busy());QCOMPARE(controller.publications().size(),1);
+    }
+    void receivingReadinessNotifiesHealthAndDestruction() {
+        QTemporaryDir dir;auto *store=new NamedCollectionsStore(dir.filePath("c.json"));QVERIFY(!store->createCollection("Local").isEmpty());
+        Transport transport;AccountClient client(&transport);CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world"));QSignalSpy changed(&controller,&CollectionPublicationController::changed);
+        controller.activate(store,false);QVERIFY(controller.receivingReady());changed.clear();
+        QFile file(store->filePath());QVERIFY(file.open(QIODevice::ReadOnly));const auto good=file.readAll();file.close();
+        QVERIFY(file.open(QIODevice::WriteOnly|QIODevice::Truncate));file.write("bad");file.close();QVERIFY(!store->reload());QVERIFY(!controller.receivingReady());QVERIFY(!changed.isEmpty());QVERIFY(!controller.saveReceivedCollection());
+        changed.clear();QVERIFY(file.open(QIODevice::WriteOnly|QIODevice::Truncate));file.write(good);file.close();QVERIFY(store->reload());QVERIFY(controller.receivingReady());QVERIFY(!changed.isEmpty());
+        changed.clear();delete store;QVERIFY(!controller.receivingReady());QVERIFY(!changed.isEmpty());QVERIFY(controller.received().isEmpty());
+    }
     void publicLinksUseExistingAnonymousServiceTransport() {
         QTemporaryDir dir; NamedCollectionsStore store(dir.filePath("c.json"));
         Transport transport; AccountClient client(&transport); client.setAccessToken("must-not-leak");
