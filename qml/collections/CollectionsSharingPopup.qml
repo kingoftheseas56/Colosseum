@@ -12,6 +12,8 @@ Popup {
     required property var controller
     required property var store
     property string collectionId: ""
+    property string incomingUrl: ""
+    readonly property bool incomingReadOnly: incomingUrl.length > 0 && tab === "receive" && opened
     property string tab: collectionId ? "publish" : "receive"
     property string coverData: ""
     property int draftRevision: 0
@@ -38,6 +40,17 @@ Popup {
     Overlay.modal: Rectangle { color: "#b4000209" }
     background: Rectangle { radius: 16; color: "#171b26"; border.color: theme.edge }
 
+    function openIncoming(url) {
+        root.incomingUrl = String(url)
+        root.tab = "receive"
+        receiveLink.text = root.incomingUrl
+        receivePassphrase.text = ""
+        closeButton.forceActiveFocus(Qt.OtherFocusReason)
+        if (root.controller) {
+            root.controller.clearReceived()
+            root.controller.openLink(root.incomingUrl, "")
+        }
+    }
     function beginDraft() {
         root.draftRevision = root.store.revision
         const p = root.collection ? root.collection.presentation || {} : {}
@@ -64,11 +77,12 @@ Popup {
             scroll.contentY = Math.max(0, Math.min(scroll.contentHeight - scroll.height, point.y + item.height - scroll.height))
     }
     onOpened: {
-        root.beginDraft()
+        if (!root.incomingUrl) root.beginDraft()
         root.localError = ""
         root.confirmation = ""
         closeButton.forceActiveFocus(Qt.OtherFocusReason)
-        if (root.controller && root.controller.signedIn) root.controller.refresh()
+        if (root.incomingUrl) root.openIncoming(root.incomingUrl)
+        else if (root.controller && root.controller.signedIn) root.controller.refresh()
     }
     onClosed: {
         passphrase.text = ""

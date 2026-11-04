@@ -102,7 +102,12 @@ public:
     std::unique_ptr<Colosseum::WatchParty::IWatchPartyAccountBridge>
     createWatchPartyAccountBridge();
 
+signals:
+    void collectionProfileInvalidated();
+
 private:
+    void activateCollectionPublications();
+    bool m_collectionProfileChanging = false;
     struct StremioImportBatch;
     struct StremioRedoBatch;
 

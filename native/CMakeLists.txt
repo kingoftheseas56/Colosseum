@@ -318,6 +318,8 @@ qt_add_executable(colosseum
     main.cpp
     bootstrap/InstanceLock.cpp
     bootstrap/InstanceLock.h
+    bootstrap/CollectionLinkActivation.cpp
+    bootstrap/CollectionLinkActivation.h
     # Bundle 8C account + cloud-sync runtime (adopted 2026-08-16)
     account/AccountAttachmentCoordinator.cpp
     account/AccountAttachmentReceipt.cpp
@@ -1743,6 +1745,8 @@ add_executable(startup_layout_harness
     ../tests/startup_layout_harness.cpp
     bootstrap/StartupLayout.cpp
     bootstrap/StartupLayout.h
+    account/CollectionShareLink.cpp
+    account/AccountServiceEndpoint.cpp
 )
 target_include_directories(startup_layout_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(startup_layout_harness PRIVATE Qt6::Core)

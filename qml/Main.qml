@@ -44,6 +44,40 @@ Window {
     color: "#05060a"
     title: "Colosseum"
 
+    property bool collectionLinkDestinationLoaded: false
+    readonly property bool collectionLinkDestinationReady: collectionLinkDestinationLoaded
+        && !boot.visible && !accountHost.visible && !accountCenter.visible && !accountFlyout.visible
+        && !applicationQuitPending && !collectionsPanel.incomingBlocked
+        && typeof CollectionPublications !== "undefined" && CollectionPublications
+        && CollectionPublications.receivingReady && !CollectionPublications.busy
+    onCollectionLinkDestinationReadyChanged: {
+        if (typeof CollectionLinkActivation !== "undefined" && CollectionLinkActivation)
+            CollectionLinkActivation.setDestinationReady(win.collectionLinkDestinationReady)
+    }
+    Component.onDestruction: {
+        if (typeof CollectionLinkActivation !== "undefined" && CollectionLinkActivation)
+            CollectionLinkActivation.setDestinationReady(false)
+    }
+    Connections {
+        target: typeof CollectionLinkActivation !== "undefined" ? CollectionLinkActivation : null
+        function onOpenRequested(url, ticket) {
+            if (!win.collectionLinkDestinationReady) {
+                CollectionLinkActivation.setDestinationReady(false)
+                CollectionLinkActivation.deferPresented(String(ticket))
+                return
+            }
+            win.openNamedCollectionsPage()
+            if (!collectionsPanel.openIncoming(String(url), String(ticket))) {
+                CollectionLinkActivation.setDestinationReady(false)
+                CollectionLinkActivation.deferPresented(String(ticket))
+                return
+            }
+            // The existing WindowMode restore observer reasserts the base mode.
+            if (win.visibility === Window.Minimized) win.showNormal()
+            win.raise()
+            win.requestActivate()
+        }
+    }
     property bool applicationQuitPending: false
     property bool applicationQuitReady: false
     property string applicationQuitError: ""
@@ -747,6 +781,7 @@ Window {
     }
 
     Component.onCompleted: {
+        win.collectionLinkDestinationLoaded = true
         keyboardRegistry.registerCommand(openMediaCommand)
         keyboardRegistry.registerCommand(openVaultCommand)
         keyboardRegistry.registerCommand(openDownloadsCommand)
@@ -1174,6 +1209,10 @@ Window {
         wallpaperItem: wall
         publicationController: typeof CollectionPublications !== "undefined" ? CollectionPublications : null
         bottomInset: taskbar.visible ? taskbar.closedSize + taskbar.bottomGap + 16 : 24
+        onIncomingDismissed: function(ticket) {
+            if (typeof CollectionLinkActivation !== "undefined" && CollectionLinkActivation)
+                CollectionLinkActivation.dismissPresented(ticket)
+        }
         onOpenReferenceRequested: reference => win.openNamedCollectionReference(reference)
         onCollectionIdChanged: win.cancelNamedCollectionsOpen()
         onPickerActiveChanged: if (pickerActive) win.cancelNamedCollectionsOpen()

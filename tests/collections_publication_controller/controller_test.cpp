@@ -30,6 +30,24 @@ class Checks : public QObject {
     }
     QJsonObject envelope() { return {{"share_id",share},{"kind","gift"},{"revision",1},{"snapshot",snapshot()},{"revoked",false}}; }
 private slots:
+    void authOnlyChangesPreserveAnonymousReceiving() {
+        QTemporaryDir dir;NamedCollectionsStore store(dir.filePath("c.json"));Transport transport;AccountClient client(&transport);client.setAccessToken("token");
+        CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world"));controller.activate(&store,true);
+        auto ordinary=envelope();ordinary["kind"]="collection";
+        QVERIFY(controller.openLink("https://getcolosseum.world/c/"+share));controller.activate(&store,false);
+        QVERIFY(controller.busy());QVERIFY(controller.receivingReady());transport.finish({200,ordinary,{},{},false});QTRY_VERIFY(!controller.busy());
+        QCOMPARE(controller.received().value("share_id").toString(),share);const auto received=controller.received();
+        controller.activate(&store,true);QCOMPARE(controller.received(),received);controller.activate(&store,false);QCOMPARE(controller.received(),received);
+        QVERIFY(controller.saveReceivedCollection());QCOMPARE(store.collections().size(),1);
+    }
+    void authOnlyChangesDiscardOwnerReceipts() {
+        QTemporaryDir dir;NamedCollectionsStore store(dir.filePath("c.json"));const auto id=store.createCollection("Local");Transport transport;AccountClient client(&transport);client.setAccessToken("token");
+        CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world"));controller.activate(&store,true);
+        QVERIFY(controller.publish(id,false));auto receipt=envelope();receipt["kind"]="collection";receipt["snapshot"]=transport.request.body.value("snapshot");
+        controller.activate(&store,false);QVERIFY(!controller.busy());transport.finish({201,receipt,{},{},false});QCoreApplication::processEvents();QVERIFY(controller.publications().isEmpty());
+        controller.activate(&store,true);QVERIFY(controller.refresh());controller.activate(&store,false);
+        transport.finish({200,{{"publications",QJsonArray{receipt}}},{},{},false});QCoreApplication::processEvents();QVERIFY(controller.publications().isEmpty());
+    }
     void ordinarySaveAndNativePreviewDoNotMutateOtherOwners() {
         QTemporaryDir dir; NamedCollectionsStore store(dir.filePath("c.json"));
         QVERIFY(!store.createCollection("Untouched").isEmpty());

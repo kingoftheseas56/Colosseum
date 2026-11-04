@@ -6,7 +6,7 @@
 ColosseumInstanceLock::ColosseumInstanceLock(const QString& appDataRoot)
     : m_path(appDataRoot.trimmed().isEmpty()
                  ? QString()
-                 : QDir(appDataRoot).filePath(QStringLiteral("colosseum.instance.lock"))),
+                 : QDir(QDir::cleanPath(QFileInfo(appDataRoot).absoluteFilePath())).filePath(QStringLiteral("colosseum.instance.lock"))),
       m_lock(m_path)
 {
     // QLockFile checks whether the recorded process is still alive before
@@ -31,3 +31,5 @@ bool ColosseumInstanceLock::wasBlockedByExistingInstance() const
 {
     return m_lock.error() == QLockFile::LockFailedError;
 }
+
+QString ColosseumInstanceLock::appDataRoot() const { return m_path.isEmpty() ? QString() : QFileInfo(m_path).absolutePath(); }

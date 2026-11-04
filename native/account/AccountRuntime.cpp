@@ -679,8 +679,7 @@ AccountRuntime::AccountRuntime(
     m_controller.setSyncEngine(
         &m_syncEngine);
     connect(&m_controller, &AccountController::modeChanged, this, [this] {
-        m_collectionPublications.activate(m_profileStores.namedCollectionsStore(),
-            m_controller.modeValue() == AccountController::Mode::SignedIn);
+        activateCollectionPublications();
     });
     m_stremioSync.setCredentialCallbacks(
         m_stremioCredentials.save,
@@ -785,6 +784,8 @@ AccountRuntime::AccountRuntime(
             storesAboutToChange,
         this,
         [this]() {
+            m_collectionProfileChanging = true;
+            emit collectionProfileInvalidated();
             m_collectionPublications.deactivate();
             m_ratingsReviewsDelivery.deactivateProfile();
             // Store replacement is a sync boundary. Preserve the current
@@ -821,7 +822,8 @@ AccountRuntime::AccountRuntime(
         &ProfileStoreRuntime::storesChanged,
         this,
         [this]() {
-            m_collectionPublications.activate(m_profileStores.namedCollectionsStore(), m_controller.modeValue() == AccountController::Mode::SignedIn);
+            m_collectionProfileChanging = false;
+            activateCollectionPublications();
             activateRatingsReviewsDelivery();
             activateExtensionsProfile();
             activateStremioProfile();
@@ -1791,14 +1793,24 @@ AccountRuntime::createWatchPartyAccountBridge() {
         &m_controller, &m_client);
 }
 
+void AccountRuntime::activateCollectionPublications() {
+    const auto mode = m_controller.modeValue();
+    if (m_collectionProfileChanging || m_profileStores.activeProfile().kind() == ProfilePaths::Kind::Sealed
+        || mode == AccountController::Mode::Locked) {
+        emit collectionProfileInvalidated();
+        m_collectionPublications.deactivate();
+        return;
+    }
+    m_collectionPublications.activate(m_profileStores.namedCollectionsStore(), mode == AccountController::Mode::SignedIn);
+}
+
 void AccountRuntime::prepareForQml(QQmlApplicationEngine *engine) {
     Q_ASSERT(engine);
     if (!engine || m_qmlPrepared)
         return;
 
     m_profileStores.prepareForQml(engine);
-    m_collectionPublications.activate(m_profileStores.namedCollectionsStore(),
-        m_controller.modeValue() == AccountController::Mode::SignedIn);
+    activateCollectionPublications();
     engine->rootContext()->setContextProperty(QStringLiteral("CollectionPublications"), &m_collectionPublications);
     activateRatingsReviewsDelivery();
 

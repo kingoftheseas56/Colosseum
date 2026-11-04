@@ -34,10 +34,9 @@ void CollectionPublicationController::activate(NamedCollectionsStore *store, boo
         }
     }
     if (m_signedIn != signedIn) {
-        ++m_generation;
-        m_request = 0;
-        m_receivingRequest = false;
-        m_received.clear();
+        // Authentication changes invalidate owner-only work, not anonymous
+        // receiving in the same active profile (including Offline transitions).
+        if (!m_receivingRequest) m_request = 0;
         m_publications.clear();
         m_signedIn = signedIn;
     }

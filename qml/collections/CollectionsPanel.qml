@@ -11,6 +11,13 @@ Item {
     property Item wallpaperItem: null
     property var publicationController: null
     property bool sharingActive: false
+    property string incomingUrl: ""
+    property string incomingTicket: ""
+    property bool incomingEntry: false
+    readonly property bool incomingBlocked: pendingChanges || pickerActive || deleteActive
+        || (sharingActive && !(sharingLoader.status === Loader.Ready && sharingLoader.item
+                               && sharingLoader.item.incomingReadOnly))
+    signal incomingDismissed(string ticket)
     property var openedGiftIds: ({})
     property bool showing: false
     property int bottomInset: 96
@@ -37,6 +44,32 @@ Item {
     Theme { id: theme }
     CollectionsAdapter { id: adapter; nativeStore: panel.nativeStore; activeCollectionId: panel.collectionId }
 
+    function openIncoming(url, ticket) {
+        if (panel.incomingBlocked || !panel.publicationController || !ticket) return false
+        panel.incomingUrl = String(url)
+        panel.incomingTicket = String(ticket)
+        panel.incomingEntry = true
+        panel.showing = true
+        if (panel.sharingActive && sharingLoader.status === Loader.Ready && sharingLoader.item) {
+            sharingLoader.item.entryTicket = panel.incomingTicket
+            sharingLoader.item.openIncoming(panel.incomingUrl)
+        } else panel.sharingActive = true
+        return true
+    }
+    function dismissSharing(generation, ticket) {
+        if (generation !== panel.profileGeneration || String(ticket || "") !== panel.incomingTicket) return
+        const incoming = panel.incomingEntry
+        const presentedTicket = panel.incomingTicket
+        panel.incomingEntry = false
+        panel.incomingUrl = ""
+        panel.incomingTicket = ""
+        panel.sharingActive = false
+        if (incoming) {
+            if (panel.publicationController) panel.publicationController.clearReceived()
+            // Cleanup is complete before a listener may deliver another link.
+            panel.incomingDismissed(presentedTicket)
+        }
+    }
     function detailPage() {
         return pageLoader.status === Loader.Ready && pageLoader.item
             && pageLoader.item.objectName === "collectionPage" ? pageLoader.item : null
@@ -52,6 +85,7 @@ Item {
         panel.forceActiveFocus(Qt.OtherFocusReason)
     }
     function finishClose() {
+        if (sharingLoader.status === Loader.Ready && sharingLoader.item) sharingLoader.item.close()
         panel.pickerOpener = null
         panel.deleteOpener = null
         if (pickerLoader.status === Loader.Ready) pickerLoader.item.close()
@@ -125,6 +159,9 @@ Item {
     }
     function profileChanged() {
         panel.profileGeneration++
+        panel.incomingEntry = false
+        panel.incomingUrl = ""
+        panel.incomingTicket = ""
         panel.openedGiftIds = ({})
         panel.sharingActive = false
         const detail = panel.detailPage()
@@ -302,12 +339,20 @@ Item {
             CollectionsSharingPopup {
                 store: adapter
                 controller: panel.publicationController
-                collectionId: panel.collectionId
-                onDismissed: panel.sharingActive = false
+                objectName: "incomingCollectionPopup"
+                property int entryGeneration: -1
+                property string entryTicket: ""
+                collectionId: panel.incomingEntry ? "" : panel.collectionId
+                onDismissed: panel.dismissSharing(entryGeneration, entryTicket)
                 onCollectionOpened: function(id) { panel.collectionId = id; panel.showing = true }
             }
         }
-        onLoaded: if (item) item.open()
+        onLoaded: if (item) {
+            item.entryGeneration = panel.profileGeneration
+            item.entryTicket = panel.incomingTicket
+            item.incomingUrl = panel.incomingEntry ? panel.incomingUrl : ""
+            item.open()
+        }
     }
     Loader {
         id: pickerLoader
