@@ -10,7 +10,7 @@ import (
 //go:embed index.html viewer.css viewer.js
 var assets embed.FS
 
-var sharePath = regexp.MustCompile(`^/collections/s/[A-Za-z0-9_-]{20,128}/?$`)
+var sharePath = regexp.MustCompile(`^/collections/s/[A-Za-z0-9_-]{43}/?$`)
 
 // Handler exposes only the three reviewed assets. Source, tests and arbitrary
 // embedded paths cannot be addressed through this handler.

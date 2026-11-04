@@ -8,10 +8,20 @@
   <link rel="stylesheet" href="/collections/assets/viewer.css">
   <script defer src="/collections/assets/viewer.js"></script>
 </head>
-<body>
+<body data-api-origin="" data-site-brand="">
   <a class="skip-link" href="#main">Skip to collection</a>
   <header class="masthead"><span class="brand">COLOSSEUM</span><span class="masthead-caption">A collection, shared with you</span></header>
   <main id="main" tabindex="-1">
+    <aside class="app-handoff" aria-labelledby="handoff-title">
+      <div><span class="eyebrow">TAKE IT INTO COLOSSEUM</span><h2 id="handoff-title">Your collection, in the app.</h2><p>Preview here without an account. Open in Colosseum to choose whether to save it.</p></div>
+      <nav class="handoff-actions" aria-label="Collection link actions">
+        <a id="open-app" class="action primary" aria-disabled="true" tabindex="-1">Open in Colosseum</a>
+        <button id="copy-link" type="button" disabled>Copy link</button>
+        <a id="get-app" class="action" href="https://getcolosseum.world/downloads">Get Colosseum <span class="destination">Install the app</span></a>
+      </nav>
+      <p id="handoff-status" class="small-note" role="status">Your browser may ask permission or require an Open click. Opening a link never saves or plays anything automatically.</p>
+      <div id="copy-fallback" class="copy-fallback" hidden><label for="canonical-link">Collection link — select and copy</label><input id="canonical-link" type="text" readonly spellcheck="false" autocomplete="off"></div>
+    </aside>
     <section id="loading" class="state-panel" aria-live="polite"><span class="eyebrow">COLLECTIONS</span><h1>Opening your link…</h1><p>No account or installation needed.</p></section>
     <section id="locked" class="state-panel" hidden aria-labelledby="locked-title">
       <span class="eyebrow">A LITTLE PRIVACY</span><h1 id="locked-title">This collection has a passphrase.</h1><p>Ask the person who shared it for the passphrase.</p>
@@ -37,6 +47,7 @@
       <p class="edition-note">Availability depends on your providers. Titles and editions are preserved as selected; no media files are included.</p>
     </section>
   </main>
+  <noscript><p class="no-script">Enable JavaScript to preview this collection and open its app link. <a href="https://getcolosseum.world/downloads">Get Colosseum to install the app</a>, then paste the original collection link into Collections.</p></noscript>
   <footer><span class="brand">COLOSSEUM</span><p>Selections, in their own order.</p></footer>
 </body>
 </html>

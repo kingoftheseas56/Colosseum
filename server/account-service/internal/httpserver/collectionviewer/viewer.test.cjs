@@ -5,7 +5,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const {chromium} = require('playwright');
-const id='abcdefghijklmnopqrstuvwxyz012345';
+const id='abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG';
 const gift = {share_id:id,kind:'gift',revision:1,protected:false,revoked:false,snapshot:{schema_version:1,name:'For the long way home',description:'Stories for the train, the evening, and the days in between.',presentation:{preset:'midnight',dedication:'A few of my favourites, in the order I wanted to share them with you.\nStart anywhere. Come back whenever.',signature:'From a friend',cover_data:''},members:[{world:'theatre',kind:'film',source:'imdb',source_id:'tt0095327',edition_id:'',title:'A quiet evening',creator:'A favourite filmmaker',year:'1988',note:'Save this one for when you have nowhere else to be.'},{world:'tankoban',kind:'manga',source:'mal',source_id:'2',edition_id:'color',title:'The next adventure',creator:'A favourite storyteller',year:'1997',note:'The colour edition we talked about.'},{world:'biblio',kind:'book',source:'apple-books',source_id:'12345',edition_id:'ebook',title:'One more chapter',creator:'An old favourite',year:'2010',note:'I think you’ll like the ending.'}]}};
 gift.snapshot.members.forEach(m => {m.canonical_id='';m.canonical_source_id='';m.album_source_id='';m.album_browse_id='';m.comic_post_ids=[];});
 let mode='gift', calls=0, receivedPassphrase='';
@@ -69,8 +69,9 @@ const server = http.createServer(async(req,res)=>{
    if(mode==='collection'){assert.equal(await page.locator('#keep-panel').isVisible(),false);assert.match(await page.locator('#edition-label').textContent(),/EDITION 2/);}
    if(mode==='empty')assert.equal(await page.locator('#empty').isVisible(),true);
   }
-  mode='malicious';await page.goto(url);await page.locator('#explore').waitFor({state:'visible'});await page.locator('#explore').click();assert.equal(await page.evaluate(()=>window.XSS),undefined);assert.equal(await page.locator('#members script,#members a,#collection-title img').count(),0);
+  mode='malicious';await page.goto(url);await page.locator('#explore').waitFor({state:'visible'});await page.locator('#explore').click();assert.equal(await page.evaluate(()=>window.XSS),undefined);assert.equal(await page.locator('#members script,#members a:not(.member-title),#members a[href^="javascript:"],#collection-title img').count(),0);
   assert.match(await page.locator('#collection-title').textContent(),/<img/);
+  assert.deepEqual(await page.locator('#members a').evaluateAll(links=>links.map(link=>link.getAttribute('href'))),gift.snapshot.members.map(()=>`https://getcolosseum.world/downloads?collection=${id}`));
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.goto(url.replace(id,'bad'));await page.locator('#failure').waitFor({state:'visible'});assert.equal(await page.locator('#retry').isVisible(),false);
   assert.deepEqual(errors,[]);

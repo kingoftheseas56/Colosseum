@@ -1,7 +1,7 @@
 // DOM-adapter unit tests, not browser/runtime acceptance.
 const test=require('node:test'), assert=require('node:assert/strict'), vm=require('node:vm'), fs=require('node:fs'), path=require('node:path');
 const snapshot=JSON.parse(fs.readFileSync(path.join(__dirname,'../../../../..','tests/collections_sharing/fixtures/mixed-gift-v1.json'),'utf8'));
-const share='abcdefghijklmnopqrstuvwxyz012345';
+const share='abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG';
 const source=fs.readFileSync(path.join(__dirname,'viewer.js'),'utf8');
 class Element {
  constructor(){this.hidden=false;this.value='';this.type='password';this.attrs={};this.events={};this.children=[];this.textContent='';this.dataset={};}
@@ -18,7 +18,7 @@ async function setup(response, pathname='/collections/s/'+share){
  const document={title:'',body:new Element(),getElementById(id){if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},createElement(){return new Element();},createDocumentFragment(){return new Element();}};
  const URL={createObjectURL(blob){downloads.push(blob);return 'blob:fixture';},revokeObjectURL(){}};
  const timers=[];
- const context={document,window,location:{pathname},URL,Blob,AbortController,TextDecoder,Uint8Array,Object,Number,Set,JSON,Error,
+ const context={document,window,location:{pathname},navigator:{},URL,Blob,AbortController,TextDecoder,Uint8Array,Object,Number,Set,JSON,Error,
  setTimeout(fn,ms){timers.push({fn,ms});return timers.length;},clearTimeout(){},fetch:async(url,init)=>{requests.push({url,init});const answer=typeof response==='function'?response(requests.length,init):response;return new Response(JSON.stringify(answer.body),{status:answer.status||200});}};
  window.scrollTo=()=>{};
  vm.runInNewContext(source,context);

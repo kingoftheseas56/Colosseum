@@ -8,7 +8,7 @@ import (
 )
 
 func TestViewerRoutes(t *testing.T) {
-	for _, path := range []string{"/collections/s/abcdefghijklmnopqrstuvwxyz012345", "/collections/assets/viewer.js", "/collections/assets/viewer.css"} {
+	for _, path := range []string{"/collections/s/abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG", "/collections/assets/viewer.js", "/collections/assets/viewer.css"} {
 		r := httptest.NewRequest(http.MethodGet, path, nil)
 		w := httptest.NewRecorder()
 		Handler().ServeHTTP(w, r)

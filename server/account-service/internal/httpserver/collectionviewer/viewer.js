@@ -3,8 +3,28 @@
 (() => {
   const $ = id => document.getElementById(id);
   const screens = ['loading', 'locked', 'failure', 'opening', 'collection'];
-  const match = location.pathname.match(/^\/collections\/s\/([A-Za-z0-9_-]{20,128})\/?$/);
+  const match = location.pathname.match(/^\/(?:c|collections\/s)\/([A-Za-z0-9_-]{43})\/?$/);
   const shareId = match ? match[1] : '';
+  const websiteOrigin = 'https://getcolosseum.world';
+  const websiteStage = document.body.dataset.siteBrand === 'getcolosseum';
+  const canonicalLink = shareId ? `${websiteOrigin}/c/${shareId}` : '';
+  const appLink = shareId ? `colosseum://collection/${shareId}` : '';
+  const downloadsLink = `${websiteStage ? '' : websiteOrigin}/downloads${shareId ? `?collection=${shareId}` : ''}`;
+  let apiOrigin = '';
+  let originError = false;
+  let launchAttempted = false;
+  // Only reviewed HTML configuration selects transport. Location supplies an
+  // identity, never an origin, redirect destination or arbitrary API path.
+  const configuredOrigin = document.body.dataset.apiOrigin || '';
+  if (configuredOrigin) {
+    try {
+      if (!/^https:\/\/[^\s/?#\\@]+\/?$/.test(configuredOrigin)) throw new Error('invalid_origin');
+      const parsed = new URL(configuredOrigin);
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password
+          || parsed.pathname !== '/' || parsed.search || parsed.hash) throw new Error('invalid_origin');
+      apiOrigin = parsed.origin;
+    } catch (_) { originError = true; }
+  }
   let edition = null;
   let request = null;
   let generation = 0;
@@ -69,7 +89,14 @@
       const li = document.createElement('li'); li.className = 'member';
       const number = document.createElement('span'); number.className='ordinal'; number.setAttribute('aria-hidden','true'); text(number,String(i+1).padStart(2,'0'));
       const content = document.createElement('div');
-      const title = document.createElement('h2'); text(title,m.title || 'Untitled');
+      const title = document.createElement('h2');
+      const titleLink = document.createElement('a'); titleLink.className='member-title';
+      titleLink.href=downloadsLink;
+      titleLink.setAttribute('aria-label',`${m.title || 'Untitled'} — get Colosseum to open this title`);
+      text(titleLink,m.title || 'Untitled');
+      const hint = document.createElement('span'); hint.className='install-hint';
+      text(hint,'Get Colosseum to open this title');
+      title.append(titleLink,hint);
       const meta = document.createElement('p'); meta.className='member-meta'; text(meta,[m.kind,m.creator,m.year].filter(Boolean).join(' · '));
       content.append(title,meta);
       if (m.note) { const note = document.createElement('p'); note.className='member-note'; text(note,m.note); content.append(note); }
@@ -100,14 +127,14 @@
     return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
   }
   async function open(passphrase) {
-    if (busy || !shareId) return;
+    if (busy || !shareId || originError) return;
     busy = true; $('unlock').disabled = true; $('unlock-form').setAttribute('aria-busy','true');
     text($('unlock-error'),''); $('passphrase').removeAttribute('aria-invalid');
     request = new AbortController(); const thisGeneration = ++generation;
     const timeout = setTimeout(() => request?.abort(), 20000);
     try {
       const supplied = typeof passphrase === 'string';
-      const response = await fetch(`/v1/collections/shared/${shareId}${supplied ? '/open' : ''}`, {
+      const response = await fetch(`${apiOrigin}/v1/collections/shared/${shareId}${supplied ? '/open' : ''}`, {
         method:supplied?'POST':'GET', cache:'no-store', credentials:'omit', redirect:'error',
         headers:supplied?{'Content-Type':'application/json'}:{},
         body:supplied?JSON.stringify({passphrase}):undefined, signal:request.signal
@@ -136,6 +163,43 @@
       if (thisGeneration === generation) { busy=false; request=null; $('unlock').disabled=false; $('unlock-form').removeAttribute('aria-busy'); }
     }
   }
+  // These actions do not depend on a readable API response or an unlocked gift.
+  // Only the public identity goes into navigation and clipboard destinations.
+  $('get-app').href = downloadsLink;
+  if (shareId) {
+    $('open-app').href = appLink;
+    $('open-app').removeAttribute('aria-disabled');
+    $('open-app').removeAttribute('tabindex');
+    $('copy-link').disabled = false;
+  }
+  $('open-app').addEventListener('click', event => {
+    if (!shareId) { event.preventDefault(); return; }
+    launchAttempted = true;
+    text($('handoff-status'),'Your browser may ask permission to open Colosseum. If the app is not installed, choose Get Colosseum to install it, then return to this link.');
+  });
+  $('copy-link').addEventListener('click', async () => {
+    if (!canonicalLink) return;
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('clipboard_unavailable');
+      await navigator.clipboard.writeText(canonicalLink);
+      $('copy-fallback').hidden = true;
+      text($('handoff-status'),'Collection link copied. Passphrases are never included; share a private passphrase separately.');
+    } catch (_) {
+      $('copy-fallback').hidden = false;
+      $('canonical-link').value = canonicalLink;
+      $('canonical-link').focus(); $('canonical-link').select();
+      text($('handoff-status'),'Select and copy the collection link below. Passphrases are never included.');
+    }
+  });
+  function tryAutomaticOpen() {
+    // The browser/OS decides association and installation. Transient user
+    // activation only permits this one attempt; silence never proves success.
+    if (!shareId || launchAttempted || navigator.userActivation?.isActive !== true) return;
+    launchAttempted = true;
+    text($('handoff-status'),'Asking your browser to open Colosseum. You can keep reading here; if needed, choose Open in Colosseum or install the app.');
+    try { window.location.assign(appLink); }
+    catch (_) { text($('handoff-status'),'Choose Open in Colosseum to ask your browser to open the app, or Get Colosseum to install it.'); }
+  }
   $('unlock-form').addEventListener('submit', event => {
     event.preventDefault();
     if (event.isComposing) return;
@@ -163,5 +227,10 @@
     document.title='A collection · Colosseum'; show('loading');
   });
   window.addEventListener('pageshow', event => { if(event.persisted) open(); });
-  if (shareId) open(); else failure('The collection address is incomplete. Ask the sender for the full link.',false);
+  if (!shareId) failure('The collection address is incomplete. Ask the sender for the full link.',false);
+  else {
+    tryAutomaticOpen();
+    if (originError) failure('This collection page is not configured correctly. Use Open in Colosseum, or ask the sender to share the canonical collection link.',false);
+    else open();
+  }
 })();
