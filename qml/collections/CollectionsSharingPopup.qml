@@ -85,11 +85,21 @@ Popup {
             root.controller.openLink(root.incomingUrl, "")
         }
     }
-    function manualOpened(accepted) {
-        if (!accepted) return
+    function openManual(value, phrase, editionFile) {
+        const previousResume = root.resumePreview
+        const previousOpened = receivedGift.opened
+        // File imports can replace received content synchronously.
+        root.resumePreview = false
+        receivedGift.opened = false
+        const accepted = editionFile ? root.controller.openEditionFile(value)
+                                     : root.controller.openLink(value, phrase)
+        if (!accepted) {
+            root.resumePreview = previousResume
+            receivedGift.opened = previousOpened
+            return
+        }
         root.receivingSession = true
         root.incomingUrl = ""
-        root.resumePreview = false
         root.manualOpenAccepted()
     }
     function createPublication(gift) {
@@ -218,7 +228,7 @@ Popup {
         title: qsTr("Open a saved collection edition")
         nameFilters: [qsTr("Collection edition (*.json)")]
         fileMode: FileDialog.OpenFile
-        onAccepted: root.manualOpened(root.controller.openEditionFile(selectedFile))
+        onAccepted: root.openManual(selectedFile, "", true)
     }
 
     component LabelText: Text {
@@ -288,7 +298,8 @@ Popup {
         Text {
             Layout.fillWidth: true
             visible: text.length > 0
-            text: root.localError || root.feedbackMessage || (root.controller ? root.controller.error || root.controller.message : qsTr("Sharing is unavailable."))
+            text: root.localError || (root.controller ? root.controller.error : "") || root.feedbackMessage
+                || (root.controller ? root.controller.message : qsTr("Sharing is unavailable."))
             textFormat: Text.PlainText
             color: root.localError || (root.controller && root.controller.error) ? "#efb6a9" : theme.gold
             font.pixelSize: 13
@@ -454,7 +465,7 @@ Popup {
                     Flow {
                         Layout.fillWidth: true
                         spacing: 8
-                        CollectionActionButton { objectName: "openSharedCollection"; text: qsTr("Open link"); emphasis: "primary"; enabled: !!root.controller && root.controller.receivingReady && !root.working && receiveLink.text.trim().length > 0; onClicked: root.manualOpened(root.controller.openLink(receiveLink.text, receivePassphrase.text)) }
+                        CollectionActionButton { objectName: "openSharedCollection"; text: qsTr("Open link"); emphasis: "primary"; enabled: !!root.controller && root.controller.receivingReady && !root.working && receiveLink.text.trim().length > 0; onClicked: root.openManual(receiveLink.text, receivePassphrase.text, false) }
                         CollectionActionButton { text: qsTr("Open edition file"); enabled: !!root.controller && root.controller.receivingReady && !root.working; onClicked: editionPicker.open() }
                     }
                     LabelText { visible: !!root.received.share_id && root.received.kind !== "gift"; text: root.receivedSnapshot.name || ""; color: theme.ink; font.pixelSize: 22 }

@@ -51,6 +51,7 @@ Item {
 
     function openIncoming(url, ticket) {
         if (panel.incomingBlocked || !panel.publicationController || !ticket) return false
+        panel.message = ""
         panel.incomingUrl = String(url)
         panel.incomingTicket = String(ticket)
         panel.incomingEntry = true
@@ -388,6 +389,7 @@ Item {
                 onDismissed: function(reason) { panel.dismissSharing(entryGeneration, entryTicket, reason, receivingSession) }
                 onTitleRequested: function(reference) { panel.openReferenceRequested(reference) }
                 onManualOpenAccepted: {
+                    panel.message = ""
                     panel.incomingEntry = true
                     panel.incomingUrl = ""
                     panel.incomingTicket = ""
