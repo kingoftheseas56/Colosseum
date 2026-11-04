@@ -22,6 +22,15 @@ Item {
     property string activeMedium: ""         // "" = home / no selection
     property bool compactBrowserChrome: false
     readonly property bool compactChrome: compactBrowserChrome || width < 1100
+    // Clock/date shows only when its implicit width fits in what is left after the
+    // other left items, the world pills and the right-side controls (no overlap).
+    readonly property real leftOtherWidth:
+        (leftBack.visible ? leftBack.implicitWidth : 0)
+        + (leftTitle.visible ? leftTitle.implicitWidth : 0)
+    readonly property int leftOtherCount: (leftBack.visible ? 1 : 0) + (leftTitle.visible ? 1 : 0)
+    readonly property real clockFreeSpace: width - systemChrome.implicitWidth - (pillsRow.implicitWidth + 14)
+        - 24 - leftOtherWidth - leftOtherCount * 18
+    readonly property bool clockFits: !backOnly && width > 0 && clockBlock.implicitWidth <= clockFreeSpace
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // World roots keep the historical Home destination; nested surfaces can name their
     // owning world without inventing a second Back control.
@@ -197,7 +206,7 @@ Item {
         property bool comingSoon: false
         readonly property bool active: !pill.comingSoon && bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + (bar.width < 900 ? 16 : (bar.width < 1100 ? 24 : 34))
+        implicitWidth: pillContent.implicitWidth + (bar.width < 900 ? 12 : (bar.width < 1100 ? 24 : 34))
         implicitHeight: 34
 
         Rectangle {
@@ -247,6 +256,7 @@ Item {
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
         spacing: 18
         BackAction {
+            id: leftBack
             // world-root variant: destination label, dim→bright hover (never gold up here)
             visible: bar.activeMedium !== ""
             label: bar.compactChrome || (bar.backOnly && bar.pageTitle.length) ? "" : bar.backLabel
@@ -257,6 +267,7 @@ Item {
             onTriggered: bar.homeRequested()
         }
         Column {
+            id: leftTitle
             visible: bar.backOnly && bar.pageTitle.length > 0
             spacing: 2
             anchors.verticalCenter: parent.verticalCenter
@@ -267,8 +278,9 @@ Item {
             }
         }
         Column {
+            id: clockBlock
             objectName: "topBarClock"
-            visible: !bar.backOnly && !bar.compactChrome
+            visible: bar.clockFits
             spacing: 3
             anchors.verticalCenter: parent.verticalCenter
             Row {
