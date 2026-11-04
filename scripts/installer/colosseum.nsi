@@ -162,13 +162,28 @@ Function CheckCollectionProtocol
   StrCpy $ProtocolConflict "1"
   StrCpy $ProtocolRoot ""
   StrCpy $ProtocolCommand ""
-  System::Call 'advapi32::RegOpenKeyEx(p 0x80000001, t "${COLOSSEUM_PROTOCOL_REGKEY}", i 0, i 0x20019, *p .rProtocolKeyHandle) i .rProtocolOpenResult'
+  Push $0
+  Push $1
+  System::Call 'advapi32::RegOpenKeyEx(p 0x80000001, t "${COLOSSEUM_PROTOCOL_REGKEY}", i 0, i 0x20019, *p .r0) i .r1'
+  StrCpy $ProtocolKeyHandle $0
+  StrCpy $ProtocolOpenResult $1
+  Pop $1
+  Pop $0
   ${If} $ProtocolOpenResult == 2
     ; HKCR falls back to HKLM when the per-user key is absent. Do not shadow
     ; an existing machine registration with our new per-user registration.
-    System::Call 'advapi32::RegOpenKeyEx(p 0x80000002, t "${COLOSSEUM_PROTOCOL_REGKEY}", i 0, i 0x20019, *p .rProtocolKeyHandle) i .rProtocolOpenResult'
+    Push $0
+    Push $1
+    System::Call 'advapi32::RegOpenKeyEx(p 0x80000002, t "${COLOSSEUM_PROTOCOL_REGKEY}", i 0, i 0x20019, *p .r0) i .r1'
+    StrCpy $ProtocolKeyHandle $0
+    StrCpy $ProtocolOpenResult $1
+    Pop $1
+    Pop $0
     ${If} $ProtocolOpenResult == 0
-      System::Call 'advapi32::RegCloseKey(p rProtocolKeyHandle)'
+      Push $0
+      StrCpy $0 $ProtocolKeyHandle
+      System::Call 'advapi32::RegCloseKey(p r0)'
+      Pop $0
     ${ElseIf} $ProtocolOpenResult == 2
       StrCpy $ProtocolConflict "0"
     ${EndIf}
@@ -177,7 +192,10 @@ Function CheckCollectionProtocol
   ${If} $ProtocolOpenResult != 0
     Return
   ${EndIf}
-  System::Call 'advapi32::RegCloseKey(p rProtocolKeyHandle)'
+  Push $0
+  StrCpy $0 $ProtocolKeyHandle
+  System::Call 'advapi32::RegCloseKey(p r0)'
+  Pop $0
   ReadRegStr $ProtocolOwner HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "ColosseumOwner"
   ReadRegStr $ProtocolRoot HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "ColosseumInstallRoot"
   ReadRegStr $ProtocolCommand HKCU "${COLOSSEUM_PROTOCOL_REGKEY}\shell\open\command" ""
@@ -466,10 +484,19 @@ Function UpdateWaitForProcess
   ${If} $UpdateWaitPid == "0"
     Return
   ${EndIf}
-  System::Call 'kernel32::OpenProcess(i 0x00100000, i 0, i rUpdateWaitPid) p .rUpdateHandle'
+  Push $0
+  Push $1
+  StrCpy $0 $UpdateWaitPid
+  System::Call 'kernel32::OpenProcess(i 0x00100000, i 0, i r0) p .r0'
+  StrCpy $UpdateHandle $0
   ${If} $UpdateHandle P<> 0
-    System::Call 'kernel32::WaitForSingleObject(p rUpdateHandle, i 120000) i .rUpdateWaitResult'
-    System::Call 'kernel32::CloseHandle(p rUpdateHandle)'
+    System::Call 'kernel32::WaitForSingleObject(p r0, i 120000) i .r1'
+    StrCpy $UpdateWaitResult $1
+    System::Call 'kernel32::CloseHandle(p r0)'
+  ${EndIf}
+  Pop $1
+  Pop $0
+  ${If} $UpdateHandle P<> 0
     ${If} $UpdateWaitResult != 0
       StrCpy $UpdateError "wait_timeout"
       Call UpdateAbort
