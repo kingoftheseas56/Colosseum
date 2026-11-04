@@ -35,6 +35,29 @@
 !else
   !define COLOSSEUM_REGKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Colosseum"
 !endif
+; Test installers must never touch the real per-user protocol registration.
+!ifdef COLOSSEUM_UPDATE_TEST_PROTOCOL_REGKEY
+  !define COLOSSEUM_PROTOCOL_REGKEY "${COLOSSEUM_UPDATE_TEST_PROTOCOL_REGKEY}"
+!else
+  !ifdef COLOSSEUM_UPDATE_TEST_ROOT
+    !error "test installers require COLOSSEUM_UPDATE_TEST_PROTOCOL_REGKEY"
+  !endif
+  !ifdef COLOSSEUM_UPDATE_TEST_REGKEY
+    !error "test installers require COLOSSEUM_UPDATE_TEST_PROTOCOL_REGKEY"
+  !endif
+  !ifdef COLOSSEUM_UPDATE_TEST_MODE
+    !error "test installers require COLOSSEUM_UPDATE_TEST_PROTOCOL_REGKEY"
+  !endif
+  !ifdef COLOSSEUM_UPDATE_TEST_SHORTCUT_PREFIX
+    !error "test installers require COLOSSEUM_UPDATE_TEST_PROTOCOL_REGKEY"
+  !endif
+  !ifdef COLOSSEUM_UPDATE_TEST_RENAME_FAIL
+    !error "test installers require COLOSSEUM_UPDATE_TEST_PROTOCOL_REGKEY"
+  !endif
+  !define COLOSSEUM_PROTOCOL_REGKEY "Software\Classes\colosseum"
+!endif
+!define COLOSSEUM_PROTOCOL_OWNER "Colosseum.CollectionLink.v1"
+
 !ifdef COLOSSEUM_UPDATE_TEST_SHORTCUT_PREFIX
   !define COLOSSEUM_DESKTOP_LINK "$DESKTOP\${COLOSSEUM_UPDATE_TEST_SHORTCUT_PREFIX}.lnk"
   !define COLOSSEUM_START_LINK "$SMPROGRAMS\${COLOSSEUM_UPDATE_TEST_SHORTCUT_PREFIX}.lnk"
@@ -88,6 +111,17 @@ Var UpdateWaitResult
 Var UpdateError
 Var UpdateLogHandle
 Var UpdateLaunchHandle
+Var ProtocolConflict
+Var ProtocolOwner
+Var ProtocolRoot
+Var ProtocolCommand
+Var ProtocolRegisteredRoot
+Var ProtocolKeyHandle
+Var ProtocolOpenResult
+Var ProtocolPreviousRoot
+Var ProtocolPreviousCommand
+Var ProtocolDescription
+Var ProtocolUrlMarker
 
 Function .onInit
   StrCpy $UpdateMode "0"
@@ -122,7 +156,137 @@ Function .onInit
   ${EndIf}
 FunctionEnd
 
+; An empty key also counts as an existing registration. Names alone never
+; establish ownership: require our marker, ARP root and exact launch command.
+Function CheckCollectionProtocol
+  StrCpy $ProtocolConflict "1"
+  StrCpy $ProtocolRoot ""
+  StrCpy $ProtocolCommand ""
+  System::Call 'advapi32::RegOpenKeyEx(p 0x80000001, t "${COLOSSEUM_PROTOCOL_REGKEY}", i 0, i 0x20019, *p .rProtocolKeyHandle) i .rProtocolOpenResult'
+  ${If} $ProtocolOpenResult == 2
+    ; HKCR falls back to HKLM when the per-user key is absent. Do not shadow
+    ; an existing machine registration with our new per-user registration.
+    System::Call 'advapi32::RegOpenKeyEx(p 0x80000002, t "${COLOSSEUM_PROTOCOL_REGKEY}", i 0, i 0x20019, *p .rProtocolKeyHandle) i .rProtocolOpenResult'
+    ${If} $ProtocolOpenResult == 0
+      System::Call 'advapi32::RegCloseKey(p rProtocolKeyHandle)'
+    ${ElseIf} $ProtocolOpenResult == 2
+      StrCpy $ProtocolConflict "0"
+    ${EndIf}
+    Return
+  ${EndIf}
+  ${If} $ProtocolOpenResult != 0
+    Return
+  ${EndIf}
+  System::Call 'advapi32::RegCloseKey(p rProtocolKeyHandle)'
+  ReadRegStr $ProtocolOwner HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "ColosseumOwner"
+  ReadRegStr $ProtocolRoot HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "ColosseumInstallRoot"
+  ReadRegStr $ProtocolCommand HKCU "${COLOSSEUM_PROTOCOL_REGKEY}\shell\open\command" ""
+  ReadRegStr $ProtocolRegisteredRoot HKCU "${COLOSSEUM_REGKEY}" "InstallLocation"
+  ReadRegStr $ProtocolDescription HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" ""
+  ClearErrors
+  ReadRegStr $ProtocolUrlMarker HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "URL Protocol"
+  ${If} ${Errors}
+    Return
+  ${EndIf}
+  ${If} $ProtocolOwner == "${COLOSSEUM_PROTOCOL_OWNER}"
+  ${AndIf} $ProtocolRoot != ""
+  ${AndIf} $ProtocolRoot == $ProtocolRegisteredRoot
+  ${AndIf} $ProtocolDescription == "URL:Colosseum Collection"
+  ${AndIf} $ProtocolUrlMarker == ""
+  ${AndIf} $ProtocolCommand == '$\"$ProtocolRoot\native\build-msvc\colosseum.exe$\" --collection-url $\"%1$\"'
+    StrCpy $ProtocolConflict "0"
+  ${EndIf}
+FunctionEnd
+
+Function RequireCollectionProtocol
+  Call CheckCollectionProtocol
+  ${If} $ProtocolConflict != "0"
+    ${If} $UpdateMode == "1"
+      StrCpy $UpdateError "collection_protocol_conflict"
+      Call UpdateAbort
+    ${Else}
+      SetErrorLevel 1
+      Abort "The colosseum link handler is owned by another installation or application. Resolve that registration before installing Colosseum."
+    ${EndIf}
+  ${EndIf}
+FunctionEnd
+
+Function RegisterCollectionProtocol
+  ; Final payload path only. The previous ARP InstallLocation still exists
+  ; here, so manual relocation does not invalidate its own ownership guard.
+  Call CheckCollectionProtocol
+  ${If} $ProtocolConflict != "0"
+    StrCpy $UpdateError "collection_protocol_conflict"
+    SetErrors
+    Return
+  ${EndIf}
+  StrCpy $ProtocolPreviousRoot $ProtocolRoot
+  StrCpy $ProtocolPreviousCommand $ProtocolCommand
+  ClearErrors
+  ${If} $ProtocolPreviousRoot == ""
+    WriteRegStr HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "" "URL:Colosseum Collection"
+    WriteRegStr HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "URL Protocol" ""
+    WriteRegStr HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "ColosseumOwner" "${COLOSSEUM_PROTOCOL_OWNER}"
+  ${EndIf}
+  WriteRegStr HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "ColosseumInstallRoot" "$INSTDIR"
+  WriteRegStr HKCU "${COLOSSEUM_PROTOCOL_REGKEY}\shell\open\command" "" '$\"$INSTDIR\native\build-msvc\colosseum.exe$\" --collection-url $\"%1$\"'
+  ${If} ${Errors}
+    ; The checked existing registration already has these exact fixed values;
+    ; only its root and command can change. Leave all other values untouched.
+    ; Do not undo a different process's replacement while recovering our own
+    ; failed write. A partial new key without our marker is not safe to delete.
+    ReadRegStr $ProtocolOwner HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "ColosseumOwner"
+    ReadRegStr $ProtocolRoot HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "ColosseumInstallRoot"
+    ReadRegStr $ProtocolCommand HKCU "${COLOSSEUM_PROTOCOL_REGKEY}\shell\open\command" ""
+    ${If} $ProtocolOwner != "${COLOSSEUM_PROTOCOL_OWNER}"
+      StrCpy $UpdateError "collection_protocol_restore_conflict"
+      SetErrors
+      Return
+    ${EndIf}
+    ${If} $ProtocolRoot != $ProtocolPreviousRoot
+    ${AndIf} $ProtocolRoot != $INSTDIR
+      StrCpy $UpdateError "collection_protocol_restore_conflict"
+      SetErrors
+      Return
+    ${EndIf}
+    ${If} $ProtocolCommand != $ProtocolPreviousCommand
+    ${AndIf} $ProtocolCommand != '$\"$INSTDIR\native\build-msvc\colosseum.exe$\" --collection-url $\"%1$\"'
+      StrCpy $UpdateError "collection_protocol_restore_conflict"
+      SetErrors
+      Return
+    ${EndIf}
+    ClearErrors
+    ${If} $ProtocolPreviousRoot == ""
+      DeleteRegKey HKCU "${COLOSSEUM_PROTOCOL_REGKEY}"
+    ${Else}
+      WriteRegStr HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "ColosseumInstallRoot" "$ProtocolPreviousRoot"
+      WriteRegStr HKCU "${COLOSSEUM_PROTOCOL_REGKEY}\shell\open\command" "" "$ProtocolPreviousCommand"
+    ${EndIf}
+    ${If} ${Errors}
+      StrCpy $UpdateError "collection_protocol_restore_failed"
+    ${Else}
+      StrCpy $UpdateError "collection_protocol_write_failed"
+    ${EndIf}
+    SetErrors
+    Return
+  ${EndIf}
+  ClearErrors
+FunctionEnd
+
+Function un.RemoveCollectionProtocol
+  ReadRegStr $ProtocolOwner HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "ColosseumOwner"
+  ReadRegStr $ProtocolRoot HKCU "${COLOSSEUM_PROTOCOL_REGKEY}" "ColosseumInstallRoot"
+  ReadRegStr $ProtocolCommand HKCU "${COLOSSEUM_PROTOCOL_REGKEY}\shell\open\command" ""
+  ${If} $ProtocolOwner == "${COLOSSEUM_PROTOCOL_OWNER}"
+  ${AndIf} $ProtocolRoot == $INSTDIR
+  ${AndIf} $ProtocolCommand == '$\"$INSTDIR\native\build-msvc\colosseum.exe$\" --collection-url $\"%1$\"'
+    DeleteRegKey HKCU "${COLOSSEUM_PROTOCOL_REGKEY}"
+  ${EndIf}
+FunctionEnd
+
 Section "Colosseum"
+  ; Fail before overlay cleanup, extraction, sibling cleanup or process wait.
+  Call RequireCollectionProtocol
   ${If} $UpdateMode == "1"
     Call UpdateInstall
   ${Else}
@@ -147,6 +311,11 @@ Section "Colosseum"
   ${If} $UpdateMode == "1"
     Call UpdateFinish
   ${Else}
+    Call RegisterCollectionProtocol
+    ${If} ${Errors}
+      SetErrorLevel 1
+      Abort "Colosseum's link handler could not be registered. Resolve the registration permissions or conflict and run the installer again."
+    ${EndIf}
     ; shortcuts — straight to the exe (it anchors its own working directory)
     CreateShortCut "${COLOSSEUM_DESKTOP_LINK}" "$INSTDIR\native\build-msvc\colosseum.exe" "" "" 0
     CreateShortCut "${COLOSSEUM_START_LINK}" "$INSTDIR\native\build-msvc\colosseum.exe" "" "" 0
@@ -180,6 +349,9 @@ Function UpdateFinish
   Push "VALIDATED $UpdateNew\native\build-msvc\colosseum.exe"
   Call UpdateLogLine
 
+  ; No handler writes precede the swap. Every rename rollback therefore keeps
+  ; the exact previous handler, including absence on pre-sharing releases.
+  Call RequireCollectionProtocol
   Push "$UpdateOld"
   Call UpdateCheckPath
   ClearErrors
@@ -196,6 +368,12 @@ Function UpdateFinish
   Rename "$UpdateNew" "$INSTDIR"
   IfErrors update_swap_failed_after_old
 
+  Call RegisterCollectionProtocol
+  ${If} ${Errors}
+    Push "ERROR $UpdateError"
+    Call UpdateLogLine
+    Goto update_swap_failed_after_old
+  ${EndIf}
   WriteUninstaller "$INSTDIR\uninstall.exe"
   WriteRegStr HKCU "${COLOSSEUM_REGKEY}" "DisplayVersion" "$UpdateTarget"
   ; keep QuietUninstallString fresh so a self-update also heals silent uninstall
@@ -325,6 +503,7 @@ Section "Uninstall"
   ${If} $UpdateMode == "1"
     Abort
   ${EndIf}
+  Call un.RemoveCollectionProtocol
   ; NOTE: the library (downloads, reading progress, catalogs) lives inside the install
   ; folder in 0.1 — uninstalling removes it all. The confirm page says as much.
   RMDir /r "$INSTDIR"

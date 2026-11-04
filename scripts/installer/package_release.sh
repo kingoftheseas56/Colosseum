@@ -59,7 +59,7 @@ if [ -f "$BUILD_DIR/CMakeCache.txt" ] \
 fi
 
 # Qualification builds must never ship development-only gates or synthetic fixtures.
-for option in COLOSSEUM_ENABLE_VINYL_QUALIFICATION COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES; do
+for option in COLOSSEUM_ENABLE_VINYL_QUALIFICATION COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES; do
   if grep -Eq "^${option}:BOOL=ON$" "$BUILD_DIR/CMakeCache.txt"; then
     echo "refusing to package ${option}=ON build"
     exit 1

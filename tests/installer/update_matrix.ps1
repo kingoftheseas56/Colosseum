@@ -16,6 +16,8 @@ $outBroken = Join-Path $temp "broken.exe"
 $outRename = Join-Path $temp "rename.exe"
 $tag = [guid]::NewGuid().ToString("N").Substring(0, 8)
 $regKey = "Software\ColosseumUpdateMatrix\$tag"
+$protocolKey = "Software\ColosseumUpdateMatrixProtocol\$tag"
+$protocolRegistryPath = "Registry::HKEY_CURRENT_USER\$protocolKey"
 $shortcutPrefix = "Colosseum-UpdateMatrix-$tag"
 $registryPath = "Registry::HKEY_CURRENT_USER\$regKey"
 
@@ -34,6 +36,7 @@ function Invoke-Nsis([string]$outFile, [string]$stage, [string]$version, [switch
         "/DSTAGE=$stage", "/DVERSION=$version", "/DOUTFILE=$outFile",
         "/DCOLOSSEUM_UPDATE_TEST_ROOT=$fakeLocal",
         "/DCOLOSSEUM_UPDATE_TEST_REGKEY=$regKey",
+        "/DCOLOSSEUM_UPDATE_TEST_PROTOCOL_REGKEY=$protocolKey",
         "/DCOLOSSEUM_UPDATE_TEST_SHORTCUT_PREFIX=$shortcutPrefix"
     )
     if ($TestMode) { $args += "/DCOLOSSEUM_UPDATE_TEST_MODE=1" }
@@ -129,6 +132,7 @@ try {
 }
 finally {
     Remove-Item -LiteralPath $registryPath -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $protocolRegistryPath -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $desktopLink, $startLink -Force -ErrorAction SilentlyContinue
     if (Test-Path -LiteralPath $temp) {
         Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue

@@ -64,11 +64,27 @@ def main():
         desktop.write_text('[Desktop Entry]\nType=Application\nName=Colosseum\n'
                            'Comment=Read and watch your media\nExec=colosseum\n'
                            'Icon=colosseum\nTerminal=false\nCategories=AudioVideo;Graphics;\n')
+        # Keep app-menu launches argument-free: --collection-url is exclusive
+        # and requires a URI. Desktop MIME dispatch uses this hidden entry.
+        handler = desktop.with_name('colosseum-collection-url.desktop')
+        handler.write_text('[Desktop Entry]\nType=Application\nName=Colosseum Collection Link\n'
+                           'Exec=colosseum --collection-url %u\nIcon=colosseum\n'
+                           'Terminal=false\nNoDisplay=true\nMimeType=x-scheme-handler/colosseum;\n')
         installed_icon = root / 'usr/share/icons/hicolor/scalable/apps/colosseum.svg'
         installed_icon.parent.mkdir(parents=True)
         shutil.copy2(icon, installed_icon)
         control = root / 'DEBIAN/control'
         control.parent.mkdir()
+        # Refresh the system MIME cache after configure/removal when the host
+        # supplies the desktop database utility. Never set a user's defaults.
+        for name, action in (('postinst', 'configure'), ('postrm', 'remove|purge')):
+            hook = control.parent / name
+            hook.write_text('#!/bin/sh\nset -e\ncase \"$1\" in\n'
+                            f'  {action})\n'
+                            '    if command -v update-desktop-database >/dev/null 2>&1; then\n'
+                            '      update-desktop-database /usr/share/applications\n'
+                            '    fi\n    ;;\nesac\nexit 0\n')
+            hook.chmod(0o755)
         size = sum(p.stat().st_size for p in root.rglob('*') if p.is_file())
         # Qt Network (OpenSSL) and WebEngine verify HTTPS against the distro CA
         # store, which only ca-certificates provides. A hard dependency, never a
