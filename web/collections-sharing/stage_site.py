@@ -23,7 +23,8 @@ STAGE_DIFF = 'collections-stage.diff'
 EXCLUDED_DIRS = {'.git', '.hg', '.svn', '.codex', '.superpowers', '.idea',
                  '.vscode', 'node_modules', '__pycache__', '.pytest_cache',
                  '.cache', '.wrangler', 'build', 'dist', 'target', 'coverage', 'test-results',
-                 'playwright-report', 'review-hub', 'review_hub', 'reviewhub', 'preview', 'private'}
+                 'playwright-report', 'review-hub', 'review_hub', 'reviewhub',
+                 'interactive-previews', 'interactive_previews', 'preview', 'private'}
 EXCLUDED_FILES = {'preview.html', '.ds_store', 'thumbs.db', '.gitignore',
                   '.gitattributes', '.gitmodules', 'credentials.json',
                   'credentials', 'secrets.json', 'secrets', '.npmrc', '.pypirc',
