@@ -18,7 +18,7 @@ class CollectionPublicationController final : public QObject {
     Q_PROPERTY(QVariantList publications READ publications NOTIFY changed)
     Q_PROPERTY(QVariantMap received READ received NOTIFY changed)
 public:
-    explicit CollectionPublicationController(AccountClient *client, const QUrl &serviceUrl, QObject *parent = nullptr);
+    explicit CollectionPublicationController(AccountClient *client, const QUrl &serviceUrl, const QUrl &webOrigin, QObject *parent = nullptr);
     void activate(NamedCollectionsStore *store, bool signedIn);
     void deactivate();
     bool busy() const { return m_request != 0; }
@@ -59,6 +59,7 @@ private:
     QPointer<AccountClient> m_client;
     QPointer<NamedCollectionsStore> m_store;
     QUrl m_serviceUrl;
+    QUrl m_webOrigin;
     quint64 m_request = 0;
     quint64 m_generation = 0;
     quint64 m_requestGeneration = 0;

@@ -1,4 +1,5 @@
 #include "CollectionPublicationController.h"
+#include "CollectionShareLink.h"
 #include "../NamedCollectionsStore.h"
 #include <QBuffer>
 #include <QClipboard>
@@ -12,7 +13,6 @@
 #include <QJsonDocument>
 #include <QLockFile>
 #include <QPainter>
-#include <QRegularExpression>
 #include <QSaveFile>
 #include <QUuid>
 
@@ -20,8 +20,8 @@ namespace {
 constexpr qint64 MaxEnvelope = 2 * 1024 * 1024;
 constexpr qint64 MaxCover = 256 * 1024;
 }
-CollectionPublicationController::CollectionPublicationController(AccountClient *client, const QUrl &url, QObject *parent)
-    : QObject(parent), m_client(client), m_serviceUrl(url) {
+CollectionPublicationController::CollectionPublicationController(AccountClient *client, const QUrl &url, const QUrl &webOrigin, QObject *parent)
+    : QObject(parent), m_client(client), m_serviceUrl(url), m_webOrigin(webOrigin) {
     connect(client, &AccountClient::completed, this, &CollectionPublicationController::complete);
 }
 void CollectionPublicationController::activate(NamedCollectionsStore *store, bool signedIn) {
@@ -68,8 +68,7 @@ bool CollectionPublicationController::ready(bool accountRequired) {
     return true;
 }
 bool CollectionPublicationController::validShareId(const QString &id) {
-    static const QRegularExpression re(QStringLiteral("^[A-Za-z0-9_-]{43}$"));
-    return re.match(id).hasMatch();
+    return !Colosseum::Collections::applicationShareLink(id).isEmpty();
 }
 QString CollectionPublicationController::operationId(const QString &action, const QJsonObject &body) {
     // Only a digest of public content is retained. Never save a passphrase,
@@ -157,8 +156,7 @@ bool CollectionPublicationController::revoke(const QString &shareId, int revisio
     m_request = m_client->revokeCollectionPublication(shareId, body); emit changed(); return true;
 }
 QString CollectionPublicationController::linkFor(const QString &id) const {
-    if (!validShareId(id) || m_serviceUrl.isEmpty()) return {};
-    return m_serviceUrl.resolved(QUrl(QStringLiteral("/collections/s/") + id)).toString();
+    return Colosseum::Collections::publicShareLink(id, m_webOrigin).toString();
 }
 bool CollectionPublicationController::copyLink(const QString &id) {
     const QString link = linkFor(id);
@@ -169,19 +167,12 @@ bool CollectionPublicationController::copyLink(const QString &id) {
 bool CollectionPublicationController::openLink(const QString &value, const QString &passphrase) {
     if (!ready(false)) return false;
     m_received.clear();
-    const QUrl url(value.trimmed());
-    // Do not fetch arbitrary URLs or forward secrets to another host. The
-    // account service origin is the only native receiving boundary.
-    if (!url.isValid() || url.scheme() != m_serviceUrl.scheme() || url.host().compare(m_serviceUrl.host(), Qt::CaseInsensitive)
-        || url.port(-1) != m_serviceUrl.port(-1) || !url.userInfo().isEmpty() || url.hasQuery() || url.hasFragment())
-        return fail(tr("Use a collection link from the configured Colosseum service."));
-    const QString prefix = QStringLiteral("/collections/s/");
-    if (!url.path().startsWith(prefix)) return fail(tr("This is not a collection share link."));
-    const QString id = url.path().mid(prefix.size());
-    if (!validShareId(id)) return fail(tr("This collection link is invalid."));
-    m_received.clear();
-    m_requestShareId = id;
-    m_request = m_client->openSharedCollection(id, passphrase); emit changed(); return true;
+    // Incoming links supply only an identity. AccountClient retains the separately
+    // configured service transport and performs anonymous receiving requests.
+    const auto id = Colosseum::Collections::shareIdFromUrl(value.trimmed(), m_webOrigin, m_serviceUrl);
+    if (!id) return fail(tr("This collection link is invalid."));
+    m_requestShareId = *id;
+    m_request = m_client->openSharedCollection(*id, passphrase); emit changed(); return true;
 }
 bool CollectionPublicationController::acceptReceived(const QJsonObject &body) {
     const QString id = body.value("share_id").toString();

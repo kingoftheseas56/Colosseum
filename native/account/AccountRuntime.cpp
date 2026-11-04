@@ -620,7 +620,7 @@ AccountRuntime::AccountRuntime(
     : QObject(parent),
       m_transport(AccountServiceEndpoint::configuredUrl()),
       m_client(&m_transport),
-      m_collectionPublications(&m_client, AccountServiceEndpoint::configuredUrl()),
+      m_collectionPublications(&m_client, AccountServiceEndpoint::configuredUrl(), QUrl(QStringLiteral("https://getcolosseum.world"))),
       m_credentialStore(createAccountCredentialStore()),
       m_stremioCredentials(credentials.stremio.load && credentials.stremio.save
                               && credentials.stremio.clear

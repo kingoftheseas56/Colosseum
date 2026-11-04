@@ -11,7 +11,8 @@ add_executable(collection_publication_controller_test
     ${ROOT}/native/account/SyncProtocol.cpp
     ${ROOT}/native/account/AccountHttpTransport.cpp
     ${ROOT}/native/account/AccountTransport.h
-    ${ROOT}/native/account/CollectionPublicationController.cpp)
+    ${ROOT}/native/account/CollectionPublicationController.cpp
+    ${ROOT}/native/account/CollectionShareLink.cpp)
 target_include_directories(collection_publication_controller_test PRIVATE ${ROOT}/native)
 target_link_libraries(collection_publication_controller_test PRIVATE Qt6::Core Qt6::Gui Qt6::Network Qt6::Test)
 enable_testing()

@@ -2148,6 +2148,8 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/CollectionPublicationController.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/CollectionPublicationController.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionShareLink.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionShareLink.h"
     "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
@@ -2268,6 +2270,8 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/CollectionPublicationController.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/CollectionPublicationController.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionShareLink.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionShareLink.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
@@ -2957,6 +2961,8 @@ add_executable(tst_no_account_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/CollectionPublicationController.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/CollectionPublicationController.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionShareLink.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionShareLink.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
@@ -5683,3 +5689,4 @@ add_subdirectory(collections_runtime)
 # Explicit collection publication and retained-edition contracts.
 add_subdirectory(collections_sharing_store)
 add_subdirectory(collections_publication_controller)
+add_subdirectory(collections_links)

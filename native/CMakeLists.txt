@@ -325,6 +325,8 @@ qt_add_executable(colosseum
     account/AccountClient.cpp
     account/CollectionPublicationController.cpp
     account/CollectionPublicationController.h
+    account/CollectionShareLink.cpp
+    account/CollectionShareLink.h
     account/AccountController.cpp
     account/AccountLifecycleCoordinator.cpp
     account/AccountDeviceIdentity.cpp

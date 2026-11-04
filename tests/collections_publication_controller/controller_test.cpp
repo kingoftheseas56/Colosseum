@@ -28,6 +28,43 @@ class Checks : public QObject {
     }
     QJsonObject envelope() { return {{"share_id",share},{"kind","gift"},{"revision",1},{"snapshot",snapshot()},{"revoked",false}}; }
 private slots:
+    void publicLinksUseExistingAnonymousServiceTransport() {
+        QTemporaryDir dir; NamedCollectionsStore store(dir.filePath("c.json"));
+        Transport transport; AccountClient client(&transport); client.setAccessToken("must-not-leak");
+        CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world"));
+        controller.activate(&store,false);
+        QCOMPARE(controller.linkFor(share),"https://getcolosseum.world/c/"+share);
+        QVERIFY(controller.linkFor("invalid").isEmpty());
+        for (const auto &prefix : {"https://getcolosseum.world/c/", "https://www.getcolosseum.world/c/",
+                                   "https://service.test/collections/s/", "colosseum://collection/"}) {
+            QVERIFY(controller.openLink(QString(prefix)+share,"phrase"));
+            QCOMPARE(transport.request.path,"/v1/collections/shared/"+share+"/open");
+            QVERIFY(transport.request.bearerToken.isEmpty());
+            QCOMPARE(transport.request.body.value("passphrase").toString(),QString("phrase"));
+            transport.finish({200,envelope(),{},{},false}); QTRY_VERIFY(!controller.busy());
+            QVERIFY(store.collections().isEmpty());
+        }
+    }
+    void publicLinkUsesConfiguredHttpOrigin() {
+        QTcpServer server; QVERIFY(server.listen(QHostAddress::LocalHost,0));
+        const QUrl service(QStringLiteral("http://127.0.0.1:%1").arg(server.serverPort()));
+        AccountHttpTransport transport(service); AccountClient client(&transport); client.setAccessToken("must-not-leak");
+        QTemporaryDir dir; NamedCollectionsStore store(dir.filePath("c.json"));
+        CollectionPublicationController controller(&client,service,QUrl("https://getcolosseum.world"));
+        controller.activate(&store,false);
+        QVERIFY(controller.openLink("  https://getcolosseum.world/c/"+share+"/  ","phrase"));
+        QTRY_VERIFY(server.hasPendingConnections());
+        auto *socket=server.nextPendingConnection(); QVERIFY(socket);
+        QByteArray request;
+        QTRY_VERIFY(([&] { request+=socket->readAll(); return request.contains("phrase"); })());
+        QVERIFY(request.startsWith(("POST /v1/collections/shared/"+share+"/open HTTP/1.1").toLatin1()));
+        QVERIFY(!request.contains("Authorization:"));
+        QVERIFY(request.contains(("Host: 127.0.0.1:"+QString::number(server.serverPort())).toLatin1()));
+        const auto body=QJsonDocument(envelope()).toJson(QJsonDocument::Compact);
+        socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: "+QByteArray::number(body.size())+"\r\nConnection: close\r\n\r\n"+body);
+        socket->disconnectFromHost(); QTRY_VERIFY(!controller.busy());
+        QCOMPARE(controller.received().value("share_id").toString(),share); QVERIFY(store.collections().isEmpty());
+    }
     void transportDeleteBodyAndReplyBound() {
         QTcpServer server; QVERIFY(server.listen(QHostAddress::LocalHost,0));
         const QUrl base(QStringLiteral("http://127.0.0.1:%1").arg(server.serverPort()));
@@ -58,7 +95,7 @@ private slots:
     void anonymousOpenAndLocalKeep() {
         QTemporaryDir dir; NamedCollectionsStore store(dir.filePath("collections.json"));
         Transport transport; AccountClient client(&transport); client.setAccessToken("must-not-leak");
-        CollectionPublicationController controller(&client,QUrl("https://service.test")); controller.activate(&store,false);
+        CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world")); controller.activate(&store,false);
         QVERIFY(!controller.publish("none",true));
         QVERIFY(controller.openLink("https://service.test/collections/s/"+share,"phrase"));
         QVERIFY(transport.request.bearerToken.isEmpty());
@@ -81,7 +118,7 @@ private slots:
     void profileSwitchDiscardsLateReply() {
         QTemporaryDir dir; NamedCollectionsStore a(dir.filePath("a.json")),b(dir.filePath("b.json"));
         Transport transport; AccountClient client(&transport);
-        CollectionPublicationController controller(&client,QUrl("https://service.test")); controller.activate(&a,false);
+        CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world")); controller.activate(&a,false);
         QVERIFY(controller.openLink("https://service.test/collections/s/"+share));
         controller.deactivate(); controller.activate(&b,false);
         transport.finish({200,envelope(),{},{},false}); QCoreApplication::processEvents();
@@ -90,11 +127,16 @@ private slots:
     void maliciousLinksAndEdition() {
         QTemporaryDir dir; NamedCollectionsStore store(dir.filePath("c.json"));
         Transport transport; AccountClient client(&transport);
-        CollectionPublicationController controller(&client,QUrl("https://service.test")); controller.activate(&store,false);
+        CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world")); controller.activate(&store,false);
         QVERIFY(!controller.openLink("https://evil.test/collections/s/"+share,"secret"));
         QVERIFY(!controller.openLink("https://service.test@evil.test/collections/s/"+share));
         QVERIFY(!controller.openLink("https://service.test/collections/s/../private"));
         QVERIFY(!controller.openLink("https://service.test/collections/s/"+share+"?password=x"));
+        for(const auto &url:QStringList{"https://getcolosseum.world/c/%61"+share.mid(1),
+            "https://getcolosseum.world/c/"+share+"%2f", "https://getcolosseum.world:443/c/"+share,
+            "https://user:secret@getcolosseum.world/c/"+share, "https://getcolosseum.world/c/"+share+"?secret=x",
+            "https://getcolosseum.world.evil/c/"+share, "colosseum://collection/"+share+"/extra"})
+            QVERIFY(!controller.openLink(url,"secret"));
         QCOMPARE(transport.id,quint64(0));
         auto e=envelope(); auto s=snapshot(); s.insert("credentials","secret"); e.insert("snapshot",s);
         QFile file(dir.filePath("bad.json")); QVERIFY(file.open(QIODevice::WriteOnly)); file.write(QJsonDocument(e).toJson()); file.close();
@@ -105,7 +147,7 @@ private slots:
         QTemporaryDir dir; NamedCollectionsStore store(dir.filePath("c.json"));
         const QString id=store.createCollection("A collection");
         Transport transport; AccountClient client(&transport);client.setAccessToken("old");
-        CollectionPublicationController controller(&client,QUrl("https://service.test"));controller.activate(&store,true);
+        CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world"));controller.activate(&store,true);
         QVERIFY(controller.publish(id,false,"first phrase"));
         const auto oldOperation=transport.request.body.value("operation_id").toString();
         transport.finish({0,{},"network","Interrupted",true});QTRY_VERIFY(!controller.busy());
@@ -124,13 +166,13 @@ private slots:
         QTemporaryDir dir; NamedCollectionsStore store(dir.filePath("c.json"));
         const QString id=store.createCollection("Collection"); QVERIFY(!id.isEmpty());
         Transport transport; AccountClient client(&transport);client.setAccessToken("token");
-        CollectionPublicationController controller(&client,QUrl("https://service.test"));controller.activate(&store,true);
+        CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world"));controller.activate(&store,true);
         QVERIFY(controller.publish(id,false,"phrase"));
         const QString op=transport.request.body.value("operation_id").toString(); QVERIFY(!op.isEmpty());
         QCOMPARE(transport.request.bearerToken,QByteArray("token"));
         transport.finish({0,{},"network","Interrupted",true});QTRY_VERIFY(!controller.busy());
         {
-            CollectionPublicationController retry(&client,QUrl("https://service.test"));retry.activate(&store,true);
+            CollectionPublicationController retry(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world"));retry.activate(&store,true);
             QVERIFY(retry.publish(id,false,"phrase")); QCOMPARE(transport.request.body.value("operation_id").toString(),op);
             transport.finish({0,{},"network","Still interrupted",true}); QTRY_VERIFY(!retry.busy());
         }
@@ -146,7 +188,7 @@ private slots:
         QVERIFY(!controller.error().isEmpty());
         QFile journal(store.filePath()+".publication-operations.json"); QVERIFY(journal.open(QIODevice::ReadOnly));
         auto bytes=journal.readAll(); journal.close(); QVERIFY(!bytes.contains("phrase")); QVERIFY(!bytes.contains("token"));
-        CollectionPublicationController restart(&client,QUrl("https://service.test"));restart.activate(&store,true);
+        CollectionPublicationController restart(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world"));restart.activate(&store,true);
         QVERIFY(restart.publish(id,false,"phrase"));QVERIFY(transport.request.body.value("operation_id").toString()!=op);
     }
 };
