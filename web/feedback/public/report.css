@@ -16,7 +16,10 @@ dialog::backdrop{background:transparent}
 .icon-btn{border:1px solid #ffffff20;background:#ffffff08;border-radius:50%;width:34px;height:34px;color:var(--dim);font-size:22px;line-height:1;flex:none}
 .icon-btn:hover{background:#ffffff18}
 #feedback-form{display:flex;flex-direction:column;overflow:hidden;min-height:0}
-.dialog-body{overflow:auto;scrollbar-width:none;min-height:0;padding:22px 36px 20px}
+.dialog-body{overflow:auto;min-height:0;padding:22px 36px 20px}
+.dialog-body::-webkit-scrollbar{width:8px}
+.dialog-body::-webkit-scrollbar-track{background:#ffffff09}
+.dialog-body::-webkit-scrollbar-thumb{background:#bca35f;border:2px solid #22262a;border-radius:8px}
 .intro{font-size:13px;line-height:1.6;color:var(--dim);margin:0 0 25px}
 .field-label{display:block;font-size:12px;color:var(--dim);margin:0 0 9px}
 .field-label small{font-size:10px;color:#9da3ad;margin-left:4px}
@@ -49,7 +52,7 @@ details>summary::-webkit-details-marker{display:none}
 .sr-only{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 [hidden]{display:none!important}
 html,body{scrollbar-width:none}
-::-webkit-scrollbar{display:none}
+:is(html,body,dialog)::-webkit-scrollbar{display:none}
 @media(max-width:740px){dialog{width:calc(100% - 24px);max-height:calc(100svh - 24px);border-radius:17px}
 .dialog-top{padding:18px 23px 0}
 .dialog-top h2{font-size:30px;margin-top:11px}

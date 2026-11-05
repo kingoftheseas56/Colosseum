@@ -54,6 +54,7 @@ const os = require("node:os");
       process.env.CHROME_PATH ||
       "C:/Program Files/Google/Chrome/Application/chrome.exe",
     headless: true,
+    ignoreDefaultArgs: ["--hide-scrollbars"],
   });
   try {
     const context = await browser.newContext({
@@ -348,6 +349,19 @@ const os = require("node:os");
     await page.goto(homeReport + "&kind=bug");
     assert.equal(await page.getByLabel("Short summary").inputValue(), "Test bug title");
     assert.equal(await page.getByLabel("Steps to reproduce").inputValue(), "Open the Home carousel");
+    const reportBody = page.locator("#feedback-form .dialog-body");
+    const reportFooter = page.getByRole("button", { name: "Submit report" });
+    const footerY = (await reportFooter.boundingBox()).y;
+    const scroll = await reportBody.evaluate((body) => {
+      body.scrollTop = body.scrollHeight;
+      return {
+        offset: body.scrollTop,
+        scrollbarWidth: body.offsetWidth - body.clientWidth,
+      };
+    });
+    assert(scroll.offset > 0 && scroll.scrollbarWidth > 0,
+      `Expanded form exposes a scrollbar and scrolls: ${JSON.stringify(scroll)}`);
+    assert.equal((await reportFooter.boundingBox()).y, footerY);
     await page.screenshot({ path: path.join(screenshots, "home-feedback-narrow.png") });
     status = 429;
     await page.getByRole("button", { name: "Submit report" }).click();
