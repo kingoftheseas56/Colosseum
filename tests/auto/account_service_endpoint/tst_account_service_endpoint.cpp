@@ -31,6 +31,7 @@ class tst_account_service_endpoint : public QObject {
 
 private slots:
     void usesProductionDefaultAndEnvironmentOverride();
+    void collectionsEndpointUsesIndependentOverride();
 };
 
 void tst_account_service_endpoint::
@@ -50,6 +51,21 @@ usesProductionDefaultAndEnvironmentOverride() {
     QCOMPARE(
         AccountServiceEndpoint::configuredUrl(),
         QUrl(QStringLiteral("http://127.0.0.1:8099")));
+}
+
+void tst_account_service_endpoint::collectionsEndpointUsesIndependentOverride() {
+    ScopedEnvironmentVariable restoreAccount("COLOSSEUM_ACCOUNT_SERVICE_URL");
+    ScopedEnvironmentVariable restoreCollections("COLOSSEUM_COLLECTIONS_API_URL");
+    qputenv("COLOSSEUM_ACCOUNT_SERVICE_URL", "http://127.0.0.1:8099");
+    qunsetenv("COLOSSEUM_COLLECTIONS_API_URL");
+
+    QCOMPARE(AccountServiceEndpoint::configuredCollectionsApiUrl(),
+             QUrl("https://api.getcolosseum.world"));
+
+    qputenv("COLOSSEUM_COLLECTIONS_API_URL", " http://127.0.0.1:8100 ");
+    QCOMPARE(AccountServiceEndpoint::configuredCollectionsApiUrl(),
+             QUrl("http://127.0.0.1:8100"));
+    QCOMPARE(AccountServiceEndpoint::configuredUrl(), QUrl("http://127.0.0.1:8099"));
 }
 
 QTEST_MAIN(tst_account_service_endpoint)

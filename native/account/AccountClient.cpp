@@ -8,34 +8,38 @@
 AccountClient::AccountClient(
     AccountTransport *transport,
     QObject *parent)
+    : AccountClient(transport, transport, parent) {
+}
+
+AccountClient::AccountClient(
+    AccountTransport *transport,
+    AccountTransport *collectionOpenTransport,
+    QObject *parent)
     : QObject(parent),
-      m_transport(transport) {
+      m_transport(transport),
+      m_collectionOpenTransport(collectionOpenTransport) {
     Q_ASSERT(m_transport);
+    Q_ASSERT(m_collectionOpenTransport);
 
     qRegisterMetaType<AccountOperation>();
-    connect(
-        m_transport,
-        &AccountTransport::finished,
-        this,
-        [this](quint64 requestId, const AccountTransportReply &reply) {
-            const auto it = m_pending.find(requestId);
-            if (it == m_pending.end())
-                return;
+    connect(m_transport, &AccountTransport::finished, this, &AccountClient::completeRequest);
+    if (m_collectionOpenTransport != m_transport) {
+        connect(m_collectionOpenTransport, &AccountTransport::finished,
+                this, &AccountClient::completeRequest);
+    }
+}
 
-            const PendingRequest pending = it.value();
-            m_pending.erase(it);
+void AccountClient::completeRequest(quint64 requestId, const AccountTransportReply &reply) {
+    const auto it = m_pending.find(requestId);
+    if (it == m_pending.end())
+        return;
 
-            QTimer::singleShot(
-                0,
-                this,
-                [this, requestId, pending, reply]() {
-                    emit completed(
-                        requestId,
-                        pending.operation,
-                        pending.accessTokenGeneration,
-                        reply);
-                });
-        });
+    const PendingRequest pending = it.value();
+    m_pending.erase(it);
+
+    QTimer::singleShot(0, this, [this, requestId, pending, reply]() {
+        emit completed(requestId, pending.operation, pending.accessTokenGeneration, reply);
+    });
 }
 
 AccountClient::~AccountClient() {
@@ -513,6 +517,8 @@ quint64 AccountClient::send(
     request.path = path;
     request.body = body;
     request.timeoutMs = qMax(1, timeoutMs);
+    if (operation >= AccountOperation::CollectionPublish)
+        request.maxReplyBytes = 2 * 1024 * 1024;
     if (authenticated)
         request.bearerToken = m_accessToken;
 
@@ -521,11 +527,30 @@ quint64 AccountClient::send(
     pending.accessTokenGeneration =
         authenticated ? m_accessTokenGeneration : 0;
     m_pending.insert(requestId, pending);
-    m_transport->send(requestId, request);
+    auto *transport = operation == AccountOperation::CollectionOpen
+        ? m_collectionOpenTransport
+        : m_transport;
+    transport->send(requestId, request);
     return requestId;
 }
 
 QString AccountClient::encodedPathSegment(const QString &value) {
     return QString::fromLatin1(
         QUrl::toPercentEncoding(value.trimmed()));
+}
+
+quint64 AccountClient::publishCollection(const QJsonObject &body) {
+    return send(AccountOperation::CollectionPublish, "POST", "/v1/collections/publications", body, true, 30000);
+}
+quint64 AccountClient::updateCollectionPublication(const QString &id, const QJsonObject &body) {
+    return send(AccountOperation::CollectionUpdate, "PUT", "/v1/collections/publications/" + encodedPathSegment(id), body, true, 30000);
+}
+quint64 AccountClient::listCollectionPublications() {
+    return send(AccountOperation::CollectionList, "GET", "/v1/collections/publications", {}, true);
+}
+quint64 AccountClient::revokeCollectionPublication(const QString &id, const QJsonObject &body) {
+    return send(AccountOperation::CollectionRevoke, "DELETE", "/v1/collections/publications/" + encodedPathSegment(id), body, true);
+}
+quint64 AccountClient::openSharedCollection(const QString &id, const QString &passphrase) {
+    return send(AccountOperation::CollectionOpen, "POST", "/v1/collections/shared/" + encodedPathSegment(id) + "/open", {{"passphrase", passphrase}}, false, 30000);
 }

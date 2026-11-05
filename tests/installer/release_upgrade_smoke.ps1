@@ -22,6 +22,8 @@ function Write-UpgradeProcesses([string]$phase) {
 }
 # Run only on a fresh GitHub-hosted runner. Never use the user's install/registry.
 Require ($env:GITHUB_ACTIONS -eq 'true' -and $env:RUNNER_ENVIRONMENT -eq 'github-hosted') 'clean hosted runner required'
+Require (!(Test-Path 'Registry::HKEY_CURRENT_USER\Software\Classes\colosseum') -and
+         !(Test-Path 'Registry::HKEY_LOCAL_MACHINE\Software\Classes\colosseum')) 'existing protocol registration'
 $installRoot = Join-Path $env:LOCALAPPDATA 'Programs\Colosseum'
 $regPath = 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\Colosseum'
 Require (!(Test-Path $installRoot) -and !(Test-Path $regPath)) 'existing install or registry metadata'

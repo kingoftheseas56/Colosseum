@@ -346,6 +346,30 @@ QVariantMap ColosseumTitleIdentityRegistry::collectionReference(const QVariantMa
     return {{QStringLiteral("ok"), true}, {QStringLiteral("error"), QString()}, {QStringLiteral("reference"), reference}};
 }
 
+QString ColosseumTitleIdentityRegistry::knownTheatreAnchor(const QString &sourceId) const {
+    if (!m_ready || sourceId.isEmpty()) return {};
+    const QRegularExpression imdb(QStringLiteral("^tt[0-9]{1,20}$"));
+    if (imdb.match(sourceId).hasMatch()) return sourceId;
+    QSet<QString> anchors;
+    const QString nameSpace = QStringLiteral("theatre-source-id");
+    for (const Row &row : m_rows) {
+        if (row.world != QLatin1String("theatre")
+            || !row.aliases.contains(qMakePair(nameSpace, sourceId))) continue;
+        for (const auto &alias : row.aliases)
+            if (alias.first == nameSpace && imdb.match(alias.second).hasMatch())
+                anchors.insert(alias.second);
+    }
+    const QString prefix = nameSpace + QChar(0x1f);
+    const QString learned = m_aliasUnions.value(aliasKey(nameSpace, sourceId));
+    if (!learned.isEmpty()) {
+        if (!learned.startsWith(prefix) || !imdb.match(learned.mid(prefix.size())).hasMatch()) return {};
+        anchors.insert(learned.mid(prefix.size()));
+    }
+    // This lookup is deliberately read-only, including unknown and conflicting
+    // mappings. In particular it must not call resolve()/deriveIdentity().
+    return anchors.size() == 1 ? *anchors.cbegin() : QString();
+}
+
 bool ColosseumTitleIdentityRegistry::admittedPair(const QString &world, const QString &kind) {
     return (world == QLatin1String("theatre") && (kind == QLatin1String("movie") || kind == QLatin1String("series")))
         || (world == QLatin1String("biblio") && kind == QLatin1String("book"))

@@ -134,3 +134,83 @@ contract.
 Keep provider logs, migration-job status, `/healthz` and `/readyz` checks, and
 database backup/restore evidence together for the exact image and schema receipt
 under review. None of those receipts are present in this source tree today.
+
+## Anonymous Collections web API preflight
+
+The static website calls the account-service origin directly. Enable browser
+reads only with exact origins in the runtime setting:
+
+```text
+COLLECTIONS_ALLOWED_WEB_ORIGINS=https://getcolosseum.world,https://www.getcolosseum.world
+```
+
+The default is an empty allowlist. Entries must be HTTP(S) scheme/host/port
+origins with no path (including a trailing slash), credentials, query, fragment,
+or wildcard. The anonymous shared-collection GET and passphrase-open POST APIs
+support CORS with Content-Type only; authenticated APIs do not. CORS never
+grants credentialed access. Successful unprotected GETs are cacheable for
+60 seconds and support ETag revalidation. Other responses use no-store. The
+service's own viewer and native clients continue to work without Origin.
+
+`TRUSTED_PROXY_CIDRS` is an optional comma-separated list of operator-verified
+IPv4/IPv6 proxy networks. It defaults to empty and rejects catch-all networks.
+For anonymous collection abuse limits, forwarded chains are used only when the
+socket peer is trusted. Parsing is bounded to 4096 bytes and 32 addresses;
+trusted hops are removed from the right, and the first untrusted public address
+identifies the client. IPv6 addresses share their /64 bucket. A missing,
+malformed or ambiguous trusted chain returns `503 source_unavailable` before
+opening a collection. Untrusted public peers cannot assert identity through
+forwarded headers. Environment labels and Fly/Cloudflare client-IP headers do
+not establish trust.
+
+`COLLECTIONS_EDGE_SECRET` is the recommended production path. It sidesteps the
+host's undocumented ingress proxy by trusting only our own Cloudflare zone.
+When set (at least 32 characters, no surrounding whitespace), anonymous
+collection opens ignore the socket peer, `X-Forwarded-For` and
+`TRUSTED_PROXY_CIDRS` entirely. A request is accepted only when it carries
+exactly one `X-Colosseum-Edge` header equal to the secret (compared in constant
+time) and exactly one public `CF-Connecting-IP` address. Cloudflare overwrites
+`CF-Connecting-IP` with the address that connected to it. Every other request
+returns `503 source_unavailable`, including direct requests to the host's own
+hostname. A `CF-Connecting-IP` inside Cloudflare's published ranges also
+returns 503, because it means a second Cloudflare hop replaced the visitor; the
+list is embedded in `collection_edge.go` and must be refreshed if Cloudflare
+changes it. Account login/registration limits are not affected.
+
+Enablement order (each production step needs Hemanth's approval):
+1. Create a proxied `api.getcolosseum.world` record on our Cloudflare zone
+   pointing at the account-service origin.
+2. Add a Cloudflare Transform Rule (Modify Request Header, Set static) for that
+   hostname: `X-Colosseum-Edge` = the secret. Store the secret in the host's
+   secret settings and in the password manager with the other service keys.
+3. Ensure native clients and the website open shared collections through
+   `https://api.getcolosseum.world`, not the host's hostname. Direct opens are
+   refused once the secret is set. Legacy viewer links then redirect to
+   `https://getcolosseum.world/c/{share_id}`. For isolated native runs, set
+   `COLOSSEUM_COLLECTIONS_API_URL` for anonymous opens alongside
+   `COLOSSEUM_ACCOUNT_SERVICE_URL` for login, sync and publication management.
+4. Rehearse on a non-production service first. A forged `CF-Connecting-IP`
+   sent straight to the host must return 503. Opens through the edge from two
+   different networks must produce two different rate-limit buckets. When the
+   origin itself sits behind another Cloudflare zone (Render), confirm that the
+   visitor address, not a Cloudflare address, arrives.
+
+Without the secret, the trusted-proxy rules below still apply.
+
+Before production enablement, the operator must record the actual public and
+private ingress topology, exact trusted CIDRs, and how each hop overwrites or
+appends X-Forwarded-For. Include direct/private bypass paths and topology-change
+behavior in that verification. The static website adds no proxy hop. Missing
+verified ingress information blocks rollout; do not substitute broad CIDRs or
+unconditional forwarding-header trust.
+
+Use the separately authorized deployment checkpoint to obtain an isolated clone
+of the verified production baseline. Record its deployed migration lineage,
+checksums and physical-schema metadata before applying migration 0011 with the
+exact migration binary built from the reviewed service commit. Compare all
+previous receipts, preexisting schema metadata and representative state after
+migration; rerun the command to prove idempotence. A synthetic local 0010
+fixture or an empty-database test is not that production-clone rehearsal. Retain
+backup/rollback and runtime-role schema-gate receipts, then deploy only through
+the approved release sequence above. No production migration or setting change
+is authorized merely by this document.

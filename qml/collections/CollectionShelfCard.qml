@@ -50,7 +50,7 @@ Button {
                     id: jacket
                     required property string modelData
                     required property int index
-                    readonly property var titleData: card.store.media(jacket.modelData)
+                    readonly property var titleData: card.store.media(jacket.modelData, card.collection.id)
                     width: Math.min(125, artwork.width * 0.34)
                     height: 174
                     x: artwork.width / 2 - width / 2 + (index === 1 ? -width * 0.64 : index === 2 ? width * 0.64 : 0)
@@ -70,6 +70,26 @@ Button {
                         radius: 4
                     }
                 }
+            }
+            Image {
+                anchors.fill: parent
+                anchors.margins: 8
+                visible: !!card.collection.keptGift && !!(card.collection.presentation || {}).cover_data
+                source: visible ? card.collection.presentation.cover_data : ""
+                fillMode: Image.PreserveAspectFit
+                sourceSize.width: 640
+                sourceSize.height: 440
+            }
+            Rectangle {
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.margins: 12
+                visible: !!card.collection.keptGift
+                width: giftBadge.implicitWidth + 20
+                height: 28
+                radius: 14
+                color: "#e011151f"
+                Text { id: giftBadge; anchors.centerIn: parent; text: qsTr("Kept gift"); font.family: theme.ui; font.pixelSize: 12; color: theme.gold }
             }
             CollectionIcon {
                 visible: card.covers.length === 0
@@ -118,9 +138,19 @@ Button {
             textFormat: Text.PlainText
         }
     }
-    ToolTip.visible: card.hovered && collectionTitle.truncated
-    ToolTip.text: card.collection.name
-    ToolTip.delay: 500
+    ToolTip {
+        id: titleTip
+        visible: card.hovered && collectionTitle.truncated
+        text: card.collection.name
+        delay: 500
+        contentItem: Text {
+            text: titleTip.text
+            textFormat: Text.PlainText
+            font: titleTip.font
+            color: theme.ink
+            wrapMode: Text.Wrap
+        }
+    }
     HoverHandler { cursorShape: Qt.PointingHandCursor }
     Keys.onReturnPressed: card.clicked()
     Keys.onEnterPressed: card.clicked()

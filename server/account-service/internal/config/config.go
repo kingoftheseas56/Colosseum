@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/netip"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -11,32 +13,36 @@ import (
 )
 
 const (
-	defaultHTTPAddr               = ":8080"
-	defaultDatabaseMaxConnections = 8
-	defaultMaintenanceConnections = 2
-	defaultReadinessTimeout       = 2 * time.Second
-	defaultShutdownTimeout        = 10 * time.Second
-	defaultRegistrationGlobal10m  = 500
-	defaultSyncMaxFutureSkew      = 10 * time.Minute
+	defaultHTTPAddr                = ":8080"
+	defaultDatabaseMaxConnections  = 8
+	defaultMaintenanceConnections  = 2
+	defaultReadinessTimeout        = 2 * time.Second
+	defaultShutdownTimeout         = 10 * time.Second
+	minCollectionsEdgeSecretLength = 32
+	defaultRegistrationGlobal10m   = 500
+	defaultSyncMaxFutureSkew       = 10 * time.Minute
 )
 
 type Config struct {
-	Environment                string
-	HTTPAddr                   string
-	DatabaseURL                string
-	DatabaseMaxConnections     int32
-	ReadinessTimeout           time.Duration
-	ShutdownTimeout            time.Duration
-	RecoveryHMACKey            []byte
-	AbuseHMACKey               []byte
-	SessionWrapKey             []byte
-	SyncDataKey                []byte
-	SyncMaxFutureSkew          time.Duration
-	PasswordBlocklistPath      string
-	RegistrationGlobalLimit10m int
-	AvatarBucketName           string
-	AvatarEndpoint             string
-	AvatarRegion               string
+	Environment                  string
+	HTTPAddr                     string
+	TrustedProxyCIDRs            []netip.Prefix
+	CollectionsAllowedWebOrigins []string
+	CollectionsEdgeSecret        string
+	DatabaseURL                  string
+	DatabaseMaxConnections       int32
+	ReadinessTimeout             time.Duration
+	ShutdownTimeout              time.Duration
+	RecoveryHMACKey              []byte
+	AbuseHMACKey                 []byte
+	SessionWrapKey               []byte
+	SyncDataKey                  []byte
+	SyncMaxFutureSkew            time.Duration
+	PasswordBlocklistPath        string
+	RegistrationGlobalLimit10m   int
+	AvatarBucketName             string
+	AvatarEndpoint               string
+	AvatarRegion                 string
 }
 
 // MigrationConfig deliberately contains no authentication or avatar
@@ -77,6 +83,25 @@ func Load() (Config, error) {
 	httpAddr := strings.TrimSpace(os.Getenv("HTTP_ADDR"))
 	if httpAddr == "" {
 		httpAddr = defaultHTTPAddr
+	}
+
+	var trustedProxyCIDRs []netip.Prefix
+	if raw := strings.TrimSpace(os.Getenv("TRUSTED_PROXY_CIDRS")); raw != "" {
+		for _, entry := range strings.Split(raw, ",") {
+			prefix, err := netip.ParsePrefix(strings.TrimSpace(entry))
+			if err != nil || prefix.Bits() == 0 || prefix.Addr().Is4In6() {
+				return Config{}, errors.New("TRUSTED_PROXY_CIDRS must contain explicit IPv4/IPv6 CIDRs, never a catch-all")
+			}
+			trustedProxyCIDRs = append(trustedProxyCIDRs, prefix.Masked())
+		}
+	}
+	origins, err := collectionOriginsEnv()
+	if err != nil {
+		return Config{}, err
+	}
+	edgeSecret := os.Getenv("COLLECTIONS_EDGE_SECRET")
+	if edgeSecret != "" && (len(edgeSecret) < minCollectionsEdgeSecretLength || strings.TrimSpace(edgeSecret) != edgeSecret) {
+		return Config{}, fmt.Errorf("COLLECTIONS_EDGE_SECRET must be at least %d characters with no surrounding whitespace", minCollectionsEdgeSecretLength)
 	}
 
 	maxConnections, err := positiveInt32Env("DATABASE_MAX_CONNECTIONS", defaultDatabaseMaxConnections)
@@ -134,22 +159,25 @@ func Load() (Config, error) {
 	}
 
 	return Config{
-		Environment:                environment,
-		HTTPAddr:                   httpAddr,
-		DatabaseURL:                databaseURL,
-		DatabaseMaxConnections:     maxConnections,
-		ReadinessTimeout:           defaultReadinessTimeout,
-		ShutdownTimeout:            defaultShutdownTimeout,
-		RecoveryHMACKey:            recoveryHMACKey,
-		AbuseHMACKey:               abuseHMACKey,
-		SessionWrapKey:             sessionWrapKey,
-		SyncDataKey:                syncDataKey,
-		SyncMaxFutureSkew:          time.Duration(syncSkewSeconds) * time.Second,
-		PasswordBlocklistPath:      passwordBlocklistPath,
-		RegistrationGlobalLimit10m: globalRegistrationLimit,
-		AvatarBucketName:           avatarBucketName,
-		AvatarEndpoint:             avatarEndpoint,
-		AvatarRegion:               avatarRegion,
+		Environment:                  environment,
+		HTTPAddr:                     httpAddr,
+		TrustedProxyCIDRs:            trustedProxyCIDRs,
+		CollectionsAllowedWebOrigins: origins,
+		CollectionsEdgeSecret:        edgeSecret,
+		DatabaseURL:                  databaseURL,
+		DatabaseMaxConnections:       maxConnections,
+		ReadinessTimeout:             defaultReadinessTimeout,
+		ShutdownTimeout:              defaultShutdownTimeout,
+		RecoveryHMACKey:              recoveryHMACKey,
+		AbuseHMACKey:                 abuseHMACKey,
+		SessionWrapKey:               sessionWrapKey,
+		SyncDataKey:                  syncDataKey,
+		SyncMaxFutureSkew:            time.Duration(syncSkewSeconds) * time.Second,
+		PasswordBlocklistPath:        passwordBlocklistPath,
+		RegistrationGlobalLimit10m:   globalRegistrationLimit,
+		AvatarBucketName:             avatarBucketName,
+		AvatarEndpoint:               avatarEndpoint,
+		AvatarRegion:                 avatarRegion,
 	}, nil
 }
 
@@ -249,4 +277,48 @@ func base64KeyEnv(name string, minimumBytes int, exact bool) ([]byte, error) {
 		return nil, fmt.Errorf("%s must decode to at least %d bytes", name, minimumBytes)
 	}
 	return value, nil
+}
+
+// Origins are exact scheme/host/port values, never URLs with credentials or paths.
+func collectionOriginsEnv() ([]string, error) {
+	raw := strings.TrimSpace(os.Getenv("COLLECTIONS_ALLOWED_WEB_ORIGINS"))
+	if raw == "" {
+		return nil, nil
+	}
+	var origins []string
+	for _, entry := range strings.Split(raw, ",") {
+		origin := strings.TrimSpace(entry)
+		u, err := url.Parse(origin)
+		if err != nil || u == nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil || u.Opaque != "" || u.Path != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || strings.ContainsAny(origin, "?#") || strings.HasSuffix(u.Host, ":") {
+			return nil, errors.New("COLLECTIONS_ALLOWED_WEB_ORIGINS must contain exact HTTP(S) origins without paths, credentials, queries or fragments")
+		}
+		host := u.Hostname()
+		if host == "" {
+			return nil, errors.New("COLLECTIONS_ALLOWED_WEB_ORIGINS requires a host")
+		}
+		if ip, err := netip.ParseAddr(host); err == nil {
+			if ip.Zone() != "" {
+				return nil, errors.New("COLLECTIONS_ALLOWED_WEB_ORIGINS cannot contain scoped addresses")
+			}
+		} else {
+			for _, label := range strings.Split(host, ".") {
+				if label == "" || len(label) > 63 || strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+					return nil, errors.New("COLLECTIONS_ALLOWED_WEB_ORIGINS contains an invalid host")
+				}
+				for _, ch := range label {
+					if !(ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9' || ch == '-') {
+						return nil, errors.New("COLLECTIONS_ALLOWED_WEB_ORIGINS contains an invalid host")
+					}
+				}
+			}
+		}
+		if port := u.Port(); port != "" {
+			n, err := strconv.Atoi(port)
+			if err != nil || n < 1 || n > 65535 {
+				return nil, errors.New("COLLECTIONS_ALLOWED_WEB_ORIGINS contains an invalid port")
+			}
+		}
+		origins = append(origins, origin)
+	}
+	return origins, nil
 }

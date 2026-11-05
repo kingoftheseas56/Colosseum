@@ -109,7 +109,7 @@ Popup {
         validationError = ""
         search.text = ""
         collectionName.text = ""
-        selectedIds = createOnly ? [] : store.memberships(titleId)
+        selectedIds = createOnly ? [] : store.memberships(titleId).filter(function(id) { const row = root.store.getCollection(id); return row && !row.keptGift })
         if (createOnly) collectionName.forceActiveFocus(Qt.OtherFocusReason)
         else search.forceActiveFocus(Qt.OtherFocusReason)
     }
@@ -187,7 +187,7 @@ Popup {
             clip: true
             spacing: 4
             boundsBehavior: Flickable.StopAtBounds
-            model: { root.store.revision; return root.store.filteredCollections(search.text) }
+            model: { root.store.revision; return root.store.filteredCollections(search.text).filter(function(row) { return !row.keptGift }) }
             delegate: CollectionMembershipRow {
                 required property var modelData
                 required property int index
@@ -198,7 +198,7 @@ Popup {
                 onClicked: root.toggle(modelData.id)
                 onActiveFocusChanged: if (activeFocus) membershipList.positionViewAtIndex(index, ListView.Contain)
             }
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded; width: 5 }
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOff }
             Text {
                 anchors.centerIn: parent
                 width: parent.width - 30

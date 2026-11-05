@@ -43,7 +43,8 @@ enum class AccountOperation {
     SyncSnapshot,
     AccountExport,
     AccountDelete,
-    AccountDeletionRetry
+    AccountDeletionRetry,
+    CollectionPublish, CollectionUpdate, CollectionList, CollectionRevoke, CollectionOpen
 };
 
 Q_DECLARE_METATYPE(AccountOperation)
@@ -55,6 +56,10 @@ public:
     explicit AccountClient(
         AccountTransport *transport,
         QObject *parent = nullptr);
+    AccountClient(
+        AccountTransport *transport,
+        AccountTransport *collectionOpenTransport,
+        QObject *parent);
     ~AccountClient() override;
 
     void setAccessToken(const QByteArray &accessToken);
@@ -159,6 +164,14 @@ public:
         const QString &requestId,
         const QByteArray &retryCapability);
 
+    // Explicit publication boundary. Authenticated operations use the same
+    // private session as the existing account client; anonymous opens send none.
+    quint64 publishCollection(const QJsonObject &body);
+    quint64 updateCollectionPublication(const QString &shareId, const QJsonObject &body);
+    quint64 listCollectionPublications();
+    quint64 revokeCollectionPublication(const QString &shareId, const QJsonObject &body);
+    quint64 openSharedCollection(const QString &shareId, const QString &passphrase);
+
 signals:
     void completed(
         quint64 requestId,
@@ -180,9 +193,11 @@ private:
         bool authenticated,
         int timeoutMs = 15000);
 
+    void completeRequest(quint64 requestId, const AccountTransportReply &reply);
     static QString encodedPathSegment(const QString &value);
 
     AccountTransport *m_transport = nullptr;
+    AccountTransport *m_collectionOpenTransport = nullptr;
     QByteArray m_accessToken;
     quint64 m_accessTokenGeneration = 1;
     quint64 m_nextRequestId = 1;

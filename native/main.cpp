@@ -73,6 +73,10 @@
 #include "third_party/miniz/miniz.h"  // gunzip for the Jikan Accept-Encoding workaround
 #include "engine/MangaDownloader.h"
 #include "devtools/LanistaServer.h"
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+#include "../tests/collections_sharing_runtime/InProcessLanistaFixture.h"
+#include "../tests/support/account/MemoryAccountCredentialStore.h"
+#endif
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
 #include "engine/ComicDownloader.h"
@@ -89,6 +93,8 @@
 #include "engine/AppLog.h"
 #include "bootstrap/AppDataMigration.h"
 #include "bootstrap/InstanceLock.h"
+#include "bootstrap/CollectionLinkActivation.h"
+#include "account/AccountServiceEndpoint.h"
 #include "bootstrap/StartupLayout.h"
 #include "bootstrap/QmlModuleGuards.h"
 #include "engine/ExtensionsStore.h"
@@ -279,6 +285,17 @@ private:
 };
 
 int main(int argc, char *argv[]) {
+    // Protocol invocations are exclusive. Validate the original text before Qt
+    // can consume plugin/platform arguments or positional QML can be selected.
+    QStringList rawArguments;
+    for (int i = 0; i < argc; ++i) rawArguments.append(QString::fromLocal8Bit(argv[i]));
+    QString collectionLaunchError;
+    const auto collectionLaunchUrl = takeCollectionLaunchUrl(&rawArguments, &collectionLaunchError);
+    if (!collectionLaunchError.isEmpty()) {
+        std::fprintf(stderr, "%s\n", qPrintable(collectionLaunchError));
+        return 2;
+    }
+    if (collectionLaunchUrl) { argc = 1; argv[1] = nullptr; }
     if (argc == 2 && std::strcmp(argv[1], "--version") == 0) {
         std::printf("Colosseum %s\n", COLOSSEUM_VERSION);
         return 0;
@@ -384,21 +401,32 @@ int main(int argc, char *argv[]) {
     // Install the rolling log after final identity selection so test launches write only
     // inside their disposable AppData sibling. Real launches reconcile the legacy root
     // afterwards, which makes any migration warning durable instead of stderr-only.
-    AppLog::install();
-
     // Only one normal Colosseum process may use the shared AppDataLocation. This prevents
     // duplicate launches from racing the account refresh-token rotation and local sync stores.
     // Tagged test sessions have a different application name/AppDataLocation and therefore a
     // separate lock by design.
-    ColosseumInstanceLock instanceLock(instanceAppData);
-    if (!instanceLock.tryAcquire()) {
-        if (instanceLock.wasBlockedByExistingInstance()) {
+    auto instanceLock = std::make_shared<ColosseumInstanceLock>(instanceAppData);
+    CollectionLinkActivation collectionActivation(instanceLock, AccountServiceEndpoint::configuredUrl());
+    if (!instanceLock->tryAcquire()) {
+        if (instanceLock->wasBlockedByExistingInstance() && collectionLaunchUrl) {
+            if (collectionActivation.forwardToPrimary(*collectionLaunchUrl)) return 0;
+            qWarning("[boot] collection link could not be acknowledged by the running instance");
+            return 2;
+        }
+        if (instanceLock->wasBlockedByExistingInstance()) {
             qInfo("[boot] another Colosseum instance is already running; leaving it alone");
         } else {
             qWarning("[boot] could not establish the Colosseum instance lock");
         }
         return 0;
     }
+
+    AppLog::install();
+    if (collectionLaunchUrl) collectionActivation.submit(*collectionLaunchUrl);
+    if (!collectionActivation.startPrimary(instanceAppData))
+        qWarning("[boot] collection activation channel is unavailable");
+    collectionActivation.registerPlatformHandlers();
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, &collectionActivation, [&collectionActivation] { collectionActivation.shutdown(); });
 
     AppDataMigrationResult appDataMigration;
     if (!isolatedAppData)
@@ -1848,7 +1876,23 @@ int main(int argc, char *argv[]) {
                      vinylProvider, &VinylProvider::shuttingDown);
     auto *vinylCatalogueSource = new VinylCatalogueSource(vinylLocalSource, vinylProvider, nullptr, &backendServices);
 #endif
-    auto *accountRuntime = new AccountRuntime(&backendServices);
+    AccountRuntime *accountRuntime = nullptr;
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+    // Synthetic acceptance only: real account HTTP/controller, volatile secret
+    // storage. Does not qualify Linux libsecret persistence or production login.
+    if (!qEnvironmentVariable("COLOSSEUM_COLLECTIONS_RUNTIME_RUN").isEmpty()
+        && CollectionsTestProfileController(instanceAppData, {}, {}).enabled()) {
+        static MemoryAccountCredentialStore fixtureAccountCredentials;
+        AccountRuntimeCredentialOptions options;
+        options.accountStore = &fixtureAccountCredentials;
+        accountRuntime = new AccountRuntime(StremioSyncOptions{}, options, &backendServices);
+        qInfo("COLLECTIONS_RUNTIME synthetic memory credential seam; OS vault NOT QUALIFIED");
+    }
+#endif
+    if (!accountRuntime) accountRuntime = new AccountRuntime(&backendServices);
+    QObject::connect(accountRuntime, &AccountRuntime::collectionProfileInvalidated,
+                     &collectionActivation, &CollectionLinkActivation::deferForProfile);
+    engine.rootContext()->setContextProperty(QStringLiteral("CollectionLinkActivation"), &collectionActivation);
 #ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
     std::unique_ptr<ProfilePreferencesStore> ratingsReviewsFixturePreferences;
     std::unique_ptr<RatingsReviewsTaggedFixtureAdapter> ratingsReviewsFixtureA;
@@ -2438,6 +2482,10 @@ int main(int argc, char *argv[]) {
         // is keyed by the WC id and is proved by opening a real series page.
         manga->volumes(QString(), QStringLiteral("One Piece"));
     }
+
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+    startCollectionsSharingFixture(lanistaServer, instanceAppData);
+#endif
 
     return app.exec();
 }

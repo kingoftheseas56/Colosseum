@@ -16,6 +16,11 @@ function Require([bool]$condition, [string]$message) {
     if (!$condition) { throw "RELEASE_INSTALLER_SMOKE_FAIL: $message" }
 }
 
+# Production artifacts cannot use the compile-time registry override. Keep
+# this existing smoke restricted to disposable hosted runners instead.
+Require ($env:GITHUB_ACTIONS -eq 'true' -and $env:RUNNER_ENVIRONMENT -eq 'github-hosted') 'clean hosted runner required'
+Require (!(Test-Path 'Registry::HKEY_CURRENT_USER\Software\Classes\colosseum') -and
+         !(Test-Path 'Registry::HKEY_LOCAL_MACHINE\Software\Classes\colosseum')) 'existing protocol registration'
 $installerPath = (Resolve-Path -LiteralPath $Installer).Path
 $actualSha = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
 Require ($actualSha -eq $ExpectedSha256.ToLowerInvariant()) "SHA256 mismatch: $actualSha"

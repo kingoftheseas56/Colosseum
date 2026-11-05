@@ -1,5 +1,7 @@
 # Colosseum Account Service
 
+Collections sharing/gifting candidate API, limits and migration instructions: [COLLECTIONS_PUBLICATIONS.md](COLLECTIONS_PUBLICATIONS.md).
+
 
 This repository is the external identity and cloud-sync service for Colosseum.
 

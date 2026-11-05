@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "name": "Across worlds",
+  "description": "A small collection for a quiet evening.",
+  "presentation": {
+    "preset": "sea",
+    "dedication": "For a friend. Open, then explore.",
+    "signature": "Synthetic author",
+    "cover_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAALUlEQVR4nGNU9Y5koCVgoqnpoxaMWjBqwagFoxaMWjBqwagFoxaMWjBqARUBABQfAQn+Tq0oAAAAAElFTkSuQmCC"
+  },
+  "members": [
+    {
+      "world": "theatre",
+      "kind": "movie",
+      "source": "theatre",
+      "source_id": "tt0133093",
+      "edition_id": "",
+      "canonical_id": "",
+      "canonical_source_id": "",
+      "title": "The Matrix",
+      "creator": "",
+      "year": "",
+      "note": "Start here.",
+      "album_source_id": "",
+      "album_browse_id": "",
+      "comic_post_ids": []
+    },
+    {
+      "world": "tankoban",
+      "kind": "manga",
+      "source": "mal",
+      "source_id": "mal:13",
+      "edition_id": "",
+      "canonical_id": "",
+      "canonical_source_id": "",
+      "title": "One Piece",
+      "creator": "",
+      "year": "",
+      "note": "A long voyage.",
+      "album_source_id": "",
+      "album_browse_id": "",
+      "comic_post_ids": []
+    },
+    {
+      "world": "biblio",
+      "kind": "book",
+      "source": "apple-books",
+      "source_id": "123456789",
+      "edition_id": "ebook",
+      "canonical_id": "",
+      "canonical_source_id": "",
+      "title": "Synthetic book",
+      "creator": "",
+      "year": "",
+      "note": "A fictional catalogue fixture.",
+      "album_source_id": "",
+      "album_browse_id": "",
+      "comic_post_ids": []
+    },
+    {
+      "world": "vinyl",
+      "kind": "album",
+      "source": "youtube-music",
+      "source_id": "MPRE_fixture",
+      "edition_id": "album:fixture",
+      "canonical_id": "",
+      "canonical_source_id": "",
+      "title": "Synthetic album",
+      "creator": "",
+      "year": "",
+      "note": "Keep this edition.",
+      "album_source_id": "",
+      "album_browse_id": "",
+      "comic_post_ids": []
+    },
+    {
+      "world": "tankoban",
+      "kind": "comic",
+      "source": "missing-provider",
+      "source_id": "fixture-42",
+      "edition_id": "edition-2",
+      "canonical_id": "",
+      "canonical_source_id": "",
+      "title": "Unavailable edition",
+      "creator": "",
+      "year": "",
+      "note": "Must remain visible; never substitute.",
+      "album_source_id": "",
+      "album_browse_id": "",
+      "comic_post_ids": []
+    }
+  ]
+}

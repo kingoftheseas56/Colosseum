@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -41,8 +42,6 @@ func TestCheckSchemaAcceptsMigratedDatabase(t *testing.T) {
 
 func TestCheckSchemaRejectsMissingFutureAndDriftedReceipts(t *testing.T) {
 	pool := testdb.Open(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
 
 	for _, test := range []struct {
 		name string
@@ -90,6 +89,8 @@ func TestCheckSchemaRejectsMissingFutureAndDriftedReceipts(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
 			testdb.ResetPublicSchema(t, pool)
 			if err := RunMigrations(ctx, pool); err != nil {
 				t.Fatalf("RunMigrations() error = %v", err)
@@ -97,9 +98,14 @@ func TestCheckSchemaRejectsMissingFutureAndDriftedReceipts(t *testing.T) {
 			if err := test.edit(ctx); err != nil {
 				t.Fatalf("edit schema receipt: %v", err)
 			}
-			if err := CheckSchema(ctx, pool); err == nil {
-				t.Fatalf("CheckSchema() accepted %s schema", test.name)
-			}
+			want := map[string]schemaCompatibilityError{
+				"missing":         "missing_schema_migration",
+				"future":          "unsupported_future_schema",
+				"drift":           "migration_checksum_drift",
+				"empty checksum":  "migration_checksum_drift",
+				"legacy checksum": "legacy_checksum_baseline_pending",
+			}[test.name]
+			requireSchemaRejection(t, ctx, CheckSchema(ctx, pool), want)
 
 			if test.name == "legacy checksum" {
 				if err := RunMigrations(ctx, pool); err != nil {
@@ -115,8 +121,6 @@ func TestCheckSchemaRejectsMissingFutureAndDriftedReceipts(t *testing.T) {
 
 func TestCheckSchemaRejectsBrokenPhysicalContract(t *testing.T) {
 	pool := testdb.Open(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
 
 	for _, test := range []struct {
 		name string
@@ -156,6 +160,8 @@ func TestCheckSchemaRejectsBrokenPhysicalContract(t *testing.T) {
         `},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
 			testdb.ResetPublicSchema(t, pool)
 			if err := RunMigrations(ctx, pool); err != nil {
 				t.Fatalf("RunMigrations() error = %v", err)
@@ -163,17 +169,28 @@ func TestCheckSchemaRejectsBrokenPhysicalContract(t *testing.T) {
 			if _, err := pool.Exec(ctx, test.edit); err != nil {
 				t.Fatalf("break schema contract: %v", err)
 			}
-			if err := CheckSchema(ctx, pool); err == nil {
-				t.Fatalf("CheckSchema() accepted broken %s contract", test.name)
-			}
+			want := map[string]schemaCompatibilityError{
+				"column":                        "schema_column_contract_failed",
+				"unique":                        "schema_unique_contract_failed",
+				"foreign key":                   "schema_foreign_key_contract_failed",
+				"foreign key action":            "schema_foreign_key_contract_failed",
+				"check":                         "schema_check_contract_failed",
+				"same-name weaker check":        "schema_check_contract_failed",
+				"lifecycle column":              "schema_column_contract_failed",
+				"lifecycle unique":              "schema_unique_contract_failed",
+				"lifecycle foreign key":         "schema_foreign_key_contract_failed",
+				"lifecycle index":               "schema_unique_index_contract_failed",
+				"same-name wrong index columns": "schema_unique_index_contract_failed",
+				"lifecycle id default":          "schema_column_contract_failed",
+				"lifecycle receipt foreign key": "schema_foreign_key_contract_failed",
+			}[test.name]
+			requireSchemaRejection(t, ctx, CheckSchema(ctx, pool), want)
 		})
 	}
 }
 
 func TestLegacyBaselineRejectsSameNameSemanticDrift(t *testing.T) {
 	pool := testdb.Open(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
 
 	for _, test := range []struct {
 		name string
@@ -191,6 +208,8 @@ func TestLegacyBaselineRejectsSameNameSemanticDrift(t *testing.T) {
         `},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
 			testdb.ResetPublicSchema(t, pool)
 			if err := RunMigrations(ctx, pool); err != nil {
 				t.Fatalf("RunMigrations() error = %v", err)
@@ -201,9 +220,11 @@ func TestLegacyBaselineRejectsSameNameSemanticDrift(t *testing.T) {
 			if _, err := pool.Exec(ctx, test.edit); err != nil {
 				t.Fatalf("introduce semantic schema drift: %v", err)
 			}
-			if err := RunMigrations(ctx, pool); err == nil {
-				t.Fatal("RunMigrations() accepted same-name semantic drift while baselining")
+			want := schemaCompatibilityError("schema_check_contract_failed")
+			if test.name == "same-name wrong index columns" {
+				want = "schema_unique_index_contract_failed"
 			}
+			requireSchemaRejection(t, ctx, RunMigrations(ctx, pool), want)
 
 			var checksumCount int
 			if err := pool.QueryRow(ctx,
@@ -228,6 +249,9 @@ func TestRunMigrationsFailedTransactionLeavesNoReceipt(t *testing.T) {
 	}
 	if err := RunMigrations(ctx, pool); err == nil {
 		t.Fatal("RunMigrations() accepted incompatible schema")
+	}
+	if ctx.Err() != nil {
+		t.Fatalf("migration rejection used an expired context: %v", ctx.Err())
 	}
 	var migrationsTableExists bool
 	if err := pool.QueryRow(ctx,
@@ -254,9 +278,7 @@ func TestLegacyBaselineRequiresPhysicalSchemaContract(t *testing.T) {
 	if _, err := pool.Exec(ctx, "ALTER TABLE accounts DROP COLUMN password_hash"); err != nil {
 		t.Fatalf("break legacy schema contract: %v", err)
 	}
-	if err := RunMigrations(ctx, pool); err == nil {
-		t.Fatal("RunMigrations() baselined a physically incompatible legacy schema")
-	}
+	requireSchemaRejection(t, ctx, RunMigrations(ctx, pool), "schema_column_contract_failed")
 
 	var checksumCount int
 	if err := pool.QueryRow(ctx,
@@ -357,7 +379,21 @@ func TestRuntimeSchemaGateWorksWithoutDDLPrivilege(t *testing.T) {
 	}
 	if err := RunMigrations(ctx, runtimePool); err == nil {
 		t.Fatal("runtime role unexpectedly acquired migration DDL privilege")
+	} else if ctx.Err() != nil {
+		t.Fatalf("privilege rejection used an expired context: %v", ctx.Err())
 	} else if strings.Contains(err.Error(), password) {
 		t.Fatalf("migration error reflected runtime password: %q", err)
+	}
+}
+
+// A timeout or unavailable metadata must never satisfy a negative contract test.
+func requireSchemaRejection(t *testing.T, ctx context.Context, err error, want schemaCompatibilityError) {
+	t.Helper()
+	if ctx.Err() != nil {
+		t.Fatalf("schema rejection used an expired context: %v", ctx.Err())
+	}
+	var got schemaCompatibilityError
+	if want == "" || !errors.As(err, &got) || got != want {
+		t.Fatalf("schema rejection = %v, want %s", err, want)
 	}
 }

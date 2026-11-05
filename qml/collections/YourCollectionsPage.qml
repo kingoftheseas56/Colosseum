@@ -9,6 +9,8 @@ Item {
     id: root
     objectName: "overviewPage"
     required property var store
+    property bool sharingAvailable: false
+    signal sharingRequested(string view)
     signal collectionRequested(string collectionId)
     signal createRequested(var opener)
     signal backRequested()
@@ -101,6 +103,20 @@ Item {
                         onActiveFocusChanged: if (activeFocus) root.reveal(newCollection)
                     }
                 }
+            }
+            CollectionActionButton {
+                objectName: "openCollectionsSharing"
+                visible: root.sharingAvailable
+                text: qsTr("Open shared collection")
+                emphasis: "ghost"
+                onClicked: root.sharingRequested("receive")
+                onActiveFocusChanged: if (activeFocus) root.reveal(this)
+            }
+            CollectionActionButton {
+                visible: root.sharingAvailable
+                text: qsTr("My shared links")
+                emphasis: "ghost"
+                onClicked: root.sharingRequested("links")
             }
             Rectangle {
                 width: parent.width

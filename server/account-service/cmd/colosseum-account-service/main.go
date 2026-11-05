@@ -172,11 +172,12 @@ func run(logger *slog.Logger) error {
 
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
-		Handler: httpserver.New(
+		Handler: httpserver.NewWithOptions(
 			pool,
 			accounts,
 			cfg.ReadinessTimeout,
 			logger,
+			httpserver.Options{TrustedProxyCIDRs: cfg.TrustedProxyCIDRs, CollectionsAllowedWebOrigins: cfg.CollectionsAllowedWebOrigins, CollectionsEdgeSecret: cfg.CollectionsEdgeSecret},
 			// Readiness is probed every few seconds; cache the expensive
 			// catalog validation (see CachedSchemaChecker).
 			httpserver.NewCachedSchemaChecker(
