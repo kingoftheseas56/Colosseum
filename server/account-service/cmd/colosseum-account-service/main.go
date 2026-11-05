@@ -177,7 +177,12 @@ func run(logger *slog.Logger) error {
 			accounts,
 			cfg.ReadinessTimeout,
 			logger,
-			database.PoolSchemaChecker{Pool: pool}),
+			// Readiness is probed every few seconds; cache the expensive
+			// catalog validation (see CachedSchemaChecker).
+			httpserver.NewCachedSchemaChecker(
+				database.PoolSchemaChecker{Pool: pool},
+				httpserver.DefaultSchemaSuccessTTL,
+				httpserver.DefaultSchemaFailureTTL)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      35 * time.Second,
