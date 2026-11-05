@@ -2,7 +2,7 @@
   Cache-Control: no-cache, no-transform
   Referrer-Policy: no-referrer
   X-Content-Type-Options: nosniff
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self' https://submit-form.com https://api.web3forms.com https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'none'; form-action https://submit-form.com https://api.web3forms.com; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self' https://en.wikipedia.org https://submit-form.com https://api.web3forms.com https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'none'; form-action https://submit-form.com https://api.web3forms.com; frame-ancestors 'none'
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 /config.json
   Cache-Control: no-store, no-transform
