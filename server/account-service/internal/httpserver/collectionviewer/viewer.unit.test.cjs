@@ -33,7 +33,7 @@ test('gift opening, ordered members, exact canonical edition export, no provider
  ui.get('explore').click();assert.equal(ui.get('collection').hidden,false);assert.equal(ui.get('collection-title').focused,true);
  ui.get('save-edition').click();assert.equal(ui.downloads.length,1);const saved=JSON.parse(await ui.downloads[0].text());
  delete value.snapshot.members[0].payload;for(const m of value.snapshot.members){m.album_source_id ||= '';m.album_browse_id ||= '';m.comic_post_ids ||= [];}assert.deepEqual(saved,value);
- assert.equal(ui.requests[0].init.credentials,'omit');assert.equal(ui.requests[0].init.cache,'no-store');
+ assert.equal(ui.requests[0].init.credentials,'omit');assert.equal(ui.requests[0].init.cache,'default');
 });
 test('ordinary collection skips opening and gift retention controls',async()=>{
  const value=envelope();value.kind='collection';const ui=await setup({body:value});assert.equal(ui.get('collection').hidden,false);assert.equal(ui.get('keep-panel').hidden,true);ui.get('save-edition').click();assert.equal(ui.downloads.length,0);
@@ -42,6 +42,7 @@ test('passphrase remains in request body only and is cleared after response',asy
  const ui=await setup(n=>n===1?{status:403,body:{error:{code:'passphrase_required'}}}:{body:envelope()});
  assert.equal(ui.get('locked').hidden,false);ui.get('passphrase').value='synthetic phrase';ui.get('unlock-form').events.submit({preventDefault(){}});await ui.flush();
  assert.equal(ui.get('opening').hidden,false);assert.equal(ui.get('passphrase').value,'');assert.equal(ui.requests[1].url,`/v1/collections/shared/${share}/open`);assert.equal(JSON.parse(ui.requests[1].init.body).passphrase,'synthetic phrase');
+ assert.equal(ui.requests[1].init.cache,'no-store');
 });
 test('revoked links and invalid gift schema never expose content or export',async()=>{
  for(const body of [{status:404,body:{}},{body:{...envelope(),revoked:true}},{body:{...envelope(),snapshot:{...snapshot,schema_version:99}}}]){

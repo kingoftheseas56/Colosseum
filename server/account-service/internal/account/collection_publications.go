@@ -235,53 +235,67 @@ func (s *Service) ListCollectionPublications(ctx context.Context, accountID stri
 	return result, rows.Err()
 }
 func (s *Service) OpenCollectionPublication(ctx context.Context, shareID, passphrase, networkKey string) (CollectionPublication, error) {
+	p, _, err := s.OpenCollectionPublicationIfChanged(ctx, shareID, passphrase, networkKey, nil)
+	return p, err
+}
+
+// OpenCollectionPublicationIfChanged checks visibility and rate limits before
+// evaluating a public revision. On a match it returns the identity and revision
+// without fetching the snapshot.
+func (s *Service) OpenCollectionPublicationIfChanged(ctx context.Context, shareID, passphrase, networkKey string, matchesRevision func(int64) bool) (CollectionPublication, bool, error) {
 	var zero CollectionPublication
 	if !collectionShareID.MatchString(shareID) {
-		return zero, ErrCollectionNotFound
+		return zero, false, ErrCollectionNotFound
 	}
 	if !collectionText(passphrase, 128) {
-		return zero, ErrCollectionPassphrase
+		return zero, false, ErrCollectionPassphrase
 	}
 	// A source-wide bound covers random-ID probing; a share/source bound protects
 	// the expensive verifier without letting one stranger lock out every reader.
 	if err := s.rateLimiter.Allow(ctx, "collection_open", []string{networkKey}, time.Minute, 120); err != nil {
-		return zero, err
+		return zero, false, err
 	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return zero, err
+		return zero, false, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	var hash string
-	if err = tx.QueryRow(ctx, `SELECT passphrase_hash FROM collection_publications WHERE share_id=$1 AND NOT revoked FOR SHARE`, shareID).Scan(&hash); err != nil {
+	var revision int64
+	if err = tx.QueryRow(ctx, `SELECT passphrase_hash,revision FROM collection_publications WHERE share_id=$1 AND NOT revoked FOR SHARE`, shareID).Scan(&hash, &revision); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return zero, ErrCollectionNotFound
+			return zero, false, ErrCollectionNotFound
 		}
-		return zero, err
+		return zero, false, err
 	}
 	if hash != "" {
 		if passphrase == "" {
-			return zero, ErrCollectionPassphraseRequired
+			return zero, false, ErrCollectionPassphraseRequired
 		}
 		// Use a transaction-local rate reservation to avoid a second pool lease
 		// while holding the publication read lock.
 		if _, err = s.rateLimiter.ReserveTx(ctx, tx, "collection_passphrase", []string{shareID, networkKey}, 15*time.Minute, 10); err != nil {
-			return zero, err
+			return zero, false, err
 		}
 		ok, verifyErr := s.passwordVerify(hash, passphrase)
 		if verifyErr != nil || !ok {
 			if err = tx.Commit(ctx); err != nil {
-				return zero, err
+				return zero, false, err
 			}
-			return zero, ErrCollectionPassphrase
+			return zero, false, ErrCollectionPassphrase
 		}
 	}
-	p, err := scanPublication(tx.QueryRow(ctx, `SELECT `+publicationColumns+` FROM collection_publications WHERE share_id=$1 AND NOT revoked`, shareID))
-	if err != nil {
-		return zero, err
+	// Keep the same row lock across the revision check and any snapshot read.
+	unchanged := hash == "" && matchesRevision != nil && matchesRevision(revision)
+	p := CollectionPublication{ShareID: shareID, Revision: revision}
+	if !unchanged {
+		p, err = scanPublication(tx.QueryRow(ctx, `SELECT `+publicationColumns+` FROM collection_publications WHERE share_id=$1 AND NOT revoked`, shareID))
+		if err != nil {
+			return zero, false, err
+		}
 	}
 	if err = tx.Commit(ctx); err != nil {
-		return zero, err
+		return zero, false, err
 	}
-	return p, nil
+	return p, unchanged, nil
 }

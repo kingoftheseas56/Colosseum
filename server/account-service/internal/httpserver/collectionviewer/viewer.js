@@ -135,7 +135,7 @@
     try {
       const supplied = typeof passphrase === 'string';
       const response = await fetch(`${apiOrigin}/v1/collections/shared/${shareId}${supplied ? '/open' : ''}`, {
-        method:supplied?'POST':'GET', cache:'no-store', credentials:'omit', redirect:'error',
+        method:supplied?'POST':'GET', cache:supplied?'no-store':'default', credentials:'omit', redirect:'error',
         headers:supplied?{'Content-Type':'application/json'}:{},
         body:supplied?JSON.stringify({passphrase}):undefined, signal:request.signal
       });

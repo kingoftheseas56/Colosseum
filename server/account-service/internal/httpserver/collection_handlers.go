@@ -5,9 +5,45 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/kingoftheseas56/Colosseum-Account-Service/internal/account"
 )
+
+func collectionETag(shareID string, revision int64) string {
+	return `W/"collection-` + shareID + "-" + strconv.FormatInt(revision, 10) + `"`
+}
+
+func collectionETagMatches(header, tag string) bool {
+	header = strings.TrimSpace(header)
+	if header == "*" {
+		return true
+	}
+	opaqueTag := strings.TrimSuffix(strings.TrimPrefix(tag, `W/"`), `"`)
+	for header != "" {
+		if rest, empty := strings.CutPrefix(header, ","); empty {
+			header = strings.TrimSpace(rest)
+			continue
+		}
+		quoted, ok := strings.CutPrefix(strings.TrimPrefix(header, "W/"), `"`)
+		if !ok {
+			return false
+		}
+		item, rest, ok := strings.Cut(quoted, `"`)
+		if !ok {
+			return false
+		}
+		header = strings.TrimSpace(rest)
+		if header != "" && header[0] != ',' {
+			return false
+		}
+		if item == opaqueTag {
+			return true
+		}
+	}
+	return false
+}
 
 func decodeCollectionJSON(w http.ResponseWriter, r *http.Request, dest any) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, account.CollectionMaxBodyBytes)
@@ -109,9 +145,25 @@ func (h *Handler) openCollectionPublication(w http.ResponseWriter, r *http.Reque
 	if r.Method == http.MethodPost && !decodeCollectionJSON(w, r, &in) {
 		return
 	}
-	p, err := h.accounts.OpenCollectionPublication(r.Context(), r.PathValue("shareID"), in.Passphrase, networkKey)
+	shareID := r.PathValue("shareID")
+	var matchesRevision func(int64) bool
+	if validators := r.Header.Values("If-None-Match"); r.Method == http.MethodGet && len(validators) > 0 {
+		header := strings.Join(validators, ",")
+		matchesRevision = func(revision int64) bool {
+			return collectionETagMatches(header, collectionETag(shareID, revision))
+		}
+	}
+	p, unchanged, err := h.accounts.OpenCollectionPublicationIfChanged(r.Context(), shareID, in.Passphrase, networkKey, matchesRevision)
 	if err != nil {
 		writeCollectionError(w, err)
+		return
+	}
+	if r.Method == http.MethodGet && !p.Protected {
+		w.Header().Set("Cache-Control", "public, max-age=60, must-revalidate")
+		w.Header().Set("ETag", collectionETag(p.ShareID, p.Revision))
+	}
+	if unchanged {
+		w.WriteHeader(http.StatusNotModified)
 		return
 	}
 	writeJSON(w, 200, p)

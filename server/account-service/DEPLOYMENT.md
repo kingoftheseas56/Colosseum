@@ -147,9 +147,10 @@ COLLECTIONS_ALLOWED_WEB_ORIGINS=https://getcolosseum.world,https://www.getcoloss
 The default is an empty allowlist. Entries must be HTTP(S) scheme/host/port
 origins with no path (including a trailing slash), credentials, query, fragment,
 or wildcard. The anonymous shared-collection GET and passphrase-open POST APIs
-support CORS with Content-Type only; authenticated APIs do not. Responses stay
-no-store and never grant credentialed CORS. The service's own viewer and native
-clients continue to work without Origin.
+support CORS with Content-Type only; authenticated APIs do not. CORS never
+grants credentialed access. Successful unprotected GETs are cacheable for
+60 seconds and support ETag revalidation. Other responses use no-store. The
+service's own viewer and native clients continue to work without Origin.
 
 `TRUSTED_PROXY_CIDRS` is an optional comma-separated list of operator-verified
 IPv4/IPv6 proxy networks. It defaults to empty and rejects catch-all networks.
