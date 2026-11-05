@@ -137,7 +137,6 @@ Item {
             width: body.width
             implicitHeight: Math.max(88, contentHeight + topPadding + bottomPadding)
             text: card.noteText
-            textFormat: TextEdit.PlainText
             placeholderText: qsTr("Add a personal note")
             wrapMode: TextEdit.Wrap
             color: theme.ink

@@ -56,14 +56,6 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    QString activationError;
-    QStringList activationArgs{QStringLiteral("app"), QStringLiteral("--collection-url"),
-        QStringLiteral("https://getcolosseum.world/c/") + QString(43, QLatin1Char('a'))};
-    CHECK(!resolveStartupLayout(activationArgs, {}, &activationError), "unconsumed activation never enters positional QML resolution");
-    CHECK(activationError == QStringLiteral("unconsumed_collection_activation"), "activation rejection precedes manifest access");
-    CHECK(takeCollectionLaunchUrl(&activationArgs, &activationError).has_value(), "valid exclusive launch link extracted");
-    CHECK(activationArgs.size() == 1 && activationError.isEmpty(), "activation pair consumed before normal layout arguments");
-
     QTemporaryDir temp;
     CHECK(temp.isValid(), "temporary root created");
 

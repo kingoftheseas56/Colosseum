@@ -6,7 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/netip"
+	"os"
 	"strings"
 )
 
@@ -30,71 +30,25 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, destination any) error {
 	return nil
 }
 
-func clientNetworkKey(r *http.Request, trustedProxies ...netip.Prefix) string {
-	rawPeer := strings.TrimSpace(r.RemoteAddr)
-	peer, err := netip.ParseAddr(rawPeer)
-	if err != nil {
-		addrPort, parseErr := netip.ParseAddrPort(rawPeer)
-		if parseErr != nil {
-			return ""
-		}
-		peer = addrPort.Addr()
-	}
-	if peer.Zone() != "" || !peer.IsGlobalUnicast() && !peer.IsLoopback() {
-		return ""
-	}
-	peer = peer.Unmap()
-	trusted := func(ip netip.Addr) bool {
-		for _, prefix := range trustedProxies {
-			if prefix.Contains(ip) {
-				return true
+func clientNetworkKey(r *http.Request) string {
+	if strings.TrimSpace(os.Getenv("FLY_APP_NAME")) != "" {
+		if raw := strings.TrimSpace(r.Header.Get("Fly-Client-IP")); raw != "" {
+			if ip := net.ParseIP(raw); ip != nil {
+				return networkPrefix(ip)
 			}
 		}
-		return false
-	}
-	if !trusted(peer) {
-		if len(trustedProxies) > 0 && (peer.IsPrivate() || peer.IsLoopback()) {
-			// A newly introduced internal hop must be verified, not silently
-			// used as a shared visitor bucket after a topology change.
-			return ""
-		}
-		// Public/direct and untrusted private paths cannot assert their own
-		// identity through a forwarded header, including a Fly header.
-		return networkPrefix(net.IP(peer.AsSlice()))
 	}
 
-	// Parse every header line, preserving chain order. Only explicitly trusted
-	// hops are removed from the right; a caller-controlled leftmost IP is never
-	// preferred over the first untrusted hop. Bound parsing of hostile input.
-	raw := strings.Join(r.Header.Values("X-Forwarded-For"), ",")
-	if raw == "" || len(raw) > 4096 {
-		return ""
-	}
-	parts := strings.Split(raw, ",")
-	if len(parts) > 32 {
-		return ""
-	}
-	chain := make([]netip.Addr, len(parts))
-	for i, part := range parts {
-		ip, err := netip.ParseAddr(strings.TrimSpace(part))
-		if err != nil || ip.Zone() != "" {
-			return ""
+	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
+	if err == nil {
+		if ip := net.ParseIP(host); ip != nil {
+			return networkPrefix(ip)
 		}
-		chain[i] = ip.Unmap()
 	}
-	for i := len(chain) - 1; i >= 0; i-- {
-		ip := chain[i]
-		if trusted(ip) {
-			continue
-		}
-		// A private/loopback/link-local address from an untrusted forwarded hop
-		// is ambiguous. Fail closed rather than collapsing clients onto it.
-		if !ip.IsGlobalUnicast() || ip.IsPrivate() {
-			return ""
-		}
-		return networkPrefix(net.IP(ip.AsSlice()))
+	if ip := net.ParseIP(strings.TrimSpace(r.RemoteAddr)); ip != nil {
+		return networkPrefix(ip)
 	}
-	return ""
+	return "unknown"
 }
 
 func networkPrefix(ip net.IP) string {

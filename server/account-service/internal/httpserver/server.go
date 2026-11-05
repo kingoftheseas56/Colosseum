@@ -8,13 +8,11 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/netip"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/kingoftheseas56/Colosseum-Account-Service/internal/account"
-	"github.com/kingoftheseas56/Colosseum-Account-Service/internal/httpserver/collectionviewer"
 )
 
 type Pinger interface {
@@ -31,8 +29,6 @@ type Handler struct {
 	accounts         *account.Service
 	readinessTimeout time.Duration
 	logger           *slog.Logger
-	trustedProxies   []netip.Prefix
-	edgeSecret       *[32]byte
 }
 
 func New(
@@ -42,20 +38,6 @@ func New(
 	logger *slog.Logger,
 	schemaCheckers ...SchemaChecker,
 ) http.Handler {
-	return NewWithOptions(pinger, accounts, readinessTimeout, logger, Options{}, schemaCheckers...)
-}
-
-// Options configures only operator-verified proxy networks and exact web origins.
-// Neither deployment-environment labels nor request headers establish trust.
-type Options struct {
-	TrustedProxyCIDRs            []netip.Prefix
-	CollectionsAllowedWebOrigins []string
-	// CollectionsEdgeSecret, when set, makes our Cloudflare edge the only
-	// trusted source of visitor addresses for anonymous collection opens.
-	CollectionsEdgeSecret string
-}
-
-func NewWithOptions(pinger Pinger, accounts *account.Service, readinessTimeout time.Duration, logger *slog.Logger, options Options, schemaCheckers ...SchemaChecker) http.Handler {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
@@ -64,21 +46,12 @@ func NewWithOptions(pinger Pinger, accounts *account.Service, readinessTimeout t
 		accounts:         accounts,
 		readinessTimeout: readinessTimeout,
 		logger:           logger,
-		trustedProxies:   append([]netip.Prefix(nil), options.TrustedProxyCIDRs...),
-		edgeSecret:       edgeSecretDigest(options.CollectionsEdgeSecret),
 	}
 	if len(schemaCheckers) > 0 {
 		handler.schemaChecker = schemaCheckers[0]
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/collections/", collectionviewer.Handler(handler.edgeSecret != nil))
-	anonymous := http.NewServeMux()
-	anonymous.HandleFunc("GET /v1/collections/shared/{shareID}", handler.openCollectionPublication)
-	anonymous.HandleFunc("POST /v1/collections/shared/{shareID}/open", handler.openCollectionPublication)
-	publicCollections := collectionCORS(options.CollectionsAllowedWebOrigins, anonymous)
-	mux.Handle("/v1/collections/shared/{shareID}", publicCollections)
-	mux.Handle("/v1/collections/shared/{shareID}/open", publicCollections)
 	mux.HandleFunc("GET /healthz", handler.health)
 	mux.HandleFunc("GET /readyz", handler.ready)
 
@@ -94,10 +67,6 @@ func NewWithOptions(pinger Pinger, accounts *account.Service, readinessTimeout t
 	mux.HandleFunc("POST /v1/account/deletion/retry", handler.retryDeleteAccount)
 
 	protected := http.NewServeMux()
-	protected.HandleFunc("POST /v1/collections/publications", handler.publishCollection)
-	protected.HandleFunc("GET /v1/collections/publications", handler.listCollectionPublications)
-	protected.HandleFunc("PUT /v1/collections/publications/{shareID}", handler.updateCollectionPublication)
-	protected.HandleFunc("DELETE /v1/collections/publications/{shareID}", handler.revokeCollectionPublication)
 	protected.HandleFunc("DELETE /v1/sessions/current", handler.logoutCurrent)
 	protected.HandleFunc("POST /v1/sessions/logout-all", handler.logoutEverywhere)
 	protected.HandleFunc("POST /v1/password/change", handler.changePassword)

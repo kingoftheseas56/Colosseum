@@ -341,10 +341,6 @@ def package(receipt_path, output):
     info.update(CFBundleName='Colosseum', CFBundleDisplayName='Colosseum',
                 CFBundleIdentifier='world.getcolosseum.Colosseum', CFBundleExecutable='colosseum',
                 CFBundleVersion='1.2.0', CFBundleShortVersionString='1.2.0', LSMinimumSystemVersion='26.1')
-    info['CFBundleURLTypes'] = [{
-        'CFBundleURLName': 'world.getcolosseum.Colosseum.collection',
-        'CFBundleTypeRole': 'Viewer', 'CFBundleURLSchemes': ['colosseum'],
-    }]
     with info_path.open('wb') as stream:
         plistlib.dump(info, stream)
     notices = app / 'Contents/Resources/licenses'

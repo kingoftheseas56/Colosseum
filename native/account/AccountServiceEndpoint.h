@@ -7,6 +7,5 @@
 class AccountServiceEndpoint {
 public:
     static QUrl configuredUrl();
-    static QUrl configuredCollectionsApiUrl();
     static QByteArray environmentVariableName();
 };

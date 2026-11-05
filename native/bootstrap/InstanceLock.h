@@ -15,7 +15,6 @@ public:
     ColosseumInstanceLock& operator=(const ColosseumInstanceLock&) = delete;
 
     bool tryAcquire();
-    QString appDataRoot() const;
     bool isLocked() const { return m_lock.isLocked(); }
     bool wasBlockedByExistingInstance() const;
 

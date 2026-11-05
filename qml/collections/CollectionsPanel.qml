@@ -9,21 +9,6 @@ Item {
     objectName: "collectionsPanel"
     required property var nativeStore
     property Item wallpaperItem: null
-    property var publicationController: null
-    property bool sharingActive: false
-    property string sharingView: "receive"
-    property bool titleNavigationPending: false
-    property bool resumeSharedPreview: false
-    signal manualOpenAccepted()
-    signal accountRequested()
-    property string incomingUrl: ""
-    property string incomingTicket: ""
-    property bool incomingEntry: false
-    readonly property bool incomingBlocked: titleNavigationPending || pendingChanges || pickerActive || deleteActive
-        || (sharingActive && !(sharingLoader.status === Loader.Ready && sharingLoader.item
-                               && sharingLoader.item.incomingReadOnly))
-    signal incomingDismissed(string ticket)
-    property var openedGiftIds: ({})
     property bool showing: false
     property int bottomInset: 96
     property string collectionId: ""
@@ -44,70 +29,11 @@ Item {
     signal quitRequested()
     signal navigationCanceled()
     signal openReferenceRequested(var reference)
-    visible: showing || pickerActive || deleteActive || sharingActive || message.length > 0
+    visible: showing || pickerActive || deleteActive || message.length > 0
     focus: showing
     Theme { id: theme }
-    CollectionsAdapter { id: adapter; nativeStore: panel.nativeStore; activeCollectionId: panel.collectionId }
+    CollectionsAdapter { id: adapter; nativeStore: panel.nativeStore }
 
-    function openIncoming(url, ticket) {
-        if (panel.incomingBlocked || !panel.publicationController || !ticket) return false
-        panel.message = ""
-        panel.incomingUrl = String(url)
-        panel.incomingTicket = String(ticket)
-        panel.incomingEntry = true
-        panel.sharingView = "receive"
-        panel.resumeSharedPreview = false
-        panel.showing = true
-        if (panel.sharingActive && sharingLoader.status === Loader.Ready && sharingLoader.item) {
-            sharingLoader.item.entryTicket = panel.incomingTicket
-            sharingLoader.item.openIncoming(panel.incomingUrl)
-        } else panel.sharingActive = true
-        return true
-    }
-    function openSharing(view) {
-        panel.sharingView = view
-        panel.resumeSharedPreview = false
-        panel.sharingActive = true
-    }
-    function sharedReturnTarget() {
-        if (!panel.sharingActive || sharingLoader.status !== Loader.Ready
-            || !sharingLoader.item || sharingLoader.item.tab !== "receive") return null
-        const url = sharingLoader.item.receivedUrl
-        return url ? {sharedUrl:url, sharedTicket:panel.incomingTicket,
-                      profileGeneration:panel.profileGeneration} : null
-    }
-    function prepareSharedNavigation() {
-        if (sharingLoader.status === Loader.Ready && sharingLoader.item)
-            sharingLoader.item.suspendForNavigation()
-    }
-    function restoreShared(target) {
-        if (!target || target.profileGeneration !== panel.profileGeneration) return false
-        panel.incomingUrl = target.sharedUrl
-        panel.incomingTicket = target.sharedTicket || ""
-        panel.incomingEntry = true
-        panel.sharingView = "receive"
-        panel.resumeSharedPreview = true
-        panel.showing = true
-        panel.sharingActive = true
-        return true
-    }
-    function dismissSharing(generation, ticket, reason, wasReceiving) {
-        if (generation !== panel.profileGeneration || String(ticket || "") !== panel.incomingTicket) return
-        const incoming = panel.incomingEntry
-        const presentedTicket = panel.incomingTicket
-        panel.incomingEntry = false
-        panel.incomingUrl = ""
-        panel.incomingTicket = ""
-        if (reason !== "continue" && panel.titleNavigationPending) panel.navigationCanceled()
-        if (reason !== "continue" && wasReceiving && panel.publicationController)
-            panel.publicationController.clearReceived()
-        panel.sharingActive = false
-        if (reason === "account") panel.accountRequested()
-        if (incoming && reason !== "continue") {
-            // Cleanup is complete before a listener may deliver another link.
-            panel.incomingDismissed(presentedTicket)
-        }
-    }
     function detailPage() {
         return pageLoader.status === Loader.Ready && pageLoader.item
             && pageLoader.item.objectName === "collectionPage" ? pageLoader.item : null
@@ -123,7 +49,6 @@ Item {
         panel.forceActiveFocus(Qt.OtherFocusReason)
     }
     function finishClose() {
-        if (sharingLoader.status === Loader.Ready && sharingLoader.item) sharingLoader.item.close()
         panel.pickerOpener = null
         panel.deleteOpener = null
         if (pickerLoader.status === Loader.Ready) pickerLoader.item.close()
@@ -144,7 +69,6 @@ Item {
         return true
     }
     function requestEscape() {
-        if (sharingLoader.status === Loader.Ready) { sharingLoader.item.close(); return true }
         if (pickerLoader.status === Loader.Ready) { pickerLoader.item.close(); return true }
         if (deleteLoader.status === Loader.Ready) { deleteLoader.item.close(); return true }
         if (!panel.showing) return false
@@ -197,12 +121,6 @@ Item {
     }
     function profileChanged() {
         panel.profileGeneration++
-        panel.titleNavigationPending = false
-        panel.incomingEntry = false
-        panel.incomingUrl = ""
-        panel.incomingTicket = ""
-        panel.openedGiftIds = ({})
-        panel.sharingActive = false
         const detail = panel.detailPage()
         if (detail) detail.abortEdit()
         panel.pickerOpener = null
@@ -327,8 +245,6 @@ Item {
         YourCollectionsPage {
             store: adapter
             onBackRequested: panel.requestClose()
-            sharingAvailable: !!panel.publicationController
-            onSharingRequested: function(view) { panel.openSharing(view || "share") }
             onCreateRequested: function(opener) { panel.createCollection(opener) }
             onCollectionRequested: function(id) { panel.collectionId = id }
         }
@@ -338,17 +254,6 @@ Item {
         CollectionPage {
             store: adapter
             collectionId: panel.collectionId
-            sharingAvailable: !!panel.publicationController
-            onSharingRequested: panel.openSharing("share")
-            onCopyGiftRequested: function(name) { panel.publicationController.makeOwnVersion(panel.collectionId, name) }
-            Component.onCompleted: if (panel.openedGiftIds[panel.collectionId]) giftOpened = true
-            onGiftOpenedChanged: {
-                if (giftOpened && panel.collectionId) {
-                    const opened = Object.assign({}, panel.openedGiftIds)
-                    opened[panel.collectionId] = true
-                    panel.openedGiftIds = opened
-                }
-            }
             onBackRequested: {
                 if (panel.pendingDestination === "close") panel.finishClose()
                 else { panel.pendingDestination = ""; panel.collectionId = "" }
@@ -361,50 +266,6 @@ Item {
                 else panel.showMessage(qsTr("This title reference is unavailable. You can keep it here and try again later."))
             }
             onDeleteRequested: function(opener) { panel.deleteOpener = opener; panel.deleteActive = true }
-        }
-    }
-    Connections {
-        target: panel.publicationController
-        function onChanged() {
-            if (!panel.sharingActive && panel.publicationController && panel.publicationController.error)
-                panel.showMessage(panel.publicationController.error)
-        }
-        function onCopied(id) { panel.collectionId = id; panel.showing = true; panel.notify(qsTr("Your own editable version is ready.")) }
-    }
-    Loader {
-        id: sharingLoader
-        active: panel.sharingActive
-        sourceComponent: Component {
-            CollectionsSharingPopup {
-                store: adapter
-                controller: panel.publicationController
-                wallpaperItem: panel.wallpaperItem
-                initialView: panel.sharingView
-                navigationPending: panel.titleNavigationPending
-                feedbackMessage: panel.message
-                objectName: "incomingCollectionPopup"
-                property int entryGeneration: -1
-                property string entryTicket: ""
-                collectionId: panel.incomingEntry ? "" : panel.collectionId
-                onDismissed: function(reason) { panel.dismissSharing(entryGeneration, entryTicket, reason, receivingSession) }
-                onTitleRequested: function(reference) { panel.openReferenceRequested(reference) }
-                onManualOpenAccepted: {
-                    panel.message = ""
-                    panel.incomingEntry = true
-                    panel.incomingUrl = ""
-                    panel.incomingTicket = ""
-                    entryTicket = ""
-                    panel.manualOpenAccepted()
-                }
-                onCollectionOpened: function(id) { panel.collectionId = id; panel.showing = true }
-            }
-        }
-        onLoaded: if (item) {
-            item.entryGeneration = panel.profileGeneration
-            item.entryTicket = panel.incomingTicket
-            item.incomingUrl = panel.incomingEntry ? panel.incomingUrl : ""
-            item.resumePreview = panel.resumeSharedPreview
-            item.open()
         }
     }
     Loader {

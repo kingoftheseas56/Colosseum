@@ -2,7 +2,6 @@
 
 #include <QCoreApplication>
 #include <QTemporaryDir>
-#include <QDir>
 
 #include <cstdio>
 
@@ -22,9 +21,6 @@ int main(int argc, char** argv)
         ColosseumInstanceLock first(root.path());
         CHECK(first.tryAcquire(), "first instance acquires the shared lock");
         CHECK(first.isLocked(), "first instance reports ownership");
-        ColosseumInstanceLock equivalent(root.path() + QStringLiteral("/./"));
-        CHECK(equivalent.appDataRoot() == first.appDataRoot(), "normalized app-data identity is shared with activation");
-        CHECK(!equivalent.tryAcquire(), "equivalent spelling cannot obtain a second owner");
 
         ColosseumInstanceLock second(root.path());
         CHECK(!second.tryAcquire(), "second instance is rejected while the first is alive");

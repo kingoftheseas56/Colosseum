@@ -52,20 +52,6 @@ public:
     Q_INVOKABLE bool cancelEdit(const QString &token);
     Q_INVOKABLE bool reload();
 
-    // Explicit publication projection. No provider payload, route, path or
-    // remote artwork URL is ever copied into this wire object.
-    static bool validateShareSnapshot(const QVariantMap &snapshot, QString *error = nullptr);
-    Q_INVOKABLE QVariantMap shareSnapshot(const QString &collectionId) const;
-    Q_INVOKABLE bool savePresentation(const QString &collectionId,
-        const QVariantMap &presentation, int expectedRevision);
-    static bool sharedMemberReference(const QVariantMap &member, QVariantMap *reference);
-    Q_INVOKABLE QVariantMap saveSharedCollection(const QString &shareId, int revision, const QVariantMap &snapshot);
-    Q_INVOKABLE QVariantMap keepGift(const QString &shareId, int editionRevision,
-        const QVariantMap &snapshot);
-    Q_INVOKABLE QVariantMap makeOwnVersion(const QString &keptCollectionId,
-        const QString &name, const QString &operationId);
-
-
 signals:
     void changed();
     void errorChanged();
@@ -100,7 +86,7 @@ private:
     static bool validPresentation(const QVariantMap &input);
     static bool validSnapshot(const QVariantMap &input);
     static bool validSharedMember(const QVariantMap &member);
-    static QString uniqueName(const QVector<List> &lists, const QString &name);
+    static bool sharedMemberReference(const QVariantMap &member, QVariantMap *reference);
     static bool sameIdentity(const QVariantMap &left, const QVariantMap &right);
     static int indexForId(const QVector<List> &lists, const QString &id);
     static bool hasName(const QVector<List> &lists, const QString &name,

@@ -1,6 +1,4 @@
 #include "bootstrap/StartupLayout.h"
-#include "account/CollectionShareLink.h"
-#include "account/AccountServiceEndpoint.h"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -231,13 +229,6 @@ std::optional<StartupLayout> resolveStartupLayout(const QStringList& arguments,
     if (error)
         error->clear();
 
-    for (const auto &argument : arguments) {
-        if (argument.startsWith(QLatin1String("--collection-url"))) {
-            setError(error, QStringLiteral("unconsumed_collection_activation"));
-            return std::nullopt;
-        }
-    }
-
     const bool qmlOverride = arguments.size() > 1
                              && !arguments.at(1).startsWith(QLatin1Char('-'));
     if (qmlOverride) {
@@ -344,24 +335,4 @@ std::optional<StartupLayout> resolveStartupLayout(const QStringList& arguments,
     layout.qmlPath = mainQml.absoluteFilePath();
     layout.resourceRoot = resourceRoot.absolutePath();
     return layout;
-}
-
-std::optional<QUrl> takeCollectionLaunchUrl(QStringList *arguments, QString *error)
-{
-    if (error) error->clear();
-    if (!arguments) return std::nullopt;
-    bool activation = false;
-    for (const auto &argument : *arguments)
-        activation |= argument.startsWith(QLatin1String("--collection-url"));
-    if (!activation) return std::nullopt;
-    const auto reject = [&]() -> std::optional<QUrl> {
-        if (error) *error = QStringLiteral("exclusive_collection_activation: expected only --collection-url and one valid collection URL");
-        return std::nullopt;
-    };
-    if (arguments->size() != 3 || arguments->at(1) != QLatin1String("--collection-url")) return reject();
-    const QUrl web(QStringLiteral("https://getcolosseum.world"));
-    const auto id = Colosseum::Collections::shareIdFromUrl(arguments->at(2), web, AccountServiceEndpoint::configuredUrl());
-    if (!id) return reject();
-    arguments->removeAt(2); arguments->removeAt(1);
-    return Colosseum::Collections::publicShareLink(*id, web);
 }

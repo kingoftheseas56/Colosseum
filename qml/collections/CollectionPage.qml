@@ -9,10 +9,6 @@ Item {
     id: page
     objectName: "collectionPage"
     required property var store
-    property bool sharingAvailable: false
-    property bool giftOpened: false
-    signal sharingRequested()
-    signal copyGiftRequested(string name)
     property string collectionId: ""
     property string draftToken: ""
     property bool reloading: false
@@ -26,14 +22,7 @@ Item {
     readonly property bool narrow: width < 700
     readonly property int sideMargin: narrow ? 22 : 54
     readonly property var collection: { page.store.revision; return page.store.getCollection(page.collectionId) }
-    // Local names may be disambiguated on import; the received edition keeps
-    // the sender's exact title, description and presentation.
-    readonly property var displayedEdition: collection && collection.keptGift ? collection.giftSnapshot || ({}) : ({})
-    readonly property string displayedName: collection ? (collection.keptGift && displayedEdition.name ? displayedEdition.name : collection.name) : ""
-    readonly property string displayedDescription: collection ? (collection.keptGift && displayedEdition.description !== undefined ? displayedEdition.description : collection.description) : ""
-    readonly property var displayedPresentation: collection ? (collection.keptGift && displayedEdition.presentation ? displayedEdition.presentation : collection.presentation || ({})) : ({})
     readonly property var visibleItems: {
-        if (page.collection && page.collection.keptGift && !page.giftOpened) return []
         const ids = page.editing ? page.draftItems : page.collection ? page.collection.items : []
         if (page.editing || page.kind === "all") return ids
         return ids.filter(function(id) { return page.store.media(id).kind === page.kind })
@@ -70,7 +59,7 @@ Item {
         page.draftNotes = ({})
     }
     function beginEdit() {
-        if (!page.collection || page.collection.keptGift || !page.store.healthy) return
+        if (!page.collection || !page.store.healthy) return
         const draft = page.store.beginEdit(page.collectionId)
         if (!draft.token) {
             page.errorText = page.store.error || qsTr("Could not start editing this collection.")
@@ -220,7 +209,6 @@ Item {
     }
     Component.onDestruction: page.abortEdit()
     onCollectionIdChanged: {
-        page.giftOpened = false
         page.abortEdit()
         page.kind = "all"
         Qt.callLater(page.scrollToBeginning)
@@ -250,7 +238,7 @@ Item {
         bottomMargin: 40
         cacheBuffer: 320
         spacing: 0
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOff }
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
         model: page.memberRows
         // The header is its own component scope, so the controls the page
         // functions drive are exposed through these properties.
@@ -283,13 +271,12 @@ Item {
                         visible: !page.editing
                         spacing: 6
                         CollectionIcon { name: "lock"; strokeColor: theme.inkDimmer; Layout.preferredWidth: 13; Layout.preferredHeight: 13 }
-                        Text { text: page.collection && page.collection.keptGift ? qsTr("Kept gift · offline edition") : qsTr("Private collection"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; textFormat: Text.PlainText }
+                        Text { text: qsTr("Private collection"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; textFormat: Text.PlainText }
                     }
                     Text {
                         visible: !page.editing
                         Layout.fillWidth: true
-                        objectName: "collectionDisplayName"
-                        text: page.collection ? page.displayedName : qsTr("Collection unavailable")
+                        text: page.collection ? page.collection.name : qsTr("Collection unavailable")
                         font.family: theme.display
                         font.pixelSize: page.narrow ? 32 : 42
                         color: theme.ink
@@ -299,7 +286,7 @@ Item {
                     Text {
                         visible: !page.editing
                         Layout.fillWidth: true
-                        text: page.collection ? page.displayedDescription : qsTr("Return to Your Collections to choose another one.")
+                        text: page.collection ? page.collection.description : qsTr("Return to Your Collections to choose another one.")
                         color: theme.inkDim
                         font.family: theme.ui
                         font.pixelSize: 14
@@ -380,7 +367,7 @@ Item {
                     CollectionActionButton {
                         id: editButton
                         objectName: "editCollectionButton"
-                        visible: !page.editing && !!page.collection && !page.collection.keptGift
+                        visible: !page.editing && !!page.collection
                         text: qsTr("Edit collection")
                         iconName: "edit"
                         enabled: page.store.healthy
@@ -415,36 +402,6 @@ Item {
                         onClicked: page.saveEdit()
                     }
                 }
-            }
-            Flow {
-                Layout.fillWidth: true
-                visible: !page.editing && !!page.collection
-                spacing: 8
-                CollectionActionButton {
-                    objectName: "shareCollectionButton"
-                    visible: page.sharingAvailable && !(page.collection && page.collection.keptGift)
-                    text: qsTr("Share")
-                    onClicked: page.sharingRequested()
-                    onActiveFocusChanged: if (activeFocus) page.revealItem(this)
-                }
-                CollectionActionButton {
-                    objectName: "makeOwnCollectionVersion"
-                    visible: page.sharingAvailable && !!page.collection && !!page.collection.keptGift
-                    text: qsTr("Make My Own Version")
-                    emphasis: "primary"
-                    onClicked: page.copyGiftRequested(CollectionText.clamp(page.displayedName, Math.max(0, 100 - qsTr(" (my version)").length)) + qsTr(" (my version)"))
-                    onActiveFocusChanged: if (activeFocus) page.revealItem(this)
-                }
-            }
-            CollectionGiftPresentation {
-                id: keptGiftPresentation
-                objectName: "keptGiftPresentation"
-                initiallyOpened: page.giftOpened
-                onOpenedChanged: page.giftOpened = opened
-                Layout.fillWidth: true
-                visible: !!page.collection && !!page.collection.keptGift
-                collectionName: page.displayedName
-                presentation: page.displayedPresentation
             }
             Rectangle {
                 visible: page.leaving
@@ -543,7 +500,7 @@ Item {
         }
         footer: Item {
             width: memberList.width
-            visible: page.visibleItems.length === 0 && !(page.collection && page.collection.keptGift && !page.giftOpened)
+            visible: page.visibleItems.length === 0
             implicitHeight: visible ? emptyState.implicitHeight + 108 : 0
             height: implicitHeight
             ColumnLayout {

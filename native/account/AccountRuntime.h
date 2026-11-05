@@ -4,7 +4,6 @@
 #include "AccountAttachmentCoordinator.h"
 #include "AccountLifecycleCoordinator.h"
 #include "AccountClient.h"
-#include "CollectionPublicationController.h"
 #include "AccountController.h"
 #include "ProgressSyncAdapter.h"
 #include "ActivitySyncAdapter.h"
@@ -102,12 +101,7 @@ public:
     std::unique_ptr<Colosseum::WatchParty::IWatchPartyAccountBridge>
     createWatchPartyAccountBridge();
 
-signals:
-    void collectionProfileInvalidated();
-
 private:
-    void activateCollectionPublications();
-    bool m_collectionProfileChanging = false;
     struct StremioImportBatch;
     struct StremioRedoBatch;
 
@@ -147,9 +141,7 @@ private:
     void syncTraktAddon();
 
     AccountHttpTransport m_transport;
-    AccountHttpTransport m_collectionOpenTransport;
     AccountClient m_client;
-    CollectionPublicationController m_collectionPublications;
     std::unique_ptr<AccountCredentialStore> m_credentialStore;
     StremioCredentialAdoptionCallbacks m_stremioCredentials;
     AccountDeviceIdentity m_deviceIdentity;

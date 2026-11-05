@@ -619,9 +619,7 @@ AccountRuntime::AccountRuntime(
     QObject *parent)
     : QObject(parent),
       m_transport(AccountServiceEndpoint::configuredUrl()),
-      m_collectionOpenTransport(AccountServiceEndpoint::configuredCollectionsApiUrl()),
-      m_client(&m_transport, &m_collectionOpenTransport, nullptr),
-      m_collectionPublications(&m_client, AccountServiceEndpoint::configuredUrl(), QUrl(QStringLiteral("https://getcolosseum.world"))),
+      m_client(&m_transport),
       m_credentialStore(createAccountCredentialStore()),
       m_stremioCredentials(credentials.stremio.load && credentials.stremio.save
                               && credentials.stremio.clear
@@ -679,9 +677,6 @@ AccountRuntime::AccountRuntime(
         &m_profileCoordinator);
     m_controller.setSyncEngine(
         &m_syncEngine);
-    connect(&m_controller, &AccountController::modeChanged, this, [this] {
-        activateCollectionPublications();
-    });
     m_stremioSync.setCredentialCallbacks(
         m_stremioCredentials.save,
         m_stremioCredentials.clear,
@@ -785,9 +780,6 @@ AccountRuntime::AccountRuntime(
             storesAboutToChange,
         this,
         [this]() {
-            m_collectionProfileChanging = true;
-            emit collectionProfileInvalidated();
-            m_collectionPublications.deactivate();
             m_ratingsReviewsDelivery.deactivateProfile();
             // Store replacement is a sync boundary. Preserve the current
             // profile's outbox while its adapters still point at the old
@@ -823,8 +815,6 @@ AccountRuntime::AccountRuntime(
         &ProfileStoreRuntime::storesChanged,
         this,
         [this]() {
-            m_collectionProfileChanging = false;
-            activateCollectionPublications();
             activateRatingsReviewsDelivery();
             activateExtensionsProfile();
             activateStremioProfile();
@@ -1794,25 +1784,12 @@ AccountRuntime::createWatchPartyAccountBridge() {
         &m_controller, &m_client);
 }
 
-void AccountRuntime::activateCollectionPublications() {
-    const auto mode = m_controller.modeValue();
-    if (m_collectionProfileChanging || m_profileStores.activeProfile().kind() == ProfilePaths::Kind::Sealed
-        || mode == AccountController::Mode::Locked) {
-        emit collectionProfileInvalidated();
-        m_collectionPublications.deactivate();
-        return;
-    }
-    m_collectionPublications.activate(m_profileStores.namedCollectionsStore(), mode == AccountController::Mode::SignedIn);
-}
-
 void AccountRuntime::prepareForQml(QQmlApplicationEngine *engine) {
     Q_ASSERT(engine);
     if (!engine || m_qmlPrepared)
         return;
 
     m_profileStores.prepareForQml(engine);
-    activateCollectionPublications();
-    engine->rootContext()->setContextProperty(QStringLiteral("CollectionPublications"), &m_collectionPublications);
     activateRatingsReviewsDelivery();
 
     engine->rootContext()->setContextProperty(

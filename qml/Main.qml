@@ -44,41 +44,6 @@ Window {
     color: "#05060a"
     title: "Colosseum"
 
-    property bool collectionLinkDestinationLoaded: false
-    readonly property bool collectionLinkDestinationReady: collectionLinkDestinationLoaded
-        && !boot.visible && !accountHost.visible && !accountCenter.visible && !accountFlyout.visible
-        && !applicationQuitPending && !collectionsPanel.incomingBlocked
-        && typeof CollectionPublications !== "undefined" && CollectionPublications
-        && CollectionPublications.receivingReady && !CollectionPublications.busy
-    onCollectionLinkDestinationReadyChanged: {
-        if (typeof CollectionLinkActivation !== "undefined" && CollectionLinkActivation)
-            CollectionLinkActivation.setDestinationReady(win.collectionLinkDestinationReady)
-    }
-    Component.onDestruction: {
-        if (typeof CollectionLinkActivation !== "undefined" && CollectionLinkActivation)
-            CollectionLinkActivation.setDestinationReady(false)
-    }
-    Connections {
-        target: typeof CollectionLinkActivation !== "undefined" ? CollectionLinkActivation : null
-        function onOpenRequested(url, ticket) {
-            if (!win.collectionLinkDestinationReady) {
-                CollectionLinkActivation.setDestinationReady(false)
-                CollectionLinkActivation.deferPresented(String(ticket))
-                return
-            }
-            win.namedCollectionsReturn = null
-            win.openNamedCollectionsPage()
-            if (!collectionsPanel.openIncoming(String(url), String(ticket))) {
-                CollectionLinkActivation.setDestinationReady(false)
-                CollectionLinkActivation.deferPresented(String(ticket))
-                return
-            }
-            // The existing WindowMode restore observer reasserts the base mode.
-            if (win.visibility === Window.Minimized) win.showNormal()
-            win.raise()
-            win.requestActivate()
-        }
-    }
     property bool applicationQuitPending: false
     property bool applicationQuitReady: false
     property string applicationQuitError: ""
@@ -782,7 +747,6 @@ Window {
     }
 
     Component.onCompleted: {
-        win.collectionLinkDestinationLoaded = true
         keyboardRegistry.registerCommand(openMediaCommand)
         keyboardRegistry.registerCommand(openVaultCommand)
         keyboardRegistry.registerCommand(openDownloadsCommand)
@@ -964,7 +928,7 @@ Window {
     property int namedCollectionsProfileGeneration: 0
     function guardNamedCollectionsNavigation(continuation) {
         if (namedCollectionsRouteBypass) return false
-        retireNamedCollectionsReturn()
+        namedCollectionsReturn = null
         if (win.vinylWorld) win.vinylWorld.namedCollectionReturn = null
         if (!collectionsPanel.showing && !collectionsPanel.pickerActive && !collectionsPanel.deleteActive)
             return false
@@ -980,7 +944,7 @@ Window {
     }
     function openNamedCollectionsPage() {
         if (collectionsPanel.showing) { collectionsPanel.showOverview(); return }
-        retireNamedCollectionsReturn()
+        namedCollectionsReturn = null
         win.parkFeria(true)
         downloadsLayer.active = false
         vaultLayer.active = false
@@ -993,27 +957,16 @@ Window {
         collectionsPanel.showOverview()
     }
     function closeNamedCollectionsPage() { collectionsPanel.requestClose() }
-    function retireNamedCollectionsReturn() {
-        const target = namedCollectionsReturn
-        namedCollectionsReturn = null
-        if (target && target.sharedTicket && typeof CollectionLinkActivation !== "undefined" && CollectionLinkActivation)
-            CollectionLinkActivation.dismissPresented(target.sharedTicket)
-    }
     function restoreNamedCollectionsReturn() {
         if (!namedCollectionsReturn) return false
         var target = namedCollectionsReturn
         namedCollectionsReturn = null
-        if (target.sharedUrl) {
-            if (target.mainProfileGeneration !== namedCollectionsProfileGeneration) return false
-            return collectionsPanel.restoreShared(target)
-        }
         collectionsPanel.collectionId = target.collectionId
         collectionsPanel.showing = true
         collectionsPanel.forceActiveFocus(Qt.BacktabFocusReason)
         return true
     }
-    function cancelNamedCollectionsOpen(preserveNavigation) {
-        if (!preserveNavigation) collectionsPanel.titleNavigationPending = false
+    function cancelNamedCollectionsOpen() {
         namedCollectionsOpening = null
         namedCollectionsVaultPending = null
         if (win.vinylWorld) win.vinylWorld.cancelNamedCollectionOpen()
@@ -1058,10 +1011,7 @@ Window {
         phoneShell.closeProfilePage()
     }
     function acceptNamedCollectionsRoute(continuation) {
-        var target = collectionsPanel.sharedReturnTarget() || {collectionId:collectionsPanel.collectionId}
-        target.mainProfileGeneration = namedCollectionsProfileGeneration
-        collectionsPanel.titleNavigationPending = true
-        if (target.sharedUrl) collectionsPanel.prepareSharedNavigation()
+        var target = {collectionId:collectionsPanel.collectionId}
         namedCollectionsOpening = null
         namedCollectionsNavigation = function() {
             namedCollectionsRouteBypass = true
@@ -1083,16 +1033,7 @@ Window {
             collectionsPanel.showMessage("Title identity is unavailable. The saved item has been kept.")
             return
         }
-        var candidate = saved
-        if (!candidate.route) {
-            candidate = CollectionsReferences.sharedReopenReference(saved,
-                typeof VaultLibrary !== "undefined" && !win.androidHost ? VaultLibrary : null, CollectionsIdentity)
-            if (!candidate.route) {
-                collectionsPanel.showMessage("This exact provider or edition is unavailable here. The saved item has been kept; you can try it again later.")
-                return
-            }
-        }
-        var resolution = CollectionsIdentity.collectionReference(candidate)
+        var resolution = CollectionsIdentity.collectionReference(saved)
         if (!resolution.ok) { collectionsPanel.showMessage(resolution.error); return }
         var ref = resolution.reference
         var p = ref.payload || {}
@@ -1104,7 +1045,6 @@ Window {
             }
             cancelNamedCollectionsOpen()
             namedCollectionsOpening = ref
-            collectionsPanel.titleNavigationPending = true
             if (win.vinylWorld) win.vinylWorld.openNamedCollectionReference(ref)
             else {
                 var found = false
@@ -1223,38 +1163,19 @@ Window {
         onQuitRequested: win.requestApplicationQuit()
         nativeStore: typeof NamedCollections !== "undefined" ? NamedCollections : null
         wallpaperItem: wall
-        publicationController: typeof CollectionPublications !== "undefined" ? CollectionPublications : null
         bottomInset: taskbar.visible ? taskbar.closedSize + taskbar.bottomGap + 16 : 24
-        onIncomingDismissed: function(ticket) {
-            if (typeof CollectionLinkActivation !== "undefined" && CollectionLinkActivation)
-                CollectionLinkActivation.dismissPresented(ticket)
-        }
-        onManualOpenAccepted: {
-            win.namedCollectionsReturn = null
-            win.cancelNamedCollectionsOpen()
-            if (typeof CollectionLinkActivation !== "undefined" && CollectionLinkActivation)
-                CollectionLinkActivation.clearPending()
-        }
-        onAccountRequested: {
-            if (typeof AccountController !== "undefined" && AccountController) AccountController.returnToSignIn()
-        }
         onOpenReferenceRequested: reference => win.openNamedCollectionReference(reference)
-        onCollectionIdChanged: if (!win.namedCollectionsNavigation) win.cancelNamedCollectionsOpen()
+        onCollectionIdChanged: win.cancelNamedCollectionsOpen()
         onPickerActiveChanged: if (pickerActive) win.cancelNamedCollectionsOpen()
         onDeleteActiveChanged: if (deleteActive) win.cancelNamedCollectionsOpen()
-        onNavigationCanceled: { win.namedCollectionsNavigation = null; win.cancelNamedCollectionsOpen() }
+        onNavigationCanceled: win.namedCollectionsNavigation = null
         onClosed: {
+            win.cancelNamedCollectionsOpen()
             var continuation = win.namedCollectionsNavigation
             win.namedCollectionsNavigation = null
-            win.cancelNamedCollectionsOpen(!!continuation)
             var profileGeneration = win.namedCollectionsProfileGeneration
             if (continuation) Qt.callLater(function() {
-                try {
-                    if (profileGeneration === win.namedCollectionsProfileGeneration) continuation()
-                } finally {
-                    if (profileGeneration === win.namedCollectionsProfileGeneration)
-                        collectionsPanel.titleNavigationPending = false
-                }
+                if (profileGeneration === win.namedCollectionsProfileGeneration) continuation()
             })
             else taskbar.focusCollectionsAction()
         }
@@ -1274,7 +1195,7 @@ Window {
         function onNamedCollectionOpened(success, message) {
             if (!win.namedCollectionsOpening) return
             if (!success) {
-                win.cancelNamedCollectionsOpen()
+                win.namedCollectionsOpening = null
                 collectionsPanel.showMessage(message || "This music item is unavailable. The saved item has been kept.")
                 return
             }

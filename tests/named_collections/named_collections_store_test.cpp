@@ -430,6 +430,43 @@ void persistenceFailuresAndProfiles(const QString &directory)
 }
 }
 
+static void readsAndEditsDeferredPreviewData(const QString &path)
+{
+    const auto id = QStringLiteral("14c08651-141f-456a-a036-b6386d4f5445");
+    const QJsonObject original{
+        {"id", id}, {"name", "Existing preview collection"}, {"description", ""},
+        {"createdAt", 1}, {"updatedAt", 1}, {"items", QJsonArray{}},
+        {"presentation", QJsonObject{}}, {"giftSnapshot", QJsonObject{}},
+        {"shareId", ""}, {"editionRevision", 0}, {"copyOperation", ""},
+        {"copySource", ""}, {"copyRequestName", ""},
+        {"savedShareId", QString(43, QLatin1Char('a'))}, {"savedRevision", 1},
+        {"savedSnapshotHash", QString(64, QLatin1Char('b'))}
+    };
+    const auto bytes = QJsonDocument(QJsonObject{
+        {"schemaVersion", 4}, {"collections", QJsonArray{original}}
+    }).toJson(QJsonDocument::Compact);
+    write(path, bytes);
+
+    NamedCollectionsStore store(path);
+    require(store.healthy() && !store.collection(id).isEmpty(), "schema 4 preview file loads");
+    require(read(path) == bytes, "loading the preview file preserves its bytes");
+    const auto draft = store.beginEdit(id);
+    require(store.saveEdit(token(draft), QStringLiteral("Renamed locally"), {}, {}, {}),
+            "the preview collection is editable after sharing is deferred");
+
+    NamedCollectionsStore reopened(path);
+    require(reopened.healthy()
+                && reopened.collection(id).value(QStringLiteral("name")).toString()
+                    == QLatin1String("Renamed locally"),
+            "the local edit survives reload");
+    const auto saved = QJsonDocument::fromJson(read(path)).object()
+                           .value(QStringLiteral("collections")).toArray().at(0).toObject();
+    require(saved.value(QStringLiteral("savedShareId")) == original.value(QStringLiteral("savedShareId"))
+                && saved.value(QStringLiteral("savedRevision")) == original.value(QStringLiteral("savedRevision"))
+                && saved.value(QStringLiteral("savedSnapshotHash")) == original.value(QStringLiteral("savedSnapshotHash")),
+            "local edits preserve preview provenance");
+}
+
 int main(int argc, char **argv)
 {
     QCoreApplication application(argc, argv);
@@ -441,6 +478,7 @@ int main(int argc, char **argv)
     corruptAndUnsupported(temporary.path());
     persistenceFailuresAndProfiles(temporary.path());
     adoptionKeepsVersionsAndIsIdempotent(temporary.path());
+    readsAndEditsDeferredPreviewData(temporary.filePath(QStringLiteral("preview.json")));
     std::cout << "NAMED_COLLECTIONS_STORE_OK " << assertions << " assertions\n";
     return 0;
 }

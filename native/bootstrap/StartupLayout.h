@@ -2,7 +2,6 @@
 
 #include <QString>
 #include <QStringList>
-#include <QUrl>
 
 #include <optional>
 
@@ -22,5 +21,3 @@ std::optional<StartupLayout> resolveStartupLayout(const QStringList& arguments,
                                                   const QString& applicationDirPath,
                                                   QString* error = nullptr,
                                                   const QString& manifestPathOverride = {});
-
-std::optional<QUrl> takeCollectionLaunchUrl(QStringList *arguments, QString *error = nullptr);
