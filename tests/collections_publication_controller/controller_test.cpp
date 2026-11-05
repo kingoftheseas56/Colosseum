@@ -102,27 +102,76 @@ private slots:
         changed.clear();QVERIFY(file.open(QIODevice::WriteOnly|QIODevice::Truncate));file.write(good);file.close();QVERIFY(store->reload());QVERIFY(controller.receivingReady());QVERIFY(!changed.isEmpty());
         changed.clear();delete store;QVERIFY(!controller.receivingReady());QVERIFY(!changed.isEmpty());QVERIFY(controller.received().isEmpty());
     }
-    void publicLinksUseExistingAnonymousServiceTransport() {
+    void publicLinksUseAnonymousCollectionTransport() {
         QTemporaryDir dir; NamedCollectionsStore store(dir.filePath("c.json"));
-        Transport transport; AccountClient client(&transport); client.setAccessToken("must-not-leak");
+        Transport account;
+        Transport transport;
+        AccountClient client(&account, &transport, nullptr);
+        client.setAccessToken("must-not-leak");
         CollectionPublicationController controller(&client,QUrl("https://service.test"),QUrl("https://getcolosseum.world"));
         controller.activate(&store,false);
         QCOMPARE(controller.linkFor(share),"https://getcolosseum.world/c/"+share);
         QVERIFY(controller.linkFor("invalid").isEmpty());
-        for (const auto &prefix : {"https://getcolosseum.world/c/", "https://www.getcolosseum.world/c/",
-                                   "https://service.test/collections/s/", "colosseum://collection/"}) {
-            QVERIFY(controller.openLink(QString(prefix)+share,"phrase"));
+        for (const QString &prefix : {QStringLiteral("https://getcolosseum.world/c/"),
+                                      QStringLiteral("https://www.getcolosseum.world/c/"),
+                                      QStringLiteral("https://service.test/collections/s/"),
+                                      QStringLiteral("colosseum://collection/")}) {
+            const QString passphrase = prefix.startsWith("https://getcolosseum.world/")
+                ? QString()
+                : QStringLiteral("phrase");
+            QVERIFY(controller.openLink(prefix + share, passphrase));
             QCOMPARE(transport.request.path,"/v1/collections/shared/"+share+"/open");
             QVERIFY(transport.request.bearerToken.isEmpty());
-            QCOMPARE(transport.request.body.value("passphrase").toString(),QString("phrase"));
+            QCOMPARE(transport.request.body.value("passphrase").toString(), passphrase);
             transport.finish({200,envelope(),{},{},false}); QTRY_VERIFY(!controller.busy());
             QVERIFY(store.collections().isEmpty());
         }
+        QCOMPARE(account.id, quint64(0));
+    }
+    void ownerAndAccountOperationsStayOnAccountTransport() {
+        Transport account;
+        Transport collections;
+        AccountClient client(&account, &collections, nullptr);
+        client.setAccessToken("account-token");
+
+        auto requestId = client.publishCollection({});
+        QCOMPARE(requestId, account.id);
+        QCOMPARE(account.request.method, QByteArray("POST"));
+        QCOMPARE(account.request.path, QString("/v1/collections/publications"));
+        QCOMPARE(account.request.bearerToken, QByteArray("account-token"));
+        requestId = client.listCollectionPublications();
+        QCOMPARE(requestId, account.id);
+        QCOMPARE(account.request.method, QByteArray("GET"));
+        QCOMPARE(account.request.path, QString("/v1/collections/publications"));
+        requestId = client.updateCollectionPublication(share, {});
+        QCOMPARE(requestId, account.id);
+        QCOMPARE(account.request.method, QByteArray("PUT"));
+        QCOMPARE(account.request.path, "/v1/collections/publications/" + share);
+        requestId = client.revokeCollectionPublication(share, {});
+        QCOMPARE(requestId, account.id);
+        QCOMPARE(account.request.method, QByteArray("DELETE"));
+        QCOMPARE(account.request.path, "/v1/collections/publications/" + share);
+
+        requestId = client.signIn("fixture", "password", "device", "Fixture", "test");
+        QCOMPARE(requestId, account.id);
+        QCOMPARE(account.request.path, QString("/v1/sessions"));
+        QVERIFY(account.request.bearerToken.isEmpty());
+        requestId = client.pullSync(0);
+        QCOMPARE(requestId, account.id);
+        QVERIFY(account.request.path.startsWith("/v1/sync/pull"));
+        QCOMPARE(account.request.bearerToken, QByteArray("account-token"));
+        QCOMPARE(collections.id, quint64(0));
     }
     void publicLinkUsesConfiguredHttpOrigin() {
         QTcpServer server; QVERIFY(server.listen(QHostAddress::LocalHost,0));
-        const QUrl service(QStringLiteral("http://127.0.0.1:%1").arg(server.serverPort()));
-        AccountHttpTransport transport(service); AccountClient client(&transport); client.setAccessToken("must-not-leak");
+        QTcpServer accountServer;
+        QVERIFY(accountServer.listen(QHostAddress::LocalHost, 0));
+        const QUrl service(QStringLiteral("http://127.0.0.1:%1").arg(accountServer.serverPort()));
+        const QUrl edge(QStringLiteral("http://127.0.0.1:%1").arg(server.serverPort()));
+        AccountHttpTransport account(service);
+        AccountHttpTransport transport(edge);
+        AccountClient client(&account, &transport, nullptr);
+        client.setAccessToken("must-not-leak");
         QTemporaryDir dir; NamedCollectionsStore store(dir.filePath("c.json"));
         CollectionPublicationController controller(&client,service,QUrl("https://getcolosseum.world"));
         controller.activate(&store,false);
@@ -134,6 +183,7 @@ private slots:
         QVERIFY(request.startsWith(("POST /v1/collections/shared/"+share+"/open HTTP/1.1").toLatin1()));
         QVERIFY(!request.contains("Authorization:"));
         QVERIFY(request.contains(("Host: 127.0.0.1:"+QString::number(server.serverPort())).toLatin1()));
+        QVERIFY(!accountServer.hasPendingConnections());
         const auto body=QJsonDocument(envelope()).toJson(QJsonDocument::Compact);
         socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: "+QByteArray::number(body.size())+"\r\nConnection: close\r\n\r\n"+body);
         socket->disconnectFromHost(); QTRY_VERIFY(!controller.busy());

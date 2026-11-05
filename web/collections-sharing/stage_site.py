@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 
 
 PUBLIC_ORIGIN = 'https://getcolosseum.world'
+DEFAULT_API_ORIGIN = 'https://api.getcolosseum.world'
 MANIFEST = 'collections-stage-manifest.json'
 STAGE_DIFF = 'collections-stage.diff'
 EXCLUDED_DIRS = {'.git', '.hg', '.svn', '.codex', '.superpowers', '.idea',
@@ -292,7 +293,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--site-base', required=True)
     parser.add_argument('--output', required=True)
-    parser.add_argument('--api-origin', required=True)
+    parser.add_argument('--api-origin', default=DEFAULT_API_ORIGIN,
+                        help='HTTPS API origin override (default: %(default)s)')
     parser.add_argument('--assetlinks', help='Independently qualified public release association JSON; never signing keys')
     args = parser.parse_args()
     try:

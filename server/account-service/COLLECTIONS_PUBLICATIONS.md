@@ -13,7 +13,7 @@ Existing Bearer sessions protect:
 
 Anonymous receiving:
 
-- `GET /collections/s/{share_id}` serves the self-contained browser viewer.
+- `GET /collections/s/{share_id}` serves the self-contained browser viewer when edge enforcement is off. With `COLLECTIONS_EDGE_SECRET` set, it redirects to `https://getcolosseum.world/c/{share_id}`.
 - `GET /v1/collections/shared/{share_id}` opens an unprotected publication.
 - `POST /v1/collections/shared/{share_id}/open` with `{passphrase}` opens protected or unprotected content. Never put a passphrase in the URL.
 

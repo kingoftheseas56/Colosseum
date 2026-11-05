@@ -10,11 +10,11 @@ import (
 //go:embed index.html viewer.css viewer.js
 var assets embed.FS
 
-var sharePath = regexp.MustCompile(`^/collections/s/[A-Za-z0-9_-]{43}/?$`)
+var sharePath = regexp.MustCompile(`^/collections/s/([A-Za-z0-9_-]{43})/?$`)
 
-// Handler exposes only the three reviewed assets. Source, tests and arbitrary
-// embedded paths cannot be addressed through this handler.
-func Handler() http.Handler {
+// Handler exposes only the three reviewed assets. When the API requires the
+// edge, legacy share links go to the public site so it can open them there.
+func Handler(redirectShareLinks bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Referrer-Policy", "no-referrer")
@@ -28,8 +28,13 @@ func Handler() http.Handler {
 			return
 		}
 		var filename, contentType string
+		share := sharePath.FindStringSubmatch(r.URL.Path)
 		switch {
-		case sharePath.MatchString(r.URL.Path):
+		case share != nil:
+			if redirectShareLinks {
+				http.Redirect(w, r, "https://getcolosseum.world/c/"+share[1], http.StatusFound)
+				return
+			}
 			filename, contentType = "index.html", "text/html; charset=utf-8"
 		case r.URL.Path == "/collections/assets/viewer.css":
 			filename, contentType = "viewer.css", "text/css; charset=utf-8"

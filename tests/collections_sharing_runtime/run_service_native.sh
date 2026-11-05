@@ -35,7 +35,6 @@ chmod 700 "$XDG_RUNTIME_DIR"
 export COLOSSEUM_APPDATA_TAG=collections-fixture-sharing-runtime
 export COLOSSEUM_COLLECTIONS_TEST_FIXTURES=1 COLOSSEUM_COLLECTIONS_RUNTIME_RUN=first
 export COLOSSEUM_LANISTA_DRIVE=1 COLOSSEUM_LANISTA_PIPE=CollectionsIntegration-sharing-runtime
-export COLOSSEUM_ACCOUNT_SERVICE_URL=http://127.0.0.1:55440
 export QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QSG_RHI_BACKEND=software QML_DISABLE_DISK_CACHE=1
 export COLOSSEUM_DISABLE_BOOT_PREFETCH=1 COLOSSEUM_AUTOMATION_FOCUS_SEAMS=0
 ROOT="$XDG_DATA_HOME/Brotherhood/Colosseum-dltest-$COLOSSEUM_APPDATA_TAG"
@@ -54,6 +53,7 @@ for PHASE in first offline owner; do
     else
         export COLOSSEUM_ACCOUNT_SERVICE_URL=http://127.0.0.1:55440
     fi
+    export COLOSSEUM_COLLECTIONS_API_URL="$COLOSSEUM_ACCOUNT_SERVICE_URL"
     printf '%s\n' "$PHASE" > "$EVIDENCE/active-native-phase.txt"
     "$BUILD/colosseum" > "$EVIDENCE/native-$PHASE.stdout.log" 2> "$EVIDENCE/native-$PHASE.stderr.log"
     printf '%s\n' "$?" > "$EVIDENCE/native-$PHASE-exit-code.txt"

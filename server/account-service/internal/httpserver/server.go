@@ -72,7 +72,7 @@ func NewWithOptions(pinger Pinger, accounts *account.Service, readinessTimeout t
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/collections/", collectionviewer.Handler())
+	mux.Handle("/collections/", collectionviewer.Handler(handler.edgeSecret != nil))
 	anonymous := http.NewServeMux()
 	anonymous.HandleFunc("GET /v1/collections/shared/{shareID}", handler.openCollectionPublication)
 	anonymous.HandleFunc("POST /v1/collections/shared/{shareID}/open", handler.openCollectionPublication)

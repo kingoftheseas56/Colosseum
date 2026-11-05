@@ -13,12 +13,16 @@ class Element {
  focus(){this.focused=true;}
  click(){return this.events.click?.({preventDefault(){}});}
 }
-async function setup(response, pathname='/collections/s/'+share){
+async function setup(response, pathname='/collections/s/'+share, dataset={}){
  const elements=new Map(), window=new Element(), requests=[], downloads=[];
  const document={title:'',body:new Element(),getElementById(id){if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},createElement(){return new Element();},createDocumentFragment(){return new Element();}};
- const URL={createObjectURL(blob){downloads.push(blob);return 'blob:fixture';},revokeObjectURL(){}};
+ document.body.dataset=dataset;
+ class FixtureURL extends URL {
+   static createObjectURL(blob){downloads.push(blob);return 'blob:fixture';}
+   static revokeObjectURL(){}
+ }
  const timers=[];
- const context={document,window,location:{pathname},navigator:{},URL,Blob,AbortController,TextDecoder,Uint8Array,Object,Number,Set,JSON,Error,
+ const context={document,window,location:{pathname},navigator:{},URL:FixtureURL,Blob,AbortController,TextDecoder,Uint8Array,Object,Number,Set,JSON,Error,
  setTimeout(fn,ms){timers.push({fn,ms});return timers.length;},clearTimeout(){},fetch:async(url,init)=>{requests.push({url,init});const answer=typeof response==='function'?response(requests.length,init):response;return new Response(JSON.stringify(answer.body),{status:answer.status||200});}};
  window.scrollTo=()=>{};
  vm.runInNewContext(source,context);
@@ -43,6 +47,20 @@ test('passphrase remains in request body only and is cleared after response',asy
  assert.equal(ui.get('locked').hidden,false);ui.get('passphrase').value='synthetic phrase';ui.get('unlock-form').events.submit({preventDefault(){}});await ui.flush();
  assert.equal(ui.get('opening').hidden,false);assert.equal(ui.get('passphrase').value,'');assert.equal(ui.requests[1].url,`/v1/collections/shared/${share}/open`);assert.equal(JSON.parse(ui.requests[1].init.body).passphrase,'synthetic phrase');
  assert.equal(ui.requests[1].init.cache,'no-store');
+});
+test('website viewer sends both anonymous requests to its configured API origin',async()=>{
+ const apiOrigin='https://api.getcolosseum.world';
+ const ui=await setup(n=>n===1?{status:403,body:{error:{code:'passphrase_required'}}}:{body:envelope()},
+   '/c/'+share,{apiOrigin,siteBrand:'getcolosseum'});
+ assert.equal(ui.get('locked').hidden,false);
+ ui.get('passphrase').value='synthetic phrase';
+ ui.get('unlock-form').events.submit({preventDefault(){}});
+ await ui.flush();
+
+ const url=`${apiOrigin}/v1/collections/shared/${share}`;
+ assert.deepEqual(ui.requests.map(r=>[r.url,r.init.method,r.init.credentials]),
+   [[url,'GET','omit'],[url+'/open','POST','omit']]);
+ assert.equal(JSON.parse(ui.requests[1].init.body).passphrase,'synthetic phrase');
 });
 test('revoked links and invalid gift schema never expose content or export',async()=>{
  for(const body of [{status:404,body:{}},{body:{...envelope(),revoked:true}},{body:{...envelope(),snapshot:{...snapshot,schema_version:99}}}]){

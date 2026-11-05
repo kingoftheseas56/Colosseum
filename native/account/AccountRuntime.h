@@ -147,6 +147,7 @@ private:
     void syncTraktAddon();
 
     AccountHttpTransport m_transport;
+    AccountHttpTransport m_collectionOpenTransport;
     AccountClient m_client;
     CollectionPublicationController m_collectionPublications;
     std::unique_ptr<AccountCredentialStore> m_credentialStore;

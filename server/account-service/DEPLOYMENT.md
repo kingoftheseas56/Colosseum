@@ -185,7 +185,10 @@ Enablement order (each production step needs Hemanth's approval):
    secret settings and in the password manager with the other service keys.
 3. Ensure native clients and the website open shared collections through
    `https://api.getcolosseum.world`, not the host's hostname. Direct opens are
-   refused once the secret is set.
+   refused once the secret is set. Legacy viewer links then redirect to
+   `https://getcolosseum.world/c/{share_id}`. For isolated native runs, set
+   `COLOSSEUM_COLLECTIONS_API_URL` for anonymous opens alongside
+   `COLOSSEUM_ACCOUNT_SERVICE_URL` for login, sync and publication management.
 4. Rehearse on a non-production service first. A forged `CF-Connecting-IP`
    sent straight to the host must return 503. Opens through the edge from two
    different networks must produce two different rate-limit buckets. When the

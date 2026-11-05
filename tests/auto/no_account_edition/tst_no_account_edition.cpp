@@ -175,9 +175,14 @@ void tst_no_account_edition::
 endpointSuppressedEvenWithEnvironmentOverride() {
     ScopedEnvironmentVariable restore(
         "COLOSSEUM_ACCOUNT_SERVICE_URL");
+    ScopedEnvironmentVariable restoreCollections(
+        "COLOSSEUM_COLLECTIONS_API_URL");
     qputenv(
         "COLOSSEUM_ACCOUNT_SERVICE_URL",
         QByteArrayLiteral("https://canary.invalid"));
+    qputenv("COLOSSEUM_COLLECTIONS_API_URL", "https://edge-canary.invalid");
+
+    QVERIFY(AccountServiceEndpoint::configuredCollectionsApiUrl().isEmpty());
 
     const QUrl url = AccountServiceEndpoint::configuredUrl();
 

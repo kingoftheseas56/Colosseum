@@ -8,7 +8,7 @@ separately from the product source commit. Keep machine paths, deployment receip
 and runtime evidence in the task's private record.
 
 ```text
-python web/collections-sharing/stage_site.py --site-base <reviewed-site> --output <new-artifact> --api-origin https://colosseum-account-service.onrender.com
+python web/collections-sharing/stage_site.py --site-base <reviewed-site> --output <new-artifact>
 ```
 
 The output must not exist and must be disjoint from both the site baseline and
@@ -38,10 +38,12 @@ its JS/CSS byte-for-byte into `collections/assets/`, stages the HTML once at
 <body data-api-origin="" data-site-brand="">
 ```
 
-Only those values are injected: the explicit HTTPS API origin and
+Only those values are injected: the HTTPS API origin (defaults to
+`https://api.getcolosseum.world`; override with `--api-origin` for an isolated
+stage) and
 `data-site-brand="getcolosseum"`. The first-party Cold Ripple, Fraunces and mark
 files come from the reviewed baseline. Unmarked legacy service HTML continues to
-use its self-contained fallback. Public identity is always
+use its self-contained fallback when edge enforcement is disabled. Public identity is always
 `https://getcolosseum.world/c/<43-character-id>`; URL/query content never selects
 the API origin.
 

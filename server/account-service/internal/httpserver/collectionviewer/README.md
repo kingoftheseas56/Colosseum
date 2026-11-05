@@ -1,8 +1,11 @@
 # Anonymous collection viewer
 
 The existing account-service serves this browser receiving surface at
-`/collections/s/{share_id}`. `Handler()` embeds only `index.html`, `viewer.css`,
-and `viewer.js`; tests and source are not addressable assets.
+`/collections/s/{share_id}` when edge enforcement is off. With
+`COLLECTIONS_EDGE_SECRET` set, legacy links redirect to the public website at
+`https://getcolosseum.world/c/{share_id}`. The handler embeds only
+`index.html`, `viewer.css`, and `viewer.js`; tests and source are not
+addressable assets.
 
 The viewer is signed-out: requests omit cookies, use `no-store`, never persist
 content/passphrases in web storage, and never fetch external artwork. Text is

@@ -58,6 +58,8 @@ option(COLOSSEUM_RATINGS_REVIEWS_TESTING
 # inherited process environment.
 set(COLOSSEUM_ACCOUNT_SERVICE_URL "" CACHE STRING
     "Optional account service base URL compiled into this build; empty uses the app-owned production endpoint")
+set(COLOSSEUM_COLLECTIONS_API_URL "" CACHE STRING
+    "Optional anonymous Collections API base URL compiled into this build; empty uses the production edge")
 
 # SIMKL AUTH V2 uses a public client identifier for desktop/device clients.
 # It is safe to ship, but the provider remains fail-closed when this value is
@@ -1106,30 +1108,23 @@ endif()
 if(COLOSSEUM_NO_ACCOUNT_EDITION)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_NO_ACCOUNT_EDITION=1)
 endif()
-if(COLOSSEUM_ACCOUNT_SERVICE_URL)
-    # AccountHttpTransport::isAllowedBaseUrl accepts https anywhere but http only
-    # on loopback. Anything else compiles fine and then fails every account
-    # request at runtime with "The account service configuration is invalid",
-    # which is exactly the shipped-1.1.4 failure this seam exists to end — so
-    # reject it here rather than baking an unusable endpoint into a release.
-    if(COLOSSEUM_ACCOUNT_SERVICE_URL MATCHES "^https://[^/:]")
-        set(colosseum_account_url_usable TRUE)
-    elseif(COLOSSEUM_ACCOUNT_SERVICE_URL MATCHES
-           "^http://(localhost|127[.]0[.]0[.]1|\\[::1\\])([:/]|$)")
-        set(colosseum_account_url_usable TRUE)
-    else()
-        set(colosseum_account_url_usable FALSE)
+foreach(endpoint IN ITEMS COLOSSEUM_ACCOUNT_SERVICE_URL COLOSSEUM_COLLECTIONS_API_URL)
+    if(NOT ${endpoint})
+        continue()
     endif()
-    if(NOT colosseum_account_url_usable)
+
+    # Match AccountHttpTransport's HTTPS or loopback-HTTP requirement for both origins.
+    if(NOT ${endpoint} MATCHES "^https://[^/:]" AND
+       NOT ${endpoint} MATCHES "^http://(localhost|127[.]0[.]0[.]1|\\[::1\\])([:/]|$)")
         message(FATAL_ERROR
-            "COLOSSEUM_ACCOUNT_SERVICE_URL=\"${COLOSSEUM_ACCOUNT_SERVICE_URL}\" is not a usable "
-            "account endpoint. Use https://<host>, or http:// on localhost/127.0.0.1/[::1] for "
+            "${endpoint}=\"${${endpoint}}\" is not a usable "
+            "service endpoint. Use https://<host>, or http:// on localhost/127.0.0.1/[::1] for "
             "local runs against tests/mock-account-service.")
     endif()
     target_compile_definitions(colosseum PRIVATE
-        COLOSSEUM_ACCOUNT_SERVICE_URL="${COLOSSEUM_ACCOUNT_SERVICE_URL}")
-    message(STATUS "Account service baked in: ${COLOSSEUM_ACCOUNT_SERVICE_URL}")
-endif()
+        ${endpoint}="${${endpoint}}")
+    message(STATUS "${endpoint} baked in: ${${endpoint}}")
+endforeach()
 target_link_libraries(colosseum PRIVATE colosseum_account_credentials
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent
     Qt6::WebSockets colosseum_libtorrent
