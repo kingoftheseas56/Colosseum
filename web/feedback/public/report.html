@@ -20,8 +20,9 @@
   <label class="field-label" for="summary" id="summary-label">Short summary</label><input id="summary" autofocus name="summary" maxlength="120" autocomplete="off" required placeholder="Give the issue a short title">
   <label class="field-label" for="description" id="description-label">What went wrong?</label>
   <textarea id="description" name="description" maxlength="4000" rows="5" required placeholder="Describe the problem in your own words."></textarea>
-  <details id="more-details">
-  <summary>Add more details <span>optional</span></summary>
+  <label class="field-label" for="email">Reply email <small>optional</small></label>
+  <input id="email" name="email" type="email" maxlength="254" autocomplete="email"
+         pattern="[^@\s]+@[^@\s]+\.[^@\s]+" placeholder="Only if you’d like a reply">
   <div id="bug-details">
   <label class="field-label" for="steps">Steps to reproduce <small>optional</small></label>
   <textarea id="steps" name="steps" rows="3" maxlength="2500" placeholder="What did you do before the problem happened?"></textarea>
@@ -30,10 +31,6 @@
   <div id="feature-details" hidden>
   <label class="field-label" for="benefit">How would this help? <small>optional</small></label>
   <textarea id="benefit" name="benefit" rows="3" maxlength="2500" placeholder="Tell us when you would use it or what it would make easier."></textarea></div>
-  <label class="field-label" for="email">Reply email <small>optional</small></label>
-  <input id="email" name="email" type="email" maxlength="254" autocomplete="email"
-         pattern="[^@\s]+@[^@\s]+\.[^@\s]+" placeholder="Only if you’d like a reply">
-  </details>
   <input type="text" name="_gotcha" hidden tabindex="-1" autocomplete="off">
   <p class="privacy-note">Your text, app version, and platform are sent privately to the Colosseum team. If you include an email, we can reply there.</p>
   <div id="challenge"></div>

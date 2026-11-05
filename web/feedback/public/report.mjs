@@ -6,7 +6,6 @@ const form = byId("feedback-form");
 const summary = byId("summary");
 const description = byId("description");
 const email = byId("email");
-const details = byId("more-details");
 const submit = byId("submit");
 const status = byId("submission-status");
 const query = new URLSearchParams(location.search);
@@ -48,7 +47,7 @@ function saveDraft() {
   if (sent) return;
   const values = Object.fromEntries(fields.map((field) => [field, form.elements[field].value]));
   try {
-    localStorage.setItem(draftKey, JSON.stringify({ values, expanded: details.open, reference }));
+    localStorage.setItem(draftKey, JSON.stringify({ values, reference }));
   } catch {
     dialog.querySelector(".footer-note").textContent = "Draft kept while this popup is open.";
   }
@@ -62,7 +61,6 @@ try {
       if (typeof draft.values?.[field] === "string")
         input.value = draft.values[field].slice(0, input.maxLength);
     }
-    details.open = draft.expanded === true;
     if (typeof draft.reference === "string" && /^[\w-]{1,64}$/.test(draft.reference))
       reference = draft.reference;
   }
@@ -77,13 +75,10 @@ function close() {
 for (const id of ["close-dialog", "cancel", "back-home"])
   byId(id).addEventListener("click", close);
 dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
-details.addEventListener("toggle", saveDraft);
 form.addEventListener("input", () => { saveDraft(); update(); });
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (submit.disabled) return;
-  if (!email.validity.valid) details.open = true;
-  if (!form.reportValidity()) return;
+  if (submit.disabled || !form.reportValidity()) return;
   const payload = {
     type: feature ? "Feature idea" : "Bug report",
     area: "General",
