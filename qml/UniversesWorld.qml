@@ -127,7 +127,7 @@ WorldPage {
         }
     }
 
-    // ---- the heading, with how many universes the filter is showing ----
+    // ---- the catalogue heading and request button ----
     Item {
         id: heading
         objectName: "universesHeading"
@@ -149,15 +149,6 @@ WorldPage {
             id: headingActions
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            spacing: 8
-            Text {
-                objectName: "universesCount"
-                anchors.verticalCenter: parent.verticalCenter
-                text: universes.shown.length === 1 ? qsTr("1 universe") : qsTr("%1 universes").arg(universes.shown.length)
-                color: theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: 13
-            }
             Rectangle {
                 width: requestLabel.width + 36
                 height: 44
