@@ -145,28 +145,53 @@ Item {
             verify(deck.answerClose(b, deck.entries[b].closeConsent.attempt, true))
             tryVerify(function() { return !deck.entries[b] }, 10000)
         }
-        function test_repairedEngineClosesOpenerAndKeepsChildInput() {
-            var a = open("/hosting"), p = deck.browserForSession(a)
+        function test_repairedEngineClosesOpenerAndKeepsChildInput_data() {
+            return [
+                { tag: "ordinary", privateBrowsing: false },
+                { tag: "private", privateBrowsing: true }
+            ]
+        }
+        function test_repairedEngineClosesOpenerAndKeepsChildInput(data) {
+            var a = open("/hosting", "mangaplus", data.privateBrowsing)
+            var p = deck.browserForSession(a)
             if (!FeriaBrowserPolicy.independentAdoptionAvailable(p))
                 skip("Requires the compiled Qt adopted-input-owner patch; stock runtime stays guarded")
+            compare(p.profile.offTheRecord, data.privateBrowsing)
+            compare(deck.entries[a].descriptor.privateBrowsing, data.privateBrowsing)
+            js(p, "window.sessionMarker=291")
             js(p, "document.querySelector('#dialog').onclick=function(e){e.preventDefault();window.open('/hosting','independent-child','width=520,height=420')}")
             click(p, "#dialog")
             tryVerify(function() { return Sessions.browsers().length === 2 }, 10000)
             var b = Sessions.browsers().filter(function(r) { return r.id !== a })[0].id
             tryVerify(function() { var q=deck.browserForSession(b); return q && q.documentReady && q.title === "Fixture /hosting" }, 10000)
             var child = deck.browserForSession(b)
+            compare(deck.entries[b].initialWindowRequest, true)
+            compare(deck.entries[b].descriptor.privateBrowsing, data.privateBrowsing)
+            compare(child.profile, p.profile)
+            compare(child.profile.offTheRecord, data.privateBrowsing)
+            compare(js(child, "window.opener.sessionMarker"), 291,
+                "Child must retain the original browser window request, not a URL reconstruction")
             compare(deck.entries[a].liveAdoptedChildren, 0)
             verify(deck.closeTab(a))
             tryVerify(function() { return !deck.entries[a] && FeriaBrowserPolicy.runtimeViewCount === 1 }, 10000)
             click(child, "#edit"); typeText("after-opener")
-            compare(js(child, "document.querySelector('#edit').value"), "after-opener")
+            tryVerify(function() { return js(child, "document.querySelector('#edit').value") === "after-opener" },
+                5000, "All typed characters must arrive after the original opener was destroyed")
             compare(js(child, "window.opener === null || window.opener.closed"), true,
                 "The retired opener must be absent or represented by a closed WindowProxy")
+            compare(js(child, "window.sessionMarker=317;window.sessionMarker"), 317)
             verify(deck.returnToEmbedded(b))
+            compare(deck.browserForSession(b), child)
+            compare(child.profile.offTheRecord, data.privateBrowsing)
+            compare(js(child, "window.sessionMarker"), 317,
+                "Same live document must survive host transfer")
             click(child, "#edit"); typeText("-embedded")
-            compare(js(child, "document.querySelector('#edit').value"), "after-opener-embedded")
+            tryVerify(function() { return js(child, "document.querySelector('#edit').value") === "after-opener-embedded" },
+                5000, "All typed characters must arrive after same-view host transfer")
             verify(deck.closeTab(b)); tryVerify(function() { return !deck.entries[b] }, 10000)
             tryCompare(FeriaBrowserPolicy, "runtimeViewCount", 0, 10000)
+            deck.startQuiescence(false)
+            tryCompare(FeriaBrowserPolicy, "runtimeProfileCount", 0, 15000)
         }
         function test_appMaxPreservesSameDocumentAndInput() {
             var id = open("/hosting"), p = deck.browserForSession(id), profile = p.profile
