@@ -117,14 +117,14 @@ public final class ColosseumActivity extends QtActivity {
             : new int[] {metrics.widthPixels, metrics.heightPixels, metrics.widthPixels, metrics.heightPixels};
         int width = Math.max(drawable[0], drawable[1]);
         int height = Math.min(drawable[0], drawable[1]);
-        // Installed Beta composition: whole-Qt visual zoom on cold launch (default 1.15),
-        // optionally overridden by the non-persistent colosseum_visual_zoom extra (0.9-1.3).
+        // Installed Beta composition: whole-Qt visual zoom on cold launch (default 1.5, i.e. 50% over the fitted baseline),
+        // optionally overridden by the non-persistent colosseum_visual_zoom extra (0.9-1.6).
         float baselineScale = DesktopPresentationScale.forBounds(width, height, metrics.density);
-        float visualZoom = 1.15f;
+        float visualZoom = 1.5f;
         Intent launchIntent = getIntent();
         if (launchIntent != null) {
-            float requestedZoom = launchIntent.getFloatExtra("colosseum_visual_zoom", 1.15f);
-            if (Float.isFinite(requestedZoom) && requestedZoom >= 0.9f && requestedZoom <= 1.3f) {
+            float requestedZoom = launchIntent.getFloatExtra("colosseum_visual_zoom", 1.5f);
+            if (Float.isFinite(requestedZoom) && requestedZoom >= 0.9f && requestedZoom <= 1.6f) {
                 visualZoom = requestedZoom;
             }
         }

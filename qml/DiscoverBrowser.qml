@@ -34,7 +34,7 @@ Item {
     id: browser
 
     property bool androidHost: !!(browser.Window.window && browser.Window.window.androidHost) || Qt.platform.os === "android"
-    readonly property real headingRightInset: browser.androidHost ? 16 : 0
+    readonly property real headingRightInset: 0
 
     // Same phone gate as the world tab bar: Android, window under 840 wide.
     readonly property bool phoneNarrow: browser.androidHost && (browser.Window.window ? browser.Window.window.width : browser.width) < 840

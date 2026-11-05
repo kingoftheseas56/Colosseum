@@ -26,9 +26,8 @@ QtObject {
                                            : phone ? 24
                                            : tablet ? 32
                                                     : 54
-    // Installed Android desktop-presentation composition: content runs edge to edge.
-    // Desktop and phone layouts keep the adaptive page margin.
-    readonly property real outerPageMargin: androidHost && desktopPresentation ? 0 : pageMargin
+    // Restore desktop gutters while retaining the existing adaptive phone margins.
+    readonly property real outerPageMargin: pageMargin
     readonly property real topInset: compactChrome ? 12 : 30
     readonly property real topBarHeight: compactChrome ? 102 : 56
     readonly property real contentTop: topInset + topBarHeight + (compactChrome ? 8 : 10)

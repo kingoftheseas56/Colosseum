@@ -26,13 +26,9 @@ Item {
                                      && sheet.Window.window.androidHost && sheet.Window.window.desktopPresentation !== true
                                      && sheet.Window.window.width < 840
 
-    readonly property real outerPageMargin: sheet.Window.window
-        && sheet.Window.window.androidHost && sheet.Window.window.desktopPresentation === true
-        ? 0 : theme.margin
+    readonly property real outerPageMargin: theme.margin
 
-    readonly property real headerOuterMargin: sheet.Window.window
-        && sheet.Window.window.androidHost && sheet.Window.window.desktopPresentation === true
-        ? 16 : theme.margin
+    readonly property real headerOuterMargin: theme.margin
 
     // Height budget (PF-02). The desktop composition pins a 300 banner, 64 filter bar,
     // quality pills and a 52 table head, leaving H-544 for results. Android desktop

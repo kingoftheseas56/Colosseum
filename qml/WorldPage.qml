@@ -159,8 +159,7 @@ Item {
     }
     readonly property real pageMargin: adaptive.pageMargin
     readonly property real outerPageMargin: adaptive.outerPageMargin
-    readonly property real headerOuterMargin: world.androidHost && adaptive.desktopPresentation
-        ? 16 : adaptive.pageMargin
+    readonly property real headerOuterMargin: adaptive.pageMargin
     // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.
     property real contentBottomInset: 0
 

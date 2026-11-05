@@ -229,9 +229,8 @@ Window {
     property alias androidHost: phoneShell.androidHost
     AdaptiveLayout { id: presentationPolicy; viewportWidth: win.width; androidHost: win.androidHost }
     readonly property alias desktopPresentation: presentationPolicy.desktopPresentation
-    readonly property real headerOuterMargin: win.androidHost && win.desktopPresentation ? 16 : theme.margin
-    readonly property real outerPageMargin: win.androidHost && win.desktopPresentation
-        ? presentationPolicy.outerPageMargin : theme.margin
+    readonly property real headerOuterMargin: theme.margin
+    readonly property real outerPageMargin: theme.margin
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
     // Lanista deliberately reads QQuickItem properties only; never expose credentials,
