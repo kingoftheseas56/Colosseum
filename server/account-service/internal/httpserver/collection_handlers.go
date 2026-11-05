@@ -134,7 +134,7 @@ func (h *Handler) listCollectionPublications(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, 200, map[string]any{"publications": p})
 }
 func (h *Handler) openCollectionPublication(w http.ResponseWriter, r *http.Request) {
-	networkKey := clientNetworkKey(r, h.trustedProxies...)
+	networkKey := h.collectionSourceKey(r)
 	if networkKey == "" {
 		WriteAPIError(w, http.StatusServiceUnavailable, "source_unavailable", "The request source could not be verified. Try again later.")
 		return

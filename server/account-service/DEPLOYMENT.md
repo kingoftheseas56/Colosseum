@@ -163,6 +163,37 @@ opening a collection. Untrusted public peers cannot assert identity through
 forwarded headers. Environment labels and Fly/Cloudflare client-IP headers do
 not establish trust.
 
+`COLLECTIONS_EDGE_SECRET` is the recommended production path. It sidesteps the
+host's undocumented ingress proxy by trusting only our own Cloudflare zone.
+When set (at least 32 characters, no surrounding whitespace), anonymous
+collection opens ignore the socket peer, `X-Forwarded-For` and
+`TRUSTED_PROXY_CIDRS` entirely. A request is accepted only when it carries
+exactly one `X-Colosseum-Edge` header equal to the secret (compared in constant
+time) and exactly one public `CF-Connecting-IP` address. Cloudflare overwrites
+`CF-Connecting-IP` with the address that connected to it. Every other request
+returns `503 source_unavailable`, including direct requests to the host's own
+hostname. A `CF-Connecting-IP` inside Cloudflare's published ranges also
+returns 503, because it means a second Cloudflare hop replaced the visitor; the
+list is embedded in `collection_edge.go` and must be refreshed if Cloudflare
+changes it. Account login/registration limits are not affected.
+
+Enablement order (each production step needs Hemanth's approval):
+1. Create a proxied `api.getcolosseum.world` record on our Cloudflare zone
+   pointing at the account-service origin.
+2. Add a Cloudflare Transform Rule (Modify Request Header, Set static) for that
+   hostname: `X-Colosseum-Edge` = the secret. Store the secret in the host's
+   secret settings and in the password manager with the other service keys.
+3. Ensure native clients and the website open shared collections through
+   `https://api.getcolosseum.world`, not the host's hostname. Direct opens are
+   refused once the secret is set.
+4. Rehearse on a non-production service first. A forged `CF-Connecting-IP`
+   sent straight to the host must return 503. Opens through the edge from two
+   different networks must produce two different rate-limit buckets. When the
+   origin itself sits behind another Cloudflare zone (Render), confirm that the
+   visitor address, not a Cloudflare address, arrives.
+
+Without the secret, the trusted-proxy rules below still apply.
+
 Before production enablement, the operator must record the actual public and
 private ingress topology, exact trusted CIDRs, and how each hop overwrites or
 appends X-Forwarded-For. Include direct/private bypass paths and topology-change

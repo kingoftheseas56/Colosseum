@@ -13,13 +13,14 @@ import (
 )
 
 const (
-	defaultHTTPAddr               = ":8080"
-	defaultDatabaseMaxConnections = 8
-	defaultMaintenanceConnections = 2
-	defaultReadinessTimeout       = 2 * time.Second
-	defaultShutdownTimeout        = 10 * time.Second
-	defaultRegistrationGlobal10m  = 500
-	defaultSyncMaxFutureSkew      = 10 * time.Minute
+	defaultHTTPAddr                = ":8080"
+	defaultDatabaseMaxConnections  = 8
+	defaultMaintenanceConnections  = 2
+	defaultReadinessTimeout        = 2 * time.Second
+	defaultShutdownTimeout         = 10 * time.Second
+	minCollectionsEdgeSecretLength = 32
+	defaultRegistrationGlobal10m   = 500
+	defaultSyncMaxFutureSkew       = 10 * time.Minute
 )
 
 type Config struct {
@@ -27,6 +28,7 @@ type Config struct {
 	HTTPAddr                     string
 	TrustedProxyCIDRs            []netip.Prefix
 	CollectionsAllowedWebOrigins []string
+	CollectionsEdgeSecret        string
 	DatabaseURL                  string
 	DatabaseMaxConnections       int32
 	ReadinessTimeout             time.Duration
@@ -97,6 +99,10 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	edgeSecret := os.Getenv("COLLECTIONS_EDGE_SECRET")
+	if edgeSecret != "" && (len(edgeSecret) < minCollectionsEdgeSecretLength || strings.TrimSpace(edgeSecret) != edgeSecret) {
+		return Config{}, fmt.Errorf("COLLECTIONS_EDGE_SECRET must be at least %d characters with no surrounding whitespace", minCollectionsEdgeSecretLength)
+	}
 
 	maxConnections, err := positiveInt32Env("DATABASE_MAX_CONNECTIONS", defaultDatabaseMaxConnections)
 	if err != nil {
@@ -157,6 +163,7 @@ func Load() (Config, error) {
 		HTTPAddr:                     httpAddr,
 		TrustedProxyCIDRs:            trustedProxyCIDRs,
 		CollectionsAllowedWebOrigins: origins,
+		CollectionsEdgeSecret:        edgeSecret,
 		DatabaseURL:                  databaseURL,
 		DatabaseMaxConnections:       maxConnections,
 		ReadinessTimeout:             defaultReadinessTimeout,

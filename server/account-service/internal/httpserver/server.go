@@ -32,6 +32,7 @@ type Handler struct {
 	readinessTimeout time.Duration
 	logger           *slog.Logger
 	trustedProxies   []netip.Prefix
+	edgeSecret       *[32]byte
 }
 
 func New(
@@ -49,6 +50,9 @@ func New(
 type Options struct {
 	TrustedProxyCIDRs            []netip.Prefix
 	CollectionsAllowedWebOrigins []string
+	// CollectionsEdgeSecret, when set, makes our Cloudflare edge the only
+	// trusted source of visitor addresses for anonymous collection opens.
+	CollectionsEdgeSecret string
 }
 
 func NewWithOptions(pinger Pinger, accounts *account.Service, readinessTimeout time.Duration, logger *slog.Logger, options Options, schemaCheckers ...SchemaChecker) http.Handler {
@@ -61,6 +65,7 @@ func NewWithOptions(pinger Pinger, accounts *account.Service, readinessTimeout t
 		readinessTimeout: readinessTimeout,
 		logger:           logger,
 		trustedProxies:   append([]netip.Prefix(nil), options.TrustedProxyCIDRs...),
+		edgeSecret:       edgeSecretDigest(options.CollectionsEdgeSecret),
 	}
 	if len(schemaCheckers) > 0 {
 		handler.schemaChecker = schemaCheckers[0]

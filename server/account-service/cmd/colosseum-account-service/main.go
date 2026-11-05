@@ -177,7 +177,7 @@ func run(logger *slog.Logger) error {
 			accounts,
 			cfg.ReadinessTimeout,
 			logger,
-			httpserver.Options{TrustedProxyCIDRs: cfg.TrustedProxyCIDRs, CollectionsAllowedWebOrigins: cfg.CollectionsAllowedWebOrigins},
+			httpserver.Options{TrustedProxyCIDRs: cfg.TrustedProxyCIDRs, CollectionsAllowedWebOrigins: cfg.CollectionsAllowedWebOrigins, CollectionsEdgeSecret: cfg.CollectionsEdgeSecret},
 			// Readiness is probed every few seconds; cache the expensive
 			// catalog validation (see CachedSchemaChecker).
 			httpserver.NewCachedSchemaChecker(
