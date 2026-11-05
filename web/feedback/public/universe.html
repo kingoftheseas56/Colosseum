@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Request a Universe · Colosseum</title>
+  <link rel="stylesheet" href="./universe.css">
+  <script type="module" src="./universe.mjs"></script>
+</head>
+<body>
+<dialog id="request-dialog" aria-labelledby="request-title" aria-describedby="request-intro">
+ <div class="dialog-top"><div><div class="eyebrow"><img src="./assets/universes-atom.svg" alt="">Universes</div><h2 id="request-title">Request a Universe</h2></div><button class="icon-btn" id="close-dialog" aria-label="Close request">×</button></div>
+ <form id="request-form" novalidate>
+  <div class="dialog-body"><p class="sr-only" id="request-intro">Name the franchise and choose its Wikipedia page.</p>
+   <label class="search-label" for="franchise">Franchise name</label><div class="search-row"><svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="franchise" type="search" maxlength="120" autofocus placeholder="e.g. Godzilla" autocomplete="off" spellcheck="false" aria-controls="results"><button type="button" id="clear-search" class="clear hidden" aria-label="Clear franchise name">×</button><span class="keyboard" aria-hidden="true">↓ results</span></div>
+   <div class="samples"><span>Try a sample:</span><button data-sample="Godzilla">Godzilla</button><span>·</span><button data-sample="Zelda">Zelda</button><span>·</span><button data-sample="Avatar">Avatar</button><span>·</span><button data-sample="Dune">Dune</button></div>
+   <div class="result-head"><span id="result-label">Choose the page for the whole franchise</span><span>Wikipedia</span></div>
+   <div id="results" class="results" role="radiogroup" aria-labelledby="result-label"></div>
+   <p id="scope-message" class="status-message" role="status" hidden></p>
+   <div id="challenge"></div>
+  </div>
+  <div class="request-footer"><div class="selection-summary" id="selection-summary"><strong>No page selected</strong><p>Select a Wikipedia page to continue.</p></div><button type="submit" class="primary" id="submit-request" disabled>Submit request</button></div>
+  <div class="footnote">Searches go to Wikipedia. Your request is sent privately to the Colosseum team.</div>
+ </form>
+ <section class="success hidden" id="success" aria-live="polite"><div class="success-mark" aria-hidden="true">✓</div><h2>Request received</h2><h3 id="success-name"></h3><p>Your request reached the Colosseum team.</p><div class="actions"><button class="primary" id="back-universes">Back to Universes</button><button class="secondary" id="another-request">Send another request</button></div></section>
+</dialog>
+</body>
+</html>

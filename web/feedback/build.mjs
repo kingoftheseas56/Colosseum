@@ -32,20 +32,27 @@ const versionedName = (name, content) => {
   const extension = path.extname(name);
   return `${path.basename(name, extension)}.${hash}${extension}`;
 };
-const core = await readFile(path.join(output, "feedback-core.mjs"));
-const coreName = versionedName("feedback-core.mjs", core);
-await writeFile(path.join(output, coreName), core);
-const main = (await readFile(path.join(output, "feedback.mjs"), "utf8"))
-  .replace('"./feedback-core.mjs"', `"./${coreName}"`);
-const mainName = versionedName("feedback.mjs", main);
-await writeFile(path.join(output, mainName), main);
-const style = await readFile(path.join(output, "style.css"));
-const styleName = versionedName("style.css", style);
-await writeFile(path.join(output, styleName), style);
-const html = (await readFile(path.join(output, "index.html"), "utf8"))
-  .replace('href="./style.css"', `href="./${styleName}"`)
-  .replace('src="./feedback.mjs"', `src="./${mainName}"`);
-await writeFile(path.join(output, "index.html"), html);
+async function versionAsset(name, content) {
+  const version = versionedName(name, content);
+  await writeFile(path.join(output, version), content);
+  return version;
+}
+const coreName = await versionAsset("feedback-core.mjs", await readFile(path.join(output, "feedback-core.mjs")));
+const wikiName = await versionAsset("universe-wiki.mjs", await readFile(path.join(output, "universe-wiki.mjs")));
+for (const [page, script, stylesheet] of [
+  ["index.html", "feedback.mjs", "style.css"],
+  ["universe.html", "universe.mjs", "universe.css"],
+]) {
+  const module = (await readFile(path.join(output, script), "utf8"))
+    .replace('"./feedback-core.mjs"', `"./${coreName}"`)
+    .replace('"./universe-wiki.mjs"', `"./${wikiName}"`);
+  const moduleName = await versionAsset(script, module);
+  const styleName = await versionAsset(stylesheet, await readFile(path.join(output, stylesheet)));
+  const html = (await readFile(path.join(output, page), "utf8"))
+    .replace(`href="./${stylesheet}"`, `href="./${styleName}"`)
+    .replace(`src="./${script}"`, `src="./${moduleName}"`);
+  await writeFile(path.join(output, page), html);
+}
 await mkdir(path.join(output, "assets"), { recursive: true });
 await cp(
   path.join(root, "assets/fonts/Fraunces-Regular.ttf"),

@@ -1,3 +1,4 @@
+import { searchWikiArticles, wikiArticle } from "./universe-wiki.mjs";
 import {
   DRAFT_KEY,
   environment,
@@ -36,18 +37,6 @@ if (universeMode) {
   document.querySelector("#another").textContent = "Send another request";
 }
 
-function wikiArticle(page) {
-  if (!Number.isSafeInteger(page?.pageid) || page.pageid < 1 ||
-      typeof page.title !== "string" || !page.title.trim() || page.title.length > 120)
-    return null;
-  return {
-    pageid: page.pageid,
-    title: page.title.trim(),
-    extract: typeof page.extract === "string"
-      ? page.extract.replace(/\s+/g, " ").trim().slice(0, 160) : "",
-  };
-}
-
 function displayArticle(article) {
   selectedArticle = article;
   wikiSummary.hidden = !article;
@@ -77,26 +66,9 @@ async function searchWiki(query) {
   const controller = new AbortController();
   searchController = controller;
   const timeout = setTimeout(() => controller.abort(), 8000);
-  const params = new URLSearchParams({
-    action: "query", generator: "search", gsrsearch: query,
-    gsrnamespace: "0", gsrlimit: "4", prop: "extracts|pageprops",
-    ppprop: "disambiguation", explaintext: "1", exintro: "1",
-    exchars: "160", exlimit: "4", format: "json", formatversion: "2", origin: "*",
-  });
   try {
-    const response = await fetch(`https://en.wikipedia.org/w/api.php?${params}`, {
-      credentials: "omit",
-      headers: { "Api-User-Agent": "ColosseumUniverseRequest/1.0 (https://getcolosseum.world/)" },
-      signal: controller.signal,
-    });
-    if (!response.ok) throw new Error();
-    const data = await response.json();
+    const articles = await searchWikiArticles(query, controller.signal);
     if (searchController !== controller) return;
-    if (data.error) throw new Error();
-    const articles = (data.query?.pages || [])
-      .filter(page => !page.missing && !Object.hasOwn(page.pageprops || {}, "disambiguation"))
-      .sort((a, b) => a.index - b.index)
-      .map(wikiArticle).filter(Boolean);
     wikiStatus.textContent = articles.length
       ? "Choose a Wikipedia article or send the name you typed."
       : "No matching articles. You can send the name you typed.";

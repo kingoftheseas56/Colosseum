@@ -42,7 +42,7 @@ const os = require("node:os");
         "Content-Type",
         types[path.extname(file)] || "application/octet-stream",
       );
-      if (name === "index.html") res.setHeader("Content-Security-Policy", csp);
+      if (name.endsWith(".html")) res.setHeader("Content-Security-Policy", csp);
       res.end(await fs.readFile(file));
     } catch {
       res.writeHead(404).end();
@@ -291,6 +291,28 @@ const os = require("node:os");
     assert.equal(Object.hasOwn(manual, "wikipedia_url"), false);
     assert.equal(Object.hasOwn(manual, "wikipedia_page_id"), false);
     assert.equal(await page.evaluate(() => localStorage.getItem("colosseum-universe-request-v1")), null);
+    await page.setViewportSize({ width: 1280, height: 550 });
+    await page.goto(url.replace("/feedback/?", "/feedback/universe.html?"));
+    const dialog = page.getByRole("dialog", { name: "Request a Universe" });
+    assert.equal((await dialog.boundingBox()).width, 880);
+    assert.equal(await page.locator("#franchise").evaluate(input => input === document.activeElement), true);
+    assert.equal(await page.getByText("What’s missing?").isVisible(), true);
+    assert.equal(await page.getByRole("button", { name: "Submit request" }).isDisabled(), true);
+    await page.screenshot({ path: path.join(screenshots, "universe-dialog-empty.png") });
+    await page.getByRole("button", { name: "Avatar" }).click();
+    await page.getByRole("radio", { name: /Example & Co/ }).click();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("colosseum-universe-catalogue", {
+      detail: ["Example & Co."],
+    })));
+    assert.equal(await page.getByRole("button", { name: "Already available" }).isDisabled(), true);
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("colosseum-universe-catalogue", {
+      detail: [],
+    })));
+    await page.getByRole("button", { name: "Submit request" }).click();
+    await page.getByText("Request received").waitFor();
+    assert.equal(requests.at(-1).body.wikipedia_page_id, 1234);
+    await page.getByRole("button", { name: "Back to Universes" }).click();
+    await page.waitForURL((current) => current.hash === "#close-universe");
     assert.deepEqual(errors, []);
     console.log(
       "PASS feedback page: desktop/mobile layouts, glass menu mouse/keyboard/focus/closing, icons, legacy draft migration, quota failure, backend switch, provider rejection, and Universe lookup/selection/manual submission. All external requests intercepted locally.",

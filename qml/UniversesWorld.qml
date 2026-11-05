@@ -159,22 +159,35 @@ WorldPage {
                 font.pixelSize: 13
             }
             Rectangle {
-                width: requestLabel.implicitWidth + 20
+                width: requestLabel.width + 36
                 height: 44
                 radius: 12
-                color: requestAction.interactionActive ? theme.glassHi : theme.glassTint
-                border.color: theme.edge
-                Text {
+                color: requestAction.interactionActive ? "#ac171717" : "#70242323"
+                border.color: "#99f0c44a"
+                Row {
                     id: requestLabel
                     anchors.centerIn: parent
-                    text: qsTr("+ Request a Universe")
-                    color: theme.ink
-                    font.family: theme.ui
-                    font.pixelSize: 13
+                    spacing: 10
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "+"
+                        color: theme.gold
+                        font.family: theme.ui
+                        font.pixelSize: 22
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: qsTr("Request a Universe")
+                        color: theme.gold
+                        font.family: theme.ui
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                    }
                 }
                 KeyboardAction {
                     id: requestAction
                     objectName: "requestUniverse"
+                    readonly property var availableUniverses: universes.roster.map(entry => entry.name)
                     anchors.fill: parent
                     accessibleName: qsTr("Request a Universe")
                     onTriggered: universes.universeRequestFormRequested(requestAction)

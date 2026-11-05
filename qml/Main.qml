@@ -2869,14 +2869,26 @@ Window {
     property Item feedbackInvoker: null
     function openFeedback(universeInvoker) {
         if (win.guardNamedCollectionsNavigation(function() { win.openFeedback(universeInvoker) })) return
-        if (feedbackLayer.active) return
+        if (feedbackLayer.active || feedbackLayer.capturingBackdrop) return
         feedbackLayer.universeRequest = !!universeInvoker
         win.feedbackInvoker = universeInvoker || win.activeFocusItem
+        if (feedbackLayer.desktopUniverse) {
+            feedbackLayer.capturingBackdrop = true
+            if (win.contentItem.grabToImage(function(result) {
+                feedbackLayer.capturingBackdrop = false
+                feedbackLayer.backdrop = result
+                feedbackLayer.active = true
+            })) return
+            feedbackLayer.capturingBackdrop = false
+            feedbackLayer.active = true
+            return
+        }
         taskbar.open = false
         feedbackLayer.active = true
     }
     function closeFeedback() {
         feedbackLayer.active = false
+        feedbackLayer.backdrop = null
         const invoker = win.feedbackInvoker
         win.feedbackInvoker = null
         Qt.callLater(function() {
@@ -6074,7 +6086,16 @@ Window {
         active: false
         visible: active
         property bool universeRequest: false
-        sourceComponent: FeedbackPanel { universeRequest: feedbackLayer.universeRequest }
+        readonly property bool desktopUniverse: universeRequest && Qt.platform.os !== "android"
+        property bool capturingBackdrop: false
+        property var backdrop: null
+        sourceComponent: FeedbackPanel {
+            universeRequest: feedbackLayer.universeRequest
+            desktopUniverse: feedbackLayer.desktopUniverse
+            backdropUrl: feedbackLayer.backdrop ? feedbackLayer.backdrop.url : ""
+            availableUniverses: desktopUniverse && win.feedbackInvoker
+                                ? win.feedbackInvoker.availableUniverses : []
+        }
         onLoaded: {
             item.closeRequested.connect(win.closeFeedback)
             item.minimizeRequested.connect(win.minimizeShell)
