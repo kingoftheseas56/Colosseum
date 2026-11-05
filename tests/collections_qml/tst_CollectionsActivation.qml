@@ -82,7 +82,12 @@ Item {
             compare(dismissed.signalArguments[1][0],"2")
         }
         function test_outgoingAndPickerBlockDelivery() {
-            panel.sharingActive=true;tryCompare(panel,"incomingBlocked",true)
+            panel.openSharing("share")
+            tryVerify(function() {
+                const popup = findChild(panel, "incomingCollectionPopup")
+                return popup && popup.opened && popup.outgoingSession
+            })
+            compare(panel.incomingBlocked, true)
             compare(panel.openIncoming(link("a"),"1"),false);compare(controller.openCount,0)
             panel.profileChanged();panel.createCollection(null);tryCompare(panel,"pickerActive",true)
             compare(panel.openIncoming(link("b"),"2"),false);compare(controller.openCount,0)
