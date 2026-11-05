@@ -53,6 +53,11 @@ class AccountClient final : public QObject {
     Q_OBJECT
 
 public:
+    // Requests a person waits on (create, sign in, recovery) must outlast a
+    // cold start: Render's free tier sleeps after 15 idle minutes and takes
+    // about a minute to wake. The 15 s default aborted these mid-wake.
+    static constexpr int kServerWakeTimeoutMs = 90000;
+
     explicit AccountClient(
         AccountTransport *transport,
         QObject *parent = nullptr);

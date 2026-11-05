@@ -821,6 +821,20 @@ void tst_account_identity::accountClientAssignsRequestDeadlines() {
         QStringLiteral("install-1"),
         QStringLiteral("Test PC"),
         QStringLiteral("Windows"));
+    // Sign-in must survive a sleeping server waking up (~1 minute).
+    QCOMPARE(transport.lastRequest.timeoutMs, 90000);
+    QCOMPARE(transport.lastRequest.timeoutMs, AccountClient::kServerWakeTimeoutMs);
+
+    client.createAccount(
+        QStringLiteral("DeadlineOwner"),
+        QStringLiteral("password-value"),
+        QStringLiteral("install-1"),
+        QStringLiteral("Test PC"),
+        QStringLiteral("Windows"));
+    QCOMPARE(transport.lastRequest.path, QStringLiteral("/v1/accounts"));
+    QCOMPARE(transport.lastRequest.timeoutMs, 90000);
+
+    client.refreshSession(QByteArray(32, 'r'));
     QCOMPARE(transport.lastRequest.timeoutMs, 15000);
 
     client.listApprovals(0);

@@ -92,7 +92,8 @@ quint64 AccountClient::createAccount(
         QByteArrayLiteral("POST"),
         QStringLiteral("/v1/accounts"),
         body,
-        false);
+        false,
+        kServerWakeTimeoutMs);
 }
 
 quint64 AccountClient::signIn(
@@ -112,7 +113,8 @@ quint64 AccountClient::signIn(
         QByteArrayLiteral("POST"),
         QStringLiteral("/v1/sessions"),
         body,
-        false);
+        false,
+        kServerWakeTimeoutMs);
 }
 
 quint64 AccountClient::refreshSession(const QByteArray &refreshToken) {
@@ -172,7 +174,8 @@ quint64 AccountClient::recoverPassword(
         QByteArrayLiteral("POST"),
         QStringLiteral("/v1/password/recover"),
         body,
-        false);
+        false,
+        kServerWakeTimeoutMs);
 }
 
 quint64 AccountClient::startTrustedRecovery(
@@ -192,7 +195,8 @@ quint64 AccountClient::startTrustedRecovery(
         QByteArrayLiteral("POST"),
         QStringLiteral("/v1/password/trusted-recovery"),
         body,
-        false);
+        false,
+        kServerWakeTimeoutMs);
 }
 
 quint64 AccountClient::pollTrustedRecovery(const QByteArray &challengeToken) {
@@ -234,7 +238,8 @@ quint64 AccountClient::recoverDeviceChallengeWithKey(
         QByteArrayLiteral("POST"),
         QStringLiteral("/v1/challenges/device/recovery-key"),
         body,
-        false);
+        false,
+        kServerWakeTimeoutMs);
 }
 
 quint64 AccountClient::changePassword(
