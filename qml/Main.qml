@@ -2867,12 +2867,13 @@ Window {
     }
     function closeUpdatePage() { updateLayer.active = false }
     property Item feedbackInvoker: null
-    function openFeedback(universeInvoker) {
-        if (win.guardNamedCollectionsNavigation(function() { win.openFeedback(universeInvoker) })) return
+    function openFeedback(invoker, homeFeedbackKind = "") {
+        if (win.guardNamedCollectionsNavigation(function() { win.openFeedback(invoker, homeFeedbackKind) })) return
         if (feedbackLayer.active || feedbackLayer.capturingBackdrop) return
-        feedbackLayer.universeRequest = !!universeInvoker
-        win.feedbackInvoker = universeInvoker || win.activeFocusItem
-        if (feedbackLayer.desktopUniverse) {
+        feedbackLayer.universeRequest = !!invoker && !homeFeedbackKind
+        feedbackLayer.homeFeedbackKind = homeFeedbackKind
+        win.feedbackInvoker = invoker || win.activeFocusItem
+        if (feedbackLayer.desktopUniverse || homeFeedbackKind) {
             feedbackLayer.capturingBackdrop = true
             if (win.contentItem.grabToImage(function(result) {
                 feedbackLayer.capturingBackdrop = false
@@ -4377,171 +4378,184 @@ Window {
             //      NO dots, NO tabs, NO timer bar, NO media-count chips. A pure carousel —
             //      auto-turns (6.5s) + native swipe. Spec trail: haven docs/superpowers/specs/
             //      2026-07-12-colosseum-universe-exhibit-hero-design.md (+ this final rev).
-            Glass {
-                id: hero
-                backdrop: wall
-                track: page.contentY
-                width: parent.width; height: 360; radius: 20
-                tint: 0.06
+            Column {
+                width: parent.width
+                spacing: page.width <= 740 ? 13 : 15
+                Glass {
+                    id: hero
+                    backdrop: wall
+                    track: page.contentY
+                    width: parent.width; height: 360; radius: 20
+                    tint: 0.06
 
-                SwipeView {
-                    id: heroView
-                    anchors.fill: parent
-                    clip: true
-                    Repeater {
-                        model: win.installedUniverses
-                        delegate: Item {
-                            id: slide
-                            required property var modelData
+                    SwipeView {
+                        id: heroView
+                        anchors.fill: parent
+                        clip: true
+                        Repeater {
+                            model: win.installedUniverses
+                            delegate: Item {
+                                id: slide
+                                required property var modelData
 
-                            // banner key-art full-bleed; a neutral plate stands in while it
-                            // loads, then the left-weighted scrim keeps the words legible
-                            // (proven look). The per-IP accent colour the baked list carried is
-                            // gone with it — an installed universe supplies art, not a palette.
-                            Rectangle {
-                                anchors.fill: parent; radius: hero.radius; clip: true
-                                color: "#1a1410"
-                                Image {
-                                    objectName: "homeUniverseBannerArt"
-                                    anchors.fill: parent
-                                    property string readySource: ""
-                                    onStatusChanged: if (status === Image.Ready) readySource = String(source)
-                                    source: page.visible || readySource === String(slide.modelData.banner || "") ? (slide.modelData.banner || "") : ""
-                                    asynchronous: true; cache: true
-                                    fillMode: Image.PreserveAspectCrop
-                                    opacity: status === Image.Ready ? 1 : 0
-                                    Behavior on opacity { NumberAnimation { duration: 300 } }
-                                }
+                                // banner key-art full-bleed; a neutral plate stands in while it
+                                // loads, then the left-weighted scrim keeps the words legible
+                                // (proven look). The per-IP accent colour the baked list carried is
+                                // gone with it — an installed universe supplies art, not a palette.
                                 Rectangle {
-                                    anchors.fill: parent
-                                    gradient: Gradient {
-                                        orientation: Gradient.Horizontal
-                                        GradientStop { position: 0.0; color: Qt.rgba(0,0,0,0.86) }
-                                        GradientStop { position: 0.52; color: Qt.rgba(0,0,0,0.42) }
-                                        GradientStop { position: 1.0; color: Qt.rgba(0,0,0,0.06) }
+                                    anchors.fill: parent; radius: hero.radius; clip: true
+                                    color: "#1a1410"
+                                    Image {
+                                        objectName: "homeUniverseBannerArt"
+                                        anchors.fill: parent
+                                        property string readySource: ""
+                                        onStatusChanged: if (status === Image.Ready) readySource = String(source)
+                                        source: page.visible || readySource === String(slide.modelData.banner || "") ? (slide.modelData.banner || "") : ""
+                                        asynchronous: true; cache: true
+                                        fillMode: Image.PreserveAspectCrop
+                                        opacity: status === Image.Ready ? 1 : 0
+                                        Behavior on opacity { NumberAnimation { duration: 300 } }
+                                    }
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        gradient: Gradient {
+                                            orientation: Gradient.Horizontal
+                                            GradientStop { position: 0.0; color: Qt.rgba(0,0,0,0.86) }
+                                            GradientStop { position: 0.52; color: Qt.rgba(0,0,0,0.42) }
+                                            GradientStop { position: 1.0; color: Qt.rgba(0,0,0,0.06) }
+                                        }
                                     }
                                 }
-                            }
 
-                            // content over the scrim (chips row retired — ratified 2026-07-12)
-                            Column {
-                                anchors.left: parent.left; anchors.bottom: parent.bottom
-                                anchors.margins: 44
-                                width: Math.min(620, parent.width - anchors.leftMargin * 2)
-                                spacing: 12
-                                Text { text: "TRIBUTE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
-                                Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
-                                // (the blurb line went with the baked list — the roster carries
-                                // identity and art, no prose, and a faked one would be a lie)
-                                Row {
-                                    spacing: 12; topPadding: 6
-                                    Rectangle {
-                                        radius: 12; height: 46; width: exploreRow.implicitWidth + 44
-                                        gradient: Gradient {
-                                            GradientStop { position: 0; color: (exMa.containsMouse || exKey.interactionActive) ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
-                                            GradientStop { position: 1; color: (exMa.containsMouse || exKey.interactionActive) ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
-                                        }
-                                        border.width: 1
-                                        border.color: (exMa.containsMouse || exKey.interactionActive) ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
-                                        Behavior on border.color { ColorAnimation { duration: 160 } }
-                                        Row {
-                                            id: exploreRow; anchors.centerIn: parent; spacing: 10
-                                            Text { text: "Explore the tribute"; color: theme.ink
-                                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                                                anchors.verticalCenter: parent.verticalCenter }
-                                            Text { text: "→"; color: theme.gold; font.pixelSize: 16
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                transform: Translate { x: (exMa.containsMouse || exKey.interactionActive) ? 3 : 0 } }
-                                        }
-                                        KeyboardAction {
-                                            id: exKey
-                                            // Only the current SwipeView delegate owns the stable semantic
-                                            // identity. Inactive carousel clones otherwise make runtime focus
-                                            // assertions ambiguous even though only one is a legal target.
-                                            objectName: slide.SwipeView.isCurrentItem ? "homeHeroExplore" : ""
-                                            anchors.fill: parent
-                                            accessibleName: "Explore the tribute"
-                                            pointerEnabled: false
-                                            focusRadius: 12
-                                            onTriggered: win.openUniverse(slide.modelData.extensionId,
-                                                                          slide.modelData.name)
-                                        }
-                                        MouseArea {
-                                            id: exMa; anchors.fill: parent
-                                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                            onClicked: win.openUniverse(slide.modelData.extensionId,
-                                                                        slide.modelData.name)
-                                        }
-                                        KeyboardAction {
-                                            anchors.fill: parent
-                                            pointerEnabled: false
-                                            focusEnabled: win.televisionMode && slide.visible
-                                            accessibleName: "Explore " + slide.modelData.name
-                                            focusRadius: 12
-                                            onTriggered: win.openUniverse(slide.modelData.extensionId,
-                                                                          slide.modelData.name)
+                                // content over the scrim (chips row retired — ratified 2026-07-12)
+                                Column {
+                                    anchors.left: parent.left; anchors.bottom: parent.bottom
+                                    anchors.margins: 44
+                                    width: Math.min(620, parent.width - anchors.leftMargin * 2)
+                                    spacing: 12
+                                    Text { text: "TRIBUTE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
+                                    Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
+                                    // (the blurb line went with the baked list — the roster carries
+                                    // identity and art, no prose, and a faked one would be a lie)
+                                    Row {
+                                        spacing: 12; topPadding: 6
+                                        Rectangle {
+                                            radius: 12; height: 46; width: exploreRow.implicitWidth + 44
+                                            gradient: Gradient {
+                                                GradientStop { position: 0; color: (exMa.containsMouse || exKey.interactionActive) ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
+                                                GradientStop { position: 1; color: (exMa.containsMouse || exKey.interactionActive) ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
+                                            }
+                                            border.width: 1
+                                            border.color: (exMa.containsMouse || exKey.interactionActive) ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
+                                            Behavior on border.color { ColorAnimation { duration: 160 } }
+                                            Row {
+                                                id: exploreRow; anchors.centerIn: parent; spacing: 10
+                                                Text { text: "Explore the tribute"; color: theme.ink
+                                                    font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                                    anchors.verticalCenter: parent.verticalCenter }
+                                                Text { text: "→"; color: theme.gold; font.pixelSize: 16
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    transform: Translate { x: (exMa.containsMouse || exKey.interactionActive) ? 3 : 0 } }
+                                            }
+                                            KeyboardAction {
+                                                id: exKey
+                                                // Only the current SwipeView delegate owns the stable semantic
+                                                // identity. Inactive carousel clones otherwise make runtime focus
+                                                // assertions ambiguous even though only one is a legal target.
+                                                objectName: slide.SwipeView.isCurrentItem ? "homeHeroExplore" : ""
+                                                anchors.fill: parent
+                                                accessibleName: "Explore the tribute"
+                                                pointerEnabled: false
+                                                focusRadius: 12
+                                                onTriggered: win.openUniverse(slide.modelData.extensionId,
+                                                                              slide.modelData.name)
+                                            }
+                                            MouseArea {
+                                                id: exMa; anchors.fill: parent
+                                                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                                onClicked: win.openUniverse(slide.modelData.extensionId,
+                                                                            slide.modelData.name)
+                                            }
+                                            KeyboardAction {
+                                                anchors.fill: parent
+                                                pointerEnabled: false
+                                                focusEnabled: win.televisionMode && slide.visible
+                                                accessibleName: "Explore " + slide.modelData.name
+                                                focusRadius: 12
+                                                onTriggered: win.openUniverse(slide.modelData.extensionId,
+                                                                              slide.modelData.name)
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
+
+                    // gentle auto-advance through the collection (not visualized — ratified)
+                    Timer {
+                        // Stands down while the player is up: this advances a carousel nobody can see
+                        // behind the film, and every advance is an animation plus cover work on the
+                        // GUI thread — the thread Qt Quick needs free to present video frames.
+                        interval: 6500; running: page.visible && !win.immersiveSurfaceOpen; repeat: true
+                        // guarded: an empty roster would turn the modulo into NaN
+                        onTriggered: if (heroView.count > 0)
+                                         heroView.currentIndex = (heroView.currentIndex + 1) % heroView.count
+                    }
+
+                    // the door to the Universes world, the single front door to every universe
+                    // and Tribute (Hemanth 2026-10-05; the old Hall is no longer linked from here)
+                    // — quiet, top-right, gold on hover
+                    Item {
+                        id: hallDoor
+                        z: 5
+                        anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 20
+                        width: hallRow.implicitWidth + 8; height: 28
+                        Row {
+                            id: hallRow
+                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            spacing: 7
+                            Text { text: win.installedUniverses.length + (win.installedUniverses.length === 1 ? " tribute" : " tributes")
+                                   color: (hallMa.containsMouse || hallKey.interactionActive) ? theme.gold : theme.inkDim
+                                   font.family: theme.display; font.pixelSize: 16
+                                   Behavior on color { ColorAnimation { duration: 120 } } }
+                            Text { text: "›"
+                                   color: (hallMa.containsMouse || hallKey.interactionActive) ? theme.gold : theme.inkDimmer
+                                   font.family: theme.display; font.pixelSize: 19
+                                   anchors.verticalCenter: parent.verticalCenter }
+                        }
+                        KeyboardAction {
+                            id: hallKey
+                            objectName: "homeUniverseHall"
+                            anchors.fill: parent
+                            accessibleName: "Universes"
+                            pointerEnabled: false
+                            focusRadius: 8
+                            onTriggered: win.openWorld("Universes")
+                        }
+                        MouseArea {
+                            id: hallMa; anchors.fill: parent
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: win.openWorld("Universes")
+                        }
+                        KeyboardAction {
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            focusEnabled: win.televisionMode
+                            accessibleName: "Hall of Worlds"
+                            focusRadius: 8
+                            onTriggered: win.openUniverseHall()
+                        }
+                    }
                 }
 
-                // gentle auto-advance through the collection (not visualized — ratified)
-                Timer {
-                    // Stands down while the player is up: this advances a carousel nobody can see
-                    // behind the film, and every advance is an animation plus cover work on the
-                    // GUI thread — the thread Qt Quick needs free to present video frames.
-                    interval: 6500; running: page.visible && !win.immersiveSurfaceOpen; repeat: true
-                    // guarded: an empty roster would turn the modulo into NaN
-                    onTriggered: if (heroView.count > 0)
-                                     heroView.currentIndex = (heroView.currentIndex + 1) % heroView.count
-                }
-
-                // the door to the Universes world, the single front door to every universe
-                // and Tribute (Hemanth 2026-10-05; the old Hall is no longer linked from here)
-                // — quiet, top-right, gold on hover
-                Item {
-                    id: hallDoor
-                    z: 5
-                    anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 20
-                    width: hallRow.implicitWidth + 8; height: 28
-                    Row {
-                        id: hallRow
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        spacing: 7
-                        Text { text: win.installedUniverses.length + (win.installedUniverses.length === 1 ? " tribute" : " tributes")
-                               color: (hallMa.containsMouse || hallKey.interactionActive) ? theme.gold : theme.inkDim
-                               font.family: theme.display; font.pixelSize: 16
-                               Behavior on color { ColorAnimation { duration: 120 } } }
-                        Text { text: "›"
-                               color: (hallMa.containsMouse || hallKey.interactionActive) ? theme.gold : theme.inkDimmer
-                               font.family: theme.display; font.pixelSize: 19
-                               anchors.verticalCenter: parent.verticalCenter }
-                    }
-                    KeyboardAction {
-                        id: hallKey
-                        objectName: "homeUniverseHall"
-                        anchors.fill: parent
-                        accessibleName: "Universes"
-                        pointerEnabled: false
-                        focusRadius: 8
-                        onTriggered: win.openWorld("Universes")
-                    }
-                    MouseArea {
-                        id: hallMa; anchors.fill: parent
-                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: win.openWorld("Universes")
-                    }
-                    KeyboardAction {
-                        anchors.fill: parent
-                        pointerEnabled: false
-                        focusEnabled: win.televisionMode
-                        accessibleName: "Hall of Worlds"
-                        focusRadius: 8
-                        onTriggered: win.openUniverseHall()
-                    }
+                HomeFeedbackActions {
+                    visible: Qt.platform.os !== "android"
+                    width: parent.width
+                    backdrop: wall
+                    track: page.contentY
+                    compact: page.width <= 740
+                    onRequested: (invoker, kind) => win.openFeedback(invoker, kind)
                 }
             }
 
@@ -6086,12 +6100,14 @@ Window {
         active: false
         visible: active
         property bool universeRequest: false
+        property string homeFeedbackKind: ""
         readonly property bool desktopUniverse: universeRequest && Qt.platform.os !== "android"
         property bool capturingBackdrop: false
         property var backdrop: null
         sourceComponent: FeedbackPanel {
             universeRequest: feedbackLayer.universeRequest
             desktopUniverse: feedbackLayer.desktopUniverse
+            homeFeedbackKind: feedbackLayer.homeFeedbackKind
             backdropUrl: feedbackLayer.backdrop ? feedbackLayer.backdrop.url : ""
             availableUniverses: desktopUniverse && win.feedbackInvoker
                                 ? win.feedbackInvoker.availableUniverses : []

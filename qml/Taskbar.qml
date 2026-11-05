@@ -503,18 +503,6 @@ Item {
                 ToolTip.text: bar.activityLabel
             }
 
-            FeedbackButton {
-                Layout.preferredWidth: 46
-                Layout.preferredHeight: 46
-                Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
-                onClicked: {
-                    bar.autoRevealed = false
-                    bar.feedbackClicked()
-                    bar.open = false
-                }
-            }
-
             // Session tiles — the dock's fill-width content.
             Row {
                 objectName: "taskbarSessionTiles"

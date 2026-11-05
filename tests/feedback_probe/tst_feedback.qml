@@ -31,6 +31,8 @@ Item {
         }
     }
     Component { id: universeWorldComponent; App.UniversesWorld { backdrop: feedbackBackdrop } }
+    Component { id: homeFeedbackComponent; App.HomeFeedbackActions { backdrop: feedbackBackdrop } }
+    SignalSpy { id: homeFeedbackSpy; signalName: "requested" }
     Component { id: vaultComponent; App.VaultPage { backdrop: feedbackBackdrop } }
     Component {
         id: desktopTopBarHost
@@ -244,6 +246,22 @@ Item {
                     {tag:"android-tablet",component:androidTaskbarHost,width:800},
                     {tag:"android-phone",component:androidTaskbarHost,width:360}]
         }
+        function test_home_feedback_buttons_open_the_requested_form() {
+            const row = createTemporaryObject(homeFeedbackComponent, parent, {width: 860, height: 39});
+            verify(row);
+            homeFeedbackSpy.target = row;
+            homeFeedbackSpy.clear();
+            const bug = findChild(row, "homeReportBug");
+            const feature = findChild(row, "homeRequestFeature");
+            verify(bug && feature);
+            mouseClick(bug);
+            compare(homeFeedbackSpy.count, 1);
+            compare(homeFeedbackSpy.signalArguments[0][1], "bug");
+            feature.forceActiveFocus(Qt.TabFocusReason);
+            keyClick(Qt.Key_Return);
+            compare(homeFeedbackSpy.count, 2);
+            compare(homeFeedbackSpy.signalArguments[1][1], "feature");
+        }
         function test_taskbar_feedback_is_icon_only_and_activates(data) {
             const shell = createTemporaryObject(data.component, parent, {width:data.width, height:800});
             verify(shell);
@@ -252,6 +270,10 @@ Item {
             bar.open = true;
             wait(300);
             const action = findChild(bar, "feedbackEntry");
+            if (data.component === desktopTaskbarHost) {
+                compare(action, null, "Desktop feedback is reached through Home");
+                return;
+            }
             verify(action && action.visible, "Feedback is available in the expanded taskbar");
             compare(action.accessibleName, "Send feedback");
             compare(action.parent.labelled, false, "Feedback stays icon-only");
