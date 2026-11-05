@@ -11,7 +11,6 @@
 // or Enter emits universeRequested with the roster entry; Main routes it to that universe's
 // standard page (openRosterUniverse). The carousel emits tributeRequested for the art page.
 import QtQuick
-import QtQuick.Layouts
 import "UniverseContentApi.js" as UniverseContent
 import "Universes.js" as Universes
 import "SagaApi.js" as Saga
@@ -92,12 +91,22 @@ WorldPage {
 
     // ---- TRIBUTES — the art pages; the second button goes to the same universe's page ----
     FeaturedCarousel {
+        id: tributeCarousel
         objectName: "universesTributeCarousel"
         automationId: "universesTributeCarouselView"
         visible: universes.tributes.length > 0
         kicker: "Tribute"
         primaryLabel: "Enter tribute"
         secondaryLabel: "Browse universe"
+        // Keep vertical navigation on the catalogue sections. The heading action
+        // remains in the Tab chain.
+        Keys.onDownPressed: (event) => {
+            event.accepted = facetBar.visible
+            if (event.accepted) {
+                facetBar.forceActiveFocus(Qt.TabFocusReason)
+                universes.parkRow(facetBar)
+            }
+        }
         slides: universes.tributes.map(function(t) {
             // one button when the Tribute is the universe's only page (Cosmere)
             const slide = { id: t.extensionId, title: t.name, blurb: t.blurb, ghost: "",
@@ -119,55 +128,58 @@ WorldPage {
     }
 
     // ---- the heading, with how many universes the filter is showing ----
-    GridLayout {
+    Item {
         id: heading
         objectName: "universesHeading"
         width: parent.width
-        readonly property bool compact: width < headingLabel.implicitWidth + requestLabel.implicitWidth + countLabel.implicitWidth + 44
-        columns: compact ? 2 : 3
-        columnSpacing: 8
-        rowSpacing: 4
+        height: compact ? headingLabel.height + 4 + headingActions.height
+                        : Math.max(headingLabel.height, headingActions.height)
+        readonly property bool compact: width < headingLabel.implicitWidth + headingActions.width + 16
         Text {
             id: headingLabel
-            Layout.columnSpan: heading.compact ? 2 : 1
-            Layout.fillWidth: heading.compact
+            width: heading.compact ? heading.width : heading.width - headingActions.width - 16
+            y: heading.compact ? 0 : (heading.height - height) / 2
             text: qsTr("Explore Universes")
             wrapMode: Text.WordWrap
             color: theme.ink
             font.family: theme.display
             font.pixelSize: 26
         }
-        Rectangle {
-            Layout.preferredWidth: requestLabel.implicitWidth + 20
-            Layout.preferredHeight: 44
-            radius: 12
-            color: requestAction.interactionActive ? theme.glassHi : theme.glassTint
-            border.color: theme.edge
+        Row {
+            id: headingActions
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            spacing: 8
             Text {
-                id: requestLabel
-                anchors.centerIn: parent
-                text: qsTr("+ Request a Universe")
-                color: theme.ink
+                objectName: "universesCount"
+                anchors.verticalCenter: parent.verticalCenter
+                text: universes.shown.length === 1 ? qsTr("1 universe") : qsTr("%1 universes").arg(universes.shown.length)
+                color: theme.inkDim
                 font.family: theme.ui
                 font.pixelSize: 13
             }
-            KeyboardAction {
-                id: requestAction
-                objectName: "requestUniverse"
-                anchors.fill: parent
-                accessibleName: qsTr("Request a Universe")
-                onTriggered: universes.universeRequestFormRequested(requestAction)
+            Rectangle {
+                width: requestLabel.implicitWidth + 20
+                height: 44
+                radius: 12
+                color: requestAction.interactionActive ? theme.glassHi : theme.glassTint
+                border.color: theme.edge
+                Text {
+                    id: requestLabel
+                    anchors.centerIn: parent
+                    text: qsTr("+ Request a Universe")
+                    color: theme.ink
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                }
+                KeyboardAction {
+                    id: requestAction
+                    objectName: "requestUniverse"
+                    anchors.fill: parent
+                    accessibleName: qsTr("Request a Universe")
+                    onTriggered: universes.universeRequestFormRequested(requestAction)
+                }
             }
-        }
-        Text {
-            id: countLabel
-            objectName: "universesCount"
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignRight
-            text: universes.shown.length === 1 ? qsTr("1 universe") : qsTr("%1 universes").arg(universes.shown.length)
-            color: theme.inkDim
-            font.family: theme.ui
-            font.pixelSize: 13
         }
     }
 
@@ -182,6 +194,13 @@ WorldPage {
         tabModel: universes.facetTabs
         currentTab: universes.facet.length ? universes.facet : "all"
         onTabRequested: (tab) => universes.facet = (tab === "all" ? "" : tab)
+        Keys.onUpPressed: (event) => {
+            event.accepted = tributeCarousel.visible
+            if (event.accepted) {
+                tributeCarousel.focusSlides(Qt.BacktabFocusReason)
+                universes.parkRow(tributeCarousel)
+            }
+        }
         // Down from the strip enters the list. The list is one region far taller than the
         // window, which the page's spatial router cannot land on its own, so the strip
         // hands over by name: bring the top of the list into view, then give it the focus.
