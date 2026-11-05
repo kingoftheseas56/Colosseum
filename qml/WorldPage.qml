@@ -215,7 +215,6 @@ Item {
     signal continueDetailRequested(var item) // Continue tile elsewhere → host opens its detail view
     signal continueSeeAllRequested()         // Continue row's "See all ›" → host opens the scoped backlog page
     signal searchClicked()
-    signal stremioClicked()
     signal trackersClicked()                 // topbar third-party trackers door -> host opens the Sync Center
     property bool trackersActive: false
     signal settingsClicked()
@@ -226,7 +225,7 @@ Item {
     signal minimizeClicked()
     signal powerClicked()
 
-    function focusStremioButton() { topbar.focusStremioButton() }
+    function focusStremioButton() { topbar.focusTrackersButton() }
     function focusTrackersButton() { topbar.focusTrackersButton() }
 
     Theme { id: theme }
@@ -249,7 +248,6 @@ Item {
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
-        onStremioClicked: world.stremioClicked()
         trackersEnabled: true
         trackersActive: world.trackersActive
         onTrackersClicked: world.trackersClicked()
