@@ -11,6 +11,7 @@
 // or Enter emits universeRequested with the roster entry; Main routes it to that universe's
 // standard page (openRosterUniverse). The carousel emits tributeRequested for the art page.
 import QtQuick
+import QtQuick.Layouts
 import "UniverseContentApi.js" as UniverseContent
 import "Universes.js" as Universes
 import "SagaApi.js" as Saga
@@ -33,6 +34,7 @@ WorldPage {
     property var installed: []
     // a banner → the shell: installed entries carry extensionId, curated ones a page
     signal universeRequested(var entry)
+    signal universeRequestFormRequested(Item invoker)
     // the carousel → the shell: the hand-made art page of an installed universe
     signal tributeRequested(var entry)
 
@@ -117,22 +119,55 @@ WorldPage {
     }
 
     // ---- the heading, with how many universes the filter is showing ----
-    Item {
+    GridLayout {
+        id: heading
         objectName: "universesHeading"
         width: parent.width
-        height: 34
+        readonly property bool compact: width < headingLabel.implicitWidth + requestLabel.implicitWidth + countLabel.implicitWidth + 44
+        columns: compact ? 2 : 3
+        columnSpacing: 8
+        rowSpacing: 4
         Text {
-            anchors.left: parent.left; anchors.bottom: parent.bottom
-            text: "Explore Universes"
+            id: headingLabel
+            Layout.columnSpan: heading.compact ? 2 : 1
+            Layout.fillWidth: heading.compact
+            text: qsTr("Explore Universes")
+            wrapMode: Text.WordWrap
             color: theme.ink
-            font.family: theme.display; font.pixelSize: 26
+            font.family: theme.display
+            font.pixelSize: 26
+        }
+        Rectangle {
+            Layout.preferredWidth: requestLabel.implicitWidth + 20
+            Layout.preferredHeight: 44
+            radius: 12
+            color: requestAction.interactionActive ? theme.glassHi : theme.glassTint
+            border.color: theme.edge
+            Text {
+                id: requestLabel
+                anchors.centerIn: parent
+                text: qsTr("+ Request a Universe")
+                color: theme.ink
+                font.family: theme.ui
+                font.pixelSize: 13
+            }
+            KeyboardAction {
+                id: requestAction
+                objectName: "requestUniverse"
+                anchors.fill: parent
+                accessibleName: qsTr("Request a Universe")
+                onTriggered: universes.universeRequestFormRequested(requestAction)
+            }
         }
         Text {
+            id: countLabel
             objectName: "universesCount"
-            anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-            text: universes.shown.length + (universes.shown.length === 1 ? " universe" : " universes")
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignRight
+            text: universes.shown.length === 1 ? qsTr("1 universe") : qsTr("%1 universes").arg(universes.shown.length)
             color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 13
+            font.family: theme.ui
+            font.pixelSize: 13
         }
     }
 

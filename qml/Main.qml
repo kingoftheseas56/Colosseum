@@ -2867,10 +2867,11 @@ Window {
     }
     function closeUpdatePage() { updateLayer.active = false }
     property Item feedbackInvoker: null
-    function openFeedback() {
-        if (win.guardNamedCollectionsNavigation(function() { win.openFeedback() })) return
+    function openFeedback(universeInvoker) {
+        if (win.guardNamedCollectionsNavigation(function() { win.openFeedback(universeInvoker) })) return
         if (feedbackLayer.active) return
-        win.feedbackInvoker = win.activeFocusItem
+        feedbackLayer.universeRequest = !!universeInvoker
+        win.feedbackInvoker = universeInvoker || win.activeFocusItem
         taskbar.open = false
         feedbackLayer.active = true
     }
@@ -4798,6 +4799,7 @@ Window {
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                     // the Universes world: its list is the installed roster plus the archived templates
                     if (item.universeRequested) item.universeRequested.connect(win.openRosterUniverse)
+                    if (item.universeRequestFormRequested) item.universeRequestFormRequested.connect(win.openFeedback)
                     if (item.tributeRequested) item.tributeRequested.connect(win.openTribute)
                     if (item.installed !== undefined) item.installed = Qt.binding(function() { return win.installedUniverses })
                     if (item.collectionOpenRequested) item.collectionOpenRequested.connect(win.openCollectionEntry)
@@ -6071,7 +6073,8 @@ Window {
         z: 950
         active: false
         visible: active
-        source: "FeedbackPanel.qml"
+        property bool universeRequest: false
+        sourceComponent: FeedbackPanel { universeRequest: feedbackLayer.universeRequest }
         onLoaded: {
             item.closeRequested.connect(win.closeFeedback)
             item.minimizeRequested.connect(win.minimizeShell)

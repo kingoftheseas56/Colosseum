@@ -1,8 +1,9 @@
 .pragma library
 
-function pageUrl(version, platform) {
+function pageUrl(version, platform, universeRequest) {
     return "https://getcolosseum.world/feedback/?version=" + encodeURIComponent(version || "")
         + "&platform=" + encodeURIComponent(platform || "")
+        + (universeRequest ? "&mode=universe" : "")
 }
 
 function isDocumentUrl(value) {

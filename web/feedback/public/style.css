@@ -475,6 +475,37 @@ h2 {
 #area-menu [aria-selected="true"] { color: var(--gold); background: #f0c44a14; }
 #area-menu [role="option"]:hover, #area-menu .active { background: #ffffff12; border-color: #ffffff28; }
 #area-menu [aria-selected="true"].active { background: #f0c44a20; border-color: #f0c44a60; }
-@media (max-width: 500px) { .kind-options { flex-wrap: wrap; } .kind { flex: 1 1 42%; } .kind:last-child { flex-basis: 100%; } }
+@media (max-width: 500px) { .kind-options { flex-wrap: wrap; } .kind { flex: 1 1 42%; } }
 
 img[src$="/universes-atom.svg"] { filter: invert(1); opacity: 0.9; }
+
+.universe-request {
+  min-width: 0;
+  background: #14171e;
+}
+.universe-request main { max-width: 560px; padding: 0; }
+.universe-request :is(.masthead, .intro, footer, .kind-field, .general-only) { display: none; }
+.universe-request .layout { display: block; padding: 0; }
+.universe-request .form-panel { padding: 16px; border-radius: 13px; box-shadow: none; }
+.universe-request .field { margin-bottom: 10px; }
+.universe-request .actions { flex-wrap: wrap; }
+#wiki-picker { margin-bottom: 14px; }
+#wiki-results { display: grid; gap: 6px; }
+.wiki-article {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  text-align: left;
+  color: var(--ink);
+  background: #ffffff07;
+  overflow-wrap: anywhere;
+}
+button.wiki-article:hover { background: #ffffff12; }
+.wiki-article :is(strong, span) { display: block; }
+.wiki-article span { margin: 3px 0 0; color: var(--dim); font-size: 12px; }
+.wiki-article .eyebrow { margin: 0 0 5px; color: var(--gold); font-size: 10px; }

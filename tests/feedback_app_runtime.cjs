@@ -105,14 +105,14 @@ function validatePayload(body, expected) {
   assert.deepEqual(Object.keys(body).sort(), ['_email', '_gotcha', 'app_version', 'area', 'message', 'platform', 'reference', 'title', 'type'].sort(), 'Only controlled test fields may leave the app');
   assert.equal(body.title, expected.title);
   assert.equal(body.message, expected.message);
-  assert.equal(body.type, 'Universe request');
+  assert.equal(body.type, 'Feature idea');
   assert.equal(body.area, 'Universes');
   assert.equal(body.platform, expected.platform);
   assert.equal(body.app_version, expected.version);
   assert.match(body.reference, /^[\w-]{1,64}$/);
   assert.equal(Object.hasOwn(body, 'email'), false, 'Anonymous test must omit email');
   assert.equal(body._gotcha, '');
-  assert.deepEqual(body._email, { subject: `[Colosseum] [Universe request] [Universes] ${expected.title}` });
+  assert.deepEqual(body._email, { subject: `[Colosseum] [Feature idea] [Universes] ${expected.title}` });
 }
 
 function isOwnedTelemetry(request) {
@@ -242,7 +242,7 @@ async function main() {
     assert.equal(url.searchParams.get('platform'), { linux: 'linux', darwin: 'osx', win32: 'windows' }[process.platform]);
     assert(url.searchParams.get('version'), 'Actual app version missing');
     expected = { title: `TEST ${process.platform} feedback qualification ${id}`,
-      message: `TEST ONLY: automated ${process.platform} actual-app feedback qualification ${id}. Please disregard this labelled test universe request.`,
+      message: `TEST ONLY: automated ${process.platform} actual-app feedback qualification ${id}. Please disregard this labelled test feature idea.`,
       platform: { linux: 'Linux', darwin: 'macOS', win32: 'Windows' }[process.platform], version: url.searchParams.get('version') };
     cdp = await CDP.connect(target.webSocketDebuggerUrl);
     evidence.browser = await cdp.send('Browser.getVersion');
@@ -291,15 +291,16 @@ async function main() {
     await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Request' }] });
     const domWait = (expression, label) => until(async () => { check(); return cdp.evaluate(expression); }, label);
     await domWait('!!document.querySelector("#send:not(:disabled)")', 'hosted form configuration');
+    assert(await cdp.evaluate(`[...document.querySelectorAll('[name="kind"]')].map(field => field.value).join(",") === "bug,idea"`), 'General feedback has bug and feature categories');
     evidence.stages.realPage = true;
     await cdp.evaluate('document.querySelector("#send").click()');
     await domWait('!!document.querySelector("#title-error")?.textContent && !!document.querySelector("#message-error")?.textContent', 'empty form validation');
     assert.equal(evidence.submissions.length, 0); evidence.stages.emptyValidation = true;
     await cdp.evaluate(`(() => {
-      document.querySelector('[name="kind"][value="universe"]').click();
+      document.querySelector('[name="kind"][value="idea"]').click();
       document.querySelector('#area-trigger').click();
       const option = [...document.querySelectorAll('#area-menu [role="option"]')].find(x => x.textContent.trim() === 'Universes');
-      if (!option) throw Error('Universe category unavailable'); option.click();
+      if (!option) throw Error('Universes area unavailable'); option.click();
       for (const [id, value] of Object.entries(${JSON.stringify({ title: expected.title, message: expected.message, email: '' })})) {
         const field = document.getElementById(id); field.value = value; field.dispatchEvent(new Event('input', { bubbles: true }));
       }
@@ -311,7 +312,7 @@ async function main() {
     evidence.stages.controlled429 = true;
     await screenshot('rate-limit');
     await click('feedbackRefresh');
-    await domWait(`!!document.querySelector('#send:not(:disabled)') && document.querySelector('#title').value === ${JSON.stringify(expected.title)} && document.querySelector('#message').value === ${JSON.stringify(expected.message)} && document.querySelector('[name="kind"]:checked').value === 'universe' && document.querySelector('#area').value === 'Universes'`, 'draft survives real refresh');
+    await domWait(`!!document.querySelector('#send:not(:disabled)') && document.querySelector('#title').value === ${JSON.stringify(expected.title)} && document.querySelector('#message').value === ${JSON.stringify(expected.message)} && document.querySelector('[name="kind"]:checked').value === 'idea' && document.querySelector('#area').value === 'Universes'`, 'draft survives real refresh');
     evidence.stages.draftReload = true;
     phase = 'submit';
     await cdp.evaluate('document.querySelector("#send").click()');

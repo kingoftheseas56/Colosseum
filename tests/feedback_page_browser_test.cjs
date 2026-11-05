@@ -14,6 +14,8 @@ const os = require("node:os");
   let config = JSON.parse(
     await fs.readFile(path.join(root, "config.json"), "utf8"),
   );
+  const headers = await fs.readFile(path.join(root, "_headers"), "utf8");
+  const csp = headers.match(/^\s*Content-Security-Policy:\s*(.+)$/m)[1];
   const types = {
     ".html": "text/html",
     ".mjs": "text/javascript",
@@ -40,6 +42,7 @@ const os = require("node:os");
         "Content-Type",
         types[path.extname(file)] || "application/octet-stream",
       );
+      if (name === "index.html") res.setHeader("Content-Security-Policy", csp);
       res.end(await fs.readFile(file));
     } catch {
       res.writeHead(404).end();
@@ -77,6 +80,28 @@ const os = require("node:os");
         });
       },
     );
+    const lookups = [];
+    await context.route("https://en.wikipedia.org/w/api.php?**", async route => {
+      const request = route.request();
+      const params = new URL(request.url()).searchParams;
+      assert.equal(params.get("origin"), "*");
+      assert.equal(params.get("gsrnamespace"), "0");
+      assert.equal(params.get("explaintext"), "1");
+      assert.match(request.headers()["api-user-agent"], /^ColosseumUniverseRequest/);
+      const query = params.get("gsrsearch");
+      lookups.push(query);
+      if (query === "Slow query") await new Promise(resolve => setTimeout(resolve, 900));
+      const result = { pageid: 1234, index: 1, title: "Example & Co. (franchise)", extract: "A film and game series." };
+      const pages = query === "Name with no article" ? [] : [result, {
+        pageid: 5678, index: 2, title: "Example (disambiguation)", pageprops: { disambiguation: "" },
+      }];
+      await route.fulfill({
+        status: query === "Offline example" ? 503 : 200,
+        json: { query: { pages } },
+      }).catch(error => {
+        if (query !== "Slow query") throw error;
+      });
+    });
     const page = await context.newPage();
     const url = `http://127.0.0.1:${server.address().port}/feedback/?platform=windows&version=1.2.1`;
     await page.goto(url);
@@ -161,14 +186,21 @@ const os = require("node:os");
     );
     await page.click("#area-trigger");
     await page.getByRole("option", { name: "Tankoban", exact: true }).click();
-    await page.getByRole("radio", { name: "Universe request" }).check();
-    assert.equal(await page.locator("#title").getAttribute("placeholder"), "Name the universe or franchise");
-    assert.equal(await page.locator("#message-label").textContent(), "Which universe would you like to explore?");
+    assert.equal(await page.getByRole("radio").count(), 2);
     await page.fill("#title", "Keep this draft");
     await page.fill(
       "#message",
       "Please add a way to organize my series by language.",
     );
+    await page.evaluate(() => {
+      const key = "colosseum-feedback-v1";
+      const draft = JSON.parse(localStorage.getItem(key));
+      localStorage.setItem(key, JSON.stringify({ ...draft, kind: "universe" }));
+    });
+    await page.reload();
+    await page.locator("#send:enabled").waitFor();
+    assert.equal(await page.inputValue("#title"), "Keep this draft");
+    assert.equal(await page.getByRole("radio", { name: "Suggest a feature" }).isChecked(), true);
     status = 402;
     await page.click("#send");
     await page.getByText(/reached its capacity/).waitFor();
@@ -179,7 +211,7 @@ const os = require("node:os");
       await page.inputValue("#message"),
       "Please add a way to organize my series by language.",
     );
-    assert.equal(await page.getByRole("radio", { name: "Universe request" }).isChecked(), true);
+    assert.equal(await page.getByRole("radio", { name: "Suggest a feature" }).isChecked(), true);
     assert.equal(await page.locator("#area-value").textContent(), "Tankoban");
     config = {
       provider: "web3forms",
@@ -202,9 +234,9 @@ const os = require("node:os");
     assert.equal(requests.length, 3);
     assert.equal(requests[0].body.reference, requests[2].body.reference);
     assert.equal(requests[0].body._email.subject, requests[2].body.subject);
-    assert.match(requests[2].body.subject, /\[Universe request\] \[Tankoban\]/);
+    assert.match(requests[2].body.subject, /\[Feature idea\] \[Tankoban\]/);
     assert.equal(Object.hasOwn(requests[2].body, "email"), false);
-    for (const request of requests) assert.equal(request.body.type, "Universe request");
+    for (const request of requests) assert.equal(request.body.type, "Feature idea");
     await page.click("#another");
     assert.equal(await page.getByRole("radio", { name: "Report a bug" }).isChecked(), true);
     assert.equal(await page.locator("#area-value").textContent(), "General / I’m not sure");
@@ -214,9 +246,54 @@ const os = require("node:os");
       await page.locator("#platform-icon").evaluate(img => img.decode());
       assert.equal(await page.locator("#platform-icon").evaluate(img => img.naturalWidth > 0), true);
     }
+    config = { provider: "formspark", formEndpoint: "https://submit-form.com/test-form" };
+    await page.goto(url + "&mode=universe");
+    assert.equal(await page.getByRole("radio").count(), 0);
+    assert.equal(await page.getByLabel("Franchise name").isVisible(), true);
+    assert.equal(await page.getByRole("button", { name: "Send typed name" }).isDisabled(), true);
+    await page.fill("#title", "Slow query");
+    await page.waitForRequest(request => request.url().includes("gsrsearch=Slow+query"));
+    await page.fill("#title", "Example & Co.");
+    await page.getByRole("button", { name: /Example & Co. \(franchise\)/ }).click();
+    await page.locator("#wiki-selected:visible").waitFor();
+    await page.reload();
+    await page.locator("#wiki-selected:visible").waitFor();
+    assert.equal(await page.locator("#wiki-title").textContent(), "Example & Co. (franchise)");
+    assert.deepEqual(lookups, ["Slow query", "Example & Co."]);
+    status = 402;
+    await page.getByRole("button", { name: "Send request" }).click();
+    await page.getByText(/reached its capacity/).waitFor();
+    assert.equal(await page.locator("#success").isVisible(), false);
+    assert.equal(await page.inputValue("#title"), "Example & Co.");
+    assert.equal(await page.locator("#wiki-selected").isVisible(), true);
+    status = 200;
+    await page.getByRole("button", { name: "Send request" }).click();
+    await page.locator("#success:not([hidden])").waitFor();
+    const article = requests.at(-1).body;
+    assert.equal(article.type, "Universe request");
+    assert.equal(article.area, "Universes");
+    assert.equal(article.platform, "Windows");
+    assert.equal(article.app_version, "1.2.1");
+    assert.equal(article.title, "Example & Co. (franchise)");
+    assert.equal(article.wikipedia_page_id, 1234);
+    assert.equal(article.wikipedia_url, "https://en.wikipedia.org/wiki/Example_%26_Co._(franchise)");
+    assert.equal(article.reference, requests.at(-2).body.reference);
+    await page.click("#another");
+    await page.fill("#title", "Name with no article");
+    await page.getByText(/No matching articles/).waitFor();
+    await page.fill("#title", "Offline example");
+    await page.getByText(/Wikipedia lookup is unavailable/).waitFor();
+    await page.getByRole("button", { name: "Send typed name" }).click();
+    await page.locator("#success:not([hidden])").waitFor();
+    const manual = requests.at(-1).body;
+    assert.equal(manual.type, "Universe request");
+    assert.equal(manual.title, "Offline example");
+    assert.equal(Object.hasOwn(manual, "wikipedia_url"), false);
+    assert.equal(Object.hasOwn(manual, "wikipedia_page_id"), false);
+    assert.equal(await page.evaluate(() => localStorage.getItem("colosseum-universe-request-v1")), null);
     assert.deepEqual(errors, []);
     console.log(
-      "PASS feedback page: desktop/mobile layouts, glass menu mouse/keyboard/focus/closing, icons, universe drafts, quota failure, backend switch, provider rejection and accepted submission. All sends intercepted locally.",
+      "PASS feedback page: desktop/mobile layouts, glass menu mouse/keyboard/focus/closing, icons, legacy draft migration, quota failure, backend switch, provider rejection, and Universe lookup/selection/manual submission. All external requests intercepted locally.",
     );
     console.log(`Screenshots: ${screenshots}`);
     await context.close();
