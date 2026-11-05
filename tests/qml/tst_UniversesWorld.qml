@@ -31,7 +31,6 @@ Item {
             compare(world.shown.length, 20)
             verify(!world.shown.some(function(e) { return e.name === "Cosmere" }), "Cosmere is a Tribute only")
             compare(world.tributes.length, 4)
-            compare(findChild(world, "universesCount").text, "20 universes")
         }
         function test_bannerIsAPortalWithItsMarkAndAboutCopy() {
             const ledger = findChild(world, "universesLedger")
@@ -75,7 +74,6 @@ Item {
             compare(world.facet, "manga")
             compare(world.shown.map(function(e) { return e.name }).join("|"),
                     "Attack on Titan|Dragon Ball|Naruto|One Piece|Weekly Shonen Jump")
-            compare(findChild(world, "universesCount").text, "5 universes")
             // a tab is what a universe PRIMARILY is: Avatar holds novels but is a series
             strip.tabRequested("books")
             compare(world.shown.map(function(e) { return e.name }).join("|"),

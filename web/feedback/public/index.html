@@ -66,10 +66,9 @@
                     >Suggest a feature</span
                   ></label
                 >
-                <label class="kind"><input type="radio" name="kind" value="universe" /><span><img src="./assets/universes-atom.svg" alt="" width="19" height="19" />Universe request</span></label>
               </div>
             </fieldset>
-            <div class="field">
+            <div class="field general-only">
               <label id="area-label" for="area-trigger"
                 >Where in Colosseum?
                 <span class="optional">optional</span></label
@@ -88,7 +87,7 @@
               </select>
             </div>
             <div class="field">
-              <label for="title">Give it a short title</label
+              <label id="title-label" for="title">Give it a short title</label
               ><input
                 id="title"
                 name="title"
@@ -99,7 +98,19 @@
               />
               <p class="field-error" id="title-error"></p>
             </div>
-            <div class="field">
+            <section id="wiki-picker" hidden aria-label="Wikipedia article lookup">
+              <p id="wiki-status" class="hint" role="status">Type a name to find articles on English Wikipedia.</p>
+              <div id="wiki-results"></div>
+              <div id="wiki-selected" class="wiki-article" hidden>
+                <div>
+                  <span class="eyebrow">Selected Wikipedia article</span>
+                  <strong id="wiki-title"></strong>
+                  <span id="wiki-preview"></span>
+                </div>
+                <button id="wiki-clear" type="button" class="secondary">Change</button>
+              </div>
+            </section>
+            <div class="field general-only">
               <label for="message" id="message-label">What happened?</label>
               <p class="hint" id="message-hint">
                 Tell us what you were doing, what you expected, and what
@@ -119,7 +130,7 @@
                 <span id="character-count">0 / 6,000</span>
               </div>
             </div>
-            <div class="field">
+            <div class="field general-only">
               <label for="email"
                 >Email <span class="optional">optional</span></label
               ><input

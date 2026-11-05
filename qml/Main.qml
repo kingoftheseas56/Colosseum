@@ -2867,15 +2867,28 @@ Window {
     }
     function closeUpdatePage() { updateLayer.active = false }
     property Item feedbackInvoker: null
-    function openFeedback() {
-        if (win.guardNamedCollectionsNavigation(function() { win.openFeedback() })) return
-        if (feedbackLayer.active) return
-        win.feedbackInvoker = win.activeFocusItem
+    function openFeedback(universeInvoker) {
+        if (win.guardNamedCollectionsNavigation(function() { win.openFeedback(universeInvoker) })) return
+        if (feedbackLayer.active || feedbackLayer.capturingBackdrop) return
+        feedbackLayer.universeRequest = !!universeInvoker
+        win.feedbackInvoker = universeInvoker || win.activeFocusItem
+        if (feedbackLayer.desktopUniverse) {
+            feedbackLayer.capturingBackdrop = true
+            if (win.contentItem.grabToImage(function(result) {
+                feedbackLayer.capturingBackdrop = false
+                feedbackLayer.backdrop = result
+                feedbackLayer.active = true
+            })) return
+            feedbackLayer.capturingBackdrop = false
+            feedbackLayer.active = true
+            return
+        }
         taskbar.open = false
         feedbackLayer.active = true
     }
     function closeFeedback() {
         feedbackLayer.active = false
+        feedbackLayer.backdrop = null
         const invoker = win.feedbackInvoker
         win.feedbackInvoker = null
         Qt.callLater(function() {
@@ -4798,6 +4811,7 @@ Window {
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                     // the Universes world: its list is the installed roster plus the archived templates
                     if (item.universeRequested) item.universeRequested.connect(win.openRosterUniverse)
+                    if (item.universeRequestFormRequested) item.universeRequestFormRequested.connect(win.openFeedback)
                     if (item.tributeRequested) item.tributeRequested.connect(win.openTribute)
                     if (item.installed !== undefined) item.installed = Qt.binding(function() { return win.installedUniverses })
                     if (item.collectionOpenRequested) item.collectionOpenRequested.connect(win.openCollectionEntry)
@@ -6071,7 +6085,17 @@ Window {
         z: 950
         active: false
         visible: active
-        source: "FeedbackPanel.qml"
+        property bool universeRequest: false
+        readonly property bool desktopUniverse: universeRequest && Qt.platform.os !== "android"
+        property bool capturingBackdrop: false
+        property var backdrop: null
+        sourceComponent: FeedbackPanel {
+            universeRequest: feedbackLayer.universeRequest
+            desktopUniverse: feedbackLayer.desktopUniverse
+            backdropUrl: feedbackLayer.backdrop ? feedbackLayer.backdrop.url : ""
+            availableUniverses: desktopUniverse && win.feedbackInvoker
+                                ? win.feedbackInvoker.availableUniverses : []
+        }
         onLoaded: {
             item.closeRequested.connect(win.closeFeedback)
             item.minimizeRequested.connect(win.minimizeShell)

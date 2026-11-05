@@ -28,6 +28,11 @@ Item {
     }
     property var keyboardSectionCoordinator: _findKeyboardSectionCoordinator()
 
+    function focusSlides(reason) {
+        const target = car.televisionMode ? car : view
+        target.forceActiveFocus(reason)
+    }
+
     property alias index: view.currentIndex
     width: parent ? parent.width : 800
     AdaptiveLayout { id: adaptive; viewportWidth: car.width }

@@ -11,6 +11,7 @@ Item {
     Component {
         id: coveredShellComponent
         Item {
+            property bool universeRequest: false
             property int underlyingClicks: 0
             property int underlyingWheels: 0
             MouseArea {
@@ -23,11 +24,13 @@ Item {
             }
             App.FeedbackPanel {
                 objectName: "coveredFeedbackPanel"
+                universeRequest: parent.universeRequest
                 anchors.fill: parent
                 browserSource: Qt.resolvedUrl("MockBrowser.qml")
             }
         }
     }
+    Component { id: universeWorldComponent; App.UniversesWorld { backdrop: feedbackBackdrop } }
     Component { id: vaultComponent; App.VaultPage { backdrop: feedbackBackdrop } }
     Component {
         id: desktopTopBarHost
@@ -68,6 +71,7 @@ Item {
     SignalSpy { id: fullscreenSpy; signalName: "fullscreenRequested" }
     SignalSpy { id: quitSpy; signalName: "quitRequested" }
     SignalSpy { id: feedbackSpy; signalName: "feedbackClicked" }
+    SignalSpy { id: universeRequestSpy; signalName: "universeRequestFormRequested" }
     SignalSpy { id: trackerSpy; signalName: "trackersClicked" }
 
     TestCase {
@@ -103,6 +107,53 @@ Item {
             tryVerify(function() { return loader.status === Loader.Ready && loader.item !== firstBrowser }, 1000,
                       "The foreground Refresh control still reloads the mock browser");
             compare(shell.underlyingClicks, 0);
+        }
+
+        function test_universe_request_invoker_is_accessible() {
+            const world = createTemporaryObject(universeWorldComponent, parent, {width:360, height:740});
+            verify(world);
+            const action = findChild(world, "requestUniverse");
+            const heading = findChild(world, "universesHeading");
+            verify(action && heading);
+            wait(0);
+            verify(action.width > 0 && heading.height >= action.height);
+            const point = action.mapToItem(heading, 0, 0);
+            verify(point.x >= 0 && point.x + action.width <= heading.width);
+            universeRequestSpy.target = world;
+            action.forceActiveFocus();
+            keyClick(Qt.Key_Return);
+            compare(universeRequestSpy.count, 1);
+            compare(universeRequestSpy.signalArguments[0][0], action);
+        }
+
+        function test_universe_request_stays_centered_and_blocks_catalogue() {
+            const shell = createTemporaryObject(coveredShellComponent, parent, {width:360, height:740, universeRequest:true});
+            verify(shell);
+            const panel = findChild(shell, "coveredFeedbackPanel");
+            wait(0);
+            const surface = findChild(panel, "feedbackSurface");
+            const loader = findChild(panel, "feedbackBrowserLoader");
+            tryCompare(loader, "status", Loader.Ready);
+            verify(loader.item.pageUrl.toString().endsWith("&mode=universe"));
+            verify(surface.width < panel.width && surface.height < panel.height);
+            compare(surface.x, (panel.width - surface.width) / 2);
+            compare(surface.y, (panel.height - surface.height) / 2);
+            verify(loader.x > 0 && loader.x + loader.width < surface.width);
+            verify(loader.y > 0 && loader.y + loader.height < surface.height);
+            mouseClick(panel, 3, 3);
+            mouseWheel(panel, 3, 3, 0, 120);
+            compare(shell.underlyingClicks, 0);
+            compare(shell.underlyingWheels, 0);
+            closeSpy.target = panel; closeSpy.clear();
+            const close = findChild(panel, "universeRequestClose");
+            verify(close.visible);
+            mouseClick(close);
+            compare(closeSpy.count, 1);
+            close.forceActiveFocus();
+            keyClick(Qt.Key_Escape);
+            compare(closeSpy.count, 2);
+            keyClick(Qt.Key_Back);
+            compare(closeSpy.count, 3);
         }
 
         function test_panel_data() {

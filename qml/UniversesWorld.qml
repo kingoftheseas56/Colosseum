@@ -33,6 +33,7 @@ WorldPage {
     property var installed: []
     // a banner → the shell: installed entries carry extensionId, curated ones a page
     signal universeRequested(var entry)
+    signal universeRequestFormRequested(Item invoker)
     // the carousel → the shell: the hand-made art page of an installed universe
     signal tributeRequested(var entry)
 
@@ -90,12 +91,22 @@ WorldPage {
 
     // ---- TRIBUTES — the art pages; the second button goes to the same universe's page ----
     FeaturedCarousel {
+        id: tributeCarousel
         objectName: "universesTributeCarousel"
         automationId: "universesTributeCarouselView"
         visible: universes.tributes.length > 0
         kicker: "Tribute"
         primaryLabel: "Enter tribute"
         secondaryLabel: "Browse universe"
+        // Keep vertical navigation on the catalogue sections. The heading action
+        // remains in the Tab chain.
+        Keys.onDownPressed: (event) => {
+            event.accepted = facetBar.visible
+            if (event.accepted) {
+                facetBar.forceActiveFocus(Qt.TabFocusReason)
+                universes.parkRow(facetBar)
+            }
+        }
         slides: universes.tributes.map(function(t) {
             // one button when the Tribute is the universe's only page (Cosmere)
             const slide = { id: t.extensionId, title: t.name, blurb: t.blurb, ghost: "",
@@ -116,23 +127,63 @@ WorldPage {
         }
     }
 
-    // ---- the heading, with how many universes the filter is showing ----
+    // ---- the catalogue heading and request button ----
     Item {
+        id: heading
         objectName: "universesHeading"
         width: parent.width
-        height: 34
+        height: compact ? headingLabel.height + 4 + headingActions.height
+                        : Math.max(headingLabel.height, headingActions.height)
+        readonly property bool compact: width < headingLabel.implicitWidth + headingActions.width + 16
         Text {
-            anchors.left: parent.left; anchors.bottom: parent.bottom
-            text: "Explore Universes"
+            id: headingLabel
+            width: heading.compact ? heading.width : heading.width - headingActions.width - 16
+            y: heading.compact ? 0 : (heading.height - height) / 2
+            text: qsTr("Explore Universes")
+            wrapMode: Text.WordWrap
             color: theme.ink
-            font.family: theme.display; font.pixelSize: 26
+            font.family: theme.display
+            font.pixelSize: 26
         }
-        Text {
-            objectName: "universesCount"
-            anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-            text: universes.shown.length + (universes.shown.length === 1 ? " universe" : " universes")
-            color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 13
+        Row {
+            id: headingActions
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            Rectangle {
+                width: requestLabel.width + 36
+                height: 44
+                radius: 12
+                color: requestAction.interactionActive ? "#ac171717" : "#70242323"
+                border.color: "#99f0c44a"
+                Row {
+                    id: requestLabel
+                    anchors.centerIn: parent
+                    spacing: 10
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "+"
+                        color: theme.gold
+                        font.family: theme.ui
+                        font.pixelSize: 22
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: qsTr("Request a Universe")
+                        color: theme.gold
+                        font.family: theme.ui
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                    }
+                }
+                KeyboardAction {
+                    id: requestAction
+                    objectName: "requestUniverse"
+                    readonly property var availableUniverses: universes.roster.map(entry => entry.name)
+                    anchors.fill: parent
+                    accessibleName: qsTr("Request a Universe")
+                    onTriggered: universes.universeRequestFormRequested(requestAction)
+                }
+            }
         }
     }
 
@@ -147,6 +198,13 @@ WorldPage {
         tabModel: universes.facetTabs
         currentTab: universes.facet.length ? universes.facet : "all"
         onTabRequested: (tab) => universes.facet = (tab === "all" ? "" : tab)
+        Keys.onUpPressed: (event) => {
+            event.accepted = tributeCarousel.visible
+            if (event.accepted) {
+                tributeCarousel.focusSlides(Qt.BacktabFocusReason)
+                universes.parkRow(tributeCarousel)
+            }
+        }
         // Down from the strip enters the list. The list is one region far taller than the
         // window, which the page's spatial router cannot land on its own, so the strip
         // hands over by name: bring the top of the list into view, then give it the focus.
