@@ -126,6 +126,9 @@ test("native page route rejects other sites and documents", () => {
   const universe = new URL(scope.pageUrl("1.2.1", "android", true));
   assert.equal(universe.searchParams.get("mode"), "universe");
   assert.equal(scope.isDocumentUrl(universe), true);
+  const desktopUniverse = new URL(scope.pageUrl("1.2.1", "windows", true, true));
+  assert.equal(desktopUniverse.pathname, "/feedback/universe");
+  assert.equal(scope.isDocumentUrl(desktopUniverse), true);
   for (const url of [
     "https://evil.example/feedback/",
     "https://getcolosseum.world/feedback/../",
