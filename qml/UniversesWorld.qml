@@ -145,44 +145,24 @@ WorldPage {
             font.family: theme.display
             font.pixelSize: 26
         }
-        Row {
+        FeedbackActionButton {
             id: headingActions
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            Rectangle {
-                width: requestLabel.width + 36
-                height: 44
-                radius: 12
-                color: requestAction.interactionActive ? "#ac171717" : "#70242323"
-                border.color: "#99f0c44a"
-                Row {
-                    id: requestLabel
-                    anchors.centerIn: parent
-                    spacing: 10
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "+"
-                        color: theme.gold
-                        font.family: theme.ui
-                        font.pixelSize: 22
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: qsTr("Request a Universe")
-                        color: theme.gold
-                        font.family: theme.ui
-                        font.pixelSize: 14
-                        font.weight: Font.DemiBold
-                    }
-                }
-                KeyboardAction {
-                    id: requestAction
-                    objectName: "requestUniverse"
-                    readonly property var availableUniverses: universes.roster.map(entry => entry.name)
-                    anchors.fill: parent
-                    accessibleName: qsTr("Request a Universe")
-                    onTriggered: universes.universeRequestFormRequested(requestAction)
-                }
+            backdrop: universes.backdrop
+            track: universes.viewportContentY
+            compact: universes.width <= 740
+            label: qsTr("Request a Universe")
+            iconSource: "../assets/icons/universes-atom.svg"
+            highlighted: requestAction.interactionActive
+            KeyboardAction {
+                id: requestAction
+                objectName: "requestUniverse"
+                readonly property var availableUniverses: universes.roster.map(entry => entry.name)
+                anchors.fill: parent
+                accessibleName: headingActions.label
+                focusRadius: 10
+                onTriggered: universes.universeRequestFormRequested(requestAction)
             }
         }
     }
