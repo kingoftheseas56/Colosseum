@@ -6,6 +6,7 @@ Item {
     id: root
     property url pageUrl: ""
     property bool universeDialog: false
+    property bool transparentDialog: false
     property var availableUniverses: []
     property bool loading: false
     property string errorText: ""
@@ -40,7 +41,7 @@ Item {
         objectName: "feedbackWebDocument"
         anchors.fill: parent
         visible: root.errorText.length === 0
-        backgroundColor: root.universeDialog ? "transparent" : "#08090d"
+        backgroundColor: root.transparentDialog ? "transparent" : "#08090d"
         settings.javascriptCanOpenWindows: false
         settings.localContentCanAccessFileUrls: false
         settings.localContentCanAccessRemoteUrls: false
@@ -51,7 +52,8 @@ Item {
                 Qt.openUrlExternally(request.url)
         }
         onUrlChanged: {
-            if (root.universeDialog && String(url) === String(root.pageUrl) + "#close-universe")
+            const closeHash = root.universeDialog ? "#close-universe" : "#close-feedback"
+            if (root.transparentDialog && String(url) === String(root.pageUrl) + closeHash)
                 root.closeRequested()
         }
         onLoadingChanged: function(info) {

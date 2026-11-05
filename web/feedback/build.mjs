@@ -42,6 +42,7 @@ const wikiName = await versionAsset("universe-wiki.mjs", await readFile(path.joi
 for (const [page, script, stylesheet] of [
   ["index.html", "feedback.mjs", "style.css"],
   ["universe.html", "universe.mjs", "universe.css"],
+  ["report.html", "report.mjs", "report.css"],
 ]) {
   const module = (await readFile(path.join(output, script), "utf8"))
     .replace('"./feedback-core.mjs"', `"./${coreName}"`)

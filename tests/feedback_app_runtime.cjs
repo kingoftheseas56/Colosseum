@@ -106,13 +106,13 @@ function validatePayload(body, expected) {
   assert.equal(body.title, expected.title);
   assert.equal(body.message, expected.message);
   assert.equal(body.type, 'Feature idea');
-  assert.equal(body.area, 'Universes');
+  assert.equal(body.area, 'General');
   assert.equal(body.platform, expected.platform);
   assert.equal(body.app_version, expected.version);
   assert.match(body.reference, /^[\w-]{1,64}$/);
   assert.equal(Object.hasOwn(body, 'email'), false, 'Anonymous test must omit email');
   assert.equal(body._gotcha, '');
-  assert.deepEqual(body._email, { subject: `[Colosseum] [Feature idea] [Universes] ${expected.title}` });
+  assert.deepEqual(body._email, { subject: `[Colosseum] [Feature idea] [General] ${expected.title}` });
 }
 
 function isOwnedTelemetry(request) {
@@ -207,33 +207,18 @@ async function main() {
       await until(async () => !(await get('accountHost', ['visible'])).visible, 'local-only onboarding');
     }
     evidence.stages.boot = true;
-    if (!(await get('colosseumTaskbar', ['open'])).open) await click('colosseumTaskbarHomeButton');
-    await until(async () => (await get('colosseumTaskbar', ['open'])).open === true, 'actual taskbar opens');
-    await delay(500); // The production dock width transition lasts 240 ms.
-    const dock = await command(address, 'ui-query', { object: 'taskbarDock' });
-    const feedback = await command(address, 'ui-query', { object: 'feedbackEntry' });
-    const cx = feedback.rect.x + feedback.rect.width / 2;
-    const cy = feedback.rect.y + feedback.rect.height / 2;
-    assert(feedback.visible && feedback.enabled && feedback.rect.width > 0 && feedback.rect.height > 0,
-      'Feedback is unavailable in the taskbar');
-    assert(cx >= dock.rect.x && cx <= dock.rect.x + dock.rect.width &&
-      cy >= dock.rect.y && cy <= dock.rect.y + dock.rect.height,
-      'Feedback is outside the taskbar dock');
-    evidence.taskbar = { dock, feedback };
-    const dockShot = await command(address, 'get-state', { grab: { target: 'window' } });
-    assert(dockShot.grabPath && fs.existsSync(dockShot.grabPath), 'Taskbar screenshot unavailable');
-    fs.copyFileSync(dockShot.grabPath, path.join(args.output, 'taskbar-feedback-app.png'));
-    evidence.taskbar.windowState = dockShot.windows;
-    evidence.stages.feedbackTaskbar = true;
-    await click('feedbackEntry');
-    await until(async () => (await get('feedbackLayer', ['active'])).active, 'real feedback layer');
-    assert.equal((await get('colosseumTaskbar', ['open'])).open, false, 'Feedback closes the taskbar');
+    const feature = await command(address, 'ui-query', { object: 'homeRequestFeature' });
+    assert(feature.visible && feature.enabled && feature.rect.width > 0 && feature.rect.height > 0,
+      'The Home feature request button is unavailable');
+    evidence.homeFeedback = feature;
+    await click('homeRequestFeature');
+    await until(async () => (await get('feedbackLayer', ['active'])).active, 'real feedback popup');
     const target = await until(async () => {
       check();
       const list = await (await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(3000) })).json();
       return list.find(t => {
         if (t.type !== 'page') return false;
-        try { const url = new URL(t.url); return url.origin === 'https://getcolosseum.world' && url.pathname === '/feedback/'; }
+        try { const url = new URL(t.url); return url.origin === 'https://getcolosseum.world' && url.pathname === '/feedback/report' && url.searchParams.get('kind') === 'feature'; }
         catch { return false; }
       });
     }, 'owned QtWebEngine target');
@@ -290,52 +275,44 @@ async function main() {
     // All request-stage POSTs in this owned page are paused before leaving Qt.
     await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Request' }] });
     const domWait = (expression, label) => until(async () => { check(); return cdp.evaluate(expression); }, label);
-    await domWait('!!document.querySelector("#send:not(:disabled)")', 'hosted form configuration');
-    assert(await cdp.evaluate(`[...document.querySelectorAll('[name="kind"]')].map(field => field.value).join(",") === "bug,idea"`), 'General feedback has bug and feature categories');
+    await domWait('!!document.querySelector("dialog[open]")', 'hosted feedback dialog');
+    assert.equal(await cdp.evaluate('document.querySelector("#dialog-title").textContent'), 'Feature Request');
+    assert(await cdp.evaluate('document.querySelector("#submit").disabled'), 'Empty feedback cannot be sent');
     evidence.stages.realPage = true;
-    await cdp.evaluate('document.querySelector("#send").click()');
-    await domWait('!!document.querySelector("#title-error")?.textContent && !!document.querySelector("#message-error")?.textContent', 'empty form validation');
     assert.equal(evidence.submissions.length, 0); evidence.stages.emptyValidation = true;
     await cdp.evaluate(`(() => {
-      document.querySelector('[name="kind"][value="idea"]').click();
-      document.querySelector('#area-trigger').click();
-      const option = [...document.querySelectorAll('#area-menu [role="option"]')].find(x => x.textContent.trim() === 'Universes');
-      if (!option) throw Error('Universes area unavailable'); option.click();
-      for (const [id, value] of Object.entries(${JSON.stringify({ title: expected.title, message: expected.message, email: '' })})) {
+      for (const [id, value] of Object.entries(${JSON.stringify({ summary: expected.title, description: expected.message })})) {
         const field = document.getElementById(id); field.value = value; field.dispatchEvent(new Event('input', { bubbles: true }));
       }
     })()`);
-    await cdp.evaluate('document.querySelector("#send").click()');
-    await domWait('document.querySelector("#status").textContent.includes("Too many attempts")', 'controlled 429');
+    await domWait('!!document.querySelector("#submit:not(:disabled)")', 'hosted form configuration');
+    await cdp.evaluate('document.querySelector("#submit").click()');
+    await domWait('document.querySelector("#submission-status").textContent.includes("Too many attempts")', 'controlled 429');
     assert.equal(evidence.realPosts, 0); assert.equal(evidence.submissions.length, 1);
     const reference = evidence.submissions[0].payload.reference;
     evidence.stages.controlled429 = true;
     await screenshot('rate-limit');
-    await click('feedbackRefresh');
-    await domWait(`!!document.querySelector('#send:not(:disabled)') && document.querySelector('#title').value === ${JSON.stringify(expected.title)} && document.querySelector('#message').value === ${JSON.stringify(expected.message)} && document.querySelector('[name="kind"]:checked').value === 'idea' && document.querySelector('#area').value === 'Universes'`, 'draft survives real refresh');
+    await cdp.send('Page.reload');
+    await domWait(`!!document.querySelector('#submit:not(:disabled)') && document.querySelector('#summary').value === ${JSON.stringify(expected.title)} && document.querySelector('#description').value === ${JSON.stringify(expected.message)}`, 'draft survives real refresh');
     evidence.stages.draftReload = true;
     phase = 'submit';
-    await cdp.evaluate('document.querySelector("#send").click()');
+    await cdp.evaluate('document.querySelector("#submit").click()');
     await domWait('!!document.querySelector("#success:not([hidden])")', 'submission success');
     check(); assert.equal(evidence.submissions.length, 2);
     assert.equal(evidence.submissions[1].payload.reference, reference);
-    assert((await cdp.evaluate('document.querySelector("#reference").textContent')).includes(reference));
     if (args.live) {
       assert.equal(evidence.realPosts, 1);
       await until(() => evidence.submissions[1].response, 'provider HTTP response');
       assert(evidence.submissions[1].response.status >= 200 && evidence.submissions[1].response.status < 300);
     }
-    assert.equal(await cdp.evaluate('localStorage.getItem("colosseum-feedback-v1")'), null);
+    assert.equal(await cdp.evaluate('localStorage.getItem("colosseum-home-feedback-feature-v1")'), null);
     evidence.stages.success = true;
     await screenshot('success');
     phase = 'closed';
-    await click('feedbackBack');
-    await until(async () => !(await get('feedbackLayer', ['active'])).active, 'feedback Back');
+    await cdp.evaluate('document.querySelector("#back-home").click()').catch(() => {});
+    await until(async () => !(await get('feedbackLayer', ['active'])).active, 'feedback Back to Home');
     cdp.socket.close(); cdp = null;
-    if (!(await get('colosseumTaskbar', ['open'])).open) await click('colosseumTaskbarHomeButton');
-    await until(async () => (await get('colosseumTaskbar', ['open'])).open, 'taskbar opens for feedback reopen');
-    await delay(300);
-    await click('feedbackEntry');
+    await click('homeRequestFeature');
     await until(async () => (await get('feedbackLayer', ['active'])).active, 'feedback reopen');
     const reopened = await until(async () => {
       check();
@@ -353,16 +330,12 @@ async function main() {
       })().catch(error => { interceptionError = error; });
     });
     await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Request' }] });
-    await domWait('!!document.querySelector("#send:not(:disabled)") && document.querySelector("#title").value === "" && document.querySelector("#message").value === ""', 'reopened form has no submitted draft');
-    evidence.controls = {};
-    for (const name of ['feedbackBack', 'feedbackWindowMinimize', 'feedbackWindowFullscreen', 'feedbackWindowQuit']) {
-      const item = await command(address, 'ui-query', { object: name });
-      assert(item.visible && item.enabled && !item.clippedByWindow && item.rect.width > 0 && item.rect.height > 0, `Window control unavailable: ${name}`);
-      evidence.controls[name] = item;
-    }
-    evidence.stages.backReopen = true; evidence.stages.windowControlsGeometry = true;
+    await domWait('!!document.querySelector("dialog[open]") && document.querySelector("#summary").value === "" && document.querySelector("#description").value === ""', 'reopened form has no submitted draft');
+    await cdp.evaluate('document.querySelector("#cancel").click()').catch(() => {});
+    await until(async () => !(await get('feedbackLayer', ['active'])).active, 'Cancel returns to Home');
+    evidence.stages.backReopen = true;
     check(); assert.equal(evidence.submissions.length, 2);
-    await click('feedbackWindowQuit');
+    await command(address, 'ui-keypress', { key: 'Ctrl+Q' });
     assert.equal(await Promise.race([exited, delay(30000).then(() => { throw Error('Normal quit timed out'); })]), 0);
     evidence.stages.cleanExit = true;
     evidence.status = 'PASS';
