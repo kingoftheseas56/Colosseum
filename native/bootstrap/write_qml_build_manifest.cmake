@@ -25,8 +25,23 @@ foreach(relative IN LISTS qml_files)
 endforeach()
 
 string(SHA256 qml_tree_sha256 "${material}")
+set(manifest_contents "schema=1\nqmlTreeSha256=${qml_tree_sha256}\n")
+
+# Fast source launches verify the build-aligned QML tree without refreshing the
+# manifest. Only a successful native build may update that manifest.
+if(VERIFY_ONLY)
+    if(NOT EXISTS "${OUTPUT_FILE}")
+        message(FATAL_ERROR "QML build manifest missing. Run launch.bat --build.")
+    endif()
+    file(READ "${OUTPUT_FILE}" built_manifest_contents)
+    if(NOT built_manifest_contents STREQUAL manifest_contents)
+        message(FATAL_ERROR "QML source differs from the last build. Run launch.bat --build.")
+    endif()
+    message(STATUS "QML build manifest matches the current source tree")
+    return()
+endif()
+
 get_filename_component(output_dir "${OUTPUT_FILE}" DIRECTORY)
 file(MAKE_DIRECTORY "${output_dir}")
-file(WRITE "${OUTPUT_FILE}"
-    "schema=1\nqmlTreeSha256=${qml_tree_sha256}\n")
+file(WRITE "${OUTPUT_FILE}" "${manifest_contents}")
 message(STATUS "QML build manifest: ${qml_tree_sha256}")
