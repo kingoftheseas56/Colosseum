@@ -5,6 +5,7 @@ const dialog = byId("feedback-dialog");
 const form = byId("feedback-form");
 const summary = byId("summary");
 const description = byId("description");
+const email = byId("email");
 const details = byId("more-details");
 const submit = byId("submit");
 const status = byId("submission-status");
@@ -12,7 +13,7 @@ const query = new URLSearchParams(location.search);
 const feature = query.get("kind") === "feature";
 const env = environment(location.search);
 const draftKey = `colosseum-home-feedback-${feature ? "feature" : "bug"}-v1`;
-const fields = feature ? ["summary", "description", "benefit"] : ["summary", "description", "steps", "expected"];
+const fields = ["summary", "description", "email", ...(feature ? ["benefit"] : ["steps", "expected"])];
 const submitLabel = feature ? "Submit request" : "Submit report";
 let reference = crypto.randomUUID();
 let config;
@@ -80,7 +81,9 @@ details.addEventListener("toggle", saveDraft);
 form.addEventListener("input", () => { saveDraft(); update(); });
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (submit.disabled || !form.reportValidity()) return;
+  if (submit.disabled) return;
+  if (!email.validity.valid) details.open = true;
+  if (!form.reportValidity()) return;
   const payload = {
     type: feature ? "Feature idea" : "Bug report",
     area: "General",
@@ -97,6 +100,7 @@ form.addEventListener("submit", async (event) => {
     const value = form.elements[field].value.trim();
     if (value) payload[key] = value;
   }
+  if (email.value.trim()) payload.email = email.value.trim();
   if (challengeToken) payload["cf-turnstile-response"] = challengeToken;
   saveDraft();
   sending = true;

@@ -14,7 +14,7 @@
   <div class="eyebrow">Colosseum</div>
   <h2 id="dialog-title">Report a Bug</h2></div>
   <button class="icon-btn" id="close-dialog" aria-label="Close popup">×</button></div>
-  <form id="feedback-form">
+  <form id="feedback-form" novalidate>
   <div class="dialog-body">
   <p class="intro" id="dialog-intro">Tell us about anything that isn’t working as it should.</p>
   <label class="field-label" for="summary" id="summary-label">Short summary</label><input id="summary" autofocus name="summary" maxlength="120" autocomplete="off" required placeholder="Give the issue a short title">
@@ -29,8 +29,13 @@
   <textarea id="expected" name="expected" rows="2" maxlength="2000" placeholder="What should have happened instead?"></textarea></div>
   <div id="feature-details" hidden>
   <label class="field-label" for="benefit">How would this help? <small>optional</small></label>
-  <textarea id="benefit" name="benefit" rows="3" maxlength="2500" placeholder="Tell us when you would use it or what it would make easier."></textarea></div></details><input type="text" name="_gotcha" hidden tabindex="-1" autocomplete="off">
-  <p class="privacy-note">Your text, app version, and platform are sent privately to the Colosseum team.</p>
+  <textarea id="benefit" name="benefit" rows="3" maxlength="2500" placeholder="Tell us when you would use it or what it would make easier."></textarea></div>
+  <label class="field-label" for="email">Reply email <small>optional</small></label>
+  <input id="email" name="email" type="email" maxlength="254" autocomplete="email"
+         pattern="[^@\s]+@[^@\s]+\.[^@\s]+" placeholder="Only if you’d like a reply">
+  </details>
+  <input type="text" name="_gotcha" hidden tabindex="-1" autocomplete="off">
+  <p class="privacy-note">Your text, app version, and platform are sent privately to the Colosseum team. If you include an email, we can reply there.</p>
   <div id="challenge"></div>
   <p id="submission-status" class="submission-status" role="status" hidden></p></div>
   <div class="request-footer">
