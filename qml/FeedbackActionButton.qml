@@ -7,6 +7,7 @@ Glass {
     required property url iconSource
     property bool compact: false
     property bool highlighted: false
+    property bool iconTile: false
 
     implicitWidth: caption.implicitWidth + 30
     width: implicitWidth
@@ -30,18 +31,27 @@ Glass {
         spacing: 9
         Item {
             anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
+            width: root.iconTile ? 26 : 16
+            height: width
+            Rectangle {
+                anchors.fill: parent
+                visible: root.iconTile
+                radius: 7
+                color: "#f3f3f1"
+            }
             Image {
                 id: glyph
-                anchors.fill: parent
+                anchors.centerIn: parent
+                width: 16
+                height: 16
                 source: root.iconSource
                 sourceSize.width: 32
                 sourceSize.height: 32
-                visible: false
+                visible: root.iconTile
             }
             MultiEffect {
-                anchors.fill: parent
+                anchors.fill: glyph
+                visible: !root.iconTile
                 source: glyph
                 colorization: 1
                 colorizationColor: "#f0c44a"

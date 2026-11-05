@@ -154,6 +154,7 @@ WorldPage {
             compact: universes.width <= 740
             label: qsTr("Request a Universe")
             iconSource: "../assets/icons/universes-atom.svg"
+            iconTile: true
             highlighted: requestAction.interactionActive
             KeyboardAction {
                 id: requestAction
