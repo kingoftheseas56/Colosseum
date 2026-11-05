@@ -148,7 +148,10 @@ bool CollectionLinkActivation::forwardToPrimary(const QUrl &url, int timeoutMs) 
         if (!socket.waitForConnected(qMin(remaining, 100))) { QThread::msleep(10); continue; }
         const QByteArray message = id->toLatin1() + '\n';
         if (socket.write(message) != message.size()) return false;
-        if (socket.bytesToWrite() && !socket.waitForBytesWritten(qMax(1, timeoutMs - int(elapsed.elapsed())))) return false;
+        if (socket.bytesToWrite()) {
+            // The primary can acknowledge and close before Qt reports the write.
+            socket.waitForBytesWritten(qMax(1, timeoutMs - int(elapsed.elapsed())));
+        }
         QByteArray ack;
         while (ack.size() < 3 && elapsed.elapsed() < timeoutMs) {
             ack += socket.read(4 - ack.size());
