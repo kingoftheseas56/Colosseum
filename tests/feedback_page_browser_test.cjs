@@ -54,6 +54,7 @@ const os = require("node:os");
       process.env.CHROME_PATH ||
       "C:/Program Files/Google/Chrome/Application/chrome.exe",
     headless: true,
+    ignoreDefaultArgs: ["--hide-scrollbars"],
   });
   try {
     const context = await browser.newContext({
@@ -313,6 +314,66 @@ const os = require("node:os");
     assert.equal(requests.at(-1).body.wikipedia_page_id, 1234);
     await page.getByRole("button", { name: "Back to Universes" }).click();
     await page.waitForURL((current) => current.hash === "#close-universe");
+    const homeReport = url.replace("/feedback/?", "/feedback/report.html?");
+    await page.goto(homeReport + "&kind=bug");
+    assert.equal(await page.getByRole("dialog", { name: "Report a Bug" }).isVisible(), true);
+    assert.equal(await page.getByRole("button", { name: "Submit report" }).isDisabled(), true);
+    assert.equal(await page.getByLabel("Reply email").isVisible(), true);
+    assert.equal(await page.getByLabel("What did you expect?").isVisible(), true);
+    await page.getByLabel("Short summary").fill("Test bug title");
+    await page.getByLabel("What went wrong?").fill("Test bug description");
+    await page.getByLabel("Steps to reproduce").fill("Open the Home carousel");
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await page.waitForURL((current) => current.hash === "#close-feedback");
+    await page.goto(homeReport + "&kind=feature");
+    assert.equal(await page.getByRole("dialog", { name: "Feature Request" }).isVisible(), true);
+    assert.equal(await page.getByLabel("Feature name").inputValue(), "");
+    await page.getByLabel("Feature name").fill("A test feature");
+    await page.getByLabel("What would you like to do?").fill("Describe a new Home action");
+    await page.getByLabel("How would this help?").fill("Fewer clicks");
+    await page.getByLabel("Reply email").fill("invalid");
+    const beforeInvalid = requests.length;
+    await page.getByRole("button", { name: "Submit request" }).click();
+    assert.equal(await page.getByLabel("Reply email").isVisible(), true);
+    assert.equal(requests.length, beforeInvalid);
+    await page.getByLabel("Reply email").fill("tester@example.com");
+    await page.reload();
+    assert.equal(await page.getByLabel("Reply email").inputValue(), "tester@example.com");
+    await page.getByRole("button", { name: "Submit request" }).click();
+    await page.getByText("Feedback received").waitFor();
+    assert.equal(requests.at(-1).body.type, "Feature idea");
+    assert.equal(requests.at(-1).body.benefit, "Fewer clicks");
+    assert.equal(requests.at(-1).body.email, "tester@example.com");
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.goto(homeReport + "&kind=bug");
+    assert.equal(await page.getByLabel("Short summary").inputValue(), "Test bug title");
+    assert.equal(await page.getByLabel("Steps to reproduce").inputValue(), "Open the Home carousel");
+    const reportBody = page.locator("#feedback-form .dialog-body");
+    const reportFooter = page.getByRole("button", { name: "Submit report" });
+    const footerY = (await reportFooter.boundingBox()).y;
+    const scroll = await reportBody.evaluate((body) => {
+      body.scrollTop = body.scrollHeight;
+      return {
+        offset: body.scrollTop,
+        scrollbarWidth: body.offsetWidth - body.clientWidth,
+      };
+    });
+    assert(scroll.offset > 0 && scroll.scrollbarWidth > 0,
+      `Form exposes a scrollbar and scrolls on open: ${JSON.stringify(scroll)}`);
+    assert.equal((await reportFooter.boundingBox()).y, footerY);
+    await page.screenshot({ path: path.join(screenshots, "home-feedback-narrow.png") });
+    status = 429;
+    await page.getByRole("button", { name: "Submit report" }).click();
+    await page.getByText(/Too many attempts/).waitFor();
+    const bugReference = requests.at(-1).body.reference;
+    await page.reload();
+    status = 200;
+    await page.getByRole("button", { name: "Submit report" }).click();
+    await page.getByText("Feedback received").waitFor();
+    assert.equal(requests.at(-1).body.type, "Bug report");
+    assert.equal(requests.at(-1).body.steps_to_reproduce, "Open the Home carousel");
+    assert.equal(Object.hasOwn(requests.at(-1).body, "email"), false);
+    assert.equal(requests.at(-1).body.reference, bugReference);
     assert.deepEqual(errors, []);
     console.log(
       "PASS feedback page: desktop/mobile layouts, glass menu mouse/keyboard/focus/closing, icons, legacy draft migration, quota failure, backend switch, provider rejection, and Universe lookup/selection/manual submission. All external requests intercepted locally.",

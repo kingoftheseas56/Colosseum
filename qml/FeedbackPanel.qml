@@ -9,9 +9,12 @@ FocusScope {
     id: root
     property bool universeRequest: false
     property bool desktopUniverse: false
+    property string homeFeedbackKind: ""
+    readonly property bool desktopDialog: desktopUniverse || homeFeedbackKind.length > 0
     property url backdropUrl
     property var availableUniverses: []
-    property url pageUrl: Route.pageUrl(Qt.application.version, Qt.platform.os, root.universeRequest, root.desktopUniverse)
+    property url pageUrl: Route.pageUrl(Qt.application.version, Qt.platform.os, root.universeRequest,
+                                       root.desktopUniverse, root.homeFeedbackKind)
     property url browserSource: Qt.resolvedUrl("FeedbackWebView.qml")
     readonly property var browserItem: browser.status === Loader.Ready ? browser.item : null
     onPageUrlChanged: if (root.browserItem) root.browserItem.pageUrl = root.pageUrl
@@ -29,7 +32,7 @@ FocusScope {
     }
     Rectangle {
         anchors.fill: parent
-        color: root.desktopUniverse ? "#700a101a" : root.universeRequest ? "#9205080d" : "#08090d"
+        color: root.desktopDialog ? "#700a101a" : root.universeRequest ? "#9205080d" : "#08090d"
     }
     MouseArea {
         anchors.fill: parent
@@ -47,10 +50,10 @@ FocusScope {
         color: compact ? "#ee14171e" : "transparent"
         radius: compact ? 20 : 0
         border.color: compact ? theme.edge : "transparent"
-        clip: root.desktopUniverse
+        clip: root.desktopDialog
         RowLayout {
             id: header
-            visible: !root.desktopUniverse
+            visible: !root.desktopDialog
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
             height: 48
             spacing: 12
@@ -136,19 +139,20 @@ FocusScope {
         Loader {
             id: browser
             objectName: "feedbackBrowserLoader"
-            anchors { left: parent.left; right: parent.right; top: root.desktopUniverse ? parent.top : header.bottom; bottom: parent.bottom }
-            anchors.topMargin: root.desktopUniverse ? 0 : 12
+            anchors { left: parent.left; right: parent.right; top: root.desktopDialog ? parent.top : header.bottom; bottom: parent.bottom }
+            anchors.topMargin: root.desktopDialog ? 0 : 12
             anchors.leftMargin: surface.compact ? 10 : 0
             anchors.rightMargin: surface.compact ? 10 : 0
             anchors.bottomMargin: surface.compact ? 10 : 0
             source: root.browserSource
             onLoaded: {
+                if (root.desktopDialog) item.transparentDialog = true
                 if (root.desktopUniverse) {
                     item.universeDialog = true
                     item.availableUniverses = root.availableUniverses
                 }
                 item.pageUrl = root.pageUrl
-                if (root.desktopUniverse) item.takeKeyboardFocus()
+                if (root.desktopDialog) item.takeKeyboardFocus()
             }
         }
         Connections {
@@ -182,7 +186,7 @@ FocusScope {
             event.accepted = true
     }
     Component.onCompleted: {
-        if (root.desktopUniverse) root.forceActiveFocus()
+        if (root.desktopDialog) root.forceActiveFocus()
         else if (root.universeRequest) closeInput.forceActiveFocus()
         else backButton.focusControl()
     }

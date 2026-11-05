@@ -64,6 +64,21 @@ TestCase {
         bar.trackersEnabled = false
         bar.width = 1040
     }
+    function test_home_clock_stays_visible_when_it_fits() {
+        bar.width = 1172
+        bar.activeMedium = ""
+        bar.accountController = localAccount
+        bar.trackersEnabled = true
+        const clock = findChild(bar, "topBarClock")
+        const picker = findChild(bar, "topBarWorldPicker")
+        const systems = findChild(bar, "topBarSystemChrome")
+        tryCompare(clock, "visible", true)
+        verify(picker.x >= clock.width + 8)
+        verify(picker.x + picker.width + 8 <= systems.x)
+        bar.accountController = null
+        bar.trackersEnabled = false
+        bar.width = 1040
+    }
     function test_compact_world_picker_does_not_overlap_search(data) {
         bar.width = 904 // 1024px window minus the production side margins
         bar.activeMedium = data.medium

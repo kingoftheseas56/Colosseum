@@ -238,6 +238,7 @@ Item {
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
         spacing: 18
         BackAction {
+            id: backAction
             // world-root variant: destination label, dim→bright hover (never gold up here)
             visible: bar.activeMedium !== ""
             label: bar.compactChrome || (bar.backOnly && bar.pageTitle.length) ? "" : bar.backLabel
@@ -259,21 +260,26 @@ Item {
         }
         Column {
             objectName: "topBarClock"
-            visible: !bar.backOnly && !bar.compactChrome
+            readonly property real textWidth: Math.max(clockTime.implicitWidth + 5 + clockPeriod.implicitWidth,
+                                                       clockDate.implicitWidth)
+            readonly property real leftWidth: textWidth + (backAction.visible ? backAction.width + leftChrome.spacing : 0)
+            visible: !bar.backOnly && !bar.compactBrowserChrome
+                     && leftWidth + 24 + worldPicker.width <= systemChrome.x
             spacing: 3
             anchors.verticalCenter: parent.verticalCenter
             Row {
                 spacing: 5
-                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: 32 }
-                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
+                Text { id: clockTime; text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: 32 }
+                Text { id: clockPeriod; text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
                     anchors.bottom: parent.bottom; anchors.bottomMargin: 4 }
             }
-            Text { text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+            Text { id: clockDate; text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
         }
     }
 
     // ---- center: library pills in a glass capsule ----
     Glass {
+        id: worldPicker
         objectName: "topBarWorldPicker"
         visible: !bar.backOnly
         backdrop: bar.backdrop
