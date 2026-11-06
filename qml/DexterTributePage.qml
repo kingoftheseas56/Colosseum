@@ -37,6 +37,7 @@ FocusScope {
         id: tribute
         anchors.fill: parent
         asynchronous: true
+        visible: status === Loader.Ready
         source: "dexter/TributeView.qml"
         onLoaded: {
             const view = root.sceneView

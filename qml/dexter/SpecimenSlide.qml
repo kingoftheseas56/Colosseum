@@ -81,48 +81,49 @@ Node {
         castsShadows: false; receivesShadows: false; depthBias: slide.sortBase-1000
         materials: PrincipledMaterial { lighting: PrincipledMaterial.NoLighting; baseColor: "#181510"; opacity: .62; alphaMode: PrincipledMaterial.Blend; depthDrawMode: Material.NeverDepthDraw; cullMode: Material.NoCulling }
     }
-    Model {
-        objectName: "poster-"+slide.slideIndex
-        source: "#Rectangle"; scale: Qt.vector3d(slide.artWidth,slide.artHeight,1)
-        x: 30; z: 3.1; eulerRotation.z: -90
-        castsShadows: false; receivesShadows: false; depthBias: slide.sortBase-2000
-        materials: ArtworkMaterial {
-            artworkItem: FocusScope {
-                width: 240
-                height: 360
-                Rectangle { anchors.fill: parent; color: "#26151a" }
-                Image {
-                    id: poster
-                    objectName: "dexterArtwork-" + slide.slideIndex
-                    anchors.fill: parent
-                    source: slide.item.cover || ""
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    cache: true
-                }
+    Node {
+        objectName: "poster-" + slide.slideIndex
+        x: 30
+        z: 3.1
+        eulerRotation.z: -90
+        Rectangle {
+            width: 240
+            height: 360
+            x: -width / 2
+            y: -height / 2
+            scale: slide.artWidth * 100 / width
+            color: "#26151a"
+            Image {
+                id: poster
+                objectName: "dexterArtwork-" + slide.slideIndex
+                anchors.fill: parent
+                source: slide.item.cover || ""
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: true
+            }
+            Text {
+                anchors.centerIn: parent
+                width: parent.width - 24
+                visible: poster.status !== Image.Ready
+                text: slide.item.title || ""
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+                color: "#e8d8c5"
+                font.pixelSize: 25
+            }
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 42
+                visible: (slide.item.season || 0) > 0
+                color: "#db210f14"
                 Text {
                     anchors.centerIn: parent
-                    width: parent.width - 24
-                    visible: poster.status !== Image.Ready
-                    text: slide.item.title || ""
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
-                    color: "#e8d8c5"
-                    font.pixelSize: 25
-                }
-                Rectangle {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: 42
-                    visible: (slide.item.season || 0) > 0
-                    color: "#db210f14"
-                    Text {
-                        anchors.centerIn: parent
-                        text: qsTr("SEASON %1").arg(slide.item.season || 0)
-                        color: "#f2e6d6"
-                        font.pixelSize: 22
-                    }
+                    text: qsTr("SEASON %1").arg(slide.item.season || 0)
+                    color: "#f2e6d6"
+                    font.pixelSize: 22
                 }
             }
         }
