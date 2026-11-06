@@ -307,16 +307,23 @@ std::optional<StoredNuvioCredential> PlatformAccountCredentialStore::loadNuvio(
 bool PlatformAccountCredentialStore::saveNuvio(const StoredNuvioCredential &credential) {
     const QString target = nuvioTargetName(credential.profileId);
     const QUuid accountId(credential.accountId);
+    const QUuid nuvioProfileId(credential.nuvioProfileId);
     if (target.isEmpty() || accountId.isNull()
         || credential.accessToken.isEmpty() || credential.refreshToken.isEmpty()
         || credential.accessToken.size() > 65536
         || credential.refreshToken.size() > 65536
-        || credential.accessExpiresAtUtcMs <= 0) {
+        || credential.accessExpiresAtUtcMs <= 0
+        || (credential.nuvioProfileIndex == 0 && !credential.nuvioProfileId.isEmpty())
+        || (credential.nuvioProfileIndex != 0
+            && (credential.nuvioProfileIndex < 1 || credential.nuvioProfileIndex > 6
+                || nuvioProfileId.isNull()))) {
         return false;
     }
 
     StoredNuvioCredential normalized = credential;
-    normalized.accountId = accountId.toString(QUuid::WithoutBraces).toLower();
+    normalized.accountId = accountId.toString(QUuid::WithoutBraces);
+    if (credential.nuvioProfileIndex != 0)
+        normalized.nuvioProfileId = nuvioProfileId.toString(QUuid::WithoutBraces);
     const QByteArray blob = encodeNuvioCredential(normalized);
     const auto previous = readGenericCredential(target);
     if (!writeGenericCredential(target, blob))
@@ -445,13 +452,18 @@ QByteArray PlatformAccountCredentialStore::encodeNuvioCredential(
         return QString::fromLatin1(token.toBase64(
             QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
     };
-    const QJsonObject object{
+    QJsonObject object{
         {QStringLiteral("version"), 1},
         {QStringLiteral("profile_id"), credential.profileId},
         {QStringLiteral("account_id"), credential.accountId},
         {QStringLiteral("access_token"), base64(credential.accessToken)},
         {QStringLiteral("refresh_token"), base64(credential.refreshToken)},
         {QStringLiteral("access_expires_at_utc_ms"), credential.accessExpiresAtUtcMs}};
+    if (credential.nuvioProfileIndex != 0) {
+        object.insert(QStringLiteral("version"), 2);
+        object.insert(QStringLiteral("nuvio_profile_id"), credential.nuvioProfileId);
+        object.insert(QStringLiteral("nuvio_profile_index"), credential.nuvioProfileIndex);
+    }
     return QJsonDocument(object).toJson(QJsonDocument::Compact);
 }
 
@@ -463,9 +475,20 @@ std::optional<StoredNuvioCredential> PlatformAccountCredentialStore::decodeNuvio
         return std::nullopt;
 
     const QJsonObject object = document.object();
-    if (object.size() != 6 || object.value(QStringLiteral("version")).toInt() != 1)
+    const int version = object.value(QStringLiteral("version")).toInt();
+    if (!((version == 1 && object.size() == 6) || (version == 2 && object.size() == 8)))
         return std::nullopt;
     StoredNuvioCredential credential;
+    if (version == 2) {
+        credential.nuvioProfileId = object.value(QStringLiteral("nuvio_profile_id")).toString();
+        credential.nuvioProfileIndex = object.value(QStringLiteral("nuvio_profile_index")).toInt();
+        const QUuid nuvioProfileId(credential.nuvioProfileId);
+        if (nuvioProfileId.isNull()
+            || nuvioProfileId.toString(QUuid::WithoutBraces) != credential.nuvioProfileId
+            || credential.nuvioProfileIndex < 1 || credential.nuvioProfileIndex > 6) {
+            return std::nullopt;
+        }
+    }
     credential.profileId = object.value(QStringLiteral("profile_id")).toString();
     credential.accountId = object.value(QStringLiteral("account_id")).toString();
     const QUuid accountId(credential.accountId);

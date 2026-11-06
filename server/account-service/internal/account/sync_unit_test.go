@@ -347,6 +347,19 @@ func TestSyncPolicyEnforcesShippingRecordShapes(t *testing.T) {
 			payload:  `{"mainSyncProvider":"stremio"}`,
 		},
 		{
+			name:     "main sync marker accepts Nuvio",
+			category: "stremio_link",
+			key:      "preferences/main-sync-provider",
+			payload:  `{"mainSyncProvider":"nuvio"}`,
+		},
+		{
+			name:     "main sync marker rejects unknown providers",
+			category: "stremio_link",
+			key:      "preferences/main-sync-provider",
+			payload:  `{"mainSyncProvider":"unknown"}`,
+			wantErr:  "payload_invalid",
+		},
+		{
 			name:     "stremio link rejects auth key",
 			category: "stremio_link",
 			key:      "preferences/main-sync-provider",

@@ -210,6 +210,9 @@ private slots:
     void intentRemainsPendingUntilRemoteAckAndLocalReceiptPersist();
     void profileReopenWithoutVaultCredentialRequiresReconnectAndSendsNothing();
     void browserCallbackValidatesIdentityAndPersistsVaultBeforeJournal();
+    void stagedAuthenticationPreviewsWithoutSavingUntilConfirmation();
+    void switchingToImportOnlyFencesDatastoreFollowUpWrite();
+    void exactHistoryCompletionsReconcileWithoutInventedProgress();
     void browserCompletionWaitsForDurableLink_data();
     void browserCompletionWaitsForDurableLink();
     void failedReauthenticationPreservesExistingLink_data();
@@ -601,6 +604,222 @@ void tst_stremio_sync::browserCallbackValidatesIdentityAndPersistsVaultBeforeJou
     QVERIFY(!journal.readAll().contains(QByteArrayLiteral("fixture-auth-key")));
 }
 
+void tst_stremio_sync::stagedAuthenticationPreviewsWithoutSavingUntilConfirmation() {
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-staged-auth"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString profile = QStringLiteral("local");
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    QUrl login;
+    QByteArray savedKey;
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.browserOpener = [&login](const QUrl &url) { login = url; };
+    options.saveCredential = [&](const QString &, const QString &, const QByteArray &key) {
+        savedKey = key;
+        return true;
+    };
+    options.loadCredential = [&](const QString &, const QString &) -> std::optional<QByteArray> {
+        return savedKey.isEmpty() ? std::nullopt : std::optional<QByteArray>(savedKey);
+    };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(profile, path, false));
+    sync.setImportOnlyEnabled(true);
+    QSignalSpy linked(&sync, &StremioSync::profileLinkValidated);
+    const QByteArray key = QByteArrayLiteral("staged-fixture-key");
+    QVERIFY(sync.startStagedAuthentication());
+    QVERIFY(sendLoopbackCallback(login, key));
+    QTRY_VERIFY(api.request().contains("POST /api/getUser"));
+    api.replyIdentity();
+    QTRY_VERIFY(sync.stagedAuthenticationReady());
+    QVERIFY(savedKey.isEmpty());
+    QVERIFY(!QFile::exists(path));
+    QCOMPARE(linked.count(), 0);
+    QVERIFY(!sync.linkedAccount());
+
+    bool previewSucceeded = false;
+    QVERIFY(sync.pullAddonCollectionForPreview([&](bool ok, const QJsonArray &addons) {
+        previewSucceeded = ok && addons.isEmpty();
+    }));
+    QTRY_VERIFY(api.request().contains("POST /api/addonCollectionGet"));
+    QVERIFY(api.request().contains(key));
+    const QByteArray response = QByteArrayLiteral(R"({"result":{"addons":[]}})");
+    api.replyRaw("HTTP/1.1 200 OK\r\nContent-Length: " + QByteArray::number(response.size())
+        + "\r\nConnection: close\r\n\r\n" + response);
+    QTRY_VERIFY(previewSucceeded);
+    QVERIFY(!sync.pullAddonCollection({}));
+    QVERIFY(!api.request().contains("addonCollectionSet"));
+    QVERIFY(!api.request().contains("datastorePut"));
+    QVERIFY(savedKey.isEmpty());
+    QVERIFY(!QFile::exists(path));
+
+    sync.setEpisodeMetadataBridgeReady();
+    QSignalSpy metadata(&sync, &StremioSync::episodeMetadataRequested);
+    const QString series = QStringLiteral("tt123");
+    std::optional<bool> metadataSucceeded;
+    QVERIFY(sync.requestEpisodeMetadataForPreview(series,
+        [&](bool ok, const QList<StremioEpisodeIdentity> &) { metadataSucceeded = ok; }));
+    QCOMPARE(metadata.count(), 1);
+    QCOMPARE(metadata.first().at(1).toString(), series);
+    const QVariantList episode{QVariantMap{{QStringLiteral("id"), QStringLiteral("tt123:1:1")},
+                                           {QStringLiteral("season"), 1},
+                                           {QStringLiteral("episode"), 1}}};
+
+    std::optional<bool> interruptedPreview;
+    QVERIFY(sync.pullAddonCollectionForPreview([&](bool ok, const QJsonArray &) {
+        interruptedPreview = ok;
+    }));
+    QTRY_COMPARE(api.request().count("POST /api/addonCollectionGet"), 2);
+    sync.cancelAuthentication();
+    QTRY_VERIFY(interruptedPreview.has_value());
+    QVERIFY(!*interruptedPreview);
+    QCOMPARE(metadataSucceeded, std::optional<bool>(false));
+    QVERIFY(!sync.submitEpisodeMetadata(metadata.first().at(0).toString(), series, episode));
+    QVERIFY(!sync.stagedAuthenticationReady());
+    QVERIFY(!sync.pullAddonCollectionForPreview({}));
+    QVERIFY(savedKey.isEmpty());
+    QVERIFY(!QFile::exists(path));
+
+    QVERIFY(sync.startStagedAuthentication());
+    QVERIFY(sendLoopbackCallback(login, key));
+    QTRY_COMPARE(api.request().count("POST /api/getUser"), 2);
+    api.replyIdentity();
+    QTRY_VERIFY(sync.stagedAuthenticationReady());
+    bool confirmed = false;
+    QVERIFY(sync.confirmStagedAuthentication([&](bool ok) { confirmed = ok; }));
+    QTRY_VERIFY(confirmed);
+    QCOMPARE(savedKey, key);
+    QCOMPARE(linked.count(), 1);
+    QVERIFY(!sync.stagedAuthenticationReady());
+    QVERIFY(sync.linkedAccount());
+    QCOMPARE(sync.status(), QStringLiteral("synced"));
+    QVERIFY(QFile::exists(path));
+    QVERIFY(!sync.pullLibraryItems({}));
+    QVERIFY(!sync.beginVisibleSync());
+    bool libraryPreviewSucceeded = false;
+    QVERIFY(sync.pullLibraryItemsForPreview([&](bool ok, const QList<StremioLibraryItem> &items) {
+        libraryPreviewSucceeded = ok && items.isEmpty();
+    }));
+    QTRY_VERIFY(api.request().contains("POST /api/datastoreMeta"));
+    const QByteArray emptyLibrary = QByteArrayLiteral(R"({"result":[]})");
+    api.replyRaw("HTTP/1.1 200 OK\r\nContent-Length: " + QByteArray::number(emptyLibrary.size())
+        + "\r\nConnection: close\r\n\r\n" + emptyLibrary);
+    QTRY_VERIFY(libraryPreviewSucceeded);
+}
+
+void tst_stremio_sync::switchingToImportOnlyFencesDatastoreFollowUpWrite() {
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-import-only"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString profile = QStringLiteral("local");
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState state;
+    state.profileId = profile;
+    state.accountId = QStringLiteral("fixture-account");
+    StremioState writer;
+    writer.saveAsync(path, state);
+    QVERIFY(writer.flush());
+
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.loadCredential = [](const QString &, const QString &) {
+        return std::optional<QByteArray>(QByteArrayLiteral("fixture-key"));
+    };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(profile, path, false));
+    sync.setMarkerLinked(true);
+    const QJsonObject desired{{QStringLiteral("id"), QStringLiteral("tt123")},
+                              {QStringLiteral("type"), QStringLiteral("movie")}};
+    QVERIFY(sync.queueIntent(QStringLiteral("library_add"), desired));
+    QTRY_VERIFY(api.request().contains("POST /api/datastoreGet"));
+    sync.setImportOnlyEnabled(true);
+    sync.setMarkerLinked(false);
+    const QByteArray response = QByteArrayLiteral(R"({"result":[]})");
+    api.replyRaw("HTTP/1.1 200 OK\r\nContent-Length: " + QByteArray::number(response.size())
+        + "\r\nConnection: close\r\n\r\n" + response);
+    sync.retryPendingNow();
+    QTest::qWait(30);
+    QCOMPARE(api.request().count("POST /api/datastoreGet"), 1);
+    QVERIFY(!api.request().contains("POST /api/datastorePut"));
+    QCOMPARE(sync.pendingCount(), 1);
+    QVERIFY(!sync.queueIntent(QStringLiteral("library_add"), desired));
+    QVERIFY(!sync.reconcileAddonCollection({}, {}));
+    QVERIFY(sync.linkedAccount());
+}
+
+void tst_stremio_sync::exactHistoryCompletionsReconcileWithoutInventedProgress() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString profile = QStringLiteral("local");
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    StremioPersistentState state;
+    state.profileId = profile;
+    state.accountId = QStringLiteral("fixture-account");
+    StremioState writer;
+    writer.saveAsync(path, state);
+    QVERIFY(writer.flush());
+
+    QList<StremioPendingIntent> sent;
+    StremioSyncOptions options;
+    options.loadCredential = [](const QString &, const QString &) {
+        return std::optional<QByteArray>(QByteArrayLiteral("fixture-key"));
+    };
+    options.intentSender = [&](const StremioPendingIntent &intent,
+                               std::function<void(bool, bool)>) { sent.append(intent); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(profile, path, false));
+    sync.setMarkerLinked(true);
+    sync.setEpisodeMetadataBridgeReady();
+    QSignalSpy metadata(&sync, &StremioSync::episodeMetadataRequested);
+
+    const auto history = [](const QString &kind, const QString &id, const QString &source) {
+        return QVariantMap{{QStringLiteral("kind"), kind}, {QStringLiteral("id"), id},
+                           {QStringLiteral("source"), source},
+                           {QStringLiteral("completedAt"), 100}};
+    };
+    const QVariantList entries{
+        history("episode", "tt101:1:1", "nuvio"),
+        history("episode", "tt101:1:2", "stremio"),
+        history("episode", "tt101:1:3", "local"),
+        history("episode", "tt999", "nuvio"),
+        history("movie", "tt102", "nuvio")};
+    const QVariantList progress{QVariantMap{
+        {QStringLiteral("kind"), QStringLiteral("video")},
+        {QStringLiteral("id"), QStringLiteral("tt101:1:2")},
+        {QStringLiteral("updatedAt"), 110},
+        {QStringLiteral("progress"), 0.40}}};
+    QVERIFY(sync.reconcileTheatreState({}, progress, {{"tt102", 1}, {"tt103", 1}},
+                                      {{"tt102", 100}, {"tt103", 100}}, entries));
+
+    QCOMPARE(metadata.count(), 1);
+    const QString series = metadata.first().at(1).toString();
+    QCOMPARE(series, QStringLiteral("tt101"));
+    QVariantList videos;
+    for (int number = 1; number <= 3; ++number) {
+        videos.append(QVariantMap{{QStringLiteral("id"), QStringLiteral("tt101:1:%1").arg(number)},
+                                  {QStringLiteral("season"), 1}, {QStringLiteral("episode"), number}});
+    }
+    QVERIFY(sync.submitEpisodeMetadata(metadata.first().at(0).toString(), series, videos));
+    QTRY_COMPARE(sent.size(), 2);
+    const auto seriesIntent = std::find_if(sent.cbegin(), sent.cend(), [](const auto &intent) {
+        return intent.kind == QLatin1String("series_watched");
+    });
+    QVERIFY(seriesIntent != sent.cend());
+    QCOMPARE(seriesIntent->desired.value(QStringLiteral("episodeIds")).toArray(),
+             QJsonArray{QStringLiteral("tt101:1:1")});
+    const auto movieIntent = std::find_if(sent.cbegin(), sent.cend(), [](const auto &intent) {
+        return intent.kind == QLatin1String("watched");
+    });
+    QVERIFY(movieIntent != sent.cend());
+    QCOMPARE(movieIntent->desired.value(QStringLiteral("id")).toString(), QStringLiteral("tt102"));
+}
+
 void tst_stremio_sync::browserCompletionWaitsForDurableLink_data() {
     QTest::addColumn<bool>("vaultOk");
     QTest::addColumn<bool>("markerOk");
@@ -857,9 +1076,11 @@ void tst_stremio_sync::nuvioCredentialVaultIsScopedValidatedAndDisconnectable() 
     class MemorySecretBackend final : public AccountSecretBackend {
     public:
         QHash<QString, QByteArray> values;
+        bool corruptNextWrite = false;
         bool isAvailable() const override { return true; }
         bool write(const QString &target, const QByteArray &blob) override {
-            values.insert(target, blob);
+            values.insert(target, corruptNextWrite ? QByteArrayLiteral("corrupt") : blob);
+            corruptNextWrite = false;
             return true;
         }
         std::optional<QByteArray> read(const QString &target) const override {
@@ -928,6 +1149,44 @@ void tst_stremio_sync::nuvioCredentialVaultIsScopedValidatedAndDisconnectable() 
     invalid.accountId = QStringLiteral("not-a-uuid");
     QVERIFY(!store.saveNuvio(invalid));
     QCOMPARE(store.loadNuvio(profileId)->refreshToken, credential.refreshToken);
+
+    QCOMPARE(loaded->nuvioProfileIndex, 0);
+    QVERIFY(loaded->nuvioProfileId.isEmpty());
+
+    auto selected = credential;
+    selected.nuvioProfileId = QStringLiteral("fedcbafe-1234-1234-1234-123456789abc");
+    selected.nuvioProfileIndex = 6;
+    QVERIFY(store.saveNuvio(selected));
+    const QByteArray savedBlob = backend->values.value(target);
+    const auto saved = store.loadNuvio(profileId);
+    QVERIFY(saved.has_value());
+    QCOMPARE(saved->nuvioProfileId, selected.nuvioProfileId);
+    QCOMPARE(saved->nuvioProfileIndex, selected.nuvioProfileIndex);
+
+    const QString otherTarget = PlatformAccountCredentialStore::nuvioTargetName(otherProfileId);
+    backend->values.insert(otherTarget, savedBlob);
+    QVERIFY(!store.loadNuvio(otherProfileId).has_value());
+
+    QJsonObject malformed = QJsonDocument::fromJson(savedBlob).object();
+    malformed.insert(QStringLiteral("nuvio_profile_id"), selected.nuvioProfileId.toUpper());
+    backend->values.insert(target, QJsonDocument(malformed).toJson(QJsonDocument::Compact));
+    QVERIFY(!store.loadNuvio(profileId).has_value());
+    backend->values.insert(target, savedBlob);
+
+    invalid = selected;
+    invalid.nuvioProfileIndex = 0;
+    QVERIFY(!store.saveNuvio(invalid));
+    invalid.nuvioProfileIndex = 7;
+    QVERIFY(!store.saveNuvio(invalid));
+    invalid.nuvioProfileIndex = 1;
+    invalid.nuvioProfileId.clear();
+    QVERIFY(!store.saveNuvio(invalid));
+    QCOMPARE(backend->values.value(target), savedBlob);
+
+    selected.refreshToken = QByteArrayLiteral("rotated-refresh");
+    backend->corruptNextWrite = true;
+    QVERIFY(!store.saveNuvio(selected));
+    QCOMPARE(backend->values.value(target), savedBlob);
 
     // Neither disconnect nor failed validation can disturb the Stremio vault.
     QVERIFY(store.saveStremio(
@@ -2292,7 +2551,14 @@ void tst_stremio_sync::stateProjectionContainsNoSecretProperty() {
     QVERIFY(names.contains(QStringLiteral("accountdisplayname")));
     QVERIFY(names.contains(QStringLiteral("lastresultsummary")));
     QVERIFY(names.contains(QStringLiteral("linkedaccount")));
+    const int readyIndex = metaObject->indexOfProperty("stagedAuthenticationReady");
+    QVERIFY(readyIndex >= 0);
+    const QMetaProperty ready = metaObject->property(readyIndex);
+    QCOMPARE(ready.metaType().id(), QMetaType::Bool);
+    QVERIFY(!ready.isWritable());
     for (const QString &name : std::as_const(names)) {
+        if (name == QStringLiteral("stagedauthenticationready"))
+            continue;
         QVERIFY(!name.contains(QStringLiteral("auth")));
         QVERIFY(!name.contains(QStringLiteral("secret")));
         QVERIFY(!name.contains(QStringLiteral("token")));
@@ -3720,6 +3986,12 @@ void tst_stremio_sync::explicitReaddClearsOnlyLocalMembershipSuppression() {
         QStringLiteral("tt-explicit-readd"),
         QStringLiteral("movie")));
 
+    // Opening the old journal while the writer replaces it can fail the
+    // Windows atomic commit. Wait for the writer before inspecting the file.
+    auto *writer = sync.findChild<StremioState *>(QStringLiteral("stremioState"));
+    QVERIFY(writer);
+    QString writeError;
+    QVERIFY2(writer->flush(&writeError), qPrintable(writeError));
     StremioState inspector;
     QTRY_VERIFY([&] {
         const auto persisted = inspector.load(path);
