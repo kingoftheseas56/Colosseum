@@ -3455,7 +3455,7 @@ Window {
                                             "kind": r.subType === "series" ? "episode" : "movie",
                                             "position": r.position || 0 })
             else if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, cover, r.subType || "", r.subId || "", [], {}, r.position || 0)
-            else if (presentation.type) win.openTheatreSeries({ id: String(entry.id).split(":")[0],
+            else if (presentation.type) win.openTheatreSeries({ id: presentation.detailId || String(entry.id).split(":")[0],
                                                                 type: presentation.type, title: title, cover: cover })
         } else if (entry.kind === "tankoban") {
             // a saved VOLUME read: same manga series, Tankoban Mode ON, the saved
@@ -3500,6 +3500,10 @@ Window {
         var title = entry.title || entry.caption || presentation.title || ""
         var cover = entry.cover || presentation.cover || ""
         if (entry.kind === "video") {
+            if (presentation.detailId) {
+                win.openTheatreSeries({ id: presentation.detailId, type: presentation.type, title: title, cover: cover })
+                return
+            }
             var id = (entry.id || "").split(":")[0]                      // base tt id (strip episode suffix)
             if (id.indexOf("tt") !== 0) {
                 // Non-Cinemeta id: anime comes from Jikan (id "mal:<malId>") and resolves through
