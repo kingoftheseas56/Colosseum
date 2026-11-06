@@ -562,8 +562,9 @@ FocusScope {
                     font.pixelSize: 11
                 }
                 FormButton {
+                    objectName: "requestFormCancel"
                     visible: !root.touchInput
-                    Layout.fillHeight: true
+                    Layout.preferredHeight: 44
                     text: qsTr("Cancel")
                     enabled: !root.sending
                     onClicked: root.closeRequested()
@@ -593,8 +594,8 @@ FocusScope {
     component FieldBackground: Rectangle {
         property bool focused: false
         radius: 8
-        color: "#0b0f125e"
-        border.color: focused ? "#f0c44a" : "#ffffff45"
+        color: "#5e0b0f12"
+        border.color: focused ? "#f0c44a" : "#45ffffff"
     }
 
     component FormButton: Button {
@@ -615,10 +616,10 @@ FocusScope {
         }
         background: Rectangle {
             radius: 10
-            color: !button.enabled ? "#ffffff0b"
-                : button.primary ? button.hovered ? "#f7d268" : "#f0c44a" : "#ffffff0a"
+            color: !button.enabled ? "#0bffffff"
+                : button.primary ? button.hovered ? "#f7d268" : "#f0c44a" : "#0affffff"
             border.width: button.activeFocus ? 2 : 1
-            border.color: button.activeFocus || button.enabled && button.primary ? "#f0c44a" : "#ffffff30"
+            border.color: button.activeFocus || button.enabled && button.primary ? "#f0c44a" : "#30ffffff"
         }
     }
 }

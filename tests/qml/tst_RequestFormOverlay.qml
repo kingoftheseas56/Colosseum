@@ -46,8 +46,20 @@ Item {
         function init() {
             simulatedIme.hide()
             fakePlatform.dockedKeyboardTop = -1
+            overlay.touchInput = true
             overlay.kind = "bug"
             tryVerify(function() { return !!findChild(overlay, "requestField_message") })
+        }
+
+        function test_desktopFooterLeavesRoomForFields() {
+            overlay.touchInput = false
+            const scroll = findChild(overlay, "requestFormScroll")
+            const cancel = findChild(overlay, "requestFormCancel")
+            const send = findChild(overlay, "requestFormSend")
+            tryVerify(function() {
+                return cancel.visible && cancel.height === send.height && scroll.height >= 140
+            })
+            compare(cancel.background.color, "#0affffff")
         }
 
         function test_dockedKeyboardKeepsFieldAndSendVisible_data() {
