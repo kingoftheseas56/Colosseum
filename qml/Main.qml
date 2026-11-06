@@ -840,6 +840,8 @@ Window {
                 win.openUniverse("com.colosseum.universe.starwars", "Star Wars")
             else if (devUniverse === "cosmere")
                 win.openUniverse("com.colosseum.universe.cosmere", "Cosmere")
+            else if (devUniverse === "dexter")
+                win.openUniverse("com.colosseum.universe.dexter", "Dexter")
             else   // COLOSSEUM_OPEN_UNIVERSE="Harry Potter": an archived universe, by curated name
                 win.openUniverseByName(String(DevOpenUniverse))
         }
@@ -5710,6 +5712,8 @@ Window {
         readonly property string bespokeId: plain ? "" : extensionId
         readonly property var templateSources: ({ "saga": "SagaUniversePage.qml", "shelves": "ShelvesUniversePage.qml" })
         source: templatePage.length ? (templateSources[templatePage] || "SagaUniversePage.qml")
+              : bespokeId === "com.colosseum.universe.dexter"
+                ? "DexterTributePage.qml"
               : bespokeId === "com.colosseum.universe.dcau"
                 ? "DCAUUniversePage.qml"
                 : (bespokeId === "com.colosseum.universe.starwars"
@@ -5745,7 +5749,8 @@ Window {
             item.universeName = universeLayer.universeName
             if (universeLayer.bespokeId === "com.colosseum.universe.dcau" ||
                     universeLayer.bespokeId === "com.colosseum.universe.starwars" ||
-                    universeLayer.bespokeId === "com.colosseum.universe.onepiece")
+                    universeLayer.bespokeId === "com.colosseum.universe.onepiece" ||
+                    universeLayer.bespokeId === "com.colosseum.universe.dexter")
                 item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
             if (universeLayer.bespokeId === "com.colosseum.universe.onepiece")
                 item.installedExtensions = Qt.binding(function() { return win.installedExtensions })
@@ -5778,7 +5783,7 @@ Window {
                     item.comicRequested.connect(win.openGcdSeries)
                     item.continueResumeRequested.connect(win.resumeContinue)
                     item.continueDetailRequested.connect(win.detailContinue)
-                } else {
+                } else if (universeLayer.bespokeId !== "com.colosseum.universe.dexter") {
                     item.bookRequested.connect(win.openBook)
                     item.comicsArchiveRequested.connect(win.openUniverseComic)
                     item.seriesRequested.connect(win.routeUniverseSeries)

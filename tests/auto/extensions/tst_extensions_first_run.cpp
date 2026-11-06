@@ -245,6 +245,46 @@ private slots:
         QVERIFY2(wells >= 1, "expected at least one removable acquisition/playback well in the seed");
     }
 
+    void dexter_tribute_is_enabled_on_new_and_existing_profiles()
+    {
+        const QString id = QStringLiteral("com.colosseum.universe.dexter");
+        const auto dexter = [&id](const ExtensionsStore& store) {
+            for (const QVariant& row : store.installed()) {
+                const auto entry = row.toMap();
+                if (entry.value(QStringLiteral("id")).toString() == id)
+                    return entry;
+            }
+            return QVariantMap{};
+        };
+        {
+            const ExtensionsStore fresh(nullptr);
+            const auto row = dexter(fresh);
+            QVERIFY(row.value(QStringLiteral("enabled")).toBool());
+            QCOMPARE(row.value(QStringLiteral("manifest")).toMap().value(QStringLiteral("name")).toString(),
+                     QStringLiteral("Dexter"));
+        }
+
+        QFile index(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+                    + QStringLiteral("/extensions/installed.json"));
+        QVERIFY(index.open(QIODevice::ReadOnly));
+        auto profile = QJsonDocument::fromJson(index.readAll()).object();
+        index.close();
+        auto rows = profile.value(QStringLiteral("extensions")).toArray();
+        for (int i = 0; i < rows.size(); ++i) {
+            if (rows.at(i).toObject().value(QStringLiteral("id")).toString() == id) {
+                rows.removeAt(i);
+                break;
+            }
+        }
+        profile.insert(QStringLiteral("extensions"), rows);
+        profile.insert(QStringLiteral("defaultsVersion"), 19);
+        QVERIFY(index.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        index.write(QJsonDocument(profile).toJson());
+        index.close();
+        const ExtensionsStore upgraded(nullptr);
+        QVERIFY(dexter(upgraded).value(QStringLiteral("enabled")).toBool());
+    }
+
     // Derivation is by resources + core, NOT string-matching: non-core capabilities that do not provide
     // streams (catalog / meta / subtitles / universe) must stay enabled.
     void non_fetching_capabilities_stay_enabled()
@@ -433,7 +473,7 @@ private slots:
         QFile verify(path);
         QVERIFY(verify.open(QIODevice::ReadOnly));
         QCOMPARE(QJsonDocument::fromJson(verify.readAll()).object()
-                     .value(QStringLiteral("defaultsVersion")).toInt(), 19);
+                     .value(QStringLiteral("defaultsVersion")).toInt(), 20);
     }
 
     void generation_14_worker_migration_preserves_tankoyomi_user_state()
@@ -513,7 +553,7 @@ private slots:
         QFile verify(path);
         QVERIFY(verify.open(QIODevice::ReadOnly));
         QCOMPARE(QJsonDocument::fromJson(verify.readAll()).object()
-                     .value(QStringLiteral("defaultsVersion")).toInt(), 19);
+                     .value(QStringLiteral("defaultsVersion")).toInt(), 20);
     }
 
     void generation_14_custom_tankoyomi_url_is_not_overwritten()
@@ -700,7 +740,7 @@ private slots:
         QFile migratedIndex(path);
         QVERIFY(migratedIndex.open(QIODevice::ReadOnly));
         const QJsonObject migratedRoot = QJsonDocument::fromJson(migratedIndex.readAll()).object();
-        QCOMPARE(migratedRoot.value(QStringLiteral("defaultsVersion")).toInt(), 19);
+        QCOMPARE(migratedRoot.value(QStringLiteral("defaultsVersion")).toInt(), 20);
     }
 
     void configured_manifest_urls_keep_query_before_manifest_suffix()

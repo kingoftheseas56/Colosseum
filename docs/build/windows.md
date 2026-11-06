@@ -9,7 +9,7 @@ Use Windows 10 or 11 with:
 - Visual Studio 2022 C++ Build Tools with the MSVC desktop toolchain;
 - CMake 3.16 or newer;
 - Ninja;
-- Qt 6.11.1, MSVC 2022 64-bit, with Quick, QML, Network, GUI, SQL, Concurrent, WebEngineQuick, WebChannel, and WebSockets;
+- Qt 6.11.1, MSVC 2022 64-bit, with Quick, QML, Network, GUI, SQL, Concurrent, WebEngineQuick, WebChannel, and WebSockets. Install Qt Quick 3D and Qt Shader Tools for the Dexter Tribute;
 - MpvQt built for the same MSVC toolchain;
 - a libmpv development package containing `include/mpv/client.h` and `lib/mpv.lib`;
 - libtorrent-rasterbar, Boost, and OpenSSL built for the same architecture/toolchain.

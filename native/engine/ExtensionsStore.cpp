@@ -80,7 +80,7 @@ QString transportIdentity(const QString &transportUrl)
 //    removed from the app, so the row is pulled from every installed profile.
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 19;
+constexpr int kHouseDefaultsVersion = 20;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -765,6 +765,10 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
         universe("com.colosseum.universe.starwars", "Star Wars",
                  "https://images.metahub.space/logo/medium/tt0076759/img",
                  "https://images.metahub.space/background/medium/tt0076759/img"));
+    add("com.colosseum.universe.dexter", "colosseum://universe/dexter", false,
+        universe("com.colosseum.universe.dexter", "Dexter",
+                 "https://live.metahub.space/logo/medium/tt0773262/img",
+                 "https://live.metahub.space/background/medium/tt0773262/img"));
 
     return touched;
 }
