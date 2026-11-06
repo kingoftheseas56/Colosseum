@@ -8,12 +8,15 @@ Item {
     property var entry: null
     property var actions: null
     property var syncState: null
+    property var nuvioAccount: typeof NuvioAccounts !== "undefined" ? NuvioAccounts : null
+    readonly property bool canRemoveFromStremio: syncState && syncState.linkedAccount
+        && (!nuvioAccount || nuvioAccount.primaryProvider !== "nuvio")
     signal closeRequested()
     visible: shown
     enabled: visible
 
     function remove(alsoStremio) {
-        if (!entry || !entry.id || !actions)
+        if (!entry || !entry.id || !actions || (alsoStremio && !canRemoveFromStremio))
             return
         if (actions.removeTheatreItem(String(entry.id), String(entry.type || "movie"), alsoStremio))
             closeRequested()
@@ -63,7 +66,7 @@ Item {
             Action {
                 objectName: "removeFromColosseumAndStremioAction"
                 label: qsTr("Remove from Colosseum & Stremio")
-                visible: root.syncState && root.syncState.linkedAccount
+                visible: root.canRemoveFromStremio
                 onTriggered: root.remove(true)
             }
             Action {

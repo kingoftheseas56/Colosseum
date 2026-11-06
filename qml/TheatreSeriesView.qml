@@ -770,7 +770,14 @@ Item {
 
     function episodeWatched(v) {
         var entry = progressEntry(v);
-        return entry.watched === true || episodeProgressRatio(v) >= 0.85;
+        if (entry.watched === true || episodeProgressRatio(v) >= 0.85)
+            return true;
+        if (typeof ProfileHistory === "undefined" || !ProfileHistory)
+            return false;
+        var historyRevision = ProfileHistory.revision;
+        var history = ProfileHistory.get("episode", episodeStreamId(v));
+        return !!history && (history.source === "nuvio" || history.source === "stremio")
+            && Number(history.completedAt || 0) > 0;
     }
 
     function nextUpEpisode() {
