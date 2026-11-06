@@ -83,18 +83,16 @@ TestCase {
     function test_topbar_removes_only_window_verbs_and_reflows() {
         const item = make(topComponent, { androidHost: false })
         const chrome = child(item, "topBarSystemChrome")
-        wait(30)
+        tryVerify(function() { return chrome.width > 0 })
         const desktopWidth = chrome.width
         compare(actions(item).length, 3)
         item.androidHost = true
-        wait(30)
+        tryCompare(chrome, "width", desktopWidth - 3 * 22 - 3 * chrome.spacing)
         noActiveWindowActions(item)
-        compare(chrome.width, desktopWidth - 3 * 22 - 3 * chrome.spacing)
         compare(child(item, "topBarSearch_Biblio").visible, true)
         compare(child(item, "topBarWallpaperButton").visible, true)
         item.androidHost = false
-        wait(30)
-        compare(chrome.width, desktopWidth)
+        tryCompare(chrome, "width", desktopWidth)
     }
     function test_house_collapses_occupied_size() {
         const item = make(houseComponent, { androidHost: false })
@@ -143,7 +141,8 @@ TestCase {
         const sidebar = child(item, "layoutDiscoverSidebar")
         sidebar.collapsed = data.collapsed
         item.items = [{id:"fixture",title:"Offline title",type:"book",cover:"",author:"Author"}]
-        wait(300)
+        tryCompare(sidebar, "width", data.collapsed ? sidebar.closedWidth : sidebar.openWidth)
+        tryVerify(function() { return findChild(item, "discoverCard_fixture") !== null })
         const wall = child(item, "layoutDiscoverWall")
         const poster = child(item, "discoverCard_fixture")
         const posterWidth = poster.width; const posterHeight = poster.height; const wallWidth = wall.width
