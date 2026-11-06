@@ -29,12 +29,42 @@ else()
     target_link_libraries(colosseum_nuvio_quickjs PRIVATE Threads::Threads m)
 endif()
 
+# Keep the release credential in a single helper-only object, outside the
+# compiler cache and compile commands. A keyless build uses the OS vault.
+set(nuvio_tmdb_key "$ENV{COLOSSEUM_TMDB_KEY}")
+if(NOT nuvio_tmdb_key STREQUAL "")
+    if(CMAKE_CURRENT_BINARY_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+        message(FATAL_ERROR "A bundled TMDB key requires a separate CMake build directory.")
+    endif()
+    string(LENGTH "${nuvio_tmdb_key}" nuvio_tmdb_key_length)
+    if(NOT (nuvio_tmdb_key_length EQUAL 32 AND nuvio_tmdb_key MATCHES "^[0-9A-Fa-f]+$")
+       AND NOT (nuvio_tmdb_key_length GREATER_EQUAL 64 AND nuvio_tmdb_key_length LESS_EQUAL 4096
+                AND nuvio_tmdb_key MATCHES "^[-_A-Za-z0-9]+[.][-_A-Za-z0-9]+[.][-_A-Za-z0-9]+$"))
+        message(FATAL_ERROR "COLOSSEUM_TMDB_KEY must be a TMDB v3 key or v4 bearer token.")
+    endif()
+endif()
+set(nuvio_tmdb_source "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/NuvioBundledTmdbKey.cpp")
+file(CONFIGURE OUTPUT "${nuvio_tmdb_source}" CONTENT [=[
+#include "NuvioTmdbCredentials.h"
+
+const char *NuvioTmdb::bundledKey()
+{
+    return "@nuvio_tmdb_key@";
+}
+]=] @ONLY)
+unset(nuvio_tmdb_key)
+add_library(colosseum_nuvio_tmdb_key OBJECT "${nuvio_tmdb_source}")
+set_target_properties(colosseum_nuvio_tmdb_key PROPERTIES
+    CXX_COMPILER_LAUNCHER "" CXX_CLANG_TIDY "" AUTOMOC OFF AUTORCC OFF)
+target_include_directories(colosseum_nuvio_tmdb_key PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(colosseum_nuvio_tmdb_key PRIVATE Qt6::Core)
+
 add_executable(colosseum-nuvio-host WorkerMain.cpp worker_resources.qrc)
 set_target_properties(colosseum-nuvio-host PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
 target_include_directories(colosseum-nuvio-host PRIVATE ..)
 target_link_libraries(colosseum-nuvio-host PRIVATE
-    colosseum_nuvio colosseum_nuvio_quickjs Qt6::WebSockets)
+    colosseum_nuvio colosseum_nuvio_quickjs colosseum_nuvio_tmdb_key Qt6::WebSockets)
 if(MSVC)
     target_compile_options(colosseum-nuvio-host PRIVATE /utf-8)
 endif()

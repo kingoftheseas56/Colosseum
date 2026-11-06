@@ -131,3 +131,6 @@ The Windows and Linux Nuvio worker embeds [QuickJS-NG 0.18.0](https://github.com
 WHATWG URL and browser polyfills. Exact versions and license notices are in
 `native/nuvio/vendor` and are distributed with the desktop package under
 `licenses/Nuvio`. Users supply their own repository URLs and plugin scripts.
+
+This product uses the TMDB API but is not endorsed or certified by TMDB.
+[TMDB API attribution](https://developer.themoviedb.org/docs/faq)

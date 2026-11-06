@@ -166,6 +166,8 @@ jobs:
           "MPVQT_ROOT=$install" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           "$install/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Configure and build Colosseum release
+        env:
+          COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
         shell: pwsh
         run: |
           $build = Join-Path $env:GITHUB_WORKSPACE "native\build-msvc"

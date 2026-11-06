@@ -8,6 +8,7 @@
 // Tankoyomi's own settings open from its House tile (TankoyomiConfigurationPage).
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import QtQuick.Window
 import "ExtensionsStoreApi.js" as StoreApi
 
@@ -564,6 +565,45 @@ Item {
             store: root.nuvioRepositoryStore
             visible: store !== null
             onFocusRequested: (item) => storeWorld.revealFocusedItem(item)
+        }
+
+        RowLayout {
+            objectName: "extensionsDataSourceCredits"
+            visible: nuvioBar.visible
+            width: parent.width
+            spacing: 12
+
+            Image {
+                Layout.preferredWidth: 40
+                Layout.preferredHeight: 40
+                source: "../assets/addon-logos/tmdb.png"
+                sourceSize.width: 80
+                sourceSize.height: 80
+                fillMode: Image.PreserveAspectFit
+                Accessible.name: qsTr("TMDB")
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 3
+
+                Text {
+                    text: qsTr("Data source credits")
+                    color: theme.ink
+                    font.family: theme.ui
+                    font.weight: Font.DemiBold
+                    font.pixelSize: 13
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("This product uses the TMDB API but is not endorsed or certified by TMDB.")
+                    color: theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
+            }
         }
 
         Text {

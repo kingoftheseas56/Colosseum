@@ -13,6 +13,7 @@ struct Credential {
 enum class Authorization { Unchanged, Attached, Missing };
 
 inline constexpr auto placeholder = "__COLOSSEUM_TMDB_KEY__";
-Credential loadCredential();
+const char *bundledKey();
+Credential loadCredential(const char *buildKey);
 Authorization authorize(QNetworkRequest &request, const Credential &credential);
 }

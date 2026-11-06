@@ -194,6 +194,8 @@ jobs:
           config-file: ./.github/codeql/codeql-config.yml
 
       - name: Configure Colosseum
+        env:
+          COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
         shell: pwsh
         run: |
           $build = Join-Path $env:RUNNER_TEMP "colosseum-build"
@@ -415,6 +417,8 @@ jobs:
           echo "MPVQT_ROOT=$install" >> "$GITHUB_ENV"
 
       - name: Configure Colosseum on Linux
+        env:
+          COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
         run: |
           build="$RUNNER_TEMP/colosseum-linux-build"
           prefix="$QT_ROOT_DIR;$ECM_ROOT;$MPVQT_ROOT"

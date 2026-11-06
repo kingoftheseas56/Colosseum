@@ -24,22 +24,19 @@ Credential parse(QString value)
 }
 }
 
-Credential loadCredential()
+Credential loadCredential(const char *buildKey)
 {
     const auto backend = createAccountSecretBackend();
-    if (!backend)
-        return {};
-
-    auto blob = backend->read(QString::fromLatin1(kTarget));
+    auto blob = backend ? backend->read(QString::fromLatin1(kTarget)) : std::nullopt;
 #ifdef Q_OS_WIN
     // Opt-in development launches can use the credential provisioned for the host proof.
-    if (!blob && qEnvironmentVariableIntValue("COLOSSEUM_DEV") == 1
+    if (!blob && !*buildKey && backend && qEnvironmentVariableIntValue("COLOSSEUM_DEV") == 1
         && qEnvironmentVariableIntValue("COLOSSEUM_NUVIO_P1_CREDENTIAL") == 1) {
         blob = backend->read(QStringLiteral("Colosseum-P1-TMDB"));
     }
 #endif
     if (!blob || blob->isEmpty() || blob->size() > 4096)
-        return {};
+        return parse(QString::fromLatin1(buildKey));
 
     Credential credential = parse(QString::fromUtf8(*blob));
 #ifdef Q_OS_WIN
@@ -56,7 +53,7 @@ Credential loadCredential()
     }
 #endif
     blob->fill('\0');
-    return credential;
+    return credential.secret.isEmpty() ? parse(QString::fromLatin1(buildKey)) : credential;
 }
 
 Authorization authorize(QNetworkRequest &request, const Credential &credential)

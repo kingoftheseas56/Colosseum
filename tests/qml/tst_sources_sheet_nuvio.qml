@@ -36,11 +36,30 @@ Item {
         }
     }
 
-    SourcesSheet {
-        id: sheet
-        nuvioSourceService: nuvio
-        extensionsService: stremio
-        loadStremioStreams: stremio.load
+    Window {
+        id: hostWindow
+        width: 1280
+        height: 900
+        visible: true
+        property bool androidHost: false
+        readonly property int theatreSourcesDockInset: taskbar.visible ? taskbar.closedSize + taskbar.bottomGap : 0
+
+        SourcesSheet {
+            id: sheet
+            nuvioSourceService: nuvio
+            extensionsService: stremio
+            loadStremioStreams: stremio.load
+        }
+        Taskbar { id: taskbar }
+        NuvioRepositoryCard {
+            id: repository
+            width: 400
+            visible: false
+            busy: false
+            expanded: true
+            repository: { return { id: "repo", name: "Fixture repo",
+                                   plugins: [{ id: "plugin", name: "Fixture plugin", enabled: true }] } }
+        }
     }
 
     SignalSpy { id: playSpy; target: sheet; signalName: "playRequested" }
@@ -56,7 +75,11 @@ Item {
             playSpy.clear()
         }
 
-        function cleanup() { sheet.hide() }
+        function cleanup() {
+            sheet.hide()
+            hostWindow.width = 1280
+            hostWindow.androidHost = false
+        }
 
         function stream(url) {
             return {
@@ -82,8 +105,14 @@ Item {
             tryVerify(function() { return findChild(sheet, "sourceRow_0") !== null })
             var row = findChild(sheet, "sourceRow_0")
             compare(row.providerName, "Fixture plugin")
-            compare(findChild(row, "sourceStreamType").text, "Nuvio · Direct")
-            compare(findChild(row, "sourceStreamTypePhone").text, "Nuvio · Direct")
+            var heading = findChild(row, "nuvioSourceHeading")
+            var brand = findChild(heading, "nuvioSourceBrandChip")
+            var direct = findChild(heading, "nuvioSourceDirectChip")
+            compare(brand.text, "NUVIO")
+            compare(direct.text, "DIRECT")
+            tryCompare(direct, "y", brand.y)
+            tryCompare(findChild(heading, "nuvioSourceQuality"), "y", direct.y)
+            verify(!findChild(row, "sourceStreamType").visible)
             compare(sheet.visibleRows[0].headers.Referer, "https://nuvio.example.org/")
             sheet.openSourceContext(0)
 
@@ -112,6 +141,38 @@ Item {
             nuvio.finished(nuvio.lastId)
             compare(sheet.rowCount, 3)
             compare(sheet.nuvioPending, false)
+        }
+
+        function test_badgesAndDockClearance() {
+            sheet.show("movie", "tt1234567", "Movie")
+            var batch = []
+            for (var i = 0; i < 8; ++i)
+                batch.push(stream("https://video.example.org/" + i + ".m3u8"))
+            nuvio.streamsReady(nuvio.lastId, batch)
+            tryCompare(sheet, "rowCount", 8)
+            var list = findChild(sheet, "sourcesSheetList")
+            var dock = findChild(taskbar, "taskbarDock")
+            list.positionViewAtEnd()
+            tryVerify(function() { return list.itemAtIndex(7) !== null })
+            var row = list.itemAtIndex(7)
+            verify(row.mapToItem(sheet, 0, row.height).y <= dock.mapToItem(sheet, 0, 0).y)
+
+            hostWindow.width = 400
+            hostWindow.androidHost = true
+            tryCompare(sheet, "phoneLayout", true)
+            list.positionViewAtBeginning()
+            tryVerify(function() { return list.itemAtIndex(0) !== null })
+            row = list.itemAtIndex(0)
+            var heading = findChild(row, "nuvioSourceHeadingPhone")
+            verify(heading.visible)
+            compare(findChild(heading, "nuvioSourceBrandChip").text, "NUVIO")
+            var direct = findChild(heading, "nuvioSourceDirectChip")
+            var repoDirect = findChild(repository, "nuvioPluginDirectChip")
+            compare(direct.text, "DIRECT")
+            compare(repoDirect.text, direct.text)
+            compare(repoDirect.color, direct.color)
+            compare(repoDirect.border.color, direct.border.color)
+            verify(!findChild(row, "sourceStreamTypePhone").visible)
         }
 
         function test_replacementAndClosedResults() {

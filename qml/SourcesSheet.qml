@@ -25,6 +25,8 @@ Item {
     readonly property bool phoneLayout: sheet.Window.window
                                      && sheet.Window.window.androidHost
                                      && sheet.Window.window.width < 840
+    readonly property int dockBottomInset: sheet.Window.window
+                                        ? (sheet.Window.window.theatreSourcesDockInset || 0) : 0
 
     property Item backdrop
     property string label: ""
@@ -401,8 +403,48 @@ Item {
     function chipText(q) { return q === "all" ? "All" : q; }
 
     function streamTypeText(row) {
-        if (row.nuvio) return qsTr("Nuvio · Direct");
         return (row.streamKind || "Torrent") + " · " + (row.streamLabel || "P2P stream");
+    }
+
+    component NuvioHeading: Flow {
+        id: heading
+        required property string providerName
+        required property string quality
+        required property Theme palette
+        property bool allowWrap: false
+        spacing: 8
+
+        Text {
+            width: Math.min(implicitWidth, heading.allowWrap ? heading.width
+                            : Math.max(0, heading.width - brand.width - direct.width
+                                       - qualityLabel.width - 3 * heading.spacing))
+            height: Math.max(implicitHeight, brand.implicitHeight)
+            text: heading.providerName
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
+            verticalAlignment: Text.AlignVCenter
+            color: heading.palette.ink
+            font.family: heading.palette.ui
+            font.pixelSize: 15
+            font.weight: Font.DemiBold
+        }
+        NuvioSourceChip { id: brand; objectName: "nuvioSourceBrandChip"; branded: true }
+        NuvioSourceChip { id: direct; objectName: "nuvioSourceDirectChip" }
+        Text {
+            id: qualityLabel
+            objectName: "nuvioSourceQuality"
+            width: Math.min(implicitWidth, heading.allowWrap ? heading.width : heading.width * 0.4)
+            height: Math.max(implicitHeight, brand.implicitHeight)
+            text: heading.quality
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
+            verticalAlignment: Text.AlignVCenter
+            color: heading.palette.gold
+            font.family: heading.palette.ui
+            font.pixelSize: 13
+            font.weight: Font.DemiBold
+            font.letterSpacing: 0.5
+        }
     }
 
     // the one inline meta line: seeders, size, source group — PLAIN metadata, no emoji-as-icon
@@ -623,7 +665,8 @@ Item {
         anchors.rightMargin: sheet.phoneLayout ? 16 : theme.margin
         anchors.top: pills.visible ? pills.bottom : bannerStrip.bottom
         anchors.topMargin: sheet.phoneLayout ? 12 : 16
-        anchors.bottom: parent.bottom; anchors.bottomMargin: sheet.phoneLayout ? 16 : 26
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Math.max(sheet.phoneLayout ? 16 : 26, sheet.dockBottomInset + 8)
         radius: 18
         track: 0
 
@@ -720,6 +763,7 @@ Item {
 
         ListView {
             id: list
+            objectName: "sourcesSheetList"
             anchors.left: parent.left; anchors.right: parent.right
             anchors.top: tableHead.bottom; anchors.bottom: parent.bottom
             anchors.topMargin: 4; anchors.bottomMargin: 8
@@ -798,6 +842,7 @@ Item {
                     spacing: 7
 
                     Row {
+                        visible: !row.modelData.nuvio
                         spacing: 12
                         Text { text: row.modelData.addonName; color: theme.ink
                             font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
@@ -806,6 +851,14 @@ Item {
                             color: theme.gold
                             font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: 0.5
                             anchors.verticalCenter: parent.verticalCenter }
+                    }
+                    NuvioHeading {
+                        objectName: "nuvioSourceHeading"
+                        visible: !!row.modelData.nuvio
+                        width: parent.width
+                        providerName: row.providerName
+                        quality: row.modelData.qualityLine || row.modelData.quality || ""
+                        palette: theme
                     }
                     Text {
                         width: parent.width
@@ -850,6 +903,7 @@ Item {
                     }
                     Text {
                         objectName: "sourceStreamType"
+                        visible: !row.modelData.nuvio
                         text: sheet.streamTypeText(row.modelData)
                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                     }
@@ -974,6 +1028,7 @@ Item {
                             }
                         }
                         Column {
+                            visible: !row.modelData.nuvio
                             width: Math.max(0, mobileContent.width - 56)
                             spacing: 4
                             Text {
@@ -991,6 +1046,15 @@ Item {
                                 font.pixelSize: 13; font.weight: Font.DemiBold
                                 wrapMode: Text.WrapAnywhere
                             }
+                        }
+                        NuvioHeading {
+                            objectName: "nuvioSourceHeadingPhone"
+                            visible: !!row.modelData.nuvio
+                            width: Math.max(0, mobileContent.width - 56)
+                            allowWrap: true
+                            providerName: row.providerName
+                            quality: row.modelData.qualityLine || row.modelData.quality || ""
+                            palette: theme
                         }
                     }
                     Text {
@@ -1053,6 +1117,7 @@ Item {
                     }
                     Text {
                         objectName: "sourceStreamTypePhone"
+                        visible: !row.modelData.nuvio
                         width: parent.width
                         text: sheet.streamTypeText(row.modelData)
                         color: theme.inkDimmer; font.family: theme.ui

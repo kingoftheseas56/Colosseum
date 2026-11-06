@@ -6,7 +6,6 @@ import QtQuick.Layouts
 Rectangle {
     id: card
     required property var repository
-    required property color accent
     required property bool busy
     required property bool expanded
     signal disclosureRequested()
@@ -88,12 +87,7 @@ Rectangle {
                     font.family: theme.ui
                     font.pixelSize: 13
                 }
-                Text {
-                    text: qsTr("Direct HTTP")
-                    color: card.accent
-                    font.family: theme.ui
-                    font.pixelSize: 12
-                }
+                NuvioSourceChip { objectName: "nuvioPluginDirectChip" }
                 Switch {
                     id: pluginSwitch
                     enabled: !card.busy

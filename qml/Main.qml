@@ -6170,6 +6170,8 @@ Window {
     }
 
     // ---- the OS-shell taskbar: auto-hidden switcher over everything (under the boot splash) ----
+    readonly property int theatreSourcesDockInset: taskbar.visible ? taskbar.closedSize + taskbar.bottomGap : 0
+
     Taskbar {
         id: taskbar
         z: 900

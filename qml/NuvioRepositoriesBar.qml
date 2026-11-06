@@ -7,7 +7,7 @@ Rectangle {
     id: bar
     required property var store
     signal focusRequested(Item item)
-    readonly property color accent: "#a3c3ff"
+    readonly property color accent: theme.nuvioAccent
     property string expandedRepo: ""
     property int countBeforeAdd: -1
     width: parent ? parent.width : 800
@@ -150,7 +150,6 @@ Rectangle {
                 required property var modelData
                 Layout.fillWidth: true
                 repository: modelData
-                accent: bar.accent
                 busy: bar.store.busy
                 expanded: bar.expandedRepo === repository.id
                 onDisclosureRequested: bar.expandedRepo = expanded ? "" : repository.id

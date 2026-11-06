@@ -282,7 +282,7 @@ static void sendRequest(Host *s, int id, Request request, const QHostAddress &ip
         authorization = NuvioTmdb::authorize(req, s->tmdb);
         if (authorization == NuvioTmdb::Authorization::Missing && !s->credentialChecked) {
             s->credentialChecked = true;
-            s->tmdb = NuvioTmdb::loadCredential();
+            s->tmdb = NuvioTmdb::loadCredential(NuvioTmdb::bundledKey());
             authorization = NuvioTmdb::authorize(req, s->tmdb);
         }
         if (authorization == NuvioTmdb::Authorization::Missing)

@@ -8,6 +8,7 @@ import QtQuick
 QtObject {
     // accent — used sparingly: active pill, focus ring, progress, primary CTA
     readonly property color gold: "#f0c44a"
+    readonly property color nuvioAccent: "#a3c3ff"
 
     // ink
     readonly property color ink: "#f7f7f5"
