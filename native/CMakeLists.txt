@@ -3295,6 +3295,7 @@ if(BUILD_TESTING)
     target_link_libraries(vinyl_test_profile_controller_harness PRIVATE Qt6::Core)
     add_test(NAME colosseum.vinyl_test_profile_controller
              COMMAND vinyl_test_profile_controller_harness)
+    set_tests_properties(colosseum.vinyl_test_profile_controller PROPERTIES LABELS "vinyl")
 endif()
 
 if(BUILD_TESTING)
@@ -3303,6 +3304,7 @@ if(BUILD_TESTING)
     target_include_directories(vinyl_personal_state_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(vinyl_personal_state_harness PRIVATE Qt6::Core)
     add_test(NAME colosseum.vinyl_personal_state COMMAND vinyl_personal_state_harness)
+    set_tests_properties(colosseum.vinyl_personal_state PROPERTIES LABELS "vinyl")
     add_executable(vinyl_taste_preferences_harness
         ../tests/vinyl_taste_preferences_harness.cpp SearchHistoryStore.h
         account/ProfilePreferencesStore.cpp account/ProfilePreferencesStore.h
@@ -3310,6 +3312,7 @@ if(BUILD_TESTING)
     target_include_directories(vinyl_taste_preferences_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(vinyl_taste_preferences_harness PRIVATE Qt6::Core)
     add_test(NAME colosseum.vinyl_taste_preferences COMMAND vinyl_taste_preferences_harness)
+    set_tests_properties(colosseum.vinyl_taste_preferences PROPERTIES LABELS "vinyl")
 endif()
 
 if(BUILD_TESTING)
@@ -3318,6 +3321,7 @@ if(BUILD_TESTING)
     target_include_directories(vinyl_session_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(vinyl_session_store_harness PRIVATE Qt6::Core feria_discovery)
     add_test(NAME colosseum.vinyl_session_store COMMAND vinyl_session_store_harness)
+    set_tests_properties(colosseum.vinyl_session_store PROPERTIES LABELS "vinyl")
 endif()
 add_executable(tankoyomi_addon_store_harness
     ../tests/tankoyomi_addon_store_harness.cpp update/UpdateTrust.cpp)
