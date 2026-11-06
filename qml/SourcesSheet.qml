@@ -812,7 +812,9 @@ Item {
                 // Slice 7 flips this when a series pre-picks the source that worked last episode.
                 property bool preselected: false
                 width: ListView.view.width
-                height: sheet.phoneLayout ? Math.max(44, mobileContent.implicitHeight + 28) : 150
+                height: sheet.phoneLayout ? Math.max(44, mobileContent.implicitHeight + 28)
+                        : row.modelData.nuvio ? Math.max(96, desktopContent.implicitHeight + 20)
+                        : 150
 
                 Rectangle { anchors.fill: parent; color: list.activeFocus && list.currentIndex === row.index
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.08)
@@ -834,12 +836,13 @@ Item {
 
                 // copy column — every element, clean hierarchy
                 Column {
+                    id: desktopContent
                     visible: !sheet.phoneLayout
                     anchors.left: logo.right; anchors.leftMargin: 24
                     anchors.right: dlBtn.visible ? dlBtn.left : copyBtn.left
                     anchors.rightMargin: 20
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 7
+                    spacing: row.modelData.nuvio ? 5 : 7
 
                     Row {
                         visible: !row.modelData.nuvio
@@ -891,7 +894,9 @@ Item {
                     Row {
                         spacing: 7
                         Repeater {
-                            model: row.modelData.tags || []
+                            model: row.modelData.nuvio
+                                   ? (row.modelData.tags || []).filter(tag => tag !== row.modelData.quality)
+                                   : row.modelData.tags || []
                             delegate: Rectangle {
                                 required property string modelData
                                 width: tg.implicitWidth + 16; height: 20; radius: 6

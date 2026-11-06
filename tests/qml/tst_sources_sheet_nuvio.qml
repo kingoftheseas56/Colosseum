@@ -78,6 +78,7 @@ Item {
         function cleanup() {
             sheet.hide()
             hostWindow.width = 1280
+            hostWindow.height = 900
             hostWindow.androidHost = false
         }
 
@@ -173,6 +174,25 @@ Item {
             compare(repoDirect.color, direct.color)
             compare(repoDirect.border.color, direct.border.color)
             verify(!findChild(row, "sourceStreamTypePhone").visible)
+        }
+
+        function test_twoDirectRowsFitAboveDock() {
+            hostWindow.height = 720
+            tryCompare(sheet, "height", 720)
+            sheet.show("movie", "tt1234567", "Movie")
+            var first = stream("https://video.example.org/720.m3u8")
+            first.name = "720p"
+            var second = stream("https://video.example.org/480.m3u8")
+            second.name = "480p"
+            nuvio.streamsReady(nuvio.lastId, [first, second])
+            nuvio.finished(nuvio.lastId)
+            stremio.requests[0].done([])
+            var list = findChild(sheet, "sourcesSheetList")
+            var dock = findChild(taskbar, "taskbarDock")
+            tryVerify(function() { return list.itemAtIndex(0) && list.itemAtIndex(1) })
+            var last = list.itemAtIndex(1)
+            verify(last.mapToItem(list, 0, last.height).y <= list.height)
+            verify(list.mapToItem(sheet, 0, list.height).y <= dock.mapToItem(sheet, 0, 0).y)
         }
 
         function test_replacementAndClosedResults() {
