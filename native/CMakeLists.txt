@@ -839,7 +839,6 @@ target_link_libraries(tankoyomi_addon_store PRIVATE Qt6::Core Qt6::Network colos
 target_link_libraries(colosseum PRIVATE tankoyomi_addon_store)
 if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_subdirectory(nuvio)
-    target_link_libraries(colosseum PRIVATE colosseum_nuvio)
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_NUVIO_PLUGINS)
     add_dependencies(colosseum colosseum-nuvio-host)
 endif()
@@ -3260,6 +3259,9 @@ if(MSVC)
     target_compile_options(colosseum_vinyl_app PRIVATE /utf-8)
 endif()
 target_link_libraries(colosseum PRIVATE colosseum_vinyl_app)
+if(TARGET colosseum_nuvio)
+    target_link_libraries(colosseum PRIVATE colosseum_nuvio)
+endif()
 set(COLOSSEUM_VINYL_RUNTIME_DIR "" CACHE PATH "Prepared app-owned Vinyl Python runtime (optional online catalogue)")
 add_custom_command(TARGET colosseum POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:colosseum>/scripts/vinyl"
