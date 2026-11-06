@@ -239,7 +239,7 @@ void Runtime::sampleDockedKeyboard() {
     QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() -> QVariant {
         if (!QNativeInterface::QAndroidApplication::isActivityContext())
             return -1;
-        const auto activity = QNativeInterface::QAndroidApplication::context();
+        const QJniObject activity = QNativeInterface::QAndroidApplication::context();
         return activity.isValid() ? activity.callMethod<jint>("dockedKeyboardTop", "()I") : -1;
     }).then(this, [this](const QVariant &result) {
         m_samplingDockedKeyboard = false;
