@@ -1002,6 +1002,49 @@ void StremioSync::setMarkerLinked(bool linked) {
     }
 }
 
+bool StremioSync::retirePrimaryRemovalIntents(StremioPersistentState &state) {
+    QHash<QPair<QString, QString>, bool> retired;
+    state.pendingIntents.removeIf([&retired](const StremioPendingIntent &intent) {
+        if (intent.kind != QLatin1String("library_remove") || intent.remoteAcknowledged)
+            return false;
+        const auto identity = qMakePair(intent.desired.value(QStringLiteral("id")).toString(),
+                                        intent.desired.value(QStringLiteral("type")).toString());
+        retired[identity] |= intent.localReceiptDurable;
+        return true;
+    });
+
+    QJsonArray &differences = state.intentionalMembershipDifferences;
+    for (qsizetype i = differences.size(); i > 0; --i) {
+        QJsonObject difference = differences.at(i - 1).toObject();
+        const auto identity = qMakePair(difference.value(QStringLiteral("id")).toString(),
+                                        difference.value(QStringLiteral("type")).toString());
+        const auto removed = retired.constFind(identity);
+        if (removed == retired.cend()
+            || difference.value(QStringLiteral("localPresent")).toBool()
+            || !difference.value(QStringLiteral("remotePresent")).toBool()
+            || !difference.value(QStringLiteral("explicitRemoteRemoval")).toBool()) {
+            continue;
+        }
+        if (*removed) {
+            // Preserve a durable local removal as local-only. The old remote
+            // delete authorization no longer applies after the provider switch.
+            difference.insert(QStringLiteral("explicitRemoteRemoval"), false);
+            differences.replace(i - 1, difference);
+        } else {
+            differences.removeAt(i - 1);
+        }
+    }
+
+    // Re-promotion must union against fresh provider addons. A prior
+    // primary baseline could treat inactivity as intentional removal.
+    const bool hadAddonBaseline =
+        state.acknowledgedBaselines.contains(QStringLiteral("addonCollection"))
+        || state.acknowledgedBaselines.contains(QStringLiteral("addonCollectionPending"));
+    state.acknowledgedBaselines.remove(QStringLiteral("addonCollection"));
+    state.acknowledgedBaselines.remove(QStringLiteral("addonCollectionPending"));
+    return !retired.isEmpty() || hadAddonBaseline;
+}
+
 void StremioSync::setImportOnlyEnabled(bool enabled) {
     const bool wasWritable = canWriteProvider();
     m_providerModeKnown = true;
@@ -1013,6 +1056,12 @@ void StremioSync::setImportOnlyEnabled(bool enabled) {
     m_importOnlyEnabled = enabled;
     if (wasWritable && !canWriteProvider())
         stopProviderWrites();
+    if (enabled) {
+        if (m_provisionalCredential)
+            retirePrimaryRemovalIntents(m_provisionalCredential->previousState);
+        if (retirePrimaryRemovalIntents(m_state))
+            persist();
+    }
     if (!enabled && !stagedAuthenticationReady()) {
         cancelEpisodeMetadataRequests(true);
         if (m_datastoreReply && m_datastoreBinding.previewAttempt)
@@ -1028,6 +1077,13 @@ void StremioSync::setImportOnlyEnabled(bool enabled) {
         });
     }
     emit stateChanged();
+}
+
+bool StremioSync::importOnlyPromotionReady() const {
+    return m_importOnlyEnabled && !m_markerLinked
+        && !m_profileId.isEmpty() && !m_statePath.isEmpty()
+        && !hasPendingPersistenceForPath(m_statePath)
+        && !m_failedPersistencePaths.contains(m_statePath);
 }
 
 void StremioSync::setCredentialCallbacks(

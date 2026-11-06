@@ -212,6 +212,7 @@ private slots:
     void browserCallbackValidatesIdentityAndPersistsVaultBeforeJournal();
     void stagedAuthenticationPreviewsWithoutSavingUntilConfirmation();
     void switchingToImportOnlyFencesDatastoreFollowUpWrite();
+    void demotionRetiresPendingRemoteRemovalsBeforePromotion();
     void exactHistoryCompletionsReconcileWithoutInventedProgress();
     void browserCompletionWaitsForDurableLink_data();
     void browserCompletionWaitsForDurableLink();
@@ -751,6 +752,82 @@ void tst_stremio_sync::switchingToImportOnlyFencesDatastoreFollowUpWrite() {
     QVERIFY(!sync.queueIntent(QStringLiteral("library_add"), desired));
     QVERIFY(!sync.reconcileAddonCollection({}, {}));
     QVERIFY(sync.linkedAccount());
+}
+
+void tst_stremio_sync::demotionRetiresPendingRemoteRemovalsBeforePromotion() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString profile = QStringLiteral("local");
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    const auto removal = [](const QString &id, bool remoteAcknowledged, bool localReceipt) {
+        return StremioPendingIntent{id, QStringLiteral("library_remove"),
+            {{QStringLiteral("id"), id}, {QStringLiteral("type"), QStringLiteral("movie")}},
+            remoteAcknowledged, localReceipt, 0, 0};
+    };
+    const auto difference = [](const QString &id, bool remotePresent, bool explicitRemoval) {
+        return QJsonObject{{QStringLiteral("id"), id},
+            {QStringLiteral("type"), QStringLiteral("movie")},
+            {QStringLiteral("localPresent"), false},
+            {QStringLiteral("remotePresent"), remotePresent},
+            {QStringLiteral("explicitRemoteRemoval"), explicitRemoval}};
+    };
+    const QString uncommitted = QStringLiteral("tt101");
+    const QString localOnly = QStringLiteral("tt102");
+    const QString acknowledged = QStringLiteral("tt103");
+    const QString unrelated = QStringLiteral("progress-fixture");
+    StremioPersistentState initial;
+    initial.profileId = profile;
+    initial.accountId = QStringLiteral("fixture-account");
+    initial.pendingIntents = {removal(uncommitted, false, false),
+        removal(localOnly, false, true), removal(acknowledged, true, false),
+        StremioPendingIntent{unrelated, QStringLiteral("progress"), {}, false, true, 0, 0}};
+    initial.intentionalMembershipDifferences = {difference(uncommitted, true, true),
+        difference(localOnly, true, true), difference(acknowledged, false, true)};
+    initial.acknowledgedBaselines = {{QStringLiteral("addonCollection"), QJsonObject{}},
+        {QStringLiteral("addonCollectionPending"), QJsonObject{}},
+        {QStringLiteral("unrelated"), true}};
+    StremioState writer;
+    writer.saveAsync(path, initial);
+    QVERIFY(writer.flush());
+
+    QStringList sent;
+    StremioSyncOptions options;
+    options.apiEndpoint = QUrl();
+    options.loadCredential = [](const QString &, const QString &) {
+        return std::optional<QByteArray>(QByteArrayLiteral("fixture-key"));
+    };
+    options.intentSender = [&sent](const StremioPendingIntent &intent,
+                                  std::function<void(bool, bool)>) { sent.append(intent.operationId); };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(profile, path, false));
+    sync.setMarkerLinked(true);
+    sync.setImportOnlyEnabled(true);
+    sync.setMarkerLinked(false);
+    QVERIFY(!sync.importOnlyPromotionReady());
+    QCOMPARE(sync.pendingCount(), 2);
+    sync.retryPendingNow();
+    QVERIFY(sent.isEmpty());
+
+    auto *syncWriter = sync.findChild<StremioState *>(QStringLiteral("stremioState"));
+    QVERIFY(syncWriter);
+    QString writeError;
+    QVERIFY2(syncWriter->flush(&writeError), qPrintable(writeError));
+    QTRY_VERIFY(sync.importOnlyPromotionReady());
+    const auto stored = writer.load(path);
+    QVERIFY(stored);
+    QCOMPARE(stored->pendingIntents.size(), 2);
+    QCOMPARE(stored->intentionalMembershipDifferences,
+             (QJsonArray{difference(localOnly, true, false), difference(acknowledged, false, true)}));
+    QVERIFY(!stored->acknowledgedBaselines.contains(QStringLiteral("addonCollection")));
+    QVERIFY(!stored->acknowledgedBaselines.contains(QStringLiteral("addonCollectionPending")));
+    QVERIFY(stored->acknowledgedBaselines.value(QStringLiteral("unrelated")).toBool());
+
+    sync.deactivateProfile();
+    StremioSync promoted(options);
+    QVERIFY(promoted.activateProfile(profile, path, false));
+    promoted.setMarkerLinked(true);
+    QTRY_COMPARE(sent, QStringList{unrelated});
+    QCOMPARE(promoted.pendingCount(), 2);
 }
 
 void tst_stremio_sync::exactHistoryCompletionsReconcileWithoutInventedProgress() {

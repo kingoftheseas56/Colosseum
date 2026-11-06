@@ -104,6 +104,7 @@ public:
     void finishVisibleSync(bool succeeded, const QString &summary);
     void setMarkerLinked(bool linked);
     void setImportOnlyEnabled(bool enabled);
+    bool importOnlyPromotionReady() const;
     void setCredentialCallbacks(
         std::function<bool(const QString &, const QString &, const QByteArray &)> save,
         std::function<bool(const QString &)> clear,
@@ -271,6 +272,7 @@ private:
     bool canWriteProvider() const;
     ProfileBinding writeBinding() const;
     void stopProviderWrites();
+    static bool retirePrimaryRemovalIntents(StremioPersistentState &state);
     std::optional<QByteArray> readCredential(const ProfileBinding &binding) const;
     bool pullLibraryItems(const ProfileBinding &binding,
                           std::function<void(bool, QList<StremioLibraryItem>)> completion);
