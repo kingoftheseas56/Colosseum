@@ -498,6 +498,7 @@ private slots:
     void accountProfilesKeepHistorySeparated();
     void failedDeleteRestoresTombstoneState();
     void stremioProvenanceRoundTripsAndSurvivesLegacyPartialMerge();
+    void nuvioProvenanceRoundTripsAndRejectsUnknown();
 };
 
 void tst_history_sync::
@@ -1564,6 +1565,62 @@ stremioProvenanceRoundTripsAndSurvivesLegacyPartialMerge() {
         1,
         &error), qPrintable(error));
     QVERIFY(store.get(QStringLiteral("episode"), QStringLiteral("kitsu:alpha:s1:e0")).isEmpty());
+}
+
+void tst_history_sync::nuvioProvenanceRoundTripsAndRejectsUnknown() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString path = temporary.filePath(QStringLiteral("nuvio-history.ini"));
+    const QVariantMap imported{
+        {QStringLiteral("kind"), QStringLiteral("episode")},
+        {QStringLiteral("id"), QStringLiteral("tt0100:1:1")},
+        {QStringLiteral("firstActivityAt"), qint64(1000)},
+        {QStringLiteral("lastActivityAt"), qint64(3000)},
+        {QStringLiteral("completedAt"), qint64(3000)},
+        {QStringLiteral("source"), QStringLiteral("nuvio")},
+        {QStringLiteral("displayId"), QStringLiteral("tmdb:1396_s1e1")},
+        {QStringLiteral("displayTitle"), QStringLiteral("Pilot")},
+        {QStringLiteral("latestKnownAt"), qint64(3000)}};
+    {
+        HistoryStore store(path);
+        HistorySyncAdapter adapter(&store);
+        const auto projected = CoreStateSyncProjection::history(imported);
+        QCOMPARE(projected.disposition, CoreStateSyncProjection::Disposition::Portable);
+        SyncAdapterValidationError validation;
+        QVERIFY2(adapter.validateRemote(projected.recordKey,
+            SyncWireOperation::Put, projected.payload, 1, &validation),
+            qPrintable(validation.detail));
+        QString error;
+        QVERIFY2(adapter.applyRemote(projected.recordKey,
+            SyncWireOperation::Put, projected.payload, 1, &error),
+            qPrintable(error));
+        QVERIFY2(adapter.applyRemote(projected.recordKey,
+            SyncWireOperation::Put, projected.payload, 1, &error),
+            qPrintable(error));
+        const QVariantMap legacy{
+            {QStringLiteral("kind"), QStringLiteral("episode")},
+            {QStringLiteral("id"), QStringLiteral("tt0100:1:1")},
+            {QStringLiteral("firstActivityAt"), qint64(900)},
+            {QStringLiteral("lastActivityAt"), qint64(2000)}};
+        QVERIFY(store.applySyncedRecord(legacy));
+        QCOMPARE(store.get(QStringLiteral("episode"), QStringLiteral("tt0100:1:1"))
+                     .value(QStringLiteral("source")).toString(),
+                 QStringLiteral("nuvio"));
+        QVariantMap unknown = imported;
+        unknown.insert(QStringLiteral("source"), QStringLiteral("untrusted"));
+        const auto invalid = CoreStateSyncProjection::history(unknown);
+        if (invalid.disposition == CoreStateSyncProjection::Disposition::Portable)
+            QVERIFY(!adapter.validateRemote(invalid.recordKey,
+                SyncWireOperation::Put, invalid.payload, 1));
+        QVERIFY(!store.applySyncedRecord(unknown));
+    }
+    HistoryStore reloaded(path);
+    const QVariantMap durable = reloaded.get(
+        QStringLiteral("episode"), QStringLiteral("tt0100:1:1"));
+    QCOMPARE(durable.value(QStringLiteral("source")).toString(), QStringLiteral("nuvio"));
+    QCOMPARE(durable.value(QStringLiteral("displayId")).toString(),
+             QStringLiteral("tmdb:1396_s1e1"));
+    QCOMPARE(durable.value(QStringLiteral("latestKnownAt")).toLongLong(), qint64(3000));
 }
 
 void tst_history_sync::localMusicStaysOutOfCloudSnapshots() {

@@ -26,6 +26,16 @@ struct StoredStremioCredential {
     QByteArray authKey;
 };
 
+// Bound to a Colosseum profile, not the selected Nuvio source profile.
+// Contains only session tokens and their expiry; never the sign-in password.
+struct StoredNuvioCredential {
+    QString profileId;
+    QString accountId;
+    QByteArray accessToken;
+    QByteArray refreshToken;
+    qint64 accessExpiresAtUtcMs = 0;
+};
+
 class AccountCredentialStore {
 public:
     virtual ~AccountCredentialStore() = default;
@@ -57,6 +67,21 @@ public:
         return false;
     }
     virtual bool clearStremio(const QString &profileId) {
+        Q_UNUSED(profileId)
+        return false;
+    }
+
+    // Fail closed on platforms without a secure, Nuvio-capable vault.
+    virtual std::optional<StoredNuvioCredential> loadNuvio(
+        const QString &profileId) const {
+        Q_UNUSED(profileId)
+        return std::nullopt;
+    }
+    virtual bool saveNuvio(const StoredNuvioCredential &credential) {
+        Q_UNUSED(credential)
+        return false;
+    }
+    virtual bool clearNuvio(const QString &profileId) {
         Q_UNUSED(profileId)
         return false;
     }

@@ -216,6 +216,7 @@ private slots:
     void failedReauthenticationPreservesExistingLink();
     void intentDispatchWaitsForJournalAndReceipt();
     void taggedVaultCredentialRoundTripsOnlyForBoundProfile();
+    void nuvioCredentialVaultIsScopedValidatedAndDisconnectable();
     void replayedAndCancelledCallbacksCannotValidateCredentials();
     void cancelledAndSwitchedProfilesRejectLateIdentityReplies();
     void vaultFailureAfterIdentityValidationLeavesNoCredentialOrJournalIdentity();
@@ -850,6 +851,91 @@ void tst_stremio_sync::taggedVaultCredentialRoundTripsOnlyForBoundProfile() {
     QCOMPARE(loaded->accountId, credential.accountId);
     QCOMPARE(loaded->authKey, credential.authKey);
     QVERIFY(!store.loadStremio(profileId, QStringLiteral("other-account")).has_value());
+}
+
+void tst_stremio_sync::nuvioCredentialVaultIsScopedValidatedAndDisconnectable() {
+    class MemorySecretBackend final : public AccountSecretBackend {
+    public:
+        QHash<QString, QByteArray> values;
+        bool isAvailable() const override { return true; }
+        bool write(const QString &target, const QByteArray &blob) override {
+            values.insert(target, blob);
+            return true;
+        }
+        std::optional<QByteArray> read(const QString &target) const override {
+            if (!values.contains(target))
+                return std::nullopt;
+            return values.value(target);
+        }
+        bool remove(const QString &target) override {
+            values.remove(target);
+            return true;
+        }
+        QStringList targets(const QString &prefix) const override {
+            QStringList result;
+            for (auto it = values.cbegin(); it != values.cend(); ++it) {
+                if (it.key().startsWith(prefix))
+                    result.append(it.key());
+            }
+            return result;
+        }
+    };
+
+    ScopedEnvironmentVariable tag(
+        "COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("nuvio-vault-test"));
+    auto backend = std::make_shared<MemorySecretBackend>();
+    PlatformAccountCredentialStore store(backend);
+    const QString profileId = QStringLiteral("local");
+    const QString accountId = QStringLiteral("15d3f753-7e5d-4fe8-bb27-80e79b60686d");
+    const QString otherProfileId =
+        QStringLiteral("5074ac5b-a47d-432a-a3d4-2889bf7c4f5a");
+    const StoredNuvioCredential credential{
+        profileId, accountId,
+        QByteArrayLiteral("fixture-access"),
+        QByteArrayLiteral("fixture-refresh"), 1793956800000LL};
+
+    QVERIFY(store.saveNuvio(credential));
+    const auto loaded = store.loadNuvio(profileId);
+    QVERIFY(loaded.has_value());
+    QCOMPARE(loaded->profileId, profileId);
+    QCOMPARE(loaded->accountId, accountId);
+    QCOMPARE(loaded->accessToken, credential.accessToken);
+    QCOMPARE(loaded->refreshToken, credential.refreshToken);
+    QCOMPARE(loaded->accessExpiresAtUtcMs, credential.accessExpiresAtUtcMs);
+    QVERIFY(!store.loadNuvio(otherProfileId).has_value());
+
+    const QString target = PlatformAccountCredentialStore::nuvioTargetName(profileId);
+    const QString stremioTarget = PlatformAccountCredentialStore::stremioTargetName(profileId);
+    QVERIFY(target != stremioTarget);
+    QVERIFY(target.contains(QStringLiteral(".Tagged.")));
+    const QJsonObject serialized = QJsonDocument::fromJson(backend->values.value(target)).object();
+    QCOMPARE(serialized.size(), 6);
+    QVERIFY(!serialized.contains(QStringLiteral("password")));
+    QVERIFY(!serialized.contains(QStringLiteral("email")));
+    QVERIFY(!backend->values.value(target).contains("fixture-access"));
+    QVERIFY(!backend->values.value(target).contains("fixture-refresh"));
+
+    auto invalid = credential;
+    invalid.refreshToken.clear();
+    QVERIFY(!store.saveNuvio(invalid));
+    invalid = credential;
+    invalid.accessExpiresAtUtcMs = 0;
+    QVERIFY(!store.saveNuvio(invalid));
+    invalid = credential;
+    invalid.profileId = QStringLiteral("../other");
+    QVERIFY(!store.saveNuvio(invalid));
+    invalid = credential;
+    invalid.accountId = QStringLiteral("not-a-uuid");
+    QVERIFY(!store.saveNuvio(invalid));
+    QCOMPARE(store.loadNuvio(profileId)->refreshToken, credential.refreshToken);
+
+    // Neither disconnect nor failed validation can disturb the Stremio vault.
+    QVERIFY(store.saveStremio(
+        StoredStremioCredential{profileId, QStringLiteral("fixture-stremio"),
+                                QByteArrayLiteral("stremio-auth")}));
+    QVERIFY(store.clearNuvio(profileId));
+    QVERIFY(!store.loadNuvio(profileId).has_value());
+    QVERIFY(store.loadStremio(profileId, QStringLiteral("fixture-stremio")).has_value());
 }
 
 void tst_stremio_sync::replayedAndCancelledCallbacksCannotValidateCredentials() {

@@ -37,12 +37,18 @@ public:
     static QString pendingTargetPrefix();
     static QString deletionTargetPrefix();
     static QString stremioTargetName(const QString &profileId);
+    static QString nuvioTargetName(const QString &profileId);
 
     std::optional<StoredStremioCredential> loadStremio(
         const QString &profileId,
         const QString &accountId) const override;
     bool saveStremio(const StoredStremioCredential &credential) override;
     bool clearStremio(const QString &profileId) override;
+
+    std::optional<StoredNuvioCredential> loadNuvio(
+        const QString &profileId) const override;
+    bool saveNuvio(const StoredNuvioCredential &credential) override;
+    bool clearNuvio(const QString &profileId) override;
 
 private:
     static QByteArray encodeCredential(const StoredAccountCredential &credential);
@@ -53,6 +59,8 @@ private:
     static bool validStremioAccountId(const QString &accountId);
     static QByteArray encodeStremioCredential(const StoredStremioCredential &credential);
     static std::optional<StoredStremioCredential> decodeStremioCredential(const QByteArray &blob);
+    static QByteArray encodeNuvioCredential(const StoredNuvioCredential &credential);
+    static std::optional<StoredNuvioCredential> decodeNuvioCredential(const QByteArray &blob);
 
     bool writeGenericCredential(const QString &target, const QByteArray &blob);
     std::optional<QByteArray> readGenericCredential(const QString &target) const;
