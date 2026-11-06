@@ -5,6 +5,14 @@ public final class FeedbackNavigationPolicyTest {
         check(FeedbackNavigationPolicy.document("https://getcolosseum.world/feedback/?version=1.2.1&platform=android"));
         for (String url : new String[]{"http://getcolosseum.world/feedback/", "https://getcolosseum.world:444/feedback/", "https://getcolosseum.world@evil.example/feedback/", "https://getcolosseum.world/feedback/../account", "https://getcolosseum.world/feedback/%2e%2e/account", "file:///feedback/", "javascript:alert(1)", "https://getcolosseum.world/account"}) check(!FeedbackNavigationPolicy.document(url));
         check(FeedbackNavigationPolicy.document("https://getcolosseum.world/feedback/?version=1.2.1&platform=android&mode=universe"));
+        String report = "https://getcolosseum.world/feedback/report?version=1.2.1&platform=android&kind=bug";
+        check(FeedbackNavigationPolicy.document(report));
+        check(FeedbackNavigationPolicy.document("https://getcolosseum.world/feedback/report.html?kind=feature"));
+        check(!FeedbackNavigationPolicy.document("https://getcolosseum.world/feedback/report/other"));
+        check(!FeedbackNavigationPolicy.closesReport(report));
+        check(FeedbackNavigationPolicy.closesReport(report + "#close-feedback"));
+        check(!FeedbackNavigationPolicy.closesReport("https://getcolosseum.world/feedback/#close-feedback"));
+        check(!FeedbackNavigationPolicy.closesReport("https://other.example/feedback/report#close-feedback"));
         String wikipedia = "https://en.wikipedia.org/w/api.php?action=query&origin=*";
         check(FeedbackNavigationPolicy.resource(wikipedia));
         check(!FeedbackNavigationPolicy.document(wikipedia));

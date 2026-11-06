@@ -10,7 +10,8 @@ FocusScope {
     property bool universeRequest: false
     property bool desktopUniverse: false
     property string homeFeedbackKind: ""
-    readonly property bool desktopDialog: desktopUniverse || homeFeedbackKind.length > 0
+    readonly property bool desktopDialog: Qt.platform.os !== "android"
+        && (desktopUniverse || homeFeedbackKind.length > 0)
     property url backdropUrl
     property var availableUniverses: []
     property url pageUrl: Route.pageUrl(Qt.application.version, Qt.platform.os, root.universeRequest,
@@ -128,7 +129,7 @@ FocusScope {
                 }
             }
             HouseWindowControls {
-                visible: !root.universeRequest
+                visible: !androidHost && !root.universeRequest
                 objectPrefix: "feedbackWindow"
                 Layout.alignment: Qt.AlignVCenter
                 onMinimizeRequested: root.minimizeRequested()

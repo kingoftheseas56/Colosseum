@@ -2999,7 +2999,7 @@ Window {
         feedbackLayer.universeRequest = !!invoker && !homeFeedbackKind
         feedbackLayer.homeFeedbackKind = homeFeedbackKind
         win.feedbackInvoker = invoker || win.activeFocusItem
-        if (feedbackLayer.desktopUniverse || homeFeedbackKind) {
+        if (feedbackLayer.desktopUniverse || (homeFeedbackKind && !win.androidHost)) {
             feedbackLayer.capturingBackdrop = true
             if (win.contentItem.grabToImage(function(result) {
                 feedbackLayer.capturingBackdrop = false

@@ -62,7 +62,8 @@ void AndroidFeedbackBrowser::open(const QUrl& url)
     const QString path = url.path();
     if (url.scheme() != "https" || url.host() != "getcolosseum.world"
         || !url.userInfo().isEmpty() || (url.port(-1) != -1 && url.port() != 443)
-        || (path != "/feedback/" && path != "/feedback" && path != "/feedback/index.html")) {
+        || (path != "/feedback/" && path != "/feedback" && path != "/feedback/index.html"
+            && path != "/feedback/report" && path != "/feedback/report.html")) {
         fail();
         return;
     }
