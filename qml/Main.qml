@@ -227,8 +227,10 @@ Window {
     property string wallpaperSource: win.defaultWallpaperSource
     onDefaultWallpaperSourceChanged: Qt.callLater(win.refreshWallpaper)
     property alias androidHost: phoneShell.androidHost
-    AdaptiveLayout { id: presentationPolicy; viewportWidth: win.width }
+    AdaptiveLayout { id: presentationPolicy; viewportWidth: win.width; androidHost: win.androidHost }
     readonly property alias desktopPresentation: presentationPolicy.desktopPresentation
+    readonly property real headerOuterMargin: theme.margin
+    readonly property real outerPageMargin: theme.margin
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
     // Lanista deliberately reads QQuickItem properties only; never expose credentials,
@@ -1380,7 +1382,14 @@ Window {
         case "downloads": win.closeDownloadsPage(); return
         case "profile": phoneShell.closeProfilePage(); return
         case "book": win.closeBook(); return
-        case "theatreSeries": win.closeTheatreSeries(); return
+        case "theatreSeries":
+            // Native Back (PF-03) closes the title's visible transient first (episode
+            // context, Sources context/extension menu/sheet, episode jump, season menu);
+            // only an unconsumed Back leaves the title. Desktop Escape keeps its key routes.
+            if (win.androidHost && theatreSeriesLayer.item
+                    && theatreSeriesLayer.item.requestEscape
+                    && theatreSeriesLayer.item.requestEscape()) return
+            win.closeTheatreSeries(); return
         case "western": win.closeWestern(); return
         case "series": win.closeSeries(); return
         case "onePieceArc": win.closeOnePieceArc(); return
@@ -1846,6 +1855,50 @@ Window {
     }
     function closeSeries() { seriesLayer.active = false; win.restoreNamedCollectionsReturn() }
 
+    // Featured Read (WT-06). Comics (ghost "C") need the GetComics source: without it the
+    // Extensions page opens instead of a dead end. Manga opens the existing series owner and
+    // reads its primary target once THAT title has finished loading. The deferred read rides
+    // the catalogue-route generation, so any later route (another title, Back, a different
+    // world/profile) cancels it and it can never land on a new context.
+    function readTankobanFeatured(slide) {
+        if (!slide || !String(slide.title || "").length) return
+        var title = String(slide.title)
+        if (slide.ghost === "C") {
+            var installed = (typeof Extensions !== "undefined" && Extensions
+                            && typeof Extensions.installed === "function") ? (Extensions.installed() || []) : []
+            var getComicsEnabled = false
+            for (var i = 0; i < installed.length; ++i)
+                if (installed[i] && installed[i].id === "colosseum.well.getcomics.issues"
+                        && installed[i].enabled === true) { getComicsEnabled = true; break }
+            if (!getComicsEnabled) { win.openExtensionsPage("tankoban"); return }
+            win.openWestern({ title: title })
+            return
+        }
+        win.openSeries(title)
+        var page = seriesLayer.item
+        if (page && page.readPrimary && page.seriesTitle === title && !page.loading) {
+            page.readPrimary()
+            return
+        }
+        var request = { title: title, generation: win._catalogueRouteGeneration }
+        seriesLayer.featuredRead = request
+        win._catalogueRouteCancel = function() {
+            if (seriesLayer.featuredRead === request) seriesLayer.featuredRead = null
+        }
+    }
+    function consumeFeaturedRead() {
+        var request = seriesLayer.featuredRead
+        var page = seriesLayer.item
+        if (!request || !page || !page.readPrimary || page.loading) return
+        if (request.generation !== win._catalogueRouteGeneration || page.seriesTitle !== request.title) {
+            seriesLayer.featuredRead = null
+            return
+        }
+        seriesLayer.featuredRead = null
+        win._catalogueRouteCancel = null
+        page.readPrimary()
+    }
+
     // ---- western-comics detail: the GetComics shelf (ComicSeries), parallel to the
     //      manga seriesLayer. Series id app-wide = "gc:<tag-slug>" — the prefix is how
     //      every shared kind:"comic" route below tells the two lanes apart. ----
@@ -2227,8 +2280,37 @@ Window {
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
     function openTheatreSeries(item) { win.cancelCatalogueRoute();
         theatreSeriesLayer.pendingItem = item
-        if (theatreSeriesLayer.active && theatreSeriesLayer.item) theatreSeriesLayer.item.itemData = item
+        if (theatreSeriesLayer.active && theatreSeriesLayer.item) {
+            theatreSeriesLayer.item.itemData = item
+            if (item && item.resumeSources && theatreSeriesLayer.item.openResumeSources)
+                theatreSeriesLayer.item.openResumeSources(item.resumeSources)
+        }
         else theatreSeriesLayer.active = true
+    }
+    // PF-04: Continue on a download whose local file is gone. Returns true when it routed to
+    // the exact title/episode Sources sheet (canonical tt/anime ids only); false keeps the
+    // existing local-player path (and its error/retry) for files that are present or ids that
+    // have no catalogue route.
+    function openMissingDownloadSources(entry, r, presentation, title, cover) {
+        if (typeof Download === "undefined" || !Download || typeof Download.localFileAvailable !== "function")
+            return false
+        if (Download.localFileAvailable(String(r.localPath)))
+            return false
+        var sourceId = String(r.subId || entry.id || "")
+        var rootId = EpisodeBrowser.seriesRootId(sourceId)
+        if (!/^(tt\d+|(?:mal|kitsu|anilist|anidb):\d+)$/.test(rootId))
+            return false
+        var sourceType = r.subType === "series" || presentation.type === "series"
+                         || sourceId !== rootId ? "series" : "movie"
+        var showTitle = EpisodeBrowser.showTitleFrom(title)
+        win.openTheatreSeries({ "id": rootId, "type": sourceType, "title": showTitle, "cover": cover,
+            "resumeSources": {
+                "id": sourceId, "type": sourceType, "title": title,
+                "context": { "title": showTitle, "backdrop": cover, "imdbId": rootId,
+                    "season": EpisodeBrowser.seasonOf(sourceId),
+                    "episode": sourceType === "series" ? Number(sourceId.split(":").pop()) || 0 : 0,
+                    "resumePosition": Number(r.position) || 0 } } })
+        return true
     }
     function closeTheatreSeries() { theatreSeriesLayer.active = false; win.restoreNamedCollectionsReturn() }
 
@@ -2512,6 +2594,26 @@ Window {
                 win.warmPlayerSessionId = ""
             if (Sessions.activeId === id)
                 win.activateSession(Sessions.get(id))
+        }
+        function onSourceReplaced(id) {
+            // Same content, a different chosen source (BR-SOURCE-REPLACEMENT). The record
+            // already carries the new target. A parked (warm) session must not resume the
+            // old stream: drop warm ownership so the pending setActive loads the new target
+            // with its saved position. An already-active session never receives
+            // activeChanged, so checkpoint the live position of the old transport first and
+            // re-dispatch here; the player's demand epoch retires the old route's callbacks.
+            if (Sessions.activeId === id) {
+                var rec = Sessions.get(id)
+                if (rec && rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) {
+                    var live = playerLayer.item.captureState()
+                    if (live && Number.isFinite(live.position) && live.position >= 0)
+                        Sessions.saveState(id, live)
+                }
+                win.warmPlayerSessionId = ""
+                win.activateSession(Sessions.get(id))
+            } else if (win.warmPlayerSessionId === id) {
+                win.warmPlayerSessionId = ""
+            }
         }
     }
     Connections {
@@ -3468,7 +3570,13 @@ Window {
                                         "title": title, "cover": cover })
                 return
             }
-            // downloaded file first: resume the LOCAL copy at position, never a stream fetch
+            // downloaded file first: resume the LOCAL copy at position, never a stream fetch.
+            // A deleted/moved download (PF-04) reopens the same title/episode's Sources sheet
+            // with its saved position instead of erroring; the user picks the replacement
+            // source explicitly (nothing is chosen for them, progress is not rewritten).
+            if (r.localPath && String(r.localPath).length
+                    && win.openMissingDownloadSources(entry, r, presentation, title, cover))
+                return
             if (r.localPath && String(r.localPath).length)
                 win.openLocalVideoSession({ "path": r.localPath, "id": entry.id || "",
                                             "title": title, "art": cover,
@@ -3626,7 +3734,9 @@ Window {
                         "infoHash": infoHash, "fileIdx": fileIdx || 0, "title": title || "",
                         "backdrop": backdrop || "", "subType": subType || "", "subId": subId || "",
                         "streamCandidates": streamCandidates || [], "playbackContext": playbackContext || ({}),
-                        "position": position || 0 }
+                        // A Continue source pick (PF-04) keeps its saved position; an explicit
+                        // caller position still wins.
+                        "position": position || Number((playbackContext || ({})).resumePosition) || 0 }
         })
     }
     // A downloaded video's session: dedup key = target.id (the stream id, e.g. "tt123:1:2"),
@@ -4185,8 +4295,8 @@ Window {
         backdrop: wall
         activeMedium: ""
         androidHost: win.androidHost
-        x: theme.margin; y: 18
-        width: win.width - theme.margin * 2
+        x: win.headerOuterMargin; y: 18
+        width: win.width - win.headerOuterMargin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")
         onDlnaClicked: (anchorRight, anchorBottom) => dlnaSharePopup.toggleAt(anchorRight, anchorBottom)
@@ -4390,8 +4500,8 @@ Window {
 
         Column {
             id: contentCol
-            x: theme.margin
-            width: page.width - theme.margin * 2
+            x: win.outerPageMargin
+            width: page.width - win.outerPageMargin * 2
             topPadding: 10
             spacing: 32
 
@@ -4835,6 +4945,7 @@ Window {
                     }
                     item.seriesRequested.connect(win.openSeries)
                     if (item.mangaOpenById) item.mangaOpenById.connect(win.openSeries)
+                    if (item.featuredReadRequested) item.featuredReadRequested.connect(win.readTankobanFeatured)
                     item.bookRequested.connect(win.openBook)
                     item.genreRequested.connect(win.openGenre)
                     if (item.genreIndexRequested) item.genreIndexRequested.connect(win.openGenreIndex)
@@ -5088,6 +5199,14 @@ Window {
         z: 53     // above the universe overlay (z:52): a manga opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
+        // Pending Featured Read for one exact title (WT-06); see readTankobanFeatured.
+        property var featuredRead: null
+        onActiveChanged: if (!active) featuredRead = null
+        Connections {
+            target: seriesLayer.item
+            ignoreUnknownSignals: true
+            function onLoadingChanged() { if (seriesLayer.featuredRead) Qt.callLater(win.consumeFeaturedRead) }
+        }
         property string title: ""
         property string malId: ""             // Slice C: Discover card's MAL id, threaded to the series page
         property string seriesIdOverride: ""
@@ -5373,6 +5492,11 @@ Window {
                 })
             if (item.backLabel !== undefined)
                 item.backLabel = Qt.binding(function() { return worldStack.current.length ? worldStack.current : "Home" })
+            // Cold load continuation (PF-04), after playback signals are connected: only the
+            // latest pending request opens its Sources sheet.
+            if (theatreSeriesLayer.pendingItem && theatreSeriesLayer.pendingItem.resumeSources
+                    && item.openResumeSources)
+                item.openResumeSources(theatreSeriesLayer.pendingItem.resumeSources)
         }
     }
 

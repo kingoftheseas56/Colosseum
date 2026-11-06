@@ -530,6 +530,7 @@ Item {
 
     // ---- window controls (minimize / power) — the SAME icons as the home/world top bar ----
     Row {
+        visible: Qt.platform.os !== "android"
         z: 30
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20

@@ -606,10 +606,12 @@ FocusScope {
         objectName: "eastBlueIndexPanel"
         visible: root.indexVisible
         anchors.top: indexButton.bottom
-        anchors.right: indexButton.right
         anchors.topMargin: 8
-        width: Math.min(420, Math.max(290, root.width * 0.34))
-        height: Math.min(root.height - indexButton.y - indexButton.height - 30, 610)
+        // Right-aligned under its button, clamped into the root's 18 px gutters.
+        x: Math.max(18, Math.min(indexButton.x + indexButton.width - width, root.width - width - 18))
+        // WT-11: never wider than the root (18 px gutters) at short/narrow supported canvases.
+        width: Math.min(420, Math.max(290, root.width * 0.34), Math.max(0, root.width - 36))
+        height: Math.max(0, Math.min(root.height - indexButton.y - indexButton.height - 30, 610))
         color: "#efe1bd"
         border.color: "#8a6b41"
         border.width: 1
@@ -619,7 +621,8 @@ FocusScope {
             objectName: "eastBlueIndexCaret"
             width: 12
             height: 12
-            x: indexPanel.width - 24
+            // Points at the index button even when the panel is clamped (desktop: width - 24).
+            x: Math.max(6, Math.min(indexPanel.width - 18, indexButton.x + indexButton.width - 24 - indexPanel.x))
             y: -6
             rotation: 45
             color: indexPanel.color
@@ -823,8 +826,10 @@ FocusScope {
         objectName: "eastBlueArcPreview"
         x: root.previewX
         y: root.previewY
-        width: Math.min(500, Math.max(360, root.width * 0.38))
-        height: Math.min(230, Math.max(180, root.height - 48))
+        // WT-11: contained in the root; long copy scrolls while the actions stay pinned.
+        width: Math.min(500, Math.max(360, root.width * 0.38), Math.max(0, root.width - 36))
+        // Never taller than the placement safe band (top controls 88, bottom gutter 18).
+        height: Math.min(230, Math.max(180, root.height - 48), Math.max(0, root.height - 88 - 18))
         color: "#efe1bd"
         border.color: "#8a6b41"
         border.width: 1
@@ -882,14 +887,37 @@ FocusScope {
                     Text { anchors.centerIn: parent; text: "POSTER\nUNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter }
                 }
             }
-            Column {
+            Item {
+                id: previewBody
                 width: parent.width - 150
-                spacing: 6
-                Text { text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / EAST BLUE" : ""; color: "#9b774a"; font.family: atlasBodyFont.name; font.pixelSize: 10; font.letterSpacing: 1.2 }
-                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: atlasDisplayFont.name; font.pixelSize: 24; wrapMode: Text.WordWrap }
-                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: 12; font.italic: true; wrapMode: Text.WordWrap }
-                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.summary : ""; color: "#654b31"; font.family: atlasBodyFont.name; font.pixelSize: 12; wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight }
-                Row {
+                height: preview.height - 24
+                Flickable {
+                    id: previewCopy
+                    objectName: "eastBlueArcPreviewCopy"
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.top: parent.top; anchors.bottom: previewActions.top
+                    anchors.bottomMargin: 6
+                    clip: true
+                    contentWidth: width
+                    contentHeight: previewCopyColumn.implicitHeight
+                    interactive: contentHeight > height + 0.5
+                    boundsBehavior: Flickable.StopAtBounds
+                    Column {
+                        id: previewCopyColumn
+                        width: previewCopy.width
+                        spacing: 6
+                        Text { text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / EAST BLUE" : ""; color: "#9b774a"; font.family: atlasBodyFont.name; font.pixelSize: 10; font.letterSpacing: 1.2 }
+                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: atlasDisplayFont.name; font.pixelSize: 24; wrapMode: Text.WordWrap }
+                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: 12; font.italic: true; wrapMode: Text.WordWrap }
+                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.summary : ""; color: "#654b31"; font.family: atlasBodyFont.name; font.pixelSize: 12; wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight }
+                    }
+                }
+                Flow {
+                    id: previewActions
+                    objectName: "eastBlueArcPreviewActions"
+                    // Wraps instead of overflowing on the narrowest roots.
+                    width: parent.width
+                    anchors.bottom: parent.bottom
                     spacing: 8
                     Button {
                         id: openArcButton

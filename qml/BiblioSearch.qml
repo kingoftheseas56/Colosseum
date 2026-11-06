@@ -12,6 +12,7 @@ Item {
     id: search
     objectName: "biblioSearchSurface"
     property Item backdrop
+    property bool androidHost: typeof win !== "undefined" ? win.androidHost : Qt.platform.os === "android"
     property var results: []
     property bool searching: false
     property bool searched: false
@@ -51,7 +52,7 @@ Item {
     signal closeRequested()
 
     readonly property bool isEmpty: queryInput.text.trim().length === 0
-    readonly property bool phoneNarrow: win.androidHost && win.width < 840
+    readonly property bool phoneNarrow: search.androidHost && (typeof win !== "undefined" ? win.width : search.width) < 840
 
     Theme { id: theme }
 
@@ -212,6 +213,7 @@ Item {
     }
     Rectangle {
         id: field
+        objectName: "biblioSearchField"
         // The field stops short of the window-chrome cluster instead of running under it: both were
         // anchored to the same right margin, and their vertical bands overlapped by 12px, so the
         // minimize/fullscreen/power buttons sat on the field's top-right corner. Derived from the
@@ -219,7 +221,7 @@ Item {
         x: search.phoneNarrow ? 16 : searchBack.x + searchBack.width + 20
         y: search.phoneNarrow ? 72 : 44
         width: search.phoneNarrow ? Math.max(0, search.width - 32)
-                                  : search.width - x - theme.margin - winChrome.width - 24
+                                  : search.width - x - theme.margin - (winChrome.visible ? winChrome.width + 24 : 0)
         height: search.phoneNarrow ? 56 : 72; radius: 16
         color: Qt.rgba(0, 0, 0, 0.30); border.width: 1; border.color: theme.edge
 
@@ -737,7 +739,9 @@ Item {
     // minimize · fullscreen-toggle · power cluster every page carries.
     Row {
         id: winChrome
-        visible: !search.phoneNarrow
+        objectName: "biblioSearchWindowControls"
+        visible: !search.androidHost && !search.phoneNarrow
+        width: visible ? implicitWidth : 0
         z: 30
         anchors.right: parent.right
         anchors.rightMargin: theme.margin

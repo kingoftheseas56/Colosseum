@@ -466,6 +466,16 @@ Item {
         }
     }
 
+    // PF-04: Continue for a missing download reopens this exact title/episode's Sources
+    // sheet carrying the saved resumePosition; the user chooses the source explicitly.
+    function openResumeSources(request) {
+        if (!request || !request.id) return
+        var context = request.context || ({})
+        page.sheetEpisode = request.type === "series"
+            ? { "id": request.id, "season": context.season, "episode": context.episode } : null
+        sources.show(request.type, request.id, request.title, context)
+    }
+
     function openEpisodeForPlay(v) {
         if (!v) return
         var label=page.title+" - S"+page.episodeSeason(v)+"E"+page.episodeNumber(v)
@@ -501,6 +511,15 @@ Item {
         if (restore!==false && page.episodeContextReturnItem) Qt.callLater(function(){ episodeVirtualSpace.forceActiveFocus(Qt.PopupFocusReason) })
         page.episodeContextReturnItem=null
     }
+    // Shell Back delegation (PF-03): true when one visible transient was closed.
+    function requestEscape() {
+        if (page.episodeContextOpen) { page.closeEpisodeContext(true); return true }
+        if (sources.requestEscape()) return true
+        if (page.episodeJumpOpen) { page.closeEpisodeJump(true); return true }
+        if (page.seasonMenuOpen) { page.closeSeasonMenu(true); return true }
+        return false
+    }
+
     function activateEpisodeContext(choice) {
         var v=page.episodes[page.episodeKeyboardIndex]
         if(choice===0) page.openEpisodeForPlay(v); else if(choice===1) page.openEpisodeDownload(v)
@@ -844,6 +863,7 @@ Item {
         page.animeDoor = String((itemData && itemData.canonicalSourceId)
             ? id : ((itemData && (itemData.sourceId || itemData.id)) || ""))
         var expectedCanonicalId = String((itemData && itemData.canonicalSourceId) || "")
+        // PF-06: the exact catalogue record is a movie-only fallback after provider misses.
         TheatreApi.loadMeta(mediaType, id, function(meta) {
             if (!meta) {
                 errorMsg = "Couldn't load details.";
@@ -902,7 +922,7 @@ Item {
             page.onMetaLoaded();
             loading = false;
             revealGuard.stop();
-        });
+        }, itemData);
     }
 
     function onMetaLoaded() {

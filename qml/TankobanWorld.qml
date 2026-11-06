@@ -88,6 +88,8 @@ WorldPage {
     // Discover card carries a MAL id (Slice C): open the series page with the id so it can
     // fetch our MAL-keyed volume record directly instead of falling back to a title search.
     signal mangaOpenById(string title, string malId)
+    // Featured carousel Read (WT-06): the exact selected slide, routed by Main.
+    signal featuredReadRequested(var slide)
 
     // GetComics' own taxonomy (top tags by release count, publishers + franchises,
     // noise-filtered) drives the explore mosaic inline — the old Archives-door page
@@ -206,6 +208,17 @@ WorldPage {
         kicker: "Featured in Tankoban"
         primaryLabel: "Read"; secondaryLabel: "Details"
         slides: Catalog.featured
+        // WT-06: forward the actual selected slide; Details opens the existing title owner.
+        onPrimaryClicked: (index) => {
+            const slide = Catalog.featured[index]
+            if (slide) tanko.featuredReadRequested(slide)
+        }
+        onSecondaryClicked: (index) => {
+            const slide = Catalog.featured[index]
+            if (!slide || !String(slide.title || "").length) return
+            if (slide.ghost === "C") tanko.westernRequested(slide.title)
+            else tanko.seriesRequested(slide.title)
+        }
     }
 
     // Next Up sits ABOVE Continue (Jellyfin's order — the freshest intent first).

@@ -3,14 +3,17 @@ import QtQuick
 
 Row {
     id: controls
+    property bool androidHost: Qt.platform.os === "android"
     property string objectPrefix: "houseWindow"
     readonly property bool shellWindowed: typeof WindowMode !== "undefined" && WindowMode.shellWindowed
     signal minimizeRequested()
     signal fullscreenRequested()
     signal quitRequested()
-    visible: Qt.platform.os !== "android"
+    visible: !controls.androidHost
+    enabled: visible
+    width: visible ? implicitWidth : 0
     spacing: 20
-    height: 22
+    height: visible ? 22 : 0
 
     component WindowIcon: Item {
         id: icon

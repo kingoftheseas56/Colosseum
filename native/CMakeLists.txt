@@ -629,6 +629,10 @@ qt_add_executable(colosseum
     engine/BookDownloader.h
     engine/AudiobookDownloader.cpp
     engine/AudiobookDownloader.h
+    engine/AudiobookTorrentTransport.cpp
+    engine/AudiobookTorrentTransport.h
+    engine/AudiobookTorrentEngineAdapter.cpp
+    engine/AudiobookTorrentEngineAdapter.h
     engine/ComicDownloader.cpp
     engine/ComicDownloader.h
     engine/ComicCoverProvider.cpp  # image://comiccover/ -- stateless cover decode for archive-shaped rows

@@ -99,12 +99,6 @@ signals:
 
 private:
     // ── resolve (ads.php → get.php urls) ──
-    struct ResolveCtx {
-        QString md5;
-        QString suggestedName;
-        QString title;
-        qint64  expectedBytes = 0;
-    };
     void onResolveFinished(QNetworkReply* reply);
     QStringList parseResolveHtml(const QByteArray& html) const;
 
@@ -114,6 +108,8 @@ private:
         QString     title;
         QStringList urls;          // remaining URLs to try (front = current)
         int         urlIdx = 0;
+        quint64     generation = 0; // distinguishes cancelled/recreated jobs
+        QString     lastFailure;
         int         attempt = 0;   // retry attempt for the current URL (0-based)
         QString     suggestedName;
         qint64      expectedBytes = 0;
@@ -129,10 +125,11 @@ private:
         qint64      receivedBytes = 0;
     };
 
-    void startDownload(const QString& md5, const QString& title,
-                       const QStringList& urls, const QString& suggestedName,
-                       qint64 expectedBytes);
+    void startResolution(InFlight job);
+    void startDownload(InFlight job, const QStringList& urls);
     void startAttempt(InFlight& f);
+    void issueAttempt(InFlight& f);
+    void startQueuedDownload();
     void onReadyRead();
     void onFinished();
     void onProgressFromReply(qint64 received, qint64 total);
@@ -164,8 +161,9 @@ private:
     QHash<QString, QString> m_pendingAuthor;   // md5 -> author, applied at writeEntry
 
     QNetworkAccessManager* m_nam = nullptr;
-    QHash<QNetworkReply*, ResolveCtx> m_resolving;   // ads.php fetches in flight
+    QHash<QNetworkReply*, InFlight> m_resolving;   // ads.php fetches in flight
+    quint64         m_nextGeneration = 0;
     InFlight*       m_active = nullptr;
-    QList<InFlight> m_queue;
+    QList<InFlight> m_queue; // acquisition metadata only; resolve when the pipeline is free
     QHash<QString, Entry> m_index;                   // md5 → downloaded entry
 };

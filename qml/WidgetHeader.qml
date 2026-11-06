@@ -9,11 +9,12 @@ Item {
     property string title
     property string sub: ""
     property string moreLabel: ""        // optional verb before the chevron (e.g. "Explore")
+    property real moreRightInset: 0
     property bool navigable: true        // show the right-aligned nav-in chevron
     property string automationId: ""
     signal moreClicked()
 
-    implicitHeight: 30
+    implicitHeight: Math.max(30, row.implicitHeight, more.visible ? moreRow.implicitHeight : 0)
     width: parent ? parent.width : row.implicitWidth
 
     Theme { id: theme }
@@ -23,14 +24,19 @@ Item {
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
         spacing: 10
         Text {
+            // Large Android text: the title yields (elides) before it can run under "more".
+            width: Math.min(implicitWidth, Math.max(0, head.width - (more.visible ? more.width + head.moreRightInset + 16 : 0)
+                                                     - (subText.visible ? subText.implicitWidth + row.spacing : 0)))
+            elide: Text.ElideRight
             text: head.title; color: theme.ink
-            font.family: theme.display; font.pixelSize: 22
+            font.family: theme.display; font.pixelSize: theme.fontSize(22)
             anchors.verticalCenter: parent.verticalCenter
         }
         Text {
+            id: subText
             visible: head.sub !== ""
             text: head.sub; color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 12
+            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
             anchors.verticalCenter: parent.verticalCenter
         }
     }
@@ -42,7 +48,8 @@ Item {
         id: more
         visible: head.navigable
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        implicitWidth: moreRow.implicitWidth; implicitHeight: 30
+        anchors.rightMargin: head.moreRightInset
+        implicitWidth: moreRow.implicitWidth; implicitHeight: Math.max(30, moreRow.implicitHeight)
         Row {
             id: moreRow
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
@@ -51,14 +58,14 @@ Item {
                 visible: head.moreLabel !== ""
                 text: head.moreLabel
                 color: input.interactionActive ? theme.gold : theme.ink
-                font.family: theme.display; font.pixelSize: 17
+                font.family: theme.display; font.pixelSize: theme.fontSize(17)
                 anchors.verticalCenter: parent.verticalCenter
                 Behavior on color { ColorAnimation { duration: 120 } }
             }
             Text {
                 text: "›"
                 color: input.interactionActive ? theme.gold : theme.inkDim
-                font.family: theme.display; font.pixelSize: 22
+                font.family: theme.display; font.pixelSize: theme.fontSize(22)
                 anchors.verticalCenter: parent.verticalCenter
                 Behavior on color { ColorAnimation { duration: 120 } }
             }

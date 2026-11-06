@@ -976,9 +976,9 @@ FocusScope {
         id: paper
         anchors.fill: parent
         readerDebug: shell.readerDebug
-        // Android: the WebView is a native view above the whole QML scene, so a full-screen
-        // sheet (contents, appearance, search, failed-open) can only show with it hidden.
-        covered: Qt.platform.os === "android" && (chrome.anyPanelOpen || shell.openErrorShown)
+        // Android: scene-based sheets need the foreign WebView hidden. Appearance uses
+        // its own native overlay so the live page stays visible while settings change.
+        covered: Qt.platform.os === "android" && (chrome.panelOpen || chrome.searchOpen || shell.openErrorShown)
         onGlueUpChanged: if (glueUp && shell.bookPath !== "" && !shell.personalStateSealed)
                               shell.openAtResume(shell.bookPath)
         onPaperEvent: (name, p) => {

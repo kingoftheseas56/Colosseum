@@ -75,6 +75,9 @@
 #include "devtools/LanistaServer.h"
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
+#ifdef Q_OS_ANDROID
+#include "engine/AudiobookTorrentTransport.h"
+#endif
 #include "engine/ComicDownloader.h"
 #include "engine/CatalogVaultClient.h"
 #include "engine/SourceContentStore.h"
@@ -1293,6 +1296,10 @@ int main(int argc, char *argv[]) {
         + QStringLiteral("/torrent-engine");
     QDir().mkpath(torrentEngineDir);
     auto *torrentEngine = new TorrentEngine(torrentEngineDir, &backendServices);
+#ifdef Q_OS_ANDROID
+    auto *audiobookEngine = new AudiobookTorrentEngineAdapter(torrentEngine, audiobooks);
+    audiobooks->setTorrentTransport(new AudiobookTorrentTransport(audiobookEngine, audiobooks));
+#endif
     torrentEngine->setGlobalSeedingRules(0.f, 1);
 
     // Book torrents shelf (Biblio): federated indexer search + engine-fed single-file pull.

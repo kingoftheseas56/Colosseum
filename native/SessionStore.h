@@ -77,10 +77,18 @@ public:
                 // Exact-content reopen: refresh transport/path/metadata while preserving
                 // captured state. A parked session must reactivate from the newest target,
                 // but its resume position still belongs to this exact content identity.
+                const bool newSource = sourceKeyFor(rec.value(QStringLiteral("target")).toMap())
+                                    != sourceKeyFor(desc.value(QStringLiteral("target")).toMap());
                 rec.insert(QStringLiteral("title"), desc.value(QStringLiteral("title")));
                 rec.insert(QStringLiteral("target"), desc.value(QStringLiteral("target")));
                 m_sessions[i] = rec;
                 bump();
+                // Same content on a different transport: a warm-kept or already-active old
+                // stream must not keep playing in its place. Emitted before setActive so the
+                // shell can invalidate warm ownership first. Metadata-only refreshes and
+                // re-resolved URLs of the same torrent/file/download do not count.
+                if (newSource)
+                    emit sourceReplaced(id);
             }
             setActive(id);
             return id;
@@ -552,6 +560,9 @@ signals:
     void activeChanged(const QString &prevId, const QString &nextId);
     // one-tab-per-show: an existing session's target was swapped in place (same id).
     void targetReplaced(const QString &id);
+    // Same content identity, different playback source (torrent hash/file, local file,
+    // partial download or direct URL). Saved position is preserved.
+    void sourceReplaced(const QString &id);
 
 private:
     int browserIdentityIndex(const QVariantMap &identity) const {
@@ -641,6 +652,29 @@ private:
             tk = contentKeyFor(desc);
         return desc.value(QStringLiteral("appType")).toString() + QStringLiteral("\x1f")
              + desc.value(QStringLiteral("contentKind")).toString() + QStringLiteral("\x1f") + tk;
+    }
+
+    // Playback-source identity inside one content identity. Torrent sources compare the
+    // case-normalised info hash + file index (a direct "url:" pseudo-hash keeps its case);
+    // otherwise the stable local/partial path, and only then a bare stream URL. A download's
+    // re-resolved (expiring) URL therefore never looks like a different source.
+    static QString sourceKeyFor(const QVariantMap &target) {
+        const QString hash = target.value(QStringLiteral("infoHash")).toString();
+        if (!hash.isEmpty()) {
+            const QString normalized = hash.startsWith(QStringLiteral("url:")) ? hash : hash.toLower();
+            return QStringLiteral("bt\x1e") + normalized + QStringLiteral("\x1e")
+                 + QString::number(target.value(QStringLiteral("fileIdx")).toInt());
+        }
+        const QString local = target.value(QStringLiteral("localPath")).toString();
+        if (!local.isEmpty())
+            return QStringLiteral("file\x1e") + local;
+        const QString part = target.value(QStringLiteral("partPath")).toString();
+        if (!part.isEmpty())
+            return QStringLiteral("part\x1e") + part;
+        const QString url = target.value(QStringLiteral("streamUrl")).toString();
+        if (!url.isEmpty())
+            return QStringLiteral("url\x1e") + url;
+        return {};
     }
 
     // The per-content chain — on a show-key match this tells "same show, different

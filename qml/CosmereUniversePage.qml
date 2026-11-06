@@ -361,6 +361,7 @@ Item {
     ChromeScrim { z: 16 }
     BackAction { x: theme.margin; y: 28; z: 20; onTriggered: root.backRequested() }
     Row {
+        visible: Qt.platform.os !== "android"
         z: 30
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20

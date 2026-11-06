@@ -24,7 +24,10 @@ const win = {
     openLocalVideoSession(...args) { records.push({kind:"video", args}) },
     openMovieSession(...args) { records.push({kind:"movie", args}) },
     openTheatreSeries(...args) { records.push({kind:"theatre-detail", args}) },
-    openVinylResume(...args) { records.push({kind:"music", args}) }
+    openVinylResume(...args) { records.push({kind:"music", args}) },
+    // PF-04 missing-download route; the file-present path is covered here, the missing
+    // path by tests/android_continue_missing_download_test.mjs.
+    openMissingDownloadSources() { return false }
 };
 const ctx = {win, Downloads: downloader, TankobanVolumes: volumes,
     VideoPresentation: {forEntry: () => ({title: "",cover:"",type:""})}};

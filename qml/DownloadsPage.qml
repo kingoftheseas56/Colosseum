@@ -11,6 +11,12 @@ import QtQuick.Controls
 
 Item {
     id: root
+    // Presentation-independent input metrics (PF-01): 48 on Android hosts, 0 on desktop.
+    AdaptiveLayout {
+        id: inputMetrics
+        androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost)
+    }
+    readonly property real actionTargetSize: inputMetrics.touchTargetSize
     objectName: "downloadsPage"
     property Item backdrop: null
     property real contentBottomInset: 0
@@ -47,6 +53,12 @@ Item {
     property string openLedgerKey: ""
     property var ledgerItems: []
     property string mutationMessage: ""
+    // PF-08: why background work is paused/failed. Read-only projection of the native
+    // BackgroundDownloadBridge (epoch-gated host state); Android only, no new lifecycle.
+    property var platformDownloads: typeof PlatformDownloads !== "undefined" ? PlatformDownloads : null
+    property bool backgroundHostApplicable: onAndroid
+    readonly property string backgroundDownloadMessage: backgroundHostApplicable && platformDownloads
+        ? String(platformDownloads.backgroundHostError || "") : ""
     property bool deletingAllDownloads: false
     property bool waitingForDownloadCancellation: false
     property double downloadCancellationDeadline: 0
@@ -203,7 +215,7 @@ Item {
         return true;
     }
     function isLiveState(state) {
-        return state === "queued" || state === "resolving"
+        return state === "stopping" || state === "finishing" || state === "queued" || state === "resolving"
                 || state === "downloading" || state === "paused"
                 || state === "extracting"
                 // manga-volume acquisition states (MangaTankobanService) — a group entirely
@@ -661,6 +673,17 @@ Item {
                 font.pixelSize: 13
                 wrapMode: Text.Wrap
             }
+            Text {
+                objectName: "backgroundDownloadMessage"
+                visible: root.backgroundDownloadMessage.length > 0
+                topPadding: 10
+                width: parent.width
+                text: root.backgroundDownloadMessage
+                color: theme.gold
+                font.family: theme.ui
+                font.pixelSize: 13
+                wrapMode: Text.Wrap
+            }
 
             // ============ NOW ARRIVING — the manager zone ============
             // Ratified: agents/colosseum-downloads-manager-mock.html (2026-07-05).
@@ -754,6 +777,8 @@ Item {
                                                     var r0 = grp.modelData.rows[0];
                                                     if (r0.state === "failed")
                                                         return wn + " · " + (r0.error || "download failed");
+                                                    if (r0.state === "stopping") return qsTr("Stopping…");
+                                                    if (r0.state === "finishing") return qsTr("Finishing…");
                                                     if (r0.state === "queued")
                                                         return wn + " · queued — waits its turn";
                                                     if (r0.state === "paused")
@@ -821,6 +846,9 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
                                         spacing: 20
                                         Text {
+                                            // Android touch host: glyph unchanged, hit host >= 48 (desktop: implicit size).
+                                            width: Math.max(implicitWidth, root.actionTargetSize); height: Math.max(implicitHeight, root.actionTargetSize)
+                                            horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                                             // Lanista-only observation seams; behavior and click routing unchanged.
                                             objectName: (grp.modelData.single ? "downloadsPlayArriving_" : "downloadsPlayArrivingGroup_") + String(grp.modelData.rows[0].id || "")
                                             readonly property bool diskFirstReady:
@@ -838,6 +866,9 @@ Item {
                                                 onTriggered: root.playArrivingRequested(grp.modelData.rows[0]) }
                                         }
                                         Text {
+                                            // Android touch host: glyph unchanged, hit host >= 48 (desktop: implicit size).
+                                            width: Math.max(implicitWidth, root.actionTargetSize); height: Math.max(implicitHeight, root.actionTargetSize)
+                                            horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                                             visible: grp.modelData.single
                                                      && grp.modelData.rows[0].canRetry === true
                                             text: "Retry"
@@ -848,6 +879,9 @@ Item {
                                                 onTriggered: root.downloadsApi.retry(grp.modelData.world, grp.modelData.rows[0].id) }
                                         }
                                         Text {
+                                            // Android touch host: glyph unchanged, hit host >= 48 (desktop: implicit size).
+                                            width: Math.max(implicitWidth, root.actionTargetSize); height: Math.max(implicitHeight, root.actionTargetSize)
+                                            horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                                             id: hPauseT
                                             readonly property bool anyRunning: {
                                                 var rows = grp.modelData.rows;
@@ -882,6 +916,9 @@ Item {
                                                 } }
                                         }
                                         Text {
+                                            // Android touch host: glyph unchanged, hit host >= 48 (desktop: implicit size).
+                                            width: Math.max(implicitWidth, root.actionTargetSize); height: Math.max(implicitHeight, root.actionTargetSize)
+                                            horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                                             visible: grp.modelData.single
                                                      && grp.modelData.rows[0].state === "failed"
                                                      && grp.modelData.rows[0].canRetry !== true
@@ -894,6 +931,9 @@ Item {
                                                 onTriggered: root.openWorldRequested(grp.modelData.world) }
                                         }
                                         Text {
+                                            // Android touch host: glyph unchanged, hit host >= 48 (desktop: implicit size).
+                                            width: Math.max(implicitWidth, root.actionTargetSize); height: Math.max(implicitHeight, root.actionTargetSize)
+                                            horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                                             readonly property bool anyCancelable: {
                                                 var rows = grp.modelData.rows;
                                                 for (var i = 0; i < rows.length; i++)
@@ -1052,6 +1092,9 @@ Item {
                                                 font.family: theme.ui; font.pixelSize: 13
                                             }
                                             Text {
+                                                // Android touch host: glyph unchanged, hit host >= 48 (desktop: implicit size).
+                                                width: Math.max(implicitWidth, root.actionTargetSize); height: Math.max(implicitHeight, root.actionTargetSize)
+                                                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                                                 // Same Lanista-only observation seams for grouped episode rows.
                                                 objectName: "downloadsPlayArriving_" + String(epRow.modelData.id || "")
                                                 readonly property bool diskFirstReady:
@@ -1067,6 +1110,9 @@ Item {
                                                     onTriggered: root.playArrivingRequested(epRow.modelData) }
                                             }
                                             Text {
+                                                // Android touch host: glyph unchanged, hit host >= 48 (desktop: implicit size).
+                                                width: Math.max(implicitWidth, root.actionTargetSize); height: Math.max(implicitHeight, root.actionTargetSize)
+                                                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                                                 visible: epRow.modelData.canPause === true
                                                          || epRow.modelData.canResume === true
                                                 text: epRow.modelData.canResume === true ? "Resume" : "Pause"
@@ -1079,6 +1125,9 @@ Item {
                                                                : root.downloadsApi.pause(epRow.modelData.world, epRow.modelData.id) }
                                             }
                                             Text {
+                                                // Android touch host: glyph unchanged, hit host >= 48 (desktop: implicit size).
+                                                width: Math.max(implicitWidth, root.actionTargetSize); height: Math.max(implicitHeight, root.actionTargetSize)
+                                                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                                                 visible: epRow.modelData.canRetry === true
                                                 text: "Retry"
                                                 color: rRetryInput.interactionActive ? "#ffd968" : theme.gold
@@ -1088,6 +1137,9 @@ Item {
                                                     onTriggered: root.downloadsApi.retry(epRow.modelData.world, epRow.modelData.id) }
                                             }
                                             Text {
+                                                // Android touch host: glyph unchanged, hit host >= 48 (desktop: implicit size).
+                                                width: Math.max(implicitWidth, root.actionTargetSize); height: Math.max(implicitHeight, root.actionTargetSize)
+                                                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                                                 visible: epRow.modelData.canCancel === true
                                                          || epRow.modelData.canDismiss === true
                                                 text: epRow.modelData.canDismiss === true ? "Dismiss" : "Cancel"

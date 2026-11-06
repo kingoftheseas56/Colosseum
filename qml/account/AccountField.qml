@@ -22,7 +22,7 @@ Item {
     implicitHeight: labelText.implicitHeight
         + (root.hint.length > 0 ? hintText.implicitHeight + 4 : 0)
         + 10
-        + 46
+        + field.height
     implicitWidth: 400
 
     Theme { id: theme }
@@ -34,7 +34,7 @@ Item {
         text: root.label
         color: theme.inkDim
         font.family: theme.ui
-        font.pixelSize: 12
+        font.pixelSize: theme.fontSize(12)
         font.weight: Font.DemiBold
     }
 
@@ -48,7 +48,7 @@ Item {
         text: root.hint
         color: theme.inkDimmer
         font.family: theme.ui
-        font.pixelSize: 11
+        font.pixelSize: theme.fontSize(11)
         wrapMode: Text.WordWrap
     }
 
@@ -59,14 +59,15 @@ Item {
         anchors.right: parent.right
         anchors.top: root.hint.length > 0 ? hintText.bottom : labelText.bottom
         anchors.topMargin: 10
-        height: 46
+        // Content-driven on Android large text; 46 at the default scale (desktop unchanged).
+        height: Math.max(46, Math.ceil(theme.fontSize(13) * 1.5) + 22)
         leftPadding: 14
         rightPadding: root.password ? 48 : 14
         color: theme.ink
         placeholderTextColor: theme.inkDimmer
         placeholderText: root.placeholderText
         font.family: theme.ui
-        font.pixelSize: 13
+        font.pixelSize: theme.fontSize(13)
         echoMode: root.password && !root.reveal
             ? TextInput.Password
             : TextInput.Normal
@@ -101,7 +102,7 @@ Item {
             text: root.reveal ? "○" : "◉"
             color: revealButton.hovered ? theme.ink : theme.inkDimmer
             font.family: theme.ui
-            font.pixelSize: 15
+            font.pixelSize: theme.fontSize(15)
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }

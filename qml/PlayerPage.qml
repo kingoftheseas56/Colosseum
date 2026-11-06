@@ -255,6 +255,7 @@ Item {
     // --- resume choice (Feature 3): first-load-only Resume / Start over overlay ---
     property real resumePromptMinSec: 30       // only prompt after meaningful progress
     property real resumeRestartThreshold: 0.80 // at/over this fraction of duration, start over silently
+    property bool explicitResumePosition: false // a Continue source pick keeps its requested position (PF-04)
     property bool resumeChoiceOpen: false      // is the overlay visible
     property var resumeChoiceFocusReturnItem: null
     onResumeChoiceOpenChanged: {
@@ -650,8 +651,19 @@ Item {
         return parts.length ? parts[parts.length - 1] : "Subtitle"
     }
 
+    // PF-07: Media3 titles every embedded track "Subtitle", and fetched files arrive as
+    // "OpenSubtitles v3 #<id>"; neither tells a person anything, so those rows take the
+    // language's name instead. Presentation only: ids/urls/selection are unchanged.
+    function subtitleDisplayTitle(title, lang) {
+        var t = String(title || "").trim()
+        var generic = !t.length || /^(subtitles?|track\s*\d*)$/i.test(t) || /#\d+\s*$/.test(t)
+        if (!generic || !String(lang || "").trim().length)
+            return t.length ? t : "Subtitle"
+        return Subtitles.langName(lang)
+    }
+
     function subtitleRow(track) {
-        var title = track.title || track.label || track.lang || "Subtitle"
+        var title = root.subtitleDisplayTitle(track.title || track.label, track.lang)
         var lang = track.lang || ""
         var hiProbe = (title + " " + lang).toLowerCase()
         return {
@@ -711,6 +723,16 @@ Item {
     // so channel-count/bitrate live under dashed keys reached by bracket access.
     function trackCodecLabel(track) {
         var c = String(track.codec || "").split(" ")[0]
+        // Android (Media3) reports MIME types: "application/x-subrip", "audio/mp4a-latm". Name the
+        // format; Media3's internal "x-media3-cues" names none, so it shows nothing (PF-07).
+        if (c.indexOf("/") > 0) {
+            c = c.toLowerCase().replace(/^[a-z]+\//, "").replace(/^x-/, "")
+            if (c.indexOf("media3-cues") >= 0) return ""
+            var known = { "subrip": "SRT", "vtt": "VTT", "ssa": "SSA", "ass": "ASS", "hdmv-pgs": "PGS",
+                          "pgs": "PGS", "vobsub": "VOBSUB", "ttml+xml": "TTML", "mp4a-latm": "AAC",
+                          "ac3": "AC3", "eac3": "EAC3", "eac3-joc": "EAC3", "true-hd": "TRUEHD", "vnd.dts": "DTS" }
+            return known[c] || c.toUpperCase()
+        }
         return c.length ? c.toUpperCase() : ""
     }
     function trackChannels(track) {
@@ -1574,6 +1596,8 @@ Item {
         root.streamRouteUrl = ""
         root.clearStreamRouteRestore()
         root.resetRecoveryResume()
+        var explicitResume = Number((playbackContext || ({})).resumePosition) || 0
+        root.explicitResumePosition = explicitResume > 0
         root.arrivingStreamUrl = ""
         root.arrivingStreamHeaders = ({})
         root.clearActiveDirectHeaders()
@@ -1606,6 +1630,8 @@ Item {
         var savedPos = Number(((prog || ({})).resume || ({})).position || 0)
         if (savedPos > 0)
             root.pendingSeekSec = savedPos
+        else if (root.explicitResumePosition)
+            root.pendingSeekSec = explicitResume
         root.playbackQueue = (playbackContext || ({})).episodeQueue || []
         root.playbackQueueIndex = (playbackContext || ({})).episodeIndex !== undefined
                                   ? Number((playbackContext || ({})).episodeIndex) : -1
@@ -2726,6 +2752,7 @@ Item {
 
 
     function playUrl(url, title) {
+        root.explicitResumePosition = false
         if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
         root.streamDemandActive = false
@@ -2818,6 +2845,7 @@ Item {
     }
 
     function playLocalFile(target) {
+        root.explicitResumePosition = false
         if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
         root.streamDemandActive = false
@@ -2893,6 +2921,7 @@ Item {
     // grade like playLocalFile: subtitles + progress key off the video id, so the
     // landed copy resumes where this live watch leaves off.
     function playRemoteUrl(target) {
+        root.explicitResumePosition = false
         if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
         root.streamDemandActive = false
@@ -3009,7 +3038,8 @@ Item {
             return false
         root.resumePromptConsumed = true
         root.resumeChoiceSec = root.pendingSeekSec
-        if (mpv.duration > 0 && root.resumeChoiceSec / mpv.duration >= root.resumeRestartThreshold) {
+        if (!root.explicitResumePosition && mpv.duration > 0
+                && root.resumeChoiceSec / mpv.duration >= root.resumeRestartThreshold) {
             root.pendingSeekSec = 0
             root.resumeChoiceSec = -1
             root.resumeChoiceOpen = false
@@ -7127,16 +7157,44 @@ Item {
             Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, speedPopup, true) }
             Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, speedPopup, false) }
             z: 40
-            width: 420
+            objectName: "playerSpeedPanel"
+            // Bounded by the chrome (PF-05): at a sufficient size the desktop 420 x body popup
+            // is unchanged; on short/narrow viewports the body scrolls inside the panel.
+            width: Math.min(420, Math.max(1, chrome.width - 20))
             // Two speed/sleep columns, then a full-width "Skip step" footer section below both.
             readonly property int columnsHeight: 46 + Math.max(root.speedChoices.length, root.sleepPresets.length + (root.sleepTimerActive ? 1 : 0)) * 38
             readonly property int skipStepTop: columnsHeight + 8
-            height: skipStepTop + 66
-            onVisibleChanged: if (visible) {
+            readonly property real bodyHeight: skipStepTop + 66
+            height: Math.min(bodyHeight, Math.max(1, chrome.height - 20))
+            function positionPopup() {
+                if (!visible) return
                 // Native chrome: rise centered on the chip, clamped to the window.
                 var p = sm.mapToItem(chrome, 0, 0)
                 x = root.clamp(p.x + sm.width / 2 - width / 2, 10, chrome.width - width - 10)
-                y = p.y - height - 12
+                y = root.clamp(p.y - height - 12, 10, chrome.height - height - 10)
+            }
+            onVisibleChanged: if (visible) { speedScroll.contentY = 0; positionPopup() }
+            onWidthChanged: positionPopup()
+            onHeightChanged: positionPopup()
+            Connections {
+                target: chrome
+                function onWidthChanged() { Qt.callLater(speedPopup.positionPopup) }
+                function onHeightChanged() { Qt.callLater(speedPopup.positionPopup) }
+            }
+            // Keyboard focus keeps the chosen row inside the scrolled body.
+            Connections {
+                target: speedChoiceRepeater
+                function onKeyboardIndexChanged() { speedScroll.reveal(46 + speedChoiceRepeater.keyboardIndex * 38, 36) }
+                function onActiveFocusChanged() { if (speedChoiceRepeater.activeFocus) speedScroll.reveal(46 + speedChoiceRepeater.keyboardIndex * 38, 36) }
+            }
+            Connections {
+                target: sleepChoiceRepeater
+                function onKeyboardIndexChanged() { speedScroll.reveal(46 + sleepChoiceRepeater.keyboardIndex * 38, 36) }
+                function onActiveFocusChanged() { if (sleepChoiceRepeater.activeFocus) speedScroll.reveal(46 + sleepChoiceRepeater.keyboardIndex * 38, 36) }
+            }
+            Connections {
+                target: skipStepRepeater
+                function onActiveFocusChanged() { if (skipStepRepeater.activeFocus) speedScroll.reveal(speedPopup.skipStepTop, 58) }
             }
             radius: 14
             color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
@@ -7154,6 +7212,26 @@ Item {
                 border.width: 1
                 border.color: Qt.rgba(1, 1, 1, 0.14)
             }
+            Flickable {
+                id: speedScroll
+                objectName: "playerSpeedScroll"
+                anchors.fill: parent
+                contentWidth: width
+                contentHeight: speedBody.height
+                interactive: contentHeight > height + 0.5
+                clip: interactive
+                boundsBehavior: Flickable.StopAtBounds
+                function reveal(top, h) {
+                    if (top < contentY) contentY = Math.max(0, top - 8)
+                    else if (top + h > contentY + height)
+                        contentY = Math.min(Math.max(0, contentHeight - height), top + h + 8 - height)
+                }
+                Item {
+                    id: speedBody
+                    width: speedPopup.width
+                    height: speedPopup.bodyHeight
+                    readonly property int columnsHeight: speedPopup.columnsHeight
+                    readonly property int skipStepTop: speedPopup.skipStepTop
             // Harbor's exact section title (uppercase eyebrow).
             Text {
                 x: 18
@@ -7245,6 +7323,7 @@ Item {
             }
             Repeater {
                 id: sleepChoiceRepeater
+                objectName: "playerSleepChoices"
                 property int keyboardIndex: 0
                 model: root.sleepPresets
                 focusPolicy: sm.panelOpen && root.sleepPresets.length > 0 ? Qt.TabFocus : Qt.NoFocus
@@ -7393,6 +7472,8 @@ Item {
                             onClicked: playerSettings.seekStepSeconds = modelData
                         }
                     }
+                }
+            }
                 }
             }
         }
