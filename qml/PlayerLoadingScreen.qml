@@ -7,9 +7,9 @@ import QtQuick.Effects
 // Beneath: the episode line, a status line, and a thin INDETERMINATE bar. Colosseum exposes no
 // trustworthy torrent readiness figure, so the bar only sweeps — it NEVER shows a fabricated number.
 //
-// Owned/fed by PlayerPage: `active` gates everything; PlayerPage flips it off on the truthful
-// first-frame advance (or when the resume-choice prompt takes over). Art decode runs ONLY while
-// active. Harbor shows the same logo with no backdrop; we keep Stremio's backdrop.
+// PlayerPage deactivates this screen when playback advances or the resume prompt takes over.
+// Keep the artwork through the fade so an interrupted fade during a retry does not flash
+// the plain title or black backdrop.
 Item {
     id: root
 
@@ -37,11 +37,11 @@ Item {
     Image {
         id: backdrop
         anchors.fill: parent
-        source: root.active ? root.backdropUrl : ""
+        source: (root.active || root.visible) ? root.backdropUrl : ""
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
-        visible: root.active && status === Image.Ready
+        visible: status === Image.Ready
         opacity: 0.9
         sourceSize.width: Math.min(1920, Math.max(2, Math.round(root.width)))
         sourceSize.height: Math.min(1080, Math.max(2, Math.round(root.height)))
@@ -79,7 +79,7 @@ Item {
         Image {
             id: logo
             anchors.horizontalCenter: parent.horizontalCenter
-            source: root.active ? root.logoUrl : ""
+            source: (root.active || root.visible) ? root.logoUrl : ""
             visible: root.logoUrl.toString().length > 0 && status === Image.Ready
             fillMode: Image.PreserveAspectFit
             asynchronous: true
