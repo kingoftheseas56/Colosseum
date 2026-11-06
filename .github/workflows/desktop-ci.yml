@@ -217,7 +217,6 @@ jobs:
             colosseum `
             update_manifest_trust_harness `
             update_install_bridge_harness `
-            vinyl_availability_development vinyl_availability_qualification vinyl_availability_shipping_disabled `
             feria_runtime_integration_test feria_operations_integration_test `
             --parallel 2 2>&1 | Tee-Object -FilePath $log
           $buildExit = $LASTEXITCODE
@@ -229,12 +228,27 @@ jobs:
             exit $buildExit
           }
 
+      # Vinyl is out of 1.3.0. Make these checks blocking again when Vinyl is scheduled.
+      - name: Advisory Vinyl availability checks
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
+          cmake --build $env:COLOSSEUM_CI_BUILD --target `
+            vinyl_availability_development vinyl_availability_qualification vinyl_availability_shipping_disabled `
+            --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir $env:COLOSSEUM_CI_BUILD `
+            -R '^colosseum\.vinyl_availability_(development|qualification|shipping_disabled)$' `
+            --output-on-failure `
+            --no-tests=error
+
       - name: Release-critical smoke
         shell: pwsh
         run: |
           $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
           ctest --test-dir $env:COLOSSEUM_CI_BUILD `
-            -R 'colosseum\.(update_manifest_trust_harness|update_install_bridge_harness|vinyl_availability_development|vinyl_availability_qualification|vinyl_availability_shipping_disabled|feria_runtime_integration|feria_operations_integration)$' `
+            -R 'colosseum\.(update_manifest_trust_harness|update_install_bridge_harness|feria_runtime_integration|feria_operations_integration)$' `
             --output-on-failure
 
       - name: Analyze C++
@@ -480,13 +494,27 @@ jobs:
           PY
           ctest --test-dir "$COLOSSEUM_LINUX_BUILD" -N -LE windows
 
+      # Vinyl is out of 1.3.0. Make these tests blocking again when Vinyl is scheduled.
+      - name: Advisory Vinyl CTests
+        continue-on-error: true
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_FORCE_STDERR_LOGGING: "1"
+        run: |
+          ctest --test-dir "$COLOSSEUM_LINUX_BUILD" \
+            -L "^vinyl$" \
+            -LE "^(windows|requires-x11)$" \
+            --output-on-failure \
+            --no-tests=error \
+            --parallel 1
+
       - name: Run platform-neutral Linux CTests
         env:
           QT_QPA_PLATFORM: offscreen
           QT_FORCE_STDERR_LOGGING: "1"
         run: |
           ctest --test-dir "$COLOSSEUM_LINUX_BUILD" \
-            -LE "windows|requires-x11" \
+            -LE "^(windows|requires-x11|vinyl)$" \
             --output-on-failure \
             --parallel 1
 

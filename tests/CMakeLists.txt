@@ -1891,13 +1891,17 @@ foreach(vinyl_suite IN ITEMS
         TIMEOUT 120)
 endforeach()
 
+# These discovery regressions cover components shared across worlds.
+set_tests_properties(colosseum.qml.discover_picker colosseum.qml.discover_sidebar PROPERTIES
+    LABELS "qml;regression")
+
 set_tests_properties(colosseum.qml.vinyl_world_navigation PROPERTIES TIMEOUT 240)
 
 add_test(NAME colosseum.qml.account_flyout_local_privacy
     COMMAND colosseum_qml_tests -input
         "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_account_flyout_local_privacy.qml")
 set_tests_properties(colosseum.qml.account_flyout_local_privacy PROPERTIES
-    LABELS "qml;privacy;vinyl;regression"
+    LABELS "qml;privacy;regression"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
     TIMEOUT 120)
 
@@ -5543,6 +5547,7 @@ foreach(variant development qualification shipping_disabled)
         endif()
     endif()
     add_test(NAME colosseum.vinyl_availability_${variant} COMMAND vinyl_availability_${variant})
+    set_tests_properties(colosseum.vinyl_availability_${variant} PROPERTIES LABELS "vinyl")
 endforeach()
 find_package(Qt6 REQUIRED COMPONENTS Test)
 foreach(owner runtime operations)
