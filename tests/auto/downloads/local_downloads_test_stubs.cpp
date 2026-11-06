@@ -69,7 +69,7 @@ QVariantMap ComicDownloader::packVolumes(const QString&) const { return {}; }
 void ComicDownloader::selfTest(const QString&) {}
 void ComicDownloader::runPackSelfTest(const QString&) {}
 
-DownloadStore::DownloadStore(QObject* parent) : QObject(parent) {}
+DownloadStore::DownloadStore(QObject* parent, RecoveryPolicy recoveryPolicy) : QObject(parent), m_recoveryPolicy(recoveryPolicy) {}
 DownloadStore::~DownloadStore() = default;
 QVariantMap DownloadStore::status() const { return {}; }
 void DownloadStore::startDownload(const QVariantMap&) {}
@@ -78,9 +78,13 @@ void DownloadStore::revealDownload() {}
 void DownloadStore::resetDownload() {}
 void DownloadStore::enqueue(const QVariantMap&) {}
 void DownloadStore::enqueueBatch(const QVariantList&) {}
+bool DownloadStore::localFileAvailable(const QString&) const { return false; }
 bool DownloadStore::hasVideo(const QString&) const { return false; }
 void DownloadStore::feedUrl(const QString&, const QString&) {}
 void DownloadStore::feedSource(const QString&, const QString&, const QVariantMap&) {}
+void DownloadStore::feedTorrentUrl(const QString&, const QString&, const QString&, int) {}
+void DownloadStore::setForeground(bool) {}
+void DownloadStore::setBackgroundExecutionAllowed(bool) {}
 void DownloadStore::failJob(const QString&, const QString&) {}
 QVariantList DownloadStore::downloadedVideos() const { return {}; }
 QVariantList DownloadStore::jobs() const { return {}; }
