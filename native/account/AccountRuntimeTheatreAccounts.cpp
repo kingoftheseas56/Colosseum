@@ -71,6 +71,21 @@ void AccountRuntime::applyStremioProviderMode() {
     const QString primary = preferences ? preferences->mainSyncProvider() : QString();
     const bool isPrimary = primary == kStremio;
     const bool wasPrimary = std::exchange(m_stremioPrimaryActive, isPrimary);
+    const bool leavingPrimary = wasPrimary && !isPrimary;
+    const bool replacingRecovery = !wasPrimary && !primary.isEmpty()
+        && m_stremioActiveImportCount > 0;
+    if (leavingPrimary || replacingRecovery) {
+        ++m_stremioProfileIncarnation;
+        ++m_visibleSyncGeneration;
+        m_stremioActiveImportCount = 0;
+        m_stremioReconcileScheduled = false;
+        m_stremioReconcileDeferred = false;
+        m_stremioAddonReconcileScheduled = false;
+        m_stremioAddonApplyInProgress = false;
+        m_stremioAddonReconcileDeferred = false;
+        if (m_stremioTheatreImporter)
+            m_stremioTheatreImporter->deactivate();
+    }
     if (isPrimary) {
         m_stremioSync.setImportOnlyEnabled(false);
         m_stremioSync.setMarkerLinked(true);
@@ -82,23 +97,11 @@ void AccountRuntime::applyStremioProviderMode() {
     } else {
         m_stremioSync.setImportOnlyEnabled(primary == kNuvio);
         m_stremioSync.setMarkerLinked(false);
-        if (wasPrimary) {
-            ++m_stremioProfileIncarnation;
-            ++m_visibleSyncGeneration;
-            m_stremioActiveImportCount = 0;
-            m_stremioReconcileScheduled = false;
-            m_stremioReconcileDeferred = false;
-            m_stremioAddonReconcileScheduled = false;
-            m_stremioAddonApplyInProgress = false;
-            m_stremioAddonReconcileDeferred = false;
-            if (m_stremioTheatreImporter)
-                m_stremioTheatreImporter->deactivate();
-            if (m_stremioPreview && m_stremioPreview->primaryCommitted) {
-                m_stremioPreview.reset();
-                m_stremioPreviewImporter.cancel();
-                m_stremioImportPreview.clear();
-                setStremioImportStatus(kIdle, tr("The primary sync service changed."));
-            }
+        if (leavingPrimary && m_stremioPreview && m_stremioPreview->primaryCommitted) {
+            m_stremioPreview.reset();
+            m_stremioPreviewImporter.cancel();
+            m_stremioImportPreview.clear();
+            setStremioImportStatus(kIdle, tr("The primary sync service changed."));
         }
     }
 }

@@ -2239,9 +2239,17 @@ bool AccountRuntime::removeTheatreItem(
 }
 
 void AccountRuntime::replayPendingStremioProviderImports() {
-    if (!m_stremioPrimaryActive || !m_stremioTheatreImporter)
+    const auto *preferences = m_profileStores.preferencesStore();
+    if (!preferences || preferences->mainSyncProvider() == QLatin1String("nuvio")
+        || !m_stremioTheatreImporter)
         return;
-    const QList<StremioProviderImportRedo> redos = m_stremioSync.pendingProviderImports();
+    QList<StremioProviderImportRedo> redos = m_stremioSync.pendingProviderImports();
+    if (!m_stremioPrimaryActive) {
+        // Older profiles can finish projected owner receipts without opening a provider session.
+        redos.removeIf([](const StremioProviderImportRedo &redo) {
+            return redo.projection.value(QStringLiteral("kind")) == QLatin1String("episode_pending");
+        });
+    }
     if (redos.isEmpty())
         return;
     const auto batch = std::make_shared<StremioRedoBatch>();
@@ -2589,7 +2597,6 @@ void AccountRuntime::activateStremioProfile() {
     ProfilePreferencesStore *preferences = m_profileStores.preferencesStore();
     if (!preferences)
         return;
-    applyStremioProviderMode();
     m_stremioMarkerConnection = connect(
         preferences,
         &ProfilePreferencesStore::mainSyncProviderChanged,
@@ -2604,7 +2611,12 @@ void AccountRuntime::activateStremioProfile() {
                 QTimer::singleShot(0, this, [this] { runStremioSync(false); });
             }
         });
-    if (preferences->mainSyncProvider() == QStringLiteral("stremio")) {
+    applyStremioProviderMode();
+    if (preferences != m_profileStores.preferencesStore())
+        return;
+    if (preferences->mainSyncProvider().isEmpty()) {
+        replayPendingStremioProviderImports();
+    } else if (preferences->mainSyncProvider() == QStringLiteral("stremio")) {
         scheduleStremioTheatreReconcile();
         QTimer::singleShot(0, this, [this] { runStremioSync(false); });
     }
