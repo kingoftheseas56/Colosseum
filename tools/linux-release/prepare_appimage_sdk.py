@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shlex
 from pathlib import Path
 import re
 import shutil
@@ -20,10 +22,22 @@ def require_glib_headers(prefix: Path) -> None:
             raise ValueError("Full GLib development package required; missing " + relative)
 
 
+def require_pkg_config_headers(executable: str) -> None:
+    flags = shlex.split(subprocess.check_output(
+        [executable, "--cflags-only-I", "libsecret-1", "mpv", "glib-2.0", "gdk-pixbuf-2.0"], text=True))
+    includes = [flag[2:] for flag in flags if flag.startswith("-I")]
+    if not includes:
+        raise ValueError("pkg-config returned no development include paths")
+    for include in includes:
+        if not Path(include).is_dir():
+            raise ValueError("pkg-config emitted nonexistent include path: " + include)
+
+
 def prepare(prefix: Path, overlay: Path, notices: Path) -> None:
     if overlay.exists() or notices.exists():
         raise ValueError("SDK overlay and notices destinations must be new")
     require_glib_headers(prefix)
+    require_pkg_config_headers(os.environ["PKG_CONFIG"])
     qmake = next((p for p in (prefix / "bin/qmake6", prefix / "bin/qmake",
                               prefix / "lib/qt6/bin/qmake") if p.is_file()), None)
     if qmake is None:

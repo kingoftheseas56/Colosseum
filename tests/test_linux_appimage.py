@@ -263,5 +263,28 @@ class AppImageSdkTests(unittest.TestCase):
                 mod.require_glib_headers(prefix)
 
 
+
+class AppImagePkgConfigTests(unittest.TestCase):
+    def test_mixed_build_selects_host_pkg_config_for_cmake_and_loaders(self):
+        script=(TOOLS / "build_appimage.sh").read_text()
+        self.assertIn("export PKG_CONFIG=/usr/bin/pkg-config", script)
+        self.assertEqual(script.count('"$PKG_CONFIG" --variable='),2)
+        self.assertIn("curl pkg-config", (ROOT / ".github/workflows/release-linux-appimage.yml").read_text())
+
+    def test_pkg_config_header_gate_rejects_relocated_and_empty_paths(self):
+        mod=load(self,"prepare_appimage_sdk")
+        from unittest.mock import patch
+        import shlex
+        with tempfile.TemporaryDirectory() as directory:
+            good="-I" + shlex.quote(Path(directory).as_posix())
+            with patch.object(mod.subprocess,"check_output",return_value=good) as query:
+                mod.require_pkg_config_headers("/usr/bin/pkg-config")
+                self.assertEqual(query.call_args.args[0][0],"/usr/bin/pkg-config")
+                self.assertIn("libsecret-1", query.call_args.args[0])
+            for output in ("", "-I/nonexistent/colosseum-libsecret-headers"):
+                with self.subTest(output=output), patch.object(mod.subprocess,"check_output",return_value=output), self.assertRaises(ValueError):
+                    mod.require_pkg_config_headers("/usr/bin/pkg-config")
+
+
 if __name__ == "__main__":
     unittest.main()

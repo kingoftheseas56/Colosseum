@@ -13,6 +13,9 @@ commit="$(git -C "$root" rev-parse HEAD)"
 [[ "$commit" == "${GITHUB_SHA:-$commit}" ]] || { echo 'Checkout differs from workflow source SHA' >&2; exit 1; }
 [[ "$(getconf GNU_LIBC_VERSION)" == 'glibc 2.35' ]] || { echo 'Expected Ubuntu 22.04 build baseline' >&2; exit 1; }
 export LD_LIBRARY_PATH="$CONDA_PREFIX/lib"
+# Conda wrapper forces --define-prefix, invalid for Ubuntu multiarch .pc files.
+export PKG_CONFIG=/usr/bin/pkg-config
+[[ -x "$PKG_CONFIG" ]] || { echo "Host pkg-config missing" >&2; exit 1; }
 export PKG_CONFIG_PATH="$CONDA_PREFIX/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
 export LDFLAGS="-L$CONDA_PREFIX/lib -Wl,-rpath-link,$CONDA_PREFIX/lib"
 python "$root/tools/linux-release/prepare_appimage_sdk.py" --prefix "$CONDA_PREFIX" \
@@ -72,8 +75,8 @@ for plugin in "$work/qt-sdk/plugins/sqldrivers/"*.so; do
   [[ "$(basename "$plugin")" == libqsqlite.so ]] || args+=(--exclude-plugin "sqldrivers/$(basename "$plugin")")
 done
 # All Qt Quick 3D modules stay present. Never copy the old exclusion.
-loaders="$(pkg-config --variable=gdk_pixbuf_moduledir gdk-pixbuf-2.0)"
-query="$(pkg-config --variable=gdk_pixbuf_query_loaders gdk-pixbuf-2.0)"
+loaders="$("$PKG_CONFIG" --variable=gdk_pixbuf_moduledir gdk-pixbuf-2.0)"
+query="$("$PKG_CONFIG" --variable=gdk_pixbuf_query_loaders gdk-pixbuf-2.0)"
 [[ -d "$loaders" && -x "$query" ]] || { echo 'Matching GdkPixbuf loaders/query missing' >&2; exit 1; }
 python "$root/tools/linux-release/assemble.py" \
   --source "$root" --build "$work/app-build" --qt "$work/qt-sdk" --stage "$work/AppDir" \

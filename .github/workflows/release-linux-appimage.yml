@@ -27,7 +27,7 @@ jobs:
       - name: Install build tools and host development dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential binutils dpkg-dev curl \
+          sudo apt-get install -y --no-install-recommends build-essential binutils dpkg-dev curl pkg-config \
             libtorrent-rasterbar-dev libboost-system-dev libboost-filesystem-dev libssl-dev \
             libsecret-1-dev libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0
       - name: Obtain SHA256-pinned packaging tools
