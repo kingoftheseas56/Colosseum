@@ -83,7 +83,9 @@ public:
     // streamReady, so the kept-alive player page never hijacks a download's url
     // into mpv. (PlayerPage.qml loads EVERY streamReady it hears.)
     Q_INVOKABLE void prefetch(const QString &infoHash, int fileIdx);
+#ifdef Q_OS_ANDROID
     Q_INVOKABLE void warmSource(const QString &infoHash, int fileIdx);
+#endif
 
     // Independent consumers admit an exact manifest/file without publishing the
     // legacy global streamReady/fetchReady events. A token owns its manifest.
@@ -117,10 +119,11 @@ public:
     Q_INVOKABLE void watchStats(const QString &infoHash, int fileIdx);
     Q_INVOKABLE void unwatchStats();
 
-    // The player closed for good (minimize never calls this): on Android the
-    // Nuvio backend retires the route and removes the torrent's session
-    // demand. The desktop runtime keeps its own torrent lifetime (no-op).
+#ifdef Q_OS_ANDROID
+    // When the player closes for good, retire the Android playback route and
+    // remove the torrent's session demand. Minimizing keeps the route alive.
     Q_INVOKABLE void stopDemand();
+#endif
 
 Q_SIGNALS:
     void readyChanged();

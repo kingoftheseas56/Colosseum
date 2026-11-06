@@ -25,6 +25,7 @@ Item {
     readonly property int leftEdge: Math.max(18, Math.min(80, parent.width * 0.045))
     readonly property int bottomGap: 16
     readonly property int closedSize: 64
+    readonly property real contentBottomInset: visible ? height - dock.y : 0
     // Permanent buttons: Colosseum, Vault, and Your Collections.
     readonly property int closedWidth: 190
     Keys.onPressed: (event) => spatialNav.handle(event)

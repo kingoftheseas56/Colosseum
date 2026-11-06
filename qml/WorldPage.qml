@@ -155,7 +155,8 @@ Item {
         id: adaptive
         viewportWidth: world.width
         androidHost: world.androidHost
-        desktopPresentation: !world.Window.window || world.Window.window.desktopPresentation !== false
+        desktopPresentation: world.androidHost
+            && (!world.Window.window || world.Window.window.desktopPresentation !== false)
     }
     readonly property real pageMargin: adaptive.pageMargin
     readonly property real outerPageMargin: adaptive.outerPageMargin
