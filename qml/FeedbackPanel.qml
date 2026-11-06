@@ -15,6 +15,12 @@ FocusScope {
     signal quitRequested()
     Theme { id: theme }
     Rectangle { anchors.fill: parent; color: "#08090d" }
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        hoverEnabled: true
+        onWheel: function(wheel) { wheel.accepted = true }
+    }
     RowLayout {
         id: header
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }

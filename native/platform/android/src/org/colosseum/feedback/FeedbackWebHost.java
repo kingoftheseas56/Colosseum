@@ -39,8 +39,9 @@ public final class FeedbackWebHost {
         view.setWebChromeClient(new WebChromeClient() {
             @Override public void onPermissionRequest(PermissionRequest request) { request.deny(); }
         });
+        // Android Back belongs to ColosseumActivity's controller.
         view.setOnKeyListener((v, code, event) -> {
-            if ((code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE)
+            if (code == KeyEvent.KEYCODE_ESCAPE
                 && event.getAction() == KeyEvent.ACTION_UP) { emit("close"); return true; }
             return false;
         });
