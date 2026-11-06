@@ -195,8 +195,14 @@ FocusScope {
         event.accepted = FocusContainment.move(root.Window.window, root, false)
     }
     Component.onCompleted: {
+        if (touchInput && service && typeof service.setInlineKeyboard === "function")
+            service.setInlineKeyboard(true)
         ready = true
         restoreDraft()
+    }
+    Component.onDestruction: {
+        if (touchInput && service && typeof service.setInlineKeyboard === "function")
+            service.setInlineKeyboard(false)
     }
 
     Timer {

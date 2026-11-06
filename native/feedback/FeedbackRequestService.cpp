@@ -55,6 +55,23 @@ QString FeedbackRequestService::newReference() const
     return QUuid::createUuid().toString(QUuid::WithoutBraces);
 }
 
+void FeedbackRequestService::setInlineKeyboard(bool enabled)
+{
+#if defined(Q_OS_ANDROID)
+    // Qt 6.11 reads this at each Android input connection. Keep the form visible
+    // in landscape, and preserve the keyboard policy of other editors on close.
+    constexpr auto variable = "QT_ANDROID_NO_FULLSCREEN_KEYBOARD";
+    if (enabled && !qEnvironmentVariableIsSet(variable))
+        m_ownsKeyboardPolicy = qputenv(variable, "1");
+    else if (!enabled && m_ownsKeyboardPolicy) {
+        qunsetenv(variable);
+        m_ownsKeyboardPolicy = false;
+    }
+#else
+    Q_UNUSED(enabled);
+#endif
+}
+
 void FeedbackRequestService::finish(bool ok, const QString &message)
 {
     m_sending = false;
