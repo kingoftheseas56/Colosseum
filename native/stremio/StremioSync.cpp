@@ -2354,7 +2354,10 @@ bool StremioSync::confirmStagedAuthentication(std::function<void(bool)> completi
 void StremioSync::commitAuthentication(
     StagedAuthentication authentication,
     std::function<void(bool)> completion) {
-    const auto &[binding, attempt, authKey, identity] = authentication;
+    const auto &binding = authentication.binding;
+    const auto attempt = authentication.attempt;
+    const auto &authKey = authentication.authKey;
+    const auto &identity = authentication.identity;
     const auto complete = [this, binding, attempt, completion = std::move(completion)](
         bool succeeded, const QString &summary) {
         const bool current = bindingCurrent(binding) && attempt == m_authAttempt;

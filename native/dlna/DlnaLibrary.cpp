@@ -418,7 +418,6 @@ std::shared_ptr<DlnaSnapshot> buildSnapshot(const BuildInput& in)
         for (const Cand* c : rows) {
             bool folderFound = false;
             seasonFolderOrdinal(c->row, &folderFound);
-            const VaultKit::SeasonEpisode se = VaultKit::parseEpisodeNumber(c->row.realName);
             const bool isEpisode = folderFound
                 || VaultKit::isEpisodeVideo(c->row.realName, absoluteRun);
             (isEpisode ? episodeRows : movieRows).append(c);

@@ -2,6 +2,10 @@ name: desktop-ci
 
 on:
   workflow_dispatch:
+  # Isolated Linux repair verification. Dispatches retain the full desktop suite.
+  push:
+    branches:
+      - dots/arc78-linux-ci-fix
 
 permissions:
   contents: read
@@ -46,6 +50,7 @@ jobs:
           apt-cache show mpv >/dev/null
 
   windows-desktop:
+    if: github.event_name == 'workflow_dispatch'
     needs: public-trust
     runs-on: windows-2025
     # Dependency setup, CodeQL, clang-tidy, and the ASAN probe build exceed
@@ -564,6 +569,7 @@ jobs:
           "$(go env GOPATH)/bin/govulncheck" ./...
 
   fuzz-smoke:
+    if: github.event_name == 'workflow_dispatch'
     needs: public-trust
     runs-on: windows-2025
     timeout-minutes: 30
