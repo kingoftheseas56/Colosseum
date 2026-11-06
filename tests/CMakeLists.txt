@@ -4136,7 +4136,7 @@ add_executable(tst_nuvio_api
     "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h")
 target_include_directories(tst_nuvio_api PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_nuvio_api PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+target_link_libraries(tst_nuvio_api PRIVATE colosseum_account_credentials Qt6::Core Qt6::Network Qt6::Test)
 set_target_properties(tst_nuvio_api PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_nuvio_api POST_BUILD

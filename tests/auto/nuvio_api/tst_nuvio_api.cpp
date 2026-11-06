@@ -1,6 +1,7 @@
 #include "account/NuvioApi.h"
 #include "account/NuvioAccount.h"
 #include "account/HistoryStore.h"
+#include "account/PlatformAccountCredentialStore.h"
 #include "account/ProfilePreferencesStore.h"
 #include "CollectionStore.h"
 #include "ProgressStore.h"
@@ -8,9 +9,11 @@
 
 #include <QDateTime>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <memory>
 #include <utility>
 
 namespace {
@@ -46,10 +49,10 @@ public:
     std::optional<StoredNuvioCredential> stored;
 };
 
-NuvioApi::Reply tokenReply() {
+NuvioApi::Reply tokenReply(const QByteArray &access = QByteArrayLiteral("fixture-access")) {
     return {200, QJsonObject{
         {"user", QJsonObject{{"id", accountId}}},
-        {"access_token", "fixture-access"},
+        {"access_token", QString::fromLatin1(access)},
         {"refresh_token", "fixture-refresh"},
         {"expires_in", 3600}}, {}};
 }
@@ -127,6 +130,8 @@ struct Fixture {
         } else if (method == QLatin1String("sync_pull_watched_items")) {
             done({200, watched, {}});
         } else if (method == QLatin1String("sync_pull_watch_progress")) {
+            QCOMPARE(body.value("p_limit").toInt(), 200);
+            QVERIFY(!body.contains("p_since_last_watched"));
             done({200, positions, {}});
         } else if (path.startsWith(QLatin1String("/rest/v1/addons?"))) {
             done({200, addonRows, {}});
@@ -194,14 +199,41 @@ private slots:
 };
 
 void tst_nuvio_api::signInIsStagedAndDisconnectClearsTokens() {
-    Vault vault;
-    NuvioApi api(&vault, nullptr, [](const QString &path, bool get,
+    class CappedBackend final : public AccountSecretBackend {
+    public:
+        bool isAvailable() const override { return true; }
+        bool write(const QString &, const QByteArray &value) override {
+            // Model Windows Credential Manager's CRED_MAX_CREDENTIAL_BLOB_SIZE.
+            if (value.size() > 2560)
+                return false;
+            blob = value;
+            return true;
+        }
+        std::optional<QByteArray> read(const QString &) const override { return blob; }
+        bool remove(const QString &) override {
+            blob.reset();
+            return true;
+        }
+        QStringList targets(const QString &) const override { return {}; }
+        std::optional<QByteArray> blob;
+    };
+    auto backend = std::make_shared<CappedBackend>();
+    PlatformAccountCredentialStore vault(backend);
+    const QByteArray access =
+        QByteArrayLiteral("eyJhbGciOiJIUzI1NiJ9.").leftJustified(2040, 'a') + ".fixture";
+    QCOMPARE(access.size(), 2048);
+    NuvioApi api(&vault, nullptr, [&access](const QString &path, bool get,
         const QJsonObject &body, const QByteArray &bearer, NuvioApi::Completion done) {
-        QCOMPARE(path, QStringLiteral("/auth/v1/token?grant_type=password"));
         QVERIFY(!get);
-        QVERIFY(bearer.isEmpty());
-        QCOMPARE(body.value("password").toString(), QStringLiteral("fixture-password"));
-        done(tokenReply());
+        if (path == QLatin1String("/auth/v1/token?grant_type=password")) {
+            QVERIFY(bearer.isEmpty());
+            QCOMPARE(body.value("password").toString(), QStringLiteral("fixture-password"));
+            done(tokenReply(access));
+        } else {
+            QCOMPARE(path, QStringLiteral("/rest/v1/rpc/sync_pull_profiles"));
+            QCOMPARE(bearer, access);
+            done({200, QJsonArray{}, {}});
+        }
     });
     api.activate(QStringLiteral("local"));
     auto signIn = [&api]() {
@@ -212,28 +244,42 @@ void tst_nuvio_api::signInIsStagedAndDisconnectClearsTokens() {
             });
     };
     signIn();
-    QVERIFY(!vault.stored);
+    QVERIFY(!backend->blob);
     api.cancelSignIn();
     QVERIFY(!api.saveSignIn());
     signIn();
-    QVERIFY(api.saveSignIn());
-    QCOMPARE(vault.stored->accessToken, QByteArray("fixture-access"));
-    QCOMPARE(vault.stored->refreshToken, QByteArray("fixture-refresh"));
+    QVERIFY(api.saveSignIn(sourceProfile, 1));
+    QVERIFY(backend->blob);
+    const QJsonObject saved = QJsonDocument::fromJson(*backend->blob).object();
+    QVERIFY(!saved.contains(QStringLiteral("access_token")));
+    QVERIFY(!saved.contains(QStringLiteral("access_expires_at_utc_ms")));
+    QVERIFY(!saved.contains(QStringLiteral("password")));
+    const auto stored = vault.loadNuvio(QStringLiteral("local"));
+    QVERIFY(stored);
+    QCOMPARE(stored->refreshToken, QByteArray("fixture-refresh"));
+    QCOMPARE(stored->nuvioProfileId, sourceProfile);
+    QCOMPARE(stored->nuvioProfileIndex, 1);
+    api.rpc(QStringLiteral("sync_pull_profiles"), {}, [](NuvioApi::Reply reply) {
+        QCOMPARE(reply.status, 200);
+    });
     QVERIFY(api.disconnectAccount());
-    QVERIFY(!vault.stored);
+    QVERIFY(!backend->blob);
 }
 
 void tst_nuvio_api::refreshIsSharedAndRevocationPauses() {
     Vault vault;
-    vault.stored = StoredNuvioCredential{"local", accountId, "expired", "refresh", 1};
+    vault.stored = StoredNuvioCredential{"local", accountId, "refresh", sourceProfile, 1};
     NuvioApi::Completion refreshReply;
     int refreshes = 0;
     int reads = 0;
     NuvioApi api(&vault, nullptr, [&](const QString &path, bool, const QJsonObject &body,
         const QByteArray &bearer, NuvioApi::Completion done) {
         if (path == QLatin1String("/auth/v1/token?grant_type=refresh_token")) {
+            const auto expected = refreshes == 0 ? QStringLiteral("refresh")
+                                                 : QStringLiteral("fixture-refresh");
             ++refreshes;
-            QVERIFY(body.contains("refresh_token"));
+            QVERIFY(bearer.isEmpty());
+            QCOMPARE(body.value("refresh_token").toString(), expected);
             refreshReply = std::move(done);
             return;
         }
@@ -255,8 +301,12 @@ void tst_nuvio_api::refreshIsSharedAndRevocationPauses() {
     std::exchange(refreshReply, {})(tokenReply());
     QCOMPARE(reads, 2);
     QCOMPARE(successes, 2);
-    vault.stored->accessExpiresAtUtcMs = 1;
+    QCOMPARE(vault.stored->refreshToken, QByteArray("fixture-refresh"));
+    QCOMPARE(vault.stored->nuvioProfileId, sourceProfile);
+    QCOMPARE(vault.stored->nuvioProfileIndex, 1);
     api.activate(QStringLiteral("local"));
+    QVERIFY(api.connected());
+    QVERIFY(!api.needsReconnect());
     read();
     std::exchange(refreshReply, {})({400, {}, {}});
     QVERIFY(api.needsReconnect());

@@ -64,10 +64,11 @@ void NuvioApi::activate(const QString &profileId) {
     if (profileId != m_profileId)
         m_savedPaused = false;
     m_profileId = profileId;
-    m_session = m_vault && !profileId.isEmpty() ? m_vault->loadNuvio(profileId) : std::nullopt;
+    const auto credential = m_vault && !profileId.isEmpty()
+        ? m_vault->loadNuvio(profileId) : std::nullopt;
+    m_session = credential ? std::optional<Session>(Session{*credential, {}, 0}) : std::nullopt;
     m_saved = m_session.has_value();
-    m_paused = m_session && (m_savedPaused || !validToken(m_session->accessToken)
-        || !validToken(m_session->refreshToken));
+    m_paused = credential && (m_savedPaused || !validToken(credential->refreshToken));
 }
 
 void NuvioApi::signIn(const QString &email, const QString &password, Completion completion) {
@@ -97,7 +98,7 @@ bool NuvioApi::saveSignIn(const QString &nuvioProfileId, int nuvioProfileIndex,
                          const std::function<bool()> &commitSetting) {
     if (m_busy || m_paused || !m_session || !m_vault)
         return false;
-    auto candidate = *m_session;
+    auto candidate = m_session->credential;
     if (m_saved && candidate.nuvioProfileId == nuvioProfileId
         && candidate.nuvioProfileIndex == nuvioProfileIndex) {
         return !commitSetting || commitSetting();
@@ -117,7 +118,7 @@ bool NuvioApi::saveSignIn(const QString &nuvioProfileId, int nuvioProfileIndex,
     }
     if (generation != m_generation)
         return false;
-    m_session = std::move(candidate);
+    m_session->credential = std::move(candidate);
     m_saved = true;
     m_savedPaused = false;
     return true;
@@ -139,15 +140,15 @@ bool NuvioApi::disconnectAccount() {
 }
 
 QString NuvioApi::accountId() const {
-    return m_session ? m_session->accountId : QString();
+    return m_session ? m_session->credential.accountId : QString();
 }
 
 QString NuvioApi::selectedProfileId() const {
-    return m_session ? m_session->nuvioProfileId : QString();
+    return m_session ? m_session->credential.nuvioProfileId : QString();
 }
 
 int NuvioApi::selectedProfileIndex() const {
-    return m_session ? m_session->nuvioProfileIndex : 0;
+    return m_session ? m_session->credential.nuvioProfileIndex : 0;
 }
 
 void NuvioApi::rpc(const QString &operation, const QJsonObject &body, Completion completion) {
@@ -205,16 +206,16 @@ void NuvioApi::pump() {
 
 void NuvioApi::refresh() {
     send(QStringLiteral("/auth/v1/token?grant_type=refresh_token"), false,
-         {{"refresh_token", QString::fromLatin1(m_session->refreshToken)}}, {},
+         {{"refresh_token", QString::fromLatin1(m_session->credential.refreshToken)}}, {},
          [this](Reply reply) {
              m_busy = false;
-             auto credential = decodeSession(reply, m_session->accountId);
-             if (credential) {
-                 credential->nuvioProfileId = m_session->nuvioProfileId;
-                 credential->nuvioProfileIndex = m_session->nuvioProfileIndex;
+             auto session = decodeSession(reply, m_session->credential.accountId);
+             if (session) {
+                 session->credential.nuvioProfileId = m_session->credential.nuvioProfileId;
+                 session->credential.nuvioProfileIndex = m_session->credential.nuvioProfileIndex;
              }
-             if (credential && (!m_saved || m_vault->saveNuvio(*credential))) {
-                 m_session = std::move(credential);
+             if (session && (!m_saved || m_vault->saveNuvio(session->credential))) {
+                 m_session = std::move(session);
                  pump();
                  return;
              }
@@ -307,7 +308,7 @@ void NuvioApi::sendHttp(const QString &path, bool get, const QJsonObject &body,
     });
 }
 
-std::optional<StoredNuvioCredential> NuvioApi::decodeSession(
+std::optional<NuvioApi::Session> NuvioApi::decodeSession(
     const Reply &reply, const QString &expectedAccount) const {
     if (reply.status != 200 || !reply.data.isObject())
         return std::nullopt;
@@ -323,6 +324,6 @@ std::optional<StoredNuvioCredential> NuvioApi::decodeSession(
         || expiresIn <= 30 || expiresIn > 7 * 86400) {
         return std::nullopt;
     }
-    return StoredNuvioCredential{m_profileId, account, access, refresh,
+    return Session{{m_profileId, account, refresh, {}, 0}, access,
         QDateTime::currentMSecsSinceEpoch() + expiresIn * 1000};
 }

@@ -48,6 +48,12 @@ public:
     void addons(int profileIndex, Completion completion);
 
 private:
+    struct Session {
+        StoredNuvioCredential credential;
+        QByteArray accessToken;
+        qint64 accessExpiresAtUtcMs = 0;
+    };
+
     struct Operation {
         QString path;
         bool get = false;
@@ -65,7 +71,7 @@ private:
               const QByteArray &bearer, Completion completion);
     void sendHttp(const QString &path, bool get, const QJsonObject &body,
                   const QByteArray &bearer, Completion completion);
-    std::optional<StoredNuvioCredential> decodeSession(const Reply &reply,
+    std::optional<Session> decodeSession(const Reply &reply,
         const QString &expectedAccount = {}) const;
 
     AccountCredentialStore *m_vault;
@@ -73,7 +79,7 @@ private:
     Transport m_transport;
     QPointer<QNetworkReply> m_reply;
     QString m_profileId;
-    std::optional<StoredNuvioCredential> m_session;
+    std::optional<Session> m_session;
     QQueue<Operation> m_operations;
     quint64 m_generation = 0;
     qint64 m_retryAt = 0;
