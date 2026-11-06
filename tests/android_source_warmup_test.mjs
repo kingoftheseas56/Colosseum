@@ -8,7 +8,7 @@ const warmBody = /function warmTopRow\(\) \{([\s\S]*?)\n    \}\n    onQualityFil
 const editionsBody = /function loadEditions\(\) \{([\s\S]*?)\n    \}\n/.exec(book)?.[1];
 assert.ok(warmBody && editionsBody, 'load the actual QML function bodies');
 const warmTopRow = new Function('sheet', 'Stream', 'Qt', warmBody);
-const loadEditions = new Function('detail', 'Stream', 'Qt', 'BiblioApi', 'Abb', 'Audiobooks', editionsBody);
+const loadEditions = new Function('detail', 'Stream', 'Qt', 'Abb', 'Audiobooks', 'abCol', editionsBody);
 
 function streamDouble() {
     const calls = [];
@@ -47,12 +47,12 @@ for (const os of ['android', 'windows']) {
     test(`${os} audiobook discovery routes its speculative preparation correctly`, () => {
         const stream = streamDouble();
         const detail = { book: { title: 'Book', author: 'Author' }, sourceGeneration: 0,
-            pairKey: 'book', loadTorrents() {} };
-        const api = { searchLibgen() {} };
+            pairKey: 'book', loadLibgenEditions() {}, loadTorrents() {}, refreshLocal() {} };
+        const abCol = { syncStatus() {} };
         const abb = { resolveAudiobook(_title, _author, done) { done({ rows: [{ slug: 'book' }] }); },
             fetchInfoHash(_slug, done) { done({ infoHash: 'audio-a' }); } };
-        loadEditions(detail, stream, { platform: { os } }, api, abb, { isDownloaded: () => false });
+        loadEditions(detail, stream, { platform: { os } }, abb, { isDownloaded: () => false }, abCol);
         assert.equal(detail.abInfoHash, 'audio-a');
-        assert.deepEqual(stream.calls, [[os === 'android' ? 'warm' : 'download', 'audio-a', 0]]);
+        assert.deepEqual(stream.calls, os === 'android' ? [] : [['download', 'audio-a', 0]]);
     });
 }

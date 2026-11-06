@@ -3,9 +3,7 @@ import QtQuick.Window
 import QtTest 1.3
 import "../../qml" as App
 
-// B0: installed Android desktop-presentation composition (zero outer content edge,
-// 16 px header inset) stays scoped to the Android host capability; desktop keeps
-// the adaptive page margin.
+// Android's desktop presentation keeps the desktop gutters at launch zoom.
 TestCase {
     id: testCase
     name: "AndroidVisualBaseline"
@@ -57,12 +55,12 @@ TestCase {
         return null
     }
 
-    function test_adaptive_outer_margin_scoped_to_android_desktop_presentation() {
+    function test_desktop_presentation_keeps_outer_margin() {
         var desktop = adaptiveComponent.createObject(testCase, { androidHost: false, viewportWidth: 1280 })
         compare(desktop.outerPageMargin, desktop.pageMargin)
         compare(desktop.outerPageMargin, 54)
-        var android = adaptiveComponent.createObject(testCase, { androidHost: true, viewportWidth: 1280 })
-        compare(android.outerPageMargin, 0)
+        var android = adaptiveComponent.createObject(testCase, { androidHost: true, viewportWidth: 905 })
+        compare(android.outerPageMargin, 54)
         var phone = adaptiveComponent.createObject(testCase,
             { androidHost: true, desktopPresentation: false, viewportWidth: 412 })
         compare(phone.outerPageMargin, phone.pageMargin)
@@ -81,15 +79,15 @@ TestCase {
         world.destroy()
     }
 
-    function test_android_world_content_runs_edge_to_edge() {
+    function test_android_world_keeps_desktop_gutters() {
         var world = worldComponent.createObject(testWindow.contentItem, { androidHost: true })
         verify(world !== null)
-        compare(world.outerPageMargin, 0)
-        compare(world.headerOuterMargin, 16)
+        compare(world.outerPageMargin, 54)
+        compare(world.headerOuterMargin, 54)
         var board = boardOf(world)
         verify(board !== null)
-        compare(board.x, 0)
-        compare(board.width, 1280)
+        compare(board.x, 54)
+        compare(board.width, 1280 - 108)
         world.destroy()
     }
 }

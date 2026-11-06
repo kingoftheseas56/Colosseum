@@ -67,15 +67,16 @@ TestCase {
         compare(header.x, 54); compare(body.x, 54)
         compare(header.width, 1172); compare(body.width, 1172)
         item.androidHost = true
-        compare(header.x, 0); compare(body.x, 0)
-        compare(header.width, 1280); compare(body.width, 1280)
-        item.safeAreaLeft = 32; item.safeAreaRight = 11
-        compare(header.x, 32); compare(body.x, 32)
-        compare(header.width, 1237); compare(body.width, 1237)
+        compare(header.x, 54); compare(body.x, 54)
+        compare(header.width, 1172); compare(body.width, 1172)
+        item.safeAreaLeft = 70; item.safeAreaRight = 11
+        compare(header.x, 70); compare(body.x, 70)
+        compare(header.width, 1156); compare(body.width, 1156)
         const verbs = child(item, "biblioBookWindowControls")
         compare(verbs.width, 0)
         noActiveWindowActions(verbs)
         item.androidHost = false
+        item.safeAreaLeft = 0; item.safeAreaRight = 0
         compare(header.x, 54); compare(body.x, 54)
         compare(verbs.visible, true)
     }
@@ -130,12 +131,12 @@ TestCase {
         wait(30)
         compare(field.width, desktopFieldWidth)
     }
-    function test_catalogue_heading_moves_as_one_without_grid_shift_data() {
+    function test_catalogue_heading_keeps_desktop_alignment_data() {
         return [{tag:"wide-closed",viewport:1200,collapsed:true,longTitle:false,provider:"Apple Books"},
                 {tag:"wide-open",viewport:1200,collapsed:false,longTitle:false,provider:"Cinemeta"},
                 {tag:"stacked-long",viewport:600,collapsed:false,longTitle:true,provider:"Jikan"}]
     }
-    function test_catalogue_heading_moves_as_one_without_grid_shift(data) {
+    function test_catalogue_heading_keeps_desktop_alignment(data) {
         adapter.provider = data.provider
         if (data.longTitle) adapter.title = "A very long selected catalogue title that must be elided"
         const item = make(browserComponent, { width:data.viewport, adapter:adapter, currentType:"book", currentCatalogKey:"popular" })
@@ -152,7 +153,7 @@ TestCase {
         const before = fields.map(function(name) { return rightIn(child(item,name),item) })
         item.androidHost = true
         wait(30)
-        for (var i=0; i<fields.length; ++i) fuzzyCompare(rightIn(child(item,fields[i]),item), before[i]-16, 0.01, fields[i])
+        for (var i=0; i<fields.length; ++i) fuzzyCompare(rightIn(child(item,fields[i]),item), before[i], 0.01, fields[i])
         compare(child(item,"layoutDiscoverHeadingProvider").text, data.provider)
         compare(poster.width, posterWidth); compare(poster.height, posterHeight); compare(wall.width, wallWidth)
         fuzzyCompare(wall.mapToItem(item,0,0).x,beforeWall.x,0.01)
