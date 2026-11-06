@@ -13,9 +13,17 @@ from urllib.parse import urlparse
 from package_appimage import REQUIRED_NOTICES
 
 
+def require_glib_headers(prefix: Path) -> None:
+    # libglib is a runtime split; its recipe removes lib/glib-* development data.
+    for relative in ("include/glib-2.0/glib.h", "lib/glib-2.0/include/glibconfig.h"):
+        if not (prefix / relative).is_file():
+            raise ValueError("Full GLib development package required; missing " + relative)
+
+
 def prepare(prefix: Path, overlay: Path, notices: Path) -> None:
     if overlay.exists() or notices.exists():
         raise ValueError("SDK overlay and notices destinations must be new")
+    require_glib_headers(prefix)
     qmake = next((p for p in (prefix / "bin/qmake6", prefix / "bin/qmake",
                               prefix / "lib/qt6/bin/qmake") if p.is_file()), None)
     if qmake is None:
