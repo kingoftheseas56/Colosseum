@@ -343,6 +343,13 @@ set(COLOSSEUM_THEATRE_ACCOUNT_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/account/TheatreAccountImport.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/account/TheatreAccountImport.h")
 
+set(COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES
+    engine/AudiobookDownloader.cpp
+    engine/AudiobookDownloader.h
+    engine/AudiobookTorrentTransport.cpp
+    engine/AudiobookTorrentTransport.h
+    engine/AudiobookTorrentEngineAdapter.h)
+
 qt_add_executable(colosseum
     feedback/FeedbackRequestService.cpp
     feedback/FeedbackRequestService.h
@@ -641,12 +648,8 @@ qt_add_executable(colosseum
     engine/MangaImageHostResolver.h
     engine/BookDownloader.cpp
     engine/BookDownloader.h
-    engine/AudiobookDownloader.cpp
-    engine/AudiobookDownloader.h
-    engine/AudiobookTorrentTransport.cpp
-    engine/AudiobookTorrentTransport.h
+    ${COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES}
     engine/AudiobookTorrentEngineAdapter.cpp
-    engine/AudiobookTorrentEngineAdapter.h
     engine/ComicDownloader.cpp
     engine/ComicDownloader.h
     engine/ComicCoverProvider.cpp  # image://comiccover/ -- stateless cover decode for archive-shaped rows
@@ -1665,8 +1668,7 @@ target_link_libraries(reader2_profile_runtime_harness PRIVATE
 # no libtorrent), so the attach logic is proven without a live download.
 add_executable(reader2_autoattach_harness
     ../tests/reader2_autoattach_harness.cpp
-    engine/AudiobookDownloader.cpp
-    engine/AudiobookDownloader.h
+    ${COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES}
     AudioPairingStore.h
     player/streamserver.cpp
     player/streamserver.h
@@ -1729,8 +1731,7 @@ add_executable(reader2_harness
     # the harness drives the REAL shared session; libmpv-2.dll/MpvQt.dll already sit beside
     # the exe (deployed for colosseum.exe in the shared build dir).
     AudioPairingStore.h
-    engine/AudiobookDownloader.cpp
-    engine/AudiobookDownloader.h
+    ${COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES}
     player/streamserver.cpp
     player/streamserver.h
     player/mpvitem.cpp
@@ -2948,8 +2949,7 @@ target_link_libraries(mal_catalog_discover_harness PRIVATE Qt6::Core Qt6::Sql Qt
 # real AudiobookDownloader + StreamServer, network-dependent, NOT in the suite.
 add_executable(audiobook_engine_probe
     ../tests/audiobook_engine_probe.cpp
-    engine/AudiobookDownloader.cpp
-    engine/AudiobookDownloader.h
+    ${COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES}
     AudioPairingStore.h
     player/streamserver.cpp
     player/streamserver.h
