@@ -333,6 +333,8 @@ else()
 endif()
 
 qt_add_executable(colosseum
+    feedback/FeedbackRequestService.cpp
+    feedback/FeedbackRequestService.h
     engine/TankoyomiSeriesMatcher.cpp
     engine/TankoyomiSeriesMatcher.h
     engine/TankoyomiNetworkPolicy.cpp
@@ -994,6 +996,9 @@ if(NOT ANDROID)
 endif()
 
 if(ANDROID)
+    # Dexter uses Qt Quick 3D. androiddeployqt scans the staged tree for its QML plugins.
+    find_package(Qt6 REQUIRED COMPONENTS Quick3D)
+    target_link_libraries(colosseum PRIVATE Qt6::Quick3D)
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/android.cmake")
 endif()
 file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS

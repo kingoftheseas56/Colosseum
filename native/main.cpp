@@ -1,6 +1,8 @@
 // Colosseum native launcher. Normal launches require the live qml/ tree to match the
 // fingerprint emitted by the native build; explicit dev QML overrides remain opt-in.
 
+#include "feedback/FeedbackRequestService.h"
+
 #include <QDir>
 #include <QGuiApplication>
 #include <QHash>
@@ -445,6 +447,8 @@ int main(int argc, char *argv[]) {
     // still exist. QML goes first so its destruction handlers can flush activity.
     QObject backendServices(&app);
     QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty(QStringLiteral("FeedbackRequests"),
+                                              new FeedbackRequestService(&engine));
 
     // One host/platform facade for lifecycle, Android Back, safe insets,
     // keyboard visibility, permissions/SAF requests and capability truth.

@@ -2993,13 +2993,29 @@ Window {
     }
     function closeUpdatePage() { updateLayer.active = false }
     property Item feedbackInvoker: null
+    property var requestFormDrafts: ({})
+    Settings {
+        id: requestDraftSettings
+        category: "FeedbackRequests"
+        property string draftsJson: "{}"
+        Component.onCompleted: {
+            try {
+                const saved = JSON.parse(draftsJson)
+                if (saved && typeof saved === "object" && !Array.isArray(saved))
+                    win.requestFormDrafts = saved
+            } catch (error) {
+                draftsJson = "{}"
+            }
+        }
+    }
     function openFeedback(invoker, homeFeedbackKind = "") {
         if (win.guardNamedCollectionsNavigation(function() { win.openFeedback(invoker, homeFeedbackKind) })) return
         if (feedbackLayer.active || feedbackLayer.capturingBackdrop) return
         feedbackLayer.universeRequest = !!invoker && !homeFeedbackKind
         feedbackLayer.homeFeedbackKind = homeFeedbackKind
         win.feedbackInvoker = invoker || win.activeFocusItem
-        if (feedbackLayer.desktopUniverse || (homeFeedbackKind && !win.androidHost)) {
+        taskbar.open = false
+        if (feedbackLayer.requestForm && !win.androidHost) {
             feedbackLayer.capturingBackdrop = true
             if (win.contentItem.grabToImage(function(result) {
                 feedbackLayer.capturingBackdrop = false
@@ -3010,10 +3026,11 @@ Window {
             feedbackLayer.active = true
             return
         }
-        taskbar.open = false
         feedbackLayer.active = true
     }
     function closeFeedback() {
+        if (feedbackLayer.requestForm && feedbackLayer.item && feedbackLayer.item.sending) return
+        if (win.androidHost && win.shellInputMethod.visible) win.shellInputMethod.hide()
         feedbackLayer.active = false
         feedbackLayer.backdrop = null
         const invoker = win.feedbackInvoker
@@ -4685,7 +4702,7 @@ Window {
                 }
 
                 HomeFeedbackActions {
-                    visible: !win.androidHost || typeof AndroidFeedbackBrowser !== "undefined"
+                    visible: typeof FeedbackRequests !== "undefined"
                     width: parent.width
                     backdrop: wall
                     track: page.contentY
@@ -6265,22 +6282,31 @@ Window {
         visible: active
         property bool universeRequest: false
         property string homeFeedbackKind: ""
-        readonly property bool desktopUniverse: universeRequest && Qt.platform.os !== "android"
+        readonly property bool requestForm: universeRequest || homeFeedbackKind.length > 0
         property bool capturingBackdrop: false
         property var backdrop: null
-        sourceComponent: FeedbackPanel {
-            universeRequest: feedbackLayer.universeRequest
-            desktopUniverse: feedbackLayer.desktopUniverse
-            homeFeedbackKind: feedbackLayer.homeFeedbackKind
-            backdropUrl: feedbackLayer.backdrop ? feedbackLayer.backdrop.url : ""
-            availableUniverses: desktopUniverse && win.feedbackInvoker
-                                ? win.feedbackInvoker.availableUniverses : []
+        sourceComponent: requestForm ? requestFormComponent : genericFeedbackComponent
+
+        Component {
+            id: requestFormComponent
+            RequestFormOverlay {
+                kind: feedbackLayer.universeRequest ? "universe" : feedbackLayer.homeFeedbackKind
+                backdropUrl: feedbackLayer.backdrop ? feedbackLayer.backdrop.url : ""
+                availableUniverses: feedbackLayer.universeRequest && win.feedbackInvoker
+                                    ? win.feedbackInvoker.availableUniverses : []
+                drafts: win.requestFormDrafts
+                onDraftChanged: requestDraftSettings.draftsJson = JSON.stringify(win.requestFormDrafts)
+                onCloseRequested: win.closeFeedback()
+            }
         }
-        onLoaded: {
-            item.closeRequested.connect(win.closeFeedback)
-            item.minimizeRequested.connect(win.minimizeShell)
-            item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.quitRequested.connect(win.requestApplicationQuit)
+        Component {
+            id: genericFeedbackComponent
+            FeedbackPanel {
+                onCloseRequested: win.closeFeedback()
+                onMinimizeRequested: win.minimizeShell()
+                onFullscreenRequested: win.toggleFullscreenShell()
+                onQuitRequested: win.requestApplicationQuit()
+            }
         }
     }
 
