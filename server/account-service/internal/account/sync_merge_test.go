@@ -183,6 +183,61 @@ func TestSyncMergeHistoryKeepsStremioPresentationWhenNewerPeerIsLegacy(t *testin
 	}
 }
 
+func TestSyncMergeHistoryPreservesNuvioSourceAndNewestRealActivity(t *testing.T) {
+	current := syncMergeCurrentFixture(
+		"abababab-abab-4bab-8bab-abababababab", syncMergeDeviceA, "put", 200, 0,
+		`{"kind":"episode","id":"tt0100:1:1","firstActivityAt":1000,"lastActivityAt":3000,"source":"stremio","displayId":"tt0100:1:1","displayTitle":"Old","latestKnownAt":3000}`)
+	incoming := syncMergeIncomingFixture(
+		"cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd", syncMergeDeviceB, "full_history", "put", 100, 0,
+		`{"kind":"episode","id":"tt0100:1:1","firstActivityAt":1000,"lastActivityAt":4000,"completedAt":4000,"source":"nuvio","displayId":"tmdb:1396_s1e1","displayTitle":"New","latestKnownAt":4000}`)
+
+	resolution, err := resolveMutableSync(current, true, incoming)
+	if err != nil {
+		t.Fatalf("resolveMutableSync() error = %v", err)
+	}
+	payload := decodeSyncMergePayload(t, resolution.Payload)
+	if payload["source"] != "nuvio" || payload["displayId"] != "tmdb:1396_s1e1" {
+		t.Fatalf("newer real Nuvio activity lost its provenance: %#v", payload)
+	}
+	if got := syncMergeInt64(t, payload, "latestKnownAt"); got != 4000 {
+		t.Fatalf("latestKnownAt = %d, want 4000", got)
+	}
+
+	legacy := incoming
+	legacy.MutationID = "efefefef-efef-4fef-8fef-efefefefefef"
+	legacy.HLCPhysicalMS = 300
+	legacy.Payload = json.RawMessage(
+		`{"kind":"episode","id":"tt0100:1:1","firstActivityAt":900,"lastActivityAt":5000}`)
+	alreadyNuvio := syncMergeCurrentFixture(
+		"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", syncMergeDeviceA, "put", 200, 0,
+		`{"kind":"episode","id":"tt0100:1:1","firstActivityAt":1000,"lastActivityAt":4000,"source":"nuvio","displayId":"tmdb:1396_s1e1","displayTitle":"New","latestKnownAt":4000}`)
+	survives, err := resolveMutableSync(alreadyNuvio, true, legacy)
+	if err != nil {
+		t.Fatalf("resolveMutableSync(legacy) error = %v", err)
+	}
+	legacyPayload := decodeSyncMergePayload(t, survives.Payload)
+	if legacyPayload["source"] != "nuvio" {
+		t.Fatalf("legacy peer erased Nuvio origin: %#v", legacyPayload)
+	}
+}
+
+func TestSyncMergeHistoryEqualActivityKeepsCurrentSource(t *testing.T) {
+	current := syncMergeCurrentFixture(
+		"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", syncMergeDeviceA, "put", 100, 0,
+		`{"kind":"episode","id":"tt0100:1:1","firstActivityAt":1000,"lastActivityAt":3000,"source":"stremio","displayId":"tt0100:1:1","displayTitle":"Current","latestKnownAt":3000}`)
+	incoming := syncMergeIncomingFixture(
+		"ffffffff-ffff-4fff-8fff-ffffffffffff", syncMergeDeviceB, "full_history", "put", 300, 0,
+		`{"kind":"episode","id":"tt0100:1:1","firstActivityAt":1000,"lastActivityAt":3000,"source":"nuvio","displayId":"tmdb:1396_s1e1","displayTitle":"Incoming","latestKnownAt":3000}`)
+	resolution, err := resolveMutableSync(current, true, incoming)
+	if err != nil {
+		t.Fatalf("resolveMutableSync() error = %v", err)
+	}
+	payload := decodeSyncMergePayload(t, resolution.Payload)
+	if payload["source"] != "stremio" || payload["displayTitle"] != "Current" {
+		t.Fatalf("equal real activity must not replace provenance: %#v", payload)
+	}
+}
+
 func TestSyncMergeHistoryDeleteBarrier(t *testing.T) {
 	putPayload := `{"kind":"episode","firstActivityAt":1000,"lastActivityAt":2000}`
 	tests := []struct {

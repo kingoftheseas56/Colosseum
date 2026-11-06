@@ -12,6 +12,7 @@ constexpr auto kActiveTarget = "Brotherhood.Colosseum.Account.Active.v1";
 constexpr auto kPendingPrefix = "Brotherhood.Colosseum.Account.PendingRevoke.v1.";
 constexpr auto kDeletionPrefix = "Brotherhood.Colosseum.Account.PendingDeletion.v1.";
 constexpr auto kStremioPrefix = "Brotherhood.Colosseum.Stremio.Profile.v1.";
+constexpr auto kNuvioPrefix = "Brotherhood.Colosseum.Nuvio.Profile.v1.";
 
 // Isolated Lanista/test instances re-root every AppData store under
 // COLOSSEUM_APPDATA_TAG (main.cpp, ProgressStore/CollectionStore/
@@ -234,6 +235,18 @@ QString PlatformAccountCredentialStore::stremioTargetName(const QString &profile
         + QStringLiteral("Tagged.") + taggedKey + QLatin1Char('.') + digest;
 }
 
+QString PlatformAccountCredentialStore::nuvioTargetName(const QString &profileId) {
+    if (!validStremioProfileId(profileId))
+        return QString();
+    const QString digest = QString::fromLatin1(QCryptographicHash::hash(
+        profileId.toUtf8(), QCryptographicHash::Sha256).toHex());
+    const QString taggedKey = taggedTargetKey();
+    if (taggedKey.isEmpty())
+        return QString::fromLatin1(kNuvioPrefix) + digest;
+    return QString::fromLatin1(kNuvioPrefix)
+        + QStringLiteral("Tagged.") + taggedKey + QLatin1Char('.') + digest;
+}
+
 std::optional<StoredStremioCredential> PlatformAccountCredentialStore::loadStremio(
     const QString &profileId,
     const QString &accountId) const {
@@ -274,6 +287,56 @@ bool PlatformAccountCredentialStore::saveStremio(const StoredStremioCredential &
 
 bool PlatformAccountCredentialStore::clearStremio(const QString &profileId) {
     const QString target = stremioTargetName(profileId);
+    return !target.isEmpty() && deleteGenericCredential(target);
+}
+
+std::optional<StoredNuvioCredential> PlatformAccountCredentialStore::loadNuvio(
+    const QString &profileId) const {
+    const QString target = nuvioTargetName(profileId);
+    if (target.isEmpty())
+        return std::nullopt;
+    const auto blob = readGenericCredential(target);
+    if (!blob.has_value())
+        return std::nullopt;
+    const auto credential = decodeNuvioCredential(*blob);
+    if (!credential.has_value() || credential->profileId != profileId)
+        return std::nullopt;
+    return credential;
+}
+
+bool PlatformAccountCredentialStore::saveNuvio(const StoredNuvioCredential &credential) {
+    const QString target = nuvioTargetName(credential.profileId);
+    const QUuid accountId(credential.accountId);
+    const QUuid nuvioProfileId(credential.nuvioProfileId);
+    if (target.isEmpty() || accountId.isNull()
+        || credential.refreshToken.isEmpty() || credential.refreshToken.size() > 65536
+        || (credential.nuvioProfileIndex == 0 && !credential.nuvioProfileId.isEmpty())
+        || (credential.nuvioProfileIndex != 0
+            && (credential.nuvioProfileIndex < 1 || credential.nuvioProfileIndex > 6
+                || nuvioProfileId.isNull()))) {
+        return false;
+    }
+
+    StoredNuvioCredential normalized = credential;
+    normalized.accountId = accountId.toString(QUuid::WithoutBraces);
+    if (credential.nuvioProfileIndex != 0)
+        normalized.nuvioProfileId = nuvioProfileId.toString(QUuid::WithoutBraces);
+    const QByteArray blob = encodeNuvioCredential(normalized);
+    const auto previous = readGenericCredential(target);
+    if (!writeGenericCredential(target, blob))
+        return false;
+    if (readGenericCredential(target) == std::optional<QByteArray>(blob))
+        return true;
+    // A credential that cannot be read back cannot safely complete sign-in.
+    if (previous)
+        writeGenericCredential(target, *previous);
+    else
+        deleteGenericCredential(target);
+    return false;
+}
+
+bool PlatformAccountCredentialStore::clearNuvio(const QString &profileId) {
+    const QString target = nuvioTargetName(profileId);
     return !target.isEmpty() && deleteGenericCredential(target);
 }
 
@@ -377,6 +440,74 @@ std::optional<StoredStremioCredential> PlatformAccountCredentialStore::decodeStr
         || credential.authKey.isEmpty()) {
         return std::nullopt;
     }
+    return credential;
+}
+
+QByteArray PlatformAccountCredentialStore::encodeNuvioCredential(
+    const StoredNuvioCredential &credential) {
+    const QString refresh = QString::fromLatin1(credential.refreshToken.toBase64(
+        QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+    return QJsonDocument(QJsonObject{
+        {QStringLiteral("version"), 3},
+        {QStringLiteral("profile_id"), credential.profileId},
+        {QStringLiteral("account_id"), credential.accountId},
+        {QStringLiteral("refresh_token"), refresh},
+        {QStringLiteral("nuvio_profile_id"), credential.nuvioProfileId},
+        {QStringLiteral("nuvio_profile_index"), credential.nuvioProfileIndex}
+    }).toJson(QJsonDocument::Compact);
+}
+
+std::optional<StoredNuvioCredential> PlatformAccountCredentialStore::decodeNuvioCredential(
+    const QByteArray &blob) {
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(blob, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject())
+        return std::nullopt;
+
+    const QJsonObject object = document.object();
+    const int version = object.value(QStringLiteral("version")).toInt();
+    if (!(((version == 1 || version == 3) && object.size() == 6)
+          || (version == 2 && object.size() == 8))) {
+        return std::nullopt;
+    }
+    StoredNuvioCredential credential;
+    if (version >= 2) {
+        const QJsonValue profileId = object.value(QStringLiteral("nuvio_profile_id"));
+        credential.nuvioProfileId = profileId.toString();
+        credential.nuvioProfileIndex = object.value(QStringLiteral("nuvio_profile_index")).toInt(-1);
+        const QUuid nuvioProfileId(credential.nuvioProfileId);
+        const bool unselected = version == 3 && credential.nuvioProfileIndex == 0
+            && profileId.isString() && credential.nuvioProfileId.isEmpty();
+        const bool selected = credential.nuvioProfileIndex >= 1 && credential.nuvioProfileIndex <= 6
+            && !nuvioProfileId.isNull()
+            && nuvioProfileId.toString(QUuid::WithoutBraces) == credential.nuvioProfileId;
+        if (!unselected && !selected)
+            return std::nullopt;
+    }
+    credential.profileId = object.value(QStringLiteral("profile_id")).toString();
+    credential.accountId = object.value(QStringLiteral("account_id")).toString();
+    const QUuid accountId(credential.accountId);
+    if (!validStremioProfileId(credential.profileId) || accountId.isNull()
+        || accountId.toString(QUuid::WithoutBraces).toLower() != credential.accountId) {
+        return std::nullopt;
+    }
+    if (version < 3) {
+        // Preserve the legacy validation and resume using its refresh token.
+        const auto access = QByteArray::fromBase64Encoding(
+            object.value(QStringLiteral("access_token")).toString().toLatin1(),
+            QByteArray::Base64UrlEncoding | QByteArray::AbortOnBase64DecodingErrors);
+        if (!access || access.decoded.isEmpty() || access.decoded.size() > 65536
+            || object.value(QStringLiteral("access_expires_at_utc_ms")).toInteger() <= 0) {
+            return std::nullopt;
+        }
+    }
+
+    const auto refresh = QByteArray::fromBase64Encoding(
+        object.value(QStringLiteral("refresh_token")).toString().toLatin1(),
+        QByteArray::Base64UrlEncoding | QByteArray::AbortOnBase64DecodingErrors);
+    if (!refresh || refresh.decoded.isEmpty() || refresh.decoded.size() > 65536)
+        return std::nullopt;
+    credential.refreshToken = refresh.decoded;
     return credential;
 }
 

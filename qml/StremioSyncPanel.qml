@@ -10,20 +10,46 @@ Item {
     property var syncState: null
     property var actions: null
     property string confirmation: ""
+    property var nuvioAccount: typeof NuvioAccounts !== "undefined" ? NuvioAccounts : null
+    property bool showingNuvio: false
+    property bool firstRun: false
+    property bool firstRunStarted: false
     property bool touchInput: Qt.platform.os === "android"
+    readonly property bool panActions: touchInput && !firstRun
+    signal completed()
     signal closeRequested()
+    implicitHeight: firstRun ? stremioContent.implicitHeight : 0
     visible: shown
     enabled: visible
 
     readonly property string status: syncState ? String(syncState.status || "notConnected") : "notConnected"
-    readonly property bool busy: status === "connecting" || status === "syncing"
+    readonly property bool busy: (!firstRun && (status === "connecting" || status === "syncing"))
+        || stremioImportPhase === "loading" || stremioImportPhase === "applying"
     readonly property bool connected: syncState && syncState.linkedAccount
+    readonly property bool nuvioPrimary: nuvioAccount && nuvioAccount.primaryProvider === "nuvio"
+    readonly property bool stremioPrimary: nuvioAccount && nuvioAccount.primaryProvider === "stremio"
+    readonly property bool stremioImportAvailable: actions && (firstRun
+        ? typeof actions.beginStremioFirstRun === "function"
+        : typeof actions.previewStremioImport === "function")
+    readonly property string stremioImportPhase: stremioImportAvailable
+        ? String(actions.stremioImportPhase || "idle") : "idle"
+    readonly property bool stremioImportOpen: stremioImportPhase === "preview" || stremioImportPhase === "applying"
+    readonly property bool stremioImportBecomesPrimary: stremioImportAvailable
+        && actions.stremioImportBecomesPrimary === true
+    readonly property string stremioImportMessage: stremioImportAvailable
+        ? String(actions.stremioImportMessage || "") : ""
 
     function formatLastSync(value) {
         const ms = Number(value || 0)
         return ms > 1 ? Qt.formatDateTime(new Date(ms), "MMM d, h:mm AP") : qsTr("Never")
     }
     function heading() {
+        if (firstRun && stremioImportPhase === "loading") return qsTr("Connecting to Stremio")
+        if (stremioImportPhase === "loading") return qsTr("Preparing Stremio import")
+        if (firstRun && stremioImportPhase === "applying") return qsTr("Bringing in your library…")
+        if (stremioImportPhase === "applying") return qsTr("Importing from Stremio")
+        if (stremioImportPhase === "preview") return qsTr("Review Stremio import")
+        if (firstRun) return qsTr("Connect Stremio")
         if (status === "connecting") return qsTr("Connecting to Stremio")
         if (status === "syncing") return qsTr("Syncing with Stremio")
         if (status === "reconnectRequired") return qsTr("Reconnect Stremio")
@@ -32,30 +58,74 @@ Item {
         return qsTr("Connect Stremio")
     }
     function detail() {
+        if (firstRun) {
+            if (stremioImportPhase === "loading")
+                return qsTr("Finish signing in through the browser. Colosseum will prepare an import preview.")
+            if (stremioImportOpen)
+                return qsTr("Review your Stremio library, progress, watched items and addons.")
+            return qsTr("Sign in through the browser to preview what you can bring into Colosseum.")
+        }
         if (status === "connecting") return qsTr("Finish signing in through the browser window.")
         if (status === "syncing") return qsTr("Combining your library, progress and addons safely.")
         if (status === "reconnectRequired") return qsTr("This profile uses Stremio, but this device needs its own secure connection.")
         if (status === "syncFailed" || status === "paused") return qsTr("Nothing was deleted. Try again when the connection is available.")
         if (status === "unavailable") return qsTr("Stremio Sync is unavailable while this profile is sealed.")
+        if (nuvioPrimary && connected) return qsTr("Nuvio is your primary sync service. You can preview an import from Stremio.")
         if (status === "synced") return qsTr("Your newest activity wins. First merge never deletes either library.")
         return qsTr("Bring your Stremio library, progress, History and addon collection into this profile.")
     }
     function primaryLabel() {
+        if (firstRun) return qsTr("Sign in to Stremio")
         if (status === "reconnectRequired") return qsTr("Reconnect Stremio")
         if (status === "notConnected") return qsTr("Connect Stremio")
-        return qsTr("Sync now")
+        return nuvioPrimary ? qsTr("Preview import") : qsTr("Sync now")
     }
     function primaryAction() {
-        if (busy || !syncState) return
+        if (busy) return
+        if (firstRun && stremioImportAvailable) {
+            firstRunStarted = true
+            actions.beginStremioFirstRun()
+            return
+        }
+        if (!syncState) return
         if (status === "notConnected" || status === "reconnectRequired") syncState.connectAccount()
-        else if (actions) actions.syncStremioNow()
+        else if (nuvioPrimary) {
+            if (stremioImportAvailable) actions.previewStremioImport()
+        } else if (actions) actions.syncStremioNow()
     }
     function closePanel() {
+        if (firstRun) {
+            if (stremioImportPhase === "applying")
+                return
+            cancelStremioImport()
+        }
         confirmation = ""
         closeRequested()
     }
+
+    function cancelStremioImport() {
+        if ((!firstRun || stremioImportPhase !== "applying")
+                && (stremioImportOpen || stremioImportPhase === "loading" || (firstRun && firstRunStarted))
+                && typeof actions.cancelStremioImport === "function") {
+            firstRunStarted = false
+            actions.cancelStremioImport()
+        }
+    }
+    function selectService(nuvio) {
+        if (showingNuvio === nuvio)
+            return
+        if (showingNuvio && nuvioAccount) {
+            nuvioFlow.clearSecrets()
+            nuvioAccount.cancel()
+        } else {
+            cancelStremioImport()
+        }
+        confirmation = ""
+        showingNuvio = nuvio
+    }
+
     function revealPanelAction(item) {
-        if (!root.touchInput || !root.shown || !item) return
+        if (root.firstRun || !root.shown || !item) return
         let ancestor = item
         while (ancestor && ancestor !== panelScroll.contentItem) ancestor = ancestor.parent
         if (!ancestor) return
@@ -82,56 +152,123 @@ Item {
         root.revealPanelAction(window ? window.activeFocusItem : null)
     }
 
+    function takeKeyboardFocus() {
+        if (shown && primaryAction.visible && primaryAction.enabled)
+            primaryAction.focusInput()
+    }
+
     onShownChanged: {
         if (panelScroll) panelScroll.cancelFlick()
         if (actionScroll) actionScroll.cancelFlick()
-        if (shown) Qt.callLater(function() {
-            panelScroll.contentY = 0
-            actionScroll.contentX = 0
-            primaryAction.focusInput()
-        })
+        if (shown) {
+            if (!firstRun) {
+                Qt.callLater(function() {
+                    panelScroll.contentY = 0
+                    actionScroll.contentX = 0
+                    root.takeKeyboardFocus()
+                })
+            }
+        } else {
+            selectService(false)
+            cancelStremioImport()
+            confirmation = ""
+        }
+    }
+    Timer {
+        id: revealFocus
+        interval: 0
+        onTriggered: root.revealFocusedControl()
     }
     Connections {
-        target: root.Window.window
-        function onActiveFocusItemChanged() { Qt.callLater(root.revealFocusedControl) }
+        target: root.shown && !root.firstRun ? root.Window.window : null
+        function onActiveFocusItemChanged() { revealFocus.restart() }
+    }
+    onStremioImportPhaseChanged: {
+        if (firstRun && firstRunStarted && stremioImportPhase === "done") {
+            firstRunStarted = false
+            completed()
+        }
     }
     Keys.onEscapePressed: {
-        if (confirmation.length > 0) confirmation = ""
+        if (firstRun) closePanel()
+        else if (confirmation.length > 0) confirmation = ""
+        else if (!showingNuvio && stremioImportOpen) cancelStremioImport()
         else closePanel()
     }
 
-    Rectangle { anchors.fill: parent; color: Qt.rgba(0.01, 0.015, 0.025, 0.82) }
-    MouseArea { anchors.fill: parent }
+    Rectangle { anchors.fill: parent; visible: !root.firstRun; color: Qt.rgba(0.01, 0.015, 0.025, 0.82) }
+    MouseArea { anchors.fill: parent; enabled: !root.firstRun }
     Theme { id: theme }
 
     Rectangle {
         objectName: "stremioSyncPanel"
         anchors.centerIn: parent
-        width: Math.min(620, parent.width - 48)
-        height: root.touchInput
-            ? Math.max(0, Math.min(root.confirmation.length > 0 ? 470 : 440, parent.height - 24))
-            : root.confirmation.length > 0 ? 470 : 440
+        width: root.firstRun ? parent.width : Math.min(620, parent.width - 48)
+        readonly property int overlayHeight: root.nuvioAccount ? 560 : (root.confirmation.length > 0 ? 470 : 440)
+        height: root.firstRun ? parent.height
+            : Math.max(0, Math.min(overlayHeight, parent.height - (root.touchInput ? 24 : 48)))
         radius: 24
-        color: "#151821"
-        border.width: 1
+        color: root.firstRun ? "transparent" : "#151821"
+        border.width: root.firstRun ? 0 : 1
         border.color: theme.edge
+
+        Flow {
+            id: serviceSwitch
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.margins: 24
+            visible: !root.firstRun && !!root.nuvioAccount
+            spacing: 8
+
+            PanelAction {
+                objectName: "syncStremioService"
+                label: qsTr("Stremio")
+                primary: !root.showingNuvio
+                onTriggered: root.selectService(false)
+            }
+            PanelAction {
+                objectName: "syncNuvioService"
+                label: qsTr("Nuvio")
+                primary: root.showingNuvio
+                onTriggered: root.selectService(true)
+            }
+            PanelAction {
+                objectName: "nuvioCloseSyncPanel"
+                label: qsTr("Close")
+                visible: root.showingNuvio
+                onTriggered: root.closePanel()
+            }
+        }
+
+        NuvioAccountFlow {
+            id: nuvioFlow
+            anchors.fill: parent
+            anchors.margins: 24
+            anchors.topMargin: 36 + serviceSwitch.implicitHeight
+            visible: root.showingNuvio
+            account: root.nuvioAccount
+        }
 
         Flickable {
             id: panelScroll
             objectName: "stremioSyncScroll"
             anchors.fill: parent
-            anchors.margins: 34
+            anchors.margins: root.firstRun ? 0 : (serviceSwitch.visible ? 24 : 34)
+            anchors.topMargin: serviceSwitch.visible ? 36 + serviceSwitch.implicitHeight : anchors.margins
+            visible: !root.showingNuvio
+            clip: true
             contentWidth: width
-            contentHeight: panelContent.implicitHeight
-            clip: root.touchInput
-            interactive: root.touchInput && contentHeight > height
+            contentHeight: stremioContent.implicitHeight
+            interactive: !root.firstRun && contentHeight > height
             flickableDirection: Flickable.VerticalFlick
             boundsBehavior: Flickable.StopAtBounds
-            onHeightChanged: Qt.callLater(root.revealFocusedControl)
-            ScrollBar.vertical: ScrollBar { policy: root.touchInput ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff }
+            onHeightChanged: revealFocus.restart()
+            onContentHeightChanged: revealFocus.restart()
+            ScrollBar.vertical: ScrollBar { policy: root.firstRun ? ScrollBar.AlwaysOff : ScrollBar.AsNeeded }
 
             Column {
-                id: panelContent
+                id: stremioContent
                 width: panelScroll.width
                 spacing: 18
                 Row {
@@ -146,12 +283,13 @@ Item {
                     Column {
                         width: parent.width - 52
                         spacing: 5
-                        Text { text: root.heading(); color: theme.ink; font.family: theme.display; font.pixelSize: 30 }
+                        Text { width: parent.width; wrapMode: Text.Wrap; text: root.heading(); color: theme.ink; font.family: theme.display; font.pixelSize: 30 }
                         Text { width: parent.width; text: root.detail(); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.WordWrap }
                     }
                 }
                 Rectangle { width: parent.width; height: 1; color: theme.edge }
                 Grid {
+                    visible: !root.firstRun
                     columns: 2
                     columnSpacing: 28
                     rowSpacing: 8
@@ -161,9 +299,17 @@ Item {
                     Text { text: root.formatLastSync(root.syncState ? root.syncState.lastSuccessAt : 0); color: theme.ink; font.family: theme.ui; font.pixelSize: 12 }
                 }
                 Text {
+                    width: parent.width
+                    visible: !root.firstRun && root.connected && root.stremioPrimary
+                    text: qsTr("Primary sync service")
+                    color: theme.gold
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                }
+                Text {
                     objectName: "stremioSyncResult"
                     width: parent.width
-                    visible: root.syncState && String(root.syncState.lastResultSummary || "").length > 0
+                    visible: !root.firstRun && root.syncState && String(root.syncState.lastResultSummary || "").length > 0
                     text: visible ? root.syncState.lastResultSummary : ""
                     color: theme.gold
                     font.family: theme.ui
@@ -181,24 +327,55 @@ Item {
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
                 }
+                Text {
+                    width: parent.width
+                    visible: root.stremioImportMessage.length > 0
+                    text: root.stremioImportMessage
+                    color: theme.gold
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                    wrapMode: Text.Wrap
+                }
+                NuvioAccountFlow.ImportPreview {
+                    width: parent.width
+                    visible: root.stremioImportOpen
+                    rows: visible ? root.actions.stremioImportPreview : []
+                }
+                Text {
+                    width: parent.width
+                    visible: !root.firstRun && root.stremioImportOpen
+                        && (root.stremioImportBecomesPrimary || root.nuvioPrimary)
+                    text: root.stremioImportBecomesPrimary
+                        ? qsTr("Stremio will become your primary sync service, and playback progress will be imported.")
+                        : qsTr("Imported library and watched items will also appear in Nuvio while it is your primary sync service. Playback progress is included only when Stremio becomes primary.")
+                    color: theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                    wrapMode: Text.Wrap
+                }
                 Flickable {
                     id: actionScroll
                     objectName: "stremioSyncActionScroll"
-                    // Preserve the desktop Row; overflow gets horizontal touch panning.
                     width: parent.width
-                    height: panelActions.implicitHeight
-                    contentWidth: Math.max(width, panelActions.implicitWidth)
+                    height: actionFlow.implicitHeight
+                    contentWidth: actionFlow.width
                     contentHeight: height
-                    clip: root.touchInput
-                    interactive: root.touchInput && contentWidth > width
+                    clip: root.panActions
+                    interactive: root.panActions && contentWidth > width
                     flickableDirection: Flickable.HorizontalFlick
                     boundsBehavior: Flickable.StopAtBounds
-                    onWidthChanged: Qt.callLater(root.revealFocusedControl)
-                    // The focused action can move when confirmation changes Row membership.
-                    onContentWidthChanged: Qt.callLater(root.revealFocusedControl)
-                    Row {
-                        id: panelActions
+                    onWidthChanged: revealFocus.restart()
+                    onContentWidthChanged: revealFocus.restart()
+
+                    Flow {
+                        id: actionFlow
                         spacing: 12
+                        // Touch keeps the actions on one line and pans any overflow.
+                        width: root.panActions
+                            ? Math.max(actionScroll.width, children.reduce(function(total, action) {
+                                return action.visible ? total + action.width + spacing : total
+                            }, -spacing))
+                            : actionScroll.width
                         PanelAction {
                             id: primaryAction
                             objectName: "stremioSyncPrimaryAction"
@@ -206,9 +383,13 @@ Item {
                                 ? (root.confirmation === "switch" ? qsTr("Confirm switch") : qsTr("Confirm disconnect"))
                                 : root.primaryLabel()
                             primary: true
-                            enabled: !root.busy
+                            visible: !root.stremioImportOpen
+                            enabled: !root.busy && (root.firstRun ? root.stremioImportAvailable
+                                : (!root.nuvioPrimary || root.stremioImportAvailable
+                                    || root.status === "notConnected" || root.status === "reconnectRequired"
+                                    || root.confirmation.length > 0)
                                 && root.status !== "unavailable"
-                                && root.status !== "paused"
+                                && root.status !== "paused")
                             onTriggered: {
                                 if (root.confirmation === "switch") { root.confirmation = ""; root.syncState.switchAccount() }
                                 else if (root.confirmation === "disconnect") { root.confirmation = ""; root.syncState.disconnectCurrentProfile() }
@@ -218,18 +399,50 @@ Item {
                         PanelAction {
                             objectName: "stremioSwitchAccountAction"
                             label: qsTr("Switch account")
-                            visible: root.connected && root.confirmation.length === 0
+                            visible: !root.firstRun && root.connected && root.confirmation.length === 0 && !root.stremioImportOpen
                             onTriggered: root.confirmation = "switch"
                         }
                         PanelAction {
                             objectName: "stremioDisconnectAction"
                             label: qsTr("Disconnect")
-                            visible: root.connected && root.confirmation.length === 0
+                            visible: !root.firstRun && root.connected && root.confirmation.length === 0 && !root.stremioImportOpen
                             onTriggered: root.confirmation = "disconnect"
                         }
                         PanelAction {
+                            objectName: "stremioApplyImport"
+                            label: root.firstRun ? qsTr("Import and continue")
+                                : root.stremioImportBecomesPrimary ? qsTr("Import and use Stremio as primary")
+                                : qsTr("Import into Colosseum")
+                            primary: true
+                            visible: root.stremioImportOpen
+                            enabled: !root.busy && !!root.actions && typeof root.actions.applyStremioImport === "function"
+                            onTriggered: {
+                                if (root.firstRun)
+                                    root.actions.applyStremioImport(true)
+                                else
+                                    root.actions.applyStremioImport()
+                            }
+                        }
+                        PanelAction {
+                            objectName: "stremioCancelImport"
+                            label: qsTr("Cancel import")
+                            visible: !root.firstRun && root.stremioImportOpen
+                            onTriggered: root.cancelStremioImport()
+                        }
+                        PanelAction {
+                            objectName: "stremioMakePrimary"
+                            label: qsTr("Use Stremio as primary")
+                            visible: !root.firstRun && root.nuvioPrimary && root.connected && !root.stremioImportOpen
+                                && root.confirmation.length === 0 && root.actions
+                                && typeof root.actions.makeStremioPrimary === "function"
+                            enabled: !root.busy && root.status !== "reconnectRequired"
+                                && root.status !== "unavailable" && root.status !== "paused"
+                            onTriggered: root.actions.makeStremioPrimary()
+                        }
+                        PanelAction {
                             objectName: "stremioCancelAction"
-                            label: root.confirmation.length > 0 ? qsTr("Cancel") : qsTr("Close")
+                            label: root.firstRun || root.confirmation.length > 0 ? qsTr("Cancel") : qsTr("Close")
+                            enabled: !root.firstRun || root.stremioImportPhase !== "applying"
                             onTriggered: {
                                 if (root.confirmation.length > 0) root.confirmation = ""
                                 else root.closePanel()

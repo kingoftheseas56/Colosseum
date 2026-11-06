@@ -504,6 +504,7 @@ private slots:
     void explicitLocalPreparingAdoptionResumesFromLocalSource();
     void retryFailsClosedWhenCompetingSourceUnreadable();
     void R8_localonly_private_handoff_before_source_clear();
+    void localNuvioPrimaryChoiceTakesPrecedenceDuringAttachment();
     void legacyAccountlessAdoptionCarriesStremioCredential();
     void stremioCredentialTransferReplacesStaleDestinationForSameAccount();
     void stremioCredentialTransferRetriesBeforeSourceRetirement();
@@ -2842,6 +2843,39 @@ R8_localonly_private_handoff_before_source_clear() {
     QFile localOutboxAfter(localBinding.privatePaths.outboxPath);
     QVERIFY(localOutboxAfter.open(QIODevice::ReadOnly));
     QCOMPARE(localOutboxAfter.readAll(), localOutboxBytes);
+}
+
+void tst_account_adoption::localNuvioPrimaryChoiceTakesPrecedenceDuringAttachment() {
+    AdoptionFixture fixture;
+    const ProfilePaths accountPaths = fixture.accountPaths();
+    const ProfilePaths localPaths = ProfilePaths::localOnly(fixture.appDataRoot);
+    QString error;
+    const auto accountStorage = LegacyPersonalStateStorage::forProfile(accountPaths, &error);
+    QVERIFY2(accountStorage.has_value(), qPrintable(error));
+    QVERIFY(QDir().mkpath(accountPaths.profileRoot()));
+    PersonalStateSnapshot accountState;
+    accountState.mainSyncProvider = QStringLiteral("stremio");
+    QVERIFY2(accountStorage->restorePersonalState(accountState, &error), qPrintable(error));
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot);
+    QVERIFY2(coordinator.prepareLocalOnly(&error), qPrintable(error));
+
+    const auto localStorage = LegacyPersonalStateStorage::forProfile(localPaths, &error);
+    QVERIFY2(localStorage.has_value(), qPrintable(error));
+    PersonalStateSnapshot localState;
+    localState.mainSyncProvider = QStringLiteral("nuvio");
+    QVERIFY2(localStorage->restorePersonalState(localState, &error), qPrintable(error));
+    const auto decoded = PersonalStateSnapshot::fromJson(localState.toJson(), &error);
+    QVERIFY2(decoded.has_value(), qPrintable(error));
+    QCOMPARE(decoded->mainSyncProvider, QStringLiteral("nuvio"));
+
+    QVERIFY2(coordinator.prepareRememberedAccount(QString::fromLatin1(kAccountA), &error),
+             qPrintable(error));
+    const auto merged = accountStorage->capture(&error);
+    QVERIFY2(merged.has_value(), qPrintable(error));
+    QCOMPARE(merged->mainSyncProvider, QStringLiteral("nuvio"));
+    QVERIFY(merged->stremioState.isEmpty());
 }
 
 void tst_account_adoption::

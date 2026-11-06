@@ -276,6 +276,19 @@ func TestSyncPolicyEnforcesShippingRecordShapes(t *testing.T) {
 			payload:  `{"kind":"episode","id":"kitsu:alpha:s1:e0","firstActivityAt":1000,"lastActivityAt":2000,"completedAt":2000,"source":"stremio","displayId":"kitsu:alpha:s1:e0","displayTitle":"Pilot Special","latestKnownAt":2000}`,
 		},
 		{
+			name:     "history accepts nuvio provenance and presentation",
+			category: "full_history",
+			key:      "history/ZXBpc29kZQ/a2l0c3U6YWxwaGE6czE6ZTA",
+			payload:  `{"kind":"episode","id":"kitsu:alpha:s1:e0","firstActivityAt":1000,"lastActivityAt":2000,"completedAt":2000,"source":"nuvio","displayId":"tmdb:1396_s1e1","displayTitle":"Episode 1","latestKnownAt":2000}`,
+		},
+		{
+			name:     "history rejects unknown external provenance",
+			category: "full_history",
+			key:      "history/ZXBpc29kZQ/a2l0c3U6YWxwaGE6czE6ZTA",
+			payload:  `{"kind":"episode","id":"kitsu:alpha:s1:e0","firstActivityAt":1000,"lastActivityAt":2000,"source":"other","displayId":"x","displayTitle":"Episode 1","latestKnownAt":2000}`,
+			wantErr:  "payload_invalid",
+		},
+		{
 			name:     "history rejects unsupported provenance date",
 			category: "full_history",
 			key:      "history/ZXBpc29kZQ/a2l0c3U6YWxwaGE6czE6ZTA",
@@ -332,6 +345,19 @@ func TestSyncPolicyEnforcesShippingRecordShapes(t *testing.T) {
 			category: "stremio_link",
 			key:      "preferences/main-sync-provider",
 			payload:  `{"mainSyncProvider":"stremio"}`,
+		},
+		{
+			name:     "main sync marker accepts Nuvio",
+			category: "stremio_link",
+			key:      "preferences/main-sync-provider",
+			payload:  `{"mainSyncProvider":"nuvio"}`,
+		},
+		{
+			name:     "main sync marker rejects unknown providers",
+			category: "stremio_link",
+			key:      "preferences/main-sync-provider",
+			payload:  `{"mainSyncProvider":"unknown"}`,
+			wantErr:  "payload_invalid",
 		},
 		{
 			name:     "stremio link rejects auth key",

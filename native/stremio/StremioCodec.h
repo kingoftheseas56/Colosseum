@@ -156,6 +156,7 @@ bool encodeWatchedEpisodes(
 // Checks a metadata episode against the opaque provider series identity. This
 // intentionally recognizes only the existing Theatre root convention and
 // never guesses an IMDb or fixed-width colon identity.
+QString episodeSeriesRoot(const QString &videoId);
 bool episodeBelongsToSeries(
     const QString &seriesId,
     const StremioEpisodeIdentity &episode);

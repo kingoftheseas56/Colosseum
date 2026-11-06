@@ -2,6 +2,7 @@
 
 #include "ActivityStore.h"
 #include "CollectionStore.h"
+#include "HistoryStore.h"
 #include "AccountServiceEndpoint.h"
 #include "engine/ExtensionsStore.h"
 #include "LegacyPersonalStateStorage.h"
@@ -662,6 +663,8 @@ AccountRuntime::AccountRuntime(
           &m_client,
           &m_syncRegistry),
       m_stremioSync(stremioOptions),
+      m_nuvioAccount(credentials.accountStore ? credentials.accountStore : m_credentialStore.get(), this),
+      m_stremioPreviewImporter(this),
       m_controller(
           &m_client,
           credentials.accountStore ? credentials.accountStore : m_credentialStore.get(),
@@ -681,6 +684,13 @@ AccountRuntime::AccountRuntime(
         m_stremioCredentials.save,
         m_stremioCredentials.clear,
         m_stremioCredentials.load);
+    m_nuvioAccount.setCheckpoint([this](std::function<void(bool)> completion) {
+        checkpointTheatreImport(std::move(completion));
+    });
+    connect(&m_nuvioAccount, &NuvioAccount::canonicalChanged,
+        this, &AccountRuntime::scheduleStremioTheatreReconcile);
+    connect(&m_stremioSync, &StremioSync::stateChanged,
+        this, &AccountRuntime::onStremioPreviewAuthChanged);
     connect(&m_stremioSync, &StremioSync::stateChanged,
             this, &AccountRuntime::syncTraktAddon);
     connect(&m_stremioSync, &StremioSync::stateChanged, this, [this] {
@@ -700,6 +710,10 @@ AccountRuntime::AccountRuntime(
                 && m_profileStores.activeProfile().profileId() == profileId;
             if (!currentProfile || m_stremioSync.activeProfileId() != profileId)
                 return;
+            if (preferences->mainSyncProvider() == QLatin1String("nuvio")
+                && !stremioImportBecomesPrimary()) {
+                return;
+            }
             const bool persisted = preferences->setMainSyncProvider(QStringLiteral("stremio"));
             if (!preferences || preferences != m_profileStores.preferencesStore()
                 || m_profileStores.activeProfile().profileId() != profileId
@@ -708,7 +722,7 @@ AccountRuntime::AccountRuntime(
             }
             m_stremioSync.setMarkerLinked(
                 persisted && preferences->mainSyncProvider() == QStringLiteral("stremio"));
-            if (persisted) {
+            if (persisted && m_stremioImportPhase != QLatin1String("applying")) {
                 QTimer::singleShot(0, this, [this] { syncStremioNow(); });
             }
         });
@@ -727,7 +741,8 @@ AccountRuntime::AccountRuntime(
                 || m_profileStores.activeProfile().profileId() != profileId) {
                 return;
             }
-            preferences->setMainSyncProvider(QString());
+            if (preferences->mainSyncProvider() == QLatin1String("stremio"))
+                preferences->setMainSyncProvider(QString());
         });
     m_stremioRegistryMutationConnection = connect(
         &m_syncRegistry,
@@ -736,8 +751,10 @@ AccountRuntime::AccountRuntime(
         [this](const QString &categoryId, quint64) {
             if (categoryId == QLatin1String("collection")
                 || categoryId == QLatin1String("continue_progress")
-                || categoryId == QLatin1String("watch_state")) {
+                || categoryId == QLatin1String("watch_state")
+                || categoryId == QLatin1String("full_history")) {
                 scheduleStremioTheatreReconcile();
+                m_nuvioAccount.scheduleSync();
             }
         });
     m_stremioRemoteAppliedConnection = connect(
@@ -747,12 +764,14 @@ AccountRuntime::AccountRuntime(
         [this](const QString &categoryId, const QString &, quint64) {
             if (categoryId == QLatin1String("collection")
                 || categoryId == QLatin1String("continue_progress")
-                || categoryId == QLatin1String("watch_state")) {
+                || categoryId == QLatin1String("watch_state")
+                || categoryId == QLatin1String("full_history")) {
                 // A remote registry notification is an invalidation only. The
                 // deferred durable reread below decides whether its canonical
                 // Theatre state differs from the provider; it is never a new
                 // local action by itself.
                 scheduleStremioTheatreReconcile();
+                m_nuvioAccount.scheduleSync();
             }
         });
 
@@ -780,6 +799,7 @@ AccountRuntime::AccountRuntime(
             storesAboutToChange,
         this,
         [this]() {
+            resetTheatreAccountFlows();
             m_ratingsReviewsDelivery.deactivateProfile();
             // Store replacement is a sync boundary. Preserve the current
             // profile's outbox while its adapters still point at the old
@@ -818,6 +838,7 @@ AccountRuntime::AccountRuntime(
             activateRatingsReviewsDelivery();
             activateExtensionsProfile();
             activateStremioProfile();
+            activateNuvioProfile();
         });
 
     connect(
@@ -1713,6 +1734,8 @@ void AccountRuntime::setExtensionsStore(ExtensionsStore *extensions) {
     if (m_extensionsChangedConnection)
         disconnect(m_extensionsChangedConnection);
     m_extensionsStore = extensions;
+    m_nuvioAccount.setExtensions(extensions);
+    m_stremioPreviewImporter.setExtensions(extensions);
     if (m_extensionsStore) {
         m_extensionsChangedConnection = connect(
             m_extensionsStore,
@@ -1752,7 +1775,9 @@ void AccountRuntime::setExtensionsStore(ExtensionsStore *extensions) {
 }
 
 void AccountRuntime::syncTraktAddon() {
-    if (!m_extensionsStore || !m_stremioSync.traktLinkKnown()
+    const auto *preferences = m_profileStores.preferencesStore();
+    if (!preferences || preferences->mainSyncProvider() != QLatin1String("stremio")
+        || !m_extensionsStore || !m_stremioSync.traktLinkKnown()
         || m_extensionsStore->activeProfileId() != m_stremioSync.activeProfileId())
         return;
     const QString userId = m_stremioSync.stremioUserId();
@@ -1815,8 +1840,12 @@ void AccountRuntime::prepareForQml(QQmlApplicationEngine *engine) {
     engine->rootContext()->setContextProperty(
         QStringLiteral("StremioActions"),
         this);
+    engine->rootContext()->setContextProperty(
+        QStringLiteral("NuvioAccounts"),
+        &m_nuvioAccount);
 
     activateStremioProfile();
+    activateNuvioProfile();
     m_stremioSync.activateTaggedFixture();
 
     m_qmlPrepared = true;
@@ -2083,7 +2112,10 @@ bool AccountRuntime::syncStremioNow() {
 }
 
 bool AccountRuntime::runStremioSync(bool reviveFailedIntents) {
-    if (!m_stremioSync.beginVisibleSync(reviveFailedIntents))
+    const auto *preferences = m_profileStores.preferencesStore();
+    if (!preferences || preferences->mainSyncProvider() != QLatin1String("stremio")
+        || m_stremioImportPhase == QLatin1String("applying")
+        || !m_stremioSync.beginVisibleSync(reviveFailedIntents))
         return false;
     const QString profileId = m_profileStores.activeProfile().profileId();
     const quint64 incarnation = m_stremioProfileIncarnation;
@@ -2182,7 +2214,9 @@ bool AccountRuntime::removeTheatreItem(
             && normalizedType != QLatin1String("series"))) {
         return false;
     }
-    if (!m_stremioSync.linkedAccount()) {
+    const auto *preferences = m_profileStores.preferencesStore();
+    if (!m_stremioSync.linkedAccount() || !preferences
+        || preferences->mainSyncProvider() != QLatin1String("stremio")) {
         return !alsoStremio
             && collection->remove(QStringLiteral("theatre"), normalizedId);
     }
@@ -2205,9 +2239,17 @@ bool AccountRuntime::removeTheatreItem(
 }
 
 void AccountRuntime::replayPendingStremioProviderImports() {
-    if (!m_stremioTheatreImporter)
+    const auto *preferences = m_profileStores.preferencesStore();
+    if (!preferences || preferences->mainSyncProvider() == QLatin1String("nuvio")
+        || !m_stremioTheatreImporter)
         return;
-    const QList<StremioProviderImportRedo> redos = m_stremioSync.pendingProviderImports();
+    QList<StremioProviderImportRedo> redos = m_stremioSync.pendingProviderImports();
+    if (!m_stremioPrimaryActive) {
+        // Older profiles can finish projected owner receipts without opening a provider session.
+        redos.removeIf([](const StremioProviderImportRedo &redo) {
+            return redo.projection.value(QStringLiteral("kind")) == QLatin1String("episode_pending");
+        });
+    }
     if (redos.isEmpty())
         return;
     const auto batch = std::make_shared<StremioRedoBatch>();
@@ -2334,7 +2376,8 @@ void AccountRuntime::reconcileStremioTheatreState(
                 collection->items(QStringLiteral("theatre")),
                 currentProgress->syncEntries(),
                 currentProgress->syncWatchedMarks(),
-                currentProgress->syncWatchedMarkActionTimes());
+                currentProgress->syncWatchedMarkActionTimes(),
+                m_profileStores.historyStore() ? m_profileStores.historyStore()->syncEntries() : QVariantList());
         });
 }
 
@@ -2524,11 +2567,6 @@ void AccountRuntime::activateStremioProfile() {
                 // whose callback could not be registered.
             }
         });
-    // A crash can leave a committed provider redo between its private journal
-    // receipt and the owner/Neon completion. Drain only this profile's
-    // captured incarnation through the same importer/checkpoint path; remote
-    // notifications remain invalidations and cannot create a second action.
-    replayPendingStremioProviderImports();
     if (m_stremioProgressDirtyConnection)
         disconnect(m_stremioProgressDirtyConnection);
     if (m_stremioWatchStateConnection)
@@ -2559,8 +2597,6 @@ void AccountRuntime::activateStremioProfile() {
     ProfilePreferencesStore *preferences = m_profileStores.preferencesStore();
     if (!preferences)
         return;
-    m_stremioSync.setMarkerLinked(
-        preferences->mainSyncProvider() == QStringLiteral("stremio"));
     m_stremioMarkerConnection = connect(
         preferences,
         &ProfilePreferencesStore::mainSyncProviderChanged,
@@ -2569,13 +2605,18 @@ void AccountRuntime::activateStremioProfile() {
             if (preferences != m_profileStores.preferencesStore())
                 return;
             const bool linked = preferences->mainSyncProvider() == QStringLiteral("stremio");
-            m_stremioSync.setMarkerLinked(linked);
+            applyStremioProviderMode();
             if (linked) {
                 scheduleStremioTheatreReconcile();
                 QTimer::singleShot(0, this, [this] { runStremioSync(false); });
             }
         });
-    if (preferences->mainSyncProvider() == QStringLiteral("stremio")) {
+    applyStremioProviderMode();
+    if (preferences != m_profileStores.preferencesStore())
+        return;
+    if (preferences->mainSyncProvider().isEmpty()) {
+        replayPendingStremioProviderImports();
+    } else if (preferences->mainSyncProvider() == QStringLiteral("stremio")) {
         scheduleStremioTheatreReconcile();
         QTimer::singleShot(0, this, [this] { runStremioSync(false); });
     }

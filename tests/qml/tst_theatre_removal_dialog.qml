@@ -9,6 +9,7 @@ TestCase {
     when: windowShown
 
     QtObject { id: state; property bool linkedAccount: false }
+    QtObject { id: nuvioFixture; property string primaryProvider: "" }
     QtObject {
         id: actions
         property int calls: 0
@@ -28,6 +29,7 @@ TestCase {
             shown: true
             entry: ({ "id": "tt1", "type": "movie", "title": "Film" })
             syncState: state
+            nuvioAccount: nuvioFixture
             actions: actions
             onCloseRequested: shown = false
         }
@@ -45,6 +47,7 @@ TestCase {
     function init() {
         actions.calls = 0
         state.linkedAccount = false
+        nuvioFixture.primaryProvider = ""
         dialog.shown = true
         wait(0)
     }
@@ -58,6 +61,14 @@ TestCase {
         local.triggered()
         compare(actions.calls, 1)
         compare(actions.lastAlsoStremio, false)
+    }
+    function test_nuvio_primary_hides_and_blocks_stremio_removal() {
+        state.linkedAccount = true
+        nuvioFixture.primaryProvider = "nuvio"
+        const dual = findChild(dialog, "removeFromColosseumAndStremioAction")
+        compare(dual.visible, false)
+        dialog.remove(true)
+        compare(actions.calls, 0)
     }
     function test_linked_account_offers_explicit_dual_removal() {
         state.linkedAccount = true

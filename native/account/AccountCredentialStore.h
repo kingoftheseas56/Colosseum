@@ -26,6 +26,16 @@ struct StoredStremioCredential {
     QByteArray authKey;
 };
 
+// Only the refresh token is durable. An empty source profile ID and index 0
+// mean no selection.
+struct StoredNuvioCredential {
+    QString profileId;
+    QString accountId;
+    QByteArray refreshToken;
+    QString nuvioProfileId;
+    int nuvioProfileIndex = 0;
+};
+
 class AccountCredentialStore {
 public:
     virtual ~AccountCredentialStore() = default;
@@ -57,6 +67,21 @@ public:
         return false;
     }
     virtual bool clearStremio(const QString &profileId) {
+        Q_UNUSED(profileId)
+        return false;
+    }
+
+    // Fail closed on platforms without a secure, Nuvio-capable vault.
+    virtual std::optional<StoredNuvioCredential> loadNuvio(
+        const QString &profileId) const {
+        Q_UNUSED(profileId)
+        return std::nullopt;
+    }
+    virtual bool saveNuvio(const StoredNuvioCredential &credential) {
+        Q_UNUSED(credential)
+        return false;
+    }
+    virtual bool clearNuvio(const QString &profileId) {
         Q_UNUSED(profileId)
         return false;
     }

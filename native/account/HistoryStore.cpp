@@ -28,6 +28,7 @@ constexpr auto kHistoryResetBarrierKey =
 constexpr auto kHistoryTrackerLocalCompletionsKey =
     "history/trackerLocalCompletions";
 constexpr auto kStremioSource = "stremio";
+constexpr auto kNuvioSource = "nuvio";
 constexpr int kStremioDisplayIdentityLimit = 512;
 constexpr int kStremioDisplayTitleLimit = 1024;
 
@@ -82,7 +83,7 @@ bool validStremioDisplayString(const QVariant &value, int limit, QString *result
     return true;
 }
 
-bool copyStremioPresentation(
+bool copyExternalPresentation(
     const QVariantMap &metadata,
     QVariantMap *record,
     qint64 firstActivityAt,
@@ -90,15 +91,16 @@ bool copyStremioPresentation(
     if (!record)
         return false;
 
-    const bool hasStremioField = metadata.contains(QStringLiteral("source"))
+    const bool hasExternalField = metadata.contains(QStringLiteral("source"))
         || metadata.contains(QStringLiteral("displayId"))
         || metadata.contains(QStringLiteral("displayTitle"))
         || metadata.contains(QStringLiteral("latestKnownAt"));
-    if (!hasStremioField)
+    if (!hasExternalField)
         return true;
 
-    if (metadata.value(QStringLiteral("source")).toString().trimmed()
-            != QLatin1String(kStremioSource)) {
+    const QString source = metadata.value(QStringLiteral("source")).toString();
+    if (source != QLatin1String(kStremioSource)
+        && source != QLatin1String(kNuvioSource)) {
         return false;
     }
 
@@ -121,7 +123,7 @@ bool copyStremioPresentation(
         return false;
     }
 
-    record->insert(QStringLiteral("source"), QLatin1String(kStremioSource));
+    record->insert(QStringLiteral("source"), source);
     record->insert(QStringLiteral("displayId"), displayId);
     record->insert(QStringLiteral("displayTitle"), displayTitle);
     record->insert(QStringLiteral("latestKnownAt"), latestKnownAt);
@@ -155,7 +157,7 @@ QVariantMap canonicalRecord(
             completedAt);
     }
 
-    if (!copyStremioPresentation(
+    if (!copyExternalPresentation(
             metadata,
             &record,
             firstActivityAt,

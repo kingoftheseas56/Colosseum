@@ -156,7 +156,7 @@
       "write_seam": "setMainSyncProvider / applySyncedMainSyncProvider",
       "change_seam": "stremioLinkDirty()",
       "future_slice": 46,
-      "note": "Only the fixed non-secret mainSyncProvider marker may enter Neon. Stremio credentials, account identity and configured addon URLs remain device-local.",
+      "note": "The fixed non-secret mainSyncProvider marker carries the Stremio or Nuvio primary choice. Account identity, credentials and configured addon URLs stay device-local.",
       "denial_code": "",
       "inspection_base_commit": "7d109a2597a7bb20e56e034774bf25ba255141f3",
       "fields": [
