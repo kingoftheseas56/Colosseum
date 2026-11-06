@@ -31,6 +31,7 @@ Item {
     required property Item wall
     required property QtObject escapeCommand
     property bool fullWindowPageOpen: false
+    property real desktopDockInset: 0
 
     // W07 presentation seam. W02 may expose native UiMode/LEANBACK detection as
     // PlatformRuntime.androidTelevision; until then every existing desktop/phone/tablet path stays false.
@@ -94,7 +95,7 @@ Item {
     readonly property real wideWorldNavigationLeftInset:
         host.wideWorldNavigationVisible ? wideWorldRail.width : 0
     readonly property real contentBottomInset:
-        phoneWorldTabs.visible ? phoneWorldTabs.height : 0
+        phoneWorldTabs.visible ? phoneWorldTabs.height : host.desktopDockInset
 
     readonly property var openMediaNameFilters: Qt.platform.os === "android" ? ["All files (*)"] : [
         "Media files (*.cbz *.cbr *.epub *.mp4 *.mkv *.avi *.mov *.webm *.m4v)",

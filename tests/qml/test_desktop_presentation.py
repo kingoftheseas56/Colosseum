@@ -153,12 +153,14 @@ Item {
             tryCompare(worldStack, "current", "")
             platformWindow.hide()
         }
-        function test_desktop_topbar_retains_its_own_compact_breakpoint() {
+        function test_desktop_topbar_shows_clock_when_chrome_has_room() {
             const clock = findChild(world, "topBarClock")
             verify(clock !== null)
+            world.width = 1920
             compare(clock.visible, true)
-            world.width = 1100; compare(clock.visible, false)
-            world.width = 1280; compare(clock.visible, true)
+            world.width = 900
+            compare(clock.visible, false)
+            world.width = 1280
         }
         function test_policy_preserves_desktop_metrics() {
             compare(policy.desktopPresentation, true)

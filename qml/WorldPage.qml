@@ -154,7 +154,8 @@ Item {
     AdaptiveLayout {
         id: adaptive
         viewportWidth: world.width
-        desktopPresentation: !world.Window.window || world.Window.window.desktopPresentation !== false
+        desktopPresentation: world.androidHost
+            && (!world.Window.window || world.Window.window.desktopPresentation !== false)
     }
     readonly property real pageMargin: adaptive.pageMargin
     // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.

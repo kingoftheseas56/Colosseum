@@ -171,6 +171,7 @@ Item {
 
                 TextField {
                     id: paste
+                    objectName: "extensionsSetupLink"
                     width: parent.width; height: 44
                     leftPadding: 16; rightPadding: 16
                     placeholderText: "Paste the add-on link the page gave you"
@@ -223,78 +224,6 @@ Item {
                             if (sheet.baseEntry) sheet.enableRequested(sheet.addon.manifestUrl)
                             else sheet.finish(sheet.addon.manifestUrl)
                         }
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width; height: 44; radius: 22
-                    color: "#f5f3ee"
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Open setup page"
-                        color: "#111217"
-                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                    }
-                    KeyboardAction {
-                        anchors.fill: parent
-                        accessibleName: "Open the setup page in the browser"
-                        focusRadius: 22
-                        onTriggered: Qt.openUrlExternally(sheet.setupUrl)
-                    }
-                }
-
-                TextField {
-                    id: paste
-                    objectName: "extensionsSetupLink"
-                    width: parent.width; height: 44
-                    leftPadding: 16; rightPadding: 16
-                    placeholderText: "Paste the add-on link the page gave you"
-                    color: theme.ink
-                    placeholderTextColor: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 13
-                    background: Rectangle { radius: 16; color: Qt.rgba(1, 1, 1, 0.06); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12) }
-                    onAccepted: if (text.trim().length) sheet.finish(text.trim())
-                }
-
-                Rectangle {
-                    width: parent.width; height: 44; radius: 22
-                    color: clipAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
-                    border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.16)
-                    Text {
-                        anchors.centerIn: parent
-                        text: paste.text.trim().length ? "Install" : "Paste link"
-                        color: theme.ink
-                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                    }
-                    KeyboardAction {
-                        id: clipAction
-                        anchors.fill: parent
-                        accessibleName: "Paste link from clipboard and install"
-                        focusRadius: 22
-                        onTriggered: {
-                            if (paste.text.trim().length) sheet.finish(paste.text.trim())
-                            else sheet.pasteAndInstall()
-                        }
-                    }
-                }
-
-                Rectangle {
-                    visible: sheet.canSkip
-                    width: parent.width; height: 44; radius: 22
-                    color: skipAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
-                    border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.16)
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Install without setup"
-                        color: theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 14
-                    }
-                    KeyboardAction {
-                        id: skipAction
-                        anchors.fill: parent
-                        accessibleName: "Install without setup"
-                        focusRadius: 22
-                        onTriggered: sheet.finish(sheet.addon.manifestUrl)
                     }
                 }
 

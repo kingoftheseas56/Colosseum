@@ -19,7 +19,7 @@ TestCase {
         visible: true
     }
 
-    Component { id: barComponent; Colosseum.Taskbar {} }
+    Component { id: barComponent; Colosseum.Taskbar { localMediaAvailable: true } }
     property var bar: null
 
     SignalSpy { id: openSpy; signalName: "openMediaClicked" }

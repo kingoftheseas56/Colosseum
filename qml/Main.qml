@@ -4922,6 +4922,7 @@ Window {
     PhoneShellHost {
         id: phoneShell
         window: win
+        desktopDockInset: taskbar.contentBottomInset
         worldStack: worldStack
         topbar: topbar
         page: page
