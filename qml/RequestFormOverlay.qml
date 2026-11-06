@@ -340,6 +340,7 @@ FocusScope {
                 visible: !root.keyboardVisible && !root.sent
                 wrapMode: Text.WordWrap
                 color: "#bdc8da"
+                font.family: theme.ui
                 text: root.universe ? qsTr("Search Wikipedia for the whole franchise you’d like to see in Universes.")
                     : root.feature ? qsTr("Tell us what you’d like to see in Colosseum.")
                                    : qsTr("Tell us what happened so we can look into it.")
@@ -363,7 +364,7 @@ FocusScope {
                 ColumnLayout {
                     id: body
                     width: form.width - 8
-                    spacing: 8
+                    spacing: root.touchInput ? 8 : 18
 
                     Repeater {
                         id: fields
@@ -380,6 +381,7 @@ FocusScope {
                                 Layout.fillWidth: true
                                 text: field.spec.label
                                 color: "#e4ecf8"
+                                font.family: theme.ui
                                 wrapMode: Text.WordWrap
                             }
                             Loader {
@@ -395,7 +397,8 @@ FocusScope {
                                     id: line
                                     readonly property Item editor: line
                                     objectName: "requestField_" + field.spec.key
-                                    implicitHeight: root.keyboardVisible ? Math.max(0, Math.min(34, form.height)) : 38
+                                    implicitHeight: root.keyboardVisible ? Math.max(0, Math.min(34, form.height))
+                                        : root.touchInput ? 38 : 50
                                     topPadding: 3
                                     bottomPadding: 3
                                     leftPadding: 10
@@ -407,6 +410,8 @@ FocusScope {
                                     maximumLength: field.spec.limit
                                     enabled: !root.sending
                                     color: "#f5f7fc"
+                                    Binding on font.family { when: !root.touchInput; value: theme.ui }
+                                    Binding on font.pixelSize { when: !root.touchInput; value: 17 }
                                     inputMethodHints: field.spec.key === "email" ? Qt.ImhEmailCharactersOnly : Qt.ImhNone
                                     background: FieldBackground { focused: line.activeFocus }
                                     onTextEdited: root.updateValue(field.spec.key, text)
@@ -439,6 +444,8 @@ FocusScope {
                                         wrapMode: TextEdit.Wrap
                                         enabled: !root.sending
                                         color: "#f5f7fc"
+                                        Binding on font.family { when: !root.touchInput; value: theme.ui }
+                                        Binding on font.pixelSize { when: !root.touchInput; value: 14 }
                                         background: FieldBackground { focused: area.activeFocus }
                                         onTextChanged: {
                                             if (activeFocus && length > field.spec.limit)
@@ -510,6 +517,17 @@ FocusScope {
                             root.saveDraft()
                         }
                     }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: !root.keyboardVisible
+                        text: root.universe
+                            ? qsTr("Your franchise request, app version, and platform are sent privately to the Colosseum team.")
+                            : qsTr("Your text, app version, and platform are sent privately to the Colosseum team. If you include an email, we can reply there.")
+                        font.family: theme.ui
+                        font.pixelSize: 10
+                        color: "#a6aab2"
+                        wrapMode: Text.WordWrap
+                    }
                 }
             }
 
@@ -525,7 +543,7 @@ FocusScope {
             }
             RowLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: root.keyboardVisible ? 28 : 36
+                Layout.preferredHeight: root.keyboardVisible ? 28 : root.touchInput ? 36 : 44
                 visible: !root.sent
                 Label {
                     Layout.fillWidth: true
@@ -535,15 +553,39 @@ FocusScope {
                     textFormat: Text.PlainText
                     elide: Text.ElideRight
                 }
-                Item { Layout.fillWidth: true; visible: !root.keyboardVisible }
-                Button {
+                Label {
+                    Layout.fillWidth: true
+                    visible: !root.keyboardVisible
+                    text: root.touchInput ? "" : qsTr("Draft saved on this device.")
+                    color: "#aeb2bc"
+                    font.family: theme.ui
+                    font.pixelSize: 11
+                }
+                FormButton {
+                    visible: !root.touchInput
+                    Layout.fillHeight: true
+                    text: qsTr("Cancel")
+                    enabled: !root.sending
+                    onClicked: root.closeRequested()
+                }
+                FormButton {
                     objectName: "requestFormSend"
-                    Layout.preferredHeight: root.keyboardVisible ? 28 : 36
+                    Layout.preferredHeight: root.keyboardVisible ? 28 : root.touchInput ? 36 : 44
                     Layout.minimumWidth: 90
-                    text: root.sending ? qsTr("Sending…") : qsTr("Send")
+                    primary: true
+                    text: root.sending ? qsTr("Sending…") : root.touchInput || root.universe ? qsTr("Send")
+                        : root.feature ? qsTr("Submit request") : qsTr("Submit report")
                     enabled: root.canSend
                     onClicked: root.send()
                 }
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: !root.touchInput && !root.sent
+                text: qsTr("You can send feedback without an account.")
+                color: "#9da3ad"
+                font.family: theme.ui
+                font.pixelSize: 10
             }
         }
     }
@@ -551,7 +593,32 @@ FocusScope {
     component FieldBackground: Rectangle {
         property bool focused: false
         radius: 8
-        color: "#c3152130"
-        border.color: focused ? "#80afff" : "#566575"
+        color: "#0b0f125e"
+        border.color: focused ? "#f0c44a" : "#ffffff45"
+    }
+
+    component FormButton: Button {
+        id: button
+        property bool primary: false
+        leftPadding: 14
+        rightPadding: 14
+        topPadding: 2
+        bottomPadding: 2
+        contentItem: Label {
+            text: button.text
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            font.family: theme.ui
+            font.pixelSize: 13
+            font.bold: button.primary
+            color: !button.enabled ? "#858a93" : button.primary ? "#201a0a" : "#d1d0d5"
+        }
+        background: Rectangle {
+            radius: 10
+            color: !button.enabled ? "#ffffff0b"
+                : button.primary ? button.hovered ? "#f7d268" : "#f0c44a" : "#ffffff0a"
+            border.width: button.activeFocus ? 2 : 1
+            border.color: button.activeFocus || button.enabled && button.primary ? "#f0c44a" : "#ffffff30"
+        }
     }
 }
