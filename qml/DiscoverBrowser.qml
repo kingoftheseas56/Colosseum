@@ -33,9 +33,11 @@ import "CatalogueVisualMetrics.js" as Metrics
 Item {
     id: browser
 
+    property bool androidHost: !!(browser.Window.window && browser.Window.window.androidHost) || Qt.platform.os === "android"
+    readonly property real headingRightInset: 0
+
     // Same phone gate as the world tab bar: Android, window under 840 wide.
-    readonly property bool phoneNarrow: !!(browser.Window.window && browser.Window.window.androidHost
-                                            && browser.Window.window.width < 840)
+    readonly property bool phoneNarrow: browser.androidHost && (browser.Window.window ? browser.Window.window.width : browser.width) < 840
     readonly property bool stackedTypeHeader: typeRepeater.count > 2 && masthead.width < typeSwitch.width + 180
 
     // ── automation identity (Lanista; Discover sidebar plan Slice 0) ──
@@ -802,7 +804,9 @@ Item {
         // ── the shelf (right): kicker + the catalogue name (= the category picker) + byline ──
         Item {
             id: shelf
+            objectName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverHeadingGroup" : ""
             anchors.right: parent.right
+            anchors.rightMargin: browser.headingRightInset
             anchors.bottom: mastheadRule.top
             anchors.bottomMargin: 9
             width: Math.max(summary.width, byline.implicitWidth, kicker.implicitWidth)
@@ -810,6 +814,7 @@ Item {
 
             Text {
                 id: kicker
+                objectName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverHeadingKicker" : ""
                 anchors.right: parent.right; anchors.top: parent.top
                 text: "NOW BROWSING"
                 color: theme.inkDim
@@ -830,13 +835,14 @@ Item {
                 spacing: 10
                 Text {
                     id: catName
+                    objectName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverHeadingTitle" : ""
                     anchors.verticalCenter: parent.verticalCenter
                     text: browser.currentCatalog ? browser.currentCatalog.title : "—"
                     color: (catMa.containsMouse || browser.catalogMenuOpen) ? "#ffffff" : theme.ink
                     font.family: theme.display; font.pixelSize: browser.phoneNarrow ? 22 : 30; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
                     // phone width: the catalogue name gives way to the type tabs instead of printing over them
                     width: browser.phoneNarrow || browser.stackedTypeHeader
-                           ? Math.min(implicitWidth, Math.max(60, shelf.parent.width - (browser.stackedTypeHeader ? 0 : typeSwitch.width) - 44))
+                           ? Math.min(implicitWidth, Math.max(60, shelf.parent.width - browser.headingRightInset - (browser.stackedTypeHeader ? 0 : typeSwitch.width) - 44))
                            : implicitWidth
                     elide: browser.phoneNarrow || browser.stackedTypeHeader ? Text.ElideRight : Text.ElideNone
                 }
@@ -865,6 +871,7 @@ Item {
             }
             Text {
                 id: byline
+                objectName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverHeadingProvider" : ""
                 anchors.right: parent.right
                 anchors.top: summary.bottom; anchors.topMargin: 7
                 // honest attribution — the owning source (as the sidebar names it). NO invented total.
@@ -879,7 +886,7 @@ Item {
             id: catalogMenu
             objectName: "discoverCatalogMenu"
             visible: browser.catalogMenuOpen
-            anchors.right: parent.right
+            anchors.right: shelf.right
             anchors.top: parent.bottom
             anchors.topMargin: 6
             width: 260

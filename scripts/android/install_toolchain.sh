@@ -26,11 +26,33 @@ NDK_VERSION="27.2.12479018"
 PLATFORM="android-36"
 BUILD_TOOLS="36.0.0"
 CMDLINE_TOOLS_ZIP="commandlinetools-linux-13114758_latest.zip"
-QT_ANDROID_MODULES=(qtwebsockets qtimageformats)
-QT_HOST_MODULES=(qtwebsockets qtimageformats)
+QT_MODULES=(qtwebsockets qtimageformats qtshadertools qtquick3d)
 
 mkdir -p "$TOOLCHAIN"
 log() { printf '[android-toolchain] %s\n' "$*" >&2; }
+
+install_qt_kit() {
+    local host=$1 target=$2 arch=$3 kit_dir=$4 base_tool=$5
+    local kit="$QT_ROOT/$QT_VERSION/$kit_dir"
+    local -a install_args=() modules=("${QT_MODULES[@]}")
+    if [[ -x "$kit/$base_tool" ]]; then
+        # Add missing packages to older caches without reinstalling Qt base.
+        install_args+=(--noarchives)
+        modules=()
+        [[ -f "$kit/lib/cmake/Qt6ShaderTools/Qt6ShaderToolsConfig.cmake" ]] || modules+=(qtshadertools)
+        if [[ ! -f "$kit/lib/cmake/Qt6Quick3D/Qt6Quick3DConfig.cmake" ||
+              ! -f "$kit/qml/QtQuick3D/qmldir" ||
+              ! -f "$kit/qml/QtQuick3D/Helpers/qmldir" ||
+              ! -f "$kit/qml/QtQuick3D/Helpers/impl/qmldir" ]]; then
+            modules+=(qtquick3d)
+        fi
+    fi
+    if ((${#modules[@]})); then
+        log "Qt $QT_VERSION $arch: ${modules[*]}"
+        aqt install-qt "$host" "$target" "$QT_VERSION" "$arch" \
+            -O "$QT_ROOT" "${install_args[@]}" -m "${modules[@]}" >&2
+    fi
+}
 
 java_major=$(java -version 2>&1 | sed -nE 's/.*version "([0-9]+).*/\1/p' | head -1)
 if [[ -z "$java_major" || "$java_major" -lt 21 ]]; then
@@ -42,17 +64,9 @@ if [[ "${SKIP_QT:-0}" != 1 ]]; then
     if ! command -v aqt >/dev/null 2>&1; then
         python3 -m pip install --quiet "aqtinstall==3.3.0"
     fi
-    if [[ ! -x "$QT_ROOT/$QT_VERSION/gcc_64/bin/qmake" ]]; then
-        log "Qt $QT_VERSION host linux_gcc_64"
-        aqt install-qt linux desktop "$QT_VERSION" linux_gcc_64 \
-            -O "$QT_ROOT" -m "${QT_HOST_MODULES[@]}" >&2
-    fi
+    install_qt_kit linux desktop linux_gcc_64 gcc_64 bin/qmake
     for arch in android_arm64_v8a android_x86_64; do
-        if [[ ! -x "$QT_ROOT/$QT_VERSION/$arch/bin/qt-cmake" ]]; then
-            log "Qt $QT_VERSION $arch"
-            aqt install-qt all_os android "$QT_VERSION" "$arch" \
-                -O "$QT_ROOT" -m "${QT_ANDROID_MODULES[@]}" >&2
-        fi
+        install_qt_kit all_os android "$arch" "$arch" bin/qt-cmake
     done
 fi
 

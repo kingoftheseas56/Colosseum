@@ -66,6 +66,38 @@ class AndroidToolchainQualificationTests(unittest.TestCase):
             checks = gate.check_qt(target, host)
             self.assertTrue(all(check.ok for check in checks))
 
+    def test_qt_host_scanner_discovered_in_libexec_or_bin(self):
+        # WT-14: Linux Qt 6.11 host kits (aqt gcc_64) ship libexec/qmlimportscanner only.
+        for location in ("libexec/qmlimportscanner", "bin/qmlimportscanner", "bin/qmlimportscanner.exe"):
+            with self.subTest(location=location), tempfile.TemporaryDirectory() as tmp:
+                version_root = Path(tmp) / "6.11.1"
+                target = version_root / "android_arm64_v8a"
+                host = version_root / "gcc_64"
+                (target / "bin").mkdir(parents=True)
+                (target / "bin" / "qt-cmake").touch()
+                scanner = host / location
+                scanner.parent.mkdir(parents=True)
+                scanner.touch()
+                checks = gate.check_qt(target, host)
+                host_check = [c for c in checks if c.name == "Qt host kit"][0]
+                self.assertTrue(host_check.ok, host_check.detail)
+                self.assertIn(location.split("/")[0], host_check.detail)
+
+    def test_qt_host_without_scanner_still_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            version_root = Path(tmp) / "6.11.1"
+            target = version_root / "android_arm64_v8a"
+            host = version_root / "gcc_64"
+            (target / "bin").mkdir(parents=True)
+            (target / "bin" / "qt-cmake").touch()
+            (host / "bin").mkdir(parents=True)
+            (host / "libexec").mkdir(parents=True)
+            (host / "bin" / "qmlimportscanner.txt").touch()
+            checks = gate.check_qt(target, host)
+            host_check = [c for c in checks if c.name == "Qt host kit"][0]
+            self.assertFalse(host_check.ok)
+            self.assertIn("missing", host_check.detail)
+
 
 if __name__ == "__main__":
     unittest.main()

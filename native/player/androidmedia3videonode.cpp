@@ -177,6 +177,12 @@ void AndroidMedia3VideoNode::render(const RenderState *state)
             env->GetFloatArrayRegion(matrix, 0, 16, m_transform.data());
             env->DeleteLocalRef(matrix);
         }
+        // Render-side corroboration for runtime evidence: decoder frames that
+        // were actually latched into the Qt-rendered texture.
+        if (++m_latchedFrames % 24 == 1)
+            qInfo() << "Media3 OES latched frames" << m_latchedFrames
+                    << "surfaceGeneration=" << m_surfaceGeneration
+                    << "video" << m_videoSize << "target" << m_targetRect.size();
     }
 
     const QPointF tl = mapUv(m_transform, 0.0f, 0.0f);

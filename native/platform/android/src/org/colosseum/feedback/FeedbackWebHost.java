@@ -39,8 +39,9 @@ public final class FeedbackWebHost {
         view.setWebChromeClient(new WebChromeClient() {
             @Override public void onPermissionRequest(PermissionRequest request) { request.deny(); }
         });
+        // Android Back belongs to ColosseumActivity's controller.
         view.setOnKeyListener((v, code, event) -> {
-            if ((code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE)
+            if (code == KeyEvent.KEYCODE_ESCAPE
                 && event.getAction() == KeyEvent.ACTION_UP) { emit("close"); return true; }
             return false;
         });
@@ -53,6 +54,9 @@ public final class FeedbackWebHost {
                 return new WebResourceResponse("text/plain", "UTF-8", 403, "Blocked", null, new ByteArrayInputStream(new byte[0]));
             }
             @Override public void onPageFinished(WebView web, String url) { if (!failed) emit("loaded"); }
+            @Override public void doUpdateVisitedHistory(WebView web, String url, boolean isReload) {
+                if (FeedbackNavigationPolicy.closesReport(url)) emit("close");
+            }
             @Override public void onReceivedError(WebView web, WebResourceRequest request, WebResourceError error) {
                 if (request.isForMainFrame()) error();
             }

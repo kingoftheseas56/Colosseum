@@ -1,0 +1,486 @@
+{
+  "state": "QUEUE_ACCOUNTED_DEVICE_PENDING",
+  "queue": [
+    {
+      "id": "C0",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "inputs.py verify => 0",
+        "android_qml_preflight.py => 0 (61 entries, 0 failed)",
+        "7 C0 smallest checks + 6 protection fixtures => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "docs/android/phase1-cloud/progress/C0-RESULT.md"
+      ],
+      "note": "HOST_QML PASS; ANDROID_TOOLCHAIN NOT_ATTEMPTED; ANDROID_APK BLOCKED (no hardened Nuvio prefix). WT-14 libexec-only qmlimportscanner established.",
+      "updated_utc": "2026-11-02T21:44:29Z"
+    },
+    {
+      "id": "B0",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "git apply --check visual-overlays.patch => 0; applied, 8/8 sha256 MATCH manifest",
+        "qmltestrunner tst_android_visual_baseline.qml => 0 (5 passed)",
+        "tst_phone_content_inset/tst_arc74_continue_surfaces/tst_android_shared_action_touch => 0",
+        "tests/qml/test_desktop_presentation.py => 0 (11 passed)",
+        "android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "native/platform/android/src/org/colosseum/platform/ColosseumActivity.java",
+        "qml/AdaptiveLayout.qml",
+        "qml/ContinueRow.qml",
+        "qml/HouseScrollBar.qml",
+        "qml/Main.qml",
+        "qml/SourcesSheet.qml",
+        "qml/WidgetHeader.qml",
+        "qml/WorldPage.qml",
+        "tests/qml/tst_android_visual_baseline.qml"
+      ],
+      "note": "Overlay integrated; adaptation: AdaptiveLayout.outerPageMargin keyed to new androidHost property (default Qt.platform.os==android) wired from WorldPage/Main so host fixtures can exercise it; Java comment reworded (behaviour identical, default 1.15, extra 0.9-1.3). Post-adaptation hashes of AdaptiveLayout/WorldPage/Main/ColosseumActivity therefore differ from overlay manifest by design; other 4 files byte-identical. Java not compiled (no Android SDK).",
+      "updated_utc": "2026-11-02T21:45:52Z"
+    },
+    {
+      "id": "PF-02",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_sources_budget.qml => 0 (11 passed)",
+        "PF-02b: qmltestrunner tests/qml/tst_android_comic_manga_sources_budget.qml => 0 (8 passed); pre-fix pages => 4 failed (comic list 74/51, manga 146/123 at 556/533)",
+        "comic_torrent_sources_page_harness OK; tst_comic_download_cancel 10/0; android_qml_preflight 61/0; PRE-EXISTING: manga_tankoban_page_harness FAIL 'must render all 3 sources, got 0' identical on HEAD"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/SourcesSheet.qml",
+        "qml/ComicTorrentSourcesPage.qml",
+        "qml/MangaTankobanSourcesPage.qml",
+        "tests/qml/tst_android_sources_budget.qml",
+        "tests/qml/tst_android_comic_manga_sources_budget.qml"
+      ],
+      "note": "SourcesSheet (PF-02) plus PF-02b: Comic alternate-sources and Manga volume-sources pages use the same Android-desktop-presentation height budget (banner/chrome yield, Back shares banner line, manga synopsis 1 line when compact). Desktop 300 banner asserted. Calculated viewports, not device-measured.",
+      "updated_utc": "2026-11-02T22:51:40Z"
+    },
+    {
+      "id": "PF-01",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_download_targets.qml => 0 (6 passed); vs pre-fix DownloadsPage/TopBar/AdaptiveLayout => 2 failed (reproduced)",
+        "tst_android_shared_action_touch/shared_poster_touch/account_choice/visual_baseline/phone_content_inset => 0",
+        "tst_topbar_spatial_navigation.qml => 1 (16/1): PRE-EXISTING failure at width 1172 (picker vs system controls), identical on unmodified TopBar",
+        "test_desktop_presentation.py => 0; android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/TouchMetrics.js",
+        "qml/AdaptiveLayout.qml",
+        "qml/TopBar.qml",
+        "qml/DownloadsPage.qml",
+        "tests/qml/tst_android_download_targets.qml"
+      ],
+      "note": "AdaptiveLayout.touchTargetSize/targetSize() keyed to androidHost (not desktopPresentation). DownloadsPage group/episode text actions (Play/Retry/Pause-Resume/Open/Cancel) get >=48 hosts on Android, identical implicit sizes on desktop. TopBar SysIcons: 48-tall hosts; horizontal pointer owner extends into half of each Row gap (22+spacing, i.e. 34-42 wide, not full 48) because the world picker ALREADY overlaps the system cluster at Android logical widths 1153-1205 (probe: picker ends 849, system row starts 801/825) - widening would worsen it. Full-width 48 TopBar targets need the TopBar layout decision (Dots/layout scope). Account/world caller surfaces beyond TopBar not changed.",
+      "updated_utc": "2026-11-02T21:52:23Z"
+    },
+    {
+      "id": "PF-05",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_speed_popup_viewport.qml => 0 (10 passed); pre-fix block (seams injected) => 8 failed: popup y=-16 @1.15, -77 @1.20, -256 @354h",
+        "tst_player_more_touch 7/0, tst_android_subtitle_viewport 8/0, tst_player_seek_touch 9/0 => 0",
+        "android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/PlayerPage.qml",
+        "tests/qml/tst_android_speed_popup_viewport.qml"
+      ],
+      "note": "speedPopup: width min(420, chrome-20), height min(body, chrome-20), clamped placement re-evaluated on popup/chrome resize, body in Flickable (interactive only when clipped), keyboard reveal for speed/sleep/skip, contentY reset on open. Desktop at sufficient size: identical 420 x body, non-interactive. Fixture compiles the production block with seams (no native Media3). Other player popups (audio/fill/watchparty) not changed - same-route checklist only, not claimed defects.",
+      "updated_utc": "2026-11-02T21:54:32Z"
+    },
+    {
+      "id": "BR-READER-TARGETS",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_beta_reader_touch.qml => 0 (12 passed); vs pre-fix SelectionMenu/LeftPanel => 5 failed",
+        "tst_android_reader_overlay_focus, tst_comicreader_*, tst_k01_reader_keyboard, tst_reader2_activity, tst_reader_keyboard_area_events => 0",
+        "node android_reader_boot/selection_touch/gesture_cancel => OK; android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/reader2/SelectionMenu.qml",
+        "qml/reader2/LeftPanel.qml",
+        "tests/qml/tst_android_beta_reader_touch.qml"
+      ],
+      "note": "Touch (Android) SelectionMenu: 48 swatch/action/Cancel/Save hosts, abutting (spacing 0) and contained to overlay width-24; note card 152 (fits above IME). LeftPanel bookmarks: reserved full-height 48 delete gutter, jump area stops at gutter. Desktop: identical (44/128/300, glyph+6 delete). Existing test updated from 'touch keeps desktop size' to new contract. Native reparenting/focus/IME paths unchanged (overlay_focus test passes). Highlights-tab delete not changed. Device: font scale/real IME pending.",
+      "updated_utc": "2026-11-02T21:56:48Z"
+    },
+    {
+      "id": "WT-02",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_account_keyboard.qml => 0 (7 passed); vs pre-fix AccountPageFrame => 4 failed",
+        "tst_account_* (activity_binding, center_composed, choice_accessibility, devices, flyout, profile, recovery, security, your_colosseum) => 0",
+        "PRE-EXISTING (identical on HEAD baseline tree): tst_k06_account_system_events 4/2 activeFocus; tst_account_data_privacy 10/1 test_delete_requires_inline_handoff_confirmation, ~96 s",
+        "android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/account/AccountPageFrame.qml",
+        "tests/qml/tst_android_account_keyboard.qml"
+      ],
+      "note": "Shared AccountPageFrame: touch-only keyboardOverlap from logical IME rectangle (no DPR division), scroller bottom inset, focused text control reveal on focus/IME/resize changes, zero-rectangle IME scroll extent lifting field near top. Desktop: no inset/extent. No credential/vault/controller changes; drafts preserved. Main keyboard-first Back not touched (PF-03 scope). Real IME/floating keyboard/rotation are device checks.",
+      "updated_utc": "2026-11-02T22:02:38Z"
+    },
+    {
+      "id": "WT-04",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "python3 tests/android_font_scale_test.py --qt-root $QT_HOST => 0 (8 passed; real PlatformRuntime Android kind acceptFontScale 1->1.3->2, desktop kind ignored)",
+        "full tests/qml suite (157 files) => no new failures vs base 501b23ed (see progress/HOST-QML-SUITE.md)",
+        "android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/Theme.qml",
+        "qml/BackAction.qml",
+        "qml/WidgetHeader.qml",
+        "qml/account/AccountField.qml",
+        "qml/account/AccountButton.qml",
+        "qml/account/AccountPanelHeader.qml",
+        "tests/android_font_scale/harness.cpp",
+        "tests/android_font_scale/tst_android_text_scaling.qml",
+        "tests/android_font_scale_test.py"
+      ],
+      "note": "Theme.fontScale/fontSize() over retained PlatformRuntime (android only; no new bridge, no density factor). Migrated: BackAction label/tooltip (+content-driven height), WidgetHeader title/sub/more (+height, title elides before more), AccountField label/hint/field/reveal (+field height), AccountButton (+height), AccountPanelHeader. Not migrated (bounded): library captions, world/detail pages, TopBar, Sources, player HUD - broader typography migration remains for later units. Desktop sizes identical at scale 1.",
+      "updated_utc": "2026-11-02T22:19:27Z"
+    },
+    {
+      "id": "BR-SOURCE-REPLACEMENT",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "g++ tests/session_store_harness.cpp + SessionStore moc + FeriaBrowserOperations (Qt6Core) => 0 'SessionStore behavioral tests passed'; same assertions vs pre-fix SessionStore => FAIL",
+        "qmltestrunner tests/qml/tst_android_source_replacement.qml => 0 (6 passed); pre-fix Main => 2 failed (parked='resume', active=no dispatch)",
+        "node tests/android_source_warmup_test.mjs; test_desktop_presentation.py => 0; android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "native/SessionStore.h",
+        "qml/Main.qml",
+        "tests/session_store_harness.cpp",
+        "tests/qml/tst_android_source_replacement.qml"
+      ],
+      "note": "SessionStore.sourceKeyFor (lower(infoHash)+fileIdx; url: pseudo-hash case kept; else localPath > partPath > streamUrl) + sourceReplaced(id) emitted before setActive for same-content new-source reopen; saved position preserved. Main.onSourceReplaced: parked -> drop warm so activation loads new target + saved position; already-active -> capture live position, saveState, re-dispatch (player streamDemandEpoch retires old callbacks). Session harness built manually with g++ (CMake target unchanged); full native build/CTest not run. Media3/Nuvio teardown on device not verified.",
+      "updated_utc": "2026-11-02T22:22:21Z"
+    },
+    {
+      "id": "PF-04",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/android_continue_missing_download_test.mjs => 0 (12 cases; adopted from Alpha; vs pre-fix Main => assertion fail)",
+        "node tests/continue_manga_resume_routing_test.mjs => 0 (double updated), android_media3_end_resume, continue_comic_resume => 0",
+        "PRE-EXISTING identical on base: player_recovery_resume_test 3/13, player_local_error_retry_test 6/8",
+        "player QML suites (more/seek/subtitle/speed/source_replacement) => 0; android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/Main.qml",
+        "qml/TheatreSeries.qml",
+        "qml/TheatreSeriesView.qml",
+        "qml/PlayerPage.qml",
+        "tests/android_continue_missing_download_test.mjs",
+        "tests/continue_manga_resume_routing_test.mjs"
+      ],
+      "note": "Main.openMissingDownloadSources (Download.localFileAvailable false + canonical tt/anime root) -> openTheatreSeries with resumeSources (exact episode id, season/episode, resumePosition); warm openTheatreSeries and cold onLoaded (after signal wiring) call page.openResumeSources; openMovieSession defaults target.position to playbackContext.resumePosition; PlayerPage.explicitResumePosition bypasses 80% restart and seeds pendingSeekSec when Progress has none; reset by playUrl/playLocalFile/playRemoteUrl. Present files keep the local player + its retry. Alpha releaseRemovedLocalVideo/Download.removed portion NOT adopted (different mechanism). DownloadStore.localFileAvailable native harness not adopted (native exists; not rebuilt). Evidence is Node VM over production functions, not a QML runtime.",
+      "updated_utc": "2026-11-02T22:24:35Z"
+    },
+    {
+      "id": "PF-03",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/android_theatre_nested_back_test.mjs => 0 (4 tests; base tree => 4 failed)",
+        "node tests/shell_back_policy_test.mjs => PASS",
+        "sources_sheet_empty_extensions_harness, tst_android_sources_budget => 0; android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/Main.qml",
+        "qml/TheatreSeries.qml",
+        "qml/TheatreSeriesView.qml",
+        "qml/SourcesSheet.qml",
+        "tests/android_theatre_nested_back_test.mjs"
+      ],
+      "note": "Restored Alpha boolean contract: SourcesSheet.requestEscape (context -> ext menu -> hide), TheatreSeries/View.requestEscape (episode context -> Sources -> jump -> season), Main theatreSeries shell branch delegates on androidHost only. IME-first and Collections draft path untouched (handleEscape order unchanged). Manga detail (series) owner NOT changed (needs its own reviewed order). Evidence: Node VM over production bodies; native callback single dispatch unchanged.",
+      "updated_utc": "2026-11-02T22:25:31Z"
+    },
+    {
+      "id": "WT-10",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/android_universe_nested_back_test.mjs => 0 (3 tests; base => 3 failed)",
+        "tst_UniverseContentRefresh/UniversesWorld/android_beta_universe_touch/one_piece_four_sea/starwars_galaxy_focus => 0; dcau_visual_fidelity, one_piece_universe_router, verify_universe_ids => 0",
+        "PRE-EXISTING on base 501b23ed: dcau_universe_page_test, one_piece_universe_page_test, pinned_universe_comic_routes_test, universe_ext_api_test, universe_payload_test (SyntaxError under node 22)",
+        "android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/GalaxyUniversePage.qml",
+        "qml/DCAUUniversePage.qml",
+        "tests/android_universe_nested_back_test.mjs"
+      ],
+      "note": "Galaxy.requestEscape returns true after closing a destination, false at root (no own backRequested -> no double close). DCAU gains requestEscape (hub -> landing true, landing false); visible Back routes through it. Main.requestUniverseEscape unchanged. Physical: Back from destination/hub lands one level up.",
+      "updated_utc": "2026-11-02T22:27:36Z"
+    },
+    {
+      "id": "WT-06",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/android_featured_routes_test.mjs => 0 (6 tests; base => 6 failed)",
+        "tankoban_cached_identity_routes, tankoban_discover_remote_delivery node tests; tst_journey_open_manga, tst_tankoban_volume_touch, manga_browse => 0",
+        "android_qml_preflight => 0 (61/0); test_desktop_presentation => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/TankobanWorld.qml",
+        "qml/Main.qml",
+        "tests/android_featured_routes_test.mjs"
+      ],
+      "note": "TankobanWorld carousel forwards exact slide: Read -> featuredReadRequested(slide); Details -> westernRequested (ghost C) / seriesRequested. Main.readTankobanFeatured: comics need enabled GetComics else Extensions page; manga opens existing series owner and reads now if that exact title is loaded, else defers on seriesLayer.featuredRead tied to _catalogueRouteGeneration/_catalogueRouteCancel (any later route cancels), consumed on page loading->false only for the same title; cleared when series layer deactivates. Mode/resume/Collections untouched (readPrimary owns them). Not QML-runtime verified for the live Tankoban world (Catalog-dependent).",
+      "updated_utc": "2026-11-02T22:29:36Z"
+    },
+    {
+      "id": "WT-05",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/extensions_store_torrentio_fallback_test.mjs => 0 (7 tests, adopted from Alpha; base => 5 failed)",
+        "extensions_store_contract_test => PASS; extensions_artwork, tst_extensions_release_navigation => 0",
+        "PRE-EXISTING: extensions_store_svelte_contract_test fails 'Store.svelte must exist' on unmodified files",
+        "android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/ExtensionsStoreApi.js",
+        "qml/ExtensionsStorePage.qml",
+        "tests/extensions_store_torrentio_fallback_test.mjs"
+      ],
+      "note": "Pure catalogue normalization: withTorrentio() supplies a normalized Torrentio Store card (stable id/manifestUrl) initially, on success and on failure; remote valid entry keeps metadata; Essentials/rows use stable identity (renamed entry not duplicated). No auto install/enable; native ExtensionsStore management, instance identity, expectedId guard untouched. Physical: offline Store shows card; install remains explicit.",
+      "updated_utc": "2026-11-02T22:30:34Z"
+    },
+    {
+      "id": "WT-07",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/theatre_search_year_test.mjs => PASS (adopted from Alpha; vs pre-fix WorldSearch.js => AssertionError)",
+        "world_search_static_delivery_test, other search node tests => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/WorldSearch.js",
+        "tests/theatre_search_year_test.mjs"
+      ],
+      "note": "WorldSearch.pickTheatreTopMatch used by searchTheatre (provider fallback) and native IMDb delivery: trailing year (\"T 2020\"/\"T (2020)\") groups exact/adjacent/other years, title scoring within groups, numeric literal titles kept when an exact title match exists, all rows preserved (no recall/bounds change). Cancellation/paged SearchSurface unchanged.",
+      "updated_utc": "2026-11-02T22:31:10Z"
+    },
+    {
+      "id": "PF-06",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/theatre_catalogue_movie_fallback_test.mjs => 0 (4 tests; base => 2 failed)",
+        "theatre_facts_demand, theatre_landing_delivery, theatre_remote_delivery node tests; tst_theatre_removal_dialog => 0; android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/TheatreApi.js",
+        "qml/TheatreSeries.qml",
+        "qml/TheatreSeriesView.qml",
+        "tests/theatre_catalogue_movie_fallback_test.mjs"
+      ],
+      "note": "TheatreApi.catalogueMovieMeta projects only exact tt movie record (id===requested id, type movie, non-empty name|title; releaseInfo/imdbRating/poster|cover) and loadMeta uses it only after Cinemeta and extensions miss. Both title pages pass itemData; currentId() prefers canonicalSourceId so a Collections record whose id is a provider sourceId does not match (fails closed); expectedCanonicalId guard retained. Series never fall back. Other loadMeta callers unchanged.",
+      "updated_utc": "2026-11-02T22:32:30Z"
+    },
+    {
+      "id": "WT-03",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "node tests/addon_video_compatibility_test.mjs => PASS (adopted from Alpha; pre-fix AddonClient => TypeError)",
+        "all tests/*.mjs loading AddonClient.js => 0",
+        "tst_android_sources_budget (incl. new advisory label case) 11/0, tst_watchparty_source_provenance, sources_sheet_empty_extensions_harness => 0; android_qml_preflight => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/AddonClient.js",
+        "qml/SourcesSheet.qml",
+        "tests/addon_video_compatibility_test.mjs",
+        "tests/qml/tst_android_sources_budget.qml"
+      ],
+      "note": "AddonClient: explicit codec/profile/level parsing, compatibility vs existing PlatformRuntime.videoDecodeCapabilities (available+complete inventory required, ambiguous/incomplete => unknown), AV1 tag, known-unsupported rows sorted last (never removed). Only SourcesSheet passes PlatformRuntime; other loadStreams callers (Main/PlayerPage/TheatreWorld/player2host) get unknown -> unchanged order. Sources wide row shows red advisory line only for unsupported. Desktop: runtime.android false => unknown, no reorder (AV1 tag text is the only desktop-visible difference). No hardware decode acceptance implied.",
+      "updated_utc": "2026-11-02T22:34:31Z"
+    },
+    {
+      "id": "PF-08",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_background_download_message.qml => 0 (4 passed: error shown, cleared on recovery, desktop silent)",
+        "tst_android_download_targets, tst_phone_content_inset => 0; android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/DownloadsPage.qml",
+        "tests/qml/tst_android_background_download_message.qml"
+      ],
+      "note": "DownloadsPage.backgroundDownloadMessage projects PlatformDownloads (BackgroundDownloadBridge).backgroundHostError on Android into a dedicated gold message (objectName backgroundDownloadMessage); native acceptHostState epoch gate, main.cpp execution gate, delete-all state machine unchanged. Bridge double in test; real DownloadService host notifications need device.",
+      "updated_utc": "2026-11-02T22:35:22Z"
+    },
+    {
+      "id": "PF-14",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "$QT_HOST/bin/qml tests/comic_torrent_sources_page_harness.qml => COMIC_TORRENT_SOURCES_PAGE_OK (extended with Cancel/late-event cases; pre-fix page => FAIL)",
+        "tests/test_k07_residual_keyboard_contract.py; android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/ComicTorrentSourcesPage.qml",
+        "tests/comic_torrent_sources_page_harness.qml"
+      ],
+      "note": "cancelInspection(): only while acquiring+inspecting; one Comics.cancelDownload(issueId); returns to retained results (no re-search). Visible 48-tall Cancel action in inspecting body (KeyboardAction, accessible). applyArchiveChoices/applyIncomplete/applyCombined ignore events when not acquiring (late events after cancel/reject); closeOnSafeProgress/applyAcquisitionFailure guards unchanged. Harness is a qml-runtime script (existing ps1 lane), not qmltestrunner.",
+      "updated_utc": "2026-11-02T22:36:30Z"
+    },
+    {
+      "id": "WT-08",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_comic_download_cancel.qml => 0 (10 passed; adopted from Alpha at Beta desktop-presentation widths 853/1185/1280; pre-fix ledger => 7 failed)",
+        "tst_comic_activity, tst_comicreader_* => 0; comic_torrent_sources_page_harness OK; k07 keyboard contract OK; android_qml_preflight => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/ComicDbLedger.qml",
+        "tests/qml/tst_comic_download_cancel.qml"
+      ],
+      "note": "ComicDbLedger: injectable comicsApi (defaults to Comics), edition objectName, in-flight Cancel (48 tall, KeyboardAction, accessible) -> one Comics.cancelDownload(chId) with cancelPending latch; reset on finished/failed/removed for that id only; progress% moved left of Cancel (edState 156 wide only while in flight). No delete/forget-progress; native ComicDownloader teardown unchanged. In-flight edState widening also applies on desktop (Cancel is available there too).",
+      "updated_utc": "2026-11-02T22:37:45Z"
+    },
+    {
+      "id": "WT-11",
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_east_blue_containment.qml => 0 (7 passed; supported 1237x556/1185x533/853x533 already fit on base; conditional 354-wide index and 300-short preview failed before fix)",
+        "tst_one_piece_east_blue_native_atlas 17/5 and tst_one_piece_badge_spacing 10/4: same failing tests as base 501b23ed (pre-existing); four_sea, android_beta_universe_touch => 0; android_qml_preflight => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/OnePieceEastBlueAtlas.qml",
+        "tests/qml/tst_android_east_blue_containment.qml"
+      ],
+      "note": "Index width capped to root-36 and x clamped into 18 px gutters (caret follows button; desktop identical). Preview width capped to root-36, height capped to the placement safe band (root-88-18). Preview copy in a Flickable (interactive only when clipped) with OPEN ARC/CLOSE pinned in a wrapping Flow. Placement/focus/hover persistence unchanged. Retained evidence fixture (D: import) not run.",
+      "updated_utc": "2026-11-02T22:41:26Z"
+    },
+    {
+      "id": "WT-01",
+      "status": "DECISION_REQUIRED",
+      "tests": [],
+      "device": "LOCAL_PENDING",
+      "note": "Theatre bulk Remove conflicts with Beta's Stremio-aware TheatreRemovalDialog (per-item alsoStremio choice). See progress/DECISIONS.md. No selection code landed.",
+      "updated_utc": "2026-11-02T22:49:02Z"
+    },
+    {
+      "id": "PF-10",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "python3 tests/test_android_package_identity.py => OK (4 tests, cmake -P script mode)",
+        "tests/test_android_runtime_bundle.py => OK",
+        "PRE-EXISTING: tests/test_android_build_graph_contract.py 10 FAIL identical with unmodified android.cmake (desktop organ/mpv/apk baseline text assertions)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "native/cmake/AndroidPackageIdentity.cmake",
+        "native/cmake/android.cmake",
+        "tests/test_android_package_identity.py"
+      ],
+      "note": "colosseum_validate_android_identity: package id syntax + lanes (world.getcolosseum.app, world.getcolosseum.app.<lane> incl. authorized .beta, org.qtproject.example[.colosseum[.<id>]]); versionCode positive decimal <=2100000000, no leading zero; app name/versionName single-line without XML-special chars. Called before QT_ANDROID_PACKAGE_NAME/VERSION_CODE assignment. Not run in a real Android configure (no Android toolchain); signer/monotonic versionCode remain release-process checks.",
+      "updated_utc": "2026-11-02T22:43:14Z"
+    },
+    {
+      "id": "PF-07",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/android_track_labels_test.mjs => 0 (3 tests; base => AssertionError missing helpers)",
+        "tst_player_more_touch, tst_android_subtitle_viewport, tst_player_seek_touch, tst_android_speed_popup_viewport => 0; android_qml_preflight => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/PlayerPage.qml",
+        "qml/SubtitleMenu.qml",
+        "tests/android_track_labels_test.mjs"
+      ],
+      "note": "PlayerPage.subtitleDisplayTitle (generic 'Subtitle'/'Track n'/'#id' titles -> Subtitles.langName(lang)); trackCodecLabel maps Media3 MIME (application/x-subrip->SRT, audio/mp4a-latm->AAC, ...) and hides x-media3-cues; SubtitleMenu.codecLabel for rowMeta. Raw codec/id/url/selected stay in rows. Desktop: mpv codec strings unchanged in PlayerPage; SubtitleMenu fallback meta now shows SRT for 'subrip' (display only).",
+      "updated_utc": "2026-11-02T22:44:33Z"
+    },
+    {
+      "id": "PF-09",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "python3 tests/test_android_launcher_icon.py => OK (3 tests)",
+        "test_android_media3_packaging_contract.py, test_android_runtime_bundle.py => OK",
+        "NOT RUN (env): test_android_desktop_scale.py needs ANDROID_SDK_ROOT (KeyError before and after)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "native/platform/android/AndroidManifest.xml",
+        "native/platform/android/res/drawable/ic_launcher_foreground.xml",
+        "native/platform/android/res/mipmap-anydpi-v26/ic_launcher.xml",
+        "native/platform/android/res/mipmap-anydpi-v26/ic_launcher_round.xml",
+        "native/platform/android/res/values/ic_launcher_background.xml",
+        "tests/test_android_launcher_icon.py"
+      ],
+      "note": "Alpha adaptive launcher resources reused byte-for-byte (sha256 foreground f818f716..., ic_launcher/_round 07d3b8f6..., background d263737d...); manifest icon/roundIcon -> @mipmap/ic_launcher(_round) replacing INSERT_APP_ICON. API 28 floor, no PNG fallbacks needed. Copied by existing android.cmake package loop. No package id/signer change. Design confirmation of Beta branding + rendered launcher appearance: LOCAL_PENDING (aapt/APK not built).",
+      "updated_utc": "2026-11-02T22:45:27Z"
+    },
+    {
+      "id": "WT-12",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "python3 tests/test_android_apk_qualification.py => OK (10 fixture tests: ZIP/EOCD, ABI/AArch64/16KiB, v1/v2/v4 signing report/reject, Nuvio member hash, aapt identity/lanes, clean/dirty/overlay snapshots, provenance stability, CLI)",
+        "qualify_apk.py snapshot on this checkout => APK_QUALIFICATION_OK (clean)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "scripts/android/qualify_apk.py",
+        "tests/test_android_apk_qualification.py"
+      ],
+      "note": "Beta-scoped qualification (not Alpha release builder): inspect/identity/snapshot/provenance subcommands; default expected package world.getcolosseum.app.beta; signing reported (signedState) and update compatibility explicitly UNVERIFIED; honest dirty/overlay composition in provenance; deviceAcceptance LOCAL_PENDING. No build/sign/install/release; workflow NOT modified (no CI lane added, no dispatch). Not run against a real APK (APK_BLOCKED).",
+      "updated_utc": "2026-11-02T22:47:56Z"
+    }
+  ],
+  "conditional": [
+    "WT-09",
+    "WT-14"
+  ],
+  "credit_balance": "UNKNOWN",
+  "extra": [
+    {
+      "id": "WT-14",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "python3 tests/test_android_toolchain_qualification.py => OK (8 tests incl. libexec/bin discovery + missing-scanner failure)",
+        "qualify_toolchain.check_qt against real aqt Qt 6.11.1 gcc_64 host: pre-fix ok=False (qmlimportscanner=missing), post-fix ok=True (libexec/qmlimportscanner)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "scripts/android/qualify_toolchain.py",
+        "tests/test_android_toolchain_qualification.py"
+      ],
+      "note": "Conditional WT-14 confirmed by C0 (aqt Linux host kit ships only libexec/qmlimportscanner). Discovery now accepts bin/ and libexec/ (incl .exe); all other gates unchanged; no symlink.",
+      "updated_utc": "2026-11-02T22:45:59Z"
+    },
+    {
+      "id": "WT-09",
+      "status": "HOST_ONLY_FINDING_NO_CHANGE",
+      "tests": [
+        "source investigation: OnePieceEastBlueAtlas badge MouseArea enabled: root.touchInput; touchInput = Qt.platform.os === 'android' (constant); the only production instantiation (OnePieceUniversePage.qml:90) does not rebind touchInput; grep finds no other writer"
+      ],
+      "device": "LOCAL_PENDING",
+      "note": "No supported production direct-disable path exists, so no cancellation latch was added (START: preserve host-only finding; no device bug claimed; touch not rewritten). Ancestor hide/disable yields onCanceled -> moved=true (retained host controls pass per audit receipt).",
+      "updated_utc": "2026-11-02T22:48:53Z"
+    }
+  ]
+}

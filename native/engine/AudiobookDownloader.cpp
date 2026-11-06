@@ -1,5 +1,6 @@
 #include "AudiobookDownloader.h"
 #include "DownloadFileOps.h"
+#include "AudiobookTorrentTransport.h"
 
 #include "../AudioPairingStore.h"
 #include "../player/streamserver.h"
@@ -22,6 +23,7 @@
 #include <QUrl>
 
 #include <algorithm>
+#include <utility>
 
 namespace {
 
@@ -90,6 +92,8 @@ AudiobookDownloader::AudiobookDownloader(QNetworkAccessManager* nam, StreamServe
 
 AudiobookDownloader::~AudiobookDownloader()
 {
+    if (m_torrent) m_torrent->disconnect(this);
+    if (m_active && m_torrent && m_active->nativeTorrent) m_torrent->cancel(m_active->generation);
     if (m_active) { cleanupInFlight(m_active); delete m_active; m_active = nullptr; }
     qDeleteAll(m_queue);
     m_queue.clear();
@@ -98,6 +102,53 @@ AudiobookDownloader::~AudiobookDownloader()
 // ─────────────────────────────────────────────────────────────────────────────
 // disk + index
 // ─────────────────────────────────────────────────────────────────────────────
+
+void AudiobookDownloader::setTorrentTransport(AudiobookTorrentTransport* transport)
+{
+    if (m_active || !m_queue.isEmpty() || m_torrent || !transport) return;
+    m_torrent = transport;
+    transport->setParent(this);
+    connect(transport, &AudiobookTorrentTransport::phaseChanged, this,
+            [this](quint64 generation, const QString& phase) {
+        if (!m_active || !m_active->nativeTorrent || m_active->generation != generation) return;
+        m_active->nativePhase = phase;
+        const QString key = m_active->pairKey;
+        emit resolving(key); // canonical stopping/finishing state is already visible
+    });
+    connect(transport, &AudiobookTorrentTransport::cancelled, this, [this](quint64 generation) {
+        if (m_active && m_active->nativeTorrent && m_active->generation == generation)
+            retireCancelledJob(m_active);
+    });
+    connect(transport, &AudiobookTorrentTransport::progress, this,
+            [this](quint64 generation, qint64 received, qint64 total) {
+        if (!m_active || !m_active->nativeTorrent || m_active->generation != generation) return;
+        m_active->doneBytes = received;
+        m_active->totalBytes = total;
+        const QString key = m_active->pairKey;
+        emit progress(key, double(received), double(total));
+    });
+    connect(transport, &AudiobookTorrentTransport::completed, this,
+            [this](quint64 generation, const QString& dir, const QStringList& files, qint64 bytes) {
+        if (!m_active || !m_active->nativeTorrent || m_active->generation != generation) return;
+        m_active->completedDir = dir;
+        m_active->doneBytes = bytes;
+        m_active->totalBytes = bytes;
+        for (const QString& path : files) {
+            FileJob file; file.finalPath = path;
+            m_active->files.append(file);
+        }
+        finalizeJob(m_active);
+    });
+    connect(transport, &AudiobookTorrentTransport::failed, this,
+            [this](quint64 generation, const QString& reason) {
+        if (m_active && m_active->nativeTorrent && m_active->generation == generation)
+            failJob(m_active, reason);
+    });
+    connect(transport, &QObject::destroyed, this, [this] {
+        if (m_active && m_active->nativeTorrent)
+            failJob(m_active, QStringLiteral("Audiobook torrent transport is unavailable."));
+    });
+}
 
 QString AudiobookDownloader::baseDir() const
 {
@@ -194,8 +245,8 @@ QVariantMap AudiobookDownloader::statusOf(const QString& pairKey) const
         return s;
     }
     if (m_active && m_active->pairKey == pairKey) {
-        s[QStringLiteral("state")]    = m_active->files.isEmpty() ? QStringLiteral("resolving")
-                                                                  : QStringLiteral("downloading");
+        s[QStringLiteral("state")]    = m_active->nativeTorrent ? m_active->nativePhase
+            : (m_active->files.isEmpty() ? QStringLiteral("resolving") : QStringLiteral("downloading"));
         s[QStringLiteral("received")] = static_cast<double>(m_active->doneBytes + m_active->fileReceived);
         s[QStringLiteral("total")]    = static_cast<double>(m_active->totalBytes);
         return s;
@@ -220,8 +271,8 @@ QVariantList AudiobookDownloader::activeDownloads() const
         };
     };
     if (m_active)
-        out.append(describe(m_active, m_active->files.isEmpty() ? QStringLiteral("resolving")
-                                                                : QStringLiteral("downloading")));
+        out.append(describe(m_active, m_active->nativeTorrent ? m_active->nativePhase
+                : (m_active->files.isEmpty() ? QStringLiteral("resolving") : QStringLiteral("downloading"))));
     for (const Job* q : m_queue)
         out.append(describe(q, QStringLiteral("queued")));
     for (const QVariantMap &failure : m_failures)
@@ -275,14 +326,17 @@ void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QStrin
 {
     const QString infoHash = infoHashIn.trimmed().toLower();
     if (pairKey.isEmpty()) { emit failed(pairKey, QStringLiteral("empty pairKey")); return; }
-    if (m_failures.remove(pairKey))
+    QPointer<AudiobookDownloader> entryGuard(this);
+    if (m_failures.remove(pairKey)) {
         emit failuresChanged();
+        if (!entryGuard) return;
+    }
     // Remember the reader's bookId (and ebook path) for the auto-attach at finished().
     // Only overwrite with a real value — a later empty call (e.g. the 4-arg selfTest
     // path) must not clobber what a prior call already bound to this pairKey.
     if (!bookId.isEmpty()) m_bookIdFor.insert(pairKey, bookId);
     if (!bookPath.isEmpty()) m_bookPathFor.insert(pairKey, bookPath);
-    if (infoHash.size() != 40) {
+    if (!QRegularExpression(QStringLiteral("^[0-9a-f]{40}$")).match(infoHash).hasMatch()) {
         const QString reason = QStringLiteral("bad infoHash");
         rememberFailure(pairKey, title, author, reason);
         emit failed(pairKey, reason);
@@ -295,7 +349,7 @@ void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QStrin
         return;
     }
     if (isActive(pairKey)) return;
-    if (!m_stream) {
+    if (!m_stream && !m_torrent) {
         const QString reason = QStringLiteral("stream engine unavailable");
         rememberFailure(pairKey, title, author, reason);
         emit failed(pairKey, reason);
@@ -303,24 +357,20 @@ void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QStrin
     }
 
     Job* job = new Job;
+    job->generation = ++m_nextGeneration;
     job->pairKey = pairKey; job->infoHash = infoHash; job->title = title; job->author = author;
-
-    emit resolving(pairKey);
-
-    if (m_active) { m_queue.append(job); emit activeCountChanged(); return; }
-    m_active = job;
+    m_queue.append(job);
+    QPointer<AudiobookDownloader> guard(this);
+    emit resolving(pairKey); // state already visible, including queued jobs
+    if (!guard) return;
     emit activeCountChanged();
-    // prefetch starts/adopts the engine + registers the torrent. We then race two paths
-    // to learn the engine base: its fetchReady signal (fast when warm) and pollEngine
-    // (robust when cold — fetchReady can be lost if the engine's /create POST hangs).
-    m_stream->prefetch(infoHash, 0);
-    pollEngine(job);
+    if (guard) promoteQueue();
 }
 
 void AudiobookDownloader::onFetchReady(const QString& url, const QString& infoHash, int /*fileIdx*/)
 {
     Job* job = jobForHash(infoHash);
-    if (!job || job != m_active) return;         // not ours, or queued (handled when promoted)
+    if (!job || job != m_active || job->nativeTorrent) return;
     beginManifest(job, url);
 }
 
@@ -346,10 +396,13 @@ void AudiobookDownloader::pollEngine(Job* job)
     const QString url = m_stream ? m_stream->streamUrl(job->infoHash, 0) : QString();
     if (!url.isEmpty()) { beginManifest(job, url); return; }
     if (++job->enginePolls > 40) {                                    // ~40s → engine never came up
-        failJob(job, QStringLiteral("stream engine did not start"));
+        failJob(job, QStringLiteral("Audiobook engine did not provide a stream route in time."));
         return;
     }
-    QTimer::singleShot(1000, this, [this, job]() { if (m_active == job) pollEngine(job); });
+    const quint64 generation = job->generation;
+    QTimer::singleShot(1000, this, [this, generation]() {
+        if (m_active && m_active->generation == generation) pollEngine(m_active);
+    });
 }
 
 void AudiobookDownloader::requestManifest(Job* job)
@@ -359,38 +412,49 @@ void AudiobookDownloader::requestManifest(Job* job)
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
     req.setTransferTimeout(30000);   // a cold engine can hang /create — time out → retry (poll loop)
     QNetworkReply* reply = m_nam->post(req, QByteArray("{}"));
-    connect(reply, &QNetworkReply::finished, this, [this, reply, job]() {
-        if (m_active != job) { reply->deleteLater(); return; }   // cancelled/replaced
-        onManifestReply(reply, job);
+    job->reply = reply;
+    const quint64 generation = job->generation;
+    connect(reply, &QNetworkReply::finished, this, [this, reply, generation]() {
+        if (!m_active || m_active->generation != generation || m_active->reply != reply) {
+            reply->deleteLater(); return;
+        }
+        m_active->reply.clear();
+        onManifestReply(reply, m_active);
     });
 }
 
 void AudiobookDownloader::onManifestReply(QNetworkReply* reply, Job* job)
 {
-    const QByteArray body = reply->readAll();
-    const bool netOk = reply->error() == QNetworkReply::NoError;
+    const auto error = reply->error();
+    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    const QByteArray body = error == QNetworkReply::NoError ? reply->readAll() : QByteArray();
     reply->deleteLater();
-
-    // total file count tells metadata-not-yet-loaded (0 files → poll) apart from
-    // metadata-present-but-no-audio (>0 files, 0 audio → fail fast, don't poll 12×).
-    const int totalFiles = netOk
-        ? QJsonDocument::fromJson(body).object().value(QStringLiteral("files")).toArray().size() : 0;
-    QList<FileJob> audio = netOk ? parseManifest(body) : QList<FileJob>();
-
+    if (status >= 400) {
+        failJob(job, QStringLiteral("Audiobook manifest request failed (HTTP %1).").arg(status));
+        return;
+    }
+    QJsonParseError parseError;
+    const auto document = QJsonDocument::fromJson(body, &parseError);
+    if (error == QNetworkReply::NoError && (parseError.error != QJsonParseError::NoError
+        || !document.isObject() || !document.object().value(QStringLiteral("files")).isArray())) {
+        failJob(job, QStringLiteral("Audiobook engine returned an invalid file manifest.")); return;
+    }
+    const int totalFiles = document.object().value(QStringLiteral("files")).toArray().size();
+    QList<FileJob> audio = error == QNetworkReply::NoError ? parseManifest(body) : QList<FileJob>();
     if (audio.isEmpty()) {
         if (totalFiles > 0) {
-            failJob(job, QStringLiteral("this torrent has no audio files (%1 non-audio file(s))").arg(totalFiles));
-            return;
+            failJob(job, QStringLiteral("this torrent has no audio files (%1 non-audio file(s))").arg(totalFiles)); return;
         }
-        // metadata still loading (no peers/pieces/manifest yet) → poll again
+        job->manifestReason = error != QNetworkReply::NoError
+            ? QStringLiteral("Audiobook manifest network request failed (error %1, HTTP %2).").arg(int(error)).arg(status)
+            : QStringLiteral("Audiobook torrent metadata was not ready after %1 tries.").arg(job->createAttempts);
         if (job->createAttempts < kMaxManifestPolls) {
-            QTimer::singleShot(kManifestPollMs, this, [this, job]() {
-                if (m_active == job) requestManifest(job);
-            });
-            return;
+            const quint64 generation = job->generation;
+            QTimer::singleShot(kManifestPollMs, this, [this, generation]() {
+                if (m_active && m_active->generation == generation) requestManifest(m_active);
+            }); return;
         }
-        failJob(job, QStringLiteral("torrent metadata unavailable (no peers?) after %1 tries").arg(job->createAttempts));
-        return;
+        failJob(job, job->manifestReason); return;
     }
     qInfo() << "[AudiobookDownloader] manifest:" << totalFiles << "files," << audio.size() << "audio";
 
@@ -471,7 +535,7 @@ void AudiobookDownloader::startNextFile(Job* job)
 
 void AudiobookDownloader::onFileReadyRead()
 {
-    if (!m_active || !m_active->reply || !m_active->file) return;
+    if (!m_active || !m_active->reply || !m_active->file || sender() != m_active->reply.data()) return;
     Job* job = m_active;
     QNetworkReply* reply = job->reply.data();
     if (!reply) return;
@@ -492,12 +556,12 @@ void AudiobookDownloader::onFileReadyRead()
 
 void AudiobookDownloader::onFileFinished()
 {
-    if (!m_active || !m_active->reply) return;
+    if (!m_active || !m_active->reply || sender() != m_active->reply.data()) return;
     Job* job = m_active;
     QNetworkReply* reply = job->reply.data();
     if (!reply) return;
     const QNetworkReply::NetworkError err = reply->error();
-    const QString errStr = reply->errorString();
+    const QString errStr = QStringLiteral("network error %1, HTTP %2").arg(int(err)).arg(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt());
     if (err == QNetworkReply::NoError && job->file) {
         const QByteArray tail = reply->readAll();
         if (!tail.isEmpty()) { job->file->write(tail); job->fileReceived += tail.size(); }
@@ -528,7 +592,11 @@ void AudiobookDownloader::onFileFinished()
         return;
     }
     job->doneBytes += job->fileReceived;
-    emit progress(job->pairKey, static_cast<double>(job->doneBytes), static_cast<double>(job->totalBytes));
+    const quint64 generation = job->generation;
+    const QString key = job->pairKey;
+    QPointer<AudiobookDownloader> guard(this);
+    emit progress(key, static_cast<double>(job->doneBytes), static_cast<double>(job->totalBytes));
+    if (!guard || !m_active || m_active->generation != generation) return;
     job->current += 1;
     startNextFile(job);
 }
@@ -536,7 +604,7 @@ void AudiobookDownloader::onFileFinished()
 void AudiobookDownloader::finalizeJob(Job* job)
 {
     Entry e;
-    e.dir = dirFor(job->pairKey);
+    e.dir = job->nativeTorrent ? job->completedDir : dirFor(job->pairKey);
     e.title = job->title; e.author = job->author;
     e.bookId = m_bookIdFor.value(job->pairKey);
     e.bookPath = m_bookPathFor.value(job->pairKey);
@@ -549,12 +617,14 @@ void AudiobookDownloader::finalizeJob(Job* job)
     const QString pk = job->pairKey;
     const QString dir = e.dir;
     qInfo() << "[AudiobookDownloader] complete" << pk << "files=" << e.files.size() << "dir=" << dir;
-    attachToBook(pk, dir);                    // read-along auto-attach (no pairing UI)
-    emit finished(pk, dir);
-
     delete m_active; m_active = nullptr;
-    promoteQueue();
+    QPointer<AudiobookDownloader> guard(this);
+    attachToBook(pk, dir);
+    if (!guard) return;
+    emit finished(pk, dir);
+    if (!guard) return;
     emit activeCountChanged();
+    if (guard) promoteQueue();
 }
 
 // Write the read-along pairing under the reader's bookId — the SAME key Task 13's
@@ -582,19 +652,22 @@ void AudiobookDownloader::attachToBook(const QString& pairKey, const QString& di
 void AudiobookDownloader::failJob(Job* job, const QString& reason)
 {
     cleanupInFlight(job);
-    const QString pk = job->pairKey;
-    rememberFailure(pk, job->title, job->author, reason,
-                    job->doneBytes + job->fileReceived, job->totalBytes);
-    qWarning() << "[AudiobookDownloader] FAILED" << pk << reason;
-    emit failed(pk, reason);
-    if (m_active == job) {
-        delete m_active; m_active = nullptr;
-        promoteQueue();
-    } else {
-        m_queue.removeAll(job);
-        delete job;
-    }
+    if (job->nativeTorrent && m_torrent) m_torrent->cancel(job->generation);
+    const QString pk = job->pairKey, title = job->title, author = job->author;
+    const qint64 received = job->doneBytes + job->fileReceived, total = job->totalBytes;
+    const QString failure = reason; // reason may alias the retired Job
+    if (m_active == job) m_active = nullptr;
+    else m_queue.removeAll(job);
+    delete job; // retire before rememberFailure's failuresChanged observer
+    QPointer<AudiobookDownloader> guard(this);
+    rememberFailure(pk, title, author, failure, received, total);
+    if (!guard) return;
+    if (isActive(pk)) return; // a failuresChanged observer already retried this key
+    qWarning() << "[AudiobookDownloader] FAILED" << pk << failure;
+    emit failed(pk, failure);
+    if (!guard) return;
     emit activeCountChanged();
+    if (guard) promoteQueue();
 }
 
 void AudiobookDownloader::rememberFailure(const QString& pairKey, const QString& title,
@@ -617,8 +690,18 @@ void AudiobookDownloader::promoteQueue()
 {
     if (m_active || m_queue.isEmpty()) return;
     m_active = m_queue.takeFirst();
-    m_stream->prefetch(m_active->infoHash, 0);
-    pollEngine(m_active);
+    const quint64 generation = m_active->generation;
+    m_active->nativeTorrent = bool(m_torrent);
+    QPointer<AudiobookDownloader> guard(this);
+    const QString key = m_active->pairKey;
+    emit resolving(key);
+    if (!guard || !m_active || m_active->generation != generation) return;
+    if (m_active->nativeTorrent) {
+        m_torrent->start(generation, m_active->infoHash, dirFor(key));
+    } else {
+        m_stream->prefetch(m_active->infoHash, 0);
+        if (guard && m_active && m_active->generation == generation) pollEngine(m_active);
+    }
 }
 
 void AudiobookDownloader::cleanupInFlight(Job* job)
@@ -642,23 +725,8 @@ void AudiobookDownloader::cancelDownload(const QString& pairKey)
         cancelJob(m_active);
         return;
     }
-    for (int i = 0; i < m_queue.size(); ++i) {
-        if (m_queue[i]->pairKey == pairKey) {
-            Job* j = m_queue.takeAt(i);
-            const auto result = DownloadFileOps::removeTree(dirFor(pairKey));
-            emit activeCountChanged();
-            if (!result.success) {
-                qWarning() << "[downloads] cancel cleanup failed" << pairKey << result.message;
-                rememberFailure(pairKey, j->title, j->author, result.message,
-                                j->doneBytes + j->fileReceived, j->totalBytes);
-                delete j;
-                emit failed(pairKey, result.message);
-                return;
-            }
-            delete j;
-            emit removed(pairKey);
-            return;
-        }
+    for (Job* job : std::as_const(m_queue)) {
+        if (job->pairKey == pairKey) { cancelJob(job); return; }
     }
 }
 
@@ -690,34 +758,42 @@ QVariantMap AudiobookDownloader::removeIncompleteDownloads()
 
 void AudiobookDownloader::cancelJob(Job* job)
 {
-    cleanupInFlight(job);
-    const auto result = DownloadFileOps::removeTree(dirFor(job->pairKey));
-    const QString pairKey = job->pairKey;
-    const QString title = job->title;
-    const QString author = job->author;
-    const qint64 received = job->doneBytes + job->fileReceived;
-    const qint64 total = job->totalBytes;
-    if (m_active == job) {
-        delete m_active; m_active = nullptr;
-        promoteQueue();
-    } else {
-        m_queue.removeOne(job);
-        delete job;
-        emit activeCountChanged();
-    }
-    if (!result.success) {
-        qWarning() << "[downloads] cancel cleanup failed" << pairKey << result.message;
-        rememberFailure(pairKey, title, author, result.message, received, total);
-        emit failed(pairKey, result.message);
+    if (job->nativeTorrent && m_torrent) {
+        m_torrent->cancel(job->generation); // keep this Job live until its exact settlement
         return;
     }
-    emit removed(pairKey);
+    retireCancelledJob(job);
+}
+
+void AudiobookDownloader::retireCancelledJob(Job* job)
+{
+    cleanupInFlight(job);
+    const QString key = job->pairKey;
+    const bool native = job->nativeTorrent || bool(m_torrent);
+    if (m_active == job) m_active = nullptr;
+    else m_queue.removeAll(job);
+    delete job;
+    // Native payload deletion belongs to the engine's asynchronous teardown.
+    const auto result = native ? DownloadFileOps::Result{true, {}}
+                               : DownloadFileOps::removeTree(dirFor(key));
+    QPointer<AudiobookDownloader> guard(this);
+    if (!result.success) {
+        rememberFailure(key, {}, {}, result.message);
+        if (!guard) return;
+        emit failed(key, result.message);
+    } else emit removed(key);
+    if (!guard) return;
+    emit activeCountChanged();
+    if (guard) promoteQueue();
 }
 
 void AudiobookDownloader::dismissFailure(const QString& pairKey)
 {
-    if (m_failures.remove(pairKey))
+    QPointer<AudiobookDownloader> entryGuard(this);
+    if (m_failures.remove(pairKey)) {
         emit failuresChanged();
+        if (!entryGuard) return;
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

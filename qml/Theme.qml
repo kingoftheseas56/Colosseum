@@ -6,6 +6,15 @@
 import QtQuick
 
 QtObject {
+    // Android system text preference (WT-04). Custom UI fonts use logical pixels, so the
+    // retained PlatformRuntime fontScale notification (Activity Configuration.fontScale,
+    // independent of the startup density/visual zoom) is applied explicitly. Desktop and any
+    // host without the Android runtime keep 1, so desktop typography is unchanged.
+    readonly property real fontScale: typeof PlatformRuntime !== "undefined" && PlatformRuntime
+        && PlatformRuntime.android === true && typeof PlatformRuntime.fontScale === "number"
+        && PlatformRuntime.fontScale > 0 ? PlatformRuntime.fontScale : 1
+    function fontSize(base) { return Math.round(base * fontScale) }
+
     // accent — used sparingly: active pill, focus ring, progress, primary CTA
     readonly property color gold: "#f0c44a"
 
@@ -25,14 +34,22 @@ QtObject {
     readonly property color biblioWashBottom: "#06070b"
 
     // type
-    readonly property string ui: "Segoe UI"
+    // Android has no Segoe UI; use bundled Selawik (SIL OFL, metric-compatible, assets/fonts/selawik).
+    // Other platforms unchanged. `hud` reuses the same face so the player HUD matches.
+    readonly property FontLoader _selawikRegular: FontLoader { source: "../assets/fonts/selawik/Selawik-Regular.ttf" }
+    readonly property FontLoader _selawikLight: FontLoader { source: "../assets/fonts/selawik/Selawik-Light.ttf" }
+    readonly property FontLoader _selawikSemilight: FontLoader { source: "../assets/fonts/selawik/Selawik-Semilight.ttf" }
+    readonly property FontLoader _selawikSemibold: FontLoader { source: "../assets/fonts/selawik/Selawik-Semibold.ttf" }
+    readonly property FontLoader _selawikBold: FontLoader { source: "../assets/fonts/selawik/Selawik-Bold.ttf" }
+    readonly property string _androidUiFont: Qt.platform.os === "android" && _selawikRegular.name !== "" ? _selawikRegular.name : "Segoe UI"
+    readonly property string ui: _androidUiFont
     readonly property string display: "Fraunces"   // editorial serif — bundled at assets/fonts, loaded in Main.qml
     // player HUD face: Segoe UI — Harbor's EFFECTIVE Windows face. Harbor declares Switzer/Inter
     // but ships neither, so its system-ui resolves to Segoe UI on Windows; matching that is the
     // parity target Hemanth approved (2026-07-19 Harbor player polish). A system font: always
     // present, no bundling, and no "<Name> Variable" registration trap. The whole player HUD
     // follows this token. Registration gate: tests/test_hud_font_registration_p0.ps1.
-    readonly property string hud: "Segoe UI"
+    readonly property string hud: _androidUiFont   // Selawik on Android, Segoe UI elsewhere
 
     // layout
     readonly property int margin: 54

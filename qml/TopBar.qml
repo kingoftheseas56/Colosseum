@@ -21,7 +21,16 @@ Item {
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
     property bool compactBrowserChrome: false
-    readonly property bool compactChrome: compactBrowserChrome || width < 1200
+    readonly property bool compactChrome: compactBrowserChrome || width < (androidHost ? 1100 : 1200)
+    // Clock/date shows only when its implicit width fits in what is left after the
+    // other left items, the world pills and the right-side controls (no overlap).
+    readonly property real leftOtherWidth:
+        (backAction.visible ? backAction.implicitWidth : 0)
+        + (leftTitle.visible ? leftTitle.implicitWidth : 0)
+    readonly property int leftOtherCount: (backAction.visible ? 1 : 0) + (leftTitle.visible ? 1 : 0)
+    readonly property real clockFreeSpace: width - systemChrome.implicitWidth - (pillsRow.implicitWidth + 14)
+        - 24 - leftOtherWidth - leftOtherCount * 18
+    readonly property bool clockFits: !backOnly && width > 0 && clockBlock.implicitWidth <= clockFreeSpace
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // World roots keep the historical Home destination; nested surfaces can name their
     // owning world without inventing a second Back control.
@@ -32,9 +41,12 @@ Item {
     // Retained world pages stay instantiated for state preservation, but hidden bars must not
     // keep their live clock timer waking the GUI every second.
     property bool lifecycleActive: true
-    // Retained as a no-op hook for shared callers (WorldPage, ExtensionsStorePage);
-    // QQmlFileSelector selects qml/+android/TopBar.qml on Android.
-    property bool androidHost: false
+    // Host capability is independent of the desktop-shaped presentation on Android.
+    property bool androidHost: Qt.platform.os === "android"
+    AdaptiveLayout { id: inputMetrics; androidHost: bar.androidHost }
+    readonly property real touchTargetSize: inputMetrics.touchTargetSize
+    readonly property real touchHorizontalInset: bar.touchTargetSize > 0
+        ? Math.min((bar.touchTargetSize - 22) / 2, Math.floor(systemChrome.spacing / 2)) : 0
     property bool wallpaperEnabled: true
     property string clock: "8:29"
     property string ampm: "PM"
@@ -145,7 +157,11 @@ Item {
         property bool showLabel: false
         property bool lit: false      // full-strength (e.g. a running state), regardless of hover
         signal clicked()
-        width: showLabel ? 82 : 22; height: 22
+        // Android: the 22 px glyph rides a 48-unit-tall hit host; horizontally the pointer owner
+        // extends into half of each Row gap so neighbours stay disjoint and the shared
+        // desktop composition (already tight beside the world picker) keeps its widths.
+        width: showLabel ? 82 : 22
+        height: Math.max(22, bar.touchTargetSize)
         Image {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
@@ -168,6 +184,8 @@ Item {
         KeyboardAction {
             id: input
             anchors.fill: parent
+            anchors.leftMargin: -bar.touchHorizontalInset
+            anchors.rightMargin: -bar.touchHorizontalInset
             accessibleName: sysRoot.accessibleName
             focusRadius: 6
             onTriggered: sysRoot.clicked()
@@ -188,7 +206,7 @@ Item {
         property bool comingSoon: false
         readonly property bool active: !pill.comingSoon && bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + (bar.width < 900 ? 16 : (bar.width < 1100 ? 24 : 34))
+        implicitWidth: pillContent.implicitWidth + (bar.width < 900 ? (bar.androidHost ? 12 : 16) : (bar.width < 1100 ? 24 : 34))
         implicitHeight: 34
 
         Rectangle {
@@ -249,6 +267,7 @@ Item {
             onTriggered: bar.homeRequested()
         }
         Column {
+            id: leftTitle
             visible: bar.backOnly && bar.pageTitle.length > 0
             spacing: 2
             anchors.verticalCenter: parent.verticalCenter
@@ -259,11 +278,13 @@ Item {
             }
         }
         Column {
+            id: clockBlock
             objectName: "topBarClock"
             readonly property real textWidth: Math.max(clockTime.implicitWidth + 5 + clockPeriod.implicitWidth,
                                                        clockDate.implicitWidth)
             readonly property real leftWidth: textWidth + (backAction.visible ? backAction.width + leftChrome.spacing : 0)
-            visible: !bar.backOnly && !bar.compactBrowserChrome
+            visible: bar.androidHost ? bar.clockFits
+                : !bar.backOnly && !bar.compactBrowserChrome
                      && leftWidth + 24 + worldPicker.width <= systemChrome.x
             spacing: 3
             anchors.verticalCenter: parent.verticalCenter
@@ -336,6 +357,7 @@ Item {
         // Update — home only. Takes search's throne; the silver badge signals an
         // available release (pulse on unseen, steady once seen).
         Item {
+            y: bar.androidHost ? (parent.height - height) / 2 : 0
             width: 22; height: 22
             visible: bar.activeMedium === ""
             opacity: updateInput.interactionActive ? 1.0 : 0.92
@@ -374,6 +396,7 @@ Item {
         // on home it follows the Update glyph.
         Item {
             id: trackersButton
+            y: bar.androidHost ? (parent.height - height) / 2 : 0
             // Home and every retained world own a TopBar; suffix world copies so automation
             // never resolves a hidden sibling.
             objectName: !bar.lifecycleActive ? ""
@@ -412,6 +435,7 @@ Item {
         // signed in, quiet outline when not. Sits beside Update + Wallpapers.
         Item {
             id: accountButton
+            y: bar.androidHost ? (parent.height - height) / 2 : 0
             width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22
             height: 22
             objectName: "colosseumTopbarAccountButton"
@@ -514,16 +538,17 @@ Item {
             accessibleName: "Wallpaper"
             onClicked: bar.wallpaperClicked()
         }
-        SysIcon { source: "../assets/icons/minimize.svg"; accessibleName: "Minimize"; onClicked: bar.minimizeClicked() }
+        SysIcon { visible: !bar.androidHost; source: "../assets/icons/minimize.svg"; accessibleName: "Minimize"; onClicked: bar.minimizeClicked() }
         // Fullscreen toggle (Hemanth 2026-07-16, supersedes the old never-☐ topbar
         // rule): glyph shows the ACTION — expand while windowed, contract while
         // fullscreen. Drives the same shell flip as the F11 developer door.
         SysIcon {
+            visible: !bar.androidHost
             source: bar.shellWindowed ? "../assets/icons/fullscreen.svg"
                                       : "../assets/icons/fullscreen-exit.svg"
             accessibleName: bar.shellWindowed ? "Enter fullscreen" : "Exit fullscreen"
             onClicked: bar.fullscreenClicked()
         }
-        SysIcon { source: "../assets/icons/power.svg"; accessibleName: "Quit Colosseum"; onClicked: bar.powerClicked() }
+        SysIcon { visible: !bar.androidHost; source: "../assets/icons/power.svg"; accessibleName: "Quit Colosseum"; onClicked: bar.powerClicked() }
     }
 }

@@ -3,7 +3,7 @@
 #
 # Usage: scripts/android/emulator_smoke.sh <apk> [artifact-dir] [alive-seconds]
 #
-# Installs and launches the APK, waits for Main.qml and the initial Android world to be ready,
+# Installs and launches the APK, waits for Main.qml and the initial Home or Android world to be ready,
 # then monitors that same process for alive-seconds (default 60 s). Cold extraction
 # has a separate bounded readiness window (SMOKE_READY_TIMEOUT, default 180 s).
 # Captures logcat, screenshots and readable tombstones, including on startup failure.
@@ -148,9 +148,9 @@ if [[ $fail == 0 ]]; then
             fi
             if [[ -n "$pid" ]] &&
                grep -Fq '[boot] Main.qml loaded' "$ART/app-readiness.txt" &&
-               grep -Fq '[boot] android world ready:' "$ART/app-readiness.txt"; then
+               grep -Eq '\[boot\] android (home ready|world ready:)' "$ART/app-readiness.txt"; then
                 ready_at=$current_time
-                log "Main.qml loaded and initial world reached after $((ready_at - launched_at)) s; holding ${ALIVE} s"
+                log "Main.qml loaded and initial surface reached after $((ready_at - launched_at)) s; holding ${ALIVE} s"
                 adb_cmd exec-out screencap -p > "$ART/screenshot-ready.png" || true
             elif (( current_time - launched_at >= READY_TIMEOUT )); then
                 log "READINESS TIMEOUT after ${READY_TIMEOUT} s (pid ${pid:-<none>})"; fail=1; break

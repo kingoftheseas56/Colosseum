@@ -35,7 +35,12 @@ Item {
 
     property alias index: view.currentIndex
     width: parent ? parent.width : 800
-    AdaptiveLayout { id: adaptive; viewportWidth: car.width }
+    AdaptiveLayout {
+        id: adaptive
+        viewportWidth: car.width
+        desktopPresentation: Qt.platform.os === "android"
+            && (!car.Window.window || car.Window.window.desktopPresentation !== false)
+    }
     implicitHeight: car.televisionMode ? 380 : adaptive.heroHeight
     activeFocusOnTab: car.televisionMode && car.slides.length > 0
     Accessible.role: Accessible.List

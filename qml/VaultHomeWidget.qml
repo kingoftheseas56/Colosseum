@@ -6,9 +6,11 @@ pragma ComponentBehavior: Bound
 // populated one. Hover turns the handwheel, retracts the locking bars, and cracks the door open.
 
 import QtQuick
+import QtQuick.Controls
 
 Glass {
     id: vault
+    property bool available: Qt.platform.os !== "android"
     objectName: "vaultHomeWidget"
 
     property string heading: "Vault"
@@ -371,7 +373,7 @@ Glass {
         anchors.top: parent.top
         anchors.topMargin: 36
         visible: !vault.compactLayout
-        text: "On this machine"
+        text: vault.available ? qsTr("On this machine") : qsTr("Unavailable on Android")
         color: theme.inkDim
         font.family: theme.display
         font.italic: true
@@ -383,15 +385,21 @@ Glass {
         objectName: "vaultHomeWidgetHitArea"
         anchors.fill: parent
         hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: vault.clicked()
+        cursorShape: vault.available ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onClicked: if (vault.available) vault.clicked()
     }
     KeyboardAction {
         id: keyboardAction
+        enabled: vault.available
         objectName: "vaultHomeWidgetKeyboardAction"
         anchors.fill: parent
         pointerEnabled: false
-        accessibleName: "Open Vault"
+        accessibleName: vault.available ? qsTr("Open Vault") : qsTr("Vault unavailable")
+        accessibleDescription: vault.available ? "" : qsTr("Vault is unavailable on Android.")
         onTriggered: vault.clicked()
     }
+    ToolTip.visible: !vault.available && hit.containsMouse
+    ToolTip.text: qsTr("Vault is unavailable on Android.")
+    ToolTip.delay: 350
+
 }

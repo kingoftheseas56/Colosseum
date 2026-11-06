@@ -9,8 +9,18 @@ public final class FeedbackNavigationPolicy {
             URI uri = new URI(value);
             String path = uri.getPath();
             return trustedSite(uri) && ("/feedback".equals(path) || "/feedback/".equals(path)
-                || "/feedback/index.html".equals(path));
+                || "/feedback/index.html".equals(path) || reportPath(path));
         } catch (Exception ignored) { return false; }
+    }
+    public static boolean closesReport(String value) {
+        try {
+            URI uri = new URI(value);
+            return trustedSite(uri) && reportPath(uri.getPath())
+                && "close-feedback".equals(uri.getRawFragment());
+        } catch (Exception ignored) { return false; }
+    }
+    private static boolean reportPath(String path) {
+        return "/feedback/report".equals(path) || "/feedback/report.html".equals(path);
     }
     public static boolean resource(String value) {
         if ("about:blank".equals(value) || "about:srcdoc".equals(value)) return true;

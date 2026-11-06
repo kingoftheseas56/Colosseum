@@ -21,6 +21,17 @@ Item {
     activeFocusOnTab: true
 
     property var comicsApi: typeof Comics !== "undefined" ? Comics : null
+    // Height budget (PF-02b, same policy as SourcesSheet): the desktop composition pins a
+    // 300 banner + 56 query bar + 52 table head (results = H - 482). At Android desktop
+    // presentation's launch-zoom heights (~556/533) that leaves no complete 150 result row, so
+    // there the banner/chrome yield to keep one full row plus a peek. Desktop is unchanged.
+    readonly property bool androidDesktopPresentation: !!(sheet.Window.window
+        && sheet.Window.window.androidHost && sheet.Window.window.desktopPresentation === true)
+    readonly property real minResultBudget: 150 + 40
+    readonly property bool compactHeight: sheet.androidDesktopPresentation
+        && sheet.height - (300 + 20 + 56 + 16 + 52 + 12 + 26) < sheet.minResultBudget
+    readonly property real bannerHeight: !sheet.compactHeight ? 300
+        : Math.round(Math.max(76, Math.min(300, sheet.height - (10 + 56 + 10 + 44 + 12 + 12) - sheet.minResultBudget)))
     property Item backdrop: null
     property var context: ({})
     property var rows: []
@@ -139,8 +150,18 @@ Item {
 
     // ── typed outcomes from the automatic pack path ──────────────────────────
 
+    // PF-14: in-place Cancel while inspecting. Cancels only this acquisition through the
+    // canonical downloader and returns to the retained result list (no repeated search).
+    function cancelInspection() {
+        if (!acquiring || selectionState !== "inspecting") return
+        acquiring = false; selectionState = "results"; pendingRow = null
+        if (comicsApi) comicsApi.cancelDownload(context.issueId)
+    }
+
+    // Typed outcomes below belong to a live acquisition only: a late event after Cancel
+    // (or after a reject) must not revive a picker state.
     function applyArchiveChoices(issueId, files) {
-        if (issueId !== context.issueId) return
+        if (issueId !== context.issueId || !acquiring) return
         archiveFiles = files; selectionState = "ambiguous"
     }
 
@@ -150,7 +171,7 @@ Item {
     }
 
     function applyIncomplete(issueId, missing) {
-        if (issueId !== context.issueId) return
+        if (issueId !== context.issueId || !acquiring) return
         missingIssues = missing || []; selectionState = "incomplete"
     }
 
@@ -165,7 +186,7 @@ Item {
     }
 
     function applyCombined(issueId, files) {
-        if (issueId !== context.issueId) return
+        if (issueId !== context.issueId || !acquiring) return
         combinedFiles = files || []; selectionState = "combined"
     }
 
@@ -242,8 +263,9 @@ Item {
     // ── key-art hero across the top, washing down ──
     Item {
         id: bannerStrip
+        objectName: "comicSourcesBanner"
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: 300
+        height: sheet.bannerHeight
         Image {
             anchors.fill: parent
             source: sheet.context.cover ? sheet.context.cover : ""
@@ -269,16 +291,22 @@ Item {
     }
 
     BackAction {
-        x: theme.margin; y: 30; z: 20
+        id: comicSourcesBack
+        x: theme.margin; y: sheet.compactHeight ? 12 : 30; z: 20
         onTriggered: sheet.hide()
     }
 
     // ── title block + edition identity rail, pinned to the bottom of the banner ──
     Column {
+        objectName: "comicSourcesTitleBlock"
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-        anchors.top: parent.top; anchors.topMargin: bannerStrip.height - height - 26
-        spacing: 12
+        // Short Android banners share the first line with Back instead of overlapping it.
+        anchors.leftMargin: sheet.compactHeight ? comicSourcesBack.x + comicSourcesBack.width + 16 : theme.margin
+        anchors.rightMargin: theme.margin
+        anchors.top: parent.top
+        anchors.topMargin: sheet.compactHeight ? Math.max(comicSourcesBack.y, bannerStrip.height - height - 12)
+            : bannerStrip.height - height - 26
+        spacing: sheet.compactHeight ? 4 : 12
         Text {
             width: parent.width
             text: "ALTERNATE SOURCES · COLLECTED EDITION"
@@ -290,7 +318,7 @@ Item {
             text: sheet.context.editionTitle ? String(sheet.context.editionTitle)
                   : (sheet.context.seriesTitle ? String(sheet.context.seriesTitle) : "Alternate sources")
             color: theme.ink; font.family: theme.display
-            font.pixelSize: 56; font.weight: Font.DemiBold
+            font.pixelSize: sheet.compactHeight ? 34 : 56; font.weight: Font.DemiBold
             maximumLineCount: 1; elide: Text.ElideRight
             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
         }
@@ -308,7 +336,7 @@ Item {
         id: queryBar
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-        anchors.top: bannerStrip.bottom; anchors.topMargin: 20
+        anchors.top: bannerStrip.bottom; anchors.topMargin: sheet.compactHeight ? 10 : 20
         height: 56
         visible: sheet.selectionState === "results"
 
@@ -372,8 +400,9 @@ Item {
         backdrop: sheet.backdrop
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-        anchors.top: queryBar.bottom; anchors.topMargin: 16
-        anchors.bottom: parent.bottom; anchors.bottomMargin: 26
+        objectName: "comicSourcesTable"
+        anchors.top: queryBar.bottom; anchors.topMargin: sheet.compactHeight ? 10 : 16
+        anchors.bottom: parent.bottom; anchors.bottomMargin: sheet.compactHeight ? 12 : 26
         radius: 18
         track: 0
 
@@ -385,7 +414,7 @@ Item {
             Item {
                 id: tableHead
                 anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-                height: 52
+                height: sheet.compactHeight ? 44 : 52
                 visible: sheet.visibleRows.length > 0
                 Text {
                     anchors.left: parent.left; anchors.leftMargin: 26
@@ -419,6 +448,7 @@ Item {
 
             ListView {
                 id: list
+                objectName: "comicSourcesList"
                 anchors.left: parent.left; anchors.right: parent.right
                 anchors.top: tableHead.bottom; anchors.bottom: parent.bottom
                 anchors.topMargin: 4; anchors.bottomMargin: 8
@@ -574,6 +604,23 @@ Item {
                     visible: !!(sheet.pendingRow && sheet.pendingRow.title)
                     text: sheet.pendingRow ? String(sheet.pendingRow.title || "") : ""
                     color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                }
+                Rectangle {
+                    objectName: "comicTorrentCancelInspection"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Math.min(180, parent.width); height: 48; radius: 12
+                    color: cancelInspectionAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.05)
+                    border.width: 1; border.color: theme.edge
+                    Text {
+                        anchors.centerIn: parent; text: "Cancel"
+                        color: theme.gold; font.family: theme.ui; font.pixelSize: 14
+                    }
+                    KeyboardAction {
+                        id: cancelInspectionAction
+                        anchors.fill: parent
+                        accessibleName: "Cancel comic download"
+                        onTriggered: sheet.cancelInspection()
+                    }
                 }
             }
         }

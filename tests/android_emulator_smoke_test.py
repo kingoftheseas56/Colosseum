@@ -101,18 +101,18 @@ elif args and args[0] == "logcat":
     if scenario == "java_crash" and t >= 4: log("FATAL EXCEPTION: main")
     if scenario == "native_crash" and t >= 4: log("Fatal signal 11")
     ready = 76 if scenario == "delayed" else 2
-    if scenario in ("never_ready", "stale_markers"): ready = 999
+    if scenario in ("never_ready", "stale_markers", "home_stale_markers"): ready = 999
     if t >= ready:
         if scenario == "late_observation": s["time"] += 10; save()
-        pid = 987 if scenario == "foreign_markers" else 123
-        if scenario != "missing_main": log("[boot] Main.qml loaded", pid)
+        pid = 987 if scenario in ("foreign_markers", "home_foreign_markers") else 123
+        if scenario not in ("missing_main", "home_missing_main"): log("[boot] Main.qml loaded", pid)
         if scenario.startswith("onboarding") and scenario != "onboarding_obscured":
             log("[boot] local onboarding visible", pid)
         if scenario != "missing_world" and (not scenario.startswith("onboarding") or s.get("tapped")):
-            log("[boot] android world ready: Theatre", pid)
-    if scenario == "stale_markers" and not s.get("cleared"):
+            log("[boot] android home ready" if scenario.startswith("home_") else "[boot] android world ready: Theatre", pid)
+    if scenario in ("stale_markers", "home_stale_markers") and not s.get("cleared"):
         log("[boot] Main.qml loaded")
-        log("[boot] android world ready: Theatre")
+        log("[boot] android home ready" if scenario.startswith("home_") else "[boot] android world ready: Theatre")
 elif args[:2] == ["exec-out", "screencap"]: print("fixture image")
 '''
 
@@ -221,7 +221,19 @@ class AndroidSmokeTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertGreaterEqual(state["time"] - state["launch_time"], 62)
         self.assertIn("screenshot-ready.png", files)
-        self.assertIn("Main.qml loaded and initial world reached", result.stdout)
+        self.assertIn("Main.qml loaded and initial surface reached", result.stdout)
+
+    def test_home_ready_then_full_hold(self):
+        result, state, files = self.run_smoke("home_ready", alive=60)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertGreaterEqual(state["time"] - state["launch_time"], 62)
+        self.assertIn("screenshot-ready.png", files)
+        self.assertIn("Main.qml loaded and initial surface reached", result.stdout)
+
+    def test_home_requires_fresh_current_pid_and_main_marker(self):
+        for scenario in ("home_missing_main", "home_foreign_markers", "home_stale_markers"):
+            with self.subTest(scenario=scenario):
+                self.assert_failed(scenario, "READINESS TIMEOUT")
 
     def test_cold_extraction_76_seconds_then_full_hold(self):
         result, state, _ = self.run_smoke("delayed", ready_timeout=180, alive=60)

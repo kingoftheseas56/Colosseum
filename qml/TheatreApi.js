@@ -257,9 +257,29 @@ function jikanQuery(path, params, done) {
     });
 }
 
+// PF-06: keep the exact movie identity and known presentation fields the catalogue already
+// supplied when every metadata provider misses. A projection of the caller's own record
+// (exact tt id, movie type, non-empty name) - not a second cache, and never a substitute
+// episode list for series.
+function catalogueMovieMeta(type, id, record) {
+    var name = record ? (typeof record.name === "string" ? record.name : record.title) : "";
+    if (type !== "movie" || !/^tt[0-9]+$/.test(String(id || ""))
+            || !record || record.id !== id || record.type !== "movie"
+            || typeof name !== "string" || !name.trim().length)
+        return null;
+    var meta = {id: id, type: "movie", name: name};
+    if (typeof record.releaseInfo === "string") meta.releaseInfo = record.releaseInfo;
+    if (typeof record.imdbRating === "number" || typeof record.imdbRating === "string")
+        meta.imdbRating = record.imdbRating;
+    if (typeof record.poster === "string") meta.poster = record.poster;
+    else if (typeof record.cover === "string") meta.poster = record.cover;
+    return meta;
+}
+
 // Full Cinemeta meta for a detail page (incl. `videos[]` episodes for series).
 // type: "movie" | "series"; id: Cinemeta id e.g. "tt15239678". Calls done(meta) or done(null).
-function loadMeta(type, id, done) {
+// An optional exact movie catalogue record is used only after every provider misses.
+function loadMeta(type, id, done, catalogueRecord) {
     if (!type || !id) { done(null); return; }
     if (String(id).match(/^(mal|kitsu|anilist|anidb):/)) {
         var enc = encodeURIComponent(id);
@@ -290,10 +310,13 @@ function loadMeta(type, id, done) {
         AddonClient.loadMetaFromExtensions(extensionsList, type, id, done);
         return;
     }
+    var catalogueFallback = catalogueMovieMeta(type, id, catalogueRecord);
     requestJson(CINEMETA + "/meta/" + sType + "/" + id + ".json", function(json) {
         if (json && json.meta) { done(json.meta); return; }
         // Cinemeta miss on a tt id — an extension may still know it
-        AddonClient.loadMetaFromExtensions(extensionsList, type, id, done);
+        AddonClient.loadMetaFromExtensions(extensionsList, type, id, function(meta) {
+            done(meta || catalogueFallback);
+        });
     });
 }
 

@@ -1,0 +1,465 @@
+{
+  "receipt_status": "PACKAGED_VERIFIED_NOT_INSTALLED",
+  "receipt_device_or_install": "NOT_PERFORMED",
+  "integration_files": [
+    {
+      "path": "native/platform/android/src/org/colosseum/reader/AndroidEbookHost.java",
+      "role": "product",
+      "sha256_lf": "9be30dfec73ca1ca04606b749951ac2532cedb4d768dcb3887a40cffdb02c10a",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/BiblioExplorePage.qml",
+      "role": "product",
+      "sha256_lf": "b4d4a4200e0fb30260683f4f1a8d596e1b5e3d1eb0eb6c3a477a5aaebd46eef8",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/BiblioLibraryPage.qml",
+      "role": "product",
+      "sha256_lf": "c32bf1feeca1939a17cad1e177cab87bc8ee6aaf93273d41be3b864ec5af75c0",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/ExtensionsSetupSheetAndroid.qml",
+      "role": "product",
+      "sha256_lf": "e051bbd83f53cd4f4d6330382155201ed84c3cb1604d388a31689cc0f657ee22",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/KeyboardAction.qml",
+      "role": "product",
+      "sha256_lf": "84bcebb7c5a4995fc653f9402b72ec7b047fc90c71a9a8ff41cf844e5c8ee992",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/LibraryPage.qml",
+      "role": "product",
+      "sha256_lf": "5d15541eb5763b969d9e8c3a350c989ebc79a22d678293f2632bcf795345a65a",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/MangaTankobanLibrary.qml",
+      "role": "product",
+      "sha256_lf": "39eb66edcf77fb5adf4bdf95abe67e73e1578cfe9f7242d79f769fb28de73af3",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/OnePieceEastBlueAtlas.qml",
+      "role": "product",
+      "sha256_lf": "32082db1ace65943bd3168f23a2a41f3a7c64cb8c788cc23de62a64d19fe2ceb",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/PlayerPage.qml",
+      "role": "product",
+      "sha256_lf": "82f018d8fed69c368313f9cda4ddb49a36d72f2349bc7b5aefd762ff5b112595",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/PlayerTouchOptions.qml",
+      "role": "product",
+      "sha256_lf": "47ffbabcafabf7eb1bfd55bc5a4f2aa6b15bbba39cb6a4d71811a507fbd64fc7",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/PlayerTouchSurface.qml",
+      "role": "product",
+      "sha256_lf": "0f9351a983e0052b4647ab89cac8465475362d9e5a8a7545ff7ceae3ed946e24",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/SagaUniversePage.qml",
+      "role": "product",
+      "sha256_lf": "ddf95a113c37d1b927e7cbdab51bfc16a47a4203f2fdeb0bfe37bf751c1471ba",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/ShelvesUniversePage.qml",
+      "role": "product",
+      "sha256_lf": "f88d5b4bd1f1c0520c959605eb91e81fc8862d5713fa2b300ba5c4ad382bf36e",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/StarWarsGalaxySystem.qml",
+      "role": "product",
+      "sha256_lf": "c1e5f8bafab27bf4c40d2e976b8173dd59cec6dc8b1f02c9196086eaced4ebaf",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/StremioSyncPanel.qml",
+      "role": "product",
+      "sha256_lf": "239fc59f13f056e376f28259b72309a0476d61718c5f36bfb24ecbb6893d4777",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/SubtitleMenu.qml",
+      "role": "product",
+      "sha256_lf": "d937b3885483196d8c63dea09e6a7649be0482928c8fc97a04f93360478298e8",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/TankobanLibraryTab.qml",
+      "role": "product",
+      "sha256_lf": "5123052de620a992b8da492ccc12749eec79aede561c33aba1b3ed7f501d42e3",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/ViewportAvoidance.js",
+      "role": "product",
+      "sha256_lf": "a40f9a3b5ad8a899d42ce8139fb5ac6ebff86edcf5e2a66ef39a937ed8f6c187",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/reader2/DictCard.qml",
+      "role": "product",
+      "sha256_lf": "913650fa1db33255410baf41aa0b76f139b0b3acf8defe987adab8a08a9b6144",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/reader2/FootnoteCard.qml",
+      "role": "product",
+      "sha256_lf": "17daaf1887bc886f3e2411ead0626d621a3b3484eb80a649c57d8dd58f4763ba",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/reader2/LeftPanel.qml",
+      "role": "product",
+      "sha256_lf": "1e7eda0b8d10fd322fd26f26d6b038c78f94600e71e566142e84016c6c7c8c58",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/reader2/ReaderOverlay.qml",
+      "role": "product",
+      "sha256_lf": "474ec9e439738b6d81899bbab6e6cb43f275cc32590864415ad1c7a48f512fcf",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/reader2/ReaderShell.qml",
+      "role": "product",
+      "sha256_lf": "47aa9739472cd91f6e0bb1bf1f58d2b354a2174e025def7aac31558daadfa8ed",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/reader2/SearchSheet.qml",
+      "role": "product",
+      "sha256_lf": "61c25b79cebff739a4fe729343a0948141512ef948830d088f2c396780d0d3fe",
+      "manifest_match": true
+    },
+    {
+      "path": "qml/reader2/SelectionMenu.qml",
+      "role": "product",
+      "sha256_lf": "0cd3147215baaebb9b936375cae1dbccbf1a43900a3b6efdbca63de3a8904276",
+      "manifest_match": true
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/paginator.js",
+      "role": "product",
+      "sha256_lf": "ef7cd779f97d66970ab065323f6087e4541039718f0e35bd05b9aa729156fa4f",
+      "manifest_match": true
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/view.js",
+      "role": "product",
+      "sha256_lf": "5c1ee2b24fca66507e5aa1329aa2fd0dc359e706ce209be4ae7ac0bf3fbf735a",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/android_reader_gesture_cancel_test.mjs",
+      "role": "test",
+      "sha256_lf": "c20a8ffb94d8e14eebd991cfeb4c298a448c74ea0c4f92751c213c338b7e2f27",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/android_reader_selection_touch_test.mjs",
+      "role": "test",
+      "sha256_lf": "fea05e89518912d45351e648e82ac44f68d07f9f911b4f47a109f9844b87e3c1",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_android_beta_biblio_explore_touch.qml",
+      "role": "test",
+      "sha256_lf": "79096f9577729ace096faa90c094db0429c1da36609e8342d30e699a67cfc574",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_android_beta_biblio_touch.qml",
+      "role": "test",
+      "sha256_lf": "70b225e4b71360437603dca03ffe0970602b907c300f1a8304d8cec03dac8497",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_android_beta_reader_touch.qml",
+      "role": "test",
+      "sha256_lf": "1e9996aae7434884e73dfa5b1bed3c89a93c20b805f5f5653ec43e07b7f0b736",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_android_beta_universe_touch.qml",
+      "role": "test",
+      "sha256_lf": "938136d35226759c005cfc0fbb7e1177260aa39a4150b958c89e8859311f69be",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_android_library_touch.qml",
+      "role": "test",
+      "sha256_lf": "1b64fbee0dc39cbe9cbed64490153a55f64188428cd8508e164cd53b2c8928c6",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_android_modal_touch.qml",
+      "role": "test",
+      "sha256_lf": "10328913e10eabf7be164108603e19f73ab4e39c91330da96b51052b6c360384",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_android_reader_overlay_focus.qml",
+      "role": "test",
+      "sha256_lf": "9dd3033c8d7ae6665e4b0b2cffe63c59f58e9bd243e47604607e03dc34817555",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_android_shared_action_touch.qml",
+      "role": "test",
+      "sha256_lf": "4dba892c3c1f8b53d83956f09681e7f289caffc74d99772b0fa1e74c46dd73cf",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_android_shared_poster_touch.qml",
+      "role": "test",
+      "sha256_lf": "5221c1f464d8622f27aec8afde21a0dad5fe86b5ba77f5859d6f8b6265b69ee9",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_android_subtitle_viewport.qml",
+      "role": "test",
+      "sha256_lf": "f9d88c9199e4186a9c5acb38d34342d602613b0bb39842b508f31caf65c153b1",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_phone_player_gestures.qml",
+      "role": "test",
+      "sha256_lf": "398740475eaaba004c4120b37d0b550865e6e34f6500a2a53cda2d0b5b285bd1",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_player_more_touch.qml",
+      "role": "test",
+      "sha256_lf": "9e1f9626be206226cb3ece4b5683dedcba54357929ca2bf19938fd957ef4a87b",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_player_seek_touch.qml",
+      "role": "test",
+      "sha256_lf": "df1db56d160aabf2aefe75401db9d8404c98e8568c884554004c71e94beb1b5f",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_starwars_touch.qml",
+      "role": "test",
+      "sha256_lf": "49a6c69caffdf3c306aa88c46c0069b921ef62e9ad0fc72e04b895f1e38a9422",
+      "manifest_match": true
+    },
+    {
+      "path": "tests/qml/tst_tankoban_volume_touch.qml",
+      "role": "test",
+      "sha256_lf": "b338f7d72c5869f45ebbd524dc01169668a38717d30af2ba3d87224bdf23e9fd",
+      "manifest_match": true
+    }
+  ],
+  "overlays": [
+    {
+      "path": "qml/Main.qml",
+      "base_commit": "486fb36c9407320e55c2a1d9b41d756b9cfb42a5",
+      "sha256": "f4463c4db64160f05c0057a1bc1b469c22d578b881be03e83e747e40a4d62c76",
+      "receipt_match": true
+    },
+    {
+      "path": "qml/AdaptiveLayout.qml",
+      "base_commit": "486fb36c9407320e55c2a1d9b41d756b9cfb42a5",
+      "sha256": "abdf540fd57c66a626e5b96c2a82529bfef335198c5a297170b0c34540f033bd",
+      "receipt_match": true
+    },
+    {
+      "path": "qml/WorldPage.qml",
+      "base_commit": "486fb36c9407320e55c2a1d9b41d756b9cfb42a5",
+      "sha256": "e2e4215d0de70bc1099649c7bbcb819d52d56b4d1c9d56837f17d1a36e8e49e6",
+      "receipt_match": true
+    },
+    {
+      "path": "qml/SourcesSheet.qml",
+      "base_commit": "486fb36c9407320e55c2a1d9b41d756b9cfb42a5",
+      "sha256": "713247c6b7d00e94c614b698e383b85306c64666246ebdcf4c0b80039f43a4d1",
+      "receipt_match": true
+    },
+    {
+      "path": "qml/HouseScrollBar.qml",
+      "base_commit": "486fb36c9407320e55c2a1d9b41d756b9cfb42a5",
+      "sha256": "bda417e1cb62da2ac459c025d2d1e8d8a3facd09b3cd24881100256795cde88c",
+      "receipt_match": true
+    },
+    {
+      "path": "qml/WidgetHeader.qml",
+      "base_commit": "486fb36c9407320e55c2a1d9b41d756b9cfb42a5",
+      "sha256": "6027e5eb7772bac9cba1386b75bbfa9b90fb65096e51f9cb1c0ec71694472277",
+      "receipt_match": true
+    },
+    {
+      "path": "qml/ContinueRow.qml",
+      "base_commit": "486fb36c9407320e55c2a1d9b41d756b9cfb42a5",
+      "sha256": "917d0d5feedc8ab6e94c753948c54ab0605df44a1c63cad327314e1cae3d678b",
+      "receipt_match": true
+    },
+    {
+      "path": "native/platform/android/src/org/colosseum/platform/ColosseumActivity.java",
+      "base_commit": "486fb36c9407320e55c2a1d9b41d756b9cfb42a5",
+      "sha256": "ce77d3b5c2ca4b18b29ea2e82b0a2994fbd19306fcc3b622185feee8c55b8fc2",
+      "receipt_match": true,
+      "source_path": "D:\\Colosseum-Android-Master-Beta-20261102\\codex-direct\\gutter-zoom-spike-20261102\\zoom15\\overlays\\native\\platform\\android\\src\\org\\colosseum\\platform\\ColosseumActivity.java"
+    }
+  ],
+  "apk_sha256": "75081ba22b231552ad38bf3c66a0e08cab45a5cd2abdd786b010678f23af636e",
+  "base_apk_sha256": "3fe5f9c92c6cb4c4bbd452ba79487dbeb91b1a75b39e0c53092eb21e758d0770",
+  "native_count": 88,
+  "native_identical": true,
+  "changed_zip_members": [
+    "META-INF/ANDROIDD.RSA",
+    "META-INF/ANDROIDD.SF",
+    "META-INF/MANIFEST.MF",
+    "assets/colosseum-runtime/qml-build.manifest",
+    "assets/colosseum-runtime/qml/BiblioExplorePage.qml",
+    "assets/colosseum-runtime/qml/BiblioLibraryPage.qml",
+    "assets/colosseum-runtime/qml/ExtensionsSetupSheetAndroid.qml",
+    "assets/colosseum-runtime/qml/KeyboardAction.qml",
+    "assets/colosseum-runtime/qml/LibraryPage.qml",
+    "assets/colosseum-runtime/qml/MangaTankobanLibrary.qml",
+    "assets/colosseum-runtime/qml/OnePieceEastBlueAtlas.qml",
+    "assets/colosseum-runtime/qml/PlayerPage.qml",
+    "assets/colosseum-runtime/qml/PlayerTouchOptions.qml",
+    "assets/colosseum-runtime/qml/PlayerTouchSurface.qml",
+    "assets/colosseum-runtime/qml/SagaUniversePage.qml",
+    "assets/colosseum-runtime/qml/ShelvesUniversePage.qml",
+    "assets/colosseum-runtime/qml/StarWarsGalaxySystem.qml",
+    "assets/colosseum-runtime/qml/StremioSyncPanel.qml",
+    "assets/colosseum-runtime/qml/SubtitleMenu.qml",
+    "assets/colosseum-runtime/qml/TankobanLibraryTab.qml",
+    "assets/colosseum-runtime/qml/ViewportAvoidance.js",
+    "assets/colosseum-runtime/qml/reader2/DictCard.qml",
+    "assets/colosseum-runtime/qml/reader2/FootnoteCard.qml",
+    "assets/colosseum-runtime/qml/reader2/LeftPanel.qml",
+    "assets/colosseum-runtime/qml/reader2/ReaderOverlay.qml",
+    "assets/colosseum-runtime/qml/reader2/ReaderShell.qml",
+    "assets/colosseum-runtime/qml/reader2/SearchSheet.qml",
+    "assets/colosseum-runtime/qml/reader2/SelectionMenu.qml",
+    "assets/colosseum-runtime/runtime-files.manifest",
+    "assets/reader2/vendor/foliate-anx/src/paginator.js",
+    "assets/reader2/vendor/foliate-anx/src/view.js",
+    "classes6.dex"
+  ],
+  "runtime_assets": [
+    {
+      "path": "qml/BiblioExplorePage.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/BiblioLibraryPage.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/ExtensionsSetupSheetAndroid.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/KeyboardAction.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/LibraryPage.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/MangaTankobanLibrary.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/OnePieceEastBlueAtlas.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/PlayerPage.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/PlayerTouchOptions.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/PlayerTouchSurface.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/SagaUniversePage.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/ShelvesUniversePage.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/StarWarsGalaxySystem.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/StremioSyncPanel.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/SubtitleMenu.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/TankobanLibraryTab.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/ViewportAvoidance.js",
+      "apk_match": true
+    },
+    {
+      "path": "qml/reader2/DictCard.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/reader2/FootnoteCard.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/reader2/LeftPanel.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/reader2/ReaderOverlay.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/reader2/ReaderShell.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/reader2/SearchSheet.qml",
+      "apk_match": true
+    },
+    {
+      "path": "qml/reader2/SelectionMenu.qml",
+      "apk_match": true
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/paginator.js",
+      "apk_match": true
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/view.js",
+      "apk_match": true
+    }
+  ]
+}

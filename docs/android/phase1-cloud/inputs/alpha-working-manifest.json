@@ -1,0 +1,41 @@
+{
+  "base": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+  "kind": "uncommitted-reference-only-not-shipped-provenance",
+  "files": [
+    {
+      "path": "qml/ExtensionsStoreCard.qml",
+      "sha256": "6a057d15acc7282b825c14288b318182f7d438c2bf044f281e0ee5ec9ec24dcd",
+      "bytes": 14177
+    },
+    {
+      "path": "qml/MangaTankobanLibrary.qml",
+      "sha256": "d290b3516a9603ad1f3d15504196bef0ae3f0d76278bfc5587db7b3b388b8fb5",
+      "bytes": 48796
+    },
+    {
+      "path": "qml/SourceCard.qml",
+      "sha256": "22f1c384fd14996f23ccd5e3833c175e0de3bec00e16db86dd9da1ba1b04e35a",
+      "bytes": 4858
+    },
+    {
+      "path": "qml/TrackerSyncCenterPage.qml",
+      "sha256": "a04849745910f7114a4dd1a918f90a5460fd616f556fb8387b0cd375aa841a67",
+      "bytes": 252760
+    },
+    {
+      "path": "tests/qml/tst_android022_volume_flow.qml",
+      "sha256": "2904ba99d4adb61b38d29a6f18f71c150958d34b50b346097c82b037fe8524d7",
+      "bytes": 2730
+    },
+    {
+      "path": "tests/qml/tst_extensions_store_card_phone_bounds.qml",
+      "sha256": "fea01b49c1ba5735de688a43b7fb76cc89c556bd74cca3f1c36336a35afddacd",
+      "bytes": 3659
+    },
+    {
+      "path": "tests/qml/tst_settings_template.qml",
+      "sha256": "05e1673829a61b39eb95ce4fe2c9dc34e46725d9a3decc8e593fd9c55c007533",
+      "bytes": 7499
+    }
+  ]
+}

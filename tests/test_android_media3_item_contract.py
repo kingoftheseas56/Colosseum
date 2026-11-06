@@ -5,6 +5,8 @@ HEADER = ROOT / "native" / "player" / "androidmedia3item.h"
 SOURCE = ROOT / "native" / "player" / "androidmedia3item.cpp"
 MAIN = (ROOT / "native" / "main.cpp").read_text(encoding="utf-8")
 CMAKE = (ROOT / "native" / "CMakeLists.txt").read_text(encoding="utf-8")
+ANDROID_CMAKE = (ROOT / "native/cmake/android.cmake").read_text(encoding="utf-8")
+BOOTSTRAP = (ROOT / "native/platform/android/AndroidBootstrap.cpp").read_text(encoding="utf-8")
 
 
 def require(text: str, needle: str, reason: str) -> None:
@@ -46,10 +48,10 @@ def test_renderer_handshake() -> None:
 
 
 def test_android_only_registration_and_build_graph() -> None:
-    require(MAIN, "qmlRegisterType<AndroidMedia3Item>", "Android must register Media3 as PlayerItem")
+    require(BOOTSTRAP, "qmlRegisterType<AndroidMedia3Item>", "Android must register Media3 as PlayerItem")
     require(MAIN, "#if defined(Q_OS_ANDROID)", "PlayerItem registration must be platform selected")
-    require(CMAKE, "player/androidmedia3item.cpp", "Android facade source must enter the Android target")
-    require(CMAKE, "player/androidmedia3videonode.cpp", "accepted renderer must enter the Android target")
+    require(ANDROID_CMAKE, "player/androidmedia3item.cpp", "Android facade source must enter the Android target")
+    require(ANDROID_CMAKE, "player/androidmedia3videonode.cpp", "accepted renderer must enter the Android target")
 
 
 def test_shared_qml_surface_is_preserved() -> None:

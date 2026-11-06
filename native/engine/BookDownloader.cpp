@@ -31,6 +31,7 @@ constexpr const char* kUserAgent =
 constexpr qint64 kDiskSpaceSafetyBytes = 50LL * 1024 * 1024;
 constexpr int    kProgressThrottleMs    = 500;
 constexpr qint64 kProgressThrottleBytes = 512LL * 1024;
+constexpr int    kRequestTimeoutMs     = 30000;
 constexpr int    kMaxAttempts           = 3;       // per URL, 2/4/8s backoff
 
 int attemptDelayMs(int attempt)
@@ -41,6 +42,23 @@ int attemptDelayMs(int attempt)
     case 2:  return 4000;
     default: return 8000;
     }
+}
+
+std::chrono::milliseconds requestTimeout(const QNetworkAccessManager* nam)
+{
+    const auto configured = nam->transferTimeoutAsDuration();
+    return configured.count() > 0 ? configured : std::chrono::milliseconds(kRequestTimeoutMs);
+}
+
+QString networkFailure(const QString& stage, QNetworkReply* reply)
+{
+    if (reply->property("bookResolverDeadline").toBool()
+        || reply->error() == QNetworkReply::TimeoutError)
+        return stage + QStringLiteral(" request timed out. Please try again.");
+    // Qt's errorString may contain the signed URL. Keep diagnostics to codes.
+    return QStringLiteral("%1 request failed (network error %2, HTTP status %3).")
+        .arg(stage).arg(int(reply->error()))
+        .arg(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt());
 }
 
 QString sanitizeFilename(const QString& raw)
@@ -94,6 +112,13 @@ BookDownloader::BookDownloader(QNetworkAccessManager* nam, QObject* parent)
 
 BookDownloader::~BookDownloader()
 {
+    const auto resolvingReplies = m_resolving.keys();
+    m_resolving.clear();
+    for (QNetworkReply* reply : resolvingReplies) {
+        reply->disconnect(this);
+        reply->abort();
+        reply->deleteLater();
+    }
     if (m_active) {
         closeAndDeletePart(*m_active);
         delete m_active;
@@ -240,47 +265,75 @@ void BookDownloader::downloadBook(const QString& md5In, const QString& suggested
     // Already resolving / downloading / queued → no-op.
     if (isActive(md5)) return;
 
-    emit resolving(md5);
+    InFlight job;
+    job.generation = ++m_nextGeneration;
+    job.md5 = md5;
+    job.title = title;
+    job.suggestedName = suggestedName.isEmpty() ? (md5 + QStringLiteral(".epub")) : suggestedName;
+    job.expectedBytes = static_cast<qint64>(expectedBytes);
+    m_queue.append(std::move(job));
+    // Queued notifications use the existing signal; consumers read canonical state.
+    if (m_active || !m_resolving.isEmpty() || m_queue.size() > 1) {
+        QPointer<BookDownloader> guard(this);
+        emit resolving(md5);
+        if (!guard) return;
+    }
+    startQueuedDownload();
+}
 
-    // Resolve LibGen's ephemeral get.php URL right before streaming (key ~60s).
+void BookDownloader::startResolution(InFlight job)
+{
+    // The resolver and transfer share one slot: signed keys never age in the queue.
+    const QString md5 = job.md5;
     const QUrl target(QStringLiteral("%1/ads.php?md5=%2").arg(QString::fromLatin1(kLibGenBase), md5));
     QNetworkRequest req(target);
+    req.setTransferTimeout(requestTimeout(m_nam));
     req.setRawHeader("User-Agent", kUserAgent);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::NoLessSafeRedirectPolicy);
 
     QNetworkReply* reply = m_nam->get(req);
-    ResolveCtx ctx;
-    ctx.md5           = md5;
-    ctx.suggestedName = suggestedName.isEmpty() ? (md5 + QStringLiteral(".epub")) : suggestedName;
-    ctx.title         = title;
-    ctx.expectedBytes = static_cast<qint64>(expectedBytes);
-    m_resolving.insert(reply, ctx);
+    m_resolving.insert(reply, std::move(job));
+    // The app-owned NAM may destroy replies before this sibling service dies.
+    connect(reply, &QObject::destroyed, this, [this, reply]() {
+        m_resolving.remove(reply);
+    });
+    // Inactivity alone does not bound a resolver that continually trickles HTML.
+    auto* deadline = new QTimer(reply);
+    deadline->setSingleShot(true);
+    connect(reply, &QNetworkReply::finished, deadline, &QTimer::stop);
+    connect(deadline, &QTimer::timeout, reply, [reply]() {
+        reply->setProperty("bookResolverDeadline", true);
+        reply->abort();
+    });
     connect(reply, &QNetworkReply::finished, this, [this, reply]() { onResolveFinished(reply); });
+    deadline->start(requestTimeout(m_nam));
+    emit resolving(md5);
 }
 
 void BookDownloader::onResolveFinished(QNetworkReply* reply)
 {
     if (!reply) return;
-    const ResolveCtx ctx = m_resolving.take(reply);
-    const QByteArray body = reply->readAll();
+    InFlight job = m_resolving.take(reply);
     const QNetworkReply::NetworkError err = reply->error();
-    const QString errStr = reply->errorString();
+    const QByteArray body = err == QNetworkReply::NoError ? reply->readAll() : QByteArray();
+    const QString reason = networkFailure(QStringLiteral("Book link resolution"), reply);
     reply->deleteLater();
 
-    if (ctx.md5.isEmpty()) return;  // cancelled
+    if (job.md5.isEmpty()) return;  // cancelled or retired reply
 
-    if (err != QNetworkReply::NoError) {
-        emit failed(ctx.md5, QStringLiteral("LibGen /ads.php fetch failed: %1").arg(errStr));
+    const QStringList urls = err == QNetworkReply::NoError ? parseResolveHtml(body) : QStringList();
+    if (err != QNetworkReply::NoError || urls.isEmpty()) {
+        const QString failure = err != QNetworkReply::NoError ? reason
+            : QStringLiteral("LibGen /ads.php returned no get.php links");
+        qWarning() << "[BookDownloader] resolver:" << failure;
+        QPointer<BookDownloader> guard(this);
+        emit failed(job.md5, failure);
+        if (guard) startQueuedDownload();
         return;
     }
-    const QStringList urls = parseResolveHtml(body);
-    if (urls.isEmpty()) {
-        emit failed(ctx.md5, QStringLiteral("LibGen /ads.php returned no get.php links"));
-        return;
-    }
-    qInfo() << "[BookDownloader] resolved" << urls.size() << "mirror URL(s) for" << ctx.md5;
-    startDownload(ctx.md5, ctx.title, urls, ctx.suggestedName, ctx.expectedBytes);
+    qInfo() << "[BookDownloader] resolved" << urls.size() << "mirror URL(s) for" << job.md5;
+    startDownload(std::move(job), urls);
 }
 
 QStringList BookDownloader::parseResolveHtml(const QByteArray& html) const
@@ -327,7 +380,9 @@ void BookDownloader::cancelDownload(const QString& md5In)
             QNetworkReply* r = it.key();
             m_resolving.erase(it);
             if (r) { r->disconnect(this); r->abort(); r->deleteLater(); }
+            QPointer<BookDownloader> guard(this);
             emit removed(md5);
+            if (guard) startQueuedDownload();
             return;
         }
     }
@@ -376,23 +431,18 @@ QVariantMap BookDownloader::deleteBook(const QString& md5In)
 // HTTP streaming download (ported from TB2 BookDownloader, HTTP path)
 // ─────────────────────────────────────────────────────────────────────────────
 
-void BookDownloader::startDownload(const QString& md5, const QString& title,
-                                   const QStringList& urls, const QString& suggestedName,
-                                   qint64 expectedBytes)
+void BookDownloader::startDownload(InFlight job, const QStringList& urls)
 {
-    InFlight f;
-    f.md5           = md5;
-    f.title         = title;
-    f.urls          = urls;
-    f.suggestedName = sanitizeFilename(suggestedName);
-    f.expectedBytes = expectedBytes;
-
-    if (m_active) {
-        m_queue.append(std::move(f));
-        return;
-    }
-    m_active = new InFlight(std::move(f));
+    job.urls = urls;
+    job.suggestedName = sanitizeFilename(job.suggestedName);
+    const QString md5 = job.md5;
+    const quint64 generation = job.generation;
+    m_active = new InFlight(std::move(job));
+    QPointer<BookDownloader> guard(this);
     startAttempt(*m_active);
+    // Publish the transition even before the first byte/progress notification.
+    if (guard && m_active && m_active->generation == generation)
+        emit resolving(md5);
 }
 
 void BookDownloader::startAttempt(InFlight& f)
@@ -404,6 +454,20 @@ void BookDownloader::startAttempt(InFlight& f)
     const QString url = f.urls.value(f.urlIdx);
     if (url.isEmpty()) { startNextUrlOrFail(f); return; }
 
+    const int delay = attemptDelayMs(f.attempt);
+    if (delay <= 0) {
+        issueAttempt(f);
+    } else {
+        const quint64 generation = f.generation;
+        QTimer::singleShot(delay, this, [this, generation]() {
+            if (!m_active || m_active->generation != generation) return;
+            issueAttempt(*m_active); // keep the attempt count after serving the delay
+        });
+    }
+}
+
+void BookDownloader::issueAttempt(InFlight& f)
+{
     // Disk-space pre-check when LibGen gave us a usable size.
     if (f.expectedBytes > 0) {
         const QStorageInfo storage(baseDir());
@@ -414,44 +478,33 @@ void BookDownloader::startAttempt(InFlight& f)
         }
     }
 
-    const int delay = attemptDelayMs(f.attempt);
-    if (delay <= 0) {
-        // issue now
-        if (!pickTargetFilename(f)) { failAndCleanup(f, QStringLiteral("could not prepare destination path")); return; }
-        f.file = new QFile(f.partPath);
-        if (!f.file->open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-            const QString err = f.file->errorString();
-            delete f.file; f.file = nullptr;
-            failAndCleanup(f, QStringLiteral("cannot open .part file: %1").arg(err));
-            return;
-        }
-        f.receivedBytes = 0; f.sanityChecked = false;
-        f.lastProgressEmit = 0; f.lastProgressBytes = 0;
-
-        QNetworkRequest req{QUrl(url)};
-        req.setRawHeader("User-Agent", kUserAgent);
-        req.setRawHeader("Accept", "*/*");
-        req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                         QNetworkRequest::NoLessSafeRedirectPolicy);
-        QNetworkReply* reply = m_nam->get(req);
-        f.reply = reply;
-        connect(reply, &QNetworkReply::readyRead,        this, &BookDownloader::onReadyRead);
-        connect(reply, &QNetworkReply::finished,         this, &BookDownloader::onFinished);
-        connect(reply, &QNetworkReply::downloadProgress, this, &BookDownloader::onProgressFromReply);
-    } else {
-        const QString md5 = f.md5;
-        QTimer::singleShot(delay, this, [this, md5]() {
-            if (!m_active || m_active->md5 != md5) return;
-            // Re-enter with delay already served (attempt 0-path issues the request).
-            m_active->attempt = 0;        // collapse to immediate-issue branch
-            startAttempt(*m_active);
-        });
+    if (!pickTargetFilename(f)) { failAndCleanup(f, QStringLiteral("could not prepare destination path")); return; }
+    f.file = new QFile(f.partPath);
+    if (!f.file->open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        const QString err = f.file->errorString();
+        delete f.file; f.file = nullptr;
+        failAndCleanup(f, QStringLiteral("cannot open .part file: %1").arg(err));
+        return;
     }
+    f.receivedBytes = 0; f.sanityChecked = false;
+    f.lastProgressEmit = 0; f.lastProgressBytes = 0;
+
+    QNetworkRequest req{QUrl(f.urls.value(f.urlIdx))};
+    req.setTransferTimeout(requestTimeout(m_nam));
+    req.setRawHeader("User-Agent", kUserAgent);
+    req.setRawHeader("Accept", "*/*");
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                     QNetworkRequest::NoLessSafeRedirectPolicy);
+    QNetworkReply* reply = m_nam->get(req);
+    f.reply = reply;
+    connect(reply, &QNetworkReply::readyRead,        this, &BookDownloader::onReadyRead);
+    connect(reply, &QNetworkReply::finished,         this, &BookDownloader::onFinished);
+    connect(reply, &QNetworkReply::downloadProgress, this, &BookDownloader::onProgressFromReply);
 }
 
 void BookDownloader::onReadyRead()
 {
-    if (!m_active || !m_active->reply) return;
+    if (!m_active || !m_active->reply || sender() != m_active->reply.data()) return;
     InFlight& f = *m_active;
     QNetworkReply* reply = f.reply.data();
     if (!reply) return;
@@ -463,8 +516,8 @@ void BookDownloader::onReadyRead()
         f.sanityChecked = true;
         const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
         if (detectStaleHtml(chunk, ct)) {
-            qWarning() << "[BookDownloader] stale key for" << f.urls.value(f.urlIdx)
-                       << "(Content-Type=" << ct << ") — failing over";
+            qWarning() << "[BookDownloader] download returned HTML; trying next mirror";
+            f.lastFailure = QStringLiteral("Download returned an HTML page instead of a book; the provider link may have expired.");
             reply->disconnect(this);
             reply->abort();
             reply->deleteLater();
@@ -492,7 +545,7 @@ void BookDownloader::onReadyRead()
 
 void BookDownloader::onProgressFromReply(qint64 received, qint64 total)
 {
-    if (!m_active || !m_active->reply) return;
+    if (!m_active || !m_active->reply || sender() != m_active->reply.data()) return;
     InFlight& f = *m_active;
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     const qint64 elapsedMs = (f.lastProgressEmit == 0) ? (kProgressThrottleMs + 1)
@@ -507,14 +560,13 @@ void BookDownloader::onProgressFromReply(qint64 received, qint64 total)
 
 void BookDownloader::onFinished()
 {
-    if (!m_active || !m_active->reply) return;
+    if (!m_active || !m_active->reply || sender() != m_active->reply.data()) return;
     InFlight& f = *m_active;
     QNetworkReply* reply = f.reply.data();
     if (!reply) return;
 
     const QNetworkReply::NetworkError err = reply->error();
-    const QString errString = reply->errorString();
-    const int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    const QString reason = networkFailure(QStringLiteral("Book download"), reply);
 
     if (err == QNetworkReply::NoError) {
         const QByteArray tail = reply->readAll();
@@ -524,11 +576,10 @@ void BookDownloader::onFinished()
     f.reply.clear();
 
     if (err != QNetworkReply::NoError) {
-        qWarning() << "[BookDownloader] reply error" << err << "http=" << httpStatus << errString;
-        retryOrFailover(f, QStringLiteral("HTTP error: %1 (status %2)").arg(errString).arg(httpStatus));
+        qWarning() << "[BookDownloader] download:" << reason;
+        retryOrFailover(f, reason);
         return;
     }
-    emit progress(f.md5, static_cast<double>(f.receivedBytes), static_cast<double>(f.receivedBytes));
     finalizeSuccess(f);
 }
 
@@ -554,19 +605,20 @@ void BookDownloader::finalizeSuccess(InFlight& f)
     qInfo() << "[BookDownloader] complete md5=" << md5 << "path=" << finalPath
             << "bytes=" << f.receivedBytes;
 
+    const double bytes = static_cast<double>(f.receivedBytes);
     writeEntry(f);
-    emit finished(md5, finalPath);
-
     delete m_active; m_active = nullptr;
-    if (!m_queue.isEmpty()) {
-        m_active = new InFlight(std::move(m_queue.takeFirst()));
-        startAttempt(*m_active);
-    }
+    QPointer<BookDownloader> guard(this);
+    emit progress(md5, bytes, bytes);
+    if (!guard) return;
+    emit finished(md5, finalPath);
+    if (guard) startQueuedDownload();
 }
 
 void BookDownloader::retryOrFailover(InFlight& f, const QString& reason)
 {
     closeAndDeletePart(f);
+    f.lastFailure = reason;
     f.attempt += 1;
     if (f.attempt < kMaxAttempts) { startAttempt(f); return; }
     qInfo() << "[BookDownloader] url exhausted, failover:" << reason;
@@ -577,7 +629,7 @@ void BookDownloader::startNextUrlOrFail(InFlight& f)
 {
     f.urlIdx += 1;
     f.attempt = 0;
-    if (f.urlIdx >= f.urls.size()) { failAndCleanup(f, QStringLiteral("all mirror URLs failed")); return; }
+    if (f.urlIdx >= f.urls.size()) { failAndCleanup(f, f.lastFailure.isEmpty() ? QStringLiteral("all mirror URLs failed") : f.lastFailure); return; }
     startAttempt(f);
 }
 
@@ -585,12 +637,11 @@ void BookDownloader::failAndCleanup(InFlight& f, const QString& reason)
 {
     closeAndDeletePart(f);
     const QString md5 = f.md5;
-    emit failed(md5, reason);
+    const QString failure = reason;
     delete m_active; m_active = nullptr;
-    if (!m_queue.isEmpty()) {
-        m_active = new InFlight(std::move(m_queue.takeFirst()));
-        startAttempt(*m_active);
-    }
+    QPointer<BookDownloader> guard(this);
+    emit failed(md5, failure);
+    if (guard) startQueuedDownload();
 }
 
 void BookDownloader::cancelAndCleanup(InFlight& f)
@@ -598,11 +649,15 @@ void BookDownloader::cancelAndCleanup(InFlight& f)
     closeAndDeletePart(f);
     const QString md5 = f.md5;
     delete m_active; m_active = nullptr;
+    QPointer<BookDownloader> guard(this);
     emit removed(md5);
-    if (!m_queue.isEmpty()) {
-        m_active = new InFlight(std::move(m_queue.takeFirst()));
-        startAttempt(*m_active);
-    }
+    if (guard) startQueuedDownload();
+}
+
+void BookDownloader::startQueuedDownload()
+{
+    if (!m_active && m_resolving.isEmpty() && !m_queue.isEmpty())
+        startResolution(std::move(m_queue.takeFirst()));
 }
 
 void BookDownloader::closeAndDeletePart(InFlight& f)
