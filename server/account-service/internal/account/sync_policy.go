@@ -408,21 +408,21 @@ func validateFullHistory(
 			return fmt.Errorf("payload_invalid")
 		}
 	}
-	hasStremioField := false
+	hasExternalField := false
 	for _, field := range []string{"source", "displayId", "displayTitle", "latestKnownAt"} {
 		if _, present := object[field]; present {
-			hasStremioField = true
+			hasExternalField = true
 			break
 		}
 	}
-	if !hasStremioField {
+	if !hasExternalField {
 		return nil
 	}
 
 	source, sourceOK := object["source"].(string)
 	displayID, displayIDOK := object["displayId"].(string)
 	displayTitle, displayTitleOK := object["displayTitle"].(string)
-	if !sourceOK || source != "stremio" ||
+	if !sourceOK || (source != "stremio" && source != "nuvio") ||
 		!displayIDOK || displayID == "" || displayID != strings.TrimSpace(displayID) ||
 		utf8.RuneCountInString(displayID) > 512 || isSyncFilesystemPath(displayID) ||
 		!displayTitleOK || displayTitle == "" || displayTitle != strings.TrimSpace(displayTitle) ||
