@@ -1,0 +1,21 @@
+name: colosseum-appimage
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.11
+  - cmake=3.31
+  - ninja
+  - pkg-config
+  - patchelf
+  - qt6-main=6.11.1
+  - qt6-webengine=6.11.1
+  - qt6-quick3d=6.11.1
+  - qt6-positioning=6.11.1
+  - qt6-serialport=6.11.1
+  - qt6-wayland=6.11.1
+  - qt6-gtk-platformtheme=6.11.1
+  - mpv=0.41.0=hee90221_1
+  - ffmpeg=8.1.1
+  - openssl=3.5
+  - librsvg

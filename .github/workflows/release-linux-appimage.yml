@@ -1,0 +1,132 @@
+name: Linux AppImage candidate
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: linux-appimage-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    outputs:
+      image: ${{ steps.package.outputs.image }}
+      version: ${{ steps.package.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Install build tools and host development dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential binutils dpkg-dev curl \
+            libtorrent-rasterbar-dev libboost-system-dev libboost-filesystem-dev libssl-dev \
+            libsecret-1-dev libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0
+      - name: Obtain SHA256-pinned packaging tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/appimage-tools" appimage-output
+          python3 - <<'PY'
+          import json, pathlib, os, hashlib, urllib.request
+          pins = json.load(open('tools/linux-release/appimage-tools.json'))
+          destination = pathlib.Path(os.environ['RUNNER_TEMP']) / 'appimage-tools'
+          for name, pin in pins.items():
+              target = destination / name
+              urllib.request.urlretrieve(pin['url'], target)
+              actual = hashlib.sha256(target.read_bytes()).hexdigest()
+              if actual != pin['sha256']:
+                  raise SystemExit('Packaging tool SHA256 mismatch: ' + name)
+              target.chmod(0o644 if name.endswith("license") else 0o755)
+              print(name, actual)
+          PY
+      - name: Install full Qt 6.11.1 C++ SDK and coherent runtime dependency family
+        env:
+          MAMBA_ROOT_PREFIX: ${{ runner.temp }}/mamba-root
+        run: |
+          "$RUNNER_TEMP/appimage-tools/micromamba" create --yes \
+            --prefix "$RUNNER_TEMP/appimage-env" --strict-channel-priority --override-channels \
+            --channel conda-forge --file tools/linux-release/appimage-environment.yml
+      - name: Packaging regressions
+        run: |
+          "$RUNNER_TEMP/appimage-tools/micromamba" run --prefix "$RUNNER_TEMP/appimage-env" \
+            python -B -m unittest -v tests.test_linux_appimage tests.test_linux_release_policy \
+              tests.test_linux_runtime_dependency_gate tests.test_linux_installed_player_smoke \
+              tests.test_linux_installed_picker_smoke
+          "$RUNNER_TEMP/appimage-tools/micromamba" run --prefix "$RUNNER_TEMP/appimage-env" \
+            python -B tools/linux-release/test_packaging.py
+      - name: Build one source snapshot and create both candidate formats
+        id: package
+        env:
+          APPIMAGE_TOOLS_DIR: ${{ runner.temp }}/appimage-tools
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -o pipefail
+          "$RUNNER_TEMP/appimage-tools/micromamba" run --prefix "$RUNNER_TEMP/appimage-env" \
+            bash tools/linux-release/build_appimage.sh 2>&1 | tee appimage-output/build.log
+      - name: Keep candidate bytes and build evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage-${{ github.sha }}
+          path: appimage-output/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
+
+  smoke:
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: fedora
+            image: fedora:latest
+          - distro: arch
+            image: archlinux:latest
+          - distro: opensuse
+            image: opensuse/tumbleweed
+          - distro: debian
+            image: debian:stable
+          - distro: ubuntu-baseline
+            image: ubuntu:22.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-appimage-${{ github.sha }}
+          path: appimage-input
+      - name: Smoke the exact AppImage without a build SDK or FUSE
+        env:
+          IMAGE: ${{ matrix.image }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p appimage-smoke
+          chmod 777 appimage-smoke
+          chmod +x appimage-input/*.AppImage
+          docker pull "$IMAGE" 2>&1 | tee appimage-smoke/pull.log
+          docker image inspect "$IMAGE" --format '{{json .RepoDigests}}' > appimage-smoke/image-digests.json
+          docker run --rm --init --env SOURCE_COMMIT \
+            --volume "$PWD:/work:ro" --volume "$PWD/appimage-input:/artifacts:ro" \
+            --volume "$PWD/appimage-smoke:/evidence" "$IMAGE" \
+            bash /work/tools/linux-release/smoke_appimage_container.sh 2>&1 | tee appimage-smoke/container.log
+      - name: Keep every distro result and failure log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage-smoke-${{ matrix.distro }}-${{ github.sha }}
+          path: appimage-smoke/
+          if-no-files-found: error
+          retention-days: 14

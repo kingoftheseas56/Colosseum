@@ -3,6 +3,11 @@ name: Linux Debian installer candidate
 on:
   workflow_dispatch:
     inputs:
+      appimage_candidate:
+        description: Build and smoke the AppImage candidate from this exact branch (no publication)
+        required: false
+        default: false
+        type: boolean
       receive_run_id:
         description: Existing Linux candidate run to qualify without rebuilding (empty builds normally)
         required: false
@@ -43,7 +48,7 @@ permissions:
 
 jobs:
   build:
-    if: inputs.receive_run_id == ''
+    if: inputs.receive_run_id == '' && !inputs.appimage_candidate
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     env:
@@ -179,7 +184,7 @@ jobs:
 
   installed-smoke:
     needs: build
-    if: ${{ always() && (needs.build.result == 'success' || (needs.build.result == 'skipped' && inputs.receive_run_id != '')) }}
+    if: ${{ always() && !inputs.appimage_candidate && (needs.build.result == 'success' || (needs.build.result == 'skipped' && inputs.receive_run_id != '')) }}
     runs-on: ubuntu-24.04
     name: Installed smoke (${{ matrix.label }})
     strategy:
@@ -276,3 +281,7 @@ jobs:
           path: /tmp/installed-receipts/
           if-no-files-found: warn
           retention-days: 7
+
+  appimage:
+    if: inputs.appimage_candidate
+    uses: ./.github/workflows/release-linux-appimage.yml
