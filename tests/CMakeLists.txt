@@ -5348,6 +5348,7 @@ add_executable(vinyl_torrent_provider_contracts vinyl-live/torrent_provider_cont
     "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h"
     "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentMatcher.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentQueryPlanner.cpp"
     "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentSearchService.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentSearchService.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentWorkerIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentWorkerIndexer.h"
     "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentIndexer.h"
     "${COLOSSEUM_NATIVE_DIR}/torrent/PirateBayIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/PirateBayIndexer.h"
     "${COLOSSEUM_NATIVE_DIR}/torrent/ExtTorrentsIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/ExtTorrentsIndexer.h"
