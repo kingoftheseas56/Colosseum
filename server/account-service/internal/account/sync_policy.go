@@ -487,7 +487,7 @@ func validateStremioLink(
 		return fmt.Errorf("payload_field_not_allowed")
 	}
 	provider, ok := object["mainSyncProvider"].(string)
-	if !ok || provider != "stremio" {
+	if !ok || (provider != "stremio" && provider != "nuvio") {
 		return fmt.Errorf("payload_invalid")
 	}
 	return nil

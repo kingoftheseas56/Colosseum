@@ -310,7 +310,19 @@ else()
     message(FATAL_ERROR "OpenSSL crypto is required for Colosseum update manifest verification")
 endif()
 
+set(COLOSSEUM_THEATRE_ACCOUNT_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/AccountRuntimeTheatreAccounts.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioAccount.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioAccount.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioApi.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioApi.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioTheatreData.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioTheatreData.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/TheatreAccountImport.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/TheatreAccountImport.h")
+
 qt_add_executable(colosseum
+    ${COLOSSEUM_THEATRE_ACCOUNT_SOURCES}
     engine/TankoyomiSeriesMatcher.cpp
     engine/TankoyomiSeriesMatcher.h
     engine/TankoyomiNetworkPolicy.cpp

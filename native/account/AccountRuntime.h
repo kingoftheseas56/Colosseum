@@ -26,6 +26,7 @@
 #include "ProfileStoreRuntime.h"
 #include "AccountCredentialStore.h"
 #include "AccountSensitiveClipboard.h"
+#include "NuvioAccount.h"
 #include "stremio/StremioSync.h"
 #include "stremio/StremioTheatreImporter.h"
 
@@ -53,6 +54,10 @@ struct AccountRuntimeCredentialOptions {
 
 class AccountRuntime final : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QString stremioImportPhase READ stremioImportPhase NOTIFY stremioImportChanged)
+    Q_PROPERTY(QString stremioImportMessage READ stremioImportMessage NOTIFY stremioImportChanged)
+    Q_PROPERTY(QVariantList stremioImportPreview READ stremioImportPreview NOTIFY stremioImportChanged)
+    Q_PROPERTY(bool stremioImportBecomesPrimary READ stremioImportBecomesPrimary NOTIFY stremioImportChanged)
 
 public:
     explicit AccountRuntime(QObject *parent = nullptr);
@@ -89,6 +94,15 @@ public:
     void prepareForQml(QQmlApplicationEngine *engine);
 
     Q_INVOKABLE bool syncStremioNow();
+    Q_INVOKABLE bool previewStremioImport();
+    Q_INVOKABLE bool beginStremioFirstRun();
+    Q_INVOKABLE bool makeStremioPrimary();
+    Q_INVOKABLE void applyStremioImport(bool firstRun = false);
+    Q_INVOKABLE void cancelStremioImport();
+    QString stremioImportPhase() const { return m_stremioImportPhase; }
+    QString stremioImportMessage() const { return m_stremioImportMessage; }
+    QVariantList stremioImportPreview() const { return m_stremioImportPreview; }
+    bool stremioImportBecomesPrimary() const;
     Q_INVOKABLE bool removeTheatreItem(
         const QString &id,
         const QString &type,
@@ -101,15 +115,29 @@ public:
     std::unique_ptr<Colosseum::WatchParty::IWatchPartyAccountBridge>
     createWatchPartyAccountBridge();
 
+signals:
+    void stremioImportChanged();
+
 private:
     struct StremioImportBatch;
     struct StremioRedoBatch;
+    struct StremioPreview;
 
     bool installCoreSyncAdapters(
         QString *error = nullptr);
     void clearCoreSyncAdapters();
     void startOrResumeAccountAttachment();
     void activateStremioProfile();
+    void activateNuvioProfile();
+    void resetTheatreAccountFlows();
+    void applyStremioProviderMode();
+    void onStremioPreviewAuthChanged();
+    bool startStremioPreview(bool primary, bool firstRun);
+    void pullStremioPreview(const std::shared_ptr<StremioPreview> &preview);
+    void projectNextStremioPreviewItem(const std::shared_ptr<StremioPreview> &preview);
+    void commitStremioPreview(const std::shared_ptr<StremioPreview> &preview);
+    void setStremioImportStatus(const QString &phase, const QString &message = {});
+    void checkpointTheatreImport(std::function<void(bool)> completion);
     void activateExtensionsProfile();
     void activateRatingsReviewsDelivery();
     void refreshStremioLibrary(
@@ -180,6 +208,12 @@ private:
     QString m_traktAddonPendingUrl;
     SyncEngine m_syncEngine;
     StremioSync m_stremioSync;
+    NuvioAccount m_nuvioAccount;
+    TheatreAccountImport m_stremioPreviewImporter;
+    std::shared_ptr<StremioPreview> m_stremioPreview;
+    QString m_stremioImportPhase = QStringLiteral("idle");
+    QString m_stremioImportMessage;
+    QVariantList m_stremioImportPreview;
     std::unique_ptr<StremioTheatreImporter> m_stremioTheatreImporter;
     std::unique_ptr<AccountAttachmentCoordinator>
         m_attachmentCoordinator;
@@ -199,6 +233,7 @@ private:
     bool m_stremioAddonReconcileScheduled = false;
     bool m_stremioAddonApplyInProgress = false;
     bool m_stremioAddonReconcileDeferred = false;
+    bool m_stremioPrimaryActive = false;
     bool m_qmlPrepared = false;
     quint64 m_visibleSyncGeneration = 0;
     QTimer m_stremioPeriodicTimer;

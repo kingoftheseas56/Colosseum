@@ -34,11 +34,12 @@ bool StremioLinkSyncAdapter::exportSnapshot(
     snapshot->revision = revision();
     snapshot->records.clear();
     snapshot->tombstones.clear();
-    if (m_store->mainSyncProvider().isEmpty())
+    const QString provider = m_store->mainSyncProvider();
+    if (provider.isEmpty())
         return true;
     snapshot->records = {SyncAdapterRecord{
         fixedRecordKey(),
-        QJsonObject{{QStringLiteral("mainSyncProvider"), QStringLiteral("stremio")}},
+        QJsonObject{{QStringLiteral("mainSyncProvider"), provider}},
         -1}};
     return true;
 }
@@ -56,11 +57,9 @@ bool StremioLinkSyncAdapter::validateRemote(
     if (operation == SyncWireOperation::Delete)
         return true;
     const QJsonObject object = payload.toObject();
-    if (!payload.isObject() || object.size() != 1
-        || object.value(QStringLiteral("mainSyncProvider")) != QStringLiteral("stremio")) {
-        return false;
-    }
-    return true;
+    const QString provider = object.value(QStringLiteral("mainSyncProvider")).toString();
+    return payload.isObject() && object.size() == 1
+        && (provider == QStringLiteral("stremio") || provider == QStringLiteral("nuvio"));
 }
 
 bool StremioLinkSyncAdapter::applyRemote(
@@ -75,7 +74,8 @@ bool StremioLinkSyncAdapter::applyRemote(
         return m_store->clearSyncedMainSyncProvider();
     if (!validateRemote(recordKey, operation, payload, schemaVersionValue))
         return fail(error, QStringLiteral("The Stremio link payload is malformed."));
-    return m_store->applySyncedMainSyncProvider(QStringLiteral("stremio"));
+    return m_store->applySyncedMainSyncProvider(
+        payload.toObject().value(QStringLiteral("mainSyncProvider")).toString());
 }
 
 QString StremioLinkSyncAdapter::fixedRecordKey() {

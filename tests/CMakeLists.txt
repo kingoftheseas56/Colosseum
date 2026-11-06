@@ -2146,6 +2146,7 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    ${COLOSSEUM_THEATRE_ACCOUNT_SOURCES}
     "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
@@ -2264,6 +2265,7 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    ${COLOSSEUM_THEATRE_ACCOUNT_SOURCES}
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
@@ -2951,6 +2953,7 @@ add_executable(tst_no_account_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    ${COLOSSEUM_THEATRE_ACCOUNT_SOURCES}
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
@@ -4110,6 +4113,38 @@ set_tests_properties(colosseum.qttest.stremio_sync PROPERTIES
     LABELS "unit;qttest;stremio;sync;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 180)
+
+add_executable(tst_nuvio_api
+    auto/nuvio_api/tst_nuvio_api.cpp
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioAccount.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioAccount.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioApi.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioApi.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioTheatreData.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioTheatreData.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/TheatreAccountImport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/TheatreAccountImport.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h")
+target_include_directories(tst_nuvio_api PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_nuvio_api PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+set_target_properties(tst_nuvio_api PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_nuvio_api POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.nuvio_api COMMAND tst_nuvio_api)
+set_tests_properties(colosseum.qttest.nuvio_api PROPERTIES
+    LABELS "unit;qttest;nuvio" TIMEOUT 30)
 
 add_executable(tst_profile_preferences_sync
     auto/profile_preferences_sync/tst_profile_preferences_sync.cpp

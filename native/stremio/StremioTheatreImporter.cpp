@@ -741,7 +741,8 @@ void StremioTheatreImporter::applyNextWatchedEpisode(
     // A watched bit has no per-episode activity time. Do not use provider
     // arrival time to replace an acknowledged local state; new exact episodes
     // are the only safe application until a real timestamp is available.
-    if (!existing.isEmpty()) {
+    if (!existing.isEmpty()
+        || (m_history && m_history->completed(QStringLiteral("episode"), id))) {
         applyNextWatchedEpisode(pending);
         return;
     }

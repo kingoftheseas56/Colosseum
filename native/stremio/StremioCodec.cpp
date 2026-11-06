@@ -743,6 +743,12 @@ bool StremioCodec::encodeWatchedEpisodes(
     return true;
 }
 
+QString StremioCodec::episodeSeriesRoot(const QString &videoId) {
+    const QString root = seriesRootForStremioVideo(videoId);
+    return root != videoId && safeLibraryId(root) && safeLibraryId(videoId)
+        ? root : QString();
+}
+
 bool StremioCodec::episodeBelongsToSeries(
     const QString &seriesId,
     const StremioEpisodeIdentity &episode) {

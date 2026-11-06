@@ -26,14 +26,16 @@ struct StoredStremioCredential {
     QByteArray authKey;
 };
 
-// Bound to a Colosseum profile, not the selected Nuvio source profile.
-// Contains only session tokens and their expiry; never the sign-in password.
+// Stored under the Colosseum profile. The selected Nuvio source profile is
+// optional session metadata. An empty ID and index 0 mean no selection.
 struct StoredNuvioCredential {
     QString profileId;
     QString accountId;
     QByteArray accessToken;
     QByteArray refreshToken;
     qint64 accessExpiresAtUtcMs = 0;
+    QString nuvioProfileId;
+    int nuvioProfileIndex = 0;
 };
 
 class AccountCredentialStore {
