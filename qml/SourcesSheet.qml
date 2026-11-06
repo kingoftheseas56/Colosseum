@@ -58,16 +58,14 @@ Item {
     readonly property int askedCount: askedNames.length
     property int gen: 0
     property string qualityFilter: "all"
-    // Extension picker (2026-08-07, Hemanth's call after the NoTorrent burial): rows sort by ask
-    // order, so a freshly-seeded extension's rows land below every earlier extension's — present
-    // but off-screen (dossier: docs/research/theatre-http-source/02-notorrent-burial-dossier.md).
-    // The top "All ▾" bar was decorative; it now filters the table to one extension's rows. "all"
-    // keeps today's behavior exactly. Ordering itself is untouched — no silent re-ranking.
+    // Provider filtering keeps the order of matching rows from the combined list.
     property string extFilter: "all"
     property bool extMenuOpen: false
     property Item focusReturnItem: null
     property Item extMenuReturnItem: null
-    property int extMenuIndex: 0
+    property string extMenuKey: "all"
+    readonly property var providerOptions: extOptions()
+    readonly property int extMenuIndex: Math.max(0, providerOptions.findIndex(option => option.key === extMenuKey))
     property bool sourceContextOpen: false
     property var sourceContextRow: null
     property int sourceContextChoice: 0
@@ -161,9 +159,8 @@ Item {
     function openExtMenu(invoker) {
         if (sheet.extMenuOpen) { sheet.extMenuOpen=false; return }
         sheet.extMenuReturnItem=invoker || null
-        var opts=sheet.extOptions(), idx=0
-        for (var i=0;i<opts.length;i++) if (opts[i].name===sheet.extFilter) { idx=i; break }
-        sheet.extMenuIndex=idx; sheet.extMenuOpen=true
+        sheet.extMenuKey = sheet.extFilter
+        sheet.extMenuOpen = true
         Qt.callLater(function(){ extMenuFocus.forceActiveFocus(Qt.PopupFocusReason) })
     }
     function closeExtMenu(restore) {
@@ -171,9 +168,13 @@ Item {
         var target=sheet.extMenuReturnItem; sheet.extMenuReturnItem=null
         if (restore!==false && target) Qt.callLater(function(){ if(target.visible&&target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
-    function activateExtOption(index) {
-        var opts=sheet.extOptions(); if(index<0||index>=opts.length) return
-        sheet.extFilter=opts[index].name; sheet.closeExtMenu(true)
+    function activateExtOption(key) {
+        sheet.extFilter = key
+        if (sheet.qualityFilter !== "all" && !sheet.countFor(sheet.qualityFilter)) {
+            sheet.qualityFilter = "all"
+            pills.currentIndex = 0
+        }
+        sheet.closeExtMenu(true)
     }
     function sourceContextOptions() {
         var out=[sheet.mode === "play" ? "Play" : "Choose source", "Copy link"]
@@ -355,31 +356,40 @@ Item {
         return out;
     }
 
-    // baseRows narrowed to the picked extension. The quality pills and their counts sit ON TOP of
-    // this, so "1080p 12" stays truthful inside a "NoTorrent" pick.
+    // Quality pills and counts use the rows belonging to the selected provider.
     function extRows() {
         var base = baseRows();
         if (sheet.extFilter === "all") return base;
         var out = [];
         for (var i = 0; i < base.length; ++i)
-            if (base[i].addonName === sheet.extFilter) out.push(base[i]);
+            if (sheet.providerKey(base[i]) === sheet.extFilter) out.push(base[i]);
         return out;
     }
 
-    // The picker's menu: All + each extension that actually answered, with its row count.
+    function providerKey(row) {
+        return row.nuvio ? "nuvio" : "stremio:" + (row.addonName || "?");
+    }
+
+    // Native plugins share a menu entry. Stremio add-ons follow the existing row order.
     function extOptions() {
         var base = baseRows();
-        var counts = ({});
-        var order = [];
+        var all = { key: "all", label: qsTr("All"), count: base.length };
+        var nuvio = { key: "nuvio", label: qsTr("Nuvio"), count: 0 };
+        var byKey = ({ nuvio: nuvio });
+        var stremio = [];
         for (var i = 0; i < base.length; ++i) {
-            var n = base[i].addonName || "?";
-            if (counts[n] === undefined) { counts[n] = 0; order.push(n); }
-            counts[n]++;
+            var row = base[i];
+            var key = providerKey(row);
+            if (!byKey[key]) {
+                var option = { key: key, label: row.addonName || "?", count: 0 };
+                byKey[key] = option;
+                stremio.push(option);
+            }
+            ++byKey[key].count;
         }
-        var out = [{ name: "all", label: "All", count: base.length }];
-        for (var j = 0; j < order.length; ++j)
-            out.push({ name: order[j], label: order[j], count: counts[order[j]] });
-        return out;
+        if (nuvio.count && byKey["stremio:Nuvio"])
+            byKey["stremio:Nuvio"].label = qsTr("Nuvio (Stremio)");
+        return (nuvio.count ? [all, nuvio] : [all]).concat(stremio);
     }
 
     function filteredRows() {
@@ -480,7 +490,11 @@ Item {
     Item {
         id: bannerStrip
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: sheet.phoneLayout ? 200 : 300
+        // Leave room for the provider controls and two direct rows on short desktop windows.
+        // The request flag keeps this height stable while the providers answer.
+        height: sheet.phoneLayout ? 200
+              : sheet.nuvioAsked ? Math.min(300, Math.max(164, sheet.height - 556)) : 300
+        readonly property bool compact: sheet.phoneLayout || height < 200
         Image {
             anchors.fill: parent
             source: sheet.backdropUrl
@@ -508,19 +522,21 @@ Item {
     // ---- back ----
     BackAction {
         id: sourcesBack
+        objectName: "sourcesSheetBack"
         x: sheet.phoneLayout ? 16 : theme.margin
-        y: sheet.phoneLayout ? 20 : 30; z: 20
+        y: bannerStrip.compact ? 20 : 30; z: 20
         onTriggered: sheet.hide()
     }
 
     // ---- title block, pinned to the bottom of the banner ----
     Column {
+        objectName: "sourcesSheetTitle"
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: sheet.phoneLayout ? 16 : theme.margin
         anchors.rightMargin: sheet.phoneLayout ? 16 : theme.margin
         anchors.top: parent.top
-        anchors.topMargin: bannerStrip.height - height - (sheet.phoneLayout ? 14 : 26)
-        spacing: sheet.phoneLayout ? 8 : 12
+        anchors.topMargin: bannerStrip.height - height - (bannerStrip.compact ? 14 : 26)
+        spacing: bannerStrip.compact ? 8 : 12
         Text {
             visible: sheet.mode !== "play" || sheet.metaLine.length > 0
             width: parent.width
@@ -550,6 +566,7 @@ Item {
     // the full-width selector bar (the "top bar that separates the quality")
     Rectangle {
         id: topBar
+        objectName: "extPickerTrigger"
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: sheet.phoneLayout ? 16 : theme.margin
         anchors.rightMargin: sheet.phoneLayout ? 16 : theme.margin
@@ -559,7 +576,7 @@ Item {
         border.width: 1
         border.color: tbMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.45) : theme.edge
         Behavior on border.color { ColorAnimation { duration: 140 } }
-        visible: sheet.rows.length > 0
+        visible: sheet.rows.length > 0 || sheet.nuvioRows.length > 0
 
         Rectangle {                                                      // grid glyph
             id: gridBadge
@@ -575,11 +592,12 @@ Item {
             }
         }
         Text {
+            objectName: "extPickerLabel"
             anchors.left: gridBadge.right; anchors.leftMargin: sheet.phoneLayout ? 12 : 20
             anchors.verticalCenter: parent.verticalCenter
             width: sheet.phoneLayout ? Math.max(0, topBar.width - x - 48) : implicitWidth
             elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
-            text: sheet.extFilter === "all" ? "All" : sheet.extFilter
+            text: sheet.providerOptions.find(option => option.key === sheet.extFilter)?.label ?? qsTr("All")
             color: sheet.extFilter === "all" ? theme.ink : theme.gold
             font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 18 : 22
         }
@@ -590,13 +608,11 @@ Item {
             rotation: sheet.extMenuOpen ? 180 : 0
             Behavior on rotation { NumberAnimation { duration: 140 } }
         }
-        // The extension picker (2026-08-07). This bar LOOKED like a picker and did nothing —
-        // now it filters the table to one extension's rows (the NoTorrent burial fix).
         MouseArea { id: tbMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
             onClicked: sheet.openExtMenu(extTriggerKeyboard) }
         KeyboardAction {
             id: extTriggerKeyboard; anchors.fill: parent; pointerEnabled: false
-            accessibleName: "Choose source extension"; focusRadius: topBar.radius
+            accessibleName: qsTr("Choose source provider"); focusRadius: topBar.radius
             onTriggered: sheet.openExtMenu(extTriggerKeyboard)
         }
     }
@@ -610,7 +626,7 @@ Item {
         anchors.top: topBar.bottom; anchors.topMargin: sheet.phoneLayout ? 10 : 14
         width: Math.max(0, sheet.width - (sheet.phoneLayout ? 32 : 2 * theme.margin))
         spacing: sheet.phoneLayout ? 8 : 12
-        visible: sheet.rows.length > 0
+        visible: topBar.visible
         focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
         Keys.onPressed: (event) => qualityKeys.handle(event)
         KeyboardCollectionController {
@@ -623,6 +639,7 @@ Item {
                 id: pill
                 required property string modelData
                 required property int index
+                objectName: "sourceQuality_" + pill.modelData
                 property bool on: sheet.qualityFilter === pill.modelData
                 property int n: sheet.countFor(pill.modelData)
                 visible: n > 0 || pill.modelData === "all"
@@ -1256,18 +1273,21 @@ Item {
         border.width: 1; border.color: theme.edge
         FocusScope {
             id: extMenuFocus; anchors.fill: parent; z: 5
+            objectName: "extPickerMenuFocus"
             Keys.onPressed: (event) => {
-                var n=sheet.extOptions().length
+                var n=sheet.providerOptions.length
                 if (event.key === Qt.Key_Escape) { sheet.closeExtMenu(true); event.accepted=true; return }
                 if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { event.accepted=true; return }
                 if (!n) return
-                if (event.key === Qt.Key_Up) sheet.extMenuIndex=(sheet.extMenuIndex+n-1)%n
-                else if (event.key === Qt.Key_Down) sheet.extMenuIndex=(sheet.extMenuIndex+1)%n
-                else if (event.key === Qt.Key_Home) sheet.extMenuIndex=0
-                else if (event.key === Qt.Key_End) sheet.extMenuIndex=n-1
+                var index = sheet.extMenuIndex
+                if (event.key === Qt.Key_Up) index = (index + n - 1) % n
+                else if (event.key === Qt.Key_Down) index = (index + 1) % n
+                else if (event.key === Qt.Key_Home) index = 0
+                else if (event.key === Qt.Key_End) index = n - 1
                 else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                    sheet.activateExtOption(sheet.extMenuIndex); event.accepted=true; return
+                    sheet.activateExtOption(sheet.providerOptions[index].key); event.accepted=true; return
                 } else return
+                sheet.extMenuKey = sheet.providerOptions[index].key
                 event.accepted=true
             }
         }
@@ -1276,13 +1296,13 @@ Item {
             anchors.left: parent.left; anchors.right: parent.right
             anchors.top: parent.top; anchors.topMargin: 8
             Repeater {
-                model: sheet.extMenuOpen ? sheet.extOptions() : []
+                model: sheet.extMenuOpen ? sheet.providerOptions : []
                 delegate: Item {
                     id: extOpt
                     required property var modelData
                     required property int index
                     objectName: "extPick_" + extOpt.index
-                    property bool on: sheet.extFilter === extOpt.modelData.name
+                    property bool on: sheet.extFilter === extOpt.modelData.key
                     width: parent.width; height: 52
                     Rectangle {
                         anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
@@ -1308,10 +1328,7 @@ Item {
                     MouseArea {
                         id: extOptMa; anchors.fill: parent; hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            sheet.extMenuIndex = extOpt.index
-                            sheet.activateExtOption(extOpt.index)
-                        }
+                        onClicked: sheet.activateExtOption(extOpt.modelData.key)
                     }
                 }
             }

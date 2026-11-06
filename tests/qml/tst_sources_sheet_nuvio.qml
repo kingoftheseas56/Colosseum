@@ -144,6 +144,84 @@ Item {
             compare(sheet.nuvioPending, false)
         }
 
+        function openProviderMenu() {
+            var trigger = findChild(sheet, "extPickerTrigger")
+            verify(trigger && trigger.visible)
+            mouseClick(trigger)
+            var menu = findChild(sheet, "extPickerMenu")
+            tryCompare(menu, "visible", true)
+            return menu
+        }
+
+        function clickProvider(menu, index) {
+            wait(0)
+            var option = findChild(menu, "extPick_" + index)
+            verify(option && option.visible)
+            mouseClick(option)
+            tryCompare(menu, "visible", false)
+        }
+
+        function test_providerMenuGroupsNuvioAndComposesWithQuality() {
+            sheet.show("movie", "tt1234567", "Movie")
+            var first = stream("https://video.example.org/1080.m3u8")
+            var second = stream("https://video.example.org/720.m3u8")
+            second.name = "720p"
+            second.pluginName = "Another plugin"
+            second.pluginId = "another"
+            nuvio.streamsReady(nuvio.lastId, [first, second])
+
+            compare(sheet.extOptions().map(option => [option.label, option.count]),
+                    [["All", 2], ["Nuvio", 2]])
+            verify(findChild(sheet, "sourceQuality_1080p").visible)
+            var menu = openProviderMenu()
+            var stremioRow = AddonClient.parseStream(
+                { url: "https://video.example.org/stremio.m3u8", name: "4K" }, "Nuvio", 0, "stremio.test")
+            var anotherAddon = AddonClient.parseStream(
+                { url: "https://video.example.org/another.m3u8", name: "720p" }, "Torrentio", 1, "stremio.another")
+            stremio.requests[0].done([stremioRow, anotherAddon])
+            compare(sheet.extOptions().map(option => [option.label, option.count]),
+                    [["All", 4], ["Nuvio", 2], ["Nuvio (Stremio)", 1], ["Torrentio", 1]])
+            compare(sheet.visibleRows.map(row => row.addonName),
+                    ["Nuvio", "Torrentio", "Fixture plugin", "Another plugin"])
+            clickProvider(menu, 1)
+            compare(sheet.visibleRows.map(row => row.addonName), ["Fixture plugin", "Another plugin"])
+            compare(findChild(sheet, "extPickerLabel").text, "Nuvio")
+            compare(sheet.qualityOptions, ["all", "1080p", "720p"])
+            wait(0)
+            var quality = findChild(sheet, "sourceQuality_1080p")
+            verify(quality && quality.visible)
+            mouseClick(quality)
+            compare(sheet.qualityFilter, "1080p")
+            compare(sheet.rowCount, 1)
+            compare(sheet.countFor("all"), 2)
+
+            clickProvider(openProviderMenu(), 2)
+            compare(sheet.qualityFilter, "all")
+            compare(sheet.rowCount, 1)
+            verify(!sheet.visibleRows[0].nuvio)
+            compare(findChild(sheet, "extPickerLabel").text, "Nuvio (Stremio)")
+            clickProvider(openProviderMenu(), 0)
+            compare(sheet.visibleRows.map(row => row.addonName),
+                    ["Nuvio", "Torrentio", "Fixture plugin", "Another plugin"])
+        }
+
+        function test_providerMenuKeepsKeyboardHighlightWhenNuvioArrives() {
+            hostWindow.requestActivate()
+            tryCompare(hostWindow, "active", true)
+            sheet.show("movie", "tt1234567", "Movie")
+            var stremioRow = AddonClient.parseStream(
+                { url: "https://video.example.org/stremio.m3u8", name: "1080p" }, "Torrentio", 0, "stremio.test")
+            stremio.requests[0].done([stremioRow])
+            var menu = openProviderMenu()
+            tryCompare(findChild(menu, "extPickerMenuFocus"), "activeFocus", true)
+            keyClick(Qt.Key_Down)
+            nuvio.streamsReady(nuvio.lastId, [stream("https://video.example.org/1080.m3u8")])
+            keyClick(Qt.Key_Return)
+            tryCompare(menu, "visible", false)
+            compare(sheet.rowCount, 1)
+            compare(sheet.visibleRows[0].addonName, "Torrentio")
+        }
+
         function test_badgesAndDockClearance() {
             sheet.show("movie", "tt1234567", "Movie")
             var batch = []
@@ -179,7 +257,7 @@ Item {
         function test_twoDirectRowsFitAboveDock() {
             hostWindow.height = 720
             tryCompare(sheet, "height", 720)
-            sheet.show("movie", "tt1234567", "Movie")
+            sheet.show("movie", "tt1234567", "Movie", { metaLine: "2026 · Film" })
             var first = stream("https://video.example.org/720.m3u8")
             first.name = "720p"
             var second = stream("https://video.example.org/480.m3u8")
@@ -189,9 +267,13 @@ Item {
             stremio.requests[0].done([])
             var list = findChild(sheet, "sourcesSheetList")
             var dock = findChild(taskbar, "taskbarDock")
+            var back = findChild(sheet, "sourcesSheetBack")
+            var title = findChild(sheet, "sourcesSheetTitle")
             tryVerify(function() { return list.itemAtIndex(0) && list.itemAtIndex(1) })
+            verify(title.y >= back.y + back.height)
             var last = list.itemAtIndex(1)
-            verify(last.mapToItem(list, 0, last.height).y <= list.height)
+            verify(last.mapToItem(list, 0, last.height).y <= list.height,
+                   "Second row ends at " + last.mapToItem(list, 0, last.height).y + " with " + list.height + " available")
             verify(list.mapToItem(sheet, 0, list.height).y <= dock.mapToItem(sheet, 0, 0).y)
         }
 
