@@ -409,6 +409,7 @@ void tst_nuvio_api::firstRunAndPrimaryRoundTripAreFenced() {
     QVERIFY(fixture.collection.add("theatre", {{"id", QStringLiteral("tt777")},
         {"type", QStringLiteral("movie")}, {"title", QStringLiteral("Fixture film")}, {"addedAt", 4500}}));
     QVERIFY(fixture.progress.applySyncedWatchedMark("tt777", 1, 4600, false, true));
+    QVERIFY(fixture.progress.applySyncedWatchedMark("tt888", 1, 4600, false, true));
     changePosition(40, 5000);
     fixture.account.syncNow();
     QTRY_VERIFY(!fixture.account.busy());

@@ -280,6 +280,12 @@ void AccountRuntime::applyStremioImport(bool firstRun) {
 void AccountRuntime::commitStremioPreview(const std::shared_ptr<StremioPreview> &preview) {
     auto *preferences = m_profileStores.preferencesStore();
     const QString primary = preferences ? preferences->mainSyncProvider() : QString();
+    if (preview->primary && primary == kNuvio && !m_stremioSync.importOnlyPromotionReady()) {
+        // Save the new primary only after the old deletion intents have been
+        // retired on disk. A restart must not recover them as writable work.
+        setStremioImportStatus(kPreview, tr("Stremio is still saving the previous switch. Try Apply again."));
+        return;
+    }
     if (!preferences || !m_stremioSync.linkedAccount()
         || (!preview->primary && primary != kNuvio)
         || (preview->primary && !preferences->setMainSyncProvider(kStremio))) {

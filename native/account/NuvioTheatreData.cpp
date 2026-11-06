@@ -351,6 +351,7 @@ NuvioTheatre::Writes NuvioTheatre::reconcile(const Snapshot &snapshot, const Loc
 
     QHash<QString, qint64> watchedTimes;
     QHash<QString, QString> watchedTitles;
+    QSet<QString> movieHistoryIds;
     for (const QVariant &value : local.history) {
         const QVariantMap record = value.toMap();
         const QString kind = record.value("kind").toString();
@@ -360,6 +361,8 @@ NuvioTheatre::Writes NuvioTheatre::reconcile(const Snapshot &snapshot, const Loc
             || identity.isEpisode() != (kind == kEpisode)) {
             continue;
         }
+        if (kind == kMovie)
+            movieHistoryIds.insert(id);
         qint64 at = record.value("completedAt").toLongLong();
         const QString source = record.value("source").toString();
         if ((source == QLatin1String("nuvio") || source == QLatin1String("stremio")) && at > 0)
@@ -374,6 +377,13 @@ NuvioTheatre::Writes NuvioTheatre::reconcile(const Snapshot &snapshot, const Loc
         const qint64 at = local.movieMarkTimes.value(mark.key());
         if (identity.content.isEmpty() || identity.isEpisode())
             continue;
+        const RemoteFact current = watched.value(libraryKey(kMovie, mark.key()));
+        // WatchedMark also stores series-root overrides. An IMDb-shaped key
+        // alone does not establish that the mark belongs to a movie.
+        if (identities.library(kMovie, mark.key()).isEmpty() && !movieHistoryIds.contains(mark.key())
+            && current.identity.content.isEmpty()) {
+            continue;
+        }
         if (at <= 0) {
             if (mark.value() == -1)
                 watchedTimes.remove(mark.key());
@@ -384,7 +394,6 @@ NuvioTheatre::Writes NuvioTheatre::reconcile(const Snapshot &snapshot, const Loc
         if (mark.value() != -1 || at < watchedTimes.value(mark.key()))
             continue;
         watchedTimes.remove(mark.key());
-        const RemoteFact current = watched.value(libraryKey(kMovie, mark.key()));
         if (local.unwatchAfter > 0 && at > local.unwatchAfter
             && !current.deleted && !current.identity.content.isEmpty() && canPush(at, current)) {
             writes.unwatchMovies.append(QJsonObject{{"content_id", current.identity.content},
@@ -399,8 +408,13 @@ NuvioTheatre::Writes NuvioTheatre::reconcile(const Snapshot &snapshot, const Loc
         const QString id = record.value("id").toString();
         const Identity identity = localVideo(id);
         const qint64 at = record.value("updatedAt").toLongLong();
+        const QVariantMap resume = record.value("resume").toMap();
         if (identity.content.isEmpty() || at <= 0
-            || record.value("libraryId", identity.content).toString() != identity.content)
+            || record.value("libraryId", identity.content).toString() != identity.content
+            || (!identity.isEpisode()
+                && (record.value("type").toString() == kSeries
+                    || resume.value("subType").toString() == kSeries
+                    || !identities.library(kSeries, id).isEmpty())))
             continue;
         const RemoteFact current = progress.value(libraryKey(identity.type, id));
         if (!canPush(at, current)
@@ -408,7 +422,7 @@ NuvioTheatre::Writes NuvioTheatre::reconcile(const Snapshot &snapshot, const Loc
             continue;
         bool positionOk = false;
         bool durationOk = false;
-        const double position = record.value("resume").toMap().value("position").toDouble(&positionOk);
+        const double position = resume.value("position").toDouble(&positionOk);
         const double duration = record.value("duration").toDouble(&durationOk);
         if (!positionOk || !durationOk || !std::isfinite(position) || !std::isfinite(duration)
             || position < 0 || duration <= 0 || position > duration || duration > 8640000.0)
