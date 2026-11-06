@@ -4685,7 +4685,7 @@ Window {
                 }
 
                 HomeFeedbackActions {
-                    visible: Qt.platform.os !== "android"
+                    visible: !win.androidHost || typeof AndroidFeedbackBrowser !== "undefined"
                     width: parent.width
                     backdrop: wall
                     track: page.contentY
