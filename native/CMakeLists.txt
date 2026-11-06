@@ -1619,7 +1619,7 @@ target_sources(reader2_profile_runtime_harness PRIVATE
 target_compile_definitions(reader2_profile_runtime_harness PRIVATE
     COLOSSEUM_READER2_PROFILE_RUNTIME=1)
 target_link_libraries(reader2_profile_runtime_harness PRIVATE
-    Qt6::Core Qt6::Network Qt6::Qml Qt6::Sql)
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Sql)
 
 # Task 12: audiobook auto-attach on download completion. Offline/deterministic —
 # StreamServer is passed nullptr (its .cpp is only Qt Core/Network: QProcess + NAM,
@@ -1661,6 +1661,7 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE:Qt6::Core>"
                 "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE:Qt6::Gui>"
                 "$<TARGET_FILE:Qt6::Qml>"
                 "$<TARGET_FILE:Qt6::Sql>"
                 "$<TARGET_FILE_DIR:reader2_profile_runtime_harness>"

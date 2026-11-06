@@ -947,5 +947,5 @@ consumptionPrivacyAndHistoryRemainOwnedAcrossSharedPcSwitch() {
     QVERIFY(historyAReopened->get(QStringLiteral("movie"), QStringLiteral("movie:b-only")).isEmpty());
 }
 
-QTEST_MAIN(tst_account_shared_pc)
+QTEST_GUILESS_MAIN(tst_account_shared_pc)
 #include "tst_account_shared_pc.moc"

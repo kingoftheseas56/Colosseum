@@ -274,5 +274,5 @@ void tst_privacy_policy::profileSwitchRebindsRetentionPolicy()
         QStringLiteral("b-visible")));
 }
 
-QTEST_MAIN(tst_privacy_policy)
+QTEST_GUILESS_MAIN(tst_privacy_policy)
 #include "tst_privacy_policy.moc"

@@ -1977,7 +1977,7 @@ add_executable(tst_privacy_policy
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h"
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h")
 target_include_directories(tst_privacy_policy PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_privacy_policy PRIVATE Qt6::Core Qt6::Qml Qt6::Sql Qt6::Test)
+target_link_libraries(tst_privacy_policy PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Sql Qt6::Test)
 set_target_properties(tst_privacy_policy PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_privacy_policy POST_BUILD
@@ -1987,6 +1987,7 @@ add_custom_command(TARGET tst_privacy_policy POST_BUILD
 add_custom_command(TARGET tst_privacy_policy POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Qml>"
+            "$<TARGET_FILE:Qt6::Gui>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_privacy_policy POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -3169,6 +3170,7 @@ target_sources(tst_account_adoption PRIVATE
     "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.h")
 target_link_libraries(tst_account_adoption PRIVATE
     Qt6::Core
+    Qt6::Gui
     Qt6::Qml
     Qt6::Sql
     Qt6::Test)
@@ -3184,6 +3186,7 @@ add_custom_command(TARGET tst_account_adoption POST_BUILD
 add_custom_command(TARGET tst_account_adoption POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Sql>"
+            "$<TARGET_FILE:Qt6::Gui>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.account_adoption
          COMMAND tst_account_adoption)
@@ -3318,6 +3321,7 @@ target_sources(tst_account_shared_pc PRIVATE
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h")
 target_link_libraries(tst_account_shared_pc PRIVATE
     Qt6::Core
+    Qt6::Gui
     Qt6::Qml
     Qt6::Sql
     Qt6::Test)
@@ -3330,6 +3334,7 @@ add_custom_command(TARGET tst_account_shared_pc POST_BUILD
 add_custom_command(TARGET tst_account_shared_pc POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Sql>"
+            "$<TARGET_FILE:Qt6::Gui>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_account_shared_pc POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -3419,6 +3424,7 @@ target_sources(tst_profile_activity_isolation PRIVATE
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h")
 target_link_libraries(tst_profile_activity_isolation PRIVATE
     Qt6::Core
+    Qt6::Gui
     Qt6::Qml
     Qt6::Sql
     Qt6::Test)
@@ -3431,6 +3437,7 @@ add_custom_command(TARGET tst_profile_activity_isolation POST_BUILD
 add_custom_command(TARGET tst_profile_activity_isolation POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Sql>"
+            "$<TARGET_FILE:Qt6::Gui>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.profile_activity_isolation
          COMMAND tst_profile_activity_isolation)
