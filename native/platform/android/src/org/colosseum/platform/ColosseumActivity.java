@@ -152,6 +152,17 @@ public final class ColosseumActivity extends QtActivity {
         }
     }
 
+    // Qt's keyboard rectangle can move below the docked IME when its input
+    // connection is replaced between fields. Read the current Android insets.
+    public int dockedKeyboardTop() {
+        if (Build.VERSION.SDK_INT < 30) return -1;
+        android.view.WindowInsets insets = getWindow().getDecorView().getRootWindowInsets();
+        int type = android.view.WindowInsets.Type.ime();
+        if (insets == null || !insets.isVisible(type)) return -1;
+        int bottom = insets.getInsets(type).bottom;
+        return bottom > 0 ? getWindowManager().getCurrentWindowMetrics().getBounds().height() - bottom : -1;
+    }
+
     @Override public void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);

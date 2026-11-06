@@ -13,6 +13,7 @@
 #if defined(Q_OS_ANDROID)
 #include "AndroidSurfaceRedrawGate.h"
 #include <QCoreApplication>
+#include <QFuture>
 #include <QJniObject>
 #include <QHash>
 #include <QMutex>
@@ -228,6 +229,28 @@ bool Runtime::keyboardVisible() const {
     return qGuiApp && qGuiApp->inputMethod()
         ? qGuiApp->inputMethod()->isVisible()
         : false;
+}
+
+void Runtime::sampleDockedKeyboard() {
+#if defined(Q_OS_ANDROID)
+    if (m_samplingDockedKeyboard || !m_window)
+        return;
+    m_samplingDockedKeyboard = true;
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() -> QVariant {
+        if (!QNativeInterface::QAndroidApplication::isActivityContext())
+            return -1;
+        const auto activity = QNativeInterface::QAndroidApplication::context();
+        return activity.isValid() ? activity.callMethod<jint>("dockedKeyboardTop", "()I") : -1;
+    }).then(this, [this](const QVariant &result) {
+        m_samplingDockedKeyboard = false;
+        const int physicalTop = result.toInt();
+        const qreal top = physicalTop >= 0 && m_window ? physicalTop / m_window->devicePixelRatio() : -1;
+        if (m_dockedKeyboardTop == top)
+            return;
+        m_dockedKeyboardTop = top;
+        emit dockedKeyboardTopChanged();
+    });
+#endif
 }
 
 QMargins Runtime::safeAreaMargins() const {

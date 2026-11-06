@@ -3,8 +3,9 @@ import QtTest
 import "../../qml" as App
 
 Item {
-    width: 900
-    height: 440
+    // The OnePlus reports 2772×1240 physical pixels at about 2.9 pixels per Qt unit.
+    width: 956
+    height: 428
 
     QtObject {
         id: simulatedIme
@@ -23,11 +24,18 @@ Item {
         function newReference() { return "test-reference" }
     }
 
+    QtObject {
+        id: fakePlatform
+        property real dockedKeyboardTop: -1
+        function sampleDockedKeyboard() { }
+    }
+
     App.RequestFormOverlay {
         id: overlay
         anchors.fill: parent
         service: fakeService
         inputMethod: simulatedIme
+        keyboardPlatform: fakePlatform
         touchInput: true
     }
 
@@ -37,8 +45,37 @@ Item {
 
         function init() {
             simulatedIme.hide()
+            fakePlatform.dockedKeyboardTop = -1
             overlay.kind = "bug"
             tryVerify(function() { return !!findChild(overlay, "requestField_message") })
+        }
+
+        function test_dockedKeyboardKeepsFieldAndSendVisible_data() {
+            return [
+                {tag: "bug", kind: "bug", field: "message"},
+                {tag: "feature", kind: "feature", field: "benefit"},
+                {tag: "universe", kind: "universe", field: "title"}
+            ]
+        }
+
+        function test_dockedKeyboardKeepsFieldAndSendVisible(row) {
+            overlay.kind = row.kind
+            tryVerify(function() { return !!findChild(overlay, "requestField_" + row.field) })
+            const editor = findChild(overlay, "requestField_" + row.field)
+            const send = findChild(overlay, "requestFormSend")
+            const scroll = findChild(overlay, "requestFormScroll")
+            editor.forceActiveFocus()
+            fakePlatform.dockedKeyboardTop = 167
+            // Reproduce the stale Qt geometry observed after changing fields.
+            simulatedIme.keyboardRectangle = Qt.rect(0, 428, 956, 1)
+            simulatedIme.visible = true
+            tryVerify(function() {
+                const editorTop = editor.mapToItem(overlay, 0, 0).y
+                const editorBottom = editor.mapToItem(overlay, 0, editor.height).y
+                return editorTop >= scroll.mapToItem(overlay, 0, 0).y - 1
+                    && editorBottom <= scroll.mapToItem(overlay, 0, scroll.height).y + 1
+                    && send.mapToItem(overlay, 0, send.height).y <= fakePlatform.dockedKeyboardTop
+            })
         }
 
         function typeText(text) {

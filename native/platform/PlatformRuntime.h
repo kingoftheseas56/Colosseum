@@ -25,6 +25,7 @@ class Runtime final : public QObject {
     Q_PROPERTY(QString applicationState READ applicationState NOTIFY applicationStateChanged)
     Q_PROPERTY(bool foreground READ foreground NOTIFY applicationStateChanged)
     Q_PROPERTY(bool keyboardVisible READ keyboardVisible NOTIFY keyboardVisibleChanged)
+    Q_PROPERTY(qreal dockedKeyboardTop READ dockedKeyboardTop NOTIFY dockedKeyboardTopChanged)
     Q_PROPERTY(bool backGestureActive READ backGestureActive NOTIFY backGestureChanged)
     Q_PROPERTY(qreal backGestureProgress READ backGestureProgress NOTIFY backGestureChanged)
     Q_PROPERTY(int backGestureEdge READ backGestureEdge NOTIFY backGestureChanged)
@@ -49,6 +50,8 @@ public:
     QString applicationState() const;
     bool foreground() const;
     bool keyboardVisible() const;
+    qreal dockedKeyboardTop() const { return m_dockedKeyboardTop; }
+    Q_INVOKABLE void sampleDockedKeyboard();
     bool backGestureActive() const { return m_backGestureActive; }
     qreal backGestureProgress() const { return m_backGestureProgress; }
     int backGestureEdge() const { return m_backGestureEdge; }
@@ -80,6 +83,7 @@ public:
 signals:
     void applicationStateChanged();
     void keyboardVisibleChanged();
+    void dockedKeyboardTopChanged();
     void backGestureChanged();
     void playbackBrightnessChanged();
     void fontScaleChanged();
@@ -100,6 +104,10 @@ private:
     Capabilities m_capabilities;
     QPointer<QWindow> m_window;
     QMargins m_safeAreaMargins;
+    qreal m_dockedKeyboardTop = -1;
+#if defined(Q_OS_ANDROID)
+    bool m_samplingDockedKeyboard = false;
+#endif
     bool m_surfaceAvailable = false;
     bool m_androidTelevision = false;
     bool m_backGestureActive = false;

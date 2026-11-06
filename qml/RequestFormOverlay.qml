@@ -16,6 +16,7 @@ FocusScope {
     property var drafts: ({})
     property bool touchInput: Qt.platform.os === "android"
     property var inputMethod: Qt.inputMethod
+    property var keyboardPlatform: typeof PlatformRuntime !== "undefined" ? PlatformRuntime : null
     signal closeRequested()
     signal draftChanged()
 
@@ -27,8 +28,12 @@ FocusScope {
     readonly property rect availableRect: {
         const keyboard = keyboardVisible ? inputMethod.keyboardRectangle : Qt.rect(0, 0, 0, 0)
         const origin = mapFromItem(null, keyboard.x, keyboard.y)
-        const box = Viewport.available(width, height, SafeArea.margins, keyboardVisible,
-            {x: origin.x, y: origin.y, width: keyboard.width, height: keyboard.height},
+        const nativeTop = keyboardVisible && keyboardPlatform ? keyboardPlatform.dockedKeyboardTop : -1
+        const top = nativeTop >= 0 ? mapFromItem(null, 0, nativeTop).y : -1
+        const obstruction = nativeTop >= 0
+            ? {x: 0, y: top, width: width, height: Math.max(1, height - top)}
+            : {x: origin.x, y: origin.y, width: keyboard.width, height: keyboard.height}
+        const box = Viewport.available(width, height, SafeArea.margins, keyboardVisible, obstruction,
             keyboardVisible ? 6 : touchInput ? 12 : 28)
         return Qt.rect(box.x, box.y, box.width, box.height)
     }
@@ -203,6 +208,14 @@ FocusScope {
     Component.onDestruction: {
         if (touchInput && service && typeof service.setInlineKeyboard === "function")
             service.setInlineKeyboard(false)
+    }
+
+    Timer {
+        interval: 100
+        repeat: true
+        triggeredOnStart: true
+        running: root.keyboardVisible && !!root.keyboardPlatform
+        onTriggered: root.keyboardPlatform.sampleDockedKeyboard()
     }
 
     Timer {
