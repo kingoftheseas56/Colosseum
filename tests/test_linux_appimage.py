@@ -240,5 +240,28 @@ class AppImageLifecycleTests(unittest.TestCase):
         self.assertIn("uses: ./.github/workflows/release-linux-appimage.yml", text)
 
 
+
+class AppImageSdkTests(unittest.TestCase):
+    def test_environment_requires_full_glib_not_only_runtime(self):
+        lines = (TOOLS / "appimage-environment.yml").read_text().splitlines()
+        self.assertTrue(any(line.strip().split("=", 1)[0] == "- glib" for line in lines))
+
+    def test_sdk_rejects_missing_glib_headers_or_empty_include_directories(self):
+        mod = load(self, "prepare_appimage_sdk")
+        with tempfile.TemporaryDirectory() as directory:
+            prefix = Path(directory)
+            required = [prefix / "include/glib-2.0/glib.h", prefix / "lib/glib-2.0/include/glibconfig.h"]
+            for path in required:
+                path.parent.mkdir(parents=True, exist_ok=True)
+            with self.assertRaisesRegex(ValueError, "GLib development"):
+                mod.require_glib_headers(prefix)
+            for path in required:
+                path.write_text("/* test header */")
+            mod.require_glib_headers(prefix)
+            required[-1].unlink()
+            with self.assertRaisesRegex(ValueError, "glibconfig.h"):
+                mod.require_glib_headers(prefix)
+
+
 if __name__ == "__main__":
     unittest.main()
