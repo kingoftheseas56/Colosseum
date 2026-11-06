@@ -38,6 +38,13 @@ Item {
     property bool loading: false
     property bool timedOut: false
     property var rows: []
+    property var extensionsService: typeof Extensions !== "undefined" ? Extensions : null
+    property var loadStremioStreams: AddonClient.loadStreams
+    property var nuvioSourceService: typeof NuvioSources !== "undefined" ? NuvioSources : null
+    property int nuvioRequestId: 0
+    readonly property bool nuvioPending: nuvioRequestId !== 0
+    property bool nuvioAsked: false
+    property var nuvioRows: []
     property var askedNames: []     // the extensions this ask went out to, ask-order
     // Automation surface (additive, no behavior change): the plain per-pipe
     // Lanista CLI cannot express a JSON array through qml-get, so a length
@@ -60,7 +67,7 @@ Item {
     property Item extMenuReturnItem: null
     property int extMenuIndex: 0
     property bool sourceContextOpen: false
-    property int sourceContextIndex: 0
+    property var sourceContextRow: null
     property int sourceContextChoice: 0
     readonly property var qualityOptions: ["all", "4K", "1080p", "720p", "SD"].filter(function(q) { return q === "all" || sheet.countFor(q) > 0 })
     property var visibleRows: filteredRows()
@@ -92,7 +99,21 @@ Item {
         if (index < 0 || index >= sheet.visibleRows.length) return
         var row=sheet.visibleRows[index]
         if (sheet.mode !== "play") { sheet.downloadRequested(row); sheet.hide() }
-        else sheet.playRequested(row.infoHash, row.fileIdx, sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId, sheet.rows, sheet.playbackContext)
+        else {
+            var candidates = sheet.baseRows()
+            if (row.nuvio) {
+                // Players look up a direct stream by its URL. Keep the chosen provider's headers.
+                var rowIndex = candidates.indexOf(row)
+                var firstMatch = candidates.findIndex(function(candidate) {
+                    return candidate.infoHash.toLowerCase() === row.infoHash.toLowerCase()
+                })
+                if (firstMatch !== rowIndex) {
+                    candidates.splice(rowIndex, 1)
+                    candidates.splice(firstMatch, 0, row)
+                }
+            }
+            sheet.playRequested(row.infoHash, row.fileIdx, sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId, candidates, sheet.playbackContext)
+        }
     }
     function copySource(index) {
         if (index < 0 || index >= sheet.visibleRows.length) return
@@ -105,7 +126,7 @@ Item {
         sheet.downloadRequested(sheet.visibleRows[index]); sheet.titleQueued=true
     }
     function activateSourceContext(choice) {
-        var index=sheet.sourceContextIndex
+        var index=sheet.visibleRows.indexOf(sheet.sourceContextRow)
         if (choice===0) sheet.activateSource(index)
         else if (choice===1) sheet.copySource(index)
         else if (choice===2) sheet.downloadSource(index)
@@ -158,15 +179,18 @@ Item {
         return out
     }
     function openSourceContext(index) {
-        sheet.sourceContextIndex=index; sheet.sourceContextChoice=0; sheet.sourceContextOpen=true
+        sheet.sourceContextRow=sheet.visibleRows[index]; sheet.sourceContextChoice=0; sheet.sourceContextOpen=true
         Qt.callLater(function(){ sourceContextFocus.forceActiveFocus(Qt.PopupFocusReason) })
     }
     function closeSourceContext(restore) {
         sheet.sourceContextOpen=false
+        sheet.sourceContextRow=null
         if (restore!==false) Qt.callLater(function(){ if(list.visible) list.forceActiveFocus(Qt.PopupFocusReason) })
     }
 
     function show(type, id, lbl, context, pickMode) {
+        sheet.cancelNuvio();
+        sheet.closeSourceContext(false);
         var w=sheet.Window.window
         sheet.focusReturnItem=w ? w.activeFocusItem : null
         sheet.mode = (pickMode === "download" || pickMode === "season") ? pickMode : "play";
@@ -179,6 +203,8 @@ Item {
         sheet.backdropUrl = (context && context.backdrop) ? context.backdrop : "";
         sheet.playbackContext = context || ({});
         sheet.rows = [];
+        sheet.nuvioRows = [];
+        sheet.nuvioAsked = false;
         sheet.qualityFilter = "all";
         sheet.extFilter = "all";
         sheet.extMenuOpen = false;
@@ -191,30 +217,83 @@ Item {
         var myGen = sheet.gen;
         timeout.restart();
 
-        var installedList = (typeof Extensions !== "undefined")
-                            ? Extensions.installed() : [];
+        var installedList = sheet.extensionsService ? sheet.extensionsService.installed() : [];
 
         // every enabled stream extension that accepts this title, installed order
         var exts = AddonClient.streamExtensions(installedList, type, id);
         sheet.askedNames = exts.map(function(e) {
             return (e.manifest && e.manifest.name) || e.id;
         });
+        sheet.startNuvio(type, id, sheet.playbackContext);
         if (!exts.length) { sheet.loading = false; seasonSettle(); return; }
 
-        AddonClient.loadStreams(exts, type, id,
+        sheet.loadStremioStreams(exts, type, id,
             function(partialRows) {                 // one extension answered, more out
                 if (myGen !== sheet.gen) return;
-                sheet.rows = partialRows;
+                sheet.acceptStremioRows(partialRows);
             },
             function(allRows) {                     // every extension answered or timed out
                 if (myGen !== sheet.gen) return;
-                sheet.rows = allRows;
+                sheet.acceptStremioRows(allRows);
                 sheet.loading = false;
                 timeout.stop();
                 sheet.warmTopRow();
                 seasonSettle();
             });
     }
+
+    function acceptStremioRows(rows) {
+        var selected = sheet.nuvioRows.length ? sheet.visibleRows[list.currentIndex] : null;
+        sheet.rows = rows;
+        if (selected && selected.nuvio) list.currentIndex = sheet.visibleRows.indexOf(selected);
+    }
+
+    function startNuvio(type, id, context) {
+        if (sheet.mode !== "play" || !sheet.nuvioSourceService) return;
+        var season = Number(context.season) || 0;
+        var episode = Number(context.episode) || 0;
+        var imdbEpisode = /^(tt\d+):(\d+):(\d+)$/.exec(id || "");
+        if (imdbEpisode) {
+            if (context.season === undefined) season = Number(imdbEpisode[2]);
+            if (context.episode === undefined) episode = Number(imdbEpisode[3]);
+        }
+        if (type !== "movie" && ((type !== "series" && type !== "tv") || season < 0 || episode < 1)) return;
+        var tmdbId = Number(context.tmdbId);
+        var mediaId = tmdbId > 0 ? String(tmdbId) : (context.imdbId || id || "");
+        sheet.nuvioRequestId = sheet.nuvioSourceService.resolve(mediaId, type, season, episode);
+        sheet.nuvioAsked = sheet.nuvioPending;
+    }
+
+    function cancelNuvio() {
+        var requestId = sheet.nuvioRequestId;
+        sheet.nuvioRequestId = 0;
+        if (requestId && sheet.nuvioSourceService) sheet.nuvioSourceService.cancel(requestId);
+    }
+
+    Connections {
+        target: sheet.nuvioSourceService
+        function onStreamsReady(requestId, streams) {
+            if (!sheet.open || !sheet.nuvioPending || requestId !== sheet.nuvioRequestId) return;
+            var batch = [];
+            for (var i = 0; i < streams.length; ++i) {
+                var stream = streams[i];
+                var row = AddonClient.parseStream({
+                    url: stream.url, name: stream.name, title: stream.title,
+                    behaviorHints: { proxyHeaders: { request: stream.headers || ({}) } }
+                }, stream.pluginName, 0, "nuvio:" + stream.repoId + ":" + stream.pluginId);
+                if (!row) continue;
+                row.nuvio = true;
+                batch.push(row);
+            }
+            sheet.nuvioRows = sheet.nuvioRows.concat(batch);
+        }
+        function onFinished(requestId) {
+            if (requestId === sheet.nuvioRequestId) sheet.nuvioRequestId = 0;
+        }
+    }
+
+    onOpenChanged: if (!sheet.open) sheet.cancelNuvio()
+    Component.onDestruction: sheet.cancelNuvio()
 
     // Torrent warm-up (2026-07-31). The 2026-07-30 server warm-up starts the ENGINE
     // early but not the TORRENT: /create — join the DHT for THIS infohash, announce to
@@ -256,7 +335,7 @@ Item {
 
     function hide() {
         sheet.gen += 1;
-        sheet.sourceContextOpen = false;
+        sheet.closeSourceContext(false);
         sheet.extMenuOpen = false;
         sheet.open = false;
         timeout.stop();
@@ -267,7 +346,7 @@ Item {
     // the mode's row universe: season mode sees only full-season torrents,
     // everything else sees the raw answer. Quality pills filter on top of this.
     function baseRows() {
-        if (sheet.mode !== "season") return sheet.rows;
+        if (sheet.mode !== "season") return sheet.nuvioRows.length ? sheet.rows.concat(sheet.nuvioRows) : sheet.rows;
         var out = [];
         for (var i = 0; i < sheet.rows.length; ++i)
             if (AddonClient.isSeasonPack(sheet.rows[i], sheet.pickSeason)) out.push(sheet.rows[i]);
@@ -320,6 +399,11 @@ Item {
     }
 
     function chipText(q) { return q === "all" ? "All" : q; }
+
+    function streamTypeText(row) {
+        if (row.nuvio) return qsTr("Nuvio · Direct");
+        return (row.streamKind || "Torrent") + " · " + (row.streamLabel || "P2P stream");
+    }
 
     // the one inline meta line: seeders, size, source group — PLAIN metadata, no emoji-as-icon
     // (semantic audit 2026-07-19). Words label the values instead of pictographs.
@@ -555,6 +639,7 @@ Item {
                 width: sheet.phoneLayout ? parent.width - 28 : implicitWidth
                 text: sheet.visibleRows.length + (sheet.visibleRows.length === 1 ? " source" : " sources")
                       + (sheet.loading ? "  ·  still asking…" : "")
+                      + (sheet.nuvioPending ? qsTr("  ·  asking Nuvio…") : "")
                 color: theme.ink; font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
                 elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
             }
@@ -565,6 +650,7 @@ Item {
                 width: sheet.phoneLayout ? parent.width - 28 : implicitWidth
                 horizontalAlignment: sheet.phoneLayout ? Text.AlignLeft : Text.AlignRight
                 elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
+                visible: sheet.askedNames.length > 0
                 text: sheet.askedNames.length > 2
                       ? "via " + sheet.askedNames.length + " extensions"
                       : "via " + sheet.askedNames.join(" · ")
@@ -584,8 +670,9 @@ Item {
             wrapMode: sheet.phoneLayout ? Text.WordWrap : Text.NoWrap
             horizontalAlignment: sheet.phoneLayout ? Text.AlignHCenter : Text.AlignLeft
             text: sheet.loading ? "Finding sources…"
+                  : sheet.nuvioPending ? qsTr("Finding Nuvio sources…")
                   : (sheet.timedOut ? "Sources timed out. Try again."
-                     : (sheet.askedNames.length === 0
+                     : (sheet.askedNames.length === 0 && !sheet.nuvioAsked
                         ? "No stream source is enabled for this title. Enable one in Extensions."
                         : "No sources found."))
             color: sheet.timedOut ? "#e6a3a3" : theme.inkDim
@@ -595,7 +682,7 @@ Item {
         Rectangle {
             id: extensionsAction
             objectName: "sourcesSheetExtensionsRoute"
-            visible: sheet.open && sheet.mode === "play" && !sheet.loading && !sheet.timedOut
+            visible: sheet.open && sheet.mode === "play" && !sheet.loading && !sheet.nuvioPending && !sheet.timedOut
                      && sheet.rowCount === 0
             anchors.top: emptyText.bottom
             anchors.topMargin: 12
@@ -624,7 +711,7 @@ Item {
                 accessibleName: "Find sources by adding extensions"
                 focusRadius: parent.radius
                 onTriggered: {
-                    var browseMoreSources = sheet.askedCount > 0
+                    var browseMoreSources = sheet.askedCount > 0 || sheet.nuvioAsked
                     sheet.hide()
                     sheet.openExtensionsRequested(browseMoreSources)
                 }
@@ -762,7 +849,8 @@ Item {
                         }
                     }
                     Text {
-                        text: (row.modelData.streamKind || "Torrent") + " · " + (row.modelData.streamLabel || "P2P stream")
+                        objectName: "sourceStreamType"
+                        text: sheet.streamTypeText(row.modelData)
                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                     }
                 }
@@ -964,9 +1052,9 @@ Item {
                         }
                     }
                     Text {
+                        objectName: "sourceStreamTypePhone"
                         width: parent.width
-                        text: (row.modelData.streamKind || "Torrent") + " · "
-                              + (row.modelData.streamLabel || "P2P stream")
+                        text: sheet.streamTypeText(row.modelData)
                         color: theme.inkDimmer; font.family: theme.ui
                         font.pixelSize: 12; font.weight: Font.DemiBold
                         wrapMode: Text.WrapAnywhere

@@ -13,7 +13,7 @@ check(fs.existsSync(helperPath), 'shared Direct source policy helper exists');
 let policy = {};
 if (fs.existsSync(helperPath)) {
   const src = fs.readFileSync(helperPath, 'utf8').replace(/^\.pragma library\s*$/m, '');
-  new Function('module', src + '\nmodule.admitProviderUrl=admitProviderUrl; module.copyHeaders=copyHeaders;')(policy);
+  new Function('module', src + '\nmodule.admitProviderUrl=admitProviderUrl; module.copyHeaders=copyHeaders; module.isNuvioSelection=isNuvioSelection;')(policy);
 }
 
 const accepted = [
@@ -75,6 +75,16 @@ if (typeof policy.copyHeaders === 'function') {
 } else {
   check(false, 'copyHeaders is executable');
 }
+
+const sharedDirectKey = 'url:https://example.org/same';
+const nuvioChoice = { infoHash: sharedDirectKey, nuvio: true };
+const stremioChoice = { infoHash: sharedDirectKey };
+check(policy.isNuvioSelection([nuvioChoice, stremioChoice], sharedDirectKey),
+      'a chosen Nuvio transport bypasses warm resume for the same content');
+check(!policy.isNuvioSelection([stremioChoice, nuvioChoice], sharedDirectKey),
+      'an unselected Nuvio row sharing a URL does not change a Stremio choice');
+check(!policy.isNuvioSelection(undefined, sharedDirectKey),
+      'targets without stream candidates remain safe to reopen');
 
 const player = fs.readFileSync(playerPath, 'utf8');
 check(player.includes('import "DirectSourcePolicy.js" as DirectSourcePolicy'),

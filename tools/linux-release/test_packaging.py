@@ -16,6 +16,8 @@ class PackageTests(unittest.TestCase):
         for p in (s,b,q,d):p.mkdir()
         for name in ('qml','assets','resources','data'):(s/name).mkdir()
         (s/'native').mkdir();(s/'native/CMakeLists.txt').write_text('project(colosseum VERSION 1.1.9 LANGUAGES C CXX)\n')
+        quickjs_license=s/'native/nuvio/vendor/quickjs/LICENSE';quickjs_license.parent.mkdir(parents=True);quickjs_license.write_text('QuickJS license fixture\n')
+        js_licenses=s/'native/nuvio/vendor/js/licenses';js_licenses.mkdir(parents=True);(js_licenses/'NOTICE.txt').write_text('JavaScript runtime notice fixture\n')
         (s/'scripts').mkdir();shutil.copy2(HERE.parents[1]/'scripts/stage_api_content.py',s/'scripts/stage_api_content.py')
         starter=s/'assets/content-starter/bundle.json';starter.parent.mkdir()
         starter.write_text(json.dumps({'manifest':{'documents':{str(i):{} for i in range(10)},'assets':{}}}))
@@ -30,6 +32,7 @@ class PackageTests(unittest.TestCase):
         (self.p/'app.c').write_text('extern int answer(void); int main(void){return answer()!=42;}')
         subprocess.run(['cc','-shared','-fPIC',str(self.p/'dep.c'),'-Wl,-soname,libfixture.so.1','-o',str(d/'libfixture.so.1')],check=True)
         subprocess.run(['cc',str(self.p/'app.c'),'-L'+str(d),'-l:libfixture.so.1','-Wl,-rpath,'+str(d),'-o',str(b/'colosseum')],check=True)
+        subprocess.run(['cc',str(self.p/'app.c'),'-L'+str(d),'-l:libfixture.so.1','-Wl,-rpath,'+str(d),'-o',str(b/'colosseum-nuvio-host')],check=True)
         for name in ('lib','qml','plugins','libexec','resources','translations'):(q/name).mkdir()
         shutil.copy2('/bin/true',q/'libexec/QtWebEngineProcess')
         self.stage=self.p/'candidate'
@@ -43,7 +46,13 @@ class PackageTests(unittest.TestCase):
     def test_relocated_native_fixture(self):
         shutil.rmtree(self.p/'deps')
         self.assertEqual(subprocess.run([str(self.stage/'usr/bin/colosseum')]).returncode,0)
+        self.assertEqual(subprocess.run([str(self.stage/'usr/bin/colosseum-nuvio-host')]).returncode,0)
+        self.assertEqual((self.stage/'licenses/Nuvio/QuickJS/LICENSE').read_text(),'QuickJS license fixture\n')
+        self.assertEqual((self.stage/'licenses/Nuvio/JS/NOTICE.txt').read_text(),'JavaScript runtime notice fixture\n')
         self.assertEqual(self.check()[0],0)
+    def test_missing_nuvio_helper_rejected(self):
+        (self.stage/'usr/bin/colosseum-nuvio-host').unlink()
+        self.assertIn('Missing sentinel usr/bin/colosseum-nuvio-host',self.check()[1]['failures'])
     def test_missing_dependency_rejected(self):
         (self.stage/'usr/lib/libfixture.so.1').unlink();self.assertNotEqual(self.check()[0],0)
     def test_qml_drift_rejected(self):
@@ -174,6 +183,9 @@ class PackageTests(unittest.TestCase):
         self.assertIn('libgtk-3-common',[entry.strip() for entry in depends.split(',')])
         extracted=self.p/'deb-extracted';subprocess.run(['dpkg-deb','--extract',str(out),str(extracted)],check=True)
         self.assertEqual((extracted/'opt/colosseum/usr/bin/colosseum').read_bytes(),(self.stage/'usr/bin/colosseum').read_bytes())
+        self.assertEqual((extracted/'opt/colosseum/usr/bin/colosseum-nuvio-host').read_bytes(),(self.stage/'usr/bin/colosseum-nuvio-host').read_bytes())
+        self.assertTrue((extracted/'opt/colosseum/licenses/Nuvio/QuickJS/LICENSE').is_file())
+        self.assertTrue((extracted/'opt/colosseum/licenses/Nuvio/JS/NOTICE.txt').is_file())
         self.assertTrue((extracted/'usr/share/applications/colosseum.desktop').is_file())
         self.assertTrue(os.access(extracted/'usr/bin/colosseum',os.X_OK))
         self.assertIn('/opt/colosseum/AppRun',(extracted/'usr/bin/colosseum').read_text())

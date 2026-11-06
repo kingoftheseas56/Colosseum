@@ -92,6 +92,11 @@
 #include "bootstrap/StartupLayout.h"
 #include "bootstrap/QmlModuleGuards.h"
 #include "engine/ExtensionsStore.h"
+#ifdef COLOSSEUM_NUVIO_PLUGINS
+#include "nuvio/NuvioNetwork.h"
+#include "nuvio/NuvioRepositoryStore.h"
+#include "nuvio/NuvioSourceResolver.h"
+#endif
 #include "engine/MangaTankobanService.h"
 #if !defined(Q_OS_ANDROID)
 #include "engine/LocalLaunch.h"
@@ -1641,6 +1646,18 @@ int main(int argc, char *argv[]) {
     // Shares the plain uncached NAM — manifests are small JSON, never cache-served.
     auto *extensions = new ExtensionsStore(dlNam, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Extensions"), extensions);
+#ifdef COLOSSEUM_NUVIO_PLUGINS
+    const QString nuvioDirectory = instanceAppData + QStringLiteral("/extensions/nuvio");
+    auto *nuvioRepos = new NuvioRepositoryStore(nuvioDirectory, NuvioNetwork::getRepositoryAsset,
+                                               &backendServices);
+    auto workerPath = QCoreApplication::applicationDirPath() + QStringLiteral("/colosseum-nuvio-host");
+#ifdef Q_OS_WIN
+    workerPath += QStringLiteral(".exe");
+#endif
+    auto *nuvioSources = new NuvioSourceResolver(nuvioRepos, workerPath, &backendServices);
+    engine.rootContext()->setContextProperty(QStringLiteral("NuvioRepos"), nuvioRepos);
+    engine.rootContext()->setContextProperty(QStringLiteral("NuvioSources"), nuvioSources);
+#endif
 
     // dev harness: COLOSSEUM_OPEN_EXTENSIONS=1 boots straight into the store, so
     // smoke runs exercise the page Loader (QML errors only surface on activation).

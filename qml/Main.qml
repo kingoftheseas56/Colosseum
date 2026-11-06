@@ -29,6 +29,7 @@ import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
 import "EpisodeBrowser.js" as EpisodeBrowser
+import "DirectSourcePolicy.js" as DirectSourcePolicy
 import "BiblioApi.js" as BiblioApi
 import "CollectionBackfill.js" as CollectionBackfill
 import "WarmingQueue.js" as Warming
@@ -3600,7 +3601,17 @@ Window {
             Collection.add("theatre", { "id": String(joinId),
                 "type": (subType === "series") ? "series" : "movie",
                 "title": title || "", "cover": backdrop || "", "payload": ({}) })
-        Sessions.openOrSwitch({
+        // An explicit Nuvio source pick must load its own transport and headers
+        // even when a parked player is ready to resume this same title.
+        var warm = win.warmPlayerSessionId ? Sessions.get(win.warmPlayerSessionId) : null
+        var restartActive = false
+        if (warm && warm.target && subId && warm.target.subId === subId
+                && (DirectSourcePolicy.isNuvioSelection(streamCandidates, infoHash)
+                    || DirectSourcePolicy.isNuvioSelection(warm.target.streamCandidates, warm.target.infoHash))) {
+            restartActive = Sessions.activeId === warm.id
+            win.warmPlayerSessionId = ""
+        }
+        var id = Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": title || "Movie",
             "target": { "showKey": EpisodeBrowser.seriesRootId(subId || ""),
                         "infoHash": infoHash, "fileIdx": fileIdx || 0, "title": title || "",
@@ -3608,6 +3619,8 @@ Window {
                         "streamCandidates": streamCandidates || [], "playbackContext": playbackContext || ({}),
                         "position": position || 0 }
         })
+        if (restartActive && id === warm.id && playerLayer.item)
+            win.activateMovieSession(Sessions.get(id))
     }
     // A downloaded video's session: dedup key = target.id (the stream id, e.g. "tt123:1:2"),
     // so re-opening the same episode reuses its tile. `position` rides along for first-open

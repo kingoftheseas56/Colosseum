@@ -84,11 +84,13 @@ def main():
     if not re.fullmatch('[0-9a-f]{40}',a.commit):raise SystemExit('Full source commit required')
     if out.exists():raise SystemExit('Stage must not exist; choose a fresh directory')
     if not (build/'colosseum').is_file():raise SystemExit('Compiled application missing')
+    nuvio_host=build/'colosseum-nuvio-host'
+    if not nuvio_host.is_file() or not os.access(nuvio_host,os.X_OK):raise SystemExit('Compiled Nuvio host missing or not executable')
     version=release_version(src)
     cache=(build/'CMakeCache.txt').read_text()
     validate_shipping_cache(cache,version)
     out.mkdir(parents=True); bind=out/'usr/bin'; lib=out/'usr/lib'; bind.mkdir(parents=True);lib.mkdir()
-    shutil.copy2(build/'colosseum',bind/'colosseum');shutil.copy2(build/'qml-build.manifest',bind/'qml-build.manifest')
+    shutil.copy2(build/'colosseum',bind/'colosseum');shutil.copy2(nuvio_host,bind/'colosseum-nuvio-host');shutil.copy2(build/'qml-build.manifest',bind/'qml-build.manifest')
     for name in ('qml','assets','resources','data'):shutil.copytree(src/name,out/name,symlinks=False)
     spec=importlib.util.spec_from_file_location('stage_api_content',src/'scripts/stage_api_content.py')
     staging=importlib.util.module_from_spec(spec);spec.loader.exec_module(staging)
@@ -155,6 +157,13 @@ def main():
         for record in pixbuf['files']:record['sha256']=sha(out/record['path'])
     notices=out/'licenses';notices.mkdir()
     for name in ('LICENSE','THIRD_PARTY_NOTICES.md'):shutil.copy2(src/name,notices/name)
+    quickjs_license=src/'native/nuvio/vendor/quickjs/LICENSE'
+    js_licenses=src/'native/nuvio/vendor/js/licenses'
+    if not quickjs_license.is_file():raise SystemExit('QuickJS license missing: '+str(quickjs_license))
+    if not js_licenses.is_dir() or not any(p.is_file() for p in js_licenses.rglob('*')):raise SystemExit('JavaScript runtime licenses missing: '+str(js_licenses))
+    nuvio_notices=notices/'Nuvio';(nuvio_notices/'QuickJS').mkdir(parents=True)
+    shutil.copy2(quickjs_license,nuvio_notices/'QuickJS/LICENSE')
+    shutil.copytree(js_licenses,nuvio_notices/'JS',symlinks=False)
     for i,d in enumerate(a.dependency_notices):
         d=Path(d)
         if d.is_dir():shutil.copytree(d,notices/f'dependency-{i}-{d.name}',symlinks=False)

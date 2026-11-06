@@ -37,6 +37,23 @@ class ReleaseInstallerSmokeContract(unittest.TestCase):
         self.assertIn('!define MUI_UNICON "${STAGE}\\assets\\icons\\colosseum.ico"', installer)
         self.assertTrue((ROOT / 'assets/icons/colosseum.ico').is_file())
 
+    def test_nuvio_helper_and_required_notices_are_staged_for_windows_installer(self):
+        package = (ROOT / 'scripts/installer/package_release.sh').read_text(encoding='utf-8')
+        installer = (ROOT / 'scripts/installer/colosseum.nsi').read_text(encoding='utf-8')
+        for token in (
+            'colosseum-nuvio-host.exe',
+            'native/nuvio/vendor/quickjs/LICENSE',
+            'native/nuvio/vendor/js/licenses',
+            'NUVIO_LICENSES="$STAGE/licenses/Nuvio"',
+            '"$NUVIO_LICENSES/QuickJS/LICENSE"',
+            '"$NUVIO_LICENSES/JS/"',
+        ):
+            self.assertIn(token, package)
+        self.assertIn('File /r "${STAGE}\\*.*"', installer)
+        self.assertTrue((ROOT / 'native/nuvio/vendor/quickjs/LICENSE').is_file())
+        js_licenses = ROOT / 'native/nuvio/vendor/js/licenses'
+        self.assertTrue(js_licenses.is_dir() and any(path.is_file() for path in js_licenses.rglob('*')))
+
     def test_github_workflow_runs_exact_installer_smoke_on_windows(self):
         workflow = (ROOT / '.github/workflows/release-installer-smoke.yml').read_text(encoding='utf-8')
         script = (ROOT / 'tests/installer/release_installer_smoke.ps1').read_text(encoding='utf-8')

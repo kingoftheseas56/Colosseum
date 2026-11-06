@@ -5673,3 +5673,17 @@ add_subdirectory(named_collections)
 add_subdirectory(collections_identity)
 add_subdirectory(collections_qml)
 add_subdirectory(collections_runtime)
+
+# Native plugins are shipped by the Windows and Linux app builds.
+if(TARGET colosseum_nuvio AND TARGET Qt6::Test)
+    foreach(test_name IN ITEMS nuvio_repository_store_test nuvio_plugin_host_test
+                               nuvio_source_resolver_test)
+        add_executable(${test_name} ${test_name}.cpp)
+        target_include_directories(${test_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+        target_link_libraries(${test_name} PRIVATE colosseum_nuvio Qt6::Test)
+        add_test(NAME colosseum.${test_name} COMMAND ${test_name})
+    endforeach()
+    add_dependencies(nuvio_plugin_host_test colosseum-nuvio-host)
+    set_tests_properties(colosseum.nuvio_plugin_host_test PROPERTIES
+        ENVIRONMENT "COLOSSEUM_NUVIO_TEST_WORKER=$<TARGET_FILE:colosseum-nuvio-host>")
+endif()

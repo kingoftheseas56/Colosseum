@@ -7,9 +7,13 @@ from assemble import elf, sha, SYSTEM, validate_gdk_pixbuf_cache
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('stage',type=Path);ap.add_argument('--report',type=Path,required=True);a=ap.parse_args();root=a.stage.resolve()
     failures=[];files=[];required={'GLIBC':set(),'GLIBCXX':set(),'CXXABI':set()};external={}
-    sentinels=['AppRun','usr/bin/colosseum','usr/bin/qml-build.manifest','usr/bin/qt.conf','qml/Main.qml','usr/lib/libQt6Core.so.6','usr/lib/libQt6WebEngineCore.so.6','usr/lib/libmpv.so.2','usr/libexec/QtWebEngineProcess','usr/plugins/platforms/libqxcb.so','usr/plugins/sqldrivers/libqsqlite.so','usr/resources/icudtl.dat','usr/resources/qtwebengine_resources.pak','licenses/LICENSE','licenses/THIRD_PARTY_NOTICES.md','BUILD-IDENTITY.json']
+    sentinels=['AppRun','usr/bin/colosseum','usr/bin/colosseum-nuvio-host','usr/bin/qml-build.manifest','usr/bin/qt.conf','qml/Main.qml','usr/lib/libQt6Core.so.6','usr/lib/libQt6WebEngineCore.so.6','usr/lib/libmpv.so.2','usr/libexec/QtWebEngineProcess','usr/plugins/platforms/libqxcb.so','usr/plugins/sqldrivers/libqsqlite.so','usr/resources/icudtl.dat','usr/resources/qtwebengine_resources.pak','licenses/LICENSE','licenses/THIRD_PARTY_NOTICES.md','licenses/Nuvio/QuickJS/LICENSE','BUILD-IDENTITY.json']
     for f in sentinels:
         if not (root/f).is_file():failures.append('Missing sentinel '+f)
+    js_notices=root/'licenses/Nuvio/JS'
+    if not js_notices.is_dir() or not any(p.is_file() for p in js_notices.rglob('*')):failures.append('Missing Nuvio JavaScript runtime licenses')
+    nuvio_host=root/'usr/bin/colosseum-nuvio-host'
+    if nuvio_host.is_file() and not os.access(nuvio_host,os.X_OK):failures.append('Nuvio host is not executable')
     env=os.environ.copy();env['LD_LIBRARY_PATH']=str(root/'usr/lib');env.pop('LD_PRELOAD',None)
     for p in sorted(root.rglob('*')):
         if p.is_symlink() and not p.resolve().is_relative_to(root):failures.append('External symlink '+str(p))

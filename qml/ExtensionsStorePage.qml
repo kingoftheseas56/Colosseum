@@ -25,6 +25,7 @@ Item {
     signal searchClicked()
     signal universeHallRequested()
 
+    readonly property var nuvioRepositoryStore: typeof NuvioRepos !== "undefined" ? NuvioRepos : null
     property var catalogue: []               // every cleaned add-on, most starred first
     property string loadError: ""
     property bool loading: true
@@ -483,6 +484,22 @@ Item {
             root.installUrlError = qsTr("Couldn't preview it: %1").arg(root.safeInstallMessage(reason))
         }
     }
+    Connections {
+        target: typeof Extensions !== "undefined" ? Extensions : null
+        ignoreUnknownSignals: true
+        function onNuvioRepositoryPreviewed(url) {
+            if (!root.installUrlOpen || !root.installUrlPreviewing || url !== root.installUrlNormalized)
+                return
+            root.installUrlPreviewing = false
+            if (!root.nuvioRepositoryStore) {
+                root.installUrlError = qsTr("Nuvio plugins are unavailable on this device.")
+                return
+            }
+            root.closeUrlInstaller()
+            Qt.callLater(nuvioBar.offerLink, url)
+        }
+    }
+
     // A direct install that fails says so (it used to clear the busy badge and nothing else).
     property string installError: ""
     Timer { id: installErrorTimer; interval: 6000; onTriggered: root.installError = "" }
@@ -539,6 +556,14 @@ Item {
                 management.initialIndex = index
                 root.managingInstalled = true
             }
+        }
+
+        NuvioRepositoriesBar {
+            id: nuvioBar
+            objectName: "nuvioRepositoriesBar"
+            store: root.nuvioRepositoryStore
+            visible: store !== null
+            onFocusRequested: (item) => storeWorld.revealFocusedItem(item)
         }
 
         Text {
