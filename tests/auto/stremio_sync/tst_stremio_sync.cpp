@@ -1188,18 +1188,14 @@ void tst_stremio_sync::nuvioCredentialVaultIsScopedValidatedAndDisconnectable() 
     const QString otherProfileId =
         QStringLiteral("5074ac5b-a47d-432a-a3d4-2889bf7c4f5a");
     const StoredNuvioCredential credential{
-        profileId, accountId,
-        QByteArrayLiteral("fixture-access"),
-        QByteArrayLiteral("fixture-refresh"), 1793956800000LL};
+        profileId, accountId, QByteArrayLiteral("fixture-refresh"), {}, 0};
 
     QVERIFY(store.saveNuvio(credential));
     const auto loaded = store.loadNuvio(profileId);
     QVERIFY(loaded.has_value());
     QCOMPARE(loaded->profileId, profileId);
     QCOMPARE(loaded->accountId, accountId);
-    QCOMPARE(loaded->accessToken, credential.accessToken);
     QCOMPARE(loaded->refreshToken, credential.refreshToken);
-    QCOMPARE(loaded->accessExpiresAtUtcMs, credential.accessExpiresAtUtcMs);
     QVERIFY(!store.loadNuvio(otherProfileId).has_value());
 
     const QString target = PlatformAccountCredentialStore::nuvioTargetName(profileId);
@@ -1208,6 +1204,9 @@ void tst_stremio_sync::nuvioCredentialVaultIsScopedValidatedAndDisconnectable() 
     QVERIFY(target.contains(QStringLiteral(".Tagged.")));
     const QJsonObject serialized = QJsonDocument::fromJson(backend->values.value(target)).object();
     QCOMPARE(serialized.size(), 6);
+    QCOMPARE(serialized.value(QStringLiteral("version")).toInt(), 3);
+    QVERIFY(!serialized.contains(QStringLiteral("access_token")));
+    QVERIFY(!serialized.contains(QStringLiteral("access_expires_at_utc_ms")));
     QVERIFY(!serialized.contains(QStringLiteral("password")));
     QVERIFY(!serialized.contains(QStringLiteral("email")));
     QVERIFY(!backend->values.value(target).contains("fixture-access"));
@@ -1215,9 +1214,6 @@ void tst_stremio_sync::nuvioCredentialVaultIsScopedValidatedAndDisconnectable() 
 
     auto invalid = credential;
     invalid.refreshToken.clear();
-    QVERIFY(!store.saveNuvio(invalid));
-    invalid = credential;
-    invalid.accessExpiresAtUtcMs = 0;
     QVERIFY(!store.saveNuvio(invalid));
     invalid = credential;
     invalid.profileId = QStringLiteral("../other");
@@ -1239,6 +1235,28 @@ void tst_stremio_sync::nuvioCredentialVaultIsScopedValidatedAndDisconnectable() 
     QVERIFY(saved.has_value());
     QCOMPARE(saved->nuvioProfileId, selected.nuvioProfileId);
     QCOMPARE(saved->nuvioProfileIndex, selected.nuvioProfileIndex);
+
+    QJsonObject legacy = QJsonDocument::fromJson(savedBlob).object();
+    legacy.insert(QStringLiteral("version"), 2);
+    legacy.insert(QStringLiteral("access_token"), QString::fromLatin1(
+        QByteArrayLiteral("fixture-access").toBase64(QByteArray::Base64UrlEncoding)));
+    legacy.insert(QStringLiteral("access_expires_at_utc_ms"), 1793956800000LL);
+    backend->values.insert(target, QJsonDocument(legacy).toJson(QJsonDocument::Compact));
+    const auto versionTwo = store.loadNuvio(profileId);
+    QVERIFY(versionTwo);
+    QCOMPARE(versionTwo->refreshToken, selected.refreshToken);
+    QCOMPARE(versionTwo->nuvioProfileId, selected.nuvioProfileId);
+    QCOMPARE(versionTwo->nuvioProfileIndex, selected.nuvioProfileIndex);
+
+    legacy.insert(QStringLiteral("version"), 1);
+    legacy.remove(QStringLiteral("nuvio_profile_id"));
+    legacy.remove(QStringLiteral("nuvio_profile_index"));
+    backend->values.insert(target, QJsonDocument(legacy).toJson(QJsonDocument::Compact));
+    const auto versionOne = store.loadNuvio(profileId);
+    QVERIFY(versionOne);
+    QCOMPARE(versionOne->refreshToken, selected.refreshToken);
+    QCOMPARE(versionOne->nuvioProfileIndex, 0);
+    backend->values.insert(target, savedBlob);
 
     const QString otherTarget = PlatformAccountCredentialStore::nuvioTargetName(otherProfileId);
     backend->values.insert(otherTarget, savedBlob);

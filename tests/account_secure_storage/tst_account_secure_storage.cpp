@@ -208,15 +208,12 @@ private slots:
             ~ClearNuvio() { store.clearNuvio(profile); }
         } clear{*store, profile};
 
-        const StoredNuvioCredential selected{
-            profile, kAccount, QByteArrayLiteral("fixture-access"), kToken,
-            1793956800000LL, kRequest, 4};
+        const StoredNuvioCredential selected{profile, kAccount, kToken, kRequest, 4};
         QVERIFY(store->saveNuvio(selected));
         auto reopened = createAccountCredentialStore();
         const auto loaded = reopened->loadNuvio(profile);
         QVERIFY(loaded);
         QCOMPARE(loaded->accountId, selected.accountId);
-        QCOMPARE(loaded->accessToken, selected.accessToken);
         QCOMPARE(loaded->refreshToken, selected.refreshToken);
         QCOMPARE(loaded->nuvioProfileId, selected.nuvioProfileId);
         QCOMPARE(loaded->nuvioProfileIndex, selected.nuvioProfileIndex);

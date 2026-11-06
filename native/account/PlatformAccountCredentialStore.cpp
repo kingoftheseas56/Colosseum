@@ -309,10 +309,7 @@ bool PlatformAccountCredentialStore::saveNuvio(const StoredNuvioCredential &cred
     const QUuid accountId(credential.accountId);
     const QUuid nuvioProfileId(credential.nuvioProfileId);
     if (target.isEmpty() || accountId.isNull()
-        || credential.accessToken.isEmpty() || credential.refreshToken.isEmpty()
-        || credential.accessToken.size() > 65536
-        || credential.refreshToken.size() > 65536
-        || credential.accessExpiresAtUtcMs <= 0
+        || credential.refreshToken.isEmpty() || credential.refreshToken.size() > 65536
         || (credential.nuvioProfileIndex == 0 && !credential.nuvioProfileId.isEmpty())
         || (credential.nuvioProfileIndex != 0
             && (credential.nuvioProfileIndex < 1 || credential.nuvioProfileIndex > 6
@@ -448,23 +445,16 @@ std::optional<StoredStremioCredential> PlatformAccountCredentialStore::decodeStr
 
 QByteArray PlatformAccountCredentialStore::encodeNuvioCredential(
     const StoredNuvioCredential &credential) {
-    const auto base64 = [](const QByteArray &token) {
-        return QString::fromLatin1(token.toBase64(
-            QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
-    };
-    QJsonObject object{
-        {QStringLiteral("version"), 1},
+    const QString refresh = QString::fromLatin1(credential.refreshToken.toBase64(
+        QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+    return QJsonDocument(QJsonObject{
+        {QStringLiteral("version"), 3},
         {QStringLiteral("profile_id"), credential.profileId},
         {QStringLiteral("account_id"), credential.accountId},
-        {QStringLiteral("access_token"), base64(credential.accessToken)},
-        {QStringLiteral("refresh_token"), base64(credential.refreshToken)},
-        {QStringLiteral("access_expires_at_utc_ms"), credential.accessExpiresAtUtcMs}};
-    if (credential.nuvioProfileIndex != 0) {
-        object.insert(QStringLiteral("version"), 2);
-        object.insert(QStringLiteral("nuvio_profile_id"), credential.nuvioProfileId);
-        object.insert(QStringLiteral("nuvio_profile_index"), credential.nuvioProfileIndex);
-    }
-    return QJsonDocument(object).toJson(QJsonDocument::Compact);
+        {QStringLiteral("refresh_token"), refresh},
+        {QStringLiteral("nuvio_profile_id"), credential.nuvioProfileId},
+        {QStringLiteral("nuvio_profile_index"), credential.nuvioProfileIndex}
+    }).toJson(QJsonDocument::Compact);
 }
 
 std::optional<StoredNuvioCredential> PlatformAccountCredentialStore::decodeNuvioCredential(
@@ -476,41 +466,47 @@ std::optional<StoredNuvioCredential> PlatformAccountCredentialStore::decodeNuvio
 
     const QJsonObject object = document.object();
     const int version = object.value(QStringLiteral("version")).toInt();
-    if (!((version == 1 && object.size() == 6) || (version == 2 && object.size() == 8)))
+    if (!(((version == 1 || version == 3) && object.size() == 6)
+          || (version == 2 && object.size() == 8))) {
         return std::nullopt;
+    }
     StoredNuvioCredential credential;
-    if (version == 2) {
-        credential.nuvioProfileId = object.value(QStringLiteral("nuvio_profile_id")).toString();
-        credential.nuvioProfileIndex = object.value(QStringLiteral("nuvio_profile_index")).toInt();
+    if (version >= 2) {
+        const QJsonValue profileId = object.value(QStringLiteral("nuvio_profile_id"));
+        credential.nuvioProfileId = profileId.toString();
+        credential.nuvioProfileIndex = object.value(QStringLiteral("nuvio_profile_index")).toInt(-1);
         const QUuid nuvioProfileId(credential.nuvioProfileId);
-        if (nuvioProfileId.isNull()
-            || nuvioProfileId.toString(QUuid::WithoutBraces) != credential.nuvioProfileId
-            || credential.nuvioProfileIndex < 1 || credential.nuvioProfileIndex > 6) {
+        const bool unselected = version == 3 && credential.nuvioProfileIndex == 0
+            && profileId.isString() && credential.nuvioProfileId.isEmpty();
+        const bool selected = credential.nuvioProfileIndex >= 1 && credential.nuvioProfileIndex <= 6
+            && !nuvioProfileId.isNull()
+            && nuvioProfileId.toString(QUuid::WithoutBraces) == credential.nuvioProfileId;
+        if (!unselected && !selected)
             return std::nullopt;
-        }
     }
     credential.profileId = object.value(QStringLiteral("profile_id")).toString();
     credential.accountId = object.value(QStringLiteral("account_id")).toString();
     const QUuid accountId(credential.accountId);
     if (!validStremioProfileId(credential.profileId) || accountId.isNull()
-        || accountId.toString(QUuid::WithoutBraces).toLower() != credential.accountId
-        || !object.value(QStringLiteral("access_expires_at_utc_ms")).isDouble())
+        || accountId.toString(QUuid::WithoutBraces).toLower() != credential.accountId) {
         return std::nullopt;
-    credential.accessExpiresAtUtcMs =
-        object.value(QStringLiteral("access_expires_at_utc_ms")).toInteger();
-    if (credential.accessExpiresAtUtcMs <= 0)
-        return std::nullopt;
+    }
+    if (version < 3) {
+        // Preserve the legacy validation and resume using its refresh token.
+        const auto access = QByteArray::fromBase64Encoding(
+            object.value(QStringLiteral("access_token")).toString().toLatin1(),
+            QByteArray::Base64UrlEncoding | QByteArray::AbortOnBase64DecodingErrors);
+        if (!access || access.decoded.isEmpty() || access.decoded.size() > 65536
+            || object.value(QStringLiteral("access_expires_at_utc_ms")).toInteger() <= 0) {
+            return std::nullopt;
+        }
+    }
 
-    const auto access = QByteArray::fromBase64Encoding(
-        object.value(QStringLiteral("access_token")).toString().toLatin1(),
-        QByteArray::Base64UrlEncoding | QByteArray::AbortOnBase64DecodingErrors);
     const auto refresh = QByteArray::fromBase64Encoding(
         object.value(QStringLiteral("refresh_token")).toString().toLatin1(),
         QByteArray::Base64UrlEncoding | QByteArray::AbortOnBase64DecodingErrors);
-    if (!access || !refresh || access.decoded.isEmpty() || refresh.decoded.isEmpty()
-        || access.decoded.size() > 65536 || refresh.decoded.size() > 65536)
+    if (!refresh || refresh.decoded.isEmpty() || refresh.decoded.size() > 65536)
         return std::nullopt;
-    credential.accessToken = access.decoded;
     credential.refreshToken = refresh.decoded;
     return credential;
 }
