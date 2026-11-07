@@ -30,6 +30,9 @@ def records():
     result = []
     for index, stage in enumerate(proof.STAGES):
         record = {"stage": stage, "nonce": "fresh", "appPid": 100, "ok": True}
+        if stage == "started":
+            record.update(tmdbAuthorizationSelfTest=True,
+                          tmdbAuthorizationSelfTestKind="synthetic_no_network")
         if stage in ("stremio_fixture_installed", "direct_stream", "stremio_requeried", "completed"):
             record.update(sourceKind="live_https_controlled_fixture")
         if stage in ("stremio_requeried", "completed"):
@@ -122,6 +125,14 @@ class ProofContractTests(unittest.TestCase):
             data = records()
             data[proof.STAGES.index(stage)][field] = value
             with self.subTest(stage=stage, field=field), self.assertRaises(proof.ProofFailure):
+                proof.validate_stages(data, 100, complete=True)
+
+    def test_native_tmdb_boundary_check_is_required(self):
+        for field, value in (("tmdbAuthorizationSelfTest", False),
+                              ("tmdbAuthorizationSelfTestKind", "unchecked")):
+            data = records()
+            data[0][field] = value
+            with self.subTest(field=field), self.assertRaises(proof.ProofFailure):
                 proof.validate_stages(data, 100, complete=True)
 
     def test_no_physical_device_is_ever_mutated(self):

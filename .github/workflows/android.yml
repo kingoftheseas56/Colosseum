@@ -41,17 +41,20 @@ jobs:
 
       - name: Reader publication and message boundary
         run: |
-          python tests/test_android_cache_paths.py
-          python tests/test_android_reader_session.py
-          node tests/android_reader_boot_test.mjs
-          python tests/test_android_openssl_packaging_contract.py
-          python tests/test_android_runtime_bundle.py
-          python tests/test_android_feria_contract.py
-          python tests/test_android_vault_contract.py
-          python tests/test_android_vault_media_boundary.py
-          python tests/android_emulator_smoke_test.py
-          python tests/test_android_nuvio_proof_driver.py
-          python tests/android_nuvio_bridge_test.py
+          set -o pipefail
+          {
+            python tests/test_android_cache_paths.py
+            python tests/test_android_reader_session.py
+            node tests/android_reader_boot_test.mjs
+            python tests/test_android_openssl_packaging_contract.py
+            python tests/test_android_runtime_bundle.py
+            python tests/test_android_feria_contract.py
+            python tests/test_android_vault_contract.py
+            python tests/test_android_vault_media_boundary.py
+            python tests/android_emulator_smoke_test.py
+            python tests/test_android_nuvio_proof_driver.py
+            python tests/android_nuvio_bridge_test.py
+          } 2>&1 | tee android-preflight.log
 
       - name: Free disk space
         run: |
@@ -230,6 +233,7 @@ jobs:
           name: android-build-logs
           path: |
             build-*.log
+            android-preflight.log
             qt-host-dependencies.log
             qml-*.log
 

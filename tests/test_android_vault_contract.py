@@ -39,18 +39,41 @@ def _application_sources(android):
 set(sources ${ARGN})
 endmacro()
 macro(target_sources name visibility)
+if("${name}" STREQUAL "colosseum")
 list(APPEND sources ${ARGN})
+endif()
+endmacro()
+# Source extraction also crosses supporting target declarations. They do not
+# affect the application's selected source list and are not scriptable in -P.
+# Keep CMake's platform conditions, lists and variables real; skip only configure
+# operations that would otherwise need targets, subprojects, or a Qt SDK.
+macro(add_library)
+endmacro()
+macro(add_subdirectory)
+endmacro()
+macro(add_dependencies)
+endmacro()
+macro(target_include_directories)
+endmacro()
+macro(target_link_libraries)
+endmacro()
+macro(target_compile_definitions)
+endmacro()
+macro(set_property)
+endmacro()
+macro(find_package)
 endmacro()
 """ + declarations + '\nfile(WRITE "${OUTPUT}" "${sources}")\n'
     with tempfile.TemporaryDirectory(prefix="colosseum-vault-contract-") as directory:
         script_path = Path(directory) / "sources.cmake"
         output_path = Path(directory) / "sources.txt"
         script_path.write_text(script, encoding="utf-8")
-        subprocess.run(
+        result = subprocess.run(
             [_tool("CMAKE_COMMAND", "cmake"), f"-DANDROID={'TRUE' if android else 'FALSE'}",
              f"-DOUTPUT={output_path.as_posix()}", "-P", str(script_path)],
-            check=True, capture_output=True, text=True,
+            check=False, capture_output=True, text=True,
         )
+        assert result.returncode == 0, result.stderr
         return set(output_path.read_text(encoding="utf-8").split(";"))
 
 

@@ -63,6 +63,9 @@ def validate_stages(records: list[dict], app_pid: int, *, complete: bool = False
     workers = {}
     for record in records:
         stage = record["stage"]
+        if stage == "started":
+            if record.get("tmdbAuthorizationSelfTest") is not True or record.get("tmdbAuthorizationSelfTestKind") != "synthetic_no_network":
+                raise ProofFailure("Native synthetic TMDB authorization boundary check was not proven")
         if stage == "direct_stream":
             parsed = urlsplit(record.get("streamUrl", ""))
             if parsed.scheme not in ("http", "https") or not parsed.hostname:
