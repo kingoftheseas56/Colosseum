@@ -61,6 +61,12 @@ func resolveMutableSync(
 	if !found {
 		return resolveIncomingWithoutCurrent(incoming)
 	}
+	if legacyProviderClear(current, incoming) {
+		// A legacy client can echo its projected empty state. Record that
+		// request idempotently as a losing mutation without changing the
+		// canonical Nuvio choice. Keep the request's clock in its journal row.
+		return syncResolutionFromIncoming(incoming, nil, false), nil
+	}
 	if incoming.Category == "continue_progress" {
 		return resolveTheatreProgressSync(current, incoming)
 	}
