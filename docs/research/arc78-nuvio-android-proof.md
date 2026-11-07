@@ -86,10 +86,11 @@ slots. It is not Android SDK or emulator evidence. Existing legacy build-graph
 text assertions have ten identical failures on the pristine source basis because
 they assume a former monolithic CMake layout; they were not changed for this task.
 
-Two existing CI prerequisites needed narrow repairs before building the pinned
+Existing CI prerequisites needed narrow repairs before building the pinned
 source: the CMake source-model test must ignore non-application library targets,
-and Android's TopBar must declare the DLNA intent already wired by shared hosts.
-The Android bar still has no DLNA button. The toolchain also needs Qt Quick 3D for
+and Android's TopBar and ExtensionsHouseHero must declare intents already wired
+by shared hosts. These declarations do not change Android controls.
+The toolchain also needs Qt Quick 3D for
 the already-staged Dexter scene. Both size-comparison variants use these same
 prerequisites; their size delta isolates Nuvio rather than these repairs.
 
