@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import "account" as Account
 
 ScrollView {
     id: root
@@ -119,7 +120,7 @@ ScrollView {
                 if (root.phase === "profiles")
                     return qsTr("Choose the Nuvio profile you want to bring into Colosseum.")
                 if (root.phase === "preview")
-                    return qsTr("Review what will be brought into Colosseum before you continue.")
+                    return qsTr("Review your import")
                 if (root.reconnect)
                     return qsTr("Sign in again to reconnect your Nuvio account on this device.")
                 if (root.connected) {
@@ -202,7 +203,7 @@ ScrollView {
         }
         FlowText {
             visible: root.phase === "preview" && root.previewBecomesPrimary
-            text: qsTr("Nuvio will become the primary service for your library, watched items and playback progress.")
+            text: qsTr("Nuvio will become your primary Theatre sync service.")
         }
         FlowButton {
             objectName: "nuvioApplyImport"
@@ -225,6 +226,7 @@ ScrollView {
             objectName: "nuvioCancelImport"
             visible: root.firstRun || root.phase === "preview" || root.phase === "profiles"
             enabled: root.phase !== "preview" || !root.busy
+            variant: "link"
             text: qsTr("Cancel")
             onClicked: root.cancelFlow()
         }
@@ -271,20 +273,18 @@ ScrollView {
         font.pixelSize: 13
     }
 
-    component FlowButton: Button {
+    component FlowButton: Account.AccountButton {
         id: flowButton
         Layout.fillWidth: true
-        Layout.minimumHeight: 44
-        font.family: theme.ui
-        font.pixelSize: 13
-        palette.button: theme.glassTint
-        palette.buttonText: theme.ink
-        palette.highlight: theme.gold
-        palette.highlightedText: "#17130a"
+        Layout.minimumHeight: Math.max(44, contentItem.implicitHeight + 16)
+        variant: highlighted ? "primary" : "secondary"
         contentItem: Text {
             text: flowButton.text
-            font: flowButton.font
-            color: flowButton.highlighted ? flowButton.palette.highlightedText : theme.ink
+            color: flowButton.highlighted ? flowButton.primaryInk : theme.ink
+            opacity: flowButton.enabled ? 1 : 0.58
+            font.family: theme.ui
+            font.pixelSize: 13
+            font.weight: Font.DemiBold
             wrapMode: Text.Wrap
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
@@ -308,10 +308,15 @@ ScrollView {
         }
     }
 
-    component ImportPreview: Column {
+    component ImportPreview: Rectangle {
         id: previewRows
         required property var rows
-        spacing: 8
+        readonly property var populatedRows: (rows || []).filter(row =>
+            row.matched > 0 || row.existing > 0 || row.unresolved > 0 || row.skipped > 0)
+        implicitHeight: entries.implicitHeight + 20
+        radius: 10
+        color: Qt.rgba(0, 0, 0, 0.18)
+        border.color: previewTheme.edge
         Theme { id: previewTheme }
 
         function categoryLabel(category) {
@@ -320,36 +325,89 @@ ScrollView {
             case "movies": return qsTr("Watched movies")
             case "episodes": return qsTr("Watched episodes")
             case "progress": return qsTr("Playback progress")
-            case "addons": return qsTr("Addons")
+            case "addons": return qsTr("Add-ons")
             default: return qsTr("Other items")
             }
         }
 
-        Repeater {
-            model: previewRows.rows
-            delegate: Column {
-                id: previewRow
-                required property var modelData
-                width: previewRows.width
-                spacing: 4
+        ColumnLayout {
+            id: entries
+            x: 14
+            y: 10
+            width: Math.max(0, previewRows.width - 2 * x)
+            spacing: 8
 
-                Text {
-                    width: previewRow.width
-                    text: previewRows.categoryLabel(previewRow.modelData.category)
-                    color: previewTheme.ink
-                    font.family: previewTheme.ui
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
-                }
-                Text {
-                    width: previewRow.width
-                    text: qsTr("%1 matched · %2 unresolved · %3 already present · %4 skipped")
-                          .arg(previewRow.modelData.matched).arg(previewRow.modelData.unresolved)
-                          .arg(previewRow.modelData.existing).arg(previewRow.modelData.skipped)
-                    color: previewTheme.inkDim
-                    font.family: previewTheme.ui
-                    font.pixelSize: 13
-                    wrapMode: Text.Wrap
+            Text {
+                Layout.fillWidth: true
+                visible: previewRows.populatedRows.length === 0
+                text: qsTr("There’s nothing to import from this profile yet.")
+                color: previewTheme.inkDim
+                font.family: previewTheme.ui
+                font.pixelSize: 13
+                wrapMode: Text.Wrap
+            }
+
+            Repeater {
+                model: previewRows.populatedRows
+                delegate: ColumnLayout {
+                    id: entry
+                    required property var modelData
+                    required property int index
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 1
+                        visible: entry.index > 0
+                        color: previewTheme.edge
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: previewRows.categoryLabel(entry.modelData.category)
+                            color: previewTheme.ink
+                            font.family: previewTheme.ui
+                            font.pixelSize: 14
+                            font.weight: Font.DemiBold
+                            wrapMode: Text.Wrap
+                        }
+                        Text {
+                            visible: entry.modelData.matched > 0
+                            Layout.maximumWidth: entries.width * 0.45
+                            text: qsTr("%n to import", "Importable item count", entry.modelData.matched)
+                            color: previewTheme.gold
+                            font.family: previewTheme.ui
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                            horizontalAlignment: Text.AlignRight
+                            wrapMode: Text.Wrap
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        visible: text.length > 0
+                        text: {
+                            const counts = entry.modelData
+                            const notes = []
+                            if (counts.existing > 0)
+                                notes.push(qsTr("%n already in Colosseum", "Existing item count", counts.existing))
+                            if (counts.unresolved > 0)
+                                notes.push(qsTr("%n couldn’t be matched", "Unmatched item count", counts.unresolved))
+                            if (counts.skipped > 0)
+                                notes.push(qsTr("%n skipped", "Skipped item count", counts.skipped))
+                            return notes.join(qsTr(" · ", "Import detail separator"))
+                        }
+                        color: previewTheme.inkDim
+                        font.family: previewTheme.ui
+                        font.pixelSize: 12
+                        wrapMode: Text.Wrap
+                    }
                 }
             }
         }
