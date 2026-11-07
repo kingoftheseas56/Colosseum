@@ -171,8 +171,14 @@ import xml.etree.ElementTree as ET
 try:
     sizes = re.findall(r"(?:Physical|Override) size:\s*(\d+)x(\d+)", sys.argv[3])
     width, height = map(int, sizes[-1])
+    root = ET.parse(sys.argv[1]).getroot()
+    rotation = root.get("rotation", "0")
+    if rotation not in ("0", "1", "2", "3"):
+        sys.exit(1)
+    if rotation in ("1", "3"):
+        width, height = height, width
     choices = []
-    for node in ET.parse(sys.argv[1]).iter("node"):
+    for node in root.iter("node"):
         a = node.attrib
         # Qt appends the accessible description to the name with ", ". The
         # generated QML type number varies, but objectName is a stable identity.
