@@ -134,6 +134,12 @@ jobs:
           key: android-ccache-v1-${{ github.sha }}
           restore-keys: android-ccache-v1-
 
+      - name: Build LGPL-only Media3 FFmpeg audio decoder
+        run: |
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          bash scripts/android/build_media3_ffmpeg.sh
+          python tests/test_android_ffmpeg_audio_contract.py
+
       - name: Build x86_64 APK
         env:
           COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
