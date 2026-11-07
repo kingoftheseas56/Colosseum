@@ -35,6 +35,7 @@ public:
                     const std::function<bool()> &commitSetting = {});
     void cancelSignIn();
     void cancelPendingRequests();
+    void createMobileSettings(int profileIndex, const QJsonObject &settings, Completion completion);
     bool disconnectAccount();
 
     bool connected() const { return m_saved && m_session.has_value(); }

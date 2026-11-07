@@ -4128,6 +4128,8 @@ add_executable(tst_nuvio_api
     "${COLOSSEUM_NATIVE_DIR}/account/NuvioAccount.h"
     "${COLOSSEUM_NATIVE_DIR}/account/NuvioApi.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/NuvioApi.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioNextUp.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioNextUp.h"
     "${COLOSSEUM_NATIVE_DIR}/account/NuvioTheatreData.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/NuvioTheatreData.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
@@ -4148,6 +4150,21 @@ add_custom_command(TARGET tst_nuvio_api POST_BUILD
             "$<TARGET_FILE:Qt6::Test>" "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.nuvio_api COMMAND tst_nuvio_api)
 set_tests_properties(colosseum.qttest.nuvio_api PROPERTIES
+    LABELS "unit;qttest;nuvio" TIMEOUT 30)
+
+add_executable(tst_nuvio_next_up
+    auto/nuvio_api/tst_nuvio_next_up.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioNextUp.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioNextUp.h")
+target_include_directories(tst_nuvio_next_up PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_nuvio_next_up PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_nuvio_next_up PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_nuvio_next_up POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.nuvio_next_up COMMAND tst_nuvio_next_up)
+set_tests_properties(colosseum.qttest.nuvio_next_up PROPERTIES
     LABELS "unit;qttest;nuvio" TIMEOUT 30)
 
 add_executable(tst_profile_preferences_sync

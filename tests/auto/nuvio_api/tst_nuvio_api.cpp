@@ -112,6 +112,12 @@ struct Fixture {
     NuvioApi::Reply pinReply{200, QJsonArray{QJsonObject{{"unlocked", true}, {"retry_after_seconds", 0}}}, {}};
     bool holdNextPin = false;
     bool replaceLockedProfile = false;
+    QString settingsStamp = QStringLiteral("2026-07-07T20:15:13.123456+00:00");
+    QJsonObject settings;
+    bool settingsMissing = false;
+    bool conflictNextSettingsWrite = false;
+    QJsonObject lastSettingsWrite;
+    int settingsWrites = 0;
     NuvioApi::Completion heldPin;
     NuvioAccount account{&vault, nullptr, [this](const QString &path, bool, const QJsonObject &body,
         const QByteArray &, NuvioApi::Completion done) {
@@ -131,6 +137,37 @@ struct Fixture {
                         ? QStringLiteral("4abdb11d-dd89-4873-92b4-ce8cf79abc4f") : lockedProfile},
                     {"user_id", accountId}, {"profile_index", 2},
                     {"name", "Locked"}, {"pin_enabled", true}}}, {}});
+        } else if (method == QLatin1String("sync_pull_profile_settings_blob")) {
+            QCOMPARE(body.value("p_platform"), QJsonValue("mobile"));
+            const int index = body.value("p_profile_id").toInt();
+            done({200, settingsMissing ? QJsonArray{} : QJsonArray{QJsonObject{
+                {"profile_id", index}, {"updated_at", settingsStamp}, {"settings_json", settings}}}, {}});
+        } else if (method == QLatin1String("sync_push_profile_settings_blob_guarded")) {
+            QCOMPARE(body.value("p_platform"), QJsonValue("mobile"));
+            QCOMPARE(body.value("p_expected_updated_at").toString(), settingsStamp);
+            lastSettingsWrite = body.value("p_settings_json").toObject();
+            if (std::exchange(conflictNextSettingsWrite, false)) {
+                settings.insert("fromAnotherDevice", true);
+                settingsStamp = QStringLiteral("2026-07-07T20:15:13.223456+00:00");
+                done({409, {}, {}});
+                return;
+            }
+            settings = lastSettingsWrite;
+            ++settingsWrites;
+            done({200, settingsStamp, {}});
+        } else if (path.startsWith(QLatin1String("/rest/v1/profile_settings_blobs?"))) {
+            QCOMPARE(body.value("platform"), QJsonValue("mobile"));
+            QCOMPARE(body.value("user_id").toString(), accountId);
+            if (std::exchange(conflictNextSettingsWrite, false)) {
+                settingsMissing = false;
+                settings.insert("fromAnotherDevice", true);
+                done({201, QJsonArray{}, {}});
+                return;
+            }
+            settings = body.value("settings_json").toObject();
+            settingsMissing = false;
+            ++settingsWrites;
+            done({201, QJsonArray{QJsonObject{{"updated_at", settingsStamp}}}, {}});
         } else if (method == QLatin1String("verify_profile_pin")) {
             QCOMPARE(body.value("p_profile_id").toInt(), 2);
             QCOMPARE(body.value("p_pin").toString().size(), 4);
@@ -140,22 +177,19 @@ struct Fixture {
             }
             done(pinReply);
         } else if (method.startsWith(QLatin1String("sync_get_"))) {
-            const bool hasEvent = (method.contains("watch_progress") && !progressEvent.isEmpty())
-                || (method.contains("watched_items") && !watchedEvent.isEmpty())
-                || (method.contains("library") && !libraryEvent.isEmpty());
-            done({200, QJsonValue(hasEvent ? 8 : 7), {}});
+            const auto event = method.contains("watch_progress") ? progressEvent
+                : method.contains("watched_items") ? watchedEvent : libraryEvent;
+            done({200, QJsonValue(event.value("event_id").toInteger(7)), {}});
         } else if (method.endsWith(QLatin1String("_delta"))) {
             if (std::exchange(holdNextDelta, false)) {
                 heldDelta = std::move(done);
                 return;
             }
             QJsonArray events;
-            if (body.value("p_since_event_id").toInteger() < 8) {
-                const QJsonObject event = method.contains("watch_progress") ? progressEvent
-                    : method.contains("watched_items") ? watchedEvent : libraryEvent;
-                if (!event.isEmpty())
-                    events.append(event);
-            }
+            const auto event = method.contains("watch_progress") ? progressEvent
+                : method.contains("watched_items") ? watchedEvent : libraryEvent;
+            if (event.value("event_id").toInteger() > body.value("p_since_event_id").toInteger())
+                events.append(event);
             done({200, events, {}});
         } else if (method == QLatin1String("sync_pull_library")) {
             done({200, library, {}});
@@ -252,6 +286,8 @@ private slots:
     void offlineRemovalsSurviveReloadAndReachNuvio();
     void lockedProfilesRequireExplicitSessionPin();
     void pinRequestsAreNeverReplayedOrAcceptedAfterCancel();
+    void nextUpDismissalSyncsAfterOfflineAndDoesNotClearResume();
+    void continueWatchingRespectsRemoteDeleteAndKeepsNewerPlayback();
 };
 
 void tst_nuvio_api::signInIsStagedAndDisconnectClearsTokens() {
@@ -703,6 +739,110 @@ void tst_nuvio_api::pinRequestsAreNeverReplayedOrAcceptedAfterCancel() {
     QCOMPARE(fixture.calls.value("sync_pull_library"), 0);
     fixture.account.previewProfile(1);
     QTRY_COMPARE(fixture.account.phase(), QStringLiteral("preview"));
+}
+
+void tst_nuvio_api::nextUpDismissalSyncsAfterOfflineAndDoesNotClearResume() {
+    Fixture fixture;
+    const QString show = QStringLiteral("tt991000001");
+    const QString seed = show + QStringLiteral(":1:1");
+    const QString key = show + QStringLiteral("|1|1");
+    fixture.settingsMissing = true;
+    fixture.positions = {episodeRow(show, 1, 3000)};
+    fixture.activate();
+    fixture.signIn();
+    fixture.account.previewProfile(1, true);
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("preview"));
+    fixture.account.apply(true);
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("done"));
+
+    fixture.offline = true;
+    QVERIFY(fixture.account.dismissNextUp(seed));
+    QVERIFY(fixture.account.nextUpDismissed(seed));
+    QVERIFY(!fixture.progress.get("video", seed).isEmpty());
+    fixture.activate();
+    QTRY_VERIFY(!fixture.account.busy());
+    QVERIFY(fixture.account.nextUpDismissed(seed));
+    QCOMPARE(fixture.settingsWrites, 0);
+
+    fixture.offline = false;
+    fixture.conflictNextSettingsWrite = true;
+    fixture.account.syncNow();
+    QTRY_VERIFY(!fixture.account.busy());
+    QVERIFY(fixture.account.nextUpDismissed(seed));
+    QCOMPARE(fixture.settingsWrites, 0);
+    fixture.account.syncNow();
+    QTRY_VERIFY(!fixture.account.busy());
+    QCOMPARE(fixture.settingsWrites, 1);
+    QVERIFY(fixture.settings.value("fromAnotherDevice").toBool());
+    const auto dismissals = [&] {
+        const auto payload = fixture.settings.value("features").toObject()
+            .value("continue_watching_settings_payload").toString().toUtf8();
+        return QJsonDocument::fromJson(payload).object().value("dismissedNextUpKeys").toArray();
+    };
+    QCOMPARE(dismissals(), QJsonArray{key});
+
+    auto playback = fixture.progress.get("video", seed);
+    playback.insert("progress", 0.4);
+    fixture.progress.record(playback);
+    QVERIFY(!fixture.account.nextUpDismissed(seed));
+    fixture.account.syncNow();
+    QTRY_VERIFY(!fixture.account.busy());
+    QCOMPARE(fixture.settingsWrites, 2);
+    QVERIFY(dismissals().isEmpty());
+    QVERIFY(fixture.settings.value("fromAnotherDevice").toBool());
+
+    fixture.settings.insert("features", QJsonObject{
+        {"continue_watching_settings_payload", QString::fromUtf8(QJsonDocument(
+            QJsonObject{{"dismissedNextUpKeys", QJsonArray{QStringLiteral("imdb:") + key}}})
+            .toJson(QJsonDocument::Compact))}});
+    fixture.account.syncNow();
+    QTRY_VERIFY(!fixture.account.busy());
+    QVERIFY(fixture.account.nextUpDismissed(seed));
+    QVERIFY(!fixture.account.nextUpDismissed(show + QStringLiteral(":1:2")));
+
+    fixture.settings.insert("features", QJsonObject{{"continue_watching_settings_payload", QJsonObject{
+        {"dismissedKeys", QJsonArray{show}}, {"unrelatedSetting", 8}}}});
+    fixture.account.syncNow();
+    QTRY_VERIFY(!fixture.account.busy());
+    QVERIFY(fixture.account.nextUpDismissed(show + QStringLiteral(":2:1")));
+    fixture.progress.record(playback);
+    fixture.account.syncNow();
+    QTRY_VERIFY(!fixture.account.busy());
+    QVERIFY(!fixture.account.nextUpDismissed(seed));
+    QVERIFY(dismissals().isEmpty());
+    const auto payload = fixture.settings.value("features").toObject()
+        .value("continue_watching_settings_payload").toString().toUtf8();
+    QCOMPARE(QJsonDocument::fromJson(payload).object().value("unrelatedSetting").toInt(), 8);
+}
+
+void tst_nuvio_api::continueWatchingRespectsRemoteDeleteAndKeepsNewerPlayback() {
+    Fixture fixture;
+    const QString show = QStringLiteral("tt991000001");
+    const QString id = show + QStringLiteral(":1:1");
+    fixture.positions = {episodeRow(show, 1, 3000), episodeRow(show, 2, 3100)};
+    fixture.activate();
+    fixture.signIn();
+    fixture.account.previewProfile(1, true);
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("preview"));
+    fixture.account.apply(true);
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("done"));
+
+    fixture.progressEvent = episodeRow(show, 1, 3000);
+    fixture.progressEvent.insert("operation", "delete");
+    fixture.progressEvent.insert("event_id", 8);
+    fixture.account.syncNow();
+    QTRY_VERIFY(!fixture.account.busy());
+    QVERIFY(fixture.progress.get("video", id).isEmpty());
+    QVERIFY(!fixture.progress.get("video", show + QStringLiteral(":1:2")).isEmpty());
+    QVERIFY(fixture.deletes.isEmpty());
+
+    fixture.progressEvent = episodeRow(show, 2, 2500);
+    fixture.progressEvent.insert("operation", "delete");
+    fixture.progressEvent.insert("event_id", 9);
+    fixture.activate(); // Re-read the previous state, retaining the saved cursor.
+    fixture.account.syncNow();
+    QTRY_VERIFY(!fixture.account.busy());
+    QVERIFY(!fixture.progress.get("video", show + QStringLiteral(":1:2")).isEmpty());
 }
 
 QTEST_GUILESS_MAIN(tst_nuvio_api)

@@ -74,6 +74,7 @@ function theatreCard(finishedRec, next, meta) {
         "id": next.id,
         "kind": "video",
         "nextUp": true,
+        "nextUpSeedId": e.id,
         "title": show,
         "caption": show,
         "sub": "S" + next.season + " · E" + next.num

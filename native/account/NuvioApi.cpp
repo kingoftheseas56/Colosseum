@@ -162,6 +162,16 @@ void NuvioApi::cancelPendingRequests() {
     resetRequests();
 }
 
+void NuvioApi::createMobileSettings(int profileIndex, const QJsonObject &settings, Completion completion) {
+    if (profileIndex < 1 || profileIndex > 6 || accountId().isEmpty()) {
+        completion({400, {}, {}});
+        return;
+    }
+    enqueue({QStringLiteral("/rest/v1/profile_settings_blobs?on_conflict=user_id,profile_id,platform&select=updated_at"),
+        false, {{"user_id", accountId()}, {"profile_id", profileIndex}, {"platform", "mobile"},
+            {"settings_json", settings}}, std::move(completion)});
+}
+
 bool NuvioApi::disconnectAccount() {
     if (!m_vault || m_profileId.isEmpty() || !m_vault->clearNuvio(m_profileId))
         return false;
@@ -344,6 +354,10 @@ void NuvioApi::sendHttp(const QString &path, bool get, const QJsonObject &body,
     request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
     request.setRawHeader("apikey", kPublishableKey);
     request.setRawHeader("Cache-Control", "no-store");
+    // The guarded RPC can compare an existing row. A first insert must also
+    // tolerate another client creating the row without overwriting its fields.
+    if (path.startsWith(QLatin1String("/rest/v1/profile_settings_blobs?")))
+        request.setRawHeader("Prefer", "resolution=ignore-duplicates,return=representation");
     if (!bearer.isEmpty())
         request.setRawHeader("Authorization", QByteArrayLiteral("Bearer ") + bearer);
 

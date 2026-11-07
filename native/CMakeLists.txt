@@ -338,6 +338,8 @@ set(COLOSSEUM_THEATRE_ACCOUNT_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioAccount.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioApi.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioApi.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioNextUp.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioNextUp.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioTheatreData.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioTheatreData.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/account/TheatreAccountImport.cpp"

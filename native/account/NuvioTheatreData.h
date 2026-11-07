@@ -63,6 +63,7 @@ std::optional<Removal> makeRemoval(RemovalKind kind, const QString &id,
 
 // Keep an offline deletion effective while a stale provider copy is still visible.
 void suppressRemoved(Snapshot &snapshot, const QList<Removal> &removals);
+QHash<QString, qint64> takeProgressDeletes(Snapshot &snapshot, const Local &local);
 bool isSuppressed(RemovalKind kind, const QJsonObject &row, const QList<Removal> &removals);
 QJsonArray deletionKeys(const Removal &removal, const QJsonArray &remoteRows);
 

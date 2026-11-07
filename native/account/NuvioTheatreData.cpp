@@ -383,6 +383,37 @@ void NuvioTheatre::suppressRemoved(Snapshot &snapshot, const QList<Removal> &rem
     filter(snapshot.progress, RemovalKind::Progress);
 }
 
+QHash<QString, qint64> NuvioTheatre::takeProgressDeletes(Snapshot &snapshot, const Local &local) {
+    const Identities identities(local);
+    const auto videoId = [&](const QJsonObject &row) {
+        const auto raw = remoteIdentity(row);
+        return canonicalIdentity(raw, identities, raw.type == kSeries).video();
+    };
+    QHash<QString, qint64> deleted;
+    for (const auto &value : std::as_const(snapshot.progress)) {
+        const auto row = value.toObject();
+        if (row.value("operation") != QLatin1String("delete"))
+            continue;
+        const QString id = videoId(row);
+        const qint64 at = timestamp(row, "last_watched");
+        if (!id.isEmpty() && at > 0)
+            deleted[id] = qMax(deleted.value(id), at);
+    }
+    if (deleted.isEmpty())
+        return deleted;
+    QJsonArray upserts;
+    for (const auto &value : std::as_const(snapshot.progress)) {
+        const auto row = value.toObject();
+        if (row.value("operation") == QLatin1String("delete"))
+            continue;
+        const qint64 removedAt = deleted.value(videoId(row));
+        if (removedAt == 0 || timestamp(row, "last_watched") > removedAt)
+            upserts.append(value);
+    }
+    snapshot.progress = std::move(upserts);
+    return deleted;
+}
+
 QJsonArray NuvioTheatre::deletionKeys(const Removal &removal, const QJsonArray &remoteRows) {
     QJsonArray keys;
     QSet<QString> progressKeys;

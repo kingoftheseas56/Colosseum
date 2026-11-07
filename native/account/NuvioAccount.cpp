@@ -185,6 +185,7 @@ void NuvioAccount::activate(const QString &profileId, CollectionStore *collectio
     m_api.activate(m_available ? profileId : QString());
     m_removalPath.clear();
     bindRemovalScope();
+    bindNextUpScope();
     m_import.bind(collection, progress, history, m_extensions);
     if (m_available) {
         const QPointer<NuvioAccount> self(this);
@@ -207,6 +208,7 @@ void NuvioAccount::activate(const QString &profileId, CollectionStore *collectio
             connect(collection, &CollectionStore::syncDirty, this, &NuvioAccount::scheduleSync),
             connect(progress, &ProgressStore::syncDirty, this, &NuvioAccount::scheduleSync),
             connect(progress, &ProgressStore::watchStateChanged, this, &NuvioAccount::scheduleSync),
+            connect(progress, &ProgressStore::videoProgressRecorded, this, &NuvioAccount::restoreNextUpOnPlayback),
             connect(history, &HistoryStore::changed, this, &NuvioAccount::scheduleSync),
             connect(preferences, &ProfilePreferencesStore::mainSyncProviderChanged,
                 this, &NuvioAccount::primaryChanged)};
@@ -440,7 +442,10 @@ void NuvioAccount::apply(bool firstRun) {
             setStatus(kPreview, false, tr("The Nuvio connection or sync setting could not be saved."));
             return;
         }
+        const bool changedScope = m_removalAccount != m_api.accountId() || m_removalProfile != profile->id;
         bindRemovalScope();
+        if (changedScope)
+            bindNextUpScope();
         if (!loadRemovals()) {
             m_commitStarted = false;
             setStatus(kPreview, false, tr("Saved Nuvio removals could not be restored."));
@@ -510,6 +515,7 @@ void NuvioAccount::disconnect() {
     m_unlockedProfiles.clear();
     m_baseline.reset();
     bindRemovalScope();
+    bindNextUpScope();
     const bool preferenceSaved = primaryProvider() != kNuvio
         || m_preferences->setMainSyncProvider({});
     setStatus(kIdle, false, preferenceSaved
@@ -771,6 +777,7 @@ void NuvioAccount::primaryChanged() {
         }
     }
     emit changed();
+    emit nextUpChanged();
 }
 
 void NuvioAccount::scheduleSync() {
@@ -819,6 +826,15 @@ void NuvioAccount::syncApply(const NuvioTheatre::Profile &profile, RemoteState s
     // it on every poll would recreate entries removed locally between polls.
     auto incoming = state.changes ? *state.changes : state.snapshot;
     NuvioTheatre::suppressRemoved(incoming, applicableRemovals(state.profileId));
+    const auto progressDeletes = NuvioTheatre::takeProgressDeletes(incoming, local());
+    for (auto it = progressDeletes.cbegin(); it != progressDeletes.cend(); ++it) {
+        const auto current = m_progress->get(QStringLiteral("video"), it.key());
+        if (!current.isEmpty() && current.value("updatedAt").toLongLong() <= it.value()
+            && !m_progress->removeSyncedEntry(QStringLiteral("video"), it.key())) {
+            finishSync(false);
+            return;
+        }
+    }
     const auto items = NuvioTheatre::project(incoming, local());
     const quint64 generation = m_generation;
     const bool started = m_import.apply(items,
@@ -915,7 +931,7 @@ void NuvioAccount::writeNext(const std::shared_ptr<Push> &push) {
         push->next = 0;
     }
     if (push->section >= push->operations.size()) {
-        finishSync(true);
+        syncNextUp(push);
         return;
     }
     const Push::Operation &operation = push->operations.at(push->section);
@@ -1035,6 +1051,152 @@ void NuvioAccount::bindRemovalScope() {
     }
     ++m_removalRevision;
     emit removalsChanged();
+}
+
+void NuvioAccount::bindNextUpScope() {
+    const QString directory = m_cursorPath.isEmpty() ? QString() : QFileInfo(m_cursorPath).absolutePath();
+    m_nextUpReady = m_nextUp.activate(directory, m_removalAccount,
+        m_removalProfile, m_api.selectedProfileIndex());
+    emit nextUpChanged();
+}
+
+QStringList NuvioAccount::nextUpKeys(const QString &episodeId) const {
+    const QString content = seriesRoot(episodeId);
+    if (content == episodeId || !NuvioTheatre::makeRemoval(
+            RemovalKind::Watched, episodeId, QStringLiteral("series"), false, 1, {})) {
+        return {};
+    }
+    const auto coords = episodeId.sliced(content.size() + 1).split(QLatin1Char(':'));
+    const int season = coords.at(0).toInt();
+    const int episode = coords.at(1).toInt();
+    QStringList keys{NuvioNextUp::key(content, season, episode)};
+    if (content.startsWith(QLatin1String("tt")))
+        keys.append(NuvioNextUp::key(QStringLiteral("imdb:") + content, season, episode));
+    return keys;
+}
+
+bool NuvioAccount::nextUpDismissed(const QString &seedEpisodeId) const {
+    if (primaryProvider() != kNuvio || !m_nextUpReady)
+        return false;
+    const auto keys = nextUpKeys(seedEpisodeId);
+    return std::any_of(keys.cbegin(), keys.cend(), [this](const QString &key) {
+        const auto parts = key.split(QLatin1Char('|'));
+        const QString content = parts.first();
+        const int season = parts.at(1).toInt();
+        return m_nextUp.isDismissed(key) || m_nextUp.isDismissed(content)
+            || m_nextUp.isDismissed(NuvioNextUp::key(content, -1, -1))
+            || m_nextUp.isDismissed(NuvioNextUp::key(content, season, -1));
+    });
+}
+
+bool NuvioAccount::dismissNextUp(const QString &seedEpisodeId) {
+    if (primaryProvider() != kNuvio || !connected())
+        return false;
+    const auto keys = nextUpKeys(seedEpisodeId);
+    if (keys.isEmpty())
+        return false;
+    QString key = keys.first();
+    qint64 newest = 0;
+    if (m_baseline && m_baseline->profileId == m_removalProfile) {
+        for (const auto &value : std::as_const(m_baseline->snapshot.progress)) {
+            const auto row = value.toObject();
+            const qint64 at = row.value("last_watched").toInteger();
+            if (at <= newest || row.value("operation") == QLatin1String("delete"))
+                continue;
+            const auto candidate = NuvioNextUp::key(row.value("content_id").toString(),
+                row.value("season").toInt(-1), row.value("episode").toInt(-1));
+            if (keys.contains(candidate)) {
+                key = candidate;
+                newest = at;
+            }
+        }
+    }
+    if (!m_nextUpReady || !m_nextUp.setDismissed(key, true)) {
+        m_message = tr("The Next Up dismissal could not be saved.");
+        emit changed();
+        return true;
+    }
+    emit nextUpChanged();
+    scheduleSync();
+    return true;
+}
+
+void NuvioAccount::restoreNextUpOnPlayback(const QString &episodeId) {
+    if (primaryProvider() != kNuvio || !m_nextUpReady)
+        return;
+    const auto keys = nextUpKeys(episodeId);
+    if (keys.isEmpty())
+        return;
+    const QString content = keys.first().section(QLatin1Char('|'), 0, 0);
+    QStringList restore;
+    for (const QString &key : m_nextUp.dismissedKeys()) {
+        const QString dismissedContent = key.section(QLatin1Char('|'), 0, 0);
+        if (dismissedContent == content || dismissedContent == QStringLiteral("imdb:") + content)
+            restore.append(key);
+    }
+    if (restore.isEmpty())
+        return;
+    if (!m_nextUp.setDismissed(restore, false)) {
+        m_message = tr("The Next Up dismissal could not be undone.");
+        emit changed();
+        return;
+    }
+    emit nextUpChanged();
+    scheduleSync();
+}
+
+void NuvioAccount::syncNextUp(const std::shared_ptr<Push> &push) {
+    if (!m_nextUpReady) {
+        finishSync(true);
+        return;
+    }
+    const int index = push->profile.index;
+    m_api.rpc(QStringLiteral("sync_pull_profile_settings_blob"),
+        {{"p_profile_id", index}, {"p_platform", "mobile"}},
+        [this, push, index](const NuvioApi::Reply &reply) {
+            if (push->generation != m_generation || primaryProvider() != kNuvio)
+                return;
+            std::optional<NuvioNextUp::Push> plan;
+            if (reply.status != 200 || !m_nextUp.applyPull(reply.data, &plan)) {
+                finishSync(false, reply.status);
+                return;
+            }
+            emit nextUpChanged();
+            if (!plan) {
+                finishSync(true);
+                return;
+            }
+            if (!plan->changes) {
+                finishSync(m_nextUp.acknowledge(*plan, plan->expectedUpdatedAt));
+                return;
+            }
+            const auto complete = [this, push, plan = *plan](const NuvioApi::Reply &result) {
+                if (push->generation != m_generation || primaryProvider() != kNuvio)
+                    return;
+                QJsonValue updatedAt = result.data;
+                if (result.status == 201) {
+                    const auto rows = result.data.toArray();
+                    if (rows.size() != 1) {
+                        // Another client created the settings first. Read and merge again.
+                        m_syncRequested = true;
+                        finishSync(false, 409);
+                        return;
+                    }
+                    updatedAt = rows.first().toObject().value("updated_at");
+                }
+                if (result.status == 409)
+                    m_syncRequested = true;
+                finishSync((result.status == 200 || result.status == 201)
+                    && m_nextUp.acknowledge(plan, updatedAt), result.status);
+            };
+            if (plan->expectedUpdatedAt.isNull()) {
+                m_api.createMobileSettings(index, plan->settings, complete);
+            } else {
+                m_api.rpc(QStringLiteral("sync_push_profile_settings_blob_guarded"),
+                    {{"p_profile_id", index}, {"p_platform", "mobile"}, {"p_settings_json", plan->settings},
+                     {"p_expected_updated_at", plan->expectedUpdatedAt}}, complete);
+            }
+        });
 }
 
 bool NuvioAccount::loadRemovals() {
@@ -1191,9 +1353,10 @@ void NuvioAccount::finishSync(bool ok, int status) {
     setStatus(kIdle, false, ok ? tr("Nuvio sync complete.") : failure(status));
     if (std::exchange(m_syncRequested, false)
         || (!ok && (status == 0 || status == 429 || status >= 500)
-            && std::any_of(m_removals.cbegin(), m_removals.cend(), [](const Removal &removal) {
-                return removal.confirmedAt == 0;
-            }))) {
+            && (m_nextUp.hasPending()
+                || std::any_of(m_removals.cbegin(), m_removals.cend(), [](const Removal &removal) {
+                    return removal.confirmedAt == 0;
+                })))) {
         scheduleSync();
     }
 }

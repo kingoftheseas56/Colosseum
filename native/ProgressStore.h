@@ -815,6 +815,8 @@ public:
         if (persist(entry)) {
             bump();
             emit localMutationChanged();
+            if (entry.value("kind") == QLatin1String("video"))
+                emit videoProgressRecorded(entry.value("id").toString());
         }
     }
     // Persist progress for crash-resume WITHOUT refreshing the Continue row. The player's 5s
@@ -1532,6 +1534,7 @@ signals:
     // Fires for local mutations that refresh the visible Continue row. Remote
     // owner imports intentionally emit no local signal.
     void localMutationChanged();
+    void videoProgressRecorded(const QString &id);
     // Narrow local signal for the portable watched/last-season owner. The
     // generic changed() signal also covers Continue progress and would make a
     // watch-state adapter export on every playback tick.

@@ -67,14 +67,27 @@ WorldPage {
     // otherwise it lives in Continue. Meta is fetched ONCE per show per app session
     // (the same TheatreApi call the series page makes) and cached here.
     property var nextUpRows: []
+    readonly property var nuvioSync: typeof NuvioAccounts !== "undefined" ? NuvioAccounts : null
+
+    Connections {
+        target: theatre.nuvioSync
+        function onNextUpChanged() {
+            if (theatre.lifecycleActive)
+                theatre.recomputeNextUp()
+        }
+    }
     property var _nextUpMeta: ({})      // show root -> meta (videos carrier)
     property var _nextUpPending: ({})   // show root -> true while a fetch is in flight
 
     function recomputeNextUp() {
-        var fin = NextUp.finishedShows(CatalogueRecents.recent(Progress, "video", 48)).slice(0, 8)
+        var fin = NextUp.finishedShows(CatalogueRecents.recent(Progress, "video", 48))
         var out = []
-        for (var i = 0; i < fin.length; i++) {
+        var considered = 0
+        for (var i = 0; i < fin.length && considered < 8; i++) {
             var rec = fin[i]
+            if (theatre.nuvioSync && theatre.nuvioSync.nextUpDismissed(String(rec.entry.id)))
+                continue
+            considered++
             var meta = theatre._nextUpMeta[rec.show]
             if (meta === undefined) {
                 theatre.fetchNextUpMeta(rec.show)
@@ -211,6 +224,10 @@ WorldPage {
     ContinueRow {
         title: "Next Up"
         items: theatre.nextUpRows
+        forgetHandler: (item) => {
+            if (!theatre.nuvioSync || !theatre.nuvioSync.dismissNextUp(String(item.nextUpSeedId)))
+                Progress.dismissContinue(item.kind, item.id)
+        }
         onResumeRequested: (item) => theatre.playNextUp(item)
         onDetailRequested: (item) => theatre.theatreItemRequested(
             { "id": item.resume.showId, "type": "series", "title": item.title, "cover": item.cover })

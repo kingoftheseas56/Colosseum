@@ -1,6 +1,7 @@
 #pragma once
 
 #include "NuvioApi.h"
+#include "NuvioNextUp.h"
 #include "NuvioTheatreData.h"
 
 #include <QSet>
@@ -65,11 +66,14 @@ public:
     Q_INVOKABLE bool canUnwatchEpisode(const QString &id) const;
     Q_INVOKABLE bool unwatchEpisode(const QString &id);
     Q_INVOKABLE bool episodeUnwatched(const QString &id) const;
+    Q_INVOKABLE bool nextUpDismissed(const QString &seedEpisodeId) const;
+    Q_INVOKABLE bool dismissNextUp(const QString &seedEpisodeId);
 
 signals:
     void changed();
     void canonicalChanged();
     void removalsChanged();
+    void nextUpChanged();
 
 private:
     struct RemoteState {
@@ -100,6 +104,10 @@ private:
     void writeNext(const std::shared_ptr<Push> &push);
     void readProgressDeletionKeys(const std::shared_ptr<Push> &push);
     void bindRemovalScope();
+    void bindNextUpScope();
+    void syncNextUp(const std::shared_ptr<Push> &push);
+    void restoreNextUpOnPlayback(const QString &episodeId);
+    QStringList nextUpKeys(const QString &episodeId) const;
     bool loadRemovals();
     bool saveRemovals(QList<NuvioTheatre::Removal> next);
     bool queueRemoval(NuvioTheatre::RemovalKind kind, const QString &id,
@@ -117,6 +125,8 @@ private:
 
     AccountCredentialStore *m_vault;
     NuvioApi m_api;
+    NuvioNextUp m_nextUp;
+    bool m_nextUpReady = false;
     TheatreAccountImport m_import;
     QPointer<CollectionStore> m_collection;
     QPointer<ProgressStore> m_progress;
