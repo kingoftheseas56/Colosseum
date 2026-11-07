@@ -9,6 +9,7 @@ Control {
 
     property string title: ""
     property string detail: ""
+    property url iconSource: ""
     signal chosen()
 
     Accessible.role: Accessible.Button
@@ -23,11 +24,23 @@ Control {
     Theme { id: theme }
 
     contentItem: Item {
+        Image {
+            id: choiceIcon
+            anchors.left: parent.left
+            anchors.leftMargin: 18
+            anchors.verticalCenter: parent.verticalCenter
+            width: 34
+            height: 34
+            fillMode: Image.PreserveAspectFit
+            source: control.iconSource
+            visible: status === Image.Ready
+        }
+
         Column {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: 18
+            anchors.leftMargin: choiceIcon.visible ? 18 + choiceIcon.width + 14 : 18
             anchors.rightMargin: 18
             spacing: 5
 

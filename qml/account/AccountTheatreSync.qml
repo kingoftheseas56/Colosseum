@@ -38,6 +38,7 @@ AccountPageFrame {
             objectName: "accountTheatreChooseStremio"
             width: parent.width
             visible: root.stremioAvailable
+            iconSource: "../../assets/icons/stremio-official.svg"
             title: qsTr("Stremio")
             detail: qsTr("Sign in through your browser.")
             onChosen: root.provider = "stremio"
@@ -47,6 +48,7 @@ AccountPageFrame {
             objectName: "accountTheatreChooseNuvio"
             width: parent.width
             visible: root.nuvioAccount && root.nuvioAccount.available
+            iconSource: "../../assets/icons/nuvio-official.png"
             title: qsTr("Nuvio")
             detail: qsTr("Sign in and choose the Nuvio profile to import.")
             onChosen: root.provider = "nuvio"

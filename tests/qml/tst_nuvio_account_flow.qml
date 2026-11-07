@@ -110,6 +110,11 @@ TestCase {
         property bool accountFeaturesAvailable: true
         property int continued: 0
 
+        function prepareTheatreFirstRun() {
+            accountFixture.available = true
+            return true
+        }
+
         function continueWithoutAccount() { continued++ }
     }
 
@@ -137,6 +142,7 @@ TestCase {
 
     function init() {
         accountFixture.phase = "idle"
+        accountFixture.available = true
         accountFixture.busy = false
         accountFixture.signedInEmail = ""
         accountFixture.previewedProfile = -1
@@ -229,6 +235,7 @@ TestCase {
     }
 
     function test_onboarding_picker_cancels_and_completes_stremio() {
+        accountFixture.available = false
         const choice = findChild(onboarding, "accountWelcomeTheatreSync")
         compare(onboarding.theatreSyncAvailable, true)
         compare(onboarding.stremioFirstRunAvailable, true)

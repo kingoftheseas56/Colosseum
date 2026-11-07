@@ -514,6 +514,15 @@ void AccountController::restoreRememberedSession() {
     requestSessionRefresh();
 }
 
+bool AccountController::prepareTheatreFirstRun() {
+    if (!accountFeaturesAvailable() || !onboardingRequired()
+        || m_mode != Mode::SignedOut || !m_refreshToken.isEmpty()) {
+        return false;
+    }
+
+    return prepareLocalOnlyProfile();
+}
+
 void AccountController::continueWithoutAccount() {
     if (!m_refreshToken.isEmpty())
         return;
