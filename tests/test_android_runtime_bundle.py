@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 from verify_android_apk_runtime_bundle import (
     QML_PREFIX, RUNTIME_PREFIX, qml_policy_failures, runtime_manifest_failures,
@@ -105,7 +106,11 @@ class AndroidRuntimeBundleTest(unittest.TestCase):
         self.assertFalse((baseline / "src/org/colosseum/nuvio").exists())
         enabled_manifest = (enabled / "AndroidManifest.xml").read_text()
         baseline_manifest = (baseline / "AndroidManifest.xml").read_text()
-        self.assertEqual(4, enabled_manifest.count('android:process=":nuvio'))
+        android = "{http://schemas.android.com/apk/res/android}"
+        slots = [(service.get(android + "process"), service.get(android + "exported"))
+                 for service in ET.fromstring(enabled_manifest).findall("application/service")
+                 if (service.get(android + "process") or "").startswith(":nuvio")]
+        self.assertCountEqual([(":nuvio0", "false"), (":nuvio1", "false")], slots)
         self.assertNotIn("org.colosseum.nuvio", baseline_manifest)
         self.assertNotIn("colosseum_nuvio_host", baseline_manifest)
 
