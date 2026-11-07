@@ -105,3 +105,6 @@ tests/_reality_shelves.txt
 # Brotherhood process evidence stays local to each checkout.
 .superpowers/
 worlds/node_modules/
+
+# LGPL-only Android FFmpeg decoder AAR is locally generated, not vendored.
+/native/platform/android/libs/media3-ffmpeg-lgpl-1.11.0.aar
