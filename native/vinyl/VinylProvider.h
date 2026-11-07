@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QTimer>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -181,10 +182,24 @@ public:
         prune();
     }
     Q_INVOKABLE int requestPayload(const QString &lane,const QString &operation,const QString &value,const QVariantMap &payload){
-        static const QStringList operations{"mediaWarmup","search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","resolveVideo","relatedVideo","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","songCandidates","recommendationIdentity","recordingMatch","populationCandidates","lyrics"};
-        static const QStringList lanes{"media-warmup","browse","queue","play","playFallback","prepare-next","video-match","video-stream","playlist-page","search-albums","search-artists","search-songs","search-playlists","taste-artists","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork","home-seed-0","home-seed-1","home-identity","home-population","home-listening-0","home-listening-1","named-collections","lyrics"};
+        static const QStringList operations{"browseCategories","browseCatalogue","resolveCatalogueItem","resolveCatalogueArt","mediaWarmup","search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","resolveVideo","relatedVideo","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","songCandidates","recommendationIdentity","recordingMatch","populationCandidates","lyrics"};
+        static const QStringList lanes{"catalogue-categories","catalogue-songs","catalogue-albums","catalogue-artists","catalogue-item","catalogue-art","media-warmup","browse","queue","play","playFallback","prepare-next","video-match","video-stream","playlist-page","search-albums","search-artists","search-songs","search-playlists","taste-artists","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork","home-seed-0","home-seed-1","home-identity","home-population","home-listening-0","home-listening-1","named-collections","lyrics"};
         const bool songLane=lane=="home-song-0"||lane=="home-song-1";
         if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane)||value.size()>300)return -1;
+        if(operation=="browseCategories"){
+            if(lane!="catalogue-categories"||!value.isEmpty())return -1;
+        }else if(operation=="browseCatalogue"){
+            if(!QStringList{"songs","albums","artists"}.contains(value)||lane!="catalogue-"+value)return -1;
+        }else if(operation=="resolveCatalogueItem"){
+            const auto item=payload.value("item");
+            if(lane!="catalogue-item"||value.isEmpty()||payload.size()!=1
+                ||item.metaType().id()!=QMetaType::QVariantMap||item.toMap().value("id").toString()!=value
+                ||!QStringList{"songs","albums","artists"}.contains(item.toMap().value("kind").toString()))return -1;
+        }else if(operation=="resolveCatalogueArt"){
+            const auto items=payload.value("items");
+            if(lane!="catalogue-art"||value!="lastfm"||payload.size()!=1
+                ||items.metaType().id()!=QMetaType::QVariantList||items.toList().size()>12)return -1;
+        }else if(lane.startsWith("catalogue-"))return -1;
         const bool warming=operation=="mediaWarmup";
         if(warming!=(lane=="media-warmup")||(warming&&(!value.isEmpty()||!payload.isEmpty()||!reuseHelpers())))return -1;
         if(lane=="prepare-next"&&(operation!="resolve"||payload.value("source")!="youtube"))return -1;
@@ -194,7 +209,11 @@ public:
         // Collections may read exact album metadata, never resolve playback or
         // take ownership of an existing browse/play/queue request.
         if(lane=="named-collections" && operation!="album")return -1;
-        cancel(lane);const int id=++m_serial;const bool home=homeOperation(operation),cacheable=!warming&&operation!="resolve"&&operation!="resolveVideo";
+        cancel(lane);const int id=++m_serial;const bool home=homeOperation(operation);
+        const bool discoverBrowse=operation=="browseCatalogue"
+            &&QStringList{"lastfm","jiosaavn"}.contains(payload.value("catalogueSource").toString());
+        const bool discoverResolver=operation=="resolveCatalogueItem"||operation=="resolveCatalogueArt";
+        const bool cacheable=!warming&&operation!="resolve"&&operation!="resolveVideo"&&!discoverBrowse&&!discoverResolver;
         if(home){
             const QSet<QString> allowed{"seed","recording","refresh","region","fetchedAt","limit"};
             for(auto it=payload.cbegin();it!=payload.cend();++it)if(!allowed.contains(it.key()))return -1;
@@ -210,7 +229,7 @@ public:
         const auto path=m_cacheRoot+"/"+key+".json";
         WarmSlot *warm=nullptr;
         if(warming||operation=="resolve"||operation=="resolveVideo")warm=&m_mediaWarm;
-        else if(QStringList{"cataloguePage","catalogueSearch","album","relatedVideo"}.contains(operation))
+        else if(QStringList{"browseCategories","browseCatalogue","resolveCatalogueItem","cataloguePage","catalogueSearch","album","relatedVideo"}.contains(operation))
             warm=&m_catalogueWarm;
         // Only one worker per group can be reused. Overlapping ordinary
         // search/play requests still launch directly; Home's existing cap is
@@ -227,10 +246,21 @@ public:
             }
             warm->busy=true;++warm->idleGeneration;
         }else process=new QProcess(this);
+        if(process->state()!=QProcess::Running){
+            auto environment=QProcessEnvironment::systemEnvironment();
+            environment.insert("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR",QDir(m_cacheRoot).filePath("discover-v1"));
+            process->setProcessEnvironment(environment);
+        }
         m_active.insert(lane,process);auto output=std::make_shared<QByteArray>();
         auto elapsed=std::make_shared<QElapsedTimer>();elapsed->start();
         auto *deadline=new QTimer(process);deadline->setSingleShot(true);
         const bool reused=server&&process->state()==QProcess::Running;
+        const bool traceEnabled=qEnvironmentVariableIntValue("COLOSSEUM_CATALOGUE_TRACE")==1;
+        const auto trace=[traceEnabled,lane,operation,id,reused](const QString &phase){
+            if(!traceEnabled)return;
+            qInfo().noquote()<<"[vinyl-provider]"<<QJsonDocument(QJsonObject{{"phase",phase},{"operation",operation},
+                {"lane",lane},{"requestId",id},{"reused",reused}}).toJson(QJsonDocument::Compact);
+        };
         auto finish=[guard=QPointer<VinylProvider>(this),this,process,lane,id,home,cacheable,path,key,operation,value,payload,elapsed,warm,server,deadline,reused](QVariant data,QString error){
             if(!guard||m_active.value(lane)!=process)return;
             const bool ran=m_running.contains(process);
@@ -287,7 +317,7 @@ public:
             const auto count=data.metaType().id()==QMetaType::QVariantList?data.toList().size()
                 :result.value("items",result.value("tracks",result.value("albums"))).toList().size();
             qInfo().noquote()<<"[vinyl-provider]"<<QJsonDocument(QJsonObject{{"operation",operation},{"lane",lane},
-                {"cacheHit",result.value("_cached").toBool()},{"stale",result.value("_stale").toBool()},
+                {"requestId",id},{"cacheHit",result.value("_cached").toBool()},{"stale",result.value("_stale").toBool()},
                 {"workerReused",reused},{"elapsedMs",elapsed->elapsed()},{"count",count},{"ok",error.isEmpty()&&result.value("status")!="unavailable"}}).toJson(QJsonDocument::Compact);
             emit completed(lane,id,data,error);
             if(guard)QTimer::singleShot(0,this,[this]{startWaiting();});
@@ -334,8 +364,9 @@ public:
                     else parseReply(output->left(newline));
                 }else parseReply(*output);
             });
-        const bool catalogueObject=QStringList{"cataloguePage","catalogueSearch","artist","artistReleases","album","artistVideos"}.contains(operation);
-        if((home||operation=="discover"||operation=="lyrics"||catalogueObject)&&!payload.value("refresh").toBool()){
+        connect(process,&QProcess::started,this,[trace]{trace("process-started");});
+        const bool catalogueObject=QStringList{"browseCategories","browseCatalogue","cataloguePage","catalogueSearch","artist","artistReleases","album","artistVideos"}.contains(operation);
+        if(cacheable&&(home||operation=="discover"||operation=="lyrics"||catalogueObject)&&!payload.value("refresh").toBool()){
             const auto cached=readCache(path,key,operation,value,payload,home,true);
             if(!cached.isEmpty()){QTimer::singleShot(0,process,[finish,cached]{auto map=cached;map["_cached"]=true;finish(map,{});});return id;}
         }
@@ -355,8 +386,9 @@ public:
         const auto bundled=QFileInfo(m_helper).absolutePath()+"/runtime/bin/python3";
 #endif
         const auto python=qEnvironmentVariable("COLOSSEUM_VINYL_PYTHON",bundled);
-        auto launch=[guard=QPointer<VinylProvider>(this),this,process,deadline,lane,python,requestBytes,operation,home,server]{
+        auto launch=[guard=QPointer<VinylProvider>(this),this,process,deadline,lane,python,requestBytes,operation,home,server,trace]{
             if(!guard||m_active.value(lane)!=process)return;
+            trace("dispatch");
             if(home){m_running.insert(process);if(operation=="songCandidates")deadline->start(20000);}
             else deadline->start(operation=="lyrics"?12000:operation=="discover"?18000:operation=="artistIdentity"?180000:90000);
             if(server){

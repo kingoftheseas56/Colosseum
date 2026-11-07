@@ -8,6 +8,7 @@ import Colosseum.Vinyl 1.0
 Item {
     id: root
     objectName: "vinylLiveSession"
+    property bool deferInitialRestore: false
     signal playbackDiscontinuity(real seconds)
     property var emptyEdition: ({id:"", name:"", title:"", artist:"", artists:[], artistIds:[], year:"", cover:"", about:"", discs:[[]], credits:[]})
     property var shownEdition: emptyEdition
@@ -49,6 +50,15 @@ Item {
     readonly property real duration: backend.duration
     property alias paused: backend.paused
     readonly property string sourceState: backend.sourceState
+    function tracePlaybackPhase(phase) {
+        if(typeof CatalogueTraceEnabled==="undefined" || !CatalogueTraceEnabled)return;
+        var track=String(root.playingTrack && root.playingTrack.id || "");
+        if(!/^[a-zA-Z0-9:_-]{1,200}$/.test(track))track="unavailable";
+        console.info("[vinyl-opening] phase="+phase+" track="+track+" sourceState="+root.sourceState
+            +" loaded="+root.loaded+" paused="+root.paused+" atMs="+Date.now());
+    }
+    onSourceStateChanged: root.tracePlaybackPhase("source-state")
+    onPlayingTrackChanged: root.tracePlaybackPhase("active-song")
     readonly property real lastPlaybackAtMs: Number(backend.lastPlaybackAtMs)||0
     readonly property var radioContext: plainData(backend.radioContext) || ({})
     signal manualPlaybackStarted()
@@ -280,7 +290,7 @@ Item {
             root.playbackDiscontinuity(seconds);
         }
     }
-    onLoadedChanged: { if(loaded) activityBegin(); }
+    onLoadedChanged: { root.tracePlaybackPhase("loaded");if(loaded) activityBegin(); }
     readonly property bool activityEnabled: profileActive && !shuttingDown && activitySink!==null
         && (!activityPreferences || activityPreferences.keepActivityHistory!==false)
     property bool activityActive: false
@@ -498,6 +508,7 @@ Item {
     function toggleVideo() { backend.toggleVideo(); }
     function findTorrent() { backend.findTorrent(); }
     function cancelTorrent() { backend.cancelTorrent(); }
+    function selectYouTube() { backend.selectYouTube(); }
     function showNotes(index) { if(notes[index]) reading.showNotes(index); }
     function selectNoteLine(index) { if(Number.isInteger(index) && index>=0 && index<lyrics.length) reading.showNotes(index); }
     function seekToLine(index) { var time=lyricService.seekTime(index);if(typeof time==="number" && isFinite(time))seek(time); }
@@ -915,6 +926,7 @@ Item {
     function retry() {refreshSource();backend.retry();}
     function seek(seconds) {activitySample();backend.seek(seconds);}
     onPausedChanged: {
+        root.tracePlaybackPhase("paused");
         if(resetting || shuttingDown || !profileActive) return;
         if(activityActive) {
             if(paused) activitySample(true);
@@ -933,41 +945,48 @@ Item {
         progressStore.recordSilent({kind:"music-session",id:"vinyl",resume:resume});
     }
     function restore(entry) {
-        if(shuttingDown || !profileActive) return;
-        if (!progressStore) return;
+        if(shuttingDown || !profileActive) return false;
+        function rejected() {
+            if(entry) browseError=qsTr("This listening session could not be restored. Open the song again to retry.");
+            return false;
+        }
+        if (!progressStore) return rejected();
         var stored=!entry && progressStore.get ? plainData(progressStore.get("music-session","vinyl")) : null;
         var singleton=stored && stored.kind==="music-session" && stored.id==="vinyl";
         var recent=plainData(entry ? [entry] : singleton ? [stored] : progressStore.recent("music",1)) || [];
-        if (!recent.length) return;
+        if (!recent.length) return rejected();
         var r=recent[0].resume;
         if(r && r.version===3) {
+            if(entry && !backend.checkpointSummary(r).row) return rejected();
             if(backend.restoreCheckpoint(r)) {
                 if(queueIndex>=0) {shownEdition=playingEdition;shownDisc=playingDisc;}
                 else if(queue.length) shownEdition=queue[0].edition;
                 refreshLibrary();editionSelected();
+                browseError="";
+                return true;
             }
-            return;
+            return rejected();
         }
-        if (!r || [1,2].indexOf(r.version)<0 || !Array.isArray(r.queue) || r.queue.length>10000) return;
+        if (!r || [1,2].indexOf(r.version)<0 || !Array.isArray(r.queue) || r.queue.length>10000) return rejected();
         var qi=r.queueIndex, rows=r.queue;
-        if(!Number.isInteger(qi)||qi< -1||qi>=rows.length||!Number.isFinite(r.position)) return;
+        if(!Number.isInteger(qi)||qi< -1||qi>=rows.length||!Number.isFinite(r.position)) return rejected();
         if(!rows.length) {
-            if(!singleton || qi!==-1) return;
-            backend.restoreLegacy([],-1,false,[],["off","all","one"].indexOf(r.repeatMode)>=0 ? r.repeatMode : "off",0,0);
-            return;
+            if(!singleton || qi!==-1) return rejected();
+            var emptyRestored=backend.restoreLegacy([],-1,false,[],["off","all","one"].indexOf(r.repeatMode)>=0 ? r.repeatMode : "off",0,0);
+            return emptyRestored ? true : rejected();
         }
-        if(qi===-1 && !singleton) return;
+        if(qi===-1 && !singleton) return rejected();
         if(r.version===2 && Array.isArray(r.editionTable)) {
-            if(rows.some(row=>!row || !Number.isInteger(row.editionKey) || row.editionKey<0 || row.editionKey>=r.editionTable.length || !Number.isInteger(row.discIndex) || !Number.isInteger(row.trackIndex) || !r.editionTable[row.editionKey] || !Array.isArray(r.editionTable[row.editionKey].discs) || !Array.isArray(r.editionTable[row.editionKey].discs[row.discIndex]) || !r.editionTable[row.editionKey].discs[row.discIndex][row.trackIndex])) return;
+            if(rows.some(row=>!row || !Number.isInteger(row.editionKey) || row.editionKey<0 || row.editionKey>=r.editionTable.length || !Number.isInteger(row.discIndex) || !Number.isInteger(row.trackIndex) || !r.editionTable[row.editionKey] || !Array.isArray(r.editionTable[row.editionKey].discs) || !Array.isArray(r.editionTable[row.editionKey].discs[row.discIndex]) || !r.editionTable[row.editionKey].discs[row.discIndex][row.trackIndex])) return rejected();
             rows=rows.map(row=>{var full=rowFor(r.editionTable[row.editionKey],row.discIndex,row.trackIndex);full.queueId=row.queueId;return full;});
         }
         if(r.version===1) {
-            if(!r.edition) return;
+            if(!r.edition) return rejected();
             var ts=(r.edition.discs || [])[0];
-            if(!ts || rows.some(i=>!Number.isInteger(i)||i<0||i>=ts.length)) return;
+            if(!ts || rows.some(i=>!Number.isInteger(i)||i<0||i>=ts.length)) return rejected();
             rows=rows.map(i=>rowFor(r.edition,0,i));
         }
-        if(rows.some(row=>!row || !row.edition || !row.edition.discs || !Number.isInteger(row.discIndex) || !Number.isInteger(row.trackIndex) || !(row.edition.discs[row.discIndex] || [])[row.trackIndex] || row.trackId!==row.edition.discs[row.discIndex][row.trackIndex].id) || (qi>=0 && rows[qi].trackId!==r.trackId)) return;
+        if(rows.some(row=>!row || !row.edition || !row.edition.discs || !Number.isInteger(row.discIndex) || !Number.isInteger(row.trackIndex) || !(row.edition.discs[row.discIndex] || [])[row.trackIndex] || row.trackId!==row.edition.discs[row.discIndex][row.trackIndex].id) || (qi>=0 && rows[qi].trackId!==r.trackId)) return rejected();
         var remapped=Object.create(null);
         var migrated=rows.map(row=>{var copy=Object.assign({},row);copy.queueId="queue:"+(++queueSerial);remapped[row.queueId]=copy.queueId;return copy;});
         var order=Array.isArray(r.unshuffledIds) ? r.unshuffledIds.map(id=>remapped[id]).filter(id=>!!id) : migrated.map(row=>row.queueId);
@@ -976,8 +995,10 @@ Item {
             ["off","all","one"].indexOf(r.repeatMode)>=0 ? r.repeatMode : "off",
             r.completed ? 0 : Math.max(0,r.position),Math.max(0,Number(r.duration)||0))) {
             shownEdition=qi>=0 ? playingEdition : rows[0].edition;shownDisc=playingDisc;
-            refreshLibrary();editionSelected();snapshot();
+            refreshLibrary();editionSelected();snapshot();browseError="";
+            return true;
         }
+        return rejected();
     }
 
     function clearProfile() {
@@ -1046,11 +1067,11 @@ Item {
             }
         }
         function onProfileLeaving() { root.clearProfile(); }
-        function onProfileEntered() { backend.profileScope=typeof VinylProfileScope!=="undefined" ? VinylProfileScope : "local-test";root.profileActive=true;root.restore();root.refreshLibrary(); }
+        function onProfileEntered() { backend.profileScope=typeof VinylProfileScope!=="undefined" ? VinylProfileScope : "local-test";root.profileActive=true;if(!root.deferInitialRestore)root.restore();root.refreshLibrary(); }
         function onCheckpointRequested() { root.snapshot(); }
         function onShuttingDown() { root.shutdown(); }
     }
     Timer {objectName:"vinylProgressTimer";interval:5000;repeat:true;running:!root.shuttingDown && !root.resetting && root.loaded;onTriggered:{root.activitySample();root.snapshot();}}
-    Component.onCompleted: {restore();refreshLibrary();}
+    Component.onCompleted: {if(!deferInitialRestore)restore();refreshLibrary();}
     Component.onDestruction: { cancelImport();cancelDiscovery();cancelCatalogueRequests();cancelPlaylistPage();if(source) source.cancel("browse");backend.shutdown(); }
 }

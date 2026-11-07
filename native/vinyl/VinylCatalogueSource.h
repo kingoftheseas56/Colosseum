@@ -26,6 +26,7 @@ class VinylCatalogueSource final : public QObject,
     Q_PROPERTY(QVariantMap artistIdentity READ artistIdentity NOTIFY artistChanged)
     Q_PROPERTY(QVariantMap artistArtwork READ artistArtwork NOTIFY artistChanged)
     Q_PROPERTY(bool artistBusy READ artistBusy NOTIFY artistChanged)
+    Q_PROPERTY(bool artistCatalogueBusy READ artistCatalogueBusy NOTIFY artistChanged)
     Q_PROPERTY(QString artistError READ artistError NOTIFY artistChanged)
     Q_PROPERTY(bool cached READ cached NOTIFY artistChanged)
     Q_PROPERTY(QObject* canonicalArtistService READ canonicalArtistService CONSTANT)
@@ -59,6 +60,7 @@ public:
     QVariantMap artistMedia() const{return m_artistMedia;}
     QVariantMap artistIdentity() const{return m_identity;}
     bool artistBusy() const{return !m_artistRequests.isEmpty()||!m_artworkReplies.isEmpty();}
+    bool artistCatalogueBusy() const{return m_artistRequests.contains("artist");}
     QString artistError() const{return m_artistError;}
     bool cached() const{return m_cached;}
     QObject *canonicalArtistService(){return &m_bridge;}

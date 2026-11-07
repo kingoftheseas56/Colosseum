@@ -37,6 +37,13 @@ Item {
     QtObject {
         id: viewedSong
         property var playingTrack: viewedTrack
+        property bool hasLyrics: true
+        property bool hasNotes: true
+        property bool lyricsShown: false
+        property bool autoNotes: false
+        property int manualNoteLine: -1
+        function toggleLyrics() { lyricsShown = !lyricsShown }
+        function toggleNotes() { autoNotes = !autoNotes; manualNoteLine = -1 }
         property bool hasVideo: false
         property bool videoShown: false
         property bool torrentAvailable: false
@@ -48,7 +55,6 @@ Item {
         function cancelTorrent() { torrentCancels += 1 }
         property bool videoBusy: false
         property bool videoSwitchCancellable: false
-        property var playingCredits: []
         property bool personalEnabled: true
         property bool saved: false
         property int toggles: 0
@@ -133,335 +139,78 @@ Item {
         }
     }
 
-    SignalSpy {
-        id: videoSpy
-        target: control
-        signalName: "videoRequested"
-    }
-
-    SignalSpy {
-        id: fullscreenSpy
-        target: control
-        signalName: "videoFullscreenRequested"
-    }
-
-    SignalSpy {
-        id: creditsSpy
-        target: control
-        signalName: "creditsRequested"
-    }
-
-    SignalSpy {
-        id: playSpy
-        target: control
-        signalName: "playRequested"
-    }
-
+    SignalSpy { id: playSpy; target: control; signalName: "playRequested" }
+    SignalSpy { id: fullscreenSpy; target: control; signalName: "videoFullscreenRequested" }
     TestCase {
         name: "VinylSongActionMenu"
         when: windowShown
-
-        function action(objectName) {
-            return findChild(control, objectName)
-        }
-
+        function action(name) { return findChild(control,name) }
         function init() {
-            control.songData = viewedSong
-            control.showPlay = true
-            control.videoFullscreen = false
-            control.showReaderTools = false
-            control.contextKey = "viewed"
-            control.visible = true
-            viewedTrack.title = "Viewed song"
-            viewedTrack.available = true
-            globalPlaybackTrack.title = "Currently playing song"
-            globalPlaybackTrack.available = true
-            otherViewedTrack.title = "Another viewed song"
-            otherViewedTrack.available = true
-            unsupportedTrack.title = "Unsupported song"
-            unsupportedTrack.available = true
-            viewedSong.hasVideo = false
-            viewedSong.videoShown = false
-            viewedSong.torrentAvailable = false
-            viewedSong.torrentBusy = false
-            viewedSong.torrentError = ""
-            viewedSong.torrentRequests = 0
-            viewedSong.torrentCancels = 0
-            viewedSong.videoBusy = false
-            viewedSong.videoSwitchCancellable = false
-            viewedSong.playingCredits = []
-            viewedSong.personalEnabled = true
-            viewedSong.saved = false
-            viewedSong.toggles = 0
-            viewedSong.playlists = 0
-            viewedSong.queueCalls = 0
-            viewedSong.lastPlayNext = false
-            playingSong.toggles = 0
-            playingSong.playlists = 0
-            playingSong.queueCalls = 0
-            otherSong.toggles = 0
-            otherSong.playlists = 0
-            otherSong.queueCalls = 0
-            playSpy.clear()
-            videoSpy.clear()
-            fullscreenSpy.clear()
-            creditsSpy.clear()
+            control.songData=viewedSong;control.showPlay=true;control.showLyricsTools=true;control.showReaderTools=true;
+            control.collectionHost=null;control.personalHost=null;control.playlistHost=null;control.videoFullscreen=false;
+            viewedTrack.available=true;viewedSong.saved=false;viewedSong.toggles=0;viewedSong.playlists=0;
+            viewedSong.personalEnabled=true;viewedSong.lyricsShown=false;viewedSong.autoNotes=false;viewedSong.manualNoteLine=-1;
+            viewedSong.videoShown=false;otherSong.toggles=0;otherSong.playlists=0;
+            playSpy.clear();fullscreenSpy.clear();
         }
-
-        function test_torrentCapabilityTargetsOnlyCurrentSessionAndCancels() {
-            const button = action("vinylSongTorrent")
-            verify(!button.visible)
-            viewedSong.torrentAvailable = true
-            verify(button.visible)
-            compare(button.accessibleName, "Find torrent stream")
-            button.activate()
-            compare(viewedSong.torrentRequests, 1)
-            viewedSong.torrentBusy = true
-            compare(button.accessibleName, "Cancel torrent lookup")
-            button.activate()
-            compare(viewedSong.torrentCancels, 1)
-            control.songData = otherSong
-            verify(!button.visible)
-            button.activate()
-            compare(viewedSong.torrentRequests, 1)
-            compare(viewedSong.torrentCancels, 1)
+        function test_viewedPersonalActionsRemainSeparateFromPlayback() {
+            action("vinylSongSave").activate();compare(viewedSong.toggles,1);compare(playingSong.toggles,0);
+            verify(action("vinylSongSave").selected);compare(action("vinylSongSave").accessibleName,"Unsave");
+            action("vinylSongPlaylist").activate();compare(viewedSong.playlists,1);
+            control.songData=otherSong;action("vinylSongSave").activate();compare(otherSong.toggles,1);compare(viewedSong.toggles,1);
+            action("vinylSongPlaylist").activate();compare(otherSong.playlists,1);
         }
-        function test_videoBusyDisablesTorrentAction() {
-            viewedSong.torrentAvailable = true
-            viewedSong.videoBusy = true
-            verify(!action("vinylSongTorrent").enabled)
-            action("vinylSongTorrent").activate()
-            compare(viewedSong.torrentRequests, 0)
+        function test_personalGateAndExplicitViewedPlay() {
+            viewedSong.personalEnabled=false;verify(!action("vinylSongSave").visible);verify(!action("vinylSongPlaylist").visible);
+            verify(action("vinylSongPlay").enabled);action("vinylSongPlay").activate();compare(playSpy.count,1);
+            viewedTrack.available=false;verify(!action("vinylSongPlay").enabled);action("vinylSongPlay").activate();compare(playSpy.count,1);
+            control.showPlay=false;verify(!action("vinylSongPlay").visible);
         }
-
-        function test_onlySupportedActionsAndPersonalGate() {
-            control.showPlay = true
-            control.songData = unsupportedSong
-            compare(control.hasActions, true)
-            compare(action("vinylSongPlay").visible, true)
-            compare(action("vinylSongSave").visible, false)
-            compare(action("vinylSongPlaylist").visible, false)
-            compare(action("vinylSongNext").visible, false)
-            compare(action("vinylSongQueue").visible, false)
-
-            control.showPlay = false
-            control.songData = viewedSong
-            viewedSong.personalEnabled = false
-            compare(action("vinylSongSave").visible, false)
-            compare(action("vinylSongPlaylist").visible, false)
-            compare(action("vinylSongNext").visible, true)
-            compare(action("vinylSongQueue").visible, true)
-            compare(control.hasActions, true)
-
-            viewedSong.personalEnabled = true
-            compare(action("vinylSongSave").visible, true)
-            compare(action("vinylSongPlaylist").visible, true)
+        function test_readingFunctionsAndLabelsRemainIntact() {
+            compare(action("vinylBarLyrics").label,"Lyrics");verify(action("vinylBarLyrics").iconSource.toString().length>0);
+            action("vinylBarLyrics").activate();verify(viewedSong.lyricsShown);
+            verify(action("vinylBarNotes").iconSource.toString().endsWith("genius.png"));
+            action("vinylBarNotes").activate();verify(viewedSong.autoNotes);
+            viewedSong.manualNoteLine=3;compare(action("vinylBarNotes").accessibleName,"Resume automatic annotations");
+            action("vinylBarNotes").activate();compare(viewedSong.manualNoteLine,-1);
         }
-
-        function test_playVisibilityAvailabilityAndSignal() {
-            control.showPlay = false
-            compare(action("vinylSongPlay").visible, false)
-
-            control.showPlay = true
-            viewedTrack.available = false
-            compare(action("vinylSongPlay").visible, true)
-            compare(action("vinylSongPlay").enabled, false)
-            action("vinylSongPlay").activate()
-            compare(playSpy.count, 0)
-
-            viewedTrack.available = true
-            compare(action("vinylSongPlay").enabled, true)
-            action("vinylSongPlay").activate()
-            compare(playSpy.count, 1)
+        function test_collectionUsesCanonicalLabelAndNoTooltip() {
+            const button=action("vinylSongAddToCollections");
+            compare(button.labelText,"Add to Collection");verify(!button.hoverDescriptionEnabled);
+            compare(button.iconOnly,true);compare(button.width,34);compare(button.height,34);
+            const caption=findChild(button,"vinylSongAddToCollectionsCaption");
+            verify(caption!==null);verify(!caption.visible);
+            const keyboardAction=findChild(button,"vinylSongAddToCollectionsAction");
+            verify(keyboardAction!==null);compare(keyboardAction.accessibleName,"Add to Collection");
+            verify(action("vinylSongPlaylist").iconSource.toString().includes("svg"));
         }
-
-        function test_unavailableNestedTrackDisablesQueueButAllowsSave() {
-            control.songData = viewedSong
-            viewedTrack.available = false
-            compare(control.canEnqueue, false)
-            compare(action("vinylSongNext").visible, true)
-            compare(action("vinylSongNext").enabled, false)
-            compare(action("vinylSongQueue").visible, true)
-            compare(action("vinylSongQueue").enabled, false)
-            compare(action("vinylSongSave").enabled, true)
-            action("vinylSongQueue").activate()
-            compare(viewedSong.queueCalls, 0)
+        function test_noQueueOrVideoActionOnSongPage() {
+            compare(action("vinylSongNext"),null);compare(action("vinylSongQueue"),null);
+            compare(action("vinylSongTorrent"),null);compare(action("vinylBarVideo"),null);
         }
-
-        function test_saveLabelAndSelectedSong() {
-            control.songData = viewedSong
-            viewedSong.saved = false
-            playingSong.saved = true
-            compare(action("vinylSongSave").accessibleName, "Save")
-            action("vinylSongSave").activate()
-            compare(viewedSong.toggles, 1)
-            compare(viewedSong.saved, true)
-            compare(playingSong.toggles, 0)
-            compare(action("vinylSongSave").accessibleName, "Unsave")
+        function test_noCreditsAndFullscreenSignals() {
+            compare(action("vinylBarCredits"),null);
+            verify(!action("vinylBarFullscreen").visible);viewedSong.videoShown=true;verify(action("vinylBarFullscreen").visible);
+            action("vinylBarFullscreen").activate();compare(fullscreenSpy.count,1);
+            control.videoFullscreen=true;compare(action("vinylBarFullscreen").accessibleName,"Exit fullscreen");
         }
-
-        function test_playlistAndQueueUseViewedSong() {
-            control.songData = viewedSong
-            action("vinylSongPlaylist").activate()
-            compare(viewedSong.playlists, 1)
-            compare(playingSong.playlists, 0)
-
-            action("vinylSongNext").activate()
-            compare(viewedSong.queueCalls, 1)
-            compare(viewedSong.lastPlayNext, true)
-            compare(playingSong.queueCalls, 0)
-
-            action("vinylSongQueue").activate()
-            compare(viewedSong.queueCalls, 2)
-            compare(viewedSong.lastPlayNext, false)
-            compare(playingSong.queueCalls, 0)
+        function test_hostsSeparateSingleActionInstances() {
+            const collection=Qt.createQmlObject('import QtQuick; Item { x:20; y:20 }',scene);
+            const personal=Qt.createQmlObject('import QtQuick; Item { x:20; y:80 }',scene);
+            const playlist=Qt.createQmlObject('import QtQuick; Item { x:150; y:80 }',scene);
+            const saveAction=action("vinylSongSave"),playlistAction=action("vinylSongPlaylist"),collectionAction=action("vinylSongAddToCollections");
+            control.collectionHost=collection;control.personalHost=personal;control.playlistHost=playlist;
+            waitForRendering(scene);
+            compare(saveAction.parent.parent,personal);compare(playlistAction.parent.parent,playlist);
+            compare(collectionAction.parent.parent,collection);
+            compare(action("vinylSongSave"),saveAction);compare(action("vinylSongPlaylist"),playlistAction);
+            saveAction.activate();compare(viewedSong.toggles,1);
+            playlistAction.activate();compare(viewedSong.playlists,1);
+            control.collectionHost=null;control.personalHost=null;control.playlistHost=null;
+            collection.destroy();personal.destroy();playlist.destroy();
         }
-
-        function test_contextSwitchRebindsDirectActions() {
-            control.songData = viewedSong
-            control.contextKey = "album-a"
-            control.contextKey = "album-b"
-            control.songData = otherSong
-            compare(action("vinylSongPlaylist").accessibleDescription, "For Another viewed song")
-            mouseClick(action("vinylSongPlaylist"))
-            compare(otherSong.playlists, 1)
-            compare(viewedSong.playlists, 0)
-        }
-
-        function test_readerToolsAvailabilityAndSignals() {
-            control.showPlay = false
-            control.showReaderTools = true
-            control.songData = unsupportedSong
-            compare(control.hasActions, true)
-            compare(action("vinylBarVideo").visible, true)
-            compare(action("vinylBarVideo").enabled, false)
-            compare(action("vinylBarCredits").visible, true)
-            compare(action("vinylBarCredits").enabled, false)
-
-            control.songData = viewedSong
-            viewedSong.hasVideo = true
-            viewedSong.videoShown = false
-            viewedSong.playingCredits = []
-            compare(action("vinylBarVideo").enabled, true)
-            compare(action("vinylBarVideo").selected, false)
-            action("vinylBarVideo").activate()
-            compare(videoSpy.count, 1)
-
-            viewedSong.videoShown = true
-            compare(action("vinylBarVideo").selected, true)
-            viewedSong.playingCredits = ["Artist"]
-            compare(action("vinylBarCredits").enabled, true)
-            action("vinylBarCredits").activate()
-            compare(creditsSpy.count, 1)
-        }
-
-        function test_videoOffWithoutAvailability() {
-            control.showReaderTools = true
-            viewedSong.videoShown = true
-            viewedSong.hasVideo = false
-            const button = action("vinylBarVideo")
-            verify(button.enabled)
-            verify(button.selected)
-            compare(button.symbol, "video")
-            compare(button.accessibleName, "Turn video off and return to original song audio")
-            button.activate()
-            compare(videoSpy.count, 1)
-        }
-
-        function test_videoPendingCancellationAndCommittedLoad() {
-            control.showReaderTools = true
-            viewedSong.videoBusy = true
-            viewedSong.videoSwitchCancellable = true
-            const button = action("vinylBarVideo")
-            verify(button.enabled)
-            compare(button.accessibleName, "Cancel audio/video switch")
-            compare(button.symbol, "cancel")
-            verify(!button.loading)
-            button.activate()
-            compare(videoSpy.count, 1)
-            viewedSong.videoSwitchCancellable = false
-            verify(!button.enabled)
-            verify(button.loading)
-            compare(button.accessibleName, "Switching playback mode")
-            button.activate()
-            compare(videoSpy.count, 1)
-            viewedSong.videoBusy = false
-            verify(!button.loading)
-            verify(!button.enabled)
-        }
-
-        function test_legacyFixtureWithoutNewCapability() {
-            control.showReaderTools = true
-            control.songData = { playingTrack: {title: "Legacy"}, hasVideo: true, videoBusy: true }
-            verify(!control.videoSwitchCancellable)
-            verify(!action("vinylBarVideo").enabled)
-            control.songData = { playingTrack: {title: "Legacy"}, videoShown: true }
-            verify(action("vinylBarVideo").enabled)
-            action("vinylBarVideo").activate()
-            compare(videoSpy.count, 1)
-        }
-
-        function test_fullscreenVisibilityStateAndSignal() {
-            const button = action("vinylBarFullscreen")
-            compare(button.visible, false)
-            control.showReaderTools = true
-            compare(button.visible, false)
-            viewedSong.videoShown = true
-            verify(button.visible)
-            compare(button.accessibleName, "Enter fullscreen")
-            waitForRendering(scene)
-            mouseClick(button)
-            compare(fullscreenSpy.count, 1)
-            compare(videoSpy.count, 0)
-            control.videoFullscreen = true
-            compare(button.accessibleName, "Exit fullscreen")
-            verify(button.selected)
-            button.activate()
-            compare(fullscreenSpy.count, 2)
-            control.showReaderTools = false
-            compare(button.visible, false)
-        }
-
-        function test_directIconsHaveNoOverflowInvoker() {
-            control.showReaderTools = true
-            waitForRendering(scene)
-            compare(findChild(control, "vinylBarSongActionsButton"), null)
-            const names = ["vinylSongPlay", "vinylSongSave", "vinylSongPlaylist",
-                "vinylSongNext", "vinylSongQueue", "vinylBarVideo", "vinylBarCredits"]
-            var previousRight = -1
-            for (var i = 0; i < names.length; i++) {
-                const button = action(names[i])
-                verify(button.visible)
-                verify(button.width >= 34 && button.height >= 34)
-                verify(button.accessibleName.length > 0)
-                const pos = button.mapToItem(control, 0, 0)
-                verify(pos.x > previousRight)
-                previousRight = pos.x + button.width
-            }
-            verify(previousRight <= control.width)
-        }
-
-        function test_hiddenActionsDoNotReserveWidth() {
-            control.showPlay = false
-            control.showReaderTools = true
-            viewedSong.personalEnabled = false
-            compare(action("vinylSongPlay").visible, false)
-            compare(action("vinylSongPlay").width, 0)
-            compare(action("vinylSongSave").visible, false)
-            compare(action("vinylSongSave").width, 0)
-            verify(action("vinylBarVideo").visible)
-            verify(action("vinylBarVideo").width > 0)
-        }
-
-        function test_keyboardEnterActivatesDirectAction() {
-            const testWindow = scene.Window.window
-            testWindow.requestActivate()
-            tryCompare(testWindow, "active", true)
-            const button = action("vinylSongPlaylist")
-            button.forceActiveFocus()
-            tryCompare(testWindow, "activeFocusItem", button)
-            keyClick(Qt.Key_Return)
-            compare(viewedSong.playlists, 1)
+        function test_keyboardActivatesPlaylist() {
+            const button=action("vinylSongPlaylist");button.forceActiveFocus();keyClick(Qt.Key_Return);compare(viewedSong.playlists,1);
         }
     }
 }

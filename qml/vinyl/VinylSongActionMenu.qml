@@ -1,33 +1,35 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import ".."
+import "../collections"
 import "../CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: root
 
-    width: collectionHost ? readerActions.width : collectionActions.width + (collectionActions.width && readerActions.width ? spacing : 0) + readerActions.width
+    width: inlineActions.implicitWidth
     height: 34
     property real spacing: 7
-    // Reparent the single collection row visually; button instances and ownership stay unique.
     property Item collectionHost: null
+    property Item personalHost: null
+    property Item playlistHost: null
+    property Item lyricsHost: null
+    property Item notesHost: null
     readonly property real collectionWidth: collectionActions.width
-    readonly property bool torrentBusy: songData && songData.torrentBusy === true
-    readonly property bool torrentAvailable: songData && songData.torrentAvailable === true
-    readonly property string torrentError: songData && typeof songData.torrentError === "string" ? songData.torrentError : ""
-    readonly property bool videoBusy: songData && songData.videoBusy === true
-    readonly property bool videoSwitchCancellable: songData && songData.videoSwitchCancellable === true
-
+    readonly property real personalWidth: personalActions.width
+    readonly property real playlistWidth: playlistActions.width
+    readonly property real lyricsWidth: lyricsActions.width
+    readonly property real notesWidth: notesActions.width
     required property var songData
     property bool videoFullscreen: false
     property bool showPlay: false
     property bool showReaderTools: false
+    property bool showLyricsTools: false
     property string contextKey: ""
 
     signal playRequested()
     signal videoFullscreenRequested()
     signal videoRequested()
-    signal creditsRequested()
 
     readonly property var playingTrack: {
         const page = root.songData
@@ -75,41 +77,10 @@ Item {
             return false
         }
     }
-    readonly property bool videoAvailable: {
-        const track = root.songData
-        if (!track)
-            return false
-        try {
-            return track.hasVideo === true
-        } catch (error) {
-            return false
-        }
-    }
-    readonly property bool videoShown: {
-        const track = root.songData
-        if (!track)
-            return false
-        try {
-            return track.videoShown === true
-        } catch (error) {
-            return false
-        }
-    }
-    readonly property bool creditsAvailable: {
-        const track = root.songData
-        if (!track)
-            return false
-        try {
-            const credits = track.playingCredits
-            return credits !== undefined && credits !== null
-                   && typeof credits.length === "number" && credits.length > 0
-        } catch (error) {
-            return false
-        }
-    }
+    readonly property bool videoShown: songData && songData.videoShown === true
     readonly property bool hasActions: root.showPlay || root.canToggleSaved
-                                                  || root.canAddToPlaylist || root.hasEnqueueMethod
-                                                  || root.showReaderTools
+                                                  || root.canAddToPlaylist
+                                                  || root.showReaderTools || root.showLyricsTools
     readonly property bool playEnabled: root.showPlay && root.playingTrackAvailable
     readonly property bool currentSongSaved: {
         const track = root.songData
@@ -153,11 +124,12 @@ Item {
 
     component Action: KeyboardAction {
         id: control
-        property string symbol
+        property string symbol: ""
+        property string label: ""
         property bool selected: false
         property bool loading: false
         property url iconSource: ""
-        width: visible ? 34 : 0
+        width: visible ? (control.label.length ? Math.max(34, caption.implicitWidth + (control.iconSource.toString().length || control.symbol.length ? 40 : 22)) : 34) : 0
         height: 34
         focusOnPointer: false
         opacity: enabled ? 1 : 0.34
@@ -171,21 +143,33 @@ Item {
         }
         VinylControlIcon {
             objectName: control.objectName + "Glyph"
-            anchors.centerIn: parent
+            x: control.label.length ? 10 : (parent.width - width) / 2
+            anchors.verticalCenter: parent.verticalCenter
             width: 17
             height: 17
-            visible: !control.loading && !control.iconSource.toString().length
+            visible: !control.loading && !control.iconSource.toString().length && control.symbol.length > 0
             symbol: control.symbol
             color: control.selected ? theme.gold : theme.inkDim
         }
         Image {
-            anchors.centerIn: parent
+            x: control.label.length ? 10 : (parent.width - width) / 2
+            anchors.verticalCenter: parent.verticalCenter
             width: 17
             height: 17
             sourceSize: Qt.size(17, 17)
             visible: !control.loading && control.iconSource.toString().length > 0
             source: control.iconSource
             opacity: control.selected ? 1 : 0.75
+        }
+        Text {
+            id: caption
+            objectName: control.objectName + "Caption"
+            anchors.verticalCenter: parent.verticalCenter
+            x: control.iconSource.toString().length || control.symbol.length ? 34 : 11
+            text: control.label
+            color: control.selected ? theme.gold : theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: 12
         }
         BusyIndicator {
             anchors.centerIn: parent
@@ -196,116 +180,98 @@ Item {
     }
 
     Row {
-        id: collectionActions
-        parent: root.collectionHost || root
-        visible: root.visible
+        id: inlineActions
         spacing: root.spacing
-        Action {
-            objectName: "vinylSongPlay"
-            visible: root.showPlay
-            enabled: root.playEnabled
-            symbol: "playViewed"
-            accessibleName: qsTr("Play viewed song")
-            onTriggered: root.playRequested()
-        }
-        Action {
-            objectName: "vinylSongSave"
-            visible: root.canToggleSaved
-            symbol: root.currentSongSaved ? "saved" : "save"
-            selected: root.currentSongSaved
-            accessibleName: root.currentSongSaved ? qsTr("Unsave") : qsTr("Save")
-            onTriggered: root.invokeCurrentSong("togglePlayingSongSaved")
-        }
-        Action {
-            objectName: "vinylSongAddToCollections"
-            visible: typeof CollectionsIdentity !== "undefined"
-            enabled: visible && CollectionsIdentity.collectionReference(CollectionsReferences.song(root.songData)).ok
-            iconSource: "../../assets/icons/lucide/folder-open.svg"
-            accessibleName: qsTr("Add to Collections")
-            onTriggered: {
-                const window = root.Window.window
-                if (window && typeof window.openNamedCollectionsPicker === "function")
-                    window.openNamedCollectionsPicker(CollectionsReferences.song(root.songData), this)
+        Row {
+            id: personalActions
+            parent: root.personalHost || inlineActions
+            visible: root.visible
+            spacing: root.spacing
+            Action {
+                objectName: "vinylSongPlay"
+                visible: root.showPlay
+                enabled: root.playEnabled
+                symbol: "playViewed"
+                accessibleName: qsTr("Play viewed song")
+                onTriggered: root.playRequested()
+            }
+            Action {
+                objectName: "vinylSongSave"
+                visible: root.canToggleSaved
+                symbol: root.currentSongSaved ? "saved" : "save"
+                selected: root.currentSongSaved
+                accessibleName: root.currentSongSaved ? qsTr("Unsave") : qsTr("Save")
+                onTriggered: root.invokeCurrentSong("togglePlayingSongSaved")
             }
         }
-        Action {
-            objectName: "vinylSongPlaylist"
-            visible: root.canAddToPlaylist
-            symbol: "playlistAdd"
-            accessibleName: qsTr("Add to playlist")
-            onTriggered: root.invokeCurrentSong("addPlayingSongToPlaylist")
+        Row {
+            id: playlistActions
+            parent: root.playlistHost || inlineActions
+            visible: root.visible
+            Action {
+                objectName: "vinylSongPlaylist"
+                visible: root.canAddToPlaylist
+                iconSource: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#c7c0b4" stroke-width="1.7" stroke-linecap="round"><path d="M3 5h13M3 10h9M3 15h6M17 12v9M12.5 16.5h9"/></svg>')
+                accessibleName: qsTr("Add to playlist")
+                onTriggered: root.invokeCurrentSong("addPlayingSongToPlaylist")
+            }
         }
-        Action {
-            objectName: "vinylSongNext"
-            visible: root.hasEnqueueMethod
-            enabled: root.canEnqueue
-            symbol: "queueNext"
-            accessibleName: qsTr("Play next")
-            onTriggered: root.invokeCurrentSong("enqueuePlayingSong", [true])
+        Row {
+            id: collectionActions
+            parent: root.collectionHost || inlineActions
+            visible: root.visible
+            AddToCollectionsButton {
+                objectName: "vinylSongAddToCollections"
+                reference: CollectionsReferences.song(root.songData)
+                labelText: qsTr("Add to Collection")
+                iconOnly: true
+                hoverDescriptionEnabled: false
+                width: implicitWidth
+                height: 34
+            }
         }
-        Action {
-            objectName: "vinylSongQueue"
-            visible: root.hasEnqueueMethod
-            enabled: root.canEnqueue
-            symbol: "queueAdd"
-            accessibleName: qsTr("Add to queue")
-            onTriggered: root.invokeCurrentSong("enqueuePlayingSong", [false])
-        }
-    }
-    Row {
-        id: readerActions
-        x: root.collectionHost || !collectionActions.width ? 0 : collectionActions.width + root.spacing
-        spacing: root.spacing
-        Action {
-            objectName: "vinylSongTorrent"
-            visible: root.torrentAvailable || root.torrentBusy
-            enabled: root.torrentBusy || (!root.videoBusy && !root.videoShown && root.torrentAvailable)
-            iconSource: root.torrentBusy ? "" : "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c7c0b4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v8a6 6 0 0 0 12 0V3h-4v8a2 2 0 0 1-4 0V3zM6 7h4m4 0h4"/></svg>')
-            symbol: "cancel"
-            selected: root.torrentBusy
-            accessibleName: root.torrentBusy ? qsTr("Cancel torrent lookup") : qsTr("Find torrent stream")
-            accessibleDescription: root.torrentBusy ? qsTr("Finding a torrent stream. Audio is still playing.") : ""
-            onTriggered: root.invokeCurrentSong(root.torrentBusy ? "cancelTorrent" : "findTorrent")
-        }
-        Label {
-            visible: root.torrentError.length > 0
-            width: visible ? Math.min(240, implicitWidth) : 0
-            height: 34
-            verticalAlignment: Text.AlignVCenter
-            text: root.torrentError
-            elide: Text.ElideRight
-            color: theme.inkDim
-            font.pixelSize: 11
-            Accessible.name: text
-        }
-        Action {
-            objectName: "vinylBarVideo"
-            visible: root.showReaderTools
-            enabled: !root.torrentBusy && (root.videoBusy ? root.videoSwitchCancellable : (root.videoAvailable || root.videoShown))
-            selected: root.videoShown
-            symbol: root.videoBusy && root.videoSwitchCancellable ? "cancel" : "video"
-            loading: root.videoBusy && !root.videoSwitchCancellable
-            accessibleName: root.videoBusy
-                ? (root.videoSwitchCancellable ? qsTr("Cancel audio/video switch") : qsTr("Switching playback mode"))
-                : root.videoShown ? qsTr("Turn video off and return to original song audio") : qsTr("Switch to video")
-            onTriggered: root.videoRequested()
-        }
-        Action {
-            objectName: "vinylBarFullscreen"
-            visible: root.showReaderTools && root.videoShown
-            selected: root.videoFullscreen
-            iconSource: root.videoFullscreen ? "../../assets/icons/fullscreen-exit.svg"
-                                             : "../../assets/icons/fullscreen.svg"
-            accessibleName: root.videoFullscreen ? qsTr("Exit fullscreen") : qsTr("Enter fullscreen")
-            onTriggered: root.videoFullscreenRequested()
-        }
-        Action {
-            objectName: "vinylBarCredits"
-            visible: root.showReaderTools
-            enabled: root.creditsAvailable
-            symbol: "credits"
-            accessibleName: qsTr("Credits")
-            onTriggered: root.creditsRequested()
+        Row {
+            id: readerActions
+            spacing: root.spacing
+            Row {
+                id: lyricsActions
+                parent: root.lyricsHost || readerActions
+                visible: root.visible
+                Action {
+                    objectName: "vinylBarLyrics"
+                    visible: root.showLyricsTools
+                    iconSource: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#c7c0b4" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4zM7 8h10M7 12h7"/></svg>')
+                    label: qsTr("Lyrics")
+                    accessibleName: !root.songData.hasLyrics && root.songData.lyricsError ? qsTr("Retry lyrics") : qsTr("Lyrics")
+                    enabled: !!root.songData.hasLyrics || !!root.songData.lyricsError
+                    selected: !!root.songData.lyricsShown
+                    onTriggered: root.invokeCurrentSong("toggleLyrics")
+                }
+            }
+            Row {
+                id: notesActions
+                parent: root.notesHost || readerActions
+                visible: root.visible
+                Action {
+                    objectName: "vinylBarNotes"
+                    visible: root.showLyricsTools
+                    iconSource: "../../assets/icons/providers/genius.png"
+                    label: qsTr("Annotations")
+                    accessibleName: root.songData.manualNoteLine >= 0 ? qsTr("Resume automatic annotations") : qsTr("Automatic annotations")
+                    enabled: !!root.songData.hasNotes
+                    selected: !!root.songData.autoNotes && root.songData.manualNoteLine < 0 && !!root.songData.lyricsShown
+                    onTriggered: root.invokeCurrentSong("toggleNotes")
+                }
+            }
+            Action {
+                objectName: "vinylBarFullscreen"
+                visible: root.showReaderTools && root.videoShown
+                selected: root.videoFullscreen
+                iconSource: root.videoFullscreen ? "../../assets/icons/fullscreen-exit.svg"
+                : "../../assets/icons/fullscreen.svg"
+                accessibleName: root.videoFullscreen ? qsTr("Exit fullscreen") : qsTr("Enter fullscreen")
+                onTriggered: root.videoFullscreenRequested()
+            }
         }
     }
 }

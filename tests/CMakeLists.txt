@@ -1867,6 +1867,13 @@ endforeach()
 
 set_tests_properties(colosseum.qml.vinyl_world_navigation PROPERTIES TIMEOUT 240)
 
+add_test(NAME colosseum.qml.vinyl_catalogue_browse
+    COMMAND colosseum_qml_tests -input
+        "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_vinyl_catalogue_browse.qml")
+set_tests_properties(colosseum.qml.vinyl_catalogue_browse PROPERTIES
+    LABELS "qml;vinyl;catalogue;regression" TIMEOUT 120
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+
 add_test(NAME colosseum.qml.account_flyout_local_privacy
     COMMAND colosseum_qml_tests -input
         "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_account_flyout_local_privacy.qml")
@@ -5281,6 +5288,20 @@ add_test(NAME colosseum.qml.vinyl_discovery_native
 add_test(NAME colosseum.qml.vinyl_catalogue_pages_native
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_catalogue_pages.qml")
+add_test(NAME colosseum.qml.vinyl_youtube_browse_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-session-bridge/tst_youtube_browse.qml"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+set_tests_properties(colosseum.qml.vinyl_youtube_browse_native PROPERTIES
+    LABELS "qml;vinyl;catalogue;native-adapter" TIMEOUT 120
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+add_test(NAME colosseum.qml.vinyl_music_discover_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-session-bridge/tst_music_discover.qml"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+set_tests_properties(colosseum.qml.vinyl_music_discover_native PROPERTIES
+    LABELS "qml;vinyl;catalogue;native-adapter" TIMEOUT 120
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 foreach(vinyl_playback_case IN ITEMS player_seek playback_queue playback_actions)
     add_test(NAME colosseum.qml.vinyl_${vinyl_playback_case}_native
         COMMAND vinyl_native_session_bridge
@@ -5531,6 +5552,34 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME colosseum.vinyl_provider_lifecycle COMMAND vinyl_provider_lifecycle_test)
     set_tests_properties(colosseum.vinyl_provider_lifecycle PROPERTIES LABELS "vinyl;provider;unit" TIMEOUT 60
         ENVIRONMENT "COLOSSEUM_VINYL_PYTHON=${Python3_EXECUTABLE}")
+    add_test(NAME colosseum.vinyl_music_discover_provider
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_music_discover_provider_test.py")
+    set_tests_properties(colosseum.vinyl_music_discover_provider PROPERTIES
+        LABELS "unit;vinyl;catalogue;provider" TIMEOUT 60)
 else()
     message(STATUS "Skipping Vinyl helper lifecycle CTest registration: Python3 interpreter not found")
+endif()
+
+# Mixed YouTube catalogue renderers use the installed ytmusicapi parsers, without
+# network access. Allow the bundled runtime to be selected independently of the
+# general-purpose Python interpreter used by the helper lifecycle fixture.
+set(_vinyl_catalogue_test_python "${Python3_EXECUTABLE}")
+if(DEFINED ENV{COLOSSEUM_VINYL_PYTHON} AND NOT "$ENV{COLOSSEUM_VINYL_PYTHON}" STREQUAL "")
+    set(_vinyl_catalogue_test_python "$ENV{COLOSSEUM_VINYL_PYTHON}")
+endif()
+set(VINYL_CATALOGUE_TEST_PYTHON "${_vinyl_catalogue_test_python}" CACHE FILEPATH
+    "Python interpreter with ytmusicapi installed for Vinyl catalogue provider tests")
+if(VINYL_CATALOGUE_TEST_PYTHON)
+    execute_process(COMMAND "${VINYL_CATALOGUE_TEST_PYTHON}" -c "import ytmusicapi"
+        RESULT_VARIABLE _vinyl_catalogue_parser_result
+        OUTPUT_QUIET ERROR_QUIET TIMEOUT 15)
+    if(_vinyl_catalogue_parser_result STREQUAL "0")
+        add_test(NAME colosseum.vinyl_youtube_browse_provider
+            COMMAND "${VINYL_CATALOGUE_TEST_PYTHON}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_youtube_browse_provider_test.py")
+        set_tests_properties(colosseum.vinyl_youtube_browse_provider PROPERTIES
+            LABELS "unit;vinyl;catalogue;provider" TIMEOUT 60)
+    else()
+        message(STATUS "Skipping Vinyl YouTube browse provider CTest: select VINYL_CATALOGUE_TEST_PYTHON with ytmusicapi installed")
+    endif()
 endif()

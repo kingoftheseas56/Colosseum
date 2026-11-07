@@ -480,6 +480,13 @@ void VinylBackendSession::cancelTorrent() {
     if(pending&&m_source)QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,QString("play")));
     if(pending)publishState();
 }
+void VinylBackendSession::selectYouTube() {
+    if(m_shutdown||!m_profileActive||!m_source||!m_loaded||m_videoActive||m_videoBusy
+        ||!m_backend->queue.activeOccurrence()
+        ||activeRow().value("edition").toMap().value("origin","local").toString()=="local")return;
+    if(m_sourceKind=="youtube")cancelTorrent();
+    else if(m_sourceKind=="torrent")tryFallback(QString(),position());
+}
 void VinylBackendSession::torrentCompleted(const QVariantMap &resource,const QString &error) {
     const bool current=m_torrentEpoch==m_epoch&&m_torrentOccurrence==activeRow().value("queueId").toString()
         &&m_torrentTrack==activeRow().value("trackId").toString();
@@ -693,7 +700,7 @@ bool VinylBackendSession::commitVideoMode(bool video,const QVariantMap &resource
     const auto input=PlaybackLoadInput::create(url,headers);if(!input.ok())return false;
     // Capture the latest intent when resolution finishes, not when it begins.
     // The queue occurrence and durable listening session do not change.
-    m_resume=position();m_resumeListeningFacts=bool(m_backend->listenRecorder);
+    m_resume=position();m_resumeListeningFacts=m_resumeListeningFacts||bool(m_backend->listenRecorder);
     if(m_resumeListeningFacts)endListeningFacts(false);
     m_videoActive=video;m_videoBusy=true;m_videoAudioUrl=video?audio:QString();
     m_backend->input=*input.value;m_quality=resource.value("qualityLabel").toString();
@@ -854,11 +861,20 @@ void VinylBackendSession::setPaused(const PlaybackWorkToken &,bool paused) {
 bool VinylBackendSession::tryFallback(const QString &reason,std::optional<double> resume) {
     if(m_videoActive&&!m_shutdown&&m_profileActive&&activeIndex()>=0) {
         m_videoError="The video could not play. Returning to audio.";
+        // Repeated errors must not replace an in-flight audio recovery.
+        if(m_videoRequest>=0&&!m_targetVideo)return true;
+        const auto superseded=m_videoRequest;m_videoRequest=-1;
+        if(superseded>=0&&m_source)
+            QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,QString("video-stream")));
         // The old audio input is transient and was already validated by its owner.
         // Expired signed resources are resolved again while the queue stays put.
         if(!m_audioResource.isEmpty()&&!resourceExpired(m_audioResource.value("url").toString()))
             return commitVideoMode(false,m_audioResource);
-        if(!m_videoBusy)resolveVideoMode(false);
+        m_resume=resume.value_or(position());
+        m_resumeListeningFacts=m_resumeListeningFacts||bool(m_backend->listenRecorder);
+        if(m_backend->listenRecorder)endListeningFacts(false);
+        retirePlayer();m_state="finding";
+        resolveVideoMode(false);
         return m_videoBusy;
     }
     if(m_shutdown||!m_profileActive||m_sourceKind!="torrent"||m_fallbackAttempted||activeIndex()<0)return false;

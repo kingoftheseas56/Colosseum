@@ -384,15 +384,6 @@ Window {
             }
         }
     }
-    VinylCreditsPopup {
-        id: creditsPopup
-        parent: root.contentItem
-        x: root.width - width - theme.margin
-        y: bar.y - height - 12
-        pageData: pageData
-        backdrop: backdrop
-        onClosed: bar.forceActiveFocus()
-    }
     VinylPlayerBar {
         id: bar
         videoFullscreen: root.videoFullscreen
@@ -405,7 +396,6 @@ Window {
         backdrop: backdrop
         page: root.page
         onSongRequested: root.openSong()
-        onCreditsRequested: {creditsPopup.pageData=bar.songData;creditsPopup.opened ? creditsPopup.close() : creditsPopup.open();}
     }
     Flow {
         id: dev

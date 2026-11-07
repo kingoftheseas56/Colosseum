@@ -35,6 +35,16 @@ TestCase {
         waitForRendering(host.contentItem);
         mouseClick(item(name));
     }
+    function verifyVideoEdgeAlignment(page) {
+        var back=item("vinylSongBack"),fullscreen=item("vinylBarFullscreen");
+        var fullscreenAt=fullscreen.mapToItem(page,0,0);
+        verify(Math.abs(back.mapToItem(page,0,0).x-12)<0.5,
+            "Back uses the 12px outer page inset");
+        verify(Math.abs(page.width-fullscreenAt.x-fullscreen.width-12)<0.5,
+            "Fullscreen uses the matching 12px outer page inset");
+        verify(Math.abs(back.mapToItem(page,0,0).y-fullscreenAt.y)<0.5,
+            "Back and fullscreen stay aligned at the top");
+    }
     function init() {
         var c = Qt.createComponent('../../qml/vinyl/VinylPagesPrototype.qml');
         verify(c.status === Component.Ready, c.errorString());
@@ -43,6 +53,10 @@ TestCase {
         host.pageData.setFixture('without-me');
         host.page = 'song';
         tryCompare(host, 'ready', true);
+        item("vinylPlayerBar").videoRequested.connect(function() {
+            host.page = "song";
+            host.pageData.toggleVideo();
+        });
     }
     function cleanup() {
         if (host) {
@@ -80,51 +94,15 @@ TestCase {
         compare(host.pageData.lyricsScrollY,123);
         compare(host.pageData.lyricsFollowing,false);
     }
-    function test_creditsStayBoundedAndScroll() {
-        activateSongOption("vinylBarCredits");
-        var popup = item("vinylCreditsPopup");
-        tryCompare(popup, "opened", true);
-        var oldHeight = popup.height;
-        var edition = JSON.parse(JSON.stringify(host.pageData.playingEdition));
-        edition.credits = [];
-        for (var n = 0; n < 30; ++n)
-            edition.credits.push({
-                role: "Fixture role " + n,
-                names: ["Original stand-in " + n]
-            });
-        host.pageData.playingEdition = edition;
-        compare(popup.height, oldHeight, "Credit count must not grow the popup");
-        var scroll = item("vinylCreditsScroll");
-        verify(scroll !== null);
-        tryVerify(function () {
-            return scroll.contentHeight > scroll.height;
-        });
-        compare(popup.height, oldHeight, "Height stays fixed after credit layout");
-        scroll.forceActiveFocus();
-        keyClick(Qt.Key_PageDown);
-        tryVerify(function () {
-            return scroll.contentY > 0;
-        });
-        keyClick(Qt.Key_End);
-        tryVerify(function () {
-            return scroll.atYEnd;
-        });
-        keyClick(Qt.Key_Home);
-        compare(scroll.contentY, 0);
-        keyClick(Qt.Key_Escape);
-        tryCompare(popup, "opened", false);
-    }
     function test_restAndTools() {
         verify(!item('vinylLyricsColumn').visible);
         verify(!item('vinylNotesColumn').visible);
         var poster = item('vinylSongPoster');
         compare(poster.width / poster.height, 1);
-        compare(item('vinylPlayerBar').toolCount, 4);
-        verify(item("vinylSongBrowseActions") === null, "Song actions belong only to the HUD");
-        activateSongOption('vinylBarCredits');
-        tryCompare(item('vinylCreditsPopup'), 'opened', true);
-        keyClick(Qt.Key_Escape);
-        tryCompare(item('vinylCreditsPopup'), 'opened', false);
+        compare(item('vinylPlayerBar').height, 104);
+        verify(item("vinylSongPageActions") !== null, "Song actions belong on the page");
+        compare(item("vinylBarCredits"), null);
+        compare(item("vinylCreditsPopup"), null);
         var title = item('vinylSongPage').songTitle;
         mouseClick(item('vinylBarNext'));
         verify(item('vinylSongPage').songTitle !== title);
@@ -133,7 +111,7 @@ TestCase {
         verify(!item('vinylBarVideo').enabled);
         verify(!item('vinylBarNotes').enabled);
         host.page = 'album';
-        compare(item('vinylPlayerBar').toolCount, 1);
+        compare(item('vinylPlayerBar').height, 104);
     }
     function test_lyricsGeometryAndSeek() {
         var poster = item('vinylSongPoster');
@@ -199,6 +177,7 @@ TestCase {
             { width: 1280, height: 720 },
             { width: 1280, height: 672 },
             { width: 1600, height: 900 },
+            { width: 1903, height: 1008 },
             { width: 960, height: 720 },
             { width: 800, height: 720 }
         ];
@@ -222,10 +201,8 @@ TestCase {
             verify(notes.visible, "Annotations must stay on the right at " + size.width + "px");
             var readingTop = lyrics.mapToItem(page, 0, 0).y;
             var viewportBottom = lyricScroll.mapToItem(page, 0, lyricScroll.height).y;
-            verify(lyricScroll.height >= poster.height + 24,
-                   "The visible lyric viewport must extend well below poster height at " + size.width + "px");
             verify(lyricScroll.height >= (page.height - readingTop) * 0.75,
-                   "The visible lyric viewport must use most of the available Song body at " + size.width + "px");
+                   "Lyrics should use most of the available reading column");
             verify(viewportBottom <= page.height - 7,
                    "The viewport must end before the Song body and status row at " + size.width + "px");
             console.log("FULL_HEIGHT_GEOMETRY " + size.width + "x" + size.height
@@ -235,8 +212,8 @@ TestCase {
                 + " lyricViewport=" + lyricScroll.height.toFixed(1)
                 + " top=" + readingTop.toFixed(1)
                 + " viewportBottom=" + viewportBottom.toFixed(1));
-            verify(lyrics.width >= 160, "Lyrics column should remain usable at " + size.width + "px");
-            verify(notes.width >= 160, "Annotations column should remain usable at " + size.width + "px");
+            verify(lyrics.width >= 140, "Lyrics column should remain usable at " + size.width + "px");
+            verify(notes.width >= 140, "Annotations column should remain usable at " + size.width + "px");
             verify(lyrics.x + lyrics.width <= poster.x + 0.5,
                    "Lyrics must not overlap artwork at " + size.width + "px");
             verify(notes.x >= poster.x + poster.width - 0.5,
@@ -280,20 +257,123 @@ TestCase {
             tryVerify(function() { return lyrics.visible && notes.visible; });
         }
     }
-    function test_regularVideoUsesWholeStageAndOverlayBack_data() {
+    function test_largeDesktopCoverAndSeparatedActions() {
+        var page=item("vinylSongPage"),poster=item("vinylSongPoster");
+        var sizes=[{width:1600,height:900,min:500,max:540},{width:1903,height:1008,min:500,max:550}];
+        for(var i=0;i<sizes.length;i++) {
+            host.width=sizes[i].width;host.height=sizes[i].height;
+            waitForRendering(host.contentItem);
+            verify(poster.height>=sizes[i].min && poster.height<=sizes[i].max,
+                "Cover size at "+host.width+" was "+poster.height);
+            var title=item("vinylSongTitle"),save=item("vinylSongSave"),playlist=item("vinylSongPlaylist");
+            var titleAt=title.mapToItem(page,0,0),saveAt=save.mapToItem(page,0,0),playlistAt=playlist.mapToItem(page,0,0);
+            verify(saveAt.x+save.width<=titleAt.x && playlistAt.x>=titleAt.x+title.width);
+            verify(saveAt.y>poster.mapToItem(page,0,poster.height).y,"Personal actions belong below artwork");
+            var collection=item("vinylSongAddToCollections"),at=collection.mapToItem(page,0,0);
+            verify(at.x>page.width/2 && at.y<item("vinylSongBack").height+10);
+            compare(item("vinylSongSources").parent.parent,item("vinylSongMetadata"));
+        }
+    }
+    function test_scaledDesktopUsesSongBody_data() {
+        return [{tag:"150percentCapture",width:1268,height:672},{tag:"logical720",width:1280,height:720}];
+    }
+    function test_scaledDesktopUsesSongBody(data) {
+        host.width=data.width;host.height=data.height;
+        var page=item("vinylSongPage"),bar=item("vinylPlayerBar");
+        // Match LiveWorld: 124px song origin, 104px HUD and 14px quiet footer gap.
+        page.anchors.topMargin=124;page.anchors.bottomMargin=14;
+        waitForRendering(host.contentItem);
+        var poster=item("vinylSongPoster"),metadata=item("vinylSongMetadata");
+        compare(bar.height,104);
+        verify(poster.height>=page.height-116,"Cover must use available body height");
+        verify(poster.height>=290,"Scaled desktop cover remains large");
+        verify(poster.mapToItem(page,0,0).y<=8,"Cover can use the safe central header space");
+        verify(metadata.mapToItem(page,0,metadata.height).y<=page.height+0.5,"Metadata must remain above HUD");
+        var before=poster.height;
+        host.pageData.lyricsShown=true;host.pageData.showNotes(1);
+        waitForRendering(host.contentItem);
+        compare(poster.height,before);
+        verify(item("vinylLyricsColumn").mapToItem(page,0,0).y>=item("vinylSongLyricsHeading").mapToItem(page,0,34).y);
+        verify(item("vinylNotesColumn").x>poster.x+poster.width);
+    }
+    function test_readingHeadingsFollowArtworkTop_data() {
+        return [{tag:"scaledDesktop",width:1268,height:672},{tag:"largeDesktop",width:1600,height:900}];
+    }
+    function test_readingHeadingsFollowArtworkTop(data) {
+        host.width=data.width;host.height=data.height;
+        var page=item("vinylSongPage");
+        page.anchors.topMargin=124;page.anchors.bottomMargin=14;
+        host.pageData.lyricsShown=true;host.pageData.showNotes(1);
+        waitForRendering(host.contentItem);
+        var poster=item("vinylSongPoster"),lyrics=item("vinylBarLyrics"),notes=item("vinylBarNotes");
+        var back=item("vinylSongBack"),collection=item("vinylSongAddToCollections");
+        var coverAt=poster.mapToItem(page,0,0),left=lyrics.mapToItem(page,0,0),right=notes.mapToItem(page,0,0);
+        compare(left.y,coverAt.y);compare(right.y,coverAt.y);
+        verify(left.x+lyrics.width<=coverAt.x-page.sideGap+0.5);
+        verify(right.x>=coverAt.x+poster.width+page.sideGap-0.5);
+        verify(left.x>=back.mapToItem(page,back.width,0).x);
+        verify(right.x+notes.width<=collection.mapToItem(page,0,0).x);
+        verify(item("vinylLyricsColumn").mapToItem(page,0,0).y>=left.y+lyrics.height);
+        verify(item("vinylNotesColumn").mapToItem(page,0,0).y>=right.y+notes.height);
+        verify(poster.height>=Math.min(500,page.height-116));
+        compare(item("vinylLyricsColumn").x,page.sideInset);
+        var coverHeight=poster.height;
+        host.pageData.lyricsShown=false;waitForRendering(host.contentItem);
+        compare(poster.height,coverHeight);compare(lyrics.mapToItem(page,0,0).y,coverAt.y);
+    }
+    function test_artworkLoadsAfterTrackSourceChange() {
+        host.width=1268;host.height=672;
+        var page=item("vinylSongPage");
+        page.anchors.topMargin=124;page.anchors.bottomMargin=14;
+        var edition=JSON.parse(JSON.stringify(host.pageData.playingEdition));
+        edition.cover=String(Qt.resolvedUrl("../fixtures/vinyl-song-cover.svg"));
+        host.pageData.playingEdition=edition;
+        var art=item("vinylSongArtwork"),poster=item("vinylSongPoster");
+        tryCompare(art,"ready",true);
+        compare(String(art.activeSource),edition.cover);
+        verify(art.visible);
+        var beforeWidth=poster.width,beforeHeight=poster.height;
+        var previousTitle=page.songTitle;
+        host.pageData.next(1);
+        verify(page.songTitle!==previousTitle);
+        edition=JSON.parse(JSON.stringify(host.pageData.playingEdition));
+        edition.cover="";host.pageData.playingEdition=edition;
+        tryCompare(art,"ready",false);
+        edition=JSON.parse(JSON.stringify(edition));
+        edition.cover=String(Qt.resolvedUrl("../fixtures/vinyl-song-cover.svg"));
+        host.pageData.playingEdition=edition;
+        tryCompare(art,"ready",true);
+        compare(String(art.activeSource),edition.cover);
+        verify(art.visible);
+        compare(poster.width,beforeWidth);compare(poster.height,beforeHeight);
+    }
+    function test_narrowReadingBounds() {
+        host.width=540;host.height=900;
+        host.pageData.lyricsShown=true;host.pageData.showNotes(1);
+        waitForRendering(host.contentItem);
+        var page=item("vinylSongPage"),poster=item("vinylSongPoster"),metadata=item("vinylSongMetadata");
+        var lyrics=item("vinylLyricsColumn"),notes=item("vinylNotesColumn");
+        verify(lyrics.visible && notes.visible);
+        verify(lyrics.x+lyrics.width<=notes.x);
+        verify(notes.x+notes.width<=page.width);
+        verify(lyrics.mapToItem(page,0,0).y>=metadata.mapToItem(page,0,metadata.height).y);
+        verify(lyrics.mapToItem(page,0,lyrics.height).y<=page.height);
+        verify(poster.width<=page.width && poster.height>0);
+    }
+    function test_regularVideoStaysAboveHudAndOverlayBack_data() {
         return [{tag:"desktop",width:1280,height:720},{tag:"narrow",width:800,height:720}];
     }
-    function test_regularVideoUsesWholeStageAndOverlayBack(data) {
+    function test_regularVideoStaysAboveHudAndOverlayBack(data) {
         host.width=data.width;host.height=data.height;
         host.pageData.videoShown=true;
         var page=item("vinylSongPage"),bar=item("vinylPlayerBar");
-        // Supply the body under a header, with no footer reservation, like the live video route.
-        page.anchors.bottom=undefined;
-        page.anchors.topMargin=80;
-        page.height=host.height-80;
+        page.anchors.topMargin=124;
+        page.anchors.bottomMargin=14;
         waitForRendering(host.contentItem);
         var frame=page.videoSurface,back=item("vinylSongBack"),stage=item("vinylSongVideoStage");
         compare(stage.width,page.width);compare(stage.height,page.height);
+        verify(page.mapToItem(host.contentItem,0,page.height).y<=bar.y-14);
+        verify(frame.mapToItem(host.contentItem,0,frame.height).y<=bar.y-14);
         verify(stage.visible);compare(stage.color,Qt.rgba(0,0,0,1));
         compare(frame.height,Math.min(page.height,page.width*9/16));
         verify(Math.abs(frame.width/frame.height-16/9)<0.001);
@@ -302,7 +382,7 @@ TestCase {
         verify(Math.abs(origin.y-(page.height-frame.height)/2)<0.5);
         verify(!item("vinylSongMetadata").visible);
         verify(back.visible && back.width>=44 && back.height>=44);
-        verify(back.x>=origin.x && back.x+back.width<=origin.x+frame.width);
+        verifyVideoEdgeAlignment(page);
         verify(back.y>=origin.y && back.y+back.height<=origin.y+frame.height);
         verify(back.z>frame.parent.z,"Back must stack over the video and its pointer layer");
         verify(item("vinylSongBackScrim").visible);
@@ -314,6 +394,27 @@ TestCase {
         compare(host.pageData.position,position);compare(host.pageData.paused,paused);
     }
 
+    function test_normalVideoIgnoresIdleHiddenFlagAndRestoresCoverAndReaders() {
+        var page=item("vinylSongPage"),bar=item("vinylPlayerBar"),poster=item("vinylSongPoster");
+        page.anchors.topMargin=124;page.anchors.bottomMargin=14;
+        host.pageData.toggleLyrics();host.pageData.toggleNotes();host.pageData.showNotes(1);
+        host.pageData.pauseLyrics(123);
+        waitForRendering(host.contentItem);
+        var before=poster.mapToItem(page,0,0),width=poster.width,height=poster.height;
+        var barAt=bar.y,barHeight=bar.height,position=host.pageData.position;
+        mouseClick(item("vinylBarVideo"));verify(host.pageData.videoShown);verify(!host.videoFullscreen);
+        page.videoControlsVisible=false;wait(180);
+        verify(item("vinylSongBack").visible,"Normal video keeps Back available despite stale idle state");
+        verify(item("vinylBarFullscreen").visible,"Normal video keeps the explicit fullscreen control available");
+        compare(bar.y,barAt);compare(bar.height,barHeight);
+        verify(page.videoSurface.mapToItem(host.contentItem,0,page.videoSurface.height).y<=bar.y-14);
+        mouseClick(item("vinylBarVideo"));verify(!host.pageData.videoShown);compare(host.page,"song");
+        waitForRendering(host.contentItem);
+        compare(poster.mapToItem(page,0,0),before);compare(poster.width,width);compare(poster.height,height);
+        verify(host.pageData.lyricsShown);verify(host.pageData.autoNotes);compare(host.pageData.manualNoteLine,1);
+        compare(host.pageData.lyricsScrollY,123);compare(host.pageData.lyricsFollowing,false);
+        compare(host.pageData.position,position);
+    }
     function test_videoHoldsPosition() {
         host.pageData.toggleLyrics();
         host.pageData.toggleNotes();
@@ -368,7 +469,8 @@ TestCase {
         compare(attached.identity,"existing-player-surface");
         compare(frame.width,data.width);compare(frame.height,data.height);
         compare(frame.mapToItem(host.contentItem,0,0),Qt.point(0,0));
-        verify(!item("vinylSongBack").visible);
+        verify(item("vinylSongBack").visible);
+        verifyVideoEdgeAlignment(page);
         verify(!item("vinylSongMetadata").visible);
         verify(frame.visible);
         compare(host.pageData.position,position);compare(host.pageData.paused,paused);
@@ -429,32 +531,6 @@ TestCase {
                 compare(capture.width, host.width);
                 capture.save(VinylCaptureDirectory + '/song-' + host.width + '-' + states[i] + '.png');
             }
-        }
-    }
-
-    function test_captureCreditsOverflow() {
-        if (typeof VinylCaptureDirectory === "undefined" || !VinylCaptureDirectory)
-            skip("Set VINYL_CAPTURE_DIR for visual captures");
-        host.developerStrip = false;
-        var edition = JSON.parse(JSON.stringify(host.pageData.playingEdition));
-        edition.credits = [];
-        for (var n = 0; n < 30; ++n)
-            edition.credits.push({
-                role: "Fixture role " + n,
-                names: ["Original stand-in " + n]
-            });
-        host.pageData.playingEdition = edition;
-        for (var size = 0; size < 2; ++size) {
-            host.width = size ? 1600 : 1280;
-            host.height = size ? 900 : 720;
-            item("vinylCreditsPopup").open();
-            tryCompare(item("vinylCreditsPopup"), "opened", true);
-            host.requestUpdate();
-            waitForRendering(host.contentItem);
-            var capture = grabImage(host.contentItem);
-            compare(capture.width, host.width);
-            capture.save(VinylCaptureDirectory + "/credits-overflow-" + host.width + ".png");
-            item("vinylCreditsPopup").close();
         }
     }
 

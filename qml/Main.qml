@@ -102,6 +102,12 @@ Window {
     property bool feriaRuntimeReady: false
     readonly property alias televisionMode: phoneShell.televisionMode
     property var vinylWorld: null
+    readonly property bool vinylSongPageOpen: !!win.vinylWorld && worldStack.current === "Vinyl"
+        && win.vinylWorld.page === "song" && win.vinylWorld.visible && win.vinylWorld.canEnterVinyl
+        && !win.vinylWorld.searchOpen && !win.vinylWorld.artistSearchOpen
+        && !win.fullWindowPageOpen && !downloadsLayer.active && !extensionsLayer.active
+        && !updateLayer.active && !historyStatsLayer.active && !syncCenterLayer.active
+        && !yourFeriaLayer.active && !feriaLayer.open
     readonly property bool vinylVideoFullscreen: !!win.vinylWorld && worldStack.current === "Vinyl"
         && win.vinylWorld.videoFullscreen === true
     property var vinylVideoReturnWindowed: null
@@ -121,6 +127,7 @@ Window {
         if (!vinylVideoFullscreen) vinylVideoReturnWindowed = null
     }
     property var pendingVinylResume: null
+    property int vinylResumeSerial: 0
     property bool audioHandoffBusy: false
     property string audioOwner: ""
     property bool vinylProfileActive: true
@@ -175,22 +182,56 @@ Window {
                 win.closeSession(records[i].id)
     }
     readonly property bool vinylEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
+    function traceVinylResume(phase, pending) {
+        if (typeof CatalogueTraceEnabled === "undefined" || !CatalogueTraceEnabled || !pending) return
+        var track = String(pending.entry && pending.entry.resume && pending.entry.resume.trackId || "")
+        if (phase === "commit" && win.vinylWorld && win.vinylWorld.session.playingTrack)
+            track = String(win.vinylWorld.session.playingTrack.id || "")
+        var entryId = String(pending.entry && pending.entry.id || "")
+        if (!/^[a-zA-Z0-9:_-]{1,200}$/.test(track)) track = "unavailable"
+        if (!/^[a-zA-Z0-9:_-]{1,200}$/.test(entryId)) entryId = "unavailable"
+        win.setGuiStallContext("vinyl-" + phase, "Vinyl")
+        console.info("[vinyl-opening] phase=" + phase + " serial=" + pending.serial
+                     + " entryId=" + entryId + " track=" + track + " atMs=" + Date.now())
+    }
     function openVinylResume(entry, play) {
         if (!vinylEnabled || !vinylProfileActive) return
-        pendingVinylResume = { entry: entry, play: play, generation: vinylShellGeneration }
+        pendingVinylResume = { entry: entry, play: play, generation: vinylShellGeneration, serial: ++vinylResumeSerial }
+        win.traceVinylResume("pending", pendingVinylResume)
         openWorld("Vinyl")
         applyVinylResume()
+    }
+    function hasPendingVinylResume() {
+        return !!pendingVinylResume && vinylProfileActive
+            && pendingVinylResume.generation === vinylShellGeneration
+    }
+    function holdVinylResumePresentation(world) {
+        return hasPendingVinylResume() && (!world || !world.resumeRequiresArtistSelection)
     }
     function applyVinylResume() {
         if (!vinylWorld || !pendingVinylResume) return
         var pending = pendingVinylResume
         if (!vinylProfileActive || pending.generation !== vinylShellGeneration) {pendingVinylResume=null;return}
         if (!vinylWorld.canEnterVinyl) {vinylWorld.enforceTasteGate();return}
-        pendingVinylResume = null
+        win.traceVinylResume("restore", pending)
         vinylWorld.session.snapshot()
-        vinylWorld.session.restore(pending.entry)
+        var restored = !!pending.entry && vinylWorld.session.restore(pending.entry) === true
+        if (pending !== pendingVinylResume || !vinylProfileActive
+                || pending.generation !== vinylShellGeneration) return false
+        if (!restored) {
+            win.traceVinylResume("failure", pending)
+            vinylWorld.session.browseError = qsTr("This listening session could not be restored. Open the song again to retry.")
+            pendingVinylResume = null
+            return false
+        }
+        vinylWorld.browsingSong = false
+        vinylWorld.searchOpen = false
+        vinylWorld.artistSearchOpen = false
         vinylWorld.page = pending.play ? "song" : "album"
+        win.traceVinylResume("commit", pending)
+        pendingVinylResume = null
         if (pending.play) vinylWorld.session.paused = false
+        return true
     }
     Connections {
         target: win.vinylWorld
@@ -1605,6 +1646,7 @@ Window {
         // These worlds are not available in this release, including through indirect callers.
         var requestedWorld = String(medium || "").trim().toLowerCase()
         if ((requestedWorld === "feria" && win.feriaComingSoon !== false) || (requestedWorld === "vinyl" && !win.vinylEnabled)) return
+        if (medium !== "Vinyl") win.pendingVinylResume = null
         if (medium === "Feria") { win.openFeriaPage(); return }
         if (win.parkFeria) win.parkFeria(true)
         var found = false
@@ -1643,6 +1685,7 @@ Window {
         if (win.guardNamedCollectionsNavigation(function() { win.closeWorld() })) return
 
         if (win.androidHost) return
+        win.pendingVinylResume = null
         win.cancelCatalogueRoute();
         win.parkFeria(true)
         worldStack.current = ""                           // hide all worlds; none destroyed
@@ -4615,12 +4658,16 @@ Window {
                 required property string mode
                 anchors.fill: parent
                 visible: worldStack.current === mode && !win.immersiveSurfaceOpen
-                // Android builds a world page for several seconds on first entry. Say so
-                // instead of leaving a bare wallpaper; desktop is unchanged.
+                // Keep a destination visible while its lazy world is being created.
                 Text {
                     anchors.centerIn: parent
-                    visible: Qt.platform.os === "android" && worldLoader.status !== Loader.Ready
-                    text: qsTr("Loading %1…").arg(worldLoader.mode)
+                    visible: (Qt.platform.os === "android" || worldLoader.mode === "Vinyl")
+                        && (worldLoader.status !== Loader.Ready || (worldLoader.mode === "Vinyl"
+                            && win.holdVinylResumePresentation(worldLoader.item)))
+                    text: worldLoader.mode === "Vinyl" && win.hasPendingVinylResume()
+                        && win.pendingVinylResume.entry && win.pendingVinylResume.entry.title
+                        ? qsTr("Opening %1…").arg(win.pendingVinylResume.entry.title)
+                        : qsTr("Loading %1…").arg(worldLoader.mode)
                     color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: 14
                 }
                 // Pass the initial activation state into the component before Component.onCompleted.
@@ -4639,6 +4686,16 @@ Window {
                     // Vinyl's local catalogue does not expose the WorldPage filter.
                     if (mode !== "Vinyl")
                         initialProperties.showExplicitContent = contentPreferences.showExplicit
+                    else {
+                        initialProperties.backdrop = wall
+                        initialProperties.homeLanding = true
+                        initialProperties.deferInitialRestore = Qt.binding(function() {
+                            return win.hasPendingVinylResume()
+                        })
+                        initialProperties.resumePresentationPending = Qt.binding(function() {
+                            return win.hasPendingVinylResume()
+                        })
+                    }
                     setSource(win.worldSourceFor(mode), initialProperties)
                     active = true
                 }
@@ -4672,8 +4729,8 @@ Window {
                             win.registerVinylSession()
                         })
                         item.homeLanding = true
-                        item.showHome()
-                        win.applyVinylResume()
+                        if (win.hasPendingVinylResume()) win.applyVinylResume()
+                        else {item.showHome();win.applyVinylResume()}
                         if (win.namedCollectionsOpening)
                             item.openNamedCollectionReference(win.namedCollectionsOpening)
                         return
@@ -5992,6 +6049,7 @@ Window {
         id: taskbar
         z: 900
         visible: !win.immersiveSurfaceOpen
+            && !win.vinylSongPageOpen
             && !win.vinylVideoFullscreen
             && !win.androidHost
             && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)

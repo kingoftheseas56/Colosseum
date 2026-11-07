@@ -9,17 +9,24 @@ TestCase {
     property var session
     property var source
     property var pending
+    property var calls
+    property var videoRequest
+    property string audioProvider
     property string audioUrl
     Component { id: sourceFactory; VideoTestSource {} }
     function init() {
-        pending=null;
+        pending=null;calls=[];videoRequest=null;audioProvider="youtube";
         var path=BridgeFixtures.createIdentityAudio();BridgeFixtures.changeIdentityAudio(path,120*8000);
         audioUrl="file:///"+path.replace(/\\/g,"/");
         source=sourceFactory.createObject(test);
         source.requested.connect(function(lane,id,operation,value,options) {
+            if(lane==="video-match")Qt.callLater(function(){source.reply(lane,id,{
+                version:1,status:"ready",trackId:value,sourceVideoId:"abcdefghijk",videoId:"YVkUvmDQ3HY"},"");});
+            if(lane==="video-stream")videoRequest={lane:lane,id:id,trackId:value};
             if(lane!=="play")return;
+            calls.push({operation:operation,trackId:value,options:options});
             if(options.source==="torrent")pending={lane:lane,id:id,trackId:value};
-            else Qt.callLater(function(){source.reply(lane,id,{trackId:value,url:audioUrl,provider:"youtube"},"");});
+            else Qt.callLater(function(){source.reply(lane,id,{trackId:value,url:audioUrl,provider:audioProvider},"");});
         });
         var component=Qt.createComponent("../../qml/vinyl/VinylLiveSession.qml");
         compare(component.status,Component.Ready,component.errorString());
@@ -29,6 +36,79 @@ TestCase {
     }
     function cleanup(){session.destroy();source.destroy();wait(0);}
     function reply(provider,error) { source.reply(pending.lane,pending.id,{trackId:pending.trackId,url:audioUrl,provider:provider},error || ""); }
+    function test_select_youtube_cancels_pending_and_fences_reply_data() {
+        return [{tag:"queued",queued:true},{tag:"late",queued:false}];
+    }
+    function test_select_youtube_cancels_pending_and_fences_reply(data) {
+        session.paused=true;session.seek(24);tryCompare(session,"seekPending",false);
+        var player=session.player,occurrence=session.queue[0].queueId;
+        session.findTorrent();verify(session.torrentBusy);
+        if(data.queued)reply("torrent");
+        session.selectYouTube();verify(!session.torrentBusy);
+        if(!data.queued)reply("torrent");
+        wait(50);compare(session.player,player);verify(session.loaded);verify(session.paused);
+        compare(session.sourceKind,"youtube");compare(calls.length,2);
+        compare(session.queue[0].queueId,occurrence);verify(Math.abs(session.position-24)<0.3);
+    }
+    function test_select_current_youtube_is_noop() {
+        session.paused=true;
+        var player=session.player,count=calls.length;
+        session.selectYouTube();session.selectYouTube();wait(50);
+        compare(session.player,player);compare(calls.length,count);verify(session.paused);verify(session.loaded);
+    }
+    function test_select_youtube_from_torrent_preserves_playback_data() {
+        return [{tag:"paused",paused:true},{tag:"playing",paused:false}];
+    }
+    function test_select_youtube_from_torrent_preserves_playback(data) {
+        session.paused=true;session.findTorrent();reply("torrent");
+        tryCompare(session,"sourceKind","torrent");tryCompare(session,"loaded",true);
+        session.seek(24);tryCompare(session,"seekPending",false);
+        session.paused=data.paused;
+        var occurrence=session.queue[0].queueId,at=session.position,count=calls.length;
+        session.selectYouTube();session.selectYouTube();
+        tryCompare(session,"sourceKind","youtube");tryCompare(session,"loaded",true);
+        tryCompare(session,"seekPending",false);
+        compare(calls.length,count+1);compare(calls[count].operation,"resolveFallback");
+        compare(calls[count].trackId,calls[0].trackId);
+        compare(session.queue[0].queueId,occurrence);compare(session.queueIndex,0);
+        compare(session.paused,data.paused);verify(Math.abs(session.position-at)<(data.paused ? 0.3 : 1));
+        compare(session.fallbackReason,"");compare(session.error,"");
+    }
+    function test_select_youtube_local_is_noop() {
+        audioProvider="local";
+        var rows=session.plainData(session.queue);rows[0].edition.origin="local";
+        var backend=findChild(session,"vinylBackendSession");verify(backend!==null);
+        verify(backend.replaceRows(rows,0,false));tryCompare(session,"loaded",true);
+        compare(session.sourceKind,"local");session.paused=true;
+        var player=session.player,count=calls.length;
+        session.selectYouTube();wait(50);
+        compare(session.player,player);compare(calls.length,count);verify(session.paused);
+    }
+    function test_select_youtube_after_retirement_is_noop_data() {
+        return [{tag:"profile",action:"clearProfile"},{tag:"shutdown",action:"shutdown"},{tag:"queue",action:"clearQueue"}];
+    }
+    function test_select_youtube_after_retirement_is_noop(data) {
+        var backend=findChild(session,"vinylBackendSession");verify(backend!==null);
+        backend[data.action]();var count=calls.length;
+        session.selectYouTube();wait(50);compare(calls.length,count);verify(!session.loaded);
+    }
+    function test_select_youtube_during_video_is_noop_data() {
+        return [{tag:"resolving",commit:false},{tag:"loading",commit:true}];
+    }
+    function test_select_youtube_during_video_is_noop(data) {
+        session.paused=true;session.findTorrent();reply("torrent");
+        tryCompare(session,"sourceKind","torrent");tryCompare(session,"loaded",true);
+        tryCompare(session,"hasVideo",true);session.toggleVideo();verify(session.videoBusy);
+        verify(videoRequest!==null);
+        if(data.commit){
+            source.reply(videoRequest.lane,videoRequest.id,{version:1,trackId:videoRequest.trackId,
+                videoId:"YVkUvmDQ3HY",url:"https://media.googlevideo.com/videoplayback",hasVideo:true,hasAudio:true},"");
+            tryCompare(session,"videoShown",true);
+        }
+        var player=session.player,count=calls.length;
+        session.selectYouTube();wait(50);
+        compare(session.player,player);compare(calls.length,count);verify(session.videoBusy);verify(session.paused);
+    }
     function test_pending_cancel_and_late_reply_leave_audio_running() {
         var player=session.player;
         session.findTorrent();verify(session.torrentBusy);verify(session.loaded);compare(session.player,player);

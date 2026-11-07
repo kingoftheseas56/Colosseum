@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <QDateTime>
 #include <QNetworkReply>
+#include <QUrl>
 #include <QImageReader>
 #include <QImage>
 #include <QBuffer>
@@ -21,6 +22,49 @@ QVariantMap musicIntent(const QVariantMap &album,const QVariantMap &track,int nu
     return {{"artist",artists.value(0)},{"album",type=="Song"||type=="Playlist"?QVariant(QString()):album.value("title")},{"title",track.value("title")},
         {"trackNumber",track.value("trackNumber",number)},{"discNumber",track.value("discNumber",0)},
         {"durationMs",qRound64(track.value("seconds").toDouble()*1000)},{"releaseYear",album.value("year").toInt()}};
+}
+bool validArtistContinuation(const QVariant &value,bool requireParams){
+    if(value.metaType().id()!=QMetaType::QVariantMap)return false;
+    const auto handle=value.toMap();const auto browseId=handle.value("browseId");
+    for(auto it=handle.cbegin();it!=handle.cend();++it)if(it.key()!="browseId"&&it.key()!="params")return false;
+    if(browseId.metaType().id()!=QMetaType::QString
+       ||!QRegularExpression("^[A-Za-z0-9_-]{1,160}$").match(browseId.toString()).hasMatch())return false;
+    if(!handle.contains("params")||handle.value("params").isNull())return !requireParams;
+    const auto params=handle.value("params");
+    static const QRegularExpression token(QStringLiteral("\\A(?:[A-Za-z0-9_+/=-]|%[0-9A-Fa-f]{2})+\\z"));
+    return params.metaType().id()==QMetaType::QString&&params.toString().size()<=4096
+        &&token.match(params.toString()).hasMatch();
+}
+QString trustedArtistImage(const QVariant &value){
+    if(value.metaType().id()==QMetaType::QVariantList){
+        for(const auto &item:value.toList()){const auto result=trustedArtistImage(item);if(!result.isEmpty())return result;}
+        return {};
+    }
+    if(value.metaType().id()==QMetaType::QVariantMap){
+        const auto map=value.toMap();
+        for(const auto &key:{QStringLiteral("url"),QStringLiteral("cover"),QStringLiteral("thumbnail"),QStringLiteral("src")}){
+            const auto result=trustedArtistImage(map.value(key));if(!result.isEmpty())return result;
+        }
+        return {};
+    }
+    if(value.metaType().id()!=QMetaType::QString)return {};
+    const QUrl url(value.toString(),QUrl::StrictMode);const auto host=url.host().toLower();
+    const bool imageHost=host=="i.ytimg.com"||host.endsWith(".ytimg.com")
+        ||host=="googleusercontent.com"||host.endsWith(".googleusercontent.com")
+        ||host=="ggpht.com"||host.endsWith(".ggpht.com");
+    if(url.scheme()=="https"&&imageHost&&url.userInfo().isEmpty()&&(url.port(-1)==-1||url.port(-1)==443))return url.toString();
+    return {};
+}
+void appendArtistError(QString &target,const QString &message){
+    const auto clean=message.trimmed();if(clean.isEmpty()||target.contains(clean))return;
+    if(!target.isEmpty())target+='\n';target+=clean;
+}
+QVariantList mergeArtistRows(QVariantList existing,const QVariantList &incoming){
+    QSet<QString> seen;
+    for(const auto &entry:existing){const auto map=entry.toMap();auto key=map.value("browseId").toString();if(key.isEmpty())key=map.value("videoId",map.value("id")).toString();if(!key.isEmpty())seen.insert(key);}
+    for(const auto &entry:incoming){const auto map=entry.toMap();auto key=map.value("browseId").toString();if(key.isEmpty())key=map.value("videoId",map.value("id")).toString();
+        if(!key.isEmpty()&&!seen.contains(key)){seen.insert(key);existing.append(entry);}}
+    return existing;
 }
 }
 
@@ -162,7 +206,29 @@ void VinylCatalogueSource::accept(const QString &lane,int id,const QVariant &dat
         else if(pending.operation=="catalogueSearch"){
             auto map=data.toMap();QVariantList albums;
             for(const auto &item:map.value("albums").toList())albums.append(remember(item.toMap()));map["albums"]=albums;result=map;
-        }else if(pending.operation=="discover"||pending.operation=="cataloguePage"){
+        }else if(pending.operation=="resolveCatalogueItem"){
+            auto map=data.toMap();const auto item=pending.options.value("item").toMap();
+            const auto kind=map.value("kind").toString();
+            const bool validEnvelope=map.value("version").toInt()==1&&map.value("id").toString()==pending.value
+                &&kind==item.value("kind").toString()&&map.value("matched").metaType().id()==QMetaType::Bool;
+            if(!validEnvelope){emit completed(lane,pending.id,{},"The catalogue match response is invalid.");return;}
+            if(map.value("matched").toBool()){
+                if(kind=="artists"){
+                    if(map.value("artistId").toString().isEmpty()){
+                        emit completed(lane,pending.id,{},"The catalogue match response is invalid.");return;
+                    }
+                }else{
+                    auto recordValue=map.value("record");auto record=recordValue.toMap();
+                    if(recordValue.metaType().id()!=QMetaType::QVariantMap||record.value("id").toString().isEmpty()
+                        ||record.value("id").toString()!=map.value("albumId").toString()
+                        ||record.value("browseId").toString().isEmpty()){
+                        emit completed(lane,pending.id,{},"The catalogue match response is invalid.");return;
+                    }
+                    map["record"]=remember(record);
+                }
+            }
+            result=map;
+        }else if(pending.operation=="discover"||pending.operation=="cataloguePage"||pending.operation=="browseCatalogue"){
             auto map=data.toMap();QVariantList records;
             for(const auto &record:map.value("records").toList())records.append(remember(record.toMap()));
             map["records"]=records;result=map;
@@ -211,22 +277,32 @@ void VinylCatalogueSource::leaveArtist(){
 void VinylCatalogueSource::retryArtist(){openArtist(m_artistIntent);}
 void VinylCatalogueSource::artistRequest(const QString &lane,const QString &operation,const QString &value,const QVariantMap &payload){
     const auto id=m_provider->requestPayload(lane,operation,value,payload);
-    if(id<0)m_artistError="This catalogue request could not start.";else m_artistRequests.insert(lane,id);
+    if(id<0){
+        if(lane=="artist-identity")m_identity={{"unavailable",true}};
+        else if(lane!="artist-artwork")appendArtistError(m_artistError,"This catalogue request could not start.");
+    }else m_artistRequests.insert(lane,id);
 }
 void VinylCatalogueSource::openArtist(const QVariantMap &intent){
     leaveArtist();m_artistIntent=intent;
     auto id=intent.value("channelId",intent.value("id")).toString();if(id.startsWith("ytm:artist:"))id=id.mid(11);
+    auto seededCover=trustedArtistImage(intent.value("cover"));
+    if(seededCover.isEmpty())seededCover=trustedArtistImage(intent.value("thumbnail"));
+    if(seededCover.isEmpty())seededCover=trustedArtistImage(intent.value("image"));
     m_artist={{"name",intent.value("name")},{"id",intent.value("id")}};
+    if(!seededCover.isEmpty())m_artist["cover"]=seededCover;
     if(QRegularExpression("^UC[A-Za-z0-9_-]{22}$").match(id).hasMatch()){
-        m_channel=id;artistRequest("artist","artist",id);
-        artistRequest("artist-albums","artistReleases",id,{{"channelId",id},{"kind","albums"}});
-        artistRequest("artist-singles","artistReleases",id,{{"channelId",id},{"kind","singles"}});
-        artistRequest("artist-videos","artistVideos",id);
+        m_channel=id;m_artist["id"]="ytm:artist:"+m_channel;m_artist["channelId"]=m_channel;
+        artistRequest("artist","artist",id,{{"overview",true}});
     }else if(!intent.value("name").toString().trimmed().isEmpty())artistRequest("artist","catalogueSearch",intent.value("name").toString());
     emit artistChanged();
 }
 void VinylCatalogueSource::acceptArtist(const QString &lane,const QVariant &data,const QString &error){
-    if(!error.isEmpty()){if(lane=="artist-identity")m_identity={{"unavailable",true}};m_artistError+=(m_artistError.isEmpty()?QString():"\n")+error;emit artistChanged();return;}
+    if(!error.isEmpty()){
+        if(lane=="artist-identity")m_identity={{"unavailable",true}};
+        else if(lane!="artist-artwork")appendArtistError(m_artistError,error);
+        if(lane=="artist-albums"||lane=="artist-singles"||lane=="artist-videos")requestIdentity();
+        emit artistChanged();return;
+    }
     auto map=data.toMap();
     // The artist UI's cached status reports that a stale fallback was used.
     if(map.value("_stale").toBool())m_cached=true;
@@ -238,9 +314,69 @@ void VinylCatalogueSource::acceptArtist(const QString &lane,const QVariant &data
     }
     if(lane=="artist"){
         if(map.value("requestedChannelId").toString()!=m_channel){m_artistError="The catalogue returned a different artist.";emit artistChanged();return;}
-        m_artist=map;m_artist["id"]="ytm:artist:"+m_channel;
+        const auto seededCover=m_artist.value("cover").toString();
+        auto responseCover=trustedArtistImage(map.value("cover"));
+        if(responseCover.isEmpty())responseCover=trustedArtistImage(map.value("images"));
+        if(responseCover.isEmpty())responseCover=trustedArtistImage(map.value("thumbnails"));
+        m_artist=map;m_artist["id"]="ytm:artist:"+m_channel;m_artist["channelId"]=m_channel;
+        const auto cover=!responseCover.isEmpty()?responseCover:seededCover;
+        if(!cover.isEmpty())m_artist["cover"]=cover;else m_artist.remove("cover");
+        auto songs=m_artist.value("songs").toList();
+        for(auto &entry:songs){auto song=entry.toMap();auto record=song.value("record").toMap();
+            if(record.value("type")=="Song"&&!record.value("id").toString().isEmpty()&&!record.value("tracks").toList().isEmpty())song["record"]=remember(record);
+            entry=song;
+        }
+        m_artist["songs"]=songs;
+
+        const auto continuations=map.value("continuations").toMap();
+        auto releaseCards=[this](const QVariant &raw,const QString &kind,bool *valid){
+            *valid=false;if(raw.metaType().id()!=QMetaType::QVariantMap)return QVariantList{};
+            const auto shelf=raw.toMap();
+            if(shelf.value("requestedChannelId").toString()!=m_channel||shelf.value("kind").toString()!=kind
+               ||shelf.value("items").metaType().id()!=QMetaType::QVariantList)return QVariantList{};
+            *valid=true;QVariantList items;
+            for(const auto &entry:shelf.value("items").toList()){
+                auto album=entry.toMap();if(album.value("id").toString().isEmpty()||album.value("browseId").toString().isEmpty())continue;
+                album["origin"]="youtube-music";album["artists"]=QStringList{m_artist.value("name").toString()};
+                album["artistIds"]=QStringList{"ytm:artist:"+m_channel};album["kind"]=kind=="singles"?"single":"album";
+                // A card is not an admitted tracklist. Opening it requests the full album.
+                album["tracks"]=QVariantList{};items.append(remember(album));
+            }
+            return items;
+        };
+        bool albumsValid=false,singlesValid=false,videosValid=false;
+        if(map.contains("albumShelf")){m_artistAlbums=releaseCards(map.value("albumShelf"),"albums",&albumsValid);
+            if(!albumsValid)appendArtistError(m_artistError,"The album shelf belongs to a different artist or has an invalid shape.");}
+        if(map.contains("singleShelf")){m_artistSingles=releaseCards(map.value("singleShelf"),"singles",&singlesValid);
+            if(!singlesValid)appendArtistError(m_artistError,"The single shelf belongs to a different artist or has an invalid shape.");}
+        if(map.contains("videoShelf")){
+            const auto shelf=map.value("videoShelf");
+            if(shelf.metaType().id()==QMetaType::QVariantMap&&shelf.toMap().value("requestedChannelId").toString()==m_channel
+               &&shelf.toMap().value("items").metaType().id()==QMetaType::QVariantList){
+                m_artistMedia=shelf.toMap();m_artistMedia["channelId"]=m_channel;videosValid=true;
+            }else appendArtistError(m_artistError,"The video shelf belongs to a different artist or has an invalid shape.");
+        }
+        auto requestReleaseContinuation=[this,&continuations](const QString &kind,bool shelfValid,bool shelfComplete){
+            if(!shelfValid)return;
+            const auto handle=continuations.value(kind);
+            if(validArtistContinuation(handle,true))artistRequest(kind=="albums"?"artist-albums":"artist-singles","artistReleases",m_channel,
+                {{"channelId",m_channel},{"kind",kind},{"continuation",handle}});
+            else if(!shelfComplete)
+                appendArtistError(m_artistError,kind=="albums"?"The album shelf has no valid continuation.":"The single shelf has no valid continuation.");
+        };
+        requestReleaseContinuation("albums",albumsValid,map.value("albumShelf").toMap().value("complete").toBool());
+        requestReleaseContinuation("singles",singlesValid,map.value("singleShelf").toMap().value("complete").toBool());
+        if(videosValid){
+            const auto handle=continuations.value("videos");
+            if(validArtistContinuation(handle,false))artistRequest("artist-videos","artistVideos",m_channel,{{"channelId",m_channel},{"continuation",handle}});
+            else if(!m_artistMedia.value("complete").toBool())appendArtistError(m_artistError,"The video shelf has no valid continuation.");
+        }
     }else if(lane=="artist-albums"||lane=="artist-singles"){
-        if(map.value("requestedChannelId").toString()!=m_channel){m_artistError="The release list belongs to a different artist.";emit artistChanged();return;}
+        const auto expectedKind=lane=="artist-singles"?QStringLiteral("singles"):QStringLiteral("albums");
+        if(map.value("requestedChannelId").toString()!=m_channel||map.value("kind").toString()!=expectedKind
+           ||map.value("items").metaType().id()!=QMetaType::QVariantList){
+            appendArtistError(m_artistError,"The release continuation belongs to a different artist or has an invalid shape.");requestIdentity();emit artistChanged();return;
+        }
         QVariantList items;
         for(const auto &entry:map.value("items").toList()){
             auto album=entry.toMap();album["origin"]="youtube-music";album["artists"]=QStringList{m_artist.value("name").toString()};
@@ -248,14 +384,22 @@ void VinylCatalogueSource::acceptArtist(const QString &lane,const QVariant &data
             // A card is not an admitted tracklist. Opening it requests the full album.
             album["tracks"]=QVariantList{};items.append(remember(album));
         }
-        if(lane=="artist-albums")m_artistAlbums=items;else m_artistSingles=items;
-        if(!map.value("complete").toBool())m_artistError="This release list is partial. Retry to load its continuation.";
+        if(lane=="artist-albums")m_artistAlbums=mergeArtistRows(m_artistAlbums,items);else m_artistSingles=mergeArtistRows(m_artistSingles,items);
+        if(!map.value("complete").toBool())appendArtistError(m_artistError,"This release continuation is partial. Retry the artist catalogue.");
     }else if(lane=="artist-videos"){
-        if(map.value("requestedChannelId").toString()!=m_channel){m_artistError="The media list belongs to a different artist.";emit artistChanged();return;}
-        m_artistMedia=map;if(!map.value("complete").toBool())m_artistError="Showing a limited video shelf; more videos may be available.";
+        if(map.value("requestedChannelId").toString()!=m_channel||map.value("items").metaType().id()!=QMetaType::QVariantList){
+            appendArtistError(m_artistError,"The video continuation belongs to a different artist or has an invalid shape.");requestIdentity();emit artistChanged();return;
+        }
+        auto media=m_artistMedia;auto incoming=map.value("items").toList();
+        if(incoming.isEmpty())incoming=map.value("videos").toList()+map.value("livePerformances").toList();
+        media["items"]=mergeArtistRows(media.value("items").toList(),incoming);
+        for(const auto &key:{QStringLiteral("videos"),QStringLiteral("live"),QStringLiteral("livePerformances")})
+            media[key]=mergeArtistRows(media.value(key).toList(),map.value(key).toList());
+        media["channelId"]=m_channel;media["complete"]=map.value("complete");m_artistMedia=media;
+        if(!map.value("complete").toBool())appendArtistError(m_artistError,"The video continuation is partial. Retry the artist catalogue.");
     }else if(lane=="artist-identity"){
-        if(map.value("source")!="musicbrainz"||!map.value("complete").toBool()){
-            m_identity={{"unavailable",true}};m_artistError="Canonical identity is incomplete; provider catalogue remains available.";emit artistChanged();return;
+        if(map.value("source")!="musicbrainz"||!map.value("complete").toBool()||QUuid(map.value("mbid").toString()).isNull()){
+            m_identity={{"unavailable",true}};emit artistChanged();return;
         }
         m_identity=map;
         for(const auto &value:map.value("groups").toList()){
@@ -334,7 +478,7 @@ void VinylCatalogueSource::loadArtwork(const QVariantMap &data){
     const auto mbid=m_identity.value("mbid").toString();
     if(!m_artworkNam||data.value("artistMbid").toString()!=mbid||data.value("source")!="theaudiodb"
        ||data.value("usage")!="development"||data.value("termsUrl")!="https://www.theaudiodb.com/docs_terms_of_use.php"){
-        m_artistError="Artist artwork identity or source is unavailable.";emit artistChanged();return;
+        m_artwork.clear();emit artistChanged();return;
     }
     m_artworkRequest={};m_artworkRequest.artistMbid=mbid.toStdString();
     m_artworkRequest.artistName=m_artist.value("name").toString().toStdString();

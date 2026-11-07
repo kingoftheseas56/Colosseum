@@ -223,6 +223,42 @@ TestCase {
         compare(world.session.queueIndex, 0);
     }
 
+    Component {
+        id: hudPreferencesFactory
+        QtObject {
+            property bool vinylTasteAnswered: true
+            property var vinylTasteArtists: ["a","b","c","d","e"].map(function(letter) {
+                var id = "UC" + letter.repeat(22);
+                return {key:JSON.stringify(["youtube-music","artist",id]),kind:"artist",
+                    provider:"youtube-music",providerId:id,name:"Fixture artist " + letter};
+            })
+            signal vinylTasteChanged()
+        }
+    }
+
+    function test_dismissBrowsingHudClearsPendingPlaybackAndCanReopen() {
+        world.worldData.preferencesStore = createTemporaryObject(hudPreferencesFactory,test);
+        tryCompare(world,"canEnterVinyl",true);
+        world.showHome();
+        var bar = findChild(world,"vinylPlayerBar"), close = findChild(bar,"vinylBarClose");
+        verify(!bar.visible);
+        startStalled([queueRows[0]],0);
+        tryCompare(close,"visible",true);
+        var request = stalledSource.requests.filter(call=>call.lane==="play").slice(-1)[0];
+        close.triggered();
+        compare(world.session.queue.length,0);
+        compare(world.session.playingIndex,-1);
+        compare(world.session.sourceState,"idle");
+        verify(!bar.visible);
+        verify(stalledSource.cancellations.indexOf("play")>=0);
+        stalledSource.completed("play",request.id,{},"Late resolve");
+        compare(world.session.sourceState,"idle");
+        compare(world.session.error,"");
+        verify(!bar.visible);
+        startStalled([queueRows[0]],0);
+        tryCompare(close,"visible",true);
+    }
+
     function test_clearCancelsPendingNativeSourceResolution() {
         startStalled([queueRows[0]], 0);
         world.session.clearQueue();

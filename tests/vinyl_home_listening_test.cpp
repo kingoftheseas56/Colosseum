@@ -118,6 +118,33 @@ private slots:
         QVERIFY(model.view().value("songs").toList().isEmpty());
         QVERIFY(model.view().value("error").toString().contains("identity"));
     }
+    void emptyCompletedMixesStayReachableForRetry() {
+        ListeningSource source;
+        VinylHomeListening model(nullptr, [] {}, [](const QVariantList &, bool) {});
+        model.setInputs(&source, "profile", 1, seeds(), personalSections(), "day");
+        for (int i = 0; i < source.requests.size(); ++i) {
+            const auto request = source.requests[i];
+            auto response = album(request.value);
+            response["tracks"] = QVariantList();
+            complete(model, request, request.operation == "album" ? response
+                : QVariantMap{{"items", QVariantList()}});
+        }
+        QSet<QString> reachable;
+        for (const auto &value : model.cards()) {
+            const auto card = value.toMap();
+            if (card.value("kind") != "mixes") continue;
+            QCOMPARE(card.value("status").toString(), QStringLiteral("error"));
+            reachable.insert(card.value("mixId").toString());
+        }
+        QCOMPARE(reachable, (QSet<QString>{QStringLiteral("personal"), QStringLiteral("discovery")}));
+        const int beforeRetry = source.requests.size();
+        model.openMix("discovery");
+        QCOMPARE(source.requests.size(), beforeRetry + 1);
+        complete(model, source.requests.last(), {{"items", QVariantList{candidate("retry-empty", 8)}}});
+        complete(model, source.requests.last(), album("retry-empty"));
+        QCOMPARE(model.view().value("status").toString(), QStringLiteral("ready"));
+        QVERIFY(!model.view().value("songs").toList().isEmpty());
+    }
     void mixTimeoutDoesNotFailARestoredPausedStation() {
         ListeningSource source;
         VinylHomeListening model(nullptr, [] {}, [](const QVariantList &, bool) { QFAIL("paused station produced audio"); });

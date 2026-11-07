@@ -34,6 +34,16 @@ int homeLaunchCount(const QString &path){
     QFile file(path);if(!file.open(QIODevice::ReadOnly))return 0;
     return file.readAll().count('\n');
 }
+QList<QVariantMap> artistRequestLog(const QString &path){
+    QList<QVariantMap> result;
+    const QDir dir(path);
+    for(const auto &name:dir.entryList({"artist-request-*.json"},QDir::Files)){
+        QFile file(dir.filePath(name));
+        if(file.open(QIODevice::ReadOnly))
+            result.append(QJsonDocument::fromJson(file.readAll()).object().toVariantMap());
+    }
+    return result;
+}
 }
 
 class ArtworkReply : public QNetworkReply {
@@ -73,6 +83,103 @@ signals:
 class CatalogueSourceTest : public QObject {
     Q_OBJECT
 private slots:
+    void youtubeBrowseRegistersTracksAndUsesIndependentCachedLanes(){
+        QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128LL*1024*1024,{},dir.filePath("cache"));
+        VinylCatalogueSource source(&local,&provider,nullptr);QSignalSpy done(&source,&VinylCatalogueSource::completed);
+        QVERIFY(source.request("catalogue-songs","browseCatalogue","songs",{{"refresh",true}})>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,10000);
+        QVERIFY(done.last()[3].toString().isEmpty());
+        QCOMPARE(done.last()[2].toMap().value("items").toList().size(),1);
+        QVERIFY(source.request("play","resolve","provider-recording")>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,10000);
+        QCOMPARE(done.last()[2].toMap().value("videoId").toString(),QString("abcdefghijk"));
+        const auto python=qgetenv("COLOSSEUM_VINYL_PYTHON");
+        const auto restore=qScopeGuard([python]{qputenv("COLOSSEUM_VINYL_PYTHON",python);});
+        qputenv("COLOSSEUM_VINYL_PYTHON","missing-browse-runtime.exe");
+        QVERIFY(source.request("catalogue-songs","browseCatalogue","songs")>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),3,10000);
+        QVERIFY(done.last()[3].toString().isEmpty());
+        QVERIFY(done.last()[2].toMap().value("_cached").toBool());
+        QCOMPARE(provider.requestPayload("catalogue-artists","browseCatalogue","songs",{}),-1);
+        QCOMPARE(provider.requestPayload("catalogue-songs","resolve","abcdefghijk",{}),-1);
+        QCOMPARE(provider.requestPayload("browse","browseCatalogue","songs",{}),-1);
+        QCOMPARE(provider.requestPayload("catalogue-categories","browseCategories","query",{}),-1);
+        source.request("catalogue-songs","browseCatalogue","songs");source.cancel("catalogue-songs");
+        QTest::qWait(50);QCOMPARE(done.size(),3);
+    }
+    void musicDiscoverTransportUsesDedicatedLanesAndRemembersMatches(){
+        QTemporaryDir dir;QVERIFY(dir.isValid());
+        const auto priorKeyFile=qgetenv("COLOSSEUM_VINYL_LASTFM_KEY_FILE");
+        const auto priorEnvProbe=qgetenv("VINYL_TEST_DISCOVER_ENV_FILE");
+        const auto restoreEnvironment=qScopeGuard([priorKeyFile,priorEnvProbe]{
+            if(priorKeyFile.isNull())qunsetenv("COLOSSEUM_VINYL_LASTFM_KEY_FILE");else qputenv("COLOSSEUM_VINYL_LASTFM_KEY_FILE",priorKeyFile);
+            if(priorEnvProbe.isNull())qunsetenv("VINYL_TEST_DISCOVER_ENV_FILE");else qputenv("VINYL_TEST_DISCOVER_ENV_FILE",priorEnvProbe);
+        });
+        const auto keyFile=dir.filePath("lastfm-key.txt");const auto envProbe=dir.filePath("discover-env.json");
+        qputenv("COLOSSEUM_VINYL_LASTFM_KEY_FILE",keyFile.toUtf8());qputenv("VINYL_TEST_DISCOVER_ENV_FILE",envProbe.toUtf8());
+        const auto cacheRoot=dir.filePath("cache");
+        VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128LL*1024*1024,{},cacheRoot);
+        VinylCatalogueSource source(&local,&provider,nullptr);QSignalSpy done(&source,&VinylCatalogueSource::completed);
+
+        const QVariantMap item{{"id","jiosaavn:songs:fixture"},{"kind","songs"},{"title","Track"},{"artist","Artist"}};
+        const QVariantMap itemOptions{{"item",item}};
+        QCOMPARE(provider.requestPayload("browse","resolveCatalogueItem",item.value("id").toString(),itemOptions),-1);
+        QCOMPARE(provider.requestPayload("catalogue-art","resolveCatalogueItem",item.value("id").toString(),itemOptions),-1);
+        auto extraItemOptions=itemOptions;extraItemOptions["refresh"]=true;
+        QCOMPARE(provider.requestPayload("catalogue-item","resolveCatalogueItem",item.value("id").toString(),extraItemOptions),-1);
+        QCOMPARE(provider.requestPayload("catalogue-item","resolveCatalogueItem","other-id",itemOptions),-1);
+
+        const int tapId=source.request("catalogue-item","resolveCatalogueItem",item.value("id").toString(),itemOptions);
+        QVERIFY(tapId>0);QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,10000);
+        QCOMPARE(done.last()[0].toString(),QString("catalogue-item"));QCOMPARE(done.last()[1].toInt(),tapId);
+        QVERIFY(done.last()[3].toString().isEmpty());
+        const auto match=done.last()[2].toMap();
+        QCOMPARE(match.value("id").toString(),item.value("id").toString());
+        QCOMPARE(match.value("matched").toBool(),true);
+        QCOMPARE(match.value("request").toMap().value("item").toMap(),item);
+        QCOMPARE(match.value("record").toMap().value("id").toString(),QString("discover-album-uuid"));
+        QFile envFile(envProbe);QVERIFY(envFile.open(QIODevice::ReadOnly));
+        const auto processEnvironment=QJsonDocument::fromJson(envFile.readAll()).object();
+        QCOMPARE(QDir::cleanPath(processEnvironment.value("cacheDir").toString()),QDir::cleanPath(cacheRoot+"/discover-v1"));
+        QCOMPARE(processEnvironment.value("lastfmKeyFile").toString(),keyFile);
+        QCOMPARE(cacheTreeFileCount(cacheRoot),0);
+
+        const QVariantList artItems{QVariantMap{{"id",item.value("id")},{"cover","https://last.fm/image.jpg"}}};
+        QCOMPARE(provider.requestPayload("catalogue-item","resolveCatalogueArt","lastfm",{{"items",artItems}}),-1);
+        QCOMPARE(provider.requestPayload("catalogue-art","resolveCatalogueArt","jiosaavn",{{"items",artItems}}),-1);
+        QVariantList tooManyArtItems;for(int i=0;i<13;++i)tooManyArtItems.append(QVariantMap{});
+        QCOMPARE(provider.requestPayload("catalogue-art","resolveCatalogueArt","lastfm",{{"items",tooManyArtItems}}),-1);
+        QVERIFY(source.request("catalogue-art","resolveCatalogueArt","lastfm",{{"items",artItems}})>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,10000);QVERIFY(done.last()[3].toString().isEmpty());
+        QCOMPARE(done.last()[2].toMap().value("request").toMap().value("items").toList(),artItems);
+        QCOMPARE(cacheTreeFileCount(cacheRoot),0);
+
+        const QVariantMap browseOptions{{"catalogueSource","lastfm"},{"kind","songs"},{"list","tag:rock"},
+            {"cursor",QVariantMap{{"offset",0},{"token","next"}}}};
+        for(const auto &catalogueSource:{QString("lastfm"),QString("jiosaavn")}){
+            auto options=browseOptions;options["catalogueSource"]=catalogueSource;
+            for(int attempt=0;attempt<2;++attempt){
+                QVERIFY(source.request("catalogue-songs","browseCatalogue","songs",options)>0);
+                QTRY_COMPARE_WITH_TIMEOUT(done.size(),3+(catalogueSource=="jiosaavn"?2:0)+attempt,10000);
+                QVERIFY(done.last()[3].toString().isEmpty());
+                const auto browse=done.last()[2].toMap();
+                QVERIFY(!browse.value("_cached").toBool());
+                QCOMPARE(browse.value("request").toMap().value("list").toString(),QString("tag:rock"));
+                QCOMPARE(browse.value("request").toMap().value("cursor").toMap(),browseOptions.value("cursor").toMap());
+                QCOMPARE(cacheTreeFileCount(cacheRoot),0);
+            }
+        }
+
+        QVERIFY(source.request("browse","album","discover-album-uuid")>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),7,10000);QVERIFY(done.last()[3].toString().isEmpty());
+        QCOMPARE(done.last()[2].toMap().value("browseId").toString(),QString("MPRE_discover_album"));
+        QVERIFY(source.request("play","resolve","discover-track")>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),8,10000);QVERIFY(done.last()[3].toString().isEmpty());
+        QCOMPARE(done.last()[2].toMap().value("trackId").toString(),QString("discover-track"));
+        QCOMPARE(done.last()[2].toMap().value("videoId").toString(),QString("abcdefghijk"));
+    }
     void searchPagesRegisterExactSourcesAndPlaylistContinuation(){
         QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
         VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT));VinylCatalogueSource source(&local,&provider,nullptr);
@@ -253,6 +360,9 @@ private slots:
         QTest::qWait(40);QCOMPARE(done.size(),3);
     }
     void cleanup(){qunsetenv("VINYL_TEST_IDENTITY_UNAVAILABLE");qunsetenv("VINYL_TEST_PHOTOS");
+        qunsetenv("VINYL_TEST_ARTIST_REQUEST_LOG");qunsetenv("VINYL_TEST_ARTIST_CONTINUATIONS");
+        qunsetenv("VINYL_TEST_ARTIST_CONTINUATION_DELAY");qunsetenv("VINYL_TEST_ARTIST_CHANNEL_MISMATCH");
+        qunsetenv("VINYL_TEST_ARTIST_RELEASE_MISMATCH");qunsetenv("VINYL_TEST_ARTWORK_MALFORMED");
         qunsetenv("VINYL_TEST_HOME_FAIL");qunsetenv("VINYL_TEST_HOME_SEED_MISMATCH");
         qunsetenv("VINYL_TEST_HOME_WRONG_SHAPE");qunsetenv("VINYL_TEST_HOME_OVERSIZE");
         qunsetenv("VINYL_TEST_HOME_SLOW");qunsetenv("VINYL_TEST_HOME_UNAVAILABLE");
@@ -376,11 +486,17 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(!source.artistBusy(),15000);QVERIFY(source.artistError().isEmpty());
         QVERIFY(source.artist().value("_cached").toBool());
         QVERIFY(!source.cached()); // A fresh local cache hit is not evidence of offline fallback.
-        const auto files=QDir(root).entryList({"*.json"},QDir::Files);QVERIFY(files.size()>=5);
-        for(const auto &name:files){
-            QFile file(root+"/"+name);QVERIFY(file.open(QIODevice::ReadWrite));
-            QVERIFY(file.setFileTime(QDateTime::currentDateTime().addSecs(-901),QFileDevice::FileModificationTime));
+        QStringList artistCacheFiles;
+        for(const auto &name:QDir(root).entryList({"*.json"},QDir::Files)){
+            QFile file(root+"/"+name);QVERIFY(file.open(QIODevice::ReadOnly));
+            const auto cached=QJsonDocument::fromJson(file.readAll()).object();
+            if(cached.value("requestedChannelId")=="UCedvOgsKFzcK3hA5taf3KoQ"&&cached.value("albumShelf").isObject())
+                artistCacheFiles.append(file.fileName());
         }
+        QCOMPARE(artistCacheFiles.size(),1);
+        QFile artistCache(artistCacheFiles.first());QVERIFY(artistCache.open(QIODevice::ReadWrite));
+        QVERIFY(artistCache.setFileTime(QDateTime::currentDateTime().addSecs(-901),QFileDevice::FileModificationTime));
+        artistCache.close();
         const auto python=qgetenv("COLOSSEUM_VINYL_PYTHON");
         const auto restoreRuntime=qScopeGuard([python]{qputenv("COLOSSEUM_VINYL_PYTHON",python);});
         qputenv("COLOSSEUM_VINYL_PYTHON","missing-artist-cache-runtime.exe");
@@ -418,11 +534,90 @@ private slots:
         VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128*1024*1024,{},dir.filePath("cache"));VinylCatalogueSource source(&local,&provider,nullptr);
         source.openArtist({{"id","ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ"},{"name","No MB mapping"}});
         QTRY_VERIFY_WITH_TIMEOUT(!source.artistBusy(),15000);QCOMPARE(source.artistAlbums().size(),1);QCOMPARE(source.artistSingles().size(),1);
-        QVERIFY(source.artistIdentity().value("unavailable").toBool());QVERIFY(!source.artistError().isEmpty());
+        QVERIFY(source.artistIdentity().value("unavailable").toBool());QVERIFY(source.artistError().isEmpty());
         QVERIFY(!qobject_cast<vinyl::artist::ArtistServiceBridge *>(source.canonicalArtistService())->active());
         QSignalSpy done(&source,&VinylCatalogueSource::completed);source.request("browse","album","provider-release");
         QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,10000);QVERIFY(done.first()[3].toString().isEmpty());
         QCOMPARE(done.first()[2].toMap().value("tracks").toList().size(),1);
+    }
+    void artistOverviewPublishesPreviewThenFollowsExactContinuations(){
+        qputenv("VINYL_TEST_ARTIST_CONTINUATIONS","1");qputenv("VINYL_TEST_ARTIST_CONTINUATION_DELAY","1");
+        QTemporaryDir dir;const auto log=dir.path();qputenv("VINYL_TEST_ARTIST_REQUEST_LOG",log.toUtf8());
+        VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128*1024*1024,{},dir.filePath("cache"));
+        VinylCatalogueSource source(&local,&provider,nullptr);QSignalSpy done(&source,&VinylCatalogueSource::completed);
+        const QString channel="UCedvOgsKFzcK3hA5taf3KoQ",cover="https://lh3.googleusercontent.com/seed-cover";
+        source.openArtist({{"id","ytm:artist:"+channel},{"name","Artist"},{"cover",cover}});
+        QTRY_VERIFY_WITH_TIMEOUT(!source.artistCatalogueBusy(),10000);
+        QVERIFY(source.artistBusy()); // The overview is visible while continuation requests are still running.
+        QCOMPARE(source.artistAlbums().size(),1);QCOMPARE(source.artistSingles().size(),1);
+        QCOMPARE(source.artistMedia().value("items").toList().size(),1);
+        QCOMPARE(source.artist().value("channelId").toString(),channel);
+        QCOMPARE(source.artist().value("id").toString(),"ytm:artist:"+channel);
+        QCOMPARE(source.artist().value("cover").toString(),cover);
+        const auto songs=source.artist().value("songs").toList();QCOMPARE(songs.size(),1);
+        const auto record=songs.first().toMap().value("record").toMap();
+        QCOMPARE(record.value("id").toString(),"ytm:track:abcdefghijk");
+        QCOMPARE(record.value("tracks").toList().first().toMap().value("id").toString(),"artist-recording");
+        const int play=source.request("play","resolve","artist-recording");QVERIFY(play>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,10000);QCOMPARE(done.first()[1].toInt(),play);
+        QVERIFY(done.first()[3].toString().isEmpty());QCOMPARE(done.first()[2].toMap().value("videoId").toString(),"abcdefghijk");
+        QTRY_VERIFY_WITH_TIMEOUT(!source.artistBusy(),15000);QVERIFY(source.artistError().isEmpty());
+        QCOMPARE(source.artistAlbums().size(),2);QCOMPARE(source.artistSingles().size(),2);
+        QCOMPARE(source.artistMedia().value("items").toList().size(),2);
+
+        int overviewCount=0,albumContinuations=0,singleContinuations=0,videoContinuations=0;
+        for(const auto &request:artistRequestLog(log)){
+            const auto operation=request.value("operation").toString();
+            if(operation=="artist"){
+                ++overviewCount;QVERIFY(request.value("overview").toBool());QCOMPARE(request.value("value").toString(),channel);
+            }else if(operation=="artistReleases"){
+                QCOMPARE(request.value("channelId").toString(),channel);const auto continuation=request.value("continuation").toMap();
+                if(request.value("kind").toString()=="albums"){
+                    ++albumContinuations;QCOMPARE(continuation.value("browseId").toString(),"MPRE_albums_next");QCOMPARE(continuation.value("params").toString(),"CgQ=");
+                }else{
+                    QCOMPARE(request.value("kind").toString(),"singles");++singleContinuations;
+                    QCOMPARE(continuation.value("browseId").toString(),"MPSP_singles_next");QCOMPARE(continuation.value("params").toString(),"CgU=");
+                }
+            }else if(operation=="artistVideos"){
+                ++videoContinuations;QCOMPARE(request.value("channelId").toString(),channel);
+                QCOMPARE(request.value("continuation").toMap().value("browseId").toString(),"VLartistvideos");
+                QVERIFY(!request.contains("kind"));
+            }
+        }
+        QCOMPARE(overviewCount,1);QCOMPARE(albumContinuations,1);QCOMPARE(singleContinuations,1);QCOMPARE(videoContinuations,1);
+    }
+    void artistOverviewAndContinuationRejectChannelMismatchWithoutDroppingPreview(){
+        qputenv("VINYL_TEST_ARTIST_CONTINUATIONS","1");qputenv("VINYL_TEST_ARTIST_RELEASE_MISMATCH","1");
+        QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128*1024*1024,{},dir.filePath("cache"));
+        VinylCatalogueSource source(&local,&provider,nullptr);const QString channel="UCedvOgsKFzcK3hA5taf3KoQ";
+        source.openArtist({{"id","ytm:artist:"+channel},{"name","Artist"}});
+        QTRY_VERIFY_WITH_TIMEOUT(!source.artistBusy(),15000);
+        QVERIFY(!source.artistError().isEmpty());QCOMPARE(source.artistAlbums().size(),1);
+        QCOMPARE(source.artistSingles().size(),2);QCOMPARE(source.artist().value("channelId").toString(),channel);
+        QCOMPARE(source.artist().value("id").toString(),"ytm:artist:"+channel);
+
+        qputenv("VINYL_TEST_ARTIST_CHANNEL_MISMATCH","1");
+        QTemporaryDir mismatchDir;VaultIdentity mismatchIdentity(mismatchDir.filePath("identity.json"));
+        VinylLocalSource mismatchLocal(&mismatchIdentity);
+        VinylProvider mismatchProvider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128*1024*1024,{},mismatchDir.filePath("cache"));
+        VinylCatalogueSource mismatchSource(&mismatchLocal,&mismatchProvider,nullptr);
+        mismatchSource.openArtist({{"id","ytm:artist:"+channel},{"name","Artist"}});
+        QTRY_VERIFY_WITH_TIMEOUT(!mismatchSource.artistBusy(),15000);
+        QVERIFY(!mismatchSource.artistError().isEmpty());QVERIFY(mismatchSource.artistAlbums().isEmpty());
+        QCOMPARE(mismatchSource.artist().value("channelId").toString(),channel);
+        QCOMPARE(mismatchSource.artist().value("id").toString(),"ytm:artist:"+channel);
+    }
+    void malformedOptionalArtworkDoesNotBreakArtistCatalogue(){
+        qputenv("VINYL_TEST_ARTWORK_MALFORMED","1");
+        QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128*1024*1024,{},dir.filePath("cache"));
+        ArtworkNam nam;VinylCatalogueSource source(&local,&provider,nullptr);source.setArtworkNetworkManager(&nam);
+        source.openArtist({{"id","ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ"},{"name","Artist"}});
+        QTRY_VERIFY_WITH_TIMEOUT(!source.artistBusy(),15000);QVERIFY(source.artistError().isEmpty());
+        QCOMPARE(source.artistAlbums().size(),1);QVERIFY(!source.artistIdentity().value("unavailable").toBool());
+        QVERIFY(source.artistArtwork().isEmpty());
     }
     void homeArtistCandidatesForwardAndNormalizeProviderIdentity(){
         QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);

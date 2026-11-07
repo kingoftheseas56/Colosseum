@@ -123,6 +123,7 @@ public:
     Q_INVOKABLE void toggleVideo();
     Q_INVOKABLE void findTorrent();
     Q_INVOKABLE void cancelTorrent();
+    Q_INVOKABLE void selectYouTube();
     Q_INVOKABLE void suspend();
     Q_INVOKABLE void clearProfile();
     Q_INVOKABLE void shutdown();

@@ -1,0 +1,62 @@
+{
+  "albums": {
+    "album": [
+      {
+        "name": "Thriller",
+        "mbid": "009a9e97-0097-3fa8-ac85-3d67d6d5e06e",
+        "url": "https://www.last.fm/music/Michael+Jackson/Thriller",
+        "artist": {
+          "name": "Michael Jackson",
+          "mbid": "f27ec8db-af05-4f36-916e-3d57f91ecf5e",
+          "url": "https://www.last.fm/music/Michael+Jackson"
+        },
+        "image": [
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/34s/85fdc23b75d77d4cf789fd1904d06863.png",
+            "size": "small"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/64s/85fdc23b75d77d4cf789fd1904d06863.png",
+            "size": "medium"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/174s/85fdc23b75d77d4cf789fd1904d06863.png",
+            "size": "large"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/300x300/85fdc23b75d77d4cf789fd1904d06863.png",
+            "size": "extralarge"
+          }
+        ]
+      },
+      {
+        "name": "Sweetener",
+        "mbid": "029bb5e7-f051-4a0f-8c57-a5b89d914300",
+        "url": "https://www.last.fm/music/Ariana+Grande/Sweetener",
+        "artist": {
+          "name": "Ariana Grande",
+          "mbid": "f4fdbb4c-e4b7-47a0-b83b-d91bbfcfa387",
+          "url": "https://www.last.fm/music/Ariana+Grande"
+        },
+        "image": [
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/34s/cd8c5ce4dad43c822c00dec987d295ca.png",
+            "size": "small"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/64s/cd8c5ce4dad43c822c00dec987d295ca.png",
+            "size": "medium"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/174s/cd8c5ce4dad43c822c00dec987d295ca.png",
+            "size": "large"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/300x300/cd8c5ce4dad43c822c00dec987d295ca.png",
+            "size": "extralarge"
+          }
+        ]
+      }
+    ]
+  }
+}

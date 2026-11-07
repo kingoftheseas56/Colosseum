@@ -18,9 +18,16 @@ Item {
 
     readonly property bool sourcedContext: artistData.context.sources.length > 0
     property var failedPhotoIds: []
-    readonly property var eligiblePhotos: (artistData.heroPhotos || []).filter(function(photo) {
-        return root.failedPhotoIds.indexOf(photo.id) < 0;
-    })
+    readonly property var eligiblePhotos: {
+        var photos = (artistData.heroPhotos || []).filter(photo => !root.failedPhotoIds.includes(photo.id));
+        var fallback = artistData.providerHeroPhoto;
+        return photos.length || !fallback || root.failedPhotoIds.includes(fallback.id) ? photos : [fallback];
+    }
+    readonly property int trackCount: artistData.trackCount === undefined ? artistData.singlesRows.length : artistData.trackCount
+    readonly property string coverFallback: {
+        var firstRelease = artistData.record.releases[0];
+        return artistData.artwork((firstRelease && firstRelease.album.cover) || artistData.openingCover || "");
+    }
     readonly property int eligiblePhotoCount: eligiblePhotos.length
     readonly property string rotationMode: {
         if (artistData.customBackdropUrl && String(artistData.customBackdropUrl).length > 0)
@@ -86,14 +93,14 @@ Item {
         }
         var all = artistData.backdropOptions || [];
         for (var i = 0; i < all.length; ++i) {
-            if (all[i].id === photoId)
+            if (all[i].id === photoId && !root.failedPhotoIds.includes(photoId))
                 return all[i];
         }
         if (eligiblePhotos.length > 0) {
             var idx = ((slideshowIndex % eligiblePhotos.length) + eligiblePhotos.length) % eligiblePhotos.length;
             return eligiblePhotos[idx];
         }
-        if (all.length > 0)
+        if (all.length > 0 && !artistData.liveMode)
             return all[0];
         return null;
     }
@@ -232,6 +239,7 @@ Item {
         ignoreUnknownSignals: true
         function onHeroPhotosChanged() { root.failedPhotoIds = []; root.syncInitialBackdrop(); }
         function onNameChanged() { root.syncInitialBackdrop(); }
+        function onProviderHeroUrlChanged() { root.syncInitialBackdrop(); }
         function onOverrideHeroPhotosChanged() { root.syncInitialBackdrop(); }
         function onCustomBackdropUrlChanged() {
             if (root.artistData.customBackdropUrl && String(root.artistData.customBackdropUrl).length > 0)
@@ -325,9 +333,8 @@ Item {
         height: width
         radius: 13
         rotation: 3
-        visible: !root.portraitReady && root.artistData.record.releases.length > 0
-        sources: root.artistData.record.releases.length
-            ? [root.artistData.artwork(root.artistData.record.releases[0].album.cover)] : []
+        visible: !root.portraitReady && root.coverFallback.length > 0
+        sources: root.coverFallback.length ? [root.coverFallback] : []
     }
 
     // Approved HTML .hero::after directional left and bottom dark legibility scrims
@@ -454,7 +461,9 @@ Item {
             Text {
                 text: (!root.artistData.liveMode && root.artistData.record.name === "Eminem")
                     ? "12 studio albums"
-                    : (String(root.artistData.allDiscographyCards.length) + (root.artistData.allDiscographyCards.length === 1 ? " release" : " releases"))
+                    : (root.artistData.loading ? qsTr("Loading catalogue…")
+                        : (root.artistData.allDiscographyCards.length === 1 ? qsTr("1 release")
+                            : qsTr("%1 releases").arg(root.artistData.allDiscographyCards.length)))
                 textFormat: Text.PlainText
                 color: Qt.rgba(0.969, 0.969, 0.961, 0.90)
                 font.family: theme.ui
@@ -462,7 +471,7 @@ Item {
                 font.weight: Font.Medium
             }
             Text {
-                visible: (!root.artistData.liveMode && root.artistData.record.name === "Eminem") || root.artistData.singlesRows.length > 0
+                visible: (!root.artistData.liveMode && root.artistData.record.name === "Eminem") || root.trackCount > 0
                 text: "·"
                 color: theme.inkDimmer
                 font.family: theme.ui
@@ -470,10 +479,10 @@ Item {
                 font.weight: Font.Bold
             }
             Text {
-                visible: (!root.artistData.liveMode && root.artistData.record.name === "Eminem") || root.artistData.singlesRows.length > 0
+                visible: (!root.artistData.liveMode && root.artistData.record.name === "Eminem") || root.trackCount > 0
                 text: (!root.artistData.liveMode && root.artistData.record.name === "Eminem")
                     ? "1996—present"
-                    : (String(root.artistData.singlesRows.length) + (root.artistData.singlesRows.length === 1 ? " track" : " tracks"))
+                    : (root.trackCount === 1 ? qsTr("1 track") : qsTr("%1 tracks").arg(root.trackCount))
                 textFormat: Text.PlainText
                 color: Qt.rgba(0.969, 0.969, 0.961, 0.90)
                 font.family: theme.ui

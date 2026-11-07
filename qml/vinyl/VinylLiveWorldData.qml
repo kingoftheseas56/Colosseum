@@ -97,6 +97,7 @@ Item {
 
     // Transient presentation state only: the three destinations do not share
     // filters or search results. Collection and the session still own the data.
+    property var catalogueBrowse: null
     property string activeTab: "library"
     property var browseStates: initialBrowseStates()
     property bool changingTab: false
@@ -342,7 +343,9 @@ Item {
     property string sortOrder: "title"
     function emptyLens() {return {kind:"albums",genre:"",decade:"",country:"",language:""};}
     function initialBrowseStates() {
-        return {home:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},
+        return {songs:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},
+            albums:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},
+            artists:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},home:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},
             discover:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:true},
             library:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false}};
     }
@@ -353,7 +356,7 @@ Item {
         browseStates=next;
     }
     function selectTab(tab) {
-        if(["home","discover","library"].indexOf(tab)<0) return;
+        if(["home","songs","albums","artists","discover","library"].indexOf(tab)<0) return;
         if(tab==="home" && !usesRecommendationService && !fallbackPickerAnswered)
             fallbackTastePickerOpen=true;
         if(tab==="home" && usesRecommendationService && typeof recommendationService.beginHomeVisit==="function")
@@ -362,8 +365,8 @@ Item {
         saveBrowseState();
         if(session.browsing && ["search","catalogueSearch"].indexOf(session.browseOperation)>=0) session.cancelBrowse();
         changingTab=true;activeTab=tab;
-        var state=browseStates[tab];query=state.query;lens=Object.assign({},state.lens);sortOrder=state.sortOrder;onlineMode=state.onlineMode;
-        changingTab=false;refreshSearch();if(tab==="home")refreshHome();ensureDiscovery();
+        var state=browseStates[tab] || {query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false};query=state.query;lens=Object.assign({},state.lens);sortOrder=state.sortOrder;onlineMode=state.onlineMode;
+        changingTab=false;refreshSearch();if(tab==="home"){refreshHome();ensureDiscovery();}
     }
     function setQuery(value) {query=String(value || "");}
     function setOnlineMode(value) {
@@ -410,7 +413,7 @@ Item {
         catalogueMatches={query:pendingCatalogueQuery,albums:session.onlineAlbums.slice(),artists:session.onlineArtists.slice()};
     }
     function refreshSearch() {
-        if(changingTab || activeTab==="home" || onlineMode) return;
+        if(changingTab || ["home","songs","albums","artists"].indexOf(activeTab)>=0 || onlineMode) return;
         if(!session.pagedSearchSupported) return;
         if(query.trim()) session.search(query);
         else if(session.browseOperation==="search") session.cancelBrowse();
@@ -421,7 +424,6 @@ Item {
         if(activeTab==="discover" && onlineMode && !query.trim()) {
             pendingCatalogueQuery="";
             if(session.browseOperation==="catalogueSearch")session.cancelBrowse();
-            ensureDiscovery();
         }
     }
     onLensChanged: {saveBrowseState();if(!changingTab && cataloguePagingSupported && activeTab==="discover" && onlineMode && query.trim())session.searchCatalogue(query.trim(),lens.kind,false);}
@@ -544,7 +546,7 @@ Item {
     function openHomeDestination(tab,section,id) {homeDestinationRequested(tab,section || "albums",id || "");}
     function artwork(url) { return url || ""; }
     function findAlbum(id) {
-        var records=libraryAlbums.concat(catalogueMatches.albums);
+        var records=libraryAlbums.concat(catalogueMatches.albums).concat(catalogueBrowse ? catalogueBrowse.records : []);
         if(cataloguePagingSupported)Object.keys(session.cataloguePages).forEach(kind=>{records=records.concat(session.cataloguePages[kind].records || []);});
         discoveryOrder.forEach(key=>{records=records.concat((discoverySections[key] || {}).records || []);});
         return records.find(function(a){return a.id===id;});

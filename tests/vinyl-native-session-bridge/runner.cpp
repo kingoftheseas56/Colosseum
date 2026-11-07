@@ -100,7 +100,7 @@ class Setup : public QObject {
         const QStringList lines = QString::fromLatin1(request).split(QStringLiteral("\r\n"));
         const QStringList requestLine = lines.value(0).split(QChar(' '));
         const QString method = requestLine.value(0);
-        const QString path = requestLine.value(1);
+        const QString path = QUrl(requestLine.value(1)).path();
         bool authorized = false;
         for (const auto &line : lines)
             authorized |= line.compare(QStringLiteral("X-Vinyl-Seek-Test: required"), Qt::CaseInsensitive) == 0;
@@ -110,7 +110,7 @@ class Setup : public QObject {
             return;
         }
         if ((method != QStringLiteral("GET") && method != QStringLiteral("HEAD"))
-            || path != QStringLiteral("/media")) {
+            || (path != QStringLiteral("/media") && path != QStringLiteral("/audio"))) {
             socket->write("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
             socket->disconnectFromHost();
             return;
@@ -156,7 +156,7 @@ class Setup : public QObject {
         // The origin has bytes only through the twenty-second boundary. Every
         // sequential request crossing that boundary remains open after the
         // available prefix. Requests starting at or beyond it are fully served.
-        if (method == QStringLiteral("GET") && crossesFrontier) {
+        if (method == QStringLiteral("GET") && path == QStringLiteral("/media") && crossesFrontier) {
             heldProgressiveSockets.insert(socket);
             QByteArray header;
             if (hasRange) {
@@ -246,6 +246,10 @@ public slots:
         progressiveServedRanges.clear();
         if (!progressiveServer.listen(QHostAddress::LocalHost, 0)) return {};
         return QStringLiteral("http://127.0.0.1:%1/media").arg(progressiveServer.serverPort());
+    }
+    QString startCompleteHttpAudioFixture() {
+        auto url=startProgressiveHttpFixture();
+        return url.replace(QStringLiteral("/media"),QStringLiteral("/audio"));
     }
     QString progressiveHttpWavUrl() const { return QUrl::fromLocalFile(progressiveWavPath).toString(); }
     QVariantList progressiveHttpRequestOffsets() const { return progressiveRequestOffsets; }

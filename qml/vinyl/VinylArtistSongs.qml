@@ -8,11 +8,13 @@ Column {
     required property var artistData
     property bool fullView: false
     property bool compactListMode: false
+    property bool inlinePopular: false
     readonly property string title: compactListMode
         ? "Singles & Tracks"
-        : (artistData.popularSongs.length ? "Popular songs" : "Songs")
+        : (artistData.popularSongs.length ? "Popular Songs" : "Songs")
     readonly property var shownSongs: compactListMode
         ? artistData.singlesRows
+        : inlinePopular ? (artistData.allSongs ? artistData.popularSongs : artistData.popularSongs.slice(0, 5))
         : (fullView ? artistData.songOrder
             : (artistData.popularSongs.length ? artistData.popularSongs : artistData.songOrder).slice(0, 5))
     readonly property bool compactQueueAvailable: root.compactListMode && !!root.artistData
@@ -43,7 +45,8 @@ Column {
         visible: !root.fullView && !root.compactListMode
         title: root.title
         sub: root.artistData.popularSongs.length ? root.artistData.popularSource : ""
-        moreLabel: "See all"
+        navigable: !root.inlinePopular || root.artistData.popularSongs.length > 5
+        moreLabel: root.inlinePopular ? (root.artistData.allSongs ? "Show less" : "Show more") : "See all"
         automationId: "vinylArtistSeeAll_songs"
         onMoreClicked: root.seeAllRequested()
     }
@@ -135,6 +138,7 @@ Column {
                     property alias primaryAction: play
 
                     readonly property bool isCompact: root.compactListMode
+                    readonly property bool showRank: isCompact || root.inlinePopular
                     readonly property bool isQueued: isCompact && root.artistData.queuedSongIndex === row.index
                     readonly property string trackTitle: isCompact
                         ? String(row.modelData.title || "")
@@ -166,7 +170,8 @@ Column {
                         objectName: root.compactListMode
                             ? ("vinylArtistSinglesRow_" + row.index)
                             : ((root.fullView ? "vinylArtistFullSong_" : "vinylArtistSong_") + row.index)
-                        width: parent.width >= 680 ? parent.width * 0.61
+                        width: root.inlinePopular ? Math.max(0, parent.width - 52)
+                            : parent.width >= 680 ? parent.width * 0.61
                             : parent.width - (root.compactQueueAvailable ? 124 : 84)
                         height: parent.height
                         focusRadius: 8
@@ -198,11 +203,12 @@ Column {
 
                         // 2-digit tabular track number in compact mode (.track-num parity)
                         Text {
-                            visible: row.isCompact
+                            visible: row.showRank
                             x: 16
                             width: 34
                             anchors.verticalCenter: parent.verticalCenter
-                            text: row.isCompact ? String(row.modelData.number || (row.index + 1)) : ""
+                            text: root.inlinePopular ? String(row.modelData.rank || row.index + 1)
+                                : row.isCompact ? String(row.modelData.number || row.index + 1) : ""
                             horizontalAlignment: Text.AlignRight
                             color: row.isQueued ? theme.gold : theme.inkDimmer
                             font.family: theme.ui
@@ -212,7 +218,7 @@ Column {
 
                         // 42x42 cover sleeve with ♫ fallback (.track-art parity)
                         Rectangle {
-                            x: row.isCompact ? 60 : 4
+                            x: row.showRank ? 60 : 4
                             anchors.verticalCenter: parent.verticalCenter
                             width: 42
                             height: 42
@@ -237,7 +243,7 @@ Column {
 
                         // Track title + QUEUED badge (compact mode) or artist line (legacy mode)
                         Column {
-                            x: row.isCompact ? 114 : 62
+                            x: row.showRank ? 114 : 62
                             width: parent.width - x - 12
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: row.isCompact ? 2 : 5
@@ -285,7 +291,8 @@ Column {
                                 width: parent.width
                                 text: !row.isCompact && row.modelData.track
                                     ? ((row.modelData.track.artists && row.modelData.track.artists.length
-                                        ? row.modelData.track.artists : row.modelData.album.artists || []).join(" · "))
+                                        ? row.modelData.track.artists : row.modelData.album.artists || []).concat(root.inlinePopular && row.modelData.releaseTitle
+                                            ? [row.modelData.releaseTitle] : []).join(" · "))
                                     : ""
                                 textFormat: Text.PlainText
                                 elide: Text.ElideRight
@@ -303,7 +310,7 @@ Column {
                         objectName: root.compactListMode
                             ? ("vinylArtistSinglesAlbum_" + row.index)
                             : ((root.fullView ? "vinylArtistFullSongAlbum_" : "vinylArtistSongAlbum_") + row.index)
-                        visible: !row.isCompact || parent.width >= 680
+                        visible: !root.inlinePopular && (!row.isCompact || parent.width >= 680)
                         x: parent.width * 0.62
                         width: root.compactQueueAvailable
                             ? Math.max(0, Math.min(parent.width * 0.28, parent.width - x - 134))
