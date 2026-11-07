@@ -1,7 +1,7 @@
 // PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
 
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import ".."
 
 Button {
