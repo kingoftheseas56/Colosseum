@@ -467,15 +467,15 @@ jobs:
             --qt "$QT_ROOT_DIR" --mpvqt "$MPVQT_ROOT" \
             --stage "$RUNNER_TEMP/arc78-linux-runtime" \
             --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID"
-          tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/arc78-linux-runtime.tar.gz" arc78-linux-runtime
-          sha256sum "$RUNNER_TEMP/arc78-linux-runtime.tar.gz"
+          tar -C "$RUNNER_TEMP" -cJf "$RUNNER_TEMP/arc78-linux-runtime.tar.xz" arc78-linux-runtime
+          sha256sum "$RUNNER_TEMP/arc78-linux-runtime.tar.xz"
 
       - name: Upload Linux onboarding validation runtime
         if: always() && steps.stage-linux-runtime.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: arc78-linux-runtime-${{ github.sha }}
-          path: ${{ runner.temp }}/arc78-linux-runtime.tar.gz
+          path: ${{ runner.temp }}/arc78-linux-runtime.tar.xz
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
