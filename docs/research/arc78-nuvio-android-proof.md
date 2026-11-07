@@ -35,8 +35,12 @@ References: [Android service processes](https://developer.android.com/guide/topi
 The same `WorkerMain.cpp` runs in the service. The Android-only entry obtains a
 bounded argument array and FD over an unexported Binder, then calls the common
 host routine. Desktop still starts the same executable and uses stdin/stdout
-process semantics. The normal Android build does not include fault hooks or the
-proof UI. `COLOSSEUM_NUVIO_ANDROID=OFF` removes both service Java and manifest
+process semantics. Android constructs `QAndroidService`, which releases the
+QtService startup handshake before Java delivers the job Binder; plain
+`QCoreApplication` would leave the Java service waiting. This uses Qt 6.11.1's
+private Core API and must be checked when upgrading Qt. The normal Android build
+does not include fault hooks or the proof UI. `COLOSSEUM_NUVIO_ANDROID=OFF` removes
+both service Java and manifest
 entries for the size baseline.
 
 Unchanged limits include:
@@ -81,6 +85,13 @@ retirement, pending cancellation, fast-crash PID retention, and four independent
 slots. It is not Android SDK or emulator evidence. Existing legacy build-graph
 text assertions have ten identical failures on the pristine source basis because
 they assume a former monolithic CMake layout; they were not changed for this task.
+
+Two existing CI prerequisites needed narrow repairs before building the pinned
+source: the CMake source-model test must ignore non-application library targets,
+and Android's TopBar must declare the DLNA intent already wired by shared hosts.
+The Android bar still has no DLNA button. The toolchain also needs Qt Quick 3D for
+the already-staged Dexter scene. Both size-comparison variants use these same
+prerequisites; their size delta isolates Nuvio rather than these repairs.
 
 Real-device follow-up remains necessary for OnePlus arm64 runtime, OEM background
 process/battery policy, memory pressure, the real credential store, TLS/network

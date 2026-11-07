@@ -54,6 +54,7 @@ jobs:
             python tests/android_emulator_smoke_test.py
             python tests/test_android_nuvio_proof_driver.py
             python tests/android_nuvio_bridge_test.py
+            python tests/test_android_toolchain_install.py
           } 2>&1 | tee android-preflight.log
 
       - name: Free disk space
@@ -80,6 +81,7 @@ jobs:
             ${{ steps.android-paths.outputs.toolchain }}/Qt
             ${{ steps.android-paths.outputs.sdk }}/ndk/27.2.12479018
           key: android-toolchain-v1-${{ hashFiles('scripts/android/install_toolchain.sh') }}
+          restore-keys: android-toolchain-v1-
 
       - name: Install toolchain
         run: scripts/android/install_toolchain.sh

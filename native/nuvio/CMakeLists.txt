@@ -72,6 +72,8 @@ if(ANDROID)
     add_library(colosseum-nuvio-host SHARED WorkerMain.cpp worker_resources.qrc)
     set_target_properties(colosseum-nuvio-host PROPERTIES
         OUTPUT_NAME colosseum_nuvio_host SUFFIX "_${ANDROID_ABI}.so")
+    # QAndroidService owns the QtService startup handshake in the pinned Qt kit.
+    target_link_libraries(colosseum-nuvio-host PRIVATE Qt6::CorePrivate)
     set_target_properties(colosseum_nuvio_quickjs colosseum_nuvio_tmdb_key
         PROPERTIES POSITION_INDEPENDENT_CODE ON)
     if(COLOSSEUM_NUVIO_ANDROID_PROOF)

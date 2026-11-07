@@ -32,6 +32,7 @@
 #ifdef Q_OS_ANDROID
 #include <QJniObject>
 #include <QJniEnvironment>
+#include <QtCore/private/qandroidextras_p.h>
 #include <unistd.h>
 #endif
 #ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
@@ -787,7 +788,15 @@ Promise.resolve().then(() => {
 
 int main(int argc, char **argv)
 {
+#ifdef Q_OS_ANDROID
+    // QtService.onCreate waits for Qt's service-setup semaphore. QAndroidService
+    // registers its listener on the first event turn; a plain QCoreApplication
+    // would leave onCreate waiting and prevent our Java Binder from delivering
+    // the arguments. The custom Java onBind still owns the actual job protocol.
+    QAndroidService app(argc, argv);
+#else
     QCoreApplication app(argc, argv);
+#endif
     qInstallMessageHandler([](QtMsgType, const QMessageLogContext &, const QString &) {});
 #ifdef Q_OS_ANDROID
     // QtService supplies the VM/context before main; JNI, Android DNS, TLS,
