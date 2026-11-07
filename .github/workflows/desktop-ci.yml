@@ -442,7 +442,51 @@ jobs:
           echo "COLOSSEUM_LINUX_BUILD=$build" >> "$GITHUB_ENV"
 
       - name: Build Linux desktop and tests
+        id: linux-build
         run: cmake --build "$COLOSSEUM_LINUX_BUILD" --parallel 2
+
+      - name: Run Nuvio account flow QML suite explicitly
+        env:
+          QT_QPA_PLATFORM: xcb
+          QT_FORCE_STDERR_LOGGING: "1"
+          QT_QUICK_BACKEND: software
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          xvfb-run -a "$COLOSSEUM_LINUX_BUILD/colosseum_qml_tests" \
+            -input "$GITHUB_WORKSPACE/tests/qml/tst_nuvio_account_flow.qml" \
+            -o "$RUNNER_TEMP/nuvio-account-flow.txt",txt
+          cat "$RUNNER_TEMP/nuvio-account-flow.txt"
+
+      - name: Stage Linux onboarding validation runtime
+        id: stage-linux-runtime
+        if: always() && steps.linux-build.outcome == 'success'
+        run: |
+          python scripts/package_linux_validation_runtime.py \
+            --source "$GITHUB_WORKSPACE" --build "$COLOSSEUM_LINUX_BUILD" \
+            --qt "$QT_ROOT_DIR" --mpvqt "$MPVQT_ROOT" \
+            --stage "$RUNNER_TEMP/arc78-linux-runtime" \
+            --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID"
+          tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/arc78-linux-runtime.tar.gz" arc78-linux-runtime
+          sha256sum "$RUNNER_TEMP/arc78-linux-runtime.tar.gz"
+
+      - name: Upload Linux onboarding validation runtime
+        if: always() && steps.stage-linux-runtime.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: arc78-linux-runtime-${{ github.sha }}
+          path: ${{ runner.temp }}/arc78-linux-runtime.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Upload Nuvio QML result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuvio-account-flow-${{ github.sha }}
+          path: ${{ runner.temp }}/nuvio-account-flow.txt
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Save Linux compiler cache
         if: always() && steps.restore-linux-ccache.outputs.cache-hit != 'true'
