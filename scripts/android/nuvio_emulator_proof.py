@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import shutil
 import shlex
 import subprocess
 import time
@@ -507,12 +508,44 @@ def run_proof(args: argparse.Namespace) -> int:
     return 0 if report["passed"] else 1
 
 
+def apk_launch_component(apk: Path, aapt: str | None = None) -> tuple[str, str]:
+    """Read identity from the tested APK, never infer Qt's generated package."""
+    if not apk.is_file():
+        raise ProofFailure(f"APK does not exist: {apk}")
+    if not aapt:
+        aapt = shutil.which("aapt")
+    if not aapt:
+        sdk = os.environ.get("ANDROID_SDK_ROOT") or os.environ.get("ANDROID_HOME")
+        candidates = sorted((Path(sdk) / "build-tools").glob("*/aapt")) if sdk else []
+        aapt = str(candidates[-1]) if candidates else None
+    if not aapt:
+        raise ProofFailure("Android aapt is required to read the APK launch component")
+    result = subprocess.run([aapt, "dump", "badging", str(apk)], capture_output=True,
+                            text=True, timeout=45)
+    if result.returncode:
+        raise ProofFailure(f"aapt could not read the APK: {result.stderr.strip()}")
+    packages = re.findall(r"^package: name='([^']+)'", result.stdout, re.M)
+    activities = re.findall(r"^launchable-activity: name='([^']+)'", result.stdout, re.M)
+    if len(packages) != 1 or len(activities) != 1:
+        raise ProofFailure("APK must identify exactly one package and launchable activity")
+    package, activity = packages[0], activities[0]
+    if activity.startswith("."):
+        activity = package + activity
+    java_name = r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_$]*)+"
+    if not re.fullmatch(java_name, package) or not re.fullmatch(java_name, activity):
+        raise ProofFailure("APK contains an invalid Android launch component")
+    return package, activity
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--adb", default=os.environ.get("ADB", "adb"))
     parser.add_argument("--serial", default=os.environ.get("ANDROID_SERIAL"))
-    parser.add_argument("--package", default="org.qtproject.example")
-    parser.add_argument("--activity", default="org.qtproject.qt.android.bindings.QtActivity")
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument("--apk", type=Path, help="Checksum-verified installed APK; read its real launch component")
+    target.add_argument("--package", help="Explicit installed package (no guessed default)")
+    parser.add_argument("--aapt", help="Optional Android SDK aapt executable")
+    parser.add_argument("--activity")
     parser.add_argument("--artifacts", type=Path, default=Path("nuvio-artifacts"))
     parser.add_argument("--commit", default="local")
     parser.add_argument("--timeout", type=int, default=540)
@@ -520,6 +553,16 @@ def main() -> int:
     parser.add_argument("--plugin", required=True)
     parser.add_argument("--media")
     args = parser.parse_args()
+    if args.apk:
+        try:
+            args.package, actual_activity = apk_launch_component(args.apk, args.aapt)
+        except (ProofFailure, OSError, subprocess.SubprocessError) as exc:
+            parser.error(str(exc))
+        if args.activity and args.activity != actual_activity:
+            parser.error("Explicit activity does not match the APK launch component")
+        args.activity = actual_activity
+    elif not args.activity:
+        parser.error("An explicit --package also requires its --activity")
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
     return run_proof(args)

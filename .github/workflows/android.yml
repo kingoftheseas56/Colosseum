@@ -314,7 +314,7 @@ jobs:
           disable-animations: true
           script: |
             bash scripts/android/emulator_smoke.sh apk/colosseum-x86_64-debug.apk nuvio-artifacts/startup 10
-            python scripts/android/nuvio_emulator_proof.py --artifacts nuvio-artifacts --commit "${{ github.sha }}" --repository "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tests/fixtures/nuvio-android-proof/manifest.json" --plugin public-domain-archive
+            python scripts/android/nuvio_emulator_proof.py --apk apk/colosseum-x86_64-debug.apk --artifacts nuvio-artifacts --commit "${{ github.sha }}" --repository "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tests/fixtures/nuvio-android-proof/manifest.json" --plugin public-domain-archive
       - uses: actions/upload-artifact@v4
         if: always()
         with:

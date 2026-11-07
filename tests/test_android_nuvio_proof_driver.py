@@ -225,6 +225,45 @@ class ProofContractTests(unittest.TestCase):
                 self.assertEqual(0 if stage == "success" else 1, code)
 
 
+class ApkLaunchIdentityTests(unittest.TestCase):
+    def test_reads_actual_qt_package_and_activity_from_apk(self):
+        text = "package: name='org.qtproject.example.colosseum' versionCode='1'\nlaunchable-activity: name='org.qtproject.qt.android.bindings.QtActivity' label=''\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            apk = Path(tmp) / "proof.apk"
+            apk.write_bytes(b"fixture")
+            completed = subprocess.CompletedProcess([], 0, text, "")
+            with patch.object(proof.subprocess, "run", return_value=completed) as run:
+                self.assertEqual(("org.qtproject.example.colosseum", "org.qtproject.qt.android.bindings.QtActivity"),
+                                 proof.apk_launch_component(apk, "/sdk/aapt"))
+                self.assertEqual(["/sdk/aapt", "dump", "badging", str(apk)], run.call_args.args[0])
+
+    def test_missing_ambiguous_or_invalid_components_fail_closed(self):
+        examples = ("package: name='org.example.app'\n",
+                    "package: name='org.example.app'\npackage: name='org.other.app'\nlaunchable-activity: name='.Main'\n",
+                    "package: name='../../invalid'\nlaunchable-activity: name='.Main'\n")
+        with tempfile.TemporaryDirectory() as tmp:
+            apk = Path(tmp) / "proof.apk"
+            apk.write_bytes(b"fixture")
+            for text in examples:
+                with self.subTest(text=text), patch.object(proof.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, text, "")), self.assertRaises(proof.ProofFailure):
+                    proof.apk_launch_component(apk, "/sdk/aapt")
+            with patch.object(proof.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", "invalid APK")), self.assertRaises(proof.ProofFailure):
+                proof.apk_launch_component(apk, "/sdk/aapt")
+
+    def test_relative_activity_is_qualified_with_the_actual_package(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            apk = Path(tmp) / "proof.apk"
+            apk.write_bytes(b"fixture")
+            text = "package: name='org.example.app'\nlaunchable-activity: name='.Main'\n"
+            with patch.object(proof.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, text, "")):
+                self.assertEqual(("org.example.app", "org.example.app.Main"), proof.apk_launch_component(apk, "/sdk/aapt"))
+
+    def test_workflow_supplies_the_same_checksum_verified_apk_for_identity(self):
+        workflow = (ROOT / ".github/workflows/android.yml").read_text()
+        self.assertIn("nuvio_emulator_proof.py --apk apk/colosseum-x86_64-debug.apk", workflow)
+        self.assertIn("cd apk && sha256sum -c colosseum-x86_64-debug.apk.sha256", workflow)
+
+
 class ResourceEvidenceTests(unittest.TestCase):
     package = "org.qtproject.example"
 
