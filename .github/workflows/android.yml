@@ -54,6 +54,7 @@ jobs:
             python tests/android_emulator_smoke_test.py
             python tests/test_android_nuvio_proof_driver.py
             python tests/test_android_nuvio_cmake.py
+            python tests/test_android_streamserver_stub.py
             python tests/android_nuvio_bridge_test.py
             python tests/test_android_toolchain_install.py
           } 2>&1 | tee android-preflight.log

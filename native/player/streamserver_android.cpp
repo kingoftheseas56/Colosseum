@@ -11,6 +11,12 @@ StreamServer::StreamServer(QObject *parent)
     m_engineUnavailable = true;
 }
 
+StreamServer::StreamServer(quint16 servicePort, QObject *parent)
+    : StreamServer(parent)
+{
+    Q_UNUSED(servicePort)
+}
+
 StreamServer::~StreamServer() = default;
 
 void StreamServer::setEngineUnavailable(bool unavailable)
@@ -33,6 +39,32 @@ void StreamServer::prefetch(const QString &infoHash, int fileIdx)
     Q_UNUSED(infoHash)
     Q_UNUSED(fileIdx)
     emit streamError(kUnavailableMessage);
+}
+
+void StreamServer::requestManifest(const QString &token, const QString &infoHash)
+{
+    requestMagnetManifest(token, infoHash, {});
+}
+
+void StreamServer::requestMagnetManifest(const QString &token, const QString &infoHash,
+                                        const QString &magnet)
+{
+    Q_UNUSED(infoHash)
+    Q_UNUSED(magnet)
+    emit torrentRequestError(token, kUnavailableMessage);
+}
+
+void StreamServer::requestFile(const QString &token, const QString &infoHash, int fileIdx)
+{
+    Q_UNUSED(infoHash)
+    Q_UNUSED(fileIdx)
+    emit torrentRequestError(token, kUnavailableMessage);
+}
+
+void StreamServer::cancelRequest(const QString &token)
+{
+    // Unsupported requests complete immediately; no server or pending work exists.
+    Q_UNUSED(token)
 }
 
 void StreamServer::warmUp()

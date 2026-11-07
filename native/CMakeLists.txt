@@ -848,6 +848,8 @@ if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux" OR (ANDROID AND COLOSSEUM_NUVIO_A
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_NUVIO_PLUGINS)
     add_dependencies(colosseum colosseum-nuvio-host)
     if(ANDROID)
+        # Desktop links this below with its harness estate, which Android skips.
+        target_link_libraries(colosseum PRIVATE colosseum_nuvio)
         set_property(TARGET colosseum APPEND PROPERTY QT_ANDROID_EXTRA_LIBS
             "${CMAKE_CURRENT_BINARY_DIR}/nuvio/libcolosseum_nuvio_host_${ANDROID_ABI}.so")
         if(COLOSSEUM_NUVIO_ANDROID_PROOF)
