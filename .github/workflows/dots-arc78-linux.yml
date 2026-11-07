@@ -76,15 +76,16 @@ jobs:
         aqtsource: git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b
         cache: true
     - name: Install Linux desktop dependencies
-      run: "sudo apt-get update\nsudo apt-get install -y --no-install-recommends \\\n  build-essential ninja-build\
-        \ pkg-config ccache \\\n  libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev\
-        \ \\\n  libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 \\\n  xvfb xauth ffmpeg p7zip-full\
-        \ libarchive-tools patchelf dpkg-dev libgdk-pixbuf-2.0-dev librsvg2-common gnome-keyring dbus-daemon xdotool\
-        \ scrot\nccache --max-size=1G\n"
+      run: "sudo apt-get update\nsudo apt-get install -y --no-install-recommends \\\n  build-essential ninja-build pkg-config\
+        \ ccache \\\n  libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev libsecret-tools \\\n\
+        \  libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 \\\n  xvfb xauth ffmpeg p7zip-full libarchive-tools\
+        \ patchelf dpkg-dev libgdk-pixbuf-2.0-dev librsvg2-common gnome-keyring dbus-daemon xdotool scrot\nccache --max-size=1G\n"
     - name: Linux release packaging contract
-      run: |
-        # Relocation fixtures must not inherit the build SDK loader override.
+      run: '# Relocation fixtures must not inherit the build SDK loader override.
+
         env -u LD_LIBRARY_PATH -u LD_PRELOAD python3 tools/linux-release/test_packaging.py
+
+        '
     - name: Install and verify Linux clang-tidy
       id: clang_tidy_setup
       timeout-minutes: 90
@@ -123,32 +124,30 @@ jobs:
     - name: Build Extra CMake Modules
       run: "archive=\"$RUNNER_TEMP/extra-cmake-modules.tar.xz\"\nsource=\"$RUNNER_TEMP/ecm-source\"\nbuild=\"$RUNNER_TEMP/ecm-build\"\
         \ninstall=\"$RUNNER_TEMP/ecm-install\"\ncurl --fail --location --retry 3 \\\n  \"https://download.kde.org/Attic/frameworks/6.15/extra-cmake-modules-$ECM_VERSION.tar.xz\"\
-        \ \\\n  --output \"$archive\"\necho \"$ECM_SHA256  $archive\" | sha256sum --check --strict\nmkdir -p \"\
-        $source\"\ntar -xf \"$archive\" -C \"$source\" --strip-components=1\ncmake -S \"$source\" -B \"$build\"\
-        \ -G Ninja \\\n  -DCMAKE_BUILD_TYPE=Release \\\n  -DBUILD_TESTING=OFF \\\n  -DCMAKE_INSTALL_PREFIX=\"$install\"\
-        \ncmake --build \"$build\" --target install --parallel 2\necho \"ECM_ROOT=$install\" >> \"$GITHUB_ENV\"\n"
+        \ \\\n  --output \"$archive\"\necho \"$ECM_SHA256  $archive\" | sha256sum --check --strict\nmkdir -p \"$source\"\n\
+        tar -xf \"$archive\" -C \"$source\" --strip-components=1\ncmake -S \"$source\" -B \"$build\" -G Ninja \\\n  -DCMAKE_BUILD_TYPE=Release\
+        \ \\\n  -DBUILD_TESTING=OFF \\\n  -DCMAKE_INSTALL_PREFIX=\"$install\"\ncmake --build \"$build\" --target install --parallel\
+        \ 2\necho \"ECM_ROOT=$install\" >> \"$GITHUB_ENV\"\n"
     - name: Build MpvQt
       run: "archive=\"$RUNNER_TEMP/mpvqt.tar.xz\"\nsource=\"$RUNNER_TEMP/mpvqt-source\"\nbuild=\"$RUNNER_TEMP/mpvqt-build\"\
         \ninstall=\"$RUNNER_TEMP/mpvqt-install\"\ncurl --fail --location --retry 3 --retry-all-errors \\\n  --retry-delay\
         \ 5 --connect-timeout 30 --max-time 180 \\\n  \"https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz\"\
-        \ \\\n  --output \"$archive\"\necho \"$MPVQT_SHA256  $archive\" | sha256sum --check --strict\nmkdir -p \"\
-        $source\"\ntar -xf \"$archive\" -C \"$source\" --strip-components=1\ncmake -S \"$source\" -B \"$build\"\
-        \ -G Ninja \\\n  -DCMAKE_BUILD_TYPE=Release \\\n  -DBUILD_EXAMPLES=OFF \\\n  -DCMAKE_INSTALL_PREFIX=\"$install\"\
-        \ \\\n  -DCMAKE_PREFIX_PATH=\"$QT_ROOT_DIR;$ECM_ROOT\"\ncmake --build \"$build\" --target install --parallel\
-        \ 2\necho \"MPVQT_ROOT=$install\" >> \"$GITHUB_ENV\"\n"
+        \ \\\n  --output \"$archive\"\necho \"$MPVQT_SHA256  $archive\" | sha256sum --check --strict\nmkdir -p \"$source\"\
+        \ntar -xf \"$archive\" -C \"$source\" --strip-components=1\ncmake -S \"$source\" -B \"$build\" -G Ninja \\\n  -DCMAKE_BUILD_TYPE=Release\
+        \ \\\n  -DBUILD_EXAMPLES=OFF \\\n  -DCMAKE_INSTALL_PREFIX=\"$install\" \\\n  -DCMAKE_PREFIX_PATH=\"$QT_ROOT_DIR;$ECM_ROOT\"\
+        \ncmake --build \"$build\" --target install --parallel 2\necho \"MPVQT_ROOT=$install\" >> \"$GITHUB_ENV\"\n"
     - name: Configure Colosseum on Linux
       env:
         COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
-      run: "build=\"$RUNNER_TEMP/colosseum-linux-build\"\nprefix=\"$QT_ROOT_DIR;$ECM_ROOT;$MPVQT_ROOT\"\ncmake -S\
-        \ native -B \"$build\" -G Ninja \\\n  -DCMAKE_BUILD_TYPE=Release \\\n  -DBUILD_TESTING=ON \\\n    -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF\
+      run: "build=\"$RUNNER_TEMP/colosseum-linux-build\"\nprefix=\"$QT_ROOT_DIR;$ECM_ROOT;$MPVQT_ROOT\"\ncmake -S native -B\
+        \ \"$build\" -G Ninja \\\n  -DCMAKE_BUILD_TYPE=Release \\\n  -DBUILD_TESTING=ON \\\n    -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF\
         \ \\\n    -DCOLOSSEUM_UPDATE_TESTING=OFF \\\n    -DCOLOSSEUM_FERIA_IN_APP=OFF \\\n    -DCOLOSSEUM_VINYL_IN_APP=OFF\
-        \ \\\n    -DCOLOSSEUM_ENABLE_VINYL_QUALIFICATION=OFF \\\n    -DCOLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=OFF\
-        \ \\\n    -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev\
+        \ \\\n    -DCOLOSSEUM_ENABLE_VINYL_QUALIFICATION=OFF \\\n    -DCOLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=OFF \\\n    -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev\
         \ \\\n  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \\\n  -DCOLOSSEUM_BUILD_PLAYER2=OFF \\\n  -DCOLOSSEUM_PLAYER2_IN_APP=OFF\
         \ \\\n  -DCOLOSSEUM_NO_COMPILER_CACHE=ON \\\n  -DCMAKE_C_COMPILER_LAUNCHER=ccache \\\n  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache\
         \ \\\n  -DCMAKE_PREFIX_PATH=\"$prefix\" \\\n  -DMPVQT_PREFIX=\"$MPVQT_ROOT\"\ngrep -Eq '^CMAKE_C_COMPILER_LAUNCHER:.*=ccache$'\
-        \ \"$build/CMakeCache.txt\"\ngrep -Eq '^CMAKE_CXX_COMPILER_LAUNCHER:.*=ccache$' \"$build/CMakeCache.txt\"\
-        \necho \"COLOSSEUM_LINUX_BUILD=$build\" >> \"$GITHUB_ENV\"\n"
+        \ \"$build/CMakeCache.txt\"\ngrep -Eq '^CMAKE_CXX_COMPILER_LAUNCHER:.*=ccache$' \"$build/CMakeCache.txt\"\necho \"\
+        COLOSSEUM_LINUX_BUILD=$build\" >> \"$GITHUB_ENV\"\n"
     - name: Build Linux desktop and tests
       run: cmake --build "$COLOSSEUM_LINUX_BUILD" --parallel 2
     - name: Save Linux compiler cache
@@ -160,89 +159,94 @@ jobs:
     - name: Audit Linux CTest inventory
       run: "inventory=\"$RUNNER_TEMP/ctest-inventory.json\"\nctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" --show-only=json-v1\
         \ > \"$inventory\"\npython - \"$inventory\" <<'PY'\nimport json\nimport sys\n\ntests = json.load(open(sys.argv[1],\
-        \ encoding=\"utf-8\"))[\"tests\"]\nwindows = []\nnon_windows = []\nrequires_x11 = []\nshell_leaks = []\n\
-        missing_commands = []\nnuvio_tests = {\n    \"colosseum.nuvio_repository_store_test\",\n    \"colosseum.nuvio_plugin_host_test\"\
-        ,\n    \"colosseum.nuvio_source_resolver_test\",\n}\ncanary = None\nfor test in tests:\n    props = {p[\"\
-        name\"]: p[\"value\"] for p in test.get(\"properties\", [])}\n    labels = {str(label).lower() for label\
-        \ in props.get(\"LABELS\", [])}\n    command = test.get(\"command\", [])\n    if \"windows\" in labels:\n\
-        \        windows.append(test[\"name\"])\n    else:\n        non_windows.append(test[\"name\"])\n    if \"\
-        requires-x11\" in labels:\n        requires_x11.append(test[\"name\"])\n    if \"windows\" not in labels\
-        \ and not command:\n        missing_commands.append(test[\"name\"])\n    if command and \"powershell\" in\
-        \ str(command[0]).lower() and \"windows\" not in labels:\n        shell_leaks.append(test[\"name\"])\n \
-        \   if test[\"name\"] == \"colosseum.selftest.red_canary\":\n        canary = props.get(\"WILL_FAIL\")\n\
+        \ encoding=\"utf-8\"))[\"tests\"]\nwindows = []\nnon_windows = []\nrequires_x11 = []\nshell_leaks = []\nmissing_commands\
+        \ = []\nnuvio_tests = {\n    \"colosseum.nuvio_repository_store_test\",\n    \"colosseum.nuvio_plugin_host_test\"\
+        ,\n    \"colosseum.nuvio_source_resolver_test\",\n}\ncanary = None\nfor test in tests:\n    props = {p[\"name\"]:\
+        \ p[\"value\"] for p in test.get(\"properties\", [])}\n    labels = {str(label).lower() for label in props.get(\"\
+        LABELS\", [])}\n    command = test.get(\"command\", [])\n    if \"windows\" in labels:\n        windows.append(test[\"\
+        name\"])\n    else:\n        non_windows.append(test[\"name\"])\n    if \"requires-x11\" in labels:\n        requires_x11.append(test[\"\
+        name\"])\n    if \"windows\" not in labels and not command:\n        missing_commands.append(test[\"name\"])\n   \
+        \ if command and \"powershell\" in str(command[0]).lower() and \"windows\" not in labels:\n        shell_leaks.append(test[\"\
+        name\"])\n    if test[\"name\"] == \"colosseum.selftest.red_canary\":\n        canary = props.get(\"WILL_FAIL\")\n\
         \nprint(f\"CTEST_TOTAL={len(tests)}\")\nprint(f\"CTEST_WINDOWS={len(windows)}\")\nprint(f\"CTEST_NON_WINDOWS={len(non_windows)}\"\
-        )\nprint(f\"CTEST_REQUIRES_X11={len(requires_x11)}\")\nregistered = {test[\"name\"] for test in tests}\n\
-        missing_nuvio = sorted(nuvio_tests - registered)\nif missing_nuvio:\n    raise SystemExit(f\"missing Nuvio\
-        \ CTests: {missing_nuvio}\")\nnuvio_windows = sorted(nuvio_tests.intersection(windows))\nif nuvio_windows:\n\
-        \    raise SystemExit(f\"Nuvio CTests must remain runnable on Linux: {nuvio_windows}\")\nexpected_x11 =\
-        \ [\"colosseum.qttest.journey_play_video\"]\nif requires_x11 != expected_x11:\n    raise SystemExit(f\"\
-        unexpected X11 CTest inventory: {requires_x11}\")\nif shell_leaks:\n    raise SystemExit(f\"PowerShell tests\
-        \ leaked into Linux surface: {shell_leaks}\")\nif missing_commands:\n    raise SystemExit(f\"Linux CTests\
-        \ have unresolved commands: {missing_commands}\")\nif canary is not True:\n    raise SystemExit(f\"red canary\
-        \ lost WILL_FAIL semantics: {canary!r}\")\nPY\nctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" -N -LE windows\n"
+        )\nprint(f\"CTEST_REQUIRES_X11={len(requires_x11)}\")\nregistered = {test[\"name\"] for test in tests}\nmissing_nuvio\
+        \ = sorted(nuvio_tests - registered)\nif missing_nuvio:\n    raise SystemExit(f\"missing Nuvio CTests: {missing_nuvio}\"\
+        )\nnuvio_windows = sorted(nuvio_tests.intersection(windows))\nif nuvio_windows:\n    raise SystemExit(f\"Nuvio CTests\
+        \ must remain runnable on Linux: {nuvio_windows}\")\nexpected_x11 = [\"colosseum.qttest.journey_play_video\"]\nif\
+        \ requires_x11 != expected_x11:\n    raise SystemExit(f\"unexpected X11 CTest inventory: {requires_x11}\")\nif shell_leaks:\n\
+        \    raise SystemExit(f\"PowerShell tests leaked into Linux surface: {shell_leaks}\")\nif missing_commands:\n    raise\
+        \ SystemExit(f\"Linux CTests have unresolved commands: {missing_commands}\")\nif canary is not True:\n    raise SystemExit(f\"\
+        red canary lost WILL_FAIL semantics: {canary!r}\")\nPY\nctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" -N -LE windows\n"
     - name: Advisory Vinyl CTests
       continue-on-error: true
       env:
         QT_QPA_PLATFORM: offscreen
         QT_FORCE_STDERR_LOGGING: '1'
-      run: "# Vinyl remains advisory until Vinyl is scheduled.\nctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n\
-        \  -L \"^vinyl$\" \\\n  -LE \"^(windows|requires-x11)$\" \\\n  --output-on-failure \\\n  --no-tests=error\
-        \ \\\n  --parallel 1\n"
+      run: "# Vinyl remains advisory until Vinyl is scheduled.\nctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n  -L \"^vinyl$\"\
+        \ \\\n  -LE \"^(windows|requires-x11)$\" \\\n  --output-on-failure \\\n  --no-tests=error \\\n  --parallel 1\n"
     - name: Explicit Nuvio and Sources Sheet tests
       env:
         QT_QPA_PLATFORM: offscreen
         QT_QUICK_BACKEND: software
         QT_FORCE_STDERR_LOGGING: '1'
-      run: |
-        mkdir -p linux-evidence
-        ctest --test-dir "$COLOSSEUM_LINUX_BUILD" -R '^colosseum\.nuvio_(repository_store|plugin_host|source_resolver)_test$' --no-tests=error --output-on-failure 2>&1 | tee linux-evidence/nuvio-ctests.log
+      run: 'mkdir -p linux-evidence
+
+        ctest --test-dir "$COLOSSEUM_LINUX_BUILD" -R ''^colosseum\.nuvio_(repository_store|plugin_host|source_resolver)_test$''
+        --no-tests=error --output-on-failure 2>&1 | tee linux-evidence/nuvio-ctests.log
+
         "$COLOSSEUM_LINUX_BUILD/colosseum_qml_tests" -input tests/qml/tst_sources_sheet_nuvio.qml 2>&1 | tee linux-evidence/sources-sheet-qml.log
+
+        '
     - name: Run platform-neutral Linux CTests
       env:
         QT_QPA_PLATFORM: offscreen
         QT_FORCE_STDERR_LOGGING: '1'
-      run: "ctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n  -LE \"^(windows|requires-x11|vinyl)$\" \\\n  --output-on-failure\
-        \ \\\n  --parallel 1\n"
+      run: "# A reachable Secret Service is not necessarily an unlocked writable vault.\n# Exercise the real Linux credential\
+        \ backend with a disposable private keyring.\nkeyring_root=\"$(mktemp -d)\"\ntrap 'rm -rf \"$keyring_root\"' EXIT\n\
+        mkdir -p \"$keyring_root/data\" \"$keyring_root/config\" \"$keyring_root/runtime\" \"$keyring_root/control\"\nchmod\
+        \ 700 \"$keyring_root/runtime\"\nXDG_DATA_HOME=\"$keyring_root/data\" XDG_CONFIG_HOME=\"$keyring_root/config\" \\\n\
+        XDG_RUNTIME_DIR=\"$keyring_root/runtime\" GNOME_KEYRING_CONTROL=\"$keyring_root/control\" \\\ndbus-run-session --\
+        \ bash -euo pipefail -c '\n  printf \"%s\\n\" \"isolated-validation-password\" | gnome-keyring-daemon --unlock --components=secrets\
+        \ --control-directory \"$GNOME_KEYRING_CONTROL\"\n  printf \"%s\" \"roundtrip-proof\" | secret-tool store --label=\"\
+        CI availability probe\" colosseum-ci probe\n  test \"$(secret-tool lookup colosseum-ci probe)\" = \"roundtrip-proof\"\
+        \n  secret-tool clear colosseum-ci probe\n  ctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n    -LE \"^(windows|requires-x11|vinyl)$\"\
+        \ \\\n    --output-on-failure --parallel 1\n'\n"
     - name: Run X11-dependent Linux CTests
       env:
         QT_QPA_PLATFORM: xcb
         QT_FORCE_STDERR_LOGGING: '1'
         LIBGL_ALWAYS_SOFTWARE: '1'
-      run: "xvfb-run -a ctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n  -L requires-x11 \\\n  -LE windows \\\n\
-        \  --output-on-failure \\\n  --parallel 1\n"
+      run: "xvfb-run -a ctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n  -L requires-x11 \\\n  -LE windows \\\n  --output-on-failure\
+        \ \\\n  --parallel 1\n"
     - name: Build matching Qt TIFF plugin with bundled libtiff
       run: "git init \"$RUNNER_TEMP/qtimageformats\"\ngit -C \"$RUNNER_TEMP/qtimageformats\" remote add origin https://github.com/qt/qtimageformats.git\n\
-        git -C \"$RUNNER_TEMP/qtimageformats\" fetch --depth 1 origin 77f35e5694885844c3eb3a737769b5ed290b8ccc\n\
-        git -C \"$RUNNER_TEMP/qtimageformats\" checkout --detach FETCH_HEAD\ncmake -S \"$RUNNER_TEMP/qtimageformats\"\
-        \ -B \"$RUNNER_TEMP/qtimageformats-build\" -G Ninja \\\n  -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=\"\
-        $QT_ROOT_DIR\" \\\n  -DFEATURE_system_tiff=OFF -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF\ncmake --build\
-        \ \"$RUNNER_TEMP/qtimageformats-build\" --target QTiffPlugin --parallel 2\n"
+        git -C \"$RUNNER_TEMP/qtimageformats\" fetch --depth 1 origin 77f35e5694885844c3eb3a737769b5ed290b8ccc\ngit -C \"\
+        $RUNNER_TEMP/qtimageformats\" checkout --detach FETCH_HEAD\ncmake -S \"$RUNNER_TEMP/qtimageformats\" -B \"$RUNNER_TEMP/qtimageformats-build\"\
+        \ -G Ninja \\\n  -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=\"$QT_ROOT_DIR\" \\\n  -DFEATURE_system_tiff=OFF -DQT_BUILD_EXAMPLES=OFF\
+        \ -DQT_BUILD_TESTS=OFF\ncmake --build \"$RUNNER_TEMP/qtimageformats-build\" --target QTiffPlugin --parallel 2\n"
     - name: Assemble and verify Linux runtime
       run: "notices=\"$RUNNER_TEMP/notices\"\nmkdir -p \"$notices/host-copyrights\"\ncp -r \"$RUNNER_TEMP/mpvqt-source/LICENSES\"\
         \ \"$notices/MpvQt-LICENSES\"\ncp -r \"$RUNNER_TEMP/qtimageformats/LICENSES\" \"$notices/QtImageFormats-LICENSES\"\
-        \ncp \"$RUNNER_TEMP/qtimageformats/src/3rdparty/libtiff/COPYRIGHT\" \"$notices/libtiff-COPYRIGHT\"\ncp \"\
-        $RUNNER_TEMP/qtimageformats/src/3rdparty/libtiff/qt_attribution.json\" \"$notices/libtiff-qt_attribution.json\"\
-        \nfind /usr/share/doc -name copyright -type f -exec cp --parents '{}' \"$notices/host-copyrights/\" ';'\n\
-        dpkg-query -W -f='${Package}\\t${Version}\\t${source:Package}\\t${source:Version}\\n' > \"$notices/ubuntu-package-provenance.tsv\"\
-        \nprintf '%s\\n' 'Private review candidate. Bundled libmpv/FFmpeg/Qt dependencies retain their own licenses.\
-        \ Corresponding-source and redistribution obligations remain a public-release gate.' > \"$notices/NOTICE-CANDIDATE.txt\"\
-        \nargs=()\n# The app uses SQLite, not the SDK's optional external database clients.\nfor plugin in \"$QT_ROOT_DIR\"\
-        /plugins/sqldrivers/*.so; do\n  [[ \"$(basename \"$plugin\")\" == libqsqlite.so ]] || args+=(--exclude-plugin\
-        \ \"sqldrivers/$(basename \"$plugin\")\")\ndone\ntiff=\"$(find \"$RUNNER_TEMP/qtimageformats-build\" -name\
-        \ libqtiff.so -type f -print -quit)\"\ntest -n \"$tiff\"\nargs+=(--plugin-override \"imageformats/libqtiff.so=$tiff\"\
-        )\npixbuf_loaders=\"$(pkg-config --variable=gdk_pixbuf_moduledir gdk-pixbuf-2.0)\"\npixbuf_query=\"$(pkg-config\
-        \ --variable=gdk_pixbuf_query_loaders gdk-pixbuf-2.0)\"\ntest -d \"$pixbuf_loaders\"\ntest -x \"$pixbuf_query\"\
-        \nargs+=(--gdk-pixbuf-loaders-dir \"$pixbuf_loaders\" --gdk-pixbuf-query-loaders \"$pixbuf_query\")\npython3\
-        \ tools/linux-release/assemble.py \\\n  --source \"$GITHUB_WORKSPACE\" --build \"$COLOSSEUM_LINUX_BUILD\"\
-        \ --qt \"$QT_ROOT_DIR\" \\\n  --stage \"$RUNNER_TEMP/AppDir\" --commit \"$(git rev-parse HEAD)\" --patchelf\
-        \ \"$(command -v patchelf)\" \\\n  --dep-lib \"$RUNNER_TEMP/mpvqt-install/lib\" --dep-lib \"$RUNNER_TEMP/mpvqt-install/lib/x86_64-linux-gnu\"\
-        \ \\\n  --binary /usr/bin/ffmpeg --binary /usr/bin/ffprobe --dependency-notices \"$notices\" \"${args[@]}\"\
-        \nmkdir -p release-output\npython3 tools/linux-release/check_package.py \"$RUNNER_TEMP/AppDir\" --report\
-        \ release-output/package-check.json\npython3 scripts/linux_runtime_dependency_gate.py --appdir \"$RUNNER_TEMP/AppDir\"\
-        \ncp \"$RUNNER_TEMP/AppDir/BUILD-IDENTITY.json\" release-output/\npython3 tools/linux-release/package_deb.py\
-        \ --stage \"$RUNNER_TEMP/AppDir\" --output release-output/Colosseum-arc78-linux-amd64.deb\nar t release-output/Colosseum-arc78-linux-amd64.deb\
-        \ > release-output/deb-archive-members.txt\nprintf 'debian-binary\\ncontrol.tar.xz\\ndata.tar.xz\\n' | diff\
-        \ -u - release-output/deb-archive-members.txt\n"
+        \ncp \"$RUNNER_TEMP/qtimageformats/src/3rdparty/libtiff/COPYRIGHT\" \"$notices/libtiff-COPYRIGHT\"\ncp \"$RUNNER_TEMP/qtimageformats/src/3rdparty/libtiff/qt_attribution.json\"\
+        \ \"$notices/libtiff-qt_attribution.json\"\nfind /usr/share/doc -name copyright -type f -exec cp --parents '{}' \"\
+        $notices/host-copyrights/\" ';'\ndpkg-query -W -f='${Package}\\t${Version}\\t${source:Package}\\t${source:Version}\\\
+        n' > \"$notices/ubuntu-package-provenance.tsv\"\nprintf '%s\\n' 'Private review candidate. Bundled libmpv/FFmpeg/Qt\
+        \ dependencies retain their own licenses. Corresponding-source and redistribution obligations remain a public-release\
+        \ gate.' > \"$notices/NOTICE-CANDIDATE.txt\"\nargs=()\n# The app uses SQLite, not the SDK's optional external database\
+        \ clients.\nfor plugin in \"$QT_ROOT_DIR\"/plugins/sqldrivers/*.so; do\n  [[ \"$(basename \"$plugin\")\" == libqsqlite.so\
+        \ ]] || args+=(--exclude-plugin \"sqldrivers/$(basename \"$plugin\")\")\ndone\ntiff=\"$(find \"$RUNNER_TEMP/qtimageformats-build\"\
+        \ -name libqtiff.so -type f -print -quit)\"\ntest -n \"$tiff\"\nargs+=(--plugin-override \"imageformats/libqtiff.so=$tiff\"\
+        )\npixbuf_loaders=\"$(pkg-config --variable=gdk_pixbuf_moduledir gdk-pixbuf-2.0)\"\npixbuf_query=\"$(pkg-config --variable=gdk_pixbuf_query_loaders\
+        \ gdk-pixbuf-2.0)\"\ntest -d \"$pixbuf_loaders\"\ntest -x \"$pixbuf_query\"\nargs+=(--gdk-pixbuf-loaders-dir \"$pixbuf_loaders\"\
+        \ --gdk-pixbuf-query-loaders \"$pixbuf_query\")\npython3 tools/linux-release/assemble.py \\\n  --source \"$GITHUB_WORKSPACE\"\
+        \ --build \"$COLOSSEUM_LINUX_BUILD\" --qt \"$QT_ROOT_DIR\" \\\n  --stage \"$RUNNER_TEMP/AppDir\" --commit \"$(git\
+        \ rev-parse HEAD)\" --patchelf \"$(command -v patchelf)\" \\\n  --dep-lib \"$RUNNER_TEMP/mpvqt-install/lib\" --dep-lib\
+        \ \"$RUNNER_TEMP/mpvqt-install/lib/x86_64-linux-gnu\" \\\n  --binary /usr/bin/ffmpeg --binary /usr/bin/ffprobe --dependency-notices\
+        \ \"$notices\" \"${args[@]}\"\nmkdir -p release-output\npython3 tools/linux-release/check_package.py \"$RUNNER_TEMP/AppDir\"\
+        \ --report release-output/package-check.json\npython3 scripts/linux_runtime_dependency_gate.py --appdir \"$RUNNER_TEMP/AppDir\"\
+        \ncp \"$RUNNER_TEMP/AppDir/BUILD-IDENTITY.json\" release-output/\npython3 tools/linux-release/package_deb.py --stage\
+        \ \"$RUNNER_TEMP/AppDir\" --output release-output/Colosseum-arc78-linux-amd64.deb\nar t release-output/Colosseum-arc78-linux-amd64.deb\
+        \ > release-output/deb-archive-members.txt\nprintf 'debian-binary\\ncontrol.tar.xz\\ndata.tar.xz\\n' | diff -u - release-output/deb-archive-members.txt\n"
     - name: Upload exact Linux package and identity
       uses: actions/upload-artifact@v4
       with:
