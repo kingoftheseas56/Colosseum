@@ -8,7 +8,10 @@
 #include "engine/ExtensionsStore.h"
 
 #include <QDateTime>
+#include <QDir>
+#include <QFile>
 #include <QJsonArray>
+#include <QUrlQuery>
 #include <QJsonDocument>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -70,6 +73,17 @@ QJsonObject progressRow(const QString &id, qint64 at, qint64 position) {
         {"progress_key", id}, {"position", position}, {"duration", 100000}, {"last_watched", at}};
 }
 
+QJsonObject episodeRow(const QString &id, int episode, qint64 at) {
+    auto row = progressRow(id, at, 25000);
+    row.insert("content_type", "series");
+    row.insert("season", 1);
+    row.insert("episode", episode);
+    row.insert("progress_key", QStringLiteral("%1_s1e%2").arg(id).arg(episode));
+    row.insert("video_id", QStringLiteral("%1:1:%2").arg(id).arg(episode));
+    row.insert("watched_at", at);
+    return row;
+}
+
 struct Fixture {
     QTemporaryDir temporary;
     Vault vault;
@@ -93,11 +107,15 @@ struct Fixture {
     NuvioApi::Completion heldDelta;
     bool holdNextDelta = false;
     bool failNextRefresh = false;
+    bool offline = false;
+    QHash<QString, QJsonArray> deletes;
     NuvioAccount account{&vault, nullptr, [this](const QString &path, bool, const QJsonObject &body,
         const QByteArray &, NuvioApi::Completion done) {
         const QString method = path.section('/', -1);
         ++calls[method];
-        if (method == QLatin1String("token?grant_type=password")) {
+        if (offline) {
+            done({503, {}, {}});
+        } else if (method == QLatin1String("token?grant_type=password")) {
             done(tokenReply());
         } else if (method == QLatin1String("token?grant_type=refresh_token")) {
             done(failNextRefresh ? NuvioApi::Reply{400, {}, {}} : tokenReply());
@@ -135,6 +153,27 @@ struct Fixture {
             done({200, positions, {}});
         } else if (path.startsWith(QLatin1String("/rest/v1/addons?"))) {
             done({200, addonRows, {}});
+        } else if (path.startsWith(QLatin1String("/rest/v1/watch_progress?"))) {
+            const QUrlQuery query(QUrl(QStringLiteral("https://fixture.invalid") + path));
+            QCOMPARE(query.queryItemValue("profile_id"), QStringLiteral("eq.1"));
+            QCOMPARE(query.queryItemValue("offset"), QStringLiteral("0"));
+            const QString id = query.queryItemValue("content_id").mid(3);
+            const QString type = query.queryItemValue("content_type").mid(3);
+            const qint64 before = query.queryItemValue("last_watched").mid(4).toLongLong();
+            QJsonArray rows;
+            for (const auto &value : positions) {
+                const auto row = value.toObject();
+                if (row.value("content_id") == id && row.value("content_type") == type
+                    && row.value("last_watched").toInteger() <= before) {
+                    rows.append(row);
+                }
+            }
+            done({200, rows, {}});
+        } else if (method.startsWith(QLatin1String("sync_delete_"))) {
+            QCOMPARE(body.value("p_profile_id").toInt(), 1);
+            for (const auto &key : body.value("p_keys").toArray())
+                deletes[method].append(key);
+            done({204, {}, {}});
         } else if (method == QLatin1String("sync_push_watch_progress")) {
             const QJsonArray rows = body.value("p_entries").toArray();
             for (const QJsonValue &row : rows)
@@ -196,6 +235,7 @@ private slots:
     void cancellationFencesLateRepliesAndRetryAfterStopsRequests();
     void previewedImportIsScopedDatedAndRepeatable();
     void firstRunAndPrimaryRoundTripAreFenced();
+    void offlineRemovalsSurviveReloadAndReachNuvio();
 };
 
 void tst_nuvio_api::signInIsStagedAndDisconnectClearsTokens() {
@@ -484,6 +524,91 @@ void tst_nuvio_api::firstRunAndPrimaryRoundTripAreFenced() {
     QVERIFY(!fixture.account.busy());
     QCOMPARE(fixture.pushedProgress.size(), 1);
     QCOMPARE(fixture.calls.value("sync_delete_watched_items"), 0);
+}
+
+void tst_nuvio_api::offlineRemovalsSurviveReloadAndReachNuvio() {
+    Fixture fixture;
+    QVERIFY(fixture.temporary.isValid());
+    const QString show = QStringLiteral("tt991000001");
+    const QString first = show + QStringLiteral(":1:1");
+    const QString second = show + QStringLiteral(":1:2");
+    const QString unrelated = QStringLiteral("tt991000002:1:1");
+    auto library = libraryRow(show, 1000);
+    library.insert("content_type", "series");
+    fixture.library = {library};
+    fixture.watched = {episodeRow(show, 1, 2000), episodeRow(show, 2, 2100)};
+    fixture.positions = {episodeRow(show, 1, 3000), episodeRow(show, 2, 3100),
+        episodeRow(QStringLiteral("tt991000002"), 1, 3200)};
+    fixture.activate();
+    fixture.signIn();
+    fixture.account.previewProfile(1, true);
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("preview"));
+    fixture.account.apply(true);
+    QTRY_VERIFY(!fixture.account.busy());
+    QVERIFY2(fixture.account.phase() == QStringLiteral("done"), qPrintable(fixture.account.message()));
+    QVERIFY(fixture.collection.has("theatre", show));
+    QVERIFY(!fixture.history.get("episode", first).isEmpty());
+    QVERIFY(!fixture.progress.get("video", first).isEmpty());
+
+    fixture.offline = true;
+    QVERIFY(fixture.collection.remove("theatre", show));
+    QVERIFY(fixture.account.unwatchEpisode(first));
+    QVERIFY(fixture.progress.clearVideoResume(first));
+    QVERIFY(fixture.account.episodeUnwatched(first));
+    QVERIFY(!fixture.progress.get("video", second).isEmpty());
+    const auto journals = QDir(fixture.temporary.filePath("nuvio")).entryList(
+        {QStringLiteral("removals-v1-*.json")}, QDir::Files);
+    QCOMPARE(journals.size(), 1);
+    const QString journalPath = fixture.temporary.filePath(QStringLiteral("nuvio/") + journals.first());
+    const auto readJournal = [&] {
+        QFile file(journalPath);
+        return file.open(QIODevice::ReadOnly)
+            ? QJsonDocument::fromJson(file.readAll()).object().value("rows").toArray() : QJsonArray();
+    };
+    QCOMPARE(readJournal().size(), 3);
+    fixture.activate();
+    fixture.account.syncNow();
+    QTRY_VERIFY(!fixture.account.busy());
+    QVERIFY(fixture.deletes.isEmpty());
+
+    fixture.offline = false;
+    fixture.account.syncNow();
+    QTRY_VERIFY(!fixture.account.busy());
+    QVERIFY(!fixture.collection.has("theatre", show));
+    QVERIFY(fixture.history.get("episode", first).isEmpty());
+    QVERIFY(!fixture.history.get("episode", second).isEmpty());
+    QVERIFY(fixture.progress.get("video", first).isEmpty());
+    QVERIFY(!fixture.progress.get("video", second).isEmpty());
+    QCOMPARE(fixture.deletes.value("sync_delete_library_items"),
+        QJsonArray({QJsonObject{{"content_id", show}, {"content_type", "series"}}}));
+    QCOMPARE(fixture.deletes.value("sync_delete_watched_items"),
+        QJsonArray({QJsonObject{{"content_id", show}, {"season", 1}, {"episode", 1}}}));
+    QCOMPARE(fixture.deletes.value("sync_delete_watch_progress"),
+        QJsonArray({show + QStringLiteral("_s1e1")}));
+    const auto receipts = readJournal();
+    QCOMPARE(receipts.size(), 3);
+    for (const auto &receipt : receipts)
+        QVERIFY(receipt.toObject().value("confirmedAt").toInteger() > 0);
+
+    fixture.progress.dismissContinue("video", second);
+    fixture.account.syncNow();
+    QTRY_VERIFY(!fixture.account.busy());
+    QVERIFY(fixture.progress.get("video", second).isEmpty());
+    QVERIFY(!fixture.progress.get("video", unrelated).isEmpty());
+    QCOMPARE(fixture.deletes.value("sync_delete_watch_progress"),
+        QJsonArray({show + QStringLiteral("_s1e1"), show + QStringLiteral("_s1e1"),
+            show + QStringLiteral("_s1e2")}));
+
+    // A later genuine add must pass the tombstone barrier.
+    library.insert("added_at", QDateTime::currentMSecsSinceEpoch() + 10000);
+    fixture.library = {library};
+    fixture.libraryEvent = library;
+    fixture.libraryEvent.insert("event_id", 8);
+    fixture.libraryEvent.insert("operation", "upsert");
+    fixture.activate();
+    fixture.account.syncNow();
+    QTRY_VERIFY(!fixture.account.busy());
+    QVERIFY(fixture.collection.has("theatre", show));
 }
 
 QTEST_GUILESS_MAIN(tst_nuvio_api)

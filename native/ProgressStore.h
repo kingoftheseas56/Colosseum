@@ -873,6 +873,33 @@ public:
         return out;
     }
 
+    using LocalVideoRemovalGuard = std::function<bool(const QString &, bool, const QVariantMap &)>;
+    void setLocalVideoRemovalGuard(LocalVideoRemovalGuard guard) {
+        m_localVideoRemovalGuard = std::move(guard);
+    }
+
+    Q_INVOKABLE void dismissContinue(const QString &kind, const QString &id) {
+        forgetGroup(kind, id, true);
+    }
+
+    Q_INVOKABLE bool clearVideoResume(const QString &id) {
+        const auto kind = QStringLiteral("video");
+        const auto key = mapKey(kind, id);
+        if (id.isEmpty() || !healthy())
+            return false;
+        const auto entry = m_map.value(key).toMap();
+        if (entry.isEmpty())
+            return true;
+        if (m_localVideoRemovalGuard && !m_localVideoRemovalGuard(id, false, entry))
+            return false;
+        m_map.remove(key);
+        scheduleSave();
+        emit syncDirty();
+        bump();
+        emit localMutationChanged();
+        return true;
+    }
+
     // Explicit removal — the "remove from Continue" affordance (the ✕ on a tile).
     // A Continue tile is one row PER GROUP: recent() collapses every episode of a series
     // into a single tile (see continueGroupKey). So forgetting a tile must drop the WHOLE
@@ -881,6 +908,11 @@ public:
     // recent() would re-surface an earlier one, so the show reappears. For movies and manga
     // the group IS the entry itself, so this stays a one-for-one removal.
     Q_INVOKABLE void forget(const QString &kind, const QString &id) {
+        forgetGroup(kind, id, false);
+    }
+
+private:
+    void forgetGroup(const QString &kind, const QString &id, bool explicitRemoval) {
         if (kind.isEmpty() || id.isEmpty())
             return;
         if (!healthy())
@@ -897,6 +929,10 @@ public:
         }
         if (doomed.isEmpty())
             return;
+        if (explicitRemoval && kind == QLatin1String("video") && m_localVideoRemovalGuard
+            && !m_localVideoRemovalGuard(id, true, m_map.value(doomed.first()).toMap())) {
+            return;
+        }
         const QString watchedId = seriesRootId(id);
         const QString watchedKey = QStringLiteral("video/watchedMark/") + watchedId;
         const bool hadWatchedMark = m_settings->contains(watchedKey);
@@ -916,6 +952,7 @@ public:
         emit localMutationChanged();
     }
 
+public:
     Q_INVOKABLE QVariantMap get(const QString &kind, const QString &id) const {
         return ProgressStoreDetail::withoutTrackerPrivateMetadata(
             m_map.value(mapKey(kind, id)).toMap());
@@ -2249,6 +2286,7 @@ private:
     bool m_hasPersistedSnapshot = false;
     ProgressDiskWriter *m_writer = nullptr;
     QThread m_writerThread;
+    LocalVideoRemovalGuard m_localVideoRemovalGuard;
 #ifdef COLOSSEUM_PROGRESS_STORE_TESTING
     bool m_forceWatchStatePersistenceFailure = false;
 #endif

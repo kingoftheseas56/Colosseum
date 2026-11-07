@@ -8,6 +8,7 @@
 #include <QRegularExpression>
 #include <QTimer>
 #include <QUuid>
+#include <QUrlQuery>
 
 #include <algorithm>
 #include <limits>
@@ -167,6 +168,28 @@ void NuvioApi::addons(int profileIndex, Completion completion) {
     }
     enqueue({QStringLiteral("/rest/v1/addons?select=*&profile_id=eq.%1&order=sort_order")
                  .arg(profileIndex), true, {}, std::move(completion)});
+}
+
+void NuvioApi::progressForRemoval(int profileIndex, const QString &contentId, const QString &type,
+    qint64 beforeOrAt, int offset, Completion completion) {
+    static const QRegularExpression id(QStringLiteral("\\A(?:(?:imdb:)?tt[0-9]{1,12}|tmdb:[1-9][0-9]{0,9})\\z"));
+    if (profileIndex < 1 || profileIndex > 6 || !id.match(contentId).hasMatch()
+        || (type != QLatin1String("movie") && type != QLatin1String("series"))
+        || beforeOrAt <= 0 || offset < 0 || offset >= 20000) {
+        completion({400, {}, {}});
+        return;
+    }
+    QUrlQuery query;
+    query.addQueryItem("select", "user_id,profile_id,progress_key,content_id,content_type,season,episode,last_watched");
+    query.addQueryItem("profile_id", QStringLiteral("eq.%1").arg(profileIndex));
+    query.addQueryItem("content_id", QStringLiteral("eq.") + contentId);
+    query.addQueryItem("content_type", QStringLiteral("eq.") + type);
+    query.addQueryItem("last_watched", QStringLiteral("lte.%1").arg(beforeOrAt));
+    query.addQueryItem("order", "progress_key.asc");
+    query.addQueryItem("limit", "500");
+    query.addQueryItem("offset", QString::number(offset));
+    enqueue({QStringLiteral("/rest/v1/watch_progress?") + query.toString(QUrl::FullyEncoded),
+        true, {}, std::move(completion)});
 }
 
 void NuvioApi::enqueue(Operation operation) {

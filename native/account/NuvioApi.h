@@ -46,6 +46,8 @@ public:
     // only data responses or status codes, never a token response.
     void rpc(const QString &operation, const QJsonObject &body, Completion completion);
     void addons(int profileIndex, Completion completion);
+    void progressForRemoval(int profileIndex, const QString &contentId, const QString &type,
+        qint64 beforeOrAt, int offset, Completion completion);
 
 private:
     struct Session {

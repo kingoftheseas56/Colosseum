@@ -108,8 +108,10 @@ Item {
     property Item seasonMenuReturnItem: null
     property int episodeKeyboardIndex: 0
     property bool episodeContextOpen: false
-    property int episodeContextChoice: 0
+    property string episodeContextChoice: "play"
     property Item episodeContextReturnItem: null
+    readonly property var nuvioAccount: typeof NuvioAccounts !== "undefined" ? NuvioAccounts : null
+    readonly property var episodeContextActions: episodeContextOpen ? episodeContextOptions(episodeKeyboardIndex) : []
     property Item episodeJumpReturnItem: null
     property string episodeJumpDraft: ""
     property bool loading: true
@@ -506,16 +508,27 @@ Item {
         sources.show("series",sid,label,context,"download")
     }
     function episodeContextOptions(index) {
-        var out=["Play"]
-        var v=(index>=0&&index<page.episodes.length)?page.episodes[index]:null
-        if (v && typeof Download !== "undefined") {
-            var sid=page.episodeStreamId(v)
-            if (!Download.hasVideo(sid) && page.queuedDownloadIds[sid] !== true) out.push("Download")
-        }
-        return out
+        const episode = page.episodes[index]
+        if (!episode)
+            return []
+        const sid = page.episodeStreamId(episode)
+        const actions = [{ key: "play", label: qsTr("Play"), activate: () => page.openEpisodeForPlay(episode) }]
+        if (typeof Download !== "undefined" && !Download.hasVideo(sid) && page.queuedDownloadIds[sid] !== true)
+            actions.push({ key: "download", label: qsTr("Download"), activate: () => page.openEpisodeDownload(episode) })
+
+        const nuvio = page.nuvioAccount
+        if (!nuvio || !nuvio.available || nuvio.primaryProvider !== "nuvio")
+            return actions
+        if (typeof nuvio.canUnwatchEpisode === "function" && typeof nuvio.unwatchEpisode === "function"
+                && nuvio.canUnwatchEpisode(sid) && page.episodeWatched(episode))
+            actions.push({ key: "unwatch", label: qsTr("Mark unwatched"), activate: () => nuvio.unwatchEpisode(sid) })
+        if (typeof Progress !== "undefined" && Progress && typeof Progress.clearVideoResume === "function"
+                && page.progressEntry(episode).id === sid)
+            actions.push({ key: "clearResume", label: qsTr("Clear resume point"), activate: () => Progress.clearVideoResume(sid) })
+        return actions
     }
     function openEpisodeContext(index) {
-        page.episodeKeyboardIndex=index; page.episodeContextChoice=0; page.episodeContextReturnItem=episodeVirtualSpace
+        page.episodeKeyboardIndex=index; page.episodeContextChoice="play"; page.episodeContextReturnItem=episodeVirtualSpace
         page.episodeContextOpen=true
         Qt.callLater(function(){ episodeContextFocus.forceActiveFocus(Qt.PopupFocusReason) })
     }
@@ -534,8 +547,9 @@ Item {
     }
 
     function activateEpisodeContext(choice) {
-        var v=page.episodes[page.episodeKeyboardIndex]
-        if(choice===0) page.openEpisodeForPlay(v); else if(choice===1) page.openEpisodeDownload(v)
+        const action = page.episodeContextActions.find(candidate => candidate.key === choice)
+        if (action)
+            action.activate()
         page.closeEpisodeContext(true)
     }
 
@@ -789,12 +803,19 @@ Item {
 
     function episodeWatched(v) {
         var entry = progressEntry(v);
+        var historyStore = typeof ProfileHistory !== "undefined" ? ProfileHistory : null;
+        var historyRevision = historyStore ? historyStore.revision : 0;
+        var nuvio = page.nuvioAccount;
+        if (nuvio && nuvio.primaryProvider === "nuvio" && typeof nuvio.episodeUnwatched === "function") {
+            var removalRevision = nuvio.removalRevision;
+            if (nuvio.episodeUnwatched(episodeStreamId(v)))
+                return false;
+        }
         if (entry.watched === true || episodeProgressRatio(v) >= 0.85)
             return true;
-        if (typeof ProfileHistory === "undefined" || !ProfileHistory)
+        if (!historyStore)
             return false;
-        var historyRevision = ProfileHistory.revision;
-        var history = ProfileHistory.get("episode", episodeStreamId(v));
+        var history = historyStore.get("episode", episodeStreamId(v));
         return !!history && (history.source === "nuvio" || history.source === "stremio")
             && Number(history.completedAt || 0) > 0;
     }
@@ -2215,30 +2236,35 @@ Item {
         FocusScope {
             id: episodeContextFocus; anchors.fill: parent
             Keys.onPressed: (event) => {
-                var n = page.episodeContextOptions(page.episodeKeyboardIndex).length
                 if (event.key === Qt.Key_Escape) { page.closeEpisodeContext(true); event.accepted = true; return }
                 if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { event.accepted = true; return }
-                if (event.key === Qt.Key_Up) page.episodeContextChoice = (page.episodeContextChoice + n - 1) % n
-                else if (event.key === Qt.Key_Down) page.episodeContextChoice = (page.episodeContextChoice + 1) % n
-                else if (event.key === Qt.Key_Home) page.episodeContextChoice = 0
-                else if (event.key === Qt.Key_End) page.episodeContextChoice = n - 1
-                else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
                     page.activateEpisodeContext(page.episodeContextChoice); event.accepted = true; return
                 }
+                const actions = page.episodeContextActions
+                const count = actions.length
+                if (count === 0) return
+                const current = actions.findIndex(action => action.key === page.episodeContextChoice)
+                let next
+                if (event.key === Qt.Key_Up) next = current < 0 ? count - 1 : (current + count - 1) % count
+                else if (event.key === Qt.Key_Down) next = (current + 1) % count
+                else if (event.key === Qt.Key_Home) next = 0
+                else if (event.key === Qt.Key_End) next = count - 1
                 else return
+                page.episodeContextChoice = actions[next].key
                 event.accepted = true
             }
         }
         Column {
             id: episodeContextCol; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 6
             Repeater {
-                model: page.episodeContextOptions(page.episodeKeyboardIndex)
+                model: page.episodeContextActions
                 delegate: Rectangle {
-                    required property string modelData; required property int index
+                    required property var modelData
                     width: episodeContextCol.width; height: 36; radius: 8
-                    color: episodeContextFocus.activeFocus && page.episodeContextChoice === index ? Qt.rgba(1, 1, 1, 0.11) : "transparent"
-                    Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.activateEpisodeContext(index) }
+                    color: episodeContextFocus.activeFocus && page.episodeContextChoice === modelData.key ? Qt.rgba(1, 1, 1, 0.11) : "transparent"
+                    Text { anchors.centerIn: parent; text: modelData.label; color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.activateEpisodeContext(modelData.key) }
                 }
             }
         }

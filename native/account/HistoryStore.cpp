@@ -679,6 +679,20 @@ bool HistoryStore::remove(
         previous);
 }
 
+qint64 HistoryStore::removedAt(const QString &kind, const QString &id) const {
+    return m_tombstones.value(recordKey(kind, id));
+}
+
+QHash<QString, qint64> HistoryStore::episodeRemovalTimes() const {
+    QHash<QString, qint64> result;
+    const QString prefix = recordKey(QStringLiteral("episode"), {});
+    for (auto it = m_tombstones.cbegin(); it != m_tombstones.cend(); ++it) {
+        if (it.key().startsWith(prefix))
+            result.insert(it.key().sliced(prefix.size()), it.value());
+    }
+    return result;
+}
+
 QVariantList HistoryStore::syncEntries() const {
     QVariantList result;
     result.reserve(

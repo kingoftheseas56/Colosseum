@@ -85,6 +85,8 @@ public:
     QVariantList syncEntries() const;
 
     qint64 syncResetGeneration() const { return m_resetGeneration; }
+    qint64 removedAt(const QString &kind, const QString &id) const;
+    QHash<QString, qint64> episodeRemovalTimes() const;
     qint64 syncResetBarrierAtMs() const { return m_resetBarrierAtMs; }
 
     // Exact remote winner application. These deliberately do not emit

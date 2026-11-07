@@ -124,7 +124,7 @@ Item {
                             onResumeRequested: root.continueResumeRequested(modelData)
                             onDetailRequested: root.continueDetailRequested(modelData)
                             onRemoveRequested: if (typeof Progress !== "undefined")
-                                                   Progress.forget(modelData.kind, modelData.id)
+                                                   Progress.dismissContinue(modelData.kind, modelData.id)
                         }
                     }
                 }

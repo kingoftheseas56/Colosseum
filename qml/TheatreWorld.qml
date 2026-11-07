@@ -284,7 +284,7 @@ WorldPage {
         height: visible ? libraryPage.flowHeight : 0
         onResumeRequested: (e) => theatre.libraryResumeRequested(e)
         onDetailRequested: (e) => theatre.collectionOpenRequested(e)
-        onDismissRequested: (e) => { if (typeof Progress !== "undefined") Progress.forget("video", String(e.id)) }
+        onDismissRequested: (e) => { if (typeof Progress !== "undefined") Progress.dismissContinue("video", String(e.id)) }
         onMarkWatchedRequested: (e, w) => theatre.libraryMarkWatchedRequested(e, w)
         onRemoveRequested: (e) => theatre.libraryRemovalRequested(e)
     }

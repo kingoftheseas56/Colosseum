@@ -251,7 +251,7 @@ Item {
                         onDetailRequested: { grid.currentIndex=index; root.detailRequested(modelData) }
                         onRemoveRequested: {
                             grid.currentIndex=index
-                            if (typeof Progress !== "undefined") Progress.forget(modelData.kind, modelData.id)
+                            if (typeof Progress !== "undefined") Progress.dismissContinue(modelData.kind, modelData.id)
                         }
                     }
                 }

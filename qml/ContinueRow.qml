@@ -183,7 +183,7 @@ Column {
                     onDetailRequested: cont.detailRequested(modelData)
                     onRemoveRequested: cont.forgetHandler
                         ? cont.forgetHandler(modelData)
-                        : Progress.forget(modelData.kind, modelData.id)
+                        : Progress.dismissContinue(modelData.kind, modelData.id)
                 }
             }
         }

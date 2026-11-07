@@ -21,6 +21,7 @@ class NuvioAccount final : public QObject {
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY changed)
     Q_PROPERTY(QVariantList preview READ preview NOTIFY changed)
     Q_PROPERTY(bool previewBecomesPrimary READ previewBecomesPrimary NOTIFY changed)
+    Q_PROPERTY(int removalRevision READ removalRevision NOTIFY removalsChanged)
 
 public:
     using Checkpoint = std::function<void(std::function<void(bool)>)>;
@@ -44,6 +45,7 @@ public:
     QVariantList profiles() const;
     QVariantList preview() const { return m_preview; }
     bool previewBecomesPrimary() const { return m_primaryPreview; }
+    int removalRevision() const { return m_removalRevision; }
 
     Q_INVOKABLE void signIn(const QString &email, const QString &password);
     Q_INVOKABLE void loadProfiles();
@@ -53,10 +55,14 @@ public:
     Q_INVOKABLE void disconnect();
     Q_INVOKABLE void makePrimary();
     Q_INVOKABLE void syncNow();
+    Q_INVOKABLE bool canUnwatchEpisode(const QString &id) const;
+    Q_INVOKABLE bool unwatchEpisode(const QString &id);
+    Q_INVOKABLE bool episodeUnwatched(const QString &id) const;
 
 signals:
     void changed();
     void canonicalChanged();
+    void removalsChanged();
 
 private:
     struct RemoteState {
@@ -84,6 +90,15 @@ private:
     void failPull(const std::shared_ptr<Pull> &pull, int status);
     void syncApply(const NuvioTheatre::Profile &profile, RemoteState state);
     void writeNext(const std::shared_ptr<Push> &push);
+    void readProgressDeletionKeys(const std::shared_ptr<Push> &push);
+    void bindRemovalScope();
+    bool loadRemovals();
+    bool saveRemovals(QList<NuvioTheatre::Removal> next);
+    bool queueRemoval(NuvioTheatre::RemovalKind kind, const QString &id,
+        const QString &type, bool wholeTitle = false);
+    bool applyLocalRemovals();
+    bool acknowledgeRemoval(const NuvioTheatre::Removal &removal);
+    QList<NuvioTheatre::Removal> applicableRemovals(const QString &profileId) const;
     void finishSync(bool ok, int status = 0);
     void checkpoint(std::function<void(bool)> completion);
     std::optional<std::array<qint64, 3>> loadCursors(const QString &sourceProfile) const;
@@ -110,6 +125,12 @@ private:
     std::optional<RemoteState> m_baseline;
     QVariantList m_preview;
     QString m_cursorPath;
+    QString m_removalAccount;
+    QString m_removalProfile;
+    QString m_removalPath;
+    QList<NuvioTheatre::Removal> m_removals;
+    int m_removalRevision = 0;
+    bool m_removalsLoaded = false;
     QString m_phase = QStringLiteral("idle");
     QString m_message;
     quint64 m_generation = 0;

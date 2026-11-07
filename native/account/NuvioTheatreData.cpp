@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace {
 using Category = TheatreAccountImport::Category;
@@ -270,6 +271,143 @@ bool canPush(qint64 localAt, const RemoteFact &remote) {
 }
 }
 
+namespace {
+const char *removalTimeField(NuvioTheatre::RemovalKind kind) {
+    switch (kind) {
+    case NuvioTheatre::RemovalKind::Library: return "added_at";
+    case NuvioTheatre::RemovalKind::Watched: return "watched_at";
+    case NuvioTheatre::RemovalKind::Progress: return "last_watched";
+    }
+    return "";
+}
+
+QString removalContentId(const QString &id, const QString &type) {
+    if (type == kSeries) {
+        const Identity episode = localVideo(id);
+        if (episode.isEpisode())
+            return episode.content;
+    }
+    return id;
+}
+}
+
+QJsonObject NuvioTheatre::Removal::serialize() const {
+    return {{"kind", static_cast<int>(kind)}, {"id", id}, {"type", type},
+        {"aliases", QJsonArray::fromStringList(contentIds)}, {"at", at},
+        {"confirmedAt", confirmedAt}, {"wholeTitle", wholeTitle}};
+}
+
+std::optional<NuvioTheatre::Removal> NuvioTheatre::Removal::deserialize(const QJsonObject &row) {
+    const int kind = row.value("kind").toInt(-1);
+    if (kind < 0 || kind > static_cast<int>(RemovalKind::Progress))
+        return std::nullopt;
+    auto removal = makeRemoval(static_cast<RemovalKind>(kind), row.value("id").toString(),
+        row.value("type").toString(), row.value("wholeTitle").toBool(),
+        row.value("at").toInteger(), {});
+    const qint64 confirmedAt = row.value("confirmedAt").toInteger(-1);
+    const auto aliases = row.value("aliases").toArray();
+    if (!removal || confirmedAt < 0 || !row.value("aliases").isArray() || aliases.size() > 4)
+        return std::nullopt;
+    const QString root = removalContentId(removal->id, removal->type);
+    for (const QJsonValue &alias : aliases) {
+        const QString value = alias.toString();
+        if (!isTmdbId(value) && (imdbId(value).isEmpty() || imdbId(value) != root))
+            return std::nullopt;
+        if (!removal->contentIds.contains(value))
+            removal->contentIds.append(value);
+    }
+    removal->confirmedAt = confirmedAt;
+    return removal;
+}
+
+bool NuvioTheatre::Removal::sameTarget(const Removal &other) const {
+    return kind == other.kind && id == other.id && type == other.type && wholeTitle == other.wholeTitle;
+}
+
+bool NuvioTheatre::Removal::matches(const QJsonObject &row) const {
+    const Identity raw = remoteIdentity(row);
+    if (type != raw.type || !contentIds.contains(raw.content))
+        return false;
+    if (kind == RemovalKind::Library || type == kMovie || wholeTitle)
+        return true;
+    const Identity episode = localVideo(id);
+    return raw.season == episode.season && raw.episode == episode.episode;
+}
+
+bool NuvioTheatre::Removal::blocks(const QJsonObject &row) const {
+    return matches(row) && timestamp(row, removalTimeField(kind)) <= at;
+}
+
+std::optional<NuvioTheatre::Removal> NuvioTheatre::makeRemoval(RemovalKind kind,
+    const QString &id, const QString &type, bool wholeTitle, qint64 at, const Local &local) {
+    if (at <= 0 || (type != kMovie && type != kSeries)
+        || (wholeTitle && kind != RemovalKind::Progress)) {
+        return std::nullopt;
+    }
+    const QString root = removalContentId(id, type);
+    if ((imdbId(root).isEmpty() || imdbId(root) != root) && !isTmdbId(root))
+        return std::nullopt;
+    const bool needsEpisode = type == kSeries && kind != RemovalKind::Library && !wholeTitle;
+    if (needsEpisode != localVideo(id).isEpisode() || (!needsEpisode && id != root))
+        return std::nullopt;
+    Removal removal{kind, id, type, {root}, at, 0, wholeTitle};
+    if (imdbId(root) == root) {
+        removal.contentIds.append(QStringLiteral("imdb:") + root);
+        const qint64 tmdb = Identities(local).library(type, root).value("tmdbId").toLongLong();
+        if (tmdb > 0 && tmdb <= 9999999999LL)
+            removal.contentIds.append(QStringLiteral("tmdb:%1").arg(tmdb));
+    }
+    return removal;
+}
+
+bool NuvioTheatre::isSuppressed(RemovalKind kind, const QJsonObject &row, const QList<Removal> &removals) {
+    return std::any_of(removals.cbegin(), removals.cend(), [&](const Removal &removal) {
+        return removal.kind == kind && removal.blocks(row);
+    });
+}
+
+void NuvioTheatre::suppressRemoved(Snapshot &snapshot, const QList<Removal> &removals) {
+    if (removals.isEmpty())
+        return;
+    const auto filter = [&](QJsonArray &rows, RemovalKind kind) {
+        QJsonArray current;
+        for (const QJsonValue &value : std::as_const(rows)) {
+            const auto row = value.toObject();
+            if (row.value("operation") == QLatin1String("delete") || !isSuppressed(kind, row, removals))
+                current.append(value);
+        }
+        rows = std::move(current);
+    };
+    filter(snapshot.library, RemovalKind::Library);
+    filter(snapshot.watched, RemovalKind::Watched);
+    filter(snapshot.progress, RemovalKind::Progress);
+}
+
+QJsonArray NuvioTheatre::deletionKeys(const Removal &removal, const QJsonArray &remoteRows) {
+    QJsonArray keys;
+    QSet<QString> progressKeys;
+    for (const QJsonValue &value : remoteRows) {
+        const QJsonObject row = value.toObject();
+        if (row.value("operation") == QLatin1String("delete") || !removal.blocks(row))
+            continue;
+        const Identity raw = remoteIdentity(row);
+        if (removal.kind == RemovalKind::Progress) {
+            const QString key = row.value("progress_key").toString(raw.progressKey());
+            if (!key.isEmpty() && key.size() <= 512 && !key.contains(QChar::Null) && !progressKeys.contains(key)) {
+                progressKeys.insert(key);
+                keys.append(key);
+            }
+        } else if (removal.kind == RemovalKind::Library) {
+            keys.append(QJsonObject{{"content_id", raw.content}, {"content_type", raw.type}});
+        } else {
+            keys.append(QJsonObject{{"content_id", raw.content},
+                {"season", raw.isEpisode() ? QJsonValue(raw.season) : QJsonValue()},
+                {"episode", raw.isEpisode() ? QJsonValue(raw.episode) : QJsonValue()}});
+        }
+    }
+    return keys;
+}
+
 QList<NuvioTheatre::Profile> NuvioTheatre::profiles(const QJsonArray &rows, const QString &accountId) {
     QList<Profile> result;
     QSet<int> seenIndexes;
@@ -435,8 +573,9 @@ NuvioTheatre::Writes NuvioTheatre::reconcile(const Snapshot &snapshot, const Loc
         if (completes) {
             const RemoteFact remoteWatched = watched.value(libraryKey(identity.type, id));
             const qint64 localMarkAt = local.movieMarkTimes.value(id);
-            const bool newerUnwatch = !identity.isEpisode() && local.movieMarks.value(id) == -1
-                && (localMarkAt <= 0 || localMarkAt >= at);
+            const bool newerUnwatch = identity.isEpisode()
+                ? local.episodeRemovalTimes.value(id) >= at
+                : local.movieMarks.value(id) == -1 && (localMarkAt <= 0 || localMarkAt >= at);
             if (newerUnwatch || (!remoteWatched.identity.content.isEmpty()
                 && (remoteWatched.at == 0 || remoteWatched.at > at))) {
                 continue;

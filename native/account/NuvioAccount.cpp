@@ -6,6 +6,7 @@
 #include "ProgressStore.h"
 #include "engine/ExtensionsStore.h"
 
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -30,6 +31,10 @@ constexpr int kProgressLimit = 200;
 constexpr int kMaxRows = 20000;
 constexpr int kMaxAddons = 64;
 constexpr int kWriteBatch = 100;
+constexpr qsizetype kMaxRemovals = 4096;
+constexpr qint64 kRemovalRetentionMs = 30LL * 24 * 60 * 60 * 1000;
+using RemovalKind = NuvioTheatre::RemovalKind;
+using Removal = NuvioTheatre::Removal;
 constexpr int kLibrary = 0;
 constexpr int kWatched = 1;
 constexpr int kProgress = 2;
@@ -74,6 +79,36 @@ QString rowKey(const QJsonObject &row, int section) {
         : key + QChar::Null + QString::number(season) + QLatin1Char(':') + QString::number(episode);
 }
 
+QString seriesRoot(const QString &id) {
+    const qsizetype episodeSeparator = id.lastIndexOf(QLatin1Char(':'));
+    const qsizetype seasonSeparator = id.lastIndexOf(QLatin1Char(':'), episodeSeparator - 1);
+    return seasonSeparator > 0 && episodeSeparator > seasonSeparator
+        ? id.left(seasonSeparator) : id;
+}
+
+QJsonObject localFact(RemovalKind kind, const QVariantMap &record) {
+    const QString id = record.value("id").toString();
+    const QString kindName = record.value("kind").toString();
+    const QString root = seriesRoot(id);
+    const QString type = kind == RemovalKind::Library ? record.value("type").toString()
+        : (id != root || kindName == QLatin1String("episode")) ? QStringLiteral("series")
+        : QStringLiteral("movie");
+    const char *timeField = kind == RemovalKind::Library ? "added_at"
+        : kind == RemovalKind::Watched ? "watched_at" : "last_watched";
+    const qint64 at = kind == RemovalKind::Library ? record.value("addedAt").toLongLong()
+        : kind == RemovalKind::Watched
+            ? qMax(record.value("completedAt").toLongLong(), record.value("latestKnownAt").toLongLong())
+            : record.value("updatedAt").toLongLong();
+    QJsonObject row{{"content_id", kind == RemovalKind::Library ? id : root},
+        {"content_type", type}, {QLatin1String(timeField), at}};
+    if (id != root) {
+        const auto coords = id.sliced(root.size() + 1).split(QLatin1Char(':'));
+        row.insert("season", coords.value(0).toInt());
+        row.insert("episode", coords.value(1).toInt());
+    }
+    return row;
+}
+
 bool belongsTo(const QJsonObject &row, const QString &accountId, int profileIndex) {
     return (!row.contains("user_id") || row.value("user_id").toString() == accountId)
         && (!row.contains("profile_id") || row.value("profile_id").toInt() == profileIndex);
@@ -101,12 +136,18 @@ struct NuvioAccount::Push {
         QString name;
         QString parameter;
         QJsonArray rows;
+        std::optional<Removal> removal;
+        std::optional<RemovalKind> upsertKind;
+        bool prepared = true;
     };
     quint64 generation = 0;
     NuvioTheatre::Profile profile;
     QList<Operation> operations;
     qsizetype section = 0;
     qsizetype next = 0;
+    int progressAlias = 0;
+    int progressOffset = 0;
+    int progressReadCount = 0;
 };
 
 NuvioAccount::NuvioAccount(AccountCredentialStore *vault, QObject *parent, NuvioApi::Transport transport)
@@ -123,6 +164,10 @@ void NuvioAccount::activate(const QString &profileId, CollectionStore *collectio
     resetFlow();
     m_periodicTimer.stop();
     m_dirtyTimer.stop();
+    if (m_collection)
+        m_collection->setLocalRemovalGuard({});
+    if (m_progress)
+        m_progress->setLocalVideoRemovalGuard({});
     for (const auto &connection : std::as_const(m_ownerConnections))
         QObject::disconnect(connection);
     m_ownerConnections.clear();
@@ -136,8 +181,26 @@ void NuvioAccount::activate(const QString &profileId, CollectionStore *collectio
     m_preferences = preferences;
     m_baseline.reset();
     m_api.activate(m_available ? profileId : QString());
+    m_removalPath.clear();
+    bindRemovalScope();
     m_import.bind(collection, progress, history, m_extensions);
     if (m_available) {
+        const QPointer<NuvioAccount> self(this);
+        collection->setLocalRemovalGuard([self](const QVariantMap &record) {
+            return !self || record.value("world") != kTheatre
+                || self->queueRemoval(RemovalKind::Library, record.value("id").toString(),
+                    record.value("type").toString());
+        });
+        progress->setLocalVideoRemovalGuard([self](const QString &id, bool whole, const QVariantMap &entry) {
+            const QString root = seriesRoot(id);
+            const QString storedId = entry.value("id").toString();
+            const bool series = root != id || seriesRoot(storedId) != storedId
+                || entry.value("type") == QLatin1String("series")
+                || entry.value("resume").toMap().value("subType") == QLatin1String("series");
+            const QString type = series ? QStringLiteral("series") : QStringLiteral("movie");
+            return !self || self->queueRemoval(RemovalKind::Progress, whole ? root : id, type,
+                whole && type == QLatin1String("series"));
+        });
         m_ownerConnections = {
             connect(collection, &CollectionStore::syncDirty, this, &NuvioAccount::scheduleSync),
             connect(progress, &ProgressStore::syncDirty, this, &NuvioAccount::scheduleSync),
@@ -240,6 +303,10 @@ void NuvioAccount::previewProfile(int index, bool firstRun) {
 void NuvioAccount::previewSelection(const NuvioTheatre::Profile &profile, bool primary) {
     m_selection = profile;
     m_primaryPreview = primary;
+    if (m_removalAccount == m_api.accountId() && m_removalProfile == profile.id && !loadRemovals()) {
+        setStatus(kProfiles, false, tr("Saved Nuvio removals could not be restored."));
+        return;
+    }
     setStatus(kProfiles, true, tr("Bringing in your library…"));
     readSnapshot(profile, primary, true, false, [this](std::optional<RemoteState> result, int status) {
         if (!result) {
@@ -247,7 +314,9 @@ void NuvioAccount::previewSelection(const NuvioTheatre::Profile &profile, bool p
             return;
         }
         m_reviewed = std::move(result);
-        m_preview = m_import.preview(NuvioTheatre::project(m_reviewed->snapshot, local()));
+        auto snapshot = m_reviewed->snapshot;
+        NuvioTheatre::suppressRemoved(snapshot, applicableRemovals(m_reviewed->profileId));
+        m_preview = m_import.preview(NuvioTheatre::project(snapshot, local()));
         setStatus(kPreview, false);
     });
 }
@@ -278,7 +347,15 @@ void NuvioAccount::apply(bool firstRun) {
             setStatus(kPreview, false, tr("The Nuvio connection or sync setting could not be saved."));
             return;
         }
-        const auto items = NuvioTheatre::project(m_reviewed->snapshot, local());
+        bindRemovalScope();
+        if (!loadRemovals()) {
+            m_commitStarted = false;
+            setStatus(kPreview, false, tr("Saved Nuvio removals could not be restored."));
+            return;
+        }
+        auto snapshot = m_reviewed->snapshot;
+        NuvioTheatre::suppressRemoved(snapshot, applicableRemovals(m_reviewed->profileId));
+        const auto items = NuvioTheatre::project(snapshot, local());
         const bool started = m_import.apply(items, [this, generation](TheatreAccountImport::Result result) {
             if (generation != m_generation)
                 return;
@@ -338,6 +415,7 @@ void NuvioAccount::disconnect() {
     }
     resetFlow();
     m_baseline.reset();
+    bindRemovalScope();
     const bool preferenceSaved = primaryProvider() != kNuvio
         || m_preferences->setMainSyncProvider({});
     setStatus(kIdle, false, preferenceSaved
@@ -614,6 +692,10 @@ void NuvioAccount::syncNow() {
         return;
     }
     m_dirtyTimer.stop();
+    if (!loadRemovals() || !applyLocalRemovals()) {
+        setStatus(kIdle, false, tr("Saved Nuvio removals could not be restored."));
+        return;
+    }
     m_syncing = true;
     setStatus(kIdle, true, tr("Syncing with Nuvio…"));
     readProfiles([this](const QList<NuvioTheatre::Profile> &rows, int status) {
@@ -639,8 +721,9 @@ void NuvioAccount::syncNow() {
 void NuvioAccount::syncApply(const NuvioTheatre::Profile &profile, RemoteState state) {
     // An unchanged remote snapshot is not an incoming mutation. Reapplying
     // it on every poll would recreate entries removed locally between polls.
-    const auto items = NuvioTheatre::project(
-        state.changes ? *state.changes : state.snapshot, local());
+    auto incoming = state.changes ? *state.changes : state.snapshot;
+    NuvioTheatre::suppressRemoved(incoming, applicableRemovals(state.profileId));
+    const auto items = NuvioTheatre::project(incoming, local());
     const quint64 generation = m_generation;
     const bool started = m_import.apply(items,
         [this, profile, generation, state = std::move(state)](TheatreAccountImport::Result result) mutable {
@@ -677,10 +760,36 @@ void NuvioAccount::syncApply(const NuvioTheatre::Profile &profile, RemoteState s
                         auto push = std::make_shared<Push>();
                         push->generation = generation;
                         push->profile = profile;
-                        push->operations = {
-                            {QStringLiteral("sync_push_library_items"), QStringLiteral("p_items"), writes.library},
-                            {QStringLiteral("sync_push_watch_progress"), QStringLiteral("p_entries"), writes.progress},
-                            {QStringLiteral("sync_push_watched_items"), QStringLiteral("p_items"), writes.watched},
+                        const auto removals = applicableRemovals(profile.id);
+                        for (const auto &removal : removals) {
+                            if (removal.confirmedAt > 0)
+                                continue;
+                            switch (removal.kind) {
+                            case RemovalKind::Library:
+                                push->operations.append({QStringLiteral("sync_delete_library_items"),
+                                    QStringLiteral("p_keys"),
+                                    NuvioTheatre::deletionKeys(removal, m_baseline->snapshot.library), removal});
+                                break;
+                            case RemovalKind::Watched:
+                                push->operations.append({QStringLiteral("sync_delete_watched_items"),
+                                    QStringLiteral("p_keys"),
+                                    NuvioTheatre::deletionKeys(removal, m_baseline->snapshot.watched), removal});
+                                break;
+                            case RemovalKind::Progress:
+                                // The import snapshot is capped at 200. Fetch the exact title's
+                                // older rows before acknowledging a whole-title deletion.
+                                push->operations.append({QStringLiteral("sync_delete_watch_progress"),
+                                    QStringLiteral("p_keys"), {}, removal, std::nullopt, false});
+                                break;
+                            }
+                        }
+                        push->operations += QList<Push::Operation>{
+                            {QStringLiteral("sync_push_library_items"), QStringLiteral("p_items"), writes.library,
+                                std::nullopt, RemovalKind::Library},
+                            {QStringLiteral("sync_push_watch_progress"), QStringLiteral("p_entries"), writes.progress,
+                                std::nullopt, RemovalKind::Progress},
+                            {QStringLiteral("sync_push_watched_items"), QStringLiteral("p_items"), writes.watched,
+                                std::nullopt, RemovalKind::Watched},
                             {QStringLiteral("sync_delete_watched_items"), QStringLiteral("p_keys"), writes.unwatchMovies}};
                         writeNext(push);
                     });
@@ -693,8 +802,19 @@ void NuvioAccount::syncApply(const NuvioTheatre::Profile &profile, RemoteState s
 void NuvioAccount::writeNext(const std::shared_ptr<Push> &push) {
     if (push->generation != m_generation || primaryProvider() != kNuvio)
         return;
-    while (push->section < push->operations.size()
-           && push->next >= push->operations.at(push->section).rows.size()) {
+    while (push->section < push->operations.size()) {
+        const auto &operation = push->operations.at(push->section);
+        if (!operation.prepared) {
+            readProgressDeletionKeys(push);
+            return;
+        }
+        if (push->next < operation.rows.size())
+            break;
+        if (operation.removal && !acknowledgeRemoval(*operation.removal)) {
+            finishSync(false);
+            setStatus(kIdle, false, tr("Nuvio confirmed a removal, but its receipt could not be saved."));
+            return;
+        }
         ++push->section;
         push->next = 0;
     }
@@ -705,7 +825,24 @@ void NuvioAccount::writeNext(const std::shared_ptr<Push> &push) {
     const Push::Operation &operation = push->operations.at(push->section);
     QJsonArray batch;
     while (batch.size() < kWriteBatch && push->next < operation.rows.size()) {
-        QJsonObject row = operation.rows.at(push->next++).toObject();
+        const QJsonValue value = operation.rows.at(push->next++);
+        if (value.isString()) {
+            batch.append(value);
+            continue;
+        }
+        QJsonObject row = value.toObject();
+        if (operation.upsertKind && NuvioTheatre::isSuppressed(*operation.upsertKind, row, m_removals))
+            continue;
+        // A completion progress upsert also marks the episode watched on Nuvio.
+        // A pending unwatch must not be undone by that side effect.
+        if (operation.upsertKind == RemovalKind::Progress
+            && row.value("duration").toInteger() >= 60000
+            && row.value("position").toDouble() >= 0.9 * row.value("duration").toDouble()) {
+            auto watched = row;
+            watched.insert("watched_at", row.value("last_watched"));
+            if (NuvioTheatre::isSuppressed(RemovalKind::Watched, watched, m_removals))
+                continue;
+        }
         if (row.contains("local_id")) {
             const QString localId = row.take("local_id").toString();
             const qint64 action = row.take("action_at").toInteger();
@@ -722,6 +859,8 @@ void NuvioAccount::writeNext(const std::shared_ptr<Push> &push) {
     }
     m_api.rpc(operation.name, {{"p_profile_id", push->profile.index}, {operation.parameter, batch}},
         [this, push](const NuvioApi::Reply &reply) {
+            if (push->generation != m_generation || primaryProvider() != kNuvio)
+                return;
             if (reply.status < 200 || reply.status >= 300) {
                 m_baseline.reset();
                 finishSync(false, reply.status);
@@ -731,11 +870,236 @@ void NuvioAccount::writeNext(const std::shared_ptr<Push> &push) {
         });
 }
 
+void NuvioAccount::readProgressDeletionKeys(const std::shared_ptr<Push> &push) {
+    auto &operation = push->operations[push->section];
+    const auto &removal = *operation.removal;
+    if (push->progressAlias >= removal.contentIds.size()) {
+        operation.prepared = true;
+        push->progressAlias = 0;
+        push->progressOffset = 0;
+        push->progressReadCount = 0;
+        writeNext(push);
+        return;
+    }
+    m_api.progressForRemoval(push->profile.index, removal.contentIds.at(push->progressAlias),
+        removal.type, removal.at, push->progressOffset,
+        [this, push](const NuvioApi::Reply &reply) {
+            if (push->generation != m_generation || primaryProvider() != kNuvio)
+                return;
+            auto &operation = push->operations[push->section];
+            const auto page = reply.data.toArray();
+            if (reply.status != 200 || !reply.data.isArray() || page.size() > kPageSize
+                || push->progressReadCount + page.size() > kMaxRows) {
+                finishSync(false, reply.status);
+                return;
+            }
+            for (const QJsonValue &value : page) {
+                const QJsonObject row = value.toObject();
+                if (!belongsTo(row, m_api.accountId(), push->profile.index)
+                    || row.value("content_id").toString() != operation.removal->contentIds.at(push->progressAlias)
+                    || row.value("content_type").toString() != operation.removal->type
+                    || row.value("last_watched").toInteger(-1) < 0
+                    || row.value("last_watched").toInteger() > operation.removal->at
+                    || row.value("progress_key").toString().isEmpty()) {
+                    finishSync(false);
+                    return;
+                }
+            }
+            for (const QJsonValue &key : NuvioTheatre::deletionKeys(*operation.removal, page))
+                operation.rows.append(key);
+            push->progressReadCount += page.size();
+            if (page.size() == kPageSize) {
+                push->progressOffset += kPageSize;
+            } else {
+                ++push->progressAlias;
+                push->progressOffset = 0;
+            }
+            QTimer::singleShot(0, this, [this, push] { writeNext(push); });
+        });
+}
+
+void NuvioAccount::bindRemovalScope() {
+    const QString account = connected() ? m_api.accountId() : QString();
+    const QString profile = connected() ? m_api.selectedProfileId() : QString();
+    if (m_removalAccount == account && m_removalProfile == profile && !m_removalPath.isEmpty()
+        && QFileInfo(m_removalPath).dir() == QFileInfo(m_cursorPath).dir()) {
+        return;
+    }
+    m_removalAccount = account;
+    m_removalProfile = profile;
+    m_removalsLoaded = false;
+    m_removals.clear();
+    m_removalPath.clear();
+    if (!account.isEmpty() && !profile.isEmpty() && !m_cursorPath.isEmpty()) {
+        const QByteArray digest = QCryptographicHash::hash((account + QLatin1Char('/') + profile).toUtf8(),
+            QCryptographicHash::Sha256).toHex();
+        m_removalPath = QFileInfo(m_cursorPath).dir().filePath(
+            QStringLiteral("removals-v1-%1.json").arg(QString::fromLatin1(digest)));
+        loadRemovals();
+    }
+    ++m_removalRevision;
+    emit removalsChanged();
+}
+
+bool NuvioAccount::loadRemovals() {
+    if (m_removalsLoaded || m_removalPath.isEmpty())
+        return true;
+    QFile file(m_removalPath);
+    if (!file.exists()) {
+        m_removalsLoaded = true;
+        return true;
+    }
+    if (!file.open(QIODevice::ReadOnly) || file.size() > 2 * 1024 * 1024)
+        return false;
+    const auto envelope = QJsonDocument::fromJson(file.readAll()).object();
+    const auto rows = envelope.value("rows");
+    if (envelope.value("version").toInt() != 1 || !rows.isArray() || rows.toArray().size() > kMaxRemovals)
+        return false;
+    QList<Removal> decoded;
+    for (const QJsonValue &value : rows.toArray()) {
+        auto removal = Removal::deserialize(value.toObject());
+        if (!removal)
+            return false;
+        decoded.append(std::move(*removal));
+    }
+    m_removals = std::move(decoded);
+    m_removalsLoaded = true;
+    return true;
+}
+
+bool NuvioAccount::saveRemovals(QList<Removal> next) {
+    if (m_removalPath.isEmpty() || next.size() > kMaxRemovals
+        || !QDir().mkpath(QFileInfo(m_removalPath).absolutePath())) {
+        return false;
+    }
+    QJsonArray rows;
+    for (const auto &entry : next)
+        rows.append(entry.serialize());
+    const auto bytes = QJsonDocument(QJsonObject{{"version", 1}, {"rows", rows}})
+        .toJson(QJsonDocument::Compact);
+    QSaveFile file(m_removalPath);
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit())
+        return false;
+    m_removals = std::move(next);
+    ++m_removalRevision;
+    emit removalsChanged();
+    return true;
+}
+
+bool NuvioAccount::queueRemoval(RemovalKind kind, const QString &id, const QString &type, bool wholeTitle) {
+    if (primaryProvider() != kNuvio || m_removalAccount.isEmpty() || m_removalProfile.isEmpty())
+        return true;
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    auto removal = NuvioTheatre::makeRemoval(kind, id, type, wholeTitle, now, local());
+    if (!removal)
+        return true; // The item has no portable Nuvio identity.
+    if (!loadRemovals())
+        return false;
+    auto next = m_removals;
+    next.removeIf([&](const auto &old) {
+        return old.sameTarget(*removal)
+            || (old.confirmedAt > 0 && old.confirmedAt <= now - kRemovalRetentionMs);
+    });
+    next.append(std::move(*removal));
+    if (!saveRemovals(std::move(next))) {
+        m_message = tr("The Nuvio removal could not be saved.");
+        emit changed();
+        return false;
+    }
+    scheduleSync();
+    return true;
+}
+
+QList<Removal> NuvioAccount::applicableRemovals(const QString &profileId) const {
+    return m_api.accountId() == m_removalAccount && profileId == m_removalProfile
+        ? m_removals : QList<Removal>();
+}
+
+bool NuvioAccount::acknowledgeRemoval(const Removal &removal) {
+    auto next = m_removals;
+    auto it = std::find_if(next.begin(), next.end(), [&](const auto &entry) {
+        return entry.sameTarget(removal) && entry.at == removal.at;
+    });
+    if (it == next.end() || it->confirmedAt > 0)
+        return true;
+    it->confirmedAt = QDateTime::currentMSecsSinceEpoch();
+    return saveRemovals(std::move(next));
+}
+
+bool NuvioAccount::applyLocalRemovals() {
+    if (m_removals.isEmpty())
+        return true;
+    const qint64 pruneBefore = QDateTime::currentMSecsSinceEpoch() - kRemovalRetentionMs;
+    auto retained = m_removals;
+    retained.removeIf([pruneBefore](const auto &entry) {
+        return entry.confirmedAt > 0 && entry.confirmedAt <= pruneBefore;
+    });
+    if (retained.size() != m_removals.size() && !saveRemovals(std::move(retained)))
+        return false;
+
+    // A crash can happen after the removal intent was committed but before
+    // the owner finished its write. Replay only values older than the intent.
+    const auto snapshot = local();
+    for (const auto &value : snapshot.library) {
+        const auto row = value.toMap();
+        if (NuvioTheatre::isSuppressed(RemovalKind::Library, localFact(RemovalKind::Library, row), m_removals)
+            && !m_collection->removeSyncedEntry(kTheatre, row.value("id").toString())) {
+            return false;
+        }
+    }
+    for (const auto &value : snapshot.progress) {
+        const auto row = value.toMap();
+        if (row.value("kind") == QLatin1String("video")
+            && NuvioTheatre::isSuppressed(RemovalKind::Progress, localFact(RemovalKind::Progress, row), m_removals)
+            && !m_progress->removeSyncedEntry(QStringLiteral("video"), row.value("id").toString())) {
+            return false;
+        }
+    }
+    for (const auto &value : snapshot.history) {
+        const auto row = value.toMap();
+        if (row.value("kind") == QLatin1String("episode")
+            && NuvioTheatre::isSuppressed(RemovalKind::Watched, localFact(RemovalKind::Watched, row), m_removals)
+            && !m_history->removeSyncedRecord(QStringLiteral("episode"), row.value("id").toString())) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool NuvioAccount::canUnwatchEpisode(const QString &id) const {
+    return primaryProvider() == kNuvio && connected() && m_history && m_history->healthy()
+        && NuvioTheatre::makeRemoval(RemovalKind::Watched, id, QStringLiteral("series"), false, 1, {}).has_value();
+}
+
+bool NuvioAccount::unwatchEpisode(const QString &id) {
+    return canUnwatchEpisode(id) && queueRemoval(RemovalKind::Watched, id, QStringLiteral("series"))
+        && m_history->remove(QStringLiteral("episode"), id);
+}
+
+bool NuvioAccount::episodeUnwatched(const QString &id) const {
+    if (primaryProvider() != kNuvio || !m_history || !m_progress)
+        return false;
+    auto episode = m_history->get(QStringLiteral("episode"), id);
+    episode.insert("id", id);
+    episode.insert("kind", QStringLiteral("episode"));
+    auto row = localFact(RemovalKind::Watched, episode);
+    row.insert("watched_at", qMax(row.value("watched_at").toInteger(),
+        m_progress->get(QStringLiteral("video"), id).value("updatedAt").toLongLong()));
+    const qint64 removed = m_history->removedAt(QStringLiteral("episode"), id);
+    return (removed > 0 && row.value("watched_at").toInteger() <= removed)
+        || NuvioTheatre::isSuppressed(RemovalKind::Watched, row, m_removals);
+}
+
 void NuvioAccount::finishSync(bool ok, int status) {
     m_syncing = false;
     setStatus(kIdle, false, ok ? tr("Nuvio sync complete.") : failure(status));
-    if (std::exchange(m_syncRequested, false))
+    if (std::exchange(m_syncRequested, false)
+        || (!ok && (status == 0 || status == 429 || status >= 500)
+            && std::any_of(m_removals.cbegin(), m_removals.cend(), [](const Removal &removal) {
+                return removal.confirmedAt == 0;
+            }))) {
         scheduleSync();
+    }
 }
 
 void NuvioAccount::checkpoint(std::function<void(bool)> completion) {
@@ -796,7 +1160,8 @@ NuvioTheatre::Local NuvioAccount::local() const {
         m_history ? m_history->syncEntries() : QVariantList(),
         m_progress ? m_progress->syncWatchedMarks() : QHash<QString, int>(),
         m_progress ? m_progress->syncWatchedMarkActionTimes() : QHash<QString, qint64>(),
-        m_primarySince};
+        m_primarySince,
+        m_history ? m_history->episodeRemovalTimes() : QHash<QString, qint64>()};
 }
 
 QString NuvioAccount::failure(int status) const {

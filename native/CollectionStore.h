@@ -274,12 +274,18 @@ public:
         return true;
     }
 
+    void setLocalRemovalGuard(std::function<bool(const QVariantMap &)> guard) {
+        m_localRemovalGuard = std::move(guard);
+    }
+
     Q_INVOKABLE bool remove(const QString &world, const QString &id) {
         if (!healthy())
             return false;
         const QString key = mapKey(world, id);
         if (!m_map.contains(key))
             return true;
+        if (m_localRemovalGuard && !m_localRemovalGuard(m_map.value(key).toMap()))
+            return false;
         QHash<QString, QVariant> next = m_map;
         next.remove(key);
         if (!save(next))
@@ -650,6 +656,7 @@ private:
     // and CollectionStore's default constructor.
     std::unique_ptr<QSettings> m_settings;
     QHash<QString, QVariant> m_map;
+    std::function<bool(const QVariantMap &)> m_localRemovalGuard;
     int m_revision = 0;
     QString m_loadError;
     QString m_persistenceError;

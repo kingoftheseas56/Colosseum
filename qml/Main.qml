@@ -1357,6 +1357,13 @@ Window {
         }
         win.cancelCatalogueRoute();
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
+        if (win.androidHost) {
+            if (action === "consume" && !fullscreenTransition.transitioning && !boot.visible
+                    && accountHost.requestNuvioSignInBack())
+                return
+            if (action === "stremioSync" && stremioPanel.requestNuvioSignInBack())
+                return
+        }
         switch (action) {
         case "consume": return
         case "feedback": win.closeFeedback(); return
@@ -4452,7 +4459,7 @@ Window {
                             keyboardFocused: contFlick.activeFocus && index === contCol.currentIndex
                             onResumeRequested: win.resumeContinue(modelData)
                             onDetailRequested: win.detailContinue(modelData)
-                            onRemoveRequested: Progress.forget(modelData.kind, modelData.id)
+                            onRemoveRequested: Progress.dismissContinue(modelData.kind, modelData.id)
                         }
                     }
                 }
