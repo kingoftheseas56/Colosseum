@@ -248,8 +248,8 @@ void NuvioApi::send(const QString &path, bool get, const QJsonObject &body,
         completion({429, {}, {}});
         return;
     }
-    auto settled = [self = QPointer<NuvioApi>(this), generation = m_generation,
-                    completion = std::move(completion)](Reply reply) {
+    Completion settled = [self = QPointer<NuvioApi>(this), generation = m_generation,
+                          completion = std::move(completion)](Reply reply) {
         if (!self || generation != self->m_generation)
             return;
         if (reply.status == 429 || (reply.status == 503 && !reply.retryAfter.isEmpty())) {
