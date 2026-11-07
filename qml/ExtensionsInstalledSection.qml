@@ -49,18 +49,23 @@ Column {
         id: rail
         objectName: "extensionsInstalledRail"
         width: parent.width
-        height: section.entries.length ? 138 : 0
+        height: section.entries.length ? 108 : 0
         orientation: ListView.Horizontal
         spacing: 14
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         model: section.entries
-        ScrollBar.horizontal: ScrollBar { }
+        ScrollBar.horizontal: HouseScrollBar {
+            flick: rail
+            orientation: Qt.Horizontal
+            glassStyle: true
+        }
         delegate: ExtensionsInstalledCard {
             required property var modelData
             required property int index
             objectName: "extensionsInstalledCard_" + index
-            width: Math.min(320, rail.width)
+            width: Math.min(264, rail.width)
+            compact: true
             entry: modelData
             capabilities: section.capabilitiesFor(modelData.manifest)
             instanceLabel: section.instanceLabelFor(index)

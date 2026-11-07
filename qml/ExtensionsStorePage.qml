@@ -516,7 +516,7 @@ Item {
         anchors.fill: parent
         visible: !seeAll.visible && !tankoyomiConfiguration.visible && !management.visible
         medium: "Extensions"
-        prominentScrollBar: true
+        glassScrollBar: true
         topBarBackOnly: true
         topBarTitle: "Extensions"
         topBarSubtitle: "Add-ons and sources for every world."

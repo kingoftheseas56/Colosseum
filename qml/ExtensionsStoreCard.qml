@@ -1,8 +1,4 @@
-// ExtensionsStoreCard — one add-on in a Store row, to the measurements of
-// agents/colosseum-extensions-world-mock.html (.addon / .art / .wash / .logo-stage):
-// the add-on's own logo blown up and blurred into a colour wash, the crisp logo centred on a
-// tile, then name and two lines of description. No button: the card is the button. Install
-// state is a quiet corner badge that only appears once the add-on is installed or being added.
+// One add-on in the Store shelves and results grid. The card opens the add-on.
 import QtQuick
 import QtQuick.Effects
 import "ExtensionsStoreApi.js" as StoreApi
@@ -22,16 +18,16 @@ Item {
     readonly property bool lit: card.selected || action.hovered
     readonly property real h: StoreApi.hue(card.addon.name || "")
 
-    width: 260
-    height: phoneLayout ? mobileInstall.y + mobileInstall.height + 12 : art.height + 12 + 24 + 3 + 40
+    width: theme.extensionCardWidth
+    height: phoneLayout ? mobileInstall.y + mobileInstall.height + 12 : theme.extensionCardHeight
 
     Theme { id: theme }
 
     Rectangle {
         id: art
         width: parent.width
-        height: card.phoneLayout ? 140 : Math.round(parent.width * 220 / 365)
-        radius: 23
+        height: card.phoneLayout ? 140 : theme.extensionCardArtHeight
+        radius: card.phoneLayout ? 23 : 16
         clip: true
         border.width: 1
         border.color: card.lit ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.42) : Qt.rgba(1, 1, 1, 0.10)
@@ -42,8 +38,7 @@ Item {
             GradientStop { position: 1; color: Qt.hsla((card.h + 30 / 360) % 1, 0.32, 0.10, 1) }
         }
 
-        // The wash: the logo itself, huge, blurred and saturated (mock: 56% of a 170% box,
-        // scale 1.35, blur 36px, saturate 1.85, brightness .72, opacity .74).
+        // The blurred logo gives the card a color wash behind its smaller mark.
         Image {
             id: washSource
             anchors.centerIn: parent
@@ -76,9 +71,9 @@ Item {
             id: stage
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
-            anchors.verticalCenterOffset: card.lit ? -4.5 : 0
-            width: card.phoneLayout ? 82 : 86; height: width
-            radius: 26
+            anchors.verticalCenterOffset: card.lit ? (card.phoneLayout ? -4.5 : -2) : 0
+            width: card.phoneLayout ? 82 : 52; height: width
+            radius: card.phoneLayout ? 26 : 14
             scale: card.lit ? 1.045 : 1
             color: Qt.rgba(24 / 255, 25 / 255, 31 / 255, 0.92)
             border.width: 1
@@ -101,7 +96,7 @@ Item {
                 visible: logo.status !== Image.Ready
                 text: String(card.addon.title || card.addon.name || "?").charAt(0).toUpperCase()
                 color: theme.inkDim
-                font.family: theme.display; font.pixelSize: 42
+                font.family: theme.display; font.pixelSize: card.phoneLayout ? 42 : 27
             }
         }
 
@@ -109,9 +104,9 @@ Item {
         Rectangle {
             visible: !card.phoneLayout && (card.installed || card.busy)
             anchors.right: parent.right; anchors.top: parent.top
-            anchors.margins: 14
-            width: badgeText.implicitWidth + 22; height: 26
-            radius: 13
+            anchors.margins: 7
+            width: badgeText.implicitWidth + 12; height: 18
+            radius: 9
             color: Qt.rgba(10 / 255, 11 / 255, 15 / 255, 0.62)
             border.width: 1
             border.color: card.installed && !card.disabled
@@ -119,21 +114,22 @@ Item {
             Text {
                 id: badgeText
                 anchors.centerIn: parent
-                text: card.busy ? "Adding…" : card.disabled ? "Disabled" : "✓ Installed"
+                text: card.busy ? qsTr("Adding…") : card.disabled ? qsTr("Disabled") : qsTr("Installed")
                 color: card.installed && !card.disabled ? theme.gold : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold
             }
         }
     }
 
     Text {
         id: title
-        anchors.top: art.bottom; anchors.topMargin: 12
+        anchors.top: art.bottom; anchors.topMargin: card.phoneLayout ? 12 : 8
         width: parent.width
         text: card.addon.title || card.addon.name || ""
         color: theme.ink
         font.family: theme.ui; font.pixelSize: card.phoneLayout ? 18 : 16; font.weight: Font.DemiBold
-        wrapMode: card.phoneLayout ? Text.WordWrap : Text.NoWrap
+        wrapMode: card.phoneLayout ? Text.WordWrap : Text.Wrap
+        maximumLineCount: card.phoneLayout ? 100 : 2
         elide: card.phoneLayout ? Text.ElideNone : Text.ElideRight
     }
     Text {
@@ -142,7 +138,7 @@ Item {
         width: parent.width
         height: card.phoneLayout ? implicitHeight : 40
         text: card.addon.description || ""
-        color: "#aaa69e"
+        color: card.phoneLayout ? "#aaa69e" : theme.inkDim
         font.family: theme.ui; font.pixelSize: card.phoneLayout ? 14 : 13
         wrapMode: Text.WordWrap
         maximumLineCount: card.phoneLayout ? 100 : 2

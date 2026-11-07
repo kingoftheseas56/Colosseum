@@ -6,6 +6,7 @@ Rectangle {
     property string instanceLabel: ""
     property string capabilities: ""
     property bool management: false
+    property bool compact: false
     property bool configurable: false
     signal manageRequested()
     signal toggleRequested()
@@ -17,6 +18,8 @@ Rectangle {
     readonly property string addonName: String(manifest.name || qsTr("Unnamed add-on"))
     readonly property bool core: entry.core === true
     readonly property bool isEnabled: entry.enabled === true
+    readonly property int inset: compact ? 12 : 16
+    readonly property int logoSize: compact ? 36 : 48
     function focusFirstAction() {
         if (!card.management) return false
         if (toggleAction.enabled) { toggleAction.forceActiveFocus(Qt.TabFocusReason); return true }
@@ -28,29 +31,29 @@ Rectangle {
         return false
     }
     Theme { id: theme }
-    implicitHeight: body.height + 32
-    radius: 16
+    implicitHeight: body.height + 2 * card.inset
+    radius: card.compact ? 12 : 16
     color: "#cc141820"
     border.width: 1
     border.color: openAction.interactionActive && !management ? theme.gold : theme.edge
 
     Column {
         id: body
-        x: 16; y: 16
-        width: parent.width - 32
-        spacing: 14
+        x: card.inset; y: card.inset
+        width: parent.width - 2 * card.inset
+        spacing: card.compact ? 9 : 14
         Row {
             width: parent.width
-            spacing: 14
+            spacing: card.compact ? 10 : 14
             AddonLogo {
-                size: 48
+                size: card.logoSize
                 addonId: String(card.entry.id || "")
                 addonName: card.addonName
                 manifestLogo: String(card.manifest.logo || "")
                 preferManifestLogo: true
             }
             Column {
-                width: parent.width - 62
+                width: parent.width - card.logoSize - parent.spacing
                 spacing: 5
                 Text {
                     width: parent.width

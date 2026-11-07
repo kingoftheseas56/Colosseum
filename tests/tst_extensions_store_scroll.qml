@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import QtQuick.Window
 import QtTest
 import "../qml"
 
@@ -11,13 +10,7 @@ Item {
     property var rail: null
     property var world: null
 
-    Window {
-        id: hostWindow
-        width: 900
-        height: 600
-        visible: true
-        Item { id: surface; anchors.fill: parent }
-    }
+    Item { id: surface; anchors.fill: parent }
 
     Component {
         id: railComponent
@@ -41,7 +34,7 @@ Item {
             width: 900
             height: 600
             medium: "Extensions"
-            prominentScrollBar: true
+            glassScrollBar: true
             Item { width: parent.width; height: 1000 }
         }
     }
@@ -65,12 +58,26 @@ Item {
             var flick = findChild(harness.rail, "testEssentials")
             var bar = findChild(harness.rail, "testEssentialsScrollBar")
             verify(card !== null && flick !== null && bar !== null)
-            compare(card.width, 260)
+            verify(card.width < 240, "The desktop shelf should fit more add-ons across")
             compare(bar.policy, ScrollBar.AlwaysOn)
-            verify(bar.visible && bar.height > 0)
+            verify(bar.visible && bar.glassStyle && bar.height > bar.contentItem.height)
             verify(flick.contentWidth > flick.width)
             mouseClick(bar, bar.width * 0.85, bar.height / 2, Qt.LeftButton)
             tryVerify(function() { return flick.contentX > 0 }, 1000)
+        }
+        function test_shelf_buttons_page_in_both_directions() {
+            var flick = findChild(harness.rail, "testEssentials")
+            var previous = findChild(harness.rail, "testEssentialsPrevious")
+            var next = findChild(harness.rail, "testEssentialsNext")
+            verify(flick && previous && next)
+            verify(!previous.enabled && next.enabled)
+            mouseClick(next)
+            tryVerify(function() { return flick.contentX > 0 })
+            verify(previous.enabled && !next.enabled)
+            previous.forceActiveFocus()
+            keyClick(Qt.Key_Return)
+            tryCompare(flick, "contentX", 0)
+            verify(!previous.enabled && next.enabled)
         }
         function test_verticalBarIsVisibleWhenStoreOverflows() {
             harness.world = worldComponent.createObject(surface)
@@ -78,8 +85,9 @@ Item {
             var bar = findChild(harness.world, "extensionsWorldScrollBar")
             verify(bar !== null)
             compare(bar.policy, ScrollBar.AlwaysOn)
-            verify(bar.visible && bar.prominent)
-            compare(bar.width, 14)
+            verify(bar.visible && bar.glassStyle && bar.width > bar.contentItem.width)
+            mouseClick(bar, bar.width / 2, bar.height * 0.85, Qt.LeftButton)
+            tryVerify(function() { return bar.flick.contentY > 0 }, 1000)
         }
     }
 }

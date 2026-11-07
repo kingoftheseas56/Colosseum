@@ -13,24 +13,33 @@ ScrollBar {
 
     property Flickable flick: null
     property bool prominent: false
+    property bool glassStyle: false
+    readonly property bool alongShelf: orientation === Qt.Horizontal
 
     orientation: Qt.Vertical
     // present whenever there's actually something to scroll — never a phantom bar
-    policy: (flick && flick.contentHeight > flick.height) ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+    policy: flick && (alongShelf ? flick.contentWidth > flick.width + 0.5
+                                : flick.contentHeight > flick.height)
+            ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
     interactive: true                     // grabbable thumb; the track pages on click
+    anchors.left: flick && alongShelf ? flick.left : undefined
     anchors.right: flick ? flick.right : undefined
-    anchors.top: flick ? flick.top : undefined
+    anchors.top: flick && !alongShelf ? flick.top : undefined
     anchors.bottom: flick ? flick.bottom : undefined
     anchors.rightMargin: 0
-    width: prominent ? 14 : 12
+    width: alongShelf && flick ? flick.width : prominent && !glassStyle ? 14 : 12
+    height: alongShelf ? 12 : flick ? flick.height : implicitHeight
+    padding: glassStyle ? 3 : 2
 
     Theme { id: theme }
 
     // the track — a whisper of a rail so the thumb has a lane to live in
     background: Rectangle {
         implicitWidth: bar.prominent ? 14 : 12
+        radius: bar.glassStyle ? 6 : 0
         color: Qt.rgba(0.97, 0.97, 0.96,
-                       bar.prominent ? (bar.hovered || bar.pressed ? 0.16 : 0.10)
+                       bar.glassStyle ? (bar.hovered || bar.pressed ? 0.09 : 0.035)
+                       : bar.prominent ? (bar.hovered || bar.pressed ? 0.16 : 0.10)
                                      : (bar.hovered || bar.pressed ? 0.06 : 0.03))
         visible: bar.policy !== ScrollBar.AlwaysOff
         Behavior on color { ColorAnimation { duration: 140 } }
@@ -40,7 +49,10 @@ ScrollBar {
     contentItem: Rectangle {
         implicitWidth: bar.prominent ? 10 : 8
         radius: 4
-        color: bar.pressed ? Qt.rgba(0.94, 0.77, 0.29, 0.85)          // gold under the hand
+        border.width: bar.glassStyle ? 1 : 0
+        border.color: Qt.rgba(0.96, 0.98, 1, bar.hovered || bar.pressed ? 0.25 : 0.12)
+        color: bar.glassStyle ? Qt.rgba(0.89, 0.93, 1, bar.pressed ? 0.58 : bar.hovered ? 0.40 : 0.23)
+             : bar.pressed ? Qt.rgba(0.94, 0.77, 0.29, 0.85)          // gold under the hand
              : bar.hovered ? Qt.rgba(0.97, 0.97, 0.96, bar.prominent ? 0.82 : 0.55)
                            : Qt.rgba(0.97, 0.97, 0.96, bar.prominent ? 0.62 : 0.30)
         visible: bar.policy !== ScrollBar.AlwaysOff
