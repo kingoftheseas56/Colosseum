@@ -3,6 +3,11 @@ name: android
 # First installable Android lane. Manual dispatch only; A02 CI gate passed.
 on:
   workflow_dispatch:
+    inputs:
+      publish_apks:
+        description: Upload both APKs as workflow artifacts
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -19,7 +24,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
+    timeout-minutes: 195
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -158,6 +163,7 @@ jobs:
         run: cat apk-out/*.sha256 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
+        if: inputs.publish_apks
         with:
           name: colosseum-x86_64-debug-apk
           path: |
@@ -165,6 +171,7 @@ jobs:
             apk-out/colosseum-x86_64-debug.apk.sha256
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
+        if: inputs.publish_apks
         with:
           name: colosseum-arm64-v8a-debug-apk
           path: |
@@ -180,24 +187,14 @@ jobs:
             qt-host-dependencies.log
             qml-*.log
 
-  emulator-smoke:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v4
-        with:
-          name: colosseum-x86_64-debug-apk
-          path: apk
-      - name: Verify APK checksum
-        run: cd apk && sha256sum -c colosseum-x86_64-debug.apk.sha256
+      - name: Verify x86_64 APK checksum
+        run: cd apk-out && sha256sum -c colosseum-x86_64-debug.apk.sha256
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Install, reach initial world, and hold for 60 s on an API 34 x86_64 emulator
+      - name: Emulator smoke test (API 34 x86_64, initial world and 60 s hold)
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -205,9 +202,10 @@ jobs:
           target: google_apis
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: bash scripts/android/emulator_smoke.sh apk/colosseum-x86_64-debug.apk smoke-artifacts 60
+          script: bash scripts/android/emulator_smoke.sh apk-out/colosseum-x86_64-debug.apk smoke-artifacts 60
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: emulator-smoke-x86_64
           path: smoke-artifacts
+          if-no-files-found: ignore
