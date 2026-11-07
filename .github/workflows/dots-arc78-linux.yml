@@ -82,7 +82,9 @@ jobs:
         \ libarchive-tools patchelf dpkg-dev libgdk-pixbuf-2.0-dev librsvg2-common gnome-keyring dbus-daemon xdotool\
         \ scrot\nccache --max-size=1G\n"
     - name: Linux release packaging contract
-      run: python3 tools/linux-release/test_packaging.py
+      run: |
+        # Relocation fixtures must not inherit the build SDK loader override.
+        env -u LD_LIBRARY_PATH -u LD_PRELOAD python3 tools/linux-release/test_packaging.py
     - name: Install and verify Linux clang-tidy
       id: clang_tidy_setup
       timeout-minutes: 90
