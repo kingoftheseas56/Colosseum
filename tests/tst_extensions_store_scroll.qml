@@ -9,6 +9,7 @@ Item {
     height: 600
     property var rail: null
     property var world: null
+    property var installed: null
 
     Item { id: surface; anchors.fill: parent }
 
@@ -39,6 +40,21 @@ Item {
         }
     }
 
+    Component {
+        id: installedComponent
+        ExtensionsInstalledSection {
+            width: 600
+            entries: [
+                { id: "core", installedAt: 10, core: true, manifest: { name: "Built-in" } },
+                { id: "imported", installedAt: 20, manifest: { name: "Imported add-on" } }
+            ]
+            capabilitiesFor: () => "Streams"
+            instanceLabelFor: () => ""
+        }
+    }
+
+    SignalSpy { id: manageSpy; target: harness.installed; signalName: "manageRequested" }
+
     TestCase {
         name: "ExtensionsStoreScroll"
         when: windowShown
@@ -50,8 +66,11 @@ Item {
         function cleanup() {
             if (harness.rail) harness.rail.destroy()
             if (harness.world) harness.world.destroy()
+            if (harness.installed) harness.installed.destroy()
             harness.rail = null
             harness.world = null
+            harness.installed = null
+            manageSpy.clear()
         }
         function test_compactCardsAndGrabbableHorizontalBar() {
             var card = findChild(harness.rail, "extensionsCard_one")
@@ -88,6 +107,17 @@ Item {
             verify(bar.visible && bar.glassStyle && bar.width > bar.contentItem.width)
             mouseClick(bar, bar.width / 2, bar.height * 0.85, Qt.LeftButton)
             tryVerify(function() { return bar.flick.contentY > 0 }, 1000)
+        }
+        function test_recent_addon_is_first_and_opens_its_management_entry() {
+            harness.rail.visible = false
+            harness.installed = installedComponent.createObject(surface)
+            verify(harness.installed !== null)
+            var card = findChild(harness.installed, "extensionsInstalledCard_0")
+            verify(card !== null)
+            compare(card.addonName, "Imported add-on")
+            mouseClick(card)
+            tryCompare(manageSpy, "count", 1)
+            compare(manageSpy.signalArguments[0][0], 1)
         }
     }
 }
