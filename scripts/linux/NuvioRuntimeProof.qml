@@ -118,7 +118,7 @@ Installed.Main {
             if(!player.playerReady || !player.playbackStarted || player.decodedWidth<=0 || player.decodedHeight<=0)return
             const position=Number(player.playbackPosition||0)
             if(app.firstPosition<0){app.firstPosition=position;return}
-            if(position<=app.firstPosition+1)return
+            if(position<=app.firstPosition+12)return
             app.record(app.proofStage===6?"nuvio_playback":"stremio_playback",{firstPosition:app.firstPosition,position:position,decodedWidth:player.decodedWidth,decodedHeight:player.decodedHeight})
             app.capture(app.proofStage===6?"nuvio-playback":"stremio-playback")
             app.advance(app.proofStage===6?7:17);return
