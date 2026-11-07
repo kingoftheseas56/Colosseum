@@ -349,9 +349,10 @@ jobs:
           cache: true
 
       - name: Install Linux desktop dependencies
+        timeout-minutes: 15
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=60 -o Acquire::https::Timeout=60 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=60 -o Acquire::https::Timeout=60 install -y --no-install-recommends \
             build-essential ninja-build pkg-config ccache \
             clang-tidy-20 \
             libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
