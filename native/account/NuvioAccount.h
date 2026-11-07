@@ -3,6 +3,7 @@
 #include "NuvioApi.h"
 #include "NuvioTheatreData.h"
 
+#include <QSet>
 #include <QTimer>
 
 #include <array>
@@ -19,6 +20,8 @@ class NuvioAccount final : public QObject {
     Q_PROPERTY(QString message READ message NOTIFY changed)
     Q_PROPERTY(QString primaryProvider READ primaryProvider NOTIFY changed)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY changed)
+    Q_PROPERTY(QString selectedProfileName READ selectedProfileName NOTIFY changed)
+    Q_PROPERTY(QString connectedProfileName READ connectedProfileName NOTIFY changed)
     Q_PROPERTY(QVariantList preview READ preview NOTIFY changed)
     Q_PROPERTY(bool previewBecomesPrimary READ previewBecomesPrimary NOTIFY changed)
     Q_PROPERTY(int removalRevision READ removalRevision NOTIFY removalsChanged)
@@ -43,6 +46,8 @@ public:
     QString message() const { return m_message; }
     QString primaryProvider() const;
     QVariantList profiles() const;
+    QString selectedProfileName() const { return m_selection.name; }
+    QString connectedProfileName() const;
     QVariantList preview() const { return m_preview; }
     bool previewBecomesPrimary() const { return m_primaryPreview; }
     int removalRevision() const { return m_removalRevision; }
@@ -50,6 +55,8 @@ public:
     Q_INVOKABLE void signIn(const QString &email, const QString &password);
     Q_INVOKABLE void loadProfiles();
     Q_INVOKABLE void previewProfile(int index, bool firstRun = false);
+    Q_INVOKABLE void unlockProfile(const QString &pin);
+    Q_INVOKABLE void cancelPin();
     Q_INVOKABLE void apply(bool firstRun = false);
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void disconnect();
@@ -80,6 +87,7 @@ private:
     void setStatus(const QString &phase, bool busy, const QString &message = {});
     void resetFlow();
     void readProfiles(ProfilesCompletion completion);
+    bool profileUnlocked(const NuvioTheatre::Profile &profile) const;
     void previewSelection(const NuvioTheatre::Profile &profile, bool primary);
     void readSnapshot(const NuvioTheatre::Profile &profile, bool primary,
         bool addons, bool incremental, PullCompletion completion);
@@ -121,6 +129,7 @@ private:
     QTimer m_dirtyTimer;
     QList<NuvioTheatre::Profile> m_profiles;
     NuvioTheatre::Profile m_selection;
+    QSet<QString> m_unlockedProfiles;
     std::optional<RemoteState> m_reviewed;
     std::optional<RemoteState> m_baseline;
     QVariantList m_preview;

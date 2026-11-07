@@ -34,6 +34,7 @@ public:
     bool saveSignIn(const QString &nuvioProfileId = {}, int nuvioProfileIndex = 0,
                     const std::function<bool()> &commitSetting = {});
     void cancelSignIn();
+    void cancelPendingRequests();
     bool disconnectAccount();
 
     bool connected() const { return m_saved && m_session.has_value(); }
@@ -48,6 +49,7 @@ public:
     void addons(int profileIndex, Completion completion);
     void progressForRemoval(int profileIndex, const QString &contentId, const QString &type,
         qint64 beforeOrAt, int offset, Completion completion);
+    void verifyProfilePin(int profileIndex, const QString &pin, Completion completion);
 
 private:
     struct Session {
@@ -56,12 +58,14 @@ private:
         qint64 accessExpiresAtUtcMs = 0;
     };
 
+    enum class UnauthorizedRetry { Allowed, Used, Forbidden };
+
     struct Operation {
         QString path;
         bool get = false;
         QJsonObject body;
         Completion completion;
-        bool retried = false;
+        UnauthorizedRetry unauthorizedRetry = UnauthorizedRetry::Allowed;
     };
 
     void resetRequests();
@@ -70,9 +74,9 @@ private:
     void refresh();
     void pause();
     void send(const QString &path, bool get, const QJsonObject &body,
-              const QByteArray &bearer, Completion completion);
+              const QByteArray &bearer, Completion completion, bool singleAttempt = false);
     void sendHttp(const QString &path, bool get, const QJsonObject &body,
-                  const QByteArray &bearer, Completion completion);
+                  const QByteArray &bearer, Completion completion, bool singleAttempt);
     std::optional<Session> decodeSession(const Reply &reply,
         const QString &expectedAccount = {}) const;
 

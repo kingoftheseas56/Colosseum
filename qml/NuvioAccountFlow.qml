@@ -29,13 +29,16 @@ ScrollView {
     ScrollBar.vertical.policy: firstRun ? ScrollBar.AlwaysOff : ScrollBar.AsNeeded
 
     function takeKeyboardFocus() {
-        if (emailInput.visible && emailInput.enabled)
+        if (pinInput.visible && pinInput.enabled)
+            pinInput.forceActiveFocus(Qt.TabFocusReason)
+        else if (emailInput.visible && emailInput.enabled)
             emailInput.forceActiveFocus(Qt.TabFocusReason)
     }
 
     function clearSecrets() {
         emailInput.clear()
         passwordInput.clear()
+        pinInput.clear()
     }
 
     function cancelFlow() {
@@ -57,6 +60,19 @@ ScrollView {
         account.signIn(email, password)
     }
 
+    function submitPin() {
+        if (!unlockButton.visible || !unlockButton.enabled)
+            return
+        const pin = pinInput.text
+        pinInput.clear()
+        account.unlockProfile(pin)
+    }
+
+    function backFromPin() {
+        pinInput.clear()
+        account.cancelPin()
+    }
+
     function finishFirstRun() {
         if (awaitingCompletion && phase === "done" && !busy) {
             awaitingCompletion = false
@@ -70,17 +86,36 @@ ScrollView {
             clearSecrets()
         if (contentItem)
             contentItem.contentY = 0
+        if (phase === "pin")
+            Qt.callLater(root.takeKeyboardFocus)
         finishFirstRun()
     }
-    onBusyChanged: finishFirstRun()
-    onVisibleChanged: if (!visible) clearSecrets()
+    onBusyChanged: {
+        if (phase === "pin" && !busy)
+            Qt.callLater(root.takeKeyboardFocus)
+        finishFirstRun()
+    }
+    onVisibleChanged: {
+        if (!visible)
+            clearSecrets()
+        else if (phase === "pin")
+            Qt.callLater(root.takeKeyboardFocus)
+    }
     Keys.onEscapePressed: event => {
-        if (firstRun) {
+        if (phase === "pin") {
+            backFromPin()
+            event.accepted = true
+        } else if (firstRun) {
             cancelFlow()
             event.accepted = true
         } else {
             event.accepted = false
         }
+    }
+    Keys.onBackPressed: event => {
+        event.accepted = phase === "pin"
+        if (event.accepted)
+            backFromPin()
     }
 
     Theme { id: theme }
@@ -112,6 +147,21 @@ ScrollView {
             }
         }
         FlowText {
+            id: flowDescription
+            objectName: "nuvioFlowDescription"
+            readonly property string profileName: {
+                if (!root.account || !root.account.available || (root.firstRun && root.awaitingCompletion && root.busy))
+                    return ""
+                if (root.phase === "pin" || root.phase === "preview")
+                    return root.account.selectedProfileName ?? ""
+                if (root.connected && !root.reconnect && (root.phase === "idle" || root.phase === "done"))
+                    return root.account.connectedProfileName ?? ""
+                return ""
+            }
+            textFormat: Text.PlainText
+            color: profileName.length > 0 ? theme.ink : theme.inkDim
+            font.pixelSize: profileName.length > 0 ? 15 : 13
+            font.weight: profileName.length > 0 ? Font.DemiBold : Font.Normal
             text: {
                 if (!root.account || !root.account.available)
                     return qsTr("Nuvio is unavailable for this profile.")
@@ -119,11 +169,25 @@ ScrollView {
                     return qsTr("Bringing in your library…")
                 if (root.phase === "profiles")
                     return qsTr("Choose the Nuvio profile you want to bring into Colosseum.")
+                if (root.phase === "pin")
+                    return flowDescription.profileName.length > 0
+                        ? qsTr("Enter the four-digit PIN for %1.").arg(flowDescription.profileName)
+                        : qsTr("Enter this Nuvio profile’s four-digit PIN.")
                 if (root.phase === "preview")
-                    return qsTr("Review your import")
+                    return flowDescription.profileName.length > 0
+                        ? qsTr("Review import from %1").arg(flowDescription.profileName)
+                        : qsTr("Review your import")
                 if (root.reconnect)
                     return qsTr("Sign in again to reconnect your Nuvio account on this device.")
                 if (root.connected) {
+                    const profileName = flowDescription.profileName
+                    if (profileName.length > 0) {
+                        if (root.primaryProvider === "nuvio")
+                            return qsTr("Connected to %1 · Primary sync service").arg(profileName)
+                        if (root.primaryProvider === "stremio")
+                            return qsTr("Connected to %1 · Stremio is the primary sync service").arg(profileName)
+                        return qsTr("Connected to %1").arg(profileName)
+                    }
                     if (root.primaryProvider === "nuvio")
                         return qsTr("Connected · Primary sync service")
                     if (root.primaryProvider === "stremio")
@@ -179,10 +243,16 @@ ScrollView {
                 id: profileButton
                 required property var modelData
                 objectName: "nuvioProfile_" + modelData.index
-                text: modelData.locked
-                      ? qsTr("%1 · Locked profiles cannot be imported").arg(modelData.name)
-                      : modelData.name
-                enabled: !root.busy && !modelData.locked
+                text: {
+                    if (modelData.current && modelData.locked)
+                        return qsTr("%1 · Current profile · Locked").arg(modelData.name)
+                    if (modelData.current)
+                        return qsTr("%1 · Current profile").arg(modelData.name)
+                    if (modelData.locked)
+                        return qsTr("%1 · Locked").arg(modelData.name)
+                    return modelData.name
+                }
+                enabled: !root.busy
                 onClicked: {
                     if (root.firstRun)
                         root.account.previewProfile(modelData.index, true)
@@ -190,6 +260,34 @@ ScrollView {
                         root.account.previewProfile(modelData.index)
                 }
             }
+        }
+        AccountField {
+            id: pinInput
+            objectName: "nuvioPin"
+            visible: root.phase === "pin"
+            enabled: !root.busy
+            placeholderText: qsTr("Profile PIN")
+            echoMode: TextInput.Password
+            inputMethodHints: Qt.ImhDigitsOnly | Qt.ImhHiddenText | Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
+            maximumLength: 4
+            validator: RegularExpressionValidator { regularExpression: /[0-9]{4}/ }
+            onAccepted: root.submitPin()
+        }
+        FlowButton {
+            id: unlockButton
+            objectName: "nuvioUnlockProfile"
+            visible: root.phase === "pin"
+            enabled: !root.busy && pinInput.acceptableInput
+            highlighted: true
+            text: qsTr("Unlock profile")
+            onClicked: root.submitPin()
+        }
+        FlowButton {
+            objectName: "nuvioPinBack"
+            visible: root.phase === "pin"
+            variant: "link"
+            text: qsTr("Back to profiles")
+            onClicked: root.backFromPin()
         }
         ImportPreview {
             visible: root.phase === "preview"
@@ -280,6 +378,7 @@ ScrollView {
         variant: highlighted ? "primary" : "secondary"
         contentItem: Text {
             text: flowButton.text
+            textFormat: Text.PlainText
             color: flowButton.highlighted ? flowButton.primaryInk : theme.ink
             opacity: flowButton.enabled ? 1 : 0.58
             font.family: theme.ui

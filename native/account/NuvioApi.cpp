@@ -1,6 +1,7 @@
 #include "NuvioApi.h"
 
 #include <QDateTime>
+#include <QIODevice>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkReply>
@@ -22,6 +23,34 @@ constexpr auto kPublishableKey = "sb_publishable_1Clq8rlTVACkdcZuqr6_AD__xUUC_EN
 constexpr int kDeadlineMs = 15000;
 constexpr qsizetype kMaxReplyBytes = 8 * 1024 * 1024;
 constexpr qsizetype kMaxQueued = 32;
+
+class SingleAttemptUpload final : public QIODevice {
+public:
+    explicit SingleAttemptUpload(QByteArray payload) : m_payload(std::move(payload)) {
+        open(ReadOnly | Unbuffered);
+    }
+
+    bool isSequential() const override { return true; }
+    bool reset() override { return false; }
+
+    qint64 bytesAvailable() const override {
+        return m_payload.size() - m_offset + QIODevice::bytesAvailable();
+    }
+
+protected:
+    qint64 readData(char *data, qint64 maxSize) override {
+        const qint64 count = qMin<qint64>(maxSize, m_payload.size() - m_offset);
+        std::copy_n(m_payload.constData() + m_offset, count, data);
+        m_offset += count;
+        return count;
+    }
+
+    qint64 writeData(const char *, qint64) override { return -1; }
+
+private:
+    QByteArray m_payload;
+    qint64 m_offset = 0;
+};
 
 QString normalizedAccount(const QString &value) {
     const QUuid id(value);
@@ -129,6 +158,10 @@ void NuvioApi::cancelSignIn() {
     activate(m_profileId);
 }
 
+void NuvioApi::cancelPendingRequests() {
+    resetRequests();
+}
+
 bool NuvioApi::disconnectAccount() {
     if (!m_vault || m_profileId.isEmpty() || !m_vault->clearNuvio(m_profileId))
         return false;
@@ -168,6 +201,17 @@ void NuvioApi::addons(int profileIndex, Completion completion) {
     }
     enqueue({QStringLiteral("/rest/v1/addons?select=*&profile_id=eq.%1&order=sort_order")
                  .arg(profileIndex), true, {}, std::move(completion)});
+}
+
+void NuvioApi::verifyProfilePin(int profileIndex, const QString &pin, Completion completion) {
+    static const QRegularExpression format(QStringLiteral("\\A[0-9]{4}\\z"));
+    if (profileIndex < 1 || profileIndex > 6 || !format.match(pin).hasMatch()) {
+        completion({400, {}, {}});
+        return;
+    }
+    enqueue({QStringLiteral("/rest/v1/rpc/verify_profile_pin"), false,
+             {{QStringLiteral("p_profile_id"), profileIndex}, {QStringLiteral("p_pin"), pin}},
+             std::move(completion), UnauthorizedRetry::Forbidden});
 }
 
 void NuvioApi::progressForRemoval(int profileIndex, const QString &contentId, const QString &type,
@@ -210,11 +254,13 @@ void NuvioApi::pump() {
         return;
     }
     Operation operation = m_operations.dequeue();
-    send(operation.path, operation.get, operation.body, m_session->accessToken,
+    const bool singleAttempt = operation.unauthorizedRetry == UnauthorizedRetry::Forbidden;
+    const QJsonObject body = singleAttempt ? std::exchange(operation.body, {}) : operation.body;
+    send(operation.path, operation.get, body, m_session->accessToken,
          [this, operation](Reply reply) mutable {
              m_busy = false;
-             if (reply.status == 401 && !operation.retried) {
-                 operation.retried = true;
+             if (reply.status == 401 && operation.unauthorizedRetry == UnauthorizedRetry::Allowed) {
+                 operation.unauthorizedRetry = UnauthorizedRetry::Used;
                  m_operations.prepend(std::move(operation));
                  m_busy = true;
                  refresh();
@@ -224,7 +270,7 @@ void NuvioApi::pump() {
                  pause();
              operation.completion(std::move(reply));
              pump();
-         });
+         }, singleAttempt);
 }
 
 void NuvioApi::refresh() {
@@ -265,7 +311,7 @@ void NuvioApi::pause() {
 }
 
 void NuvioApi::send(const QString &path, bool get, const QJsonObject &body,
-                    const QByteArray &bearer, Completion completion) {
+                    const QByteArray &bearer, Completion completion, bool singleAttempt) {
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     if (now < m_retryAt) {
         completion({429, {}, {}});
@@ -284,11 +330,11 @@ void NuvioApi::send(const QString &path, bool get, const QJsonObject &body,
     if (m_transport)
         m_transport(path, get, body, bearer, std::move(settled));
     else
-        sendHttp(path, get, body, bearer, std::move(settled));
+        sendHttp(path, get, body, bearer, std::move(settled), singleAttempt);
 }
 
 void NuvioApi::sendHttp(const QString &path, bool get, const QJsonObject &body,
-                        const QByteArray &bearer, Completion completion) {
+                        const QByteArray &bearer, Completion completion, bool singleAttempt) {
     QNetworkRequest request(QUrl(QLatin1String(kApiOrigin) + path));
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::ManualRedirectPolicy);
@@ -300,8 +346,25 @@ void NuvioApi::sendHttp(const QString &path, bool get, const QJsonObject &body,
     request.setRawHeader("Cache-Control", "no-store");
     if (!bearer.isEmpty())
         request.setRawHeader("Authorization", QByteArrayLiteral("Bearer ") + bearer);
-    QNetworkReply *reply = get ? m_network.get(request)
-        : m_network.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
+
+    QNetworkReply *reply;
+    if (get) {
+        reply = m_network.get(request);
+    } else {
+        QByteArray uploadBody = QJsonDocument(body).toJson(QJsonDocument::Compact);
+        if (singleAttempt) {
+            // Qt can resend buffered uploads after a connection failure. An
+            // unbuffered HTTP/1.1 upload that cannot rewind prevents replay.
+            request.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
+            request.setAttribute(QNetworkRequest::DoNotBufferUploadDataAttribute, true);
+            request.setHeader(QNetworkRequest::ContentLengthHeader, uploadBody.size());
+            auto *upload = new SingleAttemptUpload(std::move(uploadBody));
+            reply = m_network.post(request, upload);
+            upload->setParent(reply);
+        } else {
+            reply = m_network.post(request, uploadBody);
+        }
+    }
     m_reply = reply;
     auto payload = std::make_shared<QByteArray>();
     auto read = [reply, payload]() {

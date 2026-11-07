@@ -109,6 +109,10 @@ struct Fixture {
     bool failNextRefresh = false;
     bool offline = false;
     QHash<QString, QJsonArray> deletes;
+    NuvioApi::Reply pinReply{200, QJsonArray{QJsonObject{{"unlocked", true}, {"retry_after_seconds", 0}}}, {}};
+    bool holdNextPin = false;
+    bool replaceLockedProfile = false;
+    NuvioApi::Completion heldPin;
     NuvioAccount account{&vault, nullptr, [this](const QString &path, bool, const QJsonObject &body,
         const QByteArray &, NuvioApi::Completion done) {
         const QString method = path.section('/', -1);
@@ -123,8 +127,18 @@ struct Fixture {
             done({200, QJsonArray{
                 QJsonObject{{"id", sourceProfile}, {"user_id", accountId}, {"profile_index", 1},
                     {"name", "Main"}, {"pin_enabled", false}},
-                QJsonObject{{"id", lockedProfile}, {"user_id", accountId}, {"profile_index", 2},
+                QJsonObject{{"id", replaceLockedProfile
+                        ? QStringLiteral("4abdb11d-dd89-4873-92b4-ce8cf79abc4f") : lockedProfile},
+                    {"user_id", accountId}, {"profile_index", 2},
                     {"name", "Locked"}, {"pin_enabled", true}}}, {}});
+        } else if (method == QLatin1String("verify_profile_pin")) {
+            QCOMPARE(body.value("p_profile_id").toInt(), 2);
+            QCOMPARE(body.value("p_pin").toString().size(), 4);
+            if (std::exchange(holdNextPin, false)) {
+                heldPin = std::move(done);
+                return;
+            }
+            done(pinReply);
         } else if (method.startsWith(QLatin1String("sync_get_"))) {
             const bool hasEvent = (method.contains("watch_progress") && !progressEvent.isEmpty())
                 || (method.contains("watched_items") && !watchedEvent.isEmpty())
@@ -236,6 +250,8 @@ private slots:
     void previewedImportIsScopedDatedAndRepeatable();
     void firstRunAndPrimaryRoundTripAreFenced();
     void offlineRemovalsSurviveReloadAndReachNuvio();
+    void lockedProfilesRequireExplicitSessionPin();
+    void pinRequestsAreNeverReplayedOrAcceptedAfterCancel();
 };
 
 void tst_nuvio_api::signInIsStagedAndDisconnectClearsTokens() {
@@ -406,7 +422,9 @@ void tst_nuvio_api::previewedImportIsScopedDatedAndRepeatable() {
     QVERIFY(!fixture.vault.stored);
     QVERIFY(fixture.account.profiles().at(1).toMap().value("locked").toBool());
     fixture.account.previewProfile(2);
+    QCOMPARE(fixture.account.phase(), QStringLiteral("pin"));
     QCOMPARE(fixture.calls.value("sync_pull_library"), 0);
+    fixture.account.cancelPin();
     fixture.account.previewProfile(1);
     QTRY_COMPARE(fixture.account.phase(), QStringLiteral("preview"));
     QCOMPARE(fixture.count("library").value("matched").toInt(), 2);
@@ -609,6 +627,82 @@ void tst_nuvio_api::offlineRemovalsSurviveReloadAndReachNuvio() {
     fixture.account.syncNow();
     QTRY_VERIFY(!fixture.account.busy());
     QVERIFY(fixture.collection.has("theatre", show));
+}
+
+void tst_nuvio_api::lockedProfilesRequireExplicitSessionPin() {
+    Fixture fixture;
+    fixture.activate();
+    fixture.signIn();
+    fixture.account.previewProfile(2, true);
+    QCOMPARE(fixture.account.phase(), QStringLiteral("pin"));
+    QCOMPARE(fixture.account.selectedProfileName(), QStringLiteral("Locked"));
+    QVERIFY(fixture.account.connectedProfileName().isEmpty());
+    QVERIFY(!fixture.account.profiles().at(1).toMap().value("current").toBool());
+    fixture.account.unlockProfile(QStringLiteral("12ab"));
+    QCOMPARE(fixture.calls.value("verify_profile_pin"), 0);
+    fixture.pinReply.data = QJsonArray{QJsonObject{{"unlocked", false}, {"retry_after_seconds", 89}}};
+    fixture.account.unlockProfile(QStringLiteral("0102"));
+    QCOMPARE(fixture.calls.value("verify_profile_pin"), 1);
+    QVERIFY(fixture.account.message().contains(QStringLiteral("2")));
+    QCOMPARE(fixture.calls.value("sync_pull_library"), 0);
+    QVERIFY(!fixture.vault.stored);
+
+    fixture.pinReply.data = QJsonArray{QJsonObject{{"unlocked", true}, {"retry_after_seconds", 0}}};
+    fixture.replaceLockedProfile = true;
+    fixture.account.unlockProfile(QStringLiteral("0102"));
+    QCOMPARE(fixture.account.phase(), QStringLiteral("profiles"));
+    QCOMPARE(fixture.calls.value("sync_pull_library"), 0);
+    fixture.replaceLockedProfile = false;
+    fixture.account.loadProfiles();
+    fixture.account.previewProfile(2, true);
+    fixture.account.unlockProfile(QStringLiteral("0102"));
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("preview"));
+    QVERIFY(!fixture.vault.stored);
+    fixture.account.apply(true);
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("done"));
+    QVERIFY(fixture.vault.stored);
+    QCOMPARE(fixture.vault.stored->nuvioProfileId, lockedProfile);
+    QCOMPARE(fixture.vault.stored->refreshToken, QByteArrayLiteral("fixture-refresh"));
+    QCOMPARE(fixture.account.connectedProfileName(), QStringLiteral("Locked"));
+    QVERIFY(fixture.account.profiles().at(1).toMap().value("current").toBool());
+    QVERIFY(!fixture.account.profiles().at(0).toMap().value("current").toBool());
+
+    fixture.account.loadProfiles();
+    fixture.account.previewProfile(2);
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("preview"));
+    QCOMPARE(fixture.calls.value("verify_profile_pin"), 3);
+    fixture.activate();
+    QCOMPARE(fixture.account.connectedProfileName(), QStringLiteral("Profile 2"));
+    fixture.account.loadProfiles();
+    QCOMPARE(fixture.account.connectedProfileName(), QStringLiteral("Locked"));
+    fixture.account.previewProfile(2);
+    QCOMPARE(fixture.account.phase(), QStringLiteral("pin"));
+    QCOMPARE(fixture.calls.value("verify_profile_pin"), 3);
+}
+
+void tst_nuvio_api::pinRequestsAreNeverReplayedOrAcceptedAfterCancel() {
+    Fixture fixture;
+    fixture.activate();
+    fixture.signIn();
+    fixture.account.previewProfile(2);
+    fixture.pinReply = {401, {}, {}};
+    fixture.account.unlockProfile(QStringLiteral("0102"));
+    QCOMPARE(fixture.calls.value("verify_profile_pin"), 1);
+    QCOMPARE(fixture.calls.value("token?grant_type=refresh_token"), 0);
+    QCOMPARE(fixture.account.phase(), QStringLiteral("signIn"));
+
+    fixture.signIn();
+    fixture.account.previewProfile(2);
+    fixture.holdNextPin = true;
+    fixture.account.unlockProfile(QStringLiteral("0102"));
+    QVERIFY(fixture.heldPin);
+    fixture.account.cancelPin();
+    std::exchange(fixture.heldPin, {})(
+        {200, QJsonArray{QJsonObject{{"unlocked", true}, {"retry_after_seconds", 0}}}, {}});
+    QCOMPARE(fixture.account.phase(), QStringLiteral("profiles"));
+    QCOMPARE(fixture.calls.value("sync_pull_library"), 0);
+    fixture.account.previewProfile(1);
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("preview"));
 }
 
 QTEST_GUILESS_MAIN(tst_nuvio_api)

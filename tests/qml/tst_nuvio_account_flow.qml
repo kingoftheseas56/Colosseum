@@ -18,14 +18,21 @@ TestCase {
         property string phase: "idle"
         property string message: ""
         property string primaryProvider: ""
-        property var profiles: [{index: 0, name: "Locked", locked: true},
-                                {index: 3, name: "Main", locked: false}]
+        property string selectedProfileName: ""
+        property string connectedProfileName: ""
+        property var profiles: [{index: 0, name: "<b>Family</b>", locked: true,
+                                 current: connectedProfileName === "<b>Family</b>"},
+                                {index: 3, name: "Main", locked: false,
+                                 current: connectedProfileName === "Main"}]
         property var preview: [{category: "library", matched: 1, unresolved: 2, existing: 3, skipped: 4}]
         property string signedInEmail: ""
         property int previewedProfile: -1
         property bool previewAsPrimary: false
         property bool applyAsPrimary: false
         property int cancels: 0
+        property string submittedPin: ""
+        property int pinSubmissions: 0
+        property int pinCancels: 0
 
         function signIn(email, password) {
             signedInEmail = email
@@ -35,7 +42,20 @@ TestCase {
         function previewProfile(index, firstRun) {
             previewedProfile = index
             previewAsPrimary = firstRun
-            phase = "preview"
+            selectedProfileName = profiles.find(profile => profile.index === index).name
+            phase = index === 0 ? "pin" : "preview"
+        }
+
+        function unlockProfile(pin) {
+            submittedPin = pin
+            pinSubmissions++
+            busy = true
+        }
+
+        function cancelPin() {
+            pinCancels++
+            busy = false
+            phase = "profiles"
         }
 
         function apply(firstRun) {
@@ -159,7 +179,12 @@ TestCase {
         accountFixture.previewAsPrimary = false
         accountFixture.applyAsPrimary = false
         accountFixture.cancels = 0
+        accountFixture.submittedPin = ""
+        accountFixture.pinSubmissions = 0
+        accountFixture.pinCancels = 0
         accountFixture.connected = false
+        accountFixture.selectedProfileName = ""
+        accountFixture.connectedProfileName = ""
         accountFixture.primaryProvider = ""
         stremioActionsFixture.stremioImportPhase = "idle"
         stremioActionsFixture.applyCalls = 0
@@ -175,12 +200,13 @@ TestCase {
         stremioActionsFixture.syncCalls = 0
         syncPanel.shown = false
         trackerSyncSpy.clear()
+        flow.visible = true
         flow.clearSecrets()
         completedSpy.clear()
         canceledSpy.clear()
     }
 
-    function test_first_run_requires_unlocked_profile_and_explicit_apply() {
+    function test_first_run_unlocked_profile_requires_explicit_apply() {
         const email = findChild(flow, "nuvioEmail")
         const password = findChild(flow, "nuvioPassword")
         email.text = " reader@example.invalid "
@@ -189,18 +215,102 @@ TestCase {
         compare(accountFixture.signedInEmail, "reader@example.invalid")
         compare(password.text, "")
         compare(email.text, "")
-        compare(findChild(flow, "nuvioProfile_0").enabled, false)
 
         findChild(flow, "nuvioProfile_3").clicked()
         compare(accountFixture.previewedProfile, 3)
         compare(accountFixture.previewAsPrimary, true)
+        const description = findChild(flow, "nuvioFlowDescription")
+        verify(description && description.visible)
+        compare(description.text, "Review import from Main")
         compare(completedSpy.count, 0)
         findChild(flow, "nuvioApplyImport").clicked()
         compare(accountFixture.applyAsPrimary, true)
+        accountFixture.connected = true
+        accountFixture.connectedProfileName = "Main"
+        accountFixture.primaryProvider = "nuvio"
         accountFixture.phase = "done"
         compare(completedSpy.count, 0)
         accountFixture.busy = false
         compare(completedSpy.count, 1)
+        compare(description.text, "Connected to Main · Primary sync service")
+    }
+
+    function test_locked_profile_requires_explicit_valid_pin_submission() {
+        accountFixture.connected = true
+        accountFixture.connectedProfileName = "Main"
+        accountFixture.phase = "profiles"
+        const lockedProfile = findChild(flow, "nuvioProfile_0")
+        const currentProfile = findChild(flow, "nuvioProfile_3")
+        compare(lockedProfile.text, "<b>Family</b> · Locked")
+        compare(lockedProfile.contentItem.textFormat, Text.PlainText)
+        compare(currentProfile.text, "Main · Current profile")
+        verify(lockedProfile.enabled)
+        lockedProfile.clicked()
+        compare(accountFixture.previewedProfile, 0)
+        verify(accountFixture.previewAsPrimary)
+        compare(accountFixture.phase, "pin")
+        const description = findChild(flow, "nuvioFlowDescription")
+        verify(description && description.visible)
+        compare(description.text, "Enter the four-digit PIN for <b>Family</b>.")
+        compare(description.textFormat, Text.PlainText)
+
+        const pin = findChild(flow, "nuvioPin")
+        const unlock = findChild(flow, "nuvioUnlockProfile")
+        verify(pin.visible)
+        tryCompare(pin, "activeFocus", true)
+        compare(pin.echoMode, TextInput.Password)
+        verify((pin.inputMethodHints & Qt.ImhSensitiveData) !== 0)
+        pin.text = "１２３４"
+        verify(!unlock.enabled)
+        unlock.clicked()
+        compare(accountFixture.pinSubmissions, 0)
+
+        pin.text = "0123"
+        verify(unlock.enabled)
+        compare(accountFixture.pinSubmissions, 0)
+        keyClick(Qt.Key_Return)
+        compare(accountFixture.pinSubmissions, 1)
+        compare(accountFixture.submittedPin, "0123")
+        compare(pin.text, "")
+        pin.text = "4321"
+        verify(!unlock.enabled)
+        unlock.clicked()
+        compare(accountFixture.pinSubmissions, 1)
+        compare(completedSpy.count, 0)
+
+        accountFixture.phase = "preview"
+        accountFixture.busy = false
+        compare(description.text, "Review import from <b>Family</b>")
+        verify(findChild(flow, "nuvioApplyImport").visible)
+        verify(!pin.visible)
+        compare(pin.text, "")
+        compare(completedSpy.count, 0)
+    }
+
+    function test_pin_back_cancels_pending_check_and_hiding_clears_input() {
+        accountFixture.phase = "profiles"
+        findChild(flow, "nuvioProfile_0").clicked()
+        const pin = findChild(flow, "nuvioPin")
+        pin.text = "0123"
+        findChild(flow, "nuvioUnlockProfile").clicked()
+        verify(accountFixture.busy)
+
+        const back = findChild(flow, "nuvioPinBack")
+        verify(back.enabled)
+        back.clicked()
+        compare(accountFixture.pinCancels, 1)
+        compare(accountFixture.phase, "profiles")
+        compare(canceledSpy.count, 0)
+        compare(pin.text, "")
+
+        findChild(flow, "nuvioProfile_0").clicked()
+        pin.text = "0123"
+        flow.visible = false
+        compare(pin.text, "")
+        flow.visible = true
+        findChild(flow, "nuvioCancelImport").clicked()
+        compare(accountFixture.cancels, 1)
+        compare(canceledSpy.count, 1)
     }
 
     function test_cancel_clears_credentials_and_signals_route() {

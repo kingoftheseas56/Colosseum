@@ -22,6 +22,7 @@ namespace {
 const auto kIdle = QStringLiteral("idle");
 const auto kSignIn = QStringLiteral("signIn");
 const auto kProfiles = QStringLiteral("profiles");
+const auto kPin = QStringLiteral("pin");
 const auto kPreview = QStringLiteral("preview");
 const auto kDone = QStringLiteral("done");
 const auto kNuvio = QStringLiteral("nuvio");
@@ -162,6 +163,7 @@ NuvioAccount::NuvioAccount(AccountCredentialStore *vault, QObject *parent, Nuvio
 void NuvioAccount::activate(const QString &profileId, CollectionStore *collection, ProgressStore *progress,
     HistoryStore *history, ProfilePreferencesStore *preferences, const QString &cursorPath) {
     resetFlow();
+    m_unlockedProfiles.clear();
     m_periodicTimer.stop();
     m_dirtyTimer.stop();
     if (m_collection)
@@ -231,10 +233,23 @@ QString NuvioAccount::primaryProvider() const {
     return m_preferences ? m_preferences->mainSyncProvider() : QString();
 }
 
+QString NuvioAccount::connectedProfileName() const {
+    const int index = m_api.selectedProfileIndex();
+    const QString id = m_api.selectedProfileId();
+    if (!connected() || id.isEmpty() || index < 1)
+        return {};
+    const auto *profile = selectedProfile(m_profiles, index, id);
+    return profile ? profile->name : tr("Profile %1").arg(index);
+}
+
 QVariantList NuvioAccount::profiles() const {
     QVariantList rows;
-    for (const auto &profile : m_profiles)
-        rows.append(QVariantMap{{"index", profile.index}, {"name", profile.name}, {"locked", profile.locked}});
+    const QString connectedId = connected() ? m_api.selectedProfileId() : QString();
+    const int connectedIndex = m_api.selectedProfileIndex();
+    for (const auto &profile : m_profiles) {
+        rows.append(QVariantMap{{"index", profile.index}, {"name", profile.name},
+            {"locked", profile.locked}, {"current", profile.id == connectedId && profile.index == connectedIndex}});
+    }
     return rows;
 }
 
@@ -264,6 +279,7 @@ void NuvioAccount::signIn(const QString &email, const QString &password) {
     if (!m_available || m_busy)
         return;
     resetFlow();
+    m_unlockedProfiles.clear();
     m_manual = true;
     setStatus(kSignIn, true);
     m_api.signIn(email, password, [this](const NuvioApi::Reply &reply) {
@@ -293,16 +309,93 @@ void NuvioAccount::previewProfile(int index, bool firstRun) {
     if (!m_manual || m_phase != kProfiles || m_busy)
         return;
     const auto *profile = selectedProfile(m_profiles, index);
-    if (!profile || profile->locked) {
-        setStatus(kProfiles, false, tr("This Nuvio profile is locked or unavailable."));
+    if (!profile) {
+        setStatus(kProfiles, false, tr("This Nuvio profile is unavailable."));
         return;
     }
     previewSelection(*profile, firstRun || m_primaryPreview || primaryProvider() == kNuvio);
 }
 
+bool NuvioAccount::profileUnlocked(const NuvioTheatre::Profile &profile) const {
+    return !profile.locked || m_unlockedProfiles.contains(m_api.accountId() + QLatin1Char('/') + profile.id);
+}
+
+void NuvioAccount::unlockProfile(const QString &pin) {
+    if (!m_manual || m_busy || m_phase != kPin || m_selection.id.isEmpty())
+        return;
+    const auto selected = m_selection;
+    const quint64 generation = m_generation;
+    setStatus(kPin, true);
+    m_api.verifyProfilePin(selected.index, pin, [this, selected, generation](const NuvioApi::Reply &reply) {
+        if (generation != m_generation)
+            return;
+        const auto rows = reply.data.toArray();
+        const auto result = rows.size() == 1 ? rows.first().toObject() : QJsonObject();
+        const auto unlocked = result.value("unlocked");
+        const int retry = reply.status == 429 ? reply.retryAfter.toInt()
+            : result.value("retry_after_seconds").toInt();
+        if (retry > 0) {
+            const int minutes = (qMin(retry, 24 * 60 * 60) + 59) / 60;
+            setStatus(kPin, false, tr("Too many tries. Try again in %n minute(s).", nullptr, minutes));
+            return;
+        }
+        if (reply.status == 429) {
+            setStatus(kPin, false, tr("Too many tries. Try again later."));
+            return;
+        }
+        if (reply.status == 401) {
+            m_api.cancelSignIn();
+            m_selection = {};
+            setStatus(kSignIn, false, tr("Sign in to Nuvio again to unlock this profile."));
+            return;
+        }
+        if (reply.status != 200 || !unlocked.isBool()) {
+            setStatus(kPin, false, failure(reply.status));
+            return;
+        }
+        if (!unlocked.toBool()) {
+            setStatus(kPin, false, tr("That PIN did not unlock this Nuvio profile."));
+            return;
+        }
+
+        // Slots can be replaced while an unlock is in flight. Grant access
+        // only after confirming that the exact profile is still in its slot.
+        readProfiles([this, selected, generation](QList<NuvioTheatre::Profile> profiles, int status) {
+            if (generation != m_generation)
+                return;
+            if (status != 200) {
+                setStatus(kPin, false, failure(status));
+                return;
+            }
+            m_profiles = std::move(profiles);
+            const auto *current = selectedProfile(m_profiles, selected.index, selected.id);
+            if (!current) {
+                m_selection = {};
+                setStatus(kProfiles, false, tr("That Nuvio profile has changed. Choose a profile again."));
+                return;
+            }
+            m_unlockedProfiles.insert(m_api.accountId() + QLatin1Char('/') + current->id);
+            previewSelection(*current, m_primaryPreview);
+        });
+    });
+}
+
+void NuvioAccount::cancelPin() {
+    if (!m_manual || m_phase != kPin)
+        return;
+    ++m_generation;
+    m_api.cancelPendingRequests();
+    m_selection = {};
+    setStatus(kProfiles, false);
+}
+
 void NuvioAccount::previewSelection(const NuvioTheatre::Profile &profile, bool primary) {
     m_selection = profile;
     m_primaryPreview = primary;
+    if (!profileUnlocked(profile)) {
+        setStatus(kPin, false);
+        return;
+    }
     if (m_removalAccount == m_api.accountId() && m_removalProfile == profile.id && !loadRemovals()) {
         setStatus(kProfiles, false, tr("Saved Nuvio removals could not be restored."));
         return;
@@ -330,7 +423,7 @@ void NuvioAccount::apply(bool firstRun) {
     setStatus(kPreview, true, tr("Bringing in your library…"));
     readProfiles([this](const QList<NuvioTheatre::Profile> &rows, int status) {
         const auto *profile = selectedProfile(rows, m_selection.index, m_selection.id);
-        if (!profile || profile->locked) {
+        if (!profile || !profileUnlocked(*profile)) {
             m_commitStarted = false;
             setStatus(kPreview, false, status == 200
                 ? tr("The selected Nuvio profile is locked or has changed.") : failure(status));
@@ -414,6 +507,7 @@ void NuvioAccount::disconnect() {
         return;
     }
     resetFlow();
+    m_unlockedProfiles.clear();
     m_baseline.reset();
     bindRemovalScope();
     const bool preferenceSaved = primaryProvider() != kNuvio
@@ -431,10 +525,10 @@ void NuvioAccount::makePrimary() {
     readProfiles([this](QList<NuvioTheatre::Profile> rows, int status) {
         m_profiles = std::move(rows);
         const auto *profile = selectedProfile(m_profiles, m_api.selectedProfileIndex(), m_api.selectedProfileId());
-        if (!profile || profile->locked) {
+        m_primaryPreview = true;
+        if (!profile) {
             setStatus(kProfiles, false, status == 200
-                ? tr("Choose an unlocked Nuvio profile to use as primary.") : failure(status));
-            m_primaryPreview = true;
+                ? tr("Choose a Nuvio profile to use as primary.") : failure(status));
             return;
         }
         previewSelection(*profile, true);
@@ -444,10 +538,12 @@ void NuvioAccount::makePrimary() {
 void NuvioAccount::readProfiles(ProfilesCompletion completion) {
     m_api.rpc(QStringLiteral("sync_pull_profiles"), {},
         [this, completion = std::move(completion)](const NuvioApi::Reply &reply) {
-            const auto rows = reply.status == 200 && reply.data.isArray()
+            auto rows = reply.status == 200 && reply.data.isArray()
                 ? NuvioTheatre::profiles(reply.data.toArray(), m_api.accountId())
                 : QList<NuvioTheatre::Profile>();
-            completion(rows, reply.status);
+            if (!rows.isEmpty())
+                m_profiles = rows;
+            completion(std::move(rows), reply.status);
         });
 }
 
@@ -470,7 +566,7 @@ void NuvioAccount::readSnapshot(const NuvioTheatre::Profile &profile, bool prima
     const auto *first = selectedProfile(m_profiles, 1);
     if (addons && !profile.usesPrimaryAddons)
         pull->addonProfileIndex = profile.index;
-    else if (addons && first && !first->locked)
+    else if (addons && first && profileUnlocked(*first))
         pull->addonProfileIndex = 1;
     readSection(pull);
 }
@@ -700,7 +796,7 @@ void NuvioAccount::syncNow() {
     setStatus(kIdle, true, tr("Syncing with Nuvio…"));
     readProfiles([this](const QList<NuvioTheatre::Profile> &rows, int status) {
         const auto *profile = selectedProfile(rows, m_api.selectedProfileIndex(), m_api.selectedProfileId());
-        if (!profile || profile->locked) {
+        if (!profile || !profileUnlocked(*profile)) {
             finishSync(false, status);
             if (status == 200)
                 setStatus(kIdle, false, tr("The selected Nuvio profile is locked or has changed."));
@@ -750,7 +846,7 @@ void NuvioAccount::syncApply(const NuvioTheatre::Profile &profile, RemoteState s
                 readProfiles([this, profile, generation, state = std::move(state)]
                     (const QList<NuvioTheatre::Profile> &rows, int status) mutable {
                         const auto *current = selectedProfile(rows, profile.index, profile.id);
-                        if (!current || current->locked) {
+                        if (!current || !profileUnlocked(*current)) {
                             finishSync(false, status);
                             return;
                         }
