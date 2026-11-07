@@ -70,6 +70,9 @@ void AccountHttpTransport::send(
     networkRequest.setRawHeader(
         QByteArrayLiteral("Cache-Control"),
         QByteArrayLiteral("no-store"));
+    networkRequest.setRawHeader(
+        QByteArrayLiteral("X-Colosseum-Sync-Features"),
+        QByteArrayLiteral("nuvio"));
     networkRequest.setTransferTimeout(
         qMax(1, request.timeoutMs));
 

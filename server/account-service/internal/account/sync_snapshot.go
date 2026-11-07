@@ -215,6 +215,10 @@ func (s *Service) SnapshotSync(
 		if err != nil {
 			return response, err
 		}
+		view, err = projectSyncForClient(ctx, view)
+		if err != nil {
+			return response, err
+		}
 		response.Entries = append(response.Entries, SyncPullEntry{
 			ServerSeq: stored.ServerSeq,
 			Won:       true,
