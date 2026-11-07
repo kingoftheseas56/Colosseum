@@ -182,8 +182,9 @@ jobs:
       env:
         QT_QPA_PLATFORM: offscreen
         QT_FORCE_STDERR_LOGGING: '1'
-      run: "# Vinyl remains advisory until Vinyl is scheduled.\nctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n  -L \"^vinyl$\"\
-        \ \\\n  -LE \"^(windows|requires-x11)$\" \\\n  --output-on-failure \\\n  --no-tests=error \\\n  --parallel 1\n"
+      run: "mkdir -p linux-evidence\n# Vinyl remains advisory until Vinyl is scheduled.\nctest --test-dir \"$COLOSSEUM_LINUX_BUILD\"\
+        \ \\\n  -L \"^vinyl$\" \\\n  -LE \"^(windows|requires-x11)$\" \\\n  --output-on-failure \\\n  --no-tests=error \\\n\
+        \  --parallel 1 --output-junit \"$GITHUB_WORKSPACE/linux-evidence/vinyl.xml\"\n"
     - name: Explicit Nuvio and Sources Sheet tests
       env:
         QT_QPA_PLATFORM: offscreen
@@ -198,9 +199,17 @@ jobs:
 
         '
     - name: Run platform-neutral Linux CTests
-      env:
+      env: &id001
         QT_QPA_PLATFORM: offscreen
         QT_FORCE_STDERR_LOGGING: '1'
+      run: "# This full suite includes an explicit unavailable-vault negative contract.\n# Do not let runner D-Bus autoactivate\
+        \ a locked keyring. The real unlocked\n# platform path is exercised separately below without skipping any CTest.\n\
+        mkdir -p linux-evidence\nabsent_bus=\"$(mktemp -d)\"\ntrap 'rm -rf \"$absent_bus\"' EXIT\nDBUS_SESSION_BUS_ADDRESS=\"\
+        unix:path=$absent_bus/absent-session\" \\\nctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n  -LE \"^(windows|requires-x11|vinyl)$\"\
+        \ \\\n  --output-on-failure --parallel 1 \\\n  --output-junit \"$GITHUB_WORKSPACE/linux-evidence/blocking.xml\" \\\
+        \n  | tee linux-evidence/blocking.log\n"
+    - name: Verify Stremio persistence with real Linux secure storage
+      env: *id001
       run: "# A reachable Secret Service is not necessarily an unlocked writable vault.\n# Exercise the real Linux credential\
         \ backend with a disposable private keyring.\nkeyring_root=\"$(mktemp -d)\"\ntrap 'rm -rf \"$keyring_root\"' EXIT\n\
         mkdir -p \"$keyring_root/data\" \"$keyring_root/config\" \"$keyring_root/runtime\" \"$keyring_root/control\"\nchmod\
@@ -209,15 +218,16 @@ jobs:
         \ bash -euo pipefail -c '\n  printf \"%s\\n\" \"isolated-validation-password\" | gnome-keyring-daemon --unlock --components=secrets\
         \ --control-directory \"$GNOME_KEYRING_CONTROL\"\n  printf \"%s\" \"roundtrip-proof\" | secret-tool store --label=\"\
         CI availability probe\" colosseum-ci probe\n  test \"$(secret-tool lookup colosseum-ci probe)\" = \"roundtrip-proof\"\
-        \n  secret-tool clear colosseum-ci probe\n  ctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n    -LE \"^(windows|requires-x11|vinyl)$\"\
-        \ \\\n    --output-on-failure --parallel 1\n'\n"
+        \n  secret-tool clear colosseum-ci probe\n  mapfile -t binaries < <(find \"$COLOSSEUM_LINUX_BUILD\" -type f -name\
+        \ tst_account_attachment_runtime)\n  test \"${#binaries[@]}\" = 1\n  \"${binaries[0]}\" stremioBrowserLoginPersistsAcrossRuntimeRestart\
+        \ | tee linux-evidence/stremio-secure-store.log\n'\n"
     - name: Run X11-dependent Linux CTests
       env:
         QT_QPA_PLATFORM: xcb
         QT_FORCE_STDERR_LOGGING: '1'
         LIBGL_ALWAYS_SOFTWARE: '1'
       run: "xvfb-run -a ctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n  -L requires-x11 \\\n  -LE windows \\\n  --output-on-failure\
-        \ \\\n  --parallel 1\n"
+        \ \\\n  --parallel 1 --output-junit \"$GITHUB_WORKSPACE/linux-evidence/x11.xml\"\n"
     - name: Build matching Qt TIFF plugin with bundled libtiff
       run: "git init \"$RUNNER_TEMP/qtimageformats\"\ngit -C \"$RUNNER_TEMP/qtimageformats\" remote add origin https://github.com/qt/qtimageformats.git\n\
         git -C \"$RUNNER_TEMP/qtimageformats\" fetch --depth 1 origin 77f35e5694885844c3eb3a737769b5ed290b8ccc\ngit -C \"\
