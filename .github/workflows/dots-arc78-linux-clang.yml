@@ -1,0 +1,153 @@
+# Linux-only affected-gate rerun; original C++/QML unchanged, exact reviewed allowlist anchors updated.
+name: Arc 78 Linux full clang-tidy revalidation
+'on':
+  push:
+    branches:
+    - dots/arc78-plugins-linux-clang
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: arc78-linux-plugins-clang-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  public-trust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        ref: f985ccc06fee25ff722dd78f96511dabd7f4f77a
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+    - name: Public path guard tests
+      run: python -m unittest -v tests.test_public_path_guard
+    - name: Reject maintainer-private paths
+      run: python scripts/check_public_paths.py
+  linux-clang:
+    needs: public-trust
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      ECM_VERSION: 6.15.0
+      ECM_SHA256: f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2
+      MPVQT_VERSION: 1.2.0
+      MPVQT_SHA256: 8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb
+      LLVM_VERSION: 20.1.2
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        ref: f985ccc06fee25ff722dd78f96511dabd7f4f77a
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+    - name: Install Qt 6.11.1
+      uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+      with:
+        version: 6.11.1
+        host: linux
+        target: desktop
+        arch: linux_gcc_64
+        modules: qtwebengine qtwebchannel qtwebsockets qtpositioning qtserialport qtimageformats qtquick3d qtshadertools qtquicktimeline
+        aqtsource: git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b
+        cache: true
+    - name: Install Linux desktop dependencies
+      run: "sudo apt-get update\nsudo apt-get install -y --no-install-recommends \\\n  build-essential ninja-build pkg-config\
+        \ ccache \\\n  libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev libsecret-tools \\\n\
+        \  libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 \\\n  xvfb xauth ffmpeg p7zip-full libarchive-tools\
+        \ patchelf dpkg-dev libgdk-pixbuf-2.0-dev librsvg2-common gnome-keyring dbus-daemon xdotool scrot\nccache --max-size=1G\n"
+    - name: Linux release packaging contract
+      run: '# Relocation fixtures must not inherit the build SDK loader override.
+
+        env -u LD_LIBRARY_PATH -u LD_PRELOAD python3 tools/linux-release/test_packaging.py
+
+        '
+    - name: Install and verify Linux clang-tidy
+      id: clang_tidy_setup
+      timeout-minutes: 90
+      run: 'sudo apt-get install -y --no-install-recommends clang-tidy-20
+
+        clang-tidy-20 --version
+
+        '
+    - name: Restore Linux compiler cache
+      id: restore-linux-ccache
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/.cache/ccache
+        key: linux-ccache-v1-${{ runner.os }}-${{ github.sha }}
+        restore-keys: 'linux-ccache-v1-${{ runner.os }}-
+
+          '
+    - name: Verify Linux toolchain
+      run: 'cmake --version
+
+        ninja --version
+
+        c++ --version | head -1
+
+        ccache --version | head -1
+
+        pkg-config --modversion mpv
+
+        '
+    - name: Validate clang-tidy gate helper on Linux
+      id: clang_tidy_helper
+      timeout-minutes: 90
+      env:
+        PYTHONPATH: .
+      run: python tests/test_clang_tidy_quality_gate.py
+    - name: Build Extra CMake Modules
+      run: "archive=\"$RUNNER_TEMP/extra-cmake-modules.tar.xz\"\nsource=\"$RUNNER_TEMP/ecm-source\"\nbuild=\"$RUNNER_TEMP/ecm-build\"\
+        \ninstall=\"$RUNNER_TEMP/ecm-install\"\ncurl --fail --location --retry 3 \\\n  \"https://download.kde.org/Attic/frameworks/6.15/extra-cmake-modules-$ECM_VERSION.tar.xz\"\
+        \ \\\n  --output \"$archive\"\necho \"$ECM_SHA256  $archive\" | sha256sum --check --strict\nmkdir -p \"$source\"\n\
+        tar -xf \"$archive\" -C \"$source\" --strip-components=1\ncmake -S \"$source\" -B \"$build\" -G Ninja \\\n  -DCMAKE_BUILD_TYPE=Release\
+        \ \\\n  -DBUILD_TESTING=OFF \\\n  -DCMAKE_INSTALL_PREFIX=\"$install\"\ncmake --build \"$build\" --target install --parallel\
+        \ 2\necho \"ECM_ROOT=$install\" >> \"$GITHUB_ENV\"\n"
+    - name: Build MpvQt
+      run: "archive=\"$RUNNER_TEMP/mpvqt.tar.xz\"\nsource=\"$RUNNER_TEMP/mpvqt-source\"\nbuild=\"$RUNNER_TEMP/mpvqt-build\"\
+        \ninstall=\"$RUNNER_TEMP/mpvqt-install\"\ncurl --fail --location --retry 3 --retry-all-errors \\\n  --retry-delay\
+        \ 5 --connect-timeout 30 --max-time 180 \\\n  \"https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz\"\
+        \ \\\n  --output \"$archive\"\necho \"$MPVQT_SHA256  $archive\" | sha256sum --check --strict\nmkdir -p \"$source\"\
+        \ntar -xf \"$archive\" -C \"$source\" --strip-components=1\ncmake -S \"$source\" -B \"$build\" -G Ninja \\\n  -DCMAKE_BUILD_TYPE=Release\
+        \ \\\n  -DBUILD_EXAMPLES=OFF \\\n  -DCMAKE_INSTALL_PREFIX=\"$install\" \\\n  -DCMAKE_PREFIX_PATH=\"$QT_ROOT_DIR;$ECM_ROOT\"\
+        \ncmake --build \"$build\" --target install --parallel 2\necho \"MPVQT_ROOT=$install\" >> \"$GITHUB_ENV\"\n"
+    - name: Configure Colosseum on Linux
+      env:
+        COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
+      run: "build=\"$RUNNER_TEMP/colosseum-linux-build\"\nprefix=\"$QT_ROOT_DIR;$ECM_ROOT;$MPVQT_ROOT\"\ncmake -S native -B\
+        \ \"$build\" -G Ninja \\\n  -DCMAKE_BUILD_TYPE=Release \\\n  -DBUILD_TESTING=ON \\\n    -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF\
+        \ \\\n    -DCOLOSSEUM_UPDATE_TESTING=OFF \\\n    -DCOLOSSEUM_FERIA_IN_APP=OFF \\\n    -DCOLOSSEUM_VINYL_IN_APP=OFF\
+        \ \\\n    -DCOLOSSEUM_ENABLE_VINYL_QUALIFICATION=OFF \\\n    -DCOLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=OFF \\\n    -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev\
+        \ \\\n  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \\\n  -DCOLOSSEUM_BUILD_PLAYER2=OFF \\\n  -DCOLOSSEUM_PLAYER2_IN_APP=OFF\
+        \ \\\n  -DCOLOSSEUM_NO_COMPILER_CACHE=ON \\\n  -DCMAKE_C_COMPILER_LAUNCHER=ccache \\\n  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache\
+        \ \\\n  -DCMAKE_PREFIX_PATH=\"$prefix\" \\\n  -DMPVQT_PREFIX=\"$MPVQT_ROOT\"\ngrep -Eq '^CMAKE_C_COMPILER_LAUNCHER:.*=ccache$'\
+        \ \"$build/CMakeCache.txt\"\ngrep -Eq '^CMAKE_CXX_COMPILER_LAUNCHER:.*=ccache$' \"$build/CMakeCache.txt\"\necho \"\
+        COLOSSEUM_LINUX_BUILD=$build\" >> \"$GITHUB_ENV\"\n"
+    - name: Build Linux desktop and tests
+      run: cmake --build "$COLOSSEUM_LINUX_BUILD" --parallel 2
+      id: build_linux
+    - name: Save Linux compiler cache
+      if: always() && steps.restore-linux-ccache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ~/.cache/ccache
+        key: ${{ steps.restore-linux-ccache.outputs.cache-primary-key }}
+    - name: Run clang-tidy correctness gate on Linux
+      id: clang_tidy_analysis
+      if: '!cancelled() && steps.build_linux.outcome == ''success'''
+      timeout-minutes: 180
+      run: "python scripts/clang_tidy_quality_gate.py \\\n  --clang-tidy \"$(command -v clang-tidy-20)\" \\\n  --compile-commands\
+        \ \"$COLOSSEUM_LINUX_BUILD/compile_commands.json\" \\\n  --source-root native \\\n  --allowlist .github/clang-tidy-allowlist.txt\
+        \ \\\n  --required-version \"$LLVM_VERSION\" \\\n  --jobs 1 \\\n  --min-files 286 | tee clang-tidy.log\n"
+    - name: Upload full clang gate evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: arc78-linux-clang
+        path: clang-tidy.log
+        retention-days: 7
+defaults:
+  run:
+    shell: bash
