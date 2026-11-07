@@ -30,6 +30,7 @@ import androidx.media3.datasource.DefaultDataSource;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.datasource.TransferListener;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
+import androidx.media3.exoplayer.analytics.AnalyticsListener;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
@@ -109,11 +110,27 @@ public final class Media3PlayerHost {
                         };
                     }
                 }
-                    .setEnableDecoderFallback(true);
+                    .setEnableDecoderFallback(true)
+                    // Keep platform decoding / passthrough ahead of FFmpeg where supported.
+                    .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON);
             ExoPlayer created = new ExoPlayer.Builder(appContext)
                 .setRenderersFactory(renderersFactory)
                 .setLooper(Looper.getMainLooper())
                 .build();
+            created.addAnalyticsListener(new AnalyticsListener() {
+                @Override
+                public void onAudioDecoderInitialized(AnalyticsListener.EventTime eventTime,
+                        String decoderName, long initializedTimestampMs,
+                        long initializationDurationMs) {
+                    Log.i("ColosseumMedia3", "audio decoder initialized: " + decoderName);
+                }
+
+                @Override
+                public void onAudioPositionAdvancing(AnalyticsListener.EventTime eventTime,
+                        long playoutStartSystemTimeMs) {
+                    Log.i("ColosseumMedia3", "audio playout advancing");
+                }
+            });
             AudioAttributes audioAttributes = new AudioAttributes.Builder()
                 .setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
