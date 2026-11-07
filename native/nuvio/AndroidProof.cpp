@@ -204,7 +204,7 @@ QObject *AndroidProof::sourceService() const
 
 QString AndroidProof::intentString(const char *key)
 {
-    const auto activity = QNativeInterface::QAndroidApplication::context();
+    const QJniObject activity = QNativeInterface::QAndroidApplication::context();
     const auto intent = activity.callObjectMethod("getIntent", "()Landroid/content/Intent;");
     if (!intent.isValid())
         return {};
