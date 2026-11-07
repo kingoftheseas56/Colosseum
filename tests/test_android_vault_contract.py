@@ -15,6 +15,14 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 NATIVE = ROOT / "native"
 
+_SHARED_AUDIOBOOK_SOURCES = {
+    "engine/AudiobookDownloader.cpp",
+    "engine/AudiobookDownloader.h",
+    "engine/AudiobookTorrentTransport.cpp",
+    "engine/AudiobookTorrentTransport.h",
+    "engine/AudiobookTorrentEngineAdapter.h",
+}
+
 
 def _tool(variable, default):
     value = os.environ.get(variable, default)
@@ -23,39 +31,147 @@ def _tool(variable, default):
     return resolved
 
 
+def _extract_cmake_command(text, start):
+    opening = text.index("(", start)
+    depth = 0
+    quoted = False
+    escaped = False
+    comment = False
+    for index in range(opening, len(text)):
+        char = text[index]
+        if comment:
+            if char == "\n":
+                comment = False
+        elif quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+        elif char == "#":
+            comment = True
+        elif char == '"':
+            quoted = True
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return text[start:index + 1]
+    raise ValueError(f"unclosed CMake command at offset {start}")
+
+
+def _conditioned_target_sources(cmake):
+    command_start = re.compile(
+        r"(?im)^[ \t]*(?P<name>function|macro|endfunction|endmacro|"
+        r"if|elseif|else|endif|target_sources)\s*\("
+    )
+    conditions = []
+    declarations = []
+    definition_depth = 0
+    for match in command_start.finditer(cmake):
+        command = _extract_cmake_command(cmake, match.start())
+        name = match.group("name").lower()
+        arguments = command[command.index("(") + 1:-1].strip()
+        if name in ("function", "macro"):
+            definition_depth += 1
+        elif name in ("endfunction", "endmacro"):
+            definition_depth = max(0, definition_depth - 1)
+        elif definition_depth:
+            continue
+        elif name == "if":
+            condition = " ".join(arguments.split())
+            conditions.append({"branches": [condition], "active": condition})
+        elif name == "elseif" and conditions:
+            condition = " ".join(arguments.split())
+            frame = conditions[-1]
+            previous = " OR ".join(f"({branch})" for branch in frame["branches"])
+            frame["active"] = f"NOT ({previous}) AND ({condition})"
+            frame["branches"].append(condition)
+        elif name == "else" and conditions:
+            frame = conditions[-1]
+            previous = " OR ".join(f"({branch})" for branch in frame["branches"])
+            frame["active"] = f"NOT ({previous})"
+        elif name == "endif" and conditions:
+            conditions.pop()
+        elif name == "target_sources" and re.match(
+            r"(?i)^colosseum(?:\s|$)", arguments
+        ):
+            wrapped = [f"if({frame['active']})" for frame in conditions]
+            wrapped.append(command)
+            wrapped.extend("endif()" for _ in conditions)
+            declarations.append("\n".join(wrapped))
+    return declarations
+
+
+def _source_list_definitions(cmake, executable_start, executable_command):
+    names = sorted(set(re.findall(
+        r"\$\{\s*([A-Za-z_][A-Za-z0-9_]*_SOURCES)\s*\}", executable_command
+    )))
+    prefix = cmake[:executable_start]
+    definitions = []
+    for name in names:
+        pattern = re.compile(
+            rf"(?im)^[ \t]*set\s*\(\s*{re.escape(name)}\b"
+        )
+        matches = list(pattern.finditer(prefix))
+        assert matches, f"source list {name} is referenced but not defined before colosseum"
+        definitions.append(_extract_cmake_command(prefix, matches[-1].start()))
+    return definitions
+
+
 @lru_cache(maxsize=2)
 def _application_sources(android):
     cmake = (NATIVE / "CMakeLists.txt").read_text(encoding="utf-8-sig")
-    start = cmake.index("qt_add_executable(colosseum")
-    end = cmake.index('if(ANDROID)\n    include(', start)
-    declarations = cmake[start:end]
+    executable_match = re.search(
+        r"(?im)^[ \t]*qt_add_executable\s*\(\s*colosseum\b", cmake
+    )
+    assert executable_match, "colosseum executable source declaration is missing"
+    executable = _extract_cmake_command(cmake, executable_match.start())
+    source_lists = _source_list_definitions(
+        cmake, executable_match.start(), executable
+    )
+    declarations = source_lists + [executable]
+    declarations.extend(_conditioned_target_sources(cmake))
     android_cmake = (NATIVE / "cmake" / "android.cmake").read_text(encoding="utf-8-sig")
-    start = android_cmake.index("target_sources(colosseum")
-    end = android_cmake.index("\n)", start) + 2
-    declarations += "\nif(ANDROID)\n" + android_cmake[start:end] + "\nendif()\n"
-    # CMake itself evaluates the platform conditions. Only target creation is
-    # intercepted; no configure/package step or source-path resolution is needed.
-    script = """macro(qt_add_executable name)
+    android_declarations = _conditioned_target_sources(android_cmake)
+    # CMake itself evaluates platform conditions. Extract only source commands
+    # so nearby package, link, and Android packaging setup is not executed here.
+    script = '''set(CMAKE_CURRENT_SOURCE_DIR "${NATIVE_SOURCE_DIR}")
+macro(qt_add_executable name)
 set(sources ${ARGN})
 endmacro()
 macro(target_sources name visibility)
 list(APPEND sources ${ARGN})
 endmacro()
-""" + declarations + '\nfile(WRITE "${OUTPUT}" "${sources}")\n'
+''' + "\n".join(declarations) + (
+        "\nif(ANDROID)\n" + "\n".join(android_declarations) + "\nendif()\n"
+        + '\nfile(WRITE "${OUTPUT}" "${sources}")\n'
+    )
     with tempfile.TemporaryDirectory(prefix="colosseum-vault-contract-") as directory:
         script_path = Path(directory) / "sources.cmake"
         output_path = Path(directory) / "sources.txt"
         script_path.write_text(script, encoding="utf-8")
         subprocess.run(
             [_tool("CMAKE_COMMAND", "cmake"), f"-DANDROID={'TRUE' if android else 'FALSE'}",
+             f"-DNATIVE_SOURCE_DIR={NATIVE.as_posix()}",
              f"-DOUTPUT={output_path.as_posix()}", "-P", str(script_path)],
             check=True, capture_output=True, text=True,
         )
         return set(output_path.read_text(encoding="utf-8").split(";"))
 
 
+def _assert_shared_audiobook_sources_are_present(sources):
+    cmake = (NATIVE / "CMakeLists.txt").read_text(encoding="utf-8-sig")
+    if re.search(r"(?im)^\s*set\s*\(\s*COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES\b", cmake):
+        missing = sorted(_SHARED_AUDIOBOOK_SOURCES - sources)
+        assert not missing, f"shared audiobook source list was omitted: {missing}"
+
+
 def test_android_excludes_vault_native_sources():
     sources = _application_sources(True)
+    _assert_shared_audiobook_sources_are_present(sources)
     forbidden = sorted(source for source in sources
                        if source.startswith(("engine/Vault", "engine/LocalLaunch", "feria/")))
     assert not forbidden, f"desktop-only product code in Android target: {forbidden}"
@@ -67,6 +183,7 @@ def test_android_excludes_vault_native_sources():
 
 def test_desktop_keeps_vault_native_sources():
     sources = _application_sources(False)
+    _assert_shared_audiobook_sources_are_present(sources)
     assert {"engine/VaultLibrary.cpp", "engine/VaultKit.cpp", "engine/VaultIndex.cpp",
             "engine/VaultScanner.cpp", "engine/VaultWatcher.cpp", "engine/VaultEnricher.cpp",
             "engine/VaultForensics.cpp", "engine/VaultBookCoverProvider.cpp",
