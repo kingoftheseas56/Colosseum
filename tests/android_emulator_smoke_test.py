@@ -61,13 +61,16 @@ elif args[:3] == ["shell", "uiautomator", "dump"]:
     if scenario == "onboarding_dump_failure": sys.exit(1)
     print("UI hierarchy dumped")
 elif args == ["shell", "wm", "size"]:
-    print("Physical size: " + ("320x640" if scenario == "onboarding_real_xml" else "1080x1920"))
+    small_display = ("onboarding_real_xml", "onboarding_rotated", "onboarding_rotated_bad_bounds")
+    print("Physical size: " + ("320x640" if scenario in small_display else "1080x1920"))
 elif args == ["shell", "cat", "/sdcard/colosseum-smoke-window.xml"]:
     if scenario == "onboarding_real_xml":
         print(pathlib.Path(os.environ["REAL_UI_FIXTURE"]).read_text()); sys.exit()
     package = "foreign.app" if scenario == "onboarding_foreign" else "test.colosseum"
     bounds = "[100,200][200,300]"
     if scenario == "onboarding_bad_bounds": bounds = "[100,200][2000,3000]"
+    if scenario == "onboarding_rotated": bounds = "[136,245][504,301]"
+    if scenario == "onboarding_rotated_bad_bounds": bounds = "[136,245][301,504]"
     if scenario == "onboarding_missing_bounds": bounds = ""
     label = "Sign in" if scenario == "onboarding_missing_label" else "Continue without account"
     if scenario in ("onboarding_combined_label", "onboarding_wrong_id"): label += ", Keep everything local on this device."
@@ -78,10 +81,11 @@ elif args == ["shell", "cat", "/sdcard/colosseum-smoke-window.xml"]:
     widget_class = "android.widget.TextView" if scenario == "onboarding_wrong_class" else "android.widget.Button"
     visible = "false" if scenario == "onboarding_hidden" else "true"
     enabled = "false" if scenario == "onboarding_disabled" else "true"
+    rotation = ' rotation="1"' if scenario in ("onboarding_rotated", "onboarding_rotated_bad_bounds") else ""
     node = ('<node package="%s" class="%s" resource-id="%s" content-desc="%s" '
             'bounds="%s" enabled="%s" visible-to-user="%s" clickable="true" />') % (
                 package, widget_class, resource_id, label, bounds, enabled, visible)
-    print("<hierarchy>" + node * (2 if scenario == "onboarding_duplicate" else 1) + "</hierarchy>")
+    print("<hierarchy" + rotation + ">" + node * (2 if scenario == "onboarding_duplicate" else 1) + "</hierarchy>")
 elif args[:3] == ["shell", "input", "tap"]:
     if args[3:] != os.environ.get("EXPECTED_TAP", "150 250").split(): sys.exit(4)
     s["tapped"] = True; save()
@@ -136,6 +140,8 @@ class AndroidSmokeTest(unittest.TestCase):
                        ADB=str(binary / "adb"), ANDROID_SDK_ROOT=str(root / "sdk"),
                        FIXTURE_ROOT=str(root), SCENARIO=scenario,
                        SMOKE_READY_TIMEOUT=str(ready_timeout), SMOKE_DEVICE_TIMEOUT="24")
+            if scenario == "onboarding_rotated":
+                env["EXPECTED_TAP"] = "320 273"
             if scenario == "onboarding_real_xml":
                 xml_path = Path(__file__).resolve().parent / "fixtures/android/onboarding-qt-ui.xml"
                 node = next(n for n in ET.parse(xml_path).iter("node")
@@ -183,6 +189,14 @@ class AndroidSmokeTest(unittest.TestCase):
         self.assertEqual(len(taps), 1)
         self.assertGreaterEqual(state["time"] - state["launch_time"], 64)
 
+    def test_rotated_qt_ui_bounds_follow_hierarchy_rotation(self):
+        result, state, _ = self.run_smoke("onboarding_rotated", alive=60)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        taps = [args for _, args in state["calls"] if args[:3] == ["shell", "input", "tap"]]
+        self.assertEqual(len(taps), 1)
+        self.assertEqual(taps[0][3:], ["320", "273"])
+        self.assertGreaterEqual(state["time"] - state["launch_time"], 64)
+
     def test_combined_label_with_other_generated_type_number(self):
         result, _, _ = self.run_smoke("onboarding_combined_label")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -199,7 +213,7 @@ class AndroidSmokeTest(unittest.TestCase):
         for scenario in ("onboarding_foreign", "onboarding_bad_bounds", "onboarding_missing_bounds",
                          "onboarding_missing_label", "onboarding_hidden", "onboarding_disabled",
                          "onboarding_duplicate", "onboarding_dump_failure", "onboarding_obscured",
-                         "onboarding_wrong_id", "onboarding_missing_id", "onboarding_wrong_class",
+                         "onboarding_rotated_bad_bounds", "onboarding_wrong_id", "onboarding_missing_id", "onboarding_wrong_class",
                          "onboarding_label_prefix"):
             with self.subTest(scenario=scenario):
                 result, state, _ = self.run_smoke(scenario)
