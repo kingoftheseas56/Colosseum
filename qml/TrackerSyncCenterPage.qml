@@ -2106,10 +2106,19 @@ Item {
                         id: nuvioCardContent
                         anchors.fill: parent
                         anchors.margins: 18
-                        columns: root.width >= 640 ? 2 : 1
+                        columns: root.width >= 640 ? 3 : 2
                         columnSpacing: 16
                         rowSpacing: 12
 
+                        Image {
+                            objectName: "trackerNuvioIcon"
+                            source: "../assets/icons/nuvio-official.png"
+                            sourceSize: Qt.size(50, 50)
+                            Layout.preferredWidth: 50
+                            Layout.preferredHeight: 50
+                            fillMode: Image.PreserveAspectFit
+                            Accessible.ignored: true
+                        }
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 6
@@ -2130,6 +2139,7 @@ Item {
                             }
                         }
                         ColumnLayout {
+                            Layout.columnSpan: root.width >= 640 ? 1 : 2
                             Layout.alignment: Qt.AlignRight
                             spacing: 7
                             Rectangle {

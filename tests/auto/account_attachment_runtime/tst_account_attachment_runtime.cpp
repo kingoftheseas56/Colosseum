@@ -732,6 +732,7 @@ private slots:
     void createNewAccountAcceptsCertifiedLwwSupersession();
     void ratingsReviewsAccountRuntimeCompositionContract();
     void activitySourceClearRemovesLedgerAfterAttachmentCompletion();
+    void theatreFirstRunPreparesLocalProfile();
     void stremioLegacyAccountlessProfileCanConnect();
     void stremioBrowserLoginPersistsAcrossRuntimeRestart_data();
     void stremioBrowserLoginPersistsAcrossRuntimeRestart();
@@ -871,6 +872,39 @@ ratingsReviewsAccountRuntimeCompositionContract() {
         "emit storesAboutToChange();",
         "std::move(m_stores)",
         "previous.reset();"}));
+}
+
+void tst_account_attachment_runtime::theatreFirstRunPreparesLocalProfile() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("theatre-first-run-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
+    QCoreApplication::setApplicationName(
+        QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+
+    MemoryRuntimeCredentials credentials;
+    AccountRuntime runtime(StremioSyncOptions{}, credentials.options());
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+    auto *nuvio = engine.rootContext()->contextProperty(QStringLiteral("NuvioAccounts"))
+        .value<QObject *>();
+    QVERIFY(nuvio);
+    QCOMPARE(runtime.profileStores()->activeProfile().kind(), ProfilePaths::Kind::Sealed);
+    QVERIFY(!nuvio->property("available").toBool());
+
+    auto *controller = runtime.controller();
+    QVERIFY(controller->prepareTheatreFirstRun());
+    QCOMPARE(controller->modeValue(), AccountController::Mode::SignedOut);
+    QVERIFY(controller->onboardingRequired());
+    QCOMPARE(runtime.profileStores()->activeProfile().kind(), ProfilePaths::Kind::LegacyLocal);
+    QVERIFY(nuvio->property("available").toBool());
+    QVERIFY(!nuvio->property("connected").toBool());
+
+    controller->continueWithoutAccount();
+    QCOMPARE(controller->modeValue(), AccountController::Mode::LocalOnly);
+    QVERIFY(!controller->prepareTheatreFirstRun());
 }
 
 void tst_account_attachment_runtime::

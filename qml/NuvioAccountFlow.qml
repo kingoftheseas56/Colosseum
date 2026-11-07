@@ -89,13 +89,26 @@ ScrollView {
         width: root.availableWidth
         spacing: 12
 
-        Text {
+        RowLayout {
             Layout.fillWidth: true
-            text: qsTr("Nuvio")
-            color: theme.ink
-            font.family: theme.display
-            font.pixelSize: 30
-            Accessible.role: Accessible.Heading
+            spacing: 14
+            Image {
+                objectName: "nuvioAccountFlowIcon"
+                source: "../assets/icons/nuvio-official.png"
+                sourceSize: Qt.size(38, 38)
+                Layout.preferredWidth: 38
+                Layout.preferredHeight: 38
+                fillMode: Image.PreserveAspectFit
+                Accessible.ignored: true
+            }
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("Nuvio")
+                color: theme.ink
+                font.family: theme.display
+                font.pixelSize: 30
+                Accessible.role: Accessible.Heading
+            }
         }
         FlowText {
             text: {

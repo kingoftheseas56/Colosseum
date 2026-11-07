@@ -17,7 +17,8 @@ Item {
         && typeof stremioActions.beginStremioFirstRun === "function"
         && typeof stremioActions.applyStremioImport === "function"
         && typeof stremioActions.cancelStremioImport === "function"
-    readonly property bool theatreSyncAvailable: controller && controller.accountFeaturesAvailable !== false
+    readonly property bool theatreSyncAvailable: controller && controllerMode === "signedOut"
+        && controller.accountFeaturesAvailable !== false
         && (stremioFirstRunAvailable || (nuvioAccount && nuvioAccount.available))
 
     property string routeName: "welcome"
@@ -154,7 +155,10 @@ Item {
             controller: root.controller
             backdrop: root.backdrop
             theatreSyncAvailable: root.theatreSyncAvailable
-            onTheatreSyncRequested: root.routeName = "theatreSync"
+            onTheatreSyncRequested: {
+                if (root.controller && root.controller.prepareTheatreFirstRun())
+                    root.routeName = "theatreSync"
+            }
             onSignInRequested: root.goSignIn()
             onCreateAccountRequested: root.goCreate()
         }
