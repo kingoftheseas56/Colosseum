@@ -32,7 +32,7 @@ signals:
     void streamsReady(int requestId, const QVariantList &streams);
     void finished(int requestId);
 #ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
-    void proofWorkerStarted(int requestId, qint64 pid);
+    void proofWorkerStarted(int requestId, qint64 pid, int slot, qint64 requestMonotonicMs);
     void proofWorkerFinished(int requestId, qint64 pid, const QString &outcome);
 #endif
 

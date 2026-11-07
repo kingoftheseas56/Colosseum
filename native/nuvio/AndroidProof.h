@@ -3,6 +3,8 @@
 #include <QElapsedTimer>
 #include <QObject>
 #include <QPointer>
+#include <QSet>
+#include <QStringList>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QVariantList>
@@ -48,13 +50,17 @@ signals:
     void runFaultRequested();
 
 private:
-    enum class Phase { Idle, Adding, Enabling, AddingStremio, Resolving, Between, Crash, Timeout, Rechecking, Complete, Failed };
+    enum class Phase { Idle, Adding, Enabling, AddingStremio, Resolving, Between, Crash, Timeout, Recovering, Rechecking, Profiling, Complete, Failed };
     bool createOverlay(const QString &qmlPath);
     bool prepareFaultStore();
     void repositorySettled();
     void installStremioFixture();
     void beginFault(const QString &fault);
     void finishFault(const QVariantList &stremioRows);
+    void beginRecovery();
+    void finishRecovery(const QVariantList &stremioRows, const QVariantList &nuvioRows);
+    void beginProfile(int concurrency);
+    void finishProfile();
     void record(const QString &stage, QVariantMap details = {});
     void fail(const QString &reason);
     void setStatus(const QString &status);
@@ -89,6 +95,20 @@ private:
     QString m_fault;
     QString m_faultOutcome;
     QVariantList m_directStreams;
+    QVariantList m_observedStremioRows;
+    QString m_publicStreamUrl;
+    qint64 m_failedWorkerPid = 0;
+    qint64 m_recoveryWorkerPid = 0;
+    int m_recoverySlot = -1;
+    QString m_recoveryOutcome;
+    QStringList m_recoveredFaults;
+    QVariantMap m_finalEvidence;
+    int m_profileConcurrency = 0;
+    int m_profileMaxConcurrent = 0;
+    QSet<qint64> m_profilePids;
+    QSet<qint64> m_profileFinishedPids;
+    QSet<int> m_profileSlots;
+    QVariantList m_profilesCompleted;
     QByteArray m_stremioFingerprint;
     QByteArray m_registryFingerprint;
     int m_stremioRows = 0;

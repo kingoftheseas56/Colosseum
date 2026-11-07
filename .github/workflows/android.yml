@@ -24,6 +24,7 @@ env:
   QT_VERSION: "6.11.1"
   COLOSSEUM_ANDROID_TOOLCHAIN: ${{ github.workspace }}/../colosseum-android
   COLOSSEUM_ANDROID_DEPS: ${{ github.workspace }}/../colosseum-android-deps
+  COLOSSEUM_ANDROID_BUILD: ${{ github.workspace }}/native/build-android
 
 jobs:
   build:
@@ -54,6 +55,7 @@ jobs:
             python tests/android_emulator_smoke_test.py
             python tests/test_android_nuvio_proof_driver.py
             python tests/test_android_nuvio_cmake.py
+            python tests/test_android_build_variants.py
             python tests/test_android_streamserver_stub.py
             python tests/android_nuvio_bridge_test.py
             python tests/test_android_toolchain_install.py
@@ -169,11 +171,19 @@ jobs:
         if: env.NUVIO_PROOF == 'true'
         env:
           COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCOLOSSEUM_NUVIO_ANDROID=ON -DCOLOSSEUM_NUVIO_ANDROID_PROOF=ON
+          COLOSSEUM_ANDROID_BUILD: ${{ github.workspace }}/native/build-android-proof
           COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
         run: |
           source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
           set -o pipefail
           scripts/android/build_apk.sh x86_64 apk-nuvio-proof 2>&1 | tee build-nuvio-proof-x86_64.log
+          # Instrumentation changes Qt's generated meta-object ABI. Never reuse
+          # production autogen/package outputs for this distinct variant.
+          proof_moc=$(find "$COLOSSEUM_ANDROID_BUILD/x86_64/nuvio/colosseum_nuvio_autogen" -name moc_NuvioSourceResolver.cpp -type f -print -quit)
+          test -n "$proof_moc"
+          grep -q 'proofWorkerStarted' "$proof_moc"
+          grep -q 'proofWorkerFinished' "$proof_moc"
+          cp "$proof_moc" apk-nuvio-proof/proof-moc_NuvioSourceResolver.cpp
 
       - name: Build Nuvio-disabled APK size baselines
         if: env.NUVIO_PROOF == 'true'

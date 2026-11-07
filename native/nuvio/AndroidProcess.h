@@ -32,6 +32,10 @@ public:
     void kill();
     ProcessState state() const { return m_state; }
     qint64 processId() const { return m_pid; }
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+    int slotIndex() const { return m_slot; }
+    qint64 requestMonotonicMs() const { return m_requestMonotonicMs; }
+#endif
     QByteArray readAllStandardOutput();
     QByteArray readAllStandardError() { return {}; }
 
@@ -54,6 +58,9 @@ private:
     int m_job = -1;
     int m_slot = -1;
     qint64 m_pid = 0;
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+    qint64 m_requestMonotonicMs = 0;
+#endif
     bool m_received = false;
     QSocketNotifier *m_notifier = nullptr;
     QTimer *m_pidTimer = nullptr;

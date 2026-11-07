@@ -738,6 +738,20 @@ module.exports.getStreams = async (imdb, type) => {
     }
     JS_SetContextOpaque(s.context, &s);
     install(&s);
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+    if (s.error.isEmpty()) {
+        // Same system monotonic clock as the parent's invocation request.
+        // Captures a process-cold Qt + QuickJS/bootstrap initialization, before
+        // plugin module evaluation. Filesystem/library caches may remain warm.
+        QElapsedTimer clock;
+        clock.start();
+        const auto record = QByteArray("NUVIO_ANDROID_RUNTIME_READY=")
+            + QJsonDocument(QJsonObject{{"monotonicMs", clock.msecsSinceReference()},
+                                        {"workerPid", QCoreApplication::applicationPid()}})
+                  .toJson(QJsonDocument::Compact);
+        __android_log_write(ANDROID_LOG_INFO, "ColosseumNuvioProof", record.constData());
+    }
+#endif
     if (s.error.isEmpty())
         evaluate(s.context, code, "plugin");
     if (s.error.isEmpty()) {

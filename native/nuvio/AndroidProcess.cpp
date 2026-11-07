@@ -3,6 +3,9 @@
 #include "NuvioWorkerProtocol.h"
 
 #include <QCoreApplication>
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+#include <QElapsedTimer>
+#endif
 #include <QJniEnvironment>
 #include <QJniObject>
 #include <QSocketNotifier>
@@ -33,6 +36,11 @@ void NuvioAndroidProcess::failStart()
 
 void NuvioAndroidProcess::start(QIODevice::OpenMode)
 {
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+    QElapsedTimer clock;
+    clock.start();
+    m_requestMonotonicMs = clock.msecsSinceReference();
+#endif
     if (m_state != NotRunning || m_program != QLatin1String("android:private-nuvio-service")) {
         failStart();
         return;

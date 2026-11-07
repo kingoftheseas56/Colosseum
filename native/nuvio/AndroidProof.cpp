@@ -24,10 +24,13 @@
 #include <QUrl>
 #include <QUrlQuery>
 #include <QtCore/qcoreapplication_platform.h>
+#include <algorithm>
 
 namespace {
 constexpr int kScreenshotHoldMs = 1800;
 constexpr int kLiveDeadlineMs = 90000;
+constexpr int kProfileIdleMs = 4000;
+constexpr int kProfileHoldMs = 16000;
 constexpr auto kStremioId = "org.colosseum.proof.publicdomain";
 // Exercise the unchanged native authorizer without reading credentials, sending
 // requests, or exposing test values to JavaScript or logs. This is a synthetic
@@ -74,7 +77,11 @@ bool syntheticTmdbAuthorizationSelfTest()
 
 constexpr auto kFaultManifest = R"JSON({"name":"Local fault instrumentation (not a live provider)","scrapers":[
     {"id":"crash","name":"Native crash instrumentation","version":"1","filename":"crash.js","supportedTypes":["movie"]},
-    {"id":"timeout","name":"Deadline instrumentation","version":"1","filename":"timeout.js","supportedTypes":["movie"]}
+    {"id":"timeout","name":"Deadline instrumentation","version":"1","filename":"timeout.js","supportedTypes":["movie"]},
+    {"id":"profile0","name":"Synthetic idle profile 0","version":"1","filename":"profile.js","supportedTypes":["movie"]},
+    {"id":"profile1","name":"Synthetic idle profile 1","version":"1","filename":"profile.js","supportedTypes":["movie"]},
+    {"id":"profile2","name":"Synthetic idle profile 2","version":"1","filename":"profile.js","supportedTypes":["movie"]},
+    {"id":"profile3","name":"Synthetic idle profile 3","version":"1","filename":"profile.js","supportedTypes":["movie"]}
 ]})JSON";
 
 // Resolve imports against the very same deployed QML directory as Main.qml.
@@ -164,7 +171,7 @@ AndroidProof::AndroidProof(QQmlApplicationEngine *engine, NuvioRepositoryStore *
     });
     connect(m_sources, &NuvioSourceResolver::streamsReady, this,
             [this](int, const QVariantList &streams) {
-        if (m_phase != Phase::Resolving && m_phase != Phase::Rechecking)
+        if (m_phase != Phase::Resolving && m_phase != Phase::Rechecking && m_phase != Phase::Recovering)
             return;
         for (const auto &entry : streams) {
             const auto row = entry.toMap();
@@ -174,8 +181,31 @@ AndroidProof::AndroidProof(QQmlApplicationEngine *engine, NuvioRepositoryStore *
         }
     });
     connect(m_sources, &NuvioSourceResolver::finished, this, [this](int) {
-        if (m_phase == Phase::Resolving || m_phase == Phase::Rechecking)
+        if (m_phase == Phase::Resolving || m_phase == Phase::Rechecking || m_phase == Phase::Recovering)
             m_liveFinished = true;
+    });
+    connect(m_sources, &NuvioSourceResolver::proofWorkerStarted, this,
+            [this](int, qint64 pid, int slot, qint64 requestMonotonicMs) {
+        if (m_phase != Phase::Recovering) return;
+        if (m_recoveryWorkerPid || pid <= 0 || pid == m_failedWorkerPid
+            || pid == QCoreApplication::applicationPid() || slot < 0 || slot >= 4) {
+            fail(QStringLiteral("recovery_worker_not_fresh"));
+            return;
+        }
+        m_recoveryWorkerPid = pid;
+        m_recoverySlot = slot;
+        record(QStringLiteral("recovery_worker_started"), {{"fault", m_fault},
+            {"failedWorkerPid", m_failedWorkerPid}, {"workerPid", pid}, {"slot", slot},
+            {"requestMonotonicMs", requestMonotonicMs}});
+    });
+    connect(m_sources, &NuvioSourceResolver::proofWorkerFinished, this,
+            [this](int, qint64 pid, const QString &outcome) {
+        if (m_phase != Phase::Recovering) return;
+        if (pid != m_recoveryWorkerPid) {
+            fail(QStringLiteral("recovery_worker_identity_changed"));
+            return;
+        }
+        m_recoveryOutcome = outcome;
     });
     connect(m_extensions, &ExtensionsStore::installFailed, this, [this](const QString &, const QString &) {
         if (m_phase == Phase::AddingStremio) fail(QStringLiteral("stremio_fixture_install_failed"));
@@ -393,6 +423,12 @@ QVariantMap AndroidProof::integrityEvidence(const QVariantList &stremioRows) con
 void AndroidProof::observeSources(const QVariantList &stremioRows, const QVariantList &nuvioRows,
                                   bool nuvioPending, bool stremioPending, int askedCount)
 {
+    m_observedStremioRows = stremioRows;
+    if (m_phase == Phase::Recovering) {
+        if (m_liveFinished && !nuvioPending && !stremioPending)
+            finishRecovery(stremioRows, nuvioRows);
+        return;
+    }
     if (m_phase == Phase::Rechecking) {
         if (!m_liveFinished || nuvioPending || stremioPending) return;
         auto evidence = integrityEvidence(stremioRows);
@@ -410,11 +446,9 @@ void AndroidProof::observeSources(const QVariantList &stremioRows, const QVarian
         evidence.insert(QStringLiteral("nuvioRequery"), true);
         setStatus(QStringLiteral("Fresh Nuvio and Stremio queries succeeded after both failures"));
         record(QStringLiteral("stremio_requeried"), evidence);
-        QTimer::singleShot(kScreenshotHoldMs, this, [this, evidence] {
-            if (m_phase != Phase::Between) return;
-            m_phase = Phase::Complete;
-            setStatus(QStringLiteral("PASS: direct stream, crash, timeout and fresh Stremio protocol query"));
-            record(QStringLiteral("completed"), evidence);
+        m_finalEvidence = evidence;
+        QTimer::singleShot(kScreenshotHoldMs, this, [this] {
+            if (m_phase == Phase::Between) beginProfile(1);
         });
         return;
     }
@@ -440,6 +474,7 @@ void AndroidProof::observeSources(const QVariantList &stremioRows, const QVarian
             fail(QStringLiteral("live_stream_invalid"));
             return;
         }
+        m_publicStreamUrl = streamUrl;
         m_stremioFingerprint = fingerprint(stremioRows);
         m_registryFingerprint = registryFingerprint();
         m_stremioRows = stremioRows.size();
@@ -484,6 +519,8 @@ bool AndroidProof::prepareFaultStore()
                 complete("module.exports.getStreams = async () => { __proofNativeCrash(); return []; };", url, {});
             else if (url.fileName() == QLatin1String("timeout.js"))
                 complete("module.exports.getStreams = async () => { while (true) {} };", url, {});
+            else if (url.fileName() == QLatin1String("profile.js"))
+                complete("module.exports.getStreams = async () => { await new Promise(resolve => setTimeout(resolve, 16000)); return []; };", url, {});
             else
                 complete({}, url, QStringLiteral("unknown_fixture"));
         }, this);
@@ -493,7 +530,23 @@ bool AndroidProof::prepareFaultStore()
     m_faultRepositoryId = m_faultRepositories->repositories().constFirst().toMap().value(QStringLiteral("id")).toString();
     m_faultSources = new NuvioSourceResolver(m_faultRepositories, QStringLiteral("android:private-nuvio-service"), this);
     connect(m_faultSources, &NuvioSourceResolver::proofWorkerStarted, this,
-            [this](int, qint64 pid) {
+            [this](int, qint64 pid, int slot, qint64 requestMonotonicMs) {
+        if (m_phase == Phase::Profiling) {
+            if (pid <= 0 || pid == QCoreApplication::applicationPid() || slot < 0 || slot >= 4
+                || m_profilePids.contains(pid) || m_profileSlots.contains(slot)
+                || m_profilePids.size() >= m_profileConcurrency) {
+                fail(QStringLiteral("profile_worker_identity_invalid"));
+                return;
+            }
+            m_profilePids.insert(pid);
+            m_profileSlots.insert(slot);
+            m_profileMaxConcurrent = qMax(m_profileMaxConcurrent,
+                int(m_profilePids.size() - m_profileFinishedPids.size()));
+            record(QStringLiteral("profile_worker_started"), {{"concurrency", m_profileConcurrency},
+                {"workerPid", pid}, {"slot", slot}, {"requestMonotonicMs", requestMonotonicMs},
+                {"syntheticWorkload", true}});
+            return;
+        }
         if (m_phase != Phase::Crash && m_phase != Phase::Timeout) return;
         m_workerPid = pid;
         if (pid <= 0 || pid == QCoreApplication::applicationPid()) {
@@ -501,15 +554,26 @@ bool AndroidProof::prepareFaultStore()
             return;
         }
         record(QStringLiteral("worker_started"), {{"fault", m_fault}, {"workerPid", pid},
-                                                  {"syntheticFaultScript", true}});
+                                                  {"syntheticFaultScript", true}, {"slot", slot},
+                                                  {"requestMonotonicMs", requestMonotonicMs}});
     });
     connect(m_faultSources, &NuvioSourceResolver::proofWorkerFinished, this,
             [this](int, qint64 pid, const QString &outcome) {
+        if (m_phase == Phase::Profiling) {
+            if (outcome != QLatin1String("ok") || !m_profilePids.contains(pid)
+                || m_profileFinishedPids.contains(pid)) {
+                fail(QStringLiteral("profile_worker_did_not_complete"));
+                return;
+            }
+            m_profileFinishedPids.insert(pid);
+            return;
+        }
         if (m_phase != Phase::Crash && m_phase != Phase::Timeout) return;
         if (pid > 0) m_workerPid = pid;
         m_faultOutcome = outcome;
     });
     connect(m_faultSources, &NuvioSourceResolver::finished, this, [this](int) {
+        if (m_phase == Phase::Profiling) { finishProfile(); return; }
         if (m_phase == Phase::Crash || m_phase == Phase::Timeout)
             m_faultFinished = true;
     });
@@ -573,21 +637,144 @@ void AndroidProof::finishFault(const QVariantList &stremioRows)
     setStatus(wasCrash ? QStringLiteral("Native plugin crash survived; Stremio sources unchanged")
                        : QStringLiteral("Plugin timeout survived; Stremio sources unchanged"));
     record(m_fault + QStringLiteral("_survived"), evidence);
+    QTimer::singleShot(kScreenshotHoldMs, this, [this] {
+        if (m_phase == Phase::Between) beginRecovery();
+    });
+}
+
+void AndroidProof::beginRecovery()
+{
+    m_failedWorkerPid = m_workerPid;
+    m_recoveryWorkerPid = 0;
+    m_recoverySlot = -1;
+    m_recoveryOutcome.clear();
+    m_directStreams.clear();
+    m_liveFinished = false;
+    m_phase = Phase::Recovering;
+    m_currentSources = m_sources;
+    emit sourceServiceChanged();
+    m_watchdog.start(kLiveDeadlineMs);
+    setStatus(QStringLiteral("Next call after %1: live plugin in a fresh service process").arg(m_fault));
+    record(QStringLiteral("recovery_started"), {{"fault", m_fault}, {"failedWorkerPid", m_failedWorkerPid}});
+    // This is the very next resolver invocation after the fault. Keep Stremio
+    // rows visible, and use the real HTTPS plugin rather than a success fixture.
+    emit runFaultRequested();
+}
+
+void AndroidProof::finishRecovery(const QVariantList &stremioRows, const QVariantList &nuvioRows)
+{
+    auto evidence = integrityEvidence(stremioRows);
+    if (!evidence.value(QStringLiteral("stremioIntact")).toBool()
+        || m_recoveryWorkerPid <= 0 || m_recoveryWorkerPid == m_failedWorkerPid
+        || m_recoveryOutcome != QLatin1String("ok") || m_directStreams.isEmpty() || nuvioRows.isEmpty()
+        || m_directStreams.constFirst().toMap().value(QStringLiteral("url")).toString() != m_publicStreamUrl) {
+        fail(QStringLiteral("next_call_recovery_failed"));
+        return;
+    }
+    m_watchdog.stop();
+    m_recoveredFaults.append(m_fault);
+    evidence.insert(QStringLiteral("fault"), m_fault);
+    evidence.insert(QStringLiteral("failedWorkerPid"), m_failedWorkerPid);
+    evidence.insert(QStringLiteral("workerPid"), m_recoveryWorkerPid);
+    evidence.insert(QStringLiteral("slot"), m_recoverySlot);
+    evidence.insert(QStringLiteral("result"), m_recoveryOutcome);
+    evidence.insert(QStringLiteral("streamUrl"), m_publicStreamUrl);
+    evidence.insert(QStringLiteral("directRows"), m_directStreams.size());
+    evidence.insert(QStringLiteral("sourceKind"), QStringLiteral("live_https_controlled_fixture"));
+    m_phase = Phase::Between;
+    setStatus(QStringLiteral("Next call after %1 succeeded in fresh PID %2").arg(m_fault).arg(m_recoveryWorkerPid));
+    record(m_fault + QStringLiteral("_recovered"), evidence);
+    const bool wasCrash = m_fault == QLatin1String("crash");
     QTimer::singleShot(kScreenshotHoldMs, this, [this, wasCrash, evidence] {
         if (m_phase != Phase::Between) return;
-        if (wasCrash) {
-            beginFault(QStringLiteral("timeout"));
-        } else {
-            m_phase = Phase::Rechecking;
-            m_directStreams.clear();
-            m_liveFinished = false;
-            m_currentSources = m_sources;
-            emit sourceServiceChanged();
-            m_watchdog.start(kLiveDeadlineMs);
-            setStatus(QStringLiteral("Re-querying the real Nuvio plugin and unchanged Stremio protocol after both faults"));
-            record(QStringLiteral("stremio_requery_started"), evidence);
-            emit showSourcesRequested();
+        if (wasCrash) { beginFault(QStringLiteral("timeout")); return; }
+        m_phase = Phase::Rechecking;
+        m_directStreams.clear();
+        m_liveFinished = false;
+        m_watchdog.start(kLiveDeadlineMs);
+        setStatus(QStringLiteral("Re-querying unchanged Stremio and live Nuvio after both recoveries"));
+        record(QStringLiteral("stremio_requery_started"), evidence);
+        emit showSourcesRequested();
+    });
+}
+
+void AndroidProof::beginProfile(int concurrency)
+{
+    if ((concurrency != 1 && concurrency != 4) || !prepareFaultStore()) {
+        fail(QStringLiteral("profile_setup_failed"));
+        return;
+    }
+    m_profileConcurrency = concurrency;
+    m_profilePids.clear();
+    m_profileFinishedPids.clear();
+    m_profileSlots.clear();
+    m_profileMaxConcurrent = 0;
+    m_phase = Phase::Between;
+    setStatus(QStringLiteral("Zero-worker baseline before %1 lazy service slot(s)").arg(concurrency));
+    record(QStringLiteral("profile_baseline"), {{"concurrency", concurrency},
+        {"holdMs", kProfileIdleMs}, {"syntheticWorkload", true}});
+    QTimer::singleShot(kProfileIdleMs, this, [this, concurrency] {
+        if (m_phase != Phase::Between || m_profileConcurrency != concurrency) return;
+        for (const auto &id : {QStringLiteral("crash"), QStringLiteral("timeout")})
+            m_faultRepositories->setPluginEnabled(m_faultRepositoryId, id, false);
+        for (int i = 0; i < 4; ++i)
+            m_faultRepositories->setPluginEnabled(m_faultRepositoryId,
+                QStringLiteral("profile%1").arg(i), i < concurrency);
+        if (!m_faultRepositories->error().isEmpty()
+            || m_faultRepositories->enabledPlugins(QStringLiteral("movie")).size() != concurrency) {
+            fail(QStringLiteral("profile_plugins_not_enabled"));
+            return;
         }
+        m_phase = Phase::Profiling;
+        m_watchdog.start(NuvioWorkerProtocol::processDeadlineMs + 5000);
+        setStatus(QStringLiteral("Measuring %1 initialized idle QuickJS service(s), synthetic timer workload").arg(concurrency));
+        record(QStringLiteral("profile_started"), {{"concurrency", concurrency},
+            {"holdMs", kProfileHoldMs}, {"syntheticWorkload", true},
+            {"workload", "idle_initialized_quickjs_timer"}});
+        if (!m_faultSources->resolve(m_mediaId, QStringLiteral("movie"), 1, 1))
+            fail(QStringLiteral("profile_request_rejected"));
+    });
+}
+
+void AndroidProof::finishProfile()
+{
+    if (!integrityEvidence(m_observedStremioRows).value(QStringLiteral("stremioIntact")).toBool()
+        || m_profilePids.size() != m_profileConcurrency
+        || m_profileFinishedPids != m_profilePids || m_profileSlots.size() != m_profileConcurrency
+        || m_profileMaxConcurrent != m_profileConcurrency) {
+        fail(QStringLiteral("profile_concurrency_not_proven"));
+        return;
+    }
+    m_watchdog.stop();
+    QVariantList pids, slotIndices;
+    auto orderedPids = m_profilePids.values();
+    auto orderedSlots = m_profileSlots.values();
+    std::sort(orderedPids.begin(), orderedPids.end());
+    std::sort(orderedSlots.begin(), orderedSlots.end());
+    for (const auto pid : orderedPids) pids.append(pid);
+    for (const auto slot : orderedSlots) slotIndices.append(slot);
+    record(QStringLiteral("profile_finished"), {{"concurrency", m_profileConcurrency},
+        {"workerPids", pids}, {"slots", slotIndices}, {"startedCount", m_profilePids.size()},
+        {"finishedCount", m_profileFinishedPids.size()}, {"maxConcurrentWorkers", m_profileMaxConcurrent},
+        {"result", "ok"}, {"syntheticWorkload", true}, {"idleHoldMs", kProfileIdleMs}});
+    m_profilesCompleted.append(m_profileConcurrency);
+    m_phase = Phase::Between;
+    setStatus(QStringLiteral("Profile complete; observing disposal of all service processes"));
+    QTimer::singleShot(kProfileIdleMs, this, [this] {
+        if (m_phase != Phase::Between) return;
+        if (m_profileConcurrency == 1) { beginProfile(4); return; }
+        const auto finalIntegrity = integrityEvidence(m_observedStremioRows);
+        if (!finalIntegrity.value(QStringLiteral("stremioIntact")).toBool()) {
+            fail(QStringLiteral("final_stremio_integrity_changed"));
+            return;
+        }
+        for (auto it = finalIntegrity.cbegin(); it != finalIntegrity.cend(); ++it)
+            m_finalEvidence.insert(it.key(), it.value());
+        m_phase = Phase::Complete;
+        m_finalEvidence.insert(QStringLiteral("profilesCompleted"), m_profilesCompleted);
+        m_finalEvidence.insert(QStringLiteral("recoveredFaults"), m_recoveredFaults);
+        setStatus(QStringLiteral("PASS: fresh post-fault calls, Stremio intact, 1/4-slot resource workloads complete"));
+        record(QStringLiteral("completed"), m_finalEvidence);
     });
 }
 

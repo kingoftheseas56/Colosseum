@@ -27,32 +27,56 @@ sizes = load_module("report_nuvio_apk_size")
 
 
 def records():
-    result = []
-    for index, stage in enumerate(proof.STAGES):
+    result, current_fault, profile_count, profile_workers = [], "crash", 0, []
+    for stage in proof.STAGES:
         record = {"stage": stage, "nonce": "fresh", "appPid": 100, "ok": True}
+        if stage == "timeout_started":
+            current_fault = "timeout"
+        crash = current_fault == "crash"
         if stage == "started":
             record.update(tmdbAuthorizationSelfTest=True,
                           tmdbAuthorizationSelfTestKind="synthetic_no_network")
-        if stage in ("stremio_fixture_installed", "direct_stream", "stremio_requeried", "completed"):
+        if stage in ("stremio_fixture_installed", "direct_stream", "crash_recovered", "timeout_recovered", "stremio_requeried", "completed"):
             record.update(sourceKind="live_https_controlled_fixture")
         if stage in ("stremio_requeried", "completed"):
             record.update(stremioRequery=True, nuvioRequery=True)
-        if stage in ("direct_stream", "crash_survived", "timeout_survived", "stremio_requeried", "completed"):
+        if stage in ("direct_stream", "crash_survived", "crash_recovered", "timeout_survived", "timeout_recovered", "stremio_requeried", "completed"):
             record.update(stremioIntact=True, stremioRows=2, stremioFingerprint="rows123",
                           registryFingerprint="registry123")
-        if stage == "direct_stream":
+        if stage in ("direct_stream", "crash_recovered", "timeout_recovered"):
             record.update(streamUrl="https://archive.org/download/public-domain/film.mp4",
                           title="Night of the Living Dead (1968)")
         if stage == "worker_started":
-            crash = index == proof.STAGES.index("worker_started")
-            record.update(fault="crash" if crash else "timeout", workerPid=200 if crash else 201,
+            record.update(fault=current_fault, workerPid=200 if crash else 201,
                           syntheticFaultScript=True)
         if stage in ("crash_survived", "timeout_survived"):
-            crash = stage == "crash_survived"
             record.update(workerPid=200 if crash else 201, syntheticFaultScript=True,
-                          fault="crash" if crash else "timeout",
-                          result="crashed" if crash else "deadline",
+                          fault=current_fault, result="crashed" if crash else "deadline",
                           elapsedMs=100 if crash else 20050)
+        if stage in ("recovery_started", "recovery_worker_started", "crash_recovered", "timeout_recovered"):
+            record.update(fault=current_fault, failedWorkerPid=200 if crash else 201)
+            if stage != "recovery_started":
+                record.update(workerPid=210 if crash else 211, slot=0, requestMonotonicMs=1234)
+            if stage.endswith("_recovered"):
+                record.update(result="ok", directRows=1)
+        if stage.startswith("profile_"):
+            if stage == "profile_baseline":
+                profile_count = 1 if profile_count == 0 else 4
+                profile_workers = []
+                record.update(holdMs=4000, syntheticWorkload=True)
+            record.update(concurrency=profile_count)
+            if stage == "profile_started":
+                record.update(holdMs=16000, syntheticWorkload=True, workload="idle_initialized_quickjs_timer")
+            if stage == "profile_worker_started":
+                slot = len(profile_workers)
+                record.update(workerPid=300 + profile_count * 10 + slot, slot=slot, requestMonotonicMs=1234)
+                profile_workers.append(record)
+            if stage == "profile_finished":
+                record.update(workerPids=[w["workerPid"] for w in profile_workers], slots=[w["slot"] for w in profile_workers],
+                              startedCount=profile_count, finishedCount=profile_count, maxConcurrentWorkers=profile_count,
+                              result="ok", idleHoldMs=4000, syntheticWorkload=True)
+        if stage == "completed":
+            record.update(profilesCompleted=[1, 4], recoveredFaults=["crash", "timeout"])
         result.append(record)
     return result
 
@@ -97,7 +121,7 @@ class ProofContractTests(unittest.TestCase):
 
     def test_each_stremio_invariant_is_checked(self):
         for stage_index in (proof.STAGES.index(stage) for stage in
-                            ("direct_stream", "crash_survived", "timeout_survived", "stremio_requeried", "completed")):
+                            ("direct_stream", "crash_survived", "crash_recovered", "timeout_survived", "timeout_recovered", "stremio_requeried", "completed")):
             for field, value in (("stremioRows", 0), ("stremioIntact", False),
                                  ("stremioFingerprint", ""), ("registryFingerprint", "")):
                 data = records()
@@ -192,11 +216,175 @@ class ProofContractTests(unittest.TestCase):
                 with patch.object(proof, "choose_emulator", return_value=FakeAdb()), \
                      patch.object(proof, "current_pid", side_effect=observed_pids), \
                      patch.object(proof.secrets, "token_hex", return_value="fresh"), \
-                     patch.object(proof.time, "sleep"):
+                     patch.object(proof.time, "sleep"), \
+                     patch.object(proof, "collect_resource_evidence"), \
+                     patch.object(proof, "validate_resource_completion"):
                     code = proof.run_proof(args)
                 result = json.loads((Path(temporary) / "proof-result.json").read_text())
                 self.assertEqual(stage == "success", result["passed"])
                 self.assertEqual(0 if stage == "success" else 1, code)
+
+
+class ResourceEvidenceTests(unittest.TestCase):
+    package = "org.qtproject.example"
+
+    def meminfo(self, pid, name, pss=12345, rss=23456):
+        return f"** MEMINFO in pid {pid} [{name}] **\n App Summary\n TOTAL PSS: {pss} TOTAL RSS: {rss} TOTAL SWAP PSS: 0\n"
+
+    def ready_log(self, pid, milliseconds=1500):
+        return f'11-07 10:00:00.000 {pid} 11 I ColosseumNuvioProof: NUVIO_ANDROID_RUNTIME_READY={{"monotonicMs":{milliseconds},"workerPid":{pid}}}'
+
+    def test_meminfo_identity_and_positive_pss_rss_required(self):
+        text = self.meminfo(310, self.package + ":nuvio0")
+        self.assertEqual(12345, proof.parse_meminfo(text, 310, self.package + ":nuvio0")["pssKiB"])
+        for modified in (text.replace("pid 310", "pid 311"), text.replace("nuvio0", "nuvio1"),
+                         text.replace("TOTAL RSS:", "NO RSS:"), self.meminfo(310, self.package + ":nuvio0", 0),
+                         self.meminfo(310, self.package + ":nuvio0", 200, 0)):
+            with self.subTest(text=modified), self.assertRaises(proof.ProofFailure):
+                proof.parse_meminfo(modified, 310, self.package + ":nuvio0")
+
+    def test_ready_timestamp_is_bound_to_worker_log_pid(self):
+        self.assertEqual({310: 1500}, proof.runtime_ready_times(self.ready_log(310)))
+        self.assertEqual({}, proof.runtime_ready_times(self.ready_log(310).replace("ColosseumNuvioProof", "UntrustedTag")))
+        for text in (self.ready_log(310) + "\n" + self.ready_log(310), self.ready_log(310, -1),
+                     self.ready_log(310).replace("1500", "true"), self.ready_log(310).replace('"workerPid":310', '"workerPid":311'), self.ready_log(310).replace("1500", "broken")):
+            with self.subTest(text=text), self.assertRaises(proof.ProofFailure):
+                proof.runtime_ready_times(text)
+
+    def test_process_list_requires_exact_service_names(self):
+        text = "PID NAME\n100 org.qtproject.example\n310 org.qtproject.example:nuvio0\n320 foreign:nuvio1\n"
+        self.assertEqual({0: 310}, proof.parse_service_processes(text, self.package))
+        with self.assertRaises(proof.ProofFailure):
+            proof.parse_service_processes(text + "311 org.qtproject.example:nuvio0\n", self.package)
+
+    def test_active_memory_sample_confirms_all_workers_before_and_after(self):
+        owner = self
+        workers = [{"workerPid": 310, "slot": 0, "requestMonotonicMs": 1200}]
+        class FakeAdb:
+            def __init__(self, remove=False):
+                self.process_calls, self.remove = 0, remove
+            def run(self, *args):
+                if args[1] == "ps":
+                    self.process_calls += 1
+                    if self.remove and self.process_calls > 1:
+                        return "PID NAME\n"
+                    return "PID NAME\n310 org.qtproject.example:nuvio0\n"
+                pid = int(args[-1])
+                return owner.meminfo(pid, owner.package + (":nuvio0" if pid == 310 else ""))
+        for remove in (False, True):
+            with self.subTest(remove=remove), tempfile.TemporaryDirectory() as tmp:
+                if remove:
+                    with self.assertRaises(proof.ProofFailure):
+                        proof.sample_active_memory(FakeAdb(remove), Path(tmp), self.package, 100, workers, {310: 1500})
+                else:
+                    result = proof.sample_active_memory(FakeAdb(), Path(tmp), self.package, 100, workers, {310: 1500})
+                    self.assertEqual(300, result["workers"][0]["coldStartMs"])
+                    self.assertEqual(12345, result["totalWorkerPssKiB"])
+                    self.assertTrue((Path(tmp) / "slot-0-meminfo.txt").is_file())
+
+    def test_wrong_or_missing_ready_clock_cannot_measure_startup(self):
+        workers = [{"workerPid": 310, "slot": 0, "requestMonotonicMs": 1200}]
+        class FakeAdb:
+            def run(self, *args):
+                return "PID NAME\n310 org.qtproject.example:nuvio0\n"
+        for ready in ({}, {310: 1199}, {310: 999999}):
+            with self.subTest(ready=ready), tempfile.TemporaryDirectory() as tmp, self.assertRaises(proof.ProofFailure):
+                proof.sample_active_memory(FakeAdb(), Path(tmp), self.package, 100, workers, ready)
+
+    def test_idle_snapshot_cannot_overlap_lazy_launch(self):
+        owner = self
+        class FakeAdb:
+            calls = 0
+            def run(self, *args):
+                if args[1] == "ps":
+                    self.calls += 1
+                    return "PID NAME\n" if self.calls == 1 else "PID NAME\n310 org.qtproject.example:nuvio0\n"
+                return owner.meminfo(100, owner.package)
+        with tempfile.TemporaryDirectory() as tmp, self.assertRaises(proof.ProofFailure):
+            proof.sample_idle_memory(FakeAdb(), Path(tmp), self.package, 100)
+
+    def test_lingering_idle_service_is_a_failure(self):
+        class FakeAdb:
+            def run(self, *args):
+                return "PID NAME\n310 org.qtproject.example:nuvio0\n"
+        with tempfile.TemporaryDirectory() as tmp, self.assertRaises(proof.ProofFailure):
+            proof.sample_idle_memory(FakeAdb(), Path(tmp), self.package, 100)
+        with tempfile.TemporaryDirectory() as tmp, patch.object(proof, "current_pid", return_value=100), \
+             patch.object(proof.time, "monotonic", side_effect=[0, 4]), self.assertRaises(proof.ProofFailure):
+            proof.wait_for_disposal(FakeAdb(), Path(tmp), self.package, 100)
+
+    def test_incremental_profiles_capture_raw_evidence_and_human_report(self):
+        owner = self
+        class FakeAdb:
+            active = {}
+            def run(self, *args):
+                if args[1] == "ps":
+                    return "PID NAME\n" + "".join(f"{pid} {owner.package}:nuvio{slot}\n" for slot, pid in self.active.items())
+                pid = int(args[-1])
+                name = owner.package
+                if pid != 100:
+                    name += ":nuvio" + str(next(slot for slot, worker in self.active.items() if worker == pid))
+                return owner.meminfo(pid, name)
+        data, evidence, adb = records(), {}, FakeAdb()
+        with tempfile.TemporaryDirectory() as tmp, patch.object(proof, "current_pid", return_value=100):
+            artifact = Path(tmp)
+            for count in (1, 4):
+                indices = [i for i, r in enumerate(data) if r.get("concurrency") == count]
+                baseline, finished = indices[0], indices[-1]
+                workers = [r for r in data[baseline:finished] if r["stage"] == "profile_worker_started"]
+                proof.collect_resource_evidence(adb, artifact, self.package, 100, data[:baseline + 1], "", evidence)
+                adb.active = {r["slot"]: r["workerPid"] for r in workers}
+                ready = "\n".join(self.ready_log(r["workerPid"]) for r in workers)
+                proof.collect_resource_evidence(adb, artifact, self.package, 100, data[:finished], ready, evidence)
+                adb.active = {}
+                proof.collect_resource_evidence(adb, artifact, self.package, 100, data[:finished + 1], ready, evidence)
+            proof.validate_resource_completion(evidence)
+            self.assertEqual(4 * 12345, evidence["4"]["active"]["totalWorkerPssKiB"])
+            self.assertEqual(266, evidence["4"]["active"]["workers"][0]["coldStartMs"])
+            self.assertIn("double-counts", (artifact / "resource-profile.md").read_text())
+            self.assertEqual(2, len(json.loads((artifact / "resource-measurements.json").read_text())["profiles"]))
+
+    def test_missing_independent_measurements_cannot_complete(self):
+        for evidence in ({}, {"1": {"baseline": {}, "active": {}, "after": {}}},
+                         {"1": {"baseline": {}, "active": {}, "after": {}}, "4": {"baseline": {}, "active": {}}}):
+            with self.subTest(evidence=evidence), self.assertRaises(proof.ProofFailure):
+                proof.validate_resource_completion(evidence)
+
+    def test_missed_active_measurement_is_not_reconstructed_from_receipt(self):
+        data = records()
+        with tempfile.TemporaryDirectory() as tmp, self.assertRaises(proof.ProofFailure):
+            proof.collect_resource_evidence(None, Path(tmp), self.package, 100, data, "", {"1": {"baseline": {}}})
+
+    def test_recovery_requires_new_pid_matching_successful_http_result(self):
+        for stage, field, value in (("recovery_worker_started", "workerPid", 200),
+                                     ("crash_recovered", "workerPid", 999),
+                                     ("crash_recovered", "directRows", 0),
+                                     ("crash_recovered", "streamUrl", "magnet:invalid"),
+                                     ("crash_recovered", "streamUrl", "https://example.org/other.mp4"),
+                                     ("timeout_recovered", "result", "deadline"),
+                                     ("completed", "recoveredFaults", ["timeout"])):
+            data = records()
+            data[proof.STAGES.index(stage)][field] = value
+            with self.subTest(stage=stage, field=field), self.assertRaises(proof.ProofFailure):
+                proof.validate_stages(data, 100, complete=True)
+
+    def test_profile_requires_concurrent_distinct_slots_and_exact_completions(self):
+        for stage, field, value in (("profile_started", "holdMs", 1000),
+                                     ("profile_started", "syntheticWorkload", False),
+                                     ("profile_worker_started", "workerPid", 100),
+                                     ("profile_worker_started", "requestMonotonicMs", -1),
+                                     ("profile_finished", "maxConcurrentWorkers", 0),
+                                     ("profile_finished", "workerPids", [999]),
+                                     ("completed", "profilesCompleted", [1])):
+            data = records()
+            data[proof.STAGES.index(stage)][field] = value
+            with self.subTest(stage=stage, field=field), self.assertRaises(proof.ProofFailure):
+                proof.validate_stages(data, 100, complete=True)
+        data = records()
+        workers = [r for r in data if r["stage"] == "profile_worker_started" and r["concurrency"] == 4]
+        workers[-1]["slot"] = workers[0]["slot"]
+        with self.assertRaises(proof.ProofFailure):
+            proof.validate_stages(data, 100, complete=True)
 
 
 class ApkSizeTests(unittest.TestCase):

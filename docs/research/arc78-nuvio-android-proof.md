@@ -13,6 +13,12 @@ or hard deadline does not execute in the activity process. This is crash
 isolation, not a separate-UID security sandbox: the service intentionally retains
 the app's network permission and existing Android credential backend.
 
+Slots are lazy: declaring four services in the manifest does not start them.
+Only an actual invocation binds a slot. Each process exits after that invocation;
+completion/cancellation unbinds it and waits for Binder death before reuse. There
+is no prewarmed pool or resident idle Qt worker. The proof keeps four available
+slots until the measured one-versus-four results inform the final Android limit.
+
 ### Alternatives under the same limits
 
 | Option | Crash isolation | Android integration | Decision |
@@ -76,9 +82,25 @@ availability or compatibility of every third-party scraper or provider.
 Fault stages intentionally supply synthetic plugin code. A proof-only native
 abort hook must produce both a `native_abort_requested` worker log and matching
 SIGABRT crash evidence. The infinite-loop plugin uses the unchanged deadlines.
+The next plugin call after each fault must use a different process and return
+the real public-domain stream successfully, before the following fault can run.
 The driver requires the same application PID, preserved Stremio registry/rows,
 and a fresh successful Stremio query after the faults. A physical device is
 rejected by the driver. No personal phone data is installed over.
+
+Resource profiling compares one initialized service with four concurrent
+services using the same explicitly synthetic 16-second idle-timer plugin. The
+driver records per-slot PSS and RSS, their sums, and the app's separate baseline
+and active memory. PSS apportions shared pages; summed RSS can double-count them.
+Zero service processes are required before and after each group. Startup latency
+is invocation request to the native Qt/QuickJS/bootstrap-ready marker on the same
+system monotonic clock, before plugin module evaluation. This is process-cold
+startup with potentially warm filesystem/library caches, not a cold phone boot.
+These instrumented x86_64 emulator samples are initialized-host footprint, not
+peak arbitrary-plugin memory or OnePlus performance. The 32 MiB limit applies
+to the JavaScript heap, not total service RSS; Qt, Java and network allocations
+also consume memory. Process isolation does not prevent Android's low-memory
+killer from terminating the app under device-wide memory pressure.
 
 The Java lifecycle regression uses Android stubs to exercise queueing, process
 retirement, pending cancellation, fast-crash PID retention, and four independent

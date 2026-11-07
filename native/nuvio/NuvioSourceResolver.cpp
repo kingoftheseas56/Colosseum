@@ -250,7 +250,9 @@ void NuvioSourceResolver::startWorker(const QStringList &arguments, bool lookup,
 #ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
     connect(process, &NuvioProcess::started, this, [this, process] {
         const auto job = m_jobs.constFind(process);
-        if (job != m_jobs.cend()) emit proofWorkerStarted(job->searchId, process->processId());
+        if (job != m_jobs.cend())
+            emit proofWorkerStarted(job->searchId, process->processId(),
+                                    process->slotIndex(), process->requestMonotonicMs());
     });
 #endif
     process->start(QIODevice::ReadOnly);

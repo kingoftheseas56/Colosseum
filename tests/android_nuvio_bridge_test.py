@@ -353,6 +353,9 @@ public class RaceTest {
 
   public static void main(String[] args) {
     C c = new C();
+    check(NuvioProcessBridge.processId(0) == -1, "no process before a request");
+    Handler.drain();
+    check(c.binds.isEmpty(), "loading the bridge must not prewarm any service");
     int first = start(c, 0);
     Handler.drain();
     B a = new B(101);
@@ -425,6 +428,9 @@ public class RaceTest {
       worker.die();
       Handler.drain();
     }
+    check(c.unbound == c.binds.size(), "completed slots retain no idle service bindings");
+    Handler.drain();
+    check(c.binds.size() == baseline + 4, "idle slots must not automatically restart");
     int neverConnected = start(c, 3);
 
     Handler.drain();
@@ -452,7 +458,7 @@ public class RaceTest {
         "quarantine discards waiting job without launching it");
 
     System.out.println(
-        "PASS: stub lifecycle; queued restart, death barrier, finish cancellation, late bind"
+        "PASS: stub lifecycle; lazy start, idle disposal, queued restart, death barrier, finish cancellation, late bind"
             + " cancellation, fast-crash PID history, argument limits");
   }
 }
