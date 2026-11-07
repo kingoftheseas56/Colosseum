@@ -19,8 +19,8 @@ class ToolchainInstallTests(unittest.TestCase):
         self.toolchain = self.root / "toolchain"
         self.log = self.root / "calls.jsonl"
         self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ["PATH"],
-                        COLOSSEUM_ANDROID_TOOLCHAIN=str(self.toolchain),
-                        QT_ROOT=str(self.toolchain / "Qt"), QT_VERSION="6.11.1",
+                        COLOSSEUM_ANDROID_TOOLCHAIN=self.toolchain.as_posix(),
+                        QT_ROOT=(self.toolchain / "Qt").as_posix(), QT_VERSION="6.11.1",
                         SKIP_SDK="1", SKIP_QT="0", TEST_AQT_LOG=str(self.log))
         java = self.bin / "java"
         java.write_text('#!/bin/sh\necho \'openjdk version "21.0.1"\' >&2\n')
@@ -34,19 +34,26 @@ with open(os.environ["TEST_AQT_LOG"], "a") as out:
 if os.environ.get("TEST_AQT_BROKEN") == "1":
     sys.exit(0)
 kit = pathlib.Path(args[args.index("-O") + 1]) / args[3] / args[4].removeprefix("linux_")
-(kit / "bin").mkdir(parents=True, exist_ok=True)
-for name in ("qmake", "qt-cmake"):
-    executable = kit / "bin" / name
-    executable.touch()
-    executable.chmod(0o755)
-for module in ("Qt6Quick3D", "Qt6ShaderTools", "Qt6QuickTimeline"):
-    path = kit / "lib/cmake" / module / (module + "Config.cmake")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.touch()
-for module in ("QtQuick3D", "QtQuick3D/Helpers"):
-    path = kit / "qml" / module / "qmldir"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.touch()
+if "--noarchives" not in args:
+    (kit / "bin").mkdir(parents=True, exist_ok=True)
+    for name in ("qmake", "qt-cmake"):
+        executable = kit / "bin" / name
+        executable.write_text("#!/bin/sh\\nexit 0\\n")
+        executable.chmod(0o755)
+module_files = {
+    "qtwebsockets": ("lib/cmake/Qt6WebSockets/Qt6WebSocketsConfig.cmake",),
+    "qtimageformats": ("plugins/imageformats/libqwebp.so",),
+    "qtshadertools": ("lib/cmake/Qt6ShaderTools/Qt6ShaderToolsConfig.cmake",),
+    "qtquicktimeline": ("lib/cmake/Qt6QuickTimeline/Qt6QuickTimelineConfig.cmake",),
+    "qtquick3d": ("lib/cmake/Qt6Quick3D/Qt6Quick3DConfig.cmake",
+                  "qml/QtQuick3D/qmldir", "qml/QtQuick3D/Helpers/qmldir",
+                  "qml/QtQuick3D/Helpers/impl/qmldir"),
+}
+for module in args[args.index("-m") + 1:]:
+    for relative in module_files[module]:
+        path = kit / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
 ''')
         aqt.chmod(0o755)
 
@@ -71,7 +78,7 @@ for module in ("QtQuick3D", "QtQuick3D/Helpers"):
             directory = self.toolchain / "Qt/6.11.1" / arch / "bin"
             directory.mkdir(parents=True)
             for name in ("qmake", "qt-cmake"):
-                (directory / name).touch()
+                (directory / name).write_text("#!/bin/sh\nexit 0\n")
                 (directory / name).chmod(0o755)
         result = self.run_installer()
         self.assertEqual(0, result.returncode, result.stderr)
@@ -83,13 +90,16 @@ for module in ("QtQuick3D", "QtQuick3D/Helpers"):
         result = self.run_installer()
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(4, len(self.calls()))
-        self.assertEqual("android_x86_64", self.calls()[-1][4])
+        repair = self.calls()[-1]
+        self.assertEqual("android_x86_64", repair[4])
+        self.assertIn("--noarchives", repair)
+        self.assertEqual(["qtquick3d"], repair[repair.index("-m") + 1:])
 
     def test_successful_installer_without_modules_cannot_pass(self):
         self.env["TEST_AQT_BROKEN"] = "1"
         result = self.run_installer()
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("missing required Quick3D modules", result.stderr)
+        self.assertRegex(result.stderr, r"kit is incomplete after installation:.*qtquick3d")
 
 
 if __name__ == "__main__":
