@@ -178,7 +178,11 @@ def main():
             for stage in ('welcome','sources','nuvio_playback','stremio_playback','final_requery','concurrency_complete'):
                 if not any(e['stage']==stage for e in all_events): raise RuntimeError('missing '+stage)
             screenshots=list(output.glob('*.png'))
-            if len(screenshots)<7: raise RuntimeError('screenshots incomplete')
+            required_images={'fresh-profile-welcome.png','sources-providers.png','nuvio-playback.png',
+                             'stremio-playback.png','crash-survived.png','crash-recovered.png',
+                             'timeout-survived.png','timeout-recovered.png','four-workers-complete.png'}
+            missing_images=required_images-{p.name for p in screenshots}
+            if missing_images: raise RuntimeError('screenshots incomplete: '+', '.join(sorted(missing_images)))
             result['screenshots']=[{'name':p.name,'sha256':installed.sha256_file(p)} for p in screenshots]
             result['status']='PASS'
     except Exception as error:

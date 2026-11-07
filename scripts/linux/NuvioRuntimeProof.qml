@@ -144,6 +144,10 @@ Installed.Main {
             if(!app.checkIntact())return
             app.record("fault_complete",{kind:app.fault,elapsedMs:app.phaseTicks*200,responsiveTicks:app.phaseTicks})
             app.capture(app.fault+"-survived")
+            app.advance(14);return
+        }
+        if(app.proofStage===14) {
+            if(app.phaseTicks<3)return
             app.record("recovery_armed",{kind:app.fault})
             app.queryNuvio();app.advance(11);return
         }
