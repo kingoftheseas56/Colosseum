@@ -1,0 +1,41 @@
+{
+  "name": "Controlled Linux four-worker concurrency proof",
+  "scrapers": [
+    {
+      "id": "slot-1",
+      "name": "Controlled Linux concurrency slot 1",
+      "version": "1.0.0",
+      "filename": "slot-1.js",
+      "supportedTypes": [
+        "movie"
+      ]
+    },
+    {
+      "id": "slot-2",
+      "name": "Controlled Linux concurrency slot 2",
+      "version": "1.0.0",
+      "filename": "slot-2.js",
+      "supportedTypes": [
+        "movie"
+      ]
+    },
+    {
+      "id": "slot-3",
+      "name": "Controlled Linux concurrency slot 3",
+      "version": "1.0.0",
+      "filename": "slot-3.js",
+      "supportedTypes": [
+        "movie"
+      ]
+    },
+    {
+      "id": "slot-4",
+      "name": "Controlled Linux concurrency slot 4",
+      "version": "1.0.0",
+      "filename": "slot-4.js",
+      "supportedTypes": [
+        "movie"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+name: Arc 78 Linux packaged runtime proof
+on:
+  push:
+    branches: [dots/arc78-plugins-linux-runtime]
+  workflow_dispatch:
+defaults:
+  run:
+    shell: bash
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: arc78-linux-runtime-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  packaged-runtime:
+    runs-on: ubuntu-24.04
+    container: ubuntu:24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          name: arc78-linux-package
+          path: package
+          run-id: 42380623920
+          github-token: ${{ github.token }}
+      - name: Verify and install pinned Linux package
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3 xvfb xauth desktop-file-utils libgl1-mesa-dri libglx-mesa0 xdotool librsvg2-common adwaita-icon-theme dbus-daemon gnome-keyring
+          python3 scripts/linux/test_nuvio_runtime_proof.py
+          cd package
+          sha256sum --check --strict Colosseum-arc78-linux-amd64.deb.sha256
+          apt-get install -y --no-install-recommends ./Colosseum-arc78-linux-amd64.deb
+          python3 -c 'import json; assert json.load(open("/opt/colosseum/BUILD-IDENTITY.json"))["source_commit"] == "446d50c085fc7bcaec32ec3e7822eeda7352d35c"'
+          desktop-file-validate /usr/share/applications/colosseum.desktop
+          /usr/bin/colosseum --version
+      - name: Run packaged application and native plugin recovery
+        run: |
+          useradd --create-home --shell /bin/bash package-test
+          mkdir -p /tmp/arc78-linux-proof /tmp/arc78-keyring/{data,config,cache,runtime,control}
+          chown -R package-test:package-test /tmp/arc78-linux-proof /tmp/arc78-keyring
+          chmod 700 /tmp/arc78-keyring/runtime
+          runuser -u package-test -- env XDG_DATA_HOME=/tmp/arc78-keyring/data XDG_CONFIG_HOME=/tmp/arc78-keyring/config XDG_CACHE_HOME=/tmp/arc78-keyring/cache XDG_RUNTIME_DIR=/tmp/arc78-keyring/runtime GNOME_KEYRING_CONTROL=/tmp/arc78-keyring/control \
+            dbus-run-session -- sh -eu -c '
+              printf "isolated-validation-password" | gnome-keyring-daemon --unlock --components=secrets --control-directory "$GNOME_KEYRING_CONTROL"
+              xvfb-run -a -s "-screen 0 1280x720x24" python3 scripts/linux/nuvio_runtime_proof.py --output /tmp/arc78-linux-proof --expected-sha 446d50c085fc7bcaec32ec3e7822eeda7352d35c --concurrency-sha "$GITHUB_SHA"
+            '
+      - name: Upload packaged runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arc78-linux-runtime-evidence
+          path: /tmp/arc78-linux-proof/
+          if-no-files-found: warn
+          retention-days: 7
