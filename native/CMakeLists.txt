@@ -8,6 +8,12 @@ if(WIN32)
     enable_language(RC)
 endif()
 
+option(COLOSSEUM_NUVIO_ANDROID "Enable the private Android Nuvio plugin service" ON)
+option(COLOSSEUM_NUVIO_ANDROID_PROOF "Enable the emulator-only Nuvio fault/proof harness" OFF)
+if(COLOSSEUM_NUVIO_ANDROID_PROOF AND (NOT ANDROID OR NOT COLOSSEUM_NUVIO_ANDROID))
+    message(FATAL_ERROR "Nuvio Android proof requires the Android plugin service")
+endif()
+
 option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
     OFF)
@@ -882,6 +888,21 @@ add_library(tankoyomi_addon_store STATIC
 target_include_directories(tankoyomi_addon_store PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_addon_store PRIVATE Qt6::Core Qt6::Network colosseum_update_crypto)
 target_link_libraries(colosseum PRIVATE tankoyomi_addon_store)
+if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux" OR (ANDROID AND COLOSSEUM_NUVIO_ANDROID))
+    add_subdirectory(nuvio)
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_NUVIO_PLUGINS)
+    add_dependencies(colosseum colosseum-nuvio-host)
+    if(ANDROID)
+        # Desktop links this below with its harness estate, which Android skips.
+        target_link_libraries(colosseum PRIVATE colosseum_nuvio)
+        set_property(TARGET colosseum APPEND PROPERTY QT_ANDROID_EXTRA_LIBS
+            "${CMAKE_CURRENT_BINARY_DIR}/nuvio/libcolosseum_nuvio_host_${ANDROID_ABI}.so")
+        if(COLOSSEUM_NUVIO_ANDROID_PROOF)
+            target_sources(colosseum PRIVATE nuvio/AndroidProof.cpp nuvio/AndroidProof.h)
+            target_compile_definitions(colosseum PRIVATE COLOSSEUM_NUVIO_ANDROID_PROOF)
+        endif()
+    endif()
+endif()
 if(ANDROID)
     target_sources(colosseum PRIVATE update/UpdateTrust.cpp)
     target_link_libraries(colosseum PRIVATE colosseum_update_crypto)
@@ -1663,7 +1684,7 @@ target_sources(reader2_profile_runtime_harness PRIVATE
 target_compile_definitions(reader2_profile_runtime_harness PRIVATE
     COLOSSEUM_READER2_PROFILE_RUNTIME=1)
 target_link_libraries(reader2_profile_runtime_harness PRIVATE
-    Qt6::Core Qt6::Network Qt6::Qml Qt6::Sql)
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Sql)
 
 # Task 12: audiobook auto-attach on download completion. Offline/deterministic —
 # StreamServer is passed nullptr (its .cpp is only Qt Core/Network: QProcess + NAM,
@@ -1704,6 +1725,7 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE:Qt6::Core>"
                 "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE:Qt6::Gui>"
                 "$<TARGET_FILE:Qt6::Qml>"
                 "$<TARGET_FILE:Qt6::Sql>"
                 "$<TARGET_FILE_DIR:reader2_profile_runtime_harness>"
@@ -3300,6 +3322,9 @@ if(MSVC)
     target_compile_options(colosseum_vinyl_app PRIVATE /utf-8)
 endif()
 target_link_libraries(colosseum PRIVATE colosseum_vinyl_app)
+if(TARGET colosseum_nuvio)
+    target_link_libraries(colosseum PRIVATE colosseum_nuvio)
+endif()
 set(COLOSSEUM_VINYL_RUNTIME_DIR "" CACHE PATH "Prepared app-owned Vinyl Python runtime (optional online catalogue)")
 add_custom_command(TARGET colosseum POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:colosseum>/scripts/vinyl"

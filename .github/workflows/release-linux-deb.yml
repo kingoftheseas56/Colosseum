@@ -122,6 +122,8 @@ jobs:
             -DFEATURE_system_tiff=OFF -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF
           cmake --build "$RUNNER_TEMP/qtimageformats-build" --target QTiffPlugin --parallel 2
       - name: Compile standard production candidate
+        env:
+          COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
         run: |
           cmake -S native -B "$RUNNER_TEMP/app-build" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \

@@ -115,3 +115,15 @@ function admitProviderUrl(value) {
     }
     return raw
 }
+
+function isNuvioSelection(candidates, infoHash) {
+    var key = String(infoHash || "").toLowerCase()
+    if (!key.length || !candidates)
+        return false
+    for (var i = 0; i < candidates.length; i++) {
+        var candidate = candidates[i]
+        if (candidate && String(candidate.infoHash || "").toLowerCase() === key)
+            return !!candidate.nuvio
+    }
+    return false
+}

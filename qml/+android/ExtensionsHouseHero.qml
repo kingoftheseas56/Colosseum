@@ -16,6 +16,8 @@ Item {
     property int revision: 0                 // bump when Extensions changes
     signal universesRequested()
     signal searchRequested()
+    // Keep the shared store's handler valid without changing Android controls.
+    signal installUrlRequested()
     signal configureRequested(string extensionId)
 
     readonly property bool compact: width < 1250

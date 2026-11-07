@@ -108,6 +108,8 @@ Item {
     signal settingsClicked()
     signal wallpaperClicked()
     signal accountClicked(real anchorRight, real anchorBottom)
+    // Shared hosts wire this intent even though Android has no DLNA button.
+    signal dlnaClicked(real anchorRight, real anchorBottom)
     signal fullscreenClicked()
     signal minimizeClicked()
     signal powerClicked()

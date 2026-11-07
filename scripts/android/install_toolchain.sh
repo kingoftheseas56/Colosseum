@@ -26,10 +26,28 @@ NDK_VERSION="27.2.12479018"
 PLATFORM="android-36"
 BUILD_TOOLS="36.0.0"
 CMDLINE_TOOLS_ZIP="commandlinetools-linux-13114758_latest.zip"
-QT_MODULES=(qtwebsockets qtimageformats qtshadertools qtquick3d)
+# The staged Dexter scene imports QtQuick3D/Helpers. Keep its runtime and shader
+# tooling in both host-preflight and Android kits; do not hide a reachable page
+# from the QML compile gate to compensate for an incomplete toolchain.
+QT_MODULES=(qtwebsockets qtimageformats qtshadertools qtquick3d qtquicktimeline)
 
 mkdir -p "$TOOLCHAIN"
 log() { printf '[android-toolchain] %s\n' "$*" >&2; }
+
+missing_qt_modules() {
+    local kit=$1
+    local cmake_dir="$kit/lib/cmake"
+    [[ -f "$cmake_dir/Qt6WebSockets/Qt6WebSocketsConfig.cmake" ]] || echo qtwebsockets
+    compgen -G "$kit/plugins/imageformats/*qwebp*.so" >/dev/null || echo qtimageformats
+    [[ -f "$cmake_dir/Qt6ShaderTools/Qt6ShaderToolsConfig.cmake" ]] || echo qtshadertools
+    [[ -f "$cmake_dir/Qt6QuickTimeline/Qt6QuickTimelineConfig.cmake" ]] || echo qtquicktimeline
+    if [[ ! -f "$cmake_dir/Qt6Quick3D/Qt6Quick3DConfig.cmake" ||
+          ! -f "$kit/qml/QtQuick3D/qmldir" ||
+          ! -f "$kit/qml/QtQuick3D/Helpers/qmldir" ||
+          ! -f "$kit/qml/QtQuick3D/Helpers/impl/qmldir" ]]; then
+        echo qtquick3d
+    fi
+}
 
 install_qt_kit() {
     local host=$1 target=$2 arch=$3 kit_dir=$4 base_tool=$5
@@ -38,19 +56,17 @@ install_qt_kit() {
     if [[ -x "$kit/$base_tool" ]]; then
         # Add missing packages to older caches without reinstalling Qt base.
         install_args+=(--noarchives)
-        modules=()
-        [[ -f "$kit/lib/cmake/Qt6ShaderTools/Qt6ShaderToolsConfig.cmake" ]] || modules+=(qtshadertools)
-        if [[ ! -f "$kit/lib/cmake/Qt6Quick3D/Qt6Quick3DConfig.cmake" ||
-              ! -f "$kit/qml/QtQuick3D/qmldir" ||
-              ! -f "$kit/qml/QtQuick3D/Helpers/qmldir" ||
-              ! -f "$kit/qml/QtQuick3D/Helpers/impl/qmldir" ]]; then
-            modules+=(qtquick3d)
-        fi
+        mapfile -t modules < <(missing_qt_modules "$kit")
     fi
     if ((${#modules[@]})); then
         log "Qt $QT_VERSION $arch: ${modules[*]}"
         aqt install-qt "$host" "$target" "$QT_VERSION" "$arch" \
             -O "$QT_ROOT" "${install_args[@]}" -m "${modules[@]}" >&2
+    fi
+    mapfile -t modules < <(missing_qt_modules "$kit")
+    if [[ ! -x "$kit/$base_tool" ]] || ((${#modules[@]})); then
+        log "Qt $arch kit is incomplete after installation: ${modules[*]:-missing $base_tool}"
+        exit 1
     fi
 }
 

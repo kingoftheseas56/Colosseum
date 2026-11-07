@@ -25,6 +25,8 @@ Item {
     readonly property bool phoneLayout: sheet.Window.window
                                      && sheet.Window.window.androidHost && sheet.Window.window.desktopPresentation !== true
                                      && sheet.Window.window.width < 840
+    readonly property int dockBottomInset: sheet.Window.window
+                                        ? (sheet.Window.window.theatreSourcesDockInset || 0) : 0
 
     readonly property real outerPageMargin: theme.margin
 
@@ -41,16 +43,23 @@ Item {
     readonly property real sourceRowHeight: 150
     readonly property real minResultBudget: sheet.sourceRowHeight + 40
     readonly property real desktopChromeReserve: (topBar.visible ? 20 + 64 : 0)
-        + (pills.visible ? 14 + pills.height : 0) + 16 + 26 + (tableHead.visible ? 52 : 0) + 12
+        + (pills.visible ? 14 + pills.height : 0) + 16 + Math.max(26, sheet.dockClearance) + (tableHead.visible ? 52 : 0) + 12
     readonly property bool compactHeight: !sheet.phoneLayout && sheet.androidDesktopPresentation
         && sheet.height - 300 - sheet.desktopChromeReserve < sheet.minResultBudget
     readonly property real compactChromeReserve: (topBar.visible ? 10 + 52 : 0)
-        + (pills.visible ? 8 + pills.height : 0) + 10 + 12 + (tableHead.visible ? 44 : 0) + 12
+        + (pills.visible ? 8 + pills.height : 0) + 10 + Math.max(12, sheet.dockClearance) + (tableHead.visible ? 44 : 0) + 12
     readonly property real compactBannerMin: 76
+    readonly property real dockClearance: sheet.dockBottomInset > 0 ? sheet.dockBottomInset + 8 : 0
+    // Keep space for two direct rows on short desktop windows while Nuvio is in use.
     readonly property real bannerHeight: sheet.phoneLayout ? 200
-        : !sheet.compactHeight ? 300
+        : !sheet.compactHeight ? (sheet.nuvioAsked ? Math.min(300, Math.max(164, sheet.height - 556)) : 300)
         : Math.round(Math.max(sheet.compactBannerMin,
               Math.min(300, sheet.height - sheet.compactChromeReserve - sheet.minResultBudget)))
+    readonly property bool compactControls: sheet.compactHeight
+        || (!sheet.phoneLayout && sheet.nuvioAsked
+            && sheet.height - sheet.bannerHeight - sheet.desktopChromeReserve < 2 * sheet.sourceRowHeight + 2)
+    readonly property real tableBottomMargin: Math.max(
+        sheet.phoneLayout ? 16 : (sheet.compactControls ? 12 : 26), sheet.dockClearance)
 
     property Item backdrop
     property string label: ""
@@ -64,6 +73,13 @@ Item {
     property bool loading: false
     property bool timedOut: false
     property var rows: []
+    property var extensionsService: typeof Extensions !== "undefined" ? Extensions : null
+    property var loadStremioStreams: AddonClient.loadStreams
+    property var nuvioSourceService: typeof NuvioSources !== "undefined" ? NuvioSources : null
+    property int nuvioRequestId: 0
+    readonly property bool nuvioPending: nuvioRequestId !== 0
+    property bool nuvioAsked: false
+    property var nuvioRows: []
     property var askedNames: []     // the extensions this ask went out to, ask-order
     // Automation surface (additive, no behavior change): the plain per-pipe
     // Lanista CLI cannot express a JSON array through qml-get, so a length
@@ -75,18 +91,16 @@ Item {
     readonly property int askedCount: askedNames.length
     property int gen: 0
     property string qualityFilter: "all"
-    // Extension picker (2026-08-07, Hemanth's call after the NoTorrent burial): rows sort by ask
-    // order, so a freshly-seeded extension's rows land below every earlier extension's — present
-    // but off-screen (dossier: docs/research/theatre-http-source/02-notorrent-burial-dossier.md).
-    // The top "All ▾" bar was decorative; it now filters the table to one extension's rows. "all"
-    // keeps today's behavior exactly. Ordering itself is untouched — no silent re-ranking.
+    // Provider filtering keeps the order of matching rows from the combined list.
     property string extFilter: "all"
     property bool extMenuOpen: false
     property Item focusReturnItem: null
     property Item extMenuReturnItem: null
-    property int extMenuIndex: 0
+    property string extMenuKey: "all"
+    readonly property var providerOptions: extOptions()
+    readonly property int extMenuIndex: Math.max(0, providerOptions.findIndex(option => option.key === extMenuKey))
     property bool sourceContextOpen: false
-    property int sourceContextIndex: 0
+    property var sourceContextRow: null
     property int sourceContextChoice: 0
     readonly property var qualityOptions: ["all", "4K", "1080p", "720p", "SD"].filter(function(q) { return q === "all" || sheet.countFor(q) > 0 })
     property var visibleRows: filteredRows()
@@ -118,7 +132,21 @@ Item {
         if (index < 0 || index >= sheet.visibleRows.length) return
         var row=sheet.visibleRows[index]
         if (sheet.mode !== "play") { sheet.downloadRequested(row); sheet.hide() }
-        else sheet.playRequested(row.infoHash, row.fileIdx, sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId, sheet.rows, sheet.playbackContext)
+        else {
+            var candidates = sheet.baseRows()
+            if (row.nuvio) {
+                // Players look up a direct stream by its URL. Keep the chosen provider's headers.
+                var rowIndex = candidates.indexOf(row)
+                var firstMatch = candidates.findIndex(function(candidate) {
+                    return candidate.infoHash.toLowerCase() === row.infoHash.toLowerCase()
+                })
+                if (firstMatch !== rowIndex) {
+                    candidates.splice(rowIndex, 1)
+                    candidates.splice(firstMatch, 0, row)
+                }
+            }
+            sheet.playRequested(row.infoHash, row.fileIdx, sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId, candidates, sheet.playbackContext)
+        }
     }
     function copySource(index) {
         if (index < 0 || index >= sheet.visibleRows.length) return
@@ -131,7 +159,7 @@ Item {
         sheet.downloadRequested(sheet.visibleRows[index]); sheet.titleQueued=true
     }
     function activateSourceContext(choice) {
-        var index=sheet.sourceContextIndex
+        var index=sheet.visibleRows.indexOf(sheet.sourceContextRow)
         if (choice===0) sheet.activateSource(index)
         else if (choice===1) sheet.copySource(index)
         else if (choice===2) sheet.downloadSource(index)
@@ -165,9 +193,8 @@ Item {
     function openExtMenu(invoker) {
         if (sheet.extMenuOpen) { sheet.extMenuOpen=false; return }
         sheet.extMenuReturnItem=invoker || null
-        var opts=sheet.extOptions(), idx=0
-        for (var i=0;i<opts.length;i++) if (opts[i].name===sheet.extFilter) { idx=i; break }
-        sheet.extMenuIndex=idx; sheet.extMenuOpen=true
+        sheet.extMenuKey = sheet.extFilter
+        sheet.extMenuOpen = true
         Qt.callLater(function(){ extMenuFocus.forceActiveFocus(Qt.PopupFocusReason) })
     }
     function closeExtMenu(restore) {
@@ -175,9 +202,13 @@ Item {
         var target=sheet.extMenuReturnItem; sheet.extMenuReturnItem=null
         if (restore!==false && target) Qt.callLater(function(){ if(target.visible&&target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
-    function activateExtOption(index) {
-        var opts=sheet.extOptions(); if(index<0||index>=opts.length) return
-        sheet.extFilter=opts[index].name; sheet.closeExtMenu(true)
+    function activateExtOption(key) {
+        sheet.extFilter = key
+        if (sheet.qualityFilter !== "all" && !sheet.countFor(sheet.qualityFilter)) {
+            sheet.qualityFilter = "all"
+            pills.currentIndex = 0
+        }
+        sheet.closeExtMenu(true)
     }
     function sourceContextOptions() {
         var out=[sheet.mode === "play" ? "Play" : "Choose source", "Copy link"]
@@ -185,15 +216,18 @@ Item {
         return out
     }
     function openSourceContext(index) {
-        sheet.sourceContextIndex=index; sheet.sourceContextChoice=0; sheet.sourceContextOpen=true
+        sheet.sourceContextRow=sheet.visibleRows[index]; sheet.sourceContextChoice=0; sheet.sourceContextOpen=true
         Qt.callLater(function(){ sourceContextFocus.forceActiveFocus(Qt.PopupFocusReason) })
     }
     function closeSourceContext(restore) {
         sheet.sourceContextOpen=false
+        sheet.sourceContextRow=null
         if (restore!==false) Qt.callLater(function(){ if(list.visible) list.forceActiveFocus(Qt.PopupFocusReason) })
     }
 
     function show(type, id, lbl, context, pickMode) {
+        sheet.cancelNuvio();
+        sheet.closeSourceContext(false);
         var w=sheet.Window.window
         sheet.focusReturnItem=w ? w.activeFocusItem : null
         sheet.mode = (pickMode === "download" || pickMode === "season") ? pickMode : "play";
@@ -206,6 +240,8 @@ Item {
         sheet.backdropUrl = (context && context.backdrop) ? context.backdrop : "";
         sheet.playbackContext = context || ({});
         sheet.rows = [];
+        sheet.nuvioRows = [];
+        sheet.nuvioAsked = false;
         sheet.qualityFilter = "all";
         sheet.extFilter = "all";
         sheet.extMenuOpen = false;
@@ -218,24 +254,24 @@ Item {
         var myGen = sheet.gen;
         timeout.restart();
 
-        var installedList = (typeof Extensions !== "undefined")
-                            ? Extensions.installed() : [];
+        var installedList = sheet.extensionsService ? sheet.extensionsService.installed() : [];
 
         // every enabled stream extension that accepts this title, installed order
         var exts = AddonClient.streamExtensions(installedList, type, id);
         sheet.askedNames = exts.map(function(e) {
             return (e.manifest && e.manifest.name) || e.id;
         });
+        sheet.startNuvio(type, id, sheet.playbackContext);
         if (!exts.length) { sheet.loading = false; seasonSettle(); return; }
 
-        AddonClient.loadStreams(exts, type, id,
+        sheet.loadStremioStreams(exts, type, id,
             function(partialRows) {                 // one extension answered, more out
                 if (myGen !== sheet.gen) return;
-                sheet.rows = partialRows;
+                sheet.acceptStremioRows(partialRows);
             },
             function(allRows) {                     // every extension answered or timed out
                 if (myGen !== sheet.gen) return;
-                sheet.rows = allRows;
+                sheet.acceptStremioRows(allRows);
                 sheet.loading = false;
                 timeout.stop();
                 sheet.warmTopRow();
@@ -244,6 +280,59 @@ Item {
             // Advisory decoder evidence (WT-03); a library cannot read context properties.
             typeof PlatformRuntime !== "undefined" ? PlatformRuntime : null);
     }
+
+    function acceptStremioRows(rows) {
+        var selected = sheet.nuvioRows.length ? sheet.visibleRows[list.currentIndex] : null;
+        sheet.rows = rows;
+        if (selected && selected.nuvio) list.currentIndex = sheet.visibleRows.indexOf(selected);
+    }
+
+    function startNuvio(type, id, context) {
+        if (sheet.mode !== "play" || !sheet.nuvioSourceService) return;
+        var season = Number(context.season) || 0;
+        var episode = Number(context.episode) || 0;
+        var imdbEpisode = /^(tt\d+):(\d+):(\d+)$/.exec(id || "");
+        if (imdbEpisode) {
+            if (context.season === undefined) season = Number(imdbEpisode[2]);
+            if (context.episode === undefined) episode = Number(imdbEpisode[3]);
+        }
+        if (type !== "movie" && ((type !== "series" && type !== "tv") || season < 0 || episode < 1)) return;
+        var tmdbId = Number(context.tmdbId);
+        var mediaId = tmdbId > 0 ? String(tmdbId) : (context.imdbId || id || "");
+        sheet.nuvioRequestId = sheet.nuvioSourceService.resolve(mediaId, type, season, episode);
+        sheet.nuvioAsked = sheet.nuvioPending;
+    }
+
+    function cancelNuvio() {
+        var requestId = sheet.nuvioRequestId;
+        sheet.nuvioRequestId = 0;
+        if (requestId && sheet.nuvioSourceService) sheet.nuvioSourceService.cancel(requestId);
+    }
+
+    Connections {
+        target: sheet.nuvioSourceService
+        function onStreamsReady(requestId, streams) {
+            if (!sheet.open || !sheet.nuvioPending || requestId !== sheet.nuvioRequestId) return;
+            var batch = [];
+            for (var i = 0; i < streams.length; ++i) {
+                var stream = streams[i];
+                var row = AddonClient.parseStream({
+                    url: stream.url, name: stream.name, title: stream.title,
+                    behaviorHints: { proxyHeaders: { request: stream.headers || ({}) } }
+                }, stream.pluginName, 0, "nuvio:" + stream.repoId + ":" + stream.pluginId);
+                if (!row) continue;
+                row.nuvio = true;
+                batch.push(row);
+            }
+            sheet.nuvioRows = sheet.nuvioRows.concat(batch);
+        }
+        function onFinished(requestId) {
+            if (requestId === sheet.nuvioRequestId) sheet.nuvioRequestId = 0;
+        }
+    }
+
+    onOpenChanged: if (!sheet.open) sheet.cancelNuvio()
+    Component.onDestruction: sheet.cancelNuvio()
 
     // Torrent warm-up (2026-07-31). The 2026-07-30 server warm-up starts the ENGINE
     // early but not the TORRENT: /create — join the DHT for THIS infohash, announce to
@@ -296,7 +385,7 @@ Item {
 
     function hide() {
         sheet.gen += 1;
-        sheet.sourceContextOpen = false;
+        sheet.closeSourceContext(false);
         sheet.extMenuOpen = false;
         sheet.open = false;
         timeout.stop();
@@ -307,38 +396,47 @@ Item {
     // the mode's row universe: season mode sees only full-season torrents,
     // everything else sees the raw answer. Quality pills filter on top of this.
     function baseRows() {
-        if (sheet.mode !== "season") return sheet.rows;
+        if (sheet.mode !== "season") return sheet.nuvioRows.length ? sheet.rows.concat(sheet.nuvioRows) : sheet.rows;
         var out = [];
         for (var i = 0; i < sheet.rows.length; ++i)
             if (AddonClient.isSeasonPack(sheet.rows[i], sheet.pickSeason)) out.push(sheet.rows[i]);
         return out;
     }
 
-    // baseRows narrowed to the picked extension. The quality pills and their counts sit ON TOP of
-    // this, so "1080p 12" stays truthful inside a "NoTorrent" pick.
+    // Quality pills and counts use the rows belonging to the selected provider.
     function extRows() {
         var base = baseRows();
         if (sheet.extFilter === "all") return base;
         var out = [];
         for (var i = 0; i < base.length; ++i)
-            if (base[i].addonName === sheet.extFilter) out.push(base[i]);
+            if (sheet.providerKey(base[i]) === sheet.extFilter) out.push(base[i]);
         return out;
     }
 
-    // The picker's menu: All + each extension that actually answered, with its row count.
+    function providerKey(row) {
+        return row.nuvio ? "nuvio" : "stremio:" + (row.addonName || "?");
+    }
+
+    // Native plugins share a menu entry. Stremio add-ons follow the existing row order.
     function extOptions() {
         var base = baseRows();
-        var counts = ({});
-        var order = [];
+        var all = { key: "all", label: qsTr("All"), count: base.length };
+        var nuvio = { key: "nuvio", label: qsTr("Nuvio"), count: 0 };
+        var byKey = ({ nuvio: nuvio });
+        var stremio = [];
         for (var i = 0; i < base.length; ++i) {
-            var n = base[i].addonName || "?";
-            if (counts[n] === undefined) { counts[n] = 0; order.push(n); }
-            counts[n]++;
+            var row = base[i];
+            var key = providerKey(row);
+            if (!byKey[key]) {
+                var option = { key: key, label: row.addonName || "?", count: 0 };
+                byKey[key] = option;
+                stremio.push(option);
+            }
+            ++byKey[key].count;
         }
-        var out = [{ name: "all", label: "All", count: base.length }];
-        for (var j = 0; j < order.length; ++j)
-            out.push({ name: order[j], label: order[j], count: counts[order[j]] });
-        return out;
+        if (nuvio.count && byKey["stremio:Nuvio"])
+            byKey["stremio:Nuvio"].label = qsTr("Nuvio (Stremio)");
+        return (nuvio.count ? [all, nuvio] : [all]).concat(stremio);
     }
 
     function filteredRows() {
@@ -360,6 +458,51 @@ Item {
     }
 
     function chipText(q) { return q === "all" ? "All" : q; }
+
+    function streamTypeText(row) {
+        return (row.streamKind || "Torrent") + " · " + (row.streamLabel || "P2P stream");
+    }
+
+    component NuvioHeading: Flow {
+        id: heading
+        required property string providerName
+        required property string quality
+        required property Theme palette
+        property bool allowWrap: false
+        spacing: 8
+
+        Text {
+            width: Math.min(implicitWidth, heading.allowWrap ? heading.width
+                            : Math.max(0, heading.width - brand.width - direct.width
+                                       - qualityLabel.width - 3 * heading.spacing))
+            height: Math.max(implicitHeight, brand.implicitHeight)
+            text: heading.providerName
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
+            verticalAlignment: Text.AlignVCenter
+            color: heading.palette.ink
+            font.family: heading.palette.ui
+            font.pixelSize: 15
+            font.weight: Font.DemiBold
+        }
+        NuvioSourceChip { id: brand; objectName: "nuvioSourceBrandChip"; branded: true }
+        NuvioSourceChip { id: direct; objectName: "nuvioSourceDirectChip" }
+        Text {
+            id: qualityLabel
+            objectName: "nuvioSourceQuality"
+            width: Math.min(implicitWidth, heading.allowWrap ? heading.width : heading.width * 0.4)
+            height: Math.max(implicitHeight, brand.implicitHeight)
+            text: heading.quality
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
+            verticalAlignment: Text.AlignVCenter
+            color: heading.palette.gold
+            font.family: heading.palette.ui
+            font.pixelSize: 13
+            font.weight: Font.DemiBold
+            font.letterSpacing: 0.5
+        }
+    }
 
     // the one inline meta line: seeders, size, source group — PLAIN metadata, no emoji-as-icon
     // (semantic audit 2026-07-19). Words label the values instead of pictographs.
@@ -396,6 +539,7 @@ Item {
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
         objectName: "sourcesSheetBanner"
         height: sheet.bannerHeight
+        readonly property bool compact: sheet.phoneLayout || height < 200
         Image {
             anchors.fill: parent
             source: sheet.backdropUrl
@@ -423,8 +567,9 @@ Item {
     // ---- back ----
     BackAction {
         id: sourcesBack
+        objectName: "sourcesSheetBack"
         x: sheet.phoneLayout ? 16 : sheet.headerOuterMargin
-        y: sheet.phoneLayout ? 20 : (sheet.compactHeight ? 12 : 30); z: 20
+        y: sheet.compactHeight ? 12 : (bannerStrip.compact ? 20 : 30); z: 20
         onTriggered: sheet.hide()
     }
 
@@ -439,8 +584,8 @@ Item {
         anchors.rightMargin: sheet.phoneLayout ? 16 : sheet.headerOuterMargin
         anchors.top: parent.top
         anchors.topMargin: sheet.compactHeight ? Math.max(sourcesBack.y, bannerStrip.height - height - 12)
-            : bannerStrip.height - height - (sheet.phoneLayout ? 14 : 26)
-        spacing: sheet.phoneLayout ? 8 : (sheet.compactHeight ? 4 : 12)
+            : bannerStrip.height - height - (bannerStrip.compact ? 14 : 26)
+        spacing: sheet.compactHeight ? 4 : (bannerStrip.compact ? 8 : 12)
         Text {
             visible: sheet.mode !== "play" || sheet.metaLine.length > 0
             width: parent.width
@@ -470,16 +615,17 @@ Item {
     // the full-width selector bar (the "top bar that separates the quality")
     Rectangle {
         id: topBar
+        objectName: "extPickerTrigger"
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
         anchors.rightMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
-        anchors.top: bannerStrip.bottom; anchors.topMargin: sheet.phoneLayout || sheet.compactHeight ? 10 : 20
-        height: sheet.phoneLayout || sheet.compactHeight ? 52 : 64; radius: 16
+        anchors.top: bannerStrip.bottom; anchors.topMargin: sheet.phoneLayout || sheet.compactControls ? 10 : 20
+        height: sheet.phoneLayout || sheet.compactControls ? 52 : 64; radius: 16
         color: tbMa.containsMouse ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(1, 1, 1, 0.06)
         border.width: 1
         border.color: tbMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.45) : theme.edge
         Behavior on border.color { ColorAnimation { duration: 140 } }
-        visible: sheet.rows.length > 0
+        visible: sheet.rows.length > 0 || sheet.nuvioRows.length > 0
 
         Rectangle {                                                      // grid glyph
             id: gridBadge
@@ -495,11 +641,12 @@ Item {
             }
         }
         Text {
+            objectName: "extPickerLabel"
             anchors.left: gridBadge.right; anchors.leftMargin: sheet.phoneLayout ? 12 : 20
             anchors.verticalCenter: parent.verticalCenter
             width: sheet.phoneLayout ? Math.max(0, topBar.width - x - 48) : implicitWidth
             elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
-            text: sheet.extFilter === "all" ? "All" : sheet.extFilter
+            text: sheet.providerOptions.find(option => option.key === sheet.extFilter)?.label ?? qsTr("All")
             color: sheet.extFilter === "all" ? theme.ink : theme.gold
             font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 18 : 22
         }
@@ -510,13 +657,11 @@ Item {
             rotation: sheet.extMenuOpen ? 180 : 0
             Behavior on rotation { NumberAnimation { duration: 140 } }
         }
-        // The extension picker (2026-08-07). This bar LOOKED like a picker and did nothing —
-        // now it filters the table to one extension's rows (the NoTorrent burial fix).
         MouseArea { id: tbMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
             onClicked: sheet.openExtMenu(extTriggerKeyboard) }
         KeyboardAction {
             id: extTriggerKeyboard; anchors.fill: parent; pointerEnabled: false
-            accessibleName: "Choose source extension"; focusRadius: topBar.radius
+            accessibleName: qsTr("Choose source provider"); focusRadius: topBar.radius
             onTriggered: sheet.openExtMenu(extTriggerKeyboard)
         }
     }
@@ -527,10 +672,10 @@ Item {
         property int currentIndex: 0
         anchors.left: parent.left
         anchors.leftMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
-        anchors.top: topBar.bottom; anchors.topMargin: sheet.phoneLayout ? 10 : (sheet.compactHeight ? 8 : 14)
+        anchors.top: topBar.bottom; anchors.topMargin: sheet.phoneLayout ? 10 : (sheet.compactControls ? 8 : 14)
         width: Math.max(0, sheet.width - (sheet.phoneLayout ? 32 : 2 * sheet.outerPageMargin))
         spacing: sheet.phoneLayout ? 8 : 12
-        visible: sheet.rows.length > 0
+        visible: topBar.visible
         focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
         Keys.onPressed: (event) => qualityKeys.handle(event)
         KeyboardCollectionController {
@@ -543,6 +688,7 @@ Item {
                 id: pill
                 required property string modelData
                 required property int index
+                objectName: "sourceQuality_" + pill.modelData
                 property bool on: sheet.qualityFilter === pill.modelData
                 property int n: sheet.countFor(pill.modelData)
                 visible: n > 0 || pill.modelData === "all"
@@ -585,15 +731,16 @@ Item {
         anchors.rightMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
         objectName: "sourcesSheetTable"
         anchors.top: pills.visible ? pills.bottom : bannerStrip.bottom
-        anchors.topMargin: sheet.phoneLayout ? 12 : (sheet.compactHeight ? 10 : 16)
-        anchors.bottom: parent.bottom; anchors.bottomMargin: sheet.phoneLayout ? 16 : (sheet.compactHeight ? 12 : 26)
+        anchors.topMargin: sheet.phoneLayout ? 12 : (sheet.compactControls ? 10 : 16)
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: sheet.tableBottomMargin
         radius: 18
         track: 0
 
         Item {
             id: tableHead
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: sheet.phoneLayout ? 70 : (sheet.compactHeight ? 44 : 52)
+            height: sheet.phoneLayout ? 70 : (sheet.compactControls ? 44 : 52)
             visible: sheet.visibleRows.length > 0
             Text {
                 anchors.left: parent.left; anchors.leftMargin: sheet.phoneLayout ? 14 : 26
@@ -602,6 +749,7 @@ Item {
                 width: sheet.phoneLayout ? parent.width - 28 : implicitWidth
                 text: sheet.visibleRows.length + (sheet.visibleRows.length === 1 ? " source" : " sources")
                       + (sheet.loading ? "  ·  still asking…" : "")
+                      + (sheet.nuvioPending ? qsTr("  ·  asking Nuvio…") : "")
                 color: theme.ink; font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
                 elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
             }
@@ -612,6 +760,7 @@ Item {
                 width: sheet.phoneLayout ? parent.width - 28 : implicitWidth
                 horizontalAlignment: sheet.phoneLayout ? Text.AlignLeft : Text.AlignRight
                 elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
+                visible: sheet.askedNames.length > 0
                 text: sheet.askedNames.length > 2
                       ? "via " + sheet.askedNames.length + " extensions"
                       : "via " + sheet.askedNames.join(" · ")
@@ -631,8 +780,9 @@ Item {
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
             text: sheet.loading ? "Finding sources…"
+                  : sheet.nuvioPending ? qsTr("Finding Nuvio sources…")
                   : (sheet.timedOut ? "Sources timed out. Try again."
-                     : (sheet.askedNames.length === 0
+                     : (sheet.askedCount === 0 && !sheet.nuvioAsked
                         ? (sheet.androidHost
                             ? "No stream extension carries this title — add one on the Extensions page."
                             : "No stream source is enabled for this title. Enable one in Extensions.")
@@ -644,7 +794,7 @@ Item {
         Rectangle {
             id: extensionsAction
             objectName: "sourcesSheetExtensionsRoute"
-            visible: sheet.open && sheet.mode === "play" && !sheet.loading && !sheet.timedOut
+            visible: sheet.open && sheet.mode === "play" && !sheet.loading && !sheet.nuvioPending && !sheet.timedOut
                      && sheet.rowCount === 0 && (!sheet.androidHost || sheet.askedCount === 0)
             anchors.top: emptyText.bottom
             anchors.topMargin: 12
@@ -673,7 +823,7 @@ Item {
                 accessibleName: extensionsActionLabel.text
                 focusRadius: parent.radius
                 onTriggered: {
-                    var browseMoreSources = sheet.askedCount > 0
+                    var browseMoreSources = sheet.askedCount > 0 || sheet.nuvioAsked
                     sheet.hide()
                     sheet.openExtensionsRequested(browseMoreSources)
                 }
@@ -738,7 +888,9 @@ Item {
                 // Slice 7 flips this when a series pre-picks the source that worked last episode.
                 property bool preselected: false
                 width: ListView.view.width
-                height: sheet.phoneLayout ? Math.max(44, mobileContent.implicitHeight + 28) : 150
+                height: sheet.phoneLayout ? Math.max(44, mobileContent.implicitHeight + 28)
+                        : row.modelData.nuvio ? Math.max(96, desktopContent.implicitHeight + 20)
+                        : 150
 
                 Rectangle { anchors.fill: parent; color: list.activeFocus && list.currentIndex === row.index
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.08)
@@ -760,14 +912,16 @@ Item {
 
                 // copy column — every element, clean hierarchy
                 Column {
+                    id: desktopContent
                     visible: !sheet.phoneLayout
                     anchors.left: logo.right; anchors.leftMargin: 24
                     anchors.right: dlBtn.visible ? dlBtn.left : copyBtn.left
                     anchors.rightMargin: 20
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 7
+                    spacing: row.modelData.nuvio ? 5 : 7
 
                     Row {
+                        visible: !row.modelData.nuvio
                         spacing: 12
                         Text { text: row.modelData.addonName; color: theme.ink
                             font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
@@ -776,6 +930,14 @@ Item {
                             color: theme.gold
                             font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: 0.5
                             anchors.verticalCenter: parent.verticalCenter }
+                    }
+                    NuvioHeading {
+                        objectName: "nuvioSourceHeading"
+                        visible: !!row.modelData.nuvio
+                        width: parent.width
+                        providerName: row.providerName
+                        quality: row.modelData.qualityLine || row.modelData.quality || ""
+                        palette: theme
                     }
                     Text {
                         width: parent.width
@@ -815,7 +977,9 @@ Item {
                     Row {
                         spacing: 7
                         Repeater {
-                            model: row.modelData.tags || []
+                            model: row.modelData.nuvio
+                                   ? (row.modelData.tags || []).filter(tag => tag !== row.modelData.quality)
+                                   : row.modelData.tags || []
                             delegate: Rectangle {
                                 required property string modelData
                                 width: tg.implicitWidth + 16; height: 20; radius: 6
@@ -826,7 +990,9 @@ Item {
                         }
                     }
                     Text {
-                        text: (row.modelData.streamKind || "Torrent") + " · " + (row.modelData.streamLabel || "P2P stream")
+                        objectName: "sourceStreamType"
+                        visible: !row.modelData.nuvio
+                        text: sheet.streamTypeText(row.modelData)
                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                     }
                 }
@@ -950,6 +1116,7 @@ Item {
                             }
                         }
                         Column {
+                            visible: !row.modelData.nuvio
                             width: Math.max(0, mobileContent.width - 56)
                             spacing: 4
                             Text {
@@ -967,6 +1134,15 @@ Item {
                                 font.pixelSize: 13; font.weight: Font.DemiBold
                                 wrapMode: Text.WrapAnywhere
                             }
+                        }
+                        NuvioHeading {
+                            objectName: "nuvioSourceHeadingPhone"
+                            visible: !!row.modelData.nuvio
+                            width: Math.max(0, mobileContent.width - 56)
+                            allowWrap: true
+                            providerName: row.providerName
+                            quality: row.modelData.qualityLine || row.modelData.quality || ""
+                            palette: theme
                         }
                     }
                     Text {
@@ -1028,9 +1204,10 @@ Item {
                         }
                     }
                     Text {
+                        objectName: "sourceStreamTypePhone"
+                        visible: !row.modelData.nuvio
                         width: parent.width
-                        text: (row.modelData.streamKind || "Torrent") + " · "
-                              + (row.modelData.streamLabel || "P2P stream")
+                        text: sheet.streamTypeText(row.modelData)
                         color: theme.inkDimmer; font.family: theme.ui
                         font.pixelSize: 12; font.weight: Font.DemiBold
                         wrapMode: Text.WrapAnywhere
@@ -1165,18 +1342,21 @@ Item {
         border.width: 1; border.color: theme.edge
         FocusScope {
             id: extMenuFocus; anchors.fill: parent; z: 5
+            objectName: "extPickerMenuFocus"
             Keys.onPressed: (event) => {
-                var n=sheet.extOptions().length
+                var n=sheet.providerOptions.length
                 if (event.key === Qt.Key_Escape) { sheet.closeExtMenu(true); event.accepted=true; return }
                 if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { event.accepted=true; return }
                 if (!n) return
-                if (event.key === Qt.Key_Up) sheet.extMenuIndex=(sheet.extMenuIndex+n-1)%n
-                else if (event.key === Qt.Key_Down) sheet.extMenuIndex=(sheet.extMenuIndex+1)%n
-                else if (event.key === Qt.Key_Home) sheet.extMenuIndex=0
-                else if (event.key === Qt.Key_End) sheet.extMenuIndex=n-1
+                var index = sheet.extMenuIndex
+                if (event.key === Qt.Key_Up) index = (index + n - 1) % n
+                else if (event.key === Qt.Key_Down) index = (index + 1) % n
+                else if (event.key === Qt.Key_Home) index = 0
+                else if (event.key === Qt.Key_End) index = n - 1
                 else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                    sheet.activateExtOption(sheet.extMenuIndex); event.accepted=true; return
+                    sheet.activateExtOption(sheet.providerOptions[index].key); event.accepted=true; return
                 } else return
+                sheet.extMenuKey = sheet.providerOptions[index].key
                 event.accepted=true
             }
         }
@@ -1203,13 +1383,13 @@ Item {
                 width: extMenuFlick.width
                 y: 8
                 Repeater {
-                    model: sheet.extMenuOpen ? sheet.extOptions() : []
+                    model: sheet.extMenuOpen ? sheet.providerOptions : []
                     delegate: Item {
                         id: extOpt
                         required property var modelData
                         required property int index
                         objectName: "extPick_" + extOpt.index
-                        property bool on: sheet.extFilter === extOpt.modelData.name
+                        property bool on: sheet.extFilter === extOpt.modelData.key
                         width: parent.width; height: 52
                         Rectangle {
                             anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
@@ -1235,10 +1415,7 @@ Item {
                         MouseArea {
                             id: extOptMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                sheet.extMenuIndex = extOpt.index
-                                sheet.activateExtOption(extOpt.index)
-                            }
+                            onClicked: sheet.activateExtOption(extOpt.modelData.key)
                         }
                     }
                 }

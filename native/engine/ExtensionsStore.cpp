@@ -1,6 +1,7 @@
 // ExtensionsStore.cpp — see ExtensionsStore.h for the contract.
 
 #include "ExtensionsStore.h"
+#include "../nuvio/NuvioManifest.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -1221,6 +1222,13 @@ void ExtensionsStore::fetchManifest(const QString& transportUrl, bool thenInstal
         const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
         if (!doc.isObject()) {
             fail(QStringLiteral("That address didn't return an extension manifest."));
+            return;
+        }
+        if (!thenInstall && NuvioManifest::isPreviewCandidate(doc.object())) {
+            if (NuvioManifest::usableUrl(QUrl(transportUrl, QUrl::StrictMode)))
+                emit nuvioRepositoryPreviewed(transportUrl);
+            else
+                fail(tr("Nuvio repositories require an HTTPS link without sign-in details, a query, or a fragment."));
             return;
         }
         const QVariantMap slim = slimManifest(doc.object());

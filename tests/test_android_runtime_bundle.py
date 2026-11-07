@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 from verify_android_apk_runtime_bundle import (
     QML_PREFIX, RUNTIME_PREFIX, qml_policy_failures, runtime_manifest_failures,
@@ -13,7 +14,7 @@ from verify_android_apk_runtime_bundle import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def stage_runtime(directory: Path) -> Path:
+def stage_runtime(directory: Path, nuvio: bool = True) -> Path:
     source = directory / "driver"
     build = directory / "build"
     source.mkdir(parents=True, exist_ok=True)
@@ -26,6 +27,7 @@ project(AndroidRuntimeStaging VERSION 1.0 LANGUAGES NONE)
 add_custom_target(colosseum)
 set(CMAKE_CURRENT_SOURCE_DIR "{(ROOT / 'native').as_posix()}")
 set(OPENSSL_ROOT_DIR "{(directory / 'openssl').as_posix()}")
+set(COLOSSEUM_NUVIO_ANDROID {"ON" if nuvio else "OFF"})
 include("{(ROOT / 'native/cmake/android.cmake').as_posix()}")
 set_property(TARGET colosseum PROPERTY SOURCES "")
 ''')
@@ -93,6 +95,24 @@ class AndroidRuntimeBundleTest(unittest.TestCase):
     def test_restage_is_deterministic(self):
         again = stage_runtime(Path(self.directory.name))
         self.assertEqual(self.files, runtime_files(again))
+
+    def test_nuvio_size_baseline_excludes_only_service_package_code(self):
+        enabled = self.runtime.parent.parent
+        baseline_runtime = stage_runtime(Path(self.directory.name) / "nuvio-off", nuvio=False)
+        baseline = baseline_runtime.parent.parent
+        self.assertEqual(self.files, runtime_files(baseline_runtime))
+        self.assertTrue((enabled / "src/org/colosseum/nuvio/NuvioService.java").is_file())
+        self.assertTrue((enabled / "src/org/colosseum/nuvio/NuvioProcessBridge.java").is_file())
+        self.assertFalse((baseline / "src/org/colosseum/nuvio").exists())
+        enabled_manifest = (enabled / "AndroidManifest.xml").read_text()
+        baseline_manifest = (baseline / "AndroidManifest.xml").read_text()
+        android = "{http://schemas.android.com/apk/res/android}"
+        slots = [(service.get(android + "process"), service.get(android + "exported"))
+                 for service in ET.fromstring(enabled_manifest).findall("application/service")
+                 if (service.get(android + "process") or "").startswith(":nuvio")]
+        self.assertCountEqual([(":nuvio0", "false"), (":nuvio1", "false")], slots)
+        self.assertNotIn("org.colosseum.nuvio", baseline_manifest)
+        self.assertNotIn("colosseum_nuvio_host", baseline_manifest)
 
     def test_selector_relative_paths_preserved_without_desktop_base_code(self):
         for selector in (ROOT / "qml").rglob("+android/*.qml"):

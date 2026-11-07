@@ -113,6 +113,7 @@ signals:
     void showExplicitChanged();
     void previewReady(const QString& transportUrl, const QVariantMap& manifest);
     void previewFailed(const QString& transportUrl, const QString& reason);
+    void nuvioRepositoryPreviewed(const QString& transportUrl);
     void installFinished(const QString& id, const QString& name);
     void installFailed(const QString& transportUrl, const QString& reason);
 

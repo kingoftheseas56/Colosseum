@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/nuvio">
+        <file alias="bootstrap.js">host-bootstrap.js</file>
+        <file alias="vendor.js">vendor/js/vendor.js</file>
+    </qresource>
+</RCC>

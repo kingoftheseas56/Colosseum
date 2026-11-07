@@ -1,0 +1,13 @@
+{
+  "dependencies": {
+    "buffer": "6.0.3",
+    "cheerio-without-node-native": "1.0.0-rc.2",
+    "crypto-js": "4.2.0",
+    "esbuild-wasm": "0.25.12",
+    "events": "3.3.0",
+    "process": "0.11.10",
+    "stream-browserify": "3.0.0",
+    "util": "0.12.5",
+    "whatwg-url": "14.2.0"
+  }
+}
