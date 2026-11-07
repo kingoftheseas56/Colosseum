@@ -14,6 +14,7 @@ Item {
     property var historyStore: typeof ProfileHistory !== "undefined" ? ProfileHistory : null
     property var trackerModel: typeof TrackerSyncCenter !== "undefined" ? TrackerSyncCenter : null
     property bool reducedMotion: false
+    property bool feriaStatsPending: false
     property string activeSection: "history"
     property string historyWorld: "all"
     property string statsWorld: "all"
@@ -866,6 +867,23 @@ Item {
                         ]
                         currentIndex: Math.max(0, model.findIndex(function(row) { return row.value === root.statsCategory }))
                         onActivated: (index) => root.statsCategory = model[index].value
+                    }
+                }
+
+                FrostPanel {
+                    width: parent.width
+                    height: feriaNotice.implicitHeight + 24
+                    visible: root.feriaStatsPending
+
+                    Text {
+                        id: feriaNotice
+                        anchors.fill: parent
+                        anchors.margins: 12
+                        text: qsTr("Feria stats will appear under Your Feria on the taskbar when Feria becomes available.")
+                        color: theme.inkDim
+                        font.family: theme.ui
+                        font.pixelSize: 13
+                        wrapMode: Text.WordWrap
                     }
                 }
 

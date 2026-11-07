@@ -109,13 +109,22 @@ TestCase {
         property bool onboardingRequired: true
         property bool accountFeaturesAvailable: true
         property int continued: 0
+        property int prepareCalls: 0
+        property string lastErrorMessage: ""
 
         function prepareTheatreFirstRun() {
+            prepareCalls++
             accountFixture.available = true
             return true
         }
 
-        function continueWithoutAccount() { continued++ }
+        function returnToSignIn() { mode = "signedOut" }
+
+        function continueWithoutAccount() {
+            continued++
+            if (!onboardingRequired)
+                mode = "localOnly"
+        }
     }
 
     Account.AccountOnboarding {
@@ -128,6 +137,7 @@ TestCase {
     }
 
     SignalSpy { id: trackerSyncSpy; target: trackerPage; signalName: "mainSyncRequested" }
+    SignalSpy { id: returningSyncSpy; target: onboarding; signalName: "theatreSyncSettingsRequested" }
 
     Colosseum.NuvioAccountFlow {
         id: flow
@@ -156,7 +166,11 @@ TestCase {
         stremioActionsFixture.appliedAsFirstRun = false
         stremioActionsFixture.stremioImportBecomesPrimary = false
         onboardingController.continued = 0
+        onboardingController.prepareCalls = 0
+        onboardingController.mode = "signedOut"
+        onboardingController.onboardingRequired = true
         onboardingController.accountFeaturesAvailable = true
+        returningSyncSpy.clear()
         onboarding.routeName = "welcome"
         stremioActionsFixture.syncCalls = 0
         syncPanel.shown = false
@@ -267,6 +281,35 @@ TestCase {
         stremioActionsFixture.stremioImportPhase = "done"
         compare(onboardingController.continued, 1)
         compare(onboarding.routeName, "welcome")
+    }
+
+    function test_first_run_sign_in_can_open_provider_picker_and_cancel_back() {
+        findChild(onboarding, "accountWelcomeSignIn").chosen()
+        const theatre = findChild(onboarding, "accountSignInTheatreSync")
+        verify(theatre && theatre.visible)
+        findChild(onboarding, "accountSignInPassword").text = "temporary-fixture-password"
+        theatre.chosen()
+        verify(findChild(onboarding, "accountTheatreChooseStremio").visible)
+        verify(findChild(onboarding, "accountTheatreChooseNuvio").visible)
+        findChild(onboarding, "accountTheatrePickerCancel").chosen()
+        compare(onboarding.routeName, "signIn")
+        compare(findChild(onboarding, "accountSignInPassword").text, "")
+        compare(onboardingController.continued, 0)
+        compare(returningSyncSpy.count, 0)
+    }
+
+    function test_returning_sign_in_opens_settings_without_first_run() {
+        onboardingController.mode = "localOnly"
+        onboardingController.onboardingRequired = false
+        compare(onboarding.routeName, "welcome")
+
+        onboardingController.returnToSignIn()
+        compare(onboarding.routeName, "signIn")
+        findChild(onboarding, "accountSignInTheatreSync").chosen()
+        compare(returningSyncSpy.count, 1)
+        compare(onboardingController.mode, "localOnly")
+        compare(onboardingController.prepareCalls, 0)
+        compare(accountFixture.applyAsPrimary, false)
     }
 
     function test_onboarding_nuvio_confirms_before_continuing() {

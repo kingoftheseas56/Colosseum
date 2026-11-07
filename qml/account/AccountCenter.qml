@@ -44,34 +44,33 @@ Rectangle {
     }
     Connections {
         target: typeof FeriaAccount !== "undefined" ? FeriaAccount : null
-        function onProfileChanged() { root.close() }
+        function onProfileChanged() { if (root.feriaOnly) root.close() }
     }
     property var recoveryPresenter: null
     readonly property bool accountPresent: controller
         && (controller.mode === "signedIn" || controller.mode === "offline")
     readonly property bool onlineAccount: controller
         && controller.mode === "signedIn"
-    property string initial: "?"
     property string activeSection: "profile"
     property Item focusReturnItem: null
     // No Feria section on Android: qml/feria/ is not shipped there, so neither the rail
     // entry nor the feriaContent Loader may reference it (feriaOnly itself is unreachable).
     property bool feriaEnabled: false
     readonly property bool feriaSectionAvailable: Qt.platform.os !== "android" && feriaEnabled
-    readonly property var railSections: feriaOnly && feriaSectionAvailable ? [{ id: "feria", label: qsTr("Feria"), glyph: "▣" }] : feriaSectionAvailable ? [
-        { id: "profile", label: qsTr("Profile"), glyph: "◌" },
-        { id: "feria", label: qsTr("Feria"), glyph: "▣" },
-        { id: "security", label: qsTr("Security"), glyph: "◇" },
-        { id: "devices", label: qsTr("Devices"), glyph: "▣" },
-        { id: "recovery", label: qsTr("Recovery"), glyph: "↶" },
-        { id: "privacy", label: qsTr("Data & privacy"), glyph: "◫" }
-    ] : [
-        { id: "profile", label: qsTr("Profile"), glyph: "◌" },
-        { id: "security", label: qsTr("Security"), glyph: "◇" },
-        { id: "devices", label: qsTr("Devices"), glyph: "▣" },
-        { id: "recovery", label: qsTr("Recovery"), glyph: "↶" },
-        { id: "privacy", label: qsTr("Data & privacy"), glyph: "◫" }
-    ]
+    readonly property bool devicePrivacyOnly: controller && controller.mode === "localOnly" && !feriaOnly
+    readonly property var railSections: feriaOnly
+        ? [{ id: "feria", label: qsTr("Apps and services") }]
+        : devicePrivacyOnly ? [{ id: "privacy", label: qsTr("Data & privacy") }] : [
+            { id: "profile", label: qsTr("Profile") },
+            { id: "security", label: qsTr("Security") },
+            { id: "devices", label: qsTr("Devices") },
+            { id: "recovery", label: qsTr("Recovery") },
+            { id: "privacy", label: qsTr("Data & privacy") }
+        ]
+    readonly property int contentInset: width < 680 ? 16 : 34
+
+    Theme { id: theme }
+
     readonly property int activeRailIndex: {
         for (let i = 0; i < railSections.length; ++i) {
             if (railSections[i].id === activeSection)
@@ -166,7 +165,7 @@ Rectangle {
     // (so it draws above the Taskbar dock and no longer loses clicks to it) and before the
     // onboarding host (so onboarding still draws on top of the Centre).
     z: 900
-    color: "#0d0c09"
+    color: "#121318"
     opacity: 0
 
     Behavior on opacity { NumberAnimation { duration: 160 } }
@@ -187,8 +186,12 @@ Rectangle {
 
     function focusRail() {
         Qt.callLater(function() {
-            if (root.visible)
-                railColumn.forceActiveFocus()
+            if (root.visible) {
+                if (root.devicePrivacyOnly)
+                    backAction.forceActiveFocus()
+                else
+                    railColumn.forceActiveFocus()
+            }
         })
     }
 
@@ -202,22 +205,17 @@ Rectangle {
     }
 
     function runSessionAction() {
-        if (root.controller) {
-            if (root.accountPresent)
-                root.controller.logoutCurrent()
-            else
-                root.controller.returnToSignIn()
-        }
+        if (root.accountPresent)
+            root.controller.logoutCurrent()
         root.close()
     }
 
     function open(section, invoker, context) {
-        if (!root.visible) {
+        if (!root.visible)
             rememberInvoker(invoker)
-            feriaOnly = context === "feria" && feriaSectionAvailable
-        }
-        activeSection = feriaOnly ? "feria"
-            : railSections.some(function(row) { return row.id === section }) ? section : "profile"
+        feriaOnly = context === "feria" && feriaSectionAvailable
+        activeSection = railSections.some(function(row) { return row.id === section })
+            ? section : railSections[0].id
         root.visible = true
         focusRail()
     }
@@ -277,20 +275,22 @@ Rectangle {
         spacing: 0
 
         Rectangle {
-            width: 232
+            id: rail
+            width: Math.min(216, Math.round(root.width * 0.32))
             height: parent.height
-            color: "#121009"
+            visible: !root.devicePrivacyOnly
+            color: "#18191f"
 
             Column {
                 id: railColumn
                 objectName: "accountCenterRailRegion"
-                x: 20
+                x: root.width < 680 ? 8 : 16
                 y: 74
-                width: parent.width - 40
+                width: parent.width - 2 * x
                 spacing: 4
-                activeFocusOnTab: root.visible
+                activeFocusOnTab: true
                 Accessible.role: Accessible.List
-                Accessible.name: qsTr("Account Centre sections")
+                Accessible.name: root.feriaOnly ? qsTr("Feria settings sections") : qsTr("Account settings sections")
 
                 Keys.onPressed: function(event) {
                     let next = root.activeRailIndex
@@ -319,49 +319,30 @@ Rectangle {
                     }
                 }
 
-                Row {
-                    spacing: 12
+                Column {
+                    width: parent.width
+                    spacing: 3
                     bottomPadding: 18
 
-                    Rectangle {
-                        width: 38
-                        height: 38
-                        radius: 19
-                        color: Qt.rgba(0.94, 0.77, 0.29, 0.14)
-                        border.width: 1.5
-                        border.color: Qt.rgba(0.94, 0.77, 0.29, 0.75)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.feriaOnly ? "F" : root.accountPresent ? root.initial : "?"
-                            color: "#f0df9a"
-                            font.family: "Inter"
-                            font.pixelSize: 16
-                            font.weight: Font.DemiBold
-                        }
+                    Text {
+                        width: parent.width
+                        text: root.feriaOnly ? qsTr("Feria settings") : qsTr("Account settings")
+                        color: theme.ink
+                        font.family: theme.ui
+                        font.pixelSize: 16
+                        font.weight: Font.DemiBold
+                        wrapMode: Text.WordWrap
                     }
 
-                    Column {
-                        spacing: 1
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        Text {
-                            objectName: "accountCenterUsername"
-                            text: root.feriaOnly ? qsTr("Feria settings") : root.accountPresent && root.controller
-                                ? root.controller.username
-                                : qsTr("Not signed in")
-                            color: "#f2f2ef"
-                            font.family: "Inter"
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                        }
-
-                        Text {
-                            text: root.feriaOnly ? qsTr("Apps and services") : qsTr("Colosseum account")
-                            color: "#7d7a6f"
-                            font.family: "Inter"
-                            font.pixelSize: 10
-                        }
+                    Text {
+                        objectName: "accountCenterUsername"
+                        width: parent.width
+                        visible: root.accountPresent && !root.feriaOnly
+                        text: root.accountPresent ? root.controller.username : ""
+                        color: theme.inkDimmer
+                        font.family: theme.ui
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
                     }
                 }
 
@@ -382,30 +363,16 @@ Rectangle {
                             && root.activeSection === modelData.id ? 2 : 0
                         border.color: "#f0df9a"
 
-                        Row {
-                            x: 12
-                            spacing: 10
+                        Text {
+                            x: 10
+                            width: parent.width - 20
                             anchors.verticalCenter: parent.verticalCenter
-
-                            Text {
-                                text: modelData.glyph
-                                color: root.activeSection === modelData.id
-                                    ? "#f0df9a"
-                                    : "#8f8b80"
-                                font.pixelSize: 13
-                            }
-
-                            Text {
-                                text: modelData.label
-                                color: root.activeSection === modelData.id
-                                    ? "#f2f2ef"
-                                    : "#b7b3a6"
-                                font.family: "Inter"
-                                font.pixelSize: 13
-                                font.weight: root.activeSection === modelData.id
-                                    ? Font.DemiBold
-                                    : Font.Normal
-                            }
+                            text: modelData.label
+                            color: root.activeSection === modelData.id ? theme.ink : theme.inkDim
+                            font.family: theme.ui
+                            font.pixelSize: 13
+                            font.weight: root.activeSection === modelData.id ? Font.DemiBold : Font.Normal
+                            elide: Text.ElideRight
                         }
 
                         MouseArea {
@@ -422,13 +389,14 @@ Rectangle {
 
                 Text {
                     id: railSessionAction
-                    visible: !root.feriaOnly
-                    text: root.accountPresent ? qsTr("Sign out of Colosseum") : qsTr("Sign in to Colosseum")
+                    visible: root.accountPresent && !root.feriaOnly
+                    width: parent.width
+                    text: qsTr("Sign out")
                     color: railSessionAction.activeFocus || railOutMa.containsMouse
                         ? "#d8d4c8" : "#8f8b80"
                     font.family: "Inter"
                     font.pixelSize: 12
-                    activeFocusOnTab: root.visible && visible
+                    activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: text
                     Keys.onReturnPressed: root.runSessionAction()
@@ -460,24 +428,24 @@ Rectangle {
                 width: 1
                 height: parent.height
                 anchors.right: parent.right
-                color: "#221f18"
+                color: theme.edge
             }
         }
 
         Item {
-            width: parent.width - 232
+            width: parent.width - (rail.visible ? rail.width : 0)
             height: parent.height
 
             Text {
                 id: backAction
-                x: 34
+                x: root.contentInset
                 y: 30
                 text: qsTr("‹ Back")
                 color: backAction.activeFocus || backMa.containsMouse
                     ? "#b7b3a6" : "#8f8b80"
                 font.family: "Inter"
                 font.pixelSize: 12
-                activeFocusOnTab: root.visible
+                activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Back from Account Centre")
                 Keys.onReturnPressed: root.close()
@@ -505,9 +473,9 @@ Rectangle {
             }
 
             AccountProfilePage {
-                x: 34
+                x: root.contentInset
                 y: 64
-                width: parent.width - 68
+                width: parent.width - 2 * root.contentInset
                 height: parent.height - 96
                 active: root.visible && !root.feriaOnly && root.activeSection === "profile"
                 visible: active
@@ -519,8 +487,7 @@ Rectangle {
                 objectName: "accountFeriaContent"
                 x: 20; y: 64
                 width: parent.width - 40; height: parent.height - y - 24
-                active: root.visible && root.feriaController !== null
-                    && root.activeSection === "feria"
+                active: root.visible && root.feriaOnly && root.feriaController !== null
                 visible: active
                 // String source (desktop-only path) so the Android bundle, which ships no
                 // qml/feria/, never parses PorticoCombinedParityAccountView.qml.
@@ -538,10 +505,22 @@ Rectangle {
                 }
             }
 
+            Text {
+                visible: root.feriaOnly && !feriaContent.item
+                x: root.contentInset
+                y: 80
+                width: parent.width - 2 * x
+                text: qsTr("Feria settings aren’t available yet.")
+                color: theme.inkDim
+                font.family: theme.ui
+                font.pixelSize: 14
+                wrapMode: Text.WordWrap
+            }
+
             AccountSecurityPage {
-                x: 34
+                x: root.contentInset
                 y: 64
-                width: parent.width - 68
+                width: parent.width - 2 * root.contentInset
                 height: parent.height - 96
                 active: root.visible && root.activeSection === "security"
                 visible: active
@@ -549,9 +528,9 @@ Rectangle {
             }
 
             AccountDevicesPage {
-                x: 34
+                x: root.contentInset
                 y: 64
-                width: parent.width - 68
+                width: parent.width - 2 * root.contentInset
                 height: parent.height - 96
                 active: root.visible && root.activeSection === "devices"
                 visible: active
@@ -559,9 +538,9 @@ Rectangle {
             }
 
             AccountRecoveryPage {
-                x: 34
+                x: root.contentInset
                 y: 64
-                width: parent.width - 68
+                width: parent.width - 2 * root.contentInset
                 height: parent.height - 96
                 active: root.visible && root.activeSection === "recovery"
                 visible: active
@@ -571,13 +550,14 @@ Rectangle {
 
             AccountDataPrivacyPage {
                 id: privacyPage
-                x: 34
+                x: root.contentInset
                 y: 64
-                width: parent.width - 86
+                width: parent.width - 2 * root.contentInset
                 height: parent.height - 96
                 active: root.visible && root.activeSection === "privacy"
                 visible: active
 
+                showAccountControls: !root.devicePrivacyOnly
                 rememberSearchHistory: root.privacyRememberSearchHistory
                 keepActivityHistory: root.privacyKeepActivityHistory
                 syncActivityHistory: root.privacySyncActivityHistory

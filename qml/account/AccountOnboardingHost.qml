@@ -13,6 +13,7 @@ Item {
     property Item backdrop: null
     property real topInset: 74
     property Item focusReturnItem: null
+    signal theatreSyncSettingsRequested()
 
     // No-account edition gate: accountFeaturesAvailable === false hides the
     // welcome/sign-in/registration cover — the native side settles local-only
@@ -107,6 +108,7 @@ Item {
         controller: root.controller
         recoveryPresenter: root.recoveryPresenter
         backdrop: root.backdrop
+        onTheatreSyncSettingsRequested: root.theatreSyncSettingsRequested()
         visible:
             !root.controller.signOutSyncWarningPending
         z: 1

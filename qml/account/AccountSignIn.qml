@@ -9,14 +9,19 @@ AccountPageFrame {
 
     property var controller: null
     property string validationMessage: ""
+    property bool stremioAvailable: false
+    property bool nuvioAvailable: false
+    readonly property string theatreSyncProviders: stremioAvailable && nuvioAvailable
+        ? qsTr("Stremio or Nuvio") : nuvioAvailable ? qsTr("Nuvio") : qsTr("Stremio")
 
     eyebrow: "COLOSSEUM · ACCOUNT"
     headline: "Welcome back."
-    detail: "Sign in to restore your Collection, progress, reader setup, preferences, and other synced Colosseum state on this device."
+    detail: qsTr("Use your Colosseum account to restore your Collection, activity and preferences on this device.")
     panelWidth: 560
 
     signal forgotPasswordRequested()
     signal createAccountRequested()
+    signal theatreSyncRequested()
 
     function clearSecrets() {
         passwordField.clear()
@@ -34,12 +39,11 @@ AccountPageFrame {
     }
 
     AccountPanelHeader {
-        kicker: "SIGN IN"
-        title: "Enter your account"
-        copy: "Use your Colosseum username and password."
+        kicker: qsTr("ACCOUNT")
+        title: qsTr("Sign in to Colosseum")
     }
 
-    Item { width: 1; height: 24 }
+    Item { width: 1; height: 18 }
 
     AccountField {
         id: usernameField
@@ -87,7 +91,7 @@ AccountPageFrame {
                 && root.controller.lastErrorMessage.length > 0)
         text: root.validationMessage.length > 0
             ? root.validationMessage
-            : root.controller.lastErrorMessage
+            : root.controller ? root.controller.lastErrorMessage || "" : ""
         color: "#f0a3a3"
         font.family: errorTheme.ui
         font.pixelSize: 12
@@ -107,19 +111,7 @@ AccountPageFrame {
         onClicked: root.submit()
     }
 
-    Item { width: 1; height: 18 }
-
-    Text {
-        width: parent.width
-        text: "or"
-        color: orTheme.inkDimmer
-        font.family: orTheme.ui
-        font.pixelSize: 11
-        horizontalAlignment: Text.AlignHCenter
-        Theme { id: orTheme }
-    }
-
-    Item { width: 1; height: 14 }
+    Item { width: 1; height: 12 }
 
     AccountButton {
         objectName: "accountSignInCreate"
@@ -145,15 +137,21 @@ AccountPageFrame {
         }
     }
 
-    Item { width: 1; height: 20 }
+    Item { width: 1; height: 12; visible: theatreChoice.visible }
 
-    Text {
+    AccountChoice {
+        id: theatreChoice
+        objectName: "accountSignInTheatreSync"
         width: parent.width
-        text: "No email or phone number required."
-        color: footerTheme.inkDimmer
-        font.family: footerTheme.ui
-        font.pixelSize: 11
-        horizontalAlignment: Text.AlignHCenter
-        Theme { id: footerTheme }
+        visible: root.stremioAvailable || root.nuvioAvailable
+        iconSource: root.stremioAvailable ? "../../assets/icons/stremio-official.svg"
+            : root.nuvioAvailable ? "../../assets/icons/nuvio-official.png" : ""
+        secondIconSource: root.stremioAvailable && root.nuvioAvailable ? "../../assets/icons/nuvio-official.png" : ""
+        title: qsTr("Sync your Theatre")
+        detail: qsTr("Connect %1 without a Colosseum account.").arg(root.theatreSyncProviders)
+        onChosen: {
+            root.clearSecrets()
+            root.theatreSyncRequested()
+        }
     }
 }

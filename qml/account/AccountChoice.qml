@@ -10,6 +10,7 @@ Control {
     property string title: ""
     property string detail: ""
     property url iconSource: ""
+    property url secondIconSource: ""
     signal chosen()
 
     Accessible.role: Accessible.Button
@@ -24,23 +25,38 @@ Control {
     Theme { id: theme }
 
     contentItem: Item {
-        Image {
-            id: choiceIcon
+        Row {
+            id: icons
             anchors.left: parent.left
             anchors.leftMargin: 18
             anchors.verticalCenter: parent.verticalCenter
-            width: 34
-            height: 34
-            fillMode: Image.PreserveAspectFit
-            source: control.iconSource
-            visible: status === Image.Ready
+            spacing: 6
+            visible: choiceIcon.status === Image.Ready || secondIcon.status === Image.Ready
+
+            Image {
+                id: choiceIcon
+                width: secondIcon.status === Image.Ready ? 22 : 34
+                height: width
+                fillMode: Image.PreserveAspectFit
+                source: control.iconSource
+                visible: status === Image.Ready
+            }
+
+            Image {
+                id: secondIcon
+                width: 22
+                height: width
+                fillMode: Image.PreserveAspectFit
+                source: control.secondIconSource
+                visible: status === Image.Ready
+            }
         }
 
         Column {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: choiceIcon.visible ? 18 + choiceIcon.width + 14 : 18
+            anchors.leftMargin: icons.visible ? 18 + icons.implicitWidth + 12 : 18
             anchors.rightMargin: 18
             spacing: 5
 

@@ -92,11 +92,13 @@ TestCase {
         verify(sessionAction !== null)
         tryCompare(sessionAction, "activeFocus", true)
 
+        const last = byName(subject, "accountFlyoutNav_privacy")
+        last.forceActiveFocus()
         keyClick(Qt.Key_Down)
 
         compare(focusHost.downCount, 0,
                 "bare Down must be contained by AccountFlyout, not delivered to its parent")
-        tryCompare(sessionAction, "activeFocus", true)
+        tryCompare(last, "activeFocus", true)
     }
     function test_update_chrome_keyboard_activation() {
         subject = updateComp.createObject(testWindow.contentItem)
