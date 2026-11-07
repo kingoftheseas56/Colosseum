@@ -69,6 +69,9 @@ target_link_libraries(colosseum_nuvio_tmdb_key PRIVATE Qt6::Core)
 if(ANDROID)
     # QtService loads this APK library and calls main with a valid Android VM.
     # It reuses the exact QuickJS/network/TMDB implementation used on desktop.
+    # Qt 6.11 exports private modules separately; loading Core alone does not
+    # create the CorePrivate target needed by QAndroidService.
+    find_package(Qt6 REQUIRED COMPONENTS CorePrivate)
     add_library(colosseum-nuvio-host SHARED WorkerMain.cpp worker_resources.qrc)
     set_target_properties(colosseum-nuvio-host PROPERTIES
         OUTPUT_NAME colosseum_nuvio_host SUFFIX "_${ANDROID_ABI}.so")
