@@ -103,6 +103,10 @@ Item {
         closeRequested()
     }
 
+    function requestNuvioSignInBack() {
+        return root.shown && nuvioFlow.visible && nuvioFlow.backFromSignInStep()
+    }
+
     function cancelStremioImport() {
         if ((!firstRun || stremioImportPhase !== "applying")
                 && (stremioImportOpen || stremioImportPhase === "loading" || (firstRun && firstRunStarted))

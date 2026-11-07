@@ -17,6 +17,11 @@ AccountPageFrame {
     headline: qsTr("Sync your Theatre.")
     detail: qsTr("Bring your library, watched items, playback progress and addons into Colosseum. You'll review a preview before anything is imported.")
 
+    function requestNuvioSignInBack() {
+        return root.visible && root.provider === "nuvio" && providerLoader.status === Loader.Ready
+            && providerLoader.item.visible && providerLoader.item.backFromSignInStep()
+    }
+
     function clearSecrets() {
         if (providerLoader.status === Loader.Ready && typeof providerLoader.item.clearSecrets === "function")
             providerLoader.item.clearSecrets()

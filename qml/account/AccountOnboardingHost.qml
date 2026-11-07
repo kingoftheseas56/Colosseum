@@ -35,6 +35,10 @@ Item {
 
     visible: accountFlowVisible
 
+    function requestNuvioSignInBack() {
+        return root.visible && onboarding.visible && onboarding.requestNuvioSignInBack()
+    }
+
     // The onboarding cover is a temporary focus universe. Arrow keys are the primary
     // console-style navigation route between its visible choices; editable fields keep
     // their own cursor/navigation semantics because KeyboardSpatialNavigator refuses to

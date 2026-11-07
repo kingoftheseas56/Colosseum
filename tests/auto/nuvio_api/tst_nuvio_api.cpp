@@ -9,6 +9,7 @@
 
 #include <QDateTime>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QJsonArray>
 #include <QUrlQuery>
@@ -111,6 +112,13 @@ struct Fixture {
     QHash<QString, QJsonArray> deletes;
     NuvioApi::Reply pinReply{200, QJsonArray{QJsonObject{{"unlocked", true}, {"retry_after_seconds", 0}}}, {}};
     bool holdNextPin = false;
+    bool holdDeviceStart = false;
+    bool slowDownDevicePoll = false;
+    int deviceLifetimeMs = 10000;
+    QElapsedTimer deviceElapsed;
+    qint64 firstDevicePollMs = -1;
+    QString deviceNonce;
+    NuvioApi::Completion heldDeviceStart;
     bool replaceLockedProfile = false;
     QString settingsStamp = QStringLiteral("2026-07-07T20:15:13.123456+00:00");
     QJsonObject settings;
@@ -120,7 +128,7 @@ struct Fixture {
     int settingsWrites = 0;
     NuvioApi::Completion heldPin;
     NuvioAccount account{&vault, nullptr, [this](const QString &path, bool, const QJsonObject &body,
-        const QByteArray &, NuvioApi::Completion done) {
+        const QByteArray &bearer, NuvioApi::Completion done) {
         const QString method = path.section('/', -1);
         ++calls[method];
         if (offline) {
@@ -129,6 +137,40 @@ struct Fixture {
             done(tokenReply());
         } else if (method == QLatin1String("token?grant_type=refresh_token")) {
             done(failNextRefresh ? NuvioApi::Reply{400, {}, {}} : tokenReply());
+        } else if (method == QLatin1String("start_device_login_session")) {
+            QVERIFY(bearer.isEmpty());
+            QCOMPARE(body.value("p_redirect_base_url"), QJsonValue("https://nuvio.tv/link"));
+            deviceNonce = body.value("p_device_nonce").toString();
+            QVERIFY(!deviceNonce.isEmpty());
+            deviceElapsed.start();
+            if (std::exchange(holdDeviceStart, false)) {
+                heldDeviceStart = std::move(done);
+                return;
+            }
+            const auto expires = QDateTime::fromString("2030-07-07T20:15:13Z", Qt::ISODate)
+                .addMSecs(deviceLifetimeMs).toString(Qt::ISODateWithMs);
+            done({200, QJsonArray{QJsonObject{{"device_code", "fixture-device-code"},
+                {"user_code", "AB12CD"}, {"expires_at", expires}, {"poll_interval_seconds", 1}}},
+                {}, QByteArrayLiteral("Sun, 07 Jul 2030 20:15:13 GMT")});
+        } else if (method == QLatin1String("poll_tv_login_session")) {
+            QVERIFY(bearer.isEmpty());
+            QCOMPARE(body.value("p_code"), QJsonValue("fixture-device-code"));
+            QCOMPARE(body.value("p_device_nonce").toString(), deviceNonce);
+            if (firstDevicePollMs < 0)
+                firstDevicePollMs = deviceElapsed.elapsed();
+            done({200, QJsonArray{QJsonObject{{"status", slowDownDevicePoll ? "slow_down" : "approved"}}}, {}});
+        } else if (method == QLatin1String("tv-logins-exchange")) {
+            QVERIFY(bearer.isEmpty());
+            QCOMPARE(body.value("code"), QJsonValue("fixture-device-code"));
+            QCOMPARE(body.value("device_nonce").toString(), deviceNonce);
+            auto reply = tokenReply();
+            auto session = reply.data.toObject();
+            session.remove("user");
+            reply.data = session;
+            done(reply);
+        } else if (path == QLatin1String("/auth/v1/user")) {
+            QCOMPARE(bearer, QByteArrayLiteral("fixture-access"));
+            done({200, QJsonObject{{"id", accountId}}, {}});
         } else if (method == QLatin1String("sync_pull_profiles")) {
             done({200, QJsonArray{
                 QJsonObject{{"id", sourceProfile}, {"user_id", accountId}, {"profile_index", 1},
@@ -288,6 +330,8 @@ private slots:
     void pinRequestsAreNeverReplayedOrAcceptedAfterCancel();
     void nextUpDismissalSyncsAfterOfflineAndDoesNotClearResume();
     void continueWatchingRespectsRemoteDeleteAndKeepsNewerPlayback();
+    void deviceCodeSignInStagesUntilApply();
+    void deviceCodeHonorsSlowDownExpiryAndCancel();
 };
 
 void tst_nuvio_api::signInIsStagedAndDisconnectClearsTokens() {
@@ -412,7 +456,7 @@ void tst_nuvio_api::cancellationFencesLateRepliesAndRetryAfterStopsRequests() {
     NuvioApi::Completion pending;
     int sent = 0;
     NuvioApi api(&vault, nullptr, [&](const QString &, bool, const QJsonObject &,
-        const QByteArray &, NuvioApi::Completion done) {
+        const QByteArray &bearer, NuvioApi::Completion done) {
         ++sent;
         pending = std::move(done);
     });
@@ -843,6 +887,55 @@ void tst_nuvio_api::continueWatchingRespectsRemoteDeleteAndKeepsNewerPlayback() 
     fixture.account.syncNow();
     QTRY_VERIFY(!fixture.account.busy());
     QVERIFY(!fixture.progress.get("video", show + QStringLiteral(":1:2")).isEmpty());
+}
+
+void tst_nuvio_api::deviceCodeSignInStagesUntilApply() {
+    Fixture fixture;
+    fixture.activate();
+    fixture.account.startDeviceSignIn();
+    QVERIFY2(fixture.account.phase() == QStringLiteral("deviceCode"), qPrintable(fixture.account.message()));
+    QCOMPARE(fixture.account.deviceUserCode(), QStringLiteral("AB12CD"));
+    QCOMPARE(fixture.calls.value("poll_tv_login_session"), 0);
+    QVERIFY(!fixture.vault.stored);
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("profiles"));
+    QVERIFY(fixture.firstDevicePollMs >= 950);
+    QCOMPARE(fixture.calls.value("poll_tv_login_session"), 1);
+    QCOMPARE(fixture.calls.value("tv-logins-exchange"), 1);
+    QCOMPARE(fixture.calls.value("user"), 1);
+    QVERIFY(fixture.account.deviceUserCode().isEmpty());
+    QVERIFY(!fixture.vault.stored);
+    fixture.account.previewProfile(1, true);
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("preview"));
+    QVERIFY(!fixture.vault.stored);
+    fixture.account.apply(true);
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("done"));
+    QCOMPARE(fixture.vault.stored->nuvioProfileId, sourceProfile);
+    QCOMPARE(fixture.vault.stored->refreshToken, QByteArrayLiteral("fixture-refresh"));
+}
+
+void tst_nuvio_api::deviceCodeHonorsSlowDownExpiryAndCancel() {
+    Fixture fixture;
+    fixture.activate();
+    fixture.slowDownDevicePoll = true;
+    fixture.deviceLifetimeMs = 2100;
+    fixture.account.startDeviceSignIn();
+    QVERIFY2(fixture.account.phase() == QStringLiteral("deviceCode"), qPrintable(fixture.account.message()));
+    QTRY_COMPARE(fixture.account.phase(), QStringLiteral("deviceCodeExpired"));
+    QCOMPARE(fixture.calls.value("poll_tv_login_session"), 1);
+    QCOMPARE(fixture.calls.value("tv-logins-exchange"), 0);
+    QVERIFY(fixture.account.deviceUserCode().isEmpty());
+    QVERIFY(!fixture.vault.stored);
+
+    fixture.holdDeviceStart = true;
+    fixture.account.startDeviceSignIn();
+    QVERIFY(fixture.heldDeviceStart);
+    QCOMPARE(fixture.account.phase(), QStringLiteral("deviceCode"));
+    fixture.account.cancelDeviceSignIn();
+    std::exchange(fixture.heldDeviceStart, {})({200, QJsonArray{}, {}});
+    QCOMPARE(fixture.account.phase(), QStringLiteral("signIn"));
+    QVERIFY(fixture.account.deviceUserCode().isEmpty());
+    QCOMPARE(fixture.calls.value("poll_tv_login_session"), 1);
+    QVERIFY(!fixture.vault.stored);
 }
 
 QTEST_GUILESS_MAIN(tst_nuvio_api)

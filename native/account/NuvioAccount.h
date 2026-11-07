@@ -19,6 +19,7 @@ class NuvioAccount final : public QObject {
     Q_PROPERTY(bool needsReconnect READ needsReconnect NOTIFY changed)
     Q_PROPERTY(QString phase READ phase NOTIFY changed)
     Q_PROPERTY(QString message READ message NOTIFY changed)
+    Q_PROPERTY(QString deviceUserCode READ deviceUserCode NOTIFY changed)
     Q_PROPERTY(QString primaryProvider READ primaryProvider NOTIFY changed)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY changed)
     Q_PROPERTY(QString selectedProfileName READ selectedProfileName NOTIFY changed)
@@ -45,6 +46,7 @@ public:
     bool needsReconnect() const;
     QString phase() const { return m_phase; }
     QString message() const { return m_message; }
+    QString deviceUserCode() const { return m_deviceUserCode; }
     QString primaryProvider() const;
     QVariantList profiles() const;
     QString selectedProfileName() const { return m_selection.name; }
@@ -54,6 +56,8 @@ public:
     int removalRevision() const { return m_removalRevision; }
 
     Q_INVOKABLE void signIn(const QString &email, const QString &password);
+    Q_INVOKABLE void startDeviceSignIn();
+    Q_INVOKABLE void cancelDeviceSignIn();
     Q_INVOKABLE void loadProfiles();
     Q_INVOKABLE void previewProfile(int index, bool firstRun = false);
     Q_INVOKABLE void unlockProfile(const QString &pin);
@@ -152,6 +156,7 @@ private:
     bool m_removalsLoaded = false;
     QString m_phase = QStringLiteral("idle");
     QString m_message;
+    QString m_deviceUserCode;
     quint64 m_generation = 0;
     qint64 m_primarySince = 0;
     bool m_available = false;

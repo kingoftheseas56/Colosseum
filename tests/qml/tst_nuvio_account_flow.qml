@@ -33,10 +33,27 @@ TestCase {
         property string submittedPin: ""
         property int pinSubmissions: 0
         property int pinCancels: 0
+        property string deviceUserCode: ""
+        property int deviceStarts: 0
+        property int deviceCancels: 0
 
         function signIn(email, password) {
             signedInEmail = email
             phase = "profiles"
+        }
+
+        function startDeviceSignIn() {
+            deviceStarts++
+            deviceUserCode = ""
+            phase = "deviceCode"
+            busy = true
+        }
+
+        function cancelDeviceSignIn() {
+            deviceCancels++
+            deviceUserCode = ""
+            phase = "signIn"
+            busy = false
         }
 
         function previewProfile(index, firstRun) {
@@ -170,6 +187,12 @@ TestCase {
     SignalSpy { id: completedSpy; target: flow; signalName: "completed" }
     SignalSpy { id: canceledSpy; target: flow; signalName: "cancelRequested" }
 
+    Shortcut {
+        sequences: ["Escape", "Back"]
+        enabled: accountFixture.phase === "deviceCode" || accountFixture.phase === "deviceCodeExpired"
+        onActivated: accountFixture.cancels++
+    }
+
     function init() {
         accountFixture.phase = "idle"
         accountFixture.available = true
@@ -182,6 +205,9 @@ TestCase {
         accountFixture.submittedPin = ""
         accountFixture.pinSubmissions = 0
         accountFixture.pinCancels = 0
+        accountFixture.deviceUserCode = ""
+        accountFixture.deviceStarts = 0
+        accountFixture.deviceCancels = 0
         accountFixture.connected = false
         accountFixture.selectedProfileName = ""
         accountFixture.connectedProfileName = ""
@@ -311,6 +337,84 @@ TestCase {
         findChild(flow, "nuvioCancelImport").clicked()
         compare(accountFixture.cancels, 1)
         compare(canceledSpy.count, 1)
+    }
+
+    function test_device_sign_in_displays_code_and_continues_to_existing_import() {
+        const email = findChild(flow, "nuvioEmail")
+        const password = findChild(flow, "nuvioPassword")
+        const start = findChild(flow, "nuvioStartDeviceSignIn")
+        verify(email.visible && start && start.visible && start.enabled)
+        email.text = "reader@example.invalid"
+        password.text = "fixture-password"
+        start.clicked()
+        compare(accountFixture.deviceStarts, 1)
+        compare(accountFixture.signedInEmail, "")
+        verify(!email.visible)
+        compare(email.text, "")
+        compare(password.text, "")
+
+        const code = findChild(flow, "nuvioDeviceUserCode")
+        const link = findChild(flow, "nuvioDeviceLink")
+        verify(!code.visible && !link.visible)
+        accountFixture.deviceUserCode = "AB12CD"
+        accountFixture.busy = false
+        verify(code.visible && link.visible)
+        compare(code.text, "AB12CD")
+        compare(link.text, "nuvio.tv/link")
+        tryVerify(() => code.width > 0 && link.width > 0)
+        verify(code.width <= flow.availableWidth)
+        verify(link.width <= flow.availableWidth)
+
+        accountFixture.phase = "profiles"
+        verify(!code.visible && !link.visible)
+        findChild(flow, "nuvioProfile_3").clicked()
+        compare(accountFixture.previewedProfile, 3)
+        verify(accountFixture.previewAsPrimary)
+        compare(completedSpy.count, 0)
+        findChild(flow, "nuvioApplyImport").clicked()
+        verify(accountFixture.applyAsPrimary)
+        accountFixture.phase = "done"
+        accountFixture.busy = false
+        compare(completedSpy.count, 1)
+    }
+
+    function test_device_sign_in_retries_expired_code_and_returns_to_email() {
+        findChild(flow, "nuvioStartDeviceSignIn").clicked()
+        accountFixture.deviceUserCode = "AB12CD"
+        accountFixture.busy = false
+        accountFixture.phase = "deviceCodeExpired"
+        verify(!findChild(flow, "nuvioDeviceUserCode").visible)
+        verify(!findChild(flow, "nuvioDeviceLink").visible)
+
+        const retry = findChild(flow, "nuvioRetryDeviceCode")
+        verify(retry.visible && retry.enabled)
+        retry.clicked()
+        compare(accountFixture.deviceStarts, 2)
+        compare(accountFixture.phase, "deviceCode")
+        verify(!retry.visible)
+
+        const back = findChild(flow, "nuvioDeviceSignInBack")
+        verify(back.enabled)
+        tryCompare(back, "activeFocus", true)
+        keyClick(Qt.Key_Escape)
+        compare(accountFixture.deviceCancels, 1)
+        verify(findChild(flow, "nuvioEmail").visible)
+        compare(accountFixture.cancels, 0)
+        compare(canceledSpy.count, 0)
+
+        findChild(flow, "nuvioStartDeviceSignIn").clicked()
+        back.clicked()
+        compare(accountFixture.deviceCancels, 2)
+        compare(accountFixture.phase, "signIn")
+        verify(findChild(flow, "nuvioEmail").visible)
+        compare(canceledSpy.count, 0)
+
+        findChild(flow, "nuvioStartDeviceSignIn").clicked()
+        tryCompare(back, "activeFocus", true)
+        keyClick(Qt.Key_Back)
+        compare(accountFixture.deviceCancels, 3)
+        compare(accountFixture.phase, "signIn")
+        compare(canceledSpy.count, 0)
     }
 
     function test_cancel_clears_credentials_and_signals_route() {

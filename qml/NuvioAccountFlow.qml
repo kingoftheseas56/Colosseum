@@ -20,6 +20,7 @@ ScrollView {
         || (account && account.previewBecomesPrimary === true)
     readonly property bool showSignIn: account && account.available
         && (phase === "signIn" || ((phase === "idle" || phase === "done") && (!connected || reconnect)))
+    readonly property bool deviceSignInStep: phase === "deviceCode" || phase === "deviceCodeExpired"
     property bool awaitingCompletion: false
 
     implicitHeight: flowContent.implicitHeight
@@ -31,6 +32,8 @@ ScrollView {
     function takeKeyboardFocus() {
         if (pinInput.visible && pinInput.enabled)
             pinInput.forceActiveFocus(Qt.TabFocusReason)
+        else if (deviceBackButton.visible)
+            deviceBackButton.forceActiveFocus(Qt.TabFocusReason)
         else if (emailInput.visible && emailInput.enabled)
             emailInput.forceActiveFocus(Qt.TabFocusReason)
     }
@@ -60,6 +63,13 @@ ScrollView {
         account.signIn(email, password)
     }
 
+    function startDeviceSignIn() {
+        if (busy || !(showSignIn || phase === "deviceCodeExpired"))
+            return
+        clearSecrets()
+        account.startDeviceSignIn()
+    }
+
     function submitPin() {
         if (!unlockButton.visible || !unlockButton.enabled)
             return
@@ -71,6 +81,18 @@ ScrollView {
     function backFromPin() {
         pinInput.clear()
         account.cancelPin()
+    }
+
+    function backFromSignInStep() {
+        if (phase === "pin") {
+            backFromPin()
+            return true
+        }
+        if (!deviceSignInStep)
+            return false
+        account.cancelDeviceSignIn()
+        Qt.callLater(root.takeKeyboardFocus)
+        return true
     }
 
     function finishFirstRun() {
@@ -86,7 +108,7 @@ ScrollView {
             clearSecrets()
         if (contentItem)
             contentItem.contentY = 0
-        if (phase === "pin")
+        if (phase === "pin" || deviceSignInStep)
             Qt.callLater(root.takeKeyboardFocus)
         finishFirstRun()
     }
@@ -98,25 +120,21 @@ ScrollView {
     onVisibleChanged: {
         if (!visible)
             clearSecrets()
-        else if (phase === "pin")
+        else if (phase === "pin" || deviceSignInStep)
             Qt.callLater(root.takeKeyboardFocus)
     }
-    Keys.onEscapePressed: event => {
-        if (phase === "pin") {
-            backFromPin()
+    Keys.onShortcutOverride: event => {
+        if (deviceSignInStep && (event.key === Qt.Key_Escape || event.key === Qt.Key_Back))
             event.accepted = true
-        } else if (firstRun) {
+    }
+    Keys.onEscapePressed: event => {
+        event.accepted = backFromSignInStep()
+        if (!event.accepted && firstRun) {
             cancelFlow()
             event.accepted = true
-        } else {
-            event.accepted = false
         }
     }
-    Keys.onBackPressed: event => {
-        event.accepted = phase === "pin"
-        if (event.accepted)
-            backFromPin()
-    }
+    Keys.onBackPressed: event => { event.accepted = backFromSignInStep() }
 
     Theme { id: theme }
 
@@ -167,6 +185,12 @@ ScrollView {
                     return qsTr("Nuvio is unavailable for this profile.")
                 if (root.firstRun && root.awaitingCompletion && root.busy)
                     return qsTr("Bringing in your library…")
+                if (root.phase === "deviceCode")
+                    return deviceCodeText.text.length > 0
+                        ? qsTr("Open the link in a browser and enter this code.")
+                        : qsTr("Preparing a sign-in code…")
+                if (root.phase === "deviceCodeExpired")
+                    return qsTr("Get a new code to continue signing in.")
                 if (root.phase === "profiles")
                     return qsTr("Choose the Nuvio profile you want to bring into Colosseum.")
                 if (root.phase === "pin")
@@ -236,6 +260,49 @@ ScrollView {
             highlighted: true
             text: qsTr("Sign in to Nuvio")
             onClicked: root.signIn()
+        }
+        FlowButton {
+            objectName: "nuvioStartDeviceSignIn"
+            visible: root.showSignIn
+            enabled: !root.busy
+            text: qsTr("Sign in with a code")
+            onClicked: root.startDeviceSignIn()
+        }
+        FlowText {
+            id: deviceCodeText
+            objectName: "nuvioDeviceUserCode"
+            visible: text.length > 0
+            text: root.phase === "deviceCode" && root.account ? root.account.deviceUserCode : ""
+            textFormat: Text.PlainText
+            color: theme.gold
+            font.pixelSize: 28
+            font.weight: Font.DemiBold
+            horizontalAlignment: Text.AlignHCenter
+            Accessible.name: qsTr("Nuvio sign-in code %1").arg(text)
+        }
+        FlowButton {
+            objectName: "nuvioDeviceLink"
+            visible: deviceCodeText.visible
+            variant: "link"
+            text: "nuvio.tv/link"
+            Accessible.name: qsTr("Open nuvio.tv/link in a browser")
+            onClicked: Qt.openUrlExternally("https://nuvio.tv/link")
+        }
+        FlowButton {
+            objectName: "nuvioRetryDeviceCode"
+            visible: root.phase === "deviceCodeExpired"
+            enabled: !root.busy
+            highlighted: true
+            text: qsTr("Get a new code")
+            onClicked: root.startDeviceSignIn()
+        }
+        FlowButton {
+            id: deviceBackButton
+            objectName: "nuvioDeviceSignInBack"
+            visible: root.deviceSignInStep
+            variant: "link"
+            text: qsTr("Back to email sign-in")
+            onClicked: root.backFromSignInStep()
         }
         Repeater {
             model: root.phase === "profiles" && root.account ? root.account.profiles : []

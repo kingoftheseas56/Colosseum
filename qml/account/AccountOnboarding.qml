@@ -115,6 +115,11 @@ Item {
 
     Component.onCompleted: synchronizeRoute(true)
 
+    function requestNuvioSignInBack() {
+        return root.visible && root.routeName === "theatreSync" && pageLoader.status === Loader.Ready
+            && pageLoader.item.requestNuvioSignInBack()
+    }
+
     function clearCurrentSecrets() {
         if (!pageLoader.item)
             return

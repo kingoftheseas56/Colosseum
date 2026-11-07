@@ -21,6 +21,8 @@
 namespace {
 const auto kIdle = QStringLiteral("idle");
 const auto kSignIn = QStringLiteral("signIn");
+const auto kDeviceCode = QStringLiteral("deviceCode");
+const auto kDeviceCodeExpired = QStringLiteral("deviceCodeExpired");
 const auto kProfiles = QStringLiteral("profiles");
 const auto kPin = QStringLiteral("pin");
 const auto kPreview = QStringLiteral("preview");
@@ -269,6 +271,7 @@ void NuvioAccount::resetFlow() {
     m_selection = {};
     m_reviewed.reset();
     m_preview.clear();
+    m_deviceUserCode.clear();
     m_manual = false;
     m_commitStarted = false;
     m_primaryPreview = false;
@@ -292,6 +295,44 @@ void NuvioAccount::signIn(const QString &email, const QString &password) {
         }
         loadProfiles();
     });
+}
+
+void NuvioAccount::startDeviceSignIn() {
+    if (!m_available || m_busy)
+        return;
+    resetFlow();
+    m_unlockedProfiles.clear();
+    m_manual = true;
+    const quint64 generation = m_generation;
+    setStatus(kDeviceCode, true);
+    m_api.startDeviceSignIn([this, generation](NuvioApi::DeviceSignInState state,
+        const QString &userCode, int status) {
+        if (generation != m_generation)
+            return;
+        using State = NuvioApi::DeviceSignInState;
+        if (state == State::Waiting) {
+            m_deviceUserCode = userCode;
+            emit changed();
+            return;
+        }
+        m_deviceUserCode.clear();
+        if (state == State::Complete) {
+            m_busy = false;
+            loadProfiles();
+            return;
+        }
+        setStatus(kDeviceCodeExpired, false, state == State::Expired
+            ? tr("This sign-in code expired.") : failure(status));
+    });
+}
+
+void NuvioAccount::cancelDeviceSignIn() {
+    if (!m_manual || (m_phase != kDeviceCode && m_phase != kDeviceCodeExpired))
+        return;
+    resetFlow();
+    m_api.cancelSignIn();
+    m_manual = true;
+    setStatus(kSignIn, false);
 }
 
 void NuvioAccount::loadProfiles() {
