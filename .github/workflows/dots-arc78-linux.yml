@@ -186,6 +186,15 @@ jobs:
       run: "# Vinyl remains advisory until Vinyl is scheduled.\nctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n\
         \  -L \"^vinyl$\" \\\n  -LE \"^(windows|requires-x11)$\" \\\n  --output-on-failure \\\n  --no-tests=error\
         \ \\\n  --parallel 1\n"
+    - name: Explicit Nuvio and Sources Sheet tests
+      env:
+        QT_QPA_PLATFORM: offscreen
+        QT_QUICK_BACKEND: software
+        QT_FORCE_STDERR_LOGGING: '1'
+      run: |
+        mkdir -p linux-evidence
+        ctest --test-dir "$COLOSSEUM_LINUX_BUILD" -R '^colosseum\.nuvio_(repository_store|plugin_host|source_resolver)_test$' --no-tests=error --output-on-failure 2>&1 | tee linux-evidence/nuvio-ctests.log
+        "$COLOSSEUM_LINUX_BUILD/tests/colosseum_qml_tests" -input tests/qml/tst_sources_sheet_nuvio.qml 2>&1 | tee linux-evidence/sources-sheet-qml.log
     - name: Run platform-neutral Linux CTests
       env:
         QT_QPA_PLATFORM: offscreen
