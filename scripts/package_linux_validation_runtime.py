@@ -52,6 +52,13 @@ def main():
                             symlinks=True, dirs_exist_ok=True, ignore=ignore)
     for path in (mpvqt / "lib").glob("libMpvQt.so*"):
         shutil.copy2(path, libdir / path.name)
+    # Colosseum uses SQLite, not the SDK's optional external database clients.
+    # Match the release workflow's selection and retain an explicit audit trail.
+    excluded_plugins = []
+    for path in sorted((stage / "usr/plugins/sqldrivers").glob("*.so")):
+        if path.name != "libqsqlite.so":
+            excluded_plugins.append(str(path.relative_to(stage / "usr/plugins")))
+            path.unlink()
     # Keep the host's C/C++ runtime and graphics-driver family coherent.
     system = re.compile(r"^(ld-linux|lib(c|m|dl|pthread|rt|resolv|util|anl|gcc_s|stdc\+\+)\.so|lib(GL|EGL|GLX|GLdispatch|OpenGL|drm|gbm|vulkan|va))")
     env = dict(os.environ, LD_LIBRARY_PATH=":".join(map(str, (
@@ -105,6 +112,7 @@ exec "$HERE/usr/bin/colosseum" "$@"
         "qt": "6.11.1",
         "binary_sha256": digest(bindir / "colosseum"),
         "qml_tests_sha256": digest(bindir / "colosseum_qml_tests"),
+        "excluded_unused_plugins": excluded_plugins,
         "external_system_libraries": sorted(external),
     }
     (stage / "BUILD-IDENTITY.json").write_text(json.dumps(identity, indent=2) + "\n")
