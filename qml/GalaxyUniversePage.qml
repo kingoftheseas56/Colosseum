@@ -112,11 +112,13 @@ Item {
         selectedDestinationId = ""
         Qt.callLater(root.takeKeyboardFocus)
     }
+    // Shell Back contract (WT-10): true when a destination was closed (consumed); false at
+    // the Galaxy root so the shell closes the Universe exactly once.
     function requestEscape() {
-        if (selectedDestinationId.length)
-            closeDestination()
-        else
-            backRequested()
+        if (!selectedDestinationId.length)
+            return false
+        closeDestination()
+        return true
     }
     function openEntry(kind, entry) {
         if (!entry) return
@@ -266,6 +268,7 @@ Item {
         }
     }
     Row {
+        visible: Qt.platform.os !== "android"
         z: 30
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20

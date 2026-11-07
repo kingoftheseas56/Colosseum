@@ -1,0 +1,49 @@
+{
+  "base": "501b23edba022a82666bd25e64f4f02ad8bb9a9f",
+  "kind": "verified-installed-overlay-layer",
+  "installed_apk_sha256": "75081ba22b231552ad38bf3c66a0e08cab45a5cd2abdd786b010678f23af636e",
+  "zoom_default": 1.15,
+  "zoom_intent_override": 1.2,
+  "files": [
+    {
+      "path": "native/platform/android/src/org/colosseum/platform/ColosseumActivity.java",
+      "sha256": "ce77d3b5c2ca4b18b29ea2e82b0a2994fbd19306fcc3b622185feee8c55b8fc2",
+      "bytes": 8803
+    },
+    {
+      "path": "qml/AdaptiveLayout.qml",
+      "sha256": "abdf540fd57c66a626e5b96c2a82529bfef335198c5a297170b0c34540f033bd",
+      "bytes": 1984
+    },
+    {
+      "path": "qml/ContinueRow.qml",
+      "sha256": "917d0d5feedc8ab6e94c753948c54ab0605df44a1c63cad327314e1cae3d678b",
+      "bytes": 10715
+    },
+    {
+      "path": "qml/HouseScrollBar.qml",
+      "sha256": "bda417e1cb62da2ac459c025d2d1e8d8a3facd09b3cd24881100256795cde88c",
+      "bytes": 2161
+    },
+    {
+      "path": "qml/Main.qml",
+      "sha256": "f4463c4db64160f05c0057a1bc1b469c22d578b881be03e83e747e40a4d62c76",
+      "bytes": 338469
+    },
+    {
+      "path": "qml/SourcesSheet.qml",
+      "sha256": "713247c6b7d00e94c614b698e383b85306c64666246ebdcf4c0b80039f43a4d1",
+      "bytes": 61256
+    },
+    {
+      "path": "qml/WidgetHeader.qml",
+      "sha256": "6027e5eb7772bac9cba1386b75bbfa9b90fb65096e51f9cb1c0ec71694472277",
+      "bytes": 3394
+    },
+    {
+      "path": "qml/WorldPage.qml",
+      "sha256": "e2e4215d0de70bc1099649c7bbcb819d52d56b4d1c9d56837f17d1a36e8e49e6",
+      "bytes": 19039
+    }
+  ]
+}

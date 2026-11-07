@@ -37,6 +37,7 @@ class QNetworkReply;
 class QFile;
 class StreamServer;
 class AudioPairingStore;
+class AudiobookTorrentTransport;
 
 class AudiobookDownloader : public QObject {
     Q_OBJECT
@@ -49,6 +50,8 @@ public:
     // stream is the app's StreamServer (torrent→localhost HTTP); not owned.
     AudiobookDownloader(QNetworkAccessManager* nam, StreamServer* stream, QObject* parent = nullptr);
     ~AudiobookDownloader() override;
+    // C++ wiring only; Android injects the existing download-to-keep engine.
+    void setTorrentTransport(AudiobookTorrentTransport* transport);
 
     // The read-along pairing store. When set, a completed download auto-attaches
     // the audiobook to its book — the pairing is written under `bookId` (see
@@ -120,6 +123,11 @@ private:
     };
     struct Job {
         QString pairKey, infoHash, title, author;
+        quint64 generation = 0;
+        bool nativeTorrent = false;
+        QString nativePhase = QStringLiteral("resolving");
+        QString completedDir;
+        QString manifestReason;
         QString baseUrl;                       // http://127.0.0.1:<port>/<infoHash>
         QList<FileJob> files;                  // resolved audio files, natural-sorted
         int     current = 0;                   // index into files being downloaded
@@ -153,6 +161,7 @@ private:
                          const QString& author, const QString& reason,
                          qint64 received = 0, qint64 total = 0);
     void cancelJob(Job* job);
+    void retireCancelledJob(Job* job);
     void cleanupInFlight(Job* job);
     void promoteQueue();                       // active done → start next queued
 
@@ -178,6 +187,8 @@ private:
         qint64  bytes = 0, addedAt = 0;
     };
 
+    QPointer<AudiobookTorrentTransport> m_torrent;
+    quint64 m_nextGeneration = 0;
     QNetworkAccessManager* m_nam = nullptr;
     StreamServer* m_stream = nullptr;
     Job* m_active = nullptr;

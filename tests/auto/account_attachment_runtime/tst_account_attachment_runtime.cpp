@@ -732,6 +732,7 @@ private slots:
     void createNewAccountAcceptsCertifiedLwwSupersession();
     void ratingsReviewsAccountRuntimeCompositionContract();
     void activitySourceClearRemovesLedgerAfterAttachmentCompletion();
+    void theatreFirstRunPreparesLocalProfile();
     void stremioLegacyAccountlessProfileCanConnect();
     void stremioBrowserLoginPersistsAcrossRuntimeRestart_data();
     void stremioBrowserLoginPersistsAcrossRuntimeRestart();
@@ -739,6 +740,7 @@ private slots:
     void stremioMarkerChangeUpdatesActiveRuntimeState();
     void stremioLocalOnlyOwnerReceiptJournalsRelayWithoutNeonEngine();
     void stremioLateOwnerReceiptCannotCrossProfileIncarnation();
+    void stremioRuntimeReplaysProviderRedoAfterCrashWithoutActivityFact_data();
     void stremioRuntimeReplaysProviderRedoAfterCrashWithoutActivityFact();
     void stremioRuntimeAppliesInboundSeriesWatchedThroughMetadataBridge();
     void stremioRuntimeImportsSeriesWithEmptyWatchedSet();
@@ -872,6 +874,39 @@ ratingsReviewsAccountRuntimeCompositionContract() {
         "previous.reset();"}));
 }
 
+void tst_account_attachment_runtime::theatreFirstRunPreparesLocalProfile() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("theatre-first-run-")
+        + QByteArray::number(QCoreApplication::applicationPid());
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
+    QCoreApplication::setApplicationName(
+        QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
+
+    MemoryRuntimeCredentials credentials;
+    AccountRuntime runtime(StremioSyncOptions{}, credentials.options());
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+    auto *nuvio = engine.rootContext()->contextProperty(QStringLiteral("NuvioAccounts"))
+        .value<QObject *>();
+    QVERIFY(nuvio);
+    QCOMPARE(runtime.profileStores()->activeProfile().kind(), ProfilePaths::Kind::Sealed);
+    QVERIFY(!nuvio->property("available").toBool());
+
+    auto *controller = runtime.controller();
+    QVERIFY(controller->prepareTheatreFirstRun());
+    QCOMPARE(controller->modeValue(), AccountController::Mode::SignedOut);
+    QVERIFY(controller->onboardingRequired());
+    QCOMPARE(runtime.profileStores()->activeProfile().kind(), ProfilePaths::Kind::LegacyLocal);
+    QVERIFY(nuvio->property("available").toBool());
+    QVERIFY(!nuvio->property("connected").toBool());
+
+    controller->continueWithoutAccount();
+    QCOMPARE(controller->modeValue(), AccountController::Mode::LocalOnly);
+    QVERIFY(!controller->prepareTheatreFirstRun());
+}
+
 void tst_account_attachment_runtime::
 stremioLegacyAccountlessProfileCanConnect() {
     ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
@@ -944,9 +979,14 @@ void tst_account_attachment_runtime::stremioBrowserLoginPersistsAcrossRuntimeRes
     options.apiEndpoint = provider.endpoint();
     options.allowTaggedLoopbackFixture = true;
     options.browserOpener = [&](const QUrl &url) { login = url; };
+    PlatformAccountCredentialStore platformVault;
+    MemoryRuntimeCredentials memoryVault;
+    // Headless Linux runners have no unlocked desktop keyring.
+    const bool usePlatformVault = platformVault.isAvailable();
+    const auto credentials = usePlatformVault ? AccountRuntimeCredentialOptions{} : memoryVault.options();
     QString profileId;
     {
-        AccountRuntime runtime(options);
+        AccountRuntime runtime(options, credentials);
         QQmlApplicationEngine engine;
         runtime.prepareForQml(&engine);
         if (profileKind == QStringLiteral("legacy")) {
@@ -978,12 +1018,14 @@ void tst_account_attachment_runtime::stremioBrowserLoginPersistsAcrossRuntimeRes
         QVERIFY2(response.contains("Sign-in complete"), response.constData());
         QVERIFY(sync->linkedAccount());
         QCOMPARE(runtime.profileStores()->preferencesStore()->mainSyncProvider(), QStringLiteral("stremio"));
-        PlatformAccountCredentialStore vault;
-        const auto saved = vault.loadStremio(profileId, QStringLiteral("login-fixture-account"));
-        QVERIFY(saved && saved->authKey == QByteArrayLiteral("runtime-fixture-auth-key"));
+        const auto saved = usePlatformVault
+            ? platformVault.loadStremio(profileId, QStringLiteral("login-fixture-account"))
+            : std::optional{memoryVault.stremio.value(profileId)};
+        QVERIFY(saved && saved->accountId == QStringLiteral("login-fixture-account")
+                && saved->authKey == QByteArrayLiteral("runtime-fixture-auth-key"));
     }
     {
-        AccountRuntime reopened(options);
+        AccountRuntime reopened(options, credentials);
         QQmlApplicationEngine engine;
         reopened.prepareForQml(&engine);
         if (profileKind == QStringLiteral("legacy")) {
@@ -1001,9 +1043,11 @@ void tst_account_attachment_runtime::stremioBrowserLoginPersistsAcrossRuntimeRes
         QVERIFY(sync->status() != QStringLiteral("reconnectRequired"));
         QCOMPARE(reopened.profileStores()->preferencesStore()->mainSyncProvider(), QStringLiteral("stremio"));
     }
-    PlatformAccountCredentialStore cleanup;
-    QVERIFY(cleanup.clearStremio(profileId));
-    if (profileKind == QStringLiteral("account")) QVERIFY(cleanup.clearActive());
+    if (usePlatformVault) {
+        QVERIFY(platformVault.clearStremio(profileId));
+        if (profileKind == QStringLiteral("account"))
+            QVERIFY(platformVault.clearActive());
+    }
 }
 
 void tst_account_attachment_runtime::stremioMarkerCommitCannotLinkReplacementProfile() {
@@ -1183,11 +1227,19 @@ stremioLateOwnerReceiptCannotCrossProfileIncarnation() {
 }
 
 void tst_account_attachment_runtime::
+stremioRuntimeReplaysProviderRedoAfterCrashWithoutActivityFact_data() {
+    QTest::addColumn<QString>("primary");
+    QTest::newRow("legacy-unset-primary") << QString();
+    QTest::newRow("nuvio-primary-holds-receipt") << QStringLiteral("nuvio");
+}
+
+void tst_account_attachment_runtime::
 stremioRuntimeReplaysProviderRedoAfterCrashWithoutActivityFact() {
+    QFETCH(QString, primary);
     ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
     QStandardPaths::setTestModeEnabled(true);
     const QByteArray tag = QByteArrayLiteral("stremio-redo-runtime-")
-        + QByteArray::number(QCoreApplication::applicationPid());
+        + QUuid::createUuid().toByteArray(QUuid::WithoutBraces);
     qputenv("COLOSSEUM_APPDATA_TAG", tag);
     QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio"));
     QCoreApplication::setApplicationName(QStringLiteral("Colosseum-%1").arg(QString::fromLatin1(tag)));
@@ -1203,6 +1255,8 @@ stremioRuntimeReplaysProviderRedoAfterCrashWithoutActivityFact() {
         const ProfilePaths profile = interrupted.profileStores()->activeProfile();
         profileId = profile.profileId();
         statePath = profile.stremioSyncStatePath();
+        if (!primary.isEmpty())
+            QVERIFY(interrupted.profileStores()->preferencesStore()->setMainSyncProvider(primary));
 
         StremioPersistentState state;
         state.profileId = profileId;
@@ -1246,6 +1300,14 @@ stremioRuntimeReplaysProviderRedoAfterCrashWithoutActivityFact() {
     QVERIFY(sync);
     QCOMPARE(sync->activeProfileId(), profileId);
     QCOMPARE(sync->pendingProviderImports().size(), 1);
+    QCOMPARE(restarted.profileStores()->preferencesStore()->mainSyncProvider(), primary);
+    if (primary == QLatin1String("nuvio")) {
+        QTest::qWait(150);
+        QVERIFY(!restarted.profileStores()->collectionStore()->has(
+            QStringLiteral("theatre"), QStringLiteral("tt-runtime-redo")));
+        QCOMPARE(sync->pendingProviderImports().size(), 1);
+        return;
+    }
     QTRY_VERIFY(restarted.profileStores()->collectionStore()->has(
         QStringLiteral("theatre"),
         QStringLiteral("tt-runtime-redo")));

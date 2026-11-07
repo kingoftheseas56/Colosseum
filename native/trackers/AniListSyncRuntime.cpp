@@ -1350,30 +1350,31 @@ void AniListSyncRuntime::snapshotNext(
         }
 
         lookupMedia(unit->kind, unit->malId,
-            guarded(QPointer<AniListSyncRuntime>(this),
-                [this, state, fact, mapping = *mapping,
-                 identity = *identity](const MediaStep &media) {
+            [self = QPointer<AniListSyncRuntime>(this), state, fact,
+             mapping = *mapping, identity = *identity](const MediaStep &media) {
+            if (!self)
+                return;
             if (media.outcome == StepOutcome::Unmapped
                 || (media.outcome == StepOutcome::Done
                     && media.media.aniListId != identity.aniListId)) {
-                snapshotNext(state);
+                self->snapshotNext(state);
                 return;
             }
             if (media.outcome != StepOutcome::Done) {
                 if (media.outcome == StepOutcome::AuthenticationRequired)
-                    noteAuthenticationFailure();
+                    self->noteAuthenticationFailure();
                 state->completion(std::nullopt);
                 return;
             }
-            readEntry(state->connection, identity.aniListId,
-                guarded(QPointer<AniListSyncRuntime>(this),
-                    [this, state, fact, mapping, identity,
+            self->readEntry(state->connection, identity.aniListId,
+                guarded(self,
+                    [self, state, fact, mapping, identity,
                      totalUnits = media.media.totalUnits](
                         const EntryStep &entry) {
                 if (entry.outcome != StepOutcome::Done) {
                     if (entry.outcome
                         == StepOutcome::AuthenticationRequired) {
-                        noteAuthenticationFailure();
+                        self->noteAuthenticationFailure();
                     }
                     state->completion(std::nullopt);
                     return;
@@ -1407,8 +1408,8 @@ void AniListSyncRuntime::snapshotNext(
                      + remote.stateFingerprint + QChar(0x1e))
                         .toUtf8();
                 state->snapshot.items.append(remote);
-                snapshotNext(state);
+                self->snapshotNext(state);
             }));
-        }));
+        });
     }));
 }

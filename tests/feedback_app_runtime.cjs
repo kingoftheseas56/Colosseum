@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Actual Colosseum + its QtWebEngine page; no external browser or dependencies.
-// Node 24. By default ALL submission POSTs are mocked. --live-submit releases
-// exactly one validated, labelled test POST and never retries it.
+// Actual Colosseum and its native request form, driven through Lanista.
+// Node 24. The default run performs no submissions.
+// --live-submit clicks Send once with a labelled feature request and waits for success.
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -11,7 +11,6 @@ const net = require('node:net');
 const { spawn, execFileSync } = require('node:child_process');
 const { randomUUID, createHash } = require('node:crypto');
 const { setTimeout: delay } = require('node:timers/promises');
-const FORMSPARK_ENDPOINT = 'https://submit-form.com/VADEhLJlB';
 
 function argumentsOf(argv) {
   const args = { live: false };
@@ -59,67 +58,6 @@ function command(address, cmd, payload = {}) {
   });
 }
 
-class CDP {
-  constructor(socket) {
-    this.socket = socket; this.sequence = 0; this.pending = new Map(); this.listeners = new Map();
-    socket.addEventListener('message', event => {
-      const msg = JSON.parse(event.data);
-      if (msg.id) {
-        const waiter = this.pending.get(msg.id);
-        if (!waiter) return;
-        this.pending.delete(msg.id); clearTimeout(waiter.timer);
-        msg.error ? waiter.reject(Error(JSON.stringify(msg.error))) : waiter.resolve(msg.result);
-      } else for (const fn of this.listeners.get(msg.method) || []) fn(msg.params);
-    });
-    socket.addEventListener('close', () => {
-      for (const p of this.pending.values()) { clearTimeout(p.timer); p.reject(Error('CDP disconnected')); }
-      this.pending.clear();
-    });
-  }
-  static async connect(url) {
-    const socket = new WebSocket(url);
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { socket.close(); reject(Error('CDP connection timeout')); }, 10000);
-      socket.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
-      socket.addEventListener('error', () => { clearTimeout(timer); reject(Error('CDP connection error')); }, { once: true });
-    });
-    return new CDP(socket);
-  }
-  on(event, fn) { this.listeners.set(event, [...(this.listeners.get(event) || []), fn]); }
-  send(method, params = {}) {
-    return new Promise((resolve, reject) => {
-      const id = ++this.sequence;
-      const timer = setTimeout(() => { this.pending.delete(id); reject(Error(`CDP ${method} timeout`)); }, 15000);
-      this.pending.set(id, { resolve, reject, timer });
-      this.socket.send(JSON.stringify({ id, method, params }));
-    });
-  }
-  async evaluate(expression) {
-    const result = await this.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
-    assert(!result.exceptionDetails, JSON.stringify(result.exceptionDetails));
-    return result.result.value;
-  }
-}
-
-function validatePayload(body, expected) {
-  assert.deepEqual(Object.keys(body).sort(), ['_email', '_gotcha', 'app_version', 'area', 'message', 'platform', 'reference', 'title', 'type'].sort(), 'Only controlled test fields may leave the app');
-  assert.equal(body.title, expected.title);
-  assert.equal(body.message, expected.message);
-  assert.equal(body.type, 'Feature idea');
-  assert.equal(body.area, 'General');
-  assert.equal(body.platform, expected.platform);
-  assert.equal(body.app_version, expected.version);
-  assert.match(body.reference, /^[\w-]{1,64}$/);
-  assert.equal(Object.hasOwn(body, 'email'), false, 'Anonymous test must omit email');
-  assert.equal(body._gotcha, '');
-  assert.deepEqual(body._email, { subject: `[Colosseum] [Feature idea] [General] ${expected.title}` });
-}
-
-function isOwnedTelemetry(request) {
-  const url = new URL(request.url);
-  return request.method === 'POST' && url.origin === 'https://getcolosseum.world' && url.pathname === '/cdn-cgi/rum';
-}
-
 async function main() {
   const args = argumentsOf(process.argv.slice(2));
   assert(Number(process.versions.node.split('.')[0]) >= 24, 'Node 24 required');
@@ -133,19 +71,16 @@ async function main() {
   const session = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-'));
   const pipe = process.platform === 'win32' ? `ColosseumFeedback-${id}` : path.join(session, 'l.sock');
   const address = process.platform === 'win32' ? `\\\\.\\pipe\\${pipe}` : pipe;
-  const reservation = net.createServer();
-  await new Promise(resolve => reservation.listen(0, '127.0.0.1', resolve));
-  const port = reservation.address().port;
-  await new Promise(resolve => reservation.close(resolve));
   const evidence = { status: 'FAIL', id, platform: process.platform, liveRequested: args.live,
     sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
     executable: args.app, executableSha256: createHash('sha256').update(fs.readFileSync(args.app)).digest('hex'),
-    qmlEntry: path.join(root, 'qml/Main.qml'), tag, pipe, session, stages: {}, submissions: [], realPosts: 0 };
+    qmlEntry: path.join(root, 'qml/Main.qml'), tag, pipe, session, stages: {}, liveSendClicks: 0 };
   const save = () => fs.writeFileSync(path.join(args.output, 'receipt.json'), JSON.stringify(evidence, null, 2) + '\n');
   const env = { ...process.env, COLOSSEUM_APPDATA_TAG: tag, COLOSSEUM_LANISTA_PIPE: pipe,
     COLOSSEUM_LANISTA_DRIVE: '1', COLOSSEUM_LANISTA_WRITE: '0',
-    QTWEBENGINE_REMOTE_DEBUGGING: `127.0.0.1:${port}`, QT_FORCE_STDERR_LOGGING: '1' };
+    QT_FORCE_STDERR_LOGGING: '1' };
   delete env.COLOSSEUM_DEV;
+  delete env.QTWEBENGINE_REMOTE_DEBUGGING;
   // Linux's XDG config needs isolation too: onboarding may use QSettings.
   if (process.platform === 'linux') {
     env.XDG_CONFIG_HOME = path.join(session, 'config');
@@ -164,20 +99,8 @@ async function main() {
       error.fatal = true; throw error;
     }
   };
-  let cdp;
-  let interceptionError;
-  let phase = 'rate-limit';
-  let expected;
-  const check = () => { alive(); if (interceptionError) { interceptionError.fatal = true; throw interceptionError; } };
   const get = async (object, props) => (await command(address, 'qml-get', { object, props })).props;
-  const suppressTelemetry = async event => {
-    if (!isOwnedTelemetry(event.request)) return false;
-    evidence.suppressedTelemetryPosts = (evidence.suppressedTelemetryPosts || 0) + 1;
-    // The deployed page sends a Cloudflare performance beacon. Keep it offline;
-    // it is unrelated to the user feedback form, and its payload is not saved.
-    await cdp.send('Fetch.fulfillRequest', { requestId: event.requestId, responseCode: 204 });
-    return true;
-  };
+  const appWait = (fn, label, ms) => until(async () => { alive(); return fn(); }, label, ms);
   const click = target => {
     evidence.lastAction = { command: 'ui-click', target, startedAt: new Date().toISOString() }; save();
     return command(address, 'ui-click', { target });
@@ -186,9 +109,32 @@ async function main() {
     const native = await command(address, 'get-state', { grab: { target: 'window' } });
     assert(native.grabPath && fs.existsSync(native.grabPath), 'Native screenshot unavailable');
     fs.copyFileSync(native.grabPath, path.join(args.output, `${name}-app.png`));
-    const picture = await cdp.send('Page.captureScreenshot', { format: 'png' });
-    fs.writeFileSync(path.join(args.output, `${name}-document.png`), Buffer.from(picture.data, 'base64'));
   }
+  async function openForm(button, kind) {
+    const target = await command(address, 'ui-query', { object: button });
+    assert(target.visible && target.enabled && target.rect.width > 0 && target.rect.height > 0,
+      `The Home ${kind} button is unavailable`);
+    await click(button);
+    await appWait(async () => {
+      if (!(await get('feedbackLayer', ['active'])).active) return false;
+      const form = await get('requestFormOverlay', ['visible', 'kind']);
+      return form.visible && form.kind === kind && (await get('requestFormPanel', ['visible'])).visible;
+    }, `native ${kind} form`);
+    return target;
+  }
+  async function closeForm() {
+    await click('requestFormClose');
+    await appWait(async () => !(await get('feedbackLayer', ['active'])).active, 'request form closed');
+  }
+  async function fieldText(key) {
+    return (await get(`requestField_${key}`, ['text'])).text;
+  }
+  async function typeField(key, text) {
+    const reply = await command(address, 'ui-text-input', { target: `requestField_${key}`, text });
+    assert.equal(reply.typed, text);
+    assert.equal(await fieldText(key), text, `Native editor did not receive the complete ${key} field`);
+  }
+
   try {
     evidence.pid = child.pid; save();
     await until(async () => {
@@ -207,134 +153,66 @@ async function main() {
       await until(async () => !(await get('accountHost', ['visible'])).visible, 'local-only onboarding');
     }
     evidence.stages.boot = true;
-    const feature = await command(address, 'ui-query', { object: 'homeRequestFeature' });
-    assert(feature.visible && feature.enabled && feature.rect.width > 0 && feature.rect.height > 0,
-      'The Home feature request button is unavailable');
-    evidence.homeFeedback = feature;
-    await click('homeRequestFeature');
-    await until(async () => (await get('feedbackLayer', ['active'])).active, 'real feedback popup');
-    const target = await until(async () => {
-      check();
-      const list = await (await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(3000) })).json();
-      return list.find(t => {
-        if (t.type !== 'page') return false;
-        try { const url = new URL(t.url); return url.origin === 'https://getcolosseum.world' && url.pathname === '/feedback/report' && url.searchParams.get('kind') === 'feature'; }
-        catch { return false; }
-      });
-    }, 'owned QtWebEngine target');
-    evidence.documentUrl = target.url;
-    const url = new URL(target.url);
-    assert.equal(url.searchParams.get('platform'), { linux: 'linux', darwin: 'osx', win32: 'windows' }[process.platform]);
-    assert(url.searchParams.get('version'), 'Actual app version missing');
-    expected = { title: `TEST ${process.platform} feedback qualification ${id}`,
-      message: `TEST ONLY: automated ${process.platform} actual-app feedback qualification ${id}. Please disregard this labelled test feature idea.`,
-      platform: { linux: 'Linux', darwin: 'macOS', win32: 'Windows' }[process.platform], version: url.searchParams.get('version') };
-    cdp = await CDP.connect(target.webSocketDebuggerUrl);
-    evidence.browser = await cdp.send('Browser.getVersion');
-    await cdp.send('Network.enable'); await cdp.send('Page.enable');
-    cdp.on('Fetch.requestPaused', event => {
-      (async () => {
-        const request = event.request;
-        if (request.method !== 'POST') { await cdp.send('Fetch.continueRequest', { requestId: event.requestId }); return; }
-        if (await suppressTelemetry(event)) return;
-        try {
-          assert.equal(request.url, FORMSPARK_ENDPOINT, 'Only the approved Formspark form may receive this test');
-          assert.equal(request.headers['Content-Type'] || request.headers['content-type'], 'application/json');
-          const body = JSON.parse(request.postData);
-          validatePayload(body, expected);
-          if (evidence.submissions.length) assert.equal(request.url, evidence.submissions[0].url, 'Submission endpoint changed');
-          const row = { phase, url: request.url, payload: body, networkId: event.networkId };
-          evidence.submissions.push(row);
-          if (phase === 'submit' && args.live && evidence.realPosts === 0) {
-            evidence.realPosts++; row.live = true; save();
-            await cdp.send('Fetch.continueRequest', { requestId: event.requestId });
-          } else {
-            assert(phase === 'rate-limit' || (phase === 'submit' && !args.live), 'Unexpected additional POST blocked');
-            row.live = false;
-            await cdp.send('Fetch.fulfillRequest', { requestId: event.requestId,
-              responseCode: phase === 'rate-limit' ? 429 : 200,
-              responseHeaders: [{ name: 'Content-Type', value: 'application/json' }, { name: 'Access-Control-Allow-Origin', value: 'https://getcolosseum.world' }],
-              body: Buffer.from('{}').toString('base64') });
-          }
-        } catch (error) {
-          await cdp.send('Fetch.failRequest', { requestId: event.requestId, errorReason: 'BlockedByClient' }).catch(() => {});
+    evidence.homeFeedback = {};
+    evidence.homeFeedback.bug = await openForm('homeReportBug', 'bug');
+    assert.equal((await get('requestFormSend', ['enabled'])).enabled, false, 'An empty bug report cannot be sent');
+    await closeForm();
+
+    evidence.homeFeedback.feature = await openForm('homeRequestFeature', 'feature');
+    assert.equal((await get('requestFormSend', ['enabled'])).enabled, false, 'An empty feature request cannot be sent');
+    evidence.stages.nativeForms = true;
+    evidence.stages.emptyValidation = true;
+    await screenshot('empty');
+
+    const title = `TEST ${process.platform} feedback qualification ${id}`;
+    const message = `TEST ONLY: automated ${process.platform} actual-app feedback qualification ${id}. Please disregard this labelled test feature idea.`;
+    await typeField('title', title);
+    assert.equal((await get('requestFormSend', ['enabled'])).enabled, false, 'A request with only a title cannot be sent');
+    await typeField('message', message);
+    await appWait(async () => (await get('requestFormSend', ['enabled'])).enabled, 'completed feature request');
+    await screenshot('draft');
+    await closeForm();
+
+    await openForm('homeReportBug', 'bug');
+    assert.equal(await fieldText('title'), '', 'Feature drafts must stay separate from bug reports');
+    await closeForm();
+    await openForm('homeRequestFeature', 'feature');
+    assert.equal(await fieldText('title'), title, 'Draft title was lost on close/reopen');
+    assert.equal(await fieldText('message'), message, 'Draft message was lost on close/reopen');
+    assert.equal((await get('requestFormSend', ['enabled'])).enabled, true);
+    evidence.stages.draftReopen = true;
+
+    if (args.live) {
+      // The native transport has separate offline coverage for the wire payload.
+      // Verify the exact labelled editor contents before the only live click.
+      assert.equal(await fieldText('email'), '');
+      assert.equal(await fieldText('benefit'), '');
+      evidence.liveRequest = { kind: 'feature', title, message };
+      evidence.liveSendClicks++;
+      await click('requestFormSend');
+      const result = await appWait(async () => {
+        const state = await get('requestFormOverlay', ['sent', 'sending', 'statusText']);
+        if (!state.sending && !state.sent && state.statusText) {
+          const error = Error(`Native request failed: ${state.statusText}`);
+          error.fatal = true;
           throw error;
         }
-      })().catch(error => { interceptionError = error; });
-    });
-    cdp.on('Network.responseReceived', event => {
-      const row = evidence.submissions.find(s => s.live && s.networkId === event.requestId);
-      if (row) row.response = { status: event.response.status, url: event.response.url };
-    });
-    cdp.on('Network.loadingFinished', event => {
-      const row = evidence.submissions.find(s => s.live && s.networkId === event.requestId);
-      if (row) cdp.send('Network.getResponseBody', { requestId: event.requestId }).then(result => {
-        row.responseBody = result.base64Encoded ? Buffer.from(result.body, 'base64').toString('utf8') : result.body;
-      }).catch(error => { row.responseBodyUnavailable = error.message; });
-    });
-    // All request-stage POSTs in this owned page are paused before leaving Qt.
-    await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Request' }] });
-    const domWait = (expression, label) => until(async () => { check(); return cdp.evaluate(expression); }, label);
-    await domWait('!!document.querySelector("dialog[open]")', 'hosted feedback dialog');
-    assert.equal(await cdp.evaluate('document.querySelector("#dialog-title").textContent'), 'Feature Request');
-    assert(await cdp.evaluate('document.querySelector("#submit").disabled'), 'Empty feedback cannot be sent');
-    evidence.stages.realPage = true;
-    assert.equal(evidence.submissions.length, 0); evidence.stages.emptyValidation = true;
-    await cdp.evaluate(`(() => {
-      for (const [id, value] of Object.entries(${JSON.stringify({ summary: expected.title, description: expected.message })})) {
-        const field = document.getElementById(id); field.value = value; field.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-    })()`);
-    await domWait('!!document.querySelector("#submit:not(:disabled)")', 'hosted form configuration');
-    await cdp.evaluate('document.querySelector("#submit").click()');
-    await domWait('document.querySelector("#submission-status").textContent.includes("Too many attempts")', 'controlled 429');
-    assert.equal(evidence.realPosts, 0); assert.equal(evidence.submissions.length, 1);
-    const reference = evidence.submissions[0].payload.reference;
-    evidence.stages.controlled429 = true;
-    await screenshot('rate-limit');
-    await cdp.send('Page.reload');
-    await domWait(`!!document.querySelector('#submit:not(:disabled)') && document.querySelector('#summary').value === ${JSON.stringify(expected.title)} && document.querySelector('#description').value === ${JSON.stringify(expected.message)}`, 'draft survives real refresh');
-    evidence.stages.draftReload = true;
-    phase = 'submit';
-    await cdp.evaluate('document.querySelector("#submit").click()');
-    await domWait('!!document.querySelector("#success:not([hidden])")', 'submission success');
-    check(); assert.equal(evidence.submissions.length, 2);
-    assert.equal(evidence.submissions[1].payload.reference, reference);
-    if (args.live) {
-      assert.equal(evidence.realPosts, 1);
-      await until(() => evidence.submissions[1].response, 'provider HTTP response');
-      assert(evidence.submissions[1].response.status >= 200 && evidence.submissions[1].response.status < 300);
+        return state.sent && state;
+      }, 'native submission success');
+      evidence.liveRequest.success = result.statusText;
+      evidence.stages.success = true;
+      await screenshot('success');
+      await closeForm();
+
+      await openForm('homeRequestFeature', 'feature');
+      assert.equal(await fieldText('title'), '', 'Submitted draft title was restored');
+      assert.equal(await fieldText('message'), '', 'Submitted draft message was restored');
+      assert.equal((await get('requestFormSend', ['enabled'])).enabled, false);
+      evidence.stages.submittedDraftCleared = true;
     }
-    assert.equal(await cdp.evaluate('localStorage.getItem("colosseum-home-feedback-feature-v1")'), null);
-    evidence.stages.success = true;
-    await screenshot('success');
-    phase = 'closed';
-    await cdp.evaluate('document.querySelector("#back-home").click()').catch(() => {});
-    await until(async () => !(await get('feedbackLayer', ['active'])).active, 'feedback Back to Home');
-    cdp.socket.close(); cdp = null;
-    await click('homeRequestFeature');
-    await until(async () => (await get('feedbackLayer', ['active'])).active, 'feedback reopen');
-    const reopened = await until(async () => {
-      check();
-      const list = await (await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(3000) })).json();
-      return list.find(t => t.type === 'page' && t.url === target.url);
-    }, 'reopened Qt feedback document');
-    cdp = await CDP.connect(reopened.webSocketDebuggerUrl);
-    cdp.on('Fetch.requestPaused', event => {
-      (async () => {
-        if (await suppressTelemetry(event)) return;
-        if (event.request.method === 'POST') {
-          interceptionError = Error('Unexpected POST on reopened feedback page');
-          await cdp.send('Fetch.failRequest', { requestId: event.requestId, errorReason: 'BlockedByClient' });
-        } else await cdp.send('Fetch.continueRequest', { requestId: event.requestId });
-      })().catch(error => { interceptionError = error; });
-    });
-    await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Request' }] });
-    await domWait('!!document.querySelector("dialog[open]") && document.querySelector("#summary").value === "" && document.querySelector("#description").value === ""', 'reopened form has no submitted draft');
-    await cdp.evaluate('document.querySelector("#cancel").click()').catch(() => {});
-    await until(async () => !(await get('feedbackLayer', ['active'])).active, 'Cancel returns to Home');
-    evidence.stages.backReopen = true;
-    check(); assert.equal(evidence.submissions.length, 2);
+    assert.equal(evidence.liveSendClicks, args.live ? 1 : 0);
+    await closeForm();
+    alive();
     await command(address, 'ui-keypress', { key: 'Ctrl+Q' });
     assert.equal(await Promise.race([exited, delay(30000).then(() => { throw Error('Normal quit timed out'); })]), 0);
     evidence.stages.cleanExit = true;
@@ -355,7 +233,6 @@ async function main() {
         await Promise.race([exited, delay(3000)]);
       }
     }
-    if (cdp) cdp.socket.close();
     fs.closeSync(log); save();
     console.log(`${evidence.status}: ${path.join(args.output, 'receipt.json')}`);
     if (evidence.error) console.error(evidence.error);
@@ -363,4 +240,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch(error => { console.error(error.stack); process.exitCode = 1; });
-module.exports = { argumentsOf, validatePayload, isOwnedTelemetry, command, CDP };
+module.exports = { argumentsOf, command };

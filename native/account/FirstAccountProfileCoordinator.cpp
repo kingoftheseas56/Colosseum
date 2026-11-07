@@ -368,14 +368,11 @@ std::optional<PersonalStateSnapshot> mergeSnapshots(
     merged.ratingsReviewsTombstones = mergedRatingsReviewsTombstones;
 
     merged.showExplicit = account.showExplicit || local.showExplicit;
-    if (local.mainSyncProvider == QLatin1String("stremio")) {
+    if (!local.mainSyncProvider.isEmpty())
         merged.mainSyncProvider = local.mainSyncProvider;
+    if (local.mainSyncProvider == QLatin1String("stremio")) {
         merged.stremioState = local.stremioState;
         merged.theatreExtensions = local.theatreExtensions;
-    } else {
-        merged.mainSyncProvider = account.mainSyncProvider;
-        merged.stremioState = account.stremioState;
-        merged.theatreExtensions = account.theatreExtensions;
     }
     return merged;
 }

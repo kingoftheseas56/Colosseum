@@ -9,9 +9,11 @@
 // QML paints, C++ decides: C++ only ever bumps arrivalTick / toggles scanning.
 
 import QtQuick
+import QtQuick.Controls
 
 Item {
     id: door
+    property bool available: Qt.platform.os !== "android"
     objectName: "taskbarVaultDoor"
 
     // ── inputs (wired by Taskbar from VaultLibrary; seeded by tests) ──
@@ -80,15 +82,21 @@ Item {
         id: doorMa
         anchors.fill: parent
         hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: door.clicked()
+        cursorShape: door.available ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onClicked: if (door.available) door.clicked()
     }
     KeyboardAction {
         id: doorKey
+        enabled: door.available
         objectName: "vaultDoorKeyboardAction"
         anchors.fill: parent
         pointerEnabled: false
-        accessibleName: "Open Vault"
+        accessibleName: door.available ? qsTr("Open Vault") : qsTr("Vault unavailable")
+        accessibleDescription: door.available ? "" : qsTr("Vault is unavailable on Android.")
         onTriggered: door.clicked()
     }
+    ToolTip.visible: !door.available && doorMa.containsMouse
+    ToolTip.text: qsTr("Vault is unavailable on Android.")
+    ToolTip.delay: 350
+
 }

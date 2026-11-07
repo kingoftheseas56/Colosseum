@@ -1,14 +1,15 @@
 name: android
 
-# Keep the standard Android lane manual. This isolated proof branch additionally
-# runs on push; it never publishes a release or touches production branches.
+# The normal Android lane and optional emulator proof are manual.
 on:
-  push:
-    branches: [dots/arc78-nuvio-android-proof]
   workflow_dispatch:
     inputs:
+      publish_apks:
+        description: Upload both APKs as workflow artifacts
+        type: boolean
+        default: true
       nuvio_proof:
-        description: Build size comparison and run the isolated Nuvio service proof
+        description: Run the isolated Nuvio crash and timeout proof on an emulator
         type: boolean
         default: false
 
@@ -20,7 +21,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NUVIO_PROOF: ${{ github.ref == 'refs/heads/dots/arc78-nuvio-android-proof' || inputs.nuvio_proof == true }}
   QT_VERSION: "6.11.1"
   COLOSSEUM_ANDROID_TOOLCHAIN: ${{ github.workspace }}/../colosseum-android
   COLOSSEUM_ANDROID_DEPS: ${{ github.workspace }}/../colosseum-android-deps
@@ -29,7 +29,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: ${{ inputs.nuvio_proof && 255 || 195 }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -40,26 +40,26 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Reader publication and message boundary
+      - name: Verify Android source and build contracts
         run: |
           set -o pipefail
-          {
-            python tests/test_android_cache_paths.py
-            python tests/test_android_reader_session.py
-            node tests/android_reader_boot_test.mjs
-            python tests/test_android_openssl_packaging_contract.py
-            python tests/test_android_runtime_bundle.py
-            python tests/test_android_feria_contract.py
-            python tests/test_android_vault_contract.py
-            python tests/test_android_vault_media_boundary.py
-            python tests/android_emulator_smoke_test.py
-            python tests/test_android_nuvio_proof_driver.py
-            python tests/test_android_nuvio_cmake.py
-            python tests/test_android_build_variants.py
-            python tests/test_android_streamserver_stub.py
-            python tests/android_nuvio_bridge_test.py
-            python tests/test_android_toolchain_install.py
-          } 2>&1 | tee android-preflight.log
+          bash -e <<'BASH' 2>&1 | tee android-preflight.log
+          python tests/test_android_cache_paths.py
+          python tests/test_android_reader_session.py
+          node tests/android_reader_boot_test.mjs
+          python tests/test_android_openssl_packaging_contract.py
+          python tests/test_android_runtime_bundle.py
+          python tests/test_android_feria_contract.py
+          python tests/test_android_vault_contract.py
+          python tests/test_android_vault_media_boundary.py
+          python tests/android_emulator_smoke_test.py
+          python tests/test_android_nuvio_proof_driver.py
+          python tests/test_android_nuvio_cmake.py
+          python tests/test_android_build_variants.py
+          python tests/test_android_streamserver_stub.py
+          python tests/android_nuvio_bridge_test.py
+          python tests/test_android_toolchain_install.py
+          BASH
 
       - name: Free disk space
         run: |
@@ -85,7 +85,6 @@ jobs:
             ${{ steps.android-paths.outputs.toolchain }}/Qt
             ${{ steps.android-paths.outputs.sdk }}/ndk/27.2.12479018
           key: android-toolchain-v1-${{ hashFiles('scripts/android/install_toolchain.sh') }}
-          restore-keys: android-toolchain-v1-
 
       - name: Install toolchain
         run: scripts/android/install_toolchain.sh
@@ -153,6 +152,7 @@ jobs:
         env:
           COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCOLOSSEUM_NUVIO_ANDROID=ON -DCOLOSSEUM_NUVIO_ANDROID_PROOF=OFF
           COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
+          COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
         run: |
           source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
           set -o pipefail
@@ -162,17 +162,80 @@ jobs:
         env:
           COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCOLOSSEUM_NUVIO_ANDROID=ON -DCOLOSSEUM_NUVIO_ANDROID_PROOF=OFF
           COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
+          COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
         run: |
           source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
           set -o pipefail
           scripts/android/build_apk.sh arm64-v8a apk-out 2>&1 | tee build-arm64-v8a.log
 
+      - name: Verify normal APKs contain Nuvio without proof hooks
+        run: |
+          python - <<'PY'
+          from zipfile import ZipFile
+
+          markers = (b"NUVIO_ANDROID_PROOF=", b"proofWorkerStarted",
+                     b"proofWorkerFinished", b"__proofNativeCrash")
+          for abi in ("x86_64", "arm64-v8a"):
+              with ZipFile(f"apk-out/colosseum-{abi}-debug.apk") as apk:
+                  helper = f"lib/{abi}/libcolosseum_nuvio_host_{abi}.so"
+                  if helper not in apk.namelist():
+                      raise SystemExit(f"Missing Nuvio helper in normal {abi} APK")
+                  for member in apk.namelist():
+                      if member.startswith(f"lib/{abi}/") and member.endswith(".so"):
+                          binary = apk.read(member)
+                          if any(marker in binary for marker in markers):
+                              raise SystemExit(f"Proof hooks in normal {abi} APK: {member}")
+          PY
+
+      - name: APK checksums
+        run: cat apk-out/*.sha256 | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.publish_apks
+        with:
+          name: colosseum-x86_64-debug-apk
+          path: |
+            apk-out/colosseum-x86_64-debug.apk
+            apk-out/colosseum-x86_64-debug.apk.sha256
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: inputs.publish_apks
+        with:
+          name: colosseum-arm64-v8a-debug-apk
+          path: |
+            apk-out/colosseum-arm64-v8a-debug.apk
+            apk-out/colosseum-arm64-v8a-debug.apk.sha256
+          if-no-files-found: error
+      - name: Verify x86_64 APK checksum
+        run: cd apk-out && sha256sum -c colosseum-x86_64-debug.apk.sha256
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Emulator smoke test (API 34 x86_64, initial world and 60 s hold)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash scripts/android/emulator_smoke.sh apk-out/colosseum-x86_64-debug.apk smoke-artifacts 60
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-smoke-x86_64
+          path: smoke-artifacts
+          if-no-files-found: ignore
+
       - name: Build instrumented Nuvio proof APK for emulator only
-        if: env.NUVIO_PROOF == 'true'
+        if: inputs.nuvio_proof
         env:
           COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCOLOSSEUM_NUVIO_ANDROID=ON -DCOLOSSEUM_NUVIO_ANDROID_PROOF=ON
           COLOSSEUM_ANDROID_BUILD: ${{ github.workspace }}/native/build-android-proof
           COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
+          COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
         run: |
           source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
           set -o pipefail
@@ -185,25 +248,13 @@ jobs:
           grep -q 'proofWorkerFinished' "$proof_moc"
           cp "$proof_moc" apk-nuvio-proof/proof-moc_NuvioSourceResolver.cpp
 
-      - name: Build Nuvio-disabled APK size baselines
-        if: env.NUVIO_PROOF == 'true'
-        env:
-          COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCOLOSSEUM_NUVIO_ANDROID=OFF -DCOLOSSEUM_NUVIO_ANDROID_PROOF=OFF
-          COLOSSEUM_ANDROID_BUILD: ${{ github.workspace }}/native/build-android-baseline
-          COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
-        run: |
-          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
-          set -o pipefail
-          for abi in x86_64 arm64-v8a; do
-            scripts/android/build_apk.sh "$abi" apk-baseline 2>&1 | tee "build-baseline-$abi.log"
-          done
-
-      - name: Measure APK size change without proof instrumentation
-        if: env.NUVIO_PROOF == 'true'
-        run: |
-          python scripts/android/report_nuvio_apk_size.py \
-            --baseline apk-baseline --current apk-out --commit "$GITHUB_SHA" \
-            --output nuvio-size | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: inputs.nuvio_proof
+        with:
+          name: nuvio-proof-x86_64-debug-apk
+          path: apk-nuvio-proof
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Save compiler cache
         if: always()
@@ -212,35 +263,6 @@ jobs:
           path: ~/.cache/ccache
           key: android-ccache-v1-${{ github.sha }}
 
-      - name: APK checksums
-        run: cat apk-out/*.sha256 | tee -a "$GITHUB_STEP_SUMMARY"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: colosseum-x86_64-debug-apk
-          path: |
-            apk-out/colosseum-x86_64-debug.apk
-            apk-out/colosseum-x86_64-debug.apk.sha256
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: colosseum-arm64-v8a-debug-apk
-          path: |
-            apk-out/colosseum-arm64-v8a-debug.apk
-            apk-out/colosseum-arm64-v8a-debug.apk.sha256
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        if: env.NUVIO_PROOF == 'true'
-        with:
-          name: nuvio-proof-x86_64-debug-apk
-          path: apk-nuvio-proof
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        if: env.NUVIO_PROOF == 'true'
-        with:
-          name: nuvio-apk-size-comparison
-          path: nuvio-size
-          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -251,42 +273,10 @@ jobs:
             qt-host-dependencies.log
             qml-*.log
 
-  emulator-smoke:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v4
-        with:
-          name: colosseum-x86_64-debug-apk
-          path: apk
-      - name: Verify APK checksum
-        run: cd apk && sha256sum -c colosseum-x86_64-debug.apk.sha256
-      - name: Enable KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-      - name: Install, reach initial world, and hold for 60 s on an API 34 x86_64 emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          arch: x86_64
-          target: google_apis
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          script: bash scripts/android/emulator_smoke.sh apk/colosseum-x86_64-debug.apk smoke-artifacts 60
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: emulator-smoke-x86_64
-          path: smoke-artifacts
-
   nuvio-emulator-proof:
-    if: github.ref == 'refs/heads/dots/arc78-nuvio-android-proof' || inputs.nuvio_proof == true
+    if: inputs.nuvio_proof
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -314,7 +304,7 @@ jobs:
           disable-animations: true
           script: |
             bash scripts/android/emulator_smoke.sh apk/colosseum-x86_64-debug.apk nuvio-artifacts/startup 10
-            python scripts/android/nuvio_emulator_proof.py --apk apk/colosseum-x86_64-debug.apk --artifacts nuvio-artifacts --commit "${{ github.sha }}" --repository "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tests/fixtures/nuvio-android-proof/manifest.json" --plugin public-domain-archive
+            python scripts/android/nuvio_emulator_proof.py --apk apk/colosseum-x86_64-debug.apk --artifacts nuvio-artifacts --commit "$GITHUB_SHA" --repository "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/tests/fixtures/nuvio-android-proof/manifest.json" --plugin public-domain-archive
       - uses: actions/upload-artifact@v4
         if: always()
         with:

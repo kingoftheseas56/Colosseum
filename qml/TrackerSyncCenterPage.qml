@@ -14,6 +14,7 @@ Item {
 
     property Item backdrop: null
     property var stremioState: null
+    property var nuvioAccount: typeof NuvioAccounts !== "undefined" ? NuvioAccounts : null
     property var trackerModel: (typeof TrackerSyncCenter !== "undefined")
                                ? TrackerSyncCenter : null
     property var trackerConnector: (typeof TrackerConnection !== "undefined")
@@ -244,7 +245,19 @@ Item {
             return "Needs attention"
         if (status === "connecting") return "Connecting"
         if (status === "syncing") return "Updating"
+        if (stremioConnected && nuvioAccount && nuvioAccount.primaryProvider === "stremio")
+            return qsTr("Primary sync service")
         return stremioConnected ? "Connected" : "Not connected"
+    }
+
+    function nuvioStatusLabel() {
+        if (!nuvioAccount || !nuvioAccount.available)
+            return qsTr("Unavailable")
+        if (nuvioAccount.needsReconnect)
+            return qsTr("Needs attention")
+        if (!nuvioAccount.connected)
+            return qsTr("Not connected")
+        return nuvioAccount.primaryProvider === "nuvio" ? qsTr("Primary sync service") : qsTr("Connected")
     }
 
     function capabilityLabel(capability) {
@@ -2067,6 +2080,104 @@ Item {
                                 }
                                 contentItem: Text {
                                     text: "Open settings ›"
+                                    color: theme.gold
+                                    font.family: theme.ui
+                                    font.pixelSize: 11
+                                    font.weight: Font.DemiBold
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    objectName: "trackerNuvioCard"
+                    visible: !!root.nuvioAccount
+                    Layout.fillWidth: true
+                    implicitHeight: nuvioCardContent.implicitHeight + 36
+                    radius: 16
+                    color: Qt.rgba(6 / 255, 7 / 255, 11 / 255, 0.96)
+                    border.width: 1
+                    border.color: theme.edge
+
+                    GridLayout {
+                        id: nuvioCardContent
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        columns: root.width >= 640 ? 3 : 2
+                        columnSpacing: 16
+                        rowSpacing: 12
+
+                        Image {
+                            objectName: "trackerNuvioIcon"
+                            source: "../assets/icons/nuvio-official.png"
+                            sourceSize: Qt.size(50, 50)
+                            Layout.preferredWidth: 50
+                            Layout.preferredHeight: 50
+                            fillMode: Image.PreserveAspectFit
+                            Accessible.ignored: true
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Text {
+                                text: qsTr("Nuvio")
+                                color: theme.ink
+                                font.family: theme.display
+                                font.pixelSize: 24
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: qsTr("Library, watched items and addons")
+                                color: theme.inkDim
+                                font.family: theme.ui
+                                font.pixelSize: 11
+                            }
+                        }
+                        ColumnLayout {
+                            Layout.columnSpan: root.width >= 640 ? 1 : 2
+                            Layout.alignment: Qt.AlignRight
+                            spacing: 7
+                            Rectangle {
+                                objectName: "trackerNuvioStatusBadge"
+                                Layout.alignment: Qt.AlignRight
+                                implicitWidth: nuvioStatusText.implicitWidth + 24
+                                implicitHeight: 28
+                                radius: 10
+                                color: theme.glassTint
+                                border.width: 1
+                                border.color: theme.edge
+                                Text {
+                                    id: nuvioStatusText
+                                    anchors.centerIn: parent
+                                    text: root.nuvioStatusLabel()
+                                    color: theme.inkDim
+                                    font.family: theme.ui
+                                    font.pixelSize: 11
+                                }
+                            }
+                            Button {
+                                id: nuvioSettingsButton
+                                objectName: "trackerNuvioSettingsButton"
+                                Layout.alignment: Qt.AlignRight
+                                Layout.preferredWidth: 160
+                                Layout.preferredHeight: 40
+                                text: qsTr("Open sync settings ›")
+                                Accessible.description: qsTr("Choose Nuvio in sync settings.")
+                                onClicked: root.mainSyncRequested()
+                                background: Rectangle {
+                                    radius: 9
+                                    color: nuvioSettingsButton.down || nuvioSettingsButton.hovered
+                                           ? theme.glassHi : theme.glassTint
+                                    border.width: nuvioSettingsButton.activeFocus ? 2 : 1
+                                    border.color: theme.gold
+                                }
+                                contentItem: Text {
+                                    text: nuvioSettingsButton.text
                                     color: theme.gold
                                     font.family: theme.ui
                                     font.pixelSize: 11

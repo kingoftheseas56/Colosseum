@@ -253,16 +253,17 @@ inline bool core(
             }
         }
 
-        const bool hasStremioField = object.contains(QStringLiteral("source"))
+        const bool hasExternalField = object.contains(QStringLiteral("source"))
             || object.contains(QStringLiteral("displayId"))
             || object.contains(QStringLiteral("displayTitle"))
             || object.contains(QStringLiteral("latestKnownAt"));
-        if (hasStremioField) {
+        if (hasExternalField) {
             const QJsonValue source = object.value(QStringLiteral("source"));
             const QJsonValue displayId = object.value(QStringLiteral("displayId"));
             const QJsonValue displayTitle = object.value(QStringLiteral("displayTitle"));
             if (!source.isString()
-                || source.toString() != QLatin1String("stremio")
+                || (source.toString() != QLatin1String("stremio")
+                    && source.toString() != QLatin1String("nuvio"))
                 || !displayId.isString()
                 || displayId.toString().trimmed().isEmpty()
                 || displayId.toString() != displayId.toString().trimmed()
@@ -276,7 +277,7 @@ inline bool core(
                 return fail(
                     error,
                     QStringLiteral("payload_invalid"),
-                    QStringLiteral("The Stremio History presentation fields are invalid."));
+                    QStringLiteral("The external History presentation fields are invalid."));
             }
             qint64 latestKnownAt = 0;
             if (!integer(
@@ -290,7 +291,7 @@ inline bool core(
                 return fail(
                     error,
                     QStringLiteral("payload_invalid"),
-                    QStringLiteral("The Stremio History date is invalid."),
+                    QStringLiteral("The external History date is invalid."),
                     QStringLiteral("latestKnownAt"));
             }
         }

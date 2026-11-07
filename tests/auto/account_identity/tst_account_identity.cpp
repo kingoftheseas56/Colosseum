@@ -646,11 +646,12 @@ void tst_account_identity::httpTransportDoesNotFollowRedirects() {
         0));
 
     int requestCount = 0;
+    QByteArray capturedRequest;
     connect(
         &server,
         &QTcpServer::newConnection,
         &server,
-        [&server, &requestCount]() {
+        [&server, &requestCount, &capturedRequest]() {
             while (server.hasPendingConnections()) {
                 QTcpSocket *socket =
                     server.nextPendingConnection();
@@ -658,8 +659,8 @@ void tst_account_identity::httpTransportDoesNotFollowRedirects() {
                     socket,
                     &QTcpSocket::readyRead,
                     socket,
-                    [socket, &requestCount]() {
-                        socket->readAll();
+                    [socket, &requestCount, &capturedRequest]() {
+                        capturedRequest += socket->readAll();
                         ++requestCount;
                         socket->write(
                             "HTTP/1.1 302 Found\r\n"
@@ -700,6 +701,8 @@ void tst_account_identity::httpTransportDoesNotFollowRedirects() {
         reply.errorCode,
         QStringLiteral("redirect_not_allowed"));
     QCOMPARE(requestCount, 1);
+    QVERIFY(capturedRequest.toLower().contains(
+        QByteArrayLiteral("x-colosseum-sync-features: nuvio")));
 }
 
 void tst_account_identity::httpTransportTimesOutStalledReply() {

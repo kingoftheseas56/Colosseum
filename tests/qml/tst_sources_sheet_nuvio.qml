@@ -268,7 +268,7 @@ Item {
             var list = findChild(sheet, "sourcesSheetList")
             var dock = findChild(taskbar, "taskbarDock")
             var back = findChild(sheet, "sourcesSheetBack")
-            var title = findChild(sheet, "sourcesSheetTitle")
+            var title = findChild(sheet, "sourcesSheetTitleBlock")
             tryVerify(function() { return list.itemAtIndex(0) && list.itemAtIndex(1) })
             verify(title.y >= back.y + back.height)
             var last = list.itemAtIndex(1)

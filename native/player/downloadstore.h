@@ -27,7 +27,9 @@ class DownloadStore : public QObject {
     Q_PROPERTY(int queueRevision READ queueRevision NOTIFY changed)
 
 public:
-    explicit DownloadStore(QObject *parent = nullptr);
+    enum class RecoveryPolicy { PlatformDefault, Legacy, AndroidPinnedTorrent };
+    explicit DownloadStore(QObject *parent = nullptr,
+                           RecoveryPolicy recoveryPolicy = RecoveryPolicy::PlatformDefault);
     ~DownloadStore() override;
 
     QVariantMap status() const;
@@ -48,10 +50,15 @@ public:
     Q_INVOKABLE void pauseJob(const QString &id);    // keeps the .part; frees the cap slot
     Q_INVOKABLE void resumeJob(const QString &id);   // paused → queued (Range-append if same-session url)
     Q_INVOKABLE QVariantList jobs() const;
+    Q_INVOKABLE bool localFileAvailable(const QString &path) const;
     Q_INVOKABLE bool hasVideo(const QString &id) const;   // already in the library
     // resolver handshake (Main.qml answers needResolve with one of these)
     Q_INVOKABLE void feedUrl(const QString &id, const QString &url);
     Q_INVOKABLE void feedSource(const QString &id, const QString &url, const QVariantMap &headers);
+    Q_INVOKABLE void feedTorrentUrl(const QString &id, const QString &url,
+                                    const QString &infoHash, int fileIdx);
+    Q_INVOKABLE void setForeground(bool foreground);
+    Q_INVOKABLE void setBackgroundExecutionAllowed(bool allowed);
     Q_INVOKABLE void failJob(const QString &id, const QString &reason);
 
     // ── downloaded-videos library ──
@@ -66,6 +73,7 @@ signals:
     void changed();          // active-job status and/or queue shape changed
     void libraryChanged();   // the persisted downloaded-videos set changed
     void removed(const QString &id);
+    void resolutionReset();
     void needResolve(const QString &id, const QString &streamId, const QString &mediaType);
 
 private:
@@ -84,6 +92,11 @@ private:
         qint64 lastSampleBytes = 0;
         qint64 baseOffset = 0;       // resume: bytes already in .part before this reply
         bool resumeFromPart = false;   // set by resumeJob when the paused url is still valid
+        bool resumeRangeValidated = false;
+        bool resumeRangeRejected = false;
+        bool lifecyclePaused = false;
+        QString partialInfoHash;
+        int partialFileIdx = -1;
         QString outputPath;
         QString partPath;
         QNetworkReply *reply = nullptr;
@@ -104,6 +117,9 @@ private:
 
     int activeIndex() const;                 // resolving/downloading job, or -1
     int jobIndex(const QString &id) const;
+    bool pinnedRecovery() const { return m_recoveryPolicy == RecoveryPolicy::AndroidPinnedTorrent; }
+    bool executionAllowed() const;
+    void transitionExecutionAvailability(bool available);
     void pump();                             // promote oldest queued while under cap
     void startHttp(Job &job);
     void finishHttp(Job &job);
@@ -121,10 +137,13 @@ private:
 
     static constexpr int MAX_ACTIVE_VIDEO = 1;   // videos are GBs; raise deliberately
 
+    const RecoveryPolicy m_recoveryPolicy; // resolved before loadQueue; never a second state owner
     QNetworkAccessManager m_network;
     QString m_defaultDownloadDir;
     QString m_lastDonePath;
     QList<Job> m_jobs;
     QHash<QString, Entry> m_index;
     int m_queueRevision = 0;
+    bool m_foreground = true;
+    bool m_backgroundExecutionAllowed = false;
 };

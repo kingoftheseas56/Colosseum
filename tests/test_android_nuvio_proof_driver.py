@@ -47,21 +47,21 @@ def records():
             record.update(streamUrl="https://archive.org/download/public-domain/film.mp4",
                           title="Night of the Living Dead (1968)")
         if stage == "worker_started":
-            record.update(fault=current_fault, workerPid=200 if crash else 201,
-                          syntheticFaultScript=True)
+            record.update(fault=current_fault, workerPid=200 if crash else 210,
+                          slot=0, syntheticFaultScript=True)
         if stage in ("crash_survived", "timeout_survived"):
-            record.update(workerPid=200 if crash else 201, syntheticFaultScript=True,
+            record.update(workerPid=200 if crash else 210, syntheticFaultScript=True,
                           fault=current_fault, result="crashed" if crash else "deadline",
                           elapsedMs=100 if crash else 20050)
         if stage in ("recovery_started", "recovery_worker_started", "crash_recovered", "timeout_recovered"):
-            record.update(fault=current_fault, failedWorkerPid=200 if crash else 201)
+            record.update(fault=current_fault, failedWorkerPid=200 if crash else 210)
             if stage != "recovery_started":
                 record.update(workerPid=210 if crash else 211, slot=0, requestMonotonicMs=1234)
             if stage.endswith("_recovered"):
                 record.update(result="ok", directRows=1)
         if stage.startswith("profile_"):
             if stage == "profile_baseline":
-                profile_count = 1 if profile_count == 0 else 4
+                profile_count = 1 if profile_count == 0 else 2
                 profile_workers = []
                 record.update(holdMs=4000, syntheticWorkload=True)
             record.update(concurrency=profile_count)
@@ -74,9 +74,9 @@ def records():
             if stage == "profile_finished":
                 record.update(workerPids=[w["workerPid"] for w in profile_workers], slots=[w["slot"] for w in profile_workers],
                               startedCount=profile_count, finishedCount=profile_count, maxConcurrentWorkers=profile_count,
-                              result="ok", idleHoldMs=4000, syntheticWorkload=True)
+                              result="ok", idleHoldMs=72000, syntheticWorkload=True)
         if stage == "completed":
-            record.update(profilesCompleted=[1, 4], recoveredFaults=["crash", "timeout"])
+            record.update(profilesCompleted=[1, 2], recoveredFaults=["crash", "timeout"])
         result.append(record)
     return result
 
@@ -283,7 +283,8 @@ class ResourceEvidenceTests(unittest.TestCase):
                 proof.parse_meminfo(modified, 310, self.package + ":nuvio0")
 
     def test_ready_timestamp_is_bound_to_worker_log_pid(self):
-        self.assertEqual({310: 1500}, proof.runtime_ready_times(self.ready_log(310)))
+        log = self.ready_log(310) + "\n" + self.ready_log(310, 2000)
+        self.assertEqual({310: [1500, 2000]}, proof.runtime_ready_times(log))
         self.assertEqual({}, proof.runtime_ready_times(self.ready_log(310).replace("ColosseumNuvioProof", "UntrustedTag")))
         for text in (self.ready_log(310) + "\n" + self.ready_log(310), self.ready_log(310, -1),
                      self.ready_log(310).replace("1500", "true"), self.ready_log(310).replace('"workerPid":310', '"workerPid":311'), self.ready_log(310).replace("1500", "broken")):
@@ -293,8 +294,9 @@ class ResourceEvidenceTests(unittest.TestCase):
     def test_process_list_requires_exact_service_names(self):
         text = "PID NAME\n100 org.qtproject.example\n310 org.qtproject.example:nuvio0\n320 foreign:nuvio1\n"
         self.assertEqual({0: 310}, proof.parse_service_processes(text, self.package))
-        with self.assertRaises(proof.ProofFailure):
-            proof.parse_service_processes(text + "311 org.qtproject.example:nuvio0\n", self.package)
+        for invalid in ("311 org.qtproject.example:nuvio0\n", "330 org.qtproject.example:nuvio2\n"):
+            with self.subTest(invalid=invalid), self.assertRaises(proof.ProofFailure):
+                proof.parse_service_processes(text + invalid, self.package)
 
     def test_active_memory_sample_confirms_all_workers_before_and_after(self):
         owner = self
@@ -314,9 +316,9 @@ class ResourceEvidenceTests(unittest.TestCase):
             with self.subTest(remove=remove), tempfile.TemporaryDirectory() as tmp:
                 if remove:
                     with self.assertRaises(proof.ProofFailure):
-                        proof.sample_active_memory(FakeAdb(remove), Path(tmp), self.package, 100, workers, {310: 1500})
+                        proof.sample_active_memory(FakeAdb(remove), Path(tmp), self.package, 100, workers, {310: [1500]})
                 else:
-                    result = proof.sample_active_memory(FakeAdb(), Path(tmp), self.package, 100, workers, {310: 1500})
+                    result = proof.sample_active_memory(FakeAdb(), Path(tmp), self.package, 100, workers, {310: [1500]})
                     self.assertEqual(300, result["workers"][0]["coldStartMs"])
                     self.assertEqual(12345, result["totalWorkerPssKiB"])
                     self.assertTrue((Path(tmp) / "slot-0-meminfo.txt").is_file())
@@ -326,7 +328,7 @@ class ResourceEvidenceTests(unittest.TestCase):
         class FakeAdb:
             def run(self, *args):
                 return "PID NAME\n310 org.qtproject.example:nuvio0\n"
-        for ready in ({}, {310: 1199}, {310: 999999}):
+        for ready in ({}, {310: [1199]}, {310: [999999]}, {310: [1500, 1600]}):
             with self.subTest(ready=ready), tempfile.TemporaryDirectory() as tmp, self.assertRaises(proof.ProofFailure):
                 proof.sample_active_memory(FakeAdb(), Path(tmp), self.package, 100, workers, ready)
 
@@ -342,21 +344,45 @@ class ResourceEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, self.assertRaises(proof.ProofFailure):
             proof.sample_idle_memory(FakeAdb(), Path(tmp), self.package, 100)
 
-    def test_lingering_idle_service_is_a_failure(self):
+    def test_idle_snapshot_rejects_a_lingering_service(self):
         class FakeAdb:
             def run(self, *args):
                 return "PID NAME\n310 org.qtproject.example:nuvio0\n"
         with tempfile.TemporaryDirectory() as tmp, self.assertRaises(proof.ProofFailure):
             proof.sample_idle_memory(FakeAdb(), Path(tmp), self.package, 100)
-        with tempfile.TemporaryDirectory() as tmp, patch.object(proof, "current_pid", return_value=100), \
-             patch.object(proof.time, "monotonic", side_effect=[0, 4]), self.assertRaises(proof.ProofFailure):
-            proof.wait_for_disposal(FakeAdb(), Path(tmp), self.package, 100)
+
+    def test_idle_observation_rejects_premature_exit_late_exit_or_replacement(self):
+        class FakeAdb:
+            def __init__(self, line):
+                self.line = line
+
+            def run(self, *args):
+                return "PID NAME\n" + self.line
+
+        workers = [{"slot": 0, "workerPid": 310}]
+        for seconds, line in ((4, ""), (68, "310 org.qtproject.example:nuvio0\n"),
+                              (55, "311 org.qtproject.example:nuvio0\n")):
+            with self.subTest(seconds=seconds, line=line), tempfile.TemporaryDirectory() as tmp, \
+                 patch.object(proof, "current_pid", return_value=100), \
+                 patch.object(proof.time, "monotonic", side_effect=[0, seconds]), \
+                 self.assertRaises(proof.ProofFailure):
+                proof.wait_for_disposal(FakeAdb(line), Path(tmp), self.package, 100, workers)
 
     def test_incremental_profiles_capture_raw_evidence_and_human_report(self):
         owner = self
+        clock = 0
+
+        def sleep(seconds):
+            nonlocal clock
+            clock += seconds
+
         class FakeAdb:
             active = {}
+            retire_at = None
+
             def run(self, *args):
+                if self.retire_at is not None and clock >= self.retire_at:
+                    self.active = {}
                 if args[1] == "ps":
                     return "PID NAME\n" + "".join(f"{pid} {owner.package}:nuvio{slot}\n" for slot, pid in self.active.items())
                 pid = int(args[-1])
@@ -365,9 +391,10 @@ class ResourceEvidenceTests(unittest.TestCase):
                     name += ":nuvio" + str(next(slot for slot, worker in self.active.items() if worker == pid))
                 return owner.meminfo(pid, name)
         data, evidence, adb = records(), {}, FakeAdb()
-        with tempfile.TemporaryDirectory() as tmp, patch.object(proof, "current_pid", return_value=100):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(proof, "current_pid", return_value=100), \
+             patch.object(proof.time, "monotonic", side_effect=lambda: clock), patch.object(proof.time, "sleep", side_effect=sleep):
             artifact = Path(tmp)
-            for count in (1, 4):
+            for count in (1, 2):
                 indices = [i for i, r in enumerate(data) if r.get("concurrency") == count]
                 baseline, finished = indices[0], indices[-1]
                 workers = [r for r in data[baseline:finished] if r["stage"] == "profile_worker_started"]
@@ -375,17 +402,20 @@ class ResourceEvidenceTests(unittest.TestCase):
                 adb.active = {r["slot"]: r["workerPid"] for r in workers}
                 ready = "\n".join(self.ready_log(r["workerPid"]) for r in workers)
                 proof.collect_resource_evidence(adb, artifact, self.package, 100, data[:finished], ready, evidence)
-                adb.active = {}
+                adb.retire_at = clock + 60
                 proof.collect_resource_evidence(adb, artifact, self.package, 100, data[:finished + 1], ready, evidence)
+                adb.retire_at = None
             proof.validate_resource_completion(evidence)
-            self.assertEqual(4 * 12345, evidence["4"]["active"]["totalWorkerPssKiB"])
-            self.assertEqual(266, evidence["4"]["active"]["workers"][0]["coldStartMs"])
+            self.assertEqual(2 * 12345, evidence["2"]["active"]["totalWorkerPssKiB"])
+            self.assertEqual(266, evidence["2"]["active"]["workers"][0]["coldStartMs"])
+            self.assertEqual(60, evidence["2"]["after"]["allWorkersGoneSeconds"])
+            self.assertEqual(59, evidence["2"]["after"]["lastFullWorkerSetSeconds"])
             self.assertIn("double-counts", (artifact / "resource-profile.md").read_text())
             self.assertEqual(2, len(json.loads((artifact / "resource-measurements.json").read_text())["profiles"]))
 
     def test_missing_independent_measurements_cannot_complete(self):
         for evidence in ({}, {"1": {"baseline": {}, "active": {}, "after": {}}},
-                         {"1": {"baseline": {}, "active": {}, "after": {}}, "4": {"baseline": {}, "active": {}}}):
+                         {"1": {"baseline": {}, "active": {}, "after": {}}, "2": {"baseline": {}, "active": {}}}):
             with self.subTest(evidence=evidence), self.assertRaises(proof.ProofFailure):
                 proof.validate_resource_completion(evidence)
 
@@ -396,6 +426,7 @@ class ResourceEvidenceTests(unittest.TestCase):
 
     def test_recovery_requires_new_pid_matching_successful_http_result(self):
         for stage, field, value in (("recovery_worker_started", "workerPid", 200),
+                                     ("recovery_worker_started", "slot", 2),
                                      ("crash_recovered", "workerPid", 999),
                                      ("crash_recovered", "directRows", 0),
                                      ("crash_recovered", "streamUrl", "magnet:invalid"),
@@ -420,7 +451,7 @@ class ResourceEvidenceTests(unittest.TestCase):
             with self.subTest(stage=stage, field=field), self.assertRaises(proof.ProofFailure):
                 proof.validate_stages(data, 100, complete=True)
         data = records()
-        workers = [r for r in data if r["stage"] == "profile_worker_started" and r["concurrency"] == 4]
+        workers = [r for r in data if r["stage"] == "profile_worker_started" and r["concurrency"] == 2]
         workers[-1]["slot"] = workers[0]["slot"]
         with self.assertRaises(proof.ProofFailure):
             proof.validate_stages(data, 100, complete=True)

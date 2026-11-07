@@ -18,19 +18,21 @@
 namespace {
 constexpr auto bridge = "org/colosseum/nuvio/NuvioProcessBridge";
 // All resolver and IPC callbacks are on the application's Qt thread.
-std::array<bool, 4> workerSlots{};
+std::array<bool, NuvioAndroidProcess::maxSlots> workerSlots{};
 }
 
 NuvioAndroidProcess::NuvioAndroidProcess(QObject *parent) : QObject(parent) {}
 
 NuvioAndroidProcess::~NuvioAndroidProcess()
 {
-    cleanup(true);
+    cleanupIo();
+    releaseService(false);
 }
 
 void NuvioAndroidProcess::failStart()
 {
-    cleanup(true);
+    cleanupIo();
+    releaseService(false);
     QTimer::singleShot(0, this, [this] { emit errorOccurred(FailedToStart); });
 }
 
@@ -139,7 +141,7 @@ void NuvioAndroidProcess::readPipe()
             if (m_pid > 0) emit started();
         }
         const bool completed = count == 0 && m_received;
-        cleanup(false);
+        cleanupIo();
         emit finished(completed ? 0 : -1, completed ? NormalExit : QProcess::CrashExit);
         return;
     }
@@ -148,20 +150,25 @@ void NuvioAndroidProcess::readPipe()
 void NuvioAndroidProcess::kill()
 {
     if (m_state == NotRunning) return;
-    cleanup(true);
+    cleanupIo();
+    releaseService(false);
     // QProcess completion is asynchronous. Preserve that contract on cancel.
     QTimer::singleShot(0, this, [this] { emit finished(-1, QProcess::CrashExit); });
 }
 
-void NuvioAndroidProcess::cleanup(bool cancel)
+void NuvioAndroidProcess::cleanupIo()
 {
     if (m_notifier) { m_notifier->setEnabled(false); m_notifier->deleteLater(); m_notifier = nullptr; }
     if (m_pidTimer) { m_pidTimer->stop(); m_pidTimer->deleteLater(); m_pidTimer = nullptr; }
     if (m_fd >= 0) { ::close(m_fd); m_fd = -1; }
-    if (m_job >= 0) {
-        QJniObject::callStaticMethod<void>(bridge, cancel ? "cancel" : "finish", "(I)V", jint(m_job));
-        m_job = -1;
-    }
     if (m_slot >= 0) { workerSlots[m_slot] = false; m_slot = -1; }
     m_state = NotRunning;
+}
+
+void NuvioAndroidProcess::releaseService(bool reusable)
+{
+    if (m_job >= 0) {
+        QJniObject::callStaticMethod<void>(bridge, reusable ? "finish" : "cancel", "(I)V", jint(m_job));
+        m_job = -1;
+    }
 }

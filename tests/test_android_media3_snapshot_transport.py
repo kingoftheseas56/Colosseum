@@ -16,13 +16,18 @@ def test_snapshot_transport() -> None:
         require(JAVA, token, "Media3 host needs bounded periodic telemetry")
     require(JAVA, "nativeOnPlaybackSnapshot(", "Java must publish playback snapshots")
     require(JAVA, "public void stopForLifecycle()", "lifecycle transport stop must be explicit")
-    require(JAVA, "userWantsPlay", "user intent must survive lifecycle stop")
+    require(JAVA, "userWantsPlay", "Java host must retain explicit user intent machinery")
     require(JAVA, "mainHandler.removeCallbacks(telemetryRunnable)", "release/stop must cancel telemetry")
     require(HEADER, "handlePlaybackSnapshot", "native facade must consume snapshots")
     require(CPP, "Media3PlayerHost_nativeOnPlaybackSnapshot", "JNI snapshot bridge must exist")
-    forbidden = 'callHost("pause");\n            callHost("stopForLifecycle");'
-    if forbidden in CPP:
-        raise AssertionError("lifecycle host stop must preserve user play intent without Java pause()")
+    require(CPP, 'callHost("pause");\n            callHost("stopForLifecycle");',
+            "Android background return must park both Java and native play intent")
+    require(CPP, "noteLifecyclePrepareSubmitted(generation, lifecycleEpoch)",
+            "resume preparation must still be generation/epoch fenced")
+    state = (ROOT / "native/player/androidmedia3state.cpp").read_text(encoding="utf-8")
+    stop = state.split("AndroidMedia3State::beginLifecycleHostStop(", 1)[1].split("\n}", 1)[0]
+    require(stop, "m_snapshot.userWantsPlay = false", "OS return cannot silently issue Play")
+    require(stop, "m_snapshot.paused = true", "OS return preserves the parked state")
 
 
 if __name__ == "__main__":

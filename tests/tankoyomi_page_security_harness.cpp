@@ -90,7 +90,8 @@ int main(int argc, char **argv)
             };
             const auto registry = TankoyomiProviderRegistry::fromResource();
             TankoyomiConfigurationStore configuration(registry, directory.filePath(rawId + ".ini"));
-            TankoyomiChapterService service(&nam, &configuration);
+            TankoyomiChapterService service(&nam, &configuration, 50000, MangaImageHostResolver::Lookup(),
+                                            registry, QUrl());
             MangaDownloader downloader(&nam, nullptr,
                 [&](const QString &host, MangaImageHostResolver::LookupDone done) {
                     resolvedHosts.append(host);

@@ -61,6 +61,16 @@ class AndroidRuntimeBundleTest(unittest.TestCase):
         self.assertEqual((ROOT / "qml/Main.qml").read_bytes(),
                          (self.runtime / "qml/Main.qml").read_bytes())
 
+    def test_desktop_composition_selected_with_real_platform_picker(self):
+        for name in ("TopBar.qml", "Taskbar.qml", "ExtensionsHouseHero.qml"):
+            with self.subTest(component=name):
+                self.assertEqual((ROOT / "qml" / name).read_bytes(), (self.runtime / "qml" / name).read_bytes())
+                self.assertFalse((self.runtime / "qml/+android" / name).exists())
+        for name in ("VaultDoor.qml", "VaultHomeWidget.qml"):
+            self.assertEqual((ROOT / "qml" / name).read_bytes(), (self.runtime / "qml" / name).read_bytes())
+        self.assertTrue((self.runtime / "qml/+android/LocalIdentityDialog.qml").is_file())
+        self.assertTrue((self.runtime / "qml/reader2/AndroidPaper.qml").is_file())
+
     def test_coming_soon_desktop_worlds_are_absent(self):
         self.assertFalse((self.runtime / "qml/vinyl").exists())
         self.assertFalse((self.runtime / "qml/feria").exists())
@@ -101,7 +111,7 @@ class AndroidRuntimeBundleTest(unittest.TestCase):
 
     def test_selector_relative_paths_preserved_without_desktop_base_code(self):
         for selector in (ROOT / "qml").rglob("+android/*.qml"):
-            if selector.name.startswith("Vault"):
+            if selector.name.startswith("Vault") or selector.name in {"TopBar.qml", "Taskbar.qml", "ExtensionsHouseHero.qml"}:
                 continue
             relative = selector.relative_to(ROOT / "qml")
             with self.subTest(selector=str(relative)):
@@ -124,6 +134,12 @@ class AndroidRuntimePolicyTest(unittest.TestCase):
         self.assertIn("FORBIDDEN_QML_FILE vinyl/World.qml", qml_policy_failures(files))
         files[QML_PREFIX + "World.qml"] = b'import "vinyl" as Vinyl\nItem {}'
         self.assertIn("FORBIDDEN_DESKTOP_IMPORT World.qml", qml_policy_failures(files))
+
+    def test_pure_vault_whitelist_does_not_enable_vault_world(self):
+        for name in ("VaultDoor.qml", "VaultHomeWidget.qml"):
+            self.assertEqual([], qml_policy_failures({QML_PREFIX + name: b"import QtQuick\nItem {}"}))
+        for name in ("VaultPage.qml", "VaultDanger.qml", "+android/VaultDoor.qml"):
+            self.assertTrue(qml_policy_failures({QML_PREFIX + name: b"import QtQuick\nItem {}"}))
 
     def test_missing_quoted_javascript_import_is_rejected(self):
         files = {QML_PREFIX + "World.qml": b'import "Missing.js" as Api\nItem {}'}

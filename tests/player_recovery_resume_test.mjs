@@ -52,6 +52,9 @@ function session({ paused = false, visible = true, direct = false } = {}) {
     positionStartedFloorSec: 5, positionFrozenSeconds: 18,
     wakeReconnectLastTickAt: now - 40000, wakeReconnectGapSeconds: 30,
     arrivingStreamUrl: '', hydrateGen: 0,
+    streamDemandActive: false, streamDemandEpoch: 0,
+    streamRouteRestorePending: false, streamRouteRestoreLoadPending: false,
+    streamRouteRestoreSubtitle: null,
     directStreamUrl: () => '', currentStreamCandidate: () => ({}),
     isStreamDead: () => false, closeMenus: noop, wakeChrome: noop,
     forceActiveFocus: noop, updateMediaSubtitle: noop,
@@ -73,6 +76,7 @@ function session({ paused = false, visible = true, direct = false } = {}) {
   };
   const context = vm.createContext({
     root, mpv, visible, Date: { now: () => now }, console: { info: noop, log: noop },
+    Qt: { platform: { os: 'linux' } }, PlatformRuntime: { android: false },
     Stream: { play: () => calls.push('stream-play'), unwatchStats: noop },
     streamWatchdog: { restart: () => calls.push('watchdog-start'), stop: () => calls.push('watchdog-stop') },
     seekSettleGuard: { restart: noop },
@@ -84,10 +88,11 @@ function session({ paused = false, visible = true, direct = false } = {}) {
     'startOverFromResumeChoice', 'playUrl', 'resetRecoveryResume', 'prepareRecoveryResume',
     'seekTo',
     'clearActiveDirectHeaders', 'reloadActiveDirectSource',
+    'recoveryPauseIntent', 'clearStreamRouteRestore',
   ]) {
     const marker = `function ${name}(`;
     const at = source.indexOf(marker);
-    if (at < 0) continue; // New helpers must be exercised through their real callers.
+    assert.ok(at >= 0, marker);
     const signature = source.slice(at, source.indexOf('{', at));
     root[name] = vm.runInContext(`(${signature}${block(marker)})`, context);
   }

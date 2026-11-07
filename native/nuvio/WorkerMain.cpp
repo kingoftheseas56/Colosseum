@@ -12,6 +12,7 @@
 #include <QMap>
 #include <QRandomGenerator>
 #include <QSet>
+#include <QEvent>
 #include <QEventLoop>
 #include <QFile>
 #include <QHostAddress>
@@ -827,24 +828,32 @@ int main(int argc, char **argv)
         }
     }
     if (!arguments.isValid()) ::_exit(1);
-    const int fd = QJniObject::callStaticMethod<jint>(service, "takeOutputFd", "()I");
-    if (fd < 0) ::_exit(1);
-    resultOutput = ::fdopen(fd, "w");
-    if (!resultOutput) { ::close(fd); ::_exit(1); }
-    QStringList args{QStringLiteral("colosseum-nuvio-host")};
-    QJniEnvironment env;
-    const auto values = arguments.object<jobjectArray>();
-    const auto length = env->GetArrayLength(values);
-    for (int i = 0; i < length; ++i) {
-        auto value = QJniObject::fromLocalRef(env->GetObjectArrayElement(values, i));
-        args.append(value.toString());
+    while (arguments.isValid()) {
+        const int fd = QJniObject::callStaticMethod<jint>(service, "takeOutputFd", "()I");
+        if (fd < 0) ::_exit(1);
+        resultOutput = ::fdopen(fd, "w");
+        if (!resultOutput) { ::close(fd); ::_exit(1); }
+        QStringList args{QStringLiteral("colosseum-nuvio-host")};
+        QJniEnvironment env;
+        const auto values = arguments.object<jobjectArray>();
+        const auto length = env->GetArrayLength(values);
+        for (int i = 0; i < length; ++i) {
+            auto value = QJniObject::fromLocalRef(env->GetObjectArrayElement(values, i));
+            args.append(value.toString());
+        }
+        // runHost allocates and destroys all JavaScript and network state for
+        // this invocation. A later job reuses only the Qt service process.
+        runHost(args);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        std::fflush(resultOutput);
+        // Allow the next job before closing the pipe that reports completion.
+        QJniObject::callStaticMethod<void>(service, "jobCompleted", "()V");
+        std::fclose(resultOutput);
+        resultOutput = stdout;
+        arguments = QJniObject::callStaticObjectMethod(
+            service, "awaitArguments", "()[Ljava/lang/String;");
     }
-    const int result = runHost(args);
-    std::fflush(resultOutput);
-    std::fclose(resultOutput);
-    // One invocation per process, just like desktop. A native crash or a hard
-    // parent deadline drops only this private service, never the activity.
-    ::_exit(result);
+    ::_exit(0);
 #else
     return runHost(app.arguments());
 #endif

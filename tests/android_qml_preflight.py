@@ -15,7 +15,14 @@ from test_android_runtime_bundle import stage_runtime
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--qt-root', type=Path, required=True)
+    parser.add_argument('--qml-root', type=Path,
+                        help='Verify this exact configured staged QML tree instead of creating a staging fixture')
     args = parser.parse_args()
+    if args.qml_root:
+        return subprocess.run([
+            sys.executable, str(Path(__file__).with_name('android_qml_engine_compile.py')),
+            '--qt-root', str(args.qt_root), '--qml-root', str(args.qml_root), '--loader-roots',
+        ]).returncode
     with tempfile.TemporaryDirectory(prefix='android-qml-preflight-') as directory:
         runtime = stage_runtime(Path(directory))
         return subprocess.run([

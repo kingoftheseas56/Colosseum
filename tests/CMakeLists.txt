@@ -1891,13 +1891,17 @@ foreach(vinyl_suite IN ITEMS
         TIMEOUT 120)
 endforeach()
 
+# These discovery regressions cover components shared across worlds.
+set_tests_properties(colosseum.qml.discover_picker colosseum.qml.discover_sidebar PROPERTIES
+    LABELS "qml;regression")
+
 set_tests_properties(colosseum.qml.vinyl_world_navigation PROPERTIES TIMEOUT 240)
 
 add_test(NAME colosseum.qml.account_flyout_local_privacy
     COMMAND colosseum_qml_tests -input
         "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_account_flyout_local_privacy.qml")
 set_tests_properties(colosseum.qml.account_flyout_local_privacy PROPERTIES
-    LABELS "qml;privacy;vinyl;regression"
+    LABELS "qml;privacy;regression"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
     TIMEOUT 120)
 
@@ -2147,6 +2151,7 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    ${COLOSSEUM_THEATRE_ACCOUNT_SOURCES}
     "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
@@ -2265,6 +2270,7 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    ${COLOSSEUM_THEATRE_ACCOUNT_SOURCES}
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
@@ -2952,6 +2958,7 @@ add_executable(tst_no_account_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    ${COLOSSEUM_THEATRE_ACCOUNT_SOURCES}
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
@@ -4117,6 +4124,38 @@ set_tests_properties(colosseum.qttest.stremio_sync PROPERTIES
     LABELS "unit;qttest;stremio;sync;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 180)
+
+add_executable(tst_nuvio_api
+    auto/nuvio_api/tst_nuvio_api.cpp
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioAccount.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioAccount.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioApi.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioApi.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioTheatreData.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/NuvioTheatreData.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/TheatreAccountImport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/TheatreAccountImport.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h")
+target_include_directories(tst_nuvio_api PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_nuvio_api PRIVATE colosseum_account_credentials Qt6::Core Qt6::Network Qt6::Test)
+set_target_properties(tst_nuvio_api PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_nuvio_api POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.nuvio_api COMMAND tst_nuvio_api)
+set_tests_properties(colosseum.qttest.nuvio_api PROPERTIES
+    LABELS "unit;qttest;nuvio" TIMEOUT 30)
 
 add_executable(tst_profile_preferences_sync
     auto/profile_preferences_sync/tst_profile_preferences_sync.cpp
@@ -5320,6 +5359,7 @@ add_executable(vinyl_torrent_provider_contracts vinyl-live/torrent_provider_cont
     "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h"
     "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentMatcher.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentQueryPlanner.cpp"
     "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentSearchService.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentSearchService.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentWorkerIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentWorkerIndexer.h"
     "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentIndexer.h"
     "${COLOSSEUM_NATIVE_DIR}/torrent/PirateBayIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/PirateBayIndexer.h"
     "${COLOSSEUM_NATIVE_DIR}/torrent/ExtTorrentsIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/ExtTorrentsIndexer.h"
@@ -5514,6 +5554,7 @@ foreach(variant development qualification shipping_disabled)
         endif()
     endif()
     add_test(NAME colosseum.vinyl_availability_${variant} COMMAND vinyl_availability_${variant})
+    set_tests_properties(colosseum.vinyl_availability_${variant} PROPERTIES LABELS "vinyl")
 endforeach()
 find_package(Qt6 REQUIRED COMPONENTS Test)
 foreach(owner runtime operations)

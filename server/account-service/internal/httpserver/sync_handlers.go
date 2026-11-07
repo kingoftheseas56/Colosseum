@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -8,6 +9,10 @@ import (
 
 	"github.com/kingoftheseas56/Colosseum-Account-Service/internal/account"
 )
+
+func syncClientContext(r *http.Request) context.Context {
+	return account.WithSyncFeatures(r.Context(), strings.Join(r.Header.Values("X-Colosseum-Sync-Features"), ","))
+}
 
 // syncPushRequest is the decoded SyncPushEnvelope: an optional envelope-level
 // attachment_id plus the unchanged mutation array. Ordinary pushes omit the
@@ -32,13 +37,13 @@ func (h *Handler) pushSync(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if attachmentID := strings.TrimSpace(request.AttachmentID); attachmentID != "" {
 		result, err = h.accounts.PushSyncWithAttachment(
-			r.Context(),
+			syncClientContext(r),
 			authenticated(r),
 			attachmentID,
 			request.Mutations)
 	} else {
 		result, err = h.accounts.PushSync(
-			r.Context(),
+			syncClientContext(r),
 			authenticated(r),
 			request.Mutations)
 	}
@@ -65,7 +70,7 @@ func (h *Handler) pullSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.accounts.PullSync(
-		r.Context(),
+		syncClientContext(r),
 		authenticated(r),
 		after)
 	if err != nil {
@@ -83,7 +88,7 @@ func (h *Handler) pullSyncSnapshot(w http.ResponseWriter, r *http.Request) {
 	pageToken := strings.TrimSpace(r.URL.Query().Get("after_key"))
 
 	result, err := h.accounts.SnapshotSync(
-		r.Context(),
+		syncClientContext(r),
 		authenticated(r),
 		pageToken)
 	if err != nil {

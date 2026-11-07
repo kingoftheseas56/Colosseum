@@ -97,6 +97,7 @@ Item {
             font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3
         }
         Row {
+            visible: Qt.platform.os !== "android"
             anchors.right: parent.right; anchors.rightMargin: theme.margin
             anchors.verticalCenter: parent.verticalCenter; spacing: 12
             Item {

@@ -140,10 +140,13 @@ public class Looper {
 package android.os;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 
 public class Handler {
   static final ArrayDeque<Runnable> queue = new ArrayDeque<>();
-  static final ArrayDeque<Runnable> delayed = new ArrayDeque<>();
+  record Timer(Runnable runnable, long due) {}
+  static final ArrayList<Timer> delayed = new ArrayList<>();
+  static long now;
 
   public Handler(Looper looper) {}
 
@@ -153,8 +156,12 @@ public class Handler {
   }
 
   public boolean postDelayed(Runnable runnable, long delay) {
-    delayed.add(runnable);
+    delayed.add(new Timer(runnable, now + delay));
     return true;
+  }
+
+  public void removeCallbacks(Runnable runnable) {
+    delayed.removeIf(timer -> timer.runnable() == runnable);
   }
 
   public static void drain() {
@@ -165,9 +172,19 @@ public class Handler {
     }
   }
 
-  public static void advanceGracePeriod() {
-    while (!delayed.isEmpty()) queue.add(delayed.remove());
-    drain();
+  public static void advance(long millis) {
+    long end = now + millis;
+    while (true) {
+      Timer next = null;
+      for (Timer timer : delayed)
+        if (timer.due() <= end && (next == null || timer.due() < next.due())) next = timer;
+      if (next == null) break;
+      delayed.remove(next);
+      now = next.due();
+      queue.add(next.runnable());
+      drain();
+    }
+    now = end;
   }
 }
 """,
@@ -270,6 +287,7 @@ public class QtService {
   public IBinder onBind(Intent i) {
     return null;
   }
+  public void onDestroy() {}
 }
 """,
     'org/colosseum/nuvio/RaceTest.java': r"""
@@ -362,10 +380,23 @@ public class RaceTest {
     c.binds.get(0).onServiceConnected(null, a);
     check(a.starts == 1, "start");
     NuvioProcessBridge.finish(first);
+    Handler.drain();
+    Handler.advance(30000);
+    check(a.kills == 0 && c.unbound == 0, "idle service remains bound");
     int second = start(c, 0);
     Handler.drain();
-    check(a.kills == 1 && c.unbound == 1, "finish must kill and unbind");
-    check(c.binds.size() == 1, "must not reuse retiring runtime");
+    check(a.starts == 2 && c.binds.size() == 1, "next job reuses the warm service");
+    Handler.advance(30000);
+    check(a.kills == 0, "old idle deadline must not kill active work");
+    NuvioProcessBridge.finish(second);
+    Handler.drain();
+    Handler.advance(59999);
+    check(a.kills == 0, "idle service stops no earlier than 60 seconds");
+    Handler.advance(1);
+    check(a.kills == 1 && c.unbound == 1, "60 seconds of idle retires the service");
+    int afterIdle = start(c, 0);
+    Handler.drain();
+    check(c.binds.size() == 1, "cannot bind a successor before retiring PID dies");
     a.throwUnlink = true;
     a.die();
     Handler.drain();
@@ -375,7 +406,7 @@ public class RaceTest {
     c.binds.get(1).onServiceConnected(null, b);
     b.die();
     Handler.drain();
-    check(NuvioProcessBridge.processId(second) == 102, "fast crash PID retained");
+    check(NuvioProcessBridge.processId(afterIdle) == 102, "fast crash PID retained");
     int third = start(c, 0);
     Handler.drain();
     NuvioProcessBridge.cancel(third);
@@ -415,12 +446,14 @@ public class RaceTest {
     Handler.drain();
     fresh.die();
     Handler.drain();
-    int[] ids = new int[4];
+    int[] ids = new int[2];
     int baseline = c.binds.size();
-    for (int i = 0; i < 4; i++) ids[i] = start(c, i);
+    for (int i = 0; i < ids.length; i++) ids[i] = start(c, i);
+    check(NuvioProcessBridge.start(c, new String[] {"--proof"}, 2)[0] < 0,
+        "Android rejects a third service slot");
     Handler.drain();
-    check(c.binds.size() == baseline + 4, "all four slots bind independently");
-    for (int i = 0; i < 4; i++) {
+    check(c.binds.size() == baseline + 2, "both slots bind independently");
+    for (int i = 0; i < ids.length; i++) {
       B worker = new B(200 + i);
       c.binds.get(baseline + i).onServiceConnected(null, worker);
       NuvioProcessBridge.cancel(ids[i]);
@@ -430,8 +463,8 @@ public class RaceTest {
     }
     check(c.unbound == c.binds.size(), "completed slots retain no idle service bindings");
     Handler.drain();
-    check(c.binds.size() == baseline + 4, "idle slots must not automatically restart");
-    int neverConnected = start(c, 3);
+    check(c.binds.size() == baseline + 2, "idle slots must not automatically restart");
+    int neverConnected = start(c, 1);
 
     Handler.drain();
 
@@ -439,18 +472,18 @@ public class RaceTest {
 
     Handler.drain();
 
-    int waitingBehindCancelled = start(c, 3);
+    int waitingBehindCancelled = start(c, 1);
 
     Handler.drain();
 
     int beforeQuarantine = c.unbound;
 
-    Handler.advanceGracePeriod();
+    Handler.advance(22000);
 
     check(c.unbound == beforeQuarantine + 1, "stalled cancelled bind unbound");
 
     check(
-        NuvioProcessBridge.start(c, new String[] {"--proof"}, 3)[0] < 0,
+        NuvioProcessBridge.start(c, new String[] {"--proof"}, 1)[0] < 0,
         "unknown process state quarantines slot instead of reusing runtime");
 
     check(
@@ -458,8 +491,8 @@ public class RaceTest {
         "quarantine discards waiting job without launching it");
 
     System.out.println(
-        "PASS: stub lifecycle; lazy start, idle disposal, queued restart, death barrier, finish cancellation, late bind"
-            + " cancellation, fast-crash PID history, argument limits");
+        "PASS: two lazy slots, warm reuse, 60-second idle stop, death barrier, "
+            + "late bind cancellation, fast-crash PID history, argument limits");
   }
 }
 """,

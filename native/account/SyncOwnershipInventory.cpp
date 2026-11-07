@@ -181,7 +181,7 @@ const QList<SyncOwnershipEntry> &entries() {
             QStringLiteral("stremioLinkDirty()"),
             46,
             QStringLiteral(""),
-            QStringLiteral("The only portable Stremio value is the fixed non-secret mainSyncProvider marker. Account identity, credentials and configured addon URLs stay device-local.")
+            QStringLiteral("The fixed non-secret mainSyncProvider marker carries the Stremio or Nuvio primary choice. Account identity, credentials and configured addon URLs stay device-local.")
         },
         SyncOwnershipEntry{
             QStringLiteral("other_durable_preferences"),

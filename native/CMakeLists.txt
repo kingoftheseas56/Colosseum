@@ -18,6 +18,28 @@ option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
     OFF)
 
+# Minimal focused-test project for the opt-in Android Nuvio playback backend:
+# returns before every unrelated desktop dependency while still compiling the
+# PRODUCTION adapter sources (shared list in cmake/NuvioBackendTests.cmake).
+option(COLOSSEUM_NUVIO_BACKEND_TESTS_ONLY
+    "Configure only the focused Nuvio stream backend tests and stop"
+    OFF)
+if(COLOSSEUM_NUVIO_BACKEND_TESTS_ONLY)
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    find_package(Qt6 REQUIRED COMPONENTS Core Test)
+    set(CMAKE_AUTOMOC ON)
+    include(CTest)
+    set(COLOSSEUM_NATIVE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/NuvioBackendTests.cmake")
+    colosseum_add_nuvio_backend_tests()
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/AndroidIntegrationTests.cmake")
+    colosseum_add_android_integration_tests()
+    return()
+endif()
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/NuvioBackend.cmake")
+
 # Legacy local-only qualification switch. Shipping uses one standard,
 # accounts-capable edition with optional local use; this must remain OFF.
 # ON: account sign-in,
@@ -316,7 +338,28 @@ else()
     message(FATAL_ERROR "OpenSSL crypto is required for Colosseum update manifest verification")
 endif()
 
+set(COLOSSEUM_THEATRE_ACCOUNT_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/AccountRuntimeTheatreAccounts.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioAccount.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioAccount.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioApi.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioApi.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioTheatreData.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/NuvioTheatreData.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/TheatreAccountImport.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/account/TheatreAccountImport.h")
+
+set(COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES
+    engine/AudiobookDownloader.cpp
+    engine/AudiobookDownloader.h
+    engine/AudiobookTorrentTransport.cpp
+    engine/AudiobookTorrentTransport.h
+    engine/AudiobookTorrentEngineAdapter.h)
+
 qt_add_executable(colosseum
+    feedback/FeedbackRequestService.cpp
+    feedback/FeedbackRequestService.h
+    ${COLOSSEUM_THEATRE_ACCOUNT_SOURCES}
     engine/TankoyomiSeriesMatcher.cpp
     engine/TankoyomiSeriesMatcher.h
     engine/TankoyomiNetworkPolicy.cpp
@@ -611,8 +654,8 @@ qt_add_executable(colosseum
     engine/MangaImageHostResolver.h
     engine/BookDownloader.cpp
     engine/BookDownloader.h
-    engine/AudiobookDownloader.cpp
-    engine/AudiobookDownloader.h
+    ${COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES}
+    engine/AudiobookTorrentEngineAdapter.cpp
     engine/ComicDownloader.cpp
     engine/ComicDownloader.h
     engine/ComicCoverProvider.cpp  # image://comiccover/ -- stateless cover decode for archive-shaped rows
@@ -989,6 +1032,10 @@ if(NOT ANDROID)
 endif()
 
 if(ANDROID)
+    # Dexter loads Quick 3D through QML. Link the runtime without applying its C++
+    # compile flags to the app. androiddeployqt scans the staged tree for the plugins.
+    find_package(Qt6 REQUIRED COMPONENTS Quick3D)
+    target_link_libraries(colosseum PRIVATE "$<TARGET_FILE:Qt6::Quick3D>")
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/android.cmake")
 endif()
 file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
@@ -1642,8 +1689,7 @@ target_link_libraries(reader2_profile_runtime_harness PRIVATE
 # no libtorrent), so the attach logic is proven without a live download.
 add_executable(reader2_autoattach_harness
     ../tests/reader2_autoattach_harness.cpp
-    engine/AudiobookDownloader.cpp
-    engine/AudiobookDownloader.h
+    ${COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES}
     AudioPairingStore.h
     player/streamserver.cpp
     player/streamserver.h
@@ -1707,8 +1753,7 @@ add_executable(reader2_harness
     # the harness drives the REAL shared session; libmpv-2.dll/MpvQt.dll already sit beside
     # the exe (deployed for colosseum.exe in the shared build dir).
     AudioPairingStore.h
-    engine/AudiobookDownloader.cpp
-    engine/AudiobookDownloader.h
+    ${COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES}
     player/streamserver.cpp
     player/streamserver.h
     player/mpvitem.cpp
@@ -2926,8 +2971,7 @@ target_link_libraries(mal_catalog_discover_harness PRIVATE Qt6::Core Qt6::Sql Qt
 # real AudiobookDownloader + StreamServer, network-dependent, NOT in the suite.
 add_executable(audiobook_engine_probe
     ../tests/audiobook_engine_probe.cpp
-    engine/AudiobookDownloader.cpp
-    engine/AudiobookDownloader.h
+    ${COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES}
     AudioPairingStore.h
     player/streamserver.cpp
     player/streamserver.h
@@ -3308,6 +3352,7 @@ if(BUILD_TESTING)
     target_link_libraries(vinyl_test_profile_controller_harness PRIVATE Qt6::Core)
     add_test(NAME colosseum.vinyl_test_profile_controller
              COMMAND vinyl_test_profile_controller_harness)
+    set_tests_properties(colosseum.vinyl_test_profile_controller PROPERTIES LABELS "vinyl")
 endif()
 
 if(BUILD_TESTING)
@@ -3316,6 +3361,7 @@ if(BUILD_TESTING)
     target_include_directories(vinyl_personal_state_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(vinyl_personal_state_harness PRIVATE Qt6::Core)
     add_test(NAME colosseum.vinyl_personal_state COMMAND vinyl_personal_state_harness)
+    set_tests_properties(colosseum.vinyl_personal_state PROPERTIES LABELS "vinyl")
     add_executable(vinyl_taste_preferences_harness
         ../tests/vinyl_taste_preferences_harness.cpp SearchHistoryStore.h
         account/ProfilePreferencesStore.cpp account/ProfilePreferencesStore.h
@@ -3323,6 +3369,7 @@ if(BUILD_TESTING)
     target_include_directories(vinyl_taste_preferences_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(vinyl_taste_preferences_harness PRIVATE Qt6::Core)
     add_test(NAME colosseum.vinyl_taste_preferences COMMAND vinyl_taste_preferences_harness)
+    set_tests_properties(colosseum.vinyl_taste_preferences PROPERTIES LABELS "vinyl")
 endif()
 
 if(BUILD_TESTING)
@@ -3331,6 +3378,7 @@ if(BUILD_TESTING)
     target_include_directories(vinyl_session_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(vinyl_session_store_harness PRIVATE Qt6::Core feria_discovery)
     add_test(NAME colosseum.vinyl_session_store COMMAND vinyl_session_store_harness)
+    set_tests_properties(colosseum.vinyl_session_store PROPERTIES LABELS "vinyl")
 endif()
 add_executable(tankoyomi_addon_store_harness
     ../tests/tankoyomi_addon_store_harness.cpp update/UpdateTrust.cpp)

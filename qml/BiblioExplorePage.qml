@@ -303,6 +303,7 @@ Item {
     Component.onDestruction: page.cancelExtensionRequests()
     onActiveChanged: {
         if (!page.active) {
+            page.cancelDrag()
             page.cancelExtensionRequests()
             page._fetchGeneration += 1
             return
@@ -461,6 +462,9 @@ Item {
     property var dragKeys: null
     property string draggingKey: ""
     readonly property real dragRowStride: 250   // approx one shelf's vertical stride
+    onVisibleChanged: if (!visible) page.cancelDrag()
+    onEnabledChanged: if (!enabled) page.cancelDrag()
+    onEditModeChanged: if (!editMode) page.cancelDrag()
 
     function beginDrag(key) {
         page.draggingKey = key;
@@ -484,6 +488,11 @@ Item {
             var idx = page.dragKeys.indexOf(key);
             if (idx >= 0) page._commitMove(key, idx);
         }
+        page.cancelDrag();
+    }
+    function cancelDrag() {
+        // Losing the grab is not a completed reorder. Discard the preview without writing
+        // preferences; a late release sees null and cannot commit the canceled gesture.
         page.dragKeys = null;
         page.draggingKey = "";
     }
@@ -626,6 +635,9 @@ Item {
                                     page.updateDragDelta(rowBlock.rowKey, nowY - dragHandleMa.pressGlobalY)
                                 }
                                 onReleased: page.endDrag(rowBlock.rowKey)
+                                onCanceled: page.cancelDrag()
+                                onEnabledChanged: if (!enabled && page.draggingKey === rowBlock.rowKey) page.cancelDrag()
+                                onVisibleChanged: if (!visible && page.draggingKey === rowBlock.rowKey) page.cancelDrag()
                             }
                         }
                         Rectangle {

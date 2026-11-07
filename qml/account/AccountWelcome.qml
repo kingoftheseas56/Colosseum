@@ -9,10 +9,11 @@ Item {
 
     property var controller: null
     property Item backdrop: null
+    property bool theatreSyncAvailable: false
 
     readonly property bool narrowPhone: {
         const win = welcome.Window.window
-        return win && win.androidHost && win.width < 840
+        return !!win && win.androidHost === true && win.width < 840
     }
 
     readonly property bool accountEntryAvailable:
@@ -20,6 +21,7 @@ Item {
 
     signal signInRequested()
     signal createAccountRequested()
+    signal theatreSyncRequested()
 
     Loader {
         anchors.fill: parent
@@ -90,6 +92,18 @@ Item {
                 title: "Create account"
                 detail: "Start syncing your personal Colosseum."
                 onChosen: welcome.createAccountRequested()
+            }
+
+            Item { width: 1; height: 10; visible: theatreSyncChoice.visible }
+
+            AccountChoice {
+                id: theatreSyncChoice
+                objectName: "accountWelcomeTheatreSync"
+                visible: welcome.accountEntryAvailable && welcome.theatreSyncAvailable
+                width: parent.width
+                title: qsTr("Sync your Theatre")
+                detail: qsTr("Start with your library and progress from Stremio or Nuvio.")
+                onChosen: welcome.theatreSyncRequested()
             }
 
             Item { width: 1; height: 20 }

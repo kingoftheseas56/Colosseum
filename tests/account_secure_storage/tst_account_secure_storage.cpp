@@ -186,6 +186,41 @@ private slots:
 #endif
     }
 #ifdef Q_OS_ANDROID
+    void nuvioRoundTripsThroughAndroidKeystore() {
+        const QByteArray tag = qgetenv("COLOSSEUM_APPDATA_TAG");
+        struct RestoreTag {
+            QByteArray tag;
+            ~RestoreTag() {
+                if (tag.isNull())
+                    qunsetenv("COLOSSEUM_APPDATA_TAG");
+                else
+                    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+            }
+        } restore{tag};
+        qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("account-storage-test-nuvio"));
+
+        const QString profile = QStringLiteral("local");
+        auto store = createAccountCredentialStore();
+        QVERIFY(store->isAvailable());
+        struct ClearNuvio {
+            AccountCredentialStore &store;
+            QString profile;
+            ~ClearNuvio() { store.clearNuvio(profile); }
+        } clear{*store, profile};
+
+        const StoredNuvioCredential selected{profile, kAccount, kToken, kRequest, 4};
+        QVERIFY(store->saveNuvio(selected));
+        auto reopened = createAccountCredentialStore();
+        const auto loaded = reopened->loadNuvio(profile);
+        QVERIFY(loaded);
+        QCOMPARE(loaded->accountId, selected.accountId);
+        QCOMPARE(loaded->refreshToken, selected.refreshToken);
+        QCOMPARE(loaded->nuvioProfileId, selected.nuvioProfileId);
+        QCOMPARE(loaded->nuvioProfileIndex, selected.nuvioProfileIndex);
+        QVERIFY(!reopened->loadNuvio(QStringLiteral("legacy")));
+        QVERIFY(reopened->clearNuvio(profile));
+        QVERIFY(!store->loadNuvio(profile));
+    }
     void legacyAndroidJavaVaultSurvivesRotation() {
         const QByteArray tag = qgetenv("COLOSSEUM_APPDATA_TAG");
         struct RestoreTag { QByteArray tag; ~RestoreTag() { qputenv("COLOSSEUM_APPDATA_TAG", tag); } } restore{tag};

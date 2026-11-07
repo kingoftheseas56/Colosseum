@@ -77,6 +77,14 @@ void runSuite()
     int replacements = 0;
     QObject::connect(&store, &SessionStore::targetReplaced,
                      [&replacements](const QString &) { ++replacements; });
+    int sourceSwaps = 0;
+    QObject::connect(&store, &SessionStore::sourceReplaced,
+                     [&sourceSwaps, &store](const QString &id) {
+                         ++sourceSwaps;
+                         // Emitted after the new target is installed, before activation.
+                         require(!store.get(id).value(QStringLiteral("target")).toMap().isEmpty(),
+                                 "sourceReplaced sees the installed target");
+                     });
 
     const QString c1 = store.openOrSwitch(
         comicDesc(QStringLiteral("Shared Title"), QStringLiteral("series-a"),
@@ -153,6 +161,32 @@ void runSuite()
     require(store.get(s1).value(QStringLiteral("target")).toMap()
                 .value(QStringLiteral("infoHash")).toString() == QStringLiteral("betterhash"),
             "same episode transport refresh installs the newest source descriptor");
+    require(sourceSwaps == 1, "same episode on another source emits sourceReplaced exactly once");
+    require(replacements == beforeRefreshSignals, "a source swap is not a content replacement");
+    store.openOrSwitch(
+        showDesc(QStringLiteral("tt-show"), QStringLiteral("tt-show:1:2"),
+                 QStringLiteral("BETTERHASH"), 7, QStringLiteral("Episode 2 renamed"),
+                 QStringLiteral("http://127.0.0.1/re-resolved")));
+    require(sourceSwaps == 1,
+            "metadata/case/re-resolved URL refresh of the same torrent file is not a source swap");
+    store.openOrSwitch(
+        showDesc(QStringLiteral("tt-show"), QStringLiteral("tt-show:1:2"),
+                 QStringLiteral("betterhash"), 8, QStringLiteral("Episode 2 other file")));
+    require(sourceSwaps == 2, "another file of the same torrent is a different source");
+    require(store.get(s1).value(QStringLiteral("savedState")).toMap()
+                .value(QStringLiteral("position")).toInt() == 37,
+            "source swaps keep the exact-content saved position");
+    // Same session already active: the swap is still announced (setActive is a no-op).
+    require(store.activeId() == s1, "session stays active across the swap");
+    // Direct URL pseudo-hash sources keep their case-sensitive identity.
+    store.openOrSwitch(
+        showDesc(QStringLiteral("tt-show"), QStringLiteral("tt-show:1:2"),
+                 QStringLiteral("url:https://cdn.example/A.mkv"), 0, QStringLiteral("Direct")));
+    require(sourceSwaps == 3, "switching to a direct source is a source swap");
+    store.openOrSwitch(
+        showDesc(QStringLiteral("tt-show"), QStringLiteral("tt-show:1:2"),
+                 QStringLiteral("url:https://cdn.example/a.mkv"), 0, QStringLiteral("Direct")));
+    require(sourceSwaps == 4, "direct URL identity is case-sensitive");
 
     store.switchTo(QString());
     const QString r1 = store.openOrSwitch(

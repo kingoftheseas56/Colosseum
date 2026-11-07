@@ -1,5 +1,7 @@
 #include "androidmedia3state.h"
 
+#include <QUrl>
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -56,6 +58,13 @@ bool isTerminal(const AndroidMedia3Snapshot &snapshot)
 
 } // namespace
 
+QVariant AndroidMedia3State::playbackStat(const QString &name) const
+{
+    if (name == QLatin1String("recovery-paused") && m_snapshot.errored)
+        return m_pausedBeforeError;
+    return {};
+}
+
 quint64 AndroidMedia3State::beginLoad(const QString &url, const QVariantMap &headers)
 {
     if (m_generation == std::numeric_limits<quint64>::max())
@@ -68,7 +77,10 @@ quint64 AndroidMedia3State::beginLoad(const QString &url, const QVariantMap &hea
 void AndroidMedia3State::resetSourceScopedState(const QString &url, const QVariantMap &headers)
 {
     m_snapshot = AndroidMedia3Snapshot{};
-    m_snapshot.currentUrl = url;
+    // Downloaded files arrive as filesystem paths. Media3's admission and
+    // DataSource both require a file URI, including escaped filename bytes.
+    m_snapshot.currentUrl = url.startsWith(QLatin1Char('/'))
+        ? QUrl::fromLocalFile(url).toString(QUrl::FullyEncoded) : url;
     m_snapshot.headers = headers;
     m_pendingVideoWidth = 0;
     m_pendingVideoHeight = 0;
@@ -93,7 +105,9 @@ QVariantMap AndroidMedia3State::capabilities() const
     caps.insert(QStringLiteral("frameCapture"), false);
     caps.insert(QStringLiteral("gifCapture"), false);
     caps.insert(QStringLiteral("audioDelay"), false);
-    caps.insert(QStringLiteral("subtitleDelay"), false);
+    // shifts loaded subtitle files (sidecar cues are timed in C++); Media3's own
+    // embedded-track cues still arrive on Media3's clock and do not move.
+    caps.insert(QStringLiteral("subtitleDelay"), true);
     caps.insert(QStringLiteral("videoTransform"), false);
     caps.insert(QStringLiteral("loudnessNormalization"), false);
     caps.insert(QStringLiteral("playbackStats"), false);
@@ -157,10 +171,21 @@ bool AndroidMedia3State::markEnded(quint64 generation)
     return true;
 }
 
+bool AndroidMedia3State::rearmAfterEnd(quint64 generation)
+{
+    if (!accepts(generation) || !m_snapshot.ended || m_snapshot.errored)
+        return false;
+    m_snapshot.ended = false;
+    m_snapshot.paused = true;
+    clearSeek();
+    return true;
+}
+
 bool AndroidMedia3State::markError(quint64 generation, const QString &code, const QString &message)
 {
     if (!accepts(generation) || isTerminal(m_snapshot))
         return false;
+    m_pausedBeforeError = m_snapshot.paused;
     m_snapshot.errored = true;
     m_snapshot.errorCode = code;
     m_snapshot.errorMessage = message;
@@ -389,6 +414,9 @@ HostPlaybackAction AndroidMedia3State::beginLifecycleHostStop(quint64 generation
     m_snapshot.hostStopped = true;
     m_snapshot.lifecycleErrorSuppressionArmed = true;
     m_snapshot.lifecyclePrepareSubmitted = false;
+    // Returning from Android background is not an implicit Play command. A
+    // deliberate noteUserPlay() during restore may set this again before READY.
+    m_snapshot.userWantsPlay = false;
     m_snapshot.paused = true;
     return HostPlaybackAction::Stop;
 }

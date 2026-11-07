@@ -39,4 +39,6 @@ for (const bad of ['content://provider/document/1', 'file:///private/book.epub',
 }
 assert.equal(fetched.length, 1, 'unapproved URLs never reach fetch')
 assert.equal(window.colosseumDisablePublicationScripts, true)
+assert.equal(window.colosseumFontBase, '/assets/colosseum-runtime/assets/fonts/',
+  'Android reading fonts resolve from the packaged runtime rather than desktop paths')
 console.log('ANDROID_READER_BOOT_OK')

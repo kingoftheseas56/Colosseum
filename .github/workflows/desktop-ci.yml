@@ -2,6 +2,11 @@ name: desktop-ci
 
 on:
   workflow_dispatch:
+    inputs:
+      analysis_advisory:
+        description: "Report CodeQL, clang-tidy, and AddressSanitizer failures without failing desktop CI"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -48,9 +53,9 @@ jobs:
   windows-desktop:
     needs: public-trust
     runs-on: windows-2025
-    # Dependency setup, CodeQL, clang-tidy, and the ASAN probe build exceed
-    # the default 90-minute window on the hosted Windows runner.
-    timeout-minutes: 150
+    # In advisory mode, reserve time for the regular build and tests even
+    # if each analysis step takes its full timeout.
+    timeout-minutes: ${{ inputs.analysis_advisory && 285 || 150 }}
     permissions:
       contents: read
       actions: read
@@ -93,6 +98,9 @@ jobs:
           cl 2>&1 | Select-Object -First 5
 
       - name: Install pinned LLVM clang-tidy
+        id: clang_tidy_setup
+        continue-on-error: ${{ inputs.analysis_advisory }}
+        timeout-minutes: ${{ inputs.analysis_advisory && 10 || 150 }}
         shell: pwsh
         run: |
           $installer = Join-Path $env:RUNNER_TEMP "LLVM-$env:LLVM_VERSION-win64.exe"
@@ -186,6 +194,9 @@ jobs:
           "$install/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Initialize CodeQL C++
+        id: codeql_init
+        continue-on-error: ${{ inputs.analysis_advisory }}
+        timeout-minutes: ${{ inputs.analysis_advisory && 10 || 150 }}
         uses: github/codeql-action/init@v4
         with:
           languages: c-cpp
@@ -222,7 +233,6 @@ jobs:
             nuvio_repository_store_test `
             nuvio_plugin_host_test `
             nuvio_source_resolver_test `
-            vinyl_availability_development vinyl_availability_qualification vinyl_availability_shipping_disabled `
             feria_runtime_integration_test feria_operations_integration_test `
             --parallel 2 2>&1 | Tee-Object -FilePath $log
           $buildExit = $LASTEXITCODE
@@ -234,12 +244,27 @@ jobs:
             exit $buildExit
           }
 
+      # Vinyl is out of 1.3.0. Make these checks blocking again when Vinyl is scheduled.
+      - name: Advisory Vinyl availability checks
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
+          cmake --build $env:COLOSSEUM_CI_BUILD --target `
+            vinyl_availability_development vinyl_availability_qualification vinyl_availability_shipping_disabled `
+            --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir $env:COLOSSEUM_CI_BUILD `
+            -R '^colosseum\.vinyl_availability_(development|qualification|shipping_disabled)$' `
+            --output-on-failure `
+            --no-tests=error
+
       - name: Release-critical smoke
         shell: pwsh
         run: |
           $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
           ctest --test-dir $env:COLOSSEUM_CI_BUILD `
-            -R 'colosseum\.(update_manifest_trust_harness|update_install_bridge_harness|nuvio_repository_store_test|nuvio_plugin_host_test|nuvio_source_resolver_test|vinyl_availability_development|vinyl_availability_qualification|vinyl_availability_shipping_disabled|feria_runtime_integration|feria_operations_integration)$' `
+            -R 'colosseum\.(update_manifest_trust_harness|update_install_bridge_harness|nuvio_repository_store_test|nuvio_plugin_host_test|nuvio_source_resolver_test|feria_runtime_integration|feria_operations_integration)$' `
             --output-on-failure
 
       - name: Windows installer packaging contract
@@ -248,11 +273,19 @@ jobs:
           tests.test_release_installer_smoke_contract.ReleaseInstallerSmokeContract.test_nuvio_helper_and_required_notices_are_staged_for_windows_installer
 
       - name: Analyze C++
+        id: codeql_analysis
+        if: steps.codeql_init.outcome == 'success'
+        continue-on-error: ${{ inputs.analysis_advisory }}
+        timeout-minutes: ${{ inputs.analysis_advisory && 25 || 150 }}
         uses: github/codeql-action/analyze@v4
         with:
           category: /language:c-cpp
 
       - name: Run clang-tidy correctness gate
+        id: clang_tidy_analysis
+        if: steps.clang_tidy_setup.outcome == 'success'
+        continue-on-error: ${{ inputs.analysis_advisory }}
+        timeout-minutes: ${{ inputs.analysis_advisory && 35 || 150 }}
         shell: pwsh
         run: |
           python scripts/clang_tidy_quality_gate.py `
@@ -265,6 +298,9 @@ jobs:
             --min-files 184
 
       - name: Configure AddressSanitizer probes
+        id: asan_setup
+        continue-on-error: ${{ inputs.analysis_advisory }}
+        timeout-minutes: ${{ inputs.analysis_advisory && 5 || 150 }}
         shell: pwsh
         run: |
           $build = Join-Path $env:RUNNER_TEMP "colosseum-asan"
@@ -282,6 +318,10 @@ jobs:
           "COLOSSEUM_ASAN_BUILD=$build" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Run AddressSanitizer probes
+        id: asan_probes
+        if: steps.asan_setup.outcome == 'success'
+        continue-on-error: ${{ inputs.analysis_advisory }}
+        timeout-minutes: ${{ inputs.analysis_advisory && 35 || 150 }}
         shell: pwsh
         run: |
           cmake --build $env:COLOSSEUM_ASAN_BUILD --target `
@@ -312,10 +352,30 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "$target failed under AddressSanitizer" }
           }
 
+      - name: Report advisory analysis outcomes
+        if: ${{ !cancelled() && inputs.analysis_advisory }}
+        continue-on-error: ${{ inputs.analysis_advisory }}
+        shell: pwsh
+        run: |
+          @'
+          ### Advisory desktop analysis
+
+          | Step | Outcome |
+          | --- | --- |
+          | Initialize CodeQL | ${{ steps.codeql_init.outcome }} |
+          | Analyze with CodeQL | ${{ steps.codeql_analysis.outcome }} |
+          | Install clang-tidy | ${{ steps.clang_tidy_setup.outcome }} |
+          | Run clang-tidy | ${{ steps.clang_tidy_analysis.outcome }} |
+          | Configure AddressSanitizer | ${{ steps.asan_setup.outcome }} |
+          | Run AddressSanitizer probes | ${{ steps.asan_probes.outcome }} |
+
+          A skipped analysis had a failed prerequisite. See the step logs for details.
+          '@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
   linux-desktop:
     needs: public-trust
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: ${{ inputs.analysis_advisory && 290 || 180 }}
     env:
       ECM_VERSION: "6.15.0"
       ECM_SHA256: "f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2"
@@ -344,7 +404,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential ninja-build pkg-config ccache \
-            clang-tidy-20 \
             libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
             libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 \
             xvfb xauth ffmpeg p7zip-full libarchive-tools patchelf
@@ -352,6 +411,14 @@ jobs:
 
       - name: Linux release packaging contract
         run: python3 tools/linux-release/test_packaging.py
+
+      - name: Install and verify Linux clang-tidy
+        id: clang_tidy_setup
+        continue-on-error: ${{ inputs.analysis_advisory }}
+        timeout-minutes: ${{ inputs.analysis_advisory && 10 || 180 }}
+        run: |
+          sudo apt-get install -y --no-install-recommends clang-tidy-20
+          clang-tidy-20 --version
 
       - name: Restore Linux compiler cache
         id: restore-linux-ccache
@@ -368,10 +435,12 @@ jobs:
           ninja --version
           c++ --version | head -1
           ccache --version | head -1
-          clang-tidy-20 --version | head -3
           pkg-config --modversion mpv
 
       - name: Validate clang-tidy gate helper on Linux
+        id: clang_tidy_helper
+        continue-on-error: ${{ inputs.analysis_advisory }}
+        timeout-minutes: ${{ inputs.analysis_advisory && 5 || 180 }}
         env:
           PYTHONPATH: .
         run: python tests/test_clang_tidy_quality_gate.py
@@ -507,13 +576,27 @@ jobs:
           PY
           ctest --test-dir "$COLOSSEUM_LINUX_BUILD" -N -LE windows
 
+      # Vinyl is out of 1.3.0. Make these tests blocking again when Vinyl is scheduled.
+      - name: Advisory Vinyl CTests
+        continue-on-error: true
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_FORCE_STDERR_LOGGING: "1"
+        run: |
+          ctest --test-dir "$COLOSSEUM_LINUX_BUILD" \
+            -L "^vinyl$" \
+            -LE "^(windows|requires-x11)$" \
+            --output-on-failure \
+            --no-tests=error \
+            --parallel 1
+
       - name: Run platform-neutral Linux CTests
         env:
           QT_QPA_PLATFORM: offscreen
           QT_FORCE_STDERR_LOGGING: "1"
         run: |
           ctest --test-dir "$COLOSSEUM_LINUX_BUILD" \
-            -LE "windows|requires-x11" \
+            -LE "^(windows|requires-x11|vinyl)$" \
             --output-on-failure \
             --parallel 1
 
@@ -530,6 +613,10 @@ jobs:
             --parallel 1
 
       - name: Run clang-tidy correctness gate on Linux
+        id: clang_tidy_analysis
+        if: steps.clang_tidy_setup.outcome == 'success'
+        continue-on-error: ${{ inputs.analysis_advisory }}
+        timeout-minutes: ${{ inputs.analysis_advisory && 90 || 180 }}
         run: |
           python scripts/clang_tidy_quality_gate.py \
             --clang-tidy "$(command -v clang-tidy-20)" \
@@ -544,6 +631,22 @@ jobs:
         if: always()
         run: ccache --show-stats || true
 
+      - name: Report advisory analysis outcomes
+        if: ${{ !cancelled() && inputs.analysis_advisory }}
+        continue-on-error: ${{ inputs.analysis_advisory }}
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ### Advisory desktop analysis
+
+          | Step | Outcome |
+          | --- | --- |
+          | Install and verify clang-tidy | ${{ steps.clang_tidy_setup.outcome }} |
+          | Validate the clang-tidy helper | ${{ steps.clang_tidy_helper.outcome }} |
+          | Run clang-tidy | ${{ steps.clang_tidy_analysis.outcome }} |
+
+          A skipped analysis had a failed prerequisite. See the step logs for details.
+          EOF
+
   dependency-scan:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -551,7 +654,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.26.9"
+          go-version: "1.26.10"
       # Reachability-aware gate: govulncheck fails only when a vulnerability is
       # actually CALLED by the code (unlike a plain version scanner). The known
       # unreachable advisory (x/crypto/openpgp) does NOT fail the gate; a newly

@@ -1059,7 +1059,9 @@ bool ProfilePreferencesStore::commitMainSyncProvider(
     const QString &provider,
     bool localMutation) {
     const QString normalized = provider.trimmed().toLower();
-    if (!normalized.isEmpty() && normalized != QStringLiteral("stremio"))
+    if (!normalized.isEmpty()
+        && normalized != QStringLiteral("stremio")
+        && normalized != QStringLiteral("nuvio"))
         return false;
     if (m_mainSyncProvider == normalized)
         return true;
@@ -1210,7 +1212,8 @@ void ProfilePreferencesStore::load() {
     m_keepActivityHistory = m_settings->value(QString::fromLatin1(kKeepActivityHistoryKey), true).toBool();
     m_syncActivityHistory = m_settings->value(QString::fromLatin1(kSyncActivityHistoryKey), true).toBool();
     const QString provider = m_settings->value(QString::fromLatin1(kMainSyncProviderKey)).toString().trimmed().toLower();
-    m_mainSyncProvider = provider == QStringLiteral("stremio") ? provider : QString();
+    m_mainSyncProvider = (provider == QStringLiteral("stremio")
+                          || provider == QStringLiteral("nuvio")) ? provider : QString();
 
     // The active ProfileStoreRuntime provides a separate INI file for each user.
     // Legacy users keep the pre-existing QSettings scope, without migration.

@@ -28,13 +28,25 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: shown
-    nativeWindow: false
+    nativeWindow: true
     id: menu
 
     // ---- inputs ----
     // the paper 'selection' / 'highlightTapped' rect { x, y, w, h }, in overlay coordinates.
     property var sel: ({ x: 0, y: 0, w: 0, h: 0 })
     property bool shown: false
+    property bool touchInput: Qt.platform.os === "android"
+    property var inputMethod: Qt.inputMethod
+    readonly property real keyboardOverlap: {
+        if (!touchInput || !noteEditing || !inputMethod || !inputMethod.visible) return 0
+        const keyboard = inputMethod.keyboardRectangle
+        if (!keyboard || keyboard.height <= 0) return 0
+        // Qt reports logical window coordinates. The editor lives in surface's native
+        // child window on Android, so map from that window rather than the host scene.
+        const top = menu.surface.mapFromItem(null, 0, keyboard.y).y
+        return Math.min(height, Math.max(0, height - top))
+    }
+    readonly property real availableHeight: Math.max(0, height - keyboardOverlap)
     // "select" (fresh selection) | "existing" (a tapped highlight). Drives which actions show.
     property string mode: "select"
 
@@ -53,14 +65,14 @@ ReaderOverlay {
     property bool noteEditing: false
     function focusBelongsHere(item) {
         var p = item
-        while (p) { if (p === menu) return true; p = p.parent }
+        while (p) { if (p === menu.surface || p === menu) return true; p = p.parent }
         return false
     }
     function trapTab(event) {
         var tab = event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab
         if (!shown || !tab) return false
         var backwards = event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)
-        var w = menu.Window.window
+        var w = menu.surface.Window.window
         var current = w ? w.activeFocusItem : null
         var next = current
         for (var i = 0; i < 128; ++i) {
@@ -99,9 +111,18 @@ ReaderOverlay {
         { display: Qt.rgba(151 / 255, 187 / 255, 152 / 255, 0.85), value: "#97BB98" }  // moss
     ]
 
-    readonly property int cardH: noteEditing ? 128 : 44
-    readonly property int cardW: noteEditing ? 300 : (cardRow.implicitWidth + 28)  // 14px pad each side
-    readonly property var pos: L.selectionMenuPos(menu.sel, menu.width, menu.height,
+    // Touch input (Android) gets finger-sized hosts: 48-unit swatches/actions/save, contained
+    // in the overlay width. Desktop dimensions are unchanged.
+    readonly property real touchTarget: touchInput ? 48 : 0
+    readonly property int cardH: noteEditing
+        ? (touchInput ? Math.min(152, Math.max(0, availableHeight - 20)) : 128)
+        : (touchInput ? cardRow.implicitHeight : 44)
+    readonly property real actionRowWidth: 3 * (touchInput ? 48 : 20) + 1
+        + (mode === "select" ? noteAction.width + defineAction.width + copyAction.width : deleteAction.width)
+        + (touchInput ? 0 : (mode === "select" ? 6 : 4) * 12)
+    readonly property int naturalCardW: noteEditing ? 300 : (actionRowWidth + 28)  // 14px pad each side
+    readonly property int cardW: touchInput ? Math.min(Math.max(0, width - 24), naturalCardW) : naturalCardW
+    readonly property var pos: L.selectionMenuPos(menu.sel, menu.width, menu.availableHeight,
                                                   menu.cardW, menu.cardH, 12, 10)
 
     // ---------- backdrop: tap-outside dismiss (below the card) ----------
@@ -117,6 +138,7 @@ ReaderOverlay {
     // ---------- the card ----------
     Rectangle {
         id: card
+        objectName: "reader2SelectionCard"
         x: menu.pos.x
         y: menu.pos.y
         width: menu.cardW
@@ -137,13 +159,15 @@ ReaderOverlay {
         }
 
         // ===== action row (both modes; hidden while the note editor is open) =====
-        Row {
+        Flow {
             id: cardRow
             visible: !menu.noteEditing
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: 14
-            spacing: 12
+            width: menu.touchInput ? Math.max(0, card.width - 28) : menu.actionRowWidth
+            // touch hosts abut (disjoint) instead of adding gaps beside 48-unit targets
+            spacing: menu.touchInput ? 0 : 12
 
             // three color dots — select: highlight-in-color; existing: re-color.
             Repeater {
@@ -153,8 +177,8 @@ ReaderOverlay {
                     id: dot
                     required property var modelData
                     required property int index
-                    width: 20
-                    height: card.height
+                    width: menu.touchInput ? 48 : 20
+                    height: menu.touchInput ? 48 : 44
                     function focusKeyboard() { dotMa.forceActiveFocus(Qt.OtherFocusReason) }
                     Rectangle {
                         anchors.centerIn: parent
@@ -179,25 +203,32 @@ ReaderOverlay {
             }
 
             // divider
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
+            Item {
                 width: 1
-                height: 20
-                color: Theme.barBorder
+                height: menu.touchInput ? 48 : 44
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 1
+                    height: 20
+                    color: Theme.barBorder
+                }
             }
 
             // ---- select-mode text actions: Note · Define · Copy ----
             TextAction {
+                id: noteAction
                 label: "Note"
                 visible: menu.mode === "select"
                 onTriggered: menu.noteEditing = true
             }
             TextAction {
+                id: defineAction
                 label: "Define"
                 visible: menu.mode === "select"
                 onTriggered: menu.defineRequested()
             }
             TextAction {
+                id: copyAction
                 label: "Copy"
                 visible: menu.mode === "select"
                 onTriggered: menu.copyRequested()
@@ -205,6 +236,7 @@ ReaderOverlay {
 
             // ---- existing-mode action: Delete ----
             TextAction {
+                id: deleteAction
                 label: "Delete"
                 visible: menu.mode === "existing"
                 onTriggered: menu.deleteRequested()
@@ -224,7 +256,7 @@ ReaderOverlay {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                height: parent.height - 34
+                height: Math.max(0, parent.height - (menu.touchInput ? 58 : 34))
                 radius: 8
                 color: Qt.rgba(1, 1, 1, 0.05)
                 border.color: Theme.barBorder
@@ -241,6 +273,7 @@ ReaderOverlay {
 
                     TextEdit {
                         id: noteInput
+                        objectName: "reader2SelectionNoteInput"
                         width: noteFlick.width
                         wrapMode: TextEdit.Wrap
                         font.family: Theme.ui
@@ -276,12 +309,13 @@ ReaderOverlay {
                 spacing: 16
                 TextAction {
                     label: "Cancel"
-                    btnHeight: 24
+                    btnHeight: menu.touchInput ? 48 : 24
                     onTriggered: menu.dismissed()
                 }
                 Item {
-                    width: saveText.implicitWidth + 8
-                    height: 24
+                    objectName: "reader2SelectionSave"
+                    width: Math.max(saveText.implicitWidth + 8, menu.touchTarget)
+                    height: menu.touchInput ? 48 : 24
                     readonly property bool canSave: noteInput.text.trim().length > 0
                     Text {
                         id: saveText
@@ -309,9 +343,9 @@ ReaderOverlay {
     // A small text button used in both the action row and the editor's Cancel/Save.
     component TextAction: Item {
         property alias label: t.text
-        property int btnHeight: 44
+        property int btnHeight: menu.touchInput ? 48 : 44
         signal triggered()
-        width: t.implicitWidth + 8
+        width: Math.max(t.implicitWidth + 8, menu.touchTarget)
         height: btnHeight
         Text {
             id: t

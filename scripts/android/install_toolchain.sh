@@ -29,19 +29,45 @@ CMDLINE_TOOLS_ZIP="commandlinetools-linux-13114758_latest.zip"
 # The staged Dexter scene imports QtQuick3D/Helpers. Keep its runtime and shader
 # tooling in both host-preflight and Android kits; do not hide a reachable page
 # from the QML compile gate to compensate for an incomplete toolchain.
-QT_ANDROID_MODULES=(qtwebsockets qtimageformats qtquick3d qtshadertools qtquicktimeline)
-QT_HOST_MODULES=(qtwebsockets qtimageformats qtquick3d qtshadertools qtquicktimeline)
+QT_MODULES=(qtwebsockets qtimageformats qtshadertools qtquick3d qtquicktimeline)
 
 mkdir -p "$TOOLCHAIN"
 log() { printf '[android-toolchain] %s\n' "$*" >&2; }
 
-qt_scene_modules_ready() {
-    local kit="$1"
-    [[ -f "$kit/lib/cmake/Qt6Quick3D/Qt6Quick3DConfig.cmake" &&
-       -f "$kit/lib/cmake/Qt6ShaderTools/Qt6ShaderToolsConfig.cmake" &&
-       -f "$kit/lib/cmake/Qt6QuickTimeline/Qt6QuickTimelineConfig.cmake" &&
-       -f "$kit/qml/QtQuick3D/qmldir" &&
-       -f "$kit/qml/QtQuick3D/Helpers/qmldir" ]]
+missing_qt_modules() {
+    local kit=$1
+    local cmake_dir="$kit/lib/cmake"
+    [[ -f "$cmake_dir/Qt6WebSockets/Qt6WebSocketsConfig.cmake" ]] || echo qtwebsockets
+    compgen -G "$kit/plugins/imageformats/*qwebp*.so" >/dev/null || echo qtimageformats
+    [[ -f "$cmake_dir/Qt6ShaderTools/Qt6ShaderToolsConfig.cmake" ]] || echo qtshadertools
+    [[ -f "$cmake_dir/Qt6QuickTimeline/Qt6QuickTimelineConfig.cmake" ]] || echo qtquicktimeline
+    if [[ ! -f "$cmake_dir/Qt6Quick3D/Qt6Quick3DConfig.cmake" ||
+          ! -f "$kit/qml/QtQuick3D/qmldir" ||
+          ! -f "$kit/qml/QtQuick3D/Helpers/qmldir" ||
+          ! -f "$kit/qml/QtQuick3D/Helpers/impl/qmldir" ]]; then
+        echo qtquick3d
+    fi
+}
+
+install_qt_kit() {
+    local host=$1 target=$2 arch=$3 kit_dir=$4 base_tool=$5
+    local kit="$QT_ROOT/$QT_VERSION/$kit_dir"
+    local -a install_args=() modules=("${QT_MODULES[@]}")
+    if [[ -x "$kit/$base_tool" ]]; then
+        # Add missing packages to older caches without reinstalling Qt base.
+        install_args+=(--noarchives)
+        mapfile -t modules < <(missing_qt_modules "$kit")
+    fi
+    if ((${#modules[@]})); then
+        log "Qt $QT_VERSION $arch: ${modules[*]}"
+        aqt install-qt "$host" "$target" "$QT_VERSION" "$arch" \
+            -O "$QT_ROOT" "${install_args[@]}" -m "${modules[@]}" >&2
+    fi
+    mapfile -t modules < <(missing_qt_modules "$kit")
+    if [[ ! -x "$kit/$base_tool" ]] || ((${#modules[@]})); then
+        log "Qt $arch kit is incomplete after installation: ${modules[*]:-missing $base_tool}"
+        exit 1
+    fi
 }
 
 java_major=$(java -version 2>&1 | sed -nE 's/.*version "([0-9]+).*/\1/p' | head -1)
@@ -54,25 +80,9 @@ if [[ "${SKIP_QT:-0}" != 1 ]]; then
     if ! command -v aqt >/dev/null 2>&1; then
         python3 -m pip install --quiet "aqtinstall==3.3.0"
     fi
-    if [[ ! -x "$QT_ROOT/$QT_VERSION/gcc_64/bin/qmake" ]] ||
-       ! qt_scene_modules_ready "$QT_ROOT/$QT_VERSION/gcc_64"; then
-        log "Qt $QT_VERSION host linux_gcc_64"
-        aqt install-qt linux desktop "$QT_VERSION" linux_gcc_64 \
-            -O "$QT_ROOT" -m "${QT_HOST_MODULES[@]}" >&2
-    fi
-    qt_scene_modules_ready "$QT_ROOT/$QT_VERSION/gcc_64" || {
-        log "host Qt kit is missing required Quick3D modules after installation"; exit 1;
-    }
+    install_qt_kit linux desktop linux_gcc_64 gcc_64 bin/qmake
     for arch in android_arm64_v8a android_x86_64; do
-        if [[ ! -x "$QT_ROOT/$QT_VERSION/$arch/bin/qt-cmake" ]] ||
-           ! qt_scene_modules_ready "$QT_ROOT/$QT_VERSION/$arch"; then
-            log "Qt $QT_VERSION $arch"
-            aqt install-qt all_os android "$QT_VERSION" "$arch" \
-                -O "$QT_ROOT" -m "${QT_ANDROID_MODULES[@]}" >&2
-        fi
-        qt_scene_modules_ready "$QT_ROOT/$QT_VERSION/$arch" || {
-            log "Qt $arch kit is missing required Quick3D modules after installation"; exit 1;
-        }
+        install_qt_kit all_os android "$arch" "$arch" bin/qt-cmake
     done
 fi
 

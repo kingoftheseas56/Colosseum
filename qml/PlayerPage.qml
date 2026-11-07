@@ -115,6 +115,7 @@ Item {
         category: "transport"
         property int seekStepSeconds: 10
         property bool showSkipButton: true
+        property bool phoneGestureAdjustments: false
         property bool autoSkipIntro: false
         property bool autoSkipRecap: false
         property bool autoSkipCredits: false
@@ -179,7 +180,10 @@ Item {
     property string traktVideoId: ""
     property string traktTitle: ""
     property string traktType: ""
-    onMediaIdChanged: if (traktPlaying && mediaId !== traktVideoId) sendTraktPlayback(false)
+    onMediaIdChanged: {
+        if (traktPlaying && mediaId !== traktVideoId) sendTraktPlayback(false)
+        root.cancelTouchInteraction()
+    }
     function sendTraktPlayback(playing) {
         if (typeof ProfileTrackers !== "undefined"
                 && ProfileTrackers
@@ -251,6 +255,7 @@ Item {
     // --- resume choice (Feature 3): first-load-only Resume / Start over overlay ---
     property real resumePromptMinSec: 30       // only prompt after meaningful progress
     property real resumeRestartThreshold: 0.80 // at/over this fraction of duration, start over silently
+    property bool explicitResumePosition: false // a Continue source pick keeps its requested position (PF-04)
     property bool resumeChoiceOpen: false      // is the overlay visible
     property var resumeChoiceFocusReturnItem: null
     onResumeChoiceOpenChanged: {
@@ -336,6 +341,26 @@ Item {
     property double recoveryNoVideoSince: 0
     property double wakeReconnectLastTickAt: 0
     property real wakeReconnectPendingSeek: -1
+    // The Stream route currently loaded (onStreamReady). Android retires it when
+    // the app is backgrounded, so a foreground return must re-demand it.
+    property bool streamDemandActive: false
+    property int streamDemandEpoch: 0
+    property int streamRestoreEpoch: -1
+    property string streamRestoreMediaId: ""
+    property string streamRestoreSessionId: ""
+    property string streamRouteUrl: ""
+    property string streamRouteHash: ""
+    property int streamRouteFileIdx: 0
+    property bool streamRouteRestorePending: false
+    property bool streamRouteRestoreLoadPending: false
+    // Pre-background position for that re-demand. Kept apart from the
+    // wake-reconnect seek, which recovery retries reset.
+    property real streamRouteRestoreSec: -1
+    // Playback intent at that re-demand ("paused"/"playing", "" when none): a
+    // fresh source load autoplays, so the reopen re-applies it whether or not a
+    // position seek is needed.
+    property string streamRouteRestoreIntent: ""
+    property var streamRouteRestoreSubtitle: null
 
     property var deadStreamKeys: ({})
     property string stubCheckedKey: ""
@@ -378,8 +403,12 @@ Item {
         root.wakeChrome()
     }
     onOverflowOpenChanged: {
-        if (root.overflowOpen)
-            Qt.callLater(function() { overflowPanel.beginKeyboardNavigation() })
+        if (root.overflowOpen) {
+            if (PlatformRuntime.android)
+                Qt.callLater(function() { overflowPanel.forceActiveFocus(Qt.PopupFocusReason) })
+            else
+                Qt.callLater(function() { overflowPanel.beginKeyboardNavigation() })
+        }
         else if (root.overflowFocusReturnItem) {
             var target = root.overflowFocusReturnItem
             root.overflowFocusReturnItem = null
@@ -567,6 +596,7 @@ Item {
     function addOnlineSubtitle(url, title, lang) {
         if (!url || !url.length)
             return
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedSubs = true
         root.addedOnlineUrls[url] = true
         root.subModelRev++
@@ -576,6 +606,7 @@ Item {
     function loadSubtitleFile(fileUrl) {
         if (!fileUrl)
             return false
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedSubs = true
         var raw = String(fileUrl)
         root.addedOnlineUrls[raw] = true
@@ -620,8 +651,19 @@ Item {
         return parts.length ? parts[parts.length - 1] : "Subtitle"
     }
 
+    // PF-07: Media3 titles every embedded track "Subtitle", and fetched files arrive as
+    // "OpenSubtitles v3 #<id>"; neither tells a person anything, so those rows take the
+    // language's name instead. Presentation only: ids/urls/selection are unchanged.
+    function subtitleDisplayTitle(title, lang) {
+        var t = String(title || "").trim()
+        var generic = !t.length || /^(subtitles?|track\s*\d*)$/i.test(t) || /#\d+\s*$/.test(t)
+        if (!generic || !String(lang || "").trim().length)
+            return t.length ? t : "Subtitle"
+        return Subtitles.langName(lang)
+    }
+
     function subtitleRow(track) {
-        var title = track.title || track.label || track.lang || "Subtitle"
+        var title = root.subtitleDisplayTitle(track.title || track.label, track.lang)
         var lang = track.lang || ""
         var hiProbe = (title + " " + lang).toLowerCase()
         return {
@@ -681,6 +723,16 @@ Item {
     // so channel-count/bitrate live under dashed keys reached by bracket access.
     function trackCodecLabel(track) {
         var c = String(track.codec || "").split(" ")[0]
+        // Android (Media3) reports MIME types: "application/x-subrip", "audio/mp4a-latm". Name the
+        // format; Media3's internal "x-media3-cues" names none, so it shows nothing (PF-07).
+        if (c.indexOf("/") > 0) {
+            c = c.toLowerCase().replace(/^[a-z]+\//, "").replace(/^x-/, "")
+            if (c.indexOf("media3-cues") >= 0) return ""
+            var known = { "subrip": "SRT", "vtt": "VTT", "ssa": "SSA", "ass": "ASS", "hdmv-pgs": "PGS",
+                          "pgs": "PGS", "vobsub": "VOBSUB", "ttml+xml": "TTML", "mp4a-latm": "AAC",
+                          "ac3": "AC3", "eac3": "EAC3", "eac3-joc": "EAC3", "true-hd": "TRUEHD", "vnd.dts": "DTS" }
+            return known[c] || c.toUpperCase()
+        }
         return c.length ? c.toUpperCase() : ""
     }
     function trackChannels(track) {
@@ -827,6 +879,7 @@ Item {
     }
 
     function resetTrackAutomation() {
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedAudio = false
         root.trackAutoDoneKey = ""
         root.autoAudioTrackId = ""
@@ -911,6 +964,7 @@ Item {
     }
 
     function pickSubtitleTrack(trackId) {
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedSubs = true
         var row = null
         for (var i = 0; i < root.subRows.length; i++)
@@ -925,6 +979,7 @@ Item {
     }
 
     function turnSubtitlesOff() {
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedSubs = true
         mpv.subtitleTrack = ""
         root.saveTrackPreference({ "subtitlesOff": true, "subDelay": mpv.subDelay })
@@ -941,6 +996,8 @@ Item {
         if (!root.supportsPlayerCapability("subtitleDelay"))
             return
         mpv.subDelay = root.round2(mpv.subDelay + delta)
+        if (root.streamRouteRestoreSubtitle)
+            root.streamRouteRestoreSubtitle.delay = mpv.subDelay
         root.saveTrackPreference({ "subDelay": mpv.subDelay })
     }
 
@@ -948,6 +1005,8 @@ Item {
         if (!root.supportsPlayerCapability("subtitleDelay"))
             return
         mpv.subDelay = 0
+        if (root.streamRouteRestoreSubtitle)
+            root.streamRouteRestoreSubtitle.delay = 0
         root.saveTrackPreference({ "subDelay": 0 })
     }
 
@@ -1016,6 +1075,17 @@ Item {
     property bool errored: false
     property string statusMsg: ""
     property bool controlsShown: true
+    property bool controlsShownAtPress: true
+    property bool touchLocked: false
+    property bool touchOptionsOpen: false
+    onTouchLockedChanged: if (touchLocked) {
+        root.cancelTouchInteraction()
+        spaceHoldTimer.stop()
+        if (root.spaceHoldFired) {
+            mpv.speed = root.spaceBaseSpeed
+            root.spaceHoldFired = false
+        }
+    }
     property bool seeking: false
     property real seekPreview: mpv.position
     property real seekTargetSec: -1
@@ -1068,7 +1138,7 @@ Item {
     // fullscreen 150%-DPI window and hid change-stream + download for no layout reason.
     readonly property bool barSnug: utilitySpace < 360
     readonly property bool barTiny: utilitySpace < 260
-    readonly property bool anyMenuOpen: watchPartyMenu.panelOpen || audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.liveGuideOpen || root.dvrPanelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen
+    readonly property bool anyMenuOpen: watchPartyMenu.panelOpen || audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.liveGuideOpen || root.dvrPanelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen || root.touchOptionsOpen
     readonly property bool abLoopActive: root.abLoopA >= 0 && root.abLoopB > root.abLoopA
     readonly property bool sleepTimerActive: root.sleepTimerMode !== "off"
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -1456,14 +1526,22 @@ Item {
             return
         }
         var c = root.streamCandidates[index] || ({})
+        // A fresh stream start is not a retired-route reopen.
+        var pendingSubtitle = root.streamRouteRestoreSubtitle
+        root.clearStreamRouteRestore()
         root.currentStreamIndex = index
         root.streamRetryCount = 0
         root.mediaResumeHash = c.infoHash || ""
         root.mediaResumeFileIdx = c.fileIdx || 0
         // Mid-play stream switch: carry the live position into the replacement stream.
         // No overlay mid-watch — you were just watching, so the seek is silent.
-        if (reason === "switch")
+        if (reason === "switch") {
+            // An alternate candidate still belongs to this item's pending
+            // recovery; preserve the latest sidecar choice, including Off.
+            if (root.recoveryResumePending)
+                root.streamRouteRestoreSubtitle = pendingSubtitle
             root.prepareRecoveryResume()
+        }
         root.errored = false
         root.starting = true
         root.fileReady = false
@@ -1481,6 +1559,15 @@ Item {
         // resume path carries only the hash). Extensions spec Phase 2, slice G.
         var directUrl = root.directStreamUrl(c)
         if (directUrl.length) {
+            // Leaving a torrent for a direct source ends the torrent's playing demand, as
+            // stop() does: its in-flight requests are cancelled and a late streamReady for it
+            // is fenced, so it can never load over the direct stream. Downloads and prefetch
+            // have their own owners and are untouched by stopDemand().
+            root.streamRouteUrl = ""
+            root.streamDemandActive = false
+            root.streamDemandEpoch++
+            if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
+                Stream.stopDemand()
             root.mediaTransport = "Direct stream"
             root.updateMediaSubtitle()
             // HTTP hosts that gate on a Referer/Origin need those headers on every request,
@@ -1492,11 +1579,25 @@ Item {
         root.mediaTransport = "Torrent stream"
         root.updateMediaSubtitle()
         root.clearActiveDirectHeaders()
+        if (Qt.platform.os === "android") {
+            root.streamDemandActive = true
+            root.streamDemandEpoch++
+            if (root.streamRouteRestorePending || root.streamRouteRestoreLoadPending)
+                root.streamRestoreEpoch = root.streamDemandEpoch
+            root.streamRouteHash = String(c.infoHash || "")
+            root.streamRouteFileIdx = Number(c.fileIdx || 0)
+        }
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
+        root.streamDemandActive = false
+        root.streamDemandEpoch++
+        root.streamRouteUrl = ""
+        root.clearStreamRouteRestore()
         root.resetRecoveryResume()
+        var explicitResume = Number((playbackContext || ({})).resumePosition) || 0
+        root.explicitResumePosition = explicitResume > 0
         root.arrivingStreamUrl = ""
         root.arrivingStreamHeaders = ({})
         root.clearActiveDirectHeaders()
@@ -1529,6 +1630,8 @@ Item {
         var savedPos = Number(((prog || ({})).resume || ({})).position || 0)
         if (savedPos > 0)
             root.pendingSeekSec = savedPos
+        else if (root.explicitResumePosition)
+            root.pendingSeekSec = explicitResume
         root.playbackQueue = (playbackContext || ({})).episodeQueue || []
         root.playbackQueueIndex = (playbackContext || ({})).episodeIndex !== undefined
                                   ? Number((playbackContext || ({})).episodeIndex) : -1
@@ -1613,6 +1716,14 @@ Item {
             root.loadDirectStreamUrl(directUrl, c.headers)
             return
         }
+        if (Qt.platform.os === "android") {
+            root.streamDemandActive = true
+            root.streamDemandEpoch++
+            if (root.streamRouteRestorePending || root.streamRouteRestoreLoadPending)
+                root.streamRestoreEpoch = root.streamDemandEpoch
+            root.streamRouteHash = String(c.infoHash || "")
+            root.streamRouteFileIdx = Number(c.fileIdx || 0)
+        }
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
@@ -1642,16 +1753,32 @@ Item {
         root.recoveryResumePaused = false
     }
 
+    function recoveryPauseIntent() {
+        if (typeof Qt !== "undefined" && Qt.platform.os === "android") {
+            // Media3 reports paused before emitting its typed error. That is
+            // playback truth, not necessarily the user's pre-error intent.
+            var beforeError = mpv.playbackStat("recovery-paused")
+            if (typeof beforeError === "boolean")
+                return beforeError
+        }
+        return mpv.pause
+    }
+
     function prepareRecoveryResume() {
         if (!root.recoveryResumePending) {
             var pos = Number(mpv.position)
             if (!root.starting && isFinite(pos) && pos > 0)
                 root.recoveryPositionSec = pos
-            // No playback yet: keep the initial Resume/Start over decision intact.
+            // No playback yet: keep the initial Resume/Start over decision.
             if (root.recoveryPositionSec < 0)
                 return
-            root.recoveryResumePaused = mpv.pause
+            root.recoveryResumePaused = root.recoveryPauseIntent()
             root.recoveryResumePending = true
+            // Share the pending sidecar with route recovery so user Off/sync
+            // edits also apply while a same-source retry is loading.
+            if (typeof Qt !== "undefined" && Qt.platform.os === "android"
+                    && !root.streamRouteRestorePending && !root.streamRouteRestoreLoadPending)
+                root.streamRouteRestoreSubtitle = root.captureSelectedSidecarSubtitle()
         }
         root.pendingSeekSec = root.recoveryPositionSec
         root.resumePromptConsumed = true
@@ -1737,6 +1864,88 @@ Item {
         }
     }
 
+    // Android background quiesce retires the Stream route, so restoring Media3
+    // on the old loopback URL could only fail. Re-demand the same source and
+    // reopen at the pre-background position (onStreamReady -> onFileLoaded).
+    function streamRouteRetired() {
+        if (typeof Qt === "undefined" || Qt.platform.os !== "android"
+                || !root.visible || !root.streamDemandActive) return false
+        if (typeof Stream === "undefined" || !root.streamRouteUrl.length || root.errored)
+            return false
+        if (root.currentPlaybackUrl !== root.streamRouteUrl)
+            return false
+        return Stream.streamUrl(root.streamRouteHash, root.streamRouteFileIdx) !== root.streamRouteUrl
+    }
+    function streamRestoreContextCurrent() {
+        return root.streamDemandActive && root.streamRestoreEpoch === root.streamDemandEpoch
+                && root.streamRestoreMediaId === root.mediaId
+                && root.streamRestoreSessionId === root.activitySessionId
+    }
+    function clearStreamRouteRestore() {
+        root.streamRestoreEpoch = -1
+        root.streamRestoreMediaId = ""
+        root.streamRestoreSessionId = ""
+        root.streamRouteRestorePending = false
+        root.streamRouteRestoreLoadPending = false
+        root.streamRouteRestoreSec = -1
+        root.streamRouteRestoreIntent = ""
+        root.streamRouteRestoreSubtitle = null
+    }
+    function restoreRetiredStreamRoute() {
+        if (!root.visible || !root.streamDemandActive) return false
+        if (String(PlatformRuntime.applicationState).toLowerCase() !== "active")
+            return false
+        if (!root.streamRouteRestorePending && !root.streamRouteRetired())
+            return false
+        if (root.streamRouteRestorePending)
+            return true
+        root.streamRestoreEpoch = root.streamDemandEpoch
+        root.streamRestoreMediaId = root.mediaId
+        root.streamRestoreSessionId = root.activitySessionId
+        root.streamRouteRestorePending = true
+        root.streamRouteRestoreLoadPending = false
+        root.streamRouteRestoreSec = mpv.position > 1 ? mpv.position
+                : (root.recoveryResumePending ? root.recoveryPositionSec : -1)
+        // Android foreground return reopens in a parked state. An explicit Play
+        // tap during recovery may replace this intent before the fresh load lands.
+        root.streamRouteRestoreIntent = "paused"
+        root.streamRouteRestoreSubtitle = root.captureSelectedSidecarSubtitle() || root.streamRouteRestoreSubtitle
+        root.resetRecoveryResume()
+        root.resetRecoveryWatch()
+        root.statusMsg = "Reconnecting stream..."
+        streamWatchdog.restart()
+        mpv.pause = true
+        Stream.play(root.streamRouteHash, root.streamRouteFileIdx)
+        return true
+    }
+
+    function captureSelectedSidecarSubtitle() {
+        var subtitle = root.selectedSubtitleRow()
+        return subtitle && subtitle.external && subtitle.url
+                ? { "url": subtitle.url, "title": subtitle.title || subtitle.label,
+                    "lang": subtitle.lang || "", "delay": mpv.subDelay } : null
+    }
+
+    function restoreSelectedSidecarSubtitle(subtitle) {
+        // Media3 clears all sidecars on loadSource. Re-add only the selected
+        // sidecar for this same-route reopen; other rows may be picked again.
+        root.addedOnlineUrls = ({})
+        root.subModelRev++
+        if (!subtitle)
+            return
+        root.userTouchedSubs = true
+        root.autoSubDone = true
+        mpv.subDelay = subtitle.delay
+        root.addedOnlineUrls[subtitle.url] = true
+        mpv.addSubtitle(subtitle.url, subtitle.title, subtitle.lang, true)
+    }
+
+    function restoreStreamRouteSubtitle() {
+        var subtitle = root.streamRouteRestoreSubtitle
+        root.streamRouteRestoreSubtitle = null
+        root.restoreSelectedSidecarSubtitle(subtitle)
+    }
+
     function tickWakeReconnect() {
         if (!root.visible || root.recoveryExcluded())
             return
@@ -1758,6 +1967,12 @@ Item {
             return
         if (mpv.duration <= 0 && mpv.position <= 0)
             return
+        // A Stream route retired in the background reopens through a fresh demand,
+        // never by reloading its dead loopback URL.
+        if (root.streamRouteRestorePending || root.streamRouteRetired()) {
+            root.restoreRetiredStreamRoute()
+            return
+        }
         var pos = mpv.position > 1 ? mpv.position : -1
         // Fresh recovery clocks for the reconnected load (this path bypasses playStreamAt).
         root.resetRecoveryWatch()
@@ -2537,6 +2752,13 @@ Item {
 
 
     function playUrl(url, title) {
+        root.explicitResumePosition = false
+        if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
+            Stream.stopDemand()
+        root.streamDemandActive = false
+        root.streamDemandEpoch++
+        root.streamRouteUrl = ""
+        root.clearStreamRouteRestore()
         root.resetRecoveryResume()
         root.hydrateGen += 1   // identity reset: a late hydration callback must not land here
         root.playbackQueueOrderingMode = ""
@@ -2623,6 +2845,13 @@ Item {
     }
 
     function playLocalFile(target) {
+        root.explicitResumePosition = false
+        if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
+            Stream.stopDemand()
+        root.streamDemandActive = false
+        root.streamDemandEpoch++
+        root.streamRouteUrl = ""
+        root.clearStreamRouteRestore()
         root.resetRecoveryResume()
         var t = target || ({})
         var localCtx = t.playbackContext || ({})
@@ -2692,6 +2921,13 @@ Item {
     // grade like playLocalFile: subtitles + progress key off the video id, so the
     // landed copy resumes where this live watch leaves off.
     function playRemoteUrl(target) {
+        root.explicitResumePosition = false
+        if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
+            Stream.stopDemand()
+        root.streamDemandActive = false
+        root.streamDemandEpoch++
+        root.streamRouteUrl = ""
+        root.clearStreamRouteRestore()
         root.resetRecoveryResume()
         var t = target || ({})
         var remoteUrl = String(t.streamUrl || "")
@@ -2802,7 +3038,8 @@ Item {
             return false
         root.resumePromptConsumed = true
         root.resumeChoiceSec = root.pendingSeekSec
-        if (mpv.duration > 0 && root.resumeChoiceSec / mpv.duration >= root.resumeRestartThreshold) {
+        if (!root.explicitResumePosition && mpv.duration > 0
+                && root.resumeChoiceSec / mpv.duration >= root.resumeRestartThreshold) {
             root.pendingSeekSec = 0
             root.resumeChoiceSec = -1
             root.resumeChoiceOpen = false
@@ -2850,6 +3087,8 @@ Item {
     }
 
     function stop() {
+        root.streamDemandActive = false
+        root.streamDemandEpoch++
         root.resetRecoveryResume()
         root.playbackEnded = false
         root.hydrateGen += 1   // player closing: cancel any in-flight context hydration
@@ -2859,6 +3098,11 @@ Item {
         root.closeMenus()
         root.clearActiveDirectHeaders()
         mpv.stopPlayback()
+        root.streamRouteUrl = ""
+        root.clearStreamRouteRestore()
+        // A real close ends the stream's demand; minimize never reaches here.
+        if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
+            Stream.stopDemand()
         root.starting = false
         root.errored = false
         root.statusMsg = ""
@@ -2927,6 +3171,14 @@ Item {
     }
     function previewAt(mouseX, width) {
         return mpv.duration * root.clamp(mouseX / Math.max(1, width), 0, 1)
+    }
+    function cancelSeekGesture() {
+        root.seeking = false
+        root.seekPreview = mpv.position
+    }
+    function cancelTouchInteraction() {
+        if (playerTouchSurface) playerTouchSurface.cancelGesture()
+        if (root.seeking) root.cancelSeekGesture()
     }
     function seekTo(sec) {
         var target = root.clamp(sec, 0, Math.max(0, mpv.duration))
@@ -3321,6 +3573,10 @@ Item {
     // EOF unloads mpv but keeps this page/session alive. Only explicit Play or
     // activation of that warm session may re-admit it; visibility and handoff never do.
     function replayEndedPlayback() {
+        // Media3 keeps the ended item and re-arms it on explicit Play. Its
+        // loopback URL may already be retired; desktop mpv needs a new load.
+        if (typeof Qt !== "undefined" && Qt.platform.os === "android")
+            return false
         // Room-controlled play remains on its existing authoritative command path.
         if (typeof WatchPartySync !== "undefined" && WatchPartySync.active)
             return false
@@ -3351,8 +3607,12 @@ Item {
                 if (mpv.pause) root.requestAudioPlayback()
                 WatchPartySync.requestLocalPlayback(mpv.pause, mpv.position)
             } else if (!root.replayEndedPlayback()) {
-                if (mpv.pause) root.requestAudioPlayback()
-                mpv.pause = !mpv.pause
+                var nextPaused = !mpv.pause
+                if (!nextPaused)
+                    root.requestAudioPlayback()
+                if (root.streamRouteRestorePending || root.streamRouteRestoreLoadPending)
+                    root.streamRouteRestoreIntent = nextPaused ? "paused" : "playing"
+                mpv.pause = nextPaused
             }
         }
         root.wakeChrome()
@@ -3377,6 +3637,7 @@ Item {
         return root.clamp(mpv.volume, 0, 100) / 100
     }
     function closeMenus() {
+        root.touchOptionsOpen = false
         watchPartyMenu.panelOpen = false
         audioMenu.panelOpen = false
         subMenu.panelOpen = false
@@ -3394,11 +3655,13 @@ Item {
     // application Shortcut: temporary controls close first, otherwise Back minimizes
     // through the existing session-aware player seam.
     function requestEscape() {
+        if (root.touchLocked) { root.touchLocked = false; root.wakeChrome(); return }
         if (root.shortcutsOpen) { root.shortcutsOpen = false; return }
         if (root.anyMenuOpen) root.closeMenus()
         else root.backRequested()
     }
     function wakeChrome() {
+        if (root.touchLocked) return
         root.controlsShown = true
         hideTimer.restart()
     }
@@ -3447,6 +3710,7 @@ Item {
     }
 
     function runHotkeyAction(actionId, event) {
+        if (root.touchLocked && actionId !== "escape") return
         switch (actionId) {
         case "space":
             if (event.isAutoRepeat)
@@ -3533,6 +3797,7 @@ Item {
     function activateOverflowKind(kind) {
         if (kind === "loudness") { root.cycleLoudness(); root.wakeChrome(); return }
         root.closeMenus()
+        if (kind === "touch") { root.touchOptionsOpen = true; root.wakeChrome(); return }
         if (kind === "shortcuts") { root.shortcutsOpen = true; return }
         if (kind === "pip") {
             if (typeof WindowMode === "undefined") return
@@ -3590,6 +3855,10 @@ Item {
     }
 
     Component.onCompleted: {
+        if (PlatformRuntime.android) {
+            PlatformRuntime.setPlayerLandscape(root.visible)
+            if (root.visible) PlatformRuntime.beginPlaybackBrightness()
+        }
         root.forceActiveFocus()
         root.wakeChrome()
         root.syncPowerInhibit()
@@ -3597,10 +3866,26 @@ Item {
             mpv.setAudioNormalization(root.loudnessMode)
     }
     Component.onDestruction: {
+        if (PlatformRuntime.android) {
+            PlatformRuntime.setPlayerLandscape(false)
+            PlatformRuntime.restorePlaybackBrightness()
+        }
         root.sendTraktPlayback(false)
         if (typeof Power !== "undefined") Power.release()
     }
     onVisibleChanged: {
+        if (!visible) root.cancelTouchInteraction()
+        if (PlatformRuntime.android) {
+            PlatformRuntime.setPlayerLandscape(visible)
+            if (visible) {
+                PlatformRuntime.beginPlaybackBrightness()
+                root.restoreRetiredStreamRoute()
+            } else {
+                PlatformRuntime.restorePlaybackBrightness()
+                root.touchLocked = false
+                root.touchOptionsOpen = false
+            }
+        }
         // Hidden retained players cannot render video. Stop their watchdogs and
         // discard the hidden interval before granting a fresh visible grace period.
         root.resetRecoveryWatch()
@@ -3618,8 +3903,10 @@ Item {
         root.syncPowerInhibit()
     }
     onStartingChanged: {
-        if (starting)
+        if (starting) {
+            root.cancelTouchInteraction()
             root.wakeChrome()
+        }
         else if (typeof Stream !== "undefined") {
             // loading face retired (first frame, error path, or back-out) → stop the 1 Hz stats poll
             Stream.unwatchStats()
@@ -3799,6 +4086,10 @@ Item {
             target: PlatformRuntime
             enabled: PlatformRuntime.android
             function onApplicationStateChanged() {
+                if (String(PlatformRuntime.applicationState).toLowerCase() !== "active")
+                    root.cancelTouchInteraction()
+                if (root.restoreRetiredStreamRoute())
+                    return
                 mpv.setHostLifecycleState(PlatformRuntime.applicationState)
             }
             function onSurfaceAvailableChanged() {
@@ -3806,6 +4097,22 @@ Item {
                     mpv.restoreVideoSurface()
                 else
                     mpv.releaseVideoSurface()
+            }
+        }
+        Connections {
+            // Android Media3: a seek/play after a natural end re-arms the same file.
+            // Undo onEndFile's state only; startup/resume logic ran once at fileLoaded.
+            target: mpv
+            ignoreUnknownSignals: true
+            function onFileResumed() {
+                root.cancelUpNext()
+                root.playbackEnded = false
+                // A new playback segment: recovery clocks from the original load
+                // would read a replay at 0 s as "source did not start".
+                root.resetRecoveryWatch()
+                root.fileReady = true
+                root.syncPowerInhibit()
+                root.syncWatchPartyPlayerObservation()
             }
         }
         Component.onCompleted: {
@@ -3832,6 +4139,17 @@ Item {
             root.syncWatchPartyPlayerObservation()
         }
         onFileLoaded: {
+            if (root.streamRouteRestoreLoadPending && !root.streamRestoreContextCurrent()) {
+                root.clearStreamRouteRestore()
+                return
+            }
+            if (root.streamRouteRestorePending && !root.streamRouteRestoreLoadPending) {
+                // The retired generation can report READY late. It is not the
+                // replacement route, so leave the saved return state for it.
+                if (!mpv.pause)
+                    mpv.pause = true
+                return
+            }
             // fileLoaded means mpv OPENED the file (its track list + duration are now available) —
             // NOT that playback has started. fileReady is set here because the track/subtitle
             // automation below needs the track list, but the loading state (starting / statusMsg /
@@ -3844,14 +4162,33 @@ Item {
             root.seekPreview = mpv.position
             root.fileReady = true
             var startupOwnedByUi = root.audioHandoffPaused
-            if (root.recoveryResumePending) {
+            if (root.streamRouteRestoreLoadPending) {
+                // Re-demanded after the background quiesce: reopen where it was,
+                // parked unless the user explicitly pressed Play during recovery.
+                var restoreSec = root.streamRouteRestoreSec
+                var restorePaused = root.streamRouteRestoreIntent !== "playing" || root.audioHandoffPaused
+                        || !root.visible || root.windowMinimized
+                root.resetRecoveryResume()
+                root.pendingSeekSec = -1
+                root.streamRouteRestoreLoadPending = false
+                root.streamRouteRestoreSec = -1
+                root.streamRouteRestoreIntent = ""
+                root.wakeReconnectPendingSeek = -1
+                if (restoreSec > 1)
+                    mpv.seekExact(restoreSec)
+                mpv.pause = restorePaused
+                root.restoreStreamRouteSubtitle()
+                startupOwnedByUi = true
+            } else if (root.recoveryResumePending) {
                 var recoveryPaused = root.recoveryResumePaused || root.audioHandoffPaused
                 var recoverySeek = root.pendingSeekSec
+                root.recoveryResumePending = false
+                root.pendingSeekSec = -1
                 if (recoverySeek >= 0)
                     mpv.seekExact(recoverySeek)
-                root.pendingSeekSec = -1
-                root.recoveryResumePending = false
                 mpv.pause = recoveryPaused
+                if (typeof Qt !== "undefined" && Qt.platform.os === "android")
+                    root.restoreStreamRouteSubtitle()
                 startupOwnedByUi = startupOwnedByUi || recoveryPaused
             } else if (root.wakeReconnectPendingSeek > 1) {
                 // Reconnected after a system-wake gap — restore the pre-sleep position and honor
@@ -4087,9 +4424,24 @@ Item {
     Connections {
         target: Stream
         function onStreamReady(url, infoHash, fileIdx) {
+            if (Qt.platform.os === "android" && (!root.streamDemandActive
+                    || String(infoHash || "") !== root.streamRouteHash
+                    || Number(fileIdx || 0) !== root.streamRouteFileIdx)) return
+            if (root.streamRouteRestorePending && !root.streamRestoreContextCurrent()) return
+            var restoringRetiredRoute = root.streamRouteRestorePending
+                    && String(infoHash || "") === root.streamRouteHash
+                    && Number(fileIdx || 0) === root.streamRouteFileIdx
+            if ((root.streamRouteRestorePending || root.streamRouteRestoreLoadPending)
+                    && !restoringRetiredRoute)
+                root.clearStreamRouteRestore()
             root.statusMsg = "Buffering..."
             root.clearActiveDirectHeaders()
             root.currentPlaybackUrl = url || ""
+            root.streamRouteUrl = url || ""
+            root.streamRouteRestorePending = false
+            root.streamRouteRestoreLoadPending = restoringRetiredRoute
+            root.streamRouteHash = String(infoHash || "")
+            root.streamRouteFileIdx = Number(fileIdx || 0)
             streamWatchdog.restart()
             root.streamStatsSeen = false
             root.streamStatsPeers = 0
@@ -4097,6 +4449,9 @@ Item {
             root.streamStatsDownloaded = 0
             Stream.watchStats(infoHash, fileIdx)
             mpv.loadSource(url)
+            if (restoringRetiredRoute && (root.streamRouteRestoreIntent === "paused"
+                    || !root.visible || root.windowMinimized))
+                mpv.pause = true
         }
         function onStreamStats(infoHash, fileIdx, stats) {
             if (!root.starting)
@@ -4219,16 +4574,69 @@ Item {
         onTriggered: root.maybeAutoSkipSegment()
     }
 
+    function handleAndroidVideoTap() {
+        if (root.resumeChoiceOpen) return
+        if (root.anyMenuOpen || root.shortcutsOpen) { root.closeMenus(); return }
+        if (root.controlsShownAtPress) { hideTimer.stop(); root.controlsShown = false }
+        else root.wakeChrome()
+    }
+
+    PlayerTouchSurface {
+        id: playerTouchSurface
+        objectName: "playerTouchSurface"
+        anchors.fill: parent
+        enabled: PlatformRuntime.android && root.visible
+            && String(PlatformRuntime.applicationState).toLowerCase() === "active"
+        visible: PlatformRuntime.android
+        locked: root.touchLocked
+        modalOpen: root.anyMenuOpen || root.resumeChoiceOpen || root.shortcutsOpen
+        seekEnabled: root.fileReady && !root.starting && !root.errored && !root.resumeChoiceOpen
+            && !root.anyMenuOpen && !root.shortcutsOpen && !root.seeking && mpv.duration > 0
+            && mpv["seekable"] === true && (!root.watchPartySyncActive || root.watchPartyCanControlTimeline)
+        adjustmentsEnabled: playerSettings.phoneGestureAdjustments && root.fileReady && !root.starting && !root.errored
+        fitEnabled: root.supportsPlayerCapability("videoTransform")
+        seekSeconds: root.seekForwardSeconds
+        volumeLevel: mpv.volume
+        brightnessLevel: PlatformRuntime.playbackBrightness
+        topExclusion: 80
+        bottomExclusion: bottomDock.height
+        onPressed: root.controlsShownAtPress = root.controlsShown
+        onSingleTapped: root.handleAndroidVideoTap()
+        onSeekRequested: (seconds) => root.requestUserSeekStep(seconds)
+        onVolumeRequested: (level) => root.adjustVolumeTo(level)
+        onBrightnessRequested: (level) => PlatformRuntime.setPlaybackBrightness(level)
+        onFitRequested: (fill) => root.applyFill(fill ? 1 : 0)
+        onUnlockRequested: { root.touchLocked = false; root.wakeChrome() }
+        onContextMenuRequested: (x, y) => root.openContextMenu(playerTouchSurface.mapToItem(chrome, x, y))
+    }
+    PlayerTouchOptions {
+        parent: chrome
+        anchors.fill: parent
+        z: 100005
+        visible: root.touchOptionsOpen
+        adjustmentsEnabled: playerSettings.phoneGestureAdjustments
+        fitAvailable: root.supportsPlayerCapability("videoTransform")
+        onCloseRequested: root.touchOptionsOpen = false
+        onToggleAdjustments: playerSettings.phoneGestureAdjustments = !playerSettings.phoneGestureAdjustments
+        onLockRequested: {
+            root.closeMenus()
+            root.touchLocked = true
+            root.controlsShown = false
+            hideTimer.stop()
+        }
+    }
+
     MouseArea {
         anchors.fill: parent
-        hoverEnabled: true
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        enabled: !root.touchLocked
+        hoverEnabled: !PlatformRuntime.android
+        acceptedButtons: PlatformRuntime.android ? Qt.RightButton : Qt.LeftButton | Qt.RightButton
         // Cursor vanishes WITH the HUD (Hemanth 2026-07-09: no sore-thumb arrow floating
         // mid-screen after the bar fades). Mirrors the chrome's own visibility expression
         // (controlsShown && !starting) so they hide/show as one. Any pointer motion fires
         // wakeChrome → controlsShown true → the arrow is back instantly.
         cursorShape: (root.controlsShown && !root.starting) ? Qt.ArrowCursor : Qt.BlankCursor
-        onPositionChanged: root.wakeChrome()
+        onPositionChanged: if (!PlatformRuntime.android) root.wakeChrome()
         onClicked: function(mouse) {
             // Right-click = More controls at the cursor (native-player convention,
             // Hemanth 2026-07-18) — the ⋯ button it replaces is gone from the bar.
@@ -4290,6 +4698,8 @@ Item {
         event.accepted = true
         if (event.isAutoRepeat)
             return
+        if (root.touchLocked)
+            return
         if (spaceHoldTimer.running)
             spaceHoldTimer.stop()
         if (root.spaceHoldFired)
@@ -4307,6 +4717,7 @@ Item {
 
     Rectangle {
         id: chrome
+        enabled: !root.touchLocked
         x: 0
         y: 0
         width: root.chromeVisibleWidth
@@ -4629,6 +5040,35 @@ Item {
             id: overflowPanel
             visible: root.overflowOpen
             focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+            function positionInChrome() {
+                x = root.clamp(root.contextMenuPos.x, 10, chrome.width - width - 10)
+                y = root.clamp(root.contextMenuPos.y, 10, chrome.height - height - 10)
+            }
+            function revealFocusedControl() {
+                if (!PlatformRuntime.android || !root.overflowOpen) return
+                const window = root.Window.window
+                const item = window ? window.activeFocusItem : null
+                if (!item || !item.visible || !item.enabled) return
+                let ancestor = item
+                while (ancestor && ancestor !== overflowScroll.contentItem) ancestor = ancestor.parent
+                if (!ancestor) return
+                const point = item.mapToItem(overflowScroll.contentItem, 0, 0)
+                let target = overflowScroll.contentY
+                if (point.y < target) target = point.y
+                else if (point.y + item.height > target + overflowScroll.height)
+                    target = point.y + item.height - overflowScroll.height
+                overflowScroll.contentY = root.clamp(target, 0,
+                    Math.max(0, overflowScroll.contentHeight - overflowScroll.height))
+            }
+            Connections {
+                target: root.Window.window
+                function onActiveFocusItemChanged() { Qt.callLater(overflowPanel.revealFocusedControl) }
+            }
+            Connections {
+                target: chrome
+                function onWidthChanged() { if (PlatformRuntime.android && root.overflowOpen) overflowPanel.positionInChrome() }
+                function onHeightChanged() { if (PlatformRuntime.android && root.overflowOpen) overflowPanel.positionInChrome() }
+            }
             function beginKeyboardNavigation() {
                 overflowPanel.forceActiveFocus(Qt.PopupFocusReason)
                 Qt.callLater(function() { root.moveKeyboardFocus(true) })
@@ -4652,8 +5092,13 @@ Item {
             opacity: root.overflowOpen ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 110 } }
             z: 9
-            width: 300
-            height: overflowColumn.implicitHeight + 30
+            width: PlatformRuntime.android ? Math.min(300, Math.max(1, chrome.width - 20)) : 300
+            height: PlatformRuntime.android
+                ? Math.min(overflowColumn.implicitHeight + 30, Math.max(1, chrome.height - 20))
+                : overflowColumn.implicitHeight + 30
+            clip: PlatformRuntime.android
+            onWidthChanged: if (PlatformRuntime.android && visible) positionInChrome()
+            onHeightChanged: if (PlatformRuntime.android && visible) positionInChrome()
             radius: 14
             color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
             border.width: 1
@@ -4662,104 +5107,120 @@ Item {
             // Context menu (2026-07-18): opens at the right-click cursor, clamped to the
             // window like every OS menu — the ⋯ button (and its tail) is gone from the bar.
             onVisibleChanged: if (visible) {
-                x = root.clamp(root.contextMenuPos.x, 10, chrome.width - width - 10)
-                y = root.clamp(root.contextMenuPos.y, 10, chrome.height - height - 10)
+                positionInChrome()
+                overflowScroll.cancelFlick()
+                overflowScroll.contentY = 0
             }
 
             // Absorb background clicks so the panel body never dismisses itself (parity spec F2).
             MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
 
-            Column {
-                id: overflowColumn
-                x: 16
-                y: 15
-                width: parent.width - 32
-                // Rows sit flush and light up on hover instead of each being its own grey slab with
-                // a 10px gutter. That gutter plus a permanent fill is what made this menu read flat.
-                spacing: 2
+            Flickable {
+                id: overflowScroll
+                objectName: "playerMoreScroll"
+                anchors.fill: parent
+                contentWidth: width
+                contentHeight: overflowColumn.implicitHeight + 30
+                interactive: PlatformRuntime.android && contentHeight > height
+                flickableDirection: Flickable.VerticalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                clip: PlatformRuntime.android
+                onVisibleChanged: if (!visible) cancelFlick()
+                onHeightChanged: Qt.callLater(overflowPanel.revealFocusedControl)
+                onContentHeightChanged: Qt.callLater(overflowPanel.revealFocusedControl)
+                Column {
+                    id: overflowColumn
+                    x: 16
+                    y: 15
+                    width: parent.width - 32
+                    // Rows sit flush and light up on hover instead of each being its own grey slab with
+                    // a 10px gutter. That gutter plus a permanent fill is what made this menu read flat.
+                    spacing: 2
 
-                Text {
-                    text: "More controls"
-                    color: theme.inkDimmer
-                    font.family: theme.hud
-                    font.pixelSize: 12
-                    font.weight: Font.DemiBold
-                    bottomPadding: 4
-                }
+                    Text {
+                        text: "More controls"
+                        color: theme.inkDimmer
+                        font.family: theme.hud
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                        bottomPadding: 4
+                    }
 
-                VolumeControl { visible: root.tight }
+                    VolumeControl { visible: root.tight }
 
-                Repeater {
-                    model: [
-                        { "label": "Screenshot", "kind": "screenshot", "when": root.supportsPlayerCapability("frameCapture") },
-                        { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": root.supportsPlayerCapability("gifCapture") },
-                        { "label": "Playback stats", "kind": "stats", "when": root.supportsPlayerCapability("playbackStats") },
-                        { "label": "Loudness · " + root.loudnessLabel(), "kind": "loudness", "when": root.supportsPlayerCapability("loudnessNormalization") },
-                        { "label": "Live guide", "kind": "liveGuide", "when": (typeof Live !== "undefined" && Live.isLive) },
-                        { "label": "DVR record", "kind": "dvr", "when": (typeof Live !== "undefined" && Live.isLive) },
-                        { "label": "Jump to live edge", "kind": "liveEdge", "when": (typeof Live !== "undefined" && Live.isLive) },
-                        { "label": "Episodes & sources", "kind": "browser", "when": root.barTiny && root.mediaId.indexOf("iptv:") !== 0 },
-                        { "label": "Pick another stream", "kind": "stream", "when": root.barSnug && root.streamCandidates.length > 1 },
-                        { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
-                        { "label": "Audio tracks", "kind": "audio", "when": root.barTiny },
-                        { "label": "Speed", "kind": "speed", "when": root.barTiny },
-                        { "label": "Aspect ratio", "kind": "fill", "when": root.barSnug && root.supportsPlayerCapability("videoTransform") },
-                        // The two rows Player 2's menu carried and this one never did. Both features
-                        // already existed here (WindowMode.enterPip/exitPip, root.shortcutsOpen) --
-                        // they were simply never offered anywhere in this menu.
-                        { "label": root.pipMode ? "Exit picture-in-picture" : "Picture-in-picture",
-                          "kind": "pip", "when": root.supportsPlayerCapability("pictureInPicture") },
-                        { "label": "Keyboard shortcuts", "kind": "shortcuts", "when": true }
-                    ]
-                    delegate: Rectangle {
-                        required property var modelData
-                        readonly property string rowValue: root.overflowValue(modelData.kind)
-                        visible: modelData.when
-                        width: overflowColumn.width
-                        height: 38
-                        radius: 8
-                        // Transparent at rest, lit on hover -- the row reads as a target rather than
-                        // as a permanent grey slab. Matches the Player 2 menu Hemanth preferred.
-                        color: rowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: 10
-                            width: parent.width - x - (valueText.width > 0 ? valueText.width + 22 : 12)
-                            elide: Text.ElideRight
-                            text: modelData.label
-                            color: theme.ink
-                            font.family: theme.hud
-                            font.pixelSize: 13
-                        }
-                        // What this control is currently set to. Gold, matching the seek bar and
-                        // volume accent, so the menu carries information and not only verbs.
-                        Text {
-                            id: valueText
-                            anchors.right: parent.right
-                            anchors.rightMargin: 10
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: parent.rowValue
-                            visible: text.length > 0
-                            color: theme.gold
-                            font.family: theme.hud
-                            font.pixelSize: 12
-                            font.weight: Font.DemiBold
-                        }
-                        MouseArea {
-                            id: rowArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.activateOverflowKind(modelData.kind)
-                        }
-                        KeyboardAction {
-                            anchors.fill: parent
-                            pointerEnabled: false
-                            focusEnabled: parent.visible
-                            accessibleName: modelData.label
-                            accessibleDescription: parent.rowValue
-                            focusRadius: 8
-                            onTriggered: root.activateOverflowKind(modelData.kind)
+                    Repeater {
+                        model: [
+                            { "label": "Touch controls", "kind": "touch", "when": PlatformRuntime.android },
+                            { "label": "Screenshot", "kind": "screenshot", "when": root.supportsPlayerCapability("frameCapture") },
+                            { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": root.supportsPlayerCapability("gifCapture") },
+                            { "label": "Playback stats", "kind": "stats", "when": root.supportsPlayerCapability("playbackStats") },
+                            { "label": "Loudness · " + root.loudnessLabel(), "kind": "loudness", "when": root.supportsPlayerCapability("loudnessNormalization") },
+                            { "label": "Live guide", "kind": "liveGuide", "when": (typeof Live !== "undefined" && Live.isLive) },
+                            { "label": "DVR record", "kind": "dvr", "when": (typeof Live !== "undefined" && Live.isLive) },
+                            { "label": "Jump to live edge", "kind": "liveEdge", "when": (typeof Live !== "undefined" && Live.isLive) },
+                            { "label": "Episodes & sources", "kind": "browser", "when": root.barTiny && root.mediaId.indexOf("iptv:") !== 0 },
+                            { "label": "Pick another stream", "kind": "stream", "when": root.barSnug && root.streamCandidates.length > 1 },
+                            { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
+                            { "label": "Audio tracks", "kind": "audio", "when": root.barTiny },
+                            { "label": "Speed", "kind": "speed", "when": root.barTiny },
+                            { "label": "Aspect ratio", "kind": "fill", "when": root.barSnug && root.supportsPlayerCapability("videoTransform") },
+                            // The two rows Player 2's menu carried and this one never did. Both features
+                            // already existed here (WindowMode.enterPip/exitPip, root.shortcutsOpen) --
+                            // they were simply never offered anywhere in this menu.
+                            { "label": root.pipMode ? "Exit picture-in-picture" : "Picture-in-picture",
+                              "kind": "pip", "when": root.supportsPlayerCapability("pictureInPicture") },
+                            { "label": "Keyboard shortcuts", "kind": "shortcuts", "when": true }
+                        ]
+                        delegate: Rectangle {
+                            required property var modelData
+                            readonly property string rowValue: root.overflowValue(modelData.kind)
+                            visible: modelData.when
+                            width: overflowColumn.width
+                            height: 38
+                            radius: 8
+                            // Transparent at rest, lit on hover -- the row reads as a target rather than
+                            // as a permanent grey slab. Matches the Player 2 menu Hemanth preferred.
+                            color: rowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 10
+                                width: parent.width - x - (valueText.width > 0 ? valueText.width + 22 : 12)
+                                elide: Text.ElideRight
+                                text: modelData.label
+                                color: theme.ink
+                                font.family: theme.hud
+                                font.pixelSize: 13
+                            }
+                            // What this control is currently set to. Gold, matching the seek bar and
+                            // volume accent, so the menu carries information and not only verbs.
+                            Text {
+                                id: valueText
+                                anchors.right: parent.right
+                                anchors.rightMargin: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: parent.rowValue
+                                visible: text.length > 0
+                                color: theme.gold
+                                font.family: theme.hud
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                            }
+                            MouseArea {
+                                id: rowArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.activateOverflowKind(modelData.kind)
+                            }
+                            KeyboardAction {
+                                anchors.fill: parent
+                                pointerEnabled: false
+                                focusEnabled: parent.visible
+                                accessibleName: modelData.label
+                                accessibleDescription: parent.rowValue
+                                focusRadius: 8
+                                onTriggered: root.activateOverflowKind(modelData.kind)
+                            }
                         }
                     }
                 }
@@ -5831,9 +6292,11 @@ Item {
                     }
                     MouseArea {
                         id: seekHover
+                        objectName: "playerSeekGestureArea"
                         anchors.fill: parent
                         hoverEnabled: true
-                        enabled: mpv.duration > 0
+                        enabled: mpv.duration > 0 && !root.touchLocked
+                        onEnabledChanged: if (!enabled) root.cancelSeekGesture()
                         cursorShape: Qt.PointingHandCursor
                         onEntered: { seekBar.hovered = true; root.wakeChrome(); root.requestSeekThumb() }
                         onExited: {
@@ -5842,6 +6305,7 @@ Item {
                                 root.seekPreview = mpv.position
                         }
                         onPositionChanged: {
+                            if (pressed && !root.seeking) return
                             root.seekPreview = root.previewAt(mouseX, width)
                             root.wakeChrome()
                             root.requestSeekThumb()
@@ -5852,9 +6316,11 @@ Item {
                             root.wakeChrome()
                         }
                         onReleased: {
+                            if (!root.seeking) return
                             root.requestUserSeekTo(root.seekPreview)
                             root.seeking = false
                         }
+                        onCanceled: root.cancelSeekGesture()
                     }
                     Item {
                         id: seekKeyboard
@@ -6691,16 +7157,44 @@ Item {
             Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, speedPopup, true) }
             Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, speedPopup, false) }
             z: 40
-            width: 420
+            objectName: "playerSpeedPanel"
+            // Bounded by the chrome (PF-05): at a sufficient size the desktop 420 x body popup
+            // is unchanged; on short/narrow viewports the body scrolls inside the panel.
+            width: Math.min(420, Math.max(1, chrome.width - 20))
             // Two speed/sleep columns, then a full-width "Skip step" footer section below both.
             readonly property int columnsHeight: 46 + Math.max(root.speedChoices.length, root.sleepPresets.length + (root.sleepTimerActive ? 1 : 0)) * 38
             readonly property int skipStepTop: columnsHeight + 8
-            height: skipStepTop + 66
-            onVisibleChanged: if (visible) {
+            readonly property real bodyHeight: skipStepTop + 66
+            height: Math.min(bodyHeight, Math.max(1, chrome.height - 20))
+            function positionPopup() {
+                if (!visible) return
                 // Native chrome: rise centered on the chip, clamped to the window.
                 var p = sm.mapToItem(chrome, 0, 0)
                 x = root.clamp(p.x + sm.width / 2 - width / 2, 10, chrome.width - width - 10)
-                y = p.y - height - 12
+                y = root.clamp(p.y - height - 12, 10, chrome.height - height - 10)
+            }
+            onVisibleChanged: if (visible) { speedScroll.contentY = 0; positionPopup() }
+            onWidthChanged: positionPopup()
+            onHeightChanged: positionPopup()
+            Connections {
+                target: chrome
+                function onWidthChanged() { Qt.callLater(speedPopup.positionPopup) }
+                function onHeightChanged() { Qt.callLater(speedPopup.positionPopup) }
+            }
+            // Keyboard focus keeps the chosen row inside the scrolled body.
+            Connections {
+                target: speedChoiceRepeater
+                function onKeyboardIndexChanged() { speedScroll.reveal(46 + speedChoiceRepeater.keyboardIndex * 38, 36) }
+                function onActiveFocusChanged() { if (speedChoiceRepeater.activeFocus) speedScroll.reveal(46 + speedChoiceRepeater.keyboardIndex * 38, 36) }
+            }
+            Connections {
+                target: sleepChoiceRepeater
+                function onKeyboardIndexChanged() { speedScroll.reveal(46 + sleepChoiceRepeater.keyboardIndex * 38, 36) }
+                function onActiveFocusChanged() { if (sleepChoiceRepeater.activeFocus) speedScroll.reveal(46 + sleepChoiceRepeater.keyboardIndex * 38, 36) }
+            }
+            Connections {
+                target: skipStepRepeater
+                function onActiveFocusChanged() { if (skipStepRepeater.activeFocus) speedScroll.reveal(speedPopup.skipStepTop, 58) }
             }
             radius: 14
             color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
@@ -6718,6 +7212,26 @@ Item {
                 border.width: 1
                 border.color: Qt.rgba(1, 1, 1, 0.14)
             }
+            Flickable {
+                id: speedScroll
+                objectName: "playerSpeedScroll"
+                anchors.fill: parent
+                contentWidth: width
+                contentHeight: speedBody.height
+                interactive: contentHeight > height + 0.5
+                clip: interactive
+                boundsBehavior: Flickable.StopAtBounds
+                function reveal(top, h) {
+                    if (top < contentY) contentY = Math.max(0, top - 8)
+                    else if (top + h > contentY + height)
+                        contentY = Math.min(Math.max(0, contentHeight - height), top + h + 8 - height)
+                }
+                Item {
+                    id: speedBody
+                    width: speedPopup.width
+                    height: speedPopup.bodyHeight
+                    readonly property int columnsHeight: speedPopup.columnsHeight
+                    readonly property int skipStepTop: speedPopup.skipStepTop
             // Harbor's exact section title (uppercase eyebrow).
             Text {
                 x: 18
@@ -6809,6 +7323,7 @@ Item {
             }
             Repeater {
                 id: sleepChoiceRepeater
+                objectName: "playerSleepChoices"
                 property int keyboardIndex: 0
                 model: root.sleepPresets
                 focusPolicy: sm.panelOpen && root.sleepPresets.length > 0 ? Qt.TabFocus : Qt.NoFocus
@@ -6957,6 +7472,8 @@ Item {
                             onClicked: playerSettings.seekStepSeconds = modelData
                         }
                     }
+                }
+            }
                 }
             }
         }

@@ -19,6 +19,12 @@ Item {
     objectName: "biblioBookDetail"   // test-only seam: Lanista qml-get reads localPath/readError/pendingReadTransport
     property var book: ({})
     property Item backdrop
+    property bool androidHost: Qt.platform.os === "android"
+    property real safeAreaLeft: detail.SafeArea.margins.left
+    property real safeAreaRight: detail.SafeArea.margins.right
+    readonly property real outerLeftInset: Math.max(layout.outerPageMargin, detail.safeAreaLeft)
+    readonly property real outerRightInset: Math.max(layout.outerPageMargin, detail.safeAreaRight)
+    AdaptiveLayout { id: layout; androidHost: detail.androidHost; viewportWidth: detail.width }
     property var editions: []
     property bool edLoading: false
     property string localPath: ""        // a downloaded edition of this book on disk ("" = none yet)
@@ -29,6 +35,21 @@ Item {
 
     // Arc 19: injectable service seams preserve production defaults while letting the
     // foreground Read contract run deterministically in an offscreen harness.
+    property var extensionsRef: (typeof Extensions !== "undefined") ? Extensions : null
+    readonly property bool libgenEnabled: {
+        var owner = detail.extensionsRef
+        if (!owner || !owner.installed) return false
+        var rows = (owner.revision, owner.installed()) || []
+        for (var i = 0; i < rows.length; ++i)
+            if (rows[i].id === "colosseum.well.libgen") return rows[i].enabled === true
+        return false
+    }
+    property int libgenGeneration: 0
+    onLibgenEnabledChanged: {
+        detail.loadLibgenEditions()
+        if (!detail.libgenEnabled)
+            detail._resolvePendingLookup(detail.pendingReadGeneration)
+    }
     property var booksRef: (typeof Books !== "undefined") ? Books : null
     property var bookTorrentsRef: (typeof BookTorrents !== "undefined") ? BookTorrents : null
     property var collectionRef: (typeof Collection !== "undefined") ? Collection : null
@@ -44,6 +65,8 @@ Item {
     property real pendingReadReceived: 0
     property real pendingReadTotal: 0
     property string readError: ""
+    property string explicitEditionMd5: ""
+    property string explicitEditionBookIdentity: ""
     property bool readChoiceOpen: false
     property var readChoiceRows: []
     property int readChoiceIndex: 0
@@ -96,6 +119,8 @@ Item {
 
     // ── editions: live LibGen search for this book (recreates TB2's scraper) ──
     onBookChanged: {
+        detail.explicitEditionMd5 = ""
+        detail.explicitEditionBookIdentity = ""
         detail._invalidateReadIntent()
         detail.readChoiceOpen = false
         detail.readChoiceRows = []
@@ -104,35 +129,53 @@ Item {
         detail.loadEditions()
     }
     function loadEditions() {
-        if (!detail.book || !detail.book.title) return
         var gen = ++detail.sourceGeneration
-        detail.edLoading = true
+        detail.abInfoHash = ""
+        abCol.abActiveSlug = ""
+        abCol.abState = "idle"
+        if (!detail.book || !detail.book.title) return
+        var key = detail.pairKey
+        abCol.syncStatus()
+        detail.loadLibgenEditions()
+        // audiobook lane: is one already downloaded? then find one to download.
+        detail.audioLocal = (typeof Audiobooks !== 'undefined') && Audiobooks.isDownloaded(detail.pairKey)
+        detail.abLoading = true; detail.abRows = []
+        Abb.resolveAudiobook(detail.book.title, detail.book.author, function(res) {
+            if (gen !== detail.sourceGeneration || key !== detail.pairKey) return
+            detail.abRows = (res && res.rows) ? res.rows : []
+            detail.abLoading = false
+            // Discover the hash for both platforms; desktop also prefetches playback.
+            if (!detail.audioLocal && detail.abRows.length > 0) {
+                var slug = detail.abRows[0].slug
+                Abb.fetchInfoHash(slug, function(d) {
+                    if (gen !== detail.sourceGeneration || key !== detail.pairKey
+                            || detail.abRows.length === 0 || detail.abRows[0].slug !== slug
+                            || (abCol.abActiveSlug !== "" && abCol.abActiveSlug !== slug)) return
+                    if (d && d.infoHash) {
+                        detail.abInfoHash = d.infoHash
+                        if (Qt.platform.os !== "android" && typeof Stream !== 'undefined')
+                            Stream.prefetch(d.infoHash, 0)
+                    }
+                })
+            }
+        })
+        detail.loadTorrents()
+        detail.refreshLocal()
+    }
+
+    function loadLibgenEditions() {
+        var gen = ++detail.libgenGeneration
         detail.editions = []
+        detail.edLoading = false
+        if (!detail.libgenEnabled || !detail.book || !detail.book.title) return
+        detail.edLoading = true
         BiblioApi.searchLibgen(detail.book.title, detail.book.author, function(eds) {
-            if (gen !== detail.sourceGeneration) return
+            if (gen !== detail.libgenGeneration || !detail.libgenEnabled) return
             detail.editions = eds
             detail.edLoading = false
             detail.refreshLocal()
             detail._resolvePendingLookup(detail.pendingReadGeneration)
         })
-        // audiobook lane: is one already downloaded? then find one to download.
-        detail.audioLocal = (typeof Audiobooks !== 'undefined') && Audiobooks.isDownloaded(detail.pairKey)
-        detail.abLoading = true; detail.abRows = []
-        Abb.resolveAudiobook(detail.book.title, detail.book.author, function(res) {
-            if (gen !== detail.sourceGeneration) return
-            detail.abRows = (res && res.rows) ? res.rows : []
-            detail.abLoading = false
-            // Pre-warm the stream engine on the top match while the user reads: a COLD engine
-            // can't fetch a torrent's peers fast (empty DHT), but by the time they click Download
-            // it's warm. Best-effort — never blocks the UI. (root-caused 2026-07-12: cold /create
-            // hangs 60s+; a warm engine resolves in seconds.)
-            if (!detail.audioLocal && detail.abRows.length > 0 && typeof Stream !== 'undefined') {
-                Abb.fetchInfoHash(detail.abRows[0].slug, function(d) {
-                    if (d && d.infoHash) { detail.abInfoHash = d.infoHash; Stream.prefetch(d.infoHash, 0) }
-                })
-            }
-        })
-        detail.loadTorrents()
     }
 
     // ── torrents: live federated indexer search for this book (BookTorrents facade) ──
@@ -377,6 +420,12 @@ Item {
         if (transport === "torrent") id = id.toLowerCase()
         var state = detail._status(service, id)
         var stateName = String(state.state || "none")
+        if (transport === "books" && stateName !== "done" && !detail._inFlight(stateName)
+                && !detail.libgenEnabled) {
+            detail._invalidateReadIntent()
+            detail.readError = "LibGen is disabled in Extensions"
+            return false
+        }
         detail.pendingReadTransport = transport
         detail.pendingReadAcquisitionId = id
         detail.pendingReadState = stateName
@@ -488,6 +537,7 @@ Item {
         return false
     }
     function readBook() {
+        detail.explicitEditionMd5 = ""
         detail.refreshLocal()
         if (detail.localPath.length) {
             detail._invalidateReadIntent()
@@ -502,13 +552,20 @@ Item {
     // foreground Read before starting, so their completion can only stop at Ready.
     function downloadEdition(ed) {
         if (!ed) return
+        detail.explicitEditionMd5 = ""
         detail._invalidateReadIntent()
         detail.readError = ""
         if (ed.md5 && detail.booksRef) {
             var st = detail._status(detail.booksRef, String(ed.md5))
             if (String(st.state || "") === "done" || detail._inFlight(String(st.state || ""))) return
+            if (!detail.libgenEnabled) {
+                detail.readError = "LibGen is disabled in Extensions"
+                return
+            }
             detail.clearExistingCopies()
             detail.collectBook()
+            detail.explicitEditionMd5 = String(ed.md5)
+            detail.explicitEditionBookIdentity = detail._bookIdentity()
             detail.booksRef.downloadBook(ed.md5, detail.dlName(ed),
                                          detail.book.title || "", 0, detail.book.author || "")
         } else if (ed.url) {
@@ -517,8 +574,25 @@ Item {
             Qt.openUrlExternally(ed.url)
         }
     }
+    function editionFailure(md5, reason) {
+        if (detail.explicitEditionMd5 !== String(md5)
+                || detail.explicitEditionBookIdentity !== detail._bookIdentity()) return
+        detail.explicitEditionMd5 = ""
+        if (detail.pendingReadActive) return
+        for (var i = 0; i < detail.editions.length; ++i) {
+            if (String(detail.editions[i].md5 || "") === String(md5)) {
+                detail.readError = "Download failed · " + (reason || "try again")
+                return
+            }
+        }
+    }
+    function bookResolvingState(md5) {
+        var state = String(detail._status(detail.booksRef, String(md5)).state || "")
+        return state === "queued" || state === "downloading" || state === "done" ? state : "resolving"
+    }
     function downloadTorrent(row) {
         if (!row || !row.infoHash || !detail.bookTorrentsRef) return
+        detail.explicitEditionMd5 = ""
         detail._invalidateReadIntent()
         detail.readError = ""
         var hash = String(row.infoHash).toLowerCase()
@@ -547,14 +621,24 @@ Item {
         if (String(st.state||"") === "done" || detail._inFlight(String(st.state||""))) return
         detail.downloadEdition(row)
     }
+    function audiobookBusy(state) {
+        return state === "resolving" || state === "queued" || state === "downloading"
+                || state === "stopping" || state === "finishing"
+    }
     function activateAudiobookRow(row) {
         if (!row) return
         var rowState = row.slug === abCol.abActiveSlug ? abCol.abState : "idle"
         if (rowState === "done") { if (detail.localPath) detail.readRequested(detail.localPath, detail.book); return }
-        if (abCol.abState === "downloading" || abCol.abState === "resolving") return
+        if (detail.audiobookBusy(abCol.abState)) return
+        abCol.syncStatus()
+        if (detail.audiobookBusy(abCol.abState)) return
         if (typeof Audiobooks === 'undefined') return
         abCol.abActiveSlug = row.slug; abCol.abState = "resolving"
-        Abb.fetchInfoHash(row.slug, function(d) {
+        var gen = detail.sourceGeneration
+        var key = detail.pairKey
+        var slug = row.slug
+        Abb.fetchInfoHash(slug, function(d) {
+            if (gen !== detail.sourceGeneration || key !== detail.pairKey || slug !== abCol.abActiveSlug) return
             if (!d || !d.infoHash) { abCol.abState = "failed"; return }
             detail.abInfoHash = d.infoHash
             var bookId = (detail.localPath && typeof Reader2Bridge !== 'undefined') ? Reader2Bridge.bookKey(detail.localPath) : ""
@@ -607,7 +691,7 @@ Item {
         ignoreUnknownSignals: true
         function onResolving(md5) {
             if (detail.pendingReadTransport === "books" && String(md5) === detail.pendingReadAcquisitionId) {
-                detail.pendingReadState = "resolving"; detail.pendingReadReceived = 0; detail.pendingReadTotal = 0
+                detail.pendingReadState = detail.bookResolvingState(md5); detail.pendingReadReceived = 0; detail.pendingReadTotal = 0
             }
         }
         function onProgress(md5, received, total) {
@@ -617,11 +701,16 @@ Item {
             }
         }
         function onFinished(md5, path) {
+            if (detail.explicitEditionMd5 === String(md5)) detail.explicitEditionMd5 = ""
             detail.refreshLocal()
             detail._finishRead("books", String(md5), detail.pendingReadGeneration)
         }
-        function onFailed(md5, reason) { detail._failRead("books", String(md5), reason) }
+        function onFailed(md5, reason) {
+            detail.editionFailure(md5, reason)
+            detail._failRead("books", String(md5), reason)
+        }
         function onRemoved(md5) {
+            if (detail.explicitEditionMd5 === String(md5)) detail.explicitEditionMd5 = ""
             detail.refreshLocal()
             if (detail.pendingReadTransport === "books" && String(md5) === detail.pendingReadAcquisitionId)
                 detail._failRead("books", String(md5), "edition removed")
@@ -659,9 +748,10 @@ Item {
     // ── top bar ────────────────────────────────────────────────────────────
     Glass {
         id: bar
+        objectName: "biblioBookHeader"
         backdrop: detail.backdrop
-        x: theme.margin; y: 22
-        width: detail.width - theme.margin * 2
+        x: detail.outerLeftInset; y: 22
+        width: detail.width - detail.outerLeftInset - detail.outerRightInset
         height: 64; radius: 16
 
         Row {
@@ -684,6 +774,9 @@ Item {
             }
         }
         Row {
+            objectName: "biblioBookWindowControls"
+            visible: !detail.androidHost
+            width: visible ? implicitWidth : 0
             anchors.right: parent.right; anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
@@ -730,8 +823,9 @@ Item {
 
         Item {
             id: body
-            x: theme.margin
-            width: detail.width - theme.margin * 2
+            objectName: "biblioBookBody"
+            x: detail.outerLeftInset
+            width: detail.width - detail.outerLeftInset - detail.outerRightInset
             implicitHeight: Math.max(coverCol.implicitHeight, textCol.implicitHeight) + 36
 
             // ── cover column ──
@@ -1054,7 +1148,8 @@ Item {
                             Text {
                                 anchors.left: parent.left; anchors.leftMargin: 18
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: detail.edLoading ? "Searching LibGen…" : "No editions found"
+                                text: !detail.libgenEnabled ? "LibGen is disabled in Extensions"
+                                      : (detail.edLoading ? "Searching LibGen…" : "No editions found")
                                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
                             }
                         }
@@ -1064,6 +1159,7 @@ Item {
                             model: detail.editions
                             delegate: Item {
                                 id: edRow
+                                objectName: "biblioEdition_" + String(modelData.md5 || index)
                                 required property var modelData
                                 required property int index
                                 width: parent.width; height: 52
@@ -1076,7 +1172,7 @@ Item {
                                 Connections {
                                     target: detail.booksRef
                                     ignoreUnknownSignals: true
-                                    function onResolving(md5) { if (md5 === edRow.modelData.md5) edRow.dlState = "resolving" }
+                                    function onResolving(md5) { if (md5 === edRow.modelData.md5) edRow.dlState = detail.bookResolvingState(md5) }
                                     function onProgress(md5, rcv, tot) { if (md5 === edRow.modelData.md5) { edRow.dlState = "downloading"; edRow.dlPct = tot > 0 ? rcv / tot : 0 } }
                                     function onFinished(md5, path) { if (md5 === edRow.modelData.md5) { edRow.dlState = "done"; edRow.dlPct = 1 } }
                                     function onFailed(md5, why) { if (md5 === edRow.modelData.md5) edRow.dlState = "failed" }
@@ -1112,12 +1208,13 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: edRow.dlState === "done" ? "✓"
                                         : edRow.dlState === "downloading" ? (Math.round(edRow.dlPct * 100) + "%")
+                                        : edRow.dlState === "queued" ? "queued"
                                         : edRow.dlState === "resolving" ? "…"
                                         : edRow.dlState === "failed" ? "retry"
                                         : (edRow.modelData.md5 ? "↓" : "↗")
                                     color: edRow.dlState === "done" ? theme.gold : (edMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui
-                                    font.pixelSize: (edRow.dlState === "downloading" || edRow.dlState === "failed") ? 12 : 16
+                                    font.pixelSize: (edRow.dlState === "downloading" || edRow.dlState === "failed" || edRow.dlState === "queued") ? 12 : 16
                                 }
                                 MouseArea { id: edMa; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: edRow.dlState === "done" ? Qt.ArrowCursor : Qt.PointingHandCursor
@@ -1165,31 +1262,38 @@ Item {
                         property real abPct: 0
                         Connections {
                             target: (typeof Audiobooks !== 'undefined') ? Audiobooks : null
-                            function onResolving(key) { if (key === detail.pairKey) abCol.abState = "resolving" }
+                            function onResolving(key) { if (key === detail.pairKey) abCol.syncStatus() }
                             function onProgress(key, rcv, tot) { if (key === detail.pairKey) { abCol.abState = "downloading"; abCol.abPct = tot > 0 ? rcv / tot : 0 } }
                             function onFinished(key, path) { if (key === detail.pairKey) { abCol.abState = "done"; abCol.abPct = 1; detail.audioLocal = true } }
                             function onFailed(key, why) { if (key === detail.pairKey) abCol.abState = "failed" }
+                            function onRemoved(key) {
+                                if (key !== detail.pairKey) return
+                                abCol.syncStatus()
+                                detail.audioLocal = Audiobooks.isDownloaded(key)
+                            }
                         }
                         // REHYDRATE on page (re)entry: the download runs in C++ and survives leaving
                         // this page, but abState/abPct are page-local and reset — without this seed a
                         // running download read as "stopped" (the 2026-07-18 report). Which ROW was
                         // picked (abActiveSlug) is unrecoverable by design; the banner below carries
                         // slug-less background progress instead.
-                        Component.onCompleted: {
+                        function syncStatus() {
                             if (typeof Audiobooks === 'undefined' || !detail.pairKey) return
                             var st = Audiobooks.statusOf(detail.pairKey)
-                            if (st && (st.state === "downloading" || st.state === "resolving")) {
-                                abCol.abState = st.state
-                                abCol.abPct = (st.total > 0) ? st.received / st.total : 0
-                            }
+                            abCol.abState = st && st.state && st.state !== "none" ? st.state : "idle"
+                            abCol.abPct = st && st.total > 0 ? st.received / st.total : 0
                         }
+                        Component.onCompleted: syncStatus()
                         Item {                              // background download banner (rehydrated state)
                             visible: abCol.abActiveSlug === ""
-                                     && (abCol.abState === "downloading" || abCol.abState === "resolving")
+                                     && detail.audiobookBusy(abCol.abState)
                             width: parent.width; height: visible ? 40 : 0
                             Text {
                                 anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter
-                                text: abCol.abState === "resolving" ? "Downloading in the background — resolving…"
+                                text: abCol.abState === "stopping" ? "Stopping audiobook download…"
+                                    : abCol.abState === "finishing" ? "Finishing audiobook download…"
+                                    : abCol.abState === "queued" ? "Audiobook download queued"
+                                    : abCol.abState === "resolving" ? "Downloading in the background — resolving…"
                                     : ("Downloading in the background — " + Math.round(abCol.abPct * 100) + "%")
                                 color: theme.gold; font.family: theme.ui; font.pixelSize: 13
                             }
@@ -1232,7 +1336,7 @@ Item {
                                     anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter
                                     text: abRow.rowState === "done" ? "✓"
                                         : abRow.rowState === "downloading" ? (Math.round(abCol.abPct*100) + "%")
-                                        : abRow.rowState === "resolving" ? "…"
+                                        : detail.audiobookBusy(abRow.rowState) ? "…"
                                         : abRow.rowState === "failed" ? "retry" : "↓"
                                     color: abRow.rowState === "done" ? theme.gold : (abRowMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui; font.pixelSize: (abRow.rowState === "downloading" || abRow.rowState === "failed") ? 12 : 16

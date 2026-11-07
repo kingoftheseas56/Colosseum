@@ -1,0 +1,1271 @@
+{
+  "base": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+  "kind": "committed-reference-only",
+  "files": [
+    {
+      "path": "native/ProgressStore.h",
+      "sha256": "82f2f42a067a419ab4d09c5130bdf03025c38a2fede724bb715ba66efb0940fe",
+      "bytes": 100671
+    },
+    {
+      "path": "native/SessionStore.h",
+      "sha256": "20a0f43c459b1bc62202ac73d48491b359320f5ad8c9f9e089cf64e961920650",
+      "bytes": 39372
+    },
+    {
+      "path": "native/account/AccountRuntime.cpp",
+      "sha256": "ce0d6d114bbe539c5e1f66a9da89a3b37744d922d0ffd8483ce1b862f06499ba",
+      "bytes": 108211
+    },
+    {
+      "path": "native/account/PlatformAccountCredentialStore.cpp",
+      "sha256": "dded126c52f40fe3fb81ead108e29739ba62cd6b6bf5b2d56505febe7c21885a",
+      "bytes": 16354
+    },
+    {
+      "path": "native/account/ProfileStoreRuntime.cpp",
+      "sha256": "dcc9a43b5f28ad56d9fe20d4378f75083aaf181de6ff3f65115fadd04dfed9ed",
+      "bytes": 38190
+    },
+    {
+      "path": "native/cmake/android.cmake",
+      "sha256": "db024e07e75fe93e6643d333d5263d2d8727c0e0ff5593f451bbef25b54530ca",
+      "bytes": 15491
+    },
+    {
+      "path": "native/devtools/LanistaServer.cpp",
+      "sha256": "d037810df99a8423f2a3995e36dafb8cf5bae967fbd2007f27e558953c28fab7",
+      "bytes": 105756
+    },
+    {
+      "path": "native/engine/CatalogRemote.cpp",
+      "sha256": "f355d7d3e33da4bcd25df1a6790f7b3b5ba6ae79116af70fca69ab2343bdd5a6",
+      "bytes": 31539
+    },
+    {
+      "path": "native/engine/ColosseumTitleIdentityRegistry.cpp",
+      "sha256": "0f7f10f19bddfad1aef63f3fa999d755f22b5170669e45b26667c17564a6ab91",
+      "bytes": 25209
+    },
+    {
+      "path": "native/engine/MalCatalog.cpp",
+      "sha256": "42a010653ca4c01113fbcbc015817f02393a8d8d9b25eff5a5cefdc12ffcea6c",
+      "bytes": 39917
+    },
+    {
+      "path": "native/engine/MalCatalog.h",
+      "sha256": "410bfcc49a9e4e5b65af7a1aaa75c5b91968f13005ea9576034263d033101198",
+      "bytes": 10530
+    },
+    {
+      "path": "native/engine/MangaDownloader.cpp",
+      "sha256": "886cb92af3697cf5402560e81f68add43d1be99ecccc42a027df8ad8f163bcd8",
+      "bytes": 52747
+    },
+    {
+      "path": "native/engine/StaticCatalogueResolver.cpp",
+      "sha256": "58ad4874a3d4f0c8d99523d28407e611acfc2cd229ef6c8de4739bedac71e72c",
+      "bytes": 92341
+    },
+    {
+      "path": "native/engine/VaultDownloadsRoot.cpp",
+      "sha256": "7418be30ba593a01adf1959d9328c16428c7ab212573975d452a730b41df8979",
+      "bytes": 10028
+    },
+    {
+      "path": "native/engine/VaultKit.cpp",
+      "sha256": "614b027957285b0164fa4f5737eb891ffd3ee465142bde8ea4d1f329a6f1ca1e",
+      "bytes": 41876
+    },
+    {
+      "path": "native/engine/VaultLibrary.cpp",
+      "sha256": "e5e9aa4d3c06262b972beef2ed53452449fdcae3682a61cecf6a9041c855a06d",
+      "bytes": 84165
+    },
+    {
+      "path": "native/main.cpp",
+      "sha256": "87226acb2ba086a0aefc4686da715333dd1701e54bdd2b70ca31cf44491bb83f",
+      "bytes": 137575
+    },
+    {
+      "path": "native/platform/PlatformRuntime.cpp",
+      "sha256": "1faeb86dbec2ac27e63796c0437abf5dc51f99d5fef003d0baad01d5e36dc32e",
+      "bytes": 18062
+    },
+    {
+      "path": "native/platform/android/AndroidManifest.xml",
+      "sha256": "65c2ed7e6779d55f39767abf66d4f580886dd494e5cf639ba920cd888364b35f",
+      "bytes": 3244
+    },
+    {
+      "path": "native/platform/android/build.gradle",
+      "sha256": "9b0c524cec7c917260ea2d143b35a9bb2b65a1b9af3d7d0f745d5f891b45e9da",
+      "bytes": 3126
+    },
+    {
+      "path": "native/platform/android/res/drawable/ic_launcher_foreground.xml",
+      "sha256": "f818f716f7a4eb0291a95bc0b9a8dedbba218f684c75befeb30190b97f7ad5e9",
+      "bytes": 1617
+    },
+    {
+      "path": "native/platform/android/res/mipmap-anydpi-v26/ic_launcher.xml",
+      "sha256": "07d3b8f67a12668e6f9efd9dc9d9cf111e4f92b43addfaf4c8e5850959513db3",
+      "bytes": 269
+    },
+    {
+      "path": "native/platform/android/res/mipmap-anydpi-v26/ic_launcher_round.xml",
+      "sha256": "07d3b8f67a12668e6f9efd9dc9d9cf111e4f92b43addfaf4c8e5850959513db3",
+      "bytes": 269
+    },
+    {
+      "path": "native/platform/android/res/values/ic_launcher_background.xml",
+      "sha256": "d263737d26e418e5edc06b4d0f713888d03be0ef11822a748f250df5afc0661b",
+      "bytes": 120
+    },
+    {
+      "path": "native/platform/android/src/org/colosseum/platform/ColosseumActivity.java",
+      "sha256": "366b3ec6ba46ce5efb4d802f7c8fa56f639cd68e4e117ea691b92790b0368790",
+      "bytes": 6197
+    },
+    {
+      "path": "native/platform/android/src/org/colosseum/reader/AndroidEbookHost.java",
+      "sha256": "adbb420fc63c3905b368fa8439c15e3b2f09ee0270f0caf535387d94caf2fa1a",
+      "bytes": 13302
+    },
+    {
+      "path": "native/player/NuvioFixtureAdmission.h",
+      "sha256": "eaa7e4590cc17ded8d3ac048583e87fc5f9227814b9a35963c8c13f94496710b",
+      "bytes": 2956
+    },
+    {
+      "path": "native/player/downloadstore.cpp",
+      "sha256": "ac95c9590966c5dc567cfc2b03dc0993d4d9a1a5e7ba610d425a69615ff638f8",
+      "bytes": 46062
+    },
+    {
+      "path": "native/player/nuviostreambackend.cpp",
+      "sha256": "79523de2385eaf6f71d9f9363f060c05b0894c5518038e4b222b608a9e712223",
+      "bytes": 59304
+    },
+    {
+      "path": "native/player/streamserver_android.cpp",
+      "sha256": "8966fee8361e256a92f4becedf4de40edc11a20c077636f4e6c20d26a0cd151b",
+      "bytes": 17607
+    },
+    {
+      "path": "native/prototypes/d3d11_qtquick_bridge/qml/Main.qml",
+      "sha256": "d11e9d5f22475fd268da6690dfe7e172d87e6bd79b0643df4f74dc541b26fda1",
+      "bytes": 1666
+    },
+    {
+      "path": "native/prototypes/d3d11_qtquick_bridge/src/main.cpp",
+      "sha256": "08ffc38cc0ce2fe61cd78191eaae58258f69407e9fae4839adaad41adc5f38e3",
+      "bytes": 2805
+    },
+    {
+      "path": "native/stremio/StremioSync.cpp",
+      "sha256": "93c08f946c4aa282b2b199006eb671793b5b0ed33183c0b4c42831fc5a2d6101",
+      "bytes": 115774
+    },
+    {
+      "path": "native/trackers/TrackerCredentialVault.cpp",
+      "sha256": "75d00c581e3c3ddfbb9d25d267bb0aff8487113b667abe5e3e5c08e1e0a93ff6",
+      "bytes": 11657
+    },
+    {
+      "path": "qml/+android/TopBar.qml",
+      "sha256": "e78d6d9389de6884f911aa16930b4765a0765704d944c9fff0b69227826edd30",
+      "bytes": 28073
+    },
+    {
+      "path": "qml/ActivityLaneHelpers.js",
+      "sha256": "2e24d5fd9806f19e578e86230f3b4fbf1ee34e2977f6721a849b9f9d872521ee",
+      "bytes": 3408
+    },
+    {
+      "path": "qml/AdaptiveLayout.qml",
+      "sha256": "3aee18dd9434f3ca7f864014f0cb16506ccaaf5959c9b78d5fee535d6ef1e5db",
+      "bytes": 4327
+    },
+    {
+      "path": "qml/AddonClient.js",
+      "sha256": "aa6b370dc30474e6c34d925b8febc561b57981b986117e497201e93fe286eece",
+      "bytes": 39018
+    },
+    {
+      "path": "qml/BackGestureIndicator.qml",
+      "sha256": "bf2bb91fac61514889cb56f34e4040198734efac9fcec835ac2d1da79d7358d7",
+      "bytes": 918
+    },
+    {
+      "path": "qml/BiblioLibraryPage.qml",
+      "sha256": "5a46b14101c83c8760b0bc08530aebae0ae4f2f8692597243ac43e60a1658ae6",
+      "bytes": 34552
+    },
+    {
+      "path": "qml/BootSplash.qml",
+      "sha256": "022ebe5a8002c9825c8d6bf829085eea3a0ddd262abb55daab20db5cb1c70825",
+      "bytes": 5076
+    },
+    {
+      "path": "qml/BrowseColumnScaffold.qml",
+      "sha256": "4d1eb59dfb8f0580846712ff97adc0e494b1e7d5ac86c4e84797001af4bbf829",
+      "bytes": 894
+    },
+    {
+      "path": "qml/BrowseLayout.qml",
+      "sha256": "9952d1add4a3b1949cf259a29d99d8ea774a20eaae80101d9818a1ba8aebceff",
+      "bytes": 394
+    },
+    {
+      "path": "qml/BrowseScaffold.qml",
+      "sha256": "6ad69e457cd2bf7b4968ca87e5622ad55add3ce7c2627b21089678d49c1ce16e",
+      "bytes": 1042
+    },
+    {
+      "path": "qml/Catalog.js",
+      "sha256": "0fba88a34b2e666c476ee87709962dd0021a6d3c5c6fc75c9bbccbf672dcb85e",
+      "bytes": 21538
+    },
+    {
+      "path": "qml/CatalogDelivery.js",
+      "sha256": "4a7605b1b02f67573419ed48d6399ca83bf0876e3f1ce044d3506d38dc44e689",
+      "bytes": 10470
+    },
+    {
+      "path": "qml/CollectionCardMenu.qml",
+      "sha256": "59c4bde6fce254f1c3178d22e27ecc848e31f24dd6c3dc67139c92879e670332",
+      "bytes": 606
+    },
+    {
+      "path": "qml/CollectionGrid.qml",
+      "sha256": "3b4fba7b065466545e22276a2489adf706118bcebbb006afe83d7c269f0663af",
+      "bytes": 2163
+    },
+    {
+      "path": "qml/CollectionMenu.qml",
+      "sha256": "705ebfb51d51b6713618e39a07f40c9cbb86006312c803f28c5ff7c31e28f345",
+      "bytes": 6592
+    },
+    {
+      "path": "qml/ComicActivityHelpers.js",
+      "sha256": "85ddd03628dfe641802eb7391b3116e50df1ed3ffec2cc129a4c0e69186c7d30",
+      "bytes": 5797
+    },
+    {
+      "path": "qml/ComicDbLedger.qml",
+      "sha256": "1dfa70ac168f95a99c70f5ca86d33901f1c20366c065326231c65682e9745f57",
+      "bytes": 30227
+    },
+    {
+      "path": "qml/ComicTorrentSourcesPage.qml",
+      "sha256": "901de7789d11862c733ccae1ab013cd84661719983d5cc8cc015255e1efac842",
+      "bytes": 44995
+    },
+    {
+      "path": "qml/DCAUUniversePage.qml",
+      "sha256": "6a92dc99b8a091057044c15969d8660724b0d9383f8bdd3efcb9d6d1c8fe71de",
+      "bytes": 11313
+    },
+    {
+      "path": "qml/DownloadsPage.qml",
+      "sha256": "05a4785eb06c32d451c223bf334f782bf6bf13ea60cf41933d8623d40a667a27",
+      "bytes": 117009
+    },
+    {
+      "path": "qml/EpisodeBrowser.js",
+      "sha256": "a04e304077ce0526812ddb802aae6486e685cb0f889ab290c48032e5a8a49c17",
+      "bytes": 9489
+    },
+    {
+      "path": "qml/ExtensionsStoreApi.js",
+      "sha256": "615bb28dc2e83c8c1bb2fac228c6e6f274e8a39b3e6ff6fb2e2b6f5fa2356ff0",
+      "bytes": 8108
+    },
+    {
+      "path": "qml/ExtensionsStorePage.qml",
+      "sha256": "ebea60e213c5371d9eac7919500e9dfd79020c86a882b53d4b4a673482d6e6d6",
+      "bytes": 13357
+    },
+    {
+      "path": "qml/GalaxyUniversePage.qml",
+      "sha256": "b75eb1eeaf2390dc281f75accee190be860aacdafb0f9dcd457250079db68a84",
+      "bytes": 16393
+    },
+    {
+      "path": "qml/LibraryPage.qml",
+      "sha256": "47ecbb2030fb92f972504c2871469739a92332316423cb92128e6327686bd071",
+      "bytes": 36670
+    },
+    {
+      "path": "qml/LibrarySelectionHost.qml",
+      "sha256": "db11aab6d32a66c3b87b1bea3ab912ab87cd86ff501e0f1c4a737d876c8084d2",
+      "bytes": 8624
+    },
+    {
+      "path": "qml/LibrarySelectionMark.qml",
+      "sha256": "f2bf7fd81e8680b2161dd2b7886b529e642c7d248f08fceca2a0829165740e25",
+      "bytes": 408
+    },
+    {
+      "path": "qml/LibrarySelectionState.qml",
+      "sha256": "3cdc626224ec492c318410b2e8fda3f9e2100ecf66df60b380ff29e1853a2db2",
+      "bytes": 1583
+    },
+    {
+      "path": "qml/Main.qml",
+      "sha256": "901cd44e2e4d48e953f5f9c054dc73b3ed3ae93bc27dd27a3e9cbb987c8261c2",
+      "bytes": 320831
+    },
+    {
+      "path": "qml/MangaReader.qml",
+      "sha256": "83b9f6e0c754770a6bd17a5d687322ff8f39997715278151eb19ed694f3f2342",
+      "bytes": 2148
+    },
+    {
+      "path": "qml/MangaSeries.qml",
+      "sha256": "52a057f6d833a4ee2a658e2b2056495f129cd23551aef426f66f9fb944649c37",
+      "bytes": 59822
+    },
+    {
+      "path": "qml/MediaDetailScaffold.qml",
+      "sha256": "837c9d9ebaaa928bb0680bc1ab7e83009552358ad1a710a5a48b27ee1f8feb43",
+      "bytes": 6315
+    },
+    {
+      "path": "qml/OnePieceEastBlueAtlas.qml",
+      "sha256": "26ea9735dba994dfa237cd8ca4d0347657a1dc0d140c53e36658365f4153605f",
+      "bytes": 43409
+    },
+    {
+      "path": "qml/PhoneActionRow.qml",
+      "sha256": "5e44e56295e79ae86b0f3443f5c86bf2dfd7227aa6160596f1ecdb53e246009e",
+      "bytes": 87
+    },
+    {
+      "path": "qml/PhoneChoiceHost.qml",
+      "sha256": "19ff247a9d025f2757e59969a624834b97c47eadb43cfddc07cd4b1c7be9ea88",
+      "bytes": 1403
+    },
+    {
+      "path": "qml/PhoneFilterSheet.qml",
+      "sha256": "82d452777c454bdc53454395edd2523da30df19ee72d4d955aa095cc9be4180c",
+      "bytes": 909
+    },
+    {
+      "path": "qml/PhoneListItem.qml",
+      "sha256": "cdf3a58ffa54ce8799f613260367f774593e9fb81d1162fce434abcf0a07187b",
+      "bytes": 1401
+    },
+    {
+      "path": "qml/PhoneModalSheet.qml",
+      "sha256": "e2c903be0815a9d0c8ebb0be6dd8413d9a6f7e5b5c1e724bcad2031608cf2f3e",
+      "bytes": 7867
+    },
+    {
+      "path": "qml/PhoneOverlayRegistry.js",
+      "sha256": "84fe478752115a1e4c4fba708b4defb810700b8fbcbf08f68ae7f6f586d14728",
+      "bytes": 1519
+    },
+    {
+      "path": "qml/PhoneShellHost.qml",
+      "sha256": "eabd57cd99eab51060db33a347df65f9ad27ded1066e210125e1bd6f1aec1dbd",
+      "bytes": 14762
+    },
+    {
+      "path": "qml/PhoneWorldActions.qml",
+      "sha256": "bf4bd9247fa4899ff0937b6fe7b715360b32f2ba60f3d5b1f915d756df53658d",
+      "bytes": 2978
+    },
+    {
+      "path": "qml/PlayerPage.qml",
+      "sha256": "8801d5fa703ea379e88be3e2743fe1f6e5a04fd921c1b072662fdb9424b97b5b",
+      "bytes": 346236
+    },
+    {
+      "path": "qml/PlayerTouchSurface.qml",
+      "sha256": "49ea1b64cfa8a902331790926623fc4a6d8565fa735cd0829875b8a9045dfbbc",
+      "bytes": 5648
+    },
+    {
+      "path": "qml/SettingsScaffold.qml",
+      "sha256": "cbee5c9682ae56157ee338ec05affe7efe00b09e9347265962964bae3f148896",
+      "bytes": 1158
+    },
+    {
+      "path": "qml/ShellBackPolicy.js",
+      "sha256": "2067b4c75135150c134a043a5a0b359f0216f39d8b723abfb18eeff2d935effe",
+      "bytes": 4350
+    },
+    {
+      "path": "qml/SkipSegments.js",
+      "sha256": "e368501fbaad578979bc2beada25bca4d230e537596fed58416537bde4fa4ddd",
+      "bytes": 4185
+    },
+    {
+      "path": "qml/SourceCard.qml",
+      "sha256": "2effa18976a4865d55cbf69aff701ab64ae071c80e7ee7818ad74fc8bdaa46fb",
+      "bytes": 4844
+    },
+    {
+      "path": "qml/SourcePickerList.qml",
+      "sha256": "aaec8366085112e75bc59a98668a4777d35f217eaa8ca3d14d3ab0354136ce2e",
+      "bytes": 102
+    },
+    {
+      "path": "qml/SourcesSheet.qml",
+      "sha256": "c9782ddc6a931c20a5da1f1090aa3a75baf34b7f01a270e87c7e9ebef98bc0e4",
+      "bytes": 55660
+    },
+    {
+      "path": "qml/SubtitleMenu.qml",
+      "sha256": "335c8092ebb91a588dd1d0bd394dbcb3ec40a3527bdeda7fee60a1f0cd2e72d2",
+      "bytes": 70302
+    },
+    {
+      "path": "qml/Subtitles.js",
+      "sha256": "0b5e3b5a7eda0cee89b1b95974864061160603f2a8dc10d0ebd2c6869c24e02e",
+      "bytes": 9436
+    },
+    {
+      "path": "qml/TankobanLibraryTab.qml",
+      "sha256": "441b31687288f5b20865cf2a2d17d12407f761b1663c5eb7182a10572a23e05d",
+      "bytes": 25234
+    },
+    {
+      "path": "qml/TankobanWorld.qml",
+      "sha256": "7e969fc817107ae9916c25a66f2eae72ec3e2585727e2386741d9d54b19f53c0",
+      "bytes": 22907
+    },
+    {
+      "path": "qml/TheatreApi.js",
+      "sha256": "3986ccaf0e27ac4a42b77c2c56defdd246afb4ecb09a61005ca572768614266d",
+      "bytes": 92627
+    },
+    {
+      "path": "qml/TheatreGenreIndex.qml",
+      "sha256": "3e3ad5135e15c87daf42cb414d55300b957a59469e07f6d76a0ff78b100e1a96",
+      "bytes": 17704
+    },
+    {
+      "path": "qml/TheatreGenrePage.qml",
+      "sha256": "0b7cb27b0c90dfc7c890d56e38b45397ec5298bef54eec6801f776654e722638",
+      "bytes": 34798
+    },
+    {
+      "path": "qml/TheatreSeries.qml",
+      "sha256": "5eda95d8e0c4d41c3b7edca096cf2a720d77c0dd3024dd238c0f984a52beaa59",
+      "bytes": 128577
+    },
+    {
+      "path": "qml/TheatreSeriesView.qml",
+      "sha256": "c28630bbe207d2e63035c7644b0f1a960cb189b19e26a8337a264e4103ade717",
+      "bytes": 119128
+    },
+    {
+      "path": "qml/TheatreWorld.qml",
+      "sha256": "66db9fc2bed510f5fb15e14365cec6390d51400b941715cb637773604f9a9f3b",
+      "bytes": 16158
+    },
+    {
+      "path": "qml/Theme.qml",
+      "sha256": "5c11cd0ed06079c80e317a8f3c4dcfb659791218532e7294c4d4931e67d6d020",
+      "bytes": 2345
+    },
+    {
+      "path": "qml/TopBar.qml",
+      "sha256": "6b777bb3408a0289d7def15f433388f2971a3607a020c92813b31428279a5f60",
+      "bytes": 25177
+    },
+    {
+      "path": "qml/Torrentio.js",
+      "sha256": "d8993c5d6084ae7e5f90c9e5455027a87c42cd8b50a00f09ae968a3705ca5ea2",
+      "bytes": 5732
+    },
+    {
+      "path": "qml/TouchButton.qml",
+      "sha256": "740b257141c541a6bdce5f0cc077450320cdbd39af5bd1d2202227939c52efb9",
+      "bytes": 424
+    },
+    {
+      "path": "qml/TouchCheckBox.qml",
+      "sha256": "9dfb97e8dd1b111c3a9986980ce5226e73bb0ef40c3ee30c8d2aee0f69a9d160",
+      "bytes": 475
+    },
+    {
+      "path": "qml/TouchComboBox.qml",
+      "sha256": "cbf2eedc912d6bf596f0ec82e0c0705dfe3fb58daca76ddc6339a72f9e9af633",
+      "bytes": 1281
+    },
+    {
+      "path": "qml/TouchMetrics.js",
+      "sha256": "31d12483dddf979d0e639170c53608b1f69486526e2310c5f304de0d3b2d4308",
+      "bytes": 44
+    },
+    {
+      "path": "qml/TouchSwitch.qml",
+      "sha256": "9e44259ffba5fd4d066afd2aee4d564c31781a7d243e4b87bb1f8b1431d8939f",
+      "bytes": 473
+    },
+    {
+      "path": "qml/TouchTarget.qml",
+      "sha256": "5ca85be8a5a76b70262a9f8406394b2290f9f84cd24be46fc06b972658fb19b3",
+      "bytes": 646
+    },
+    {
+      "path": "qml/TouchTextField.qml",
+      "sha256": "85e9e9e1d1aa27b7608c1f27562351108bfa745a17277d518e9fb1ddd0ada52e",
+      "bytes": 530
+    },
+    {
+      "path": "qml/UniverseFeed.qml",
+      "sha256": "2abeba9365040a47b03ca26a66dc41fda41dde731213ea8a08ed5285465c6324",
+      "bytes": 409
+    },
+    {
+      "path": "qml/UniversePosterRail.qml",
+      "sha256": "74609a4e42d889779186210b80c8aa21deda1787dfe11cff46076d06c77cf556",
+      "bytes": 368
+    },
+    {
+      "path": "qml/UniverseScaffold.qml",
+      "sha256": "e2e5dca1eb7bbc29272e54cab3b6f157d0a86f3c3261341ab82c92cfe7de18e4",
+      "bytes": 1896
+    },
+    {
+      "path": "qml/UniverseShelfViewport.qml",
+      "sha256": "e95bafa8181082314370cad65487c60d65e6066d4944eb858826a9739d6a8f1f",
+      "bytes": 135
+    },
+    {
+      "path": "qml/Universes.js",
+      "sha256": "c8c5b0bd87e326813b70a9c71151494d6d72073fc7b38355985b3589f4fa6ff3",
+      "bytes": 148446
+    },
+    {
+      "path": "qml/WallpaperSearch.qml",
+      "sha256": "32208a2f605d20e977082e65514b28b404eb36695dae4a736b9c08249acc7e4f",
+      "bytes": 37540
+    },
+    {
+      "path": "qml/WatchPartyPanel.qml",
+      "sha256": "0bf3d7ded542ca4dc7420459de759cb7e483711dbef2710d15e196d3b316d0e9",
+      "bytes": 56905
+    },
+    {
+      "path": "qml/WorldPage.qml",
+      "sha256": "a8bcfa8e99c863c85dafed052a127aa0ce21afb5654548f43eeeac1eb52b6dd1",
+      "bytes": 23414
+    },
+    {
+      "path": "qml/WorldSearch.js",
+      "sha256": "b4196f639688cbeeebacd295ea1fc79a0a65ed66fb0c08b612f322640f705a4e",
+      "bytes": 22451
+    },
+    {
+      "path": "qml/account/AccountField.qml",
+      "sha256": "5cf1acf5fc5bdddeabc0abf9d1f3904712e12ca08eadc336b4539d4ac5e49ce1",
+      "bytes": 3719
+    },
+    {
+      "path": "qml/account/AccountPageFrame.qml",
+      "sha256": "7905449a39cbacedb5806425f58c98d2a84f68ff416d9a5e1e7b38ffe9f41db5",
+      "bytes": 7895
+    },
+    {
+      "path": "qml/comicreader/ComicReaderCommandBar.qml",
+      "sha256": "a8016ce2027fe78cb32f3a4458d42c2a43efa9fdd4e1a2463821c54e42abb2fc",
+      "bytes": 12345
+    },
+    {
+      "path": "qml/comicreader/ComicReaderHud.qml",
+      "sha256": "205a0a6ebe22f68ef90796f9ec4170d9002abc114366624a7fa9e0bd57501096",
+      "bytes": 42489
+    },
+    {
+      "path": "qml/comicreader/ComicReaderImagePopover.qml",
+      "sha256": "fc1e355004fdce0b5aa91fa5d91914730a5c565e9c4e20d53ad24ea66c20e3b9",
+      "bytes": 26320
+    },
+    {
+      "path": "qml/comicreader/ComicReaderShell.qml",
+      "sha256": "5e5ff1a2352164a550babb1dbf9f776076e66b436a854d2db523dfa17735f3cf",
+      "bytes": 144345
+    },
+    {
+      "path": "qml/comicreader/ComicReaderStripSurface.qml",
+      "sha256": "ca7b4091c776ab9097d802ff05a6d70b382afa7db9758826d59a373c7c3344e7",
+      "bytes": 62642
+    },
+    {
+      "path": "qml/player2/Theme.qml",
+      "sha256": "11c2a73340b10f56d36daf1a1077b104788fef66da67b1d4f86f249fa511eeb7",
+      "bytes": 539
+    },
+    {
+      "path": "qml/player2/controls/TopBar.qml",
+      "sha256": "095f286c35ba359706023b140d5c84ab0141c5634162d2654689d335edf7aa75",
+      "bytes": 6261
+    },
+    {
+      "path": "qml/player2host/ColosseumHostServices.qml",
+      "sha256": "c98268649466987a5b2ae9817e3c0d396dff3d210f3c1e039021357803319810",
+      "bytes": 28644
+    },
+    {
+      "path": "qml/reader2/DictCard.qml",
+      "sha256": "4b429c8a440c734c2b4e7e881dc5876595574642e40d1acb53122681d8a1f926",
+      "bytes": 8829
+    },
+    {
+      "path": "qml/reader2/FootnoteCard.qml",
+      "sha256": "503a1585b3fbb24196fcc4737eded566a36ddad300cc73e5154a680efd2ee7cc",
+      "bytes": 4052
+    },
+    {
+      "path": "qml/reader2/LeftPanel.qml",
+      "sha256": "458d947c427113aa0510cbf16373319947b9c1af7783feef9b7c24df711dab62",
+      "bytes": 70079
+    },
+    {
+      "path": "qml/reader2/Reader2Logic.js",
+      "sha256": "6cfbf8842902fc6fd33722c593cd36f4c33c66c98858cb7d7bf925ccb4f07c8d",
+      "bytes": 61694
+    },
+    {
+      "path": "qml/reader2/ReaderOverlay.qml",
+      "sha256": "800d4fbd2f79d7db10d307e29bbcb6e8a8c6de0e13df640ce10d06baa6bf0fee",
+      "bytes": 2178
+    },
+    {
+      "path": "qml/reader2/ReaderPaper.qml",
+      "sha256": "3acda2944eb0f8b09ef20539791b3b14bbf00b253403c6c2ee9ab639e9956921",
+      "bytes": 2371
+    },
+    {
+      "path": "qml/reader2/SelectionMenu.qml",
+      "sha256": "66a90e789eb06e5d0303890ca18b98dbc905beb7b585a586b114792ea4176d98",
+      "bytes": 16572
+    },
+    {
+      "path": "qml/reader2/Theme.qml",
+      "sha256": "409dd3ccb06e88a4495a9968efbad9c4149bac3f8a191615d80ebd3d192ab3b8",
+      "bytes": 3713
+    },
+    {
+      "path": "qml/reader2/TopBar.qml",
+      "sha256": "840dc1a6951435d114c6433838a938340c540da02fec3b862213329a580eda2c",
+      "bytes": 10655
+    },
+    {
+      "path": "resources/reader2/android_boot.js",
+      "sha256": "a841b3c1eb4546c27e42f42dba30dffe207a7eac320db9b9b16499c1f195a0b6",
+      "bytes": 2220
+    },
+    {
+      "path": "resources/reader2/paper_text.js",
+      "sha256": "9888c99df3cb23b73b5c905b2759e7cde6730effa872754e78998a6e19dcd16e",
+      "bytes": 4344
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/epubcfi.js",
+      "sha256": "c16f71a2f48f386cb76cfaf0f60eacc19174de6b9e5a30a1988957d394578f27",
+      "bytes": 13029
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/fixed-layout.js",
+      "sha256": "de2bdb5bd829034f88ec86424d9cda6fc8c9535e7154c84482bb55f8432c3288",
+      "bytes": 11245
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/overlayer.js",
+      "sha256": "967952c367f413f8d938c8c741070e477a5662bcffdecb15139df74ae0d2fb9d",
+      "bytes": 9499
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/paginator.js",
+      "sha256": "9e160ab4855bee01785fde4d0adec608ef3fc651e675d6f2fbd95ac4a0540582",
+      "bytes": 46800
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/progress.js",
+      "sha256": "544f5e90babc0cb31c5caf971a5f06dd6249ec06600cb62f672fa7179811fde1",
+      "bytes": 4255
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/search.js",
+      "sha256": "29acdfc2d6102de26233576dc4614398809363ac1009b7268bd7583ab48f520f",
+      "bytes": 5627
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/text-walker.js",
+      "sha256": "4bd283d906d80c924a7420c44a3f708efbeb15c00b3e40c5ea79eaaf10f166f9",
+      "bytes": 1701
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/translator.js",
+      "sha256": "5673dca9124e32a514e2c3ece822629072ffdb0ab5990353730738df640522f2",
+      "bytes": 11926
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/tts.js",
+      "sha256": "a2a7088c6daeef01fff25f5c0089ea19268366beee5eca27061edaebdf550ec9",
+      "bytes": 11131
+    },
+    {
+      "path": "resources/reader2/vendor/foliate-anx/src/view.js",
+      "sha256": "874a2cce73956b70522cbe95f9924c954c0b168f760f322c69070c1f339bb12f",
+      "bytes": 19942
+    },
+    {
+      "path": "scripts/android/build_apk.sh",
+      "sha256": "8928d4013146b17c50ad798948580111d5828dc143c1097e1176dac58249f472",
+      "bytes": 6975
+    },
+    {
+      "path": "scripts/android/qualify_toolchain.py",
+      "sha256": "92e85d8604ba4a274833148d380ee2bafa1c1875b19360ae75a53dd333228b0f",
+      "bytes": 8944
+    },
+    {
+      "path": "scripts/android/release_apk.py",
+      "sha256": "c2abae130529b3cf8181fc29f147c345793ef118845e19573296c03ccdfcca4b",
+      "bytes": 30836
+    },
+    {
+      "path": "tests/addon_client_runtime_argument_contract_test.mjs",
+      "sha256": "3c7a23f1bdadb6be2b340b04fef060c5425e1c4309313df22d57f2156f2f939e",
+      "bytes": 1189
+    },
+    {
+      "path": "tests/addon_client_runtime_context.qml",
+      "sha256": "a44989da18016cff4057e7d23577a5b4c3d703d26a2895bf5b543b47783871fb",
+      "bytes": 373
+    },
+    {
+      "path": "tests/addon_client_runtime_context_harness.cpp",
+      "sha256": "8143b2e220c51cc04095a865b4f7c19132200ef4cdd2ea971ec9a021a2d28ecf",
+      "bytes": 2337
+    },
+    {
+      "path": "tests/addon_video_compatibility_test.mjs",
+      "sha256": "0c52441ce5921ca91de9bff5c90d04eaec0345ed3f8afb5cd2d326c0446b6529",
+      "bytes": 12715
+    },
+    {
+      "path": "tests/android/DeviceVideoCapabilitiesTest.java",
+      "sha256": "960a589ba363cc0a99479838f0aa756b8c2658f8ea4bee8d1b7c639979ccbdbe",
+      "bytes": 3079
+    },
+    {
+      "path": "tests/android/ReaderPublicationSessionTest.java",
+      "sha256": "6e7ef8b1a15e2b57a74dc08d6703c4c1d1dd14edb58ee579c00da9fbd7a2f0a6",
+      "bytes": 3855
+    },
+    {
+      "path": "tests/android/nuvio_cancel_requests_regression.cpp",
+      "sha256": "2316b7a5a3da0bf48e785b1c70403ffb2d04106b621b06e1fbb1ff8fa017265f",
+      "bytes": 5990
+    },
+    {
+      "path": "tests/android/run_nuvio_cancel_requests_device.py",
+      "sha256": "48234967883118160de9d6028d8a116bef4f39e16e187d6670090faaf10277de",
+      "bytes": 10194
+    },
+    {
+      "path": "tests/android022_tankoban_routes_test.mjs",
+      "sha256": "264c10c3a9f9b4330cdc2597ac3bdd25ac6f8ad4c043e7b9c3e22b6477242408",
+      "bytes": 6832
+    },
+    {
+      "path": "tests/android_back_gesture_harness.cpp",
+      "sha256": "db5eaa77acea92ab3144e833ebea743ae3cd92f2cd04ae2f79a72fb9dc423db7",
+      "bytes": 2312
+    },
+    {
+      "path": "tests/android_continue_missing_download_test.mjs",
+      "sha256": "f09a06fb70f03dbd8c79234ae6f626c523fe66979defe7ff2e8cb8b80dc39c67",
+      "bytes": 13748
+    },
+    {
+      "path": "tests/android_library_selection_back_test.mjs",
+      "sha256": "5894622c7bf42d94b31213b759b89e5eed17550a9e643f12388fcbbc64ea2934",
+      "bytes": 1401
+    },
+    {
+      "path": "tests/android_player_back_close_test.mjs",
+      "sha256": "330aa5a76665b2c417a38ca469880af771e03eb6b6e882a39c610763d2ea0647",
+      "bytes": 13405
+    },
+    {
+      "path": "tests/android_player_tap_hud_test.mjs",
+      "sha256": "6083bddb9299f909504164a53c333ec063527875c33c02ddf97c5e82be95faa9",
+      "bytes": 3330
+    },
+    {
+      "path": "tests/android_shell_back_dispatch_test.mjs",
+      "sha256": "e1568f37cfa33a6bcd54671939087c72ccbbe87eb6207b77990d3f8557101eae",
+      "bytes": 7089
+    },
+    {
+      "path": "tests/android_shell_cover_layers_test.mjs",
+      "sha256": "30b1af3e901a147539fdc02a4ce298466c176d656cdf33bac9cd7521ad8e9279",
+      "bytes": 1553
+    },
+    {
+      "path": "tests/android_stream_retry_resume_test.mjs",
+      "sha256": "8907c9d87c17f9f1bd3e844176ca0d34ab0b99ad00323e069eea22a3dc54fdcf",
+      "bytes": 15453
+    },
+    {
+      "path": "tests/android_subtitle_autopick_test.mjs",
+      "sha256": "6ed25686e464e77c654374acead68b439988749f2a13315847d09b2d493ef020",
+      "bytes": 12636
+    },
+    {
+      "path": "tests/android_subtitle_restore_test.mjs",
+      "sha256": "ecaf8958749066d9fa5fd6e278029963443a0b16c48061083f28b82407b34896",
+      "bytes": 6738
+    },
+    {
+      "path": "tests/android_theatre_nested_back_test.mjs",
+      "sha256": "2e09505523fc1e9950535b88b84ddb621cb8bbe4256cfc04ef269748f983286c",
+      "bytes": 6234
+    },
+    {
+      "path": "tests/android_timeline_tap_test.mjs",
+      "sha256": "64064da1c8c954895a910ce3a455b1ae5566b09b01fa8d0a378c7fc444ef4650",
+      "bytes": 9142
+    },
+    {
+      "path": "tests/android_world_host_initialization_test.mjs",
+      "sha256": "4f14616279483d0b0a57deb82d18aa3ebb25b164747345e68047ac5923167bec",
+      "bytes": 2164
+    },
+    {
+      "path": "tests/auto/stremio_sync/tst_stremio_sync.cpp",
+      "sha256": "bec3ca273a31c4b6228a596fafa7dc87fc00eceb34a9758e47c90b1926d335c1",
+      "bytes": 197097
+    },
+    {
+      "path": "tests/comicreader_migration_acceptance.qml",
+      "sha256": "ee06063784f6ad80a4bfd7e0267dcd391791eccace0de35e6ac4cffcc18b7943",
+      "bytes": 18853
+    },
+    {
+      "path": "tests/comicreader_resume_race_harness.qml",
+      "sha256": "cdd4ac32d875dc1fad3aa838b99ea3b1d675695081aa2cb90ecb1fed3cea9a17",
+      "bytes": 12023
+    },
+    {
+      "path": "tests/comicreader_shell_harness.qml",
+      "sha256": "346b70d11e781ac9347e403e317698cf0cea3f45cd6b1959be1c15688f95e9d5",
+      "bytes": 184647
+    },
+    {
+      "path": "tests/comicreader_strip_harness.cpp",
+      "sha256": "65d2cb19e2e5a1f5b6d901cc3822063063d1a3fbef6a570ddd27e4791d36817d",
+      "bytes": 35857
+    },
+    {
+      "path": "tests/comicreader_sync_resume_shell_acceptance.qml",
+      "sha256": "5387af404be02fe62ee210fc565d3bcee321d07560a78ab902648816a6cee803",
+      "bytes": 5435
+    },
+    {
+      "path": "tests/downloadstore_lifecycle_harness.cpp",
+      "sha256": "82e8925dd14ef127560ddce043a65c1f3621e644b31a4d450162a33e691cd713",
+      "bytes": 86498
+    },
+    {
+      "path": "tests/downloadstore_local_file_availability_harness.cpp",
+      "sha256": "9e5ccf299a6905ba58606150e8ce4be598af8fb67476b45d429a45986e2d8030",
+      "bytes": 5097
+    },
+    {
+      "path": "tests/extensions_setup_one_tap_test.mjs",
+      "sha256": "dc5b22df7dbff5b504987a4a04ecffe473f0e6b90a510e67669dcaebc6c5aa2e",
+      "bytes": 2445
+    },
+    {
+      "path": "tests/extensions_store_contract_test.mjs",
+      "sha256": "feecc809aa5e049ebc82c648709b338d97989516ae80c89e02c4752eb02cc79c",
+      "bytes": 5714
+    },
+    {
+      "path": "tests/extensions_store_installed_state_test.mjs",
+      "sha256": "a470f087f8073df6eb239cae3a5faf70b17ae91cde48acaad2a7870ca3252f13",
+      "bytes": 2607
+    },
+    {
+      "path": "tests/extensions_store_torrentio_fallback_test.mjs",
+      "sha256": "6b69239c1d2c1e17d114474447e2fcac204084a0a8f1a267ef327981d4a9de87",
+      "bytes": 4163
+    },
+    {
+      "path": "tests/feria_host_probe/Main.qml",
+      "sha256": "fffaf9d60551761de2511069f720fbb833a7081594bccc210f101aeb9fa0fead",
+      "bytes": 24681
+    },
+    {
+      "path": "tests/feria_host_probe/main.cpp",
+      "sha256": "90a7fc4dd12983e180a342bbf7c015138c4090a588298a934ca721283c182dff",
+      "bytes": 22926
+    },
+    {
+      "path": "tests/feria_webview2_close_probe/main.cpp",
+      "sha256": "22b9b58447713cf58da1ecbbd2c879abba5a4c4d2b604d96a72439d4260d8eff",
+      "bytes": 25869
+    },
+    {
+      "path": "tests/nuvio_fixture_admission_test.cpp",
+      "sha256": "83518047284cb5be4d843d1eba010e51bc8e09a2499c8ba2bba2cba646cc92f5",
+      "bytes": 2915
+    },
+    {
+      "path": "tests/phone_font_scaling_harness.cpp",
+      "sha256": "fe5cfd06c38035f5c485a80ab344f7350a5e6524e0a96c9e99010ccb8e6d0cb1",
+      "bytes": 680
+    },
+    {
+      "path": "tests/phone_library_bulk_owner_test.mjs",
+      "sha256": "d87d7378db67adff250e2dcd36b0680eeeeb2a9cd724bafbd395fb86d208a3d1",
+      "bytes": 1030
+    },
+    {
+      "path": "tests/player_recovery_resume_test.mjs",
+      "sha256": "20ac2895d68a3360c700fdcb9cd89bcbc0b2d9f61c23a29fc8ec407a031aaf81",
+      "bytes": 11385
+    },
+    {
+      "path": "tests/qml/stage3_responsive/tst_stage3_responsive_pages.qml",
+      "sha256": "201d1c43385901912510840bd719123d03f0b10d228194930b8089128342ddc2",
+      "bytes": 16576
+    },
+    {
+      "path": "tests/qml/startup_artwork/tst_boot_splash_artwork.qml",
+      "sha256": "86de5778c2695048a7f7cfcbb19ac599122ea1dcd4f4cc3d4923588fc59468b0",
+      "bytes": 7652
+    },
+    {
+      "path": "tests/qml/tst_android022_template_geometry.qml",
+      "sha256": "b204160fc4815c5f994ca983cf8f4dceb2e80e5443dddbda170d2ae44e0c24f3",
+      "bytes": 4764
+    },
+    {
+      "path": "tests/qml/tst_android022_volume_flow.qml",
+      "sha256": "54080efebd46311ca0eb463f7c94a78ca17b3b8922f03a4aec9fabe52d37dff5",
+      "bytes": 2153
+    },
+    {
+      "path": "tests/qml/tst_browse_template.qml",
+      "sha256": "5ffacf3292830d0ad5503986592ddd9c627096012dc6d1c66283e7f9602cd5ef",
+      "bytes": 2572
+    },
+    {
+      "path": "tests/qml/tst_collection_grid_template.qml",
+      "sha256": "04b3d26e28d59c96a73d22cee5d61bad50720c94d33db7d6bb62382e96b16513",
+      "bytes": 2260
+    },
+    {
+      "path": "tests/qml/tst_comic_download_cancel.qml",
+      "sha256": "a5882625a542316bc6edb7e3c6a270e1b4c43ce3d1e5450eb6026e03461060ca",
+      "bytes": 5484
+    },
+    {
+      "path": "tests/qml/tst_media_detail_template.qml",
+      "sha256": "0aad67cea533843ac9a55adb109a213dded605962978675abfb84c94baa09227",
+      "bytes": 4229
+    },
+    {
+      "path": "tests/qml/tst_phone_account_keyboard.qml",
+      "sha256": "4d36abe12be9d891514d32e076ba9b55230893c3cf78bbb77b605f05d9f5f9ed",
+      "bytes": 8964
+    },
+    {
+      "path": "tests/qml/tst_phone_atlas_previews.qml",
+      "sha256": "07d958b2be6a3747322ebe52e48e1dc457404165fe008a9871f02a1a6d8b6b13",
+      "bytes": 6409
+    },
+    {
+      "path": "tests/qml/tst_phone_book_rows.qml",
+      "sha256": "0644e3d08f171866d3c53d858892dc7bf0c21c77b885ce62902b7381d1282368",
+      "bytes": 5557
+    },
+    {
+      "path": "tests/qml/tst_phone_browse_bounds.qml",
+      "sha256": "780933b95476bcfdc66e589b53f6098bf6ead3400ad8556708f287520956a165",
+      "bytes": 13210
+    },
+    {
+      "path": "tests/qml/tst_phone_comic_sources.qml",
+      "sha256": "81d89c991adbe4f66de421be5e3ccb75973e5ba531cc28bcfceba692daf0c96c",
+      "bytes": 4933
+    },
+    {
+      "path": "tests/qml/tst_phone_cosmere_layout.qml",
+      "sha256": "4df5efea82b76280bc13a1a2a29964c41a8692453258d79696a2a6f3b927c14b",
+      "bytes": 22186
+    },
+    {
+      "path": "tests/qml/tst_phone_crossworld_density.qml",
+      "sha256": "fa828ce6f8901693da5ed6876ccba77e579eea1af1b4098f5546aca4ac90a4f3",
+      "bytes": 7319
+    },
+    {
+      "path": "tests/qml/tst_phone_crossworld_libraries.qml",
+      "sha256": "1a77d16effc423945e82789fdeeb0bbabb596bde4d572899b6683fb73d78b9ed",
+      "bytes": 12521
+    },
+    {
+      "path": "tests/qml/tst_phone_crossworld_rails.qml",
+      "sha256": "9d704d103c2c611cb74d2b94313bbdc804a1c437bb4714bb55f0d8428edcf4ba",
+      "bytes": 16797
+    },
+    {
+      "path": "tests/qml/tst_phone_dcau_layout.qml",
+      "sha256": "17fd6b6ee5d7916d32bf71e9f3aad62839723c200e339f98ac3e97e53a97e089",
+      "bytes": 11573
+    },
+    {
+      "path": "tests/qml/tst_phone_download_targets.qml",
+      "sha256": "34b0a3c13e0c9eccdc983b69b2201a350bd901bec5b3cc739b4cf1dccfde333a",
+      "bytes": 15214
+    },
+    {
+      "path": "tests/qml/tst_phone_episode_insets.qml",
+      "sha256": "8612099e563bff3455083e4c80a0734f99a40c300b9291bf1cf3de57da489403",
+      "bytes": 7012
+    },
+    {
+      "path": "tests/qml/tst_phone_galaxy_destinations.qml",
+      "sha256": "04ab8be7a01c65d5a873e38c9878d2d0acb5a109640544ea403b178bb85b90b4",
+      "bytes": 14754
+    },
+    {
+      "path": "tests/qml/tst_phone_galaxy_escape.qml",
+      "sha256": "7b8333cb7e27b4c5a370df81dd28f99f95a9890f866dc9644e747ce44d4e1868",
+      "bytes": 4767
+    },
+    {
+      "path": "tests/qml/tst_phone_layout_system.qml",
+      "sha256": "b6ddcf096b8e796f34bdf43119b84472f6d97001f0f35275575ae4488f1cc6a9",
+      "bytes": 9382
+    },
+    {
+      "path": "tests/qml/tst_phone_library_layouts.qml",
+      "sha256": "190b091acd35243d81d59ef2a965b6b7229c8959746f5dd819dfeb511884ac96",
+      "bytes": 38255
+    },
+    {
+      "path": "tests/qml/tst_phone_library_longpress.qml",
+      "sha256": "2daf0f32795469740a4b0cf9cb850ae34c45e372b44dffb580628bba1fb2742a",
+      "bytes": 15479
+    },
+    {
+      "path": "tests/qml/tst_phone_library_selection.qml",
+      "sha256": "e6afe7e4688b7ffd9cb68e8a114ad283963639bea0bc8f67bae2faf571bfa80c",
+      "bytes": 7878
+    },
+    {
+      "path": "tests/qml/tst_phone_live_comics_layout.qml",
+      "sha256": "945083b60e3e4f545c9e2a2b2d1222c86d3bc4c5a7f11510e1e6ec4686a13d54",
+      "bytes": 29493
+    },
+    {
+      "path": "tests/qml/tst_phone_manga_back.qml",
+      "sha256": "e7f02038d6c8b5742d03f61878b3ce126c653bf7402d4f035be48e978870b746",
+      "bytes": 7397
+    },
+    {
+      "path": "tests/qml/tst_phone_overlays.qml",
+      "sha256": "71c2db06afeb31938f55df6e1302633184c24dec43384c444a98f0cd7cad2749",
+      "bytes": 14617
+    },
+    {
+      "path": "tests/qml/tst_phone_reader_controls.qml",
+      "sha256": "2e798106b8062dd949464b891cd279c72a2f6aecd2de505578b83aaaeaf65a4c",
+      "bytes": 17920
+    },
+    {
+      "path": "tests/qml/tst_phone_search_extensions_conventions.qml",
+      "sha256": "89f95322c604f2006f1768020999dad1fe215729f06609027859115babe7cc1b",
+      "bytes": 23507
+    },
+    {
+      "path": "tests/qml/tst_phone_section_tabs.qml",
+      "sha256": "b35ed80f078972a92ebdde310dba484a39f5d6653625c9600d73caef6fb0e830",
+      "bytes": 3871
+    },
+    {
+      "path": "tests/qml/tst_phone_setup_insets.qml",
+      "sha256": "fda341df3c1721d6fb8241e2547224623d85d35ff170a150b3010d36325e2427",
+      "bytes": 7008
+    },
+    {
+      "path": "tests/qml/tst_phone_shelves_tabs.qml",
+      "sha256": "ef75323667000b158e51a9794b12278c66270be295bc0f15526a8f0ac29dea7d",
+      "bytes": 10907
+    },
+    {
+      "path": "tests/qml/tst_phone_short_chrome.qml",
+      "sha256": "7d914c7614305737d7a6ba95b3802257a8d7a158edafa74ae4a0f8915358460e",
+      "bytes": 5981
+    },
+    {
+      "path": "tests/qml/tst_phone_short_featured.qml",
+      "sha256": "7dea5226483ad094bc35fd1cf84f7d3df9c6e06dd65ee3560950e056f255679f",
+      "bytes": 14803
+    },
+    {
+      "path": "tests/qml/tst_phone_text_scaling.qml",
+      "sha256": "2eaad8d65460f3223f3ab6b3d8de30df46fee56e932ec588a4a57b19c11d0514",
+      "bytes": 7096
+    },
+    {
+      "path": "tests/qml/tst_phone_theatre_density.qml",
+      "sha256": "7f54449703526c768eb0d5747a60567f09ec4af84d1f6980dd3f80c1215c598d",
+      "bytes": 21367
+    },
+    {
+      "path": "tests/qml/tst_phone_touch_chrome.qml",
+      "sha256": "5830c3f0f1a613240d7a4f8db4a4f9d4c5544bf5d51bb9a8827a0fd7a85c5f63",
+      "bytes": 2690
+    },
+    {
+      "path": "tests/qml/tst_phone_universe_density.qml",
+      "sha256": "fc806b5a7feedd9768204659a12ffdf0a9b4725bfbede45d6498acfa6eb9e20a",
+      "bytes": 14577
+    },
+    {
+      "path": "tests/qml/tst_settings_template.qml",
+      "sha256": "025c612b41a75f238e633e847e016dd54d26c1dfd666f4ef3d566e5e1a325018",
+      "bytes": 5315
+    },
+    {
+      "path": "tests/qml/tst_source_picker_template.qml",
+      "sha256": "fe82966b003f5ca869eb7ecb00dd7032b9751fd100aa96f369be723dc0fe6623",
+      "bytes": 2070
+    },
+    {
+      "path": "tests/qml/tst_universe_template.qml",
+      "sha256": "292577d97ffbef1f89174b71643026e35c37917b99095f7cfbbdc87f2ad82197",
+      "bytes": 1926
+    },
+    {
+      "path": "tests/qml/tst_world_layout_template.qml",
+      "sha256": "5651d1bffb42a3f0d2df0613772d4fabbafabff62b1c4604a60cc4313e30defb",
+      "bytes": 2567
+    },
+    {
+      "path": "tests/qml/tst_world_template_integration.qml",
+      "sha256": "3157fdb0ca999fb6c31ed27860a14efaba4d9aa779c502db00de398b9cc255e6",
+      "bytes": 1237
+    },
+    {
+      "path": "tests/qt_host/main.cpp",
+      "sha256": "44ca1a9c9f8bec0dc6ff01333c8b5cd033944846a334b351adb6941192af0ff6",
+      "bytes": 1157
+    },
+    {
+      "path": "tests/reader2_logic_harness.qml",
+      "sha256": "a21a7af5a40488466f8b7b411449b11e4ebc5aa466798f3350624fefc2d7e502",
+      "bytes": 50379
+    },
+    {
+      "path": "tests/reader2_paper_text_test.mjs",
+      "sha256": "a11372124b50f15b11adc0636288f197be5b0ab7a358a87e20b0fedd94743712",
+      "bytes": 4092
+    },
+    {
+      "path": "tests/reader2_profile_privacy_harness.cpp",
+      "sha256": "4db0b679ce82ee058809a0a8080082344c89698655ceaaec7df6e4e572190528",
+      "bytes": 13978
+    },
+    {
+      "path": "tests/session_store_harness.cpp",
+      "sha256": "2a53ceec7ae2be2ed86a719aab1f08d9fdc83ea82201b0c63ca710c2b4ef5e53",
+      "bytes": 9630
+    },
+    {
+      "path": "tests/shell_back_policy_test.mjs",
+      "sha256": "38f74c74aa03196802d0a8214e540fc0c08095c90df70d6ba139bedeb31b0ef0",
+      "bytes": 12501
+    },
+    {
+      "path": "tests/sources_sheet_codec_compatibility_harness.qml",
+      "sha256": "83db5ff57e5d41fd859ecdce1a8ee73bd6ac20f6cba5e9f6e04e96d5a6a0ef0f",
+      "bytes": 4116
+    },
+    {
+      "path": "tests/sources_sheet_empty_extensions_harness.qml",
+      "sha256": "5a064e7b71c4919b08e73a92b443bed4cf08e095d53488238af6d5f2e8a3bbf1",
+      "bytes": 5928
+    },
+    {
+      "path": "tests/subtitle_menu_addon_pick_test.mjs",
+      "sha256": "a1db3ed05bedb95bb78233053456dc092d91622a9c92cc90d4f9ee3b012e04dd",
+      "bytes": 2820
+    },
+    {
+      "path": "tests/test_android_build_graph_contract.py",
+      "sha256": "7022f2e2525d815154b4711fa319a12b2056975a7559d92d3d97d785df7ecaee",
+      "bytes": 8123
+    },
+    {
+      "path": "tests/test_android_nuvio_backend_contract.py",
+      "sha256": "f34366856ed1de54256ecc25f0d705c567509e41eba94a5a09dc6a0278f1a071",
+      "bytes": 25640
+    },
+    {
+      "path": "tests/test_android_platform_services_contract.py",
+      "sha256": "169acda88c4a7d636a0b55a66db1589b6a33c1ac82f64e9782fea4a6fb52f314",
+      "bytes": 2771
+    },
+    {
+      "path": "tests/test_android_powerstore_inhibit_contract.py",
+      "sha256": "30fb9c74d9a48a023cbcf144a850d79948e1997eb50f8a7d3031a92f3de9a65e",
+      "bytes": 1579
+    },
+    {
+      "path": "tests/test_android_reader_boundary.py",
+      "sha256": "c2b92ad9dfa7f6a14b154ba1b6504724f7f23c348aee1ec0048e2485da3b0cec",
+      "bytes": 3017
+    },
+    {
+      "path": "tests/test_android_runtime_packaging.py",
+      "sha256": "defcf60ad4a35ece9d790804794a850fd014e312953ea3329a4a8789b8c55b83",
+      "bytes": 10826
+    },
+    {
+      "path": "tests/test_android_runtime_packaging_eol.py",
+      "sha256": "04d2973b426bdccf55ca44e32d0e728edd0e1a129c879b7c4795239c30dc2532",
+      "bytes": 3270
+    },
+    {
+      "path": "tests/test_android_unsigned_release.py",
+      "sha256": "23df7a81b96614e49cbfac45771cecab75b508cc318de7f4c9d7895415f67a99",
+      "bytes": 35018
+    },
+    {
+      "path": "tests/theatre_offline_meta_test.mjs",
+      "sha256": "7d353dc889d8426b6acc7eb849f2345ecf8c7bf5534c96c1f22ce99a1b8a260f",
+      "bytes": 7359
+    },
+    {
+      "path": "tests/theatre_pinned_header_scrim_test.mjs",
+      "sha256": "ffd1723a36c6ef5d93843df298bb31a23967c1999827b9713f1dd388388625a8",
+      "bytes": 2902
+    },
+    {
+      "path": "tests/theatre_search_year_test.mjs",
+      "sha256": "f4b849ba202a8a2e579c4f4624ae7fa81717080b00d7c0b387fc311d1cdb0d71",
+      "bytes": 8554
+    },
+    {
+      "path": "tests/vinyl-live/main.cpp",
+      "sha256": "dc4bfad26a170dddeee66fca07c0d2e931f0707b271972cf4769be112c8e7561",
+      "bytes": 7680
+    }
+  ]
+}

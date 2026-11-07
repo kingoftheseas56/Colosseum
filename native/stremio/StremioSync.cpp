@@ -417,10 +417,15 @@ quint64 StremioSync::completedRun() const { return m_completedRun; }
 QString StremioSync::accountDisplayName() const { return m_state.displayName; }
 QString StremioSync::lastResultSummary() const { return m_lastResultSummary; }
 bool StremioSync::linkedAccount() const {
-    return m_markerLinked && !m_state.accountId.isEmpty();
+    return !m_state.accountId.isEmpty()
+        && (m_markerLinked || (m_importOnlyEnabled && m_hasUsableCredential
+                              && m_dispatchAllowed && !m_provisionalCredential));
+}
+bool StremioSync::stagedAuthenticationReady() const {
+    return m_stagedAuthentication.has_value();
 }
 bool StremioSync::hasTrakt() const {
-    return linkedAccount() && m_traktLinkKnown
+    return m_markerLinked && canWriteProvider() && linkedAccount() && m_traktLinkKnown
         && m_options.clock() < m_traktExpiresAtMs;
 }
 bool StremioSync::traktLinkKnown() const { return m_traktLinkKnown; }
@@ -429,13 +434,14 @@ QString StremioSync::stremioUserId() const {
 }
 
 void StremioSync::refreshTraktLink() {
-    if (!linkedAccount() || !m_hasUsableCredential || !m_dispatchAllowed
+    if (!m_markerLinked || !canWriteProvider() || !linkedAccount()
+        || !m_hasUsableCredential || !m_dispatchAllowed
         || !m_options.loadCredential || !endpointAllowed() || m_traktIdentityReply)
         return;
     const auto credential = m_options.loadCredential(m_profileId, m_state.accountId);
     if (!credential || credential->isEmpty())
         return;
-    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    const ProfileBinding binding = writeBinding();
     const QString accountId = m_state.accountId;
     QUrl endpoint = m_options.apiEndpoint;
     QString path = endpoint.path();
@@ -535,7 +541,7 @@ bool StremioSync::sendTraktEvent(const QString &name, const QVariantMap &context
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::ManualRedirectPolicy);
     request.setTransferTimeout(10000);
-    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    const ProfileBinding binding = writeBinding();
     QNetworkReply *reply = m_network.post(request, QJsonDocument(QJsonObject{
         {QStringLiteral("authKey"), QString::fromUtf8(*credential)},
         {QStringLiteral("events"), QJsonArray{event}}}).toJson(QJsonDocument::Compact));
@@ -621,6 +627,8 @@ void StremioSync::deactivateProfile() {
     m_traktEventReplies.clear();
     m_hasUsableCredential = false;
     m_markerLinked = false;
+    m_importOnlyEnabled = false;
+    m_providerModeKnown = false;
     m_traktLinkKnown = false;
     m_traktExpiresAtMs = 0;
     m_dispatchAllowed = false;
@@ -660,6 +668,14 @@ bool StremioSync::activateTaggedFixture() {
 }
 
 bool StremioSync::startBrowserAuthentication(QString *error) {
+    return beginBrowserAuthentication(false, error);
+}
+
+bool StremioSync::startStagedAuthentication(QString *error) {
+    return beginBrowserAuthentication(true, error);
+}
+
+bool StremioSync::beginBrowserAuthentication(bool staged, QString *error) {
     if (m_profileId.isEmpty() || m_statePath.isEmpty()) {
         if (error)
             *error = QStringLiteral("A Stremio profile is not active.");
@@ -682,6 +698,7 @@ bool StremioSync::startBrowserAuthentication(QString *error) {
         return false;
     }
     ++m_authAttempt;
+    m_stageAuthentication = staged;
     const QUrl callback(QStringLiteral("http://127.0.0.1:%1%2")
         .arg(m_callbackServer.serverPort()).arg(m_callbackPath));
     const QUrl login = StremioCodec::browserLoginUrl(callback);
@@ -697,6 +714,12 @@ bool StremioSync::startBrowserAuthentication(QString *error) {
 void StremioSync::cancelAuthentication() {
     retireProvisionalCredential();
     ++m_authAttempt;
+    m_stageAuthentication = false;
+    const bool wasStaged = stagedAuthenticationReady();
+    m_stagedAuthentication.reset();
+    cancelEpisodeMetadataRequests(true);
+    if (m_datastoreReply && m_datastoreBinding.previewAttempt)
+        m_datastoreReply->abort();
     m_authTimeout.stop();
     m_callbackServer.close();
     if (m_callbackSocket) {
@@ -714,6 +737,8 @@ void StremioSync::cancelAuthentication() {
     m_identityResponseTooLarge = false;
     if (m_status == QStringLiteral("connecting"))
         updateConnectionStatus();
+    if (wasStaged)
+        emit stateChanged();
 }
 
 bool StremioSync::disconnectProfile(std::function<void(bool)> completion) {
@@ -817,7 +842,8 @@ bool StremioSync::beginVisibleSync(bool reviveFailedIntents) {
     if (m_visibleSyncActive
         || (m_status != QLatin1String("synced")
             && m_status != QLatin1String("syncFailed"))
-        || !linkedAccount() || !m_hasUsableCredential || !m_dispatchAllowed) {
+        || !m_markerLinked || !canWriteProvider() || !linkedAccount()
+        || !m_hasUsableCredential || !m_dispatchAllowed) {
         return false;
     }
     bool revived = false;
@@ -925,20 +951,139 @@ void StremioSync::retireProvisionalCredential() {
     updateConnectionStatus();
 }
 
+bool StremioSync::canWriteProvider() const {
+    // Fixture-only callers may enqueue directly without a runtime preference.
+    return !m_importOnlyEnabled && (m_markerLinked
+        || (!m_providerModeKnown && (m_options.intentSender || fixtureEndpointAllowed())));
+}
+
+StremioSync::ProfileBinding StremioSync::writeBinding() const {
+    return {m_profileId, m_bindingGeneration, m_writeGeneration};
+}
+
+void StremioSync::stopProviderWrites() {
+    ++m_writeGeneration;
+    m_retryTimer.stop();
+    m_inFlightOperations.clear();
+    m_addonCollectionReconcileActive = false;
+    m_visibleSyncActive = false;
+    m_visibleSyncPullComplete = false;
+    m_pendingVisibleSyncSummary.clear();
+    m_traktLinkKnown = false;
+    m_traktExpiresAtMs = 0;
+    if (m_datastoreReply && m_datastoreBinding.writeGeneration)
+        m_datastoreReply->abort();
+    if (m_traktIdentityReply) {
+        m_traktIdentityReply->abort();
+        m_traktIdentityReply = nullptr;
+    }
+    const auto eventReplies = std::exchange(m_traktEventReplies, {});
+    for (QNetworkReply *reply : eventReplies)
+        reply->abort();
+}
+
 void StremioSync::setMarkerLinked(bool linked) {
-    if (m_markerLinked == linked)
-        return;
+    const bool wasWritable = canWriteProvider();
+    m_providerModeKnown = true;
+    const bool markerChanged = m_markerLinked != linked;
     m_markerLinked = linked;
-    if (!m_profileId.isEmpty()) {
+    if (wasWritable && !canWriteProvider())
+        stopProviderWrites();
+    if (markerChanged && !m_profileId.isEmpty()) {
         updateConnectionStatus();
-        if (linked) {
-            const ProfileBinding binding{m_profileId, m_bindingGeneration};
-            QTimer::singleShot(0, this, [this, binding] {
-                if (m_markerLinked && bindingCurrent(binding))
-                    retryPendingNow();
-            });
+        emit stateChanged();
+    }
+    if (markerChanged && linked && !m_importOnlyEnabled) {
+        const ProfileBinding binding = writeBinding();
+        QTimer::singleShot(0, this, [this, binding] {
+            if (bindingCurrent(binding))
+                retryPendingNow();
+        });
+    }
+}
+
+bool StremioSync::retirePrimaryRemovalIntents(StremioPersistentState &state) {
+    QHash<QPair<QString, QString>, bool> retired;
+    state.pendingIntents.removeIf([&retired](const StremioPendingIntent &intent) {
+        if (intent.kind != QLatin1String("library_remove") || intent.remoteAcknowledged)
+            return false;
+        const auto identity = qMakePair(intent.desired.value(QStringLiteral("id")).toString(),
+                                        intent.desired.value(QStringLiteral("type")).toString());
+        retired[identity] |= intent.localReceiptDurable;
+        return true;
+    });
+
+    QJsonArray &differences = state.intentionalMembershipDifferences;
+    for (qsizetype i = differences.size(); i > 0; --i) {
+        QJsonObject difference = differences.at(i - 1).toObject();
+        const auto identity = qMakePair(difference.value(QStringLiteral("id")).toString(),
+                                        difference.value(QStringLiteral("type")).toString());
+        const auto removed = retired.constFind(identity);
+        if (removed == retired.cend()
+            || difference.value(QStringLiteral("localPresent")).toBool()
+            || !difference.value(QStringLiteral("remotePresent")).toBool()
+            || !difference.value(QStringLiteral("explicitRemoteRemoval")).toBool()) {
+            continue;
+        }
+        if (*removed) {
+            // Preserve a durable local removal as local-only. The old remote
+            // delete authorization no longer applies after the provider switch.
+            difference.insert(QStringLiteral("explicitRemoteRemoval"), false);
+            differences.replace(i - 1, difference);
+        } else {
+            differences.removeAt(i - 1);
         }
     }
+
+    // Re-promotion must union against fresh provider addons. A prior
+    // primary baseline could treat inactivity as intentional removal.
+    const bool hadAddonBaseline =
+        state.acknowledgedBaselines.contains(QStringLiteral("addonCollection"))
+        || state.acknowledgedBaselines.contains(QStringLiteral("addonCollectionPending"));
+    state.acknowledgedBaselines.remove(QStringLiteral("addonCollection"));
+    state.acknowledgedBaselines.remove(QStringLiteral("addonCollectionPending"));
+    return !retired.isEmpty() || hadAddonBaseline;
+}
+
+void StremioSync::setImportOnlyEnabled(bool enabled) {
+    const bool wasWritable = canWriteProvider();
+    m_providerModeKnown = true;
+    if (m_importOnlyEnabled == enabled) {
+        if (wasWritable && !canWriteProvider())
+            stopProviderWrites();
+        return;
+    }
+    m_importOnlyEnabled = enabled;
+    if (wasWritable && !canWriteProvider())
+        stopProviderWrites();
+    if (enabled) {
+        if (m_provisionalCredential)
+            retirePrimaryRemovalIntents(m_provisionalCredential->previousState);
+        if (retirePrimaryRemovalIntents(m_state))
+            persist();
+    }
+    if (!enabled && !stagedAuthenticationReady()) {
+        cancelEpisodeMetadataRequests(true);
+        if (m_datastoreReply && m_datastoreBinding.previewAttempt)
+            m_datastoreReply->abort();
+    }
+    if (m_status != QLatin1String("connecting"))
+        updateConnectionStatus();
+    if (!enabled && m_markerLinked) {
+        const ProfileBinding binding = writeBinding();
+        QTimer::singleShot(0, this, [this, binding] {
+            if (bindingCurrent(binding))
+                retryPendingNow();
+        });
+    }
+    emit stateChanged();
+}
+
+bool StremioSync::importOnlyPromotionReady() const {
+    return m_importOnlyEnabled && !m_markerLinked
+        && !m_profileId.isEmpty() && !m_statePath.isEmpty()
+        && !hasPendingPersistenceForPath(m_statePath)
+        && !m_failedPersistencePaths.contains(m_statePath);
 }
 
 void StremioSync::setCredentialCallbacks(
@@ -950,13 +1095,38 @@ void StremioSync::setCredentialCallbacks(
     m_options.loadCredential = std::move(load);
 }
 
+QString StremioSync::episodeMetadataAccountId(const ProfileBinding &binding) const {
+    if (!bindingCurrent(binding))
+        return {};
+    if (!binding.previewAttempt)
+        return m_state.accountId;
+    if (m_stagedAuthentication)
+        return m_stagedAuthentication->identity.accountId;
+    return m_importOnlyEnabled && linkedAccount() ? m_state.accountId : QString();
+}
+
 bool StremioSync::requestEpisodeMetadata(
     const QString &seriesId,
     EpisodeMetadataCompletion completion) {
+    const ProfileBinding binding = m_markerLinked
+        ? writeBinding() : ProfileBinding{m_profileId, m_bindingGeneration};
+    return requestEpisodeMetadata(seriesId, binding, std::move(completion));
+}
+
+bool StremioSync::requestEpisodeMetadataForPreview(
+    const QString &seriesId,
+    EpisodeMetadataCompletion completion) {
+    return requestEpisodeMetadata(seriesId, {m_profileId, m_bindingGeneration, 0, m_authAttempt},
+                                  std::move(completion));
+}
+
+bool StremioSync::requestEpisodeMetadata(
+    const QString &seriesId,
+    const ProfileBinding &binding,
+    EpisodeMetadataCompletion completion) {
     const QString normalizedSeriesId = seriesId.trimmed();
-    const ProfileBinding binding{m_profileId, m_bindingGeneration};
-    if (!bindingCurrent(binding) || normalizedSeriesId.isEmpty()
-        || normalizedSeriesId.size() > 512 || m_state.accountId.isEmpty()) {
+    const QString accountId = episodeMetadataAccountId(binding);
+    if (normalizedSeriesId.isEmpty() || normalizedSeriesId.size() > 512 || accountId.isEmpty()) {
         if (completion)
             completion(false, {});
         return false;
@@ -965,14 +1135,11 @@ bool StremioSync::requestEpisodeMetadata(
     m_episodeMetadataRequests.insert(
         requestId,
         EpisodeMetadataRequest{
-            binding, m_state.accountId, normalizedSeriesId, std::move(completion), false});
-    QTimer::singleShot(10 * 1000, this, [this, requestId, binding] {
+            binding, accountId, normalizedSeriesId, std::move(completion), false});
+    QTimer::singleShot(10 * 1000, this, [this, requestId] {
         auto request = m_episodeMetadataRequests.find(requestId);
-        if (request == m_episodeMetadataRequests.end()
-            || request->binding.profileId != binding.profileId
-            || request->binding.generation != binding.generation) {
+        if (request == m_episodeMetadataRequests.end())
             return;
-        }
         EpisodeMetadataCompletion completion = std::move(request->completion);
         m_episodeMetadataRequests.erase(request);
         if (completion)
@@ -995,7 +1162,7 @@ void StremioSync::dispatchEpisodeMetadataRequest(const QString &requestId) {
     auto request = m_episodeMetadataRequests.find(requestId);
     if (!m_episodeMetadataBridgeReady || request == m_episodeMetadataRequests.end()
         || request->emitted || !bindingCurrent(request->binding)
-        || request->accountId != m_state.accountId) {
+        || request->accountId != episodeMetadataAccountId(request->binding)) {
         return;
     }
     request->emitted = true;
@@ -1009,7 +1176,7 @@ bool StremioSync::submitEpisodeMetadata(
     const auto request = m_episodeMetadataRequests.constFind(requestId);
     if (request == m_episodeMetadataRequests.cend()
         || !bindingCurrent(request->binding)
-        || request->accountId != m_state.accountId
+        || request->accountId != episodeMetadataAccountId(request->binding)
         || metadataRootId != request->expectedRootId
         || episodes.isEmpty() || episodes.size() > kMaximumEpisodeMetadataRows) {
         return false;
@@ -1051,12 +1218,19 @@ bool StremioSync::submitEpisodeMetadata(
     return true;
 }
 
-void StremioSync::cancelEpisodeMetadataRequests() {
-    const QList<EpisodeMetadataRequest> requests = m_episodeMetadataRequests.values();
-    m_episodeMetadataRequests.clear();
-    for (const EpisodeMetadataRequest &request : requests) {
-        if (request.completion)
-            request.completion(false, {});
+void StremioSync::cancelEpisodeMetadataRequests(bool previewOnly) {
+    QList<EpisodeMetadataCompletion> completions;
+    for (auto it = m_episodeMetadataRequests.begin(); it != m_episodeMetadataRequests.end();) {
+        if (previewOnly && !it->binding.previewAttempt) {
+            ++it;
+            continue;
+        }
+        completions.append(std::move(it->completion));
+        it = m_episodeMetadataRequests.erase(it);
+    }
+    for (const auto &completion : std::as_const(completions)) {
+        if (completion)
+            completion(false, {});
     }
 }
 
@@ -1072,7 +1246,9 @@ bool StremioSync::queueIntentInternal(
     const QJsonObject &desired,
     QString *operationId,
     bool localReceiptDurable) {
-    if (m_profileId.isEmpty() || kind.trimmed().isEmpty() || desired.isEmpty())
+    if (m_profileId.isEmpty() || m_importOnlyEnabled
+        || (m_providerModeKnown && !m_markerLinked)
+        || kind.trimmed().isEmpty() || desired.isEmpty())
         return false;
     if (kind == QLatin1String("series_watched")) {
         QList<StremioEpisodeIdentity> videos;
@@ -1101,7 +1277,7 @@ bool StremioSync::queueIntentInternal(
                 pending.desired = desired;
                 if (operationId)
                     *operationId = pending.operationId;
-                const ProfileBinding binding{m_profileId, m_bindingGeneration};
+                const ProfileBinding binding = writeBinding();
                 persist([this, operation = pending.operationId, binding](bool committed) {
                     if (committed)
                         dispatchIntent(operation, binding);
@@ -1114,7 +1290,7 @@ bool StremioSync::queueIntentInternal(
     m_state.pendingIntents.append(intent);
     if (operationId)
         *operationId = intent.operationId;
-    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    const ProfileBinding binding = writeBinding();
     persist([this, operation = intent.operationId, binding](bool committed) {
         if (committed)
             dispatchIntent(operation, binding);
@@ -1185,8 +1361,10 @@ bool StremioSync::reconcileTheatreState(
     const QVariantList &theatreCollection,
     const QVariantList &progressEntries,
     const QHash<QString, int> &watchedMarks,
-    const QHash<QString, qint64> &watchedActionAt) {
-    if (m_profileId.isEmpty())
+    const QHash<QString, qint64> &watchedActionAt,
+    const QVariantList &historyEntries) {
+    if (m_profileId.isEmpty() || m_importOnlyEnabled
+        || (m_providerModeKnown && !m_markerLinked))
         return false;
 
     QHash<QString, QString> typesById;
@@ -1252,6 +1430,18 @@ bool StremioSync::reconcileTheatreState(
     // a later bounded reconciliation rather than truncating it into data loss.
     QHash<QString, QSet<QString>> completedEpisodesBySeries;
     QSet<QString> oversizedEpisodeSeries;
+    const auto addCompletedEpisode = [&](const QString &seriesId, const QString &episodeId) {
+        if (oversizedEpisodeSeries.contains(seriesId))
+            return;
+        QSet<QString> &completed = completedEpisodesBySeries[seriesId];
+        if (!completed.contains(episodeId) && completed.size() >= kMaximumEpisodeMetadataRows) {
+            completedEpisodesBySeries.remove(seriesId);
+            oversizedEpisodeSeries.insert(seriesId);
+            return;
+        }
+        completed.insert(episodeId);
+    };
+    QHash<QString, qint64> incompleteProgressAt;
     for (const QVariant &value : progressEntries) {
         const QVariantMap entry = value.toMap();
         if (entry.value(QStringLiteral("kind")).toString() != QLatin1String("video"))
@@ -1259,25 +1449,42 @@ bool StremioSync::reconcileTheatreState(
         bool progressOk = false;
         const double progress = entry.value(QStringLiteral("progress")).toDouble(&progressOk);
         const QString episodeId = entry.value(QStringLiteral("id")).toString().trimmed();
-        if (!progressOk || !std::isfinite(progress) || progress < 0.90 || episodeId.isEmpty())
+        if (!progressOk || !std::isfinite(progress) || episodeId.isEmpty())
             continue;
-        for (auto type = typesById.constBegin(); type != typesById.constEnd(); ++type) {
-            if (type.value() != QLatin1String("series"))
-                continue;
-            const StremioEpisodeIdentity identity{episodeId, 0, 0};
-            if (!StremioCodec::episodeBelongsToSeries(type.key(), identity)
-                || oversizedEpisodeSeries.contains(type.key())) {
-                continue;
-            }
-            QSet<QString> &completed = completedEpisodesBySeries[type.key()];
-            if (!completed.contains(episodeId)
-                && completed.size() >= kMaximumEpisodeMetadataRows) {
-                completedEpisodesBySeries.remove(type.key());
-                oversizedEpisodeSeries.insert(type.key());
-                continue;
-            }
-            completed.insert(episodeId);
+        if (progress < 0.90) {
+            const qint64 updatedAt = entry.value(QStringLiteral("updatedAt")).toLongLong();
+            if (progress >= 0.0 && updatedAt > incompleteProgressAt.value(episodeId))
+                incompleteProgressAt.insert(episodeId, updatedAt);
+            continue;
         }
+        const QString seriesId = StremioCodec::episodeSeriesRoot(episodeId);
+        if (typesById.value(seriesId) == QLatin1String("series"))
+            addCompletedEpisode(seriesId, episodeId);
+    }
+
+    QSet<QString> historyMovieIds;
+    for (const QVariant &value : historyEntries) {
+        const QVariantMap entry = value.toMap();
+        const QString id = entry.value(QStringLiteral("id")).toString();
+        if (id.isEmpty() || id.size() > 512 || id.trimmed() != id
+            || id.contains(QChar::Null) || id.contains(QChar::ReplacementCharacter)) {
+            continue;
+        }
+        const QString kind = entry.value(QStringLiteral("kind")).toString();
+        if (kind == QLatin1String("movie")) {
+            historyMovieIds.insert(id);
+            continue;
+        }
+        const QString source = entry.value(QStringLiteral("source")).toString();
+        const qint64 completedAt = entry.value(QStringLiteral("completedAt")).toLongLong();
+        if (kind != QLatin1String("episode") || completedAt <= 0
+            || (source != QLatin1String("nuvio") && source != QLatin1String("stremio"))
+            || incompleteProgressAt.value(id) > completedAt) {
+            continue;
+        }
+        const QString seriesId = StremioCodec::episodeSeriesRoot(id);
+        if (!seriesId.isEmpty() && typesById.value(seriesId) != QLatin1String("movie"))
+            addCompletedEpisode(seriesId, id);
     }
     for (auto completed = completedEpisodesBySeries.constBegin();
          completed != completedEpisodesBySeries.constEnd(); ++completed) {
@@ -1325,7 +1532,10 @@ bool StremioSync::reconcileTheatreState(
         // The Stremio movie watched bit is the only outbound watched shape
         // available without an exact addon episode ordering. Series marks are
         // intentionally left local rather than guessed into a bitfield.
-        if (typesById.value(id) != QLatin1String("movie")
+        const QString knownType = typesById.value(id);
+        const bool completedUncollectedMovie = knownType.isEmpty() && it.value() == 1
+            && historyMovieIds.contains(id);
+        if ((!completedUncollectedMovie && knownType != QLatin1String("movie"))
             || (it.value() != -1 && it.value() != 1)) {
             continue;
         }
@@ -1344,9 +1554,20 @@ bool StremioSync::reconcileTheatreState(
     return true;
 }
 
+std::optional<QByteArray> StremioSync::readCredential(const ProfileBinding &binding) const {
+    if (!bindingCurrent(binding) || !endpointAllowed())
+        return std::nullopt;
+    if (binding.previewAttempt && m_stagedAuthentication)
+        return m_stagedAuthentication->authKey;
+    if (!m_hasUsableCredential || !m_dispatchAllowed || !m_options.loadCredential
+        || (binding.previewAttempt ? !m_importOnlyEnabled : !m_markerLinked))
+        return std::nullopt;
+    return m_options.loadCredential(binding.profileId, m_state.accountId);
+}
+
 bool StremioSync::pullLibraryItems(
     std::function<void(bool, QList<StremioLibraryItem>)> completion) {
-    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    const ProfileBinding binding = writeBinding();
     if (!bindingCurrent(binding) || !m_markerLinked || !m_hasUsableCredential
         || !m_dispatchAllowed || !endpointAllowed() || !m_options.loadCredential) {
         if (completion)
@@ -1354,8 +1575,8 @@ bool StremioSync::pullLibraryItems(
         return false;
     }
     if (m_datastoreReply || m_addonCollectionReconcileActive) {
-        // An automatic addon round may already own the single datastore slot
-        // when a visible sync starts. Wait for it instead of failing the pull.
+        // An automatic addon round may own the single datastore slot when a
+        // visible sync starts. Wait for it while the original mode is current.
         const bool visibleSync = m_visibleSyncActive;
         QTimer::singleShot(50, this,
             [this, binding, visibleSync, completion = std::move(completion)]() mutable {
@@ -1368,11 +1589,23 @@ bool StremioSync::pullLibraryItems(
             });
         return true;
     }
-    const auto credential = m_options.loadCredential(m_profileId, m_state.accountId);
-    const StremioDatastoreRequest meta = credential.has_value()
+    return pullLibraryItems(binding, std::move(completion));
+}
+
+bool StremioSync::pullLibraryItemsForPreview(
+    std::function<void(bool, QList<StremioLibraryItem>)> completion) {
+    return pullLibraryItems({m_profileId, m_bindingGeneration, 0, m_authAttempt},
+                            std::move(completion));
+}
+
+bool StremioSync::pullLibraryItems(
+    const ProfileBinding &binding,
+    std::function<void(bool, QList<StremioLibraryItem>)> completion) {
+    const auto credential = readCredential(binding);
+    const StremioDatastoreRequest meta = credential
         ? StremioCodec::datastoreMetaRequest(*credential)
         : StremioDatastoreRequest{};
-    if (meta.method.isEmpty()) {
+    if (meta.method.isEmpty() || m_datastoreReply || m_addonCollectionReconcileActive) {
         if (completion)
             completion(false, {});
         return false;
@@ -1395,19 +1628,23 @@ bool StremioSync::pullLibraryItems(
 
 bool StremioSync::pullAddonCollection(
     std::function<void(bool, QJsonArray)> completion) {
-    const ProfileBinding binding{m_profileId, m_bindingGeneration};
-    if (!bindingCurrent(binding) || !m_markerLinked || !m_hasUsableCredential
-        || !m_dispatchAllowed || !endpointAllowed() || !m_options.loadCredential
-        || m_datastoreReply) {
-        if (completion)
-            completion(false, {});
-        return false;
-    }
-    const auto credential = m_options.loadCredential(m_profileId, m_state.accountId);
-    const StremioDatastoreRequest request = credential.has_value()
+    return pullAddonCollection(writeBinding(), std::move(completion));
+}
+
+bool StremioSync::pullAddonCollectionForPreview(
+    std::function<void(bool, QJsonArray)> completion) {
+    return pullAddonCollection({m_profileId, m_bindingGeneration, 0, m_authAttempt},
+                               std::move(completion));
+}
+
+bool StremioSync::pullAddonCollection(
+    const ProfileBinding &binding,
+    std::function<void(bool, QJsonArray)> completion) {
+    const auto credential = readCredential(binding);
+    const StremioDatastoreRequest request = credential
         ? StremioCodec::addonCollectionGetRequest(*credential)
         : StremioDatastoreRequest{};
-    if (request.method.isEmpty()) {
+    if (request.method.isEmpty() || m_datastoreReply) {
         if (completion)
             completion(false, {});
         return false;
@@ -1434,7 +1671,7 @@ bool StremioSync::pullAddonCollection(
 bool StremioSync::reconcileAddonCollection(
     const QJsonArray &localAddons,
     std::function<void(bool, QJsonArray)> completion) {
-    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    const ProfileBinding binding = writeBinding();
     const StremioAddonCollectionDecode decodedLocal =
         StremioCodec::decodeAddonCollection(
             QJsonObject{{QStringLiteral("addons"), localAddons}});
@@ -1662,11 +1899,7 @@ void StremioSync::fetchNextLibraryBatch(const std::shared_ptr<LibraryPull> &pull
         finishLibraryPull(pull, true);
         return;
     }
-    if (!m_options.loadCredential) {
-        finishLibraryPull(pull, false);
-        return;
-    }
-    const auto credential = m_options.loadCredential(pull->binding.profileId, m_state.accountId);
+    const auto credential = readCredential(pull->binding);
     if (!credential.has_value() || credential->isEmpty()) {
         finishLibraryPull(pull, false);
         return;
@@ -1813,7 +2046,8 @@ bool StremioSync::queueExplicitLibraryRemoval(
     std::function<void(bool)> journalReceipt,
     QString *operationId) {
     const QString normalizedId = id.trimmed();
-    if (m_profileId.isEmpty() || normalizedId.isEmpty()
+    if (m_profileId.isEmpty() || m_importOnlyEnabled
+        || (m_providerModeKnown && !m_markerLinked) || normalizedId.isEmpty()
         || (type != QLatin1String("movie") && type != QLatin1String("series"))) {
         if (journalReceipt)
             journalReceipt(false);
@@ -1834,7 +2068,7 @@ bool StremioSync::queueExplicitLibraryRemoval(
     m_state.pendingIntents.append(intent);
     if (operationId)
         *operationId = intent.operationId;
-    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    const ProfileBinding binding = writeBinding();
     persist([this, operation = intent.operationId, binding,
              journalReceipt = std::move(journalReceipt)](bool committed) mutable {
         if (journalReceipt)
@@ -1917,7 +2151,7 @@ bool StremioSync::acknowledgeLocalReceipt(const QString &operationId) {
 }
 
 void StremioSync::retryPendingNow() {
-    const ProfileBinding binding{m_profileId, m_bindingGeneration};
+    const ProfileBinding binding = writeBinding();
     if (!bindingCurrent(binding))
         return;
     const qint64 now = m_options.clock();
@@ -1991,8 +2225,8 @@ void StremioSync::handleCallbackSocket(QTcpSocket *socket) {
         m_callbackSocket = nullptr;
         return;
     }
-    // Keep this browser request open until identity, vault, journal and the
-    // active profile's preferences have all committed. Ignore further bytes.
+    // Ignore further bytes while validating identity. A normal connection
+    // also waits for the vault, journal and profile preference to commit.
     disconnect(socket, &QTcpSocket::readyRead, this, nullptr);
     const ProfileBinding binding{m_profileId, m_bindingGeneration};
     const quint64 attempt = m_authAttempt;
@@ -2081,67 +2315,121 @@ void StremioSync::validateAuthKey(
                 "This profile is linked to a different Stremio account. Use Switch account to change it."));
             return;
         }
-        const auto previousCredential = m_options.loadCredential && !m_state.accountId.isEmpty()
-            ? m_options.loadCredential(binding.profileId, m_state.accountId) : std::nullopt;
-        const StremioPersistentState previousState = m_state;
-        if (!m_options.saveCredential
-            || !m_options.saveCredential(binding.profileId, identity.accountId, authKey)) {
-            if (bindingCurrent(binding)) {
-                if (previousCredential && m_options.saveCredential)
-                    m_options.saveCredential(binding.profileId, previousState.accountId, *previousCredential);
-                else if (m_options.clearCredential)
-                    m_options.clearCredential(binding.profileId);
-                finishAuthentication(false, QStringLiteral(
-                    "Stremio could not save its credential securely. Check secure storage and try again."));
+        StagedAuthentication authentication{binding, attempt, authKey, identity};
+        if (m_stageAuthentication) {
+            m_stageAuthentication = false;
+            m_authTimeout.stop();
+            if (m_callbackSocket) {
+                m_callbackSocket->write(authenticationPage(true));
+                m_callbackSocket->disconnectFromHost();
+                m_callbackSocket = nullptr;
             }
+            m_callbackPath.clear();
+            m_stagedAuthentication = std::move(authentication);
+            updateConnectionStatus();
+            emit stateChanged();
             return;
         }
-        if (!bindingCurrent(binding) || attempt != m_authAttempt) {
-            if (m_options.clearCredential)
+        commitAuthentication(std::move(authentication));
+    });
+}
+
+bool StremioSync::confirmStagedAuthentication(std::function<void(bool)> completion) {
+    if (!m_stagedAuthentication || !bindingCurrent(m_stagedAuthentication->binding)
+        || m_stagedAuthentication->attempt != m_authAttempt
+        || (m_datastoreReply && m_datastoreBinding.previewAttempt)) {
+        if (completion)
+            completion(false);
+        return false;
+    }
+    auto authentication = std::move(*m_stagedAuthentication);
+    m_stagedAuthentication.reset();
+    cancelEpisodeMetadataRequests(true);
+    setStatus(QStringLiteral("connecting"));
+    emit stateChanged();
+    commitAuthentication(std::move(authentication), std::move(completion));
+    return true;
+}
+
+void StremioSync::commitAuthentication(
+    StagedAuthentication authentication,
+    std::function<void(bool)> completion) {
+    const auto &binding = authentication.binding;
+    const auto attempt = authentication.attempt;
+    const auto &authKey = authentication.authKey;
+    const auto &identity = authentication.identity;
+    const auto complete = [this, binding, attempt, completion = std::move(completion)](
+        bool succeeded, const QString &summary) {
+        const bool current = bindingCurrent(binding) && attempt == m_authAttempt;
+        if (current)
+            finishAuthentication(succeeded, summary);
+        if (completion)
+            completion(succeeded && current && bindingCurrent(binding));
+    };
+    if (!bindingCurrent(binding) || attempt != m_authAttempt) {
+        complete(false, {});
+        return;
+    }
+    const auto previousCredential = m_options.loadCredential && !m_state.accountId.isEmpty()
+        ? m_options.loadCredential(binding.profileId, m_state.accountId) : std::nullopt;
+    const StremioPersistentState previousState = m_state;
+    if (!m_options.saveCredential
+        || !m_options.saveCredential(binding.profileId, identity.accountId, authKey)) {
+        if (bindingCurrent(binding)) {
+            if (previousCredential && m_options.saveCredential)
+                m_options.saveCredential(binding.profileId, previousState.accountId, *previousCredential);
+            else if (m_options.clearCredential)
                 m_options.clearCredential(binding.profileId);
+        }
+        complete(false, QStringLiteral(
+            "Stremio could not save its credential securely. Check secure storage and try again."));
+        return;
+    }
+    if (!bindingCurrent(binding) || attempt != m_authAttempt) {
+        if (m_options.clearCredential)
+            m_options.clearCredential(binding.profileId);
+        complete(false, {});
+        return;
+    }
+    m_provisionalCredential = ProvisionalCredential{binding, attempt, previousCredential, previousState};
+    m_hasUsableCredential = false;
+    m_dispatchAllowed = false;
+    m_state.accountId = identity.accountId;
+    m_state.displayName = identity.displayName;
+    m_state.bindingGeneration = binding.generation;
+    m_state.reconnectRequired = false;
+    persist([this, binding, attempt, identity, complete](bool committed) {
+        const bool current = bindingCurrent(binding) && attempt == m_authAttempt;
+        if (!committed || !current) {
+            const bool isProvisional = m_provisionalCredential.has_value()
+                && m_provisionalCredential->binding.profileId == binding.profileId
+                && m_provisionalCredential->binding.generation == binding.generation
+                && m_provisionalCredential->attempt == attempt;
+            if (isProvisional)
+                retireProvisionalCredential();
+            complete(false, QStringLiteral(
+                "Stremio could not save this profile. Check available storage and try again."));
             return;
         }
-        m_provisionalCredential = ProvisionalCredential{binding, attempt, previousCredential, previousState};
-        m_hasUsableCredential = false;
-        m_dispatchAllowed = false;
-        m_state.accountId = identity.accountId;
-        m_state.displayName = identity.displayName;
-        m_state.bindingGeneration = binding.generation;
-        m_state.reconnectRequired = false;
-        persist([this, binding, attempt, identity](bool committed) {
-            const bool current = bindingCurrent(binding) && attempt == m_authAttempt;
-            if (!committed || !current) {
-                const bool isProvisional = m_provisionalCredential.has_value()
-                    && m_provisionalCredential->binding.profileId == binding.profileId
-                    && m_provisionalCredential->binding.generation == binding.generation
-                    && m_provisionalCredential->attempt == attempt;
-                if (isProvisional)
-                    retireProvisionalCredential();
-                if (current) {
-                    finishAuthentication(false, QStringLiteral(
-                        "Stremio could not save this profile. Check available storage and try again."));
-                }
-                return;
-            }
-            // This full, current authentication snapshot also repairs any
-            // earlier failed journal write once storage becomes writable again.
-            m_failedPersistencePaths.remove(m_statePath);
-            emit profileLinkValidated(binding.profileId);
-            // AccountRuntime synchronously confirms the durable preferences marker.
-            if (!bindingCurrent(binding) || attempt != m_authAttempt)
-                return;
-            if (!m_markerLinked) {
-                finishAuthentication(false, QStringLiteral(
-                    "Stremio could not save the connection setting. Check profile storage, restart Colosseum and try again."));
-                return;
-            }
-            m_provisionalCredential.reset();
-            m_hasUsableCredential = true;
-            m_dispatchAllowed = true;
-            m_traktLinkKnown = true;
-            m_traktExpiresAtMs = identity.traktExpiresAtMs;
-            finishAuthentication(true, QStringLiteral("Stremio connected securely to this profile."));
-        });
+        // This full, current authentication snapshot also repairs any
+        // earlier failed journal write once storage becomes writable again.
+        m_failedPersistencePaths.remove(m_statePath);
+        emit profileLinkValidated(binding.profileId);
+        if (!bindingCurrent(binding) || attempt != m_authAttempt) {
+            complete(false, {});
+            return;
+        }
+        if (!m_markerLinked && !m_importOnlyEnabled) {
+            complete(false, QStringLiteral(
+                "Stremio could not save the connection setting. Check profile storage, restart Colosseum and try again."));
+            return;
+        }
+        m_provisionalCredential.reset();
+        m_hasUsableCredential = true;
+        m_dispatchAllowed = true;
+        m_traktLinkKnown = canWriteProvider();
+        m_traktExpiresAtMs = m_traktLinkKnown ? identity.traktExpiresAtMs : 0;
+        complete(true, QStringLiteral("Stremio connected securely to this profile."));
     });
 }
 
@@ -2184,8 +2472,8 @@ void StremioSync::settlePersistence(quint64 generation, bool committed) {
 }
 
 void StremioSync::dispatchIntent(const QString &operationId, const ProfileBinding &binding) {
-    if (!bindingCurrent(binding) || !m_dispatchAllowed || !m_hasUsableCredential
-        || hasPendingPersistenceForPath(m_statePath)
+    if (!bindingCurrent(binding) || !canWriteProvider() || !m_dispatchAllowed
+        || !m_hasUsableCredential || hasPendingPersistenceForPath(m_statePath)
         || m_failedPersistencePaths.contains(m_statePath))
         return;
     // The datastore boundary permits one outstanding reply. A concurrent
@@ -2471,8 +2759,12 @@ void StremioSync::postDatastoreRequest(
     const StremioDatastoreRequest &request,
     const ProfileBinding &binding,
     std::function<void(bool, bool, QJsonValue)> completion) {
+    const bool isRead = request.method == QLatin1String("datastoreMeta")
+        || request.method == QLatin1String("datastoreGet")
+        || request.method == QLatin1String("addonCollectionGet");
     if (!bindingCurrent(binding) || !endpointAllowed() || request.method.isEmpty()
-        || request.payload.isEmpty() || m_datastoreReply) {
+        || request.payload.isEmpty() || m_datastoreReply
+        || (!isRead && (!binding.writeGeneration || !canWriteProvider()))) {
         completion(false, false, {});
         return;
     }
@@ -2489,6 +2781,7 @@ void StremioSync::postDatastoreRequest(
     QNetworkReply *reply = m_network.post(
         networkRequest, QJsonDocument(request.payload).toJson(QJsonDocument::Compact));
     m_datastoreReply = reply;
+    m_datastoreBinding = binding;
     m_datastoreResponse.clear();
     m_datastoreResponseTooLarge = false;
     connect(reply, &QNetworkReply::readyRead, this, [this, reply] {
@@ -2505,9 +2798,16 @@ void StremioSync::postDatastoreRequest(
     });
     connect(reply, &QNetworkReply::finished, this,
         [this, reply, binding, completion = std::move(completion)]() mutable {
-        const bool current = bindingCurrent(binding) && reply == m_datastoreReply;
-        if (!current) {
+        if (reply != m_datastoreReply) {
             reply->deleteLater();
+            return;
+        }
+        if (!bindingCurrent(binding)) {
+            reply->deleteLater();
+            m_datastoreReply = nullptr;
+            m_datastoreResponse.clear();
+            if (binding.generation == m_bindingGeneration || binding.previewAttempt)
+                completion(false, false, {});
             return;
         }
         const QNetworkReply::NetworkError networkError = reply->error();
@@ -2528,7 +2828,7 @@ void StremioSync::postDatastoreRequest(
         m_datastoreReply = nullptr;
         m_datastoreResponse.clear();
         const auto resumePending = [this, binding] {
-            if (bindingCurrent(binding))
+            if (binding.writeGeneration && bindingCurrent(binding))
                 retryPendingNow();
         };
         const bool authenticationFailure = status == 401 || status == 403;
@@ -2641,7 +2941,12 @@ void StremioSync::removeSatisfiedIntent(const QString &operationId) {
 bool StremioSync::bindingCurrent(const ProfileBinding &binding) const {
     return !binding.profileId.isEmpty()
         && binding.profileId == m_profileId
-        && binding.generation == m_bindingGeneration;
+        && binding.generation == m_bindingGeneration
+        && (!binding.writeGeneration
+            || (binding.writeGeneration == m_writeGeneration && canWriteProvider()))
+        && (!binding.previewAttempt
+            || (binding.previewAttempt == m_authAttempt
+                && (stagedAuthenticationReady() || m_importOnlyEnabled)));
 }
 
 bool StremioSync::hasPendingPersistenceForPath(const QString &path) const {
@@ -2663,7 +2968,8 @@ void StremioSync::updateConnectionStatus() {
         setStatus(m_markerLinked ? QStringLiteral("reconnectRequired") : QStringLiteral("notConnected"));
         return;
     }
-    setStatus(!m_state.reconnectRequired && m_markerLinked && m_hasUsableCredential && m_dispatchAllowed
+    setStatus(!m_state.reconnectRequired && (m_markerLinked || m_importOnlyEnabled)
+        && m_hasUsableCredential && m_dispatchAllowed
         ? QStringLiteral("synced")
         : QStringLiteral("reconnectRequired"));
 }

@@ -153,6 +153,7 @@ public:
         QString *error = nullptr);
 
     Q_INVOKABLE void restoreRememberedSession();
+    Q_INVOKABLE bool prepareTheatreFirstRun();
     Q_INVOKABLE void continueWithoutAccount();
     // Escape hatch out of guest/local-only mode back to the sign-in choice.
     Q_INVOKABLE void returnToSignIn();

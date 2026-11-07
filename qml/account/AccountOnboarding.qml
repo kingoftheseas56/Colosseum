@@ -10,6 +10,16 @@ Item {
     property var controller: null
     property var recoveryPresenter: null
     property Item backdrop: null
+    property var nuvioAccount: typeof NuvioAccounts !== "undefined" ? NuvioAccounts : null
+    property var stremioActions: typeof StremioActions !== "undefined" ? StremioActions : null
+
+    readonly property bool stremioFirstRunAvailable: stremioActions
+        && typeof stremioActions.beginStremioFirstRun === "function"
+        && typeof stremioActions.applyStremioImport === "function"
+        && typeof stremioActions.cancelStremioImport === "function"
+    readonly property bool theatreSyncAvailable: controller && controllerMode === "signedOut"
+        && controller.accountFeaturesAvailable !== false
+        && (stremioFirstRunAvailable || (nuvioAccount && nuvioAccount.available))
 
     property string routeName: "welcome"
     readonly property bool presenterActive:
@@ -118,6 +128,8 @@ Item {
         active: true
         sourceComponent: {
             switch (root.routeName) {
+            case "theatreSync":
+                return theatreSyncComponent
             case "signIn":
                 return signInComponent
             case "create":
@@ -142,8 +154,34 @@ Item {
         AccountWelcome {
             controller: root.controller
             backdrop: root.backdrop
+            theatreSyncAvailable: root.theatreSyncAvailable
+            onTheatreSyncRequested: {
+                if (root.controller && root.controller.prepareTheatreFirstRun())
+                    root.routeName = "theatreSync"
+            }
             onSignInRequested: root.goSignIn()
             onCreateAccountRequested: root.goCreate()
+        }
+    }
+
+    Component {
+        id: theatreSyncComponent
+
+        AccountTheatreSync {
+            backdrop: root.backdrop
+            nuvioAccount: root.nuvioAccount
+            stremioActions: root.stremioActions
+            stremioAvailable: root.stremioFirstRunAvailable
+            onCancelRequested: {
+                clearSecrets()
+                root.routeName = "welcome"
+            }
+            onCompleted: {
+                clearSecrets()
+                root.routeName = "welcome"
+                if (root.controller)
+                    root.controller.continueWithoutAccount()
+            }
         }
     }
 

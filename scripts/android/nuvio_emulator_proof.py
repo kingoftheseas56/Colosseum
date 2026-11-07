@@ -20,6 +20,14 @@ import time
 from urllib.parse import urlsplit
 
 MARKER = "NUVIO_ANDROID_PROOF="
+PROFILE_COUNTS = (1, 2)
+PROFILE_BASELINE_HOLD_MS = 4000
+PROFILE_ACTIVE_HOLD_MS = 16000
+PROFILE_DISPOSAL_HOLD_MS = 72000
+# Tolerate emulator scheduling, logcat delivery and staggered job completion.
+# The production service retires each idle worker after 60 seconds.
+IDLE_EXIT_MIN_SECONDS = 50
+IDLE_EXIT_MAX_SECONDS = 67
 STAGES = ("started", "repo_added", "plugin_enabled", "stremio_fixture_installed", "direct_stream",
           "crash_started", "worker_started", "crash_survived",
           "recovery_started", "recovery_worker_started", "crash_recovered",
@@ -28,7 +36,7 @@ STAGES = ("started", "repo_added", "plugin_enabled", "stremio_fixture_installed"
           "stremio_requery_started", "stremio_requeried",
           "profile_baseline", "profile_started", "profile_worker_started", "profile_finished",
           "profile_baseline", "profile_started", "profile_worker_started", "profile_worker_started",
-          "profile_worker_started", "profile_worker_started", "profile_finished", "completed")
+          "profile_finished", "completed")
 
 # adb logcat -v threadtime: month-day time PID TID priority tag: message
 LOG_LINE = re.compile(r"^\s*\d\d-\d\d\s+\S+\s+(\d+)\s+\d+\s+[VDIWEFA]\s+.*?" +
@@ -99,6 +107,9 @@ def validate_stages(records: list[dict], app_pid: int, *, complete: bool = False
                 raise ProofFailure("Unexpected or duplicate worker fault invocation")
             if type(worker_pid) is not int or worker_pid <= 0 or worker_pid == app_pid:
                 raise ProofFailure("Fault worker must be a separate process")
+            slot = record.get("slot")
+            if type(slot) is not int or not 0 <= slot < PROFILE_COUNTS[-1]:
+                raise ProofFailure("Fault worker used an invalid slot")
             workers[fault] = worker_pid
         if stage in ("crash_survived", "timeout_survived"):
             worker_pid = record.get("workerPid")
@@ -122,13 +133,13 @@ def validate_stages(records: list[dict], app_pid: int, *, complete: bool = False
                 raise ProofFailure("Recovery does not identify the preceding failed worker")
             if stage != "recovery_started":
                 pid, slot = record.get("workerPid"), record.get("slot")
-                if type(pid) is not int or pid <= 0 or pid == app_pid or pid in workers.values():
-                    raise ProofFailure("Recovery must use a fresh service process after the fault")
-                if type(slot) is not int or not 0 <= slot <= 3:
+                if type(pid) is not int or pid <= 0 or pid == app_pid or pid == workers[fault]:
+                    raise ProofFailure("Recovery must use a process other than the failed worker")
+                if type(slot) is not int or not 0 <= slot < PROFILE_COUNTS[-1]:
                     raise ProofFailure("Recovery slot identity is missing")
                 if stage == "recovery_worker_started":
-                    if fault in recoveries or pid in [r["workerPid"] for r in recoveries.values()]:
-                        raise ProofFailure("Duplicate recovery invocation or reused recovery process")
+                    if fault in recoveries:
+                        raise ProofFailure("Duplicate recovery invocation")
                     if type(record.get("requestMonotonicMs")) is not int or record["requestMonotonicMs"] < 0:
                         raise ProofFailure("Recovery launch timing is missing")
                     recoveries[fault] = record
@@ -140,35 +151,35 @@ def validate_stages(records: list[dict], app_pid: int, *, complete: bool = False
                         raise ProofFailure("Next plugin call did not return a direct HTTP stream successfully")
         if stage.startswith("profile_"):
             count = record.get("concurrency")
-            if count not in (1, 4) or type(count) is not int:
-                raise ProofFailure("Resource profile must measure exactly 1 or 4 slots")
+            if count not in PROFILE_COUNTS or type(count) is not int:
+                raise ProofFailure("Resource profile must measure exactly 1 or 2 slots")
             if stage == "profile_baseline":
-                if count in profiles or record.get("syntheticWorkload") is not True or record.get("holdMs") != 4000:
+                if count in profiles or record.get("syntheticWorkload") is not True or record.get("holdMs") != PROFILE_BASELINE_HOLD_MS:
                     raise ProofFailure("Duplicate or undisclosed synthetic resource profile")
                 profiles[count] = []
             elif count not in profiles:
                 raise ProofFailure("Resource profile has no idle baseline")
             elif stage == "profile_started":
-                if record.get("syntheticWorkload") is not True or record.get("workload") != "idle_initialized_quickjs_timer" or record.get("holdMs") != 16000:
+                if record.get("syntheticWorkload") is not True or record.get("workload") != "idle_initialized_quickjs_timer" or record.get("holdMs") != PROFILE_ACTIVE_HOLD_MS:
                     raise ProofFailure("Wrong resource measurement workload or hold time")
             elif stage == "profile_worker_started":
                 pid, slot, started = record.get("workerPid"), record.get("slot"), record.get("requestMonotonicMs")
                 previous = [w for group in profiles.values() for w in group]
                 if type(pid) is not int or pid <= 0 or pid == app_pid or pid in [w["workerPid"] for w in previous]:
                     raise ProofFailure("Resource workers must have distinct process identities")
-                if type(slot) is not int or not 0 <= slot <= 3 or slot in [w["slot"] for w in profiles[count]]:
+                if type(slot) is not int or not 0 <= slot < PROFILE_COUNTS[-1] or slot in [w["slot"] for w in profiles[count]]:
                     raise ProofFailure("Resource workers must occupy distinct service slots")
                 if type(started) is not int or started < 0:
                     raise ProofFailure("Resource process-request timing is missing")
                 profiles[count].append(record)
             elif stage == "profile_finished":
                 group = profiles[count]
-                if len(group) != count or record.get("result") != "ok" or record.get("syntheticWorkload") is not True or record.get("idleHoldMs") != 4000 or any(type(record.get(f)) is not int or record[f] != count for f in ("startedCount", "finishedCount", "maxConcurrentWorkers")):
+                if len(group) != count or record.get("result") != "ok" or record.get("syntheticWorkload") is not True or record.get("idleHoldMs") != PROFILE_DISPOSAL_HOLD_MS or any(type(record.get(f)) is not int or record[f] != count for f in ("startedCount", "finishedCount", "maxConcurrentWorkers")):
                     raise ProofFailure("Resource profile did not complete all simultaneous workers")
                 if sorted(record.get("workerPids", [])) != sorted(w["workerPid"] for w in group) or sorted(record.get("slots", [])) != sorted(w["slot"] for w in group):
                     raise ProofFailure("Resource profile completion identities changed")
         if stage == "completed":
-            if record.get("profilesCompleted") != [1, 4] or record.get("recoveredFaults") != ["crash", "timeout"]:
+            if record.get("profilesCompleted") != list(PROFILE_COUNTS) or record.get("recoveredFaults") != ["crash", "timeout"]:
                 raise ProofFailure("Expanded fault recovery and resource profiles are incomplete")
     if complete and seen != list(STAGES):
         raise ProofFailure(f"Incomplete proof: {seen}")
@@ -200,10 +211,12 @@ def parse_service_processes(text: str, package: str) -> dict[int, int]:
         fields = line.split()
         if len(fields) != 2 or not fields[0].isdigit():
             continue
-        match = re.fullmatch(re.escape(package) + r":nuvio([0-3])", fields[1])
+        match = re.fullmatch(re.escape(package) + r":nuvio([0-9]+)", fields[1])
         if not match:
             continue
         slot, pid = int(match[1]), int(fields[0])
+        if slot >= PROFILE_COUNTS[-1] or str(slot) != match[1]:
+            raise ProofFailure("Unexpected Nuvio service slot process")
         if slot in result or pid <= 0 or pid in result.values():
             raise ProofFailure("Ambiguous Nuvio service process identity")
         result[slot] = pid
@@ -224,7 +237,7 @@ def parse_meminfo(text: str, pid: int, process_name: str) -> dict:
     return values
 
 
-def runtime_ready_times(logcat: str) -> dict[int, int]:
+def runtime_ready_times(logcat: str) -> dict[int, list[int]]:
     """Use independent worker log PIDs and CLOCK_MONOTONIC time, never app claims."""
     marker = "NUVIO_ANDROID_RUNTIME_READY="
     pattern = re.compile(r"^\s*\d\d-\d\d\s+\S+\s+(\d+)\s+\d+\s+[VDIWEFA]\s+"
@@ -240,10 +253,13 @@ def runtime_ready_times(logcat: str) -> dict[int, int]:
             record = json.loads(match[2])
         except json.JSONDecodeError as exc:
             raise ProofFailure("Malformed native runtime-ready marker") from exc
+        pid = int(match[1])
         value = record.get("monotonicMs")
-        if type(value) is not int or value < 0 or record.get("workerPid") != int(match[1]) or int(match[1]) in result:
+        times = result.setdefault(pid, [])
+        if type(value) is not int or value < 0 or record.get("workerPid") != pid or (times and value <= times[-1]):
             raise ProofFailure("Invalid or duplicate native runtime-ready marker")
-        result[int(match[1])] = value
+        # Every job initializes a new QuickJS runtime, even in a reused process.
+        times.append(value)
     return result
 
 
@@ -268,7 +284,7 @@ def sample_idle_memory(adb, directory: Path, package: str, app_pid: int) -> dict
 
 
 def sample_active_memory(adb, directory: Path, package: str, app_pid: int,
-                         workers: list[dict], ready: dict[int, int]) -> dict:
+                         workers: list[dict], ready: dict[int, list[int]]) -> dict:
     directory.mkdir(parents=True, exist_ok=True)
     expected = {worker["slot"]: worker["workerPid"] for worker in workers}
     if len(expected) != len(workers) or len(set(expected.values())) != len(workers):
@@ -281,11 +297,13 @@ def sample_active_memory(adb, directory: Path, package: str, app_pid: int,
     for worker in workers:
         slot, pid = worker["slot"], worker["workerPid"]
         started = worker["requestMonotonicMs"]
-        if pid not in ready or not 0 <= ready[pid] - started <= 22000:
-            raise ProofFailure("Runtime-ready timing is absent or predates its process request")
+        times = [t for t in ready.get(pid, []) if 0 <= t - started <= 22000]
+        if len(times) != 1:
+            raise ProofFailure("Expected one runtime-ready marker after the profile process request")
+        ready_at = times[0]
         row = sample_process_memory(adb, directory, pid, f"{package}:nuvio{slot}", f"slot-{slot}")
-        row.update(slot=slot, requestMonotonicMs=started, runtimeReadyMonotonicMs=ready[pid],
-                   coldStartMs=ready[pid] - started)
+        row.update(slot=slot, requestMonotonicMs=started, runtimeReadyMonotonicMs=ready_at,
+                   coldStartMs=ready_at - started)
         measured.append(row)
     app = sample_process_memory(adb, directory, app_pid, package, "app")
     after = adb.run("shell", "ps", "-A", "-o", "PID,NAME")
@@ -297,26 +315,42 @@ def sample_active_memory(adb, directory: Path, package: str, app_pid: int,
             "totalWorkerRssKiB": sum(row["rssKiB"] for row in measured)}
 
 
-def wait_for_disposal(adb, directory: Path, package: str, app_pid: int) -> dict:
+def wait_for_disposal(adb, directory: Path, package: str, app_pid: int, workers: list[dict]) -> dict:
     directory.mkdir(parents=True, exist_ok=True)
-    deadline = time.monotonic() + 3
+    expected = {worker["slot"]: worker["workerPid"] for worker in workers}
+    previous = expected
+    last_full_set = None
+    started = time.monotonic()
     while True:
         if current_pid(adb, package) != app_pid:
             raise ProofFailure("Application died while waiting for idle service disposal")
         text = adb.run("shell", "ps", "-A", "-o", "PID,NAME")
+        elapsed = time.monotonic() - started
         with (directory / "disposal-process-history.txt").open("a") as out:
-            out.write(text + "\n")
-        if not parse_service_processes(text, package):
-            return sample_idle_memory(adb, directory, package, app_pid)
-        if time.monotonic() >= deadline:
-            raise ProofFailure("Finished Nuvio services were not stopped when idle")
-        time.sleep(0.1)
+            out.write(f"{elapsed:.3f}s after observing profile completion\n{text}\n")
+        observed = parse_service_processes(text, package)
+        if not observed.items() <= previous.items():
+            raise ProofFailure("A Nuvio service started or was replaced during idle disposal")
+        if elapsed < IDLE_EXIT_MIN_SECONDS and observed != expected:
+            raise ProofFailure("A Nuvio service exited before its idle retention window")
+        if elapsed > IDLE_EXIT_MAX_SECONDS:
+            raise ProofFailure("Finished Nuvio services were not observed stopping near 60 seconds")
+        if observed == expected:
+            last_full_set = round(elapsed, 3)
+        if not observed:
+            if last_full_set is None or last_full_set < 5:
+                raise ProofFailure("Missed independent service residency samples after profile completion")
+            sample = sample_idle_memory(adb, directory, package, app_pid)
+            sample.update(lastFullWorkerSetSeconds=last_full_set, allWorkersGoneSeconds=round(elapsed, 3))
+            return sample
+        previous = observed
+        time.sleep(1)
 
 
 def collect_resource_evidence(adb, artifact: Path, package: str, app_pid: int,
                               records: list[dict], logcat: str, evidence: dict) -> None:
     ready = runtime_ready_times(logcat)
-    for count in (1, 4):
+    for count in PROFILE_COUNTS:
         group = [r for r in records if r.get("concurrency") == count and r["stage"].startswith("profile_")]
         if not group:
             continue
@@ -334,7 +368,7 @@ def collect_resource_evidence(adb, artifact: Path, package: str, app_pid: int,
         if "active" not in row and len(workers) == count and all(r["workerPid"] in ready for r in workers):
             row["active"] = sample_active_memory(adb, directory / "active", package, app_pid, workers, ready)
         if finished and "after" not in row:
-            row["after"] = wait_for_disposal(adb, directory / "after", package, app_pid)
+            row["after"] = wait_for_disposal(adb, directory / "after", package, app_pid, workers)
         (artifact / "resource-measurements.json").write_text(json.dumps({
             "method": "Single dumpsys meminfo PSS/RSS snapshot per initialized idle service; KiB. Request-to-QuickJS-ready process-cold timings use CLOCK_MONOTONIC. OS/filesystem caches are not cold. Not peak plugin or OnePlus memory.",
             "profiles": evidence}, indent=2) + "\n")
@@ -346,7 +380,7 @@ def write_resource_report(artifact: Path, evidence: dict) -> None:
              "Single-run proof-enabled APK on an API 34 x86_64 emulator, not OnePlus measurements. Each service is a fresh process; OS/filesystem caches may be warm. Cold-start is process request to initialized QuickJS/bootstrap, before plugin module evaluation. Memory is one `dumpsys meminfo` snapshot during a synthetic idle timer, not peak arbitrary-plugin memory. PSS apportions shared pages; summed RSS double-counts them. All memory units are KiB.", "",
              "| Concurrent slots | Slot | PID | Cold start (ms) | PSS (KiB) | RSS (KiB) |",
              "|---:|---:|---:|---:|---:|---:|"]
-    for count in ("1", "4"):
+    for count in map(str, PROFILE_COUNTS):
         row = evidence.get(count, {})
         for worker in row.get("active", {}).get("workers", []):
             lines.append(f"| {count} | {worker['slot']} | {worker['pid']} | {worker['coldStartMs']} | {worker['pssKiB']} | {worker['rssKiB']} |")
@@ -354,17 +388,22 @@ def write_resource_report(artifact: Path, evidence: dict) -> None:
               "|---:|---:|---:|---:|---:|---:|"]
     def pair(value):
         return f"{value['pssKiB']} / {value['rssKiB']}" if value else "pending"
-    for count in ("1", "4"):
+    for count in map(str, PROFILE_COUNTS):
         row = evidence.get(count, {})
         active = row.get("active", {})
         lines.append(f"| {count} | {active.get('totalWorkerPssKiB', 'pending')} | {active.get('totalWorkerRssKiB', 'pending')} | {pair(row.get('baseline'))} | {pair(active.get('app'))} | {pair(row.get('after'))} |")
-    lines += ["", "The raw PID-bound meminfo and before/after process lists are in `resources/`. A successful proof requires exactly the measured worker set throughout sampling and no Nuvio service processes at either idle boundary. Android slot count remains four until the user decides from these measurements.", ""]
+    lines += ["", "| Concurrent slots | Last full worker set (s) | All workers gone (s) |",
+              "|---:|---:|---:|"]
+    for count in map(str, PROFILE_COUNTS):
+        after = evidence.get(count, {}).get("after", {})
+        lines.append(f"| {count} | {after.get('lastFullWorkerSetSeconds', 'pending')} | {after.get('allWorkersGoneSeconds', 'pending')} |")
+    lines += ["", "The idle times use host observations after profile completion. They approximate the 60-second service idle timeout. Each cold profile starts with no Nuvio service processes. The same PIDs must remain after the jobs finish, and all must exit before the final memory sample. Raw process lists and PID-bound meminfo are under `resources/`.", ""]
     (artifact / "resource-profile.md").write_text("\n".join(lines))
 
 
 def validate_resource_completion(evidence: dict) -> None:
-    if set(evidence) != {"1", "4"} or any(set(evidence[count]) != {"baseline", "active", "after"} for count in evidence):
-        raise ProofFailure("Independent 1-slot and 4-slot resource/disposal evidence is incomplete")
+    if set(evidence) != set(map(str, PROFILE_COUNTS)) or any(set(evidence[count]) != {"baseline", "active", "after"} for count in evidence):
+        raise ProofFailure("Independent 1-slot and 2-slot resource/disposal evidence is incomplete")
 
 
 class Adb:
@@ -548,7 +587,7 @@ def main() -> int:
     parser.add_argument("--activity")
     parser.add_argument("--artifacts", type=Path, default=Path("nuvio-artifacts"))
     parser.add_argument("--commit", default="local")
-    parser.add_argument("--timeout", type=int, default=540)
+    parser.add_argument("--timeout", type=int, default=360)
     parser.add_argument("--repository", required=True)
     parser.add_argument("--plugin", required=True)
     parser.add_argument("--media")

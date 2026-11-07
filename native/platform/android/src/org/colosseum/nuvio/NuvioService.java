@@ -13,14 +13,15 @@ import org.qtproject.qt.android.bindings.QtService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-/** One disposable Qt runtime per process. No exported entry point or Intent file descriptors. */
+/** One private Qt runtime per slot, with a fresh native host for each invocation. */
 public class NuvioService extends QtService {
     static final String DESCRIPTOR = "org.colosseum.nuvio.NuvioService";
     static final int START = IBinder.FIRST_CALL_TRANSACTION;
     static final int CANCEL = START + 1;
     static final int PROCESS_ID = START + 2;
     private static final Object LOCK = new Object();
-    private static boolean started;
+    private static boolean running;
+    private static boolean stopping;
     private static String[] arguments;
     private static ParcelFileDescriptor output;
 
@@ -52,6 +53,25 @@ public class NuvioService extends QtService {
         }
     }
 
+    // The Qt service startup handshake has completed by the time the first job
+    // is delivered. Keep the service thread asleep between subsequent jobs.
+    public static String[] awaitArguments() {
+        synchronized (LOCK) {
+            while (!stopping && arguments == null) {
+                try { LOCK.wait(); }
+                catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    return null;
+                }
+            }
+            return stopping ? null : takeArguments();
+        }
+    }
+
+    public static void jobCompleted() {
+        synchronized (LOCK) { running = false; }
+    }
+
     private final Binder binder = new Binder() {
         @Override
         protected boolean onTransact(int code, Parcel data, Parcel reply, int flags)
@@ -81,11 +101,14 @@ public class NuvioService extends QtService {
             boolean accepted = false;
             try {
                 synchronized (LOCK) {
-                    if (started || !validArguments(args)) throw new IllegalArgumentException("Invalid Nuvio job");
+                    if (stopping || running || !validArguments(args)) {
+                        throw new IllegalArgumentException("Invalid or overlapping Nuvio job");
+                    }
                     output = fd;
                     arguments = args;
-                    started = true;
+                    running = true;
                     accepted = true;
+                    LOCK.notifyAll();
                 }
                 reply.writeNoException();
                 reply.writeInt(Process.myPid());
@@ -98,12 +121,21 @@ public class NuvioService extends QtService {
 
     @Override public IBinder onBind(Intent intent) { return binder; }
 
+    @Override public void onDestroy() {
+        synchronized (LOCK) {
+            stopping = true;
+            close(output);
+            output = null;
+            arguments = null;
+            LOCK.notifyAll();
+        }
+        super.onDestroy();
+    }
+
     private static void close(ParcelFileDescriptor fd) {
         if (fd != null) try { fd.close(); } catch (IOException ignored) { }
     }
 
     public static final class Slot0 extends NuvioService { }
     public static final class Slot1 extends NuvioService { }
-    public static final class Slot2 extends NuvioService { }
-    public static final class Slot3 extends NuvioService { }
 }

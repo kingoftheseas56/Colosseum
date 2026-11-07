@@ -635,6 +635,7 @@ PersonalStateSnapshot::fromJson(
         const QJsonValue extensions = object.value(QStringLiteral("theatre_extensions"));
         if (!provider.isString() || !stremio.isObject() || !extensions.isArray()
             || (provider.toString() != QLatin1String("stremio")
+                && provider.toString() != QLatin1String("nuvio")
                 && !provider.toString().isEmpty())
             || extensions.toArray().size() > kMaximumTheatreExtensions) {
             if (error)
@@ -1016,8 +1017,10 @@ LegacyPersonalStateStorage::capture(
     const QString provider = preferences
         ->value(QStringLiteral("sync/mainSyncProvider"))
         .toString()
-        .trimmed();
-    snapshot.mainSyncProvider = provider == QLatin1String("stremio")
+        .trimmed()
+        .toLower();
+    snapshot.mainSyncProvider = (provider == QLatin1String("stremio")
+                                 || provider == QLatin1String("nuvio"))
         ? provider
         : QString();
 

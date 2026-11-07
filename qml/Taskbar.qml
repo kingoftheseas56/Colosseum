@@ -20,9 +20,12 @@ Item {
     property var groups: (typeof Sessions !== "undefined") ? (Sessions.revision, Sessions.groups()) : []
     property string activeId: (typeof Sessions !== "undefined") ? Sessions.activeId : ""
     property bool open: false
+    property bool localMediaAvailable: typeof LocalLaunch !== "undefined" && LocalLaunch !== null
+    readonly property string localMediaUnavailableReason: qsTr("Local file import is unavailable. Open downloaded media from Downloads.")
     readonly property int leftEdge: Math.max(18, Math.min(80, parent.width * 0.045))
     readonly property int bottomGap: 16
     readonly property int closedSize: 64
+    readonly property real contentBottomInset: visible ? height - dock.y : 0
     // Permanent buttons: Colosseum, Vault, and Your Collections.
     readonly property int closedWidth: 190
     Keys.onPressed: (event) => spatialNav.handle(event)
@@ -245,6 +248,7 @@ Item {
             // An ACTION, not a page: no active-underline, no badge — just icon + hover.
             Item {
                 objectName: "taskbarOpenMedia"
+                opacity: bar.localMediaAvailable ? 1 : 0.45
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
@@ -263,8 +267,11 @@ Item {
                 }
                 KeyboardAction {
                     id: openMediaInput
+                    objectName: "taskbarOpenMediaAction"
+                    enabled: bar.localMediaAvailable
                     anchors.fill: parent
-                    accessibleName: "Open media"
+                    accessibleName: bar.localMediaAvailable ? qsTr("Open media") : qsTr("Open media unavailable")
+                    accessibleDescription: bar.localMediaAvailable ? "" : bar.localMediaUnavailableReason
                     focusRadius: 13
                     onTriggered: bar.openMediaClicked()
                 }
@@ -288,13 +295,20 @@ Item {
                     }
                     KeyboardAction {
                         id: recentInput
+                        objectName: "taskbarOpenRecentAction"
+                        enabled: bar.localMediaAvailable
                         anchors.fill: parent
-                        accessibleName: "Open recent media"
+                        accessibleName: bar.localMediaAvailable ? qsTr("Open recent media") : qsTr("Recent media unavailable")
+                        accessibleDescription: bar.localMediaAvailable ? "" : bar.localMediaUnavailableReason
                         focusRadius: 4
                         focusInset: -2
                         onTriggered: bar.openRecentRequested()
                     }
                 }
+                HoverHandler { id: localMediaHover; enabled: !bar.localMediaAvailable; cursorShape: Qt.ArrowCursor }
+                ToolTip.visible: !bar.localMediaAvailable && localMediaHover.hovered
+                ToolTip.text: bar.localMediaUnavailableReason
+                ToolTip.delay: 350
             }
 
             // ---- Watch Party: Room ID join lives outside immersive Player 1 so

@@ -228,6 +228,10 @@ Window {
     property string wallpaperSource: win.defaultWallpaperSource
     onDefaultWallpaperSourceChanged: Qt.callLater(win.refreshWallpaper)
     property alias androidHost: phoneShell.androidHost
+    AdaptiveLayout { id: presentationPolicy; viewportWidth: win.width; androidHost: win.androidHost }
+    readonly property alias desktopPresentation: presentationPolicy.desktopPresentation
+    readonly property real headerOuterMargin: theme.margin
+    readonly property real outerPageMargin: theme.margin
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
     // Lanista deliberately reads QQuickItem properties only; never expose credentials,
@@ -334,13 +338,14 @@ Window {
     }
     KeyboardCommand {
         id: openMediaCommand
+        enabled: win.localMediaAvailable
         semanticId: "global.openMedia"
         label: "Open media"
         category: "Shortcuts"
         scope: "application"
         sequences: ["Ctrl+O"]
         icon: "file.svg"
-        onTriggered: openMediaDialog.open()
+        onTriggered: if (win.localMediaAvailable) openMediaDialog.open()
     }
     KeyboardCommand {
         id: openVaultCommand
@@ -529,7 +534,7 @@ Window {
                        homeReadingDeskLoader, homeVaultWidgetLoader]
         var sources = ["Bookshelf.qml", "TheatreStrip.qml",
                        "ReadingDesk.qml", "VaultHomeWidget.qml"]
-        if (win.androidHost) {
+        if (win.androidHost && !win.desktopPresentation) {
             loaders.pop()
             sources.pop()
         }
@@ -546,7 +551,7 @@ Window {
     function homeIntroWidgetSettled(loader) {
         if (homeIntroPendingLoader !== loader) return
         homeIntroPendingLoader = null
-        if (homeIntroWidgetCursor >= (win.androidHost ? 3 : 4)) {
+        if (homeIntroWidgetCursor >= (win.androidHost && !win.desktopPresentation ? 3 : 4)) {
             homeIntroWidgetsLoaded = true
             return
         }
@@ -1334,7 +1339,13 @@ Window {
         win.pendingIdentityRoute = null
         identityCeremonyDialog.close()
     }
+    readonly property var shellInputMethod: Qt.inputMethod
     function handleEscape() {
+        var keyboard = win.shellInputMethod
+        if (win.androidHost && keyboard.visible) {
+            keyboard.hide()
+            return
+        }
         win.cancelCatalogueRoute();
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
         switch (action) {
@@ -1374,7 +1385,14 @@ Window {
         case "downloads": win.closeDownloadsPage(); return
         case "profile": phoneShell.closeProfilePage(); return
         case "book": win.closeBook(); return
-        case "theatreSeries": win.closeTheatreSeries(); return
+        case "theatreSeries":
+            // Native Back (PF-03) closes the title's visible transient first (episode
+            // context, Sources context/extension menu/sheet, episode jump, season menu);
+            // only an unconsumed Back leaves the title. Desktop Escape keeps its key routes.
+            if (win.androidHost && theatreSeriesLayer.item
+                    && theatreSeriesLayer.item.requestEscape
+                    && theatreSeriesLayer.item.requestEscape()) return
+            win.closeTheatreSeries(); return
         case "western": win.closeWestern(); return
         case "series": win.closeSeries(); return
         case "onePieceArc": win.closeOnePieceArc(); return
@@ -1647,7 +1665,7 @@ Window {
     function closeWorld() {
         if (win.guardNamedCollectionsNavigation(function() { win.closeWorld() })) return
 
-        if (win.androidHost) return
+        if (win.androidHost && !win.desktopPresentation) return
         win.cancelCatalogueRoute();
         win.parkFeria(true)
         worldStack.current = ""                           // hide all worlds; none destroyed
@@ -1839,6 +1857,50 @@ Window {
         } else seriesLayer.active = true
     }
     function closeSeries() { seriesLayer.active = false; win.restoreNamedCollectionsReturn() }
+
+    // Featured Read (WT-06). Comics (ghost "C") need the GetComics source: without it the
+    // Extensions page opens instead of a dead end. Manga opens the existing series owner and
+    // reads its primary target once THAT title has finished loading. The deferred read rides
+    // the catalogue-route generation, so any later route (another title, Back, a different
+    // world/profile) cancels it and it can never land on a new context.
+    function readTankobanFeatured(slide) {
+        if (!slide || !String(slide.title || "").length) return
+        var title = String(slide.title)
+        if (slide.ghost === "C") {
+            var installed = (typeof Extensions !== "undefined" && Extensions
+                            && typeof Extensions.installed === "function") ? (Extensions.installed() || []) : []
+            var getComicsEnabled = false
+            for (var i = 0; i < installed.length; ++i)
+                if (installed[i] && installed[i].id === "colosseum.well.getcomics.issues"
+                        && installed[i].enabled === true) { getComicsEnabled = true; break }
+            if (!getComicsEnabled) { win.openExtensionsPage("tankoban"); return }
+            win.openWestern({ title: title })
+            return
+        }
+        win.openSeries(title)
+        var page = seriesLayer.item
+        if (page && page.readPrimary && page.seriesTitle === title && !page.loading) {
+            page.readPrimary()
+            return
+        }
+        var request = { title: title, generation: win._catalogueRouteGeneration }
+        seriesLayer.featuredRead = request
+        win._catalogueRouteCancel = function() {
+            if (seriesLayer.featuredRead === request) seriesLayer.featuredRead = null
+        }
+    }
+    function consumeFeaturedRead() {
+        var request = seriesLayer.featuredRead
+        var page = seriesLayer.item
+        if (!request || !page || !page.readPrimary || page.loading) return
+        if (request.generation !== win._catalogueRouteGeneration || page.seriesTitle !== request.title) {
+            seriesLayer.featuredRead = null
+            return
+        }
+        seriesLayer.featuredRead = null
+        win._catalogueRouteCancel = null
+        page.readPrimary()
+    }
 
     // ---- western-comics detail: the GetComics shelf (ComicSeries), parallel to the
     //      manga seriesLayer. Series id app-wide = "gc:<tag-slug>" — the prefix is how
@@ -2221,8 +2283,37 @@ Window {
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
     function openTheatreSeries(item) { win.cancelCatalogueRoute();
         theatreSeriesLayer.pendingItem = item
-        if (theatreSeriesLayer.active && theatreSeriesLayer.item) theatreSeriesLayer.item.itemData = item
+        if (theatreSeriesLayer.active && theatreSeriesLayer.item) {
+            theatreSeriesLayer.item.itemData = item
+            if (item && item.resumeSources && theatreSeriesLayer.item.openResumeSources)
+                theatreSeriesLayer.item.openResumeSources(item.resumeSources)
+        }
         else theatreSeriesLayer.active = true
+    }
+    // PF-04: Continue on a download whose local file is gone. Returns true when it routed to
+    // the exact title/episode Sources sheet (canonical tt/anime ids only); false keeps the
+    // existing local-player path (and its error/retry) for files that are present or ids that
+    // have no catalogue route.
+    function openMissingDownloadSources(entry, r, presentation, title, cover) {
+        if (typeof Download === "undefined" || !Download || typeof Download.localFileAvailable !== "function")
+            return false
+        if (Download.localFileAvailable(String(r.localPath)))
+            return false
+        var sourceId = String(r.subId || entry.id || "")
+        var rootId = EpisodeBrowser.seriesRootId(sourceId)
+        if (!/^(tt\d+|(?:mal|kitsu|anilist|anidb):\d+)$/.test(rootId))
+            return false
+        var sourceType = r.subType === "series" || presentation.type === "series"
+                         || sourceId !== rootId ? "series" : "movie"
+        var showTitle = EpisodeBrowser.showTitleFrom(title)
+        win.openTheatreSeries({ "id": rootId, "type": sourceType, "title": showTitle, "cover": cover,
+            "resumeSources": {
+                "id": sourceId, "type": sourceType, "title": title,
+                "context": { "title": showTitle, "backdrop": cover, "imdbId": rootId,
+                    "season": EpisodeBrowser.seasonOf(sourceId),
+                    "episode": sourceType === "series" ? Number(sourceId.split(":").pop()) || 0 : 0,
+                    "resumePosition": Number(r.position) || 0 } } })
+        return true
     }
     function closeTheatreSeries() { theatreSeriesLayer.active = false; win.restoreNamedCollectionsReturn() }
 
@@ -2372,6 +2463,11 @@ Window {
     //      engine URL. Deferred while the player streams (one engine, playback wins). ----
     property var pendingResolves: []
     property var pendingFeeds: ({})   // "hash:idx" -> job id, answered by onFetchReady
+    property int downloadResolveEpoch: 0
+    Connections {
+        target: typeof PlatformDownloads !== "undefined" ? PlatformDownloads : null
+        function onOpenDownloadsRequested() { win.openDownloadsPage() }
+    }
     // torrent-choice pin (spec 2026-07-11): a hand-picked job carries infoHash/fileIdx
     // in its request; jobs() exposes them. Pinned -> prefetch exactly that torrent, no
     // source search, and Retry retries the SAME pick (the choice is durable — never
@@ -2389,6 +2485,7 @@ Window {
         return null
     }
     function resolveDownloadJob(id, streamId, mediaType) {
+        var resolveEpoch = win.downloadResolveEpoch
         var pin = pinnedPickFor(id)
         if (pin && pin.fileIdx >= 0) {
             var pkey = pin.infoHash.toLowerCase() + ":" + pin.fileIdx
@@ -2397,6 +2494,7 @@ Window {
             return
         }
         var onRows = function(rows) {
+            if (resolveEpoch !== win.downloadResolveEpoch) return
             if (!rows || !rows.length) {
                 Download.failJob(id, "No stream found for this episode.")
                 return
@@ -2440,6 +2538,7 @@ Window {
         var installed = (typeof Extensions !== "undefined") ? Extensions.installed() : []
         var exts = AddonClient.streamExtensions(installed, mediaType, streamId)
         var lastResort = function() {
+            if (resolveEpoch !== win.downloadResolveEpoch) return
             if (AddonClient.torrentioEnabled(installed))
                 Torrentio.loadStreams(mediaType, streamId, onRows)
             else
@@ -2462,7 +2561,7 @@ Window {
             if (id === undefined)
                 return
             delete win.pendingFeeds[key]
-            Download.feedUrl(id, url)
+            Download.feedTorrentUrl(id, url, infoHash, fileIdx)
         }
         function onStreamError(message) {
             // Engine went away mid-warmup: fail the waiting jobs honestly (Retry
@@ -2478,6 +2577,11 @@ Window {
     }
     Connections {
         target: typeof Download !== "undefined" ? Download : null
+        function onResolutionReset() {
+            win.downloadResolveEpoch++
+            win.pendingFeeds = ({})
+            win.pendingResolves = []
+        }
         function onNeedResolve(id, streamId, mediaType) {
             if (win.playerOpen) { win.pendingResolves.push({ id: id, sid: streamId, mt: mediaType }); return }
             win.resolveDownloadJob(id, streamId, mediaType)
@@ -2493,6 +2597,26 @@ Window {
                 win.warmPlayerSessionId = ""
             if (Sessions.activeId === id)
                 win.activateSession(Sessions.get(id))
+        }
+        function onSourceReplaced(id) {
+            // Same content, a different chosen source (BR-SOURCE-REPLACEMENT). The record
+            // already carries the new target. A parked (warm) session must not resume the
+            // old stream: drop warm ownership so the pending setActive loads the new target
+            // with its saved position. An already-active session never receives
+            // activeChanged, so checkpoint the live position of the old transport first and
+            // re-dispatch here; the player's demand epoch retires the old route's callbacks.
+            if (Sessions.activeId === id) {
+                var rec = Sessions.get(id)
+                if (rec && rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) {
+                    var live = playerLayer.item.captureState()
+                    if (live && Number.isFinite(live.position) && live.position >= 0)
+                        Sessions.saveState(id, live)
+                }
+                win.warmPlayerSessionId = ""
+                win.activateSession(Sessions.get(id))
+            } else if (win.warmPlayerSessionId === id) {
+                win.warmPlayerSessionId = ""
+            }
         }
     }
     Connections {
@@ -2870,13 +2994,29 @@ Window {
     }
     function closeUpdatePage() { updateLayer.active = false }
     property Item feedbackInvoker: null
+    property var requestFormDrafts: ({})
+    Settings {
+        id: requestDraftSettings
+        category: "FeedbackRequests"
+        property string draftsJson: "{}"
+        Component.onCompleted: {
+            try {
+                const saved = JSON.parse(draftsJson)
+                if (saved && typeof saved === "object" && !Array.isArray(saved))
+                    win.requestFormDrafts = saved
+            } catch (error) {
+                draftsJson = "{}"
+            }
+        }
+    }
     function openFeedback(invoker, homeFeedbackKind = "") {
         if (win.guardNamedCollectionsNavigation(function() { win.openFeedback(invoker, homeFeedbackKind) })) return
         if (feedbackLayer.active || feedbackLayer.capturingBackdrop) return
         feedbackLayer.universeRequest = !!invoker && !homeFeedbackKind
         feedbackLayer.homeFeedbackKind = homeFeedbackKind
         win.feedbackInvoker = invoker || win.activeFocusItem
-        if (feedbackLayer.desktopUniverse || homeFeedbackKind) {
+        taskbar.open = false
+        if (feedbackLayer.requestForm && !win.androidHost) {
             feedbackLayer.capturingBackdrop = true
             if (win.contentItem.grabToImage(function(result) {
                 feedbackLayer.capturingBackdrop = false
@@ -2887,10 +3027,11 @@ Window {
             feedbackLayer.active = true
             return
         }
-        taskbar.open = false
         feedbackLayer.active = true
     }
     function closeFeedback() {
+        if (feedbackLayer.requestForm && feedbackLayer.item && feedbackLayer.item.sending) return
+        if (win.androidHost && win.shellInputMethod.visible) win.shellInputMethod.hide()
         feedbackLayer.active = false
         feedbackLayer.backdrop = null
         const invoker = win.feedbackInvoker
@@ -3449,14 +3590,20 @@ Window {
                                         "title": title, "cover": cover })
                 return
             }
-            // downloaded file first: resume the LOCAL copy at position, never a stream fetch
+            // downloaded file first: resume the LOCAL copy at position, never a stream fetch.
+            // A deleted/moved download (PF-04) reopens the same title/episode's Sources sheet
+            // with its saved position instead of erroring; the user picks the replacement
+            // source explicitly (nothing is chosen for them, progress is not rewritten).
+            if (r.localPath && String(r.localPath).length
+                    && win.openMissingDownloadSources(entry, r, presentation, title, cover))
+                return
             if (r.localPath && String(r.localPath).length)
                 win.openLocalVideoSession({ "path": r.localPath, "id": entry.id || "",
                                             "title": title, "art": cover,
                                             "kind": r.subType === "series" ? "episode" : "movie",
                                             "position": r.position || 0 })
             else if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, cover, r.subType || "", r.subId || "", [], {}, r.position || 0)
-            else if (presentation.type) win.openTheatreSeries({ id: String(entry.id).split(":")[0],
+            else if (presentation.type) win.openTheatreSeries({ id: presentation.detailId || String(entry.id).split(":")[0],
                                                                 type: presentation.type, title: title, cover: cover })
         } else if (entry.kind === "tankoban") {
             // a saved VOLUME read: same manga series, Tankoban Mode ON, the saved
@@ -3501,6 +3648,10 @@ Window {
         var title = entry.title || entry.caption || presentation.title || ""
         var cover = entry.cover || presentation.cover || ""
         if (entry.kind === "video") {
+            if (presentation.detailId) {
+                win.openTheatreSeries({ id: presentation.detailId, type: presentation.type, title: title, cover: cover })
+                return
+            }
             var id = (entry.id || "").split(":")[0]                      // base tt id (strip episode suffix)
             if (id.indexOf("tt") !== 0) {
                 // Non-Cinemeta id: anime comes from Jikan (id "mal:<malId>") and resolves through
@@ -3617,7 +3768,9 @@ Window {
                         "infoHash": infoHash, "fileIdx": fileIdx || 0, "title": title || "",
                         "backdrop": backdrop || "", "subType": subType || "", "subId": subId || "",
                         "streamCandidates": streamCandidates || [], "playbackContext": playbackContext || ({}),
-                        "position": position || 0 }
+                        // A Continue source pick (PF-04) keeps its saved position; an explicit
+                        // caller position still wins.
+                        "position": position || Number((playbackContext || ({})).resumePosition) || 0 }
         })
         if (restartActive && id === warm.id && playerLayer.item)
             win.activateMovieSession(Sessions.get(id))
@@ -3674,9 +3827,10 @@ Window {
         else if (r.family === "book")  win.openBookSession(r.path, { "id": r.vaultId, "title": r.title })
         else if (r.family === "video") win.openLocalVideoSession(win.videoTargetFor(r.path, r.vaultId, r.title))
     }
+    readonly property bool localMediaAvailable: typeof LocalLaunch !== "undefined" && LocalLaunch !== null
     function openLocalMedia(paths) {
         if (!paths || !paths.length) return
-        if (typeof LocalLaunch === "undefined") return
+        if (!win.localMediaAvailable) return
         LocalLaunch.openAsync(paths)
     }
     function openNextToOpen(index) {
@@ -4177,8 +4331,8 @@ Window {
         backdrop: wall
         activeMedium: ""
         androidHost: win.androidHost
-        x: theme.margin; y: 18
-        width: win.width - theme.margin * 2
+        x: win.headerOuterMargin; y: 18
+        width: win.width - win.headerOuterMargin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")
         onDlnaClicked: (anchorRight, anchorBottom) => dlnaSharePopup.toggleAt(anchorRight, anchorBottom)
@@ -4382,8 +4536,8 @@ Window {
 
         Column {
             id: contentCol
-            x: theme.margin
-            width: page.width - theme.margin * 2
+            x: win.outerPageMargin
+            width: page.width - win.outerPageMargin * 2
             topPadding: 10
             spacing: 32
 
@@ -4565,7 +4719,7 @@ Window {
                 }
 
                 HomeFeedbackActions {
-                    visible: Qt.platform.os !== "android"
+                    visible: typeof FeedbackRequests !== "undefined"
                     width: parent.width
                     backdrop: wall
                     track: page.contentY
@@ -4665,15 +4819,18 @@ Window {
         }
     }
 
-    // Android readiness is the presented initial world, not merely a live process
-    // or the native splash. Emit once after its real Loader has an item.
+    // Readiness describes the presented initial surface, not merely a live process.
+    // Keep Home and loaded-world markers distinct for fresh-launch smoke consumers.
+    property bool androidHomeReadyReported: false
     property bool androidWorldReadyReported: false
     property bool androidLocalOnboardingReported: false
     Timer {
+        id: androidInitialSurfaceReadiness
         interval: 100
         repeat: true
-        running: win.androidHost && !win.androidWorldReadyReported
+        running: win.androidHost && !win.androidHomeReadyReported && !win.androidWorldReadyReported
         onTriggered: {
+            if (win.androidHomeReadyReported || win.androidWorldReadyReported) return
             if (!win.visible || boot.visible) return
             if (accountHost.visible) {
                 if (!win.androidLocalOnboardingReported
@@ -4685,7 +4842,14 @@ Window {
                 }
                 return
             }
-            if (worldStack.current === "") return
+            if (worldStack.current === "") {
+                if (win.desktopPresentation && page.visible && topbar.visible && page.width > 0 && page.height > 0
+                        && topbar.width > 0 && topbar.height > 0) {
+                    win.androidHomeReadyReported = true
+                    console.info("[boot] android home ready")
+                }
+                return
+            }
             for (var i = 0; i < worldRepeater.count; ++i) {
                 var loader = worldRepeater.itemAt(i)
                 if (loader && loader.mode === worldStack.current && loader.visible
@@ -4817,6 +4981,7 @@ Window {
                     }
                     item.seriesRequested.connect(win.openSeries)
                     if (item.mangaOpenById) item.mangaOpenById.connect(win.openSeries)
+                    if (item.featuredReadRequested) item.featuredReadRequested.connect(win.readTankobanFeatured)
                     item.bookRequested.connect(win.openBook)
                     item.genreRequested.connect(win.openGenre)
                     if (item.genreIndexRequested) item.genreIndexRequested.connect(win.openGenreIndex)
@@ -4904,6 +5069,7 @@ Window {
     PhoneShellHost {
         id: phoneShell
         window: win
+        desktopDockInset: taskbar.contentBottomInset
         worldStack: worldStack
         topbar: topbar
         page: page
@@ -5069,6 +5235,14 @@ Window {
         z: 53     // above the universe overlay (z:52): a manga opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
+        // Pending Featured Read for one exact title (WT-06); see readTankobanFeatured.
+        property var featuredRead: null
+        onActiveChanged: if (!active) featuredRead = null
+        Connections {
+            target: seriesLayer.item
+            ignoreUnknownSignals: true
+            function onLoadingChanged() { if (seriesLayer.featuredRead) Qt.callLater(win.consumeFeaturedRead) }
+        }
         property string title: ""
         property string malId: ""             // Slice C: Discover card's MAL id, threaded to the series page
         property string seriesIdOverride: ""
@@ -5340,6 +5514,7 @@ Window {
             item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
             item.openExtensionsRequested.connect(function(browseMoreSources) {
                 if (browseMoreSources) win.openPlaySourcesExtensions()
+                else if (win.androidHost) win.openExtensionsPage("theatre")
                 else win.openStreamExtensionSetup()
             })
             // Rebuilt title page only: the world pills, search and a Back pill that names its place.
@@ -5353,6 +5528,11 @@ Window {
                 })
             if (item.backLabel !== undefined)
                 item.backLabel = Qt.binding(function() { return worldStack.current.length ? worldStack.current : "Home" })
+            // Cold load continuation (PF-04), after playback signals are connected: only the
+            // latest pending request opens its Sources sheet.
+            if (theatreSeriesLayer.pendingItem && theatreSeriesLayer.pendingItem.resumeSources
+                    && item.openResumeSources)
+                item.openResumeSources(theatreSeriesLayer.pendingItem.resumeSources)
         }
     }
 
@@ -6119,22 +6299,31 @@ Window {
         visible: active
         property bool universeRequest: false
         property string homeFeedbackKind: ""
-        readonly property bool desktopUniverse: universeRequest && Qt.platform.os !== "android"
+        readonly property bool requestForm: universeRequest || homeFeedbackKind.length > 0
         property bool capturingBackdrop: false
         property var backdrop: null
-        sourceComponent: FeedbackPanel {
-            universeRequest: feedbackLayer.universeRequest
-            desktopUniverse: feedbackLayer.desktopUniverse
-            homeFeedbackKind: feedbackLayer.homeFeedbackKind
-            backdropUrl: feedbackLayer.backdrop ? feedbackLayer.backdrop.url : ""
-            availableUniverses: desktopUniverse && win.feedbackInvoker
-                                ? win.feedbackInvoker.availableUniverses : []
+        sourceComponent: requestForm ? requestFormComponent : genericFeedbackComponent
+
+        Component {
+            id: requestFormComponent
+            RequestFormOverlay {
+                kind: feedbackLayer.universeRequest ? "universe" : feedbackLayer.homeFeedbackKind
+                backdropUrl: feedbackLayer.backdrop ? feedbackLayer.backdrop.url : ""
+                availableUniverses: feedbackLayer.universeRequest && win.feedbackInvoker
+                                    ? win.feedbackInvoker.availableUniverses : []
+                drafts: win.requestFormDrafts
+                onDraftChanged: requestDraftSettings.draftsJson = JSON.stringify(win.requestFormDrafts)
+                onCloseRequested: win.closeFeedback()
+            }
         }
-        onLoaded: {
-            item.closeRequested.connect(win.closeFeedback)
-            item.minimizeRequested.connect(win.minimizeShell)
-            item.fullscreenRequested.connect(win.toggleFullscreenShell)
-            item.quitRequested.connect(win.requestApplicationQuit)
+        Component {
+            id: genericFeedbackComponent
+            FeedbackPanel {
+                onCloseRequested: win.closeFeedback()
+                onMinimizeRequested: win.minimizeShell()
+                onFullscreenRequested: win.toggleFullscreenShell()
+                onQuitRequested: win.requestApplicationQuit()
+            }
         }
     }
 
@@ -6174,10 +6363,12 @@ Window {
 
     Taskbar {
         id: taskbar
+        localMediaAvailable: win.localMediaAvailable
         z: 900
         onFeedbackClicked: win.openFeedback()
         visible: !win.immersiveSurfaceOpen
             && !win.vinylVideoFullscreen
+            && (!win.androidHost || win.desktopPresentation)
             && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
         enabled: visible
         onVisibleChanged: if (!visible) open = false
@@ -6187,9 +6378,11 @@ Window {
         onCloseRequested: (id) => win.closeSession(id)
         onStartClicked: { /* Start menu is a later spec - placeholder */ }
         onOpenMediaClicked: {
+            if (!win.localMediaAvailable) return
             if (!win.guardNamedCollectionsNavigation(function() { openMediaDialog.open() })) openMediaDialog.open()
         }
         onOpenRecentRequested: {
+            if (!win.localMediaAvailable) return
             if (!win.guardNamedCollectionsNavigation(function() { openRecentPanel.toggle() })) openRecentPanel.toggle()
         }
         onWatchPartyJoinClicked: {
@@ -6259,6 +6452,7 @@ Window {
         fileMode: FileDialog.OpenFiles
         nameFilters: phoneShell.openMediaNameFilters
         onAccepted: {
+            if (!win.localMediaAvailable) return
             var arr = []
             for (var i = 0; i < selectedFiles.length; i++) arr.push("" + selectedFiles[i])
             win.openLocalMedia(arr)   // multi-select opens the FIRST; the Next-to-Open tray is Slice 20
@@ -6352,6 +6546,7 @@ Window {
         z: 5
         keys: ["text/uri-list"]
         onDropped: (drop) => {
+            if (!win.localMediaAvailable) { drop.accepted = false; return }
             if (!drop.hasUrls) { drop.accepted = false; return }
             var files = []
             var anyFolder = false
@@ -6368,6 +6563,7 @@ Window {
 
     Shortcut {
         sequences: openMediaCommand.sequences
+        enabled: win.localMediaAvailable
         context: Qt.ApplicationShortcut
         onActivated: openMediaCommand.invoke("shortcut")
     }
@@ -6507,7 +6703,7 @@ Window {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: { localLaunchToast.opacity = 0; openMediaDialog.open() }
+                    onClicked: { localLaunchToast.opacity = 0; if (win.localMediaAvailable) openMediaDialog.open() }
                 }
             }
         }

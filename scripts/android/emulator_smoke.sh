@@ -3,7 +3,7 @@
 #
 # Usage: scripts/android/emulator_smoke.sh <apk> [artifact-dir] [alive-seconds]
 #
-# Installs and launches the APK, waits for Main.qml and the initial Android world to be ready,
+# Installs and launches the APK, waits for Main.qml and the initial Home or Android world to be ready,
 # then monitors that same process for alive-seconds (default 60 s). Cold extraction
 # has a separate bounded readiness window (SMOKE_READY_TIMEOUT, default 180 s).
 # Captures logcat, screenshots and readable tombstones, including on startup failure.
@@ -148,9 +148,9 @@ if [[ $fail == 0 ]]; then
             fi
             if [[ -n "$pid" ]] &&
                grep -Fq '[boot] Main.qml loaded' "$ART/app-readiness.txt" &&
-               grep -Fq '[boot] android world ready:' "$ART/app-readiness.txt"; then
+               grep -Eq '\[boot\] android (home ready|world ready:)' "$ART/app-readiness.txt"; then
                 ready_at=$current_time
-                log "Main.qml loaded and initial world reached after $((ready_at - launched_at)) s; holding ${ALIVE} s"
+                log "Main.qml loaded and initial surface reached after $((ready_at - launched_at)) s; holding ${ALIVE} s"
                 adb_cmd exec-out screencap -p > "$ART/screenshot-ready.png" || true
             elif (( current_time - launched_at >= READY_TIMEOUT )); then
                 log "READINESS TIMEOUT after ${READY_TIMEOUT} s (pid ${pid:-<none>})"; fail=1; break
@@ -171,8 +171,14 @@ import xml.etree.ElementTree as ET
 try:
     sizes = re.findall(r"(?:Physical|Override) size:\s*(\d+)x(\d+)", sys.argv[3])
     width, height = map(int, sizes[-1])
+    root = ET.parse(sys.argv[1]).getroot()
+    rotation = root.get("rotation", "0")
+    if rotation not in ("0", "1", "2", "3"):
+        sys.exit(1)
+    if rotation in ("1", "3"):
+        width, height = height, width
     choices = []
-    for node in ET.parse(sys.argv[1]).iter("node"):
+    for node in root.iter("node"):
         a = node.attrib
         # Qt appends the accessible description to the name with ", ". The
         # generated QML type number varies, but objectName is a stable identity.

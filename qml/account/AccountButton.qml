@@ -1,7 +1,7 @@
 // PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
 
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import ".."
 
 Button {
@@ -10,7 +10,7 @@ Button {
     property string variant: "secondary"
     property color primaryInk: "#141207"
 
-    implicitHeight: 46
+    implicitHeight: Math.max(46, Math.ceil(theme.fontSize(13) * 1.5) + 22)
     implicitWidth: Math.max(160, contentItem.implicitWidth + 34)
     padding: 0
     hoverEnabled: true
@@ -24,7 +24,7 @@ Button {
             : (control.enabled ? theme.ink : theme.inkDimmer)
         opacity: control.enabled ? 1.0 : 0.58
         font.family: theme.ui
-        font.pixelSize: 13
+        font.pixelSize: theme.fontSize(13)
         font.weight: Font.DemiBold
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter

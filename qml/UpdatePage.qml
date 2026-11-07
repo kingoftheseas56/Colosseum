@@ -294,12 +294,13 @@ Item {
         onTriggered: root.backRequested()
     }
     Item {
+        visible: Qt.platform.os !== "android"
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.topMargin: 24
         anchors.rightMargin: theme.margin
-        width: chromeRow.implicitWidth
-        height: 30
+        width: visible ? chromeRow.implicitWidth : 0
+        height: visible ? 30 : 0
         Row {
             id: chromeRow
             spacing: 22

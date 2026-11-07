@@ -100,6 +100,7 @@ Item {
     // Window chrome cluster — minimize · fullscreen-toggle · power. Top-right, over the
     // empty preview area (the search panel is on the left), matching every other page.
     Row {
+        visible: Qt.platform.os !== "android"
         z: 50
         anchors.right: parent.right
         anchors.rightMargin: 40

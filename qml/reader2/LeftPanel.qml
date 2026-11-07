@@ -27,6 +27,10 @@ ReaderOverlay {
 
     // ---- inputs (bound by ReaderChrome from ReaderShell's view-model) ----
     property bool open: false
+    property bool touchInput: Qt.platform.os === "android"
+    // Touch reserves a full-height delete gutter beside each bookmark so a thumb tap never
+    // lands ambiguously between delete and jump. Desktop keeps its hover-sized control.
+    readonly property real touchDeleteGutter: touchInput ? 48 : 0
     property string activeTab: "contents"       // contents | bookmarks | highlights | audio
     property var tocModel: []                    // [{ index, label, href, fraction? }]
     property int currentTocIndex: -1             // from relocated.tocIndex
@@ -350,6 +354,7 @@ ReaderOverlay {
 
                 ListView {
                     id: bmList
+                    objectName: "reader2Bookmarks"
                     anchors.fill: parent
                     anchors.leftMargin: 18
                     anchors.rightMargin: 6
@@ -418,31 +423,40 @@ ReaderOverlay {
                         ReaderKeyboardArea {
                             id: bmMa
                             anchors.fill: parent
+                            anchors.rightMargin: panel.touchDeleteGutter
                             keyboardTabStop: false
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: { bmList.currentIndex = bmRow.index; panel.bookmarkActivated(bmRow.r.cfi) }
                         }
-                        // hover delete
+                        // Touch has no hover; retain the existing desktop-sized delete control.
                         Text {
+                            id: bmDelGlyph
+                            objectName: "reader2BookmarkDelete_" + bmRow.index
                             anchors.right: parent.right
                             anchors.top: parent.top
-                            anchors.rightMargin: 10
-                            anchors.topMargin: 10
-                            visible: bmMa.containsMouse || bmDelMa.containsMouse
+                            anchors.rightMargin: panel.touchInput ? (panel.touchDeleteGutter - width) / 2 : 10
+                            anchors.topMargin: panel.touchInput ? (parent.height - height) / 2 : 10
+                            visible: panel.touchInput || bmMa.containsMouse || bmDelMa.containsMouse
                             text: "×"
                             font.family: Theme.ui
                             font.pixelSize: 15
                             color: bmDelMa.containsMouse ? Theme.ink : Theme.inkFaint
-                            ReaderKeyboardArea {
-                                id: bmDelMa
-                                anchors.fill: parent
-                                keyboardTabStop: false
-                                anchors.margins: -6
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: panel.bookmarkDeleted(bmRow.r.id)
-                            }
+                        }
+                        // Desktop: the glyph plus a 6 px margin. Touch: the reserved gutter
+                        // across the full row height, disjoint from the jump area.
+                        ReaderKeyboardArea {
+                            id: bmDelMa
+                            objectName: "reader2BookmarkDeleteTouch_" + bmRow.index
+                            visible: bmDelGlyph.visible
+                            x: panel.touchInput ? parent.width - panel.touchDeleteGutter : bmDelGlyph.x - 6
+                            y: panel.touchInput ? 0 : bmDelGlyph.y - 6
+                            width: panel.touchInput ? panel.touchDeleteGutter : bmDelGlyph.width + 12
+                            height: panel.touchInput ? parent.height : bmDelGlyph.height + 12
+                            keyboardTabStop: false
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: panel.bookmarkDeleted(bmRow.r.id)
                         }
                     }
                 }

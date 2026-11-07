@@ -149,6 +149,10 @@ jobs:
           test "$("$QT_ROOT_DIR/bin/qmake" -query QT_VERSION)" = 6.11.1
           "$QT_ROOT_DIR/bin/qmake" -query QT_VERSION > "$FEEDBACK_EVIDENCE/qt-version.txt"
           node --check tests/feedback_app_runtime.cjs
+          cmake -S tests/feedback_native_transport -B "$FEEDBACK_EVIDENCE/native-transport" \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR"
+          cmake --build "$FEEDBACK_EVIDENCE/native-transport" --parallel 2
+          ctest --test-dir "$FEEDBACK_EVIDENCE/native-transport" --output-on-failure
           if [[ "$RUNNER_OS" == macOS ]]; then
             console=$(stat -f '%Su' /dev/console)
             printf '%s\n' "$console" > "$FEEDBACK_EVIDENCE/gui-console.txt"

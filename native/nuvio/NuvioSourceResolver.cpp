@@ -24,7 +24,11 @@
 #endif
 
 namespace {
+#ifdef Q_OS_ANDROID
+constexpr int kParallelWorkers = NuvioAndroidProcess::maxSlots;
+#else
 constexpr int kParallelWorkers = 4;
+#endif
 constexpr int kMaxHeaders = 32;
 
 bool isTmdbId(const QString &id)
@@ -280,20 +284,21 @@ void NuvioSourceResolver::workerFinished(NuvioProcess *process, bool success)
         return;
     const Job job = std::move(*it);
     m_jobs.erase(it);
+    const QJsonObject report = QJsonDocument::fromJson(job.output).object();
+    const bool completed = success && !job.rejected && report.value("status").toString() == "OK";
+#ifdef Q_OS_ANDROID
+    // Cancel/kill a crashed, timed-out, or invalid worker before the slot is reused.
+    process->releaseService(completed);
+#endif
 #ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
-    const auto proofReport = QJsonDocument::fromJson(job.output).object();
-    const QString outcome = job.timedOut || proofReport.value("error").toString() == "deadline"
+    const QString outcome = job.timedOut || report.value("error").toString() == "deadline"
         ? QStringLiteral("deadline") : !success && process->processId() > 0 ? QStringLiteral("crashed")
-        : success && !job.rejected && proofReport.value("status").toString() == "OK"
-            ? QStringLiteral("ok") : QStringLiteral("failed");
+        : completed ? QStringLiteral("ok") : QStringLiteral("failed");
     emit proofWorkerFinished(job.searchId, process->processId(), outcome);
 #endif
     process->deleteLater();
     if (m_search.id == job.searchId) {
-        const QJsonObject report = success && !job.rejected
-            ? QJsonDocument::fromJson(job.output).object() : QJsonObject();
-        const QJsonArray streams = report.value("status").toString() == "OK"
-            ? report.value("streams").toArray() : QJsonArray();
+        const QJsonArray streams = completed ? report.value("streams").toArray() : QJsonArray();
         if (job.lookup) {
             m_search.lookingUp = false;
             const int id = streams.isEmpty() ? 0 : streams.first().toObject().value("tmdbId").toInt();

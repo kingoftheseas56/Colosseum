@@ -61,6 +61,12 @@ func resolveMutableSync(
 	if !found {
 		return resolveIncomingWithoutCurrent(incoming)
 	}
+	if legacyProviderClear(current, incoming) {
+		// A legacy client can echo its projected empty state. Record that
+		// request idempotently as a losing mutation without changing the
+		// canonical Nuvio choice. Keep the request's clock in its journal row.
+		return syncResolutionFromIncoming(incoming, nil, false), nil
+	}
 	if incoming.Category == "continue_progress" {
 		return resolveTheatreProgressSync(current, incoming)
 	}
@@ -420,11 +426,10 @@ func mergeHistorySyncPuts(
 		lastActivityAt:  maxSyncTimestamp(currentHistory.lastActivityAt, incomingHistory.lastActivityAt),
 		completedAt:     minPositiveSyncTimestamp(currentHistory.completedAt, incomingHistory.completedAt),
 	}
-	mergeStremioHistoryPresentation(
+	mergeExternalHistoryPresentation(
 		&merged,
 		currentHistory.object,
-		incomingHistory.object,
-		incomingNewer)
+		incomingHistory.object)
 	mergedPayload, err := canonicalSyncHistoryPayload(merged)
 	if err != nil {
 		return syncResolution{}, err
@@ -443,41 +448,40 @@ func mergeHistorySyncPuts(
 		current, mergedPayload, changed), nil
 }
 
-func mergeStremioHistoryPresentation(
+func mergeExternalHistoryPresentation(
 	merged *syncHistoryPayload,
 	current, incoming map[string]any,
-	incomingNewer bool,
 ) {
 	if merged == nil {
 		return
 	}
-	currentDisplayID, currentTitle, currentLatest, currentOK := stremioHistoryPresentation(current)
-	incomingDisplayID, incomingTitle, incomingLatest, incomingOK := stremioHistoryPresentation(incoming)
+	currentSource, currentDisplayID, currentTitle, currentLatest, currentOK := externalHistoryPresentation(current)
+	incomingSource, incomingDisplayID, incomingTitle, incomingLatest, incomingOK := externalHistoryPresentation(incoming)
 	if !currentOK && !incomingOK {
 		return
 	}
 
-	displayID, displayTitle, latestKnownAt := currentDisplayID, currentTitle, currentLatest
-	if incomingOK && (!currentOK || incomingLatest > currentLatest ||
-		(incomingLatest == currentLatest && incomingNewer)) {
-		displayID, displayTitle, latestKnownAt = incomingDisplayID, incomingTitle, incomingLatest
+	source, displayID, displayTitle, latestKnownAt := currentSource, currentDisplayID, currentTitle, currentLatest
+	if incomingOK && (!currentOK || incomingLatest > currentLatest) {
+		source, displayID, displayTitle, latestKnownAt = incomingSource, incomingDisplayID, incomingTitle, incomingLatest
 	}
 	if latestKnownAt < merged.firstActivityAt || latestKnownAt > merged.lastActivityAt {
 		return
 	}
-	merged.object["source"] = "stremio"
+	merged.object["source"] = source
 	merged.object["displayId"] = displayID
 	merged.object["displayTitle"] = displayTitle
 	merged.object["latestKnownAt"] = json.Number(strconv.FormatInt(latestKnownAt, 10))
 }
 
-func stremioHistoryPresentation(object map[string]any) (
-	displayID, displayTitle string,
+func externalHistoryPresentation(object map[string]any) (
+	source, displayID, displayTitle string,
 	latestKnownAt int64,
 	ok bool,
 ) {
-	if object["source"] != "stremio" {
-		return "", "", 0, false
+	source, sourceOK := object["source"].(string)
+	if !sourceOK || (source != "stremio" && source != "nuvio") {
+		return "", "", "", 0, false
 	}
 	displayID, displayIDOK := object["displayId"].(string)
 	displayTitle, displayTitleOK := object["displayTitle"].(string)
@@ -485,13 +489,13 @@ func stremioHistoryPresentation(object map[string]any) (
 		utf8.RuneCountInString(displayID) > 512 || isSyncFilesystemPath(displayID) ||
 		!displayTitleOK || displayTitle == "" || displayTitle != strings.TrimSpace(displayTitle) ||
 		utf8.RuneCountInString(displayTitle) > 1024 || isSyncFilesystemPath(displayTitle) {
-		return "", "", 0, false
+		return "", "", "", 0, false
 	}
 	latestKnownAt, err := syncHistoryTimestamp(object, "latestKnownAt", true)
 	if err != nil {
-		return "", "", 0, false
+		return "", "", "", 0, false
 	}
-	return displayID, displayTitle, latestKnownAt, true
+	return source, displayID, displayTitle, latestKnownAt, true
 }
 
 func syncIncomingIsNewer(

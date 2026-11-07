@@ -425,6 +425,7 @@ private slots:
     void explicitFalseIsStillARealChoice();
     void adapterExportsCanonicalFixedRecord();
     void stremioMarkerUsesItsOwnFixedRecordAndNeverCarriesCredentials();
+    void nuvioMarkerRoundTripsAndRejectsUnknownProviders();
     void deleteResetsToDefaultWithoutEcho();
     void qmlFacadeReactsOnceToRemoteOwnerChange();
     void twoReplicasConvergeExplicitPreference();
@@ -678,6 +679,41 @@ stremioMarkerUsesItsOwnFixedRecordAndNeverCarriesCredentials() {
         {},
         adapter.schemaVersion()));
     QVERIFY(store.mainSyncProvider().isEmpty());
+}
+
+void tst_profile_preferences_sync::nuvioMarkerRoundTripsAndRejectsUnknownProviders() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString sourcePath = QDir(temp.path()).filePath(QStringLiteral("source.ini"));
+    const QString targetPath = QDir(temp.path()).filePath(QStringLiteral("target.ini"));
+    ProfilePreferencesStore source(sourcePath);
+    QVERIFY(source.setMainSyncProvider(QStringLiteral("nuvio")));
+    QVERIFY(!source.setMainSyncProvider(QStringLiteral("unknown")));
+
+    ProfilePreferencesStore reloaded(sourcePath);
+    QCOMPARE(reloaded.mainSyncProvider(), QStringLiteral("nuvio"));
+    StremioLinkSyncAdapter sender(&reloaded);
+    SyncAdapterExport snapshot;
+    QVERIFY(sender.exportSnapshot(&snapshot));
+    QCOMPARE(snapshot.records.size(), 1);
+    const auto &record = snapshot.records.first();
+    const QJsonObject expectedPayload{
+        {QStringLiteral("mainSyncProvider"), QStringLiteral("nuvio")}};
+    QCOMPARE(record.payload.toObject(), expectedPayload);
+
+    ProfilePreferencesStore target(targetPath);
+    QVERIFY(target.setMainSyncProvider(QStringLiteral("stremio")));
+    QSignalSpy dirty(&target, &ProfilePreferencesStore::stremioLinkDirty);
+    StremioLinkSyncAdapter receiver(&target);
+    const QJsonObject invalidPayload{
+        {QStringLiteral("mainSyncProvider"), QStringLiteral("unknown")}};
+    QVERIFY(!receiver.applyRemote(record.recordKey, SyncWireOperation::Put,
+                                  invalidPayload, sender.schemaVersion()));
+    QCOMPARE(target.mainSyncProvider(), QStringLiteral("stremio"));
+    QVERIFY(receiver.applyRemote(record.recordKey, SyncWireOperation::Put,
+                                 record.payload, sender.schemaVersion()));
+    QCOMPARE(target.mainSyncProvider(), QStringLiteral("nuvio"));
+    QCOMPARE(dirty.count(), 0);
 }
 
 void tst_profile_preferences_sync::

@@ -84,6 +84,8 @@ android {
     packagingOptions {
         jniLibs {
             useLegacyPackaging = legacyPackaging
+            // Keep the verified private engine artifact unchanged through packaging.
+            keepDebugSymbols.add('**/libnuvio_engine.so')
         }
     }
 

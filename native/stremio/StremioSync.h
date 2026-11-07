@@ -53,6 +53,7 @@ class StremioSync final : public QObject {
     Q_PROPERTY(quint64 completedRun READ completedRun NOTIFY stateChanged)
     Q_PROPERTY(QString accountDisplayName READ accountDisplayName NOTIFY stateChanged)
     Q_PROPERTY(QString lastResultSummary READ lastResultSummary NOTIFY stateChanged)
+    Q_PROPERTY(bool stagedAuthenticationReady READ stagedAuthenticationReady NOTIFY stateChanged)
     Q_PROPERTY(bool linkedAccount READ linkedAccount NOTIFY stateChanged)
     Q_PROPERTY(bool hasTrakt READ hasTrakt NOTIFY stateChanged)
     Q_PROPERTY(bool traktLinkKnown READ traktLinkKnown NOTIFY stateChanged)
@@ -72,6 +73,7 @@ public:
     QString accountDisplayName() const;
     QString lastResultSummary() const;
     bool linkedAccount() const;
+    bool stagedAuthenticationReady() const;
     bool hasTrakt() const;
     bool traktLinkKnown() const;
     QString stremioUserId() const;
@@ -88,6 +90,8 @@ public:
     // Task 1 Lanista session; no product or QML path can invoke it.
     bool activateTaggedFixture();
     bool startBrowserAuthentication(QString *error = nullptr);
+    bool startStagedAuthentication(QString *error = nullptr);
+    bool confirmStagedAuthentication(std::function<void(bool)> completion);
     void cancelAuthentication();
     // Explicit user disconnect. Fences every old callback, clears this
     // device's vault entry and durably retires provider-only work while the
@@ -99,6 +103,8 @@ public:
     bool beginVisibleSync(bool reviveFailedIntents = false);
     void finishVisibleSync(bool succeeded, const QString &summary);
     void setMarkerLinked(bool linked);
+    void setImportOnlyEnabled(bool enabled);
+    bool importOnlyPromotionReady() const;
     void setCredentialCallbacks(
         std::function<bool(const QString &, const QString &, const QByteArray &)> save,
         std::function<bool(const QString &)> clear,
@@ -117,7 +123,8 @@ public:
         const QVariantList &theatreCollection,
         const QVariantList &progressEntries,
         const QHash<QString, int> &watchedMarks,
-        const QHash<QString, qint64> &watchedActionAt);
+        const QHash<QString, qint64> &watchedActionAt,
+        const QVariantList &historyEntries = {});
     // Bounded native-only library pull. The decoded provider records remain
     // behind the AccountRuntime importer boundary; neither credentials nor
     // datastore envelopes enter QML or the ordinary Neon payload.
@@ -127,6 +134,11 @@ public:
     // cross into QML or Neon; AccountRuntime applies compatible rows through
     // ExtensionsStore's durable receipt.
     bool pullAddonCollection(
+        std::function<void(bool, QJsonArray)> completion);
+    // Preview reads use the staged session first, then the import-only link.
+    bool pullLibraryItemsForPreview(
+        std::function<void(bool, QList<StremioLibraryItem>)> completion);
+    bool pullAddonCollectionForPreview(
         std::function<void(bool, QJsonArray)> completion);
     // Fresh-read/rebase/whole-write/readback for the one Stremio addon
     // collection. Input is already private provider-shaped data from the
@@ -197,6 +209,9 @@ public:
     bool requestEpisodeMetadata(
         const QString &seriesId,
         EpisodeMetadataCompletion completion);
+    bool requestEpisodeMetadataForPreview(
+        const QString &seriesId,
+        EpisodeMetadataCompletion completion);
     Q_INVOKABLE void setEpisodeMetadataBridgeReady(bool ready = true);
     Q_INVOKABLE bool submitEpisodeMetadata(
         const QString &requestId,
@@ -216,6 +231,15 @@ private:
     struct ProfileBinding {
         QString profileId;
         quint64 generation = 0;
+        quint64 writeGeneration = 0;
+        quint64 previewAttempt = 0;
+    };
+
+    struct StagedAuthentication {
+        ProfileBinding binding;
+        quint64 attempt;
+        QByteArray authKey;
+        StremioAccountIdentity identity;
     };
 
     struct PendingPersistence {
@@ -242,6 +266,18 @@ private:
     struct LibraryPull;
     struct AddonCollectionReconcile;
 
+    bool beginBrowserAuthentication(bool staged, QString *error);
+    void commitAuthentication(StagedAuthentication authentication,
+                              std::function<void(bool)> completion = {});
+    bool canWriteProvider() const;
+    ProfileBinding writeBinding() const;
+    void stopProviderWrites();
+    static bool retirePrimaryRemovalIntents(StremioPersistentState &state);
+    std::optional<QByteArray> readCredential(const ProfileBinding &binding) const;
+    bool pullLibraryItems(const ProfileBinding &binding,
+                          std::function<void(bool, QList<StremioLibraryItem>)> completion);
+    bool pullAddonCollection(const ProfileBinding &binding,
+                             std::function<void(bool, QJsonArray)> completion);
     bool fixtureEndpointAllowed() const;
     bool endpointAllowed() const;
     void handleIncomingConnection();
@@ -283,8 +319,12 @@ private:
         bool authenticationFailure);
     void removeSatisfiedIntent(const QString &operationId);
     bool bindingCurrent(const ProfileBinding &binding) const;
+    QString episodeMetadataAccountId(const ProfileBinding &binding) const;
+    bool requestEpisodeMetadata(const QString &seriesId,
+                                const ProfileBinding &binding,
+                                EpisodeMetadataCompletion completion);
     void dispatchEpisodeMetadataRequest(const QString &requestId);
-    void cancelEpisodeMetadataRequests();
+    void cancelEpisodeMetadataRequests(bool previewOnly = false);
     bool hasPendingPersistenceForPath(const QString &path) const;
     void retireProvisionalCredential();
     void updateConnectionStatus();
@@ -328,6 +368,7 @@ private:
     QByteArray m_identityResponse;
     bool m_identityResponseTooLarge = false;
     QPointer<QNetworkReply> m_datastoreReply;
+    ProfileBinding m_datastoreBinding;
     QByteArray m_datastoreResponse;
     bool m_datastoreResponseTooLarge = false;
     QTimer m_authTimeout;
@@ -336,7 +377,8 @@ private:
     QString m_profileId;
     QString m_statePath;
     quint64 m_bindingGeneration = 0;
-    quint64 m_authAttempt = 0;
+    quint64 m_authAttempt = 1;
+    quint64 m_writeGeneration = 1;
     quint64 m_completedRun = 0;
     QString m_lastResultSummary;
     QString m_pendingVisibleSyncSummary;
@@ -345,6 +387,10 @@ private:
     QString m_status = QStringLiteral("notConnected");
     bool m_hasUsableCredential = false;
     bool m_markerLinked = false;
+    bool m_providerModeKnown = false;
+    bool m_importOnlyEnabled = false;
+    bool m_stageAuthentication = false;
+    std::optional<StagedAuthentication> m_stagedAuthentication;
     bool m_traktLinkKnown = false;
     qint64 m_traktExpiresAtMs = 0;
     quint64 m_traktEventNumber = 0;

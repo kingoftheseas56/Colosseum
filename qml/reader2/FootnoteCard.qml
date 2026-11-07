@@ -16,7 +16,7 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: shown
-    nativeWindow: false
+    nativeWindow: true
     id: fnCard
     objectName: "reader2FootnoteCard"
 
@@ -24,6 +24,7 @@ ReaderOverlay {
     property var anchorRect: ({ x: 0, y: 0, w: 0, h: 0 })  // the tapped anchor rect (overlay coords)
     property string text: ""
     property bool shown: false
+    readonly property Item keyboardTarget: surface.parent !== fnCard ? surface : fnCard
 
     // ---- signals up ----
     signal dismissed()
@@ -32,7 +33,7 @@ ReaderOverlay {
     activeFocusOnTab: true
     Accessible.role: Accessible.Pane
     Accessible.name: "Footnote"
-    onShownChanged: if (shown) Qt.callLater(function() { fnCard.forceActiveFocus(Qt.OtherFocusReason) })
+    onShownChanged: if (shown) Qt.callLater(function() { fnCard.keyboardTarget.forceActiveFocus(Qt.OtherFocusReason) })
     Keys.onPressed: function(event) {
         if (!shown) return
         if (event.key === Qt.Key_Escape) { fnCard.dismissed(); event.accepted = true; return }

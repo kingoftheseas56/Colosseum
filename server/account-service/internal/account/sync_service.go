@@ -103,6 +103,7 @@ func nullableDeletedAtMS(value int64) any {
 }
 
 type parsedSyncMutation struct {
+	LegacyClient     bool
 	MutationID       string
 	DeviceID         string
 	Category         string
@@ -161,6 +162,7 @@ func (s *Service) pushSyncMutations(
 
 	for _, input := range inputs {
 		parsed, code, message := s.validateSyncMutation(auth, input, now)
+		parsed.LegacyClient = legacyNuvioSync(ctx)
 		if code != "" {
 			result := SyncPushResult{
 				MutationID: strings.ToLower(strings.TrimSpace(input.MutationID)),
@@ -858,6 +860,10 @@ func (s *Service) PullSync(
 		view, err := s.decodeStoredMutation(
 			auth.Account.ID,
 			stored)
+		if err != nil {
+			return response, err
+		}
+		view, err = projectSyncForClient(ctx, view)
 		if err != nil {
 			return response, err
 		}

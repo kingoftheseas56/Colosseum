@@ -574,10 +574,12 @@ export class Paginator extends HTMLElement {
     this.addEventListener('touchstart', this.#onTouchStart.bind(this), opts)
     this.addEventListener('touchmove', this.#onTouchMove.bind(this), opts)
     this.addEventListener('touchend', this.#onTouchEnd.bind(this), opts)
+    this.addEventListener('touchcancel', this.#onTouchCancel.bind(this), opts)
     this.addEventListener('load', ({ detail: { doc } }) => {
       doc.addEventListener('touchstart', this.#onTouchStart.bind(this), opts)
       doc.addEventListener('touchmove', this.#onTouchMove.bind(this), opts)
       doc.addEventListener('touchend', this.#onTouchEnd.bind(this), opts)
+      doc.addEventListener('touchcancel', this.#onTouchCancel.bind(this), opts)
     })
 
     this.#mediaQueryListener = () => {
@@ -843,6 +845,8 @@ export class Paginator extends HTMLElement {
       })
   }
   #onTouchStart(e) {
+    // Additional contacts belong to the existing gesture, not a new partial-page origin.
+    if (e.touches.length !== 1) return
     const touch = e.changedTouches[0]
     const scrollProp = this.scrollProp
     this.#touchState = {
@@ -964,8 +968,32 @@ export class Paginator extends HTMLElement {
       // rely on native scrolling for horizontal paging
     }
   }
-  #onTouchEnd(e) {
+  #onTouchCancel(e) {
     const state = this.#touchState
+    this.#touchState = null
+    this.#touchScrolled = false
+    const pending = this.#pendingRelocate
+    this.#pendingRelocate = null
+    // Paginated native dragging can stop between pages. Roll back to the captured
+    // position without velocity, animation or chapter navigation, and report the restored
+    // range rather than the discarded drag's pending range. Continuous scrolling and
+    // pinch zoom keep the native position, as they do on an ordinary touchend.
+    if (!this.scrolled && state && !state.pinched
+      && globalThis.visualViewport.scale === 1
+      && Number.isFinite(state.startScroll) && this.#view?.document)
+      this.#scrollTo(state.startScroll, 'cancel', false)
+    else if (pending)
+      this.dispatchEvent(new CustomEvent('relocate', { detail: pending }))
+    this.dispatchEvent(new CustomEvent('doctouchcancel', {
+      detail: { touch: e.changedTouches[0], touchState: state },
+      bubbles: true,
+      composed: true
+    }))
+  }
+  #onTouchEnd(e) {
+    if (e.touches.length) return
+    const state = this.#touchState
+    if (!state) return // a remaining finger may end after the gesture was canceled
     this.dispatchEvent(new CustomEvent('doctouchend', {
       detail: {
         touch: e.changedTouches[0],
@@ -1004,8 +1032,8 @@ export class Paginator extends HTMLElement {
     requestAnimationFrame(() => {
       if (globalThis.visualViewport.scale === 1 && state)
         Promise.resolve(this.snap(state.vx, state.vy, state))
-          .finally(() => { this.#touchState = null })
-      else this.#touchState = null
+          .finally(() => { if (this.#touchState === state) this.#touchState = null })
+      else if (this.#touchState === state) this.#touchState = null
     })
   }
   // allows one to process rects as if they were LTR and horizontal

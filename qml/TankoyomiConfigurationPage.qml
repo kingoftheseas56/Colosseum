@@ -678,11 +678,11 @@ Item {
         spacing: 22
         Text { text: "⌕"; color: searchInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
                KeyboardAction { id: searchInput; anchors.fill: parent; accessibleName: "Search"; focusRadius: 5; onTriggered: root.searchClicked() } }
-        Text { text: "—"; color: minInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
+        Text { visible: Qt.platform.os !== "android"; text: "—"; color: minInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
                KeyboardAction { id: minInput; anchors.fill: parent; accessibleName: "Minimize"; focusRadius: 5; onTriggered: root.minimizeRequested() } }
-        Text { text: "⛶"; color: fullInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
+        Text { visible: Qt.platform.os !== "android"; text: "⛶"; color: fullInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
                KeyboardAction { id: fullInput; anchors.fill: parent; accessibleName: "Toggle fullscreen"; focusRadius: 5; onTriggered: root.fullscreenRequested() } }
-        Text { text: "⏻"; color: powerInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
+        Text { visible: Qt.platform.os !== "android"; text: "⏻"; color: powerInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
                KeyboardAction { id: powerInput; anchors.fill: parent; accessibleName: "Close Colosseum"; focusRadius: 5; onTriggered: root.closeRequested() } }
     }
     BackAction { objectName: "tankoyomiConfigurationBack"; variant: "capsule"; tip: "Back to Extensions"

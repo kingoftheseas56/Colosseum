@@ -151,8 +151,16 @@ Item {
     }
     // Host/layout seam shared by Tankoban, Biblio and Theatre. Writable for desktop viewport tests.
     property bool androidHost: Qt.platform.os === "android"
-    AdaptiveLayout { id: adaptive; viewportWidth: world.width }
+    AdaptiveLayout {
+        id: adaptive
+        viewportWidth: world.width
+        androidHost: world.androidHost
+        desktopPresentation: world.androidHost
+            && (!world.Window.window || world.Window.window.desktopPresentation !== false)
+    }
     readonly property real pageMargin: adaptive.pageMargin
+    readonly property real outerPageMargin: adaptive.outerPageMargin
+    readonly property real headerOuterMargin: adaptive.pageMargin
     // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.
     property real contentBottomInset: 0
     property bool prominentScrollBar: false
@@ -243,8 +251,8 @@ Item {
         pageSubtitle: world.topBarSubtitle
         lifecycleActive: world.lifecycleActive
         androidHost: world.androidHost
-        x: adaptive.pageMargin; y: adaptive.topInset
-        width: world.width - adaptive.pageMargin * 2
+        x: world.headerOuterMargin; y: adaptive.topInset
+        width: world.width - world.headerOuterMargin * 2
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
@@ -310,8 +318,8 @@ Item {
 
         Column {
             id: board
-            x: adaptive.pageMargin
-            width: world.width - adaptive.pageMargin * 2
+            x: world.outerPageMargin
+            width: world.width - world.outerPageMargin * 2
             topPadding: 12; bottomPadding: 24
             spacing: adaptive.sectionSpacing
         }
@@ -368,8 +376,10 @@ Item {
         tabPrefix: world.medium.length > 0 ? world.medium.toLowerCase() + "TabDock" : "worldTabDock"
         compact: true
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: world.dockContentLeft > 0 ? theme.margin + world.dockContentLeft : 0
-        anchors.rightMargin: world.dockContentLeft > 0 ? theme.margin : 0
+        anchors.leftMargin: world.dockContentLeft > 0 ? (world.androidHost && adaptive.desktopPresentation
+            ? world.outerPageMargin : theme.margin) + world.dockContentLeft : 0
+        anchors.rightMargin: world.dockContentLeft > 0 ? (world.androidHost && adaptive.desktopPresentation
+            ? world.outerPageMargin : theme.margin) : 0
         y: page.y + 4
         visible: world.tabsDocked
         backdrop: world.backdrop

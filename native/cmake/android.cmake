@@ -22,6 +22,8 @@ target_sources(colosseum PRIVATE
     player/androidmedia3item.h
     player/androidmedia3videonode.cpp
     player/androidmedia3videonode.h
+    player/subtitlesidecar.cpp
+    player/subtitlesidecar.h
     player/androidseekthumbnailer.h
     player/MediaAdmissionProbe_android.cpp
     player/MediaAdmissionProbe.h
@@ -32,6 +34,29 @@ target_sources(colosseum PRIVATE
     player/powerstore.cpp
     player/powerstore.h
 )
+
+# Opt-in Nuvio torrent playback backend (see cmake/NuvioBackend.cmake): the
+# adapter sources join the app target only when the hardened, stamp-verified
+# private engine artifact is configured. OFF keeps the unavailable stub.
+if(COLOSSEUM_ANDROID_NUVIO_BACKEND)
+    target_sources(colosseum PRIVATE
+        player/nuvioengineapi.cpp
+        player/nuvioengineapi.h
+        player/nuviostreambackend.cpp
+        player/nuviostreambackend.h
+    )
+    target_include_directories(colosseum PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/nuvio-engine/include"
+    )
+    target_compile_definitions(colosseum PRIVATE COLOSSEUM_ANDROID_NUVIO_BACKEND=1)
+    # Package the private engine library so the runtime QLibrary load from the
+    # app's nativeLibraryDir resolves; it is never linked into libcolosseum.
+    set_property(
+        TARGET colosseum
+        APPEND
+        PROPERTY QT_ANDROID_EXTRA_LIBS "${COLOSSEUM_NUVIO_ENGINE_LIBRARY}"
+    )
+endif()
 
 # Android needs the same source-shaped runtime tree as desktop, but APKs cannot
 # read a checkout beside the native library. Build a generated package overlay
@@ -81,6 +106,10 @@ list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2host/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^feria/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^vinyl/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "(^|/)Vault[^/]*[.](qml|js)$")
+# These are pure presentation components, not the unavailable Vault world/backend.
+list(APPEND COLOSSEUM_ANDROID_QML_FILES VaultDoor.qml VaultHomeWidget.qml)
+set(_android_desktop_chrome TopBar.qml Taskbar.qml ExtensionsHouseHero.qml)
+list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^[+]android/(TopBar|Taskbar|ExtensionsHouseHero)[.]qml$")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^(TrackerApprovalWebView|ExtensionsSetupSheet)[.]qml$")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "(^|/)[.][^/]+")
 list(SORT COLOSSEUM_ANDROID_QML_FILES)
@@ -94,6 +123,7 @@ foreach(_qml_rel IN LISTS COLOSSEUM_ANDROID_QML_FILES)
     file(MAKE_DIRECTORY "${_qml_out_dir}")
     if(NOT _qml_rel MATCHES "(^|/)[+]android/"
        AND _qml_rel MATCHES "[.]qml$"
+       AND NOT _qml_rel IN_LIST _android_desktop_chrome
        AND EXISTS "${COLOSSEUM_QML_SOURCE_ROOT}/${_qml_source_dir}/+android/${_qml_name}")
         file(WRITE "${COLOSSEUM_ANDROID_QML_ROOT}/${_qml_rel}"
             "// Android selector discovery placeholder; implementation is in +android.\nimport QtQuick\nItem {}\n")
@@ -170,13 +200,26 @@ set_property(TARGET colosseum PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
 # First-APK contract: one ABI per APK (the configured Qt kit's ABI: arm64-v8a for
 # devices, x86_64 for emulators) on Qt 6.11's Android 9/API 28 floor, compiled and
 # targeted against the installed API 36 platform.
+set(COLOSSEUM_ANDROID_APPLICATION_ID "" CACHE STRING "Optional separate Android application id")
+set(COLOSSEUM_ANDROID_APP_NAME "Colosseum" CACHE STRING "Android launcher label")
+set(COLOSSEUM_ANDROID_VERSION_NAME "${PROJECT_VERSION}" CACHE STRING "Android versionName")
+set(COLOSSEUM_ANDROID_VERSION_CODE "" CACHE STRING "Optional explicit Android versionCode")
+include("${CMAKE_CURRENT_LIST_DIR}/AndroidPackageIdentity.cmake")
+colosseum_validate_android_identity("${COLOSSEUM_ANDROID_APPLICATION_ID}" "${COLOSSEUM_ANDROID_APP_NAME}"
+    "${COLOSSEUM_ANDROID_VERSION_NAME}" "${COLOSSEUM_ANDROID_VERSION_CODE}")
+if(COLOSSEUM_ANDROID_APPLICATION_ID)
+    set_property(TARGET colosseum PROPERTY QT_ANDROID_PACKAGE_NAME "${COLOSSEUM_ANDROID_APPLICATION_ID}")
+endif()
+if(COLOSSEUM_ANDROID_VERSION_CODE)
+    set_property(TARGET colosseum PROPERTY QT_ANDROID_VERSION_CODE "${COLOSSEUM_ANDROID_VERSION_CODE}")
+endif()
 set_target_properties(colosseum PROPERTIES
     QT_ANDROID_ABIS "${ANDROID_ABI}"
     QT_ANDROID_MIN_SDK_VERSION 28
     QT_ANDROID_COMPILE_SDK_VERSION 36
     QT_ANDROID_TARGET_SDK_VERSION 36
-    QT_ANDROID_APP_NAME "Colosseum"
-    QT_ANDROID_VERSION_NAME "${PROJECT_VERSION}"
+    QT_ANDROID_APP_NAME "${COLOSSEUM_ANDROID_APP_NAME}"
+    QT_ANDROID_VERSION_NAME "${COLOSSEUM_ANDROID_VERSION_NAME}"
 )
 # Qt's TLS plugin dlopens OpenSSL. The static libtorrent dependency alone
 # cannot provide these runtime libraries.
