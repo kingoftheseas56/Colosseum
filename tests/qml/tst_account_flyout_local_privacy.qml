@@ -21,40 +21,55 @@ TestCase {
         property string opened: ""
         function open(section, invoker) { opened = section }
     }
-    Account.AccountFlyout { id: flyout; controller: mockController }
-    function textItem(item, value) {
-        if (item.text !== undefined && item.text === value) return item
-        var children = item.children || []
-        for (var i = 0; i < children.length; ++i) {
-            var found = textItem(children[i], value)
-            if (found) return found
-        }
-        return null
+    Account.AccountFlyout {
+        id: flyout
+        controller: mockController
+        accountSettings: accountCenter
+        stremioAvailable: true
+        nuvioAvailable: true
     }
-    function init() { accountCenter.opened = ""; mockController.mode = "localOnly"; flyout.open(); wait(20) }
+    SignalSpy { id: theatreSpy; target: flyout; signalName: "theatreSyncRequested" }
+
+    function init() {
+        accountCenter.opened = ""
+        mockController.mode = "localOnly"
+        theatreSpy.clear()
+        flyout.open()
+        wait(20)
+    }
     function cleanup() { flyout.close(); wait(0) }
     function test_localPrivacyKeyboardRoute() {
-        var label = textItem(flyout, "Data & privacy")
-        verify(label !== null, "Local-only users need a visible privacy entry")
-        verify(label.visible)
-        verify(!textItem(flyout, "Devices ›"))
-        verify(!textItem(flyout, "Account ›"))
-        var row = label.parent
-        tryCompare(row, "activeFocus", true)
+        const privacy = findChild(flyout, "accountFlyoutNav_privacy")
+        verify(privacy && privacy.visible, "Local-only users need a visible privacy entry")
+        verify(!findChild(flyout, "accountFlyoutNav_devices"))
+        verify(!findChild(flyout, "accountFlyoutNav_profile"))
+        const signIn = findChild(flyout, "accountFlyoutSessionAction")
+        compare(signIn.text, "Sign in to Colosseum")
+        tryCompare(signIn, "activeFocus", true)
         keyClick(Qt.Key_Down)
-        tryCompare(findChild(flyout, "accountFlyoutSessionAction"), "activeFocus", true)
-        keyClick(Qt.Key_Up)
-        tryCompare(row, "activeFocus", true)
+        tryCompare(findChild(flyout, "accountFlyoutNav_theatre"), "activeFocus", true)
+        keyClick(Qt.Key_Down)
+        tryCompare(privacy, "activeFocus", true)
         keyClick(Qt.Key_Return)
         compare(accountCenter.opened, "privacy")
         compare(flyout.visible, false)
     }
+    function test_theatreSyncHasItsOwnRoute() {
+        keyClick(Qt.Key_Down)
+        keyClick(Qt.Key_Return)
+        compare(theatreSpy.count, 1)
+        compare(accountCenter.opened, "")
+        compare(mockController.mode, "localOnly")
+        compare(flyout.visible, false)
+    }
+
     function test_accountModesUnchanged_data() { return [{tag:"signedIn", mode:"signedIn"}, {tag:"offline", mode:"offline"}] }
     function test_accountModesUnchanged(data) {
         mockController.mode = data.mode; flyout.close(); flyout.open(); wait(20)
-        verify(textItem(flyout, "Account ›").visible)
-        verify(textItem(flyout, "Devices ›").visible)
-        verify(!textItem(flyout, "Data & privacy"))
-        tryCompare(textItem(flyout, "Account ›").parent, "activeFocus", true)
+        const settings = findChild(flyout, "accountFlyoutNav_profile")
+        compare(settings.text, "Account settings")
+        verify(findChild(flyout, "accountFlyoutNav_devices").visible)
+        verify(findChild(flyout, "accountFlyoutNav_privacy").visible)
+        tryCompare(settings, "activeFocus", true)
     }
 }

@@ -32,6 +32,12 @@ TestCase {
         Account.AccountCenter {}
     }
 
+    QtObject {
+        id: localDevice
+        property string mode: "localOnly"
+        property string username: ""
+    }
+
     property var presenter: null
     property var center: null
 
@@ -143,7 +149,8 @@ TestCase {
         center.open("profile")
         compare(center.feriaOnly, false)
         compare(center.activeSection, "profile")
-        verify(byName(center, "accountCenterRail_feria") !== null)
+        verify(byName(center, "accountCenterRail_feria") === null)
+        verify(!byName(center, "accountFeriaContent").active)
         verify(byName(center, "accountCenterRail_profile") !== null)
         verify(byName(center, "accountCenterRail_colosseum") === null)
     }
@@ -155,6 +162,20 @@ TestCase {
         compare(center.activeSection, "profile")
         verify(!center.railSections.some(function(row) { return row.id === "feria" }))
         compare(byName(center, "accountCenterRail_feria"), null)
+    }
+
+    function test_local_device_has_privacy_without_account_controls() {
+        center.controller = localDevice
+        center.open("profile")
+        compare(center.activeSection, "privacy")
+        verify(byName(center, "accountDataPrivacyPage").visible)
+        verify(byName(center, "privacySearchHistorySwitch").visible)
+        verify(!byName(center, "privacySyncHistorySwitch").visible)
+        verify(!byName(center, "privacyAccountDataGroup").visible)
+        verify(!byName(center, "privacyDangerZone").visible)
+        verify(!byName(center, "accountProfilePage").visible)
+        verify(byName(center, "accountCenterRail_profile") === null)
+        verify(byName(center, "accountCenterRail_security") === null)
     }
 
     function test_switching_sections_clears_recovery_transient_secret_input() {

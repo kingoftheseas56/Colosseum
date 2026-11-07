@@ -17,11 +17,17 @@ Item {
         && typeof stremioActions.beginStremioFirstRun === "function"
         && typeof stremioActions.applyStremioImport === "function"
         && typeof stremioActions.cancelStremioImport === "function"
+    readonly property bool nuvioAvailable: !!nuvioAccount && nuvioAccount.available
+    readonly property bool stremioAvailable: controller && controller.onboardingRequired
+        ? stremioFirstRunAvailable
+        : !!stremioActions && typeof stremioActions.previewStremioImport === "function"
     readonly property bool theatreSyncAvailable: controller && controllerMode === "signedOut"
         && controller.accountFeaturesAvailable !== false
-        && (stremioFirstRunAvailable || (nuvioAccount && nuvioAccount.available))
+        && (stremioAvailable || nuvioAvailable)
 
     property string routeName: "welcome"
+    property string theatreReturnRoute: "welcome"
+    signal theatreSyncSettingsRequested()
     readonly property bool presenterActive:
         recoveryPresenter ? recoveryPresenter.active === true : false
     readonly property string controllerMode:
@@ -88,6 +94,25 @@ Item {
         routeName = "recovery"
     }
 
+    function goTheatreSync() {
+        if (!theatreSyncAvailable)
+            return
+
+        if (controller.onboardingRequired) {
+            if (controller.prepareTheatreFirstRun()) {
+                theatreReturnRoute = routeName
+                routeName = "theatreSync"
+            }
+            return
+        }
+
+        // Returning users already have a profile. Open its regular sync settings
+        // so adding a service doesn't repeat first-run setup or make it primary.
+        controller.continueWithoutAccount()
+        if (controller.mode === "localOnly")
+            theatreSyncSettingsRequested()
+    }
+
     Component.onCompleted: synchronizeRoute(true)
 
     function clearCurrentSecrets() {
@@ -107,7 +132,9 @@ Item {
                     || root.controller.mode === "awaitingRecoveryApproval")) {
                 root.clearCurrentSecrets()
             }
-            root.synchronizeRoute(false)
+            const returningToSignIn = root.controller && root.controller.mode === "signedOut"
+                && !root.controller.onboardingRequired
+            root.synchronizeRoute(returningToSignIn)
         }
         function onOnboardingRequiredChanged() {
             if (root.routeName === "welcome" || root.routeName === "signIn")
@@ -155,10 +182,7 @@ Item {
             controller: root.controller
             backdrop: root.backdrop
             theatreSyncAvailable: root.theatreSyncAvailable
-            onTheatreSyncRequested: {
-                if (root.controller && root.controller.prepareTheatreFirstRun())
-                    root.routeName = "theatreSync"
-            }
+            onTheatreSyncRequested: root.goTheatreSync()
             onSignInRequested: root.goSignIn()
             onCreateAccountRequested: root.goCreate()
         }
@@ -172,9 +196,11 @@ Item {
             nuvioAccount: root.nuvioAccount
             stremioActions: root.stremioActions
             stremioAvailable: root.stremioFirstRunAvailable
+            cancelDetail: root.theatreReturnRoute === "signIn"
+                ? qsTr("Return to Colosseum sign-in.") : qsTr("Return to the welcome screen.")
             onCancelRequested: {
                 clearSecrets()
-                root.routeName = "welcome"
+                root.routeName = root.theatreReturnRoute
             }
             onCompleted: {
                 clearSecrets()
@@ -191,6 +217,9 @@ Item {
         AccountSignIn {
             controller: root.controller
             backdrop: root.backdrop
+            stremioAvailable: root.theatreSyncAvailable && root.stremioAvailable
+            nuvioAvailable: root.theatreSyncAvailable && root.nuvioAvailable
+            onTheatreSyncRequested: root.goTheatreSync()
             onForgotPasswordRequested: root.goRecovery()
             onCreateAccountRequested: root.goCreate()
         }

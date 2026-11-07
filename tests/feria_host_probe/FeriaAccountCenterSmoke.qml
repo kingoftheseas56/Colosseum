@@ -54,6 +54,7 @@ Window {
     Account.AccountCenter {
         id: center
         feriaController: feria
+        feriaEnabled: true
         historyCoordinator: nativeHistory
         onFeriaActivityRequested: function(section) { window.openActivity(section) }
     }
@@ -91,9 +92,12 @@ Window {
                     })
                 } else if (window.step === 3) {
                     window.check(!center.feriaOnly && center.railSections.some(function(row) { return row.id === "profile" }), "Other-world Account Centre retains normal sections")
-                    window.check(feria.region === "India" && feria.sharedAccountView.servicesOnly, "Both entry points share Feria settings")
+                    window.check(feria.region === "India" && !feria.sharedAccountActive,
+                        "Feria settings persist without loading their view in Account settings")
+                    window.check(!center.railSections.some(function(row) { return row.id === "feria" }),
+                        "Feria settings stay within Feria")
                     window.check(!center.railSections.some(function(row) { return row.id === "colosseum" }), "Activity is absent from Account Centre")
-                    window.capture(center, "main-feria-settings", function() {
+                    window.capture(center, "account-settings", function() {
                         feria.setRegion(window.originalRegion); center.close(); window.feriaVisible = true
                         window.openActivity("history")
                     })

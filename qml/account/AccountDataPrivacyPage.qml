@@ -10,6 +10,8 @@ Item {
     id: root
     objectName: "accountDataPrivacyPage"
 
+    property bool showAccountControls: true
+
     property bool active: false
 
     // Authoritative presentation state. Product defaults are On, but live
@@ -577,6 +579,7 @@ Item {
 
                 // Cross-device history
                 Column {
+                    visible: root.showAccountControls
                     width: parent.width
                     height: implicitHeight
                     spacing: 0
@@ -670,6 +673,7 @@ Item {
             Column {
                 id: accountDataGroup
                 objectName: "privacyAccountDataGroup"
+                visible: root.showAccountControls
                 width: parent.width
                 height: implicitHeight
                 spacing: 0
@@ -1155,6 +1159,7 @@ Item {
             Column {
                 id: dangerZone
                 objectName: "privacyDangerZone"
+                visible: root.showAccountControls
                 width: parent.width
                 height: implicitHeight
                 spacing: 0

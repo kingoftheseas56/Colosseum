@@ -285,8 +285,18 @@ Window {
     function openStremioSyncPanel() {
         stremioPanel.shown = true
     }
+    function openTheatreSyncFromAccount(invoker) {
+        stremioPanel.accountInvoker = invoker || win.activeFocusItem
+        win.openStremioSyncPanel()
+    }
     function closeStremioSyncPanel() {
         stremioPanel.shown = false
+        const invoker = stremioPanel.accountInvoker
+        stremioPanel.accountInvoker = null
+        if (invoker && invoker.visible && invoker.enabled) {
+            Qt.callLater(function() { invoker.forceActiveFocus() })
+            return
+        }
         if (syncCenterLayer.active && syncCenterLayer.item) {
             Qt.callLater(function() { syncCenterLayer.item.focusMainSyncButton() })
             return
@@ -5348,6 +5358,7 @@ Window {
     StremioSyncPanel {
         id: stremioPanel
         objectName: "stremioSyncOverlay"
+        property Item accountInvoker: null
         anchors.fill: parent
         z: 960
         syncState: typeof stremioSyncState !== "undefined" ? stremioSyncState : null
@@ -6055,6 +6066,9 @@ Window {
         source: "HistoryHighlightsStatsPage.qml"
         onLoaded: {
             item.backdrop = wall
+            item.feriaStatsPending = Qt.binding(function() {
+                return win.feriaAvailable && win.feriaComingSoon
+            })
             item.activityStore = Qt.binding(function() {
                 return (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
             })
@@ -6590,11 +6604,6 @@ Window {
             if (typeof AccountLifecycle !== "undefined" && AccountLifecycle)
                 AccountLifecycle.deleteAccount(currentPassword)
         }
-        initial: {
-            const who = (typeof AccountController !== "undefined" && AccountController)
-                        ? AccountController.username : "";
-            return who.length > 0 ? who.charAt(0).toUpperCase() : "?";
-        }
     }
 
     Connections {
@@ -6625,6 +6634,8 @@ Window {
         id: accountFlyout
         objectName: "accountFlyout"
         controller: typeof AccountController !== "undefined" ? AccountController : null
+        accountSettings: accountCenter
+        onTheatreSyncRequested: function(invoker) { win.openTheatreSyncFromAccount(invoker) }
         initial: {
             const who = (typeof AccountController !== "undefined" && AccountController)
                         ? AccountController.username : "";
@@ -6653,6 +6664,7 @@ Window {
         controller: typeof AccountController !== "undefined" ? AccountController : null
         recoveryPresenter: typeof AccountRecoveryPresenter !== "undefined" ? AccountRecoveryPresenter : null
         backdrop: wall
+        onTheatreSyncSettingsRequested: Qt.callLater(win.openTheatreSyncFromAccount)
     }
 
     // One shell-wide cover turns the full-monitor geometry jump into a deliberate beat.

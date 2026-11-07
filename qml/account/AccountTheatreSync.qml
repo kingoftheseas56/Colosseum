@@ -9,6 +9,7 @@ AccountPageFrame {
     required property var stremioActions
     required property bool stremioAvailable
     property string provider: ""
+    property string cancelDetail: qsTr("Return to the welcome screen.")
     signal completed()
     signal cancelRequested()
 
@@ -58,7 +59,7 @@ AccountPageFrame {
             objectName: "accountTheatrePickerCancel"
             width: parent.width
             title: qsTr("Cancel")
-            detail: qsTr("Return to the welcome screen.")
+            detail: root.cancelDetail
             onChosen: root.cancelRequested()
         }
     }
