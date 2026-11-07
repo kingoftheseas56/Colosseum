@@ -1,4 +1,5 @@
 # Validation-only workflow: application source stays pinned; no release publication.
+# Independent gates continue after a failure for evidence; any required failure still fails the job.
 name: Arc 78 Linux plugins validation
 'on':
   push:
@@ -72,7 +73,7 @@ jobs:
         host: linux
         target: desktop
         arch: linux_gcc_64
-        modules: qtwebengine qtwebchannel qtwebsockets qtpositioning qtserialport qtimageformats qtquick3d qtshadertools
+        modules: qtwebengine qtwebchannel qtwebsockets qtpositioning qtserialport qtimageformats qtquick3d qtshadertools qtquicktimeline
         aqtsource: git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b
         cache: true
     - name: Install Linux desktop dependencies
@@ -150,6 +151,7 @@ jobs:
         COLOSSEUM_LINUX_BUILD=$build\" >> \"$GITHUB_ENV\"\n"
     - name: Build Linux desktop and tests
       run: cmake --build "$COLOSSEUM_LINUX_BUILD" --parallel 2
+      id: build_linux
     - name: Save Linux compiler cache
       if: always() && steps.restore-linux-ccache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
@@ -188,16 +190,17 @@ jobs:
     - name: Explicit Nuvio and Sources Sheet tests
       env:
         QT_QPA_PLATFORM: offscreen
-        QT_QUICK_BACKEND: software
         QT_FORCE_STDERR_LOGGING: '1'
       run: 'mkdir -p linux-evidence
 
         ctest --test-dir "$COLOSSEUM_LINUX_BUILD" -R ''^colosseum\.nuvio_(repository_store|plugin_host|source_resolver)_test$''
         --no-tests=error --output-on-failure 2>&1 | tee linux-evidence/nuvio-ctests.log
 
-        "$COLOSSEUM_LINUX_BUILD/colosseum_qml_tests" -input tests/qml/tst_sources_sheet_nuvio.qml 2>&1 | tee linux-evidence/sources-sheet-qml.log
+        xvfb-run -a -s "-screen 0 1280x1024x24" env QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 "$COLOSSEUM_LINUX_BUILD/colosseum_qml_tests"
+        -input tests/qml/tst_sources_sheet_nuvio.qml 2>&1 | tee linux-evidence/sources-sheet-qml.log
 
         '
+      if: '!cancelled() && steps.build_linux.outcome == ''success'''
     - name: Run platform-neutral Linux CTests
       env: &id001
         QT_QPA_PLATFORM: offscreen
@@ -208,6 +211,7 @@ jobs:
         unix:path=$absent_bus/absent-session\" \\\nctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n  -LE \"^(windows|requires-x11|vinyl)$\"\
         \ \\\n  --output-on-failure --parallel 1 \\\n  --output-junit \"$GITHUB_WORKSPACE/linux-evidence/blocking.xml\" \\\
         \n  | tee linux-evidence/blocking.log\n"
+      if: '!cancelled() && steps.build_linux.outcome == ''success'''
     - name: Verify Stremio persistence with real Linux secure storage
       env: *id001
       run: "# A reachable Secret Service is not necessarily an unlocked writable vault.\n# Exercise the real Linux credential\
@@ -221,6 +225,7 @@ jobs:
         \n  secret-tool clear colosseum-ci probe\n  mapfile -t binaries < <(find \"$COLOSSEUM_LINUX_BUILD\" -type f -name\
         \ tst_account_attachment_runtime)\n  test \"${#binaries[@]}\" = 1\n  \"${binaries[0]}\" stremioBrowserLoginPersistsAcrossRuntimeRestart\
         \ | tee linux-evidence/stremio-secure-store.log\n'\n"
+      if: '!cancelled() && steps.build_linux.outcome == ''success'''
     - name: Run X11-dependent Linux CTests
       env:
         QT_QPA_PLATFORM: xcb
@@ -228,12 +233,14 @@ jobs:
         LIBGL_ALWAYS_SOFTWARE: '1'
       run: "xvfb-run -a ctest --test-dir \"$COLOSSEUM_LINUX_BUILD\" \\\n  -L requires-x11 \\\n  -LE windows \\\n  --output-on-failure\
         \ \\\n  --parallel 1 --output-junit \"$GITHUB_WORKSPACE/linux-evidence/x11.xml\"\n"
+      if: '!cancelled() && steps.build_linux.outcome == ''success'''
     - name: Build matching Qt TIFF plugin with bundled libtiff
       run: "git init \"$RUNNER_TEMP/qtimageformats\"\ngit -C \"$RUNNER_TEMP/qtimageformats\" remote add origin https://github.com/qt/qtimageformats.git\n\
         git -C \"$RUNNER_TEMP/qtimageformats\" fetch --depth 1 origin 77f35e5694885844c3eb3a737769b5ed290b8ccc\ngit -C \"\
         $RUNNER_TEMP/qtimageformats\" checkout --detach FETCH_HEAD\ncmake -S \"$RUNNER_TEMP/qtimageformats\" -B \"$RUNNER_TEMP/qtimageformats-build\"\
         \ -G Ninja \\\n  -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=\"$QT_ROOT_DIR\" \\\n  -DFEATURE_system_tiff=OFF -DQT_BUILD_EXAMPLES=OFF\
         \ -DQT_BUILD_TESTS=OFF\ncmake --build \"$RUNNER_TEMP/qtimageformats-build\" --target QTiffPlugin --parallel 2\n"
+      if: '!cancelled() && steps.build_linux.outcome == ''success'''
     - name: Assemble and verify Linux runtime
       run: "notices=\"$RUNNER_TEMP/notices\"\nmkdir -p \"$notices/host-copyrights\"\ncp -r \"$RUNNER_TEMP/mpvqt-source/LICENSES\"\
         \ \"$notices/MpvQt-LICENSES\"\ncp -r \"$RUNNER_TEMP/qtimageformats/LICENSES\" \"$notices/QtImageFormats-LICENSES\"\
@@ -257,6 +264,8 @@ jobs:
         \ncp \"$RUNNER_TEMP/AppDir/BUILD-IDENTITY.json\" release-output/\npython3 tools/linux-release/package_deb.py --stage\
         \ \"$RUNNER_TEMP/AppDir\" --output release-output/Colosseum-arc78-linux-amd64.deb\nar t release-output/Colosseum-arc78-linux-amd64.deb\
         \ > release-output/deb-archive-members.txt\nprintf 'debian-binary\\ncontrol.tar.xz\\ndata.tar.xz\\n' | diff -u - release-output/deb-archive-members.txt\n"
+      if: '!cancelled() && steps.build_linux.outcome == ''success'''
+      id: package_linux
     - name: Upload exact Linux package and identity
       uses: actions/upload-artifact@v4
       with:
@@ -264,9 +273,10 @@ jobs:
         path: release-output/
         retention-days: 7
         if-no-files-found: error
+      if: '!cancelled() && steps.package_linux.outcome == ''success'''
     - name: Run clang-tidy correctness gate on Linux
       id: clang_tidy_analysis
-      if: steps.clang_tidy_setup.outcome == 'success'
+      if: '!cancelled() && steps.build_linux.outcome == ''success'''
       timeout-minutes: 90
       run: "python scripts/clang_tidy_quality_gate.py \\\n  --clang-tidy \"$(command -v clang-tidy-20)\" \\\n  --compile-commands\
         \ \"$COLOSSEUM_LINUX_BUILD/compile_commands.json\" \\\n  --source-root native \\\n  --allowlist .github/clang-tidy-allowlist.txt\
@@ -292,3 +302,6 @@ jobs:
         name: arc78-linux-tests
         path: linux-evidence/
         retention-days: 7
+defaults:
+  run:
+    shell: bash
