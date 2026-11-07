@@ -20,8 +20,19 @@ Column {
     property bool phoneLayout: false
     property bool limitArtworkToViewport: false
     property bool artworkActive: true
+    readonly property real cardWidth: Math.min(theme.extensionCardWidth, width)
+    readonly property real scrollLimit: Math.max(0, shelfFlick.contentWidth - shelfFlick.width)
+    readonly property bool hasOverflow: !phoneLayout && scrollLimit > 0.5
     signal addonActivated(var addon)
     signal seeAllRequested()
+
+    function scrollByPage(direction) {
+        const step = rail.cardWidth + row.spacing
+        const page = Math.max(1, Math.floor((shelfFlick.width + row.spacing) / step))
+        shelfFlick.cancelFlick()
+        shelfFlick.contentX = Math.max(0, Math.min(rail.scrollLimit, shelfFlick.contentX + direction * page * step))
+        shelfFlick.currentIndex = Math.min(rail.items.length - 1, Math.ceil(shelfFlick.contentX / step))
+    }
 
     function _findKeyboardSectionCoordinator() {
         for (var node = rail.parent; node; node = node.parent) {
@@ -38,47 +49,68 @@ Column {
     spacing: 14
     visible: rail.items.length > 0
 
-    // Header as in the mock: serif title, the line under it, "See all ›" on the right.
     Item {
         width: parent.width
-        height: rail.phoneLayout ? Math.max(head.height, seeAll.height) : head.height
+        height: Math.max(head.height, navigation.height)
         Column {
             id: head
-            width: rail.phoneLayout ? Math.max(0, rail.width - (rail.canSeeAll ? 92 : 0)) : implicitWidth
+            width: Math.max(0, rail.width - navigation.width - (navigation.width > 0 ? 12 : 0))
             spacing: 5
             Text {
-                width: rail.phoneLayout ? head.width : implicitWidth
-                wrapMode: rail.phoneLayout ? Text.WordWrap : Text.NoWrap
+                width: head.width
+                wrapMode: Text.Wrap
                 text: rail.title
                 color: theme.ink
                 font.family: theme.display; font.pixelSize: 26; font.weight: Font.DemiBold
             }
             Text {
-                width: rail.phoneLayout ? head.width : implicitWidth
-                wrapMode: rail.phoneLayout ? Text.WordWrap : Text.NoWrap
+                width: head.width
+                wrapMode: Text.Wrap
                 visible: rail.sub.length > 0
                 text: rail.sub
                 color: theme.inkDimmer
                 font.family: theme.ui; font.pixelSize: 14
             }
         }
-        Text {
-            id: seeAll
-            visible: rail.canSeeAll
+        Row {
+            id: navigation
             anchors.right: parent.right; anchors.bottom: parent.bottom
-            text: "See all ›"
-            color: seeAllAction.interactionActive ? theme.ink : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 15
-            KeyboardAction {
-                id: seeAllAction
+            spacing: 6
+            ShelfButton {
+                objectName: rail.automationId.length > 0 ? rail.automationId + "Previous" : ""
+                visible: rail.hasOverflow
+                enabled: shelfFlick.contentX > 0.5
+                width: 36; height: 36
+                padding: 0
+                text: "←"
+                Accessible.name: qsTr("Previous add-ons in %1").arg(rail.title)
+                onClicked: rail.scrollByPage(-1)
+            }
+            ShelfButton {
+                objectName: rail.automationId.length > 0 ? rail.automationId + "Next" : ""
+                visible: rail.hasOverflow
+                enabled: shelfFlick.contentX < rail.scrollLimit - 0.5
+                width: 36; height: 36
+                padding: 0
+                text: "→"
+                Accessible.name: qsTr("Next add-ons in %1").arg(rail.title)
+                onClicked: rail.scrollByPage(1)
+            }
+            ShelfButton {
                 objectName: rail.automationId.length > 0 ? rail.automationId + "SeeAll" : ""
-                anchors.fill: parent
-                anchors.margins: -8
-                accessibleName: "See all " + rail.title
-                focusRadius: 8
-                onTriggered: rail.seeAllRequested()
+                visible: rail.canSeeAll
+                height: rail.phoneLayout ? implicitHeight : 36
+                padding: 0
+                text: qsTr("See all ›")
+                Accessible.name: qsTr("See all %1").arg(rail.title)
+                onClicked: rail.seeAllRequested()
             }
         }
+    }
+
+    component ShelfButton: ExtensionsActionButton {
+        Keys.onReturnPressed: clicked()
+        Keys.onEnterPressed: clicked()
     }
 
     Column {
@@ -107,7 +139,7 @@ Column {
     }
 
     Flickable {
-        id: flick
+        id: shelfFlick
         visible: !rail.phoneLayout
         objectName: rail.automationId
         property bool keyboardReturnOwner: true
@@ -127,42 +159,31 @@ Column {
             var card = cards.itemAt(index)
             currentIndex = index
             if (!card) return false
-            if (card.x < flick.contentX)
-                flick.contentX = card.x
-            else if (card.x + card.width > flick.contentX + flick.width)
-                flick.contentX = Math.min(Math.max(0, flick.contentWidth - flick.width), card.x + card.width - flick.width)
+            if (card.x < shelfFlick.contentX)
+                shelfFlick.contentX = card.x
+            else if (card.x + card.width > shelfFlick.contentX + shelfFlick.width)
+                shelfFlick.contentX = Math.min(Math.max(0, shelfFlick.contentWidth - shelfFlick.width), card.x + card.width - shelfFlick.width)
             return true
         }
         property int currentIndex: rail.items.length > 0 ? 0 : -1
         width: parent.width
-        height: rail.phoneLayout ? 0 : row.height + (flick.contentWidth > flick.width ? 16 : 0)
+        height: rail.phoneLayout ? 0 : row.height + (rail.hasOverflow ? 16 : 0)
         contentWidth: row.width; contentHeight: row.height
         clip: true
         focusPolicy: rail.phoneLayout ? Qt.NoFocus : (rail.items.length > 0 ? Qt.TabFocus : Qt.NoFocus)
         flickableDirection: Flickable.HorizontalFlick
         boundsBehavior: Flickable.StopAtBounds
         Keys.onPressed: (event) => keys.handle(event)
-        ScrollBar.horizontal: ScrollBar {
-            id: railBar
+        ScrollBar.horizontal: HouseScrollBar {
             objectName: rail.automationId.length ? rail.automationId + "ScrollBar" : ""
-            policy: flick.contentWidth > flick.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-            interactive: true
-            height: 12
-            background: Rectangle {
-                implicitHeight: 12
-                radius: 6
-                color: Qt.rgba(1, 1, 1, 0.10)
-            }
-            contentItem: Rectangle {
-                implicitHeight: 8
-                radius: 4
-                color: railBar.pressed ? theme.gold : Qt.rgba(1, 1, 1, railBar.hovered ? 0.82 : 0.62)
-            }
+            flick: shelfFlick
+            orientation: Qt.Horizontal
+            glassStyle: true
         }
 
         Row {
             id: row
-            spacing: 18
+            spacing: 14
             Repeater {
                 id: cards
                 // the wide row is not built at all on a phone; hidden cards still load their logos
@@ -170,16 +191,16 @@ Column {
                 delegate: ExtensionsStoreCard {
                     required property var modelData
                     required property int index
-                    width: 260
+                    width: rail.cardWidth
                     artworkActive: rail.artworkActive
-                        && (!rail.limitArtworkToViewport || flick.width <= 0
-                            || (x + width >= flick.contentX - flick.width * 0.5
-                                && x <= flick.contentX + flick.width * 1.5))
+                        && (!rail.limitArtworkToViewport || shelfFlick.width <= 0
+                            || (x + width >= shelfFlick.contentX - shelfFlick.width * 0.5
+                                && x <= shelfFlick.contentX + shelfFlick.width * 1.5))
                     addon: modelData
                     installed: { rail.revision; return rail.installedFn(modelData) }
                     disabled: { rail.revision; return rail.disabledFn(modelData) }
                     busy: rail.busy[modelData.slug] === true
-                    selected: flick.activeFocus && flick.currentIndex === index
+                    selected: shelfFlick.activeFocus && shelfFlick.currentIndex === index
                     onActivated: rail.addonActivated(modelData)
                 }
             }
@@ -187,14 +208,14 @@ Column {
 
         KeyboardCollectionController {
             id: keys
-            view: flick
+            view: shelfFlick
             orientation: "horizontal"
             count: rail.items.length
-            identityForIndex: flick.keyboardIdentityForIndex
-            indexForIdentity: flick.keyboardIndexForIdentity
+            identityForIndex: shelfFlick.keyboardIdentityForIndex
+            indexForIdentity: shelfFlick.keyboardIndexForIdentity
             modelRevision: rail.items.length
             keyboardSectionCoordinator: rail.keyboardSectionCoordinator
-            positionIndexFn: function(index) { flick.keyboardRevealIndex(index) }
+            positionIndexFn: function(index) { shelfFlick.keyboardRevealIndex(index) }
             onActivated: (index) => rail.addonActivated(rail.items[index])
         }
     }

@@ -1,5 +1,5 @@
 // ExtensionsSeeAllPage — a Store row's "See all ›", and the Store's search. Back, then either the
-// row's title and line or a search box, then the add-ons as the same big cards, most starred
+// row's title and line or a search box, then the add-ons as the same Store cards, most starred
 // first. Floats over the Store the way TheatreSeeAllPage floats over Theatre, so the Store keeps
 // its scroll position underneath.
 import QtQuick
@@ -121,18 +121,19 @@ Item {
         anchors.bottom: parent.bottom
         anchors.left: parent.left; anchors.leftMargin: page.sideMargin
         anchors.right: parent.right; anchors.rightMargin: page.phoneLayout ? page.sideMargin : theme.margin - 22
-        readonly property int cardWidth: 260
-        cellWidth: Math.floor(width / Math.max(1, Math.floor(width / (cardWidth + 18))))
-        cellHeight: Math.round(cardWidth * 220 / 365) + 79 + 26
+        readonly property int columns: Math.max(1, Math.floor((width + 14) / (theme.extensionCardWidth + 14)))
+        readonly property real cardWidth: Math.max(0, cellWidth - 14)
+        cellWidth: Math.floor(width / columns)
+        cellHeight: theme.extensionCardHeight + 18
         clip: true
         focus: page.visible
         keyNavigationEnabled: true
         boundsBehavior: Flickable.StopAtBounds
         model: page.items
-        ScrollBar.vertical: HouseScrollBar { flick: grid; prominent: true }
+        ScrollBar.vertical: HouseScrollBar { flick: grid; glassStyle: true }
         Keys.onReturnPressed: page.addonActivated(page.items[grid.currentIndex])
         Keys.onUpPressed: (event) => {
-            if (page.searching && grid.currentIndex < Math.floor(grid.width / grid.cellWidth)) box.forceActiveFocus()
+            if (page.searching && grid.currentIndex < grid.columns) box.forceActiveFocus()
             else event.accepted = false
         }
         Keys.onEnterPressed: page.addonActivated(page.items[grid.currentIndex])
@@ -163,7 +164,7 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         model: page.phoneLayout ? page.items : []
         focus: page.visible && page.phoneLayout
-        ScrollBar.vertical: HouseScrollBar { flick: phoneList; prominent: true }
+        ScrollBar.vertical: HouseScrollBar { flick: phoneList; glassStyle: true }
         Keys.onReturnPressed: if (currentIndex >= 0) page.addonActivated(page.items[currentIndex])
         Keys.onEnterPressed: if (currentIndex >= 0) page.addonActivated(page.items[currentIndex])
         Keys.onEscapePressed: page.backRequested()

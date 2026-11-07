@@ -119,7 +119,7 @@ Item {
         Keys.onReturnPressed: page.focusCurrentIndex()
         Keys.onSpacePressed: page.focusCurrentIndex()
         model: page.visible ? page.entries : []
-        ScrollBar.vertical: HouseScrollBar { flick: list; prominent: true }
+        ScrollBar.vertical: HouseScrollBar { flick: list; glassStyle: true }
         delegate: ExtensionsInstalledCard {
             id: managedCard
             required property var modelData

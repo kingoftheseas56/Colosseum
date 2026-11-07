@@ -53,4 +53,7 @@ QtObject {
 
     // layout
     readonly property int margin: 54
+    readonly property int extensionCardWidth: 208
+    readonly property int extensionCardHeight: 182
+    readonly property int extensionCardArtHeight: 98
 }

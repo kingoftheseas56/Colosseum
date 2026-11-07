@@ -7,6 +7,10 @@ Column {
     required property var entries
     required property var capabilitiesFor
     required property var instanceLabelFor
+    readonly property var orderedEntries: entries
+        .map((entry, sourceIndex) => ({entry: entry, sourceIndex: sourceIndex}))
+        .sort((a, b) => (Number(b.entry.installedAt) || 0) - (Number(a.entry.installedAt) || 0)
+                        || a.sourceIndex - b.sourceIndex)
     signal manageRequested(int index)
     width: parent ? parent.width : 800
     spacing: 14
@@ -34,7 +38,8 @@ Column {
             id: seeAll
             objectName: "extensionsInstalledSeeAll"
             text: qsTr("See all ›")
-            onClicked: section.manageRequested(0)
+            onClicked: section.manageRequested(section.orderedEntries.length
+                                               ? section.orderedEntries[0].sourceIndex : 0)
         }
     }
     Text {
@@ -49,22 +54,27 @@ Column {
         id: rail
         objectName: "extensionsInstalledRail"
         width: parent.width
-        height: section.entries.length ? 138 : 0
+        height: section.entries.length ? 108 : 0
         orientation: ListView.Horizontal
         spacing: 14
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        model: section.entries
-        ScrollBar.horizontal: ScrollBar { }
+        model: section.orderedEntries
+        ScrollBar.horizontal: HouseScrollBar {
+            flick: rail
+            orientation: Qt.Horizontal
+            glassStyle: true
+        }
         delegate: ExtensionsInstalledCard {
             required property var modelData
             required property int index
             objectName: "extensionsInstalledCard_" + index
-            width: Math.min(320, rail.width)
-            entry: modelData
-            capabilities: section.capabilitiesFor(modelData.manifest)
-            instanceLabel: section.instanceLabelFor(index)
-            onManageRequested: section.manageRequested(index)
+            width: Math.min(264, rail.width)
+            compact: true
+            entry: modelData.entry
+            capabilities: section.capabilitiesFor(entry.manifest)
+            instanceLabel: section.instanceLabelFor(modelData.sourceIndex)
+            onManageRequested: section.manageRequested(modelData.sourceIndex)
             onKeyboardFocusReceived: rail.positionViewAtIndex(index, ListView.Contain)
         }
     }

@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import QtQuick.Window
 import QtTest
 import "../qml"
 
@@ -10,14 +9,9 @@ Item {
     height: 600
     property var rail: null
     property var world: null
+    property var installed: null
 
-    Window {
-        id: hostWindow
-        width: 900
-        height: 600
-        visible: true
-        Item { id: surface; anchors.fill: parent }
-    }
+    Item { id: surface; anchors.fill: parent }
 
     Component {
         id: railComponent
@@ -41,10 +35,25 @@ Item {
             width: 900
             height: 600
             medium: "Extensions"
-            prominentScrollBar: true
+            glassScrollBar: true
             Item { width: parent.width; height: 1000 }
         }
     }
+
+    Component {
+        id: installedComponent
+        ExtensionsInstalledSection {
+            width: 600
+            entries: [
+                { id: "core", installedAt: 10, core: true, manifest: { name: "Built-in" } },
+                { id: "imported", installedAt: 20, manifest: { name: "Imported add-on" } }
+            ]
+            capabilitiesFor: () => "Streams"
+            instanceLabelFor: () => ""
+        }
+    }
+
+    SignalSpy { id: manageSpy; target: harness.installed; signalName: "manageRequested" }
 
     TestCase {
         name: "ExtensionsStoreScroll"
@@ -57,20 +66,37 @@ Item {
         function cleanup() {
             if (harness.rail) harness.rail.destroy()
             if (harness.world) harness.world.destroy()
+            if (harness.installed) harness.installed.destroy()
             harness.rail = null
             harness.world = null
+            harness.installed = null
+            manageSpy.clear()
         }
         function test_compactCardsAndGrabbableHorizontalBar() {
             var card = findChild(harness.rail, "extensionsCard_one")
             var flick = findChild(harness.rail, "testEssentials")
             var bar = findChild(harness.rail, "testEssentialsScrollBar")
             verify(card !== null && flick !== null && bar !== null)
-            compare(card.width, 260)
+            verify(card.width < 240, "The desktop shelf should fit more add-ons across")
             compare(bar.policy, ScrollBar.AlwaysOn)
-            verify(bar.visible && bar.height > 0)
+            verify(bar.visible && bar.glassStyle && bar.height > bar.contentItem.height)
             verify(flick.contentWidth > flick.width)
             mouseClick(bar, bar.width * 0.85, bar.height / 2, Qt.LeftButton)
             tryVerify(function() { return flick.contentX > 0 }, 1000)
+        }
+        function test_shelf_buttons_page_in_both_directions() {
+            var flick = findChild(harness.rail, "testEssentials")
+            var previous = findChild(harness.rail, "testEssentialsPrevious")
+            var next = findChild(harness.rail, "testEssentialsNext")
+            verify(flick && previous && next)
+            verify(!previous.enabled && next.enabled)
+            mouseClick(next)
+            tryVerify(function() { return flick.contentX > 0 })
+            verify(previous.enabled && !next.enabled)
+            previous.forceActiveFocus()
+            keyClick(Qt.Key_Return)
+            tryCompare(flick, "contentX", 0)
+            verify(!previous.enabled && next.enabled)
         }
         function test_verticalBarIsVisibleWhenStoreOverflows() {
             harness.world = worldComponent.createObject(surface)
@@ -78,8 +104,20 @@ Item {
             var bar = findChild(harness.world, "extensionsWorldScrollBar")
             verify(bar !== null)
             compare(bar.policy, ScrollBar.AlwaysOn)
-            verify(bar.visible && bar.prominent)
-            compare(bar.width, 14)
+            verify(bar.visible && bar.glassStyle && bar.width > bar.contentItem.width)
+            mouseClick(bar, bar.width / 2, bar.height * 0.85, Qt.LeftButton)
+            tryVerify(function() { return bar.flick.contentY > 0 }, 1000)
+        }
+        function test_recent_addon_is_first_and_opens_its_management_entry() {
+            harness.rail.visible = false
+            harness.installed = installedComponent.createObject(surface)
+            verify(harness.installed !== null)
+            var card = findChild(harness.installed, "extensionsInstalledCard_0")
+            verify(card !== null)
+            compare(card.addonName, "Imported add-on")
+            mouseClick(card)
+            tryCompare(manageSpy, "count", 1)
+            compare(manageSpy.signalArguments[0][0], 1)
         }
     }
 }
