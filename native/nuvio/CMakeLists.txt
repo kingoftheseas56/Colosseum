@@ -6,6 +6,13 @@ add_library(colosseum_nuvio STATIC
     NuvioTmdbCredentials.cpp NuvioTmdbCredentials.h
     NuvioWorkerProtocol.h
     ../engine/TankoyomiNetworkPolicy.cpp)
+if(ANDROID)
+    target_sources(colosseum_nuvio PRIVATE AndroidProcess.cpp AndroidProcess.h)
+    set_target_properties(colosseum_nuvio PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    if(COLOSSEUM_NUVIO_ANDROID_PROOF)
+        target_compile_definitions(colosseum_nuvio PUBLIC COLOSSEUM_NUVIO_ANDROID_PROOF)
+    endif()
+endif()
 target_include_directories(colosseum_nuvio PRIVATE ..)
 target_link_libraries(colosseum_nuvio PUBLIC Qt6::Network PRIVATE colosseum_account_credentials)
 if(MSVC)
@@ -59,7 +66,20 @@ set_target_properties(colosseum_nuvio_tmdb_key PROPERTIES
 target_include_directories(colosseum_nuvio_tmdb_key PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(colosseum_nuvio_tmdb_key PRIVATE Qt6::Core)
 
-add_executable(colosseum-nuvio-host WorkerMain.cpp worker_resources.qrc)
+if(ANDROID)
+    # QtService loads this APK library and calls main with a valid Android VM.
+    # It reuses the exact QuickJS/network/TMDB implementation used on desktop.
+    add_library(colosseum-nuvio-host SHARED WorkerMain.cpp worker_resources.qrc)
+    set_target_properties(colosseum-nuvio-host PROPERTIES
+        OUTPUT_NAME colosseum_nuvio_host SUFFIX "_${ANDROID_ABI}.so")
+    set_target_properties(colosseum_nuvio_quickjs colosseum_nuvio_tmdb_key
+        PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    if(COLOSSEUM_NUVIO_ANDROID_PROOF)
+        target_link_libraries(colosseum-nuvio-host PRIVATE log)
+    endif()
+else()
+    add_executable(colosseum-nuvio-host WorkerMain.cpp worker_resources.qrc)
+endif()
 set_target_properties(colosseum-nuvio-host PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
 target_include_directories(colosseum-nuvio-host PRIVATE ..)

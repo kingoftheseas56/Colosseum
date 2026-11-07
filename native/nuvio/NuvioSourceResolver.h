@@ -5,6 +5,12 @@
 
 #include <QHash>
 #include <QProcess>
+#ifdef Q_OS_ANDROID
+#include "AndroidProcess.h"
+using NuvioProcess = NuvioAndroidProcess;
+#else
+using NuvioProcess = QProcess;
+#endif
 #include <QTemporaryDir>
 
 class QJsonArray;
@@ -25,6 +31,10 @@ public:
 signals:
     void streamsReady(int requestId, const QVariantList &streams);
     void finished(int requestId);
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+    void proofWorkerStarted(int requestId, qint64 pid);
+    void proofWorkerFinished(int requestId, qint64 pid, const QString &outcome);
+#endif
 
 private:
     struct Search {
@@ -44,13 +54,14 @@ private:
         NuvioRepositoryStore::Plugin plugin;
         QByteArray output;
         bool rejected = false;
+        bool timedOut = false;
     };
 
     void pump();
     void startWorker(const QStringList &arguments, bool lookup,
                      const NuvioRepositoryStore::Plugin &plugin = {});
-    void drain(QProcess *process);
-    void workerFinished(QProcess *process, bool success);
+    void drain(NuvioProcess *process);
+    void workerFinished(NuvioProcess *process, bool success);
     void finishSearch();
     QVariantList directRows(const QJsonArray &streams, const NuvioRepositoryStore::Plugin &plugin) const;
 
@@ -59,7 +70,7 @@ private:
     int m_processDeadlineMs;
     QTemporaryDir m_retryDirectory;
     Search m_search;
-    QHash<QProcess *, Job> m_jobs;
+    QHash<NuvioProcess *, Job> m_jobs;
     QHash<QString, QString> m_tmdbIds;
     int m_nextSearchId = 0;
     bool m_pumping = false;

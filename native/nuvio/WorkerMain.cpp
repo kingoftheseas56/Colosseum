@@ -29,6 +29,15 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#ifdef Q_OS_ANDROID
+#include <QJniObject>
+#include <QJniEnvironment>
+#include <unistd.h>
+#endif
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+#include <cstdlib>
+#include <android/log.h>
+#endif
 extern "C" {
 #include "quickjs.h"
 }
@@ -94,6 +103,16 @@ static void captureException(Host *s)
     s->error = failureClass(str(s->context, error));
     JS_FreeValue(s->context, error);
 }
+
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+// Deliberate native fault in proof APKs only. Ordinary plugin builds never
+// register this function, and no injected fault can execute in the UI process.
+static JSValue jsProofNativeCrash(JSContext *, JSValueConst, int, JSValueConst *)
+{
+    __android_log_write(ANDROID_LOG_INFO, "ColosseumNuvioProof", "native_abort_requested");
+    std::abort();
+}
+#endif
 
 static JSValue jsConsole(JSContext *, JSValueConst, int, JSValueConst *)
 {
@@ -576,6 +595,10 @@ static void install(Host *s)
     for (const char *name : {"log", "warn", "error", "debug", "info"})
         JS_SetPropertyStr(ctx, console, name, JS_NewCFunction(ctx, jsConsole, name, 1));
     JS_SetPropertyStr(ctx, global, "console", console);
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+    JS_SetPropertyStr(ctx, global, "__proofNativeCrash",
+        JS_NewCFunction(ctx, jsProofNativeCrash, "__proofNativeCrash", 0));
+#endif
     struct Binding { const char *name; JSCFunction *fn; int argc; };
     for (const Binding &b : {Binding{"__request", jsRequest, 2}, {"__cancelRequest", jsCancelRequest, 1},
          {"__done", jsDone, 1}, {"__fail", jsError, 1},
@@ -636,6 +659,8 @@ static QJsonArray publicStreams(const QJsonArray &rows, int remainingMs)
     return eligible;
 }
 
+static FILE *resultOutput = stdout;
+
 static int writeResult(const QJsonArray &results, const QString &error)
 {
     const QJsonObject report = error.isEmpty()
@@ -644,16 +669,13 @@ static int writeResult(const QJsonArray &results, const QString &error)
     const auto out = QJsonDocument(report).toJson(QJsonDocument::Compact);
     if (out.size() > NuvioWorkerProtocol::maxOutputBytes)
         return writeResult({}, QStringLiteral("result_limit"));
-    std::fwrite(out.constData(), 1, out.size(), stdout);
-    std::fputc('\n', stdout);
+    std::fwrite(out.constData(), 1, out.size(), resultOutput);
+    std::fputc('\n', resultOutput);
     return error.isEmpty() ? 0 : 1;
 }
 
-int main(int argc, char **argv)
+static int runHost(const QStringList &args)
 {
-    QCoreApplication app(argc, argv);
-    qInstallMessageHandler([](QtMsgType, const QMessageLogContext &, const QString &) {});
-    const auto args = app.arguments();
     const bool lookup = args.size() == 5 && args[1] == QLatin1String("--lookup");
     const bool plugin = args.size() == 9 && args[1] == QLatin1String("--plugin");
     if (!lookup && !plugin)
@@ -760,4 +782,47 @@ Promise.resolve().then(() => {
     if (s.clock.elapsed() >= NuvioWorkerProtocol::pluginDeadlineMs)
         return writeResult({}, QStringLiteral("deadline"));
     return writeResult(results, {});
+}
+
+
+int main(int argc, char **argv)
+{
+    QCoreApplication app(argc, argv);
+    qInstallMessageHandler([](QtMsgType, const QMessageLogContext &, const QString &) {});
+#ifdef Q_OS_ANDROID
+    // QtService supplies the VM/context before main; JNI, Android DNS, TLS,
+    // and the existing OS credential backend therefore retain their real host.
+    constexpr auto service = "org/colosseum/nuvio/NuvioService";
+    QElapsedTimer startup;
+    startup.start();
+    QJniObject arguments;
+    while (!arguments.isValid() && startup.elapsed() < NuvioWorkerProtocol::processDeadlineMs) {
+        arguments = QJniObject::callStaticObjectMethod(service, "takeArguments", "()[Ljava/lang/String;");
+        if (!arguments.isValid()) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 2);
+            QThread::msleep(1);
+        }
+    }
+    if (!arguments.isValid()) ::_exit(1);
+    const int fd = QJniObject::callStaticMethod<jint>(service, "takeOutputFd", "()I");
+    if (fd < 0) ::_exit(1);
+    resultOutput = ::fdopen(fd, "w");
+    if (!resultOutput) { ::close(fd); ::_exit(1); }
+    QStringList args{QStringLiteral("colosseum-nuvio-host")};
+    QJniEnvironment env;
+    const auto values = arguments.object<jobjectArray>();
+    const auto length = env->GetArrayLength(values);
+    for (int i = 0; i < length; ++i) {
+        auto value = QJniObject::fromLocalRef(env->GetObjectArrayElement(values, i));
+        args.append(value.toString());
+    }
+    const int result = runHost(args);
+    std::fflush(resultOutput);
+    std::fclose(resultOutput);
+    // One invocation per process, just like desktop. A native crash or a hard
+    // parent deadline drops only this private service, never the activity.
+    ::_exit(result);
+#else
+    return runHost(app.arguments());
+#endif
 }

@@ -53,6 +53,9 @@ list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^AndroidBootstrap[.](
 # Admission probing has a neutral Media3 owner; the desktop local-library
 # Java bridge is not part of Android's compiled/package source graph.
 list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^src/org/colosseum/vault/")
+if(NOT COLOSSEUM_NUVIO_ANDROID)
+    list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^src/org/colosseum/nuvio/")
+endif()
 foreach(_package_rel IN LISTS COLOSSEUM_ANDROID_PACKAGE_FILES)
     get_filename_component(_package_out_dir
         "${COLOSSEUM_ANDROID_PACKAGE_DIR}/${_package_rel}" DIRECTORY)
@@ -60,6 +63,13 @@ foreach(_package_rel IN LISTS COLOSSEUM_ANDROID_PACKAGE_FILES)
     configure_file("${COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT}/${_package_rel}"
                    "${COLOSSEUM_ANDROID_PACKAGE_DIR}/${_package_rel}" COPYONLY)
 endforeach()
+if(NOT COLOSSEUM_NUVIO_ANDROID)
+    set(_nuvio_manifest "${COLOSSEUM_ANDROID_PACKAGE_DIR}/AndroidManifest.xml")
+    file(READ "${_nuvio_manifest}" _nuvio_manifest_content)
+    string(REGEX REPLACE "<!-- NUVIO_SERVICES_BEGIN -->.*<!-- NUVIO_SERVICES_END -->" ""
+        _nuvio_manifest_content "${_nuvio_manifest_content}")
+    file(WRITE "${_nuvio_manifest}" "${_nuvio_manifest_content}")
+endif()
 
 file(GLOB_RECURSE COLOSSEUM_ANDROID_QML_FILES CONFIGURE_DEPENDS
     LIST_DIRECTORIES false RELATIVE "${COLOSSEUM_QML_SOURCE_ROOT}"

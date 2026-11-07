@@ -107,7 +107,7 @@ NuvioSourceResolver::~NuvioSourceResolver()
     const auto processes = m_jobs.keys();
     for (auto *process : processes) {
         disconnect(process, nullptr, this, nullptr);
-        if (process->state() != QProcess::NotRunning)
+        if (process->state() != NuvioProcess::NotRunning)
             process->kill();
         delete process;
     }
@@ -147,7 +147,11 @@ int NuvioSourceResolver::resolve(const QString &mediaId, const QString &mediaTyp
         return 0;
 
     auto plugins = m_store->enabledPlugins(type);
-    if (plugins.isEmpty() || !QFileInfo(m_workerPath).isFile())
+    if (plugins.isEmpty()
+#ifndef Q_OS_ANDROID
+        || !QFileInfo(m_workerPath).isFile()
+#endif
+    )
         return 0;
 
     if (m_search.id) {
@@ -210,42 +214,49 @@ void NuvioSourceResolver::pump()
 void NuvioSourceResolver::startWorker(const QStringList &arguments, bool lookup,
                                      const NuvioRepositoryStore::Plugin &plugin)
 {
-    auto *process = new QProcess(this);
+    auto *process = new NuvioProcess(this);
     process->setProgram(m_workerPath);
     process->setArguments(arguments);
     process->setProcessEnvironment(workerEnvironment());
-    process->setProcessChannelMode(QProcess::SeparateChannels);
+    process->setProcessChannelMode(NuvioProcess::SeparateChannels);
 #ifdef Q_OS_WIN
-    process->setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *args) {
+    process->setCreateProcessArgumentsModifier([](NuvioProcess::CreateProcessArguments *args) {
         args->flags |= CREATE_NO_WINDOW;
     });
 #endif
     m_jobs.insert(process, {m_search.id, lookup, plugin, {}});
-    connect(process, &QProcess::readyReadStandardOutput, this, [this, process] {
+    connect(process, &NuvioProcess::readyReadStandardOutput, this, [this, process] {
         drain(process);
     });
-    connect(process, &QProcess::readyReadStandardError, process, [process] {
+    connect(process, &NuvioProcess::readyReadStandardError, process, [process] {
         process->readAllStandardError();
     });
-    connect(process, &QProcess::errorOccurred, this, [this, process](QProcess::ProcessError error) {
-        if (error == QProcess::FailedToStart)
+    connect(process, &NuvioProcess::errorOccurred, this, [this, process](NuvioProcess::ProcessError error) {
+        if (error == NuvioProcess::FailedToStart)
             workerFinished(process, false);
     });
-    connect(process, &QProcess::finished, this,
-            [this, process](int code, QProcess::ExitStatus status) {
-        workerFinished(process, code == 0 && status == QProcess::NormalExit);
+    connect(process, &NuvioProcess::finished, this,
+            [this, process](int code, NuvioProcess::ExitStatus status) {
+        workerFinished(process, code == 0 && status == NuvioProcess::NormalExit);
     });
     QTimer::singleShot(m_processDeadlineMs, process, [this, process] {
         auto job = m_jobs.find(process);
         if (job != m_jobs.end()) {
             job->rejected = true;
+            job->timedOut = true;
             process->kill();
         }
     });
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+    connect(process, &NuvioProcess::started, this, [this, process] {
+        const auto job = m_jobs.constFind(process);
+        if (job != m_jobs.cend()) emit proofWorkerStarted(job->searchId, process->processId());
+    });
+#endif
     process->start(QIODevice::ReadOnly);
 }
 
-void NuvioSourceResolver::drain(QProcess *process)
+void NuvioSourceResolver::drain(NuvioProcess *process)
 {
     auto job = m_jobs.find(process);
     const auto chunk = process->readAllStandardOutput();
@@ -259,7 +270,7 @@ void NuvioSourceResolver::drain(QProcess *process)
     job->output += chunk;
 }
 
-void NuvioSourceResolver::workerFinished(QProcess *process, bool success)
+void NuvioSourceResolver::workerFinished(NuvioProcess *process, bool success)
 {
     drain(process);
     auto it = m_jobs.find(process);
@@ -267,6 +278,14 @@ void NuvioSourceResolver::workerFinished(QProcess *process, bool success)
         return;
     const Job job = std::move(*it);
     m_jobs.erase(it);
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+    const auto proofReport = QJsonDocument::fromJson(job.output).object();
+    const QString outcome = job.timedOut || proofReport.value("error").toString() == "deadline"
+        ? QStringLiteral("deadline") : !success && process->processId() > 0 ? QStringLiteral("crashed")
+        : success && !job.rejected && proofReport.value("status").toString() == "OK"
+            ? QStringLiteral("ok") : QStringLiteral("failed");
+    emit proofWorkerFinished(job.searchId, process->processId(), outcome);
+#endif
     process->deleteLater();
     if (m_search.id == job.searchId) {
         const QJsonObject report = success && !job.rejected

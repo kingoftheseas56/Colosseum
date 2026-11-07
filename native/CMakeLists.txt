@@ -8,6 +8,12 @@ if(WIN32)
     enable_language(RC)
 endif()
 
+option(COLOSSEUM_NUVIO_ANDROID "Enable the private Android Nuvio plugin service" ON)
+option(COLOSSEUM_NUVIO_ANDROID_PROOF "Enable the emulator-only Nuvio fault/proof harness" OFF)
+if(COLOSSEUM_NUVIO_ANDROID_PROOF AND (NOT ANDROID OR NOT COLOSSEUM_NUVIO_ANDROID))
+    message(FATAL_ERROR "Nuvio Android proof requires the Android plugin service")
+endif()
+
 option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
     OFF)
@@ -837,10 +843,18 @@ add_library(tankoyomi_addon_store STATIC
 target_include_directories(tankoyomi_addon_store PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_addon_store PRIVATE Qt6::Core Qt6::Network colosseum_update_crypto)
 target_link_libraries(colosseum PRIVATE tankoyomi_addon_store)
-if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux" OR (ANDROID AND COLOSSEUM_NUVIO_ANDROID))
     add_subdirectory(nuvio)
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_NUVIO_PLUGINS)
     add_dependencies(colosseum colosseum-nuvio-host)
+    if(ANDROID)
+        set_property(TARGET colosseum APPEND PROPERTY QT_ANDROID_EXTRA_LIBS
+            "${CMAKE_CURRENT_BINARY_DIR}/nuvio/libcolosseum_nuvio_host_${ANDROID_ABI}.so")
+        if(COLOSSEUM_NUVIO_ANDROID_PROOF)
+            target_sources(colosseum PRIVATE nuvio/AndroidProof.cpp nuvio/AndroidProof.h)
+            target_compile_definitions(colosseum PRIVATE COLOSSEUM_NUVIO_ANDROID_PROOF)
+        endif()
+    endif()
 endif()
 if(ANDROID)
     target_sources(colosseum PRIVATE update/UpdateTrust.cpp)

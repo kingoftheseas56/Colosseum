@@ -1,0 +1,9 @@
+{
+  "id": "org.colosseum.proof.publicdomain",
+  "version": "1.0.0",
+  "name": "Controlled public-domain Stremio protocol proof",
+  "description": "Exact-commit HTTPS fixture for source-row survival, not third-party provider uptime.",
+  "resources": [{ "name": "stream", "types": ["movie"], "idPrefixes": ["tt0063350"] }],
+  "types": ["movie"],
+  "catalogs": []
+}

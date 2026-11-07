@@ -96,6 +96,9 @@
 #include "nuvio/NuvioNetwork.h"
 #include "nuvio/NuvioRepositoryStore.h"
 #include "nuvio/NuvioSourceResolver.h"
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+#include "nuvio/AndroidProof.h"
+#endif
 #endif
 #include "engine/MangaTankobanService.h"
 #if !defined(Q_OS_ANDROID)
@@ -1650,9 +1653,13 @@ int main(int argc, char *argv[]) {
     const QString nuvioDirectory = instanceAppData + QStringLiteral("/extensions/nuvio");
     auto *nuvioRepos = new NuvioRepositoryStore(nuvioDirectory, NuvioNetwork::getRepositoryAsset,
                                                &backendServices);
+#ifdef Q_OS_ANDROID
+    const auto workerPath = QStringLiteral("android:private-nuvio-service");
+#else
     auto workerPath = QCoreApplication::applicationDirPath() + QStringLiteral("/colosseum-nuvio-host");
 #ifdef Q_OS_WIN
     workerPath += QStringLiteral(".exe");
+#endif
 #endif
     auto *nuvioSources = new NuvioSourceResolver(nuvioRepos, workerPath, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("NuvioRepos"), nuvioRepos);
@@ -2118,6 +2125,10 @@ int main(int argc, char *argv[]) {
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;
+#ifdef COLOSSEUM_NUVIO_ANDROID_PROOF
+    auto *nuvioProof = new AndroidProof(&engine, nuvioRepos, nuvioSources, extensions, &backendServices);
+    nuvioProof->startFromIntent(qmlPath);
+#endif
 #if defined(Q_OS_ANDROID)
     qInfo("[boot] Main.qml loaded");
 #else

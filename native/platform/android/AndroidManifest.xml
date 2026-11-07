@@ -42,6 +42,27 @@
                 android:value="-- %%INSERT_APP_ARGUMENTS%% --" />
         </activity>
 
+        <!-- NUVIO_SERVICES_BEGIN -->
+        <!-- Disposable, same-app-only Nuvio runtimes; one Qt instance per process. -->
+        <service android:name="org.colosseum.nuvio.NuvioService$Slot0"
+            android:process=":nuvio0" android:exported="false" android:stopWithTask="true">
+            <meta-data android:name="android.app.lib_name" android:value="colosseum_nuvio_host" />
+        </service>
+        <service android:name="org.colosseum.nuvio.NuvioService$Slot1"
+            android:process=":nuvio1" android:exported="false" android:stopWithTask="true">
+            <meta-data android:name="android.app.lib_name" android:value="colosseum_nuvio_host" />
+        </service>
+        <service android:name="org.colosseum.nuvio.NuvioService$Slot2"
+            android:process=":nuvio2" android:exported="false" android:stopWithTask="true">
+            <meta-data android:name="android.app.lib_name" android:value="colosseum_nuvio_host" />
+        </service>
+        <service android:name="org.colosseum.nuvio.NuvioService$Slot3"
+            android:process=":nuvio3" android:exported="false" android:stopWithTask="true">
+            <meta-data android:name="android.app.lib_name" android:value="colosseum_nuvio_host" />
+        </service>
+
+        <!-- NUVIO_SERVICES_END -->
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.qtprovider"
