@@ -41,6 +41,12 @@ BUILD_DIR="$BUILD_ROOT/$ABI"
 [[ -x "$QT_ANDROID_ROOT/bin/qt-cmake" ]] || { echo "missing Qt kit: $QT_ANDROID_ROOT" >&2; exit 1; }
 [[ -f "$DEPS_PREFIX/.colosseum-deps-stamp" ]] || { echo "missing deps: $DEPS_PREFIX (run build_deps.sh)" >&2; exit 1; }
 
+# Qt copies the Android package source at CMake configure time. Build the
+# standalone LGPL-only FFmpeg AAR before Qt snapshots that directory.
+if [[ ! -s "$REPO/native/platform/android/libs/media3-ffmpeg-lgpl-1.11.0.aar" ]]; then
+    bash "$REPO/scripts/android/build_media3_ffmpeg.sh"
+fi
+
 "$QT_ANDROID_ROOT/bin/qt-cmake" -S "$REPO/native" -B "$BUILD_DIR" -G Ninja \
     -DCMAKE_BUILD_TYPE=Debug \
     -DQT_HOST_PATH="$COLOSSEUM_QT_HOST_ROOT" \
