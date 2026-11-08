@@ -245,6 +245,8 @@ void ComicReaderDecode::request(int page, int priority) {
     const auto it = m_pageByIndex.constFind(page);
     if (it == m_pageByIndex.constEnd())
         return;                              // unknown page in this generation → ignore
+    if (it->pending)
+        return;                              // no I/O or negative memo before transport publishes
     if (m_failed.contains(page))
         return;                              // already failed this generation → don't retry
     // A MissingFile page is cooling down, not condemned (C6): once the window passes it gets one
@@ -264,6 +266,15 @@ void ComicReaderDecode::request(int page, int priority) {
     auto* runnable = new DecodeRunnable(this, m_currentGen, page, *it,
                                         m_testOnWorkerEnter, m_testOnWorkerExit);
     m_pool.start(runnable, priority);
+}
+
+bool ComicReaderDecode::replacePendingPage(const PageMeta& page) {
+    const auto it = m_pageByIndex.find(page.index);
+    if (it == m_pageByIndex.end() || !it->pending || m_inflight.contains(page.index))
+        return false;
+    *it = page;
+    clearFailure(page.index);
+    return true;
 }
 
 void ComicReaderDecode::clearFailure(int page) {
