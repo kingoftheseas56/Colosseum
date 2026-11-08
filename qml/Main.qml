@@ -4945,12 +4945,13 @@ Window {
                 required property string mode
                 anchors.fill: parent
                 visible: worldStack.current === mode && !win.immersiveSurfaceOpen
-                // Cover the wallpaper while the Universes catalogue is being built.
-                Rectangle {
+                // Use the shell's Cold Ripple artwork while Universes is opening.
+                Image {
                     id: universesLoading
                     anchors.fill: parent
                     z: 1
-                    color: "#101118"
+                    source: visible ? win.defaultWallpaperSource : ""
+                    fillMode: Image.PreserveAspectCrop
                     opacity: 0
                     visible: opacity > 0
                     state: worldLoader.mode === "Universes" && worldLoader.visible
@@ -4975,8 +4976,8 @@ Window {
                         width: Math.min(implicitWidth, Math.max(0, parent.width - 32))
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
-                        text: worldLoader.status === Loader.Error
-                              ? qsTr("Couldn’t open Universes.") : qsTr("Opening Universes…")
+                        visible: worldLoader.status === Loader.Error
+                        text: qsTr("Couldn’t open Universes.")
                         color: "#c9c8d0"
                         font.family: "Segoe UI"
                         font.pixelSize: 14
