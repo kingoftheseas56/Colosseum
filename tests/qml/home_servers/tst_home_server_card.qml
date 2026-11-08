@@ -15,6 +15,9 @@ TestCase {
         id: fakeController
         property bool available: true
         property bool busy: false
+        property bool refreshing: false
+        property string refreshingId: ""
+        property int refreshCalls: 0
         property bool hasError: false
         property string notice: ""
         property string profileId: "local"
@@ -33,6 +36,8 @@ TestCase {
             return true
         }
         function cancelConnect() { busy = false; statusChanged() }
+        function cancelRefresh() { refreshing = false; refreshingId = ""; statusChanged() }
+        function refreshConnection(id) { ++refreshCalls; return true }
         function setConnectionEnabled(id, enabled) {
             var changed = connections.slice()
             changed[0] = {id: id, name: changed[0].name,
@@ -61,6 +66,9 @@ TestCase {
         fakeController.connections = []
         fakeController.available = true
         fakeController.busy = false
+        fakeController.refreshing = false
+        fakeController.refreshingId = ""
+        fakeController.refreshCalls = 0
         fakeController.statusChanged()
         card.expanded = false
         card.clearInputs()
@@ -76,6 +84,26 @@ TestCase {
         fakeController.profileChanged()
         compare(card.expanded, false)
         compare(findChild(card, "trackerHomeServerPassword").text, "")
+    }
+
+    function test_refresh_button_and_cancel() {
+        fakeController.connections = [{
+            id: "one", name: "Home", kind: "Jellyfin",
+            address: "https://media.example", enabled: true,
+            indexedCount: 4, matchedCount: 3, lastRefreshMs: 1800000000000
+        }]
+        var refresh = findChild(card, "trackerHomeServerRefreshButton")
+        verify(refresh !== null)
+        verify(refresh.enabled)
+        mouseClick(refresh)
+        compare(fakeController.refreshCalls, 1)
+        fakeController.refreshing = true
+        fakeController.refreshingId = "one"
+        fakeController.statusChanged()
+        compare(refresh.text, "Cancel refresh")
+        mouseClick(refresh)
+        compare(fakeController.refreshing, false)
+        compare(fakeController.refreshCalls, 1)
     }
 
     function test_toggle_and_confirmed_removal() {

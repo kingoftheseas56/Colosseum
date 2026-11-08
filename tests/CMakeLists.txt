@@ -5811,6 +5811,8 @@ add_executable(tst_home_server_controller
     auto/home_servers/tst_home_server_controller.cpp
     "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerConnectionsController.cpp"
     "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerConnectionsController.h"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerCatalogueStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerCatalogueStore.h"
     "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerConnectionStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerConnectionStore.h"
     "${COLOSSEUM_NATIVE_DIR}/home_servers/JellyfinEmbyClient.cpp"
@@ -5842,3 +5844,25 @@ if(NOT ANDROID AND TARGET Qt6::QuickTest)
             LABELS "qml;home_servers;sync_center" TIMEOUT 60)
     endif()
 endif()
+
+# Arc 80 checkpoint 5: local index snapshot durability and stale-record safety.
+add_executable(tst_home_server_catalogue
+    auto/home_servers/tst_home_server_catalogue.cpp
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerCatalogueStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerCatalogueStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/JellyfinEmbyClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/JellyfinEmbyClient.h")
+target_include_directories(tst_home_server_catalogue PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_home_server_catalogue PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+set_target_properties(tst_home_server_catalogue PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    foreach(qt_target IN ITEMS Core Network Test)
+        add_custom_command(TARGET tst_home_server_catalogue POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::${qt_target}>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+    endforeach()
+endif()
+add_test(NAME colosseum.qttest.home_server_catalogue COMMAND tst_home_server_catalogue)
+set_tests_properties(colosseum.qttest.home_server_catalogue PROPERTIES
+    LABELS "unit;home_servers;index;security" TIMEOUT 60)

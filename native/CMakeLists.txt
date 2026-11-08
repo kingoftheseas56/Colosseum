@@ -367,6 +367,8 @@ qt_add_executable(colosseum
     home_servers/HomeServerConnectionStore.h
     home_servers/HomeServerConnectionsController.cpp
     home_servers/HomeServerConnectionsController.h
+    home_servers/HomeServerCatalogueStore.cpp
+    home_servers/HomeServerCatalogueStore.h
     ${COLOSSEUM_THEATRE_ACCOUNT_SOURCES}
     engine/TankoyomiSeriesMatcher.cpp
     engine/TankoyomiSeriesMatcher.h

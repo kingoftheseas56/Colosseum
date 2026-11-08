@@ -329,6 +329,7 @@ void JellyfinEmbyClient::fetchItemsPage(const ServerSession &session,
                  } else {
                      result.value.startIndex = startIndex;
                      result.value.totalRecordCount = total;
+                     result.value.returnedCount = items.size();
                      for (const QJsonValue &value : items) {
                          const QJsonObject object = value.toObject();
                          const QString id = object.value(QStringLiteral("Id")).toString();

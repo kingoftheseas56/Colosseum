@@ -1996,8 +1996,12 @@ int main(int argc, char *argv[]) {
             createAccountSecretBackend(), &engine);
     const auto bindHomeServersProfile = [homeServerConnections, accountRuntime] {
         const auto &profile = accountRuntime->profileStores()->activeProfile();
-        homeServerConnections->activateProfile(
-            profile.kind() == ProfilePaths::Kind::Sealed ? QString() : profile.profileId());
+        const QString profileId = profile.kind() == ProfilePaths::Kind::Sealed
+            ? QString() : profile.profileId();
+        const QString profileRoot = profile.kind() == ProfilePaths::Kind::LegacyLocal
+            ? QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+            : profile.profileRoot();
+        homeServerConnections->activateProfile(profileId, profileRoot);
     };
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
                      homeServerConnections, [homeServerConnections] {

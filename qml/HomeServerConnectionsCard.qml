@@ -53,6 +53,7 @@ Rectangle {
     Component.onDestruction: {
         if (card.controller && card.controller.busy)
             card.controller.cancelConnect()
+        // Refresh is profile-owned and continues when this page closes.
         card.clearInputs()
     }
 
@@ -116,6 +117,7 @@ Rectangle {
                 text: card.expanded ? qsTr("Close") : qsTr("Add server")
                 prominent: true
                 enabled: card.usable && (!card.controller.busy || card.expanded)
+                         && !card.controller.refreshing
                 Accessible.name: text
                 onClicked: {
                     if (card.expanded) {
@@ -184,7 +186,7 @@ Rectangle {
                         Switch {
                             objectName: "trackerHomeServerEnabledSwitch"
                             checked: serverRow.modelData.enabled === true
-                            enabled: card.usable && !card.controller.busy
+                            enabled: card.usable && !card.controller.busy && !card.controller.refreshing
                             Accessible.name: qsTr("Enable") + " " + serverRow.modelData.name
                             onToggled: {
                                 if (!card.controller.setConnectionEnabled(
@@ -196,12 +198,49 @@ Rectangle {
                         ServerButton {
                             objectName: "trackerHomeServerRemoveButton"
                             text: qsTr("Remove")
-                            enabled: card.usable && !card.controller.busy
+                            enabled: card.usable && !card.controller.busy && !card.controller.refreshing
                             Accessible.name: qsTr("Remove") + " " + serverRow.modelData.name
                             onClicked: {
                                 card.removeId = serverRow.modelData.id
                                 removeDialog.open()
                             }
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 12
+                        ServerButton {
+                            objectName: "trackerHomeServerRefreshButton"
+                            text: card.controller && card.controller.refreshing
+                                  && card.controller.refreshingId === serverRow.modelData.id
+                                  ? qsTr("Cancel refresh") : qsTr("Refresh")
+                            prominent: true
+                            enabled: card.usable && !card.controller.busy
+                                     && serverRow.modelData.enabled === true
+                                     && (!card.controller.refreshing
+                                         || card.controller.refreshingId === serverRow.modelData.id)
+                            Accessible.name: text + " " + serverRow.modelData.name
+                            onClicked: {
+                                if (card.controller.refreshing) {
+                                    card.controller.cancelRefresh()
+                                } else if (!card.controller.refreshConnection(serverRow.modelData.id)) {
+                                    card.localNotice = qsTr("Unable to refresh this server.")
+                                } else {
+                                    card.localNotice = ""
+                                }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: Number(serverRow.modelData.lastRefreshMs || 0) > 0
+                                  ? qsTr("%1 indexed · %2 identified")
+                                      .arg(Number(serverRow.modelData.indexedCount || 0))
+                                      .arg(Number(serverRow.modelData.matchedCount || 0))
+                                  : qsTr("Not indexed yet")
+                            color: theme.inkDim
+                            font.family: theme.ui
+                            font.pixelSize: 11
+                            elide: Text.ElideRight
                         }
                     }
                 }
@@ -278,7 +317,7 @@ Rectangle {
                     text: card.controller && card.controller.busy
                           ? qsTr("Connecting…") : qsTr("Connect")
                     prominent: true
-                    enabled: card.usable && !card.controller.busy
+                    enabled: card.usable && !card.controller.busy && !card.controller.refreshing
                              && serverAddress.text.trim().length > 0
                              && serverUser.text.trim().length > 0
                              && serverPassword.text.length > 0

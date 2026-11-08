@@ -64,6 +64,7 @@ struct ItemPage {
     QList<ServerItem> items;
     int totalRecordCount = 0;
     int startIndex = 0;
+    int returnedCount = 0; // Raw server page size, including unrecognized rows.
 };
 
 struct TransportReply {

@@ -1,6 +1,11 @@
 #pragma once
 
 #include "HomeServerConnectionStore.h"
+#include "HomeServerCatalogueStore.h"
+
+#include <QHash>
+#include <QSet>
+#include <memory>
 
 #include <QObject>
 #include <QPointer>
@@ -14,6 +19,8 @@ class HomeServerConnectionsController final : public QObject {
     Q_PROPERTY(QString profileId READ profileId NOTIFY profileChanged)
     Q_PROPERTY(bool available READ available NOTIFY profileChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY statusChanged)
+    Q_PROPERTY(bool refreshing READ refreshing NOTIFY statusChanged)
+    Q_PROPERTY(QString refreshingId READ refreshingId NOTIFY statusChanged)
     Q_PROPERTY(QString notice READ notice NOTIFY statusChanged)
     Q_PROPERTY(bool hasError READ hasError NOTIFY statusChanged)
 
@@ -28,10 +35,13 @@ public:
     QString profileId() const { return m_profileId; }
     bool available() const { return m_available; }
     bool busy() const { return m_busy; }
+    bool refreshing() const { return m_refreshing; }
+    QString refreshingId() const { return m_refreshingId; }
     QString notice() const { return m_notice; }
     bool hasError() const { return m_error; }
 
-    void activateProfile(const QString &profileId);
+    void activateProfile(const QString &profileId,
+                         const QString &profileRoot = {});
 
     Q_INVOKABLE bool connectServer(const QString &kind,
                                    const QString &displayName,
@@ -41,6 +51,8 @@ public:
     Q_INVOKABLE void cancelConnect();
     Q_INVOKABLE bool setConnectionEnabled(const QString &id, bool enabled);
     Q_INVOKABLE bool removeConnection(const QString &id);
+    Q_INVOKABLE bool refreshConnection(const QString &id);
+    Q_INVOKABLE void cancelRefresh();
 
 signals:
     void connectionsChanged();
@@ -48,6 +60,22 @@ signals:
     void statusChanged();
 
 private:
+    struct IndexSummary {
+        int total = 0;
+        int identified = 0;
+        qint64 syncedAtMs = 0;
+    };
+    struct RefreshJob {
+        quint64 serial = 0;
+        QString profileId;
+        QString connectionId;
+        ServerSession session;
+        ServerCatalogue snapshot;
+        int libraryIndex = 0;
+        int offset = 0;
+        int expectedTotal = -1;
+        QSet<QString> itemIds;
+    };
     struct Pending {
         ServerKind kind = ServerKind::Jellyfin;
         QString name;
@@ -61,9 +89,20 @@ private:
     void tryCandidate(Pending pending, qsizetype index);
     void finish(const QString &message, bool error);
     void releaseClient();
+    void releaseRefreshClient();
+    void fetchRefreshPage(const std::shared_ptr<RefreshJob> &job);
+    void failRefresh();
+    void finishRefresh(const std::shared_ptr<RefreshJob> &job);
+    void reloadSummaries();
+    bool currentRefresh(const std::shared_ptr<RefreshJob> &job) const;
 
     std::shared_ptr<AccountSecretBackend> m_backend;
     std::unique_ptr<HomeServerConnectionStore> m_store;
+    std::unique_ptr<HomeServerCatalogueStore> m_catalogue;
+    QHash<QString, IndexSummary> m_indexSummaries;
+    QPointer<JellyfinEmbyClient> m_refreshClient;
+    QString m_refreshingId;
+    bool m_refreshing = false;
     QPointer<JellyfinEmbyClient> m_client;
     Transport m_transport;
     QString m_profileId;
