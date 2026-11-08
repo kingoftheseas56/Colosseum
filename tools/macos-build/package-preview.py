@@ -539,7 +539,41 @@ def copy_window_capture(state, output):
                 scope='Qt application window scene grab; not desktop pixels or physical M1 proof')
 
 
-def smoke(output):
+def create_dmg(app, dmg):
+    with tempfile.TemporaryDirectory(prefix='colosseum-dmg-') as directory:
+        stage = Path(directory)
+        run('ditto', app, stage / 'Colosseum.app')
+        (stage / 'Applications').symlink_to('/Applications')
+        run('hdiutil', 'create', '-volname', 'Colosseum', '-srcfolder', stage,
+            '-format', 'UDZO', '-fs', 'HFS+', dmg)
+    run('codesign', '--sign', '-', '--identifier', 'world.getcolosseum.Colosseum.dmg', dmg)
+    run('codesign', '--verify', '--strict', dmg)
+    run('hdiutil', 'verify', dmg)
+
+
+def copy_dmg_app(dmg, cwd, expected_symlinks):
+    mount = cwd / 'mounted'
+    mount.mkdir()
+    run('hdiutil', 'attach', '-nobrowse', '-readonly', '-mountpoint', mount, dmg)
+    try:
+        app = mount / 'Colosseum.app'
+        applications = mount / 'Applications'
+        if not app.is_dir() or not applications.is_symlink() or os.readlink(applications) != '/Applications':
+            raise RuntimeError('DMG must contain Colosseum.app and a shortcut to /Applications')
+        visible_entries = {path.name for path in mount.iterdir() if not path.name.startswith('.')}
+        if visible_entries != {'Colosseum.app', 'Applications'}:
+            raise RuntimeError(f'Unexpected DMG root entries: {sorted(visible_entries)}')
+        run('codesign', '--verify', '--deep', '--strict', '--verbose=2', app)
+        symlinks = sum(path.is_symlink() for path in app.rglob('*'))
+        if symlinks != expected_symlinks:
+            raise RuntimeError(f'DMG app symlink count {symlinks} differs from ZIP audit {expected_symlinks}')
+        run('ditto', app, cwd / 'Colosseum.app')
+    finally:
+        run('hdiutil', 'detach', mount)
+    return dict(status='PASS', symlinks=symlinks, applications='/Applications', detached=True)
+
+
+def smoke(output, *, archive=None, dmg=None):
     environment = {key: value for key, value in os.environ.items()
                    if not key.startswith(('QT', 'QML', 'COLOSSEUM_', 'DYLD_', 'MACOSX_'))}
     report = dict(archive='NOT RUN', version='NOT RUN', gui='NOT RUN', normal_quit='NOT RUN',
@@ -549,11 +583,16 @@ def smoke(output):
         with tempfile.TemporaryDirectory(prefix='colosseum-smoke-') as directory:
             cwd = Path(directory)
             # Exercise the actual archive from a fresh path outside source/build.
-            archive = output / 'Colosseum-1.2.0-macOS-arm64-preview.zip'
+            if archive is None:
+                archive = output / 'Colosseum-1.2.0-macOS-arm64-preview.zip'
             report['archive'] = 'FAIL'
             report['archive_audit'] = verify_archive(archive)
             report['archive'] = 'PASS'
-            run('ditto', '-x', '-k', archive, cwd)
+            if dmg is None:
+                run('ditto', '-x', '-k', archive, cwd)
+            else:
+                report['dmg_mount'] = 'FAIL'
+                report['dmg_mount'] = copy_dmg_app(dmg, cwd, report['archive_audit']['symlinks'])
             app = cwd / 'Colosseum.app'
             run('codesign', '--verify', '--deep', '--strict', '--verbose=2', app)
             executable = app / 'Contents/MacOS/colosseum'
@@ -568,6 +607,8 @@ def smoke(output):
             console = subprocess.check_output(['stat', '-f', '%Su', '/dev/console'], text=True).strip()
             if console in ('root', 'loginwindow', ''):
                 report['gui'] = report['normal_quit'] = report['rendered_window'] = 'BLOCKED: no logged-in GUI console session'
+                if dmg is not None:
+                    raise RuntimeError('DMG release smoke requires a logged-in GUI console session')
             else:
                 report['gui'] = 'FAIL'
                 address = cwd / 'lanista.sock'

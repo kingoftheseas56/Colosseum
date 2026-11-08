@@ -1,13 +1,6 @@
-name: Repackage pinned Mac alpha as ZIP and DMG
+name: Package Colosseum 1.2.0 macOS DMG
 on:
   workflow_dispatch:
-  push:
-    branches: ['codex/macos-ci-rescue-dots-20261101']
-    paths:
-      - '.github/workflows/package-macos-alpha.yml'
-      - 'tools/macos-distribution/package-distribution.py'
-      - 'tools/macos-distribution/test_package_distribution.py'
-      - 'tools/macos-distribution/assets/**'
 permissions:
   contents: read
   actions: read
@@ -17,31 +10,24 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
-      - name: Distribution helper regressions
-        run: python3 tools/macos-distribution/test_package_distribution.py
-      - name: Receive verified app and create matching signed ZIP and DMG
+      - name: Packaging helper regressions
+        run: |
+          python3 tools/macos-build/test_package_preview.py
+          python3 tools/macos-distribution/test_package_distribution.py
+      - name: Package pinned signed app and smoke test the copy from the mounted DMG
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           output="$RUNNER_TEMP/colosseum-distribution-$GITHUB_RUN_ID"
           echo "DISTRIBUTION_OUTPUT=$output" >> "$GITHUB_ENV"
-          python3 tools/macos-distribution/package-distribution.py "$output" 2>&1 | tee "$RUNNER_TEMP/distribution.log"
-      - name: Upload ZIP option
-        if: always()
+          python3 tools/macos-distribution/package-distribution.py --release-dmg "$output" \
+            2>&1 | tee "$RUNNER_TEMP/distribution.log"
+      - name: Upload verified release DMG and checksum
         uses: actions/upload-artifact@v4
         with:
-          name: Colosseum-1.2.0-macOS-arm64-alpha-ZIP
-          retention-days: 14
-          compression-level: 0
-          path: |
-            ${{ env.DISTRIBUTION_OUTPUT }}/*.zip
-            ${{ env.DISTRIBUTION_OUTPUT }}/*.zip.sha256
-      - name: Upload DMG option
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Colosseum-1.2.0-macOS-arm64-alpha-DMG
+          name: Colosseum-1.2.0-macOS-arm64-DMG
+          if-no-files-found: error
           retention-days: 14
           compression-level: 0
           path: |
@@ -51,7 +37,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Colosseum-1.2.0-macOS-arm64-alpha-evidence
+          name: Colosseum-1.2.0-macOS-arm64-DMG-evidence
           retention-days: 14
           compression-level: 0
           path: |

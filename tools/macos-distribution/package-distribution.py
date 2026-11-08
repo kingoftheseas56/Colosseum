@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Receive one pinned compiled alpha; produce matching icon-equipped ZIP + DMG.
+"""Receive one pinned compiled alpha and package it for distribution.
 No compilation, credential logging, release upload, or notarization.
 """
+import argparse
 import hashlib
 import importlib.util
 import json
@@ -11,7 +12,6 @@ import plistlib
 import shutil
 import stat
 import subprocess
-import sys
 import tempfile
 import urllib.request
 import zipfile
@@ -170,7 +170,11 @@ def install_icon(app, source, work):
 
 
 def main():
-    output = Path(sys.argv[1]).resolve()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('output', type=Path)
+    parser.add_argument('--release-dmg', action='store_true', help='Package the original signed app for v1.2.0')
+    args = parser.parse_args()
+    output = args.output.resolve()
     output.mkdir(exist_ok=False)
     report = dict(status='FAIL', compiled_source=SOURCE,
                   packaging_commit=os.environ['GITHUB_SHA'], notarized=False, signing='ad-hoc')
@@ -196,6 +200,16 @@ def main():
             if identity['source_sha'] != SOURCE:
                 raise RuntimeError('Compiled bundle source mismatch')
             preview.run('codesign', '--verify', '--deep', '--strict', '--verbose=2', original)
+            if args.release_dmg:
+                dmg = work / 'Colosseum-1.2.0-macOS-arm64.dmg'
+                preview.create_dmg(original, dmg)
+                preview.smoke(output, archive=original_zip, dmg=dmg)
+                digest = preview.sha256_file(dmg)
+                report['files'] = {dmg.name: dict(bytes=dmg.stat().st_size, sha256=digest)}
+                shutil.move(dmg, output / dmg.name)
+                (output / (dmg.name + '.sha256')).write_text(f'{digest}  {dmg.name}\n')
+                report['status'] = 'PASS'
+                return
             stage = work / 'stage'
             stage.mkdir()
             app = stage / 'Colosseum.app'

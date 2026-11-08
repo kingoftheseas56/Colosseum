@@ -12,7 +12,7 @@ import stat
 import json
 from types import SimpleNamespace
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 spec = importlib.util.spec_from_file_location('package_preview', Path(__file__).with_name('package-preview.py'))
 package = importlib.util.module_from_spec(spec)
@@ -20,6 +20,54 @@ spec.loader.exec_module(package)
 
 
 class PackagingBoundary(unittest.TestCase):
+    def test_release_dmg_uses_signed_app_and_ad_hoc_signs_compressed_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            app = root / 'Colosseum.app'
+            dmg = root / 'Colosseum-1.2.0-macOS-arm64.dmg'
+            with patch.object(package, 'run') as run, patch.object(Path, 'symlink_to') as link:
+                package.create_dmg(app, dmg)
+            stage = run.call_args_list[0].args[-1].parent
+            self.assertEqual(run.call_args_list, [
+                call('ditto', app, stage / 'Colosseum.app'),
+                call('hdiutil', 'create', '-volname', 'Colosseum', '-srcfolder', stage,
+                     '-format', 'UDZO', '-fs', 'HFS+', dmg),
+                call('codesign', '--sign', '-', '--identifier', 'world.getcolosseum.Colosseum.dmg', dmg),
+                call('codesign', '--verify', '--strict', dmg),
+                call('hdiutil', 'verify', dmg),
+            ])
+            link.assert_called_once_with('/Applications')
+
+    def test_dmg_smoke_copies_verified_app_and_detaches_on_audit_failure(self):
+        for symlinks in (2, 1):
+            with self.subTest(symlinks=symlinks), tempfile.TemporaryDirectory() as directory:
+                cwd = Path(directory)
+                dmg = cwd / 'release.dmg'
+                mount = cwd / 'mounted'
+                mounted_app = mount / 'Colosseum.app'
+
+                def fake_run(*args):
+                    if args[:2] == ('hdiutil', 'attach'):
+                        mounted_app.mkdir()
+                        (mount / 'Applications').touch()
+
+                with patch.object(package, 'run', side_effect=fake_run) as run, \
+                        patch.object(Path, 'is_symlink', return_value=True), \
+                        patch.object(package.os, 'readlink', return_value='/Applications'), \
+                        patch.object(Path, 'rglob', return_value=[mount / 'link'] * symlinks):
+                    if symlinks == 2:
+                        report = package.copy_dmg_app(dmg, cwd, expected_symlinks=2)
+                        self.assertEqual(report['symlinks'], 2)
+                        run.assert_any_call('codesign', '--verify', '--deep', '--strict', '--verbose=2', mounted_app)
+                        run.assert_any_call('ditto', mounted_app, cwd / 'Colosseum.app')
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, 'symlink count'):
+                            package.copy_dmg_app(dmg, cwd, expected_symlinks=2)
+                        self.assertFalse(any(c.args[0] == 'ditto' for c in run.call_args_list))
+                self.assertEqual(run.call_args_list[0],
+                                 call('hdiutil', 'attach', '-nobrowse', '-readonly', '-mountpoint', mount, dmg))
+                self.assertEqual(run.call_args_list[-1], call('hdiutil', 'detach', mount))
+
     @unittest.skipUnless(sys.platform == 'darwin', 'requires actual Xcode Mach-O tools')
     def test_real_xcode_macho_inspection_tool_contract(self):
         with tempfile.TemporaryDirectory(prefix='colosseum-macho-contract-') as directory:
@@ -178,12 +226,13 @@ class PackagingBoundary(unittest.TestCase):
     def test_smoke_requires_actual_tagged_roots(self):
         tag = 'mac-preview-123'
         name = 'Colosseum-dltest-' + tag
-        valid = {'appDataRoot': '/Users/test/Library/Application Support/' + name,
-                 'cacheRoot': '/Users/test/Library/Caches/' + name}
+        library = Path(tempfile.gettempdir()) / 'Library'
+        valid = {'appDataRoot': str(library / 'Application Support' / name),
+                 'cacheRoot': str(library / 'Caches' / name)}
         self.assertTrue(package.isolated_roots(valid, tag))
         for key in valid:
-            for wrong in ('', 'relative/' + name, '/Users/test/Library/Colosseum',
-                          '/Users/test/' + name + '/personal'):
+            for wrong in ('', 'relative/' + name, str(library / 'Colosseum'),
+                          str(library / name / 'personal')):
                 changed = dict(valid, **{key: wrong})
                 self.assertFalse(package.isolated_roots(changed, tag))
 
