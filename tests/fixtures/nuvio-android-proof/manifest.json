@@ -1,0 +1,12 @@
+{
+  "name": "Colosseum Android public-domain proof repository",
+  "scrapers": [
+    {
+      "id": "public-domain-archive",
+      "name": "Internet Archive public-domain proof",
+      "version": "1.0.0",
+      "filename": "public-domain-archive.js",
+      "supportedTypes": ["movie"]
+    }
+  ]
+}

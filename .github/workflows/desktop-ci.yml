@@ -205,6 +205,8 @@ jobs:
           config-file: ./.github/codeql/codeql-config.yml
 
       - name: Configure Colosseum
+        env:
+          COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
         shell: pwsh
         run: |
           $build = Join-Path $env:RUNNER_TEMP "colosseum-build"
@@ -228,6 +230,9 @@ jobs:
             colosseum `
             update_manifest_trust_harness `
             update_install_bridge_harness `
+            nuvio_repository_store_test `
+            nuvio_plugin_host_test `
+            nuvio_source_resolver_test `
             feria_runtime_integration_test feria_operations_integration_test `
             --parallel 2 2>&1 | Tee-Object -FilePath $log
           $buildExit = $LASTEXITCODE
@@ -259,8 +264,13 @@ jobs:
         run: |
           $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
           ctest --test-dir $env:COLOSSEUM_CI_BUILD `
-            -R 'colosseum\.(update_manifest_trust_harness|update_install_bridge_harness|feria_runtime_integration|feria_operations_integration)$' `
+            -R 'colosseum\.(update_manifest_trust_harness|update_install_bridge_harness|nuvio_repository_store_test|nuvio_plugin_host_test|nuvio_source_resolver_test|feria_runtime_integration|feria_operations_integration)$' `
             --output-on-failure
+
+      - name: Windows installer packaging contract
+        run: >-
+          python -m unittest -v
+          tests.test_release_installer_smoke_contract.ReleaseInstallerSmokeContract.test_nuvio_helper_and_required_notices_are_staged_for_windows_installer
 
       - name: Analyze C++
         id: codeql_analysis
@@ -396,8 +406,11 @@ jobs:
             build-essential ninja-build pkg-config ccache \
             libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
             libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 \
-            xvfb xauth ffmpeg p7zip-full libarchive-tools
+            xvfb xauth ffmpeg p7zip-full libarchive-tools patchelf
           ccache --max-size=1G
+
+      - name: Linux release packaging contract
+        run: python3 tools/linux-release/test_packaging.py
 
       - name: Install and verify Linux clang-tidy
         id: clang_tidy_setup
@@ -473,6 +486,8 @@ jobs:
           echo "MPVQT_ROOT=$install" >> "$GITHUB_ENV"
 
       - name: Configure Colosseum on Linux
+        env:
+          COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
         run: |
           build="$RUNNER_TEMP/colosseum-linux-build"
           prefix="$QT_ROOT_DIR;$ECM_ROOT;$MPVQT_ROOT"
@@ -515,6 +530,11 @@ jobs:
           requires_x11 = []
           shell_leaks = []
           missing_commands = []
+          nuvio_tests = {
+              "colosseum.nuvio_repository_store_test",
+              "colosseum.nuvio_plugin_host_test",
+              "colosseum.nuvio_source_resolver_test",
+          }
           canary = None
           for test in tests:
               props = {p["name"]: p["value"] for p in test.get("properties", [])}
@@ -537,6 +557,13 @@ jobs:
           print(f"CTEST_WINDOWS={len(windows)}")
           print(f"CTEST_NON_WINDOWS={len(non_windows)}")
           print(f"CTEST_REQUIRES_X11={len(requires_x11)}")
+          registered = {test["name"] for test in tests}
+          missing_nuvio = sorted(nuvio_tests - registered)
+          if missing_nuvio:
+              raise SystemExit(f"missing Nuvio CTests: {missing_nuvio}")
+          nuvio_windows = sorted(nuvio_tests.intersection(windows))
+          if nuvio_windows:
+              raise SystemExit(f"Nuvio CTests must remain runnable on Linux: {nuvio_windows}")
           expected_x11 = ["colosseum.qttest.journey_play_video"]
           if requires_x11 != expected_x11:
               raise SystemExit(f"unexpected X11 CTest inventory: {requires_x11}")

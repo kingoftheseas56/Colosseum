@@ -51,6 +51,18 @@
             <meta-data android:name="android.app.background_running" android:value="true" />
         </activity>
 
+        <!-- NUVIO_SERVICES_BEGIN -->
+        <!-- Private Nuvio services start only when a plugin job needs a slot. -->
+        <service android:name="org.colosseum.nuvio.NuvioService$Slot0"
+            android:process=":nuvio0" android:exported="false" android:stopWithTask="true">
+            <meta-data android:name="android.app.lib_name" android:value="colosseum_nuvio_host" />
+        </service>
+        <service android:name="org.colosseum.nuvio.NuvioService$Slot1"
+            android:process=":nuvio1" android:exported="false" android:stopWithTask="true">
+            <meta-data android:name="android.app.lib_name" android:value="colosseum_nuvio_host" />
+        </service>
+        <!-- NUVIO_SERVICES_END -->
+
         <service android:name="org.colosseum.platform.DownloadService"
             android:exported="false" android:foregroundServiceType="dataSync">
             <meta-data android:name="android.app.background_running" android:value="true" />

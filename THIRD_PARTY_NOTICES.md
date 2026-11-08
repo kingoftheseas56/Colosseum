@@ -123,3 +123,14 @@ Before publishing an installer or portable package:
 5. Generate a release-specific software bill of materials so the installer describes what it actually contains rather than what the development machine happens to contain.
 
 Adding or removing a dependency can change these obligations. Review this inventory whenever the packaged runtime changes.
+
+## Nuvio plugin worker
+
+The Windows and Linux Nuvio worker embeds [QuickJS-NG 0.18.0](https://github.com/quickjs-ng/quickjs/tree/v0.18.0)
+(MIT). Its JavaScript bundle includes Cheerio without Node native APIs, CryptoJS,
+WHATWG URL and browser polyfills. Exact versions and license notices are in
+`native/nuvio/vendor` and are distributed with the desktop package under
+`licenses/Nuvio`. Users supply their own repository URLs and plugin scripts.
+
+This product uses the TMDB API but is not endorsed or certified by TMDB.
+[TMDB API attribution](https://developer.themoviedb.org/docs/faq)

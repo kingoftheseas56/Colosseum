@@ -3165,5 +3165,5 @@ migrationSuspensionStopsWhenTrackerCloseCannotBePersisted() {
     QVERIFY(QDir(scrobblePath).removeRecursively());
 }
 
-QTEST_MAIN(tst_account_adoption)
+QTEST_GUILESS_MAIN(tst_account_adoption)
 #include "tst_account_adoption.moc"

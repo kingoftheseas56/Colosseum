@@ -272,5 +272,5 @@ noStaleCrossProfileActivityLeakage() {
     QVERIFY(accountB->earliestActivityMonth().isEmpty());
 }
 
-QTEST_MAIN(tst_profile_activity_isolation)
+QTEST_GUILESS_MAIN(tst_profile_activity_isolation)
 #include "tst_profile_activity_isolation.moc"

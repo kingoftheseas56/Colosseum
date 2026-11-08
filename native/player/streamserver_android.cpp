@@ -190,10 +190,12 @@ void StreamServer::prefetch(const QString &infoHash, int fileIdx) {
     m_backend->prefetch(infoHash, fileIdx);
 }
 
+#ifdef Q_OS_ANDROID
 void StreamServer::warmSource(const QString &infoHash, int fileIdx) {
     if (m_foregroundProbe) setForeground(m_foregroundProbe());
     if (m_backend) m_backend->warmSource(infoHash, fileIdx);
 }
+#endif
 
 void StreamServer::warmUp() {
     // Deliberately lazy: never starts torrent networking at app startup.
@@ -229,11 +231,13 @@ void StreamServer::stopFetchDemand() {
     if (m_backend) m_backend->stopPrefetch();
 }
 
+#ifdef Q_OS_ANDROID
 void StreamServer::stopDemand() {
     if (m_backend) {
         m_backend->stop();
     }
 }
+#endif
 
 void StreamServer::setForegroundProbe(std::function<bool()> probe) {
     m_foregroundProbe = std::move(probe);
@@ -303,10 +307,12 @@ void StreamServer::prefetch(const QString &infoHash, int fileIdx)
     emit streamError(kUnavailableMessage);
 }
 
+#ifdef Q_OS_ANDROID
 void StreamServer::warmSource(const QString &infoHash, int fileIdx)
 {
     prefetch(infoHash, fileIdx);
 }
+#endif
 
 void StreamServer::warmUp()
 {
@@ -330,8 +336,10 @@ void StreamServer::unwatchStats()
 {
 }
 
+#ifdef Q_OS_ANDROID
 void StreamServer::stopDemand()
 {
 }
+#endif
 
 #endif // COLOSSEUM_ANDROID_NUVIO_BACKEND

@@ -8,6 +8,7 @@
 // Tankoyomi's own settings open from its House tile (TankoyomiConfigurationPage).
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import QtQuick.Window
 import "ExtensionsStoreApi.js" as StoreApi
 
@@ -25,6 +26,7 @@ Item {
     signal searchClicked()
     signal universeHallRequested()
 
+    readonly property var nuvioRepositoryStore: typeof NuvioRepos !== "undefined" ? NuvioRepos : null
     property var catalogue: StoreApi.withTorrentio([]) // every cleaned add-on, most starred first; the bundled Torrentio card is present while/if the catalogue cannot load
     property string loadError: ""
     property bool loading: true
@@ -496,6 +498,22 @@ Item {
             root.installUrlError = qsTr("Couldn't preview it: %1").arg(root.safeInstallMessage(reason))
         }
     }
+    Connections {
+        target: typeof Extensions !== "undefined" ? Extensions : null
+        ignoreUnknownSignals: true
+        function onNuvioRepositoryPreviewed(url) {
+            if (!root.installUrlOpen || !root.installUrlPreviewing || url !== root.installUrlNormalized)
+                return
+            root.installUrlPreviewing = false
+            if (!root.nuvioRepositoryStore) {
+                root.installUrlError = qsTr("Nuvio plugins are unavailable on this device.")
+                return
+            }
+            root.closeUrlInstaller()
+            Qt.callLater(nuvioBar.offerLink, url)
+        }
+    }
+
     // A direct install that fails says so (it used to clear the busy badge and nothing else).
     property string installError: ""
     Timer { id: installErrorTimer; interval: 6000; onTriggered: root.installError = "" }
@@ -551,6 +569,53 @@ Item {
             onManageRequested: (index) => {
                 management.initialIndex = index
                 root.managingInstalled = true
+            }
+        }
+
+        NuvioRepositoriesBar {
+            id: nuvioBar
+            objectName: "nuvioRepositoriesBar"
+            store: root.nuvioRepositoryStore
+            visible: store !== null
+            onFocusRequested: (item) => storeWorld.revealFocusedItem(item)
+        }
+
+        RowLayout {
+            objectName: "extensionsDataSourceCredits"
+            visible: nuvioBar.visible
+            width: parent.width
+            spacing: 12
+
+            Image {
+                Layout.preferredWidth: 40
+                Layout.preferredHeight: 40
+                source: "../assets/addon-logos/tmdb.png"
+                sourceSize.width: 80
+                sourceSize.height: 80
+                fillMode: Image.PreserveAspectFit
+                Accessible.name: qsTr("TMDB")
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 3
+
+                Text {
+                    text: qsTr("Data source credits")
+                    color: theme.ink
+                    font.family: theme.ui
+                    font.weight: Font.DemiBold
+                    font.pixelSize: 13
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("This product uses the TMDB API but is not endorsed or certified by TMDB.")
+                    color: theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
             }
         }
 

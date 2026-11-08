@@ -45,6 +45,7 @@ fi
 [ -x "$MAKENSIS" ] || { echo "makensis not found at $MAKENSIS"; exit 1; }
 [ -f "$STREMIO_SRC/stremio-runtime.exe" ] || { echo "Stremio source missing: $STREMIO_SRC"; exit 1; }
 [ -f "$BUILD_DIR/colosseum.exe" ] || { echo "build missing: $BUILD_DIR/colosseum.exe"; exit 1; }
+[ -f "$BUILD_DIR/colosseum-nuvio-host.exe" ] || { echo "Nuvio host missing: $BUILD_DIR/colosseum-nuvio-host.exe"; exit 1; }
 [ -f "$BUILD_DIR/CMakeCache.txt" ] || { echo "clean CMake build cache missing: $BUILD_DIR/CMakeCache.txt"; exit 1; }
 grep -Eq '^CMAKE_BUILD_TYPE:STRING=Release$' "$BUILD_DIR/CMakeCache.txt" \
   || { echo "BUILD_DIR is not a Release build: $BUILD_DIR"; exit 1; }
@@ -98,13 +99,27 @@ git -C "$REPO" archive --format=tar HEAD | tar -x -C "$STAGE"
 echo "[3/6] overlay windeployqt runtime from $BUILD_DIR"
 mkdir -p "$STAGE/native/build-msvc"
 cp -r "$BUILD_DIR/." "$STAGE/native/build-msvc/"
+
+echo "[3a] stage Nuvio runtime notices"
+QUICKJS_LICENSE="$STAGE/native/nuvio/vendor/quickjs/LICENSE"
+JS_LICENSES="$STAGE/native/nuvio/vendor/js/licenses"
+NUVIO_LICENSES="$STAGE/licenses/Nuvio"
+[ -f "$QUICKJS_LICENSE" ] || { echo "QuickJS license missing: $QUICKJS_LICENSE"; exit 1; }
+[ -d "$JS_LICENSES" ] || { echo "JavaScript runtime licenses missing: $JS_LICENSES"; exit 1; }
+mkdir -p "$NUVIO_LICENSES/QuickJS" "$NUVIO_LICENSES/JS"
+cp "$QUICKJS_LICENSE" "$NUVIO_LICENSES/QuickJS/LICENSE"
+cp -r "$JS_LICENSES/." "$NUVIO_LICENSES/JS/"
+[ -n "$(find "$NUVIO_LICENSES/JS" -type f -print -quit)" ] || { echo "JavaScript runtime license directory is empty"; exit 1; }
+
 # Felt-speed runtime sentinels: an installer without these files is not shippable.
 for sentinel in \
   "$STAGE/native/build-msvc/colosseum.exe" \
+  "$STAGE/native/build-msvc/colosseum-nuvio-host.exe" \
   "$STAGE/native/build-msvc/qml-build.manifest" \
   "$STAGE/native/build-msvc/imageformats/qwebp.dll" \
   "$STAGE/native/build-msvc/platforms/qwindows.dll" \
-  "$STAGE/native/build-msvc/Qt6Core.dll"; do
+  "$STAGE/native/build-msvc/Qt6Core.dll" \
+  "$NUVIO_LICENSES/QuickJS/LICENSE"; do
   [ -f "$sentinel" ] || { echo "runtime sentinel missing: $sentinel"; exit 1; }
 done
 
@@ -132,12 +147,14 @@ echo "[4/6] strip build intermediates (keeps ALL runtime: dlls, platforms/, imag
 ( cd "$STAGE/native/build-msvc"
   # CTest targets place their intermediates in build/tests as well as the root.
   # A combined qualification build must not ship those object files and fixtures.
-  rm -rf CMakeFiles Testing artifacts tests
+  rm -rf CMakeFiles Testing artifacts tests nuvio
   rm -rf ./*_autogen
   rm -f ./*_harness.exe ./*harness*.exe tst_*.exe ./*_test*.exe colosseum-capture.exe colosseum-prev-live.exe
   rm -f ./_a0_* ./_slice* ./_engine_harness* ./*.log
   rm -f ./*.ninja_log ./*.ninja_deps ./*.ninja*
   rm -f ./*.obj ./*.ilk ./*.pdb ./*.lib ./*.exp CMakeCache.txt cmake_install.cmake ./*.cmake Makefile CTestTestfile.cmake 2>/dev/null || true )
+[ -f "$STAGE/native/build-msvc/colosseum-nuvio-host.exe" ] \
+  || { echo "Nuvio host missing after runtime pruning"; exit 1; }
 
 echo "[4b/6] prune source-tree dirs the installed app never reads at runtime"
 # The installed exe's own resource root is $STAGE itself (main.cpp cdUp()s twice off
@@ -149,7 +166,7 @@ echo "[4b/6] prune source-tree dirs the installed app never reads at runtime"
 # VaultForensics.cpp that is never opened as a path. Nothing in the shipped app reads
 # these trees at runtime, so they are safe to drop from the stage.
 rm -rf "$STAGE/tests" "$STAGE/docs" "$STAGE/agents" \
-       "$STAGE/scripts/comics_brain" "$STAGE/release/presentation"
+       "$STAGE/scripts/comics_brain" "$STAGE/release/presentation" "$STAGE/native/nuvio"
 
 echo "[5/6] bundle the Stremio stream-server next to the exe  <<< THE FIX"
 DEST="$STAGE/native/build-msvc/stream_server"

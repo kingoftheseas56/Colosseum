@@ -205,7 +205,9 @@ TestCase {
         var addons = []
         for (var i = 0; i < 12; ++i) addons.push("Ext" + i)
         openSheet(1185, Math.floor(640 / 1.20), true, makeRows(12, ["1080p"], addons))
-        sheet.openExtMenu(null)
+        hostWindow.requestActivate()
+        tryCompare(hostWindow, "active", true)
+        mouseClick(findChild(sheet, "extPickerTrigger"))
         waitForRendering(sheet)
         var menu = findChild(sheet, "extPickerMenu")
         verify(menu.visible)
@@ -214,7 +216,9 @@ TestCase {
         var flick = findChild(sheet, "extPickerScroll")
         verify(flick.interactive)
         // Keyboard to the final extension scrolls it into view.
-        sheet.extMenuIndex = 12
+        tryVerify(function() { return findChild(sheet, "extPickerMenuFocus").activeFocus })
+        keyClick(Qt.Key_End)
+        compare(sheet.extMenuIndex, 12)
         var top = 8 + 12 * 52
         verify(top >= flick.contentY && top + 52 <= flick.contentY + flick.height + 0.5)
     }
