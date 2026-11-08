@@ -164,7 +164,8 @@ void NuvioApi::startDeviceSignIn(DeviceSignInCallback callback) {
     }
     resetRequests();
     m_busy = true;
-    auto &flow = m_deviceSignIn.emplace();
+    // Construct the nested aggregate explicitly for Clang.
+    auto &flow = m_deviceSignIn.emplace(DeviceSignIn{});
     flow.callback = std::move(callback);
     flow.nonce = QUuid::createUuid().toString(QUuid::WithoutBraces);
 #ifdef Q_OS_ANDROID
