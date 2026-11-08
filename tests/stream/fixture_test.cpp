@@ -186,6 +186,55 @@ int main(int argc, char **argv) {
                        "Inception primary must not be the Rutracker multi-dub release");
             }
         }
+        if (caseId == "godfather") {
+            safety(ranked.primary.has_value(), "Godfather must have a safe primary");
+            if (ranked.primary) {
+                const auto &picked = ranked.primary->parsed;
+                const auto text = picked.filename + " " + picked.stream.title + " " +
+                                  picked.stream.description;
+                const QRegularExpression conversion(
+                    "(?i)(?:\\bAI\\b|\\bconv(?:ersion)?\\b|upscal(?:e|ed|ing))");
+                safety(!conversion.match(text).hasMatch(),
+                       "Godfather primary must have no AI/conversion/upscale marker");
+            }
+        }
+        if (caseId == "matrix") {
+            bool goodSourceInBand = false;
+            for (const auto &row : ranked.all) {
+                const auto &p = row.parsed;
+                const bool goodSource = p.source == Source::BluRay || p.source == Source::BDRip ||
+                                        p.source == Source::REMUX || p.source == Source::WebDl ||
+                                        p.source == Source::WEBRip;
+                if (goodSource && p.resolution == Resolution::P1080 && p.size &&
+                    *p.size <= 15ULL * 1000 * 1000 * 1000 && p.seeders.value_or(0) > 0 &&
+                    row.score >= 0 && row.tier != Tier::Rough && p.scam_score < 5)
+                    goodSourceInBand = true;
+            }
+            safety(goodSourceInBand, "Matrix must retain a BluRay/WEB alternative in band");
+            safety(!goodSourceInBand ||
+                       (ranked.primary && ranked.primary->parsed.source != Source::HDTV),
+                   "Matrix primary must not be HDTV with a BluRay/WEB alternative in band");
+        }
+        if (caseId == "demon-slayer") {
+            bool englishOrDual = false;
+            const QRegularExpression dual("(?i)dual[ ._-]*audio");
+            for (const auto &row : ranked.all) {
+                const auto &p = row.parsed;
+                if (p.seeders.value_or(0) > 0 && row.tier != Tier::Rough && p.scam_score < 5 &&
+                    (p.audio_languages.contains("en", Qt::CaseInsensitive) ||
+                     dual.match(p.filename + " " + p.stream.title).hasMatch()))
+                    englishOrDual = true;
+            }
+            safety(englishOrDual, "Demon Slayer must retain an English/dual-audio alternative");
+            const auto pickedText = ranked.primary
+                                        ? ranked.primary->parsed.filename + " " +
+                                              ranked.primary->parsed.stream.title + " " +
+                                              ranked.primary->parsed.stream.description
+                                        : QString();
+            safety(!englishOrDual ||
+                       (ranked.primary && !pickedText.contains("VOSTFR", Qt::CaseInsensitive)),
+                   "Demon Slayer primary must not be VOSTFR with English/dual alternatives");
+        }
         if (caseId == "clayface")
             safety(!ranked.primary, "Clayface CAM/TS/TC-only pool must remain no-pick");
         if (ranked.primary) {

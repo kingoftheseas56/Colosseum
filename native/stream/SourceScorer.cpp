@@ -470,6 +470,8 @@ bool nonLatinLead(const QString &text) {
     return false;
 }
 bool preferredAudioSecondary(const ParsedStream &p, const ScoreOptions &o) {
+    if (p.french_led && !matchesPreferred("French", o.preferred_languages))
+        return true;
     const auto languages = concreteLanguages(p.audio_languages);
     const QString text = p.filename + '\n' + p.stream.title + '\n' + p.stream.description;
     qsizetype firstPreferred = -1, firstOther = -1;
@@ -523,6 +525,49 @@ bool preferredAudioSecondary(const ParsedStream &p, const ScoreOptions &o) {
     // Parser list order is not track order. Require evidence from the release
     // text before awarding the full primary-language bonus to a multi-track row.
     return firstPreferred < 0 || (firstOther >= 0 && firstOther < firstPreferred);
+}
+// Primary-only quality gates; manual ranking keeps every retained row.
+QString releaseText(const ParsedStream &p) {
+    auto text = p.filename + ' ' + p.stream.title + ' ' + p.stream.description + ' ' +
+                p.stream.behavior_hints.value("filename").toString() + ' ' +
+                p.stream.behavior_hints.value("fileName").toString();
+    return text.replace('_', '.');
+}
+QString upscaleSignal(const ParsedStream &p, const ScoreOptions &o) {
+    static const QRegularExpression marker(
+        R"(\b(?:AI|upscal(?:e|ed|ing)|conv|conversion|Topaz|Gigapixel)\b)",
+        QRegularExpression::CaseInsensitiveOption);
+    const auto text = releaseText(p);
+    if (marker.match(text).hasMatch())
+        return "upscale-or-conversion";
+    static const QRegularExpression restoration(
+        R"(\b(?:remaster(?:ed)?|restor(?:ed|ation)|rescan|35mm|16mm)\b)",
+        QRegularExpression::CaseInsensitiveOption);
+    // A conservative suspicion, not proof: pre-HD TV WEBRip with explicit episode
+    // context. Films, disc scans/restorations and modern TV are deliberately exempt.
+    const int year = p.year.value_or(o.release_date.isValid() ? o.release_date.year() : 0);
+    if (o.media_kind == "series" && p.resolution == Resolution::UHD &&
+        p.source == Source::WEBRip && (p.episode || o.episode_requested) &&
+        year > 0 && year < 2000 && !restoration.match(text).hasMatch())
+        return "suspected-preHD-TV-upscale";
+    return {};
+}
+int sourcePreference(Source source) {
+    switch (source) {
+    case Source::BluRay: case Source::BDRip: case Source::REMUX:
+    case Source::WebDl: case Source::WEBRip: return 0;
+    case Source::HDTV: case Source::DVDRip: case Source::SDTV: return 2;
+    default: return 1; // Unknown/HDRip is not asserted to be a premium source.
+    }
+}
+bool healthy(const ParsedStream &p, const ScoreOptions &o) {
+    // Direct streams do not depend on a torrent swarm.
+    return p.stream.info_hash.isEmpty() || !p.stream.url.isEmpty() ||
+           p.seeders.value_or(0) >= o.healthy_seeders;
+}
+bool frenchDeferred(const ParsedStream &p, const ScoreOptions &o) {
+    return p.french_led && !o.preferred_languages.isEmpty() &&
+           !matchesPreferred("French", o.preferred_languages);
 }
 int priority(const std::optional<int> &p) {
     return p && *p >= 0 ? *p : std::numeric_limits<int>::max();
@@ -605,7 +650,9 @@ ScoredStream SourceScorer::score(const ParsedStream &p, const ScoreOptions &o,
     if (p.audio.channels >= 6)
         add(QString("%1.0 channels").arg(p.audio.channels), 2);
     if (p.seeders) {
-        const auto boost = std::min(*p.seeders / 10, quint32(10));
+        const double cap = std::isfinite(o.seeder_bonus_cap) ? std::max(0.0, o.seeder_bonus_cap) : 24.0;
+        const double weight = std::isfinite(o.seeder_log_weight) ? std::max(0.0, o.seeder_log_weight) : 3.0;
+        const double boost = std::min(cap, weight * std::log2(1.0 + *p.seeders));
         if (boost > 0)
             add(QString("seeders=%1").arg(*p.seeders), boost);
         else if (p.stream.url.isEmpty() && !p.stream.info_hash.isEmpty() && *p.seeders == 0)
@@ -613,6 +660,9 @@ ScoredStream SourceScorer::score(const ParsedStream &p, const ScoreOptions &o,
     }
     if (!p.stream.info_hash.isEmpty() && p.seeders == 0)
         add("zero-seeders-soft", -8);
+    const auto upscale = upscaleSignal(p, o);
+    if (!upscale.isEmpty())
+        add(upscale, -15);
     if (o.release_date.isValid() && p.year) {
         const auto diff = std::abs(static_cast<qint64>(*p.year) - o.release_date.year());
         if (diff != 0) {
@@ -739,6 +789,14 @@ RankedPicker SourceScorer::rankAndPick(QList<ScoredStream> streams, const ScoreO
         // Diagnostic-only annotations: neither scores nor manual-list order change.
         const auto band = streamingBand(s.parsed, o);
         s.reasons.push_back({band.reason, 0});
+        const int sourceTier = sourcePreference(s.parsed.source);
+        s.reasons.push_back({sourceTier == 0 ? "source-quality:premium-disc-or-web" :
+                             sourceTier == 2 ? "source-quality:capture-or-DVD" :
+                                               "source-quality:unknown-or-other", 0});
+        if (frenchDeferred(s.parsed, o))
+            s.reasons.push_back({"french-led:deferred-when-non-french-alternative-in-band", 0});
+        s.reasons.push_back({QString("torrent-health:floor=%1,status=%2")
+            .arg(o.healthy_seeders).arg(healthy(s.parsed, o) ? "healthy-or-direct" : "below-floor-or-unknown"), 0});
         if ((s.parsed.batch_release || s.parsed.season_pack) && selectedEpisodeFile(s.parsed, o))
             s.reasons.push_back({"selected-episode-file:batch-torrent-treated-as-single", 0});
         const auto key = tierKey(s.tier);
@@ -755,16 +813,38 @@ RankedPicker SourceScorer::rankAndPick(QList<ScoredStream> streams, const ScoreO
         // file is smaller than an otherwise-eligible HDR10/SDR row.
         for (int dvPreference = 0; dvPreference < 2; ++dvPreference) {
             for (int bandPreference = 0; bandPreference < 3; ++bandPreference) {
+                QList<const ScoredStream *> pool;
                 for (const auto &s : out.all) {
-                    if (s.parsed.resolution != target || !primaryEligible(s) ||
-                        (hasSingle && batch(s.parsed, o)) ||
-                        int(unsupportedDvOnly(s.parsed, o)) != dvPreference ||
-                        streamingBand(s.parsed, o).preference != bandPreference)
-                        continue;
+                    if (s.parsed.resolution == target && primaryEligible(s) &&
+                        !(hasSingle && batch(s.parsed, o)) &&
+                        int(unsupportedDvOnly(s.parsed, o)) == dvPreference &&
+                        streamingBand(s.parsed, o).preference == bandPreference)
+                        pool.push_back(&s);
+                }
+                // Each gate acts only on the prior gate's survivors. Thus a large
+                // premium encode cannot displace an in-band HDTV fallback.
+                auto prefer = [&](const auto &predicate) {
+                    if (std::any_of(pool.begin(), pool.end(), predicate))
+                        pool.erase(std::remove_if(pool.begin(), pool.end(),
+                            [&](const ScoredStream *s) { return !predicate(s); }), pool.end());
+                };
+                prefer([&](const ScoredStream *s) { return !frenchDeferred(s->parsed, o); });
+                prefer([&](const ScoredStream *s) { return upscaleSignal(s->parsed, o).isEmpty(); });
+                int bestSource = 3;
+                for (const auto *s : pool)
+                    bestSource = std::min(bestSource, sourcePreference(s->parsed.source));
+                prefer([&](const ScoredStream *s) { return sourcePreference(s->parsed.source) == bestSource; });
+                prefer([&](const ScoredStream *s) { return healthy(s->parsed, o); });
+                if (!pool.isEmpty()) {
+                    const auto &s = *pool.front(); // Pool preserves descending numeric score.
                     out.primary = s;
                     out.selection_reasons.push_back(
                         QString("primary-resolution-policy:%1 (1080p > 720p > 4K > SD)")
                             .arg(resolutionLabel(target)));
+                    out.selection_reasons.push_back(
+                        QString("quality-policy:french-led=%1,upscale=%2,healthy=%3,source-tier=%4")
+                            .arg(frenchDeferred(s.parsed, o)).arg(!upscaleSignal(s.parsed, o).isEmpty())
+                            .arg(healthy(s.parsed, o)).arg(bestSource));
                     if (o.episode_requested)
                         out.selection_reasons.push_back(
                             hasSingle ? QString("single-episode-preferred-over-pack")

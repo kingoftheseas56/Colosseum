@@ -3185,3 +3185,17 @@ any delivery claim that includes the native union code.
 - The same 20 responses / 1,996 rows pass 15 metadata safety assertions. The
   before/after table and same-old-row reasons are in `docs/stream-picker-review.md`.
   Human picks remain null and agreement untested. No QML/playback/master/CI change.
+
+
+## Arc 81 round-three source-quality review fixes
+
+- GCC 14.2 and Clang 19.1.7 focused warnings-as-errors builds each passed 5/5
+  CTest suites; ASan/UBSan passed 5/5 with the existing disclosed leak limitation.
+- Parser 325 assertions and scorer 54 cases cover source tiers, AI/conversion
+  deferral, bounded old-TV upscale suspicion, stronger log-seeder scoring and
+  healthy-floor selection, plus French-led/subtitle-only language handling.
+- Each fix has an independently failing isolated revert control. New fixture
+  assertions fail exactly 3/21 against round two and pass 21/21 now, preserving
+  every previous safety check over the same 20 responses / 1,996 rows.
+- Human picks remain null; no UI/playback/master/CI change. Exact policies,
+  before/after picks, changed reasons and gaps: `docs/stream-picker-review.md`.

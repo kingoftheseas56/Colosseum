@@ -49,7 +49,7 @@ Captured on 2026-11-08 from public, unconfigured endpoints. These are metadata-o
 - MediaFusion manifest is reachable; all three unconfigured Inception, Matrix and One Piece stream requests returned genuine empty `streams` lists.
 - See `secondary-provider-probes.json` for exact endpoint, timestamp, hashes, and response status. Empty/unavailable responses are not evidence of positive ranking coverage for those providers.
 
-## Offline replay and round-two safety checks
+## Offline replay and round-three safety checks
 
 Run the focused CTest suite after building the picker. The fixture executable reads the committed responses only; it performs no network requests:
 
@@ -61,7 +61,7 @@ build-stream/stream-tests/stream_fixture_test pick-results.json
 An optional second argument supplies a preserved earlier report for same-row diagnostics:
 
 ```sh
-build-stream/stream-tests/stream_fixture_test pick-results.json round1-pick-results.json
+build-stream/stream-tests/stream_fixture_test pick-results.json round2-final-pick-results.json
 ```
 
 When that argument is present, `previousPrimaryNow` records the earlier winner's current score/reasons, or its current rejection. This separates a scoring change from merely comparing two different winning rows. Preserve the old report outside the response directory before regenerating the current report. Reports include selected size, parsed audio languages and selected torrent file index. They are generated evidence, not new provider captures.
@@ -73,6 +73,11 @@ In addition to determinism, conservation of every input row, finite descending s
 - Matrix, Godfather and Dune must retain good 1080p alternatives and choose a primary no larger than **15 decimal GB**.
 - Inception must not choose the Rutracker multi-dub release.
 - Clayface's CAM/TS/TC-only pool must still produce no primary.
+- Godfather must not choose a row marked AI, conversion or upscale.
+- Matrix must retain a BluRay/WEB 1080p alternative within 15 decimal GB and must not choose HDTV while that alternative exists.
+- Demon Slayer must retain an English/dual-audio alternative and must not choose VOSTFR while that alternative exists.
+
+The round-three checks are additive: all round-two checks remain enabled. The preserved round-two report is the comparison baseline, not a set of human preference labels.
 
 These are metadata safety assertions, **not human-pick labels**. `humanPick` remains null, and neither replay success nor an agent review establishes human preference or successful playback. A failing safety check exits nonzero without overwriting the requested output report.
 

@@ -45,7 +45,14 @@ All rows remain score-ranked; primary selection is a separate policy:
    only the primary selection, not numeric scores, full-list ordering or per-tier
    bests. Zero-delta `streaming-size` reasons explain the band. Larger candidates
    remain a fallback rather than being removed.
-5. Choose the highest score within the resulting pool. Dual audio breaks exact
+5. Within the resulting band, prefer non-French-led metadata unless French is
+   preferred, then non-upscaled rows, then source quality (disc/WEB above unknown,
+   above HDTV/DVD/SDTV), then healthy torrents within that source-quality pool.
+   Each preference falls back if no matching row exists. The source gate precedes
+   health: a heavily seeded HDTV capture does not displace an in-band BluRay/WEB
+   encode merely because that encode has fewer seeders. An out-of-band premium
+   source cannot displace an in-band capture.
+6. Choose the highest score within the resulting pool. Dual audio breaks exact
    score ties, followed by stable add-on priority/return order/input order.
 
 The tunable constants in `SourceScorer.cpp` use decimal GB (1,000,000,000 bytes):
@@ -68,6 +75,33 @@ Bare two-letter language codes require clear tag context; storage units such as
 language evidence. The preferred-language bonus is +12 for primary/only audio,
 but +3 (`preferred-language-secondary`) when multi-dub metadata indicates another
 language leads. These are metadata heuristics, not verified track ordering.
+
+French-led markers (`VOSTFR`, `VOST`, `VF`, `VFF`, `VFQ`, `TRUEFRENCH`, `FRENCH`)
+are retained as `ParsedStream::french_led`. Subtitle flags alongside Multi Subs,
+adjacent subtitle flag lines and explicit subtitle metadata go into
+`subtitle_languages`, not `audio_languages`; independent explicit audio names
+remain audio evidence. Subtitle-only English does not earn an audio bonus.
+French-led rows may still be primary when French is preferred or no alternative
+survives the preceding gates.
+
+Round three intentionally changes **numeric ranking**, not only primary selection:
+- Seeders now contribute `min(cap, weight * log2(1 + seeders))`. `ScoreOptions`
+  exposes `healthy_seeders = 20`, `seeder_log_weight = 3.0`, and
+  `seeder_bonus_cap = 24.0`. Negative weights/caps clamp to zero; nonfinite values
+  use defaults. The healthy floor is primary-only; direct streams do not require
+  a torrent swarm, while missing torrent seeders do not establish health.
+- Explicit AI/upscale/conversion/Topaz/Gigapixel metadata receives a -15 penalty
+  and is primary fallback-only when a non-upscaled alternative exists in-band.
+  Full selected-file paths are inspected. Plain regrade, ordinary word substrings
+  and the film title A.I. Artificial Intelligence are negative controls.
+- A narrow `suspected-preHD-TV-upscale` -15 signal applies to pre-2000 UHD WEBRip
+  series with episode context, using parsed year or context release date. Movies,
+  modern series, discs and explicit remaster/restoration/film-scan markers are
+  exempt. This is suspicion from metadata, not proof of native resolution.
+
+Zero-delta source-quality, French-deferral and torrent-health reasons explain the
+primary policy without silently changing scores. Seed counts and source labels
+are unverified provider metadata; the library never probes a swarm or media file.
 
 The library does not probe whether a tracker, URL or claimed codec actually works.
 Trust and score metadata are heuristics, not authenticity or playback guarantees.

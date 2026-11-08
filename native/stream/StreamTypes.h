@@ -27,7 +27,8 @@ enum class Source {
     HDTS,
     TC,
     SCR,
-    Other
+    Other,
+    SDTV
 };
 enum class Tier { UhdDv, UhdHdr, Uhd, P1080Hdr, P1080, P720, SD, Rough };
 struct AudioInfo {
@@ -51,7 +52,8 @@ struct ParsedStream {
     Codec codec = Codec::Other;
     Source source = Source::Other;
     AudioInfo audio;
-    QStringList audio_languages;
+    QStringList audio_languages, subtitle_languages;
+    bool french_led = false;
     std::optional<quint64> size;
     std::optional<quint32> seeders;
     QString container, release_group, release_group_normalized, edition, anime_hash;
@@ -81,6 +83,9 @@ struct ScoreOptions {
     std::optional<double> bandwidth_mbps;
     bool in_theaters = false, respect_addon_order = false, episode_requested = false;
     bool dolby_vision_supported = false;
+    // Primary torrent health gate and numeric log bonus (tunable, round 3).
+    quint32 healthy_seeders = 20;
+    double seeder_log_weight = 3.0, seeder_bonus_cap = 24.0;
 };
 struct ScoreReason {
     QString signal;
