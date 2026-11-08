@@ -24,10 +24,11 @@ dependencies {
     implementation 'androidx.core:core:1.17.0'
     implementation 'androidx.webkit:webkit:1.14.0'
     implementation 'androidx.media3:media3-exoplayer:1.11.0'
-    // The LGPL-only FFmpeg extension AAR is generated in libs/ by
-    // scripts/android/build_media3_ffmpeg.sh from pinned upstream sources.
-    // A local AAR does not supply Maven transitive dependencies.
+    // AndroidX FFmpeg audio Java comes from pinned Apache-2.0 upstream sources;
+    // scripts/android/build_media3_ffmpeg.sh creates the LGPL-only JNI .so.
     implementation 'androidx.media3:media3-decoder:1.11.0'
+    implementation 'com.google.guava:guava:33.3.1-android'
+    compileOnly 'org.checkerframework:checker-qual:3.13.0'
     implementation 'androidx.media3:media3-exoplayer-hls:1.11.0'
     implementation 'androidx.media3:media3-exoplayer-dash:1.11.0'
 }
