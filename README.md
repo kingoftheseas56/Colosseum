@@ -81,10 +81,13 @@ All these wildly different mediums, their rich catalogues, sources, readers, and
 | --- | --- |
 | **Windows 10/11** | [Installer (.exe)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-setup.exe) |
 | **Linux (amd64)** | [Debian package (.deb)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-linux-amd64.deb) |
+| **macOS (Apple Silicon, M1+)** | [Preview disk image (.dmg)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-macOS-arm64.dmg) |
 
 [All release files and SHA-256 checksums](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.2.0) · [1.2.0 release notes](docs/release-notes/v1.2.0.md)
 
-**Android:** [1.1.10 alpha APK](https://github.com/kingoftheseas56/Colosseum/releases/tag/android-v1.1.10-alpha) for early testing on Android 9+ ARM64. This is separate from the 1.2.0 desktop release. macOS has a [source-build guide](docs/build/macos.md), not a 1.2.0 installer.
+**Android:** [1.1.10 alpha APK](https://github.com/kingoftheseas56/Colosseum/releases/tag/android-v1.1.10-alpha) for early testing on Android 9+ ARM64. This is separate from the 1.2.0 desktop release.
+
+**macOS preview:** Requires macOS 26.1 or newer and Apple Silicon. The DMG is ad-hoc signed and not notarized; see the [release instructions and checksum](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.2.0) before installing.
 
 ## What's new in 1.2.0
 
