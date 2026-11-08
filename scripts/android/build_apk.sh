@@ -42,8 +42,9 @@ BUILD_DIR="$BUILD_ROOT/$ABI"
 [[ -f "$DEPS_PREFIX/.colosseum-deps-stamp" ]] || { echo "missing deps: $DEPS_PREFIX (run build_deps.sh)" >&2; exit 1; }
 
 # Qt copies the Android package source at CMake configure time. Build the
-# standalone LGPL-only FFmpeg AAR before Qt snapshots that directory.
-if [[ ! -s "$REPO/native/platform/android/libs/media3-ffmpeg-lgpl-1.11.0.aar" ]]; then
+# LGPL-only JNI binary and Apache-licensed Media3 Java before Qt snapshots it.
+if [[ ! -s "$REPO/native/platform/android/libs/$ABI/libffmpegJNI.so" \
+      || ! -s "$REPO/native/platform/android/src/androidx/media3/decoder/ffmpeg/FfmpegAudioRenderer.java" ]]; then
     bash "$REPO/scripts/android/build_media3_ffmpeg.sh"
 fi
 
