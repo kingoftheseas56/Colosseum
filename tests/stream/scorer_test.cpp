@@ -73,7 +73,9 @@ int main(int argc, char **argv) {
         auto p = base();
         p.resolution = Resolution::UHD;
         p.hdr_format = HdrFormat::DvHdr10;
-        auto s = scored(p);
+        auto o = options();
+        o.dolby_vision_supported = true; // Harbor behavior requires explicit capability.
+        auto s = scored(p, o);
         CHECK(s.score == 31);
         CHECK(s.tier == Tier::UhdDv);
         CHECK(reason(s, "DV+HDR10", 6));
@@ -427,6 +429,214 @@ int main(int argc, char **argv) {
         CHECK(reason(scored(p), "title-says-hires-filename-says-cam", -100));
         p.stream.title = "GUTS_2020_1080p.mkv";
         CHECK(!reason(scored(p), "title-says-hires-filename-says-cam"));
+    });
+    run("R2 selected episode file is not a pack", [] {
+        auto pack = base(0), upscale = base(1);
+        pack.batch_release = true;
+        pack.season_pack = true;
+        pack.stream.raw.insert("fileIdx", 33);
+        pack.stream.behavior_hints.insert("filename", "[Erai-raws] One Piece - 001 [1080p].mkv");
+        upscale.resolution = Resolution::UHD;
+        auto o = options();
+        o.episode_requested = true;
+        o.expected_episode = 1;
+        o.expected_season = 1;
+        auto r = SourceScorer::rankAndPick({scored(upscale, o), scored(pack, o)}, o);
+        CHECK(primary(r) == 0);
+        CHECK(r.all.front().parsed.stream.input_index == 1);
+        CHECK(reason(*r.primary, "selected-episode-file:batch-torrent-treated-as-single", 0));
+    });
+    run("R2 true pack controls", [] {
+        auto pack = base(0), single = base(1);
+        pack.batch_release = true;
+        pack.season_pack = true;
+        single.resolution = Resolution::UHD;
+        auto o = options();
+        o.episode_requested = true;
+        o.expected_episode = 1;
+        o.expected_season = 1;
+        const auto pick = [&] { return primary(SourceScorer::rankAndPick({scored(pack, o), scored(single, o)}, o)); };
+        pack.stream.behavior_hints.insert("filename", "Show.S01E01.1080p.mkv");
+        CHECK(pick() == 1); // No fileIdx: an episode label alone is not selection.
+        for (const QJsonValue &idx : {QJsonValue(-1), QJsonValue(1.5), QJsonValue("33"), QJsonValue()}) {
+            pack.stream.raw.insert("fileIdx", idx);
+            CHECK(pick() == 1);
+        }
+        pack.stream.raw.insert("fileIdx", 0);
+        pack.stream.behavior_hints.insert("filename", "Show.S01E01-E02.1080p.mkv");
+        CHECK(pick() == 1);
+        pack.stream.behavior_hints.insert("filename", "Show.S01E02.1080p.mkv");
+        CHECK(pick() == 1);
+        pack.stream.behavior_hints.insert("filename", "Show.S02E01.1080p.mkv");
+        CHECK(pick() == 1);
+        pack.stream.behavior_hints.insert("filename", "Show.S01E01.1080p.mkv");
+        CHECK(pick() == 0); // Zero is a valid file index.
+        o.expected_episode.reset();
+        CHECK(pick() == 1); // Do not guess which requested episode a file identifies.
+    });
+    run("R2 selected file evaluate propagates episode context", [] {
+        Stream pack;
+        pack.input_index = 0;
+        pack.info_hash = "0123456789abcdef0123456789abcdef01234567";
+        pack.title = "One Piece Complete 001-1000 1080p";
+        pack.raw.insert("fileIdx", 33);
+        pack.behavior_hints.insert("filename", "[Erai-raws] One Piece - 001 [1080p].mkv");
+        pack.size = 733ULL * 1024 * 1024;
+        pack.seeders = 100;
+        Stream upscale = pack;
+        upscale.input_index = 1;
+        upscale.raw.remove("fileIdx");
+        upscale.title = "One Piece EP0001 2160p WEBRip";
+        upscale.behavior_hints.insert("filename", upscale.title + ".mkv");
+        upscale.size = 3ULL * 1024 * 1024 * 1024;
+        TrustOptions t;
+        t.kind = "series";
+        t.expected_title = "One Piece";
+        t.expected_season = 1;
+        t.expected_episode = 1;
+        t.is_anime = true;
+        auto o = options();
+        o.runtime_minutes = 24;
+        CHECK(primary(SourceScorer::evaluate({upscale, pack}, t, o)) == 0);
+    });
+    run("R2 primary streaming size band preserves ranked scores", [] {
+        auto large = base(0), friendly = base(1);
+        large.size = 35000000000ULL;
+        large.remux = true;
+        large.seeders = 500;
+        friendly.size = 8000000000ULL;
+        friendly.seeders = 20;
+        auto o = options();
+        o.media_kind = "movie";
+        o.runtime_minutes = 120;
+        const auto a = scored(large, o), b = scored(friendly, o);
+        CHECK(a.score > b.score);
+        const auto r = SourceScorer::rankAndPick({a, b}, o);
+        CHECK(primary(r) == 1);
+        CHECK(r.all.front().parsed.stream.input_index == 0);
+        CHECK(r.all.front().score == a.score);
+        CHECK(r.by_tier["1080p"].parsed.stream.input_index == 0);
+        bool printed = false;
+        for (const auto &reason : r.all.front().reasons)
+            if (reason.signal.startsWith("streaming-size:")) printed = true;
+        CHECK(printed);
+    });
+    run("R2 streaming band fallbacks and bitrate controls", [] {
+        auto large = base(0), friendly = base(1), unknown = base(2);
+        large.size = 16000000000ULL;
+        large.seeders = 100;
+        friendly.size = 14000000000ULL;
+        friendly.seeders = 10;
+        unknown.seeders = 500;
+        auto o = options();
+        o.media_kind = "movie";
+        auto rank = [&](const QList<ParsedStream> &rows) {QList<ScoredStream> ss; for (const auto &p : rows) ss.push_back(scored(p, o)); return SourceScorer::rankAndPick(ss, o);};
+        CHECK(primary(rank({large})) == 0); // Oversized is fallback, not removed.
+        CHECK(primary(rank({large, unknown})) == 2);
+        CHECK(primary(rank({unknown, friendly})) == 1);
+        CHECK(primary(rank({large, friendly})) == 1); // Unknown runtime: size cap.
+        large.size = 10000000000ULL;
+        friendly.size = 4000000000ULL;
+        o.runtime_minutes = 60;
+        CHECK(primary(rank({large, friendly})) == 1); // Both <15GB, one exceeds 20Mbps.
+        large.size = 3100000000ULL;
+        friendly.size = 2500000000ULL;
+        o.media_kind = "series";
+        o.runtime_minutes.reset();
+        CHECK(primary(rank({large, friendly})) == 1);
+        friendly.resolution = Resolution::P720;
+        CHECK(primary(rank({large, friendly})) == 0); // Band does not override resolution order.
+    });
+    run("R2 secondary preferred audio gets smaller bonus", [] {
+        auto p = base();
+        p.audio_languages = {"Multi", "Russian", "English"};
+        p.stream.title = QString::fromUtf8("Начало / Inception Dub + 2x DVO + 2x Ukr + Original (Eng)");
+        p.stream.description = "Rutracker";
+        auto o = options();
+        o.preferred_languages = {"en"};
+        const auto s = scored(p, o);
+        CHECK(reason(s, "preferred-language-secondary", 3));
+        CHECK(!reason(s, "preferred-language", 12));
+        p.audio_languages = {"English"}; // Dub-first text still signals another default track.
+        CHECK(reason(scored(p, o), "preferred-language-secondary", 3));
+    });
+    run("R2 primary only and multi audio controls", [] {
+        auto p = base();
+        auto o = options();
+        o.preferred_languages = {"en"};
+        p.audio_languages = {"Multi", "English", "Japanese"};
+        p.stream.title = "Inception English Japanese Dual Audio";
+        CHECK(reason(scored(p, o), "preferred-language", 12));
+        p.audio_languages = {"English"};
+        p.stream.title = QString::fromUtf8("Начало / Inception English Dub");
+        CHECK(reason(scored(p, o), "preferred-language", 12));
+        p.stream.title.clear();
+        p.audio_languages = {"Multi"};
+        CHECK(reason(scored(p, o), "multi-language", 4));
+        p.audio_languages = {"French"};
+        CHECK(reason(scored(p, o), "language-mismatch", -14));
+    });
+    run("R2 nonLatin preferred primary is not downgraded", [] {
+        auto p = base();
+        p.audio_languages = {"Multi", "English", "Japanese"}; // Parser ordering is not track ordering.
+        p.stream.title = QString::fromUtf8("進撃の巨人 Japanese English Dual Audio");
+        auto o = options();
+        o.preferred_languages = {"ja"};
+        CHECK(reason(scored(p, o), "preferred-language", 12));
+        CHECK(!reason(scored(p, o), "preferred-language-secondary"));
+    });
+    run("R2 unknown-order Rutracker audio is conservative", [] {
+        auto p = base();
+        p.audio_languages = {"Multi", "English", "Russian"};
+        p.stream.title = "Movie 2010 English Multi Audio";
+        p.stream.description = "Rutracker";
+        auto o = options();
+        o.preferred_languages = {"en"};
+        CHECK(reason(scored(p, o), "preferred-language-secondary", 3));
+    });
+    run("R2 contextual ISO order establishes primary audio", [] {
+        auto p = base();
+        p.audio_languages = {"Multi", "Russian", "English"};
+        auto o = options();
+        o.preferred_languages = {"en"};
+        for (const auto &text : {"Movie [EN/RU]", "Movie [EN RU]", "Movie\nLanguages: EN RU", "Movie\nAudio: EN / RU"}) {
+            p.stream.title = text;
+            CHECK(reason(scored(p, o), "preferred-language", 12));
+        }
+        for (const auto &text : {"Movie [RU/EN]", "Movie\nLanguages: RU EN", "Movie 6.45 GB Russian English"}) {
+            p.stream.title = text;
+            CHECK(reason(scored(p, o), "preferred-language-secondary", 3));
+        }
+    });
+    run("R2 unsupported DV scoring and primary deferral", [] {
+        auto dv = base(0), hdr = base(1);
+        dv.hdr_format = HdrFormat::Dv;
+        dv.seeders = 500;
+        hdr.hdr_format = HdrFormat::Hdr10;
+        auto o = options();
+        CHECK(!o.dolby_vision_supported);
+        CHECK(!reason(scored(dv, o), "DV", 6));
+        auto r = SourceScorer::rankAndPick({scored(dv, o), scored(hdr, o)}, o);
+        CHECK(primary(r) == 1);
+        CHECK(r.all.front().parsed.stream.input_index == 0);
+        CHECK(primary(SourceScorer::rankAndPick({scored(dv, o)}, o)) == 0);
+        dv.hdr_format = HdrFormat::DvHdr10;
+        CHECK(reason(scored(dv, o), "HDR10-fallback", 5));
+        CHECK(primary(SourceScorer::rankAndPick({scored(dv, o), scored(hdr, o)}, o)) == 0);
+        o.dolby_vision_supported = true;
+        CHECK(reason(scored(dv, o), "DV+HDR10", 6));
+        dv.hdr_format = HdrFormat::Dv;
+        CHECK(reason(scored(dv, o), "DV", 6));
+        CHECK(primary(SourceScorer::rankAndPick({scored(dv, o), scored(hdr, o)}, o)) == 0);
+    });
+    run("R2 DV safety precedes size within resolution", [] {
+        auto dv = base(0), safe = base(1);
+        dv.hdr_format = HdrFormat::Dv;
+        dv.size = 4000000000ULL;
+        safe.size = 25000000000ULL;
+        auto o = options();
+        o.media_kind = "movie";
+        CHECK(primary(SourceScorer::rankAndPick({scored(dv, o), scored(safe, o)}, o)) == 1);
     });
     run("Selection explanations", [] {
         auto r = SourceScorer::rankAndPick({}, options());

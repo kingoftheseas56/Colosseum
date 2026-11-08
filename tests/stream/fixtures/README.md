@@ -49,6 +49,33 @@ Captured on 2026-11-08 from public, unconfigured endpoints. These are metadata-o
 - MediaFusion manifest is reachable; all three unconfigured Inception, Matrix and One Piece stream requests returned genuine empty `streams` lists.
 - See `secondary-provider-probes.json` for exact endpoint, timestamp, hashes, and response status. Empty/unavailable responses are not evidence of positive ranking coverage for those providers.
 
+## Offline replay and round-two safety checks
+
+Run the focused CTest suite after building the picker. The fixture executable reads the committed responses only; it performs no network requests:
+
+```sh
+ctest --test-dir build-stream -R colosseum.stream_fixtures --output-on-failure
+build-stream/stream-tests/stream_fixture_test pick-results.json
+```
+
+An optional second argument supplies a preserved earlier report for same-row diagnostics:
+
+```sh
+build-stream/stream-tests/stream_fixture_test pick-results.json round1-pick-results.json
+```
+
+When that argument is present, `previousPrimaryNow` records the earlier winner's current score/reasons, or its current rejection. This separates a scoring change from merely comparing two different winning rows. Preserve the old report outside the response directory before regenerating the current report. Reports include selected size, parsed audio languages and selected torrent file index. They are generated evidence, not new provider captures.
+
+In addition to determinism, conservation of every input row, finite descending scores and rejection reasons, the replay checks:
+
+- Parasite row 17 must not acquire English or a preferred-language bonus from `6.45 GB`.
+- One Piece must select a 1080p row whose selected torrent file identifies exactly the requested episode, not a whole-range filename.
+- Matrix, Godfather and Dune must retain good 1080p alternatives and choose a primary no larger than **15 decimal GB**.
+- Inception must not choose the Rutracker multi-dub release.
+- Clayface's CAM/TS/TC-only pool must still produce no primary.
+
+These are metadata safety assertions, **not human-pick labels**. `humanPick` remains null, and neither replay success nor an agent review establishes human preference or successful playback. A failing safety check exits nonzero without overwriting the requested output report.
+
 ## Reproduction and privacy
 
 `python3 collect.py` explicitly refetches the 20 public Torrentio/Cinemeta responses; it is **not** part of the offline test suite and may change results. It uses four workers with one 25-second request per endpoint. It never starts playback.

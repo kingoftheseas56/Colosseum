@@ -77,8 +77,10 @@ struct ScoreOptions {
     QDate today = QDate::currentDate();
     QString media_kind, preferred_release_group, prefer_addon_id;
     std::optional<int> runtime_minutes;
+    std::optional<int> expected_season, expected_episode;
     std::optional<double> bandwidth_mbps;
     bool in_theaters = false, respect_addon_order = false, episode_requested = false;
+    bool dolby_vision_supported = false;
 };
 struct ScoreReason {
     QString signal;

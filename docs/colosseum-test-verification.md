@@ -3172,3 +3172,16 @@ any delivery claim that includes the native union code.
   full desktop build, Windows/Android and actual playback are not qualified.
 - Detailed source pins, fixture outputs, limitations and reproduction:
   `docs/stream-picker-review.md`. No UI or existing playback behavior changed.
+
+
+## Arc 81 round-two review fixes
+
+- Final GCC 14.2 and Clang 19.1.7 focused warning-clean builds each passed 5/5
+  CTest suites. ASan/UBSan passed 5/5 with the same disclosed leak-check limitation.
+- Parser 278 assertions and scorer 49 cases cover contextual language tags,
+  selected episode files, primary-only streaming bands, secondary preferred audio
+  and capability-aware Dolby Vision. Each fix has an independently failing
+  isolated revert control; DV Hybrid parsing has an additional revert control.
+- The same 20 responses / 1,996 rows pass 15 metadata safety assertions. The
+  before/after table and same-old-row reasons are in `docs/stream-picker-review.md`.
+  Human picks remain null and agreement untested. No QML/playback/master/CI change.

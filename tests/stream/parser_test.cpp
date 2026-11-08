@@ -295,5 +295,52 @@ int main(int argc, char **argv) {
     CHECK(!StreamParser::isBatchRelease("Show [9-1]"));
     CHECK(!StreamParser::isBatchRelease("Show 1-12 [1080p]"));
     CHECK(!StreamParser::isBatchRelease("Show [1-12bit]"));
+    // Two-letter country/language codes need an explicit language context.
+    // In particular a storage unit must never invent an English audio track.
+    for (const auto &ordinary : QStringList{
+             "Movie.2020.1080p.WEB-DL\n💾 6.45 GB", "Movie.2020.1080p.WEB-DL\n💾 1.2 GB",
+             "Movie.2020.1080p.WEB-DL [6.45 GB]", "Movie.2020.1080p.WEB-DL\nLanguages: 1.2 GB",
+             "Movie.2020.1080p.WEB-DL\nLanguages: 6.45\u00a0GB",
+             "Movie.2020.1080p.WEB-DL\nID 12345", "Movie.2020.1080p.WEB-DL\nUK release",
+             "IT.2017.1080p.WEB-DL.mkv", "Movie.2020.1080p.WEB-DL [IT Chapter Two]",
+             "Made.in.CA.2020.1080p.mkv"}) {
+        CHECK(StreamParser::parse(row(ordinary)).audio_languages.isEmpty());
+    }
+    p = parse("Parasite 2019 UHD BluRay 1080p DD Atmos 5 1 DoVi HDR10 x265-SM737\n"
+              "👤 200 💾 6.45 GB");
+    CHECK(!p.audio_languages.contains("English"));
+    CHECK(p.audio_languages.isEmpty());
+    CHECK(parse("Movie.2020.1080p.WEB-DL [EN]").audio_languages == QStringList{"English"});
+    CHECK(parse("Movie.2020.1080p.WEB-DL [ID]").audio_languages == QStringList{"Indonesian"});
+    CHECK(parse("Movie.2020.1080p.WEB-DL [IT]").audio_languages == QStringList{"Italian"});
+    CHECK(parse("Movie.2020.1080p.WEB-DL [UK]").audio_languages == QStringList{"Ukrainian"});
+    p = parse("Movie.2020.1080p.WEB-DL [EN/FR]");
+    CHECK(p.audio_languages.contains("English"));
+    CHECK(p.audio_languages.contains("French"));
+    p = parse("Movie.2020.1080p.WEB-DL\nLanguages: EN / FR\n💾 6.45 GB");
+    CHECK(p.audio_languages.contains("English"));
+    CHECK(p.audio_languages.contains("French"));
+    p = parse("Movie.2020.1080p.WEB-DL\n🔊 JA\n💾 6.45 GB");
+    CHECK(p.audio_languages == QStringList{"Japanese"});
+    CHECK(parse("Movie.2020.1080p.WEB-DL\nFlags: IT").audio_languages == QStringList{"Italian"});
+    CHECK(parse("Movie.2020.1080p.WEB-DL\n🌐 EN").audio_languages == QStringList{"English"});
+    p = parse("Movie.2020.1080p.WEB-DL.EN.FR.mkv");
+    CHECK(p.audio_languages.contains("English"));
+    CHECK(p.audio_languages.contains("French"));
+    p = parse("Movie.2020.1080p.WEB-DL.ENG.JA.mkv");
+    CHECK(p.audio_languages.contains("English"));
+    CHECK(p.audio_languages.contains("Japanese"));
+    p = parse("Movie.2020.1080p.WEB-DL\n🇬🇧 🇯🇵\n💾 6.45 GB");
+    CHECK(p.audio_languages.contains("English"));
+    CHECK(p.audio_languages.contains("Japanese"));
+    CHECK(parse("Movie.2020.1080p.WEB-DL [EN 1.2 GB]").audio_languages.isEmpty());
+    CHECK(parse("Movie.2020.1080p.WEB-DL\nLanguages: EN MB").audio_languages.isEmpty());
+    CHECK(parse("Movie.2020.1080p.WEB-DL\nLanguages: GB 1.2").audio_languages.isEmpty());
+    // A Hybrid tag advertises an HDR10 fallback only alongside an actual DV tag.
+    CHECK(parse("Film.2020.1080p.DV.Hybrid.mkv").hdr_format == HdrFormat::DvHdr10);
+    CHECK(parse("Film.2020.1080p.DoVi.Hybrid.mkv").hdr_format == HdrFormat::DvHdr10);
+    CHECK(parse("Film.2020.1080p.Dolby.Vision.Hybrid.mkv").hdr_format == HdrFormat::DvHdr10);
+    CHECK(!parse("Film.2020.1080p.Hybrid.mkv").hdr_format);
+    CHECK(parse("Film.2020.1080p.Hybrid.HDR10.mkv").hdr_format == HdrFormat::Hdr10);
     qInfo() << "parser_test:" << checks << "checks passed";
 }
