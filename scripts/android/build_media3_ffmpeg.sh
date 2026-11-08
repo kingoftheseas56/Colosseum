@@ -88,6 +88,23 @@ for abi in armeabi-v7a arm64-v8a x86 x86_64; do
     done
 done
 
+# The upstream wrapper defaults to a substantially larger "-all" Gradle archive.
+# CI does not need Gradle documentation/sources; keep the exact upstream
+# Gradle 9.1.0 version and allow a realistic timeout for GitHub runners.
+python3 - "$MEDIA/gradle/wrapper/gradle-wrapper.properties" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+source = path.read_text(encoding="utf-8")
+original = "gradle-9.1.0-all.zip"
+if source.count(original) != 1:
+    raise SystemExit("Unexpected pinned Media3 Gradle wrapper distribution")
+source = source.replace(original, "gradle-9.1.0-bin.zip")
+source += "\nnetworkTimeout=120000\n"
+path.write_text(source, encoding="utf-8")
+PY
+
 # The upstream module is Apache-2.0. Its generated native .so contains the
 # separately licensed LGPL-only FFmpeg implementation. Build against exactly
 # Media3 1.11.0: avoid 1.9.x AAR / 1.11.x API mismatches.
