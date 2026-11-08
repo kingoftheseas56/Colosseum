@@ -116,7 +116,7 @@ bool NuvioNextUp::activate(const QString &directory, const QString &accountId,
     m_profileIndex = 0;
     m_remote.clear();
     m_pending.clear();
-    m_receipt = {};
+    m_receipt = QUuid{};
     if (directory.isEmpty())
         return false;
 
@@ -314,7 +314,7 @@ bool NuvioNextUp::acknowledge(const Push &push, const QJsonValue &updatedAt) {
         return false;
     m_remote = push.dismissed;
     m_pending = std::move(pending);
-    m_receipt = {};
+    m_receipt = QUuid{};
     return true;
 }
 
