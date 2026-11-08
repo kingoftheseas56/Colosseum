@@ -32,7 +32,7 @@ inline void raiseMax(std::atomic<quint64>& target, quint64 value) {
 
 enum class Mode { LongStrip, DoublePage };
 enum class Direction { Ltr, Rtl };
-enum class PageError { None, MissingFile, DecodeFailed, UnsupportedImage };
+enum class PageError { None, MissingFile, DecodeFailed, UnsupportedImage, DownloadFailed };
 enum class PageSourceKind { LocalFile, CbzEntry };
 enum class CouplingMode { Auto, Manual };
 enum class CouplingPhase { Normal, Shifted };
@@ -48,6 +48,7 @@ struct PageMeta {
     QString archiveEntry;
     QSize sourceSize;
     bool decoded = false;
+    bool pending = false;              // declared live source; not yet published on disk
     bool detectedSpread = false;       // width >= 1.08 * height (or override)
     std::optional<bool> spreadOverride; // manual override beats detection
     PageError error = PageError::None;

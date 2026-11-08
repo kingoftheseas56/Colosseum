@@ -179,10 +179,17 @@ void ComicReaderCore::parsePages(const QVariantList& pages) {
         const QUrl u(url);
         if (u.isLocalFile()) {
             const QString local = u.toLocalFile();
-            if (QFileInfo::exists(local))
+            if (pm.value(QStringLiteral("pending"), false).toBool()
+                && QFileInfo(local).isAbsolute()) {
                 meta.localPath = local;
-            else
+                meta.pending = true;
+                if (pm.value(QStringLiteral("error")).toString() == QLatin1String("download_failed"))
+                    meta.error = PageError::DownloadFailed;
+            } else if (QFileInfo::exists(local)) {
+                meta.localPath = local;
+            } else {
                 meta.error = PageError::MissingFile;   // downloaded-but-vanished
+            }
         } else if (!url.isEmpty() && u.scheme().isEmpty() && QFileInfo::exists(url)) {
             meta.localPath = url;   // tolerate a bare existing local path
         } else {
@@ -611,6 +618,37 @@ QVariantMap ComicReaderCore::couplingProbeDebug() const {
 //     failed page for the life of the generation precisely so a re-request storm
 //     cannot re-decode garbage on every frame — so without clearing the memo
 //     first, request() returns early and Retry does nothing at all.
+bool ComicReaderCore::pageArrived(QString entryId, int page, QUrl fileUrl) {
+    if (entryId != m_entryId || page < 0 || page >= m_pages.size()
+        || !m_pages[page].pending || !fileUrl.isLocalFile())
+        return false;
+    const QFileInfo file(fileUrl.toLocalFile());
+    const QFileInfo expected(m_pages[page].localPath);
+    if (!file.isFile() || file.isSymLink() || file.size() == 0
+        || file.absolutePath() != expected.absolutePath())
+        return false;
+    PageMeta updated = m_pages[page];
+    updated.localPath = file.absoluteFilePath();
+    updated.pending = false;
+    updated.error = PageError::None;
+    if (!m_decode->replacePendingPage(updated)) return false;
+    m_pages[page] = updated;
+    m_strip->updatePage(updated);
+    flushStripCompensation();
+    emit pageRetried(page); // refresh the waiting/error state in existing surfaces
+    const bool visible = m_lastPinned.contains(page)
+        || m_strip->window(m_stripViewportTop, m_stripViewportHeight, 1.5).contains(page);
+    m_decode->request(page, visible ? kPrioVisible + m_visibleBoost : kPrioThumbnail);
+    return true;
+}
+
+void ComicReaderCore::pageDownloadFailed(QString entryId, int page) {
+    if (entryId != m_entryId || page < 0 || page >= m_pages.size()
+        || !m_pages[page].pending)
+        return;
+    onPageFailed(m_generation, page, PageError::DownloadFailed);
+}
+
 void ComicReaderCore::retryPage(int page) {
     if (page < 0 || page >= m_pages.size())
         return;
@@ -629,6 +667,11 @@ void ComicReaderCore::retryPage(int page) {
     flushStripCompensation();
 
     // ...then the coordinator's memo, and only then the request.
+    if (m_pages[page].pending) {
+        // The live page store receives this signal and retries transport, not absent-file decode.
+        emit pageRetried(page);
+        return;
+    }
     m_decode->clearFailure(page);
     // The CURRENT visible wave's priority — not a fresh boost. A retry is the
     // reader asking for the page they are already looking at, so it belongs in

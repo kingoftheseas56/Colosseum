@@ -160,6 +160,33 @@ int main(int argc, char **argv)
               && updated.providers("en").size() == 4,
           "invalid remote registry cannot replace a working configuration");
 
+    // User opt-in is independent of inventory/provider changes and survives a restart.
+    const QString livePath = temp.filePath(QStringLiteral("live.ini"));
+    TankoyomiConfigurationStore live(registry, livePath);
+    const bool hasLiveSetting = live.metaObject()->indexOfMethod("setLiveReading(bool)") >= 0;
+    check(hasLiveSetting, "live reading has an explicit persisted setting endpoint");
+    if (hasLiveSetting) {
+        check(!live.property("liveReading").toBool(), "live reading is off for a new configuration");
+        bool saved = false;
+        QMetaObject::invokeMethod(&live, "setLiveReading", Qt::DirectConnection,
+            Q_RETURN_ARG(bool, saved), Q_ARG(bool, true));
+        check(saved && live.property("liveReading").toBool(), "live reading can be explicitly enabled");
+        live.setDefaultLanguage("pt");
+        live.setProviderEnabled("en", "first", false);
+        TankoyomiConfigurationStore liveReopened(registry, livePath);
+        check(liveReopened.property("liveReading").toBool(), "opt-in persists alongside language/provider changes");
+        liveReopened.replaceRegistry(nextRegistry);
+        check(liveReopened.property("liveReading").toBool(), "inventory refresh preserves the opt-in");
+        QMetaObject::invokeMethod(&liveReopened, "setLiveReading", Qt::DirectConnection,
+            Q_RETURN_ARG(bool, saved), Q_ARG(bool, false));
+        TankoyomiConfigurationStore disabled(registry, livePath);
+        check(saved && !disabled.property("liveReading").toBool(), "turning live reading off persists");
+        check(disabled.defaultLanguage() == "pt"
+                  && ids(disabled.providersForLanguage("en")) == QStringList{"second"},
+              "live reading toggle does not change the source language or provider ladder");
+        check(!malformed.property("liveReading").toBool(), "malformed preferences never implicitly opt in");
+    }
+
     if (failures) return 1;
     qInfo() << "PASS — Tankoyomi configuration store contract";
     return 0;

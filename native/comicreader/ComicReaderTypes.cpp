@@ -15,6 +15,7 @@ QString pageErrorToString(PageError error) {
     case PageError::MissingFile:      return QStringLiteral("missing_file");
     case PageError::DecodeFailed:     return QStringLiteral("decode_failed");
     case PageError::UnsupportedImage: return QStringLiteral("unsupported_image");
+    case PageError::DownloadFailed:   return QStringLiteral("download_failed");
     }
     return QStringLiteral("none");
 }
@@ -23,6 +24,7 @@ PageError pageErrorFromString(const QString& code) {
     if (code == QLatin1String("missing_file"))      return PageError::MissingFile;
     if (code == QLatin1String("decode_failed"))     return PageError::DecodeFailed;
     if (code == QLatin1String("unsupported_image")) return PageError::UnsupportedImage;
+    if (code == QLatin1String("download_failed"))  return PageError::DownloadFailed;
     return PageError::None;
 }
 
@@ -43,6 +45,7 @@ QVariantMap PageMeta::toVariantMap() const {
     m.insert(QStringLiteral("sourceWidth"), sourceSize.width());
     m.insert(QStringLiteral("sourceHeight"), sourceSize.height());
     m.insert(QStringLiteral("decoded"), decoded);
+    if (pending) m.insert(QStringLiteral("pending"), true);
     m.insert(QStringLiteral("detectedSpread"), detectedSpread);
     // Only present when the user has actually marked the page — absence is the
     // "no override, defer to detection" state and must round-trip as absence.
@@ -65,6 +68,7 @@ PageMeta PageMeta::fromVariantMap(const QVariantMap& map) {
     p.sourceSize = QSize(map.value(QStringLiteral("sourceWidth"), 0).toInt(),
                          map.value(QStringLiteral("sourceHeight"), 0).toInt());
     p.decoded = map.value(QStringLiteral("decoded"), false).toBool();
+    p.pending = map.value(QStringLiteral("pending"), false).toBool();
     p.detectedSpread = map.value(QStringLiteral("detectedSpread"), false).toBool();
     if (map.contains(QStringLiteral("spreadOverride")))
         p.spreadOverride = map.value(QStringLiteral("spreadOverride")).toBool();

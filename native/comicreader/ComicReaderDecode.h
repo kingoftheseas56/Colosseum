@@ -98,6 +98,8 @@ public:
     // by openGeneration() — i.e. by closing and reopening the book, which is the
     // dead end the retry affordance is meant to replace.
     void clearFailure(int page);
+    // Publish a previously pending local source without retiring the generation.
+    bool replacePendingPage(const PageMeta& page);
 
     // ---- Test seam (empty/no-op in production) -----------------------------
     // Owning thread only, and set before any request(). Copied by value into

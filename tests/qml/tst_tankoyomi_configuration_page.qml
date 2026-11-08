@@ -20,6 +20,8 @@ TestCase {
         QtObject {
             signal chapterConfigurationChanged()
             property string chapterDefaultLanguage: "es"
+            property bool liveReadingEnabled: false
+            function setLiveReadingEnabled(value) { calls.push("live:"+value); liveReadingEnabled=value; return true }
             property var languageRows: [
                 { code: "en", label: "English", countryCode: "GB", providerCount: 1, enabledProviderCount: 1, default: false },
                 { code: "es", label: "Español", countryCode: "ES", providerCount: 2, enabledProviderCount: 2, default: true },
@@ -118,6 +120,20 @@ TestCase {
         manga = null
         extensions = null
         backCount = 0
+    }
+
+    function test_live_reading_toggle_uses_existing_settings_owner() {
+        var control = byName(page, "tankoyomiLiveReadingSwitch")
+        verify(control !== null, "live reading switch belongs in the existing configuration page")
+        compare(manga.liveReadingEnabled, false)
+        mouseClick(control, control.width / 2, control.height / 2)
+        compare(manga.liveReadingEnabled, true)
+        compare(manga.calls.join("|"), "live:true")
+        mouseClick(control, control.width / 2, control.height / 2)
+        compare(manga.liveReadingEnabled, false)
+        compare(manga.calls.join("|"), "live:true|live:false")
+        compare(page.selectedLanguage, "es")
+        compare(extensions.calls.length, 0)
     }
 
     function test_initial_state_uses_persisted_default_and_truthful_master() {

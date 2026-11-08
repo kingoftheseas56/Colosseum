@@ -22,6 +22,8 @@ Item {
     property string seriesTitle: ""
     property var chapters: []
     property var downloader: (typeof Downloads !== "undefined") ? Downloads : null
+    property string pendingReadChapterId: ""
+    property string pendingReadChapterError: ""
     property bool loading: false
     property string errorText: ""
     property bool sourceEnabled: true
@@ -501,7 +503,10 @@ Item {
                             width: parent.width
                             visible: text.length > 0
                             // Only what differs from "available" is said out loud.
-                            text: row.dlState === "done" ? "Downloaded"
+                            text: row.chapterId === root.pendingReadChapterId
+                                    ? (root.pendingReadChapterError.length
+                                        ? qsTr("Could not open · select Read to retry") : qsTr("Opening…"))
+                                    : row.dlState === "done" ? "Downloaded"
                                 : row.dlState === "queued" ? "Queued…"
                                 : row.dlState === "downloading" ? (row.dlTotal > 0 ? ("Downloading " + Math.round(row.dlDone / row.dlTotal * 100) + "%") : "Downloading…")
                                 : row.dlState === "error" ? "Failed · press the retry button" : ""

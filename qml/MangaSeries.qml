@@ -69,7 +69,7 @@ Item {
         if (!page.savedChapterId.length || !page.downloadsRef
                 || typeof page.downloadsRef.statusOf !== "function") return false
         var state = page.downloadsRef.statusOf(page.savedChapterId) || ({})
-        return String(state.state || "") === "done"
+        return String(state.state || "") === "done" || (page.liveReadingEnabled && page.tankoyomiEnabled)
     }
     readonly property string savedChapterCtaLabel: {
         if (!page.savedChapterId.length) return ""
@@ -86,7 +86,11 @@ Item {
         var fresh = page.progressRef.get("manga", page.seriesId) || ({})
         if (String((fresh.resume || ({})).chapterId || "") !== page.savedChapterId) return false
         var state = page.downloadsRef.statusOf(page.savedChapterId) || ({})
-        if (String(state.state || "") !== "done") return false
+        if (String(state.state || "") !== "done") {
+            if (!page.liveReadingEnabled || !page.tankoyomiEnabled) return false
+            page._readChapter(page.savedChapterId, String(fresh.sub || "Chapter"))
+            return true
+        }
         page.resumeSavedRequested(fresh)
         return true
     }
@@ -134,6 +138,12 @@ Item {
     property string _chapterRequestId: ""
     property string pendingReadChapterId: ""
     property string pendingReadChapterLabel: ""
+    property string pendingReadChapterError: ""
+    property bool _usingLiveReader: false
+    property bool _readerAtLast: false
+    property bool _pendingLiveAtLast: false
+    readonly property bool liveReadingEnabled: !!(page.mangaEngineRef
+        && page.mangaEngineRef.liveReadingEnabled === true)
 
     // Arc 19: a Read that needs transport stays a foreground consumption intent until
     // this exact series/volume becomes readable, the user leaves, or a newer Read wins.
@@ -269,8 +279,15 @@ Item {
     }
 
     function _clearPendingChapterRead() {
+        if (page._usingLiveReader) {
+            readerLayer.recordProgress()
+            if (livePageStoreLoader.item) livePageStoreLoader.item.stop()
+            page._usingLiveReader = false
+            page.openChapterId = ""
+        }
         page.pendingReadChapterId = ""
         page.pendingReadChapterLabel = ""
+        page.pendingReadChapterError = ""
     }
 
     function _chapterLabelById(chapterId) {
@@ -459,7 +476,7 @@ Item {
         page.chapterMode = false
     }
 
-    function _openChapter(chapterId, label) {
+    function _openChapter(chapterId, label, atLast) {
         var id = String(chapterId || "")
         if (!id.length) return
         page.chapterMode = true
@@ -467,22 +484,61 @@ Item {
         page.openChapterLabel = ""
         page.openEntryKind = "manga"
         page.openChapterLabel = String(label || page._chapterLabelById(id))
+        page._readerAtLast = atLast === true
         page.openChapterId = id
     }
 
-    function _readChapter(chapterId, label) {
+    function openSavedChapter(chapterId) {
+        var id = String(chapterId || "")
+        if (id.length && page.liveReadingEnabled && page.tankoyomiEnabled)
+            page._readChapter(id, page._chapterLabelById(id))
+        else page.openChapterId = id
+    }
+
+    function _readChapter(chapterId, label, atLast) {
         var id = String(chapterId || "")
         if (!id.length || !page.downloadsRef) return
         var st = page.downloadsRef.statusOf(id) || ({})
+        page._clearPendingChapterRead()
         if (String(st.state || "none") === "done") {
-            page._clearPendingChapterRead()
-            page._openChapter(id, label)
+            page._openChapter(id, label, atLast)
             return
         }
         page.pendingReadChapterId = id
         page.pendingReadChapterLabel = String(label || page._chapterLabelById(id))
-        page.downloadsRef.downloadChapter(id, page.seriesId, page.seriesTitle, page.pendingReadChapterLabel)
+        page._pendingLiveAtLast = atLast === true
+        if (page.liveReadingEnabled && typeof page.downloadsRef.startLive === "function") {
+            if (!page.chapterMode) page._enterChapterMode()
+            page._usingLiveReader = true
+            if (!livePageStoreLoader.item || !livePageStoreLoader.item.open(id, page.seriesId))
+                page.pendingReadChapterError = "Live reading is unavailable. Try Download instead."
+        } else {
+            page.downloadsRef.downloadChapter(id, page.seriesId, page.seriesTitle, page.pendingReadChapterLabel)
+        }
         if (typeof Collection !== "undefined") Collection.add("tankoban", page.collectionEntry())
+    }
+
+    Loader {
+        id: livePageStoreLoader
+        active: page._usingLiveReader
+        asynchronous: false
+        sourceComponent: MangaLivePageStore {
+            downloader: page.downloadsRef
+            onReadyToRead: (chapterId) => {
+                if (!page.chapterMode || !page._usingLiveReader
+                        || String(chapterId) !== page.pendingReadChapterId) return
+                var label = page.pendingReadChapterLabel
+                var atLast = page._pendingLiveAtLast
+                page.pendingReadChapterId = ""
+                page.pendingReadChapterLabel = ""
+                page.pendingReadChapterError = ""
+                page._openChapter(String(chapterId), label, atLast)
+            }
+            onPageUnavailable: (chapterId, index, reason) => {
+                if (String(chapterId) === page.pendingReadChapterId)
+                    page.pendingReadChapterError = reason
+            }
+        }
     }
 
     // TB-002 legacy re-file guard. A page instance attempts the re-file for a given
@@ -816,6 +872,7 @@ Item {
         target: page.mangaEngineRef
         ignoreUnknownSignals: true
         function onChapterConfigurationChanged() {
+            page._clearPendingChapterRead()
             page._refreshChapterLanguages()
             if (page.chapterMode) page._loadChapterCatalogue(true)
         }
@@ -859,7 +916,7 @@ Item {
         ignoreUnknownSignals: true
         function onFinished(chapterId) {
             page._downloadAvailabilityRevision++
-            if (!page.chapterMode || String(chapterId) !== page.pendingReadChapterId) return
+            if (page._usingLiveReader || !page.chapterMode || String(chapterId) !== page.pendingReadChapterId) return
             var id = page.pendingReadChapterId
             var label = page.pendingReadChapterLabel
             page._clearPendingChapterRead()
@@ -1222,6 +1279,8 @@ Item {
         score: page.score
         chapters: page.chaptersModel
         downloader: page.downloadsRef
+            pendingReadChapterId: page.pendingReadChapterId
+            pendingReadChapterError: page.pendingReadChapterError
         collectionEntry: page.collectionEntry()
         chapterLanguages: page.chapterLanguages
         selectedChapterLanguage: page.selectedChapterLanguage
@@ -1278,6 +1337,10 @@ Item {
     // visible:false removes it from input.
     property string openChapterId: ""
     property string openChapterLabel: ""
+    onOpenChapterIdChanged: {
+        if (!page.openChapterId.length && page._usingLiveReader && !page.pendingReadChapterId.length)
+            page._clearPendingChapterRead()
+    }
     // Shell Escape is not reader Back. ComicReaderShell owns Escape as a local
     // overlay/chrome close, while the visible Back control keeps raising readerBackRequested.
     function requestReaderEscape() {
@@ -1297,7 +1360,7 @@ Item {
         entryLabelPrefix: page.openEntryKind === "tankoban" ? "Vol. " : ""
         pageStore: page.openEntryKind === "tankoban"
                    ? ((typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null)
-                   : null
+                   : (page._usingLiveReader ? livePageStoreLoader.item : null)
         // chapters are gone entirely (catalogue-independence Slice 5, 2026-08-20) —
         // openEntryKind is never "manga" from a live route any more, so the reader's
         // chapters prop only ever needs the tankoban entries; [] covers the defensive
@@ -1305,6 +1368,9 @@ Item {
         chapters: page.openEntryKind === "tankoban" ? page.tankobanReaderEntries : page.chaptersModel
         chapterId: page.openChapterId
         chapterLabel: page.openChapterLabel
+        openAtLast: page._readerAtLast
+        liveReadingEnabled: page.chapterMode && (page.liveReadingEnabled || page._usingLiveReader)
+        onChapterReadRequested: (id, atLast) => page._readChapter(id, page._chapterLabelById(id), atLast)
         // Do NOT clear openChapterId here — Main.qml's closeComicReader() reads it (still live)
         // to pick the right teardown lane. Clearing it first would make that routing fall
         // through to the wrong branch.

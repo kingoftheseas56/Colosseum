@@ -18,6 +18,11 @@ Item {
     property bool languageMenuOpen: false
     property int extensionRevision: root.extensionsRef ? root.extensionsRef.revision : 0
     property Item focusReturnItem: null
+    readonly property bool liveReadingEnabled: !!(root.mangaRef && root.mangaRef.liveReadingEnabled === true)
+    function setLiveReadingEnabled(enabled) {
+        return !!(root.mangaRef && typeof root.mangaRef.setLiveReadingEnabled === "function"
+            && root.mangaRef.setLiveReadingEnabled(enabled))
+    }
 
     signal backRequested()
     signal minimizeRequested()
@@ -395,6 +400,48 @@ Item {
                     Text { width: parent.width; wrapMode: Text.WordWrap
                            text: "Auto-pick tries the highest enabled provider first, then continues down the selected language’s ladder. Unsupported languages never fall through to another language."
                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                }
+            }
+
+            Item {
+                id: liveReadingRow
+                objectName: "tankoyomiLiveReadingRow"
+                visible: root.activeTab === "configuration"
+                width: parent.width
+                height: visible ? Math.max(liveReadingText.implicitHeight, liveReadingSwitch.height) + 32 : 0
+                Column {
+                    id: liveReadingText
+                    y: 16
+                    width: Math.max(0, parent.width - 68)
+                    spacing: 5
+                    Text { text: qsTr("Live reading"); color: theme.ink
+                           font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
+                    Text { width: parent.width; wrapMode: Text.WordWrap
+                           text: qsTr("Read chapters without downloading them first. Pages are kept temporarily.")
+                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                }
+                Item {
+                    id: liveReadingSwitch
+                    objectName: "tankoyomiLiveReadingSwitch"
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 44; height: 24
+                    Accessible.role: Accessible.CheckBox
+                    Accessible.name: qsTr("Live reading")
+                    Accessible.checkable: true
+                    Accessible.checked: root.liveReadingEnabled
+                    Rectangle { anchors.fill: parent; radius: 12
+                        color: root.liveReadingEnabled ? theme.gold : Qt.rgba(1,1,1,0.14)
+                        border.width: 1; border.color: root.liveReadingEnabled ? theme.gold : theme.edge }
+                    Rectangle { width: 18; height: 18; radius: 9; y: 3
+                        x: root.liveReadingEnabled ? 23 : 3
+                        color: root.liveReadingEnabled ? "#1a1306" : theme.inkDim
+                        Behavior on x { NumberAnimation { duration: 140 } } }
+                    MouseArea { anchors.fill: parent
+                        onClicked: root.setLiveReadingEnabled(!root.liveReadingEnabled) }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: true
+                        focusRadius: 12; accessibleName: qsTr("Live reading")
+                        onTriggered: root.setLiveReadingEnabled(!root.liveReadingEnabled) }
                 }
             }
 

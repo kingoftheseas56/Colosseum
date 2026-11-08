@@ -47,6 +47,7 @@
 #include <QAbstractListModel>   // full type: the stripModel Q_PROPERTY needs its metatype
 #include <QHash>
 #include <QObject>
+#include <QUrl>
 #include <QSet>
 #include <QString>
 #include <QVector>
@@ -171,6 +172,9 @@ public:
     //
     // Out of range, or with no entry open, it does nothing at all.
     Q_INVOKABLE void retryPage(int page);
+    // Progressive local-file delivery; identity and path checks reject stale/remote arrivals.
+    Q_INVOKABLE bool pageArrived(QString entryId, int page, QUrl fileUrl);
+    Q_INVOKABLE void pageDownloadFailed(QString entryId, int page);
     Q_INVOKABLE void setSpreadOverride(int page, QString state);   // "spread"|"single"|"clear"
     Q_INVOKABLE void nudgeCoupling();                              // -> Manual + flipped phase
     // The other half of the settings sheet's Coupling row: hand the phase back to
