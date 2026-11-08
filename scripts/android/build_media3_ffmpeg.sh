@@ -59,7 +59,8 @@ anchor = "    --disable-everything"
 replacement = """    --disable-everything
     --disable-gpl
     --disable-nonfree
-    --disable-version3"""
+    --disable-version3
+    --disable-iconv"""
 if source.count(anchor) != 1:
     raise SystemExit("The pinned upstream FFmpeg build script has changed")
 path.write_text(source.replace(anchor, replacement), encoding="utf-8")
@@ -75,7 +76,7 @@ bash "$BUILDER" "$FFMPEG_MAIN" "$ANDROID_NDK_ROOT" linux-x86_64 28 \
     ac3 eac3 dca truehd mlp
 
 # Fail closed if FFmpeg actually enabled GPL, nonfree or version3 features.
-for flag in GPL NONFREE VERSION3; do
+for flag in GPL NONFREE VERSION3 ICONV; do
     grep -Eq "^#define CONFIG_${flag} 0$" "$FFMPEG/config.h" || {
         echo "FFmpeg build was not verified LGPL-2.1-only: CONFIG_$flag" >&2
         exit 1
@@ -132,8 +133,8 @@ mkdir -p "$(dirname "$EVIDENCE")"
 {
     echo "Upstream Media3 release 1.11.0 commit $MEDIA_COMMIT (Apache-2.0)"
     echo "Upstream FFmpeg n6.0 commit $FFMPEG_COMMIT (LGPL-2.1-or-later)"
-    echo "FFmpeg configure: --disable-everything --disable-gpl --disable-nonfree --disable-version3 --enable-decoder={ac3,eac3,dca,truehd,mlp}"
-    grep -E '^#define CONFIG_(GPL|NONFREE|VERSION3) ' "$FFMPEG/config.h"
+    echo "FFmpeg configure: --disable-everything --disable-gpl --disable-nonfree --disable-version3 --disable-iconv --enable-decoder={ac3,eac3,dca,truehd,mlp}"
+    grep -E '^#define CONFIG_(GPL|NONFREE|VERSION3|ICONV) ' "$FFMPEG/config.h"
     sha256sum "$AAR"
 } > "$EVIDENCE"
 cat "$EVIDENCE"
