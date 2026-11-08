@@ -21,6 +21,12 @@ QVariantList MangaDownloader::activeChapterJobs() const { return {}; }
 void MangaDownloader::downloadChapter(const QString&, const QString&, const QString&, const QString&) {}
 QVariantList MangaDownloader::localPages(const QString&) const { return {}; }
 QVariantMap MangaDownloader::statusOf(const QString&) const { return {}; }
+qulonglong MangaDownloader::startLive(QString, QString) { return 0; }
+void MangaDownloader::setLiveFocus(QString, int, qulonglong) {}
+void MangaDownloader::stopLive(QString, qulonglong) {}
+void MangaDownloader::retryLivePage(QString, int, qulonglong) {}
+QVariantList MangaDownloader::livePages(QString) const { return {}; }
+QVariantMap MangaDownloader::liveStatus(QString) const { return {}; }
 void MangaDownloader::cancelDownload(const QString&) {}
 bool MangaDownloader::isDownloaded(const QString&) const { return false; }
 QVariantMap MangaDownloader::deleteChapter(const QString&) { return {}; }
