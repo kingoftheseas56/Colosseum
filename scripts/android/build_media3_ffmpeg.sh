@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Build the upstream Media3 1.11.0 FFmpeg decoder as a locally packaged AAR.
-# The FFmpeg native code is configured LGPL-only. Never substitute a GPL AAR.
+# Build AndroidX Media3 1.11.0's FFmpeg audio decoder from pinned sources.
+# Java is compiled by Colosseum's existing Gradle build; FFmpeg ships as
+# an LGPL-only libffmpegJNI.so, never as a GPL prebuilt AAR.
 # Runs on Linux CI / Linux developers with the Android SDK and NDK installed.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ANDROID_DIR="$REPO/native/platform/android"
-AAR="$ANDROID_DIR/libs/media3-ffmpeg-lgpl-1.11.0.aar"
 MEDIA_COMMIT=2bc207851df311340767e913931ca7b28cab1794
 FFMPEG_COMMIT=ea3d24bbe3c58b171e55fe2151fc7ffaca3ab3d2
 
@@ -16,11 +16,6 @@ FFMPEG_COMMIT=ea3d24bbe3c58b171e55fe2151fc7ffaca3ab3d2
     echo "Expected Linux Android NDK toolchain at $ANDROID_NDK_ROOT" >&2
     exit 1
 }
-
-if [[ -f "$AAR" ]]; then
-    echo "Using existing locally built FFmpeg extension: $AAR"
-    exit 0
-fi
 
 WORK="${COLOSSEUM_ANDROID_FFMPEG_WORK:-${RUNNER_TEMP:-$REPO/native/build-android}/media3-ffmpeg-build}"
 MEDIA="$WORK/media"
@@ -88,71 +83,37 @@ for abi in armeabi-v7a arm64-v8a x86 x86_64; do
     done
 done
 
-# The upstream module is Apache-2.0. Its generated native .so contains the
-# separately licensed LGPL-only FFmpeg implementation. Build against exactly
-# Media3 1.11.0: avoid 1.9.x AAR / 1.11.x API mismatches.
-# Gradle's wrapper has a 10-second read timeout on some CI images, which
-# repeatedly fails for a ~130 MB distribution. Download the exact official
-# release from Gradle's distribution CDN with retries and verify the upstream
-# SHA-256 checksum before executing it.
-GRADLE="$WORK/gradle-9.1.0/bin/gradle"
-GRADLE_ZIP="$WORK/gradle-9.1.0-bin.zip"
-GRADLE_SHA=a17ddd85a26b6a7f5ddb71ff8b05fc5104c0202c6e64782429790c933686c806
-if [[ ! -x "$GRADLE" ]]; then
-    rm -f "$GRADLE_ZIP.part"
-    if ! curl --fail --location --silent --show-error \
-        --retry 6 --retry-all-errors --retry-delay 5 \
-        --connect-timeout 30 --max-time 900 \
-        --output "$GRADLE_ZIP.part" \
-        https://downloads.gradle.org/distributions/gradle-9.1.0-bin.zip; then
-        # Alternate official distribution endpoint; checksum is mandatory.
-        curl --fail --location --silent --show-error \
-            --retry 6 --retry-all-errors --retry-delay 5 \
-            --connect-timeout 30 --max-time 900 \
-            --output "$GRADLE_ZIP.part" \
-            https://services.gradle.org/distributions/gradle-9.1.0-bin.zip
-    fi
-    echo "$GRADLE_SHA  $GRADLE_ZIP.part" | sha256sum --check -
-    mv "$GRADLE_ZIP.part" "$GRADLE_ZIP"
-    unzip -q "$GRADLE_ZIP" -d "$WORK"
-fi
-test -x "$GRADLE"
-(
-    cd "$MEDIA"
-    "$GRADLE" --no-daemon --console=plain \
-        -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=512m" \
-        :lib-decoder-ffmpeg:assembleRelease
-)
+# Copy only the Apache-2.0 FFmpeg *audio* Java classes. They compile against
+# Colosseum's normal Media3 1.11.0 dependencies, so no separate Gradle download
+# or Java artifact built using a potentially incompatible Media3 version exists.
+JAVA_SOURCE="$FFMPEG_MAIN/java/androidx/media3/decoder/ffmpeg"
+JAVA_TARGET="$ANDROID_DIR/src/androidx/media3/decoder/ffmpeg"
+mkdir -p "$JAVA_TARGET"
+for cls in FfmpegAudioDecoder FfmpegAudioRenderer FfmpegDecoderException FfmpegLibrary; do
+    test -s "$JAVA_SOURCE/$cls.java"
+    cp "$JAVA_SOURCE/$cls.java" "$JAVA_TARGET/$cls.java"
+done
 
-mapfile -t built < <(find "$MEDIA/libraries/decoder_ffmpeg" -type f \
-    -path '*/outputs/aar/*' -name '*release.aar' | sort)
-[[ ${#built[@]} -eq 1 ]] || {
-    echo "Expected exactly one FFmpeg release AAR; found ${#built[@]}" >&2
-    exit 1
-}
-mkdir -p "$(dirname "$AAR")"
-cp "${built[0]}" "$AAR"
-
-# Verify that all native ABIs, and the Java renderer loaded by reflection,
-# actually made it into the local AAR before allowing APK compilation.
-python3 - "$AAR" <<'PY'
-from io import BytesIO
-from pathlib import Path
-from zipfile import ZipFile
-import sys
-
-aar = Path(sys.argv[1])
-with ZipFile(aar) as archive:
-    entries = set(archive.namelist())
-    for abi in ("arm64-v8a", "x86_64"):
-        native = f"jni/{abi}/libffmpegJNI.so"
-        if native not in entries:
-            raise SystemExit(f"FFmpeg AAR missing {native}")
-    with ZipFile(BytesIO(archive.read("classes.jar"))) as classes:
-        renderer = "androidx/media3/decoder/ffmpeg/FfmpegAudioRenderer.class"
-        if renderer not in classes.namelist():
-            raise SystemExit("FFmpeg AAR missing reflective renderer class")
-PY
+# Build Media3's Apache-2.0 JNI bridge with the normal Android NDK/CMake.
+# Its statically linked FFmpeg libraries have already been checked LGPL-only;
+# one independently replaceable libffmpegJNI.so is packaged per ABI.
+command -v cmake >/dev/null
+command -v ninja >/dev/null
+for abi in arm64-v8a x86_64; do
+    native_dir="$WORK/native-$abi"
+    cmake -S "$FFMPEG_MAIN/jni" -B "$native_dir" -G Ninja \
+        -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake" \
+        -DANDROID_ABI="$abi" -DANDROID_PLATFORM=android-28 \
+        -DCMAKE_BUILD_TYPE=Release
+    cmake --build "$native_dir" --target ffmpegJNI --parallel "${JOBS:-4}"
+    lib="$native_dir/libffmpegJNI.so"
+    test -s "$lib"
+    mkdir -p "$ANDROID_DIR/libs/$abi"
+    cp "$lib" "$ANDROID_DIR/libs/$abi/libffmpegJNI.so"
+done
+test -s "$JAVA_TARGET/FfmpegAudioRenderer.java"
+test -s "$ANDROID_DIR/libs/arm64-v8a/libffmpegJNI.so"
+test -s "$ANDROID_DIR/libs/x86_64/libffmpegJNI.so"
 
 EVIDENCE="$REPO/native/build-android/ffmpeg-audio-evidence.txt"
 mkdir -p "$(dirname "$EVIDENCE")"
@@ -161,6 +122,6 @@ mkdir -p "$(dirname "$EVIDENCE")"
     echo "Upstream FFmpeg n6.0 commit $FFMPEG_COMMIT (LGPL-2.1-or-later)"
     echo "FFmpeg configure: --disable-everything --disable-gpl --disable-nonfree --disable-version3 --disable-iconv --enable-decoder={ac3,eac3,dca,truehd,mlp}"
     grep -E '^#define CONFIG_(GPL|NONFREE|VERSION3|ICONV) ' "$FFMPEG/config.h"
-    sha256sum "$AAR"
+    sha256sum "$ANDROID_DIR/libs/arm64-v8a/libffmpegJNI.so" "$ANDROID_DIR/libs/x86_64/libffmpegJNI.so"
 } > "$EVIDENCE"
 cat "$EVIDENCE"
