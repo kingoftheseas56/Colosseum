@@ -88,29 +88,38 @@ for abi in armeabi-v7a arm64-v8a x86 x86_64; do
     done
 done
 
-# The upstream wrapper defaults to a substantially larger "-all" Gradle archive.
-# CI does not need Gradle documentation/sources; keep the exact upstream
-# Gradle 9.1.0 version and allow a realistic timeout for GitHub runners.
-python3 - "$MEDIA/gradle/wrapper/gradle-wrapper.properties" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-source = path.read_text(encoding="utf-8")
-original = "gradle-9.1.0-all.zip"
-if source.count(original) != 1:
-    raise SystemExit("Unexpected pinned Media3 Gradle wrapper distribution")
-source = source.replace(original, "gradle-9.1.0-bin.zip")
-source += "\nnetworkTimeout=120000\n"
-path.write_text(source, encoding="utf-8")
-PY
-
 # The upstream module is Apache-2.0. Its generated native .so contains the
 # separately licensed LGPL-only FFmpeg implementation. Build against exactly
 # Media3 1.11.0: avoid 1.9.x AAR / 1.11.x API mismatches.
+# Gradle's wrapper has a 10-second read timeout on some CI images, which
+# repeatedly fails for a ~130 MB distribution. Download the exact official
+# release from Gradle's distribution CDN with retries and verify the upstream
+# SHA-256 checksum before executing it.
+GRADLE="$WORK/gradle-9.1.0/bin/gradle"
+GRADLE_ZIP="$WORK/gradle-9.1.0-bin.zip"
+GRADLE_SHA=a17ddd85a26b6a7f5ddb71ff8b05fc5104c0202c6e64782429790c933686c806
+if [[ ! -x "$GRADLE" ]]; then
+    rm -f "$GRADLE_ZIP.part"
+    if ! curl --fail --location --silent --show-error \
+        --retry 6 --retry-all-errors --retry-delay 5 \
+        --connect-timeout 30 --max-time 900 \
+        --output "$GRADLE_ZIP.part" \
+        https://downloads.gradle.org/distributions/gradle-9.1.0-bin.zip; then
+        # Alternate official distribution endpoint; checksum is mandatory.
+        curl --fail --location --silent --show-error \
+            --retry 6 --retry-all-errors --retry-delay 5 \
+            --connect-timeout 30 --max-time 900 \
+            --output "$GRADLE_ZIP.part" \
+            https://services.gradle.org/distributions/gradle-9.1.0-bin.zip
+    fi
+    echo "$GRADLE_SHA  $GRADLE_ZIP.part" | sha256sum --check -
+    mv "$GRADLE_ZIP.part" "$GRADLE_ZIP"
+    unzip -q "$GRADLE_ZIP" -d "$WORK"
+fi
+test -x "$GRADLE"
 (
     cd "$MEDIA"
-    ./gradlew --no-daemon --console=plain \
+    "$GRADLE" --no-daemon --console=plain \
         -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=512m" \
         :lib-decoder-ffmpeg:assembleRelease
 )
