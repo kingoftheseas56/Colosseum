@@ -97,6 +97,15 @@ jobs:
           ninja --version
           cl 2>&1 | Select-Object -First 5
 
+      - name: Restore pinned LLVM
+        id: llvm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ runner.temp }}/LLVM-${{ env.LLVM_VERSION }}-win64.exe
+            ${{ runner.temp }}/llvm-${{ env.LLVM_VERSION }}
+          key: llvm-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.LLVM_VERSION }}-${{ env.LLVM_SHA256 }}
+
       - name: Install pinned LLVM clang-tidy
         id: clang_tidy_setup
         continue-on-error: ${{ inputs.analysis_advisory }}
@@ -106,14 +115,42 @@ jobs:
           $installer = Join-Path $env:RUNNER_TEMP "LLVM-$env:LLVM_VERSION-win64.exe"
           $install = Join-Path $env:RUNNER_TEMP "llvm-$env:LLVM_VERSION"
           $uri = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/LLVM-$env:LLVM_VERSION-win64.exe"
-          Invoke-WebRequest -Uri $uri -OutFile $installer
+          if (-not (Test-Path $installer)) {
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              try {
+                Invoke-WebRequest -Uri $uri -OutFile "$installer.partial" -ErrorAction Stop
+                Move-Item "$installer.partial" $installer -Force
+                break
+              } catch {
+                Remove-Item "$installer.partial" -Force -ErrorAction SilentlyContinue
+                if ($attempt -eq 3) { throw }
+                Write-Warning "LLVM download attempt $attempt failed: $_"
+                Start-Sleep -Seconds (5 * [Math]::Pow(2, $attempt - 1))
+              }
+            }
+          }
           $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($hash -ne $env:LLVM_SHA256) { throw "LLVM installer checksum mismatch" }
-          $process = Start-Process -FilePath $installer -ArgumentList "/S", "/D=$install" -Wait -PassThru
-          if ($process.ExitCode -ne 0) { exit $process.ExitCode }
           $clangTidy = Join-Path $install "bin/clang-tidy.exe"
+          if (-not (Test-Path $clangTidy)) {
+            $process = Start-Process -FilePath $installer -ArgumentList "/S", "/D=$install" -Wait -PassThru
+            if ($process.ExitCode -ne 0) { exit $process.ExitCode }
+          }
           if (-not (Test-Path $clangTidy)) { throw "clang-tidy.exe missing after LLVM install" }
+          $version = & $clangTidy --version
+          if ($LASTEXITCODE -ne 0 -or ($version -join " ") -notmatch "\bversion $([regex]::Escape($env:LLVM_VERSION))\b") {
+            throw "Cached clang-tidy does not match pinned LLVM $env:LLVM_VERSION"
+          }
           "CLANG_TIDY_EXE=$clangTidy" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Save verified LLVM
+        if: steps.clang_tidy_setup.outcome == 'success' && steps.llvm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ runner.temp }}/LLVM-${{ env.LLVM_VERSION }}-win64.exe
+            ${{ runner.temp }}/llvm-${{ env.LLVM_VERSION }}
+          key: ${{ steps.llvm-cache.outputs.cache-primary-key }}
 
       - name: Install native dependencies
         shell: pwsh

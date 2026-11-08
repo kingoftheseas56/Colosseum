@@ -45,6 +45,7 @@ jobs:
           set -o pipefail
           bash -e <<'BASH' 2>&1 | tee android-preflight.log
           python tests/test_android_cache_paths.py
+          python tests/test_ci_distribution_cache.py
           python tests/test_android_reader_session.py
           node tests/android_reader_boot_test.mjs
           python tests/test_android_openssl_packaging_contract.py
@@ -89,6 +90,7 @@ jobs:
       - name: Install toolchain
         run: scripts/android/install_toolchain.sh
 
+      # Qt supplies the wrapper at deployment time; no wrapper properties live in this repo.
       - name: Save installed toolchain
         if: steps.toolchain-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -97,6 +99,34 @@ jobs:
             ${{ steps.android-paths.outputs.toolchain }}/Qt
             ${{ steps.android-paths.outputs.sdk }}/ndk/27.2.12479018
           key: android-toolchain-v1-${{ hashFiles('scripts/android/install_toolchain.sh') }}
+
+      - name: Identify Gradle wrapper distribution
+        id: gradle-wrapper
+        shell: bash
+        run: |
+          template="$COLOSSEUM_ANDROID_TOOLCHAIN/Qt/$QT_VERSION/android_x86_64/src/3rdparty/gradle"
+          properties="$template/gradle/wrapper/gradle-wrapper.properties"
+          cmp "$properties" "$COLOSSEUM_ANDROID_TOOLCHAIN/Qt/$QT_VERSION/android_arm64_v8a/src/3rdparty/gradle/gradle/wrapper/gradle-wrapper.properties"
+          echo "template=$template" >> "$GITHUB_OUTPUT"
+          echo "hash=$(sha256sum "$properties" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Gradle distribution
+        id: gradle-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.gradle/wrapper/dists
+          key: android-gradle-v1-${{ runner.os }}-${{ steps.gradle-wrapper.outputs.hash }}
+
+      - name: Prepare Gradle distribution (three attempts)
+        shell: bash
+        run: bash scripts/android/prepare_gradle_distribution.sh "${{ steps.gradle-wrapper.outputs.template }}"
+
+      - name: Save Gradle distribution
+        if: steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.gradle/wrapper/dists
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
 
       - name: Compile Android-selected QML before building APKs
         run: |
