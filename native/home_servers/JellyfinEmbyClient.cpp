@@ -144,8 +144,20 @@ QNetworkRequest JellyfinEmbyClient::request(const QUrl &url,
     req.setRawHeader("Cache-Control", "no-store");
     const QByteArray scheme = m_kind == ServerKind::Emby
         ? QByteArrayLiteral("Emby ") : QByteArrayLiteral("MediaBrowser ");
+#if defined(Q_OS_ANDROID)
+    const QByteArray deviceName = QByteArrayLiteral("Colosseum (Android)");
+#elif defined(Q_OS_WIN)
+    const QByteArray deviceName = QByteArrayLiteral("Colosseum (Windows)");
+#elif defined(Q_OS_MACOS)
+    const QByteArray deviceName = QByteArrayLiteral("Colosseum (macOS)");
+#elif defined(Q_OS_LINUX)
+    const QByteArray deviceName = QByteArrayLiteral("Colosseum (Linux)");
+#else
+    const QByteArray deviceName = QByteArrayLiteral("Colosseum");
+#endif
     const QByteArray client = scheme + QByteArrayLiteral(
-        "Client=\"Colosseum\", Device=\"Colosseum\", DeviceId=\"")
+        "Client=\"Colosseum\", Device=\"") + deviceName
+        + QByteArrayLiteral("\", DeviceId=\"")
         + m_deviceId.toLatin1() + QByteArrayLiteral("\", Version=\"")
         + QByteArray(kClientVersion) + QByteArrayLiteral("\"");
     if (m_kind == ServerKind::Jellyfin) {

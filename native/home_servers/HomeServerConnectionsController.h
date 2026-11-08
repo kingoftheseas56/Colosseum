@@ -91,7 +91,7 @@ private:
     void releaseClient();
     void releaseRefreshClient();
     void fetchRefreshPage(const std::shared_ptr<RefreshJob> &job);
-    void failRefresh();
+    void failRefresh(bool unauthorized = false);
     void finishRefresh(const std::shared_ptr<RefreshJob> &job);
     void reloadSummaries();
     bool currentRefresh(const std::shared_ptr<RefreshJob> &job) const;
@@ -105,6 +105,7 @@ private:
     bool m_refreshing = false;
     QPointer<JellyfinEmbyClient> m_client;
     Transport m_transport;
+    const QString m_deviceId;
     QString m_profileId;
     QString m_notice;
     quint64 m_serial = 0;

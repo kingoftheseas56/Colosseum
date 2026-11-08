@@ -1,9 +1,11 @@
 #include "home_servers/HomeServerConnectionsController.h"
 
+#include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMap>
 #include <QNetworkRequest>
+#include <QSettings>
 #include <QTemporaryDir>
 #include <QUrlQuery>
 #include <QtTest>
@@ -57,7 +59,11 @@ TransportReply accepted(const QString &user = QStringLiteral("user-1"),
 
 class tst_home_server_controller : public QObject {
     Q_OBJECT
+    QTemporaryDir m_settingsDirectory;
 private slots:
+    void initTestCase();
+    void deviceIdDistinctPerInstallationAndStableAcrossRestarts();
+    void expiredSessionPromptsSignInWithoutRetry();
     void signInSavesOneProfileWithoutExposingToken();
     void embyRetriesOnlySameOriginAfterNotFound();
     void wrongCredentialsDoNotRetryOrSave();
@@ -67,6 +73,162 @@ private slots:
     void completeRefreshPrunesOnlyAfterEveryPageSucceeds();
     void canceledRefreshCannotReplacePreviousSnapshot();
 };
+
+void tst_home_server_controller::initTestCase()
+{
+    QVERIFY(m_settingsDirectory.isValid());
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                       m_settingsDirectory.path());
+    QCoreApplication::setOrganizationName(QStringLiteral("ColosseumHomeServerTests"));
+    QCoreApplication::setApplicationName(QStringLiteral("home-server-controller"));
+}
+
+void tst_home_server_controller::deviceIdDistinctPerInstallationAndStableAcrossRestarts()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString previousApp = QCoreApplication::applicationName();
+    const QString previousOrg = QCoreApplication::organizationName();
+    const auto previousFormat = QSettings::defaultFormat();
+    struct Restore {
+        QString app;
+        QString org;
+        QSettings::Format format;
+        ~Restore() {
+            QCoreApplication::setApplicationName(app);
+            QCoreApplication::setOrganizationName(org);
+            QSettings::setDefaultFormat(format);
+        }
+    } restore{previousApp, previousOrg, previousFormat};
+
+    // Isolate install settings from the real application and other tests.
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory.path());
+    QCoreApplication::setOrganizationName(QStringLiteral("ColosseumDeviceIdentityTest"));
+
+    QStringList sentIds;
+    auto capture = [&sentIds](const QNetworkRequest &req, bool post,
+                              const QByteArray &, JellyfinEmbyClient::ReplyDone done) {
+        QVERIFY(post);
+        QByteArray auth = req.rawHeader("Authorization");
+        if (auth.isEmpty())
+            auth = req.rawHeader("X-Emby-Authorization");
+        const QByteArray marker = QByteArrayLiteral("DeviceId=\"");
+        const auto start = auth.indexOf(marker);
+        QVERIFY(start >= 0);
+        const auto valueStart = start + marker.size();
+        const auto end = auth.indexOf('"', valueStart);
+        QVERIFY(end > valueStart);
+        sentIds << QString::fromLatin1(auth.mid(valueStart, end - valueStart));
+        done(accepted());
+    };
+
+    auto signIn = [&capture]() {
+        HomeServerConnectionsController controller(std::make_shared<MemorySecrets>(),
+                                                    nullptr, capture);
+        controller.activateProfile(QStringLiteral("shared-profile"));
+        QVERIFY(controller.connectServer(QStringLiteral("jellyfin"),
+            QStringLiteral("Home"), QStringLiteral("https://media.example"),
+            QStringLiteral("user"), QStringLiteral("password")));
+        QVERIFY(!controller.hasError());
+    };
+
+    QCoreApplication::setApplicationName(QStringLiteral("colosseum-install-a"));
+    signIn();
+    QCOMPARE(sentIds.size(), 1);
+    const QString installA = sentIds.last();
+    QVERIFY(!installA.isEmpty());
+
+    QCoreApplication::setApplicationName(QStringLiteral("colosseum-install-b"));
+    signIn();
+    QCOMPARE(sentIds.size(), 2);
+    const QString installB = sentIds.last();
+    QVERIFY(installA != installB);
+
+    QCoreApplication::setApplicationName(QStringLiteral("colosseum-install-a"));
+    signIn(); // Reconstructed controller, same install-specific setting.
+    QCOMPARE(sentIds.size(), 3);
+    QCOMPARE(sentIds.last(), installA);
+
+    // A profile switch on the same installation must not change its device.
+    HomeServerConnectionsController controller(std::make_shared<MemorySecrets>(),
+                                                nullptr, capture);
+    controller.activateProfile(QStringLiteral("another-profile"));
+    QVERIFY(controller.connectServer(QStringLiteral("emby"),
+        QStringLiteral("Home"), QStringLiteral("https://media.example"),
+        QStringLiteral("user"), QStringLiteral("password")));
+    QCOMPARE(sentIds.size(), 4);
+    QCOMPARE(sentIds.last(), installA);
+
+    const auto oldDigest = QCryptographicHash::hash(
+        QByteArrayLiteral("shared-profile"), QCryptographicHash::Sha256).toHex().left(18);
+    QVERIFY(installA != QStringLiteral("colosseum-") + QString::fromLatin1(oldDigest));
+}
+
+void tst_home_server_controller::expiredSessionPromptsSignInWithoutRetry()
+{
+    auto secrets = std::make_shared<MemorySecrets>();
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    QStringList ids;
+    int nonAuthRequests = 0;
+    int failureStage = 0;
+    HomeServerConnectionsController controller(secrets, nullptr,
+        [&ids, &nonAuthRequests, &failureStage](
+            const QNetworkRequest &req, bool post, const QByteArray &,
+            JellyfinEmbyClient::ReplyDone done) {
+            const QByteArray auth = req.rawHeader("Authorization");
+            const QByteArray marker = QByteArrayLiteral("DeviceId=\"");
+            const auto start = auth.indexOf(marker);
+            QVERIFY(start >= 0);
+            const auto valueStart = start + marker.size();
+            const auto end = auth.indexOf('"', valueStart);
+            QVERIFY(end > valueStart);
+            ids << QString::fromLatin1(auth.mid(valueStart, end - valueStart));
+#ifdef Q_OS_WIN
+            QVERIFY(auth.contains("Device=\"Colosseum (Windows)\""));
+#endif
+            if (post) {
+                done(accepted());
+                return;
+            }
+            ++nonAuthRequests;
+            if (failureStage == 1 && req.url().path() == QLatin1String("/UserViews")) {
+                done({200, QJsonDocument(QJsonObject{
+                    {"Items", QJsonArray{QJsonObject{
+                        {"Id", "movies"}, {"CollectionType", "movies"}
+                    }}}
+                }).toJson(QJsonDocument::Compact)});
+                return;
+            }
+            done({401, QByteArrayLiteral("{}")});
+        });
+    controller.activateProfile(QStringLiteral("local"), directory.path());
+    QVERIFY(controller.connectServer(QStringLiteral("jellyfin"),
+        QStringLiteral("Home"), QStringLiteral("https://media.example"),
+        QStringLiteral("user"), QStringLiteral("password")));
+    const QString id = controller.connections().first().toMap().value("id").toString();
+
+    QVERIFY(controller.refreshConnection(id)); // 401 while fetching views.
+    QVERIFY(!controller.refreshing());
+    QVERIFY(controller.hasError());
+    QVERIFY(controller.notice().contains(QStringLiteral("sign in again")));
+    QCOMPARE(nonAuthRequests, 1);
+
+    failureStage = 1;
+    QVERIFY(controller.refreshConnection(id)); // 401 on a later item page.
+    QVERIFY(!controller.refreshing());
+    QVERIFY(controller.hasError());
+    QVERIFY(controller.notice().contains(QStringLiteral("sign in again")));
+    QCOMPARE(nonAuthRequests, 3);
+    QCOMPARE(ids.size(), 4);
+    QVERIFY(std::all_of(ids.cbegin(), ids.cend(), [&ids](const QString &value) {
+        return value == ids.first();
+    }));
+    QVERIFY(!HomeServerCatalogueStore(QStringLiteral("local"), directory.path()).load(
+        id, QStringLiteral("user-1"), QStringLiteral("server-1")));
+}
 
 void tst_home_server_controller::signInSavesOneProfileWithoutExposingToken()
 {

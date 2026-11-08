@@ -1,17 +1,29 @@
 #include "HomeServerConnectionsController.h"
 
-#include <QCryptographicHash>
 #include <QDateTime>
+#include <QSettings>
+#include <QUuid>
 #include <QUrl>
 #include <utility>
 
 namespace Colosseum::HomeServers {
 namespace {
-QString deviceId(const QString &profileId)
+QString installationDeviceId()
 {
-    const QByteArray digest = QCryptographicHash::hash(
-        profileId.toUtf8(), QCryptographicHash::Sha256).toHex();
-    return QStringLiteral("colosseum-") + QString::fromLatin1(digest.left(18));
+    // The app identity is set by main before this controller is constructed.
+    // Default QSettings therefore follows tagged test launches as well.
+    QSettings settings;
+    constexpr auto key = "homeServers/installationDeviceId";
+    QString uuid = settings.value(QLatin1String(key)).toString();
+    const QUuid parsed(uuid);
+    if (parsed.isNull() || parsed.toString(QUuid::WithoutBraces) != uuid) {
+        uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        settings.setValue(QLatin1String(key), uuid);
+        settings.sync();
+        if (settings.status() != QSettings::NoError)
+            return {}; // No non-persistent device identity is used to sign in.
+    }
+    return QStringLiteral("colosseum-") + uuid;
 }
 }
 
@@ -19,7 +31,7 @@ HomeServerConnectionsController::HomeServerConnectionsController(
     std::shared_ptr<AccountSecretBackend> backend, QObject *parent,
     Transport transport)
     : QObject(parent), m_backend(std::move(backend)),
-      m_transport(std::move(transport))
+      m_transport(std::move(transport)), m_deviceId(installationDeviceId())
 {
 }
 
@@ -81,7 +93,7 @@ void HomeServerConnectionsController::activateProfile(const QString &profileId,
     if (!profileId.isEmpty()) {
         auto store = std::make_unique<HomeServerConnectionStore>(
             profileId, m_backend);
-        if (store->available()) {
+        if (store->available() && !m_deviceId.isEmpty()) {
             m_store = std::move(store);
             m_available = true;
             auto index = std::make_unique<HomeServerCatalogueStore>(profileId, profileRoot);
@@ -143,7 +155,7 @@ void HomeServerConnectionsController::tryCandidate(Pending pending, qsizetype in
     releaseClient();
     const QUrl base = pending.candidates.at(index);
     auto *client = new JellyfinEmbyClient(
-        pending.kind, base, deviceId(m_profileId), this, m_transport);
+        pending.kind, base, m_deviceId, this, m_transport);
     if (!client->isValid()) {
         client->deleteLater();
         finish(QStringLiteral("The server address is not valid."), true);
@@ -260,7 +272,7 @@ bool HomeServerConnectionsController::refreshConnection(const QString &id)
     if (!session)
         return false;
     auto *client = new JellyfinEmbyClient(connection->kind, connection->apiBase,
-                                          deviceId(m_profileId), this, m_transport);
+                                          m_deviceId, this, m_transport);
     if (!client->isValid()) {
         client->deleteLater();
         return false;
@@ -288,7 +300,7 @@ bool HomeServerConnectionsController::refreshConnection(const QString &id)
         if (!currentRefresh(job))
             return;
         if (!result.ok()) {
-            failRefresh();
+            failRefresh(result.status == 401);
             return;
         }
         QSet<QString> libraryIds;
@@ -340,7 +352,7 @@ void HomeServerConnectionsController::fetchRefreshPage(
                 || (job->expectedTotal >= 0
                     && job->expectedTotal != result.value.totalRecordCount)
                 || job->snapshot.items.size() + result.value.returnedCount > 150000) {
-                failRefresh();
+                failRefresh(result.status == 401);
                 return;
             }
             if (job->expectedTotal < 0)
@@ -376,13 +388,15 @@ void HomeServerConnectionsController::fetchRefreshPage(
         });
 }
 
-void HomeServerConnectionsController::failRefresh()
+void HomeServerConnectionsController::failRefresh(bool unauthorized)
 {
     releaseRefreshClient();
     m_refreshing = false;
     m_refreshingId.clear();
     m_error = true;
-    m_notice = QStringLiteral("Refresh failed. Your previous library index was kept.");
+    m_notice = unauthorized
+        ? QStringLiteral("Server sign-in expired. Remove the connection and sign in again. Your previous library index was kept.")
+        : QStringLiteral("Refresh failed. Your previous library index was kept.");
     emit statusChanged();
 }
 
