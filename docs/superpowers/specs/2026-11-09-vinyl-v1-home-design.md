@@ -1,6 +1,6 @@
 # Vinyl v1 — Home, The Crate, The Spin and Library
 
-**Status:** design locked by Hemanth 2026-11-09 (brotherhood-brainstorming closing gate passed). Awaiting spec review.
+**Status:** design locked by Hemanth 2026-11-09 (brotherhood-brainstorming closing gate passed). Spec APPROVED by Hemanth 2026-11-09, including the section 11a assumptions. Plan: docs/superpowers/plans/2026-11-09-vinyl-v1-home-plan.md.
 **Author:** Agent 0 (Claude), from the 2026-11-08/09 brainstorm with Hemanth.
 **Visual reference (disposable, not authoritative):** Brotherhood repo `agents/vinyl-home-mock/index.html` at commit `9f2b302e` (Look = Widgets, Crate = Square tiles). Written decisions here win over the mock.
 **Decision ledger:** `~/.claude/projects/C--Users-Suprabha-Desktop-Brotherhood/memory/vinyl-home-brainstorm-ledger.md`.
