@@ -10,7 +10,9 @@ Convert each raw add-on JSON object or existing `AddonClient`/`Torrentio` sheet 
 with `stream_from_json`, retaining its input index and add-on installed-order priority.
 Set `TrustOptions` with movie/series identity, expected title/aliases, year, season,
 episode and release date. Set `ScoreOptions` with preferred language prefixes,
-runtime and any bandwidth constraint. `SourceScorer::evaluate` returns:
+runtime and any bandwidth constraint. `dolby_vision_supported` defaults to `false`;
+set it only when the receiving playback stack is known to support DV.
+`SourceScorer::evaluate` returns:
 
 - `all`: retained rows sorted by descending score, with every scoring reason;
 - `rejected`: removed rows with the trust-filter reason;
@@ -30,10 +32,42 @@ All rows remain score-ranked; primary selection is a separate policy:
 1. Exclude rough/CAM/screener, known-zero-seeder torrent, hard scam, severe fraud,
    unplayable, nonfinite and negative-score candidates.
 2. For an episode request, prefer eligible singles over packs. A 720p single can
-   beat a 1080p pack. Packs remain a fallback if no eligible single exists.
-3. Prefer good 1080p, then 720p, then 4K, then SD. Within that pool choose the
-   highest score. Dual audio breaks exact score ties, followed by stable add-on
-   priority/return order/input order.
+   beat a 1080p pack. A batch torrent with a valid `fileIdx` and a selected filename
+   identifying exactly the requested episode is a single for this policy. A range,
+   wrong episode/season, missing file selection or ambiguous filename remains a pack.
+   `evaluate` propagates expected season/episode from trust context; direct
+   `rankAndPick` callers must supply them in `ScoreOptions`.
+3. Prefer good 1080p, then 720p, then 4K, then SD. Within that resolution pool,
+   unsupported DV-only releases are fallback-only. DV with HDR10 fallback (including
+   explicit DV Hybrid metadata) scores as HDR10; DV-only has no HDR bonus. Enabling
+   `dolby_vision_supported` restores Harbor's DV points and normal eligibility.
+4. Prefer a streaming-friendly size/bitrate band within that pool. This changes
+   only the primary selection, not numeric scores, full-list ordering or per-tier
+   bests. Zero-delta `streaming-size` reasons explain the band. Larger candidates
+   remain a fallback rather than being removed.
+5. Choose the highest score within the resulting pool. Dual audio breaks exact
+   score ties, followed by stable add-on priority/return order/input order.
+
+The tunable constants in `SourceScorer.cpp` use decimal GB (1,000,000,000 bytes):
+
+| Resolution | Film size cap | Episode size cap | Bitrate ceiling |
+|---|---:|---:|---:|
+| 1080p | 15 GB | 3 GB | 20 Mbps |
+| 720p | 6 GB | 1.5 GB | 8 Mbps |
+| 4K | 30 GB | 6 GB | 40 Mbps |
+| SD/480p | 3 GB | 1 GB | 5 Mbps |
+
+When positive runtime is supplied, a known-size row must satisfy both size and
+estimated average bitrate (`bytes * 8 / seconds / 1,000,000`). Without runtime,
+only the size cap applies. Known-friendly rows beat unknown-size rows, which beat
+known oversized rows. Unknown runtime/size is not fabricated. This is a starting
+streaming policy, not a measurement of swarm throughput or peak bitrate.
+
+Bare two-letter language codes require clear tag context; storage units such as
+`6.45 GB` and ordinary title words do not establish an audio language. Flags remain
+language evidence. The preferred-language bonus is +12 for primary/only audio,
+but +3 (`preferred-language-secondary`) when multi-dub metadata indicates another
+language leads. These are metadata heuristics, not verified track ordering.
 
 The library does not probe whether a tracker, URL or claimed codec actually works.
 Trust and score metadata are heuristics, not authenticity or playback guarantees.

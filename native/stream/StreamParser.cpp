@@ -596,6 +596,88 @@ std::optional<quint64> parseSize(const QString &text) {
         return {};
     return static_cast<quint64>(bytes);
 }
+// Two-letter ISO codes collide with size units, title words and identifiers.
+// Accept them only with positive language context, not merely a word boundary.
+bool nextToNumberOrSize(const QString &text, qsizetype start, qsizetype end) {
+    static const Rx numberBefore(QStringLiteral(R"(\d[\h.,/_:+-]*$)"));
+    static const Rx numberAfter(QStringLiteral(R"(^[\h.,/_:+-]*\d)"));
+    static const Rx unitBefore(
+        QStringLiteral(R"((?i)(?<![A-Za-z0-9])(?:[KMGT]i?B)[\h.,/_:+-]+$)"));
+    static const Rx unitAfter(QStringLiteral(R"((?i)^[\h.,/_:+-]+(?:[KMGT]i?B)(?![A-Za-z0-9]))"));
+    const QString before = text.left(start);
+    const QString after = text.mid(end);
+    return has(numberBefore, before) || has(numberAfter, after) || has(unitBefore, before) ||
+           has(unitAfter, after);
+}
+bool inLanguageBrackets(const QString &text, qsizetype start, qsizetype end) {
+    const qsizetype open = text.lastIndexOf('[', start);
+    const qsizetype close = text.indexOf(']', end);
+    if (open < 0 || close < 0 || text.lastIndexOf(']', start) > open ||
+        (text.indexOf('[', end) < close && text.indexOf('[', end) >= 0)) {
+        return false;
+    }
+    const QString body = text.mid(open + 1, close - open - 1);
+    // A bracketed film title, ID or size is not a bracketed language list.
+    static const Rx allowedCharacters(QStringLiteral(R"(^[A-Za-z \t.,/+&|:;()_-]+$)"));
+    static const Rx words(QStringLiteral(R"([A-Za-z]+)"));
+    static const QSet<QString> labels{"AUDIO",     "LANG", "LANGS", "LANGUAGE",
+                                      "LANGUAGES", "DUAL", "MULTI"};
+    if (!has(allowedCharacters, body)) {
+        return false;
+    }
+    auto tokens = words.globalMatch(body);
+    bool foundLanguage = false;
+    while (tokens.hasNext()) {
+        const QString word = tokens.next().captured().toUpper();
+        if (ISO_PAIR_TO_LANGUAGE.contains(word) || LANG_TOKENS.contains(word)) {
+            foundLanguage = true;
+        } else if (!labels.contains(word)) {
+            return false;
+        }
+    }
+    return foundLanguage;
+}
+bool onLanguageLine(const QString &text, qsizetype start) {
+    const qsizetype lineStart = text.lastIndexOf('\n', start) + 1;
+    const QString prefix = text.mid(lineStart, start - lineStart);
+    static const Rx label(QStringLiteral(
+        R"((?i)^[ \t]*(?:(?:audio(?:[ \t]+languages?)?|languages?|langs?|flags?)[ \t]*[:=]|[🔊🌐]))"));
+    if (has(label, prefix)) {
+        return true;
+    }
+    // Flag emoji already identify their own language and also mark a language
+    // line.
+    return FLAG_RX.match(prefix.trimmed()).capturedStart() == 0;
+}
+struct LanguageToken {
+    qsizetype start;
+    qsizetype end;
+    bool twoLetter;
+};
+bool adjacentLanguage(const QString &text, const LanguageToken &token,
+                      const QList<LanguageToken> &tokens) {
+    static const Rx separator(QStringLiteral(R"(^[ \t.,/_+&|:;-]+$)"));
+    for (const auto &other : tokens) {
+        if (other.start == token.start && other.end == token.end) {
+            continue;
+        }
+        if (other.twoLetter && nextToNumberOrSize(text, other.start, other.end)) {
+            continue;
+        }
+        QString between;
+        if (other.end <= token.start) {
+            between = text.mid(other.end, token.start - other.end);
+        } else if (token.end <= other.start) {
+            between = text.mid(token.end, other.start - token.end);
+        } else {
+            continue;
+        }
+        if (has(separator, between)) {
+            return true;
+        }
+    }
+    return false;
+}
 QStringList parseLanguages(const QString &text) {
     QStringList result;
     auto add = [&](const QString &s) {
@@ -620,9 +702,27 @@ QStringList parseLanguages(const QString &text) {
     // Lookarounds let adjacent language tokens share separators (EN FR JP).
     static const Rx pairs(QStringLiteral(
         R"((?i)(?<![A-Za-z0-9])(EN|FR|ES|IT|DE|PT|RU|JA|JP|KO|KR|ZH|CN|HI|AR|TR|NL|PL|RO|SV|SE|DA|FI|CS|CZ|HU|TH|UK|UA|VI|GB|US|MX|BR|CA|AU|NZ|TW|HK|IL|HE|SA|AE|EG|GR|ID|MY|PH|IR|FA)(?![A-Za-z0-9]))"));
+    QList<LanguageToken> tokens;
+    it = LANG_RX.globalMatch(text);
+    while (it.hasNext()) {
+        const auto match = it.next();
+        tokens.append({match.capturedStart(), match.capturedEnd(), false});
+    }
     it = pairs.globalMatch(text);
-    while (it.hasNext())
-        add(ISO_PAIR_TO_LANGUAGE.value(it.next().captured(1).toUpper()));
+    while (it.hasNext()) {
+        const auto match = it.next();
+        tokens.append({match.capturedStart(1), match.capturedEnd(1), true});
+    }
+    for (const auto &token : tokens) {
+        if (!token.twoLetter || nextToNumberOrSize(text, token.start, token.end)) {
+            continue;
+        }
+        if (inLanguageBrackets(text, token.start, token.end) || onLanguageLine(text, token.start) ||
+            adjacentLanguage(text, token, tokens)) {
+            add(ISO_PAIR_TO_LANGUAGE.value(
+                text.mid(token.start, token.end - token.start).toUpper()));
+        }
+    }
     const bool multi = result.removeAll("Multi") > 0;
     if (result.size() > 1)
         result.prepend("Multi");
@@ -733,6 +833,12 @@ ParsedStream StreamParser::parse(const Stream &stream) {
             out.hdr_format = pair.second;
             break;
         }
+    // Hybrid DV releases advertise an HDR10 base layer. Hybrid alone does not
+    // establish Dolby Vision; preserve ordinary non-DV releases as such.
+    static const Rx hybrid(QStringLiteral(R"((?i)\bHYBRID\b)"));
+    if (out.hdr_format == HdrFormat::Dv && has(hybrid, text)) {
+        out.hdr_format = HdrFormat::DvHdr10;
+    }
     for (const auto &pair : SOURCE_RX)
         if (has(pair.first, text)) {
             out.source = pair.second;
@@ -752,7 +858,10 @@ ParsedStream StreamParser::parse(const Stream &stream) {
                                                      : 2;
     auto m = BIT_DEPTH_RX.match(text);
     out.audio.bit_depth = m.hasMatch() ? std::optional<int>(m.captured(1).toInt()) : p.bitdepth;
-    out.audio_languages = parseLanguages(text);
+    // Keep field/line boundaries: the end of one provider label must not create
+    // a fictitious adjacent-language pair with the start of another field.
+    out.audio_languages = parseLanguages(technicalText(stripInvisibles(
+        QStringList{out.filename, stream.title, stream.description, stream.name}.join('\n'))));
     out.size = stream.size;
     if (!out.size) {
         const auto value = stream.behavior_hints.value("videoSize");

@@ -299,7 +299,231 @@ bool primaryEligible(const ScoredStream &s) {
     }
     return true;
 }
-bool batch(const ParsedStream &p) { return p.batch_release || p.season_pack; }
+bool selectedEpisodeFile(const ParsedStream &p, const ScoreOptions &o) {
+    if (!o.episode_requested || !o.expected_episode)
+        return false;
+    const auto index = p.stream.raw.value("fileIdx");
+    if (!index.isDouble())
+        return false;
+    const double value = index.toDouble();
+    if (!std::isfinite(value) || value < 0 || std::floor(value) != value ||
+        value > std::numeric_limits<int>::max())
+        return false;
+    QString filename = p.stream.behavior_hints.value("filename").toString().trimmed();
+    if (filename.isEmpty())
+        filename = p.stream.behavior_hints.value("fileName").toString().trimmed();
+    if (filename.isEmpty())
+        return false;
+    // Parse the selected file alone. The parent torrent's "Complete 001-1000"
+    // description must not turn its explicitly selected E01 into a pack.
+    Stream file;
+    file.title = filename;
+    file.behavior_hints.insert("filename", filename);
+    const auto parsed = StreamParser::parse(file);
+    if (parsed.batch_release || parsed.season_pack || !parsed.episode ||
+        parsed.episode != o.expected_episode ||
+        (parsed.episode_end && parsed.episode_end != parsed.episode))
+        return false;
+    return !o.expected_season || !parsed.season || parsed.season == o.expected_season;
+}
+bool batch(const ParsedStream &p, const ScoreOptions &o) {
+    return (p.batch_release || p.season_pack) && !selectedEpisodeFile(p, o);
+}
+
+struct StreamingBand {
+    int preference = 1; // known-friendly, unknown-size, then oversized fallback
+    QString reason;
+};
+// Tunable primary-only streaming policy; GB here is decimal (1,000,000,000 bytes).
+// The caps remain useful even with runtime, while the bitrate ceiling prevents a
+// short film/episode under its size cap from being an unexpectedly heavy stream.
+constexpr double kFilm1080pMaxGB = 15, kFilm720pMaxGB = 6, kFilm4kMaxGB = 30;
+constexpr double kEpisode1080pMaxGB = 3, kEpisode720pMaxGB = 1.5, kEpisode4kMaxGB = 6;
+constexpr double k1080pMaxMbps = 20, k720pMaxMbps = 8, k4kMaxMbps = 40;
+StreamingBand streamingBand(const ParsedStream &p, const ScoreOptions &o) {
+    if (!p.size || *p.size == 0)
+        return {1, "streaming-size:unknown (kept behind known-friendly, before oversized)"};
+    const bool episode = o.episode_requested || o.media_kind == "series";
+    double capGB = episode ? kEpisode1080pMaxGB : kFilm1080pMaxGB;
+    double capMbps = k1080pMaxMbps;
+    switch (p.resolution) {
+    case Resolution::UHD:
+        capGB = episode ? kEpisode4kMaxGB : kFilm4kMaxGB;
+        capMbps = k4kMaxMbps;
+        break;
+    case Resolution::P720:
+        capGB = episode ? kEpisode720pMaxGB : kFilm720pMaxGB;
+        capMbps = k720pMaxMbps;
+        break;
+    case Resolution::P480:
+    case Resolution::SD:
+        capGB = episode ? 1 : 3;
+        capMbps = 5;
+        break;
+    case Resolution::P1080:
+        break;
+    }
+    const double sizeGB = static_cast<double>(*p.size) / 1000000000.0;
+    const bool runtimeKnown = o.runtime_minutes && *o.runtime_minutes > 0;
+    const double bitrate = runtimeKnown
+                               ? static_cast<double>(*p.size) * 8 /
+                                     (static_cast<double>(*o.runtime_minutes) * 60) / 1000000
+                               : 0;
+    const bool friendly = sizeGB <= capGB && (!runtimeKnown || bitrate <= capMbps);
+    QString detail = QString("size=%1GB limit=%2GB").arg(sizeGB, 0, 'f', 2).arg(capGB);
+    if (runtimeKnown)
+        detail += QString(" bitrate=%1Mbps limit=%2Mbps").arg(bitrate, 0, 'f', 2).arg(capMbps);
+    else
+        detail += " runtime=unknown; size-cap-only";
+    return {friendly ? 0 : 2,
+            QString("streaming-size:%1 (%2)").arg(friendly ? "within-band" : "outside-band", detail)};
+}
+bool unsupportedDvOnly(const ParsedStream &p, const ScoreOptions &o) {
+    return !o.dolby_vision_supported && p.hdr_format == HdrFormat::Dv;
+}
+QStringList concreteLanguages(const QStringList &languages) {
+    QStringList concrete;
+    for (const auto &language : languages)
+        if (language.compare("Multi", Qt::CaseInsensitive) != 0 && !language.isEmpty())
+            concrete.push_back(language);
+    return concrete;
+}
+bool matchesPreferred(const QString &language, const QStringList &preferred) {
+    return std::any_of(preferred.begin(), preferred.end(), [&](const QString &p) {
+        return !p.trimmed().isEmpty() && language.toLower().startsWith(p.trimmed().toLower());
+    });
+}
+QString languagePattern(const QString &language) {
+    // Full names/three-letter audio tags and flags, not ordinary two-letter
+    // country tokens such as GB (which can be a byte-size unit).
+    static const QMap<QString, QString> patterns = {
+        {"English", R"((?:\b(?:English|Eng)\b|\[(?:EN|US|GB)\]|🇬🇧|🇺🇸))"},
+        {"Russian", R"((?:\b(?:Russian|Rus)\b|\[RU\]|🇷🇺))"},
+        {"Japanese", R"((?:\b(?:Japanese|Jpn|Jap)\b|\[(?:JA|JP)\]|🇯🇵))"},
+        {"French", R"((?:\b(?:French|Fre|Fra)\b|\[FR\]|🇫🇷))"},
+        {"German", R"((?:\b(?:German|Ger|Deu)\b|\[DE\]|🇩🇪))"},
+        {"Spanish", R"((?:\b(?:Spanish|Spa)\b|\[ES\]|🇪🇸|🇲🇽))"},
+        {"Italian", R"((?:\b(?:Italian|Ita)\b|\[IT\]|🇮🇹))"},
+        {"Hindi", R"((?:\b(?:Hindi|Hin)\b|\[HI\]|🇮🇳))"},
+        {"Korean", R"((?:\b(?:Korean|Kor)\b|\[(?:KO|KR)\]|🇰🇷))"},
+        {"Chinese", R"((?:\b(?:Chinese|Chi|Zho|Mandarin|Cantonese)\b|\[(?:ZH|CN)\]|🇨🇳|🇹🇼))"},
+        {"Ukrainian", R"((?:\b(?:Ukrainian|Ukr)\b|\[(?:UK|UA)\]|🇺🇦))"}};
+    return patterns.value(language, "\\b" + QRegularExpression::escape(language) + "\\b");
+}
+qsizetype contextualLanguagePosition(const QString &text, const QString &language) {
+    static const QMap<QString, QString> codes = {
+        {"English", "EN|US|GB|AU|NZ"}, {"Russian", "RU"}, {"Japanese", "JA|JP"},
+        {"French", "FR"}, {"German", "DE"}, {"Spanish", "ES|MX"}, {"Italian", "IT"},
+        {"Hindi", "HI"}, {"Korean", "KO|KR"}, {"Chinese", "ZH|CN|TW|HK"},
+        {"Ukrainian", "UK|UA"}, {"Portuguese", "PT|BR"}, {"Arabic", "AR|SA|AE|EG"},
+        {"Dutch", "NL"}, {"Polish", "PL"}, {"Romanian", "RO"}, {"Swedish", "SV|SE"},
+        {"Danish", "DA"}, {"Finnish", "FI"}, {"Czech", "CS|CZ"}, {"Hungarian", "HU"},
+        {"Thai", "TH"}, {"Vietnamese", "VI"}, {"Hebrew", "HE|IL"}, {"Greek", "GR"},
+        {"Indonesian", "ID"}, {"Malay", "MY"}, {"Filipino", "PH"}, {"Persian", "FA|IR"}};
+    if (!codes.contains(language))
+        return -1;
+    const QRegularExpression token("(?<![A-Za-z0-9])(?:" + codes.value(language) +
+                                       ")(?![A-Za-z0-9])",
+                                   QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression numberBefore(R"(\d[\s.,]*$)");
+    static const QRegularExpression numberAfter(R"(^[\s.,]*\d)");
+    qsizetype first = -1;
+    auto scan = [&](const QString &body, qsizetype offset) {
+        auto matches = token.globalMatch(body);
+        while (matches.hasNext()) {
+            const auto match = matches.next();
+            if (numberBefore.match(body.left(match.capturedStart())).hasMatch() ||
+                numberAfter.match(body.mid(match.capturedEnd())).hasMatch())
+                continue;
+            const auto position = offset + match.capturedStart();
+            if (first < 0 || position < first)
+                first = position;
+        }
+    };
+    // Only tag-shaped bracket lists: [EN/RU], [RU EN], (EN, FR). This must
+    // not reinterpret prose identifiers, movie names or [6.45 GB] as audio.
+    static const QRegularExpression groups(R"(\[([^\]\r\n]+)\]|\(([^)\r\n]+)\))");
+    static const QRegularExpression codeList(R"(^\s*[A-Za-z]{2}(?:[\s,/|+;-]+[A-Za-z]{2})*\s*$)");
+    auto brackets = groups.globalMatch(text);
+    while (brackets.hasNext()) {
+        const auto match = brackets.next();
+        const int capture = match.capturedStart(1) >= 0 ? 1 : 2;
+        if (codeList.match(match.captured(capture)).hasMatch())
+            scan(match.captured(capture), match.capturedStart(capture));
+    }
+    static const QRegularExpression labeled(
+        R"(\b(?:languages?|audio(?:\s+languages?)?|flags?)\s*[:=]\s*([^\r\n]+))",
+        QRegularExpression::CaseInsensitiveOption);
+    auto lines = labeled.globalMatch(text);
+    while (lines.hasNext()) {
+        const auto match = lines.next();
+        scan(match.captured(1), match.capturedStart(1));
+    }
+    return first;
+}
+bool nonLatinLead(const QString &text) {
+    for (const auto c : text) {
+        if (!c.isLetter())
+            continue;
+        return c.script() != QChar::Script_Latin && c.script() != QChar::Script_Common;
+    }
+    return false;
+}
+bool preferredAudioSecondary(const ParsedStream &p, const ScoreOptions &o) {
+    const auto languages = concreteLanguages(p.audio_languages);
+    const QString text = p.filename + '\n' + p.stream.title + '\n' + p.stream.description;
+    qsizetype firstPreferred = -1, firstOther = -1;
+    bool explicitPreferredAudio = false;
+    for (const auto &language : languages) {
+        const QString pattern = languagePattern(language);
+        const QRegularExpression rx(pattern, QRegularExpression::CaseInsensitiveOption);
+        const auto match = rx.match(text);
+        const bool preferred = matchesPreferred(language, o.preferred_languages);
+        qsizetype languagePosition = match.hasMatch() ? match.capturedStart() : -1;
+        const auto codePosition = contextualLanguagePosition(text, language);
+        if (codePosition >= 0 && (languagePosition < 0 || codePosition < languagePosition))
+            languagePosition = codePosition;
+        if (languagePosition >= 0) {
+            auto &position = preferred ? firstPreferred : firstOther;
+            if (position < 0 || languagePosition < position)
+                position = languagePosition;
+        }
+        if (preferred) {
+            const QRegularExpression primary(
+                "(?:" + pattern + ")[ ._-]+(?:dub(?:bed)?|audio|primary|default)\\b|"
+                "\\b(?:primary|default)[ ._:-]+(?:" + pattern + ")",
+                QRegularExpression::CaseInsensitiveOption);
+            explicitPreferredAudio = explicitPreferredAudio || primary.match(text).hasMatch();
+        }
+    }
+    static const QRegularExpression dub(R"(\b(?:Dub(?:bed)?|DVO|AVO)\b|дубляж)",
+                                         QRegularExpression::CaseInsensitiveOption);
+    const auto dubMatch = dub.match(text);
+    // A Russian-led "Dub + 2x DVO ... Original (Eng)" is not English-primary,
+    // even when English is the only language whose name the parser recognized.
+    if (dubMatch.hasMatch() && firstPreferred >= 0 && dubMatch.capturedStart() < firstPreferred &&
+        !explicitPreferredAudio)
+        return true;
+    if (explicitPreferredAudio)
+        return false;
+    if (languages.size() <= 1)
+        return false;
+    const bool foreignLead = nonLatinLead(p.stream.title) || nonLatinLead(p.filename);
+    static const QSet<QString> nonLatinLanguages = {
+        "Russian", "Ukrainian", "Japanese", "Chinese", "Korean", "Hindi", "Arabic",
+        "Hebrew", "Greek", "Thai", "Persian", "Bengali", "Tamil", "Telugu"};
+    const bool latinPreferred = std::any_of(languages.begin(), languages.end(), [&](const QString &language) {
+        return matchesPreferred(language, o.preferred_languages) && !nonLatinLanguages.contains(language);
+    });
+    if (foreignLead && latinPreferred)
+        return true;
+    const bool rutracker = (p.stream.addon_name + ' ' + text).contains("rutracker", Qt::CaseInsensitive);
+    if (rutracker && (firstPreferred < 0 || firstOther < 0))
+        return true; // Multiple tracks, but no evidence which is the default dub.
+    // Parser list order is not track order. Require evidence from the release
+    // text before awarding the full primary-language bonus to a multi-track row.
+    return firstPreferred < 0 || (firstOther >= 0 && firstOther < firstPreferred);
+}
 int priority(const std::optional<int> &p) {
     return p && *p >= 0 ? *p : std::numeric_limits<int>::max();
 }
@@ -349,9 +573,15 @@ ScoredStream SourceScorer::score(const ParsedStream &p, const ScoreOptions &o,
     };
     auto addReason = [&](const ScoreReason &r) { add(r.signal, r.delta); };
     add(resolutionLabel(p.resolution), resolutionPoints(p.resolution));
-    if (p.hdr_format)
-        add(hdrLabel(*p.hdr_format),
-            *p.hdr_format == HdrFormat::Dv || *p.hdr_format == HdrFormat::DvHdr10 ? 6 : 5);
+    if (p.hdr_format) {
+        if (!o.dolby_vision_supported && *p.hdr_format == HdrFormat::Dv)
+            s.reasons.push_back({"dolby-vision-unsupported:primary-deferred-within-resolution", 0});
+        else if (!o.dolby_vision_supported && *p.hdr_format == HdrFormat::DvHdr10)
+            add("HDR10-fallback", 5);
+        else
+            add(hdrLabel(*p.hdr_format),
+                *p.hdr_format == HdrFormat::Dv || *p.hdr_format == HdrFormat::DvHdr10 ? 6 : 5);
+    }
     if (p.codec == Codec::Hevc)
         add("HEVC", 1);
     if (p.codec == Codec::Av1)
@@ -434,8 +664,12 @@ ScoredStream SourceScorer::score(const ParsedStream &p, const ScoreOptions &o,
                         lang.toLower().startsWith(pref.trimmed().toLower()))
                         matched = true;
             }
-            if (matched)
-                add("preferred-language", 12);
+            if (matched) {
+                if (preferredAudioSecondary(p, o))
+                    add("preferred-language-secondary", 3);
+                else
+                    add("preferred-language", 12);
+            }
             else if (multi)
                 add("multi-language", 4);
             else
@@ -501,43 +735,53 @@ RankedPicker SourceScorer::rankAndPick(QList<ScoredStream> streams, const ScoreO
         out.selection_reasons.push_back("no-candidates: ranked candidate list is empty");
         return out;
     }
-    for (const auto &s : out.all) {
+    for (auto &s : out.all) {
+        // Diagnostic-only annotations: neither scores nor manual-list order change.
+        const auto band = streamingBand(s.parsed, o);
+        s.reasons.push_back({band.reason, 0});
+        if ((s.parsed.batch_release || s.parsed.season_pack) && selectedEpisodeFile(s.parsed, o))
+            s.reasons.push_back({"selected-episode-file:batch-torrent-treated-as-single", 0});
         const auto key = tierKey(s.tier);
         if (!out.by_tier.contains(key))
             out.by_tier.insert(key, s);
     }
     const bool hasSingle = o.episode_requested &&
-                           std::any_of(out.all.begin(), out.all.end(), [](const ScoredStream &s) {
-                               return primaryEligible(s) && !batch(s.parsed);
+                           std::any_of(out.all.begin(), out.all.end(), [&](const ScoredStream &s) {
+                               return primaryEligible(s) && !batch(s.parsed, o);
                            });
     for (const auto target :
          {Resolution::P1080, Resolution::P720, Resolution::UHD, Resolution::P480, Resolution::SD}) {
-        for (const auto &s : out.all) {
-            if (s.parsed.resolution != target || !primaryEligible(s) ||
-                (hasSingle && batch(s.parsed)))
-                continue;
-            out.primary = s;
-            out.selection_reasons.push_back(
-                QString("primary-resolution-policy:%1 (1080p > 720p > 4K > SD)")
-                    .arg(resolutionLabel(target)));
-            if (o.episode_requested)
-                out.selection_reasons.push_back(
-                    hasSingle ? QString("single-episode-preferred-over-pack")
-                              : QString("pack-fallback:no-eligible-single-episode"));
-            if (s.parsed.dual_audio)
-                out.selection_reasons.push_back("dual-audio-wins-score-ties");
-            out.primary->reasons.push_back(
-                {QString("primary-resolution-policy:%1 (1080p > 720p > 4K > SD)")
-                     .arg(resolutionLabel(target)),
-                 0});
-            if (o.episode_requested)
-                out.primary->reasons.push_back(
-                    {hasSingle ? QString("single-episode-preferred-over-pack")
-                               : QString("pack-fallback:no-eligible-single-episode"),
-                     0});
-            if (s.parsed.dual_audio)
-                out.primary->reasons.push_back({"dual-audio-wins-score-ties", 0});
-            return out;
+        // Unsupported DV-only is a last resort within a resolution, even if its
+        // file is smaller than an otherwise-eligible HDR10/SDR row.
+        for (int dvPreference = 0; dvPreference < 2; ++dvPreference) {
+            for (int bandPreference = 0; bandPreference < 3; ++bandPreference) {
+                for (const auto &s : out.all) {
+                    if (s.parsed.resolution != target || !primaryEligible(s) ||
+                        (hasSingle && batch(s.parsed, o)) ||
+                        int(unsupportedDvOnly(s.parsed, o)) != dvPreference ||
+                        streamingBand(s.parsed, o).preference != bandPreference)
+                        continue;
+                    out.primary = s;
+                    out.selection_reasons.push_back(
+                        QString("primary-resolution-policy:%1 (1080p > 720p > 4K > SD)")
+                            .arg(resolutionLabel(target)));
+                    if (o.episode_requested)
+                        out.selection_reasons.push_back(
+                            hasSingle ? QString("single-episode-preferred-over-pack")
+                                      : QString("pack-fallback:no-eligible-single-episode"));
+                    if (s.parsed.dual_audio)
+                        out.selection_reasons.push_back("dual-audio-wins-score-ties");
+                    out.selection_reasons.push_back(
+                        bandPreference == 0 ? "streaming-size:preferred-known-friendly" :
+                        bandPreference == 1 ? "streaming-size:fallback-unknown-no-friendly-candidate" :
+                                              "streaming-size:fallback-oversized-no-friendly-candidate");
+                    if (dvPreference)
+                        out.selection_reasons.push_back("dolby-vision-unsupported:fallback-no-compatible-row-in-resolution");
+                    for (const auto &explanation : out.selection_reasons)
+                        out.primary->reasons.push_back({explanation, 0});
+                    return out;
+                }
+            }
         }
     }
     out.selection_reasons.push_back(
@@ -559,6 +803,10 @@ RankedPicker SourceScorer::evaluate(const QList<Stream> &streams, const TrustOpt
         o.release_date = trust.release_date;
     o.episode_requested =
         o.episode_requested || (trust.kind == "series" && trust.expected_episode.has_value());
+    if (!o.expected_episode)
+        o.expected_episode = trust.expected_episode;
+    if (!o.expected_season)
+        o.expected_season = trust.expected_season;
     const auto corpus = computeCorpusStats(trusted.keep, o);
     QList<ScoredStream> scored;
     scored.reserve(trusted.keep.size());
