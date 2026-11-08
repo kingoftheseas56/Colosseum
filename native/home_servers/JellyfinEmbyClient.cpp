@@ -55,6 +55,18 @@ bool ServerItem::matchesImdb(const QString &imdb) const
     return !id.isEmpty() && id == normalizedImdb(imdbId);
 }
 
+bool ServerItem::matchesEpisodeOf(const ServerItem &series,
+                                  const QString &seriesImdb,
+                                  int season, int episode) const
+{
+    return type == QLatin1String("Episode") && series.type == QLatin1String("Series")
+        && !serverId.isEmpty() && serverId == series.serverId
+        && !userId.isEmpty() && userId == series.userId
+        && !series.id.isEmpty() && seriesId == series.id
+        && season >= 0 && episode > 0 && seasonNumber == season
+        && episodeNumber == episode && series.matchesImdb(seriesImdb);
+}
+
 JellyfinEmbyClient::JellyfinEmbyClient(ServerKind kind, QUrl serverUrl,
                                      QString deviceId, QObject *parent,
                                      Transport transport)
@@ -77,9 +89,8 @@ JellyfinEmbyClient::JellyfinEmbyClient(ServerKind kind, QUrl serverUrl,
         return;
     while (prefix.endsWith(QLatin1Char('/')))
         prefix.chop(1);
-    if (kind == ServerKind::Emby
-        && !prefix.endsWith(QLatin1String("/emby"), Qt::CaseInsensitive))
-        prefix += QLatin1String("/emby");
+    // The supplied URL is the API base, including any /emby or proxy prefix.
+    // Do not guess or duplicate prefixes; connection discovery can probe later.
     serverUrl.setPath(prefix);
     m_apiBase = serverUrl;
 }
@@ -137,9 +148,19 @@ QNetworkRequest JellyfinEmbyClient::request(const QUrl &url,
         "Client=\"Colosseum\", Device=\"Colosseum\", DeviceId=\"")
         + m_deviceId.toLatin1() + QByteArrayLiteral("\", Version=\"")
         + QByteArray(kClientVersion) + QByteArrayLiteral("\"");
-    req.setRawHeader("X-Emby-Authorization", client);
-    if (!token.isEmpty())
-        req.setRawHeader("X-Emby-Token", token);
+    if (m_kind == ServerKind::Jellyfin) {
+        // Jellyfin requires the standard Authorization scheme on newer servers.
+        // Percent-encode to prevent a token from altering the parameter grammar.
+        const QByteArray auth = token.isEmpty() ? client
+            : client + QByteArrayLiteral(", Token=\"")
+                + QUrl::toPercentEncoding(QString::fromLatin1(token))
+                + QByteArrayLiteral("\"");
+        req.setRawHeader("Authorization", auth);
+    } else {
+        req.setRawHeader("X-Emby-Authorization", client);
+        if (!token.isEmpty())
+            req.setRawHeader("X-Emby-Token", token);
+    }
     return req;
 }
 
@@ -228,9 +249,15 @@ void JellyfinEmbyClient::fetchViews(const ServerSession &session, ViewsDone done
         done({400, QStringLiteral("Invalid session"), {}});
         return;
     }
-    send(endpoint(QStringLiteral("/Users/") + session.userId
-                  + QStringLiteral("/Views")),
-         session.accessToken, false, {},
+    QUrl url = m_kind == ServerKind::Jellyfin
+        ? endpoint(QStringLiteral("/UserViews"))
+        : endpoint(QStringLiteral("/Users/") + session.userId + QStringLiteral("/Views"));
+    if (m_kind == ServerKind::Jellyfin) {
+        QUrlQuery query;
+        query.addQueryItem(QStringLiteral("userId"), session.userId);
+        url.setQuery(query);
+    }
+    send(url, session.accessToken, false, {},
          [done = std::move(done)](TransportReply reply) mutable {
              ServerResult<QList<ServerView>> result;
              result.status = reply.status;
@@ -264,22 +291,28 @@ void JellyfinEmbyClient::fetchItemsPage(const ServerSession &session,
         done({400, QStringLiteral("Invalid page request"), {}});
         return;
     }
-    QUrl url = endpoint(QStringLiteral("/Users/") + session.userId
-                        + QStringLiteral("/Items"));
+    QUrl url = m_kind == ServerKind::Jellyfin
+        ? endpoint(QStringLiteral("/Items"))
+        : endpoint(QStringLiteral("/Users/") + session.userId + QStringLiteral("/Items"));
     QUrlQuery query;
+    if (m_kind == ServerKind::Jellyfin)
+        query.addQueryItem(QStringLiteral("userId"), session.userId);
     query.addQueryItem(QStringLiteral("ParentId"), viewId);
     query.addQueryItem(QStringLiteral("StartIndex"), QString::number(startIndex));
     query.addQueryItem(QStringLiteral("Limit"), QString::number(pageSize));
     query.addQueryItem(QStringLiteral("Recursive"), QStringLiteral("true"));
     query.addQueryItem(QStringLiteral("IncludeItemTypes"),
-                       QStringLiteral("Movie,Series,Episode"));
+                       QStringLiteral("Movie,Series,Season,Episode"));
+    query.addQueryItem(QStringLiteral("CollapseBoxSetItems"), QStringLiteral("false"));
+    query.addQueryItem(QStringLiteral("SortBy"), QStringLiteral("SortName"));
     query.addQueryItem(QStringLiteral("Fields"),
-                       QStringLiteral("ProviderIds,MediaStreams,DateCreated"));
+                       QStringLiteral("ProviderIds,MediaStreams,DateCreated,ParentId,Path"));
     query.addQueryItem(QStringLiteral("EnableUserData"), QStringLiteral("true"));
     query.addQueryItem(QStringLiteral("EnableMediaSources"), QStringLiteral("true"));
     url.setQuery(query);
     send(url, session.accessToken, false, {},
-         [startIndex, pageSize, done = std::move(done)](TransportReply reply) mutable {
+         [serverId = session.serverId, userId = session.userId,
+          startIndex, pageSize, done = std::move(done)](TransportReply reply) mutable {
              ServerResult<ItemPage> result;
              result.status = reply.status;
              QJsonObject json;
@@ -290,7 +323,8 @@ void JellyfinEmbyClient::fetchItemsPage(const ServerSession &session,
              } else {
                  const auto items = json.value(QStringLiteral("Items")).toArray();
                  const int total = json.value(QStringLiteral("TotalRecordCount")).toInt(-1);
-                 if (total < 0 || items.size() > pageSize) {
+                 if (total < 0 || items.size() > pageSize
+                      || total < startIndex || total - startIndex < items.size()) {
                      result.error = QStringLiteral("Invalid server page");
                  } else {
                      result.value.startIndex = startIndex;
@@ -302,18 +336,33 @@ void JellyfinEmbyClient::fetchItemsPage(const ServerSession &session,
                          if (!JellyfinEmbyClient::validId(id)
                              || (type != QLatin1String("Movie")
                                  && type != QLatin1String("Series")
+                                 && type != QLatin1String("Season")
                                  && type != QLatin1String("Episode")))
                              continue;
                          const QJsonObject provider = object.value(
                              QStringLiteral("ProviderIds")).toObject();
                          ServerItem item;
                          item.id = id;
+                         item.serverId = serverId;
+                         item.userId = userId;
                          item.name = object.value(QStringLiteral("Name")).toString();
                          item.type = type;
                          item.imdbId = providerId(provider, QStringLiteral("Imdb"));
                          item.tmdbId = providerId(provider, QStringLiteral("Tmdb"));
                          item.tvdbId = providerId(provider, QStringLiteral("Tvdb"));
                          item.seriesId = object.value(QStringLiteral("SeriesId")).toString();
+                         item.parentId = object.value(QStringLiteral("ParentId")).toString();
+                         item.seasonNumber = type == QLatin1String("Season")
+                             ? object.value(QStringLiteral("IndexNumber")).toInt(-1)
+                             : object.value(QStringLiteral("ParentIndexNumber")).toInt(-1);
+                         item.episodeNumber = type == QLatin1String("Episode")
+                             ? object.value(QStringLiteral("IndexNumber")).toInt(-1) : -1;
+                         item.productionYear = object.value(
+                             QStringLiteral("ProductionYear")).toInt();
+                         item.runTimeTicks = object.value(
+                             QStringLiteral("RunTimeTicks")).toInteger();
+                         item.dateCreated = object.value(
+                             QStringLiteral("DateCreated")).toString();
                          item.mediaSources = object.value(QStringLiteral("MediaSources")).toArray();
                          item.userData = object.value(QStringLiteral("UserData")).toObject();
                          result.value.items.append(std::move(item));

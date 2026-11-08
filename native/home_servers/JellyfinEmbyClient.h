@@ -29,17 +29,27 @@ struct ServerView {
 
 struct ServerItem {
     QString id;
+    QString serverId;
+    QString userId;
     QString name;
     QString type;
     QString imdbId;
     QString tmdbId;
     QString tvdbId;
     QString seriesId;
+    QString parentId;
+    int seasonNumber = -1;
+    int episodeNumber = -1;
+    int productionYear = 0;
+    qint64 runTimeTicks = 0;
+    QString dateCreated;
     QJsonArray mediaSources;
     QJsonObject userData;
 
     bool hasExternalId() const;
     bool matchesImdb(const QString &imdb) const;
+    bool matchesEpisodeOf(const ServerItem &series, const QString &seriesImdb,
+                          int season, int episode) const;
 };
 
 template <typename T>
