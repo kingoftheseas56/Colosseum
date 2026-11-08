@@ -48,7 +48,10 @@ def main() -> None:
     assert "CONFIG_" in build_script
     assert "CONFIG_(GPL|NONFREE|VERSION3|ICONV)" in build_script
     assert "gradle-9.1.0-bin.zip" in build_script
-    assert "networkTimeout=120000" in build_script
+    assert "a17ddd85a26b6a7f5ddb71ff8b05fc5104c0202c6e64782429790c933686c806" in build_script
+    assert "sha256sum --check" in build_script
+    assert "downloads.gradle.org/distributions" in build_script
+    assert "gradle-9.1.0/bin/gradle" in build_script
     assert ":lib-decoder-ffmpeg:assembleRelease" in build_script
     assert "libffmpegJNI.so" in build_script
     assert "media3-ffmpeg-lgpl-1.11.0.aar" in apk_script
