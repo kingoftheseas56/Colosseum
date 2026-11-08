@@ -62,6 +62,12 @@ jobs:
       security-events: write
     env:
       VCPKG_TAG: "2026.07.29"
+      VCPKG_PACKAGES: >-
+        libtorrent:x64-windows
+        openssl:x64-windows
+        boost-filesystem:x64-windows
+        boost-system:x64-windows
+        ecm:x64-windows
       # Upstream retains weekly SourceForge archives; GitHub keeps only 30 tags.
       MPV_VERSION: "20261011-git-accb7b2821"
       MPV_SHA256: "cf63b4ce66e03e5e70acf2648cbc3177656c77c5b9583e16d83efc58801182b7"
@@ -152,22 +158,53 @@ jobs:
             ${{ runner.temp }}/llvm-${{ env.LLVM_VERSION }}
           key: ${{ steps.llvm-cache.outputs.cache-primary-key }}
 
-      - name: Install native dependencies
+      - name: Hash vcpkg package list
+        id: vcpkg-packages
         shell: pwsh
         run: |
+          $packages = [Text.Encoding]::UTF8.GetBytes($env:VCPKG_PACKAGES)
+          $hash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($packages)).ToLowerInvariant()
+          "hash=$hash" >> $env:GITHUB_OUTPUT
+
+      - name: Restore vcpkg binary archives
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/vcpkg-archives
+          key: vcpkg-binary-v1-${{ runner.os }}-${{ env.VCPKG_TAG }}-${{ steps.vcpkg-packages.outputs.hash }}
+
+      - name: Install native dependencies
+        id: vcpkg-install
+        env:
+          VCPKG_BINARY_SOURCES: 'clear;files,${{ runner.temp }}/vcpkg-archives,readwrite'
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          New-Item -ItemType Directory -Force -Path (Join-Path $env:RUNNER_TEMP "vcpkg-archives") | Out-Null
           $vcpkg = Join-Path $env:RUNNER_TEMP "vcpkg"
           git clone --depth 1 --branch $env:VCPKG_TAG https://github.com/microsoft/vcpkg.git $vcpkg
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & "$vcpkg/bootstrap-vcpkg.bat" -disableMetrics
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "$vcpkg/vcpkg.exe" install `
-            libtorrent:x64-windows `
-            openssl:x64-windows `
-            boost-filesystem:x64-windows `
-            boost-system:x64-windows `
-            ecm:x64-windows
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $packages = $env:VCPKG_PACKAGES -split '\s+'
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            & "$vcpkg/vcpkg.exe" install @packages
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -eq 0) { break }
+            if ($attempt -eq 3) { exit $exitCode }
+            $delay = 5 * $attempt
+            Write-Warning "vcpkg install attempt $attempt exited with $exitCode. Retrying in ${delay}s."
+            Start-Sleep -Seconds $delay
+          }
           "VCPKG_ROOT=$vcpkg" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           "$vcpkg/installed/x64-windows/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Save vcpkg binary archives
+        if: steps.vcpkg-install.outcome == 'success' && steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/vcpkg-archives
+          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
 
       - name: Prepare libmpv
         shell: pwsh
