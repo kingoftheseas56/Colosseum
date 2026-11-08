@@ -53,6 +53,7 @@
 #include "SessionStore.h"
 #include "AudioPairingStore.h"
 #include "account/AccountRuntime.h"
+#include "home_servers/HomeServerConnectionsController.h"
 #include "account/ActivityPlaybackTracker.h"
 #include "account/RatingsReviewsController.h"
 #include "account/RatingsReviewsDelivery.h"
@@ -1989,6 +1990,24 @@ int main(int argc, char *argv[]) {
     accountRuntime->setDownloadSource(localDownloads);
     accountRuntime->setExtensionsStore(extensions);
     accountRuntime->prepareForQml(&engine);
+
+    auto *homeServerConnections =
+        new Colosseum::HomeServers::HomeServerConnectionsController(
+            createAccountSecretBackend(), &engine);
+    const auto bindHomeServersProfile = [homeServerConnections, accountRuntime] {
+        const auto &profile = accountRuntime->profileStores()->activeProfile();
+        homeServerConnections->activateProfile(
+            profile.kind() == ProfilePaths::Kind::Sealed ? QString() : profile.profileId());
+    };
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
+                     homeServerConnections, [homeServerConnections] {
+                         homeServerConnections->activateProfile({});
+                     });
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     homeServerConnections, bindHomeServersProfile);
+    bindHomeServersProfile();
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("HomeServers"), homeServerConnections);
 
     auto *ratingsReviewsIdentity = new ColosseumTitleIdentityRegistry(QString(), &backendServices);
     // Persist learned provider-id pivots (kitsu:/mal:… → tt…) under the tagged

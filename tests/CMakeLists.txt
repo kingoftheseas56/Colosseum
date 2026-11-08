@@ -5805,3 +5805,40 @@ endif()
 add_test(NAME colosseum.qttest.home_server_connections COMMAND tst_home_server_connections)
 set_tests_properties(colosseum.qttest.home_server_connections PROPERTIES
     LABELS "unit;home_servers;credentials;security" TIMEOUT 60)
+
+# Arc 80 checkpoint 4: asynchronous sign-in, profile-fenced credentials, and UI controller.
+add_executable(tst_home_server_controller
+    auto/home_servers/tst_home_server_controller.cpp
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerConnectionsController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerConnectionsController.h"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerConnectionStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerConnectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/JellyfinEmbyClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/JellyfinEmbyClient.h")
+target_include_directories(tst_home_server_controller PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_home_server_controller PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+set_target_properties(tst_home_server_controller PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    foreach(qt_target IN ITEMS Core Network Test)
+        add_custom_command(TARGET tst_home_server_controller POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::${qt_target}>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+    endforeach()
+endif()
+add_test(NAME colosseum.qttest.home_server_controller COMMAND tst_home_server_controller)
+set_tests_properties(colosseum.qttest.home_server_controller PROPERTIES
+    LABELS "unit;home_servers;controller;security" TIMEOUT 60)
+
+# Home-server card UI exercised independently of the full application runtime.
+if(NOT ANDROID AND TARGET Qt6::QuickTest)
+    find_program(COLOSSEUM_HOME_SERVERS_QMLTESTRUNNER NAMES qmltestrunner)
+    if(COLOSSEUM_HOME_SERVERS_QMLTESTRUNNER)
+        add_test(NAME colosseum.qml.home_server_card
+            COMMAND "${COLOSSEUM_HOME_SERVERS_QMLTESTRUNNER}"
+                -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/home_servers")
+        set_tests_properties(colosseum.qml.home_server_card PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic"
+            LABELS "qml;home_servers;sync_center" TIMEOUT 60)
+    endif()
+endif()

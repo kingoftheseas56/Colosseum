@@ -6262,6 +6262,9 @@ Window {
             item.stremioState = Qt.binding(function() {
                 return (typeof stremioSyncState !== "undefined") ? stremioSyncState : null
             })
+            item.homeServerController = Qt.binding(function() {
+                return (typeof HomeServers !== "undefined") ? HomeServers : null
+            })
             item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
             item.backRequested.connect(win.closeSyncCenterPage)
             item.minimizeRequested.connect(win.minimizeShell)

@@ -365,6 +365,8 @@ qt_add_executable(colosseum
     home_servers/JellyfinEmbyClient.h
     home_servers/HomeServerConnectionStore.cpp
     home_servers/HomeServerConnectionStore.h
+    home_servers/HomeServerConnectionsController.cpp
+    home_servers/HomeServerConnectionsController.h
     ${COLOSSEUM_THEATRE_ACCOUNT_SOURCES}
     engine/TankoyomiSeriesMatcher.cpp
     engine/TankoyomiSeriesMatcher.h
