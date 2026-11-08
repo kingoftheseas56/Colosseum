@@ -342,5 +342,53 @@ int main(int argc, char **argv) {
     CHECK(parse("Film.2020.1080p.Dolby.Vision.Hybrid.mkv").hdr_format == HdrFormat::DvHdr10);
     CHECK(!parse("Film.2020.1080p.Hybrid.mkv").hdr_format);
     CHECK(parse("Film.2020.1080p.Hybrid.HDR10.mkv").hdr_format == HdrFormat::Hdr10);
+    CHECK(parse("Show.S01E01.SDTV.x264.mkv").source == Source::SDTV);
+    for (const auto &tag : QStringList{"BD1080p", "[BD]", "Blu-Ray", "Blu.Ray"})
+        CHECK(parse("Show.S01E01." + tag + ".mkv").source == Source::BluRay);
+    CHECK(parse("Show.S01E01.1080p.WEB.mkv").source == Source::WEBRip);
+    CHECK(parse("Show.S01E01.1080p.WEBsite.BDname.mkv").source == Source::Other);
+    // Subtitle flags must never masquerade as spoken audio tracks.
+    s = row("Demon Slayer S01E01 VOSTFR 1080p WEB -Tsundere-Raws (Multi-Subs)\n"
+            "👤 22 💾 1.8 GB ⚙️ NyaaSi\nMulti Subs / 🇬🇧 / 🇷🇺 / 🇫🇷 / 🇩🇪");
+    p = StreamParser::parse(s);
+    CHECK(!p.audio_languages.contains("English"));
+    CHECK(!p.audio_languages.contains("French"));
+    CHECK(p.subtitle_languages.contains("English"));
+    CHECK(p.subtitle_languages.contains("French"));
+    CHECK(p.french_led);
+    for (const auto &tag : QStringList{"VOSTFR", "VOST", "VF", "VFF", "VFQ", "TRUEFRENCH", "FRENCH"}) {
+        CHECK(parse("Show.S01E01.1080p." + tag + ".mkv").french_led);
+    }
+    CHECK(!parse("Show.S01E01.1080p.VOST.mkv").audio_languages.contains("French"));
+    CHECK(parse("Show.S01E01.1080p.VOSTFR.mkv").subtitle_languages.contains("French"));
+    for (const auto &tag : QStringList{"VF", "VFF", "VFQ", "TRUEFRENCH", "FRENCH"}) {
+        CHECK(parse("Show.S01E01.1080p." + tag + ".mkv").audio_languages.contains("French"));
+    }
+    CHECK(!parse("Show.S01E01.VFable.1080p.mkv").french_led);
+    for (const auto &description : QStringList{"Multi Subs\n🇬🇧 / 🇫🇷", "🇬🇧 / 🇫🇷\nMulti Subs",
+                                               "Subtitles: EN / FR", "Subs: 🇬🇧 / 🇫🇷"}) {
+        p = StreamParser::parse(row("Show.S01E01.1080p\n" + description));
+        CHECK(!p.audio_languages.contains("English"));
+        CHECK(p.subtitle_languages.contains("English"));
+    }
+    p = parse("Show.S01E01.1080p [ENG Sub] [JPN]\nMulti Subs / 🇬🇧");
+    CHECK(!p.audio_languages.contains("English"));
+    CHECK(p.audio_languages.contains("Japanese"));
+    CHECK(p.subtitle_languages.contains("English"));
+    p = parse("Show.S01E01.1080p\nMulti Subs\nAudio: 🇬🇧 / 🇯🇵");
+    CHECK(p.audio_languages.contains("English"));
+    CHECK(p.audio_languages.contains("Japanese"));
+    p = parse("Show.S01E01.1080p\nDubbed / Dual Audio / 🇬🇧");
+    CHECK(p.audio_languages.contains("English"));
+    CHECK(p.subtitle_languages.isEmpty());
+    p = parse("Show.S01E01.1080p [Dual Audio] VOSTFR\n"
+              "Dubbed / Multi Subs / Dual Audio / English / 🇫🇷");
+    CHECK(p.french_led);
+    CHECK(p.dual_audio);
+    CHECK(p.audio_languages.contains("English"));
+    CHECK(!p.audio_languages.contains("French"));
+    s = row("Show.S01E01.1080p\nMulti Subs");
+    s.description = "🇬🇧"; // Separate provider fields are not neighboring subtitle lines.
+    CHECK(StreamParser::parse(s).audio_languages.contains("English"));
     qInfo() << "parser_test:" << checks << "checks passed";
 }

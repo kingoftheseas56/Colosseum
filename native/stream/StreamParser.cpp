@@ -64,7 +64,7 @@ static const Rx FN_RES_NUM_RX(QString::fromUtf8(R"rx((?i)\b\d{3,4}p\b)rx"));
 static const Rx FN_RES_4K_RX(QString::fromUtf8(R"rx((?i)\b(?:4k|uhd|2160p)\b)rx"));
 static const Rx FN_EPISODE_RX(QString::fromUtf8(R"rx((?i)\bS\d{1,2}E\d{1,3}\b)rx"));
 static const Rx FN_SOURCE_RX(QString::fromUtf8(
-    R"rx((?i)\b(?:Blu[\.\-]?Ray|WEB[\.\-]?DL|WEBRip|HDRip|BDRip|HDTV|REMUX|Remux|HDCAM|TELESYNC|TELECINE|CAM|HDTS|DVDRip)\b)rx"));
+    R"rx((?i)\b(?:Blu[\.\-]?Ray|WEB[\.\-]?DL|WEBRip|HDRip|BDRip|HDTV|SDTV|REMUX|Remux|HDCAM|TELESYNC|TELECINE|CAM|HDTS|DVDRip)\b)rx"));
 static const Rx FN_CODEC_RX(
     QString::fromUtf8(R"rx((?i)\b(?:x264|x265|HEVC|AVC|h264|h265|AV1|MPEG2|MPEG-2)\b)rx"));
 static const Rx FN_CONTAINER_RX(QString::fromUtf8(R"rx((?i)\.(?:mkv|mp4|m4v|avi|ts)\b)rx"));
@@ -100,12 +100,13 @@ static const QList<QPair<Rx, Source>> SOURCE_RX = {
          R"rx((?i)\bSCREENER\b|\bDVDSCR\b|\bDVDScreener\b|\bBDSCR\b|\bWEB[\s._\-]?SCR\b|\bSCR\b)rx")),
      Source::SCR},
     {Rx(QString::fromUtf8(R"rx((?i)\bRemux\b)rx")), Source::REMUX},
-    {Rx(QString::fromUtf8(R"rx((?i)\bBluRay\b|\bBDRip\b|\bBRRip\b)rx")), Source::BluRay},
+    {Rx(QString::fromUtf8(R"rx((?i)\bBlu[.\-]?Ray\b|\bBDRip\b|\bBRRip\b|\bBD(?=\b|(?:480|720|1080|2160)p\b))rx")), Source::BluRay},
     {Rx(QString::fromUtf8(R"rx((?i)\bWEB[\.\-]?DL\b)rx")), Source::WebDl},
-    {Rx(QString::fromUtf8(R"rx((?i)\bWEBRip\b|\bWEB-Rip\b)rx")), Source::WEBRip},
+    {Rx(QString::fromUtf8(R"rx((?i)\bWEBRip\b|\bWEB-Rip\b|\bWEB\b)rx")), Source::WEBRip},
     {Rx(QString::fromUtf8(R"rx((?i)\bHDRip\b)rx")), Source::HDRip},
     {Rx(QString::fromUtf8(R"rx((?i)\bDVDRip\b)rx")), Source::DVDRip},
     {Rx(QString::fromUtf8(R"rx((?i)\bHDTV\b)rx")), Source::HDTV},
+    {Rx(QString::fromUtf8(R"rx((?i)\bSDTV\b)rx")), Source::SDTV},
 };
 static const QList<QPair<Rx, AudioCodec>> AUDIO_CODEC_RX = {
     {Rx(QString::fromUtf8(R"rx((?i)\bAtmos\b)rx")), AudioCodec::Atmos},
@@ -730,6 +731,56 @@ QStringList parseLanguages(const QString &text) {
         result.append("Multi");
     return result;
 }
+// Keep subtitle metadata out of the audio-language inference. Torrentio puts
+// flags after "Multi Subs" on the same line, or on a neighboring flag-only line.
+void parseLanguageTracks(const QString &text, ParsedStream &out) {
+    static const Rx frenchLed(QStringLiteral(R"((?i)\b(?:VOSTFR|VOST|VF|VFF|VFQ|TRUEFRENCH|FRENCH)\b)"));
+    static const Rx frenchAudio(QStringLiteral(R"((?i)\b(?:VF|VFF|VFQ|TRUEFRENCH|FRENCH)\b)"));
+    static const Rx frenchSubs(QStringLiteral(R"((?i)\bVOSTFR\b)"));
+    static const Rx originalSubs(QStringLiteral(R"((?i)\bVOST(?:FR)?\b)"));
+    static const Rx multiSubs(QStringLiteral(R"((?i)\bMulti[\s.\-]*Subs?\b)"));
+    static const Rx subtitleLine(QStringLiteral(R"((?i)^\s*(?:Subtitles?|Subs?)\s*[:=])"));
+    static const Rx subtitleBracket(QStringLiteral(
+        R"((?i)\[[^\[\]\n]*\b(?:Subs?|Subtitles?)\b[^\[\]\n]*\])"));
+    static const Rx punctuation(QStringLiteral(R"([\s/|,;:+.\-]*)"));
+    out.french_led = has(frenchLed, text);
+    QStringList audioLines, subtitleLines;
+    const auto lines = text.split('\n');
+    for (qsizetype i = 0; i < lines.size(); ++i) {
+        QString line = lines[i];
+        QString withoutFlags = line;
+        withoutFlags.remove(FLAG_RX);
+        const bool flagsOnly = has(FLAG_RX, line) &&
+                              punctuation.match(withoutFlags).capturedLength() == withoutFlags.size();
+        const bool adjacentSubs = (i > 0 && has(multiSubs, lines[i - 1])) ||
+                                  (i + 1 < lines.size() && has(multiSubs, lines[i + 1]));
+        if (has(subtitleLine, line) || (flagsOnly && adjacentSubs)) {
+            subtitleLines.append("Languages: " + line);
+            continue;
+        }
+        // Remove only bracketed subtitle metadata, not audio tags elsewhere in
+        // the filename. A mixed Dual Audio / Multi Subs line keeps its audio tag.
+        auto brackets = subtitleBracket.globalMatch(line);
+        while (brackets.hasNext())
+            subtitleLines.append("Languages: " + brackets.next().captured());
+        line.remove(subtitleBracket);
+        if (has(multiSubs, line)) {
+            auto flags = FLAG_RX.globalMatch(line);
+            while (flags.hasNext())
+                subtitleLines.append(flags.next().captured());
+            line.remove(FLAG_RX);
+            line.remove(multiSubs);
+        }
+        if (has(frenchSubs, line))
+            subtitleLines.append("French");
+        line.remove(originalSubs);
+        if (has(frenchAudio, line))
+            line += " French";
+        audioLines.append(line);
+    }
+    out.audio_languages = parseLanguages(audioLines.join('\n'));
+    out.subtitle_languages = parseLanguages(subtitleLines.join('\n'));
+}
 QString episodeTitle(const QString &rawFilename, const Ptt &p) {
     const QString filename = technicalText(rawFilename);
     if (!p.season || !p.episode)
@@ -860,8 +911,8 @@ ParsedStream StreamParser::parse(const Stream &stream) {
     out.audio.bit_depth = m.hasMatch() ? std::optional<int>(m.captured(1).toInt()) : p.bitdepth;
     // Keep field/line boundaries: the end of one provider label must not create
     // a fictitious adjacent-language pair with the start of another field.
-    out.audio_languages = parseLanguages(technicalText(stripInvisibles(
-        QStringList{out.filename, stream.title, stream.description, stream.name}.join('\n'))));
+    parseLanguageTracks(technicalText(stripInvisibles(
+        QStringList{out.filename, stream.title, stream.description, stream.name}.join("\n\n"))), out);
     out.size = stream.size;
     if (!out.size) {
         const auto value = stream.behavior_hints.value("videoSize");

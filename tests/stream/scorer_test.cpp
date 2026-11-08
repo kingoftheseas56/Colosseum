@@ -100,16 +100,22 @@ int main(int argc, char **argv) {
     run("Seeders", [] {
         auto p = base();
         p.seeders = 5;
-        CHECK(scored(p).score == 20);
+        CHECK(std::abs(scored(p).score - (20 + 3 * std::log2(6.0))) < 1e-9);
         p.seeders = 0;
         auto s = scored(p);
         CHECK(s.score == -8);
         CHECK(reason(s, "zero-seeders-stale-meta", -20));
         CHECK(reason(s, "zero-seeders-soft", -8));
         p.seeders = 95;
-        CHECK(scored(p).score == 29);
+        CHECK(std::abs(scored(p).score - (20 + 3 * std::log2(96.0))) < 1e-9);
         p.seeders = 500;
-        CHECK(scored(p).score == 30);
+        CHECK(scored(p).score == 44);
+        auto o = options();
+        o.seeder_bonus_cap = std::numeric_limits<double>::infinity();
+        o.seeder_log_weight = std::numeric_limits<double>::quiet_NaN();
+        CHECK(std::isfinite(scored(p, o).score));
+        o.seeder_bonus_cap = -1; o.seeder_log_weight = -1;
+        CHECK(scored(p, o).score == 20);
     });
     run("Preferred languages", [] {
         auto p = base();
@@ -637,6 +643,86 @@ int main(int argc, char **argv) {
         auto o = options();
         o.media_kind = "movie";
         CHECK(primary(SourceScorer::rankAndPick({scored(dv, o), scored(safe, o)}, o)) == 1);
+    });
+    run("R3 source tier inside chosen band", [] {
+        auto bad = base(0), good = base(1);
+        bad.source = Source::HDTV; good.source = Source::BluRay;
+        bad.seeders = 5000; good.seeders = 30;
+        bad.size = good.size = 4000000000ULL;
+        CHECK(primary(SourceScorer::rankAndPick({scored(bad), scored(good)}, options())) == 1);
+        for (const auto source : {Source::BluRay, Source::BDRip, Source::REMUX, Source::WebDl, Source::WEBRip}) {
+            good.source = source;
+            for (const auto low : {Source::HDTV, Source::DVDRip, Source::SDTV}) {
+                bad.source = low;
+                CHECK(primary(SourceScorer::rankAndPick({scored(bad), scored(good)}, options())) == 1);
+            }
+        }
+        good.size = 20000000000ULL;
+        CHECK(primary(SourceScorer::rankAndPick({scored(bad), scored(good)}, options())) == 0);
+        CHECK(primary(SourceScorer::rankAndPick({scored(bad)}, options())) == 0);
+    });
+    run("R3 upscale penalty and deferral", [] {
+        auto ai = base(0), native = base(1);
+        ai.filename = "Movie.1080p.AI.Lab.conv";
+        ai.seeders = 5000; native.seeders = 20;
+        CHECK(reason(scored(ai), "upscale-or-conversion", -15));
+        CHECK(primary(SourceScorer::rankAndPick({scored(ai), scored(native)}, options())) == 1);
+        CHECK(primary(SourceScorer::rankAndPick({scored(ai)}, options())) == 0);
+        for (const auto &name : {"Movie.upscaled", "Movie.AI.upscale", "Movie.conversion", "Movie.conv"}) {
+            ai.filename = name;
+            CHECK(reason(scored(ai), "upscale-or-conversion", -15));
+        }
+        ai.filename = "Movie.1080p";
+        ai.stream.behavior_hints.insert("filename", "Episode 001-206 (1080p Upscale)/Movie.mkv");
+        CHECK(reason(scored(ai), "upscale-or-conversion", -15));
+        ai.stream.behavior_hints = {};
+        for (const auto &name : {"Movie.regrade", "Movie.conversation", "Movie.Conviction", "Movie.Airplane", "A.I.Artificial.Intelligence.2001"}) {
+            ai.filename = name;
+            CHECK(!reason(scored(ai), "upscale-or-conversion"));
+        }
+    });
+    run("R3 conservative preHD television inference", [] {
+        auto p = base(); p.resolution = Resolution::UHD; p.source = Source::WEBRip;
+        p.year = 1999; p.episode = 1; p.filename = "Show.1999.S01E01.2160p.WEBRip";
+        auto o = options(); o.media_kind = "series";
+        CHECK(reason(scored(p, o), "suspected-preHD-TV-upscale", -15));
+        o.media_kind = "movie"; CHECK(!reason(scored(p, o), "suspected-preHD-TV-upscale"));
+        o.media_kind = "series"; p.filename += ".Remastered";
+        CHECK(!reason(scored(p, o), "suspected-preHD-TV-upscale"));
+        p.filename = "Show.2020.S01E01"; p.year = 2020;
+        CHECK(!reason(scored(p, o), "suspected-preHD-TV-upscale"));
+        p.year.reset(); o.release_date = QDate(1999, 1, 1);
+        CHECK(reason(scored(p, o), "suspected-preHD-TV-upscale", -15));
+        p.year = 1999; p.source = Source::BluRay;
+        CHECK(!reason(scored(p, o), "suspected-preHD-TV-upscale"));
+    });
+    run("R3 healthy torrent floor within best source", [] {
+        auto weak = base(0), healthy = base(1);
+        weak.source = Source::BluRay; weak.seeders = 19; weak.audio.codec = AudioCodec::Atmos;
+        healthy.source = Source::HDTV; healthy.seeders = 20;
+        CHECK(primary(SourceScorer::rankAndPick({scored(weak), scored(healthy)}, options())) == 0);
+        healthy.source = Source::BluRay;
+        CHECK(primary(SourceScorer::rankAndPick({scored(weak), scored(healthy)}, options())) == 1);
+        healthy.seeders = 19;
+        CHECK(primary(SourceScorer::rankAndPick({scored(weak), scored(healthy)}, options())) == 0);
+        healthy.source = Source::BluRay; healthy.seeders = 200;
+        CHECK(scored(healthy).score > scored(weak).score);
+        auto o = options(); o.healthy_seeders = 30; healthy.seeders = 20;
+        CHECK(primary(SourceScorer::rankAndPick({scored(weak, o), scored(healthy, o)}, o)) == 0);
+    });
+    run("R3 French led is secondary unless French preferred", [] {
+        auto fr = base(0), en = base(1);
+        fr.french_led = true; fr.audio_languages = {"Japanese"}; fr.seeders = 5000;
+        en.dual_audio = true; en.audio_languages = {"Japanese", "English"}; en.seeders = 20;
+        auto o = options(); o.preferred_languages = {"ja"};
+        CHECK(reason(scored(fr, o), "preferred-language-secondary", 3));
+        CHECK(primary(SourceScorer::rankAndPick({scored(fr, o), scored(en, o)}, o)) == 1);
+        fr.audio_languages = {"French"}; o.preferred_languages = {"fr"};
+        CHECK(reason(scored(fr, o), "preferred-language", 12));
+        CHECK(primary(SourceScorer::rankAndPick({scored(fr, o), scored(en, o)}, o)) == 0);
+        fr.audio_languages.clear(); fr.subtitle_languages = {"English"};
+        o.preferred_languages = {"en"};
+        CHECK(!reason(scored(fr, o), "preferred-language"));
     });
     run("Selection explanations", [] {
         auto r = SourceScorer::rankAndPick({}, options());
