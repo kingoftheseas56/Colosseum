@@ -140,6 +140,29 @@ jobs:
           bash scripts/android/build_media3_ffmpeg.sh
           python tests/test_android_ffmpeg_audio_contract.py
 
+      - name: Use runner Gradle for Qt Android packaging (CI only)
+        # Qt androiddeployqt copies and invokes gradlew from the installed Qt kit.
+        # The distribution server currently returns HTTP 504. Use the runner's
+        # already-installed Gradle 9.x rather than downloading the wrapper again.
+        # Patch only transient Qt kit files, after the immutable toolchain cache save.
+        run: |
+          set -euo pipefail
+          command -v gradle
+          gradle --version | head -12
+          gradle_version="$(gradle --version | sed -n 's/^Gradle //p' | head -1)"
+          case "$gradle_version" in
+            9.*) ;;
+            *) echo "Expected Gradle 9.x, got $gradle_version" >&2; exit 1 ;;
+          esac
+          for kit in android_x86_64 android_arm64_v8a; do
+            wrapper="$COLOSSEUM_ANDROID_TOOLCHAIN/Qt/$QT_VERSION/$kit/src/3rdparty/gradle/gradlew"
+            test -f "$wrapper" || { echo "Qt Gradle template missing: $wrapper" >&2; exit 1; }
+            cp "$wrapper" "$wrapper.upstream"
+            printf '#!/bin/sh\nexec gradle "$@"\n' > "$wrapper"
+            chmod +x "$wrapper"
+            echo "Qt $kit: system Gradle $gradle_version"
+          done
+
       - name: Build x86_64 APK
         env:
           COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
