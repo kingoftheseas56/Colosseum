@@ -758,9 +758,11 @@ Item {
                         required property var modelData
                         required property int index
                         readonly property bool active: root.activeTab === tab.index
-                        width: tabText.implicitWidth + 36; height: 36; radius: 18
+                        // the pill pads the label AND its count, so both sit centred with even room
+                        width: tabContent.implicitWidth + 36; height: 36; radius: 18
                         color: tab.active ? root.paper : (tabKey.hovered ? theme.glassTint : "transparent")
                         Row {
+                            id: tabContent
                             anchors.centerIn: parent
                             spacing: 8
                             Text {
@@ -773,6 +775,8 @@ Item {
                             Text {
                                 objectName: "shelvesTabCount_" + tab.index
                                 visible: tab.modelData.count > 0
+                                // the smaller count shares the label's baseline instead of riding high
+                                anchors.baseline: tabText.baseline
                                 text: tab.modelData.count
                                 color: tab.active ? Qt.rgba(9 / 255, 12 / 255, 19 / 255, 0.55) : theme.inkDimmer
                                 font.family: root.uiFace; font.pixelSize: 11
