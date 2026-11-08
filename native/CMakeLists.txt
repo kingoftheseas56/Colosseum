@@ -361,6 +361,8 @@ set(COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES
 qt_add_executable(colosseum
     feedback/FeedbackRequestService.cpp
     feedback/FeedbackRequestService.h
+    home_servers/JellyfinEmbyClient.cpp
+    home_servers/JellyfinEmbyClient.h
     ${COLOSSEUM_THEATRE_ACCOUNT_SOURCES}
     engine/TankoyomiSeriesMatcher.cpp
     engine/TankoyomiSeriesMatcher.h

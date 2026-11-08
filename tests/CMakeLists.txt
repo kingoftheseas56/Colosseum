@@ -5763,3 +5763,23 @@ if(TARGET colosseum_nuvio AND TARGET Qt6::Test)
     set_tests_properties(colosseum.nuvio_plugin_host_test PROPERTIES
         ENVIRONMENT "COLOSSEUM_NUVIO_TEST_WORKER=$<TARGET_FILE:colosseum-nuvio-host>")
 endif()
+
+# Arc 80: Jellyfin/Emby transport contract, with no external server required.
+add_executable(tst_jellyfin_emby_client
+    auto/home_servers/tst_jellyfin_emby_client.cpp
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/JellyfinEmbyClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/JellyfinEmbyClient.h")
+target_include_directories(tst_jellyfin_emby_client PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_jellyfin_emby_client PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+set_target_properties(tst_jellyfin_emby_client PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    foreach(qt_target IN ITEMS Core Network Test)
+        add_custom_command(TARGET tst_jellyfin_emby_client POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::${qt_target}>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+    endforeach()
+endif()
+add_test(NAME colosseum.qttest.jellyfin_emby_client COMMAND tst_jellyfin_emby_client)
+set_tests_properties(colosseum.qttest.jellyfin_emby_client PROPERTIES
+    LABELS "unit;home_servers;jellyfin;emby" TIMEOUT 60)
