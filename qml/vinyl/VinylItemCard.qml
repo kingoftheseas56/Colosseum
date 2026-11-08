@@ -215,6 +215,7 @@ KeyboardAction {
     KeyboardAction {
         id: feedbackButton
         objectName: "vinylRecommendationActions_" + String(root.item.id || "item")
+        tooltipText: qsTr("Feedback options")
         x: art.width-width-7
         y: 7
         z: 2

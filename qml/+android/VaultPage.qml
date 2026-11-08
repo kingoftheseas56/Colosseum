@@ -1392,6 +1392,8 @@ Item {
                         anchors.fill: parent
                         pointerEnabled: false
                         accessibleName: "Search the Vault"
+                        tooltipText: accessibleName
+                        tooltipHovered: searchOpenMa.containsMouse
                         onTriggered: root.openSearch()
                     }
                 }
@@ -1439,6 +1441,8 @@ Item {
                         anchors.fill: parent
                         pointerEnabled: false
                         accessibleName: "Filter Vault items"
+                        tooltipText: adaptive.phone ? accessibleName : ""
+                        tooltipHovered: filterFaceMa.containsMouse
                         onTriggered: root.toggleFilterMenu(true)
                     }
                 }
@@ -1484,6 +1488,8 @@ Item {
                         anchors.fill: parent
                         pointerEnabled: false
                         accessibleName: "Sort Vault items"
+                        tooltipText: adaptive.phone ? accessibleName : ""
+                        tooltipHovered: sortFaceMa.containsMouse
                         onTriggered: root.toggleSortMenu(true)
                     }
                 }
@@ -2104,17 +2110,26 @@ Item {
                    MouseArea { id: mMa; anchors.fill: parent; hoverEnabled: true
                                cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
                    KeyboardAction { id: minKey; anchors.fill: parent; pointerEnabled: false
-                                    accessibleName: "Minimize"; onTriggered: root.minimizeRequested() } }
+                                    accessibleName: "Minimize"
+                                    tooltipText: accessibleName; tooltipHovered: mMa.containsMouse
+                                    onTriggered: root.minimizeRequested() } }
             Text { text: "⛶"; color: fMa.containsMouse || fullKey.activeFocus ? theme.ink : theme.inkDim; font.pixelSize: 17
                    MouseArea { id: fMa; anchors.fill: parent; hoverEnabled: true
                                cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
                    KeyboardAction { id: fullKey; anchors.fill: parent; pointerEnabled: false
-                                    accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() } }
+                                    accessibleName: "Toggle fullscreen"
+                                    tooltipText: typeof WindowMode !== "undefined"
+                                                 ? (WindowMode.shellWindowed ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen"))
+                                                 : qsTr("Toggle fullscreen")
+                                    tooltipHovered: fMa.containsMouse
+                                    onTriggered: root.fullscreenRequested() } }
             Text { text: "⏻"; color: pMa.containsMouse || closeKey.activeFocus ? theme.ink : theme.inkDim; font.pixelSize: 17
                    MouseArea { id: pMa; anchors.fill: parent; hoverEnabled: true
                                cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
                    KeyboardAction { id: closeKey; anchors.fill: parent; pointerEnabled: false
-                                    accessibleName: "Close Colosseum"; onTriggered: root.closeRequested() } }
+                                    accessibleName: "Close Colosseum"
+                                    tooltipText: accessibleName; tooltipHovered: pMa.containsMouse
+                                    onTriggered: root.closeRequested() } }
         }
     }
     BackAction {

@@ -119,6 +119,7 @@ Item {
                     id: closeAction
                     anchors.fill: parent
                     accessibleName: "Close setup"
+                    tooltipText: accessibleName
                     focusRadius: 17
                     onTriggered: sheet.closeRequested()
                 }

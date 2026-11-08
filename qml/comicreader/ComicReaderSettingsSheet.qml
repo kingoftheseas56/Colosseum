@@ -326,7 +326,7 @@ Item {
                         width: 15; height: 15
                         ink: theme.inkDimmer
                     }
-                    ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: closeX.tapped() }
+                    ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; tooltipText: qsTr("Close settings"); onClicked: closeX.tapped() }
                 }
             }
 

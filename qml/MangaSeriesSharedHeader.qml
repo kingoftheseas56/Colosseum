@@ -91,6 +91,9 @@ Item {
                 width: 36; height: 36; activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Minimize window"
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/minimize.svg"; opacity: minMa.containsMouse ? 1 : .72 }
+                ToolTip.visible: minMa.containsMouse
+                ToolTip.text: qsTr('Minimize window')
+                ToolTip.delay: 350
                 MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
                 Keys.onReturnPressed: root.minimizeRequested(); Keys.onEnterPressed: root.minimizeRequested()
             }
@@ -103,6 +106,9 @@ Item {
                         ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
                     opacity: fullMa.containsMouse ? 1 : .72
                 }
+                ToolTip.visible: fullMa.containsMouse
+                ToolTip.text: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
+                ToolTip.delay: 350
                 MouseArea { id: fullMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
                 Keys.onReturnPressed: root.fullscreenRequested(); Keys.onEnterPressed: root.fullscreenRequested()
             }
@@ -110,6 +116,9 @@ Item {
                 width: 36; height: 36; activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Close series view"
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/power.svg"; opacity: closeMa.containsMouse ? 1 : .72 }
+                ToolTip.visible: closeMa.containsMouse
+                ToolTip.text: qsTr('Close series view')
+                ToolTip.delay: 350
                 MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
                 Keys.onReturnPressed: root.closeRequested(); Keys.onEnterPressed: root.closeRequested()
             }
@@ -202,7 +211,7 @@ Item {
                     Accessible.name: root.librarySaved ? "Remove from Library" : "Add to Library"
                     ToolTip.visible: libraryMa.containsMouse
                     ToolTip.text: root.librarySaved ? "Remove from Library" : "Add to Library"
-                    ToolTip.delay: 450
+                    ToolTip.delay: 350
                     y: Math.round((titleRow.height - height) / 2)
                     Rectangle {
                         anchors.fill: parent; radius: 9

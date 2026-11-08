@@ -270,6 +270,7 @@ Item {
                 MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { queryInput.text = ""; queryInput.forceActiveFocus() } }
                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Clear search"; focusRadius: 13
+                    tooltipText: accessibleName; tooltipHovered: clearMa.containsMouse
                     onTriggered: { queryInput.text = ""; queryInput.forceActiveFocus() } }
             }
             Rectangle {                              // Esc hint
@@ -354,6 +355,9 @@ Item {
                             Rectangle { id: removeRecentButton; width: search.phoneNarrow ? 44 : 28; height: parent.height; radius: height / 2
                                 anchors.right: parent.right; anchors.rightMargin: 3; anchors.verticalCenter: parent.verticalCenter
                                 color: removeRecentMa.containsMouse ? Qt.rgba(1,1,1,0.14) : "transparent"
+                                ToolTip.text: qsTr("Remove recent search")
+                                ToolTip.visible: removeRecentMa.containsMouse
+                                ToolTip.delay: 350
                                 Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 11 }
                                 MouseArea { id: removeRecentMa; anchors.fill: parent; hoverEnabled: true
                                     objectName: "biblioRecentRemove"; cursorShape: Qt.PointingHandCursor
@@ -766,6 +770,7 @@ Item {
                 onClicked: search.minimizeRequested()
             }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; focusRadius: 4
+                tooltipText: accessibleName; tooltipHovered: chromeMinMa.containsMouse
                 onTriggered: search.minimizeRequested() }
         }
         Item {
@@ -782,6 +787,7 @@ Item {
                 opacity: fsMa.containsMouse ? 1.0 : 0.72
             }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; focusRadius: 4
+                tooltipText: ((typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")); tooltipHovered: fsMa.containsMouse
                 onTriggered: search.fullscreenRequested() }
             MouseArea {
                 id: fsMa
@@ -803,6 +809,7 @@ Item {
                 opacity: chromePowMa.containsMouse ? 1.0 : 0.72
             }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close Colosseum"; focusRadius: 4
+                tooltipText: accessibleName; tooltipHovered: chromePowMa.containsMouse
                 onTriggered: { search.cancelAllRequests(); search.closeRequested() } }
             MouseArea {
                 id: chromePowMa

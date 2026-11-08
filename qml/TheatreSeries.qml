@@ -1050,6 +1050,7 @@ Item {
             }
             KeyboardAction {
                 anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"
+                tooltipText: accessibleName; tooltipHovered: minMa.containsMouse
                 focusRadius: 6; onTriggered: page.minimizeRequested()
             }
         }
@@ -1075,6 +1076,7 @@ Item {
             }
             KeyboardAction {
                 anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"
+                tooltipText: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen"); tooltipHovered: fsMa.containsMouse
                 focusRadius: 6; onTriggered: page.fullscreenRequested()
             }
         }
@@ -1098,6 +1100,7 @@ Item {
             }
             KeyboardAction {
                 anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"
+                tooltipText: accessibleName; tooltipHovered: clMa.containsMouse
                 focusRadius: 6; onTriggered: page.closeRequested()
             }
         }
@@ -1709,6 +1712,9 @@ Item {
                                 // Automation identity (Lanista): keyed by the episode's own stream id.
                                 // The identity stays stable while the bounded virtual window is recreated.
                                 objectName: "theatreEpisodePlay_" + String(page.episodeStreamId(ep.modelData))
+                                ToolTip.visible: playMa.containsMouse
+                                ToolTip.text: qsTr("Play episode")
+                                ToolTip.delay: 350
                                 x: rowActions.x
                                 y: rowActions.y
                                 width: 38
@@ -1741,6 +1747,10 @@ Item {
                             // (inert check), queued (inert download dim), ready to queue.
                             Rectangle {
                                 id: epDl
+                                ToolTip.visible: epDlMa.containsMouse
+                                ToolTip.text: epDl.onDisk ? qsTr("Downloaded")
+                                              : epDl.inQueue ? qsTr("Download queued") : qsTr("Download episode")
+                                ToolTip.delay: 350
                                 property string sid: page.episodeStreamId(ep.modelData)
                                 property bool onDisk: (typeof Download !== "undefined")
                                     ? (Download.queueRevision, Download.hasVideo(sid)) : false

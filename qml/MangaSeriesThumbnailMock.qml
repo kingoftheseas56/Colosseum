@@ -539,6 +539,9 @@ Item {
             Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
+            ToolTip.visible: minMa.containsMouse
+            ToolTip.text: qsTr('Minimize window')
+            ToolTip.delay: 350
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.minimizeRequested() }
         }
@@ -555,6 +558,9 @@ Item {
                 fillMode: Image.PreserveAspectFit
                 opacity: fsMa.containsMouse ? 1.0 : 0.72
             }
+            ToolTip.visible: fsMa.containsMouse
+            ToolTip.text: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
+            ToolTip.delay: 350
             MouseArea {
                 id: fsMa
                 anchors.fill: parent
@@ -568,6 +574,9 @@ Item {
             Image { anchors.fill: parent; source: "../assets/icons/power.svg"
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: clMa.containsMouse ? 1.0 : 0.72 }
+            ToolTip.visible: clMa.containsMouse
+            ToolTip.text: qsTr('Close series view')
+            ToolTip.delay: 350
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.closeRequested() }
         }
@@ -1023,6 +1032,9 @@ Item {
                                     }
                                     MouseArea {
                                         id: trMa; anchors.fill: parent; hoverEnabled: true; z: 5
+                                        ToolTip.visible: containsMouse
+                                        ToolTip.text: row.dlState === 'done' ? qsTr('Delete chapter download') : row.inFlight ? qsTr('Cancel chapter download') : row.dlState === 'error' ? qsTr('Retry chapter download') : qsTr('Download chapter')
+                                        ToolTip.delay: 350
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
                                             if (typeof Downloads === "undefined") return

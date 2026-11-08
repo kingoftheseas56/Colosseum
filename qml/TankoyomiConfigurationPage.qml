@@ -334,8 +334,9 @@ Item {
                                 color: root.tankoyomiEnabled ? "#1a1306" : theme.inkDim
                                 Behavior on x { NumberAnimation { duration: 140 } } }
                             MouseArea { anchors.fill: parent; onClicked: root.setMasterEnabled(!root.tankoyomiEnabled) }
+                            HoverHandler { id: masterTipHover }
                             KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: true
-                                focusRadius: 12; accessibleName: root.tankoyomiEnabled ? "Disable Tankoyomi" : "Enable Tankoyomi"
+                                focusRadius: 12; accessibleName: root.tankoyomiEnabled ? "Disable Tankoyomi" : "Enable Tankoyomi"; tooltipText: accessibleName; tooltipHovered: masterTipHover.hovered
                                 onTriggered: root.setMasterEnabled(!root.tankoyomiEnabled) }
                         }
                     }
@@ -624,17 +625,20 @@ Item {
                                                  Rectangle { anchors.fill: parent; radius: 11; color: providerRow.providerEnabled ? theme.gold : Qt.rgba(1,1,1,0.14); border.width: 1; border.color: providerRow.providerEnabled ? theme.gold : theme.edge }
                                                  Rectangle { width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; x: providerRow.providerEnabled ? parent.width - width - 3 : 3; color: providerRow.providerEnabled ? "#1a1306" : theme.inkDim }
                                                  MouseArea { anchors.fill: parent; onClicked: root.toggleProvider(root.selectedLanguage, providerRow.providerId, !providerRow.providerEnabled) }
-                                                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: true; accessibleName: (providerRow.providerEnabled ? "Disable " : "Enable ") + (providerRow.modelData.name || providerRow.providerId)
+                                                 HoverHandler { id: providerTipHover }
+                                                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: true; accessibleName: (providerRow.providerEnabled ? "Disable " : "Enable ") + (providerRow.modelData.name || providerRow.providerId); tooltipText: accessibleName; tooltipHovered: providerTipHover.hovered
                                                      onTriggered: root.toggleProvider(root.selectedLanguage, providerRow.providerId, !providerRow.providerEnabled) } }
                                              Item { id: upControl; width: providerRow.compact ? 24 : 28; height: 28
                                                  Text { anchors.centerIn: parent; text: "↑"; color: providerRow.canMoveUp ? theme.inkDim : theme.inkDimmer; font.pixelSize: 16 }
                                                  MouseArea { anchors.fill: parent; enabled: providerRow.canMoveUp; onClicked: root.moveProviderUp(root.selectedLanguage, providerRow.providerId) }
-                                                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: providerRow.canMoveUp; enabled: providerRow.canMoveUp; accessibleName: "Move " + (providerRow.modelData.name || providerRow.providerId) + " up"
+                                                 HoverHandler { id: providerUpTipHover }
+                                                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: providerRow.canMoveUp; enabled: providerRow.canMoveUp; accessibleName: "Move " + (providerRow.modelData.name || providerRow.providerId) + " up"; tooltipText: accessibleName; tooltipHovered: providerUpTipHover.hovered
                                                      onTriggered: root.moveProviderUp(root.selectedLanguage, providerRow.providerId) } }
                                              Item { id: downControl; width: providerRow.compact ? 24 : 28; height: 28
                                                  Text { anchors.centerIn: parent; text: "↓"; color: providerRow.canMoveDown ? theme.inkDim : theme.inkDimmer; font.pixelSize: 16 }
                                                  MouseArea { anchors.fill: parent; enabled: providerRow.canMoveDown; onClicked: root.moveProviderDown(root.selectedLanguage, providerRow.providerId) }
-                                                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: providerRow.canMoveDown; enabled: providerRow.canMoveDown; accessibleName: "Move " + (providerRow.modelData.name || providerRow.providerId) + " down"
+                                                 HoverHandler { id: providerDownTipHover }
+                                                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: providerRow.canMoveDown; enabled: providerRow.canMoveDown; accessibleName: "Move " + (providerRow.modelData.name || providerRow.providerId) + " down"; tooltipText: accessibleName; tooltipHovered: providerDownTipHover.hovered
                                                      onTriggered: root.moveProviderDown(root.selectedLanguage, providerRow.providerId) } }
                                         }
                                     }
@@ -677,13 +681,13 @@ Item {
         anchors.top: parent.top; anchors.right: parent.right; anchors.topMargin: 24; anchors.rightMargin: theme.margin
         spacing: 22
         Text { text: "⌕"; color: searchInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
-               KeyboardAction { id: searchInput; anchors.fill: parent; accessibleName: "Search"; focusRadius: 5; onTriggered: root.searchClicked() } }
+               KeyboardAction { id: searchInput; anchors.fill: parent; accessibleName: "Search"; tooltipText: accessibleName; focusRadius: 5; onTriggered: root.searchClicked() } }
         Text { visible: Qt.platform.os !== "android"; text: "—"; color: minInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
-               KeyboardAction { id: minInput; anchors.fill: parent; accessibleName: "Minimize"; focusRadius: 5; onTriggered: root.minimizeRequested() } }
+               KeyboardAction { id: minInput; anchors.fill: parent; accessibleName: "Minimize"; tooltipText: accessibleName; focusRadius: 5; onTriggered: root.minimizeRequested() } }
         Text { visible: Qt.platform.os !== "android"; text: "⛶"; color: fullInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
-               KeyboardAction { id: fullInput; anchors.fill: parent; accessibleName: "Toggle fullscreen"; focusRadius: 5; onTriggered: root.fullscreenRequested() } }
+               KeyboardAction { id: fullInput; anchors.fill: parent; accessibleName: "Toggle fullscreen"; tooltipText: accessibleName; focusRadius: 5; onTriggered: root.fullscreenRequested() } }
         Text { visible: Qt.platform.os !== "android"; text: "⏻"; color: powerInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
-               KeyboardAction { id: powerInput; anchors.fill: parent; accessibleName: "Close Colosseum"; focusRadius: 5; onTriggered: root.closeRequested() } }
+               KeyboardAction { id: powerInput; anchors.fill: parent; accessibleName: "Close Colosseum"; tooltipText: accessibleName; focusRadius: 5; onTriggered: root.closeRequested() } }
     }
     BackAction { objectName: "tankoyomiConfigurationBack"; variant: "capsule"; tip: "Back to Extensions"
         anchors.top: parent.top; anchors.left: parent.left; anchors.topMargin: 21; anchors.leftMargin: theme.margin - 10

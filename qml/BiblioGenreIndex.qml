@@ -241,17 +241,21 @@ Item {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.rightMargin: 26
             spacing: 20
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
+                    HoverHandler { id: genreIndexSearchHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; focusRadius: 4; onTriggered: root.searchClicked() } }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; tooltipText: accessibleName; tooltipHovered: genreIndexSearchHover.hovered; focusRadius: 4; onTriggered: root.searchClicked() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
+                    HoverHandler { id: genreIndexMinHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; focusRadius: 4; onTriggered: root.minimizeRequested() } }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; tooltipText: accessibleName; tooltipHovered: genreIndexMinHover.hovered; focusRadius: 4; onTriggered: root.minimizeRequested() } }
             Image { visible: Qt.platform.os !== "android"; source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
+                    HoverHandler { id: genreIndexFullscreenHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; focusRadius: 4; onTriggered: root.fullscreenRequested() } }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; tooltipText: ((typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")); tooltipHovered: genreIndexFullscreenHover.hovered; focusRadius: 4; onTriggered: root.fullscreenRequested() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
+                    HoverHandler { id: genreIndexCloseHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"; focusRadius: 4; onTriggered: root.closeRequested() } }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"; tooltipText: accessibleName; tooltipHovered: genreIndexCloseHover.hovered; focusRadius: 4; onTriggered: root.closeRequested() } }
         }
     }
 }

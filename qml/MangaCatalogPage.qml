@@ -504,6 +504,8 @@ Item {
                     onClicked: root.minimizeRequested()
                 }
                 KeyboardAction { id: mangaCatalogMinKeyboard; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                    tooltipText: accessibleName
+                    tooltipHovered: minimizeHover.hovered
                     accessibleName: "Minimize"; focusRadius: 6; onTriggered: root.minimizeRequested() }
             }
             Item {
@@ -522,6 +524,8 @@ Item {
                     onClicked: root.closeRequested()
                 }
                 KeyboardAction { id: mangaCatalogCloseKeyboard; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                    tooltipText: accessibleName
+                    tooltipHovered: powerHover.hovered
                     accessibleName: "Close"; focusRadius: 6; onTriggered: root.closeRequested() }
             }
         }

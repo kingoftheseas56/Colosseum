@@ -13,6 +13,7 @@
 // opening from the same overflow menu, with the watcher-degraded consequence stated plainly.
 import QtQuick
 import QtQuick.Window
+import QtQuick.Controls
 
 Item {
     id: rail
@@ -179,6 +180,8 @@ Item {
                     anchors.fill: parent
                     pointerEnabled: false
                     accessibleName: rail.expanded ? "Collapse storage rail" : "Expand storage rail"
+                    tooltipText: accessibleName
+                    tooltipHovered: toggleMa.containsMouse
                     onTriggered: rail.toggleRequested()
                 }
             }
@@ -226,6 +229,12 @@ Item {
                                                           || rootRow.watcherDegraded
                 width: col.width
                 height: 52
+                ToolTip.visible: rowMa.containsMouse && !overflowMa.containsMouse
+                    && !removeMa.containsMouse && (!rail.expanded || rootRow.hasNeedsAttention)
+                ToolTip.text: (rootRow.modelData.name || qsTr("Storage"))
+                    + (rootRow.available ? qsTr(" · Available") : qsTr(" · Drive disconnected"))
+                    + (rootRow.hasNeedsAttention ? qsTr(" · Needs attention") : "")
+                ToolTip.delay: 350
 
                 Rectangle {
                     anchors.fill: parent
@@ -335,6 +344,9 @@ Item {
                 // overlap; opens the shared menu anchored at this row.
                 Item {
                     id: rowOverflow
+                    ToolTip.visible: overflowMa.containsMouse
+                    ToolTip.text: qsTr("Storage actions")
+                    ToolTip.delay: 350
                     objectName: "vaultBrowseRailRowOverflow"
                     visible: rail.expanded
                              && (rowMa.containsMouse || overflowMa.containsMouse
@@ -365,6 +377,9 @@ Item {
                 // (hide + republish — the files on the Downloads lane are never touched).
                 Item {
                     id: downloadsRemove
+                    ToolTip.visible: removeMa.containsMouse
+                    ToolTip.text: qsTr("Remove Downloads from Vault")
+                    ToolTip.delay: 350
                     objectName: "vaultBrowseRailDownloadsRemove"
                     visible: rail.expanded && rootRow.isDownloads
                              && (rowMa.containsMouse || removeMa.containsMouse || rootRow.activeFocus)
@@ -450,6 +465,8 @@ Item {
                 anchors.fill: parent
                 pointerEnabled: false
                 accessibleName: "Open hidden Vault items"
+                tooltipText: rail.expanded ? "" : accessibleName
+                tooltipHovered: hiddenMa.containsMouse
                 onTriggered: rail.hiddenRequested()
             }
         }
@@ -493,6 +510,7 @@ Item {
                 }
             }
             MouseArea {
+                id: addMa
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
@@ -502,6 +520,8 @@ Item {
                 anchors.fill: parent
                 pointerEnabled: false
                 accessibleName: "Add Vault storage"
+                tooltipText: rail.expanded ? "" : accessibleName
+                tooltipHovered: addMa.containsMouse
                 onTriggered: rail.addRequested()
             }
         }

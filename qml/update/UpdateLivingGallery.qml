@@ -346,6 +346,9 @@ Item {
                     Accessible.role: Accessible.Button
                     Accessible.name: "Chapter %1: %2".arg(index + 1).arg(String(modelData.title || "Chapter"))
                     Accessible.description: index === root.currentIndex ? "Selected" : ""
+                    ToolTip.visible: chapterTipHover.hovered
+                    ToolTip.delay: 350
+                    ToolTip.text: qsTr("Chapter %1: %2").arg(index + 1).arg(String(modelData.title || qsTr("Chapter")))
                     Keys.onPressed: function(event) {
                         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
                                 || event.key === Qt.Key_Space) {
@@ -380,6 +383,7 @@ Item {
                             NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
                         }
                     }
+                    HoverHandler { id: chapterTipHover }
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor

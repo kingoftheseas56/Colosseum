@@ -104,7 +104,7 @@ Item {
                     c.arc(width/2,height*0.35,width*0.18,0,Math.PI*2); c.stroke(); c.beginPath(); c.arc(width/2,height*1.05,width*0.38,Math.PI*1.12,Math.PI*1.88); c.stroke()
                 }
             }
-            Colosseum.KeyboardAction { anchors.fill: parent; showFocusFrame:false; onTriggered: controller.viewState = "account" }
+            Colosseum.KeyboardAction { anchors.fill: parent; showFocusFrame:false; tooltipText: qsTr("Account"); onTriggered: controller.viewState = "account" }
         }
         Text {
             text: controller.clockText()

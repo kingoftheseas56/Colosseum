@@ -7,6 +7,7 @@
 // Shared by the Tankoban, Theatre and Demo (Biblio) world pages, so this one fix covers them all.
 
 import QtQuick
+import QtQuick.Controls
 
 Column {
     id: top10
@@ -64,6 +65,9 @@ Column {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
+            ToolTip.text: chevronKeyboard.accessibleName
+            ToolTip.delay: 350
+            ToolTip.visible: containsMouse
             onClicked: chev.tapped()
         }
         KeyboardAction {

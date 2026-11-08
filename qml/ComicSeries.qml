@@ -472,6 +472,8 @@ Item {
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: { page._invalidateReadIntent(); page.minimizeRequested() } }
             KeyboardAction {
+                tooltipText: accessibleName
+                tooltipHovered: minMa.containsMouse
                 id: minimizeKeyboard
                 anchors.fill: parent
                 pointerEnabled: false
@@ -500,6 +502,8 @@ Item {
                 onClicked: page.fullscreenRequested()
             }
             KeyboardAction {
+                tooltipText: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
+                tooltipHovered: fsMa.containsMouse
                 id: fullscreenKeyboard
                 anchors.fill: parent
                 pointerEnabled: false
@@ -515,6 +519,8 @@ Item {
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: { page._invalidateReadIntent(); page.closeRequested() } }
             KeyboardAction {
+                tooltipText: accessibleName
+                tooltipHovered: clMa.containsMouse
                 id: closeKeyboard
                 anchors.fill: parent
                 pointerEnabled: false
@@ -668,6 +674,8 @@ Item {
                         MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: filterInput.text = "" }
                         KeyboardAction {
+                            tooltipText: accessibleName
+                            tooltipHovered: clearMa.containsMouse
                             id: clearKeyboard
                             anchors.fill: parent
                             pointerEnabled: false
@@ -955,6 +963,8 @@ Item {
                                                 onClicked: trailing.activateTrailing()
                                             }
                                             KeyboardAction {
+                                                tooltipText: accessibleName
+                                                tooltipHovered: trMa.containsMouse
                                                 id: trailingKeyboard
                                                 anchors.fill: parent
                                                 pointerEnabled: false

@@ -149,6 +149,7 @@ Item {
     Theme { id: theme }
 
     component Action: KeyboardAction {
+        tooltipText: accessibleName
         id: control
         property string symbol
         property bool selected: false
@@ -255,6 +256,7 @@ Item {
         spacing: root.spacing
         Action {
             objectName: "vinylBarVideo"
+            tooltipText: root.videoBusy ? (root.videoSwitchCancellable ? qsTr("Cancel audio/video switch") : qsTr("Switching playback mode")) : root.videoShown ? qsTr("Turn video off") : qsTr("Switch to video")
             visible: root.showReaderTools
             enabled: root.videoBusy ? root.videoSwitchCancellable : (root.videoAvailable || root.videoShown)
             selected: root.videoShown

@@ -183,6 +183,7 @@ Item {
                     id: startInput
                     anchors.fill: parent
                     accessibleName: bar.open ? "Close Colosseum taskbar" : "Open Colosseum taskbar"
+                    tooltipText: accessibleName
                     focusRadius: bar.open ? 14 : 24
                     onTriggered: {
                         bar.open = !bar.open
@@ -230,15 +231,13 @@ Item {
                     name: "collections"
                     strokeColor: bar.collectionsActive ? theme.gold : theme.ink
                 }
-                ToolTip.visible: collectionsInput.hovered
-                ToolTip.text: "Your Collections"
-                ToolTip.delay: 350
                 KeyboardAction {
                     id: collectionsInput
                     objectName: "taskbarCollectionsAction"
                     anchors.fill: parent
                     accessibleName: "Your Collections"
                     accessibleDescription: "Open your named collections"
+                    tooltipText: accessibleName
                     focusRadius: 13
                     onTriggered: bar.collectionsClicked()
                 }
@@ -272,6 +271,8 @@ Item {
                     anchors.fill: parent
                     accessibleName: bar.localMediaAvailable ? qsTr("Open media") : qsTr("Open media unavailable")
                     accessibleDescription: bar.localMediaAvailable ? "" : bar.localMediaUnavailableReason
+                    tooltipText: accessibleName
+                    tooltipHovered: hovered && !recentInput.hovered
                     focusRadius: 13
                     onTriggered: bar.openMediaClicked()
                 }
@@ -300,6 +301,7 @@ Item {
                         anchors.fill: parent
                         accessibleName: bar.localMediaAvailable ? qsTr("Open recent media") : qsTr("Recent media unavailable")
                         accessibleDescription: bar.localMediaAvailable ? "" : bar.localMediaUnavailableReason
+                        tooltipText: accessibleName
                         focusRadius: 4
                         focusInset: -2
                         onTriggered: bar.openRecentRequested()
@@ -355,6 +357,7 @@ Item {
                     id: watchPartyInput
                     anchors.fill: parent
                     accessibleName: "Join Watch Party"
+                    tooltipText: accessibleName
                     focusRadius: 13
                     onTriggered: bar.watchPartyJoinClicked()
                 }
@@ -411,6 +414,7 @@ Item {
                     id: downloadsInput
                     anchors.fill: parent
                     accessibleName: "Downloads"
+                    tooltipText: accessibleName
                     focusRadius: 13
                     onTriggered: bar.downloadsClicked()
                 }
@@ -455,6 +459,7 @@ Item {
                     id: extensionsInput
                     anchors.fill: parent
                     accessibleName: "Extensions"
+                    tooltipText: accessibleName
                     focusRadius: 13
                     onTriggered: bar.extensionsClicked()
                 }
@@ -507,14 +512,11 @@ Item {
                     objectName: "taskbarHistoryStatsInput"
                     anchors.fill: parent
                     accessibleName: bar.activityLabel
+                    tooltipText: accessibleName
                     spaceActivates: true
                     focusRadius: 13
                     onTriggered: bar.historyStatsClicked()
                 }
-                HoverHandler { id: activityHover }
-                ToolTip.visible: activityHover.hovered
-                ToolTip.delay: 600
-                ToolTip.text: bar.activityLabel
             }
 
             // Session tiles — the dock's fill-width content.
@@ -583,6 +585,8 @@ Item {
                                 if (sessions.length === 1) return sessions[0].title || "Open session"
                                 return "Open " + sessions.length + " sessions"
                             }
+                            tooltipText: accessibleName
+                            tooltipHovered: hovered && !tileCloseMa.containsMouse
                             focusRadius: 23
                             onTriggered: {
                                 var sessions = tile.modelData.sessions || []
@@ -639,6 +643,9 @@ Item {
                                 hoverEnabled: true
                                 enabled: tileClose.visible && tileInput.interactionActive
                                 cursorShape: Qt.PointingHandCursor
+                                ToolTip.text: qsTr("Close session")
+                                ToolTip.delay: 350
+                                ToolTip.visible: enabled && containsMouse
                                 onClicked: bar.closeRequested(tile.modelData.sessions[0].id)
                             }
                         }
@@ -758,7 +765,11 @@ Item {
                         MouseArea {
                             id: closeMa
                             anchors.fill: parent
+                            hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
+                            ToolTip.text: qsTr("Close session")
+                            ToolTip.delay: 350
+                            ToolTip.visible: containsMouse
                             onClicked: {
                                 bar.closeRequested(modelData.id)
                                 fan.closeAndRestore()

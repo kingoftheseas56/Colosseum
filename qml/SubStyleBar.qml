@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls as Controls
 import QtCore
 import "PlayerFocusContainment.js" as FocusContainment
 
@@ -207,7 +208,7 @@ Item {
                 font.pixelSize: 10
                 font.weight: Font.Bold
             }
-            MiniButton { text: "-"; onClicked: cluster.minus() }
+            MiniButton { text: "-"; tooltip: qsTr("Decrease ") + cluster.label.toLowerCase(); onClicked: cluster.minus() }
             Text {
                 width: 26
                 anchors.verticalCenter: parent.verticalCenter
@@ -217,7 +218,7 @@ Item {
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
             }
-            MiniButton { text: "+"; onClicked: cluster.plus() }
+            MiniButton { text: "+"; tooltip: qsTr("Increase ") + cluster.label.toLowerCase(); onClicked: cluster.plus() }
         }
     }
 
@@ -300,8 +301,12 @@ Item {
                     height: 18
                     radius: 9
                     color: modelData
+                    Controls.ToolTip.text: swatches.label + " " + dot.modelData
+                    Controls.ToolTip.visible: swatchHover.hovered
+                    Controls.ToolTip.delay: 350
                     border.width: (swatches.activeFocus && swatches.keyboardIndex === dot.index) || swatches.selected.toLowerCase() === modelData.toLowerCase() ? 2 : 1
                     border.color: (swatches.activeFocus && swatches.keyboardIndex === dot.index) || swatches.selected.toLowerCase() === modelData.toLowerCase() ? theme.gold : Qt.rgba(0, 0, 0, 0.45)
+                    HoverHandler { id: swatchHover }
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
@@ -316,6 +321,7 @@ Item {
     component MiniButton: Rectangle {
         id: button
         property string text: ""
+        property string tooltip: ""
         signal clicked()
         width: 22
         height: 24
@@ -336,6 +342,6 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: button.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.text; onTriggered: button.clicked() }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.text; tooltipText: button.tooltip; tooltipHovered: miniMouse.containsMouse; onTriggered: button.clicked() }
     }
 }

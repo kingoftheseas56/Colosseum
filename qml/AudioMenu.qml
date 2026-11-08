@@ -130,11 +130,14 @@ Item {
             cursorShape: menu.many ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: menu.toggleRequested(menu.panelOpen)
         }
+        HoverHandler { id: faceHover }
         KeyboardAction {
             anchors.fill: parent
             pointerEnabled: false
             focusEnabled: menu.many
             accessibleName: menu.title.length ? menu.title : "Audio tracks"
+            tooltipText: qsTr("Audio tracks")
+            tooltipHovered: faceHover.hovered
             onTriggered: menu.toggleRequested(menu.panelOpen)
         }
     }
@@ -382,7 +385,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: closeButton.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close audio menu"; onTriggered: closeButton.clicked() }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close audio menu"; tooltipText: accessibleName; tooltipHovered: closeMouse.containsMouse; onTriggered: closeButton.clicked() }
     }
 
     component DelayRow: Rectangle {
@@ -414,7 +417,7 @@ Item {
                 font.weight: Font.Bold
                 font.letterSpacing: 1.4
             }
-            StepButton { text: "-0.1"; onClicked: delayRow.step(-0.1) }
+            StepButton { text: "-0.1"; tooltip: qsTr("Move audio earlier by 0.1 seconds"); onClicked: delayRow.step(-0.1) }
             Text {
                 width: 58
                 anchors.verticalCenter: parent.verticalCenter
@@ -424,12 +427,13 @@ Item {
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
             }
-            StepButton { text: "+0.1"; onClicked: delayRow.step(0.1) }
+            StepButton { text: "+0.1"; tooltip: qsTr("Move audio later by 0.1 seconds"); onClicked: delayRow.step(0.1) }
             StepButton {
                 visible: Math.abs(delayRow.value) > 0.0001
                 width: 32
                 text: "0"
                 onClicked: delayRow.reset()
+                tooltip: qsTr("Reset audio sync")
             }
         }
     }
@@ -437,6 +441,7 @@ Item {
     component StepButton: Item {
         id: stepButton
         property string text: ""
+        property string tooltip: ""
         signal clicked()
         width: 44
         height: 24
@@ -462,7 +467,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: stepButton.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: stepButton.text; onTriggered: stepButton.clicked() }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: stepButton.text; tooltipText: stepButton.tooltip; tooltipHovered: stepMouse.containsMouse; onTriggered: stepButton.clicked() }
     }
 
     component IconGlyph: Canvas {

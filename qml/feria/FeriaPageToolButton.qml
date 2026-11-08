@@ -14,7 +14,7 @@ AccountUi.AccountButton {
     Accessible.name: helpText
     ToolTip.text: helpText
     ToolTip.visible: hovered
-    ToolTip.delay: 650
+    ToolTip.delay: 350
     contentItem: Item {
         opacity: control.enabled ? 1 : 0.35
         Image {

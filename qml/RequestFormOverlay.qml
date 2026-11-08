@@ -317,6 +317,9 @@ FocusScope {
                     Layout.preferredWidth: root.keyboardVisible ? implicitWidth : 40
                     text: root.keyboardVisible ? qsTr("Close") : "×"
                     Accessible.name: qsTr("Close")
+                    ToolTip.visible: closeButton.hovered && !root.keyboardVisible
+                    ToolTip.delay: 350
+                    ToolTip.text: qsTr("Close")
                     enabled: !root.sending
                     onClicked: root.closeRequested()
                     background: Rectangle {

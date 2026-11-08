@@ -286,11 +286,14 @@ Item {
                                     Text { anchors.centerIn: parent; text: modelData.g
                                            color: (root.compact === modelData.c) ? theme.ink : theme.inkDimmer
                                            font.pixelSize: 15 }
+                                    HoverHandler { id: genreViewHover }
                                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                                 onClicked: root.compact = modelData.c }
                                     KeyboardAction {
                                         anchors.fill: parent; pointerEnabled: false
                                         accessibleName: modelData.c ? "Cover grid view" : "Detailed grid view"
+                                        tooltipText: accessibleName
+                                        tooltipHovered: genreViewHover.hovered
                                         focusRadius: 4; onTriggered: root.compact = modelData.c
                                     }
                                 }
@@ -383,17 +386,21 @@ Item {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.rightMargin: 26
             spacing: 20
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
+                    HoverHandler { id: genrePageSearchHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; onTriggered: root.searchClicked() } }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; tooltipText: accessibleName; tooltipHovered: genrePageSearchHover.hovered; onTriggered: root.searchClicked() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
+                    HoverHandler { id: genrePageMinHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; onTriggered: root.minimizeRequested() } }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; tooltipText: accessibleName; tooltipHovered: genrePageMinHover.hovered; onTriggered: root.minimizeRequested() } }
             Image { visible: Qt.platform.os !== "android"; source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
+                    HoverHandler { id: genrePageFullscreenHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() } }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; tooltipText: ((typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")); tooltipHovered: genrePageFullscreenHover.hovered; onTriggered: root.fullscreenRequested() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
+                    HoverHandler { id: genrePageCloseHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"; onTriggered: root.closeRequested() } }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"; tooltipText: accessibleName; tooltipHovered: genrePageCloseHover.hovered; onTriggered: root.closeRequested() } }
         }
     }
 

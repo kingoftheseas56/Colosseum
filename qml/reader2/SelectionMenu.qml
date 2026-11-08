@@ -197,6 +197,8 @@ ReaderOverlay {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         keyboardLabel: "Highlight color"
+                        tooltipText: dot.index === 0 ? qsTr("Gold highlight")
+                            : (dot.index === 1 ? qsTr("Slate highlight") : qsTr("Moss highlight"))
                         onClicked: menu.colorPicked(String(dot.modelData.value))
                     }
                 }

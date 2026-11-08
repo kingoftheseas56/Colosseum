@@ -4,6 +4,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Effects
 
 Item {
@@ -550,6 +551,9 @@ Item {
                             activeFocusOnTab: visible && enabled
                             Accessible.role: Accessible.Button
                             Accessible.name: (installedState ? "Installed " : "Download ") + tileItem.tileName
+                            ToolTip.visible: downloadMouse.containsMouse && downloadButton.enabled
+                            ToolTip.delay: 350
+                            ToolTip.text: (installedState ? qsTr("Turn off ") : qsTr("Download ")) + tileItem.tileName
 
                             Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 

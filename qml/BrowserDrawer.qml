@@ -476,6 +476,9 @@ Item {
                     width: 32; height: 32; radius: 16
                     color: copySrcMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                     border.width: 1; border.color: theme.edge
+                    ToolTip.text: srcRow.copiedTick ? qsTr("Link copied") : qsTr("Copy source link")
+                    ToolTip.delay: 350
+                    ToolTip.visible: copySrcMa.containsMouse
                     Text {
                         anchors.centerIn: parent
                         text: srcRow.copiedTick ? "✓" : "⧉"

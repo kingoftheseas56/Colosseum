@@ -65,6 +65,7 @@ Popup {
             }
             KeyboardAction {
                 objectName: "vinylPlaylistPickerClose"
+                tooltipText: accessibleName
                 anchors.right: parent.right
                 width: 36; height: 36
                 focusOnPointer: false
@@ -98,6 +99,7 @@ Popup {
             KeyboardAction {
                 id: createPlaylistAction
                 objectName: "vinylPlaylistPickerCreate"
+                tooltipText: accessibleName
                 width: 40; height: 40
                 focusOnPointer: false
                 accessibleName: "Create playlist and add songs"

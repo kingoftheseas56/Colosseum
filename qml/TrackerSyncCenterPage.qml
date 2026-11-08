@@ -2647,6 +2647,9 @@ Item {
                         objectName: "trackerDossierClose"
                         activeFocusOnTab: true
                         Accessible.name: "Close tracker details"
+                        ToolTip.visible: dossierCloseButton.hovered
+                        ToolTip.delay: 350
+                        ToolTip.text: qsTr("Close tracker details")
                         onClicked: root.closeDossier()
                         contentItem: Text {
                             text: "×"
@@ -3367,6 +3370,9 @@ Item {
                             text: "×"
                             activeFocusOnTab: true
                             Accessible.name: "Close send review"
+                            ToolTip.visible: exportReviewCloseButton.hovered
+                            ToolTip.delay: 350
+                            ToolTip.text: qsTr("Close send review")
                             KeyNavigation.tab: exportReviewList
                             onClicked: root.closeExportReview()
                             contentItem: Text {
@@ -3610,6 +3616,9 @@ Item {
                                 objectName: "trackerImportReviewClose"
                                 activeFocusOnTab: true
                                 Accessible.name: "Close import review"
+                                ToolTip.visible: importReviewCloseButton.hovered
+                                ToolTip.delay: 350
+                                ToolTip.text: qsTr("Close import review")
                                 text: "×"
                                 KeyNavigation.backtab: cancelImportReviewButton
                                 Keys.priority: Keys.BeforeItem
@@ -4020,6 +4029,9 @@ Item {
                             activeFocusOnTab: true
                             text: "×"
                             Accessible.name: "Close title search"
+                            ToolTip.visible: titleMatchCloseButton.hovered
+                            ToolTip.delay: 350
+                            ToolTip.text: qsTr("Close title search")
                             onClicked: root.closeTitleMatchFinder()
                             contentItem: Text {
                                 text: titleMatchCloseButton.text

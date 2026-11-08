@@ -214,6 +214,7 @@ Item {
                     spacing: 8
                     component DelayButton: Rectangle {
                         property string glyph: ""
+                        property string tooltip: ""
                         signal tapped()
                         width: 30; height: 26; radius: 6
                         color: da.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
@@ -221,9 +222,9 @@ Item {
                                font.family: "Segoe UI"; font.pixelSize: 13; font.weight: Font.DemiBold }
                         MouseArea { id: da; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor; onClicked: parent.tapped() }
-                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: glyph; onTriggered: parent.tapped() }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: glyph; tooltipText: parent.tooltip; tooltipHovered: da.containsMouse; onTriggered: parent.tapped() }
                     }
-                    DelayButton { glyph: "−"; onTapped: menu.syncChanged(menu.syncValue - 0.1) }
+                    DelayButton { glyph: "−"; tooltip: qsTr("Decrease sync by 0.1 seconds"); onTapped: menu.syncChanged(menu.syncValue - 0.1) }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 64; horizontalAlignment: Text.AlignHCenter
@@ -231,8 +232,8 @@ Item {
                         color: menu.ink; font.family: "Segoe UI"; font.pixelSize: 12
                         font.features: ({ "tnum": 1 })
                     }
-                    DelayButton { glyph: "+"; onTapped: menu.syncChanged(menu.syncValue + 0.1) }
-                    DelayButton { glyph: "0"; onTapped: menu.syncChanged(0) }
+                    DelayButton { glyph: "+"; tooltip: qsTr("Increase sync by 0.1 seconds"); onTapped: menu.syncChanged(menu.syncValue + 0.1) }
+                    DelayButton { glyph: "0"; tooltip: qsTr("Reset sync"); onTapped: menu.syncChanged(0) }
                 }
             }
         }

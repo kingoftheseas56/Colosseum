@@ -464,6 +464,7 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     keyboardLabel: "Close loupe"
+                    tooltipText: closeMa.keyboardLabel
                     function tap() { root.dismiss() }
                     onClicked: tap()
                 }

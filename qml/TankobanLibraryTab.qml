@@ -364,6 +364,10 @@ Item {
                 border.width: 1
                 border.color: root.menuRowId === String(modelData.entry.id || "") ? theme.gold : theme.edge
                 visible: card.effectiveHovered || root.menuRowId === String(modelData.entry.id || "")
+                HoverHandler { id: dotsTipHover }
+                ToolTip.visible: dotsTipHover.hovered
+                ToolTip.text: qsTr('Library options')
+                ToolTip.delay: 350
                 Text { anchors.centerIn: parent; text: "⋮"; color: theme.ink; font.pixelSize: 15 }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor

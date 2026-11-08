@@ -208,6 +208,8 @@ Item {
             width: 36
             pointerEnabled: false
             accessibleName: "Clear " + picker.label
+            tooltipText: accessibleName
+            tooltipHovered: clearMa.containsMouse
             focusRadius: pill.radius
             onTriggered: picker.clearSelection()
         }

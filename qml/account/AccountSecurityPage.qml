@@ -709,6 +709,10 @@ Item {
                             enabled: root.signedIn && !root.protectionRequestPending
                             focusPolicy: Qt.StrongFocus
                             Accessible.name: qsTr("Toggle new-device protection")
+                            ToolTip.visible: protectionSwitch.hovered
+                            ToolTip.delay: 350
+                            ToolTip.text: root.controller && root.controller.newDeviceProtection
+                                ? qsTr("Turn off new-device protection") : qsTr("Turn on new-device protection")
                             onClicked: root.requestProtectionToggle()
 
                             background: Rectangle {

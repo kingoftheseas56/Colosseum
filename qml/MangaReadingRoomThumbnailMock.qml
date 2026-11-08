@@ -3,6 +3,7 @@
 // The series context is compressed into a story masthead. The collection owns
 // the rest of the screen so the reader-derived volume flow can lead.
 import QtQuick
+import QtQuick.Controls
 import "collections" as CollectionsUi
 import "MangaVolumes.js" as Vol
 
@@ -105,6 +106,9 @@ Item {
                 Accessible.role: Accessible.Button; Accessible.name: "Minimize window"
                 Keys.onReturnPressed: root.minimizeRequested(); Keys.onEnterPressed: root.minimizeRequested()
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/minimize.svg"; opacity: minMouse.containsMouse ? 1 : 0.72 }
+                ToolTip.visible: minMouse.containsMouse
+                ToolTip.text: qsTr('Minimize window')
+                ToolTip.delay: 350
                 MouseArea { id: minMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
             }
             Item {
@@ -117,6 +121,9 @@ Item {
                         ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
                     opacity: fullscreenMouse.containsMouse ? 1 : 0.72
                 }
+                ToolTip.visible: fullscreenMouse.containsMouse
+                ToolTip.text: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
+                ToolTip.delay: 350
                 MouseArea { id: fullscreenMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
             }
             Item {
@@ -124,6 +131,9 @@ Item {
                 Accessible.role: Accessible.Button; Accessible.name: "Close series view"
                 Keys.onReturnPressed: root.closeRequested(); Keys.onEnterPressed: root.closeRequested()
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/power.svg"; opacity: closeMouse.containsMouse ? 1 : 0.72 }
+                ToolTip.visible: closeMouse.containsMouse
+                ToolTip.text: qsTr('Close series view')
+                ToolTip.delay: 350
                 MouseArea { id: closeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
             }
         }

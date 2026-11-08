@@ -117,6 +117,7 @@ Item {
         onActivated: root.cancelScrub()
     }
     component Tool: KeyboardAction {
+        tooltipText: accessibleName
         id: control
         property string glyph
         property string symbol: ""
@@ -208,6 +209,7 @@ Item {
         spacing: 12
         KeyboardAction {
             objectName: "vinylBarPrev"
+            tooltipText: accessibleName
             focusOnPointer: false
             enabled: root.trackNavigationEnabled && (root.pageData.canPrevious === undefined || root.pageData.canPrevious)
             opacity: enabled ? 1 : 0.35
@@ -219,6 +221,7 @@ Item {
         }
         KeyboardAction {
             objectName: "vinylBarPlay"
+            tooltipText: root.playViewedWithoutSession ? qsTr("Play viewed song") : root.busy ? qsTr("Waiting for source") : root.pageData.paused ? qsTr("Play") : qsTr("Pause")
             focusOnPointer: false
             focusRadius: 18
             focusPrimary: true
@@ -251,6 +254,7 @@ Item {
         }
         KeyboardAction {
             objectName: "vinylBarNext"
+            tooltipText: accessibleName
             focusOnPointer: false
             enabled: root.trackNavigationEnabled && (root.pageData.canNext === undefined || root.pageData.canNext)
             opacity: enabled ? 1 : 0.35
@@ -404,6 +408,10 @@ Item {
         readonly property string kind: root.pageData.sourceKind || ""
         readonly property string sourceName: kind==="torrent" ? "Torrent" : kind==="youtube" ? "YouTube" : kind==="local" ? "Local file" : "Audio source"
         readonly property string description: root.busy ? (root.pageData.sourceState==="retrying" ? "Trying another source" : "Finding a source") : sourceName+(kind==="youtube" && root.pageData.qualityLabel ? " · "+root.pageData.qualityLabel : "")
+        ToolTip.text: sourceIndicator.description
+        ToolTip.delay: 350
+        ToolTip.visible: sourceTipHover.hovered
+        HoverHandler { id: sourceTipHover }
         x: root.page === "song" ? root.width - width - 14 : tools.x - width - 7
         y: 20
         width: 28

@@ -139,6 +139,7 @@ Popup {
                 emphasis: "ghost"
                 compact: true
                 Accessible.name: qsTr("Close")
+                tooltipText: qsTr("Close")
                 onClicked: root.close()
             }
         }

@@ -220,6 +220,12 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     keyboardLabel: bar.labelFor(cmd.modelData)
+                    tooltipText: !bar.compact ? ""
+                        : cmd.modelData === "bookmark" ? (bar.bookmarked ? qsTr("Remove bookmark") : qsTr("Bookmark page"))
+                        : cmd.modelData === "order" ? (bar.order === "rtl" ? qsTr("Switch to comic order") : qsTr("Switch to manga order"))
+                        : cmd.modelData === "layout" ? qsTr("Page layout")
+                        : cmd.modelData === "image" ? qsTr("Image tools")
+                        : bar.labelFor(cmd.modelData)
                     onClicked: bar.trigger(cmd.modelData)
                 }
             }

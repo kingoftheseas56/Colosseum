@@ -491,6 +491,7 @@ Item {
                 focusOnPointer: false
                 id: playAction
                 objectName: "vinylArtistPlay"
+                tooltipText: accessibleName
                 width: 46
                 height: 46
                 focusRadius: 9
@@ -522,6 +523,7 @@ Item {
                 focusOnPointer: false
                 id: shuffleAction
                 objectName: "vinylArtistShuffle"
+                tooltipText: accessibleName
                 width: 46
                 height: 46
                 focusRadius: 9
@@ -554,6 +556,7 @@ Item {
                 focusOnPointer: false
                 id: save
                 objectName: "vinylArtistSave"
+                tooltipText: accessibleName
                 width: 46
                 height: 46
                 focusRadius: 9

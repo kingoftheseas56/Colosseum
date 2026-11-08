@@ -349,9 +349,21 @@ FocusScope {
         x: 218; y: root.height - height - 26
         spacing: 4
         z: 20
-        NewWorldInkButton { objectName: "newWorldZoomOut"; text: "−"; width: 44; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Zoom out"; onClicked: root.setZoom(root.zoom - 0.25) }
-        NewWorldInkButton { objectName: "newWorldZoomReset"; text: Math.round(root.zoom * 100) + "%"; width: 62; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Reset zoom to show the whole chart"; onClicked: root.setZoom(1) }
-        NewWorldInkButton { objectName: "newWorldZoomIn"; text: "+"; width: 44; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Zoom in"; onClicked: root.setZoom(root.zoom + 0.25) }
+        NewWorldInkButton { objectName: "newWorldZoomOut"; text: "−"; width: 44; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Zoom out";
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("Zoom out")
+            ToolTip.delay: 350
+            onClicked: root.setZoom(root.zoom - 0.25) }
+        NewWorldInkButton { objectName: "newWorldZoomReset"; text: Math.round(root.zoom * 100) + "%"; width: 62; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Reset zoom to show the whole chart";
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("Reset zoom")
+            ToolTip.delay: 350
+            onClicked: root.setZoom(1) }
+        NewWorldInkButton { objectName: "newWorldZoomIn"; text: "+"; width: 44; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Zoom in";
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("Zoom in")
+            ToolTip.delay: 350
+            onClicked: root.setZoom(root.zoom + 0.25) }
     }
     NewWorldInkButton {
         id: paradiseButton

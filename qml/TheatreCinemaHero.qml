@@ -222,6 +222,10 @@ Item {
                 color: dot.index === view.currentIndex ? theme.ink : Qt.rgba(1, 1, 1, 0.48)
                 border.width: dotRow.activeFocus && dot.index === dotRow.currentIndex ? 2 : 0
                 border.color: theme.gold
+                ToolTip.visible: dotHover.hovered
+                ToolTip.text: qsTr("Show slide %1").arg(dot.index + 1)
+                ToolTip.delay: 350
+                HoverHandler { id: dotHover }
                 Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                 MouseArea {
                     anchors.fill: parent

@@ -190,6 +190,7 @@ Item {
                 emphasis: "ghost"
                 enabled: card.position > 0
                 Accessible.name: qsTr("Move %1 earlier").arg(card.media.title)
+                tooltipText: qsTr("Move earlier")
                 onClicked: card.moveRequested(-1)
                 onActiveFocusChanged: if (activeFocus) card.ensureVisibleRequested(earlier)
             }
@@ -201,6 +202,7 @@ Item {
                 emphasis: "ghost"
                 enabled: card.position < card.itemCount - 1
                 Accessible.name: qsTr("Move %1 later").arg(card.media.title)
+                tooltipText: qsTr("Move later")
                 onClicked: card.moveRequested(1)
                 onActiveFocusChanged: if (activeFocus) card.ensureVisibleRequested(later)
             }
@@ -211,6 +213,7 @@ Item {
                 compact: true
                 emphasis: "ghost"
                 Accessible.name: qsTr("Remove %1 from this collection").arg(card.media.title)
+                tooltipText: qsTr("Remove from collection")
                 onClicked: card.removeRequested()
                 onActiveFocusChanged: if (activeFocus) card.ensureVisibleRequested(remove)
             }

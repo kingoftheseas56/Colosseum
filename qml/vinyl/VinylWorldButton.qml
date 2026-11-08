@@ -12,6 +12,7 @@ KeyboardAction {
     implicitWidth: symbol.length > 0 ? 38 : caption.implicitWidth + 28
     implicitHeight: 38
     accessibleName: label
+    tooltipText: root.symbol.length > 0 ? root.accessibleName : ""
     Theme { id: theme }
     Glass {
         anchors.fill: parent

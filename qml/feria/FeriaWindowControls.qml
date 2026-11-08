@@ -35,12 +35,10 @@ Row {
             id: action
             anchors.fill: parent
             accessibleName: parent.label
+            tooltipText: accessibleName
             focusRadius: 6
             onTriggered: parent.triggered()
         }
-        ToolTip.visible: action.hovered
-        ToolTip.delay: 600
-        ToolTip.text: label
     }
     WindowAction {
         objectName: controls.namePrefix + "Minimize"

@@ -321,7 +321,7 @@ Item {
             id: closeAction
             objectName: "vaultBrowseSheetClose"
             anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12
-            width: 32; height: 32; text: "×"; accessibleName: "Close Vault details"; quiet: true
+            width: 32; height: 32; text: "×"; accessibleName: "Close Vault details"; tooltipText: accessibleName; quiet: true
             nextFocus: sheet.firstAction
             previousFocus: sheet.lastAction
             onTriggered: sheet.backRequested()

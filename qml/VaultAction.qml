@@ -4,6 +4,7 @@ Rectangle {
     id: control
     property string text: ""
     property string accessibleName: text
+    property string tooltipText: ""
     property bool primary: false
     property bool quiet: false
     property bool selected: false
@@ -36,6 +37,7 @@ Rectangle {
         id: action
         anchors.fill: parent
         accessibleName: control.accessibleName
+        tooltipText: control.tooltipText
         focusRadius: control.radius
         spaceActivates: true
         KeyNavigation.tab: control.nextFocus

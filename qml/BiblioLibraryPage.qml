@@ -528,6 +528,10 @@ Item {
                 opacity: card.hovered ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 150 } }
                 Text { anchors.centerIn: parent; text: "⋮"; color: theme.ink; font.pixelSize: 15 }
+                ToolTip.text: qsTr("Book actions")
+                ToolTip.visible: bookMenuHover.hovered
+                ToolTip.delay: 350
+                HoverHandler { id: bookMenuHover }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                     onClicked: {

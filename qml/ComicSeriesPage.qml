@@ -215,6 +215,8 @@ Item {
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.minimizeRequested() }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize window"
+                tooltipText: accessibleName
+                tooltipHovered: minMa.containsMouse
                 onTriggered: page.minimizeRequested() }
         }
         Item {
@@ -238,6 +240,8 @@ Item {
                 onClicked: page.fullscreenRequested()
             }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"
+                tooltipText: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
+                tooltipHovered: fsMa.containsMouse
                 onTriggered: page.fullscreenRequested() }
         }
         Item {
@@ -248,6 +252,8 @@ Item {
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.closeRequested() }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close series"
+                tooltipText: accessibleName
+                tooltipHovered: clMa.containsMouse
                 onTriggered: page.closeRequested() }
         }
     }

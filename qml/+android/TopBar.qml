@@ -211,6 +211,7 @@ Item {
             id: input
             anchors.fill: parent
             accessibleName: sysRoot.accessibleName
+            tooltipText: sysRoot.showLabel ? "" : accessibleName
             focusRadius: bar.televisionMode ? 9 : 6
             onTriggered: sysRoot.clicked()
         }
@@ -284,6 +285,7 @@ Item {
             // Android has no Home to go back to; a back-only title page keeps its arrow.
             visible: bar.activeMedium !== "" && !(bar.androidHost && !bar.backOnly)
             label: bar.backOnly && bar.pageTitle.length ? "" : "Home"
+            tip: bar.backOnly && bar.pageTitle.length ? qsTr("Back") : ""
             labelSize: 14
             idleColor: theme.inkDim
             hoverColor: theme.ink
@@ -389,6 +391,7 @@ Item {
                 id: updateInput
                 anchors.fill: parent
                 accessibleName: bar.updateAvailable ? "Update available" : "Updates"
+                tooltipText: accessibleName
                 focusRadius: 6
                 onTriggered: bar.updateClicked()
             }
@@ -427,6 +430,7 @@ Item {
                 anchors.fill: parent
                 accessibleName: bar.trackersDotState === "error"
                                 ? qsTr("Trackers, attention required") : qsTr("Trackers")
+                tooltipText: accessibleName
                 focusRadius: 6
                 onTriggered: bar.trackersClicked()
             }
@@ -501,6 +505,7 @@ Item {
                     : (bar.accountPresent
                         ? ("Account: " + bar.accountController.username)
                         : "Account")
+                tooltipText: bar.localDevice ? "" : accessibleName
                 focusRadius: bar.localDevice ? 11 : width / 2
                 onTriggered: {
                     const anchor = accountButton.mapToItem(null, accountButton.width, accountButton.height)

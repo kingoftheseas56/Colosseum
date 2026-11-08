@@ -143,6 +143,8 @@ Item {
                         MouseArea { id: backMa; anchors.fill: parent; anchors.margins: -10
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.backRequested() }
                         KeyboardAction { id: backKey; anchors.fill: parent; anchors.margins: -10; pointerEnabled: false
+                            tooltipText: qsTr("Back")
+                            tooltipHovered: backMa.containsMouse
                             accessibleName: "Back from Calendar"; onTriggered: root.backRequested() }
                     }
                     Text { text: "THEATRE · COLLECTION"; color: theme.inkDimmer
@@ -274,12 +276,18 @@ Item {
                             border.width: 1; border.color: theme.edge
                             Text { anchors.centerIn: parent; text: "‹"; color: theme.ink; font.family: theme.display; font.pixelSize: 20 }
                             MouseArea { id: prevMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.prevMonth() }
-                            KeyboardAction { id: prevKey; anchors.fill: parent; pointerEnabled: false; accessibleName: "Previous month"; onTriggered: root.prevMonth() } }
+                            KeyboardAction { id: prevKey; anchors.fill: parent; pointerEnabled: false; accessibleName: "Previous month"
+                                tooltipText: accessibleName
+                                tooltipHovered: prevMa.containsMouse
+                                onTriggered: root.prevMonth() } }
                         Rectangle { width: 34; height: 34; radius: 10; color: nextMa.containsMouse || nextKey.activeFocus ? Qt.rgba(1,1,1,0.12) : Qt.rgba(1,1,1,0.05)
                             border.width: 1; border.color: theme.edge
                             Text { anchors.centerIn: parent; text: "›"; color: theme.ink; font.family: theme.display; font.pixelSize: 20 }
                             MouseArea { id: nextMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.nextMonth() }
-                            KeyboardAction { id: nextKey; anchors.fill: parent; pointerEnabled: false; accessibleName: "Next month"; onTriggered: root.nextMonth() } }
+                            KeyboardAction { id: nextKey; anchors.fill: parent; pointerEnabled: false; accessibleName: "Next month"
+                                tooltipText: accessibleName
+                                tooltipHovered: nextMa.containsMouse
+                                onTriggered: root.nextMonth() } }
                     }
                 }
                 // weekday header
@@ -443,6 +451,8 @@ Item {
             HoverHandler { id: minMa }
             MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
             KeyboardAction { id: minKey; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                tooltipText: accessibleName
+                tooltipHovered: minMa.hovered
                 accessibleName: "Minimize"; onTriggered: root.minimizeRequested() }
         }
         Item {
@@ -451,6 +461,8 @@ Item {
             HoverHandler { id: powMa }
             MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
             KeyboardAction { id: closeKey; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                tooltipText: accessibleName
+                tooltipHovered: powMa.hovered
                 accessibleName: "Close Colosseum"; onTriggered: root.closeRequested() }
         }
     }

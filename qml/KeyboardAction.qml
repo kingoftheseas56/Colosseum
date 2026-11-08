@@ -2,6 +2,7 @@
 // Atomic controls route pointer, keyboard and accessibility through `triggered()`.
 // Complex controls may set pointerEnabled=false and keep specialized pointer handlers.
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Window
 
 Item {
@@ -9,6 +10,8 @@ Item {
 
     property string accessibleName: ""
     property string accessibleDescription: ""
+    property string tooltipText: ""
+    property bool tooltipHovered: action.hovered
     property bool focusEnabled: visible && enabled
     property bool pointerEnabled: true
     property bool focusOnPointer: true
@@ -33,6 +36,10 @@ Item {
     readonly property bool hovered: hover.hovered
     readonly property bool pressed: primaryTap.pressed
     readonly property bool interactionActive: hovered || pressed || activeFocus
+
+    ToolTip.delay: 350
+    ToolTip.text: action.tooltipText
+    ToolTip.visible: action.visible && action.enabled && action.tooltipHovered && action.tooltipText.length > 0
 
     signal triggered()
     signal contextRequested()

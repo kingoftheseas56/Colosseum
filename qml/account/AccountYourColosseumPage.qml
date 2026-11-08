@@ -126,6 +126,9 @@ Item {
 
                     Button {
                         id: previousMonthButton
+                        ToolTip.visible: previousMonthButton.hovered
+                        ToolTip.delay: 350
+                        ToolTip.text: qsTr("Previous month")
                         objectName: "yourColosseumPreviousMonth"
                         width: 30
                         height: 30
@@ -177,6 +180,9 @@ Item {
 
                     Button {
                         id: nextMonthButton
+                        ToolTip.visible: nextMonthButton.hovered
+                        ToolTip.delay: 350
+                        ToolTip.text: qsTr("Next month")
                         objectName: "yourColosseumNextMonth"
                         width: 30
                         height: 30

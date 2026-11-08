@@ -432,6 +432,7 @@ Item {
             id: hgb
             property string kind: ""
             property string label: ""
+            property string tooltipText: ""
             property int box: 40                              // round-button diameter
             signal clicked()
             width: box; height: box
@@ -457,6 +458,7 @@ Item {
             ReaderKeyboardArea { id: hgbMa; anchors.fill: parent
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         keyboardLabel: hgb.label !== "" ? hgb.label : hgb.kind
+                        tooltipText: hgb.tooltipText
                         onClicked: hgb.clicked() }
         }
 
@@ -618,6 +620,7 @@ Item {
                 spacing: 6
                 HudGlyphButton {
                     kind: (chrome.audioMuted || chrome.audioVolume <= 0) ? "mute" : "volume"
+                    tooltipText: chrome.audioMuted ? qsTr("Unmute audiobook") : qsTr("Mute audiobook")
                     box: 36
                     onClicked: chrome.audioMuteToggled()
                 }
@@ -667,8 +670,8 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 10
-                HudGlyphButton { kind: "prevChapter"; box: 40; onClicked: chrome.audioPrevChapterRequested() }
-                HudGlyphButton { kind: "seekBack"; label: "10"; box: 40; onClicked: chrome.audioSkipRequested(-10) }
+                HudGlyphButton { kind: "prevChapter"; tooltipText: qsTr("Previous chapter"); box: 40; onClicked: chrome.audioPrevChapterRequested() }
+                HudGlyphButton { kind: "seekBack"; label: "10"; tooltipText: qsTr("Back 10 seconds"); box: 40; onClicked: chrome.audioSkipRequested(-10) }
                 Rectangle {                       // HERO play — white circle, dark forged-line glyph
                     anchors.verticalCenter: parent.verticalCenter
                     width: 48; height: 48; radius: 24; color: Theme.ink
@@ -683,10 +686,10 @@ Item {
                         ink: "#14161d"
                     }
                     ReaderKeyboardArea { id: heroMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor; keyboardLabel: chrome.audioPlaying ? "Pause audiobook" : "Play audiobook"; onClicked: chrome.audioPlayToggled() }
+                                cursorShape: Qt.PointingHandCursor; keyboardLabel: chrome.audioPlaying ? "Pause audiobook" : "Play audiobook"; tooltipText: heroMa.keyboardLabel; onClicked: chrome.audioPlayToggled() }
                 }
-                HudGlyphButton { kind: "seekForward"; label: "10"; box: 40; onClicked: chrome.audioSkipRequested(10) }
-                HudGlyphButton { kind: "nextChapter"; box: 40; onClicked: chrome.audioNextChapterRequested() }
+                HudGlyphButton { kind: "seekForward"; label: "10"; tooltipText: qsTr("Forward 10 seconds"); box: 40; onClicked: chrome.audioSkipRequested(10) }
+                HudGlyphButton { kind: "nextChapter"; tooltipText: qsTr("Next chapter"); box: 40; onClicked: chrome.audioNextChapterRequested() }
             }
 
             // RIGHT zone · utilities (speed · chapter list)
@@ -719,9 +722,9 @@ Item {
                         }
                     }
                     ReaderKeyboardArea { id: spdMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor; keyboardLabel: "Playback speed " + chrome.audioSpeedLabel; onClicked: chrome.audioSpeedCycled() }
+                                cursorShape: Qt.PointingHandCursor; keyboardLabel: "Playback speed " + chrome.audioSpeedLabel; tooltipText: qsTr("Change playback speed"); onClicked: chrome.audioSpeedCycled() }
                 }
-                HudGlyphButton { id: playlistButton; kind: "playlist"; label: "Audiobook chapters"; box: 36; onClicked: chrome.openPanelTo("audio", "audioPlaylist") }
+                HudGlyphButton { id: playlistButton; kind: "playlist"; label: "Audiobook chapters"; tooltipText: qsTr("Audiobook chapters"); box: 36; onClicked: chrome.openPanelTo("audio", "audioPlaylist") }
             }
         }
     }

@@ -7,7 +7,7 @@
 //   variant "immersive" icon-only, chrome-mounted       (reader HUD; player keeps its own Canvas
 //                                                        icon system but shares this stroke grammar)
 //
-// The hit target is always ≥44px (invisible margins), icon-only variants must pass `tip`.
+// The hit target is always ≥44px (invisible margins). `tip` can name a specific destination.
 
 import QtQuick
 import QtQuick.Shapes
@@ -20,7 +20,7 @@ Item {
     property color idleColor: theme.ink
     property color hoverColor: theme.gold     // Biblio passes white; TopBar Home passes ink
     property int labelSize: 15
-    property string tip: ""                   // tooltip — required when icon-only
+    property string tip: ""
     // Opt-in drop shadow under the chevron and label. Default OFF, so every existing caller
     // renders exactly as before. The reader HUD needs it: its back control sits directly on
     // bright manga artwork with no chrome behind it, where flat white on white vanishes —
@@ -131,28 +131,10 @@ Item {
         // stretch the interactive target to ≥44px in both axes without moving the visuals
         anchors.margins: -Math.max(0, Math.ceil((44 - Math.min(root.width, root.height)) / 2))
         accessibleName: root.tip.length > 0 ? root.tip : root.label
+        tooltipText: root.tip.length > 0 || root.iconOnly || root.label.length === 0
+                     ? (accessibleName || qsTr("Back")) : ""
         focusRadius: root.variant === "capsule" ? root.height / 2 : 7
         onTriggered: root.triggered()
     }
-
-    // hand-rolled tooltip (no Controls dependency) — icon-only variants announce themselves
-    Rectangle {
-        visible: root.tip.length > 0 && input.hovered && tipDelay.done
-        anchors.top: parent.bottom; anchors.topMargin: 8
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: tipText.implicitWidth + 18; height: Math.max(24, tipText.implicitHeight + 8); radius: 6
-        color: Qt.rgba(0.04, 0.04, 0.05, 0.92)
-        border.width: 1; border.color: theme.edge
-        z: 1000
-        Text { id: tipText; anchors.centerIn: parent; text: root.tip
-            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
-    }
-    Timer {
-        id: tipDelay
-        property bool done: false
-        interval: 550; running: input.hovered && root.tip.length > 0
-        onTriggered: done = true
-    }
-    Connections { target: input; function onHoveredChanged() { if (!input.hovered) tipDelay.done = false } }
 
 }

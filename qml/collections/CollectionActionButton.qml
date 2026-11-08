@@ -6,6 +6,7 @@ import ".."
 Button {
     id: root
     property string iconName: ""
+    property string tooltipText: ""
     property string emphasis: "neutral"
     property bool selected: false
     property bool compact: false
@@ -20,6 +21,9 @@ Button {
     bottomPadding: 8
     focusPolicy: Qt.StrongFocus
     hoverEnabled: true
+    ToolTip.visible: root.hovered && root.tooltipText.length > 0
+    ToolTip.text: root.tooltipText
+    ToolTip.delay: 350
     font.family: theme.ui
     font.pixelSize: 14
     font.weight: Font.DemiBold

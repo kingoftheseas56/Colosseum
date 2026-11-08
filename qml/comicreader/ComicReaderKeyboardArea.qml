@@ -1,10 +1,12 @@
 import QtQuick
+import QtQuick.Controls
 
 MouseArea {
     id: area
 
     property bool keyboardTabStop: cursorShape === Qt.PointingHandCursor
     property string keyboardLabel: objectName.length ? objectName : qsTr("Action")
+    property string tooltipText: ""
     property int keyboardRole: Accessible.Button
     property var keyboardActivate: null
     property var keyboardContext: null
@@ -13,6 +15,12 @@ MouseArea {
     property var keyboardHome: null
     property var keyboardEnd: null
     property var keyboardFocused: null
+
+    // Tooltip is opt-in; existing click, keyboard and hover handlers stay the owners.
+    hoverEnabled: tooltipText.length > 0
+    ToolTip.text: area.tooltipText
+    ToolTip.delay: 350
+    ToolTip.visible: area.tooltipText.length > 0 && area.containsMouse && area.visible && area.enabled
 
     // Qt focus traversal already skips disabled/effectively-hidden items; keep eligibility stable
     // while a focused popup is closing so activeFocusOnTab never flips underneath active focus.

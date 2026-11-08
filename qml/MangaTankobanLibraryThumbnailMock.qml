@@ -1155,6 +1155,8 @@ Item {
                                             }
                                         }
                                         KeyboardAction {
+                                            tooltipText: chapterRow.inFlight ? qsTr('Cancel download') : chapterRow.chapterState === 'done' ? qsTr('Read chapter') : (chapterRow.chapterState === 'failed' || chapterRow.chapterState === 'error') ? qsTr('Retry download') : qsTr('Download chapter')
+                                            tooltipHovered: actionMouse.containsMouse
                                             id: chapterUtilityKeyboard
                                             anchors.fill: parent
                                             pointerEnabled: false

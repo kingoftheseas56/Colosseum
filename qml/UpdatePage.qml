@@ -315,6 +315,9 @@ Item {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Minimize Colosseum"
+                ToolTip.visible: minMa.containsMouse
+                ToolTip.delay: 350
+                ToolTip.text: qsTr("Minimize Colosseum")
                 Keys.onReturnPressed: root.minimizeRequested()
                 Keys.onEnterPressed: root.minimizeRequested()
                 Keys.onSpacePressed: root.minimizeRequested()
@@ -338,6 +341,9 @@ Item {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Toggle Colosseum fullscreen"
+                ToolTip.visible: fullMa.containsMouse
+                ToolTip.delay: 350
+                ToolTip.text: qsTr("Toggle fullscreen")
                 Keys.onReturnPressed: root.fullscreenRequested()
                 Keys.onEnterPressed: root.fullscreenRequested()
                 Keys.onSpacePressed: root.fullscreenRequested()
@@ -361,6 +367,9 @@ Item {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Close Colosseum"
+                ToolTip.visible: powerMa.containsMouse
+                ToolTip.delay: 350
+                ToolTip.text: qsTr("Close Colosseum")
                 Keys.onReturnPressed: root.closeRequested()
                 Keys.onEnterPressed: root.closeRequested()
                 Keys.onSpacePressed: root.closeRequested()

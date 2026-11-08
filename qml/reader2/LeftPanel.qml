@@ -447,6 +447,7 @@ ReaderOverlay {
                         // across the full row height, disjoint from the jump area.
                         ReaderKeyboardArea {
                             id: bmDelMa
+                            tooltipText: qsTr("Delete bookmark")
                             objectName: "reader2BookmarkDeleteTouch_" + bmRow.index
                             visible: bmDelGlyph.visible
                             x: panel.touchInput ? parent.width - panel.touchDeleteGutter : bmDelGlyph.x - 6
@@ -1247,6 +1248,7 @@ ReaderOverlay {
             id: raStepMa
             anchors.fill: parent
             keyboardLabel: raStep.symbol === "+" ? "Increase word size" : "Decrease word size"
+            tooltipText: raStepMa.keyboardLabel
             hoverEnabled: true
             cursorShape: raStep.enabledStep ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: if (raStep.enabledStep) raStep.stepped()
@@ -1288,31 +1290,10 @@ ReaderOverlay {
             id: tabMa
             anchors.fill: parent
             keyboardLabel: tab.tip
+            tooltipText: tab.tip
             hoverEnabled: true
             cursorShape: tab.tabEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: if (tab.tabEnabled) tab.picked()
-        }
-        // hover tooltip — now carries the tab NAME for every tab (icons have no text).
-        Rectangle {
-            visible: tabMa.containsMouse && tab.tip !== ""
-            anchors.top: parent.bottom
-            anchors.topMargin: 2
-            anchors.horizontalCenter: parent.horizontalCenter
-            z: 50
-            radius: 6
-            color: Theme.bar
-            border.color: Theme.barBorder
-            border.width: 1
-            width: tipText.implicitWidth + 16
-            height: tipText.implicitHeight + 10
-            Text {
-                id: tipText
-                anchors.centerIn: parent
-                text: tab.tip
-                color: Theme.inkDim
-                font.family: Theme.ui
-                font.pixelSize: 12
-            }
         }
     }
 }

@@ -17,6 +17,7 @@
 // The center control resumes; the rest of the thumbnail opens details for every medium.
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Effects
 import "ContinueCovers.js" as ContinueCovers
 import "ContinueVideoPresentation.js" as VideoPresentation
@@ -334,6 +335,10 @@ Item {
             Text { visible: tile.isHome; text: "WATCHED"; color: theme.gold
                    font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: 0.6 }
         }
+        HoverHandler { id: watchedBadgeHover; enabled: !tile.isHome && tile.watched }
+        ToolTip.text: qsTr("Watched")
+        ToolTip.delay: 350
+        ToolTip.visible: watchedBadgeHover.hovered
     }
 
     // ── shared: 46px resume circle — centered on the art ──
@@ -364,6 +369,8 @@ Item {
             pointerEnabled: false
             focusEnabled: !tile.effectiveCollectionManaged
             accessibleName: "Resume " + tile.label
+            tooltipText: qsTr("Resume")
+            tooltipHovered: rbHov.hovered
             focusRadius: resumeButton.radius
             onTriggered: tile.activateResumeControl()
         }
@@ -390,22 +397,11 @@ Item {
             pointerEnabled: false
             focusEnabled: !tile.effectiveCollectionManaged
             accessibleName: "Remove " + tile.label + " from Continue"
+            tooltipText: qsTr("Remove from Continue")
+            tooltipHovered: rmMa.containsMouse
             focusRadius: removeBtn.radius
             onTriggered: tile.removeRequested()
         }
-        // tooltip (hand-rolled, same grammar as BackAction)
-        Rectangle {
-            visible: rmMa.containsMouse && rmTipDelay.done
-            anchors.top: parent.bottom; anchors.topMargin: 7; anchors.right: parent.right
-            width: rmTip.implicitWidth + 18; height: 24; radius: 6
-            color: Qt.rgba(0.04, 0.04, 0.05, 0.92)
-            border.width: 1; border.color: theme.edge
-            Text { id: rmTip; anchors.centerIn: parent; text: "Remove from Continue"
-                   color: theme.ink; font.family: theme.ui; font.pixelSize: 11 }
-        }
-        Timer { id: rmTipDelay; property bool done: false; interval: 550
-                running: rmMa.containsMouse; onTriggered: done = true }
-        Connections { target: rmMa; function onContainsMouseChanged() { if (!rmMa.containsMouse) rmTipDelay.done = false } }
     }
 
     Rectangle {

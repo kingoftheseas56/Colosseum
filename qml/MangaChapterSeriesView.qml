@@ -443,6 +443,9 @@ Item {
                                     }
                                     MouseArea {
                                         id: trailingMouse
+                                        ToolTip.visible: containsMouse
+                                        ToolTip.text: row.dlState === 'done' ? qsTr('Delete chapter download') : row.inFlight ? qsTr('Cancel chapter download') : row.dlState === 'error' ? qsTr('Retry chapter download') : qsTr('Download chapter')
+                                        ToolTip.delay: 350
                                         objectName: "mangaChapterDownload_" + row.chapterId
                                         anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; z: 3
                                         onClicked: {

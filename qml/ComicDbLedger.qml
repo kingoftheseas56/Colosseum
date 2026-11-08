@@ -459,6 +459,7 @@ Item {
                                 onClicked: ledger.alternateSourcesRequested(ed.modelData, ed.chId)
                                 ToolTip.visible: containsMouse
                                 ToolTip.text: "Find alternate sources"
+                                ToolTip.delay: 350
                             }
                             KeyboardAction {
                                 id: alternateSourcesKeyboard

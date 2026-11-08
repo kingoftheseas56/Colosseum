@@ -26,6 +26,7 @@ Item {
         id: action
         anchors.fill: parent
         accessibleName: root.accessibleName
+        tooltipText: accessibleName
         focusRadius: 5
         onTriggered: root.triggered()
     }

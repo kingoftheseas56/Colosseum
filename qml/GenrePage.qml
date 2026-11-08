@@ -291,11 +291,13 @@ Item {
                                     Text { anchors.centerIn: parent; text: modelData.g
                                            color: (root.compact === modelData.c) ? theme.ink : theme.inkDimmer
                                            font.pixelSize: 15 }
-                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                    MouseArea { id: gridModeHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                                 onClicked: root.compact = modelData.c }
                                     KeyboardAction {
                                         anchors.fill: parent; pointerEnabled: false
                                         accessibleName: modelData.c ? "Cover grid view" : "Detailed grid view"
+                                        tooltipText: accessibleName
+                                        tooltipHovered: gridModeHover.containsMouse
                                         focusRadius: 4; onTriggered: root.compact = modelData.c
                                     }
                                 }
@@ -388,16 +390,49 @@ Item {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.rightMargin: 26
             spacing: 20
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() }
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        ToolTip.text: qsTr("Search")
+                        ToolTip.delay: 350
+                        ToolTip.visible: containsMouse
+                        onClicked: root.searchClicked()
+                    }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; onTriggered: root.searchClicked() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        ToolTip.text: qsTr("Minimize")
+                        ToolTip.delay: 350
+                        ToolTip.visible: containsMouse
+                        onClicked: root.minimizeRequested()
+                    }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; onTriggered: root.minimizeRequested() } }
             Image { visible: Qt.platform.os !== "android"; source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        ToolTip.text: typeof WindowMode !== "undefined" && WindowMode.shellWindowed
+                                      ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
+                        ToolTip.delay: 350
+                        ToolTip.visible: containsMouse
+                        onClicked: root.fullscreenRequested()
+                    }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        ToolTip.text: qsTr("Close Colosseum")
+                        ToolTip.delay: 350
+                        ToolTip.visible: containsMouse
+                        onClicked: root.closeRequested()
+                    }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"; onTriggered: root.closeRequested() } }
         }
     }

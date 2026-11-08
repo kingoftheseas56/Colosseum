@@ -102,7 +102,7 @@ FocusScope {
                     }
                 }
                 ToolTip.visible: refreshInput.interactionActive
-                ToolTip.delay: 600
+                ToolTip.delay: 350
                 ToolTip.text: qsTr("Refresh")
             }
             Item {
@@ -125,6 +125,7 @@ FocusScope {
                     objectName: "universeRequestClose"
                     anchors.fill: parent
                     accessibleName: qsTr("Close Universe request")
+                    tooltipText: accessibleName
                     onTriggered: root.closeRequested()
                 }
             }

@@ -1369,7 +1369,7 @@ Item {
                     }
                     ToolTip.visible: libraryAction.hovered
                     ToolTip.text: page.librarySaved ? "In your Library · remove" : "Add to Library"
-                    ToolTip.delay: 450
+                    ToolTip.delay: 350
                     KeyboardAction {
                         id: libraryAction
                         anchors.fill: parent

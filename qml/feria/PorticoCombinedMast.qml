@@ -48,6 +48,7 @@ Item {
             Colosseum.KeyboardAction {
                 anchors.fill: parent
                 accessibleName: "Return to Colosseum"
+                tooltipText: accessibleName
                 onTriggered: controller.homeRequested()
             }
         }
@@ -132,6 +133,7 @@ Item {
             Colosseum.KeyboardAction {
                 anchors.fill: parent
                 accessibleName: "Account"
+                tooltipText: accessibleName
                 onTriggered: {
                     controller.openAccount()
                 }

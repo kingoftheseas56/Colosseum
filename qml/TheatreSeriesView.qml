@@ -1681,6 +1681,9 @@ Item {
                                         // Automation identity (Lanista): keyed by the episode's stream id,
                                         // stable while the virtual window recreates rows.
                                         objectName: "theatreEpisodePlay_" + String(ep.sid)
+                                        ToolTip.visible: playMa.containsMouse
+                                        ToolTip.text: qsTr("Play episode")
+                                        ToolTip.delay: 350
                                         width: 40; height: 40; radius: 20
                                         color: playMa.containsMouse ? theme.ink : Qt.rgba(1, 1, 1, 0.07)
                                         border.width: 1
@@ -1709,6 +1712,10 @@ Item {
                                     }
                                     Rectangle {
                                         visible: typeof Download !== "undefined"
+                                        ToolTip.visible: dlMa.containsMouse
+                                        ToolTip.text: ep.onDisk ? qsTr("Downloaded")
+                                                      : ep.inQueue ? qsTr("Download queued") : qsTr("Download episode")
+                                        ToolTip.delay: 350
                                         width: 40; height: 40; radius: 20
                                         color: dlMa.containsMouse && !ep.onDisk && !ep.inQueue
                                                ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.05)
@@ -2147,6 +2154,9 @@ Item {
     Item {
         id: rangeStrip
         objectName: "theatreLedgerRangeStrip"
+        ToolTip.visible: stripMa.containsMouse && rangeStrip.rangeCount > 0
+        ToolTip.text: qsTr("Jump to episode %1").arg(rangeStrip.rangeAt(stripMa.mouseY) * page.episodeRangeSize + 1)
+        ToolTip.delay: 350
         z: 29
         visible: page.longRun && ledgerBarFloat.visible && ledgerBarFloat.pinned
         x: page.width - theme.margin + 8

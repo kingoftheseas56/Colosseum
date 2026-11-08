@@ -209,6 +209,7 @@ Item {
                         id: srcAction
                         anchors.fill: parent
                         accessibleName: "Source " + src.modelData.name + (src.current ? ", selected" : "")
+                        tooltipText: rail._labelsShown ? "" : String(src.modelData.name || "")
                         focusRadius: 12
                         focusOnPointer: false   // the gold bar marks the choice; no ring on a click
                         onTriggered: rail.host.selectSource(src.modelData.name)
@@ -251,6 +252,7 @@ Item {
             id: toggleAction
             anchors.fill: parent
             accessibleName: rail.collapsed ? "Expand sidebar" : "Retract sidebar"
+            tooltipText: accessibleName
             focusRadius: 14
             focusOnPointer: false
             onTriggered: rail.collapsed = !rail.collapsed

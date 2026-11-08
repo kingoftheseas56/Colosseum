@@ -798,6 +798,10 @@ Item {
                     KeyboardAction {
                         anchors.fill: parent; pointerEnabled: false; focusRadius: parent.radius
                         accessibleName: modelData.a === "min" ? "Minimize" : (modelData.a === "fs" ? "Toggle fullscreen" : "Close")
+                        tooltipText: modelData.a === "fs"
+                            ? ((typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen"))
+                            : accessibleName
+                        tooltipHovered: sysMa.containsMouse
                         onTriggered: {
                             if (modelData.a === "min") detail.minimizeRequested()
                             else if (modelData.a === "fs") detail.fullscreenRequested()
@@ -1084,6 +1088,13 @@ Item {
                                     color: torRow.dlState === "done" ? theme.gold : (torMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui
                                     font.pixelSize: (torRow.dlState === "downloading" || torRow.dlState === "failed") ? 12 : 16
+                                    ToolTip.text: torRow.dlState === "done" ? qsTr("Torrent downloaded")
+                                        : torRow.dlState === "downloading" ? qsTr("Downloading torrent")
+                                        : torRow.dlState === "resolving" ? qsTr("Resolving torrent")
+                                        : torRow.dlState === "failed" ? qsTr("Retry torrent download") : qsTr("Download torrent")
+                                    ToolTip.visible: torrentStatusHover.hovered
+                                    ToolTip.delay: 350
+                                    HoverHandler { id: torrentStatusHover }
                                 }
                                 MouseArea { id: torMa; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: torRow.dlState === "done" ? Qt.ArrowCursor : Qt.PointingHandCursor
@@ -1215,6 +1226,15 @@ Item {
                                     color: edRow.dlState === "done" ? theme.gold : (edMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui
                                     font.pixelSize: (edRow.dlState === "downloading" || edRow.dlState === "failed" || edRow.dlState === "queued") ? 12 : 16
+                                    ToolTip.text: edRow.dlState === "done" ? qsTr("Edition downloaded")
+                                        : edRow.dlState === "downloading" ? qsTr("Downloading edition")
+                                        : edRow.dlState === "queued" ? qsTr("Edition download queued")
+                                        : edRow.dlState === "resolving" ? qsTr("Resolving edition")
+                                        : edRow.dlState === "failed" ? qsTr("Retry edition download")
+                                        : edRow.modelData.md5 ? qsTr("Download edition") : qsTr("Open external edition")
+                                    ToolTip.visible: editionStatusHover.hovered
+                                    ToolTip.delay: 350
+                                    HoverHandler { id: editionStatusHover }
                                 }
                                 MouseArea { id: edMa; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: edRow.dlState === "done" ? Qt.ArrowCursor : Qt.PointingHandCursor
@@ -1340,6 +1360,13 @@ Item {
                                         : abRow.rowState === "failed" ? "retry" : "↓"
                                     color: abRow.rowState === "done" ? theme.gold : (abRowMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui; font.pixelSize: (abRow.rowState === "downloading" || abRow.rowState === "failed") ? 12 : 16
+                                    ToolTip.text: abRow.rowState === "done" ? qsTr("Audiobook downloaded")
+                                        : abRow.rowState === "downloading" ? qsTr("Downloading audiobook")
+                                        : detail.audiobookBusy(abRow.rowState) ? qsTr("Preparing audiobook download")
+                                        : abRow.rowState === "failed" ? qsTr("Retry audiobook download") : qsTr("Download audiobook")
+                                    ToolTip.visible: audiobookStatusHover.hovered
+                                    ToolTip.delay: 350
+                                    HoverHandler { id: audiobookStatusHover }
                                 }
                                 MouseArea { id: abRowMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: {

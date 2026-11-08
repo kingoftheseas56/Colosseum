@@ -44,7 +44,7 @@ Rectangle {
     }
     HoverHandler { id: hintHover; cursorShape: root.available ? Qt.PointingHandCursor : Qt.ArrowCursor }
     ToolTip.visible: hintHover.hovered
-    ToolTip.delay: 450
+    ToolTip.delay: 350
     ToolTip.text: !root.available ? root.resolution.error
         : root.membershipCount > 0 ? qsTr("In %1 collections").arg(root.membershipCount) : qsTr("Keep this title in your collections")
     KeyboardAction {

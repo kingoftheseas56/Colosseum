@@ -157,6 +157,8 @@ Item {
             anchors.fill: parent
             pointerEnabled: false
             accessibleName: rb.tooltip
+            tooltipText: rb.tooltip
+            tooltipHovered: tap.containsMouse
             focusRadius: rb.size / 2
             onTriggered: rb.tapped()
         }
@@ -173,7 +175,7 @@ Item {
             size: 48
             icon: vol.muted ? "mute" : "volume"
             active: vol.muted
-            tooltip: "Mute"
+            tooltip: root.session && root.session.muted ? qsTr("Unmute") : qsTr("Mute")
             onTapped: if (root.session) root.session.setMuted(!root.session.muted)
         }
         Item {

@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import "SystemFocusContainment.js" as SystemFocusContainment
 
 Item {
@@ -274,6 +275,9 @@ Item {
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
         Accessible.name: "Watch Party"
+        ToolTip.visible: faceMouse.containsMouse
+        ToolTip.text: party.panelOpen ? qsTr("Close Watch Party") : qsTr("Open Watch Party")
+        ToolTip.delay: 350
         Accessible.description: party.inRoom
                                 ? "Open active Watch Party"
                                 : "Open Watch Party"
@@ -506,6 +510,9 @@ Item {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Close Watch Party panel"
+                ToolTip.visible: closeMouse.containsMouse
+                ToolTip.text: qsTr("Close Watch Party panel")
+                ToolTip.delay: 350
 
                 Rectangle {
                     anchors.fill: parent

@@ -92,6 +92,10 @@ Item {
         anchors.fill: parent
         pointerEnabled: false
         accessibleName: door.available ? qsTr("Open Vault") : qsTr("Vault unavailable")
+        tooltipText: !door.available ? ""
+            : door.arrivalPulse ? qsTr("Open Vault · New media arrived")
+            : door.scanning ? qsTr("Open Vault · Scanning") : accessibleName
+        tooltipHovered: doorMa.containsMouse
         accessibleDescription: door.available ? "" : qsTr("Vault is unavailable on Android.")
         onTriggered: door.clicked()
     }

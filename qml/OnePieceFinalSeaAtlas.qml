@@ -442,6 +442,9 @@ FocusScope {
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Zoom out"
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("Zoom out")
+            ToolTip.delay: 350
             onClicked: root.setZoom(root.zoom - 0.25)
         }
         FinalSeaInkButton {
@@ -453,6 +456,9 @@ FocusScope {
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Reset zoom to show the whole chart"
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("Reset zoom")
+            ToolTip.delay: 350
             onClicked: root.setZoom(1)
         }
         FinalSeaInkButton {
@@ -464,6 +470,9 @@ FocusScope {
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Zoom in"
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("Zoom in")
+            ToolTip.delay: 350
             onClicked: root.setZoom(root.zoom + 0.25)
         }
     }

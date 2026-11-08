@@ -609,6 +609,9 @@ Item {
                             Accessible.role: Accessible.Button
                             Accessible.name: "Reorder " + rowBlock.modelData.title
                             Accessible.description: "Ctrl+Shift+Up or Ctrl+Shift+Down moves this shelf"
+                            ToolTip.text: qsTr("Drag to reorder %1").arg(rowBlock.modelData.title)
+                            ToolTip.visible: dragHandleMa.containsMouse
+                            ToolTip.delay: 350
                             Keys.onPressed: (event) => {
                                 const reorder = (event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier)
                                 if (!reorder) return
@@ -646,6 +649,7 @@ Item {
                             color: upMa.containsMouse || moveUpAction.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                             opacity: page.canMoveUp(rowBlock.rowKey) ? 1 : 0.35
                             Text { anchors.centerIn: parent; text: "▲"; color: theme.ink; font.pixelSize: 12 }
+                            HoverHandler { id: moveUpHover }
                             MouseArea {
                                 id: upMa; anchors.fill: parent; hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
@@ -656,6 +660,8 @@ Item {
                                 id: moveUpAction; anchors.fill: parent; pointerEnabled: false
                                 focusEnabled: editControls.visible && page.canMoveUp(rowBlock.rowKey)
                                 accessibleName: "Move " + rowBlock.modelData.title + " up"
+                                tooltipText: accessibleName
+                                tooltipHovered: moveUpHover.hovered
                                 focusRadius: 6
                                 onTriggered: page.moveRowBy(rowBlock.rowKey, -1, true)
                             }
@@ -666,6 +672,7 @@ Item {
                             color: downMa.containsMouse || moveDownAction.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                             opacity: page.canMoveDown(rowBlock.rowKey) ? 1 : 0.35
                             Text { anchors.centerIn: parent; text: "▼"; color: theme.ink; font.pixelSize: 12 }
+                            HoverHandler { id: moveDownHover }
                             MouseArea {
                                 id: downMa; anchors.fill: parent; hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
@@ -676,6 +683,8 @@ Item {
                                 id: moveDownAction; anchors.fill: parent; pointerEnabled: false
                                 focusEnabled: editControls.visible && page.canMoveDown(rowBlock.rowKey)
                                 accessibleName: "Move " + rowBlock.modelData.title + " down"
+                                tooltipText: accessibleName
+                                tooltipHovered: moveDownHover.hovered
                                 focusRadius: 6
                                 onTriggered: page.moveRowBy(rowBlock.rowKey, 1, true)
                             }

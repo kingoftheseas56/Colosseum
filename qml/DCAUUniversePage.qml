@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import "UniverseContentApi.js" as UniverseContent
 import "UniverseExtApi.js" as UniverseApi
 import "DCAUUniverseData.js" as DCAU
@@ -184,6 +185,7 @@ Item {
                 anchors.leftMargin: 18
                 anchors.verticalCenter: parent.verticalCenter
                 glyph: "\u2039"
+                tooltipText: qsTr("Previous portal")
                 onTriggered: landing.selectPortal(landing.selectedIndex - 1, true)
             }
             DCAUPortalArrow {
@@ -193,6 +195,7 @@ Item {
                 anchors.rightMargin: 18
                 anchors.verticalCenter: parent.verticalCenter
                 glyph: "\u203a"
+                tooltipText: qsTr("Next portal")
                 onTriggered: landing.selectPortal(landing.selectedIndex + 1, true)
             }
 
@@ -228,17 +231,30 @@ Item {
         Item {
             width: 22; height: 22
             Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"; sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit; opacity: minMa.containsMouse ? 1 : .72 }
-            MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
+            MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested()
+                ToolTip.visible: containsMouse
+                ToolTip.text: qsTr("Minimize")
+                ToolTip.delay: 350
+            }
         }
         Item {
             width: 22; height: 22
             Image { anchors.fill: parent; source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit; opacity: fsMa.containsMouse ? 1 : .72 }
-            MouseArea { id: fsMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
+            MouseArea { id: fsMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested()
+                ToolTip.visible: containsMouse
+                ToolTip.text: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                              ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
+                ToolTip.delay: 350
+            }
         }
         Item {
             width: 22; height: 22
             Image { anchors.fill: parent; source: "../assets/icons/power.svg"; sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit; opacity: closeMa.containsMouse ? 1 : .72 }
-            MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+            MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested()
+                ToolTip.visible: containsMouse
+                ToolTip.text: qsTr("Close Colosseum")
+                ToolTip.delay: 350
+            }
         }
     }
 }

@@ -86,6 +86,7 @@ ReaderOverlay {
             id: ma
             anchors.fill: parent
             keyboardLabel: ib.label
+            tooltipText: ib.label
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: ib.clicked()

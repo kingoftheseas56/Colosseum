@@ -108,6 +108,8 @@ Rectangle {
                         anchors.fill: parent
                         pointerEnabled: false
                         accessibleName: qsTr("Remove %1").arg(modelData.title || modelData.path || qsTr("item"))
+                        tooltipText: qsTr("Remove from Next to Open")
+                        tooltipHovered: removeMouse.containsMouse
                         focusRadius: 8
                         onTriggered: tray.removeRequested(index, modelData)
                     }

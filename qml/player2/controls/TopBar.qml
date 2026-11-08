@@ -82,6 +82,8 @@ Item {
             anchors.fill: parent
             pointerEnabled: false
             accessibleName: rb.tooltip
+            tooltipText: rb.icon === "minimizeToBar" ? qsTr("Minimize") : rb.tooltip
+            tooltipHovered: tap.containsMouse
             focusRadius: rb.size / 2
             onTriggered: rb.tapped()
         }

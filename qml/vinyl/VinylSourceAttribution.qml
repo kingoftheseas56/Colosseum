@@ -238,6 +238,7 @@ Item {
     Theme { id: theme }
 
     component AttributionAction: KeyboardAction {
+        tooltipText: accessibleName
         id: action
         property url iconSource: ""
         property string symbol: ""

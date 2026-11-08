@@ -41,6 +41,7 @@ Popup {
     Overlay.modal: Rectangle {color:Qt.rgba(0,0,0,0.55)}
 
     component Action: KeyboardAction {
+        tooltipText: action.iconOnly || action.symbol.length > 0 || action.icon.toString().length > 0 ? action.accessibleName : ""
         id: action
         property string label: ""
         property url icon: ""
