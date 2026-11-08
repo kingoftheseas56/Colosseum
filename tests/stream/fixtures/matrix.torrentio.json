@@ -1,0 +1,2290 @@
+{
+  "streams": [
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Матрица / The Matrix [1999 WEB-DL 2160p HDR10 Dolby Vision] [Hybrid] Dub + Original (Eng) + Sub (Rus Eng)\n👤 344 💾 18.45 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "61065ea115b7cc3e8db9fb5ab1f6f327f08bd1c9",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|WEB-DL|10bit|DV|HDR",
+        "filename": "Матрица.1999.WEB-DL.2160p.mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:61065ea115b7cc3e8db9fb5ab1f6f327f08bd1c9",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The.Matrix.1999.RERIP.2160p.UHD.BluRay.x265.10bit.HDR.TrueHD.7.1.Atmos-IAMABLE\n👤 107 💾 35.09 GB ⚙️ RARBG",
+      "infoHash": "03dd34fea0ff15a451c1723062a901aa3a0ad458",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit|HDR",
+        "filename": "The.Matrix.1999.RERIP.2160p.UHD.BluRay.X265-IAMABLE.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Matrix 1999 UHD Blu-ray 2160p HDR Remux Multi Atmos 7.1-DTOne\n👤 79 💾 51.3 GB ⚙️ 1337x\nMulti Audio / 🇬🇧 / 🇮🇹 / 🇵🇹 / 🇰🇷 / 🇨🇳 / 🇫🇷 / 🇩🇪 / 🇸🇦",
+      "infoHash": "8dc393c100ef0c0d010cfefdcebe572e26c4f775",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|HDR"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "[PACK] The Matrix 4K UHD Collection (1999-2003) (2160p HDR BDRip x265 10bit DTS) [4KLiGHT]\nThe Matrix (1999) (2160p HDR BDRip x265 10bit DTS) [4KLiGHT].mkv\n👤 70 💾 4.98 GB ⚙️ 1337x",
+      "infoHash": "17e40c4a20a021a52f43550912879e19b75c2c47",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|x265|10bit|HDR",
+        "filename": "The Matrix (1999) (2160p HDR BDRip x265 10bit DTS) [4KLiGHT].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The Matrix 1999 2160p UHD BDRip HEVC 10bit DV HDR TrueHD.7.1 Atmos MUSHR00M\n👤 42 💾 23.23 GB ⚙️ EXT",
+      "infoHash": "3950b0923106a7457d3ab8340a929f38c636b1a0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|hevc|10bit|DV|HDR",
+        "filename": "The Matrix 1999 2160p UHD BDRip HEVC 10bit DV HDR TrueHD.7.1 Atmos MUSHR00M.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR10+",
+      "title": "The Matrix (1999) 2160p H265 BluRay Rip 10 bit DV HDR10+ ita eng AC3 5.1 sub ita eng Licdom\n👤 39 💾 4 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇮🇹",
+      "infoHash": "c2bbb470f272cccdfae861f7836da13cdb7d14e6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BRRip|h265|10bit|DV|HDR10+",
+        "filename": "The Matrix (1999) 2160p H265 10 bit DV HDR10+ ita eg AC3 5.1 sub ita eng Licdom.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The.Matrix.1999.2160p.HDR.UHD.BluRay.AV1.DDP5.1.Atmos.Multi4-dAV1nci\n👤 38 💾 12.26 GB ⚙️ 1337x",
+      "infoHash": "aa0fd381c944a72cabb3e962d5f727c8694d7dd6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|av1|HDR",
+        "filename": "The.Matrix.1999.2160p.HDR.UHD.BluRay.AV1.DDP5.1.Atmos.Multi4-dAV1nci.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The.Matrix.1999.2160p.BluRay.HDR.DDP5.1.x265-GalaxyUHD\n👤 37 💾 3.41 GB ⚙️ ThePirateBay",
+      "infoHash": "c392386c397245b6f3b88634f348afa72d88d6d0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|HDR",
+        "filename": "The.Matrix.1999.2160p.BluRay.HDR.DDP5.1.x265-GalaxyUHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV",
+      "title": "The Matrix 1999 UHD BluRay 2160p TrueHD Atmos 7 1 DV HEVC REMUX-FraMeSToR\n👤 35 💾 52.91 GB ⚙️ 1337x",
+      "infoHash": "1a65cebb895ccd66a9f3fd2e76eb0958ba7a74db",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc|DV",
+        "filename": "The.Matrix.1999.UHD.BluRay.2160p.TrueHD.Atmos.7.1.DV.HEVC.REMUX-FraMeSToR.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Matrix.1999.REPACK.4K.HDR.DV.2160p.BDRemux Ita Eng x265-NAHOM.\n👤 35 💾 51.84 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "ee57f2ade00a83897ff90d613d6b0a700479e5e2",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|x265|DV|HDR",
+        "filename": "The.Matrix.1999.REPACK.4K.HDR.DV.2160p.BDRemux Ita Eng x265-NAHOM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Matrix (1999) (2160p BluRay x265 HEVC 10bit HDR AAC 7.1 Tigole) [QxR]\n👤 33 💾 14.2 GB ⚙️ 1337x",
+      "infoHash": "12f8ca9709b357477612aaac7c6703503c410352",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|HDR"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The.Matrix.1999.2160p.YouTubeMovies.WEB-DL.DDP5.1.HDR.VP9-SomniWare\n👤 32 💾 19.47 GB ⚙️ ThePirateBay\n🇬🇧 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇰🇷 / 🇨🇳 / 🇫🇷 / 🇩🇪 / 🇳🇱 / 🇭🇺 / 🇩🇰 / 🇸🇪 / 🇳🇴 / 🇹🇷 / 🇸🇦 / 🇮🇩",
+      "infoHash": "32dde1f88cb0d890b7e8dd5064c91f30477f2c94",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|WEB-DL|HDR",
+        "filename": "The.Matrix.1999.2160p.YouTubeMovies.WEB-DL.DDP5.1.HDR.VP9-SomniWare.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Matrix.1999.2160p.MAX.WEB-DL.DDPA.5.1.DV.HDR.H.265-PiRaTeS[TGx]\n👤 29 💾 21.13 GB ⚙️ TorrentGalaxy",
+      "infoHash": "54dc2dd3172f7dd06707124ce0512cd05f12b168",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|WEB-DL|h265|DV|HDR",
+        "filename": "The.Matrix.1999.2160p.MAX.WEB-DL.DDPA.5.1.DV.HDR.H.265-PiRaTeS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Matrix.1999.2160p.MAX.WEB-DL.DV.HDR.MULTi.DDP5.1.Atmos.H265.MP4-BEN.THE.MEN\n👤 28 💾 24.45 GB ⚙️ ThePirateBay\nMulti Audio / 🇬🇧 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇲🇽 / 🇫🇷 / 🇮🇳",
+      "infoHash": "060a7e1f7c05e1040889f4e25cbd603605e8c3ce",
+      "fileIdx": 3,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|WEB-DL|h265|DV|HDR",
+        "filename": "The.Matrix.1999.2160p.MAX.WEB-DL.DV.HDR.ENG.LATINO.CASTELLANO.ITA.FRE.HINDI.PORTUGUESE.DDP5.1.Atmos.H265.MP4-BEN.THE.MEN.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV",
+      "title": "The Matrix 1999 UHD BluRay 2160p DV HEVC TrueHD.Atmos.7.1-E\n👤 25 💾 25.05 GB ⚙️ 1337x",
+      "infoHash": "f9d5c463a31ff51ccc372214c5a5826f86385dde",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|DV",
+        "filename": "The Matrix (1999) DV.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Matrix Saga (1999-2021) 2160p H265 HDR10 AC3 5.1 ITA.ENG sub NUita.eng Sp33dy94 MIRCrew\nMatrix (1999) AC3 5.1 ITA.ENG 2160p H265 HDR10 sub NUita.eng Sp33dy94-MIRCrew.mkv\n👤 17 💾 3.77 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "e130223b6ada9106875fd29a38ad1a15b02fdfdb",
+      "fileIdx": 3,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|HDR",
+        "filename": "Matrix (1999) AC3 5.1 ITA.ENG 2160p H265 HDR10 sub NUita.eng Sp33dy94-MIRCrew.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The Matrix (1999) [2160p] UHD [BD] DV HDR AV1 TrueHD.7.1+Atmos\n👤 16 💾 24.34 GB ⚙️ TorrentGalaxy",
+      "infoHash": "4eb76808f9a598d9df5af1be184ca01fcf50ed69",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|av1|DV|HDR",
+        "filename": "The Matrix (1999) [2160p] UHD [BD] DV HDR AV1 TrueHD.7.1+Atmos.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Матрица: Трилогия / Matrix: Trilogy (1999-2003) UHD BDRemux 2160p | 4K | HDR10 | Dolby Vision | D\nThe Matrix (1999) BDRemux - 4K. Dolby Vision. by Wild_Cat.mkv\n👤 11 💾 52.51 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "1ce32a73e22f0bc53e922c06551e484e0a44739b",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|10bit|DV|HDR",
+        "filename": "The Matrix (1999) BDRemux - 4K. Dolby Vision. by Wild_Cat.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:1ce32a73e22f0bc53e922c06551e484e0a44739b",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Matrix 1999 UHD Blu-ray 2160p x265 HDR Atmos 7.1-DTOne\n👤 10 💾 28.05 GB ⚙️ ThePirateBay",
+      "infoHash": "aa53e0a5c2582f18e12bf963752ab762b2fef14c",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|HDR"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Matrix.Quadrilogy.1999.2003.2021.2160p.REMUX.HDR.DV.MULTi..7…\nThe.Matrix.1999.UNCUT.UHD.2160p.REMUX.Hybrid.HDR10.DV.P7.DTS-HD.TrueHD.7.1.ATMOS.H265-KC/the.matrix.1999.uncut.4k-kc.mkv\n👤 9 💾 56.36 GB ⚙️ TorrentGalaxy\nMulti Audio / 🇬🇧 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇰🇷 / 🇨🇳 / 🇫🇷 / 🇩🇪 / 🇳🇱 / 🇵🇱 / 🇨🇿 / 🇭🇺 / 🇭🇷 / 🇩🇰 / 🇸🇪 / 🇳🇴 / 🇹🇷 / 🇹🇭",
+      "infoHash": "ece31b521743979a799f5b4dc005764b951c7874",
+      "fileIdx": 5,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|DV|HDR",
+        "filename": "the.matrix.1999.uncut.4k-kc.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Matrix.1999.4K.HDR.2160p.BDRip Ita Eng x265-NAHOM\n👤 9 💾 13.6 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹",
+      "infoHash": "fc7669d9f9d6dc5a54f9d39ae6dd31beb04f4a83",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|x265|HDR"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Matrix [4K UHDremux][2160p][HDR10][DTS-HD 7.1 Castellano-Dolby TrueHD 7.1-Ingles+Subs][ES-EN]\n👤 8 💾 56.19 GB ⚙️ MejorTorrent\n🇬🇧 / 🇪🇸",
+      "infoHash": "4927c5658396e63e40bc9061bd805a7bb1e06966",
+      "fileIdx": 4,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|10bit|HDR",
+        "filename": "Matrix 4Kremux2160.pctreload1.com.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Matrix.1999.Eng.Fre.Ger.Ita.Por.Spa.Cze.Hun.Pol.Rus.Tha.Tur.Jpn.2160p.BluRay.Remux.DV.HDR.HEVC.Atmos-SGF\n👤 7 💾 58.59 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇯🇵 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇫🇷 / 🇩🇪 / 🇵🇱 / 🇨🇿 / 🇭🇺 / 🇹🇷",
+      "infoHash": "f11ccc32c2a7dde0c4e554ba568e885d945d4c29",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc|DV|HDR",
+        "filename": "The.Matrix.1999.Eng.Fre.Ger.Ita.Por.Spa.Cze.Hun.Pol.Rus.Tha.Tur.Jpn.2160p.BluRay.Remux.DV.HDR.HEVC.Atmos-SGF.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Matrix (1999) 2160p H265 HDR10 DV ITA ENG AC3 5.1 SUB ITA ENG\n👤 6 💾 8.91 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "9393c2dabc42b69106c4bf0f1d52a87639cbae78",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|DV|HDR",
+        "filename": "Matrix (1999) 2160p H265 HDR10 DV ITA ENG AC3 5.1 SUB ITA ENG by »᚛໓คสƙ ₹єคթєส᚜«.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The.Matrix.1999.2160p.UHD.BluRay.x265.10bit.HDR.TrueHD.7.1.Atmos-RARBG\n👤 5 💾 12.28 GB ⚙️ TorrentGalaxy",
+      "infoHash": "6056026c737e31a2862c550e1f11bfe0cf0502b4",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit|HDR",
+        "filename": "The.Matrix.1999.2160p.UHD.BluRay.x265.10bit.HDR.TrueHD.7.1.Atmos-RARBG.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy (1999-2003) UHD BDRip-HEVC 2160p | D P P2 A\n1 TH_MTRX_1999_UHD-BDRip_HDR_BT2020_x265_2160P -BLUEBIRD.mkv\n👤 5 💾 27.76 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "65faf2181d1e2dce964a7b7d056f496347d974f4",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|hevc|HDR",
+        "filename": "1 TH_MTRX_1999_UHD-BDRip_HDR_BT2020_x265_2160P -BLUEBIRD.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:65faf2181d1e2dce964a7b7d056f496347d974f4",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The.Matrix.1999.2160p.10bit.HDR.BluRay.8CH.x265.HEVC-PSA\n👤 5 💾 2.12 GB ⚙️ ThePirateBay",
+      "infoHash": "2c35452e5bf87afdf78ea2986008086ff67c278c",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|HDR",
+        "filename": "The.Matrix.1999.2160p.10bit.HDR.BluRay.8CH.x265.HEVC-PSA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Матрица / The Matrix (1999) UHD Blu-ray 2160p | 4K | HDR | Remastered | D\n👤 5 💾 64.61 GB ⚙️ Rutor\nMulti Audio",
+      "infoHash": "d4552ddd62e8f56ccbd93cc49957585d2823007c",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|HDR"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:d4552ddd62e8f56ccbd93cc49957585d2823007c",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The Matrix 1999 2160p BluRay\n👤 119 💾 6.49 GB ⚙️ YTS",
+      "infoHash": "28dec3ac8cc8c5758730a334d98705dd698f7bc1",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit",
+        "filename": "The.Matrix.1999.2160p.4K.BluRay.x265.10bit.AAC5.1-[YTS.MX].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Matrix.1999.PROPER.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.TrueHD.7.1.Atmos-FGT\n👤 45 💾 61.18 GB ⚙️ RARBG",
+      "infoHash": "2ae3f5fdbe7459815463960bf22e74a0ed590eb5",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc",
+        "filename": "The.Matrix.1999.PROPER.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.TrueHD.7.1.Atmos-FGT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The Matrix (1999) 2160p AI Upscaled Open Matte 60fps 10bit SDR H265 7.1 Marjenbo\n👤 24 💾 45.67 GB ⚙️ ThePirateBay\n🇬🇧 / 🇯🇵 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇰🇷 / 🇨🇳 / 🇩🇪 / 🇵🇱 / 🇨🇿 / 🇭🇺 / 🇭🇷 / 🇩🇰 / 🇸🇪 / 🇳🇴 / 🇹🇷 / 🇸🇦 / 🇹🇭",
+      "infoHash": "21ca3ef2e3a036aa3387a51fffc24f4f01a61aa6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit",
+        "filename": "The Matrix (1999) Ai Upscaled Open Matte 60FPS BT709 H265  7.1 Marjenbo .mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Matrix.1999.RERIP.2160p.BluRay.x264.8bit.SDR.DTS-HD.MA.TrueHD.7.1.Atmos-SWTYBLZ\n👤 22 💾 65.01 GB ⚙️ RARBG",
+      "infoHash": "b75ceb1b801bbd27ded07cffd66a71f12b9e753c",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x264|8bit",
+        "filename": "The.Matrix.1999.RERIP.2160p.BluRay.x264.8bit.SDR.DTS-HD.MA.TrueHD.7.1.Atmos-SWTYBLZ.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p DV | HDR",
+      "title": "The Matrix 1999 1080p UHD BluRay DD7 1 DV HDR x264-HiDt\n👤 28 💾 22.16 GB ⚙️ ThePirateBay",
+      "infoHash": "9479ca9aca64479a026cce2811bbab961a8b86cd",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264|DV|HDR",
+        "filename": "The Matrix 1999 1080p UHD BluRay DD7 1 DV HDR x264-HiDt.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p DV | HDR",
+      "title": "The Matrix 1999 1080p UHD BluRay DD 7 1 DV HDR x265-HiDt\n👤 9 💾 22.16 GB ⚙️ ThePirateBay",
+      "infoHash": "c18e43e747e247d3e53fa257c50e3d20414b5917",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|DV|HDR",
+        "filename": "The Matrix 1999 1080p UHD BluRay DD 7 1 DV HDR x265-HiDt.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p HDR",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy (1999-2003) UHD BDRip-HEVC 1080p | HDR | D\nThe Matrix (1999).mkv\n👤 8 💾 9.7 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "1fed96a827f29e2b02f2be204f35c934f67e8b2a",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|hevc|HDR",
+        "filename": "The Matrix (1999).mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:1fed96a827f29e2b02f2be204f35c934f67e8b2a",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p DV | HDR",
+      "title": "The Matrix 1999 1080p UHD BluRay DD5 1 Atmos DV HDR x265-SQS\n👤 7 💾 11.54 GB ⚙️ ThePirateBay",
+      "infoHash": "58fcb5ef59ddb095669830b0382af06a3ea61a01",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|DV|HDR",
+        "filename": "The Matrix 1999 1080p UHD BluRay DD5 1 Atmos DV HDR x265-SQS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p DV | HDR",
+      "title": "The Matrix 1999 1080p UHD BluRay DD 5 1 Atmos DV HDR x265-SQS\n👤 6 💾 11.54 GB ⚙️ ThePirateBay",
+      "infoHash": "5affe1d9f06504f74799f00a9d66ec266e0f8d16",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|DV|HDR",
+        "filename": "The Matrix 1999 1080p UHD BluRay DD  5 1 Atmos DV HDR x265-SQS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix (1999) 1080p BrRip x264 - 1.85GB - YIFY\n👤 867 💾 1.86 GB ⚙️ ThePirateBay",
+      "infoHash": "d7a46713eaee18c746b3254b7d1492a50fd9d6ce",
+      "fileIdx": 3,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BRRip|x264",
+        "filename": "The.Matrix.1999.1080p.BrRip.x264.YIFY.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1-4 Pack 1999-2021 REMASTERED 1080p BluRay HEVC x265 5.1 BONE\nThe Matrix 1999 REMASTERED 1080p BluRay HEVC x265 5.1 BONE.mkv\n👤 336 💾 2.28 GB ⚙️ ThePirateBay",
+      "infoHash": "e0593a3dab881080efecb54ba6551d4b2d329bf1",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc",
+        "filename": "The Matrix 1999 REMASTERED 1080p BluRay HEVC x265 5.1 BONE.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Matrix.1999.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265\n👤 274 💾 3.03 GB ⚙️ ThePirateBay",
+      "infoHash": "90d3277aa33f639c3533a6d7015e3002c892e2d5",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit",
+        "filename": "The.Matrix.1999.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Complete.Matrix.Trilogy.Bluray.1080p.BluRay.x264.anoXmous\nThe.Matrix.1999.Bluray.1080p.BluRay.x264.anoXmous.mp4\n👤 164 💾 2.22 GB ⚙️ ThePirateBay",
+      "infoHash": "88c11f24fe28e75edab4bc7d8b353bc4acb86e24",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The.Matrix.1999.Bluray.1080p.BluRay.x264.anoXmous.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Matrix.1999.REMASTERED.1080p.BluRay.REMUX.AVC.DTS-HD.MA.TrueHD.7.1.Atmos-FGT\n👤 135 💾 34.17 GB ⚙️ RARBG",
+      "infoHash": "673a8bc41d60b4b20df1682cc6483ec95dcd8d06",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX|avc",
+        "filename": "The.Matrix.1999.REMASTERED.1080p.BluRay.REMUX.AVC.DTS-HD.MA.TrueHD.7.1.Atmos-FGT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy [1999-2003 Hybrid 1080p Open Matte] Dub + Original Eng + Sub Rus Eng\nМатрица  The Matrix (1999, Лэрри Вачовски, Энди Вачовски) Hybrid_1080p [Open Matte] DTS-HD MA 5.1.mkv\n👤 119 💾 19.3 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "4d93356dba7acb31692a3bb1d0b6db76d5771638",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Матрица  The Matrix (1999, Лэрри Вачовски, Энди Вачовски) Hybrid_1080p [Open Matte] DTS-HD MA 5.1.mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:4d93356dba7acb31692a3bb1d0b6db76d5771638",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица / The Matrix [1999 BDRip 1080p HEVC 60 FPS] Dub + Original (Eng) + Sub (Rus Eng)\n👤 87 💾 6.31 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "596125635dc2a6bf9eaf0436adae1a322130b7f2",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|hevc",
+        "filename": "Матрица (1999) BDRip 1080p.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:596125635dc2a6bf9eaf0436adae1a322130b7f2",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Matrix.1999.REMASTERED.RERIP.1080p.BluRay.x264.TrueHD.7.1.Atmos-SWTYBLZ\n👤 74 💾 19.27 GB ⚙️ RARBG",
+      "infoHash": "cffdaac58475f4e492aacec1f4671c4287c38806",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The.Matrix.1999.REMASTERED.RERIP.1080p.BluRay.x264.TrueHD.7.1.Atmos-SWTYBLZ.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица / The Matrix [1999 BDRip 1080p] Dub + 3x MVO + 3x DVO + 9x AVO + VO + Sub Rus Ukr Eng + Original Eng\n👤 69 💾 26.28 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "1e3e7a986368ecd58dd7eb096401e68c198f3f68",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "Матрица (1999) BDRip-1080p.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:1e3e7a986368ecd58dd7eb096401e68c198f3f68",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix (1999) RM (1080p BluRay x265 HEVC 10bit AAC 7.1 Tigole) [QxR]\nThe Matrix (1999) RM (1080p BluRay x265 10bit Tigole).mkv\n👤 55 💾 5.73 GB ⚙️ 1337x",
+      "infoHash": "20be2d2f0ada29069428fe880ccb04197681af2a",
+      "fileIdx": 10,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The Matrix (1999) RM (1080p BluRay x265 10bit Tigole).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица / The Matrix [1999 HDTV 1080i] [Open Matte] Dub + VO (VHS) + AVO (Гаврилов) + Original Eng + Sub Rus Eng\n👤 52 💾 16.95 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "bff55bbe58b3c8db136a23cc9d06c2dc5b9a7f8f",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|DVD|x264",
+        "filename": "Matrix.1999.x264.HDTV.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:bff55bbe58b3c8db136a23cc9d06c2dc5b9a7f8f",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 1080p YT WEB-DL DDP 5 1 H 264-PiRaTeS\n👤 35 💾 7.06 GB ⚙️ ThePirateBay",
+      "infoHash": "9370954b0fd021bde342c49bc157e6334c10440f",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "The Matrix 1999 1080p YT WEB-DL DDP 5 1 H 264-PiRaTeS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Great Films 3: MP4 X264 AC3 1080p\nM1 The Matrix (1999) 1080p Surround.mp4\n👤 33 💾 3 GB ⚙️ MagnetDL",
+      "infoHash": "40f15e970e6f21466402a1ec4fbd059097ad587a",
+      "fileIdx": 22,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "M1 The Matrix (1999) 1080p Surround.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Ultimate Matrix Collection (1999-2003) VFF-ENG AC3 BluRay 1080p x264.GHT\nThe Matrix (1999) VFF-ENG AC3 BluRay 1080p x264.GHT.mkv\n👤 31 💾 3.62 GB ⚙️ Torrent9\n🇬🇧 / 🇫🇷",
+      "infoHash": "4521794c87bfb56f65dcf8051ac8109069c417e6",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The Matrix (1999) VFF-ENG AC3 BluRay 1080p x264.GHT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix (1999) 1080p H265 BluRay Rip ita eng AC3 5.1 sub ita eng Licdom\n👤 30 💾 2.05 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇮🇹",
+      "infoHash": "ae41fd85bc241788df159f5fffa64e31ac9319f8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BRRip|h265",
+        "filename": "The Matrix (1999) 1080p H265 ita eg AC3 5.1 sub ita eng Licdom.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Matrix (1999) MULTi 1080p BluRay x264-PopHD\n👤 30 💾 2.56 GB ⚙️ Torrent9\nMulti Audio / 🇫🇷",
+      "infoHash": "e1665245106dc30bec4572d5995072f5cefe5ebe",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "[ Torrent911.cc ] Matrix (1999) MULTi 1080p BluRay x264-PopHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Matrix.1999.REMASTERED.PROPER.1080p.BluRay.H264.AAC-RARBG\n👤 30 💾 2.6 GB ⚙️ RARBG",
+      "infoHash": "c1da3c624c20c6fd698618ae0f4c2ffdc549db49",
+      "fileIdx": 5,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|h264",
+        "filename": "The.Matrix.1999.REMASTERED.PROPER.1080p.BluRay.H264.AAC-RARBG.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix - The Complete Collection (1999-2021) BDRip 1080p\n1999.The.Matrix.1920x796.BDRip.x264.TrueHD.mkv\n👤 27 💾 16.49 GB ⚙️ ThePirateBay",
+      "infoHash": "2a83f6e07e4f8a41fae3d7528fd82a65134fcc2e",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x264",
+        "filename": "1999.The.Matrix.1920x796.BDRip.x264.TrueHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 1080p AV1 10Bit DKong\n👤 26 💾 1.08 GB ⚙️ ThePirateBay",
+      "infoHash": "0978fcd65d2dee6256446c1c96536c9fedf90966",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|av1|10bit",
+        "filename": "The Matrix 1999 1080p AV1 10Bit DKong.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 1080p AMZN WEB-DL DDP5 1 H 264-GPRS\n👤 26 💾 9.46 GB ⚙️ ThePirateBay",
+      "infoHash": "b98950b895cac4f26d71cb31c62c5e01a46fa89a",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "The Matrix 1999 1080p AMZN WEB-DL DDP5 1 H 264-GPRS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 1080p BluRay DD+ 7.1 x265-edge2020\n👤 26 💾 5.85 GB ⚙️ TorrentGalaxy",
+      "infoHash": "64377d9d98f877ed01ef4131382f2209a3217478",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The.Matrix.1999.1080p.BluRay.DDP.7.1.x265-EDGE2020.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix Complete 5 Movie Collection - Sci-Fi 1999 - 2021 Eng Rus Multi-Subs 1080p [H264-mp4]\nThe Matrix Complete 5 Movie Collection 1999 - 2021/01 The Matrix Remastered - Sci-Fi 1999 Eng Rus Multi-Subs 1080p [H264-mp4].mp4\n👤 25 💾 6.5 GB ⚙️ TorrentGalaxy\nMulti Subs / 🇬🇧 / 🇷🇺",
+      "infoHash": "f154b8d18014263a965d822545ddc29bca09aad0",
+      "fileIdx": 34,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|h264",
+        "filename": "01 The Matrix Remastered - Sci-Fi 1999 Eng Rus Multi-Subs 1080p [H264-mp4].mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Matrix.1999.REMASTERED.1080p.BluRay.x265-RARBG\n👤 20 💾 2.12 GB ⚙️ RARBG",
+      "infoHash": "ef3da8dfba03be6ff3dcbff9b8491c98f7478a27",
+      "fileIdx": 6,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The.Matrix.1999.REMASTERED.1080p.BluRay.x265-RARBG.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица / The Matrix [1999 BDRemux 1080p] [Remastered] Dub + 3х MVO + 3х DVO + 8х AVO + VO + Original (Eng) + Sub (Rus Eng Multi)\n👤 19 💾 48.84 GB ⚙️ Rutracker\nMulti Audio / 🇬🇧 / 🇷🇺",
+      "infoHash": "cde786993159c735804af77031115fcfca2afa8d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX|avc",
+        "filename": "The.Matrix.1999.Remastered.1080p.BluRay.REMUX.AVC.Atmos.mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:cde786993159c735804af77031115fcfca2afa8d",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Matrix.1999.1080P-Dual-Lat\n👤 19 💾 2.18 GB ⚙️ Cinecalidad\nDual Audio / 🇲🇽",
+      "infoHash": "0a0cb2e6b68d18aef283cc34252a607f3b7ab83d",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Matrix.1999.1080P-Dual-Lat.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p 3D HSBS",
+      "title": "The Matrix (1999) 3D HSBS 1080p BluRay H264 DolbyD 5.1 [nickarad]\n👤 19 💾 4.4 GB ⚙️ TorrentGalaxy",
+      "infoHash": "6e8213033e5b3d60c61f36eec80de08b3922ae43",
+      "fileIdx": 5,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|h264",
+        "filename": "The Matrix (1999) 3D HSBS 1080p BluRay H264 DolbyD 5.1 + nickarad.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Trilogia Matrix 1999 - 2003 [1080p] WWW.BLUDV.COM\nMatrix 1999 [1080p] WWW.BLUDV.COM/Matrix.1999.1080p.BluRay.x264.DUAL-WWW.BLUDV.COM.mkv\n👤 17 💾 2.04 GB ⚙️ Comando\nDual Audio / 🇬🇧 / 🇵🇹",
+      "infoHash": "498ddeca847fba8ea6bf2bf2279b89c4771742a7",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Matrix.1999.1080p.BluRay.x264.DUAL-WWW.BLUDV.COM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица / The Matrix [1999 WEB-DL 1080p] [Open Matte] Dub + 3х MVO + 3х DVO + 8х AVO + VO + Original (Eng) + Sub (Rus Eng Multi)\n👤 16 💾 20.58 GB ⚙️ Rutracker\nMulti Audio / 🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "34cc15586bd89af24718e83ab4095f9a65d848fb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "The_Matrix_1999_Open_Matte_Web-DL_1080p_DD_Atmos_5_1_H_264.mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:34cc15586bd89af24718e83ab4095f9a65d848fb",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Matrix (1999) Bluray 1080p Dual Audio\n👤 16 💾 2.04 GB ⚙️ Comando\nDual Audio / 🇬🇧 / 🇵🇹",
+      "infoHash": "8cc4fdc2c777d1464d9043397309f45859b9297b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay",
+        "filename": "Matrix -By JefePsb - WOLVERDONFILMES.COM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Matrix.1999.HDTV.Hybrid.OPEN-MATTE.1080p.x265.10Bit.HEVC.(Eng AAC 7.1 - Hin DDP 5.1).VITOENCODES\n👤 15 💾 4.75 GB ⚙️ 1337x\n🇬🇧 / 🇮🇳",
+      "infoHash": "cb67502dd1c94b90a9b1ffc3a5d0dd5c1ffafc50",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|HDTV|hevc|10bit",
+        "filename": "The.Matrix.1999.HDTV.Hybrid.OPEN-MATTE.1080p.x265.10Bit.HEVC.(Eng AAC 7.1 - Hin DDP 5.1).VITOENCODES.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Matrix.1999.Remastered.1080p.BluRay.Remux.TrueHD.Atmos.7.1\n👤 15 💾 29.79 GB ⚙️ TorrentGalaxy",
+      "infoHash": "de2f07644b2a6854307fda4b2dfa0546a0d08ff6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX",
+        "filename": "The.Matrix.1999.Remastered.1080p.BluRay.Remux.TrueHD.Atmos.7.1.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 Remastered BluRay 1080p DDP 5 1 x264-hallowed\n👤 14 💾 12.09 GB ⚙️ ThePirateBay",
+      "infoHash": "0d71c990ac8e7cfcf36fe6db731f105ee7f86820",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The Matrix 1999 Remastered BluRay 1080p DDP 5 1 x264-hallowed.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 HDDVD ReMux 1080p VC-1 DTS-3Li\n👤 14 💾 16.37 GB ⚙️ ThePirateBay",
+      "infoHash": "6f4629e5ee6849d7f5301e0b6783ef72b1ddae15",
+      "fileIdx": 12,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "The Matrix 1999 3Li HDDVD ReMux VC-1 DTS 1080p.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Matrix.1999.1080p.BluRay.AV1.DDP5.1.Multi4-dAV1nci\n👤 13 💾 4.66 GB ⚙️ 1337x",
+      "infoHash": "ce8257e3bbb0cd44ccae7f47012883bd210a401f",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "The.Matrix.1999.1080p.BluRay.AV1.DDP5.1.Multi4-dAV1nci.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Matrix (1999) WEBRip 1080p HEVC AAC ITA ENG SUB ENG ITA - Lullozzo\n👤 13 💾 4.03 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹",
+      "infoHash": "08e415d2b09f83caacd9385cb2da9dd286ab3b11",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEBRip|hevc",
+        "filename": "Matrix (1999) WEBRip 1080p HEVC AAC ITA ENG SUB ENG ITA - Lullozzo.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 BluRay 1080p DTS AC3 x264-MgB\n👤 13 💾 7.34 GB ⚙️ 1337x",
+      "infoHash": "90f6df33ed61dc998f8601f465aacea093b6cd26",
+      "fileIdx": 17,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The Matrix 1999 BluRay 1080p DTS AC3 x264-MgB.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица / The Matrix [1999 Blu-ray disc 1080p]\n👤 13 💾 37.67 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇹🇷",
+      "infoHash": "7ba2472c180ac66293270b0b61078417c2f6d450",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:7ba2472c180ac66293270b0b61078417c2f6d450",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Integrale The Matrix Multi 1080p HDlight X264 AC3-mHDgz\nThe Matrix  (1999) - 1080p FR EN x264 ac3 mHDgz.mkv\n👤 12 💾 3.64 GB ⚙️ Torrent9\nMulti Audio / 🇬🇧 / 🇫🇷",
+      "infoHash": "f4e8edecf9488fc7f1760e56ad4ab7a693a5f96b",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "The Matrix  (1999) - 1080p FR EN x264 ac3 mHDgz.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица / The Matrix (1999) BDRip 1080p\n👤 12 💾 4.38 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "2064cc0528809aadfbfa9b2389cd29fbaf804be6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "The.Matrix.1999.BDRip.1080p.Rus.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:2064cc0528809aadfbfa9b2389cd29fbaf804be6",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 1080p BluRay DTS x264-HiDt\n👤 12 💾 12.36 GB ⚙️ ThePirateBay",
+      "infoHash": "23ec85b3bff4cbee5896e25d2f40ecb5d7ccaf94",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица / The Matrix [1999 BDRemux 1080p] Dub + 3х MVO + 3х DVO + 8х AVO + VO + Original (Eng) + Sub (Rus Eng Multi)\n👤 11 💾 41.63 GB ⚙️ Rutracker\nMulti Audio / 🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "acbc0cfe6d85ca005d0e6c3444082e82e4e41696",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX|avc",
+        "filename": "The.Matrix.1999.1080p.BluRay.REMUX.AVC.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:acbc0cfe6d85ca005d0e6c3444082e82e4e41696",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Matrix.1999.1080p.BluRay.Denoised.AV1.DDP5.1.Multi4-dAV1nci\n👤 11 💾 3.39 GB ⚙️ 1337x",
+      "infoHash": "a3839910f03c606f055eac129623dd0f196019ec",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "The.Matrix.1999.1080p.BluRay.Denoised.AV1.DDP5.1.Multi4-dAV1nci.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 REMASTERED 1080p BluRay x265-YAWNTiC\n👤 11 💾 5.73 GB ⚙️ ThePirateBay",
+      "infoHash": "3d14c3605c5253256062ebff320da949d8d98e3c",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The Matrix 1999 REMASTERED 1080p BluRay x265-YAWNTiC.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 Remastered 1080p BluRay x264-OFT\n👤 10 💾 6.64 GB ⚙️ ThePirateBay",
+      "infoHash": "d56f7a92e00e11687c576afc85d86f55e5eafbe1",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The Matrix 1999 Remastered 1080p BluRay x264-OFT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix (1999) (1080p BluRay x265 SDR DDP 7.1 English - DarQ HONE)\n👤 10 💾 9.66 GB ⚙️ ThePirateBay",
+      "infoHash": "9f23769f665d558e9512e4151eb224867c7c80b7",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The Matrix (1999) (1080p BluRay x265 SDR DDP 7.1 English - DarQ HONE).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Amazing Films 5 - Mp4 x264 AC3 1080p\nM1 The Matrix (1999) 1080p Surround.mp4\n👤 10 💾 3.04 GB ⚙️ ThePirateBay",
+      "infoHash": "9d34b41369168c08bba185cadc7e45fc4156e86f",
+      "fileIdx": 32,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "M1 The Matrix (1999) 1080p Surround.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Matrix Trilogia (1999-2003) 1080p H265 AC3 5.1 ITA.ENG sub ita.eng Sp33dy94 MIRCrew\nMatrix (1999) AC3 5.1 ITA.ENG 1080p H265 sub NUita.eng Sp33dy94-MIRCrew.mkv\n👤 10 💾 3.32 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "589835fb9e165ce019af0faaefb5d1ba03e0f1df",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|h265",
+        "filename": "Matrix (1999) AC3 5.1 ITA.ENG 1080p H265 sub NUita.eng Sp33dy94-MIRCrew.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix (1999) 1080p Br Rip x264 Yify_202610\n👤 9 💾 1.86 GB ⚙️ EXT",
+      "infoHash": "cb273d1d7ce938dedba1ff630e98fb72fd0405dd",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BRRip|x264",
+        "filename": "The.Matrix.1999.1080p.BrRip.x264.YIFY.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Amazing Docs 6 - Mp4 x264 AC3 1080p\nBonus Films/The Matrix (1999) 1080p Surround.mp4\n👤 9 💾 3.04 GB ⚙️ 1337x",
+      "infoHash": "3ebdebf505b0ad7cd7a908ed750fec071a469657",
+      "fileIdx": 43,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "The Matrix (1999) 1080p Surround.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy (1999-2003) HD-DVDRip-HEVC 1080p от RIPS CLUB | D P P2 A L2 L1\nМатрица.The.Matrix.1999.HD-DVDRip-HEVC.1080p.mkv\n👤 9 💾 17.48 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "ca4d5d78511af4bad6fe68a865a59c18939151db",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|DVDRip|hevc",
+        "filename": "Матрица.The.Matrix.1999.HD-DVDRip-HEVC.1080p.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:ca4d5d78511af4bad6fe68a865a59c18939151db",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица / The Matrix (1999) BDRip 1080p от HDReactor | D | Remastered\n👤 9 💾 11.65 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "ebb33349d8840e26723e3daf113039ff8a593416",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "The.Matrix.1999.REMASTERED.BDRip.1080p.HDReactor.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:ebb33349d8840e26723e3daf113039ff8a593416",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p 3D HOU",
+      "title": "The Matrix (1999) [3D.1080p.IMAX.HOU.BDRip.AC3DTS.x264] [Lektor & Napisy PL] by d666.mkv\n👤 8 💾 35.89 GB ⚙️ BestTorrents\n🇬🇧 / 🇵🇱",
+      "infoHash": "dfb1ce543398eaecebc94f0ca764b4a5e393f10c",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x264",
+        "filename": "Matrix - The Matrix (1999) [3D.1080p.IMAX.HOU.BDRip.AC3DTS.x264] [Lektor & Napisy PL] by d666.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "IMDB TOP 001-050 BluRay 1080p x265 10bit MNHD-FRDS\n018.黑客帝国.The.Matrix.1999.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS/The.Matrix.1999.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv\n👤 8 💾 8.31 GB ⚙️ EXT",
+      "infoHash": "9351bcf9e7437f706549f8b60314c39259c420b4",
+      "fileIdx": 127,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit",
+        "filename": "The.Matrix.1999.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 1080p MAX WEB-DL DDP5 1 Atmos H 264-TURG\n👤 8 💾 6.44 GB ⚙️ ThePirateBay",
+      "infoHash": "2ac3ed31b4cce475064a8a43b465ef01f80420eb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "The Matrix 1999 1080p MAX WEB-DL DDP5 1 Atmos H 264-TURG.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix (1999) - 1080p Bluray AV1 Opus Multi3 [dAV1nci]\n👤 8 💾 3.39 GB ⚙️ 1337x",
+      "infoHash": "ae076b7c1b3c1146399f13c28aea6f9c60a5f620",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "The.Matrix.1999.1080p.Bluray.AV1.Opus.Multi3-dAV1nci.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Matrix.1999.1080p.10bit.BluRay.6CH.x265.HEVC-PSA\n👤 7 💾 1.55 GB ⚙️ ThePirateBay",
+      "infoHash": "5a2a1c4c1620262798202d88837009b416e76964",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The.Matrix.1999.1080p.10bit.BluRay.6CH.x265.HEVC-PSA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Movies Pack Bluray remux 1080P En/PTBR Updated\n The Matrix (1999) [Open Matte].mkv\n👤 6 💾 41.68 GB ⚙️ EXT\n🇬🇧 / 🇵🇹",
+      "infoHash": "85f7509d0441fe40c433aa63b328d521487f5f0b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX",
+        "filename": " The Matrix (1999) [Open Matte].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица / The Matrix [1999 35mm Film Scan 1080p] Dub + 2х MVO + 3х DVO + 8х AVO + VO + Original (Eng) + Sub (Rus Eng)\n👤 6 💾 39.92 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "154c5d910789736029230a936159a7f0e0d939e9",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "The.Matrix.1999.35mm.1080p.Cinema.DTS.v2.0.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:154c5d910789736029230a936159a7f0e0d939e9",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 1080p Bluray OPUS 7 1 AV1-WhiskeyJack\n👤 6 💾 5.16 GB ⚙️ ThePirateBay",
+      "infoHash": "15cf23ef5be63f724ec1a34dbc92ea0208fe22cc",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "The Matrix 1999 1080p Bluray OPUS 7 1 AV1-WhiskeyJack.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Matrix (1999 ITA/ENG) [10bit] [1080p x265] [Paso77]\n👤 6 💾 9.79 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "704e2573a03352890e96d77c878d5d79a40db65f",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDMux|x265|10bit",
+        "filename": "The Matrix 1999 BDMux ITA ENG 10bit 1080p x265 Paso77.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Matrix.1999.35mm.1080p.Cinema.DTS.v2.0\n👤 5 💾 21.41 GB ⚙️ ThePirateBay",
+      "infoHash": "981908e52b8dbbd7c3e78f6f5ddf11d0ccbf9236",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "The.Matrix.1999.35mm.1080p.Cinema.DTS.v2.0.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 1080p PTV WEB-DL AAC 2 0 H 264-PiRaTeS\n👤 5 💾 3.86 GB ⚙️ ThePirateBay",
+      "infoHash": "85f5da615983e1ca47c5b46155fbab6bdedca5e1",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "The Matrix 1999 1080p PTV WEB-DL AAC 2 0 H 264-PiRaTeS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 1080p 10bit BluRay 6CH x265 HEVC-PSA\n👤 5 💾 1.55 GB ⚙️ ThePirateBay",
+      "infoHash": "60e8dd0e36b3e18ad4c05990a520723e15393f13",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The Matrix 1999 1080p 10bit BluRay 6CH x265 HEVC-PSA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Matrix 1999 REMASTERED 1080p BluRay AV1 Opus 7 1-onlyfaffs\n👤 5 💾 4.25 GB ⚙️ ThePirateBay",
+      "infoHash": "904148c0f357dfde84af11e696f75154d570e368",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "The.Matrix.1999.REMASTERED.1080p.BluRay.AV1.Opus.7.1-onlyfaffs.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Matrix.1999.RM.in.4K.Bluray.1080p.TrueHD.7.1.Atmos.x264-Grym\n👤 5 💾 18.84 GB ⚙️ MagnetDL",
+      "infoHash": "d3ff6d0f84b219a0d57ca8ed3730f03d0200429a",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The.Matrix.1999.RM.in.4K.Bluray.1080p.TrueHD.7.1.Atmos.x264-Grym.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy (1999-2003) BDRip 1080p\n1.Матрица.1999.BDRip.1080p.Rus.Eng.mkv\n👤 5 💾 7.76 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "730aeb6448f743723a1c87fbd0cd1e1cbf084ab7",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "1.Матрица.1999.BDRip.1080p.Rus.Eng.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:730aeb6448f743723a1c87fbd0cd1e1cbf084ab7",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The Matrix (1999) 720p BrRip x264 - 700mb - YIFY\n👤 81 💾 703.69 MB ⚙️ ThePirateBay",
+      "infoHash": "363bc6c534b1430c6758318d196ccd61db61b647",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BRRip|x264",
+        "filename": "The.Matrix.1999.720p.BrRip.264.YIFY.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy [1999 2003 BDRip 720p] Dub (Blu-Ray CEE) + MVO + DVO + AVO + Original Eng + Sub Rus Eng\nThe.Matrix.1999.mkv\n👤 55 💾 19.57 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "b955ffaf456a32507a8f5b2e921cd00eae616164",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay",
+        "filename": "The.Matrix.1999.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:b955ffaf456a32507a8f5b2e921cd00eae616164",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p 3D",
+      "title": "3D Peliculas\n3D Matrix/3D The Matrix 1 1999 (3DHDTV Stereo3D HDTV 2x720p 2560x720 Xvid4200 AC3 Spanish) 3Dcombine Stereoscopic Player unoficial IMAX3D Tridef.avi\n👤 15 💾 4.15 GB ⚙️ Wolfmax4k\n🇪🇸",
+      "infoHash": "ab330f1fc0e6e26c443c4b720bbf976540d98067",
+      "fileIdx": 28,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|HDTV",
+        "filename": "3D The Matrix 1 1999 (3DHDTV Stereo3D HDTV 2x720p 2560x720 Xvid4200 AC3 Spanish) 3Dcombine Stereoscopic Player unoficial IMAX3D Tridef.avi"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The Matrix Trilogy Complete (1999-2003) 720p 5.1 BRRiP x264 AAC\nThe Matrix (1999) 720p 5.1 BRRiP x264 AAC [Team Nanban].mp4\n👤 14 💾 1.04 GB ⚙️ ThePirateBay",
+      "infoHash": "fa8ae4bc6caec272ac57c7890d8f893aab3caa88",
+      "fileIdx": 6,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BRRip|x264",
+        "filename": "The Matrix (1999) 720p 5.1 BRRiP x264 AAC [Team Nanban].mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The Matrix Bluray 720p | mp4 | 796 mb | dublado\n👤 13 💾 796.55 MB ⚙️ MicoLeaoDublado\n🇬🇧 / 🇵🇹",
+      "infoHash": "51ca3ba90f04bf50394e9eb7e448ceea214d5ad6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay",
+        "filename": "Matrix (www.ThePirateFilmes.com).mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The.Matrix.1999.REMASTERED.720p.BluRay.999MB.x265.10bit-Galax\n👤 11 💾 992.88 MB ⚙️ ThePirateBay",
+      "infoHash": "c4fcc532acf6fe877d1991fde909f79648452b4e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x265|10bit",
+        "filename": "The.Matrix.1999.REMASTERED.720p.BluRay.999MB.HQ.x265.10bit-GalaxyRG.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The Matrix Collection (1999-2021) 720p 10bit BluRay x265 HEVC [Hindi English] ESub ~ Immortal\nThe Matrix (1999) 720p 10bit BluRay x265 HEVC [Hindi DDP 5.1 ~192Kbps + English DDP 5.1] ESub ~ Immortal.mkv\n👤 5 💾 1.16 GB ⚙️ 1337x\n🇬🇧 / 🇮🇳",
+      "infoHash": "ece8486b639bc4fb99e13317e2cb8be375bcbf6e",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|hevc|10bit",
+        "filename": "The Matrix (1999) 720p 10bit BluRay x265 HEVC [Hindi DDP 5.1 ~192Kbps + English DDP 5.1] ESub ~ Immortal.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nHDTV",
+      "title": "Матрица / The Matrix [1999 HDTVRip-AVC] [Open Matte] Dub + AVO (Визгунов) + Sub Eng Rus + Original Eng\n👤 146 💾 2.94 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "b287ad8d8eb741623eabca5a1e30171432037d36",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDTV|avc",
+        "filename": "Матрица (1999) HDTVRip-AVC [Open Matte].mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:b287ad8d8eb741623eabca5a1e30171432037d36",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy [1999 2003 HDDVDRip-AVC] Dub + Original (Eng) + Sub (Rus Ukr Eng)\nThe.Matrix.(1999).HDDVDRip_x264_cw.mkv\n👤 57 💾 4.79 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "af6facc0f976a67ba4831509c3adb9a769da9d66",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip|avc",
+        "filename": "The.Matrix.(1999).HDDVDRip_x264_cw.mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:af6facc0f976a67ba4831509c3adb9a769da9d66",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Матрица / The Matrix [1999 HDDVDRip] Dub\n👤 33 💾 1.46 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "c6bf7f6f28fe3bf7a8f6d4fed5bdf3f850239141",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|DVDRip",
+        "filename": "Matrix.1999.BDRip.avi"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:c6bf7f6f28fe3bf7a8f6d4fed5bdf3f850239141",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nWEBRip",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy [1999-2003 WEBRip] [Open Matte] Dub\nThe.Matrix.1999.webrip_[open.matte]_[2.18].avi\n👤 27 💾 2.18 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "0beae9dc9c800f89e66482971bcd6170c1b2e70d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|WEBRip",
+        "filename": "The.Matrix.1999.webrip_[open.matte]_[2.18].avi"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:0beae9dc9c800f89e66482971bcd6170c1b2e70d",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Матрица / The Matrix [1999 BDRip] AVO (Goblin) + Original Eng + Sub Rus Eng\nMatritsa.1999.RUS.BDRip.XviD.AC3.-HRIME.avi\n👤 21 💾 2.18 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "ff5bb009aa4681bd068a8c7c03445a51d5d49d39",
+      "fileIdx": 4,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|xvid",
+        "filename": "Matritsa.1999.RUS.BDRip.XviD.AC3.-HRIME.avi"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:ff5bb009aa4681bd068a8c7c03445a51d5d49d39",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nWEBRip",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy [1999-2003 WEBRip-AVC] [Open Matte] Dub + MVO + 2x DVO + 2x AVO + Sub Eng Rus + Original Eng\nМатрица (1999) WEBRip-AVC [Open Matte]/Матрица (1999) WEBRip-AVC [Open Matte].mkv\n👤 21 💾 2.94 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "1b309a5306e68b692643b3936aa676219777088b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|WEBRip|avc",
+        "filename": "Матрица (1999) WEBRip-AVC [Open Matte].mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:1b309a5306e68b692643b3936aa676219777088b",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBRRip",
+      "title": "Matrix.1999.FRENCH.BRRip.XviD.AC3-NoTag\n👤 19 💾 2.05 GB ⚙️ Torrent9\n🇫🇷",
+      "infoHash": "170e6d1aa651df56d5084ce16b252c4bf11af094",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BRRip|xvid",
+        "filename": "[ Torrent911.cc ] Matrix.1999.FRENCH.BRRip.XviD.AC3-NoTag.avi"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy [1999 - 2003 BDRip-AVC] Dub + Original (Eng) + Sub (Rus Eng)\nThe.Matrix.1999.Bdrip.mkv\n👤 12 💾 1.45 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "a149601975b03dc56c3195b364e9684d4cd1e778",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "The.Matrix.1999.Bdrip.mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:a149601975b03dc56c3195b364e9684d4cd1e778",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nWEBRip",
+      "title": "Матрица / The Matrix [1999 WEBRip] [Open Matte] AVO (Андрей Дольский ранний №2) + Original Eng\n👤 10 💾 2.19 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "05bdae5a3396b6a97b07fd6d2ec13c02f3214b46",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|WEBRip",
+        "filename": "Matrica.1999.WEBRip.OpenMatte.AVO.Дольский (ранний перевод 2).avi"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:05bdae5a3396b6a97b07fd6d2ec13c02f3214b46",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Матрица / The Matrix (Братья Вачовски (Энди Вачовски Ларри Вачовски) / The Wachowski Brothers (Andy Wachowski Larry Wachowski)) [1999 VHSRip -> DVD] [Fullscreen] Dub (Мосфильм по заказу Каро Премьер)\n👤 9 💾 4.24 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "33e4f3ab95d924a4c44d4c83a3811e48b7131b04",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:33e4f3ab95d924a4c44d4c83a3811e48b7131b04",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Матрица: Перезагрузка / The Matrix Reloaded [2003 HDDVDRip] Dub + Sub (Rus Eng) + Original Eng\n👤 8 💾 2.91 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "4b9006aeb1d8168396afe12c146fc01ef14bd918",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|DVDRip|xvid",
+        "filename": "Matrica.Perezagruzka.2003.RUS.BDRip.XviD.2.91Gb.AC3.avi"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:4b9006aeb1d8168396afe12c146fc01ef14bd918",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Матрица / The Matrix (1999) HDRip от Scarabey\n👤 6 💾 1.45 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "b760783e48a4794771c00adb0aecea6e29733d1b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip",
+        "filename": "Matrix_HDRip_Dub_[scarabey.org].avi"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:b760783e48a4794771c00adb0aecea6e29733d1b",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nWEBRip",
+      "title": "Матрица / The Matrix (1999) WEBRip-AVC | P | Open Matte\n👤 5 💾 2.21 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "b19b066a1a2213b1e5699154a086033834bd8692",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|WEBRip|avc",
+        "filename": "The.Matrix (1999) OM MVO.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:b19b066a1a2213b1e5699154a086033834bd8692",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy [1999-2003 HDRip] DVO (П.Гланц и И.Королева)\nMatrix_[torrents.ru]_by_Scarabey.avi\n👤 5 💾 746.54 MB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "47ec0f6efe50345e9ca8a335b0fcb6eadd4f5e5b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip",
+        "filename": "Matrix_[torrents.ru]_by_Scarabey.avi"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:47ec0f6efe50345e9ca8a335b0fcb6eadd4f5e5b",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy [1999 2002 г. 2003. HDRip-AVC] Dub + Sub Rus\nThe.Matrix.mkv\n👤 5 💾 698.52 MB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "b64572bbe24c0e1ead02040ddb102b7248004d02",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip|avc",
+        "filename": "The.Matrix.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:b64572bbe24c0e1ead02040ddb102b7248004d02",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Матрица: Трилогия / The Matrix: Trilogy (1999-2003) BDRip от HELLYWOOD\nMatrica.1999.RUS.BDRip.XviD.AC3.-FRiENDS-Club/Matrica.1999.RUS.BDRip.XviD.AC3.-FRiENDS-Club.avi\n👤 5 💾 2.18 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "e7e179c960a32a582686a23fe701473445089ecf",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|xvid",
+        "filename": "Matrica.1999.RUS.BDRip.XviD.AC3.-FRiENDS-Club.avi"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:e7e179c960a32a582686a23fe701473445089ecf",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio",
+      "title": "CONSPIRACY COLLECTION\nROSETTEDELACROIX/015-the-matrix-decoded.mp4\n👤 14 💾 152.76 MB ⚙️ 1337x",
+      "infoHash": "41f2c83d347dfcff92c33694cbf0ead7c8fda77d",
+      "fileIdx": 2444,
+      "behaviorHints": {
+        "filename": "015-the-matrix-decoded.mp4"
+      }
+    },
+    {
+      "name": "Torrentio",
+      "title": "Матрица / The Matrix (1999) HybridRip-AVC | D P | Open Matte\n👤 14 💾 3.42 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "12d3473059411b33516b464bb3a4eb8737e4df80",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|avc",
+        "filename": "Matrix (1999) HybridRip Open Matte.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:12d3473059411b33516b464bb3a4eb8737e4df80",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio",
+      "title": "David Icke: Secrets Of The Matrix\n👤 10 💾 1.69 GB ⚙️ MagnetDL",
+      "infoHash": "a8ad30bfd5486a9436de89da96434c3291703c40",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "filename": "David Icke - Secrets of the Matrix.mp4"
+      }
+    },
+    {
+      "name": "Torrentio",
+      "title": "Matrix Trilogia Dublado PT-BR.avi\nMatrix 1/Matrix 1999 By 210gji.avi\n👤 6 💾 1.24 GB ⚙️ ThePirateBay\n🇵🇹",
+      "infoHash": "b7c62de6694c1846d7cd26b310f717d23aee717f",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "filename": "Matrix 1999 By 210gji.avi"
+      }
+    }
+  ],
+  "cacheMaxAge": 3600,
+  "staleRevalidate": 14400,
+  "staleError": 604800
+}

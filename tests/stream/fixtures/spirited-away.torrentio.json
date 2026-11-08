@@ -1,0 +1,1587 @@
+{
+  "streams": [
+    {
+      "name": "Torrentio\n4k",
+      "title": "La.Città.Incantata.2001.4K.SDR.2160p.WEBDL Ita Eng Jap x265-NAHOM\n👤 112 💾 12.11 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "ab3cc590d211aed5917818bfafd3ac841c9c8dc5",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|WEB-DL|x265",
+        "filename": "Spirited.Away.2001.4K.SDR.2160p.WEBDL Ita Eng Jap x265-NAHOM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Унесённые призраками / Spirited Away / Sen to Chihiro no Kamikakushi [Movie] [Без хардсаба] [JAP ENG RUS UKR] [2001 ML UPSCALE HEVC DXVA] [2160p]\n👤 23 💾 28.7 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇪🇸 / 🇺🇦",
+      "infoHash": "715b7118e43f5233948416229d3adfc2b4b5626c",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|hevc",
+        "filename": "Spirited Away 2001 (2160p).mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:715b7118e43f5233948416229d3adfc2b4b5626c",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "新年礼7[4K][DBD-Raws][千与千寻/Spirited Away/千と千尋の神隠し][2160P][BDRip][HEVC-10bit][简繁日双语外挂][FLAC][MKV]\n👤 14 💾 21.39 GB ⚙️ NyaaSi",
+      "infoHash": "187eb6b992a88e599d3e3d9791cbfa0186d526fc",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k",
+        "filename": "[4K][DBD-Raws][千与千寻][2160P][BDRip][HEVC-10bit][FLAC].mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:187eb6b992a88e599d3e3d9791cbfa0186d526fc"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away (2001) RM (1080p BluRay x265 HEVC 10bit EAC3 7.1 Japanese + English Garshasp) REPACK [QxR]\nSpirited Away (2001) RM (1080p BluRay x265 Garshasp).mkv\n👤 333 💾 6.09 GB ⚙️ TorrentGalaxy",
+      "infoHash": "332ba3c7a47e6d443737be3867de5f6a1f2d1d47",
+      "fileIdx": 7,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "Spirited Away (2001) RM (1080p BluRay x265 Garshasp).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away 2001 1080p (DUAL) BluRay HEVC x265 5.1 BONE\n👤 216 💾 2.3 GB ⚙️ 1337x\nDubbed / Dual Audio / 🇬🇧",
+      "infoHash": "02b8fd3f73a0b0750cbdb9777f55339b2c7eedfe",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc",
+        "filename": "Spirited Away 2001 1080p (DUAL) BluRay HEVC x265 5.1 BONE.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away (2001) [1080p x265 HEVC 10bit BluRay Dual Audio AAC 5.1] [Prof]\n👤 181 💾 6.93 GB ⚙️ NyaaSi\nDubbed / Dual Audio",
+      "infoHash": "b51bc8aa3d4d351de583ecf83e6f7638420970ef",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Spirited Away (2001) [1080p x265 HEVC 10bit BluRay Dual Audio AAC 5.1] [Prof].mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:b51bc8aa3d4d351de583ecf83e6f7638420970ef"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Studio Ghibli Collection (1984 - 2020) and Lupin III BDRip Dual Audio 10b x265-R\nSpirited.Away.2001.1080p.BDRip.Dual.Audio.AAC5.1.10bits.x265-Rapta.mkv\n👤 173 💾 2.09 GB ⚙️ ThePirateBay\nDual Audio / 🇯🇵",
+      "infoHash": "461e9b219253987b53de54e57a3ae7234f1e6510",
+      "fileIdx": 17,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x265|10bit",
+        "filename": "Spirited.Away.2001.1080p.BDRip.Dual.Audio.AAC5.1.10bits.x265-Rapta.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited.Away.2001.English.Dubbed.1080p.BluRay.x264.[1.8GB].MP4\n👤 159 💾 1.87 GB ⚙️ ThePirateBay\nDubbed / 🇬🇧",
+      "infoHash": "40c55e73235d99c18b2b620fc9f3e18872d77304",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "[TorrentCounter.to].Spirited.Away.2001.English.Dubbed.1080p.BluRay.x264.[1.8GB].mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited.Away.2001.RERIP.1080p.BluRay.X264-AMIABLE [GoodFilms]\n👤 150 💾 9.84 GB ⚙️ ThePirateBay",
+      "infoHash": "90fe0936423399552c4bca6fab0e911de4dae611",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Spirited.Away.2001.RERIP.1080p.BluRay.X264-AMIABLE.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away [2001] REPACK 1080p BDRip x265 DTS-HD MA 6.1 Kira [SEV]\n👤 122 💾 20.8 GB ⚙️ NyaaSi",
+      "infoHash": "a9d7b6e2c58ef788179db256ca0e4a791b4a2d29",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Spirited Away [2001] 1080p BDRip x265 DTS-HD MA 6.1 Kira [SEV].mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:a9d7b6e2c58ef788179db256ca0e4a791b4a2d29"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Унесённые призраками / Sen to Chihiro no Kamikakushi / Унесенные призраками / Spirited Away [Movie] [RUS(int) UKR ENG JAP+Sub] [2001 BDRemux] [1080p]\n👤 113 💾 38.63 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇪🇸 / 🇺🇦",
+      "infoHash": "7d14659b8903a282c1ef207b0902eea7c218b305",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Spirited_Away.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:7d14659b8903a282c1ef207b0902eea7c218b305",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "[Anime Time] Studio Ghibli Movie Collection (1984 - 2020) [BD] [Dual Audio][1080p][HEVC 10bit x265][AAC][Eng Sub]\n[Anime Time] Studio Ghibli - Movie 11 - Spirited Away [2001].mkv\n👤 111 💾 3.6 GB ⚙️ NyaaSi\nDubbed / Dual Audio / 🇬🇧",
+      "infoHash": "0ab3424f839d3f2d6a418f41a4349d771da0e950",
+      "fileIdx": 11,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|0ab3424f839d3f2d6a418f41a4349d771da0e950",
+        "filename": "[Anime Time] Studio Ghibli - Movie 11 - Spirited Away [2001].mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:0ab3424f839d3f2d6a418f41a4349d771da0e950"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited.Away.2001.BluRay.1080p.DTS-HD.MA.6.1.AVC.REMUX-FraMeSToR\n👤 105 💾 34.22 GB ⚙️ NyaaSi",
+      "infoHash": "a238bc718906df981f4d48072d1484e145f511dc",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|FraMeSToR",
+        "filename": "Spirited.Away.2001.BluRay.1080p.DTS-HD.MA.6.1.AVC.REMUX-FraMeSToR.mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:a238bc718906df981f4d48072d1484e145f511dc"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited.Away.2001.BDRemux.1080p Ita Eng Jap x264-NAHOM\n👤 81 💾 26.69 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇮🇹",
+      "infoHash": "d5108897d5ac7af86ec51234fa39e96e21722f48",
+      "fileIdx": 4,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX|x264",
+        "filename": "Spirited.Away.2001.BDRemux.1080p Ita Eng Jap x264-NAHOM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "[AnimeRG] Studio Ghibli Film Collection (Movies From 1984-2016) [1080p] [BD] [Multi-Audio] [Multi-Sub] [HEVC] [x265] [Batch] [pseudo]\n[AnimeRG] Spirited Away (2001) Sen and Chihiro's Spiriting Away [MULTI-AUDIO] [1080p] [x265] [pseudo].mkv\n👤 67 💾 4.3 GB ⚙️ 1337x\nMulti Audio / Multi Subs / 🇬🇧 / 🇯🇵 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇰🇷 / 🇨🇳 / 🇫🇷 / 🇩🇪 / 🇵🇱 / 🇨🇿 / 🇭🇺 / 🇭🇷 / 🇳🇴 / 🇹🇷 / 🇻🇳 / 🇮🇩",
+      "infoHash": "07deaa1b42fe06e4154c8f67b8813a3988257240",
+      "fileIdx": 245,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|hevc",
+        "filename": "[AnimeRG] Spirited Away (2001) Sen and Chihiro's Spiriting Away [MULTI-AUDIO] [1080p] [x265] [pseudo].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away 2001 1080p BluRay\n👤 66 💾 2 GB ⚙️ YTS",
+      "infoHash": "661b5355fbf1cd8070c98361f47b17de32ec0d77",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Spirited.Away.2001.1080p.BluRay.x264-[YTS.AM].mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away (2001) [BD 1080p] [Dub - Japanese English Arabic] [Sub - English Arabic]\n👤 59 💾 2.48 GB ⚙️ NyaaSi\nDubbed / Dual Audio / 🇬🇧 / 🇸🇦",
+      "infoHash": "8fd00539710e4a8147a293f22529c9d270142879",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Spirited Away (1080p BD Dual Audio ) [SHINIGAMI_KIRA].mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:8fd00539710e4a8147a293f22529c9d270142879"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "[Trix] Spirited Away (2001) [Dual Audio] [Multi Subs] (BD 1080p AV1) - Sen to Chihiro no Kamikakushi - Le Voyage de Chihiro VF-VOSTFR\n👤 55 💾 1.92 GB ⚙️ NyaaSi\nDubbed / Multi Subs / Dual Audio / 🇫🇷",
+      "infoHash": "3ed7f109b2b6955cb57b7f8a3e06560c3d13edf3",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|Trix",
+        "filename": "[Trix] Spirited Away (2001) (BD 1080p AV1) [74611FA7].mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:3ed7f109b2b6955cb57b7f8a3e06560c3d13edf3"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away 2001 NORDiC ENG 1080p WEB-DL DDP5 1 H 264-BATHANDTHEBEAST\n👤 44 💾 7.01 GB ⚙️ ThePirateBay\n🇬🇧 / 🇩🇰 / 🇫🇮 / 🇸🇪 / 🇳🇴",
+      "infoHash": "c9c97fc65351adcde37db9681003d50dc1a7e63d",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "Spirited Away 2001 NORDiC ENG 1080p WEB-DL DDP5 1 H 264-BATHANDTHEBEAST.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Studio Ghibli Complete Collection (1984-2023) (1080p BluRay x265 10-bit AAC) [WeSLeY]\n13. Spirited Away (2001) (1080p BluRay x265 10-bit Eng 5.1 AAC + Jap 5.1 AAC) [WeSLeY].mkv\n👤 41 💾 3.56 GB ⚙️ 1337x",
+      "infoHash": "19b9a21d49550da9ebbc2274ebb88b8c4e40387b",
+      "fileIdx": 12,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit",
+        "filename": "13. Spirited Away (2001) (1080p BluRay x265 10-bit Eng 5.1 AAC + Jap 5.1 AAC) [WeSLeY].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "[yolerejiju] Spirited Away 2001 (BD Remux 1080p FLAC H.264) [Multi Audio] | Sen to Chihiro no Kamikakushi | 千と千尋の神隠し\n👤 37 💾 56.39 GB ⚙️ NyaaSi\nDubbed / Multi Audio",
+      "infoHash": "b7279bfb7b55ec8b62e9077c1e41673b5edd32d7",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|yolerejiju",
+        "filename": "Spirited.Away.2001.1080p.BluRay.REMUX.AVC.FLAC.2.0-yolerejiju.mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:b7279bfb7b55ec8b62e9077c1e41673b5edd32d7"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Унесённые призраками / Sen to Chihiro no kamikakushi (2001) BDRip 1080p | Невафильм\n👤 36 💾 10.53 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "6522105a9fb22e9009fc9df1cdd87b37a89dc7aa",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Унесенные призраками(2001г 1080p).mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:6522105a9fb22e9009fc9df1cdd87b37a89dc7aa",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away 2001 BluRay 1080p DTS-HD MA 6 1 AVC REMUX-FraMeSToR\n👤 30 💾 34.22 GB ⚙️ 1337x",
+      "infoHash": "249eae344e06e37417ca1e7b1040b56413b91ebe",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX|avc",
+        "filename": "Spirited.Away.2001.BluRay.1080p.DTS-HD.MA.6.1.AVC.REMUX-FraMeSToR.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Унесённые призраками / Sen To Chihiro No Kamikakushi / Spirited Away [Movie] [RUS(int) JAP+Sub] [2001 HDTVRip] [1080p]\n👤 28 💾 12.04 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "a956641f34468124baabbb3a349002d524aa59d1",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Spirited.Away.2001.x264.DTS.AC3.HDTV.1080p.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:a956641f34468124baabbb3a349002d524aa59d1",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away 2001 1080p BluRay x264 DD5 1-Pahe in\n👤 25 💾 2.59 GB ⚙️ ThePirateBay",
+      "infoHash": "5ee29e617b1e819e798362fa1596afe29348fc3c",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Spirited Away 2001 1080p BluRay x264 DD5 1-Pahe in.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Le Voyage de Chihiro (2001) MULTi-FRENCH/VOSTFR 1080p 10bits BluRay x265 AC3 5.1 v2 -Punisher694 (Spirited Away / Sen to Chihiro no Kamikakushi) (VF)\n👤 25 💾 4.28 GB ⚙️ nekoBT\nDubbed / Multi Audio / 🇫🇷",
+      "infoHash": "c740b255af10f41d6a5272e340970cab2cc4ba16",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|Punisher694",
+        "filename": "Le Voyage de Chihiro (2001) MULTi 1080p 10bits BluRay x265 AC3 5.1 v2 -Punisher694.mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:c740b255af10f41d6a5272e340970cab2cc4ba16"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Studio Ghibli Collection (1984 - 2020) and Lupin III The Castle of Cagliostro (1979) BDRip Dual Audio x264-Rapta\nSpirited.Away.2001.1080p.BDRip.Dual.Audio.AAC5.1.x264-Rapta.mkv\n👤 24 💾 2.88 GB ⚙️ NyaaSi\nDubbed / Dual Audio",
+      "infoHash": "6f5d981b8f0a3632bb841d7954b4f0e41e2d0689",
+      "fileIdx": 17,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x264",
+        "filename": "Spirited.Away.2001.1080p.BDRip.Dual.Audio.AAC5.1.x264-Rapta.mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:6f5d981b8f0a3632bb841d7954b4f0e41e2d0689"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "[Arid] Spirited Away [Dual-Audio][BD 1920x1038 x264 FLAC]\n👤 23 💾 18.93 GB ⚙️ NyaaSi\nDubbed / Dual Audio",
+      "infoHash": "cf9bf9541a8aeb9d1862fe44c4cad9cee8dcbdb6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|Arid",
+        "filename": "[Arid] Spirited Away [AFE888E6].mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:cf9bf9541a8aeb9d1862fe44c4cad9cee8dcbdb6"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Studio.Ghibli.Collection.1979-2016.BluRay.1080p.x265.10bit.MNHD-FRDS\nSpirited.Away.2001.BluRay.1080p.x265.10bit.4Audio.MNHD-FRDS/Spirited.Away.2001.BluRay.1080p.x265.10bit.4Audio.MNHD-FRDS.mkv\n👤 21 💾 5.66 GB ⚙️ 1337x",
+      "infoHash": "970fe8d23a46830fdc88a8c0fd6e62691d5390a3",
+      "fileIdx": 52,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|970fe8d23a46830fdc88a8c0fd6e62691d5390a3",
+        "filename": "Spirited.Away.2001.BluRay.1080p.x265.10bit.4Audio.MNHD-FRDS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited.Away.A.K.A.Sen.to.Chihiro.no.kamikakushi.2001.DUAL-AUDIO.JAP-ENG.1080p.10bit.BluRay.6CH.x265.HEVC-PSA\n👤 18 💾 1.49 GB ⚙️ 1337x\nDubbed / Dual Audio / 🇬🇧",
+      "infoHash": "bbf3ce876acb6e9d57475bd84c6c0dd90137d972",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "Spirited.Away.A.K.A.Sen.to.Chihiro.no.kamikakushi.2001.DUAL-AUDIO.JAP-ENG.1080p.10bit.BluRay.6CH.x265.HEVC-PSA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited.Away.2001.JAPANESE.PROPER.1080p.BluRay.H264.AAC-RARBG\n👤 17 💾 2.38 GB ⚙️ RARBG",
+      "infoHash": "2d15fbc70330160d71e5b578b5c77ec286f17243",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|h264",
+        "filename": "Spirited.Away.2001.JAPANESE.PROPER.1080p.BluRay.H264.AAC-RARBG.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away (2001) (1080p BluRay x265 10-bit Eng 5.1 AAC Jap 5.1 AAC) [WeSLeY]\n👤 16 💾 3.56 GB ⚙️ 1337x",
+      "infoHash": "fc313f06d08390b5ec2393d67daa0666edf4002d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit",
+        "filename": "Spirited Away (2001) (1080p BluRay x265 10-bit Eng 5.1 AAC + Jap 5.1 AAC) [WeSLeY].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away 2001 1080p BluRay x264-OFT\n👤 16 💾 5.4 GB ⚙️ ThePirateBay",
+      "infoHash": "2455363c64e1cb603707a5f68938ae0394c621fe",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Spirited Away 2001 1080p BluRay x264-OFT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away (2001) 1080p BluRay AV1 Opus [AV1D]\n👤 14 💾 981.95 MB ⚙️ 1337x",
+      "infoHash": "bf63e62ff6dde7a26abaaccabbd13eefafa5cc62",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "Spirited Away AV1 OPUS [AV1D].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away (2001) 1080p BluRay x264 Multi Audio Hindi English Japanese AC3 5.1 - MeGUiL\n👤 12 💾 3.61 GB ⚙️ 1337x\nDubbed / Multi Audio / 🇬🇧 / 🇮🇳",
+      "infoHash": "a46862d3713c8e3f5e3acbcac2a1ea2ef93373b0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Spirited Away (2001) 1080p BluRay x264 Multi Audio Hindi English Japanese AC3 5.1 - MeGUiL.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "[DragsterPS] Spirited Away [1080p] [Multi-Audio] [Multi-Subs]\n👤 12 💾 16.88 GB ⚙️ NyaaSi\nDubbed / Multi Audio / Multi Subs",
+      "infoHash": "cb6933d17363aab5fab3abae78a095ece4fa0e11",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|DragsterPS",
+        "filename": "[DragsterPS] Spirited Away [1080p] [Multi-Audio] [Multi-Subs] [5138F64A].mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:cb6933d17363aab5fab3abae78a095ece4fa0e11"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "[Erai-raws] Sen to Chihiro no Kamikakushi [1080p][Multiple Subtitle].mkv\n👤 12 💾 5.12 GB ⚙️ NyaaSi\nMulti Subs / 🇬🇧 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇲🇽 / 🇰🇷 / 🇨🇳 / 🇫🇷 / 🇩🇪 / 🇳🇱 / 🇮🇳 / 🇵🇱 / 🇨🇿 / 🇭🇺 / 🇷🇴 / 🇬🇷 / 🇩🇰 / 🇫🇮 / 🇸🇪 / 🇳🇴 / 🇹🇷 / 🇸🇦 / 🇮🇱 / 🇻🇳 / 🇮🇩 / 🇹🇭",
+      "infoHash": "609745047fb93f1e8904d250cf318f2ca1622027",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|Erai-raws",
+        "filename": "[Erai-raws] Sen to Chihiro no Kamikakushi [1080p][Multiple Subtitle].mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:609745047fb93f1e8904d250cf318f2ca1622027"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "IMDB TOP 001-050 BluRay 1080p x265 10bit MNHD-FRDS\n027.千与千寻的神隐.Spirited.Away.2001.BluRay.1080p.x265.10bit.4Audio.MNHD-FRDS/Spirited.Away.2001.BluRay.1080p.x265.10bit.4Audio.MNHD-FRDS.mkv\n👤 11 💾 5.67 GB ⚙️ EXT",
+      "infoHash": "9351bcf9e7437f706549f8b60314c39259c420b4",
+      "fileIdx": 191,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit",
+        "filename": "Spirited.Away.2001.BluRay.1080p.x265.10bit.4Audio.MNHD-FRDS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Le Voyage de Chihiro (2001) MULTi-FRENCH/VOSTFR 1080p 10bits BluRay AV1 Opus 5.1 -Punisher694 (Spirited Away / Sen to Chihiro no Kamikakushi) (VF)\n👤 11 💾 2.9 GB ⚙️ nekoBT\nDubbed / Multi Audio / 🇫🇷",
+      "infoHash": "9143a9a8b73b4dfabfb678d54d5bc49a70786863",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|Punisher694",
+        "filename": "Le Voyage de Chihiro (2001) MULTi 1080p 10bits BluRay AV1 Opus 5.1 -Punisher694.mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:9143a9a8b73b4dfabfb678d54d5bc49a70786863"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Filmografia Studio Ghibli (1984-2024) 1080p H265 - ITA JAP ENG AC3 - SUB ITA ENG\n(2001) La Città Incantata.mkv\n👤 11 💾 3.29 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "9394da24b454582aa0bc8743937b0361c2d02b9d",
+      "fileIdx": 12,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|h265",
+        "filename": "(2001) La Città Incantata.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away [BD 1080p Hi10p Dual Audio FLAC] Mutisubs\n👤 11 💾 14.7 GB ⚙️ ThePirateBay\nDubbed / Dual Audio",
+      "infoHash": "ac7b37456d8c9688e014da8ab389ad4b5f0abfa4",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "[deanzel] Spirited Away [BD 1080p Hi10p Dual Audio FLAC][72044eca].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Studio.Ghibli.Anime.Collection.1979-2013.BD.1080p+720p+Audio.Only.Tracks+Calendars+Ghibli.Art+25Year.Joe.Hisaishi.Concert\n013-Spirited.Away.(Sen.to.Chihiro.no.Kamikakushi).Sen.and.Chihiro's.Spiriting.Away.2001/Spirited.Away.(Sen.to.Chihiro.no.Kamikakushi).2001.1080p/Spirited.Away.(Sen.to.Chihiro.no.Kamikakushi).2001.mkv\n👤 10 💾 12.56 GB ⚙️ NyaaSi",
+      "infoHash": "66d13397d5314018b70cd1bea05bc467413faeb3",
+      "fileIdx": 6166,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|66d13397d5314018b70cd1bea05bc467413faeb3",
+        "filename": "Spirited.Away.(Sen.to.Chihiro.no.Kamikakushi).2001.mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:66d13397d5314018b70cd1bea05bc467413faeb3"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away | 2001 | BRRip | 1080p | x265 | DTS | Jpn Ger\n👤 9 💾 10.73 GB ⚙️ EXT\n🇩🇪",
+      "infoHash": "444febb363c22ca0d20b726a597109fcdcd75bc7",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BRRip|x265",
+        "filename": "Spirited_Away_2001.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited.Away.2001.JP.1080p.BluRay.AVC.DTS-HD.MA.6.1-FGT\n👤 9 💾 45.77 GB ⚙️ RARBG",
+      "infoHash": "272384d2d6d5857386a7d4433dd471082e003f70",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|avc"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited.Away.2001.JAPANESE.1080p.BluRay.x265-VXT\n👤 8 💾 1.94 GB ⚙️ RARBG",
+      "infoHash": "90fdc7439ec115fb1081c379f1e3f8a5f653e838",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "Spirited.Away.2001.JAPANESE.1080p.BluRay.x265-VXT.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Унесённые призраками / Sen to Chihiro no kamikakushi (2001) BDRip-HEVC 1080p от NoMaD | D P P2 A\n👤 8 💾 12.64 GB ⚙️ Rutor\n🇷🇺 / 🇺🇦",
+      "infoHash": "f1df4a60635242a64865cb00524cb03b434427c8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Sen to Chihiro no Kamikakushi (2001) BDRip 1080p H.265 [11xRUS_3xUKR_JPN] [RIPS-CLUB].mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:udp://opentor.org:2710",
+        "tracker:http://retracker.local/announce",
+        "dht:f1df4a60635242a64865cb00524cb03b434427c8",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away 2001 HMC (1080p Bluray x265 HEVC 10bit AAC 6.1 Japanese Tigole) [UTR]\n👤 8 💾 5.1 GB ⚙️ 1337x",
+      "infoHash": "22d1b5f2fe4ed481431b72da01e470eef5b88682",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away | Le Voyage de Chihiro - 1080p BDRip MULTI\n👤 8 💾 7.5 GB ⚙️ ThePirateBay\nDubbed / Multi Audio",
+      "infoHash": "04b018da0d7099acd6d52ff2ab675a176ccf8ce0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "Le Voyage de Chihiro - 1080p [5703A4A3].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away (Sen to Chihiro no kamikakushi) 2001 BRrip 1080P x\n👤 7 💾 5.54 GB ⚙️ ThePirateBay",
+      "infoHash": "883b9216ec8864ace12284cc20a9cfacb8f6836c",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BRRip",
+        "filename": "Spirited Away.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited.Away.2001.DUBBED.1080p.BluRay.x265-RARBG\n👤 6 💾 1.94 GB ⚙️ RARBG\nDubbed",
+      "infoHash": "8fe313b684d76ff02841a60e2a796753ac936e06",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "Spirited.Away.2001.DUBBED.1080p.BluRay.x265-RARBG.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited.Away.2001.1080p.BluRay.x264.DTS-WiKi\n👤 6 💾 13.1 GB ⚙️ ThePirateBay",
+      "infoHash": "ef0c0b77cd8462dd03a3ce9e71e41b8c2a0fcfe5",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited.Away.2001.1080p.bdrip.x265.5.1.AAC-FINKLEROY\n👤 5 💾 3.46 GB ⚙️ ThePirateBay",
+      "infoHash": "72e8cdaff113e8410a89171c993901e8a70b9b44",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x265",
+        "filename": "Spirited.Away.2001.1080p.bdrip.x265.5.1.AAC-FINKLEROY.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away (2001) [Disney-BluRay 1080p HEVC Dual-Audio] HR-DR\n👤 5 💾 1.49 GB ⚙️ 1337x\nDubbed / Dual Audio",
+      "infoHash": "28463d28d8d21f1203330cad9556b723ae29a07e",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc",
+        "filename": "[HR] 千と千尋の神隠し (2001) [Disney-BluRay 1080p x265]~Doc_Ramen.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Spirited Away (2001) (1080p BDRip x265 10bit DTS-HD MA 5.1 - Goki)[TAoE]\n👤 5 💾 9.7 GB ⚙️ 1337x",
+      "infoHash": "07110d5ffcc0cbf47e52246f3ebffa62340a7167",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x265|10bit"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "[Ryuuga] - Spirited Away 2001 1080p [1080p-DTS-REMUX] - [Dual-Audio]\n👤 5 💾 28.56 GB ⚙️ NyaaSi\nDubbed / Dual Audio",
+      "infoHash": "2bb450f621524f9a450de8f98c18b7a533640547",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|Ryuuga",
+        "filename": "Spirited Away 2001 1080p Bluray REMUX - Ryuuga.mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:2bb450f621524f9a450de8f98c18b7a533640547"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Spirited Away 2001 720p BluRay Dual Audio (Jap/Eng) 950MB ShAaNi\n👤 102 💾 949.91 MB ⚙️ ThePirateBay\nDubbed / Dual Audio / 🇬🇧",
+      "infoHash": "686ed8bbc8a6d38895d0275076b109a8bf1a03d8",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Унесенные призраками / Sen To Chihiro No Kamikakushi / Spirited Away [Movie] [RUS(ext) JAP+Sub] [2001 BDRip] [720p]\nSpirited.Away.2001.720p.BluRay.x264.AC3-WiKi.mkv\n👤 48 💾 5.46 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "f18e319ada0801d6b36cbbcf6cb253a17faf1b07",
+      "fileIdx": 16,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|f18e319ada0801d6b36cbbcf6cb253a17faf1b07",
+        "filename": "Spirited.Away.2001.720p.BluRay.x264.AC3-WiKi.mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:f18e319ada0801d6b36cbbcf6cb253a17faf1b07",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Spirited Away 2001 720p BluRay\n👤 43 💾 1.04 GB ⚙️ YTS",
+      "infoHash": "c0b8838d4a6db57c1a7ae44968b892c69974f709",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x264",
+        "filename": "Spirited.Away.2001.720p.BluRay.x264-[YTS.AM].mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Унесённые призраками / Sen to Chihiro no kamikakushi (2001) BDRip 720p | D\n👤 32 💾 3.27 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "584217a913f4a770806bd4156d7406673612f93a",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p",
+        "filename": "Sen.to.Chihiro.no.kamikakushi.2001.BDRip.720p.Rus.Jpn.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:584217a913f4a770806bd4156d7406673612f93a",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Studio Ghibli - Hayao Miyazaki Collection [BD 720P]\n[Omar Hidan] Spirited Away [BD 720p x264 AAC Sub(Ara,Jap,Eng,Fre)][4B5D1CE4].mkv\n👤 22 💾 1.14 GB ⚙️ ThePirateBay\n🇬🇧 / 🇯🇵 / 🇫🇷 / 🇸🇦",
+      "infoHash": "e9d25bd315f8794e307da04fa7f09fd852ed7a42",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BDRip|x264",
+        "filename": "[Omar Hidan] Spirited Away [BD 720p x264 AAC Sub(Ara,Jap,Eng,Fre)][4B5D1CE4].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Studio.Ghibli.Anime.Collection.1979-2013.BD.1080p+720p+Audio.Only.Tracks+Calendars+Ghibli.Art+25Year.Joe.Hisaishi.Concert\n013-Spirited.Away.(Sen.to.Chihiro.no.Kamikakushi).Sen.and.Chihiro's.Spiriting.Away.2001/Spirited.Away.2001.BluRay.720p.x264/Spirited.Away.2001.BluRay.720p.x264.DTS.AC3.mkv\n👤 10 💾 6.88 GB ⚙️ NyaaSi",
+      "infoHash": "66d13397d5314018b70cd1bea05bc467413faeb3",
+      "fileIdx": 6165,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|66d13397d5314018b70cd1bea05bc467413faeb3",
+        "filename": "Spirited.Away.2001.BluRay.720p.x264.DTS.AC3.mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:66d13397d5314018b70cd1bea05bc467413faeb3"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "A Viagem de Chihiro (2001) 720p Dual Audio pt-BR jp / Brazilian\n👤 10 💾 760.25 MB ⚙️ ThePirateBay\nDubbed / Dual Audio / 🇵🇹",
+      "infoHash": "5e0187a0741724fbc495d2c681217e190ff500bc",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Унесённые призраками / Sen to Chihiro no kamikakushi (2001) BDRip 720p | D | NetFlix Невафильм\n👤 6 💾 5.85 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "0adc6e661da292a3fbc30bd812f2ee99a1d1e297",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|WiKi",
+        "filename": "Spirited.Away.2001.720p.BluRay.x264.AC3-WiKi.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:0adc6e661da292a3fbc30bd812f2ee99a1d1e297",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Spirited Away 2001 720p BluRay x264-x0r\n👤 6 💾 2.58 GB ⚙️ ThePirateBay",
+      "infoHash": "5b077298f1651adb0e3f26248a15b3fc27c42eec",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x264",
+        "filename": "Spirited.Away.2001.720p.BluRay.x264-x0r.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Studio.Ghibli.Movie.Collection.720p.BluRay.H264.AC3.MadWatchDog.Will1869\n14.Spirited.Away.2001.720p.BluRay.H264.AC3.Will1869.mp4\n👤 5 💾 1.03 GB ⚙️ TorrentGalaxy",
+      "infoHash": "3989e151c0b23d315578a8a231a513b1e257d081",
+      "fileIdx": 13,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|h264",
+        "filename": "14.Spirited.Away.2001.720p.BluRay.H264.AC3.Will1869.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "La citta incantata (2001) HD 720p ITA-JAP AC3 5.1 SUBS MKV.mkv\n👤 5 💾 3.33 GB ⚙️ ThePirateBay\n🇮🇹",
+      "infoHash": "a2b248fc430bc8334cc8aae8d9aad56db07d232f",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p"
+      }
+    },
+    {
+      "name": "Torrentio\n432p",
+      "title": "Унесенные призраками / Sen to Chihiro no Kamikakushi / Spirited Away [Movie] [RUS(int) JAP+Sub] [2001 DVDRip]\n👤 19 💾 1.46 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "9a60901c8fec5930f49104cabf75406c52a1d4dc",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|432p|VIP",
+        "filename": "[VIP]Spirited_Away_(jp-ru)[x264,796x432(672x432),AAC][17485069].mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:9a60901c8fec5930f49104cabf75406c52a1d4dc",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Унесенные Призраками / Spirited Away / Sen To Chihiro No Kamikakushi [Movie] [RUS(int) JAP] [2001 DVDRip]\n👤 138 💾 1.44 GB ⚙️ Rutracker\n🇷🇺 / 🇹🇷",
+      "infoHash": "8171013908ac76f9ee70cd13db0eaf3fa5d2c9de",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip",
+        "filename": "spirited_away.avi"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:8171013908ac76f9ee70cd13db0eaf3fa5d2c9de",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBluRay REMUX",
+      "title": "[RedDeadProject] Spirited Away - Movie - [JPN Blu-ray] [Hybrid Remux] [Dual Audio]\n👤 55 💾 33.25 GB ⚙️ NyaaSi\nDubbed / Dual Audio",
+      "infoHash": "30b4acb33aac4fd3a6bed1d833807ca4326a154b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BluRay REMUX|RedDeadProject",
+        "filename": "[RedDeadProject] Spirited Away.mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://nyaa.tracker.wf:7777/announce",
+        "tracker:http://anidex.moe:6969/announce",
+        "tracker:http://tracker.anirena.com:80/announce",
+        "tracker:udp://tracker.uw0.xyz:6969/announce",
+        "tracker:http://share.camoe.cn:8080/announce",
+        "tracker:http://t.nyaatracker.com:80/announce",
+        "dht:30b4acb33aac4fd3a6bed1d833807ca4326a154b"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDTV",
+      "title": "Унесённые призраками / Sen to Chihiro no kamikakushi / Spirited Away [Movie] [RUS(int) JAP] [2001 HDTVRip]\n👤 33 💾 2.25 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "db8cb7402fd4f31701011b51f8fdbd7a7f9c1572",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDTV",
+        "filename": "Spirited Away (2001) HDTVRip tycoon.avi"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:db8cb7402fd4f31701011b51f8fdbd7a7f9c1572",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Le Voyage de Chihiro FRENCH DVDRIP 2002\n👤 13 💾 1.37 GB ⚙️ Torrent9\n🇫🇷",
+      "infoHash": "031386ed51a03cfb7338a808681cef5651cfdffe",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|DVDRip|xvid",
+        "filename": "[www.Cpasbien.pe] Le.Voyage.De.Chihiro.Truefrench.BDRip.Xvid.AC3-UTT.avi"
+      }
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Spirited Away (2001) DVDRip XviD-EngDub\n👤 11 💾 700.31 MB ⚙️ ThePirateBay",
+      "infoHash": "1938756e36107b0a72659c9b4492d9d9b4dbacd8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip|xvid",
+        "filename": "Spirited Away [Anime][DvDRip][www.zonatorrent.com].avi"
+      }
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "El viaje de chihiro (2001) [HDrip][Castellano]\n👤 9 💾 1.78 GB ⚙️ ThePirateBay\n🇪🇸",
+      "infoHash": "6b6b6a3bc7ce3d8794d11ef5182b4816c8b22b33",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip",
+        "filename": "El viaje de chihiro (2001).HDrip.avi"
+      }
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Official IMDb Top 250 Movies Collection 6/17/2011\nSpirited Away [Anime][DvDRip][www.zonatorrent.com].avi\n👤 8 💾 700.31 MB ⚙️ ThePirateBay",
+      "infoHash": "4986ace2ee7a564508e0d5cfdde2d9018b8af942",
+      "fileIdx": 109,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip",
+        "filename": "Spirited Away [Anime][DvDRip][www.zonatorrent.com].avi"
+      }
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Vaimudest.Viidud.2001.Eesti.Keeles.DVDRip\n👤 6 💾 1.46 GB ⚙️ ThePirateBay",
+      "infoHash": "2b60b1aa37f7fabaeb28ad2b8a0b7a1f8d700f2a",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip"
+      }
+    },
+    {
+      "name": "Torrentio",
+      "title": "El viaje de Chihiro [audio latino-japonés].mkv\n👤 9 💾 992.68 MB ⚙️ ThePirateBay\n🇲🇽",
+      "infoHash": "8600e3ab3a53dfd42b8535ece1237b86cc058ff1"
+    },
+    {
+      "name": "Torrentio",
+      "title": "La Città Incantata - Spirited Away - Sen to Chihiro - Hayao Miy\n👤 5 💾 1.4 GB ⚙️ ThePirateBay",
+      "infoHash": "e2842f78162b2407eccc1ae3000e788f0011dfe6"
+    }
+  ],
+  "cacheMaxAge": 3600,
+  "staleRevalidate": 14400,
+  "staleError": 604800
+}

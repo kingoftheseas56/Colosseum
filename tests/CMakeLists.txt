@@ -5935,3 +5935,6 @@ if(VINYL_CATALOGUE_TEST_PYTHON)
         message(STATUS "Skipping Vinyl YouTube browse provider CTest: select VINYL_CATALOGUE_TEST_PYTHON with ytmusicapi installed")
     endif()
 endif()
+
+# Pure Qt Core source metadata picker and offline fixture replay.
+add_subdirectory(stream)

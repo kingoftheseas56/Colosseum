@@ -1,0 +1,52 @@
+{
+  "behaviorHints": {
+    "configurable": true,
+    "configurationRequired": false
+  },
+  "catalogs": [],
+  "contactEmail": "abuse@elfhosted.com",
+  "description": "MediaFusion — universal torrent & debrid streaming addon for Stremio",
+  "id": "stremio.addons.mediafusion|elfhosted",
+  "logo": "https://raw.githubusercontent.com/mhdzumair/MediaFusion/main/resources/images/mediafusion_logo.png",
+  "name": "MediaFusion | ElfHosted",
+  "resources": [
+    "catalog",
+    {
+      "idPrefixes": [
+        "tt",
+        "tmdb:",
+        "tvdb:",
+        "mal:",
+        "mf",
+        "dl"
+      ],
+      "name": "stream",
+      "types": [
+        "movie",
+        "series",
+        "tv",
+        "events"
+      ]
+    },
+    {
+      "idPrefixes": [
+        "mf",
+        "dl"
+      ],
+      "name": "meta",
+      "types": [
+        "movie",
+        "series",
+        "tv",
+        "events"
+      ]
+    }
+  ],
+  "types": [
+    "movie",
+    "series",
+    "tv",
+    "events"
+  ],
+  "version": "6.2.0"
+}
