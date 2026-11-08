@@ -5783,3 +5783,25 @@ endif()
 add_test(NAME colosseum.qttest.jellyfin_emby_client COMMAND tst_jellyfin_emby_client)
 set_tests_properties(colosseum.qttest.jellyfin_emby_client PROPERTIES
     LABELS "unit;home_servers;jellyfin;emby" TIMEOUT 60)
+
+# Arc 80 checkpoint 3: credential lifecycle without touching the real keychain.
+add_executable(tst_home_server_connections
+    auto/home_servers/tst_home_server_connections.cpp
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerConnectionStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/HomeServerConnectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/JellyfinEmbyClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/home_servers/JellyfinEmbyClient.h")
+target_include_directories(tst_home_server_connections PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_home_server_connections PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+set_target_properties(tst_home_server_connections PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    foreach(qt_target IN ITEMS Core Network Test)
+        add_custom_command(TARGET tst_home_server_connections POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::${qt_target}>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+    endforeach()
+endif()
+add_test(NAME colosseum.qttest.home_server_connections COMMAND tst_home_server_connections)
+set_tests_properties(colosseum.qttest.home_server_connections PROPERTIES
+    LABELS "unit;home_servers;credentials;security" TIMEOUT 60)
