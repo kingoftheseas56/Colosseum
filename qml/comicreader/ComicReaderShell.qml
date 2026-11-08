@@ -59,12 +59,15 @@ Item {
     property var    pageStore: null            // injected page store (Tankoban volumes / any lane); overrides the default store
     property string entryKind: "manga"         // "manga" chapters | "tankoban" volumes
     property string entryLabelPrefix: ""        // e.g. "Vol. " for tankoban
+    property bool liveReadingEnabled: false     // only the Chapter Mode host opts in
+    property bool openAtLast: false
 
     // --- signals ---
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
+    signal chapterReadRequested(string entryId, bool atLast)
     signal sourceRequested(string entryId)     // a not-ready tankoban volume needs the series page's source chooser
 
     // --- Task 11 chrome intents: the HUD / input emit these; Task 12 mounts the overlays that
@@ -432,6 +435,21 @@ Item {
         return chapterLabel
     }
 
+    function _isLiveStore() {
+        return !western && entryKind === "manga" && !!(store && store.liveReading === true)
+    }
+    function _livePageReady(page1) {
+        return !_isLiveStore() || (typeof store.pageReady === "function"
+            && store.pageReady(curChapterId, page1 - 1))
+    }
+
+    function _updateLiveFocus() {
+        if (!_isLiveStore()) return
+        var page0 = currentPage - 1
+        if (mode === "double_page") page0 = _unitBoundsForIndex(page0)[0]
+        store.setFocus(curChapterId, page0)
+    }
+
     // ================= entry lifecycle =================
     // load(): resolve the entry's local pages; if ready, resolve mode/direction, apply any saved
     // resume spot, then hand the pages to the backend. If NOT ready the shell stays on the
@@ -465,13 +483,13 @@ Item {
 
             if (_pages.length > 0) {
                 currentPage = _pendingAtLast ? pageCount : 1
-                maxSeen = currentPage
+                maxSeen = _isLiveStore() ? 0 : currentPage
                 stripFraction = 0
                 _pendingStripFrac = 0                   // one-shot, PER ENTRY — a stale fraction from the
                 _pendingPageFraction = -1               // previous book must never restore into this one
                 _pendingAtLast = false
                 _applyResume()                          // a matching Continue entry overrides the start spot
-                maxSeen = Math.max(maxSeen, currentPage)
+                if (_livePageReady(currentPage)) maxSeen = Math.max(maxSeen, currentPage)
                 // THE ENTRY'S OPENING ANCHOR. Seeding this is not a record of a page nobody saw — it
                 // IS the spot this open is putting the reader on, either page 1 or the one their last
                 // record already said they were on. Without it the eager entry-open record below would
@@ -485,6 +503,7 @@ Item {
                 _stripAnchorPage = (mode === "long_strip" && _pendingPageFraction >= 0) ? currentPage : 0
                 _stripAnchorFraction = presentedPageFraction
                 if (core) core.openEntry(curChapterId, _pages, order, persistedState)
+                _updateLiveFocus()
                 // Physically move the strip to the restored spot. ONE door (stripRestore), settle-gated:
                 // the column positions its delegates a vsync later, and its heights are estimates until
                 // decodes land — an immediate jump reads y=0 for unrealized delegates and lands at the top.
@@ -626,6 +645,13 @@ Item {
 
     function openEntryById(id, atLast) {
         if (!id || !String(id).length) return
+        if (liveReadingEnabled && !western && entryKind === "manga" && String(id) !== chapterId) {
+            recordProgress()
+            entrySave.stop()
+            _saveEntryBlob()
+            chapterReadRequested(String(id), !!atLast)
+            return
+        }
         // A crossing replaces the backend entry, so the OUTGOING book's record has to land before
         // curChapterId moves — otherwise the debounce fires against the next book and files the old
         // book's overrides under the new book's id.
@@ -1117,6 +1143,10 @@ Item {
     function _onPresented(page, pageFraction, hasPixels) {
         if (_suspendRecord) return
         if (max <= 0) return
+        if (_isLiveStore()) {
+            if (hasPixels === false || !_livePageReady(Math.round(page))) return
+            maxSeen = Math.max(maxSeen, Math.max(1, Math.min(max, Math.round(page))))
+        }
         // A newly mounted strip can report contentY=0 before the restore seek.
         // That position is NOT a real user-chosen page. Keep the opening saved
         // anchor (including its fraction) until the settle-gated seek finishes;
@@ -1292,10 +1322,11 @@ Item {
     // live generation (ComicReaderCore::retryPage, pinned by a SHA-256 of the fixture archive taken
     // before and after in the core harness).
     function retryPage(page) {
-        if (!core || !core.retryPage || max <= 0) return
+        if (max <= 0) return
         var p = Math.round(page)
         if (p < 1 || p > max) return
-        core.retryPage(p - 1)
+        if (core && core.retryPage) core.retryPage(p - 1)
+        if (_isLiveStore() && !_livePageReady(p)) store.retryPage(curChapterId, p - 1)
         hud.showToast("Retrying page " + p)
     }
     // MOVE PAST it. Skip is navigation and nothing else: it does not mark the broken page as where
@@ -1375,13 +1406,23 @@ Item {
         // damaged entry must not mark itself complete merely because you navigated onto the error
         // card. A placarded page is a real POSITION (presented() banks it) and not a real READ; this
         // is the one line where those two part company.
-        if (currentPage > maxSeen && !_pageBroken(currentPage)) maxSeen = currentPage
+        _updateLiveFocus()
+        if (currentPage > maxSeen && !_pageBroken(currentPage) && _livePageReady(currentPage))
+            maxSeen = currentPage
         // NO record here (Task 11). Navigating is not presentation — this handler is exactly where
         // the reader used to bank page numbers it had only been ASKED for. _onPresented is the one
         // trigger now.
     }
     // runtime chapterId change (a caller re-targets the reader) — construction is handled by onCompleted
-    onChapterIdChanged: { if (_ready && chapterId !== curChapterId) openEntryById(chapterId, false) }
+    onChapterIdChanged: {
+        if (!_ready || !chapterId.length) return
+        if (chapterId !== curChapterId) openEntryById(chapterId, openAtLast)
+        else if (_isLiveStore()) {
+            _resumeArmed = true
+            _pendingAtLast = openAtLast
+            load() // reopened live session may have new pending files after LRU eviction
+        }
+    }
     // NOTE (Task 3): the old onPersistedModeChanged / onPersistedDirectionChanged reactions are
     // gone with the seams. A HUD/settings toggle now calls setLayout()/setOrder(), which write the
     // live state AND the record in one move — there is no second copy to keep in step.
@@ -1417,6 +1458,7 @@ Item {
         // measure, not flash the defaults and correct itself a frame later.
         _applyGlobalPrefs()
         _ready = true
+        _pendingAtLast = openAtLast
         _resumeArmed = true
         cursorIdleTimer.restart()
         if (chapterId.length) {
@@ -1798,7 +1840,11 @@ Item {
         currentPage: reader.currentPage
         rtl: reader.rtl
         gutterStrength: reader.gutterStrength      // settings sheet -> live spine shadow
-        onUnitShown: function (highestPage) { if (highestPage > reader.maxSeen) reader.maxSeen = highestPage }
+        onUnitShown: function (highestPage) {
+            reader._updateLiveFocus()
+            if (highestPage > reader.maxSeen && reader._livePageReady(highestPage))
+                reader.maxSeen = highestPage
+        }
         // THE progress trigger (Task 11): the unit is on screen, so the reader is really here. The
         // fraction is always 0 in a paged layout — the unit IS the viewport's whole travel — and it
         // rides the shared signature so there is one handler, not three.
@@ -2295,5 +2341,21 @@ Item {
             if (cid === reader.curChapterId) reader.load()
         }
         function onFailed(cid, reason) { /* error placard — chrome (Task 11) */ }
+        function onPageAvailable(cid, index, fileUrl) {
+            if (!reader._isLiveStore() || String(cid) !== reader.curChapterId) return
+            if (reader.core && typeof reader.core.pageArrived === "function")
+                reader.core.pageArrived(String(cid), index, fileUrl)
+            if (index >= 0 && index < reader._pages.length) {
+                var rows = reader._pages.slice()
+                rows[index] = Object.assign({}, rows[index], {url:fileUrl, pending:false})
+                reader._pages = rows
+            }
+        }
+        function onPageUnavailable(cid, index, reason) {
+            if (!reader._isLiveStore() || String(cid) !== reader.curChapterId) return
+            if (reader.core && typeof reader.core.pageDownloadFailed === "function")
+                reader.core.pageDownloadFailed(String(cid), index)
+            hud.showToast(reason)
+        }
     }
 }

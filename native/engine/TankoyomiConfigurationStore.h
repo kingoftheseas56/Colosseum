@@ -20,6 +20,7 @@ class TankoyomiConfigurationStore final : public QObject
     Q_OBJECT
     Q_PROPERTY(QString defaultLanguage READ defaultLanguage NOTIFY defaultLanguageChanged)
     Q_PROPERTY(int revision READ revision NOTIFY changed)
+    Q_PROPERTY(bool liveReading READ liveReading NOTIFY liveReadingChanged)
 
 public:
     explicit TankoyomiConfigurationStore(const TankoyomiProviderRegistry &registry,
@@ -30,6 +31,8 @@ public:
 
     QString defaultLanguage() const { return m_defaultLanguage; }
     int revision() const { return m_revision; }
+    bool liveReading() const { return m_liveReading; }
+    Q_INVOKABLE bool setLiveReading(bool enabled);
     // Replace remote inventory while retaining the user's persisted overlay.
     bool replaceRegistry(const TankoyomiProviderRegistry &registry);
 
@@ -54,6 +57,7 @@ public:
 
 signals:
     void defaultLanguageChanged();
+    void liveReadingChanged();
     void providersChanged(const QString &language);
     void changed();
     void configurationChanged();
@@ -78,6 +82,7 @@ private:
     TankoyomiProviderRegistry m_registry;
     std::unique_ptr<QSettings> m_settings;
     QString m_defaultLanguage;
+    bool m_liveReading = false;
     QHash<QString, LanguageState> m_states;
     int m_revision = 0;
 };

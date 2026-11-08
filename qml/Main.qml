@@ -1870,7 +1870,9 @@ Window {
             seriesLayer.item.seriesTitle = title
             if (seriesId) seriesLayer.item.seriesId = seriesId
             seriesLayer.item.openEntryKind = "manga"   // a reused item may still be in a volume read
-            seriesLayer.item.openChapterId = chapterId || ""
+            if (typeof seriesLayer.item.openSavedChapter === "function")
+                seriesLayer.item.openSavedChapter(chapterId || "")
+            else seriesLayer.item.openChapterId = chapterId || ""
         } else seriesLayer.active = true
     }
     function closeSeries() { seriesLayer.active = false; win.restoreNamedCollectionsReturn() }
@@ -3586,7 +3588,15 @@ Window {
             if (!savedId.length) { win.detailContinue(entry); return }
             if (entry.kind === "manga" && typeof Downloads !== "undefined" && Downloads.statusOf) {
                 var chapterState = Downloads.statusOf(savedId) || ({})
-                if (String(chapterState.state || "") !== "done") { win.detailContinue(entry); return }
+                if (String(chapterState.state || "") !== "done") {
+                    var liveAllowed = typeof Manga !== "undefined" && Manga.liveReadingEnabled === true
+                    var liveSources = typeof Extensions !== "undefined" && Extensions.installed
+                        ? (Extensions.installed() || []) : []
+                    liveAllowed = liveAllowed && liveSources.some(function(source) {
+                        return String(source.id || "") === "colosseum.well.tankoyomi" && source.enabled === true
+                    })
+                    if (!liveAllowed) { win.detailContinue(entry); return }
+                }
             }
             if (entry.kind === "tankoban" && typeof TankobanVolumes !== "undefined" && TankobanVolumes.statusOf) {
                 var volumeState = TankobanVolumes.statusOf(savedId) || ({})
@@ -4151,7 +4161,9 @@ Window {
                 seriesLayer.item.seriesTitle = t.title
                 if (t.seriesId) seriesLayer.item.seriesId = t.seriesId
                 seriesLayer.item.openEntryKind = "manga"   // a reused item may still be in a volume read
-                seriesLayer.item.openChapterId = savedComicId
+                if (typeof seriesLayer.item.openSavedChapter === "function")
+                    seriesLayer.item.openSavedChapter(savedComicId)
+                else seriesLayer.item.openChapterId = savedComicId
             } else seriesLayer.active = true
             if (seriesLayer.item && seriesLayer.item.restoreState) seriesLayer.item.restoreState(st)  // Task 4
         } else if (rec.contentKind === "book") {
@@ -5287,7 +5299,10 @@ Window {
                 item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
             item.seriesTitle = seriesLayer.title
             if (seriesLayer.resumeSeriesId) item.seriesId = seriesLayer.resumeSeriesId
-            if (seriesLayer.resumeChapterId) item.openChapterId = seriesLayer.resumeChapterId
+            if (seriesLayer.resumeChapterId) {
+                if (typeof item.openSavedChapter === "function") item.openSavedChapter(seriesLayer.resumeChapterId)
+                else item.openChapterId = seriesLayer.resumeChapterId
+            }
             if (seriesLayer.resumeVolumeId) item.resumeTankobanVolume(seriesLayer.resumeVolumeId)
             item.backRequested.connect(win.closeSeries)
             item.minimizeRequested.connect(win.minimizeShell)

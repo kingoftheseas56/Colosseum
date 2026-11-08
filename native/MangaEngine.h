@@ -31,6 +31,7 @@ class MangaEngine : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString chapterDefaultLanguage READ chapterDefaultLanguage
                NOTIFY chapterConfigurationChanged)
+    Q_PROPERTY(bool liveReadingEnabled READ liveReadingEnabled NOTIFY liveReadingChanged)
 public:
     explicit MangaEngine(QObject *parent = nullptr) : QObject(parent) {
         m_nam = new QNetworkAccessManager(this);
@@ -100,6 +101,8 @@ public:
             connect(m_tankoyomi->configuration(),
                     &TankoyomiConfigurationStore::configurationChanged,
                     this, &MangaEngine::chapterConfigurationChanged);
+            connect(m_tankoyomi->configuration(), &TankoyomiConfigurationStore::liveReadingChanged,
+                    this, &MangaEngine::liveReadingChanged);
         }
     }
 
@@ -110,6 +113,14 @@ public:
     // Chapter Mode enters the Tankoyomi provider layer. The legacy two-argument
     // entry point remains English so existing QML keeps identical behavior while
     // language-aware callers can opt into an explicit language.
+    bool liveReadingEnabled() const {
+        return m_tankoyomi && m_tankoyomi->configuration()
+            && m_tankoyomi->configuration()->liveReading();
+    }
+    Q_INVOKABLE bool setLiveReadingEnabled(bool enabled) {
+        return m_tankoyomi && m_tankoyomi->configuration()
+            && m_tankoyomi->configuration()->setLiveReading(enabled);
+    }
     Q_INVOKABLE QVariantList chapterLanguages() const {
         return m_tankoyomi ? m_tankoyomi->languages() : QVariantList{};
     }
@@ -326,6 +337,7 @@ signals:
                                  const QVariantList &chapters);
     void chapterCatalogueFailed(const QString &requestId, const QString &message);
     void chapterConfigurationChanged();
+    void liveReadingChanged();
     void pagesResult(const QVariantList &pages);
     void detailResult(const QVariantMap &detail);
     void artResult(const QVariantMap &art);

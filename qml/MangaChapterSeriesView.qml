@@ -26,6 +26,10 @@ Item {
     property var chapters: []
     property var exactRangeRecord: ({})
     property var downloader: (typeof Downloads !== "undefined") ? Downloads : null
+    property string pendingReadChapterId: ""
+    property string pendingReadChapterError: ""
+    property bool readModeAvailable: false
+    property bool readLive: false
     property var collectionEntry: null
     property var chapterLanguages: []
     property string selectedChapterLanguage: "en"
@@ -88,6 +92,7 @@ Item {
     signal chapterDefaultLanguageRequested()
     signal languageSettingsRequested()
     signal readChapterRequested(string chapterId, string chapterLabel)
+    signal readModeRequested(bool live)
     signal continueChapterRequested()
     signal openExtensionsRequested()
 
@@ -247,6 +252,20 @@ Item {
             }
             Item {
                 width: parent.width
+                height: visible ? 56 : 0
+                visible: root.readModeAvailable && !root.loading && root.chapters.length > 0
+
+                MangaChapterReadMode {
+                    anchors.left: parent.left
+                    anchors.leftMargin: theme.margin
+                    anchors.verticalCenter: parent.verticalCenter
+                    readLive: root.readLive
+                    onModeRequested: (live) => root.readModeRequested(live)
+                }
+            }
+
+            Item {
+                width: parent.width
                 height: ledger.height + 54
                 Rectangle {
                     id: ledger
@@ -378,7 +397,9 @@ Item {
                                 }
                                 Column {
                                     anchors.left: thumb.right; anchors.leftMargin: root.phoneNarrow ? 8 : 18
-                                    anchors.right: trailing.left; anchors.rightMargin: root.phoneNarrow ? 6 : 18
+                                    anchors.right: trailing.visible ? trailing.left : parent.right
+                                    anchors.rightMargin: trailing.visible ? (root.phoneNarrow ? 6 : 18)
+                                                                         : (root.phoneNarrow ? 12 : 22)
                                     anchors.verticalCenter: parent.verticalCenter; spacing: 6
                                     Text {
                                         id: chapterTitle
@@ -394,7 +415,10 @@ Item {
                                     Text {
                                         id: chapterStatus
                                         width: parent.width
-                                        text: row.dlState === "done" ? "Downloaded"
+                                        text: row.chapterId === root.pendingReadChapterId
+                                    ? (root.pendingReadChapterError.length
+                                        ? qsTr("Could not open · select the chapter to retry") : qsTr("Opening…"))
+                                    : row.dlState === "done" ? "Downloaded"
                                             : row.dlState === "queued" ? "Queued…"
                                             : row.dlState === "downloading" ? (row.dlTotal > 0 ? ("Downloading " + Math.round(row.dlDone / row.dlTotal * 100) + "%") : "Downloading…")
                                             : row.dlState === "error" ? "Failed · Retry" : "Available"
@@ -404,6 +428,7 @@ Item {
                                 }
                                 Item {
                                     id: trailing
+                                    visible: !root.readLive
                                     anchors.right: parent.right; anchors.rightMargin: root.phoneNarrow ? 12 : 22
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: root.phoneNarrow ? 44 : 38
@@ -417,7 +442,9 @@ Item {
                                         font.pixelSize: 16
                                     }
                                     MouseArea {
-                                        id: trailingMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; z: 3
+                                        id: trailingMouse
+                                        objectName: "mangaChapterDownload_" + row.chapterId
+                                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; z: 3
                                         onClicked: {
                                             if (!root.downloader) return
                                             if (row.dlState === "done") root.downloader.deleteChapter(row.chapterId)
@@ -430,7 +457,7 @@ Item {
                                 MouseArea {
                                     id: rowMouse
                                     anchors.fill: parent
-                                    anchors.rightMargin: root.phoneNarrow ? 60 : 0
+                                    anchors.rightMargin: trailing.visible && root.phoneNarrow ? 60 : 0
                                     hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: root.readChapterRequested(row.chapterId, row.chapterLabel)
                                 }

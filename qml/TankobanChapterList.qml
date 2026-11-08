@@ -22,6 +22,10 @@ Item {
     property string seriesTitle: ""
     property var chapters: []
     property var downloader: (typeof Downloads !== "undefined") ? Downloads : null
+    property string pendingReadChapterId: ""
+    property string pendingReadChapterError: ""
+    property bool readModeAvailable: false
+    property bool readLive: false
     property bool loading: false
     property string errorText: ""
     property bool sourceEnabled: true
@@ -58,6 +62,7 @@ Item {
     readonly property color focusGold: Qt.rgba(0.94, 0.77, 0.29, 1.0)
 
     signal readChapterRequested(string chapterId, string chapterLabel)
+    signal readModeRequested(bool live)
     signal openExtensionsRequested()
 
     function requestExtensions() { root.openExtensionsRequested() }
@@ -358,10 +363,26 @@ Item {
         }
     }
 
+    Item {
+        id: modeBar
+        anchors.top: bar.bottom
+        width: parent.width
+        height: visible ? 56 : 0
+        visible: root.readModeAvailable && !root.loading && root.chapters.length > 0
+
+        MangaChapterReadMode {
+            anchors.left: parent.left
+            anchors.leftMargin: theme.margin
+            anchors.verticalCenter: parent.verticalCenter
+            readLive: root.readLive
+            onModeRequested: (live) => root.readModeRequested(live)
+        }
+    }
+
     // ---- the chapters of this page ----
     Flickable {
         id: scroll
-        anchors.top: bar.bottom
+        anchors.top: modeBar.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -487,7 +508,8 @@ Item {
                     }
                     Column {
                         anchors.left: thumb.right; anchors.leftMargin: 18
-                        anchors.right: trailing.left; anchors.rightMargin: 18
+                        anchors.right: trailing.visible ? trailing.left : parent.right
+                        anchors.rightMargin: trailing.visible ? 18 : theme.margin + 18
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 4
                         Text {
@@ -501,7 +523,10 @@ Item {
                             width: parent.width
                             visible: text.length > 0
                             // Only what differs from "available" is said out loud.
-                            text: row.dlState === "done" ? "Downloaded"
+                            text: row.chapterId === root.pendingReadChapterId
+                                    ? (root.pendingReadChapterError.length
+                                        ? qsTr("Could not open · select the chapter to retry") : qsTr("Opening…"))
+                                    : row.dlState === "done" ? "Downloaded"
                                 : row.dlState === "queued" ? "Queued…"
                                 : row.dlState === "downloading" ? (row.dlTotal > 0 ? ("Downloading " + Math.round(row.dlDone / row.dlTotal * 100) + "%") : "Downloading…")
                                 : row.dlState === "error" ? "Failed · press the retry button" : ""
@@ -515,16 +540,16 @@ Item {
                         objectName: "mangaChapterRow_" + row.chapterId
                         anchors.fill: parent
                         anchors.leftMargin: theme.margin
-                        anchors.rightMargin: theme.margin + 70
+                        anchors.rightMargin: theme.margin + (trailing.visible ? 70 : 0)
                         showFocusFrame: false
-                        accessibleName: "Read " + row.chapterLabel
+                        accessibleName: (root.readLive && row.dlState !== "done" ? qsTr("Read Live") : qsTr("Read")) + " " + row.chapterLabel
                         onTriggered: root.readChapterRequested(row.chapterId, row.chapterLabel)
                         Keys.onPressed: (event) => {
                             if (event.key === Qt.Key_Down && row.index + 1 < chapterRepeater.count) {
                                 chapterRepeater.itemAt(row.index + 1).takeFocus(); event.accepted = true
                             } else if (event.key === Qt.Key_Up && row.index > 0) {
                                 chapterRepeater.itemAt(row.index - 1).takeFocus(); event.accepted = true
-                            } else if (event.key === Qt.Key_Right) {
+                            } else if (event.key === Qt.Key_Right && trailing.visible) {
                                 trailingAction.forceActiveFocus(Qt.TabFocusReason); event.accepted = true
                             } else if (event.key === Qt.Key_PageDown) {
                                 root.stepPage(1); event.accepted = true
@@ -552,6 +577,7 @@ Item {
 
                     Item {
                         id: trailing
+                        visible: !root.readLive
                         anchors.right: parent.right; anchors.rightMargin: theme.margin + 16
                         anchors.verticalCenter: parent.verticalCenter
                         width: 40; height: 40

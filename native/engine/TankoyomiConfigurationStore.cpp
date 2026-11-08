@@ -34,6 +34,7 @@ TankoyomiConfigurationStore::TankoyomiConfigurationStore(
 void TankoyomiConfigurationStore::initializeDefaults()
 {
     m_defaultLanguage = m_registry.defaultLanguage();
+    m_liveReading = false;
     m_states.clear();
     for (const QVariant &languageValue : m_registry.languages()) {
         const QVariantMap row = languageValue.toMap();
@@ -51,11 +52,13 @@ bool TankoyomiConfigurationStore::replaceRegistry(const TankoyomiProviderRegistr
 {
     if (!registry.isValid()) return false;
     const QString previousDefault = m_defaultLanguage;
+    const bool previousLiveReading = m_liveReading;
     m_registry = registry;
     initializeDefaults();
     load();
     ++m_revision;
     if (m_defaultLanguage != previousDefault) emit defaultLanguageChanged();
+    if (m_liveReading != previousLiveReading) emit liveReadingChanged();
     for (const auto &row : m_registry.languages())
         emit providersChanged(row.toMap().value(QStringLiteral("code")).toString());
     emit changed();
@@ -117,6 +120,7 @@ void TankoyomiConfigurationStore::load()
     const QJsonDocument document = QJsonDocument::fromJson(encoded);
     if (!document.isObject()) return;
     const QJsonObject root = document.object();
+    m_liveReading = root.value(QStringLiteral("liveReading")).toBool(false);
 
     const QString storedDefault = TankoyomiProviderRegistry::normalizeLanguage(
         root.value(QStringLiteral("defaultLanguage")).toString());
@@ -165,6 +169,7 @@ bool TankoyomiConfigurationStore::persist() const
     if (!m_settings) return false;
     QJsonObject root;
     root.insert(QStringLiteral("defaultLanguage"), m_defaultLanguage);
+    root.insert(QStringLiteral("liveReading"), m_liveReading);
     QJsonObject languages;
     for (auto languageIt = m_states.constBegin(); languageIt != m_states.constEnd(); ++languageIt) {
         QJsonObject state;
@@ -268,6 +273,19 @@ QList<TankoyomiProviderDescriptor> TankoyomiConfigurationStore::providersForLang
         out.append(provider.value());
     }
     return out;
+}
+
+bool TankoyomiConfigurationStore::setLiveReading(bool enabled)
+{
+    if (enabled == m_liveReading) return true;
+    const bool previous = m_liveReading;
+    m_liveReading = enabled;
+    if (!persist()) { m_liveReading = previous; return false; }
+    ++m_revision;
+    emit liveReadingChanged();
+    emit changed();
+    // This preference does not change provider routing or invalidate a chapter catalogue.
+    return true;
 }
 
 bool TankoyomiConfigurationStore::setDefaultLanguage(const QString &language)

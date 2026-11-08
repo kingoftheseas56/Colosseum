@@ -74,7 +74,7 @@ Item {
         if (!page.savedChapterId.length || !page.downloadsRef
                 || typeof page.downloadsRef.statusOf !== "function") return false
         var state = page.downloadsRef.statusOf(page.savedChapterId) || ({})
-        return String(state.state || "") === "done"
+        return String(state.state || "") === "done" || (page.liveReadingEnabled && page.tankoyomiEnabled)
     }
     readonly property string savedChapterCtaLabel: {
         if (!page.savedChapterId.length) return ""
@@ -107,7 +107,11 @@ Item {
         var fresh = page.progressRef.get("manga", page.seriesId) || ({})
         if (String((fresh.resume || ({})).chapterId || "") !== page.savedChapterId) return false
         var state = page.downloadsRef.statusOf(page.savedChapterId) || ({})
-        if (String(state.state || "") !== "done") return false
+        if (String(state.state || "") !== "done") {
+            if (!page.liveReadingEnabled || !page.tankoyomiEnabled) return false
+            page._readChapter(page.savedChapterId, String(fresh.sub || "Chapter"), false, true)
+            return true
+        }
         page.resumeSavedRequested(fresh)
         return true
     }
@@ -155,6 +159,16 @@ Item {
     property string _chapterRequestId: ""
     property string pendingReadChapterId: ""
     property string pendingReadChapterLabel: ""
+    property string pendingReadChapterError: ""
+    property bool _usingLiveReader: false
+    property bool chapterReadLive: false
+    readonly property bool chapterCanReadLive: page.tankoyomiEnabled && !!page.downloadsRef
+        && typeof page.downloadsRef.startLive === "function"
+    onChapterModeChanged: page.chapterReadLive = false
+    property bool _readerAtLast: false
+    property bool _pendingReadAtLast: false
+    readonly property bool liveReadingEnabled: !!(page.mangaEngineRef
+        && page.mangaEngineRef.liveReadingEnabled === true)
 
     // Arc 19: a Read that needs transport stays a foreground consumption intent until
     // this exact series/volume becomes readable, the user leaves, or a newer Read wins.
@@ -255,6 +269,7 @@ Item {
     // for the new series, or it would keep the old series' volumes. Reset the prepare
     // latch + the reader's volume model whenever the id changes.
     onSeriesIdChanged: {
+        page.chapterReadLive = false
         page._invalidateReadIntent()
         page._invalidateChapterRequest()
         page._clearPendingChapterRead()
@@ -308,8 +323,15 @@ Item {
     }
 
     function _clearPendingChapterRead() {
+        if (page._usingLiveReader) {
+            readerLayer.recordProgress()
+            if (livePageStoreLoader.item) livePageStoreLoader.item.stop()
+            page._usingLiveReader = false
+            page.openChapterId = ""
+        }
         page.pendingReadChapterId = ""
         page.pendingReadChapterLabel = ""
+        page.pendingReadChapterError = ""
     }
 
     function _chapterLabelById(chapterId) {
@@ -498,7 +520,7 @@ Item {
         page.chapterMode = false
     }
 
-    function _openChapter(chapterId, label) {
+    function _openChapter(chapterId, label, atLast) {
         var id = String(chapterId || "")
         if (!id.length) return
         page.chapterMode = true
@@ -507,22 +529,73 @@ Item {
         page.openChapterLabel = ""
         page.openEntryKind = "manga"
         page.openChapterLabel = String(label || page._chapterLabelById(id))
+        page._readerAtLast = atLast === true
         page.openChapterId = id
     }
 
-    function _readChapter(chapterId, label) {
+    function openSavedChapter(chapterId) {
+        var id = String(chapterId || "")
+        if (id.length && page.liveReadingEnabled && page.tankoyomiEnabled)
+            page._readChapter(id, page._chapterLabelById(id), false, true)
+        else {
+            page._clearPendingChapterRead()
+            page.openChapterId = id
+        }
+    }
+
+    function _selectChapterReadMode(live) {
+        if (live && !page.chapterCanReadLive) return
+        page.chapterReadLive = live
+        // Remember a deliberate opt-in for Continue. The list itself always
+        // starts in Download mode when entering Chapter Mode or a new title.
+        if (live && page.mangaEngineRef && typeof page.mangaEngineRef.setLiveReadingEnabled === "function")
+            page.mangaEngineRef.setLiveReadingEnabled(true)
+    }
+
+    function _readChapter(chapterId, label, atLast, readLive) {
         var id = String(chapterId || "")
         if (!id.length || !page.downloadsRef) return
         var st = page.downloadsRef.statusOf(id) || ({})
+        page._clearPendingChapterRead()
         if (String(st.state || "none") === "done") {
-            page._clearPendingChapterRead()
-            page._openChapter(id, label)
+            page._openChapter(id, label, atLast)
             return
         }
         page.pendingReadChapterId = id
         page.pendingReadChapterLabel = String(label || page._chapterLabelById(id))
-        page.downloadsRef.downloadChapter(id, page.seriesId, page.seriesTitle, page.pendingReadChapterLabel)
+        page._pendingReadAtLast = atLast === true
+        if ((readLive === undefined ? page.chapterReadLive : readLive) && page.chapterCanReadLive) {
+            if (!page.chapterMode) page._enterChapterMode()
+            page._usingLiveReader = true
+            if (!livePageStoreLoader.item || !livePageStoreLoader.item.open(id, page.seriesId))
+                page.pendingReadChapterError = "Live reading is unavailable. Try Download instead."
+        } else {
+            page.downloadsRef.downloadChapter(id, page.seriesId, page.seriesTitle, page.pendingReadChapterLabel)
+        }
         if (typeof Collection !== "undefined") Collection.add("tankoban", page.collectionEntry())
+    }
+
+    Loader {
+        id: livePageStoreLoader
+        active: page._usingLiveReader
+        asynchronous: false
+        sourceComponent: MangaLivePageStore {
+            downloader: page.downloadsRef
+            onReadyToRead: (chapterId) => {
+                if (!page.chapterMode || !page._usingLiveReader
+                        || String(chapterId) !== page.pendingReadChapterId) return
+                var label = page.pendingReadChapterLabel
+                var atLast = page._pendingReadAtLast
+                page.pendingReadChapterId = ""
+                page.pendingReadChapterLabel = ""
+                page.pendingReadChapterError = ""
+                page._openChapter(String(chapterId), label, atLast)
+            }
+            onPageUnavailable: (chapterId, index, reason) => {
+                if (String(chapterId) === page.pendingReadChapterId)
+                    page.pendingReadChapterError = reason
+            }
+        }
     }
 
     // TB-002 legacy re-file guard. A page instance attempts the re-file for a given
@@ -856,6 +929,7 @@ Item {
         target: page.mangaEngineRef
         ignoreUnknownSignals: true
         function onChapterConfigurationChanged() {
+            page._clearPendingChapterRead()
             page._refreshChapterLanguages()
             if (page.chapterMode) page._loadChapterCatalogue(true)
         }
@@ -899,19 +973,22 @@ Item {
         ignoreUnknownSignals: true
         function onFinished(chapterId) {
             page._downloadAvailabilityRevision++
-            if (!page.chapterMode || String(chapterId) !== page.pendingReadChapterId) return
+            if (page._usingLiveReader || !page.chapterMode || String(chapterId) !== page.pendingReadChapterId) return
             var id = page.pendingReadChapterId
             var label = page.pendingReadChapterLabel
+            var atLast = page._pendingReadAtLast
             page._clearPendingChapterRead()
-            page._openChapter(id, label)
+            page._openChapter(id, label, atLast)
         }
         function onFailed(chapterId, reason) {
             page._downloadAvailabilityRevision++
-            if (String(chapterId) === page.pendingReadChapterId) page._clearPendingChapterRead()
+            if (!page._usingLiveReader && String(chapterId) === page.pendingReadChapterId)
+                page._clearPendingChapterRead()
         }
         function onRemoved(chapterId) {
             page._downloadAvailabilityRevision++
-            if (String(chapterId) === page.pendingReadChapterId) page._clearPendingChapterRead()
+            if (!page._usingLiveReader && String(chapterId) === page.pendingReadChapterId)
+                page._clearPendingChapterRead()
         }
     }
 
@@ -1612,6 +1689,11 @@ Item {
             seriesTitle: page.seriesTitle
             chapters: page.chaptersModel
             downloader: page.downloadsRef
+            pendingReadChapterId: page.pendingReadChapterId
+            pendingReadChapterError: page.pendingReadChapterError
+            readModeAvailable: page.chapterCanReadLive
+            readLive: page.chapterReadLive
+            onReadModeRequested: (live) => page._selectChapterReadMode(live)
             loading: page.chaptersLoading
             errorText: page.chaptersError
             sourceEnabled: page.tankoyomiEnabled
@@ -1665,6 +1747,10 @@ Item {
     // ---- reader overlay (unchanged from MangaSeries.qml) ----
     property string openChapterId: ""
     property string openChapterLabel: ""
+    onOpenChapterIdChanged: {
+        if (!page.openChapterId.length && page._usingLiveReader && !page.pendingReadChapterId.length)
+            page._clearPendingChapterRead()
+    }
     function requestReaderEscape() {
         if (readerLayer.visible) readerLayer.closeTop()
     }
@@ -1680,10 +1766,13 @@ Item {
         entryLabelPrefix: page.openEntryKind === "tankoban" ? "Vol. " : ""
         pageStore: page.openEntryKind === "tankoban"
                    ? ((typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null)
-                   : null
+                   : (page._usingLiveReader ? livePageStoreLoader.item : null)
         chapters: page.openEntryKind === "tankoban" ? page.tankobanReaderEntries : page.chaptersModel
         chapterId: page.openChapterId
         chapterLabel: page.openChapterLabel
+        openAtLast: page._readerAtLast
+        liveReadingEnabled: page.chapterMode && (page.chapterReadLive || page._usingLiveReader)
+        onChapterReadRequested: (id, atLast) => page._readChapter(id, page._chapterLabelById(id), atLast)
         onBackRequested: page.readerBackRequested()
         onSourceRequested: (entryId) => {
             if (page.openEntryKind === "tankoban") {

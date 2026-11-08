@@ -87,6 +87,23 @@ check(result.route.length===1 && result.route[0].kind==="book",
 result=visit({id:"tt1",kind:"video",title:"Film",resume:{localPath:"C:/Video/test.mp4",position:130}});
 check(result.route.length===1 && result.route[0].kind==="video",
       "video resume unaffected");
+// An opted-in live chapter keeps its exact saved source even after its temporary cache expires.
+ctx.Manga = {liveReadingEnabled:true};
+ctx.Extensions = {installed: () => [{id:"colosseum.well.tankoyomi",enabled:true}]};
+result=visit(chapter);
+check(result.route.length===1 && result.route[0].kind==="reader"
+      && result.route[0].args[2]===chapter.resume.chapterId && result.details.length===0,
+      "opted-in live Continue retains the exact evicted chapter target");
+ctx.Extensions = {installed: () => [{id:"colosseum.well.tankoyomi",enabled:false}]};
+result=visit(chapter);
+check(result.route.length===0 && result.details.length===1,
+      "disabled Tankoyomi does not launch a remote chapter from Continue");
+ctx.Extensions = {installed: () => [{id:"colosseum.well.tankoyomi",enabled:true}]};
+ctx.Manga.liveReadingEnabled=false;
+result=visit(chapter);
+check(result.route.length===0 && result.details.length===1,
+      "turning live reading off restores the existing missing-download route");
+delete ctx.Manga; delete ctx.Extensions;
 console.log("PASS " + checked + " production Main.qml Continue routing checks");
 
 const extensionsStart = main.indexOf("    function openStreamExtensionSetup() {");

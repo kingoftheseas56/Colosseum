@@ -95,6 +95,10 @@ colosseum_register_harness(manga_image_host_resolver_harness unit;network)
 colosseum_register_harness(comicreader_cache_harness     unit)
 colosseum_register_harness(biblio_catalog_logic_harness  unit)
 colosseum_register_harness(manga_downloader_cancel_harness unit;responsiveness)
+colosseum_register_harness(manga_live_reading_harness unit;manga;network)
+colosseum_register_harness(comicreader_live_pages_harness unit;comicreader)
+set_property(TEST colosseum.comicreader_live_pages_harness APPEND PROPERTY
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 colosseum_register_harness(reader2_stores_harness        unit;reader2)
 colosseum_register_harness(reader2_bridge_harness        unit;reader2)
 colosseum_register_harness(reader2_profile_privacy_harness unit;reader2;account)
@@ -1826,6 +1830,13 @@ set_tests_properties(colosseum.qml PROPERTIES
     LABELS "qml;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 300)
+
+add_test(NAME colosseum.qml.manga_live_reading
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/manga_live_reading_harness.qml")
+set_tests_properties(colosseum.qml.manga_live_reading PROPERTIES
+    LABELS "unit;qml;manga;comicreader"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
 
 foreach(arc74_suite IN ITEMS continue_tile continue_surfaces restore_integrity strip_restore)
     if(arc74_suite STREQUAL "restore_integrity")
