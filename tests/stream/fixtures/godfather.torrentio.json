@@ -1,0 +1,1961 @@
+{
+  "streams": [
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Крёстный отец / The Godfather [1972 UHD BDRemux 2160p HDR10 Dolby Vision] Dub + 10x MVO + 12x AVO + 2x MVO (Ukr) + Original (Eng) + Sub (Rus Ukr Eng)\n👤 108 💾 114.08 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "ba11efe850312289e413b6602eead8c4b7a7a62e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|10bit|DV|HDR",
+        "filename": "The.Godfather.1972.2160p.UHD.BDRemux.TrueHD.5.1.DoVi.P7.by.DVT.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:ba11efe850312289e413b6602eead8c4b7a7a62e",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Godfather (1972) (2160p BluRay x265 HEVC 10bit HDR AAC 5.1 Tigole) [QxR]\n👤 44 💾 20.48 GB ⚙️ 1337x",
+      "infoHash": "88c1c16feb6f3bd9f1c7861ed25a9e13411b5bbd",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|HDR",
+        "filename": "The Godfather (1972) (2160p BluRay x265 10bit HDR Tigole).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Le.Parrain.1972.MULTI.VFI.2160p.BluRay.4KLight.DV.HDR10.AC3.5.1.x265-QTZ (The Godfather)\n👤 37 💾 8.34 GB ⚙️ Torrent9\nMulti Audio / 🇬🇧 / 🇫🇷",
+      "infoHash": "3e8a805f1140f1633d0d68bda3574b3437bb6cce",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit|DV|HDR",
+        "filename": "The Godfather (1972) MULTi VFI 2160p 10bit 4KLight DOLBY VISION DDP 5.1 x265-QTZ.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Godfather.1972.UHD.2160p.REMUX.Hybrid.HDR10.DV.P7.TrueHD.5.1.DDP.H265-KC\n👤 21 💾 79.44 GB ⚙️ ThePirateBay",
+      "infoHash": "108d764833df82cc9a4f02f0617263c0703d0174",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|DV|HDR",
+        "filename": "the.godfather.1972 4k-kc.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The Godfather 1972 UHD BluRay 2160p HDR10 DV HEVC TrueHD 5.1 x265-E\n👤 19 💾 30.85 GB ⚙️ 1337x",
+      "infoHash": "bfffdf2576fcfaa1dece9c9e6f2d1ec12db5aeeb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|DV|HDR",
+        "filename": "The Godfather (1972).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Il Padrino 1972.4K.HDR.DV.2160p.BDRemux Ita Eng x265-NAHOM\n👤 19 💾 74.77 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "871bf31f9412cc88c45b01b5f916a1aa7193aec2",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|x265|DV|HDR",
+        "filename": "The.Godfather.1972.4K.HDR.DV.2160p.BDRemux Ita Eng x265-NAHOM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Крестный отец / The Godfather [1972 UHD Blu-ray disc 2160p HDR10 Dolby Vision] Dub + Sub Rus Eng + Original Eng\n👤 18 💾 90.26 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇪🇸 / 🇩🇪",
+      "infoHash": "ea2ac5adc33547f959e4f942153343f7a8fe5c3f",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|10bit|DV|HDR"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:ea2ac5adc33547f959e4f942153343f7a8fe5c3f",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The.Godfather.1972.2160p.UHD.BluRay.x265.10bit.HDR.DTS-HD.MA.TrueHD.5.1-SWTYBLZ\n👤 16 💾 56.57 GB ⚙️ RARBG",
+      "infoHash": "5d80bfab032d758b4ddb9e832315c033c5ce93c5",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit|HDR",
+        "filename": "The.Godfather.1972.2160p.UHD.BluRay.x265.10bit.HDR.DTS-HD.MA.TrueHD.5.1-SWTYBLZ.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Il Padrino Trilogia (1972-1990) 2160p H265 HDR10 AC3 5.1 ITA.ENG sub ita.eng Sp33dy94 MIRCrew\nIl Padrino - The Godfather 1 (1972) AC3 5.1 ITA.ENG 2160p H265 HDR10 sub ita.eng Sp33dy94-MIRCrew.mkv\n👤 12 💾 4.84 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "6a941074cae0476d4ff912319f722b7a77db2e54",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|HDR",
+        "filename": "Il Padrino - The Godfather 1 (1972) AC3 5.1 ITA.ENG 2160p H265 HDR10 sub ita.eng Sp33dy94-MIRCrew.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The Godfather.1972.2160p.UHD.BluRay.HDR.DoVi.TrueHD 5.1.x265-SPHD\n👤 12 💾 56.76 GB ⚙️ TorrentGalaxy",
+      "infoHash": "7543eeb13a224e94f7b3c5e90383844796642aa1",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|DV|HDR",
+        "filename": "The Godfather.1972.2160p.UHD.BluRay.HDR.DoVi.TrueHD 5.1.x265-SPHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Godfather.1972.2160p.UHD.BluRay.REMUX.DV.P7.HDR.MULTi.TrueHD.H265-BTM\n👤 9 💾 83.35 GB ⚙️ ThePirateBay\nMulti Audio / 🇬🇧 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇰🇷 / 🇨🇳 / 🇫🇷 / 🇩🇪 / 🇵🇱 / 🇨🇿 / 🇹🇭",
+      "infoHash": "d26ed492401303304b895e10203c6996cb1fd823",
+      "fileIdx": 3,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|h265|DV|HDR",
+        "filename": "The.Godfather.1972.2160p.UHD.BluRay.REMUX.DV.P7.HDR.MULTi[Ben The Men].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Крестный отец / The Godfather (1972) UHD BDRemux 2160p | 4K | HDR10 | Dolby Vision | D P A\n👤 7 💾 123.44 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "8cfb71ea1547057b187a35e991ca485cd16fbc14",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|10bit|DV|HDR"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:8cfb71ea1547057b187a35e991ca485cd16fbc14",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "El padrino 1 [4Kreescalado][2160p][HDR10][AC3 5.1-DTS-HD 5.1 Castellano-DTS-HD 5.1-Ingles+Subs][ES-EN]\n👤 6 💾 74.64 GB ⚙️ MejorTorrent\n🇬🇧 / 🇪🇸",
+      "infoHash": "fbdc3195ee4c041cd3fac70083a56d60d99c6710",
+      "fileIdx": 4,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|10bit|HDR",
+        "filename": "El padrino 4Kreescalado2160.pctfenix.com.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Godfather.1972.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.TrueHD.5.1-FGT\n👤 108 💾 87.46 GB ⚙️ RARBG",
+      "infoHash": "cae720e7d7259371124bd5972d831ae198f7d5cc",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc",
+        "filename": "The.Godfather.1972.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.TrueHD.5.1-FGT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The Godfather 1972 2160p WEBRip\n👤 72 💾 7.9 GB ⚙️ YTS",
+      "infoHash": "eaefb74b7736d4579cc3da91457da7a755babc3a",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|WEBRip|x265|10bit",
+        "filename": "The.Godfather.1972.2160p.4K.WEB.x265.10bit.AAC5.1-[YTS.MX].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The Godfather (1972) (2160p Bluray x265 HEVC AI 10bit AAC 5.1 Joy) [UTR]\n👤 41 💾 8.16 GB ⚙️ 1337x",
+      "infoHash": "8b30181793ccc89860eed947420883808b0baceb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit",
+        "filename": "The Godfather (1972)  [2160p x265 10bit FS96 Joy].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Godfather.1972.2160p.BluRay.3999MB.DDP5.1.x264-GalaxyRG\n👤 31 💾 4.8 GB ⚙️ ThePirateBay",
+      "infoHash": "77a111a37490e17e8874a8a306f2ceb20b69f852",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x264",
+        "filename": "The.Godfather.1972.2160p.BluRay.3999MB.DDP5.1.x264-GalaxyRG.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Godfather.1972.2160p.WEB.H265-PETRiFiED\n👤 20 💾 19.02 GB ⚙️ RARBG",
+      "infoHash": "ff8bd73d64e47d0c60cff07895b5e2349695b057",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|WEB|h265",
+        "filename": "The.Godfather.1972.2160p.WEB.H265-PETRiFiED.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The Godfather Trilogy Al Pacino 2160p 4K SDR ENG-ITA 16GB UHD (moviesbyrizzo) multisub\nThe Godfather I (1972) 2160p SDR ENG-ITA (moviesbyrizzo).mkv\n👤 14 💾 5.22 GB ⚙️ 1337x\nMulti Subs / 🇬🇧 / 🇮🇹",
+      "infoHash": "0561021fad34adcd2e4fe8921589767dce8835bb",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k",
+        "filename": "The Godfather I (1972) 2160p SDR ENG-ITA (moviesbyrizzo).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Godfather.Part.I.1972.The.Coppola.Restoration.UNCUT-2160P.AI Upscaled.60FPS.H265.SDR.AC3 5.1_Marjenbo\n👤 10 💾 45.15 GB ⚙️ EXT",
+      "infoHash": "4b54334c4fed0cc1ee57727740ca1985779ee3d2",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265",
+        "filename": "The.Godfather.Part.I.1972.The.Coppola.Restoration.UNCUT-2160P.AI Upscaled.60FPS.H265.SDR.AC3 5.1_Marjenbo  .mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Godfather.Part.III.1990.2160p.BluRay.HEVC.TrueHD.5.1-CHD\n👤 10 💾 89.73 GB ⚙️ Comando\n🇬🇧 / 🇵🇹",
+      "infoHash": "86f9b0bd6f8aca403e4ae9bfbef57f806a69cefa",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p HDR",
+      "title": "The Godfather (1972) (1080p DS4K BluRay x265 10-bit HDR AAC 5.1) [WeSLeY]\n👤 54 💾 12.31 GB ⚙️ TorrentGalaxy",
+      "infoHash": "ea54a75feebe7fdaf860f90719a4d07b096b4953",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit|HDR",
+        "filename": "The Godfather (1972) (1080p DS4K BluRay x265 10-bit HDR AAC 5.1) [WeSLeY].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather (1972) 1080p BrRip x264 - YIFY\n👤 801 💾 2.4 GB ⚙️ ThePirateBay",
+      "infoHash": "5e915039c619366e490d08db3ffed21f3a3ae84a",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BRRip|x264",
+        "filename": "The.Godfather.1972.1080p.BrRip.x264.BOKUTOX.YIFY.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather (1972) RM4K REPACK (1080p BluRay x265 HEVC 10bit AAC 5.1 Tigole) [QxR]\nThe Godfather (1972) RM4K (1080p BluRay x265 10bit Tigole).mkv\n👤 183 💾 9.57 GB ⚙️ 1337x",
+      "infoHash": "20edd4cd63eb1833827c8e35011fb8792e4d77d2",
+      "fileIdx": 37,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The Godfather (1972) RM4K (1080p BluRay x265 10bit Tigole).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Godfather.1972.1080p.BluRay.REMUX.AVC.DTS-HD.MA.TrueHD.5.1-FGT\n👤 103 💾 45.68 GB ⚙️ RARBG",
+      "infoHash": "bd84adab434ed96c2cb45a3a43b8daabc19edc76",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX|avc",
+        "filename": "The.Godfather.1972.1080p.BluRay.REMUX.AVC.DTS-HD.MA.TrueHD.5.1-FGT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Godfather.1972.REMASTERED.1080p.BluRay.x265.AAC5.1-RARBG\n👤 80 💾 2.73 GB ⚙️ 1337x",
+      "infoHash": "ad6bfbcd2bf30a22b86d312ec1da8567ab8ec036",
+      "fileIdx": 4,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The.Godfather.1972.REMASTERED.1080p.BluRay.x265.AAC5.1-RARBG.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Крестный отец / The Godfather [1972 BDRip 1080p] Dub (CineLab SoundMix) +8x MVO + 2x DVO + 11x AVO + Sub (Rus Eng) + Original Eng\n👤 66 💾 43.78 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "fcd9ce44db1cda396d3548bdcf84ebff9b0cadbb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "The.Godfather.1972.1080p.BluRay.21xRus.2xUkr.Eng.-Kyle.mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:fcd9ce44db1cda396d3548bdcf84ebff9b0cadbb",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather 1972 The Coppola Restoration Bluray 1080p AV1 OPUS 5.1-UH\n👤 62 💾 5.91 GB ⚙️ 1337x",
+      "infoHash": "00805dfa337054683837688d88bd8fda28adf2bf",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "The.Godfather.1972.The.Coppola.Restoration.Bluray.1080p.AV1.OPUS.5.1-UH.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Крестный отец. Трилогия / The Godfather. Trilogy [1972 1974 1990 BDRip 1080p]\nThe.Godfather/The.Godfather.1972.BDRip.1080p.x264.rus.srt.Voland_.mkv\n👤 54 💾 19.99 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "0a6baf7a0339ab8904b3113e64dd9bd4a31e24e2",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x264",
+        "filename": "The.Godfather.1972.BDRip.1080p.x264.rus.srt.Voland_.mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:0a6baf7a0339ab8904b3113e64dd9bd4a31e24e2",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Крестный отец / The Godfather [1972 BDRemux 1080p] 2x MVO (SomeWax Киномания) + AVO (Живов) + Original Eng + Comment Eng (Coppola) + Sub Rus Eng\n👤 44 💾 46.1 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "0bab3afcc1109576f7053c06fe91843f5baa13b4",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:0bab3afcc1109576f7053c06fe91843f5baa13b4",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Godfather.Trilogy.[ I. II. III ].1080p.BluRay.x264.anoXmous\nThe.Godfather.1972.1080p.BluRay.x264.anoXmous_.mp4\n👤 42 💾 2.87 GB ⚙️ ThePirateBay",
+      "infoHash": "27ccfcbecd52e60affeccb76f50952b1d327af99",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The.Godfather.1972.1080p.BluRay.x264.anoXmous_.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather 1972 1080p PMTP WEB-DL DDP5 1 H 264-BLOOM\n👤 29 💾 5.87 GB ⚙️ ThePirateBay",
+      "infoHash": "ae77977a1d72bd9842bf956d395c475c32988fe1",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "The Godfather 1972 1080p PMTP WEB-DL DDP5 1 H 264-BLOOM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather (1972) (1080p BluRay x265 HEVC 10bit AAC 5.1 afm72) [QxR]\n👤 29 💾 8.58 GB ⚙️ 1337x",
+      "infoHash": "83dcb245a4f0fb86fd21da68be068f08dbe0a799",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The Godfather (1972) (1080p BluRay x265 afm72).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Godfather - Il.Padrino.1972.REMASTERED.iTA.ENG.AC3.SUB.iTA.ENG.BluRay.1080p.x264.jeddak-MIRCrew\n👤 26 💾 4.49 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "fd23398c20ccc268d05a62f7bdd9ee49019406e5",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Il.Padrino.1972.REMASTERED.iTA.ENG.AC3.SUB.iTA.ENG.BluRay.1080p.x264.jeddak-MIRCrew.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Godfather.1972.REMASTERED.1080p.10bit.BluRay.6CH.x265.HEVC-PSA\n👤 24 💾 3.14 GB ⚙️ 1337x",
+      "infoHash": "a1d6889827983a1d99ab72a5946a34abaffd12ee",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The.Godfather.1972.REMASTERED.1080p.10bit.BluRay.6CH.x265.HEVC-PSA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Крестный отец: Трилогия / The Godfather: Trilogy (1972-1990) BDRip 1080p | D P P2 A\nКрёстный.отец.1972.BDRip.1080р.ДБ.3хПМ.ПД.2хАП.mkv\n👤 21 💾 15.22 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "75e3aabd60c4bcf08094b14d25edb3135223f612",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "Крёстный.отец.1972.BDRip.1080р.ДБ.3хПМ.ПД.2хАП.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:75e3aabd60c4bcf08094b14d25edb3135223f612",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Movie Collection\nThe Godfather I (1972)/The.Godfather.1972.1080p.BrRip.x264.BOKUTOX.YIFY.mp4\n👤 21 💾 2.4 GB ⚙️ MagnetDL",
+      "infoHash": "90ce194080c0044b8ba6fe82dbcb4920c77bcae5",
+      "fileIdx": 16,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BRRip|x264",
+        "filename": "The.Godfather.1972.1080p.BrRip.x264.BOKUTOX.YIFY.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Godfather.Part.I.1972.UNCUT.1080p.BluRay.x264-iLLUSiON\n👤 18 💾 10.93 GB ⚙️ RARBG",
+      "infoHash": "106f21738c6d4cc67341a3f3701c13d7cc4a3bc6",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "gfp1-tcr-1080p-illsn.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Le Parrain (1972) (The Godfather) MULTI [1080p] Bluray x264-PopHD\n👤 17 💾 4.32 GB ⚙️ Torrent9\nMulti Audio / 🇫🇷",
+      "infoHash": "795ba5b228dfa0eb8de153de9d85d2b76b2d76b6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "[ Torrent911.cc ] Le Parrain (1972) (The Godfather) MULTI [1080p] Bluray x264-PopHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Great Films 1 - Mp4 x264 AC3 1080p\nG1 The Godfather (1972) 1080p Surround.mp4\n👤 17 💾 5.16 GB ⚙️ ThePirateBay",
+      "infoHash": "27a9f09aad4b8f754d34fe316aab06b409174dd5",
+      "fileIdx": 21,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "G1 The Godfather (1972) 1080p Surround.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Godfather.1972.REMASTERED.1080p.BluRay.x265-RARBG\n👤 15 💾 2.73 GB ⚙️ RARBG",
+      "infoHash": "51a3bd47a4c66da099944d640a93598fd60b51f8",
+      "fileIdx": 4,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The.Godfather.1972.REMASTERED.1080p.BluRay.x265-RARBG.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Godfather.1972.REMASTERED.1080p.BluRay.H264.AAC-RARBG[TGx]\n👤 14 💾 3.34 GB ⚙️ TorrentGalaxy",
+      "infoHash": "3521ba721f8de59ef776762cf9a115ceb833cfdb",
+      "fileIdx": 4,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|h264",
+        "filename": "The.Godfather.1972.REMASTERED.1080p.BluRay.H264.AAC-LAMA.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather (1972) Al Pacino 1080p (AI Lab) ENG-ITA (moviesbyrizzo conv)\n👤 13 💾 4.18 GB ⚙️ EXT\n🇬🇧 / 🇮🇹",
+      "infoHash": "d893ef46c30393eec1cc12dba15dcac6cc15a4ad",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "The Godfather (1972) Al Pacino 1080p (AI Lab) ENG-ITA (moviesbyrizzo conv).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather 1972 1080p BluRay DD+ 5.1 x265-edge2020\n👤 13 💾 7.85 GB ⚙️ TorrentGalaxy",
+      "infoHash": "a6b429a0bfc042d7605e17b6843dbc3aa622af64",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The.Godfather.1972.1080p.BluRay.DDP.5.1.x265-EDGE2020.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Зимородок / Зімародак [1972 WEB-DL 1080p] Original Rus\n👤 13 💾 4.46 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "fe07d03a4d430e49618b4229ba97415dd183cfae",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL",
+        "filename": "Зимородок (1972).mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:fe07d03a4d430e49618b4229ba97415dd183cfae",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Essential Films 2: MP4 X264 AC3 1080p\nThe Godfather (1972) 1080p Surround.mp4\n👤 13 💾 5.16 GB ⚙️ MagnetDL",
+      "infoHash": "bd15ea182a436a82cc37d2365b9cd5ac66fbf858",
+      "fileIdx": 30,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "The Godfather (1972) 1080p Surround.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "El.Padrino.1972.1080P-Dual-Lat\n👤 12 💾 2.82 GB ⚙️ Cinecalidad\nDual Audio / 🇲🇽",
+      "infoHash": "b6054ffbcc839e81d8c84523fc58ba0f16aa3300",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "El.Padrino.1972.1080P-Dual-Lat.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Le Parrain Trilogie 1080p x264 ac3 mHDgz\nLe Parrain 1 - 1080p FR EN mHDgz.mkv\n👤 12 💾 5.39 GB ⚙️ Torrent9\n🇬🇧 / 🇫🇷",
+      "infoHash": "2f0baec3bd536be1e0d3d9f645e1e0a688f12a92",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "Le Parrain 1 - 1080p FR EN mHDgz.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Крестный отец: Трилогия / The Godfather Collection: The Coppola Restoration (1972-1990) BDRip 1080p\nThe.Godfather.Part.I.1972.BDRip.1080p.Rus.mkv\n👤 12 💾 11.54 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "7c403c418de446713a9f35593b0559543febef89",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "The.Godfather.Part.I.1972.BDRip.1080p.Rus.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:7c403c418de446713a9f35593b0559543febef89",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Il Padrino - The Godfather Trilogia 1080p H265 AC3 5.1 ITA.ENG multisub (1972-1990) Sp33dy94 MIRCrew\nIl Padrino 1 - The Godfather AC3 5.1 ITA.ENG 1080p H265 multisub (1972) Sp33dy94-MIRCrew.mkv\n👤 11 💾 4.59 GB ⚙️ 1337x\nMulti Subs / 🇬🇧 / 🇮🇹",
+      "infoHash": "6ff345c4ff51a6c38350db09d5485fa110c1425c",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|h265",
+        "filename": "Il Padrino 1 - The Godfather AC3 5.1 ITA.ENG 1080p H265 multisub (1972) Sp33dy94-MIRCrew.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather 1972 1080p ROKU WEB-DL DD 5 1 H 264-PiRaTeS\n👤 9 💾 4.92 GB ⚙️ ThePirateBay",
+      "infoHash": "2113046882d2e499308e28a99e4f635d87894871",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "The Godfather 1972 1080p ROKU WEB-DL DD 5 1 H 264-PiRaTeS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Amazing Films 1 - Mp4 x264 AC3 1080p\nG1 The Godfather (1972) 1080p Surround.mp4\n👤 9 💾 5.16 GB ⚙️ ThePirateBay",
+      "infoHash": "eb4d854f0dd7dfca22718689fc515fb7068e959d",
+      "fileIdx": 24,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "G1 The Godfather (1972) 1080p Surround.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Украденный пудель / Nozagtais pūdelis [1972 35mm Film Scan 1080p]\n👤 9 💾 1.06 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "670d218c21bb8803f7d31c7753ab449ef2fde3eb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Украденный пудель.1972.Рижская киностудия.35mm Film Scan 1080p-rutracker.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:670d218c21bb8803f7d31c7753ab449ef2fde3eb",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "IMDB TOP 001-050 BluRay 1080p x265 10bit MNHD-FRDS\n002.教父.The.Godfather.1972.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS/The.Godfather.1972.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv\n👤 8 💾 7.39 GB ⚙️ EXT",
+      "infoHash": "9351bcf9e7437f706549f8b60314c39259c420b4",
+      "fileIdx": 13,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit",
+        "filename": "The.Godfather.1972.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "500 top all-time movies collection 1080p H.264 480GB (moviesbyrizzo upl)\nThe Godfather I (1972) Al Pacino 1080p (moviesbyrizzo upl).mp4\n👤 8 💾 1.37 GB ⚙️ 1337x",
+      "infoHash": "3facf8e9f4f7c506a2330ac2ba33645aa6f12b81",
+      "fileIdx": 467,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|h264",
+        "filename": "The Godfather I (1972) Al Pacino 1080p (moviesbyrizzo upl).mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Le Parrain (The Godfather) - Trilogie FRENCH HDlight 1080p 1972-1990\nLe Parrain (1972) (The Godfather) MULTI [1080p] Bluray x264-PopHD.mkv\n👤 8 💾 4.32 GB ⚙️ Torrent9\nMulti Audio / 🇫🇷",
+      "infoHash": "41dde364dbd812fb6522953d7fbfd9ad4bce4f80",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Le Parrain (1972) (The Godfather) MULTI [1080p] Bluray x264-PopHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather (1972) Coppola Restoration (1080p Bluray x265 HEVC 10bit AAC 5 1 Tigole) [UTR]\n👤 8 💾 4.7 GB ⚙️ 1337x",
+      "infoHash": "d5275f3e132917c93f274b00de9fe71db5130fe6",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather Trilogy (1972-1990) BDRip 1080p\n1972.The.Godfather.1920x1080.BDRip.x264.TrueHD.mkv\n👤 8 💾 23.28 GB ⚙️ ThePirateBay",
+      "infoHash": "581ed9af1f6fb35337a4f5ca132b1a2d3cab7271",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x264",
+        "filename": "1972.The.Godfather.1920x1080.BDRip.x264.TrueHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather (1972 ITA/ENG) [1080p x265] [Paso77]\n👤 6 💾 10.39 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹",
+      "infoHash": "b401e31e69ca5211a2be8ac6963502b8a8e33229",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x265",
+        "filename": "The Godfather 1972 BDRip ITA ENG 1080p x265 Paso77.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Godfather.Triology.1972-1990.TCR.1080p.BluRay.x264.AC3-ETRG\nThe.Godfather.1972.1080p.BluRay.x264.AC3-ETRG/The.Godfather.1972.1080p.BluRay.x264.AC3-ETRG.mp4\n👤 6 💾 5.13 GB ⚙️ ThePirateBay",
+      "infoHash": "6aeee1e878693bd9859c9c5f785a5fd40185035d",
+      "fileIdx": 15,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The.Godfather.1972.1080p.BluRay.x264.AC3-ETRG.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Крестный отец / The Godfather (1972) UHD BDRip-HEVC 1080p от RIPS CLUB | D P A\n👤 5 💾 22.23 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦 / 🇹🇷",
+      "infoHash": "1a588f7b64e065616aefeb74927edac035e30dec",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|hevc",
+        "filename": "Крёстный.отец.The.Godfather.1972.UHD.BDRip-HEVC.1080p.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:1a588f7b64e065616aefeb74927edac035e30dec",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather (1972) (1080p Bluray x265 HEVC AI 10bit AAC 5.1 Joy) [UTR]\n👤 5 💾 2.43 GB ⚙️ 1337x",
+      "infoHash": "0d962b8ebb6bec9fb6583379bac273d242e1744f",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The Godfather (1972)  [1080p x265 10bit FS87 Joy].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Godfather.1972.iNTERNAL.1080p.BluRay.x264-LiBRARiANS\n👤 5 💾 20.03 GB ⚙️ RARBG",
+      "infoHash": "491cfc4fbaf0a0921ae79a76c9fc728ab32b0f1c",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The.Godfather.1972.iNTERNAL.1080p.BluRay.x264-LiBRARiANS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather (1972) 1080p Dual Audio Español Latino Ing\n👤 5 💾 5.6 GB ⚙️ ThePirateBay\nDual Audio / 🇬🇧 / 🇪🇸 / 🇲🇽",
+      "infoHash": "d9aa87b0ddd5e127877c16cf0e0d11fc4397c95f",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "[ATG] Le Parrain [FRENCH] Trilogie\nLe Parrain 01 [ATG 1970] 1080p.mp4\n👤 5 💾 2.79 GB ⚙️ MagnetDL\n🇫🇷",
+      "infoHash": "5437a6ad18df5e972c875d47325efbdfd82df153",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Le Parrain 01 [ATG 1970] 1080p.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Godfather Part I (1972) 1080p Blu-Ray Retail MultiSubs EE-Re\n👤 5 💾 45.93 GB ⚙️ ThePirateBay\nMulti Subs",
+      "infoHash": "dad8c8692e934c8c71a4cd4bb04bfbb3787ae606",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The GodFather 1972 [BluRay 1080p - Eng Ita Esp] [Tntvillage]\n👤 5 💾 45.6 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹 / 🇪🇸",
+      "infoHash": "e1ca4b20d67b450bbf306c73edcb232ddb954f87",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The Godfather (1972) 720p BrRip x264 - YIFY\n👤 65 💾 1.2 GB ⚙️ ThePirateBay",
+      "infoHash": "c168b84fc2b8cf062b67e4168e35c98f10bc7c74",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BRRip|x264",
+        "filename": "The.Godfather.1972.720p.BrRip.x264.BOKUTOX.YIFY.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Academy Awards Best Pictures (1927 - 2020)\n1972 - The Godfather - 720p.mp4\n👤 28 💾 1.2 GB ⚙️ ThePirateBay",
+      "infoHash": "c9cf60639e51947f0906f8545e6b9bc3d84a37d9",
+      "fileIdx": 44,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p",
+        "filename": "1972 - The Godfather - 720p.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Крестный отец: Эпос 1901-1959 / The Godfather A Novel for Television [1981 HDTVRip 720p] [Extended Complete Epic] Dub + Sub Eng + Original Eng\n👤 19 💾 15.66 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "32b05890f7fff2436fa2917284abf80c86121b18",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|HDTV|x264",
+        "filename": "The.Godfather-A.Novel.for.Television.1977.UNCENSORED.EXTENDED.720p.HDTV.x264.Rus(Dub).mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:32b05890f7fff2436fa2917284abf80c86121b18",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The GodFather Trilogy 1972-1974-1990 720p BDRip x264 Mkvking\nthe.godfather.1972.720p.bluray.x264-Mkvking.mkv\n👤 8 💾 1.51 GB ⚙️ ThePirateBay",
+      "infoHash": "34ea723cf2b63865be9efdd0005966527af78a6e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BDRip|x264",
+        "filename": "the.godfather.1972.720p.bluray.x264-Mkvking.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Крестный отец. Трилогия / The Godfather. Trilogy [1972 1974 1990 BDRip 720p]\nThe.Godfather/The.Godfather.1972.BDRip.720p.DVD9.x264.rus.srt.Voland_.mkv\n👤 8 💾 7.89 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "a9d6b303316cade5e33825ea8d0fab83bbf91e31",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BDRip|x264",
+        "filename": "The.Godfather.1972.BDRip.720p.DVD9.x264.rus.srt.Voland_.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:a9d6b303316cade5e33825ea8d0fab83bbf91e31",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The GODFATHER Trilogy - Parts I II III 1 2 3 - 720p BluRay x264\nThe GODFATHER 1 - Part I T.C.R. (1972 - 720p BluRay).mp4\n👤 7 💾 2.23 GB ⚙️ ThePirateBay",
+      "infoHash": "d06f2ea72d2d9ab392184d0deb7f09d3fee1d262",
+      "fileIdx": 26,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x264",
+        "filename": "The GODFATHER 1 - Part I T.C.R. (1972 - 720p BluRay).mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Крестный отец / The Godfather (1972) BDRip 720p от Leonardo and Scarabey | P\n👤 6 💾 7.5 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "098ac67222786ba5391c0e041357cd4b07746c37",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BDRip|x264",
+        "filename": "The Godfather.1972.720p.BluRay.x264-LEONARDO_[scarabey.org].mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:098ac67222786ba5391c0e041357cd4b07746c37",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "O Poderoso Chefao (1972) BDRip 720p dublado - derew\n👤 6 💾 1.4 GB ⚙️ ThePirateBay\n🇬🇧 / 🇵🇹",
+      "infoHash": "c34911e5ca4518978719cfef123e204ec7905edd",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BDRip",
+        "filename": "O Poderoso Chefão (www.ThePirateFilmes.com).mp4"
+      }
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Крёстный отец / The Godfather [1972 HDRip] [2022 Edition] MVO (Культура) + Original Eng\n👤 227 💾 2.91 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇸🇪",
+      "infoHash": "78cbd5d02846ff65f225ed7ea920be2f84edbe40",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip",
+        "filename": "Godfather [1972 HDRip 2022 Edition SV-Dubl].avi"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:78cbd5d02846ff65f225ed7ea920be2f84edbe40",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Крестный отец / The Godfather [1972 BDRip-AVC] 3x MVO + AVO + Original + Ukr + Sub (3 x Rus 3 x Eng)\nThe.Godfather.Part.I.1972.BDRip-AVC.Rus.Eng.by.zOJIOtOi.mkv\n👤 35 💾 6.89 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "002d2496909515af0aa14bda4de4a5b167d98d86",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "The.Godfather.Part.I.1972.BDRip-AVC.Rus.Eng.by.zOJIOtOi.mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:002d2496909515af0aa14bda4de4a5b167d98d86",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Крестный отец 1 2 3 / The Godfather: Part I II III [1972 1974 1990 BDRip] Dub (Невафильм) + MVO (Киномания) + DVO (R5) + Original (Eng) + Sub (Rus Eng)\nKrestnyi_otec_I_1972_BDRip_Dub_by_Dalemake/Krestnyi_otec_I_1972_BDRip_Dub_by_Dalemake.avi\n👤 34 💾 1.46 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "f18a09d54438ee07c509f8323af66ef051e3d584",
+      "fileIdx": 18,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "Krestnyi_otec_I_1972_BDRip_Dub_by_Dalemake.avi"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:f18a09d54438ee07c509f8323af66ef051e3d584",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Крестный отец / Godfather The [1972 BDRip] MVO (Позитив)\n👤 29 💾 2.91 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "6754ba709e7c885d522e7d71b4e2041bfbd256fb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|xvid",
+        "filename": "Krestnyi.Otec.1972.RUS.BDRip.XviD.AC3.-HELLRAiSER.avi"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:6754ba709e7c885d522e7d71b4e2041bfbd256fb",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Крестный отец / The Godfather (1972) HDRip от Scarabey | Р\n👤 18 💾 1.45 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "7acd64064f31d4bbd7f072b0e6ac15a522ed77f4",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip",
+        "filename": "The.Godfather.1972_HDRip___[scarabey.org].avi"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:7acd64064f31d4bbd7f072b0e6ac15a522ed77f4",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Трилогия: Крёстный отец 1 2 3 / Trilogy: The Godfather 1 2 3 [1972 1974 1990 гг. BDRip] MVO (R5) + Original Eng + Sub (Rus Eng)\nThe.Godfather.1972.BDRip/The.Godfather.1972.BDRip.avi\n👤 18 💾 2.18 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "471fb006feac172b4b19514213e1fb43693ce0fe",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "The.Godfather.1972.BDRip.avi"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:471fb006feac172b4b19514213e1fb43693ce0fe",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Le Parrain.1972.DVDRIP.DIVX5.Truefrench-T911\n👤 17 💾 700.88 MB ⚙️ Torrent9\n🇫🇷",
+      "infoHash": "5cc616f5784c25394e613e0ed7e32ce9a037d78f",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip",
+        "filename": "[ Torrent911.cc ] Le Parrain.1972.DVDRIP.DIVX5.Truefrench-T911.avi"
+      }
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "The Godfather Trilogy Part 1 2 & 3 DVDRip\nThe Godfather Part I (1972).avi\n👤 16 💾 900.06 MB ⚙️ ThePirateBay",
+      "infoHash": "7ecdfa585853b20991a841e7b3012df09c6f383c",
+      "fileIdx": 55,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip",
+        "filename": "The Godfather Part I (1972).avi"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Крестный отец / The Godfather [1972 BDRip-AVC] VO (Сука-Падла) + Sub Rus Eng + Original Eng\n👤 15 💾 2.87 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "94f4db4b13c40604c283831ca18b6ca5b8703374",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "THE GODFATHER_1972_BDRIP_СУКАПАДЛА_ENG_KBC.mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:94f4db4b13c40604c283831ca18b6ca5b8703374",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Крестный отец / The Godfather [1972 VHSRip] [Full Screen] DVO (Премьер Видео)\n👤 13 💾 2.18 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "fdde1177041f689dbd4b139a2c0014b4331736fc",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip",
+        "filename": "Крестный отец - The Godfather (by alenavova).avi"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:fdde1177041f689dbd4b139a2c0014b4331736fc",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Крестный отец / The Godfather [1972 HDRip] MVO (Первый канал)\n👤 12 💾 1.54 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "46da42912382fa618ea4bfe2bc1ad09ea24ce33e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip",
+        "filename": "The_Godfather.avi"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:46da42912382fa618ea4bfe2bc1ad09ea24ce33e",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Крестный отец 1 2 3 / The Godfather: Part I II III [1972 1974 1990 BDRip] Dub (Невафильм) + Sub Rus\nThe.Godfather.1972.bdrip_[2.18]_[teko]/The.Godfather.1972.bdrip_[2.18].avi\n👤 11 💾 2.19 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "353d490ade3180947e59817347c6162740b9476e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "The.Godfather.1972.bdrip_[2.18].avi"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:353d490ade3180947e59817347c6162740b9476e",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBluRay",
+      "title": "Крестный отец: Трилогия / The Godfather Collection: The Coppola Restoration [1972 / 1974 / 1990 Blu-ray disc] MVO + Sub Rus Eng + Original Eng\n👤 11 💾 158.57 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "2f1bbb56c02c5b21f198cf4f230dd808adeadd8b",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BluRay"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:2f1bbb56c02c5b21f198cf4f230dd808adeadd8b",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Крестный отец / The Godfather [1972 HDRip-AVC] 3x AVO (Либергал (старый) Горчаков Сонькин) + Sub 3x Rus 2x Eng + Original Eng\nGodfather [1972 BDRip-AVC].mkv\n👤 9 💾 2.77 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "8c1f77a44b3882a091130deb9609133bd245d82f",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|HDRip|avc",
+        "filename": "Godfather [1972 BDRip-AVC].mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:8c1f77a44b3882a091130deb9609133bd245d82f",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Official IMDb Top 250 Movies Collection 6/17/2011\nTHE-GODFATHER.Part.1.DVDrip[vice].avi\n👤 8 💾 776.7 MB ⚙️ ThePirateBay",
+      "infoHash": "4986ace2ee7a564508e0d5cfdde2d9018b8af942",
+      "fileIdx": 28,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip",
+        "filename": "THE-GODFATHER.Part.1.DVDrip[vice].avi"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Крестный отец: Трилогия / The Godfather: Trilogy (1972-1990) BDRip-AVC от Generalfilm | Нева Фильм\nThe Godfather (1972) BDRip.AVC.Rip.by.HardwareMining.R.G.Generalfilm.mkv\n👤 7 💾 2.76 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "90c81fb331e201a7250f99b346ca185f0d526c17",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "The Godfather (1972) BDRip.AVC.Rip.by.HardwareMining.R.G.Generalfilm.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:90c81fb331e201a7250f99b346ca185f0d526c17",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Крестный отец / The Godfather [1972 BDRip-AVC] MVO (Киномания) + AVO (Живов) + Sub (Rus eng) + Original Eng\nКрёстный отец_1972-BDRip-AVC.mkv\n👤 7 💾 2.19 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "d13830a91df069066616d4a376140e550f1dbd0d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Крёстный отец_1972-BDRip-AVC.mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:d13830a91df069066616d4a376140e550f1dbd0d",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Крестный отец / The Godfather [1972 HDRip] DVO (Премьер Видео)\n👤 6 💾 2.91 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "7455b8439905a60bf90a5fce6d11674f81f697fd",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip",
+        "filename": "The.Godfather.1972.HDRip-PV.avi"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:7455b8439905a60bf90a5fce6d11674f81f697fd",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBluRay",
+      "title": "The Godfather (1972) [Al Pacino] BluRay H264 DolbyD 5.1 + nickarad\n👤 5 💾 3.07 GB ⚙️ ThePirateBay",
+      "infoHash": "40140a80d1903063d36f23ba88763be1df22b40c",
+      "fileIdx": 13,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BluRay|h264",
+        "filename": "The Godfather (1972) BluRay H264 DolbyD 5.1 + nickarad.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Крестный отец / The Godfather [1972 BDRip] AVO (Неизвестный К9 )\n👤 5 💾 2.06 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "aef5fd9c50126ec93e3dfbb8ddb09da28483d7be",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "Крестный отец (криминальная драма 1972 год).avi"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:aef5fd9c50126ec93e3dfbb8ddb09da28483d7be",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Крестный отец: Трилогия / The Godfather: Trilogy (1972-1990) BDRip-AVC от MediaClub\nKrestnyi.otec.1972.x264.BDRip.(AVC)-MediaClub/Krestnyi.otec.1972.x264.BDRip.(AVC)-MediaClub.mkv\n👤 5 💾 6.01 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "f88c0c853308439645594ca7fc5030f35aab8aaa",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Krestnyi.otec.1972.x264.BDRip.(AVC)-MediaClub.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:f88c0c853308439645594ca7fc5030f35aab8aaa",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Крестный отец 1 2 3 / The Godfather: Part I II III [1972 1974 1990 HDRip-AVC] AVO (Михалев Гаврилов Живов)\nKrestnyj.otec.I.1972.HDRipAVC.mkv\n👤 5 💾 1.45 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "b0d5ff26dec95319ea9708f46b1aaf094949e2d9",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip|avc",
+        "filename": "Krestnyj.otec.I.1972.HDRipAVC.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:b0d5ff26dec95319ea9708f46b1aaf094949e2d9",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Трилогия: Крестный отец 1 2 3 / Trilogy: The Godfather 1 2 3 [1972 1974 1990 г. HDRip] MVO (\"Киномания\")\nThe Godfather_Kinomaniya_[torrents.ru]_by_Scarabey.avi\n👤 5 💾 2.19 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "0953adfa1ffe9b1692fe6172a8c4b550607a75de",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip",
+        "filename": "The Godfather_Kinomaniya_[torrents.ru]_by_Scarabey.avi"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:0953adfa1ffe9b1692fe6172a8c4b550607a75de",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Крёстный отец / Godfather The [Трилогия] [1972 1974г. 1990г. DVDRip-AVC]\ngfath1.(1972).x264.aac.2rus.eng.sub.mkv\n👤 5 💾 2.69 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "d54fed4ccc18fdf138a361b9dfc4f396265c3ff2",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip|avc",
+        "filename": "gfath1.(1972).x264.aac.2rus.eng.sub.mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:d54fed4ccc18fdf138a361b9dfc4f396265c3ff2"
+      ]
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "The.Godfather.1972.iNTERNAL.DVDRip.XviD\n👤 5 💾 2.05 GB ⚙️ ThePirateBay",
+      "infoHash": "9a73d2a1a70817ee207cf1050e99e392470ec27b",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip|xvid"
+      }
+    },
+    {
+      "name": "Torrentio",
+      "title": "O Poderoso Chefao Dublado HD Dual Audio\n👤 11 💾 3.05 GB ⚙️ ThePirateBay\nDual Audio / 🇬🇧 / 🇵🇹",
+      "infoHash": "51e9d1b5be8d61e2603f8d00aa70d66318856a20",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "filename": "O Poderoso Chefão HD.mkv"
+      }
+    }
+  ],
+  "cacheMaxAge": 3600,
+  "staleRevalidate": 14400,
+  "staleError": 604800
+}

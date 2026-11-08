@@ -8,6 +8,18 @@ if(WIN32)
     enable_language(RC)
 endif()
 
+# Arc 81: build the same pure Qt Core library/tests without the desktop engine stack.
+option(COLOSSEUM_STREAM_PICKER_TESTS_ONLY "Configure only the source-picker library and tests" OFF)
+if(COLOSSEUM_STREAM_PICKER_TESTS_ONLY)
+    find_package(Qt6 REQUIRED COMPONENTS Core)
+    include(CTest)
+    add_subdirectory(stream)
+    if(BUILD_TESTING)
+        add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests/stream" stream-tests)
+    endif()
+    return()
+endif()
+
 option(COLOSSEUM_NUVIO_ANDROID "Enable the private Android Nuvio plugin service" ON)
 option(COLOSSEUM_NUVIO_ANDROID_PROOF "Enable the emulator-only Nuvio fault/proof harness" OFF)
 if(COLOSSEUM_NUVIO_ANDROID_PROOF AND (NOT ANDROID OR NOT COLOSSEUM_NUVIO_ANDROID))
@@ -162,6 +174,7 @@ else()
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebSockets Concurrent)
+add_subdirectory(stream)
 add_subdirectory(account/credentials)
 if(NOT ANDROID)
     # Desktop Reader 2 still uses Foliate/Qt WebEngine; Android deliberately has no WebEngine product path.

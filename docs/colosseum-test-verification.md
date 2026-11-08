@@ -3157,3 +3157,18 @@ any delivery claim that includes the native union code.
   receiving run. Dots' Linux visual evidence and the owner's v2 design approval
   are separate from these Windows integration checks. The previously documented
   intermittent title-action failure is not claimed fixed by this slice.
+
+## Arc 81 pure source picker (2026-11-08 review candidate)
+
+- Added `colosseum.stream_input`, `stream_parser`, `stream_trust`, `stream_scorer`, and
+  `stream_fixtures` CTest registrations, labelled `unit;stream` (fixtures additionally
+  `fixture`). The production library is built unchanged by the focused
+  `COLOSSEUM_STREAM_PICKER_TESTS_ONLY=ON` configuration.
+- Local GCC 14.2 / Qt 6.8.2 warning-clean build and 5/5 focused suites passed.
+  ASan/UBSan 5/5 passed with leak detection disabled because LeakSanitizer fails
+  under this sandbox's ptrace setup. Leak qualification remains open.
+- Twenty actual offline responses / 1,996 rows are replayed structurally and
+  deterministically. Human-pick agreement, positive Comet/MediaFusion coverage,
+  full desktop build, Windows/Android and actual playback are not qualified.
+- Detailed source pins, fixture outputs, limitations and reproduction:
+  `docs/stream-picker-review.md`. No UI or existing playback behavior changed.

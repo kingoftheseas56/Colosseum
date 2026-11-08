@@ -5763,3 +5763,6 @@ if(TARGET colosseum_nuvio AND TARGET Qt6::Test)
     set_tests_properties(colosseum.nuvio_plugin_host_test PROPERTIES
         ENVIRONMENT "COLOSSEUM_NUVIO_TEST_WORKER=$<TARGET_FILE:colosseum-nuvio-host>")
 endif()
+
+# Pure Qt Core parser/trust/scoring regression suite (Arc 81).
+add_subdirectory(stream)
