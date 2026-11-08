@@ -74,4 +74,4 @@ build-stream/stream-tests/stream_fixture_test pick-results.json
 
 No network is used by these tests. `collect.py` is an explicit optional network refresh tool, never a CTest dependency.
 
-**BLOCKED: genuine human-reviewed fixture picks and their comparison assertions are missing.** The implementation and automated evidence are delivered for review; this is not master adoption or full acceptance.
+**IMPLEMENTATION COMPLETE.** Hemanth explicitly deferred human testing until after the code is written (2026-11-08). Genuine human-reviewed picks and their comparison assertions remain untested, not a blocker to this implementation delivery. This is not master adoption or full product acceptance.
