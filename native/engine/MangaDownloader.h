@@ -1,12 +1,9 @@
 // MangaDownloader.h
 //
-// The download-fed backbone: reading is NEVER a live stream. A chapter is
-// downloaded once — its page images land as loose files on disk — and the
-// reader then reads those local files, offline, forever. This recreates
-// Tankoban 2 / the Electron app's proven downloader in Colosseum-lean form:
-// the irreducible core (fetch page URLs -> download images -> JSON index ->
-// localPages flip) is kept; TB2's CBZ packing / followed-library / history-cap
-// are deferred to a later pass (justified up only when needed).
+// Chapter image acquisition. Permanent downloads publish an indexed, offline
+// chapter. Opt-in live jobs share the same transport but publish incremental
+// local files into a bounded temporary cache, never into the Downloads ledger.
+// The reader always decodes local files; it does not fetch remote image URLs.
 //
 // Pipeline (mirrors TB2 + mangaDownloads.js):
 //   1. WeebCentralScraper::fetchPages(chapterId)  -> [{index, imageUrl}]
@@ -54,6 +51,7 @@ class QNetworkAccessManager;
 class QNetworkReply;
 class WeebCentralScraper;
 class TankoyomiChapterService;
+class QMutex;
 
 class MangaDownloader : public QObject
 {
@@ -61,11 +59,13 @@ class MangaDownloader : public QObject
 public:
     // nam is shared with the rest of the app (carries the IPv4-pin / Host fix),
     // so image fetches use the same proven networking the streaming reader did.
+    using RetryScheduler = std::function<void(int, QObject*, std::function<void()>)>;
     explicit MangaDownloader(QNetworkAccessManager* nam, QObject* parent = nullptr,
                              MangaImageHostResolver::Lookup lookup = {},
                              // Empty in production; injectable only for deterministic cleanup tests.
                              DownloadFileOps::Remover cleanupRemover = {},
-                             TankoyomiChapterService* tankoyomi = nullptr);
+                             TankoyomiChapterService* tankoyomi = nullptr,
+                             RetryScheduler retryScheduler = {});
     ~MangaDownloader() override;
 
     // Host → IPv4 pins (dead-IPv6 machine). Manga art hosts publish AAAA records, so
@@ -81,6 +81,15 @@ public:
                                      const QString& seriesId,
                                      const QString& seriesTitle,
                                      const QString& chapterLabel);
+
+    // One live reader session, isolated from permanent downloads. Page indices are zero-based.
+    // Every callback carries a token so a closed/reopened chapter cannot receive stale work.
+    Q_INVOKABLE qulonglong startLive(QString chapterId, QString seriesId);
+    Q_INVOKABLE void setLiveFocus(QString chapterId, int page, qulonglong token);
+    Q_INVOKABLE void stopLive(QString chapterId, qulonglong token);
+    Q_INVOKABLE void retryLivePage(QString chapterId, int page, qulonglong token);
+    Q_INVOKABLE QVariantList livePages(QString chapterId) const;
+    Q_INVOKABLE QVariantMap liveStatus(QString chapterId) const;
 
     // The local-read FLIP. Returns [{index:int, url:"file:///.../page_NNN.ext"}]
     // for a downloaded chapter, or an empty list if it isn't downloaded — the
@@ -122,6 +131,9 @@ public:
     Q_INVOKABLE void indexSelfTest();
 
 signals:
+    void liveManifestReady(const QString& chapterId, int count, qulonglong token);
+    void livePageReady(const QString& chapterId, int index, const QString& fileUrl, qulonglong token);
+    void liveFailed(const QString& chapterId, int index, const QString& reason, qulonglong token);
     void progress(const QString& chapterId, int done, int total);
     void finished(const QString& chapterId);
     void failed(const QString& chapterId, const QString& reason);
@@ -160,6 +172,15 @@ private:
         bool cancelled = false;
         bool scraperPending = false;
         bool cleanupPending = false;
+        bool scanPending = false;
+        bool live = false;
+        bool liveStarted = false;
+        qulonglong liveToken = 0;
+        int liveFocus = 0;
+        QSet<int> liveInFlight;
+        QSet<int> retryWaiting;
+        QSet<int> liveFailedPages;
+        QString liveError;
         QList<QNetworkReply*> replies;   // in-flight image GETs, for cancel/abort
     };
 
@@ -177,10 +198,13 @@ private:
         QStringList files;
         int done = 0;
         qint64 bytes = 0;
+        QString error;
     };
 
     struct ImageSaveResult {
         bool success = false;
+        bool cacheFull = false;
+        bool invalidImage = false;
         qint64 size = 0;
     };
 
@@ -189,6 +213,15 @@ private:
     };
 
     // queue pump
+    void pumpLive();
+    void schedulePumps();
+    void initializeLiveCache();
+    bool jobIsActive(const Job* job) const;
+    bool liveMatches(const QString& chapterId, qulonglong token) const;
+    void imageFailed(Job* job, int pageIndex, const QString& reason);
+    void retryImageLater(Job* job, int pageIndex, int attempt, const QString& unresolvedHost = {});
+    QString liveCacheDir() const;
+    QString liveChapterDir(const QString& chapterId) const;
     void pumpQueue();
     void beginJob(Job* job);
     void onPagesReady(Job* job, const QList<PageInfo>& pages);
@@ -226,7 +259,7 @@ private:
     QHash<QString, QString> m_pins;                // host -> IPv4 (dead-IPv6 machine)
     QSet<QString>          m_pinTried;             // hosts we've already tried to resolve+pin (incl. misses)
     struct PendingImageRequest {
-        Job* job = nullptr;
+        std::shared_ptr<JobLifetime> lifetime;
         int pageIndex = 0;
         int attempt = 0;
         QUrl requestUrl;
@@ -240,6 +273,13 @@ private:
     bool m_indexWriteInFlight = false;              // at most one QSaveFile worker at a time
     QHash<QString, Job*>  m_active;                 // chapterId -> in-flight job
     QQueue<Job*>          m_queue;                  // waiting jobs
+    Job* m_liveJob = nullptr;                       // never a Downloads/index entry
+    QSet<Job*> m_stoppingLiveJobs;                  // drain async saves before cache reuse/eviction
+    qulonglong m_nextLiveToken = 0;
+    bool m_pumpScheduled = false;
+    bool m_liveCacheReady = false;
+    std::shared_ptr<QMutex> m_liveCacheMutex;
+    RetryScheduler m_retryScheduler;
 
     // chapter thumbnails (first-page resolve; capped concurrency, session cache)
     struct ThumbReq { QString seriesId; QString chapterId; };

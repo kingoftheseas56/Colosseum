@@ -9,6 +9,9 @@
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
+#include <QDirIterator>
+#include <QMutex>
+#include <QPointer>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -23,8 +26,97 @@
 #include <QTimer>
 #include <QUrl>
 #include <QDebug>
+#include <QImage>
 
+#include <algorithm>
 #include <utility>
+
+namespace {
+constexpr qint64 kLiveCacheBytes = 300LL * 1024 * 1024;
+constexpr int kLiveCacheChapters = 3;
+constexpr int kLiveReadAhead = 5;
+
+QString liveSourceHash(const QString& url)
+{
+    return QString::fromLatin1(QCryptographicHash::hash(url.toUtf8(), QCryptographicHash::Sha256).toHex());
+}
+
+QJsonObject readLiveManifest(const QString& dir)
+{
+    QFile file(dir + QStringLiteral("/manifest.json"));
+    if (!file.open(QIODevice::ReadOnly) || file.size() > 2 * 1024 * 1024) return {};
+    return QJsonDocument::fromJson(file.readAll()).object();
+}
+
+bool writeLiveJson(const QString& path, const QJsonObject& object)
+{
+    const QByteArray bytes = QJsonDocument(object).toJson(QJsonDocument::Compact);
+    QSaveFile file(path);
+    return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
+}
+
+qint64 liveDirectoryBytes(const QString& path)
+{
+    qint64 bytes = 0;
+    QDirIterator it(path, QDir::Files | QDir::NoSymLinks, QDirIterator::Subdirectories);
+    while (it.hasNext()) { it.next(); bytes += it.fileInfo().size(); }
+    return bytes;
+}
+
+// Called only on workers holding m_liveCacheMutex. The protected chapter is never evicted
+// while its reader can use it; a single over-budget chapter fails honestly instead.
+bool trimLiveCache(const QString& root, const QString& protectedDir = {}, qint64 incoming = 0)
+{
+    if (QFileInfo(root).isSymLink()) return false;
+    struct Cached { QString path; qint64 used; qint64 bytes; };
+    QList<Cached> chapters;
+    qint64 total = 0;
+    const QDir base(root);
+    for (const QFileInfo& directory : base.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks)) {
+        const QString path = directory.absoluteFilePath();
+        if (path != protectedDir && readLiveManifest(path).value(QStringLiteral("schemaVersion")).toInt() != 1) {
+            if (!QDir(path).removeRecursively()) return false;
+            continue; // interrupted preparation, not a reusable chapter
+        }
+        const QFileInfo touched(path + QStringLiteral("/access.json"));
+        const qint64 bytes = liveDirectoryBytes(path);
+        chapters.append({path, touched.lastModified().toMSecsSinceEpoch(), bytes});
+        total += bytes;
+    }
+    std::sort(chapters.begin(), chapters.end(), [](const Cached& a, const Cached& b) {
+        return a.used == b.used ? a.path < b.path : a.used < b.used;
+    });
+    int retained = chapters.size();
+    for (const Cached& chapter : chapters) {
+        if (retained <= kLiveCacheChapters && total + incoming <= kLiveCacheBytes) break;
+        if (chapter.path == protectedDir) continue;
+        if (!QDir(chapter.path).removeRecursively()) return false;
+        total -= chapter.bytes;
+        --retained;
+    }
+    return retained <= kLiveCacheChapters && total + incoming <= kLiveCacheBytes;
+}
+
+QString reusableLiveFile(const QString& directory, int page)
+{
+    const QDir dir(directory);
+    const QString prefix = QStringLiteral("page_%1.").arg(page, 3, 10, QChar('0'));
+    for (const QFileInfo& file : dir.entryInfoList({prefix + QLatin1Char('*')}, QDir::Files | QDir::NoSymLinks)) {
+        if (file.size() <= 1024) continue;
+        const QString suffix = file.suffix().toLower();
+        if (suffix != QLatin1String("jpg") && suffix != QLatin1String("jpeg")
+            && suffix != QLatin1String("png") && suffix != QLatin1String("webp")
+            && suffix != QLatin1String("gif") && suffix != QLatin1String("avif")) continue;
+        QFile source(file.absoluteFilePath());
+        if (!source.open(QIODevice::ReadOnly)) continue;
+        const QByteArray magic = source.read(32);
+        if (magic.startsWith("<!DOCTYPE") || magic.startsWith("<!doctype")
+            || magic.startsWith("<html")) continue;
+        return file.fileName();
+    }
+    return {};
+}
+} // namespace
 
 // ---------------------------------------------------------------------------
 // ctor / dtor
@@ -32,15 +124,106 @@
 MangaDownloader::MangaDownloader(QNetworkAccessManager* nam, QObject* parent,
                                  MangaImageHostResolver::Lookup lookup,
                                  DownloadFileOps::Remover cleanupRemover,
-                                 TankoyomiChapterService* tankoyomi)
+                                 TankoyomiChapterService* tankoyomi,
+                                 RetryScheduler retryScheduler)
     : QObject(parent), m_nam(nam), m_tankoyomi(tankoyomi),
-      m_hostResolver(std::move(lookup)), m_cleanupRemover(std::move(cleanupRemover))
+      m_hostResolver(std::move(lookup)), m_cleanupRemover(std::move(cleanupRemover)),
+      m_liveCacheMutex(std::make_shared<QMutex>()), m_retryScheduler(std::move(retryScheduler))
 {
     if (!m_tankoyomi) m_tankoyomi = new TankoyomiChapterService(nam, this);
+    if (!m_retryScheduler) {
+        m_retryScheduler = [](int delay, QObject* context, std::function<void()> callback) {
+            QTimer::singleShot(delay, context, std::move(callback));
+        };
+    }
     loadIndex();
+    initializeLiveCache();
 }
 
-MangaDownloader::~MangaDownloader() = default;
+MangaDownloader::~MangaDownloader()
+{
+    QSet<Job*> jobs = m_stoppingLiveJobs;
+    if (m_liveJob) jobs.insert(m_liveJob);
+    for (Job* job : std::as_const(m_active)) jobs.insert(job);
+    for (Job* job : std::as_const(m_queue)) jobs.insert(job);
+    // Worker tasks own values only. Retire callbacks before aborting replies, which can
+    // emit finished synchronously. Pending timers keep a lifetime fence, never a raw Job.
+    for (Job* job : std::as_const(jobs)) {
+        if (job->lifetime) job->lifetime->job = nullptr;
+        removePendingImageRequests(job);
+        for (QNetworkReply* reply : std::as_const(job->replies)) {
+            if (!reply) continue;
+            QObject::disconnect(reply, nullptr, this, nullptr);
+            reply->abort();
+        }
+        delete job;
+    }
+}
+
+void MangaDownloader::initializeLiveCache()
+{
+    const QString root = liveCacheDir();
+    const auto mutex = m_liveCacheMutex;
+    QtConcurrent::run([root, mutex] {
+        QMutexLocker lock(mutex.get());
+        return trimLiveCache(root);
+    }).then(this, [this](bool cleaned) {
+        if (!cleaned) qWarning("[live-reading] could not fully trim the temporary cache");
+        m_liveCacheReady = true;
+        // Cache readiness only unblocks a live open. An unsolicited general pump
+        // would promote permanent jobs while their cancellation cleanup is pending.
+        if (m_liveJob) schedulePumps();
+    });
+}
+
+bool MangaDownloader::jobIsActive(const Job* job) const
+{
+    return job && (job->live
+        ? m_liveJob == job || m_stoppingLiveJobs.contains(const_cast<Job*>(job))
+        : m_active.value(job->chapterId, nullptr) == job);
+}
+
+bool MangaDownloader::liveMatches(const QString& chapterId, qulonglong token) const
+{
+    return m_liveJob && !m_liveJob->cancelled && token != 0
+        && m_liveJob->liveToken == token && m_liveJob->chapterId == chapterId;
+}
+
+void MangaDownloader::schedulePumps()
+{
+    if (m_pumpScheduled) return;
+    m_pumpScheduled = true;
+    QTimer::singleShot(0, this, [this] {
+        m_pumpScheduled = false;
+        if (m_liveJob) { pumpLive(); return; }
+        if (!m_stoppingLiveJobs.isEmpty()) return;
+        pumpQueue();
+        QList<std::shared_ptr<JobLifetime>> active;
+        for (Job* job : std::as_const(m_active)) active.append(job->lifetime);
+        for (const auto& lifetime : std::as_const(active))
+            if (lifetime && lifetime->job && !lifetime->job->scanPending)
+                pumpImages(lifetime->job);
+        pumpThumbs();
+    });
+}
+
+void MangaDownloader::pumpLive()
+{
+    Job* job = m_liveJob;
+    if (!job || job->cancelled || job->failedFlag || !m_liveCacheReady
+        || !m_stoppingLiveJobs.isEmpty()) return;
+    // Drain existing download/thumbnail waves before opening the live reader. Their
+    // dispatch pumps are paused, so the live chapter then owns the three slots alone.
+    for (const Job* other : std::as_const(m_active))
+        if (other->inFlight > 0 || other->scanPending) return;
+    if (m_thumbActive > 0) return;
+    if (!job->liveStarted) {
+        job->liveStarted = true;
+        beginJob(job);
+        return;
+    }
+    if (!job->scraperPending && !job->scanPending && job->total > 0) pumpImages(job);
+}
 
 // ---------------------------------------------------------------------------
 // disk paths
@@ -59,6 +242,20 @@ QString MangaDownloader::thumbCacheDir() const
                         + QStringLiteral("/manga-thumbs");
     QDir().mkpath(dir);
     return dir;
+}
+
+QString MangaDownloader::liveCacheDir() const
+{
+    return QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+        + QStringLiteral("/manga-live");
+}
+
+QString MangaDownloader::liveChapterDir(const QString& chapterId) const
+{
+    const QString hash = QString::fromLatin1(
+        QCryptographicHash::hash(chapterId.toUtf8(), QCryptographicHash::Sha256).toHex().left(20));
+    return liveCacheDir() + QLatin1Char('/') + safeSeg(chapterId).left(48)
+        + QLatin1Char('-') + hash;
 }
 
 QString MangaDownloader::safeSeg(const QString& v)
@@ -250,6 +447,123 @@ void MangaDownloader::writeEntry(const Job* job)
 // ---------------------------------------------------------------------------
 // QML entry points
 // ---------------------------------------------------------------------------
+qulonglong MangaDownloader::startLive(QString chapterId, QString seriesId)
+{
+    if (chapterId.isEmpty() || !m_nam) return 0;
+    if (m_liveJob && !m_liveJob->cancelled && m_liveJob->chapterId == chapterId)
+        return m_liveJob->liveToken;
+    if (m_liveJob) stopLive(m_liveJob->chapterId, m_liveJob->liveToken);
+    auto* job = new Job;
+    job->lifetime = std::make_shared<JobLifetime>();
+    job->lifetime->job = job;
+    job->live = true;
+    job->liveToken = ++m_nextLiveToken;
+    job->chapterId = chapterId;
+    job->seriesId = seriesId;
+    job->dir = liveChapterDir(chapterId);
+    m_liveJob = job;
+    // Always deferred: QML must receive/store the token before any ready/failure callback.
+    schedulePumps();
+    return job->liveToken;
+}
+
+void MangaDownloader::setLiveFocus(QString chapterId, int page, qulonglong token)
+{
+    if (!liveMatches(chapterId, token) || page < 0) return;
+    Job* job = m_liveJob;
+    job->liveFocus = job->total > 0 ? qMin(page, job->total - 1) : page;
+    schedulePumps();
+}
+
+void MangaDownloader::stopLive(QString chapterId, qulonglong token)
+{
+    if (!liveMatches(chapterId, token)) return;
+    Job* job = m_liveJob;
+    const auto lifetime = job->lifetime;
+    m_liveJob = nullptr;
+    m_stoppingLiveJobs.insert(job);
+    job->cancelled = true;
+    job->scraperPending = false;
+    if (job->scraper) QObject::disconnect(job->scraper, nullptr, this, nullptr);
+    if (job->pageResolverScope) {
+        delete job->pageResolverScope;
+        job->pageResolverScope = nullptr;
+    }
+    removePendingImageRequests(job);
+    job->inFlight -= job->retryWaiting.size();
+    job->retryWaiting.clear();
+    const auto replies = job->replies;
+    for (QNetworkReply* reply : replies) {
+        if (!lifetime->job) break;
+        if (reply) reply->abort();
+    }
+    if (lifetime->job && job->inFlight == 0) finalizeCancel(job);
+    schedulePumps();
+}
+
+void MangaDownloader::retryLivePage(QString chapterId, int page, qulonglong token)
+{
+    if (!liveMatches(chapterId, token)) return;
+    Job* job = m_liveJob;
+    if (job->scanPending || job->scraperPending || job->liveInFlight.contains(page)) return;
+    if (job->total == 0 || job->liveFailedPages.contains(-1)) {
+        if (job->inFlight > 0) return;
+        job->total = 0;
+        job->liveFailedPages.clear();
+        job->failedFlag = false;
+        job->liveError.clear();
+        job->liveStarted = false;
+        schedulePumps();
+        return;
+    }
+    if (page < 0 || page >= job->total) return;
+    if (!job->files.at(page).isEmpty()) return;
+    job->liveFailedPages.remove(page);
+    job->failedFlag = false;
+    job->liveError.clear();
+    job->liveFocus = page;
+    // Retry a DNS miss rather than permanently remembering its empty result.
+    const auto tried = m_pinTried;
+    for (const QString& host : tried)
+        if (!m_pins.contains(host)) m_pinTried.remove(host);
+    schedulePumps();
+}
+
+QVariantList MangaDownloader::livePages(QString chapterId) const
+{
+    QVariantList out;
+    const Job* job = m_liveJob;
+    if (!job || job->cancelled || job->scanPending || job->chapterId != chapterId) return out;
+    for (int i = 0; i < job->total; ++i) {
+        const bool pending = job->files.at(i).isEmpty();
+        const QString name = pending
+            ? QStringLiteral("page_%1.%2").arg(i, 3, 10, QChar('0'))
+                .arg(extForContentType({}, job->pages.at(i).imageUrl))
+            : job->files.at(i);
+        QVariantMap page{{QStringLiteral("index"), i},
+            {QStringLiteral("group"), -1},
+            {QStringLiteral("url"), QUrl::fromLocalFile(job->dir + QLatin1Char('/') + name).toString()},
+            {QStringLiteral("pending"), pending}};
+        if (job->liveFailedPages.contains(i))
+            page.insert(QStringLiteral("error"), QStringLiteral("download_failed"));
+        out.append(page);
+    }
+    return out;
+}
+
+QVariantMap MangaDownloader::liveStatus(QString chapterId) const
+{
+    const Job* job = m_liveJob;
+    if (!job || job->cancelled || job->chapterId != chapterId)
+        return {{QStringLiteral("state"), QStringLiteral("none")}};
+    return {{QStringLiteral("state"), job->failedFlag ? QStringLiteral("paused")
+                : job->total == 0 || job->scanPending ? QStringLiteral("resolving")
+                : QStringLiteral("reading")},
+            {QStringLiteral("token"), QVariant::fromValue(job->liveToken)},
+            {QStringLiteral("total"), job->total}, {QStringLiteral("done"), job->done},
+            {QStringLiteral("focus"), job->liveFocus}, {QStringLiteral("error"), job->liveError}};
+}
+
 void MangaDownloader::downloadChapter(const QString& chapterId, const QString& seriesId,
                                       const QString& seriesTitle, const QString& chapterLabel)
 {
@@ -426,6 +740,8 @@ void MangaDownloader::cancelDownload(const QString& chapterId)
         }
     }
     removePendingImageRequests(job);
+    job->inFlight -= job->retryWaiting.size();
+    job->retryWaiting.clear();
     const QList<QNetworkReply*> replies = job->replies;
     for (QNetworkReply* r : replies) if (r) r->abort();   // abort -> finished -> cancelled branch
     if (m_active.value(chapterId, nullptr) == job && job->inFlight == 0) finalizeCancel(job);
@@ -433,7 +749,8 @@ void MangaDownloader::cancelDownload(const QString& chapterId)
 
 void MangaDownloader::finalizeCancel(Job* job)
 {
-    if (job->cleanupPending) return;
+    if (job->cleanupPending || job->scanPending) return;
+    if (job->live) { cleanupJob(job); return; }
     job->cleanupPending = true;
     const QString id = job->chapterId;
     const QString dir = job->dir;
@@ -477,6 +794,7 @@ void MangaDownloader::fetchThumb(const QString& seriesId, const QString& chapter
 
 void MangaDownloader::pumpThumbs()
 {
+    if (m_liveJob || !m_stoppingLiveJobs.isEmpty()) return;
     while (m_thumbActive < THUMB_CONCURRENCY && !m_thumbQueue.isEmpty()) {
         const ThumbReq req = m_thumbQueue.dequeue();
         const QString cid = req.chapterId;
@@ -490,6 +808,7 @@ void MangaDownloader::pumpThumbs()
             m_thumbInflight.remove(cid);
             m_thumbActive--;
             pumpThumbs();
+            schedulePumps();
         };
 
         if (TankoyomiIdentity::isQualifiedChapter(cid)) {
@@ -768,6 +1087,7 @@ void MangaDownloader::indexSelfTest()
 // ---------------------------------------------------------------------------
 void MangaDownloader::pumpQueue()
 {
+    if (m_liveJob || !m_stoppingLiveJobs.isEmpty()) return;
     while (m_active.size() < MAX_CONCURRENT_CHAPTERS && !m_queue.isEmpty()) {
         Job* job = m_queue.dequeue();
         m_active.insert(job->chapterId, job);
@@ -777,14 +1097,16 @@ void MangaDownloader::pumpQueue()
 
 void MangaDownloader::beginJob(Job* job)
 {
-    QDir().mkpath(job->dir);
+    if (!job->live) QDir().mkpath(job->dir);
     job->scraperPending = true;
     const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
 
     if (TankoyomiIdentity::isQualifiedChapter(job->chapterId)) {
         job->pageResolverScope = new QObject(this);
         QObject* scope = job->pageResolverScope;
-        const QString requestId = QStringLiteral("download|") + job->chapterId;
+        const QString requestId = job->live
+            ? QStringLiteral("live|%1|%2").arg(job->liveToken).arg(job->chapterId)
+            : QStringLiteral("download|") + job->chapterId;
         connect(m_tankoyomi, &TankoyomiChapterService::pagesReady, scope,
                 [this, lifetime, scope, requestId](const QString& got,
                                                    const QVariantList& rows) {
@@ -845,45 +1167,127 @@ void MangaDownloader::onPagesReady(Job* job, const QList<PageInfo>& pages)
 void MangaDownloader::startResumeScan(Job* job)
 {
     const QString dirPath = job->dir;
+    const QString cacheRoot = liveCacheDir();
+    const QString reuseDir = liveChapterDir(job->chapterId);
+    const QString chapterId = job->chapterId;
+    const bool live = job->live;
     const int total = job->total;
-    const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
+    QStringList sources;
+    for (const auto& page : std::as_const(job->pages)) sources.append(liveSourceHash(page.imageUrl));
+    const auto mutex = m_liveCacheMutex;
+    const auto lifetime = job->lifetime;
+    job->scanPending = true;
     auto* watcher = new QFutureWatcher<ResumeScan>(this);
     connect(watcher, &QFutureWatcher<ResumeScan>::finished, this,
             [this, watcher, lifetime]() {
+        const ResumeScan scan = watcher->result();
+        watcher->deleteLater();
         Job* job = lifetime ? lifetime->job : nullptr;
-        if (!job || job->cancelled) {
-            watcher->deleteLater();
+        if (!job) return;
+        job->scanPending = false;
+        if (job->cancelled) {
+            if (job->inFlight == 0) finalizeCancel(job);
             return;
         }
-        const ResumeScan scan = watcher->result();
+        if (!scan.error.isEmpty()) { failJob(job, scan.error); return; }
         job->files = scan.files;
         job->done = scan.done;
         job->bytes = scan.bytes;
-
-        emit progress(job->chapterId, job->done, job->total);
-        if (job->done == job->total) {
-            watcher->deleteLater();
-            finishJob(job);
-            return;
+        if (job->live) {
+            job->liveFocus = qBound(0, job->liveFocus, job->total - 1);
+            emit liveManifestReady(job->chapterId, job->total, job->liveToken);
+            if (!lifetime->job || job->cancelled) return;
+            for (int i = 0; i < job->total; ++i) {
+                if (job->files.at(i).isEmpty()) continue;
+                emit livePageReady(job->chapterId, i,
+                    QUrl::fromLocalFile(job->dir + QLatin1Char('/') + job->files.at(i)).toString(),
+                    job->liveToken);
+                if (!lifetime->job || job->cancelled) return;
+            }
+        } else {
+            emit progress(job->chapterId, job->done, job->total);
+            if (!lifetime->job || job->cancelled) return;
+            if (job->done == job->total) { finishJob(job); return; }
         }
         pumpImages(job);
-        watcher->deleteLater();
+        schedulePumps();
     });
-    watcher->setFuture(QtConcurrent::run([dirPath, total]() {
+    watcher->setFuture(QtConcurrent::run([dirPath, cacheRoot, reuseDir, chapterId,
+                                         live, total, sources, mutex]() {
+        QMutexLocker lock(mutex.get());
         ResumeScan scan;
         scan.files = QStringList(total, QString());
         const QDir dir(dirPath);
+        if (live && (QFileInfo(cacheRoot).isSymLink() || QFileInfo(dirPath).isSymLink()
+                     || !QDir().mkpath(dirPath))) {
+            scan.error = QStringLiteral("Could not create the temporary chapter cache.");
+            return scan;
+        }
+        const QJsonObject old = QFileInfo(reuseDir).isSymLink() ? QJsonObject() : readLiveManifest(reuseDir);
+        const QJsonArray oldSources = old.value(QStringLiteral("sources")).toArray();
+        const bool sameChapter = old.value(QStringLiteral("schemaVersion")).toInt() == 1
+            && old.value(QStringLiteral("chapterId")).toString() == chapterId;
         for (int i = 0; i < total; ++i) {
-            const QStringList hits = dir.entryList(
-                {QStringLiteral("page_%1.*").arg(i, 3, 10, QChar('0'))}, QDir::Files);
-            for (const QString& name : hits) {
-                const qint64 sz = QFileInfo(dir.filePath(name)).size();
-                if (sz > MIN_VALID_BYTES) {
-                    scan.files[i] = name;
-                    ++scan.done;
-                    scan.bytes += sz;
-                    break;
+            const bool samePage = sameChapter && i < oldSources.size()
+                && oldSources.at(i).toString() == sources.at(i);
+            QString name;
+            if (live) {
+                if (samePage) name = reusableLiveFile(dirPath, i);
+                if (name.isEmpty()) {
+                    // A changed manifest must not decode bytes left for a different page.
+                    for (const QString& stale : dir.entryList(
+                             {QStringLiteral("page_%1.*").arg(i, 3, 10, QChar('0'))},
+                             QDir::Files | QDir::NoSymLinks)) {
+                        if (!QFile::remove(dir.filePath(stale))) {
+                            scan.error = QStringLiteral("Could not replace a stale live page.");
+                            return scan;
+                        }
+                    }
                 }
+            } else {
+                // Keep the established interrupted permanent-download resume rule unchanged.
+                for (const QString& existing : dir.entryList(
+                         {QStringLiteral("page_%1.*").arg(i, 3, 10, QChar('0'))}, QDir::Files)) {
+                    if (QFileInfo(dir.filePath(existing)).size() > MIN_VALID_BYTES) {
+                        name = existing;
+                        break;
+                    }
+                }
+                if (name.isEmpty() && samePage) {
+                    const QString cached = reusableLiveFile(reuseDir, i);
+                    if (!cached.isEmpty()) {
+                        QFile input(reuseDir + QLatin1Char('/') + cached);
+                        QSaveFile output(dir.filePath(cached));
+                        if (input.open(QIODevice::ReadOnly) && output.open(QIODevice::WriteOnly)) {
+                            bool copied = true;
+                            while (!input.atEnd()) {
+                                const QByteArray bytes = input.read(256 * 1024);
+                                if (bytes.isEmpty() || output.write(bytes) != bytes.size()) {
+                                    copied = false;
+                                    break;
+                                }
+                            }
+                            if (copied && output.commit()) name = cached;
+                        }
+                    }
+                }
+            }
+            if (!name.isEmpty()) {
+                scan.files[i] = name;
+                ++scan.done;
+                scan.bytes += QFileInfo(dir.filePath(name)).size();
+            }
+        }
+        if (live) {
+            QJsonArray hashes;
+            for (const auto& source : sources) hashes.append(source);
+            const QJsonObject manifest{{QStringLiteral("schemaVersion"), 1},
+                {QStringLiteral("chapterId"), chapterId}, {QStringLiteral("sources"), hashes}};
+            if (!writeLiveJson(dir.filePath(QStringLiteral("manifest.json")), manifest)
+                || !writeLiveJson(dir.filePath(QStringLiteral("access.json")),
+                    {{QStringLiteral("accessedAt"), QDateTime::currentMSecsSinceEpoch()}})
+                || !trimLiveCache(cacheRoot, dirPath)) {
+                scan.error = QStringLiteral("The temporary chapter cache is full or unavailable.");
             }
         }
         return scan;
@@ -892,19 +1296,75 @@ void MangaDownloader::startResumeScan(Job* job)
 
 void MangaDownloader::pumpImages(Job* job)
 {
-    if (job->failedFlag) {
-        if (job->inFlight == 0) failJob(job, QStringLiteral("image download failed"));
+    if (job->cancelled) {
+        if (job->inFlight == 0) finalizeCancel(job);
         return;
     }
-    while (job->inFlight < IMAGE_CONCURRENCY && job->nextDispatch < job->total) {
-        const int i = job->nextDispatch++;
-        if (!job->files[i].isEmpty()) continue;   // resumed page — already on disk
-        job->inFlight++;
+    if (job->failedFlag) {
+        if (!job->live && job->inFlight == 0) failJob(job, QStringLiteral("image download failed"));
+        return;
+    }
+    if (job->scanPending || job->scraperPending) return;
+    if (!job->live && (m_liveJob || !m_stoppingLiveJobs.isEmpty())) {
+        schedulePumps();
+        return;
+    }
+    while (job->inFlight < IMAGE_CONCURRENCY) {
+        int i = -1;
+        if (job->live) {
+            const int end = qMin(job->total, job->liveFocus + kLiveReadAhead + 1);
+            for (int candidate = job->liveFocus; candidate < end; ++candidate) {
+                if (job->files.at(candidate).isEmpty()
+                    && !job->liveInFlight.contains(candidate)
+                    && !job->liveFailedPages.contains(candidate)) {
+                    i = candidate;
+                    break;
+                }
+            }
+        } else {
+            while (job->nextDispatch < job->total) {
+                const int candidate = job->nextDispatch++;
+                if (job->files.at(candidate).isEmpty()) { i = candidate; break; }
+            }
+        }
+        if (i < 0) break;
+        ++job->inFlight;
+        if (job->live) job->liveInFlight.insert(i);
         const auto lifetime = job->lifetime;
         fetchImage(job, i, 0);
-        // A synchronous policy/DNS rejection can settle and destroy this job.
         if (!lifetime || lifetime->job != job || job->failedFlag || job->cancelled) return;
     }
+}
+
+void MangaDownloader::imageFailed(Job* job, int pageIndex, const QString& reason)
+{
+    --job->inFlight;
+    if (job->live) {
+        job->liveInFlight.remove(pageIndex);
+        job->liveFailedPages.insert(pageIndex);
+        job->liveError = reason;
+        job->failedFlag = true;
+        emit liveFailed(job->chapterId, pageIndex, reason, job->liveToken);
+        schedulePumps();
+        return;
+    }
+    job->failedFlag = true;
+    pumpImages(job);
+}
+
+void MangaDownloader::retryImageLater(Job* job, int pageIndex, int attempt,
+                                      const QString& unresolvedHost)
+{
+    const auto lifetime = job->lifetime;
+    const QPointer<MangaDownloader> owner(this);
+    job->retryWaiting.insert(pageIndex);
+    m_retryScheduler(2000 << attempt, this, [owner, lifetime, pageIndex, attempt, unresolvedHost] {
+        if (!owner || !lifetime || !lifetime->job) return;
+        if (!lifetime->job->retryWaiting.remove(pageIndex)) return;
+        if (!unresolvedHost.isEmpty() && !owner->m_pinLookupInFlight.contains(unresolvedHost))
+            owner->m_pinTried.remove(unresolvedHost);
+        owner->fetchImage(lifetime->job, pageIndex, attempt + 1);
+    });
 }
 
 // A downloaded page must be a REAL image. Some sources soft-block a bursty client by
@@ -951,15 +1411,19 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt,
                                   QUrl requestUrl, int redirectDepth)
 {
     if (job->cancelled) { job->inFlight--; if (job->inFlight == 0) finalizeCancel(job); return; }
+    if (job->live && job->failedFlag) {
+        job->liveInFlight.remove(pageIndex);
+        --job->inFlight;
+        schedulePumps();
+        return;
+    }
 
     const bool qualified = TankoyomiIdentity::isQualifiedChapter(job->chapterId);
     const QString policy = qualified && m_tankoyomi
         ? m_tankoyomi->pageAccessPolicyForChapter(job->chapterId) : QString();
     if (requestUrl.isEmpty()) requestUrl = QUrl(job->pages[pageIndex].imageUrl);
     if (qualified && !TankoyomiNetworkPolicy::pageUrlAllowedBeforeDns(requestUrl, policy)) {
-        job->failedFlag = true;
-        --job->inFlight;
-        pumpImages(job);
+        imageFailed(job, pageIndex, QStringLiteral("The image address or DNS result is not allowed for this source."));
         return;
     }
     const QString host = requestUrl.host().toLower();
@@ -986,10 +1450,12 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt,
     // "Failed"). Resolve + cache their real IPv4 on first use so every page fetch takes the
     // working IPv4 route — the same fix every other host in the app already has.
     const QString ipv4 = m_pins.value(host);
+    if (qualified && job->live && ipv4.isEmpty() && attempt + 1 < MAX_IMAGE_RETRIES) {
+        retryImageLater(job, pageIndex, attempt, host);
+        return;
+    }
     if (qualified && !TankoyomiNetworkPolicy::resolvedAddressAllowed(QHostAddress(ipv4), policy)) {
-        job->failedFlag = true;
-        --job->inFlight;
-        pumpImages(job);
+        imageFailed(job, pageIndex, QStringLiteral("The image address or DNS result is not allowed for this source."));
         return;
     }
     if (!ipv4.isEmpty()) {
@@ -1002,9 +1468,12 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt,
 
     QNetworkReply* reply = m_nam->get(req);
     job->replies.append(reply);
+    const auto lifetime = job->lifetime;
     connect(reply, &QNetworkReply::finished, this,
-            [this, job, pageIndex, attempt, reply, qualified, policy, requestUrl, redirectDepth]() {
+            [this, lifetime, pageIndex, attempt, reply, qualified, policy, requestUrl, redirectDepth]() {
         reply->deleteLater();
+        Job* job = lifetime ? lifetime->job : nullptr;
+        if (!job) return;
         job->replies.removeOne(reply);
         if (job->cancelled) { job->inFlight--; if (job->inFlight == 0) finalizeCancel(job); return; }
         const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
@@ -1013,9 +1482,7 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt,
             const QUrl next = requestUrl.resolved(location);
             if (redirectDepth >= 5 || location.isEmpty() || !location.isValid()
                 || !TankoyomiNetworkPolicy::pageUrlAllowedBeforeDns(next, policy)) {
-                job->failedFlag = true;
-                --job->inFlight;
-                pumpImages(job);
+                imageFailed(job, pageIndex, QStringLiteral("The source returned an unsafe image redirect."));
                 return;
             }
             fetchImage(job, pageIndex, attempt, next, redirectDepth + 1);
@@ -1041,9 +1508,7 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt,
 
         // failure path (SoftBlock + Error alike): retry with 2/4/8s backoff, then mark failed
         if (attempt + 1 < MAX_IMAGE_RETRIES) {
-            const int backoffMs = 2000 << attempt;
-            QTimer::singleShot(backoffMs, this,
-                               [this, job, pageIndex, attempt]() { fetchImage(job, pageIndex, attempt + 1); });
+            retryImageLater(job, pageIndex, attempt);
             return;   // slot stays held across the backoff
         }
         // Diagnostic: name the CDN host + the real Qt transport error, so an intermittent
@@ -1054,9 +1519,10 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt,
                  qUtf8Printable(QUrl(job->pages[pageIndex].imageUrl).host()),
                  int(reply->error()), qUtf8Printable(reply->errorString()),
                  qUtf8Printable(ct), static_cast<long long>(data.size()));
-        job->failedFlag = true;
-        job->inFlight--;
-        pumpImages(job);
+        imageFailed(job, pageIndex, verdict == PageVerdict::SoftBlock
+            ? QStringLiteral("The source returned a non-image response. Reading is paused; retry this page.")
+            : QStringLiteral("Page %1 failed after %2 attempts: %3")
+                .arg(pageIndex + 1).arg(MAX_IMAGE_RETRIES).arg(reply->errorString()));
     });
 }
 
@@ -1064,10 +1530,25 @@ void MangaDownloader::saveImageAsync(Job* job, int pageIndex, int attempt,
                                      const QString& fileName, const QByteArray& data)
 {
     const QString outputPath = job->dir + QStringLiteral("/") + fileName;
-    const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
-    QtConcurrent::run([outputPath, data]() {
-        QSaveFile out(outputPath);
+    const QString chapterPath = job->dir;
+    const QString cacheRoot = liveCacheDir();
+    const bool live = job->live;
+    const auto mutex = m_liveCacheMutex;
+    const auto lifetime = job->lifetime;
+    QtConcurrent::run([outputPath, chapterPath, cacheRoot, data, live, mutex]() {
         ImageSaveResult result;
+        // Check the actual pixels before publishing a live page. A valid header
+        // alone can still be followed by a truncated or corrupt image.
+        if (live && QImage::fromData(data).isNull()) {
+            result.invalidImage = true;
+            return result;
+        }
+        QMutexLocker lock(live ? mutex.get() : nullptr);
+        if (live && !trimLiveCache(cacheRoot, chapterPath, data.size())) {
+            result.cacheFull = true;
+            return result;
+        }
+        QSaveFile out(outputPath);
         if (out.open(QIODevice::WriteOnly) && out.write(data) == data.size() && out.commit()) {
             result.success = true;
             result.size = data.size();
@@ -1078,33 +1559,29 @@ void MangaDownloader::saveImageAsync(Job* job, int pageIndex, int attempt,
         if (!job || job->cancelled) {
             if (job) {
                 --job->inFlight;
-                if (job->inFlight == 0)
-                    finalizeCancel(job);
+                if (job->inFlight == 0) finalizeCancel(job);
             }
             return;
         }
-        if (result.success) {
-            onImageSaved(job, pageIndex, fileName, result.size);
+        if (result.success) { onImageSaved(job, pageIndex, fileName, result.size); return; }
+        if (result.cacheFull) {
+            imageFailed(job, pageIndex, QStringLiteral("The temporary chapter cache is full. Use Download to keep this chapter."));
             return;
         }
         if (attempt + 1 < MAX_IMAGE_RETRIES) {
-            const int backoffMs = 2000 << attempt;
-            QTimer::singleShot(backoffMs, this,
-                               [this, job, pageIndex, attempt]() {
-                fetchImage(job, pageIndex, attempt + 1);
-            });
+            retryImageLater(job, pageIndex, attempt);
             return;
         }
-        job->failedFlag = true;
-        --job->inFlight;
-        pumpImages(job);
+        imageFailed(job, pageIndex, result.invalidImage
+            ? QStringLiteral("The source returned a corrupt image. Retry this page.")
+            : QStringLiteral("Could not save this chapter page. Check available disk space, then retry."));
     });
 }
 
 void MangaDownloader::queueImageForHost(Job* job, int pageIndex, int attempt,
                                          const QString& host, QUrl requestUrl, int redirectDepth)
 {
-    m_pendingPinRequests[host].append(PendingImageRequest{job, pageIndex, attempt, requestUrl, redirectDepth});
+    m_pendingPinRequests[host].append(PendingImageRequest{job->lifetime, pageIndex, attempt, requestUrl, redirectDepth});
     if (m_pinLookupInFlight.contains(host)) return;
 
     m_pinTried.insert(host);
@@ -1124,12 +1601,12 @@ void MangaDownloader::queueImageForHost(Job* job, int pageIndex, int attempt,
 
         const QList<PendingImageRequest> pending = m_pendingPinRequests.take(host);
         for (const PendingImageRequest& request : pending) {
-            // Every pending request is removed before its Job can be destroyed
-            // (cancelDownload and cleanupJob both call removePendingImageRequests).
-            // Keep this active-map check as a second lifetime fence.
-            if (!request.job || m_active.value(request.job->chapterId, nullptr) != request.job)
+            // A preceding request can synchronously fail and close the reader
+            // while this batch is already out of the pending map.
+            Job* job = request.lifetime->job;
+            if (!jobIsActive(job))
                 continue;
-            fetchImage(request.job, request.pageIndex, request.attempt,
+            fetchImage(job, request.pageIndex, request.attempt,
                        request.requestUrl, request.redirectDepth);
         }
     });
@@ -1147,7 +1624,7 @@ void MangaDownloader::removePendingImageRequests(Job* job)
         retained.reserve(it.value().size());
         int removed = 0;
         for (const PendingImageRequest& request : it.value()) {
-            if (request.job == job)
+            if (request.lifetime == job->lifetime)
                 ++removed;
             else
                 retained.append(request);
@@ -1172,19 +1649,32 @@ void MangaDownloader::removePendingImageRequests(Job* job)
 
 void MangaDownloader::onImageSaved(Job* job, int pageIndex, const QString& fileName, qint64 size)
 {
+    const auto lifetime = job->lifetime;
     job->files[pageIndex] = fileName;
     job->done++;
     job->bytes += size;
     job->inFlight--;
+    if (job->live) {
+        job->liveInFlight.remove(pageIndex);
+        job->liveFailedPages.remove(pageIndex);
+        emit livePageReady(job->chapterId, pageIndex,
+            QUrl::fromLocalFile(job->dir + QLatin1Char('/') + fileName).toString(), job->liveToken);
+        if (!lifetime->job || job->cancelled) return;
+        pumpImages(job);
+        return;
+    }
     emit progress(job->chapterId, job->done, job->total);
+    if (!lifetime->job || job->cancelled) return;
     if (job->done == job->total) { finishJob(job); return; }
     pumpImages(job);
+    schedulePumps();
 }
 
 void MangaDownloader::finishJob(Job* job)
 {
+    if (job->live) return; // even a fully cached live chapter is not an acquired chapter
     writeEntry(job);
-    qInfo("[downloads] finished '%s' — %d pages, %.1f MB",
+    qInfo("[downloads] finished '%s' - %d pages, %.1f MB",
           qUtf8Printable(job->chapterId), job->total, double(job->bytes) / (1024.0 * 1024.0));
     const QString id = job->chapterId;
     cleanupJob(job);
@@ -1193,7 +1683,14 @@ void MangaDownloader::finishJob(Job* job)
 
 void MangaDownloader::failJob(Job* job, const QString& reason)
 {
-    // keep partial files on disk so a re-download resumes instead of restarting
+    if (job->live) {
+        job->failedFlag = true;
+        job->liveError = reason;
+        job->liveFailedPages.insert(-1);
+        emit liveFailed(job->chapterId, -1, reason, job->liveToken);
+        return;
+    }
+    // Keep partial files on disk so a re-download resumes instead of restarting.
     qWarning("[downloads] FAILED '%s': %s", qUtf8Printable(job->chapterId), qUtf8Printable(reason));
     const QString id = job->chapterId;
     cleanupJob(job);
@@ -1205,12 +1702,18 @@ void MangaDownloader::cleanupJob(Job* job)
     if (job->lifetime) job->lifetime->job = nullptr;
     job->scraperPending = false;
     removePendingImageRequests(job);
-    m_active.remove(job->chapterId);
+    if (job->live) {
+        if (m_liveJob == job) m_liveJob = nullptr;
+        m_stoppingLiveJobs.remove(job);
+    } else {
+        m_active.remove(job->chapterId);
+    }
     if (job->scraper) job->scraper->deleteLater();
     if (job->pageResolverScope) {
         job->pageResolverScope->deleteLater();
         job->pageResolverScope = nullptr;
     }
     delete job;
-    pumpQueue();   // free slot -> start the next queued chapter
+    pumpQueue(); // Preserve permanent cancellation's queue-before-removed signal contract.
+    schedulePumps();
 }

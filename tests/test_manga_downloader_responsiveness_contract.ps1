@@ -6,7 +6,7 @@ $header = Get-Content (Join-Path $PSScriptRoot '..\native\engine\MangaDownloader
 if ($source -notmatch 'startResumeScan\(job\)') {
     throw 'MangaDownloader must defer the resume filesystem scan.'
 }
-if ($source -notmatch 'QtConcurrent::run\(\[dirPath, total\]') {
+if ($source -notmatch 'QtConcurrent::run\(\[dirPath,[^\]]*\btotal\b[^\]]*\]\(\)') {
     throw 'Resume scanning must run on the worker pool.'
 }
 if ($source -notmatch 'lifetime \? lifetime->job : nullptr') {
@@ -18,7 +18,7 @@ if ($source -notmatch 'if \(!job \|\| job->cancelled\)') {
 if ($source -notmatch 'saveImageAsync\(job, pageIndex, attempt, name, data\)') {
     throw 'Accepted image bytes must use the asynchronous publication seam.'
 }
-if ($source -notmatch 'QtConcurrent::run\(\[outputPath, data\]') {
+if ($source -notmatch 'QtConcurrent::run\(\[outputPath,[^\]]*\bdata\b[^\]]*\]\(\)') {
     throw 'Image publication must run QSaveFile on the worker pool.'
 }
 if ($source -notmatch 'onImageSaved\(job, pageIndex, fileName, result\.size\)') {
@@ -48,8 +48,12 @@ if ($header -notmatch 'struct IndexWriteResult') {
 if ($source -notmatch 'runWhenIndexIdle\(\[this, realDir\]') {
     throw 'The index self-test must await async persistence without blocking the owner thread.'
 }
-if ($source -notmatch 'QFutureWatcher<DownloadFileOps::Result>') {
-    throw 'Cancelled partial cleanup must use an asynchronous result watcher.'
+# Both Qt owner-thread delivery mechanisms preserve the asynchronous cleanup contract.
+# The production owner uses a lifetime-guarded future continuation; requiring a
+# particular watcher class or an exact capture list rejects equivalent safe code.
+if ($source -notmatch 'QFutureWatcher<DownloadFileOps::Result>' -and
+    $source -notmatch '\}\)\.then\(this, \[this, lifetime, id\]\(DownloadFileOps::Result result\)') {
+    throw 'Cancelled partial cleanup must deliver its result on the owner thread.'
 }
 if ($source -notmatch 'QtConcurrent::run\(\[dir, remover\]') {
     throw 'Cancelled partial cleanup must run the recursive delete on the worker pool.'

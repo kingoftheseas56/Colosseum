@@ -2437,7 +2437,16 @@ add_executable(manga_downloader_cancel_harness
     engine/TankoyomiScriptProvider.h
 )
 target_include_directories(manga_downloader_cancel_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(manga_downloader_cancel_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Qml)
+target_link_libraries(manga_downloader_cancel_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent Qt6::Qml)
+
+# The live fixture exercises the same acquisition/crypto owners, not a second transport.
+get_target_property(MANGA_LIVE_TEST_SOURCES manga_downloader_cancel_harness SOURCES)
+list(REMOVE_ITEM MANGA_LIVE_TEST_SOURCES ../tests/manga_downloader_cancel_harness.cpp)
+add_executable(manga_live_reading_harness
+    ../tests/manga_live_reading_harness.cpp engine/MangaDownloader.cpp ${MANGA_LIVE_TEST_SOURCES})
+target_include_directories(manga_live_reading_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(manga_live_reading_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent Qt6::Qml)
+
 
 add_executable(tankoyomi_page_security_harness
     engine/TankoyomiSeriesMatcher.cpp
@@ -2467,7 +2476,7 @@ add_executable(tankoyomi_page_security_harness
     engine/TankoyomiScriptProvider.h
 )
 target_include_directories(tankoyomi_page_security_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(tankoyomi_page_security_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Qml)
+target_link_libraries(tankoyomi_page_security_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent Qt6::Qml)
 
 qt_add_resources(tankoyomi_page_security_harness "tankoyomi_page_security_resources"
     PREFIX "/"
@@ -3127,6 +3136,14 @@ target_include_directories(comicreader_core_harness PRIVATE ${CMAKE_CURRENT_SOUR
 # argument now that the tier rides on a default argument.
 target_link_libraries(comicreader_core_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
 
+get_target_property(COMICREADER_LIVE_TEST_SOURCES comicreader_core_harness SOURCES)
+list(REMOVE_ITEM COMICREADER_LIVE_TEST_SOURCES ../tests/comicreader_core_harness.cpp)
+add_executable(comicreader_live_pages_harness
+    ../tests/comicreader_live_pages_harness.cpp ${COMICREADER_LIVE_TEST_SOURCES})
+target_include_directories(comicreader_live_pages_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_live_pages_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
+
+
 # ── Comic Reader overhaul (plan 2026-07-28, Task 1): the image-provider seam on
 #    its own. Isolates ComicReaderProvider + ComicReaderImageResponse against a
 #    hand-filled page cache and a bare live-generation atomic — no core, no
@@ -3405,7 +3422,7 @@ foreach(tankoyomi_runtime_target IN ITEMS
     tankoyomi_script_provider_transport_harness tankoyomi_worker_transport_harness
     tankoyomi_service_runtime_harness tankoyomi_service_configuration_harness
     tankoyomi_provider_attempt_timeout_harness tankoyomi_provider_live_harness
-    tankoyomi_page_security_harness manga_downloader_cancel_harness)
+    tankoyomi_page_security_harness manga_downloader_cancel_harness manga_live_reading_harness)
     target_sources(${tankoyomi_runtime_target} PRIVATE update/UpdateTrust.cpp)
     target_link_libraries(${tankoyomi_runtime_target} PRIVATE tankoyomi_addon_store colosseum_update_crypto)
 endforeach()
