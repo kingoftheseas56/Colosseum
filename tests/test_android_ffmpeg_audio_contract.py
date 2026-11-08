@@ -42,10 +42,13 @@ def main() -> None:
     assert "MEDIA_COMMIT=2bc207851df311340767e913931ca7b28cab1794" in build_script
     assert "FFMPEG_COMMIT=ea3d24bbe3c58b171e55fe2151fc7ffaca3ab3d2" in build_script
     for flag in ("--disable-gpl", "--disable-nonfree",
-                 "--disable-version3", "--disable-everything"):
+                 "--disable-version3", "--disable-iconv", "--disable-everything"):
         assert flag in build_script, f"Missing required LGPL boundary: {flag}"
     assert "ac3 eac3 dca truehd mlp" in build_script
     assert "CONFIG_" in build_script
+    assert "CONFIG_(GPL|NONFREE|VERSION3|ICONV)" in build_script
+    assert "gradle-9.1.0-bin.zip" in build_script
+    assert "networkTimeout=120000" in build_script
     assert ":lib-decoder-ffmpeg:assembleRelease" in build_script
     assert "libffmpegJNI.so" in build_script
     assert "media3-ffmpeg-lgpl-1.11.0.aar" in apk_script
