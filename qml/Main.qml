@@ -4945,11 +4945,48 @@ Window {
                 required property string mode
                 anchors.fill: parent
                 visible: worldStack.current === mode && !win.immersiveSurfaceOpen
-                // Android builds a world page for several seconds on first entry. Say so
-                // instead of leaving a bare wallpaper; desktop is unchanged.
+                // Cover the wallpaper while the Universes catalogue is being built.
+                Rectangle {
+                    id: universesLoading
+                    anchors.fill: parent
+                    z: 1
+                    color: "#101118"
+                    opacity: 0
+                    visible: opacity > 0
+                    state: worldLoader.mode === "Universes" && worldLoader.visible
+                           ? (worldLoader.status === Loader.Ready ? "ready" : "waiting")
+                           : ""
+                    states: [
+                        State {
+                            name: "waiting"
+                            PropertyChanges { universesLoading.opacity: 1 }
+                        },
+                        State { name: "ready" }
+                    ]
+                    transitions: Transition {
+                        from: "waiting"
+                        to: "ready"
+                        enabled: !win.reducedMotion
+                        NumberAnimation { property: "opacity"; duration: 160; easing.type: Easing.OutCubic }
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        width: Math.min(implicitWidth, Math.max(0, parent.width - 32))
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: worldLoader.status === Loader.Error
+                              ? qsTr("Couldn’t open Universes.") : qsTr("Opening Universes…")
+                        color: "#c9c8d0"
+                        font.family: "Segoe UI"
+                        font.pixelSize: 14
+                    }
+                }
+                // Android shows loading text in the other worlds.
                 Text {
                     anchors.centerIn: parent
-                    visible: Qt.platform.os === "android" && worldLoader.status !== Loader.Ready
+                    visible: Qt.platform.os === "android" && worldLoader.mode !== "Universes"
+                             && worldLoader.status !== Loader.Ready
                     text: qsTr("Loading %1…").arg(worldLoader.mode)
                     color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: 14
                 }
