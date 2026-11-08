@@ -88,10 +88,25 @@ cmake -S "$work/sdk-probe" -B "$work/sdk-probe-build" -G Ninja \
 printf 'QT_PREFIX=%s\n' "$qtbase"
 export PKG_CONFIG_PATH="$(brew --prefix mpv)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 pkg-config --modversion mpv
-# MpvQt 1.2 finds client.h inside include/mpv, but its source includes
-# <mpv/client.h>. Supply the parent include root to both dependency consumers.
-mpv_include="$(brew --prefix mpv)/include"
-[[ -f "$mpv_include/mpv/client.h" ]] || fail "Homebrew libmpv header missing: $mpv_include/mpv/client.h"
+# MpvQt 1.2's FindLibmpv discovers include/mpv via <client.h>, but its
+# public headers include <mpv/client.h>. Validate the real installed tree,
+# then give both CMake consumers the public include root explicitly.
+mpv_prefix=$(brew --prefix mpv)
+mpv_reported_include=$(pkg-config --variable=includedir mpv)
+[[ -n "$mpv_reported_include" ]] || fail 'mpv pkg-config did not report includedir'
+source "$repo/tools/macos-build/libmpv-include-root.sh"
+mpv_include=$(colosseum_libmpv_include_root "$mpv_reported_include") || fail 'Invalid libmpv public headers'
+printf 'LIBMPV_PREFIX=%s\nLIBMPV_REPORTED_INCLUDE=%s\nLIBMPV_INCLUDE_ROOT=%s\n' "$mpv_prefix" "$mpv_reported_include" "$mpv_include"
+pkg-config --cflags --libs mpv
+find "$mpv_prefix/include" -type f \( -name client.h -o -name render_gl.h \) -print
+cat > "$work/libmpv-header-probe.cpp" <<'CPP'
+#include <mpv/client.h>
+#include <mpv/render_gl.h>
+int main() { return 0; }
+CPP
+xcrun clang++ -std=c++20 -arch arm64 -mmacosx-version-min="$deployment" \
+    -isystem "$mpv_include" -fsyntax-only "$work/libmpv-header-probe.cpp"
+printf 'LIBMPV_PUBLIC_HEADER_PROBE=PASS\n'
 jobs=${COLOSSEUM_BUILD_JOBS:-2}
 [[ $jobs =~ ^[1-9][0-9]*$ ]] || fail 'COLOSSEUM_BUILD_JOBS must be a positive integer'
 deps="$work/deps"
@@ -127,8 +142,8 @@ cmake -S "$repo/native" -B "$work/app" -G Ninja \
     -DBUILD_TESTING=OFF -DCOLOSSEUM_BUILD_PLAYER2=OFF \
     -DCMAKE_PREFIX_PATH="$qtbase;$deps;$(brew --prefix libtorrent-rasterbar);$(brew --prefix boost);$(brew --prefix openssl@3)" \
     -DQT_ADDITIONAL_PACKAGES_PREFIX_PATH="$qtbase" \
-    -DLibmpv_INCLUDE_DIRS:PATH="$mpv_include" \
     -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" -DMPVQT_PREFIX="$deps" \
+    -DLibmpv_INCLUDE_DIRS:PATH="$mpv_include" \
     -DCOLOSSEUM_FERIA_IN_APP=OFF -DCOLOSSEUM_VINYL_IN_APP=OFF \
     -DCOLOSSEUM_PLAYER2_IN_APP=OFF -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF \
     -DCOLOSSEUM_UPDATE_TESTING=OFF -DCOLOSSEUM_ENABLE_VINYL_QUALIFICATION=OFF \

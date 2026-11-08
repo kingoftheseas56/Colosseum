@@ -1,0 +1,61 @@
+name: Repackage pinned Mac alpha as ZIP and DMG
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/macos-ci-rescue-dots-20261101']
+    paths:
+      - '.github/workflows/package-macos-alpha.yml'
+      - 'tools/macos-distribution/package-distribution.py'
+      - 'tools/macos-distribution/test_package_distribution.py'
+      - 'tools/macos-distribution/assets/**'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  distribution:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - name: Distribution helper regressions
+        run: python3 tools/macos-distribution/test_package_distribution.py
+      - name: Receive verified app and create matching signed ZIP and DMG
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/colosseum-distribution-$GITHUB_RUN_ID"
+          echo "DISTRIBUTION_OUTPUT=$output" >> "$GITHUB_ENV"
+          python3 tools/macos-distribution/package-distribution.py "$output" 2>&1 | tee "$RUNNER_TEMP/distribution.log"
+      - name: Upload ZIP option
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Colosseum-1.2.0-macOS-arm64-alpha-ZIP
+          retention-days: 14
+          compression-level: 0
+          path: |
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.zip
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.zip.sha256
+      - name: Upload DMG option
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Colosseum-1.2.0-macOS-arm64-alpha-DMG
+          retention-days: 14
+          compression-level: 0
+          path: |
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.dmg
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.dmg.sha256
+      - name: Upload qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Colosseum-1.2.0-macOS-arm64-alpha-evidence
+          retention-days: 14
+          compression-level: 0
+          path: |
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.json
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.log
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.png
+            ${{ runner.temp }}/distribution.log

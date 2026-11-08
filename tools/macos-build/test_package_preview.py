@@ -7,6 +7,9 @@ import plistlib
 import subprocess
 import sys
 import tempfile
+import zipfile
+import stat
+import json
 from types import SimpleNamespace
 import unittest
 from unittest.mock import MagicMock, patch
@@ -33,6 +36,169 @@ class PackagingBoundary(unittest.TestCase):
             self.assertIn('/usr/lib/libSystem.B.dylib', dependencies)
             self.assertTrue(all(package.system_path(dependency) for dependency in dependencies))
             self.assertEqual(rpaths, [])
+
+    def test_sqlite_only_deployment_retains_required_driver_and_audits_omissions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory) / 'Colosseum.app'
+            drivers = app / 'Contents/PlugIns/sqldrivers'
+            drivers.mkdir(parents=True)
+            for name in ('libqsqlite.dylib', 'libqsqlpsql.dylib', 'libqsqlmimer.dylib', 'libqsqlodbc.dylib'):
+                (drivers / name).write_bytes(name.encode())
+            report = package.select_sqlite_driver(app)
+            self.assertEqual(report['retained'], ['libqsqlite.dylib'])
+            self.assertEqual(len(report['omitted']), 3)
+            self.assertEqual(list(drivers.iterdir()), [drivers / 'libqsqlite.dylib'])
+            self.assertEqual((drivers / 'libqsqlite.dylib').read_bytes(), b'libqsqlite.dylib')
+
+    def test_sqlite_policy_fails_closed_without_required_plugin_or_on_unexpected_entry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory) / 'Colosseum.app'
+            with self.assertRaises(RuntimeError):
+                package.select_sqlite_driver(app)
+            drivers = app / 'Contents/PlugIns/sqldrivers'
+            drivers.mkdir(parents=True)
+            (drivers / 'libqsqlpsql.dylib').write_bytes(b'postgres')
+            with self.assertRaises(RuntimeError):
+                package.select_sqlite_driver(app)
+            self.assertTrue((drivers / 'libqsqlpsql.dylib').exists())
+            (drivers / 'libqsqlite.dylib').write_bytes(b'sqlite')
+            (drivers / 'unreviewed.dylib').write_bytes(b'unknown')
+            with self.assertRaises(RuntimeError):
+                package.select_sqlite_driver(app)
+            self.assertTrue((drivers / 'libqsqlpsql.dylib').exists())
+
+    def test_archive_crc_paths_and_contained_framework_symlinks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archive = Path(directory) / 'preview.zip'
+            with zipfile.ZipFile(archive, 'w') as z:
+                z.writestr('Colosseum.app/Contents/MacOS/colosseum', b'executable')
+                z.writestr('Colosseum.app/Contents/Frameworks/QtCore.framework/Versions/A/QtCore', b'dylib')
+                link = zipfile.ZipInfo('Colosseum.app/Contents/Frameworks/QtCore.framework/Versions/Current')
+                link.create_system = 3
+                link.external_attr = (stat.S_IFLNK | 0o777) << 16
+                z.writestr(link, 'A')
+                alias = zipfile.ZipInfo('Colosseum.app/Contents/Frameworks/QtCore.framework/QtCore')
+                alias.create_system = 3
+                alias.external_attr = (stat.S_IFLNK | 0o777) << 16
+                z.writestr(alias, 'Versions/Current/QtCore')
+                z.writestr('__MACOSX/Colosseum.app/Contents/._Info.plist', b'resource-fork')
+            result = package.verify_archive(archive)
+            self.assertEqual(result['status'], 'PASS')
+            self.assertEqual(result['members'], 5)
+            self.assertEqual(result['symlinks'], 2)
+
+    def test_archive_rejects_unsafe_members_and_symlink_escapes(self):
+        cases = [('/tmp/escape', b'x', False), ('../escape', b'x', False),
+                 ('Colosseum.app/../escape', b'x', False), ('wrong.app/file', b'x', False),
+                 ('Colosseum.app/Contents/link', b'../../../outside', True),
+                 ('Colosseum.app/Contents/link', b'/tmp/outside', True),
+                 ('Colosseum.app/Contents/link', b'..\\..\\outside', True)]
+        for name, value, symbolic in cases:
+            with self.subTest(name=name, value=value), tempfile.TemporaryDirectory() as directory:
+                archive = Path(directory) / 'preview.zip'
+                with zipfile.ZipFile(archive, 'w') as z:
+                    entry = zipfile.ZipInfo(name)
+                    if symbolic:
+                        entry.create_system = 3
+                        entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+                    z.writestr(entry, value)
+                with self.assertRaises(RuntimeError):
+                    package.verify_archive(archive)
+
+    def test_archive_rejects_collisions_and_children_below_symlinks(self):
+        for names in [('Colosseum.app/File', 'Colosseum.app/file'),
+                      ('Colosseum.app/File', 'Colosseum.app/File'),
+                      ('Colosseum.app/Contents/link', 'Colosseum.app/Contents/link/child')]:
+            with self.subTest(names=names), tempfile.TemporaryDirectory() as directory:
+                archive = Path(directory) / 'preview.zip'
+                with zipfile.ZipFile(archive, 'w') as z:
+                    for name in names:
+                        entry = zipfile.ZipInfo(name)
+                        if name.endswith('/link'):
+                            entry.create_system = 3
+                            entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+                        z.writestr(entry, b'other')
+                with self.assertRaises(RuntimeError):
+                    package.verify_archive(archive)
+
+    def test_archive_resolves_symlink_chains_before_parent_traversal(self):
+        cases = [
+            {'Colosseum.app/B': '.', 'Colosseum.app/Contents/Frameworks/A': '../../B/../outside'},
+            {'Colosseum.app/A': 'B', 'Colosseum.app/B': 'A'},
+        ]
+        for links in cases:
+            with self.subTest(links=links), tempfile.TemporaryDirectory() as directory:
+                archive = Path(directory) / 'preview.zip'
+                with zipfile.ZipFile(archive, 'w') as z:
+                    z.writestr('Colosseum.app/Contents/MacOS/colosseum', b'executable')
+                    for name, target in links.items():
+                        entry = zipfile.ZipInfo(name)
+                        entry.create_system = 3
+                        entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+                        z.writestr(entry, target)
+                with self.assertRaises(RuntimeError):
+                    package.verify_archive(archive)
+
+    def test_archive_checks_crc(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archive = Path(directory) / 'preview.zip'
+            with zipfile.ZipFile(archive, 'w', zipfile.ZIP_STORED) as z:
+                z.writestr('Colosseum.app/file', b'UNIQUE-PAYLOAD')
+            archive.write_bytes(archive.read_bytes().replace(b'UNIQUE-PAYLOAD', b'CORRUPT-BYTES!'))
+            with self.assertRaises(RuntimeError):
+                package.verify_archive(archive)
+
+    def test_window_capture_requires_png_inside_isolated_run_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / 'profile'
+            run = data / 'lanista/runs/test'
+            run.mkdir(parents=True)
+            image = run / 'frame.png'
+            image.write_bytes(b'\x89PNG\r\n\x1a\n' + (13).to_bytes(4, 'big') + b'IHDR'
+                              + (1280).to_bytes(4, 'big') + (720).to_bytes(4, 'big'))
+            state = dict(appDataRoot=str(data), runDir=str(run), grabPath=str(image))
+            output = root / 'output'
+            output.mkdir()
+            record = package.copy_window_capture(state, output)
+            self.assertEqual(record['status'], 'PASS')
+            self.assertEqual((output / 'runtime-window.png').read_bytes(), image.read_bytes())
+            outside = root / 'outside.png'
+            outside.write_bytes(image.read_bytes())
+            with self.assertRaises(RuntimeError):
+                package.copy_window_capture(dict(state, grabPath=str(outside)), output)
+            alias = run / 'alias.png'
+            alias.symlink_to(outside)
+            with self.assertRaises(RuntimeError):
+                package.copy_window_capture(dict(state, grabPath=str(alias)), output)
+            image.write_bytes(b'not PNG')
+            with self.assertRaises(RuntimeError):
+                package.copy_window_capture(state, output)
+
+    def test_smoke_requires_actual_tagged_roots(self):
+        tag = 'mac-preview-123'
+        name = 'Colosseum-dltest-' + tag
+        valid = {'appDataRoot': '/Users/test/Library/Application Support/' + name,
+                 'cacheRoot': '/Users/test/Library/Caches/' + name}
+        self.assertTrue(package.isolated_roots(valid, tag))
+        for key in valid:
+            for wrong in ('', 'relative/' + name, '/Users/test/Library/Colosseum',
+                          '/Users/test/' + name + '/personal'):
+                changed = dict(valid, **{key: wrong})
+                self.assertFalse(package.isolated_roots(changed, tag))
+
+    def test_smoke_persists_failed_version_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            result = subprocess.CompletedProcess([], 1, stdout='', stderr='dyld failure')
+            with patch.object(package, 'verify_archive', return_value={'status': 'PASS'}), \
+                    patch.object(package, 'run'), patch.object(package.subprocess, 'run', return_value=result), \
+                    self.assertRaises(RuntimeError):
+                package.smoke(output)
+            report = json.loads((output / 'runtime-smoke.json').read_text())
+            self.assertEqual(report['version'], 'FAIL')
+            self.assertEqual(report['gui'], 'NOT RUN')
+            self.assertIn('dyld failure', report['error'])
 
     def webengine_fixture(self, root):
         app = root / 'Colosseum.app'
