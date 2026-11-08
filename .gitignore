@@ -106,5 +106,6 @@ tests/_reality_shelves.txt
 .superpowers/
 worlds/node_modules/
 
-# LGPL-only Android FFmpeg decoder AAR is locally generated, not vendored.
-/native/platform/android/libs/media3-ffmpeg-lgpl-1.11.0.aar
+# LGPL-only FFmpeg JNI binaries and upstream Apache-2.0 Java are locally staged.
+/native/platform/android/libs/*/libffmpegJNI.so
+/native/platform/android/src/androidx/media3/decoder/ffmpeg/*.java
