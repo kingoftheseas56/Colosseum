@@ -84,7 +84,8 @@ Item {
     readonly property int episodeContentHeight: page.episodes.length * page.compactEpisodeRowHeight
                                                 + (page.nextUpEpisodeIndex >= 0
                                                    ? page.nextUpEpisodeRowHeight - page.compactEpisodeRowHeight : 0)
-    readonly property real episodeVirtualContentY: episodeVirtualSpace.mapToItem(pageCol, 0, 0).y
+    // Bind to the positioners' coordinates so the window follows changes above the rows.
+    readonly property real episodeVirtualContentY: episodesSection.y + episodesCol.y + episodeVirtualSpace.y
     readonly property real episodeWindowLocalTop: flick.contentY - page.episodeVirtualContentY
     readonly property real episodeWindowLocalBottom: page.episodeWindowLocalTop + flick.height
     readonly property int episodeWindowStart: page.computeEpisodeWindowStart()
@@ -721,9 +722,7 @@ Item {
     // section instead of resetting the list's own scroll (there is no list-owned scroll
     // any more) — the sticky chrome anchors itself there once flick.contentY reaches it.
     function scrollToEpisodesTop() {
-        // -72: the chrome pins at y 72 (Back clearance), so the placeholder must stop
-        // there, not at y 0 — otherwise row 0 tucks under the pinned band.
-        var top = ledgerPlaceholder.mapToItem(pageCol, 0, 0).y - titleBar.height
+        var top = ledgerBarFloat.placeholderContentY - titleBar.height
         flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, top))
     }
 
@@ -1000,7 +999,9 @@ Item {
     // =====================================================================================
 
     readonly property color focusGold: Qt.rgba(0.94, 0.77, 0.29, 1.0)
-    readonly property int ledgerBarHeight: page.phoneNarrow ? ledgerLeft.implicitHeight + ledgerRight.implicitHeight + 38 : 56
+    readonly property int ledgerBarHeight: ledgerBarFloat.stackControls
+        ? ledgerLeft.implicitHeight + ledgerRight.implicitHeight + 38
+        : Math.max(56, Math.max(ledgerLeft.implicitHeight, ledgerRight.implicitHeight) + 16)
     readonly property int episodeRangeSize: 100
     readonly property bool longRun: page.episodes.length > page.episodeRangeSize
     property bool synopsisExpanded: false
@@ -1778,7 +1779,7 @@ Item {
         }
     }
 
-    // ---- the ledger's one-line sticky bar: order · season · Next · Download season · Go to ----
+    // ---- the ledger's sticky bar: order · season · Download season · Next · Go to ----
     Item {
         id: ledgerBarFloat
         objectName: "theatreLedgerBar"
@@ -1786,7 +1787,10 @@ Item {
         width: page.width
         height: page.ledgerBarHeight
         visible: page.mediaType === "series" && page.videos.length > 0 && !page.loading
-        readonly property real placeholderContentY: (pageCol.height, ledgerPlaceholder.mapToItem(pageCol, 0, 0).y)
+        readonly property real controlsWidth: Math.max(0, width - 2 * page.bodyInset)
+        readonly property bool stackControls: page.phoneNarrow
+            || (ledgerRight.width > 0 && controlsWidth < ledgerRight.width + ledgerLeft.spacing + 160)
+        readonly property real placeholderContentY: episodesSection.y + episodesCol.y + ledgerPlaceholder.y
         readonly property bool pinned: flick.contentY > (placeholderContentY - titleBar.height)
         y: Math.max(titleBar.height, placeholderContentY - flick.contentY)
 
@@ -1802,13 +1806,13 @@ Item {
         Flow {
             id: ledgerLeft
             x: page.bodyInset
-            width: page.phoneNarrow ? page.width - 2 * page.bodyInset : implicitWidth
-            anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
-            y: page.phoneNarrow ? 8 : 0
+            width: ledgerBarFloat.stackControls ? ledgerBarFloat.controlsWidth
+                                               : ledgerBarFloat.controlsWidth - ledgerRight.width - spacing
+            y: ledgerBarFloat.stackControls ? 8 : (parent.height - implicitHeight) / 2
             spacing: page.phoneNarrow ? 8 : 22
 
             Column {
-                anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
+                visible: page.seasons.length <= 1 || page.effectiveEpisodeOrder === "absolute"
                 spacing: 1
                 Text {
                     text: page.ledgerHeading()
@@ -1825,7 +1829,6 @@ Item {
             // Absolute / Seasons — only when the native mapping is complete.
             Rectangle {
                 visible: page.animeOrder && page.animeOrder.absoluteComplete === true
-                anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
                 height: 36
                 width: orderRow.implicitWidth + 8
                 radius: 18
@@ -1871,8 +1874,7 @@ Item {
             Flickable {
                 id: seasonStrip
                 visible: page.seasons.length > 1 && page.seasons.length <= 10 && page.effectiveEpisodeOrder !== "absolute"
-                anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
-                width: Math.min(seasonPills.implicitWidth, Math.max(160, page.width * 0.42))
+                width: Math.min(seasonPills.implicitWidth, ledgerLeft.width, Math.max(160, page.width * 0.42))
                 height: 36
                 contentWidth: seasonPills.implicitWidth
                 contentHeight: height
@@ -1923,7 +1925,6 @@ Item {
             // Seasons, more than ten: a dropdown.
             Item {
                 visible: page.seasons.length > 10 && page.effectiveEpisodeOrder !== "absolute"
-                anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
                 width: seasonTrigger.width
                 height: 36
                 z: 40
@@ -2032,12 +2033,19 @@ Item {
 
         Flow {
             id: ledgerRight
-            anchors.right: page.phoneNarrow ? undefined : parent.right
-            anchors.rightMargin: page.phoneNarrow ? 0 : theme.margin
-            anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
-            x: page.phoneNarrow ? page.bodyInset : 0
-            y: page.phoneNarrow ? ledgerLeft.y + ledgerLeft.implicitHeight + 10 : 0
-            width: page.phoneNarrow ? page.width - 2 * page.bodyInset : implicitWidth
+            // Measure the controls before wrapping so a previous row cannot constrain this Flow.
+            readonly property real singleRowWidth: {
+                var total = 0
+                for (const control of children) {
+                    if (control.visible)
+                        total += control.width + spacing
+                }
+                return Math.max(0, total - spacing)
+            }
+            x: ledgerBarFloat.stackControls ? page.bodyInset : parent.width - page.bodyInset - width
+            y: ledgerBarFloat.stackControls ? ledgerLeft.y + ledgerLeft.implicitHeight + 10
+                                            : (parent.height - implicitHeight) / 2
+            width: Math.min(ledgerBarFloat.controlsWidth, singleRowWidth)
             spacing: 10
 
             // Download the active season (hidden in Absolute order: "episodes" is the whole run).
