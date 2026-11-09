@@ -1295,7 +1295,7 @@ function filterRoster(roster, key) {
 // Their order is fixed (Hemanth 2026-10-05), whatever order the shell hands them down in;
 // a Tribute nobody has placed yet follows the four. `standard` says whether the universe
 // also has a standard page: Cosmere has none, so its slide offers the Tribute only.
-var TRIBUTE_ORDER = ["One Piece", "Cosmere", "DC Animated Universe", "Star Wars"];
+var TRIBUTE_ORDER = ["One Piece", "Cosmere", "DC Animated Universe", "Star Wars", "Marvel Cinematic Universe"];
 function tributes(installed) {
     function rank(name) { var i = TRIBUTE_ORDER.indexOf(name); return i < 0 ? TRIBUTE_ORDER.length : i; }
     return (installed || []).filter(function(u) { return u && u.name && u.extensionId; })

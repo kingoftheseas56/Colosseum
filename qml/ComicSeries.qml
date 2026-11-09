@@ -131,7 +131,11 @@ Item {
     //      already separates mains from extras and orders each by packOrder ASCENDING (v1
     //      first); the filter here just re-derives the two lists from the flat releases array
     //      so the section model stays consistent with filter/sort. ----
+    // A pack shelf is one whose rows carry packRole. A universe collection with no GCD id also
+    // pins a packSeriesId (its "gc:posts:<id>" identity), but its rows are plain releases;
+    // treating it as a pack filtered every row out and left the table empty.
     readonly property bool packMode: packSeriesId.length > 0
+                                     && releases.some(function(r) { return !!r.packRole })
     readonly property var packMains: shown.filter(function(r) { return r.packRole === "main" })
     readonly property var packExtras: shown.filter(function(r) { return r.packRole === "extra" })
     // The section list the table Repeater consumes. Pack mode = VOLUMES + EXTRAS (by role);
@@ -604,22 +608,30 @@ Item {
                             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
                         }
                         // INLINE metadata — bright count + dim medium (the transparent-tablet law)
+                        // Count and word share a baseline and a normal word space; only the
+                        // separators between facts get the wider gap.
                         Row {
                             spacing: 11
-                            Text { text: page.releases.length
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                                anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "releases" + (page.totalReleases > page.releases.length
-                                                       ? " of " + page.totalReleases : "")
-                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
-                                anchors.verticalCenter: parent.verticalCenter }
+                            Row {
+                                spacing: 5
+                                anchors.verticalCenter: parent.verticalCenter
+                                Text { id: releaseCount; text: page.releases.length
+                                    color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                                Text { text: (page.releases.length === 1 ? "release" : "releases")
+                                             + (page.totalReleases > page.releases.length
+                                                ? " of " + page.totalReleases : "")
+                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                                    anchors.baseline: releaseCount.baseline }
+                            }
                             Text { visible: page.collections.length > 0; text: "·"
-                                color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 14
+                                anchors.verticalCenter: parent.verticalCenter }
                             Text { visible: page.collections.length > 0
-                                text: page.collections.length + " collected editions"
+                                text: page.collections.length + (page.collections.length === 1 ? " collected edition" : " collected editions")
                                 color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                                 anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: "·"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 14
+                                anchors.verticalCenter: parent.verticalCenter }
                             Text { text: "GetComics"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                                 anchors.verticalCenter: parent.verticalCenter }
                         }
@@ -769,12 +781,12 @@ Item {
                                     Row {
                                         anchors.left: parent.left; anchors.leftMargin: 24
                                         anchors.verticalCenter: parent.verticalCenter; spacing: 14
-                                        Text { text: section.modelData.label; color: theme.inkDimmer
+                                        Text { id: sectionLabel; text: section.modelData.label; color: theme.inkDimmer
                                             font.family: theme.display; font.pixelSize: 13; font.letterSpacing: 3
                                             anchors.verticalCenter: parent.verticalCenter }
                                         Text { text: section.modelData.items.length; color: theme.ink
                                             font.family: theme.display; font.pixelSize: 15; font.weight: Font.Bold
-                                            anchors.verticalCenter: parent.verticalCenter }
+                                            anchors.baseline: sectionLabel.baseline }
                                     }
                                     Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
                                 }

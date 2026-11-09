@@ -1,0 +1,9 @@
+Phase backdrops (backdrop-1..6.jpg), downscaled to 1600x900 from the metahub.space background art
+(https://images.metahub.space/background/large/<imdb-id>/img), the same artwork source the app uses
+for Theatre. Artwork belongs to Marvel Studios / The Walt Disney Company.
+1 The Avengers (tt0848228)
+2 Avengers: Age of Ultron (tt2395427)
+3 Avengers: Endgame (tt4154796)
+4 Doctor Strange in the Multiverse of Madness (tt9419884)
+5 Deadpool & Wolverine (tt6263850)
+6 Avengers: Doomsday (tt21357150)

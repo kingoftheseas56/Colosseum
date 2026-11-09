@@ -473,7 +473,7 @@ private slots:
         QFile verify(path);
         QVERIFY(verify.open(QIODevice::ReadOnly));
         QCOMPARE(QJsonDocument::fromJson(verify.readAll()).object()
-                     .value(QStringLiteral("defaultsVersion")).toInt(), 20);
+                     .value(QStringLiteral("defaultsVersion")).toInt(), 21);
     }
 
     void generation_14_worker_migration_preserves_tankoyomi_user_state()
@@ -553,7 +553,7 @@ private slots:
         QFile verify(path);
         QVERIFY(verify.open(QIODevice::ReadOnly));
         QCOMPARE(QJsonDocument::fromJson(verify.readAll()).object()
-                     .value(QStringLiteral("defaultsVersion")).toInt(), 20);
+                     .value(QStringLiteral("defaultsVersion")).toInt(), 21);
     }
 
     void generation_14_custom_tankoyomi_url_is_not_overwritten()
@@ -740,7 +740,7 @@ private slots:
         QFile migratedIndex(path);
         QVERIFY(migratedIndex.open(QIODevice::ReadOnly));
         const QJsonObject migratedRoot = QJsonDocument::fromJson(migratedIndex.readAll()).object();
-        QCOMPARE(migratedRoot.value(QStringLiteral("defaultsVersion")).toInt(), 20);
+        QCOMPARE(migratedRoot.value(QStringLiteral("defaultsVersion")).toInt(), 21);
     }
 
     void configured_manifest_urls_keep_query_before_manifest_suffix()
