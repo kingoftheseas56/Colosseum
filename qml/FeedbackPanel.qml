@@ -10,8 +10,9 @@ FocusScope {
     property bool universeRequest: false
     property bool desktopUniverse: false
     property string homeFeedbackKind: ""
+    readonly property bool supportPage: homeFeedbackKind === "support"
     readonly property bool desktopDialog: Qt.platform.os !== "android"
-        && (desktopUniverse || homeFeedbackKind.length > 0)
+        && (desktopUniverse || (homeFeedbackKind.length > 0 && !supportPage))
     property url backdropUrl
     property var availableUniverses: []
     property url pageUrl: Route.pageUrl(Qt.application.version, Qt.platform.os, root.universeRequest,
@@ -69,7 +70,8 @@ FocusScope {
                 onTriggered: root.closeRequested()
             }
             Label {
-                text: root.universeRequest ? qsTr("Request a Universe") : qsTr("Feedback")
+                text: root.supportPage ? qsTr("Support")
+                    : root.universeRequest ? qsTr("Request a Universe") : qsTr("Feedback")
                 color: theme.ink
                 font.family: theme.ui
                 font.pixelSize: 15
@@ -94,7 +96,7 @@ FocusScope {
                     id: refreshInput
                     objectName: "feedbackRefresh"
                     anchors.fill: parent
-                    accessibleName: qsTr("Refresh feedback")
+                    accessibleName: root.supportPage ? qsTr("Refresh support") : qsTr("Refresh feedback")
                     focusRadius: 12
                     onTriggered: {
                         if (root.browserItem && root.browserItem.reload) root.browserItem.reload()
@@ -161,6 +163,10 @@ FocusScope {
             target: browser.item
             ignoreUnknownSignals: true
             function onCloseRequested() { root.closeRequested() }
+            function onExternalLinkRequested(destination) {
+                if (root.supportPage && Route.isSupportExternalUrl(destination))
+                    Qt.openUrlExternally(destination)
+            }
         }
         Column {
             anchors.centerIn: browser
@@ -169,7 +175,8 @@ FocusScope {
             visible: browser.status === Loader.Error || (root.browserItem && root.browserItem.errorText.length > 0)
             Text {
                 width: parent.width
-                text: qsTr("Feedback could not load. Check your connection and try again.")
+                text: root.supportPage ? qsTr("Support could not load. Try refreshing.")
+                    : qsTr("Feedback could not load. Check your connection and try again.")
                 color: "#f7f7f5"; wrapMode: Text.WordWrap; font.pixelSize: 16
             }
             Button { text: qsTr("Open in browser"); height: 48; onClicked: Qt.openUrlExternally(root.pageUrl) }

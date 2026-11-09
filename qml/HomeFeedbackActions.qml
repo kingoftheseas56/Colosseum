@@ -8,20 +8,24 @@ Item {
     signal requested(Item invoker, string kind)
     implicitHeight: actions.height
 
-    Row {
+    Grid {
         id: actions
         anchors.right: parent.right
+        columns: root.compact && root.width < 350 ? 2 : 3
         spacing: root.compact ? 8 : 10
 
         Repeater {
             model: [
-                { kind: "bug", label: qsTr("Report a Bug"), icon: "feedback-bug.svg" },
-                { kind: "feature", label: qsTr("Feature Request"), icon: "feedback-feature.svg" }
+                { kind: "bug", label: qsTr("Report a Bug"), icon: "feedback-bug.svg", objectName: "homeReportBug" },
+                { kind: "feature", label: qsTr("Feature Request"), icon: "feedback-feature.svg", objectName: "homeRequestFeature" },
+                { kind: "support", label: qsTr("Support"), icon: "feedback-support.svg", objectName: "homeSupport" }
             ]
             delegate: FeedbackActionButton {
                 id: button
                 required property var modelData
-                width: root.compact ? (root.width - actions.spacing) / 2 : implicitWidth
+                width: root.compact
+                    ? Math.max(0, (root.width - (actions.columns - 1) * actions.spacing) / actions.columns)
+                    : implicitWidth
                 backdrop: root.backdrop
                 track: root.track
                 compact: root.compact
@@ -30,7 +34,7 @@ Item {
                 highlighted: input.interactionActive
                 KeyboardAction {
                     id: input
-                    objectName: button.modelData.kind === "bug" ? "homeReportBug" : "homeRequestFeature"
+                    objectName: button.modelData.objectName
                     anchors.fill: parent
                     accessibleName: button.modelData.label
                     focusRadius: 10

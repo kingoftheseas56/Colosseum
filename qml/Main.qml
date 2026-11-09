@@ -6373,7 +6373,7 @@ Window {
         visible: active
         property bool universeRequest: false
         property string homeFeedbackKind: ""
-        readonly property bool requestForm: universeRequest || homeFeedbackKind.length > 0
+        readonly property bool requestForm: universeRequest || (homeFeedbackKind.length > 0 && homeFeedbackKind !== "support")
         property bool capturingBackdrop: false
         property var backdrop: null
         sourceComponent: requestForm ? requestFormComponent : genericFeedbackComponent
@@ -6393,6 +6393,7 @@ Window {
         Component {
             id: genericFeedbackComponent
             FeedbackPanel {
+                homeFeedbackKind: feedbackLayer.homeFeedbackKind
                 onCloseRequested: win.closeFeedback()
                 onMinimizeRequested: win.minimizeShell()
                 onFullscreenRequested: win.toggleFullscreenShell()

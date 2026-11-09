@@ -55,15 +55,17 @@ void AndroidFeedbackBrowser::fail()
     emit stateChanged();
 }
 
-void AndroidFeedbackBrowser::open(const QUrl& url)
+void AndroidFeedbackBrowser::open(const QUrl& url, bool bundledSupport)
 {
-    close();
     m_error.clear();
+    close();
     const QString path = url.path();
+    const bool support = path == "/support" || path == "/support/";
+    const bool feedback = path == "/feedback/" || path == "/feedback" || path == "/feedback/index.html"
+        || path == "/feedback/report" || path == "/feedback/report.html";
     if (url.scheme() != "https" || url.host() != "getcolosseum.world"
         || !url.userInfo().isEmpty() || (url.port(-1) != -1 && url.port() != 443)
-        || (path != "/feedback/" && path != "/feedback" && path != "/feedback/index.html"
-            && path != "/feedback/report" && path != "/feedback/report.html")) {
+        || (!support && (!feedback || bundledSupport))) {
         fail();
         return;
     }
@@ -74,9 +76,10 @@ void AndroidFeedbackBrowser::open(const QUrl& url)
     emit stateChanged();
     const auto instance = m_instance;
     const auto encoded = url.toString(QUrl::FullyEncoded);
-    Android::runOnAndroidMainThread([instance, encoded]() -> QVariant {
-        QJniObject host(hostClass, "(Landroid/content/Context;JLjava/lang/String;)V",
-            Android::context().object<jobject>(), jlong(instance), QJniObject::fromString(encoded).object<jstring>());
+    Android::runOnAndroidMainThread([instance, encoded, bundledSupport]() -> QVariant {
+        QJniObject host(hostClass, "(Landroid/content/Context;JLjava/lang/String;Z)V",
+            Android::context().object<jobject>(), jlong(instance),
+            QJniObject::fromString(encoded).object<jstring>(), jboolean(bundledSupport));
         return QVariant::fromValue(host);
     }).then(this, [this, instance](const QVariant& result) {
         const auto host = result.value<QJniObject>();
@@ -89,7 +92,7 @@ void AndroidFeedbackBrowser::open(const QUrl& url)
         emit foreignWindowChanged();
         if (!m_window) fail();
     });
-    QTimer::singleShot(30000, this, [this, instance] {
+    QTimer::singleShot(support && !bundledSupport ? 10000 : 30000, this, [this, instance] {
         if (m_instance == instance && m_loading) fail();
     });
 }
@@ -99,6 +102,11 @@ void AndroidFeedbackBrowser::receive(quint64 instance, const QString& event)
     if (instance != m_instance) return;
     if (event == "close") { emit closeRequested(); return; }
     if (event == "error") { fail(); return; }
+    if (event.startsWith("external:")) {
+        const QUrl destination(event.mid(9), QUrl::StrictMode);
+        if (destination.isValid()) emit externalLinkRequested(destination);
+        return;
+    }
     m_loading = event != "loaded";
     emit stateChanged();
 }
