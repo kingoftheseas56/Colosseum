@@ -60,7 +60,7 @@ void AndroidFeedbackBrowser::open(const QUrl& url, bool bundledSupport)
     m_error.clear();
     close();
     const QString path = url.path();
-    const bool support = path == "/support" || path == "/support/";
+    const bool support = path == "/support/app" || path == "/support/app/";
     const bool feedback = path == "/feedback/" || path == "/feedback" || path == "/feedback/index.html"
         || path == "/feedback/report" || path == "/feedback/report.html";
     if (url.scheme() != "https" || url.host() != "getcolosseum.world"

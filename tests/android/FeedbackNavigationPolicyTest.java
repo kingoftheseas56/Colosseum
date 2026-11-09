@@ -24,12 +24,13 @@ public final class FeedbackNavigationPolicyTest {
         check(!FeedbackNavigationPolicy.resource("http://new-form-provider.example/submit"));
         check(!FeedbackNavigationPolicy.resource("https://user:secret@new-form-provider.example/submit"));
         check(!FeedbackNavigationPolicy.resource("file:///sdcard/private"));
-        check(FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/support"));
-        check(FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/support/"));
+        check(FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/support/app"));
+        check(FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/support/app/"));
+        check(!FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/support/"));
         check(!FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/"));
         check(!FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/support/../"));
-        check(!FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/%73upport/"));
-        check(!FeedbackNavigationPolicy.supportDocument("https://user@getcolosseum.world/support/"));
+        check(!FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/%73upport/app/"));
+        check(!FeedbackNavigationPolicy.supportDocument("https://user@getcolosseum.world/support/app/"));
         check(FeedbackNavigationPolicy.supportResource("https://getcolosseum.world/support/support.css"));
         check(!FeedbackNavigationPolicy.supportResource("https://www.paypal.com/"));
         check(FeedbackNavigationPolicy.bundledSupportResource(FeedbackNavigationPolicy.BUNDLED_SUPPORT));

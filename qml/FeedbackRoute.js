@@ -1,7 +1,7 @@
 .pragma library
 
 function pageUrl(version, platform, universeRequest, desktopUniverse, homeFeedbackKind) {
-    if (homeFeedbackKind === "support") return "https://getcolosseum.world/support/"
+    if (homeFeedbackKind === "support") return "https://getcolosseum.world/support/app/"
     const report = homeFeedbackKind === "bug" || homeFeedbackKind === "feature"
     return "https://getcolosseum.world/feedback/" + (report ? "report" : desktopUniverse ? "universe" : "")
         + "?version=" + encodeURIComponent(version || "")
@@ -14,7 +14,7 @@ function isDocumentUrl(value) {
 }
 
 function isSupportDocumentUrl(value) {
-    return /^https:\/\/getcolosseum\.world(?::443)?\/support\/?(?:[?#][^\s\\]*)?$/.test(String(value))
+    return /^https:\/\/getcolosseum\.world(?::443)?\/support\/app\/?(?:[?#][^\s\\]*)?$/.test(String(value))
 }
 
 function isSupportExternalUrl(value) {

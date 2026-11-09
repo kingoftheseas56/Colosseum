@@ -11,7 +11,7 @@ public final class FeedbackNavigationPolicy {
     public static boolean supportDocument(String value) {
         try {
             URI uri = new URI(value);
-            return trustedSite(uri) && ("/support".equals(uri.getRawPath()) || "/support/".equals(uri.getRawPath()));
+            return trustedSite(uri) && ("/support/app".equals(uri.getRawPath()) || "/support/app/".equals(uri.getRawPath()));
         } catch (Exception ignored) { return false; }
     }
 

@@ -250,8 +250,11 @@ Item {
         function test_support_route_and_external_link_policy() {
             const panel = createTemporaryObject(panelComponent, parent, {homeFeedbackKind: "support"});
             verify(panel);
-            compare(String(panel.pageUrl), "https://getcolosseum.world/support/");
+            compare(String(panel.pageUrl), "https://getcolosseum.world/support/app/");
             compare(panel.desktopDialog, false);
+            verify(panel.browserItem.supportPage);
+            verify(Route.isSupportDocumentUrl(panel.pageUrl));
+            verify(!Route.isSupportDocumentUrl("https://getcolosseum.world/support/"));
             for (const url of [
                 "https://getcolosseum.world/contact/",
                 "https://paypal.com/",

@@ -1,5 +1,4 @@
 import QtQuick
-import "../FeedbackRoute.js" as Route
 
 Item {
     id: root
@@ -7,7 +6,7 @@ Item {
     property var backend: typeof AndroidFeedbackBrowser !== "undefined" ? AndroidFeedbackBrowser : null
     readonly property bool loading: !!backend && backend.loading
     readonly property string errorText: backend ? backend.errorText : qsTr("Feedback browser is unavailable.")
-    readonly property bool supportPage: Route.isSupportDocumentUrl(pageUrl)
+    property bool supportPage: false
     property bool usingSupportFallback: false
     signal closeRequested()
     signal externalLinkRequested(url destination)

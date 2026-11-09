@@ -21,7 +21,3 @@ body.support-page::before{content:none}
 @media(max-width:860px){.support-page main.support-layout{grid-template-columns:minmax(0,1fr);min-height:0;align-items:start;gap:18px;padding:28px 24px 34px}.support-page .support-eyebrow{margin-bottom:14px}.support-page .support-aside h1{font-size:clamp(49px,9vw,75px)}.support-rule{margin:18px 0 13px}.support-page .support-tagline{font-size:18px}.support-page .support-letter p{font-size:16px;line-height:1.48;margin-bottom:12px}.support-actions{margin-top:15px}}
 @media(max-width:450px){.support-page main.support-layout{padding:16px 20px 28px;gap:13px}.support-page .support-eyebrow{font-size:9px;margin-bottom:10px}.support-page .support-aside h1{font-size:clamp(45px,11vw,54px);line-height:1.01}.support-rule{margin:15px 0 10px}.support-page .support-tagline{font-size:17px;line-height:1.2}.support-page .support-letter p{font-size:15.5px;line-height:1.40;margin-bottom:9px}.support-actions{margin-top:10px}}
 @media(prefers-reduced-motion:reduce){.support-donate{transition:none}}
-
-*, *::before, *::after { box-sizing: border-box; }
-body.support-page { margin: 0; }
-.support-page main.support-layout { min-height: 100vh; min-height: 100dvh; }

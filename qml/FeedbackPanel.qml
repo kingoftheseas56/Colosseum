@@ -150,6 +150,7 @@ FocusScope {
             anchors.bottomMargin: surface.compact ? 10 : 0
             source: root.browserSource
             onLoaded: {
+                if (root.supportPage) item.supportPage = true
                 if (root.desktopDialog) item.transparentDialog = true
                 if (root.desktopUniverse) {
                     item.universeDialog = true

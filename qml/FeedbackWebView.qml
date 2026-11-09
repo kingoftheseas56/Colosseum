@@ -10,7 +10,7 @@ Item {
     property var availableUniverses: []
     property bool loading: false
     property string errorText: ""
-    readonly property bool supportPage: Route.isSupportDocumentUrl(pageUrl)
+    property bool supportPage: false
     readonly property url bundledSupportUrl: Qt.resolvedUrl("../assets/support/index.html")
     property bool usingSupportFallback: false
     signal closeRequested()
