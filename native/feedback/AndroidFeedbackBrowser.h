@@ -17,13 +17,14 @@ public:
     QWindow* foreignWindow() const { return m_window; }
     bool loading() const { return m_loading; }
     QString errorText() const { return m_error; }
-    Q_INVOKABLE void open(const QUrl& url);
+    Q_INVOKABLE void open(const QUrl& url, bool bundledSupport = false);
     Q_INVOKABLE void close();
     void receive(quint64 instance, const QString& event);
 signals:
     void foreignWindowChanged();
     void stateChanged();
     void closeRequested();
+    void externalLinkRequested(const QUrl& destination);
 private:
     void fail();
     QPointer<QWindow> m_window;

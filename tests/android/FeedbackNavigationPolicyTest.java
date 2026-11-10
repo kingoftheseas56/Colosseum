@@ -24,6 +24,20 @@ public final class FeedbackNavigationPolicyTest {
         check(!FeedbackNavigationPolicy.resource("http://new-form-provider.example/submit"));
         check(!FeedbackNavigationPolicy.resource("https://user:secret@new-form-provider.example/submit"));
         check(!FeedbackNavigationPolicy.resource("file:///sdcard/private"));
+        check(FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/support/app"));
+        check(FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/support/app/"));
+        check(!FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/support/"));
+        check(!FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/"));
+        check(!FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/support/../"));
+        check(!FeedbackNavigationPolicy.supportDocument("https://getcolosseum.world/%73upport/app/"));
+        check(!FeedbackNavigationPolicy.supportDocument("https://user@getcolosseum.world/support/app/"));
+        check(FeedbackNavigationPolicy.supportResource("https://getcolosseum.world/support/support.css"));
+        check(!FeedbackNavigationPolicy.supportResource("https://www.paypal.com/"));
+        check(FeedbackNavigationPolicy.bundledSupportResource(FeedbackNavigationPolicy.BUNDLED_SUPPORT));
+        check(FeedbackNavigationPolicy.bundledSupportResource(FeedbackNavigationPolicy.BUNDLED_SUPPORT
+            .replace("index.html", "fonts/body.ttf")));
+        check(!FeedbackNavigationPolicy.bundledSupportResource(FeedbackNavigationPolicy.BUNDLED_SUPPORT
+            .replace("support/index.html", "private.txt")));
         System.out.println("PASS feedback Android navigation policy");
     }
     private static void check(boolean value) { if (!value) throw new AssertionError(); }

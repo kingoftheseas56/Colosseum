@@ -1,0 +1,23 @@
+@font-face{font-family:SupportEditorial;src:url('fonts/editorial.otf') format('opentype');font-display:swap}
+@font-face{font-family:SupportOpen;src:url('fonts/body.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
+@font-face{font-family:SupportOpen;src:url('fonts/body-semibold.ttf') format('truetype');font-style:normal;font-weight:600;font-display:swap}
+body.support-page{background:linear-gradient(#111416e8,#111416f5),url('../wallpaper/cold-ripple.jpg') center/cover fixed;color:#e9e6df;font-family:SupportOpen,Arial,sans-serif;min-height:100vh}
+body.support-page::before{content:none}
+.support-page main.support-layout{width:100%;max-width:1580px;min-height:calc(100vh - 190px);min-height:calc(100dvh - 190px);margin:0 auto;padding:30px clamp(24px,4vw,80px);display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);align-items:center;gap:clamp(45px,9vw,150px)}
+.support-aside,.support-letter{min-width:0}
+.support-page .support-eyebrow{font:10px/1.5 SupportOpen,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#edca61;margin:0 0 36px}
+.support-page .support-aside h1{font:400 clamp(65px,6.5vw,118px)/1.05 SupportEditorial,Georgia,serif;letter-spacing:-.035em;margin:0}
+.support-gold{color:#edca61}
+.support-rule{width:50px;height:1px;background:#8e9786;margin:38px 0 24px}
+.support-page .support-tagline{font:20px/1.4 SupportEditorial,Georgia,serif;color:#9ca49e;margin:0}
+.support-page .support-letter p{font:clamp(17px,1.35vw,25px)/1.55 SupportEditorial,Georgia,serif;color:#d6d9d3;margin:0 0 18px}
+.support-page .support-letter #locked-letter p:first-child{color:#f3efe6}
+.support-actions{display:flex;align-items:center;margin-top:30px}
+.support-donate{display:inline-flex;align-items:center;justify-content:center;gap:25px;min-height:46px;padding:13px 20px;border-radius:7px;border:1px solid #edca61;background:#edca61;color:#15191b;text-decoration:none;font:600 13px/1.5 SupportOpen,Arial,sans-serif;transition:background .15s ease}
+.support-donate:hover,.support-donate:focus-visible{background:#f5d77b;color:#111}
+.support-donate:focus-visible{outline:2px solid #f5d77b;outline-offset:4px}
+@media(max-width:1360px){.support-page main.support-layout{gap:7vw;padding-top:22px;padding-bottom:22px}.support-page .support-letter p{font-size:clamp(16px,1.35vw,20px);line-height:1.47;margin-bottom:13px}.support-actions{margin-top:20px}.support-page .support-eyebrow{margin-bottom:22px}.support-rule{margin-top:28px;margin-bottom:18px}}
+@media(max-height:770px) and (min-width:861px){.support-page main.support-layout{min-height:calc(100dvh - 160px);padding-top:12px;padding-bottom:12px}.support-page .support-letter p{font-size:clamp(16px,1.2vw,21px);line-height:1.42;margin-bottom:11px}.support-actions{margin-top:13px}}
+@media(max-width:860px){.support-page main.support-layout{grid-template-columns:minmax(0,1fr);min-height:0;align-items:start;gap:18px;padding:28px 24px 34px}.support-page .support-eyebrow{margin-bottom:14px}.support-page .support-aside h1{font-size:clamp(49px,9vw,75px)}.support-rule{margin:18px 0 13px}.support-page .support-tagline{font-size:18px}.support-page .support-letter p{font-size:16px;line-height:1.48;margin-bottom:12px}.support-actions{margin-top:15px}}
+@media(max-width:450px){.support-page main.support-layout{padding:16px 20px 28px;gap:13px}.support-page .support-eyebrow{font-size:9px;margin-bottom:10px}.support-page .support-aside h1{font-size:clamp(45px,11vw,54px);line-height:1.01}.support-rule{margin:15px 0 10px}.support-page .support-tagline{font-size:17px;line-height:1.2}.support-page .support-letter p{font-size:15.5px;line-height:1.40;margin-bottom:9px}.support-actions{margin-top:10px}}
+@media(prefers-reduced-motion:reduce){.support-donate{transition:none}}

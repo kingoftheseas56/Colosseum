@@ -14,22 +14,28 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import androidx.webkit.WebViewAssetLoader;
 import java.io.ByteArrayInputStream;
 
-/** A disposable remote feedback page. It has no JavaScript-to-native bridge. */
+/** A disposable feedback or support page with no JavaScript-to-native bridge. */
 public final class FeedbackWebHost {
     private final WebView view;
     private long nativeId;
     private boolean failed;
     private static native void onEvent(long instance, String event);
 
-    public FeedbackWebHost(Context context, long instance, String url) {
+    public FeedbackWebHost(Context context, long instance, String url, boolean bundledSupport) {
         nativeId = instance;
         view = new WebView(context);
+        final boolean support = FeedbackNavigationPolicy.supportDocument(url);
+        final WebViewAssetLoader assets = bundledSupport ? new WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(context))
+            .build() : null;
         view.setBackgroundColor(0xFF08090D);
         WebSettings settings = view.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
+        settings.setJavaScriptEnabled(!support);
+        settings.setDomStorageEnabled(!support);
+        if (support) settings.setUseWideViewPort(true);
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
@@ -46,14 +52,33 @@ public final class FeedbackWebHost {
             return false;
         });
         view.setWebViewClient(new WebViewClient() {
+            private boolean supportDocument(String destination) {
+                return bundledSupport ? FeedbackNavigationPolicy.BUNDLED_SUPPORT.equals(destination)
+                    : FeedbackNavigationPolicy.supportDocument(destination);
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView web, WebResourceRequest request) {
-                return request.isForMainFrame() && !FeedbackNavigationPolicy.document(request.getUrl().toString());
+                final String destination = request.getUrl().toString();
+                if (!support) return request.isForMainFrame() && !FeedbackNavigationPolicy.document(destination);
+                if (!request.isForMainFrame()) return true;
+                if (supportDocument(destination)) return false;
+                if (request.hasGesture() && !request.isRedirect()) emit("external:" + destination);
+                else if (!bundledSupport && request.isRedirect()) error();
+                return true;
             }
             @Override public WebResourceResponse shouldInterceptRequest(WebView web, WebResourceRequest request) {
-                if (FeedbackNavigationPolicy.resource(request.getUrl().toString())) return null;
+                final String destination = request.getUrl().toString();
+                if (support && bundledSupport && FeedbackNavigationPolicy.bundledSupportResource(destination)) {
+                    final WebResourceResponse asset = assets.shouldInterceptRequest(request.getUrl());
+                    if (asset != null) return asset;
+                } else if (support ? !bundledSupport && FeedbackNavigationPolicy.supportResource(destination)
+                                   : FeedbackNavigationPolicy.resource(destination)) {
+                    return null;
+                }
                 return new WebResourceResponse("text/plain", "UTF-8", 403, "Blocked", null, new ByteArrayInputStream(new byte[0]));
             }
-            @Override public void onPageFinished(WebView web, String url) { if (!failed) emit("loaded"); }
+            @Override public void onPageFinished(WebView web, String url) {
+                if (!failed && (!support || supportDocument(url))) emit("loaded");
+            }
             @Override public void doUpdateVisitedHistory(WebView web, String url, boolean isReload) {
                 if (FeedbackNavigationPolicy.closesReport(url)) emit("close");
             }
@@ -68,7 +93,9 @@ public final class FeedbackWebHost {
             }
             @Override public boolean onRenderProcessGone(WebView web, RenderProcessGoneDetail detail) { error(); return true; }
         });
-        if (FeedbackNavigationPolicy.document(url)) view.loadUrl(url); else error();
+        if (support) view.loadUrl(bundledSupport ? FeedbackNavigationPolicy.BUNDLED_SUPPORT : url);
+        else if (!bundledSupport && FeedbackNavigationPolicy.document(url)) view.loadUrl(url);
+        else error();
     }
     private void emit(String event) { if (nativeId != 0) onEvent(nativeId, event); }
     private void error() { failed = true; emit("error"); }

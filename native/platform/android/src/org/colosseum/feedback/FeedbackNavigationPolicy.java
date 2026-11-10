@@ -3,7 +3,33 @@ package org.colosseum.feedback;
 import java.net.URI;
 
 public final class FeedbackNavigationPolicy {
+    private static final String ASSET_ROOT = "https://appassets.androidplatform.net/assets/colosseum-runtime/assets/";
+    public static final String BUNDLED_SUPPORT = ASSET_ROOT + "support/index.html";
+
     private FeedbackNavigationPolicy() { }
+
+    public static boolean supportDocument(String value) {
+        try {
+            URI uri = new URI(value);
+            return trustedSite(uri) && ("/support/app".equals(uri.getRawPath()) || "/support/app/".equals(uri.getRawPath()));
+        } catch (Exception ignored) { return false; }
+    }
+
+    public static boolean supportResource(String value) {
+        try {
+            return trustedSite(new URI(value));
+        } catch (Exception ignored) { return false; }
+    }
+
+    public static boolean bundledSupportResource(String value) {
+        return BUNDLED_SUPPORT.equals(value)
+            || (ASSET_ROOT + "support/support.css").equals(value)
+            || (ASSET_ROOT + "support/fonts/editorial.otf").equals(value)
+            || (ASSET_ROOT + "support/fonts/body.ttf").equals(value)
+            || (ASSET_ROOT + "support/fonts/body-semibold.ttf").equals(value)
+            || (ASSET_ROOT + "wallpaper/cold-ripple.jpg").equals(value);
+    }
+
     public static boolean document(String value) {
         try {
             URI uri = new URI(value);

@@ -1,0 +1,12 @@
+The font and related files in this directory are distributed under the
+GNU AFFERO GENERAL PUBLIC LICENSE Version 3 (see the file COPYING), with
+the following exemption:
+
+As a special exception, permission is granted to include these font
+programs in a Postscript or PDF file that consists of a document that
+contains text to be displayed or printed using this font, regardless
+of the conditions or license applying to the document itself.
+
+Nimbus Roman Regular, copyright (URW)++ Design & Development (2014).
+Unmodified font and corresponding source
+https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9

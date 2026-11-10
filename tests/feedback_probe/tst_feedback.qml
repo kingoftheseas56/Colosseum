@@ -2,6 +2,7 @@ import QtQuick
 import QtTest
 import "../../qml" as App
 import "../../qml/+android" as AndroidUi
+import "../../qml/FeedbackRoute.js" as Route
 
 Item {
     width: 1200; height: 1280
@@ -246,6 +247,33 @@ Item {
                     {tag:"android-tablet",component:androidTaskbarHost,width:800},
                     {tag:"android-phone",component:androidTaskbarHost,width:360}]
         }
+        function test_support_route_and_external_link_policy() {
+            const panel = createTemporaryObject(panelComponent, parent, {homeFeedbackKind: "support"});
+            verify(panel);
+            compare(String(panel.pageUrl), "https://getcolosseum.world/support/app/");
+            compare(panel.desktopDialog, false);
+            verify(panel.browserItem.supportPage);
+            verify(Route.isSupportDocumentUrl(panel.pageUrl));
+            verify(!Route.isSupportDocumentUrl("https://getcolosseum.world/support/"));
+            for (const url of [
+                "https://getcolosseum.world/contact/",
+                "https://paypal.com/",
+                "https://www.paypal.com/ncp/payment/CYT6RXB3X9MRW",
+                "https://paypal.me/example"
+            ]) verify(Route.isSupportExternalUrl(url), url);
+            for (const url of [
+                "http://www.paypal.com/",
+                "https://www.paypal.com:444/",
+                "https://www.paypal.com.evil.example/",
+                "https://evil.example@www.paypal.com/",
+                "https://paypal.me@evil.example/",
+                "https://checkout.paypal.com/",
+                "https://rzp.io/",
+                "file:///support/index.html",
+                "javascript:alert(1)"
+            ]) verify(!Route.isSupportExternalUrl(url), url);
+        }
+
         function test_home_feedback_buttons_open_the_requested_form() {
             const row = createTemporaryObject(homeFeedbackComponent, parent, {width: 860, height: 39});
             verify(row);
@@ -253,7 +281,8 @@ Item {
             homeFeedbackSpy.clear();
             const bug = findChild(row, "homeReportBug");
             const feature = findChild(row, "homeRequestFeature");
-            verify(bug && feature);
+            const support = findChild(row, "homeSupport");
+            verify(bug && feature && support);
             mouseClick(bug);
             compare(homeFeedbackSpy.count, 1);
             compare(homeFeedbackSpy.signalArguments[0][1], "bug");
@@ -261,6 +290,9 @@ Item {
             keyClick(Qt.Key_Return);
             compare(homeFeedbackSpy.count, 2);
             compare(homeFeedbackSpy.signalArguments[1][1], "feature");
+            mouseClick(support);
+            compare(homeFeedbackSpy.count, 3);
+            compare(homeFeedbackSpy.signalArguments[2][1], "support");
         }
         function test_taskbar_feedback_is_icon_only_and_activates(data) {
             const shell = createTemporaryObject(data.component, parent, {width:data.width, height:800});
