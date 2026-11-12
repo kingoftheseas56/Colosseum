@@ -5,3 +5,6 @@ target_compile_features(colosseum_home_servers PUBLIC cxx_std_17)
 set_target_properties(colosseum_home_servers PROPERTIES AUTOMOC ON)
 
 set_target_properties(colosseum_home_servers PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_sources(colosseum_home_servers PRIVATE
+    HomeServerStore.cpp HomeServerStore.h HomeServerService.cpp HomeServerService.h)
+target_link_libraries(colosseum_home_servers PUBLIC colosseum_account_credentials)

@@ -57,6 +57,7 @@
 #include "account/RatingsReviewsController.h"
 #include "account/RatingsReviewsDelivery.h"
 #include "account/ProfilePreferencesStore.h"
+#include "homeserver/HomeServerService.h"
 #if !defined(Q_OS_ANDROID)
 #include "update/UpdateCache.h"
 #include "update/UpdateDownload.h"
@@ -1989,6 +1990,25 @@ int main(int argc, char *argv[]) {
     accountRuntime->setDownloadSource(localDownloads);
     accountRuntime->setExtensionsStore(extensions);
     accountRuntime->prepareForQml(&engine);
+
+    auto *homeServers = new HomeServerService(&backendServices);
+    engine.rootContext()->setContextProperty(QStringLiteral("HomeServers"), homeServers);
+    auto bindHomeServerProfile = [accountRuntime, homeServers] {
+        const auto &profile = accountRuntime->profileStores()->activeProfile();
+        if (profile.kind() == ProfilePaths::Kind::Sealed) {
+            homeServers->deactivate();
+            return;
+        }
+        const QString root = profile.kind() == ProfilePaths::Kind::LegacyLocal
+            ? accountRuntime->profileStores()->legacyStorage().devicePrivateProfileRoot()
+            : profile.profileRoot();
+        homeServers->activate(profile.profileId(), root);
+    };
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
+                     homeServers, &HomeServerService::deactivate);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     homeServers, bindHomeServerProfile);
+    bindHomeServerProfile();
 
     auto *ratingsReviewsIdentity = new ColosseumTitleIdentityRegistry(QString(), &backendServices);
     // Persist learned provider-id pivots (kitsu:/mal:… → tt…) under the tagged

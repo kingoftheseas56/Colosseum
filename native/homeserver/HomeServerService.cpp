@@ -1,0 +1,265 @@
+#include "HomeServerService.h"
+#include <QDateTime>
+#include <QDir>
+#include <QFileInfo>
+#include <QJsonObject>
+#include <QUrlQuery>
+
+HomeServerService::HomeServerService(QObject *parent)
+    : HomeServerService(HomeServerServiceOptions{}, parent) {}
+HomeServerService::HomeServerService(HomeServerServiceOptions options, QObject *parent)
+    : QObject(parent), m_client(this, options.identityDirectory, options.plexOrigin),
+      m_store(options.secrets ? options.secrets : createAccountSecretBackend()) {
+    m_pinTimer.setSingleShot(true);
+    m_pinTimer.setInterval(qBound(10, options.pinPollIntervalMs, 5000));
+    connect(&m_pinTimer, &QTimer::timeout, this, &HomeServerService::pollPlex);
+}
+HomeServerService::~HomeServerService() {
+    ++m_generation;
+    m_pinTimer.stop();
+    m_client.cancelAll();
+}
+void HomeServerService::publish() { ++m_revision; emit changed(); }
+void HomeServerService::invalidateRequests() {
+    ++m_generation;
+    m_pinTimer.stop();
+    m_client.cancelAll();
+    m_busy = false;
+    m_pinId = 0;
+    m_pinDeadline = 0;
+    m_pinCode.clear();
+    m_pinUrl.clear();
+    m_plexCandidates = {};
+    m_httpConsentRequired = false;
+}
+void HomeServerService::activate(const QString &profileId, const QString &profileRoot) {
+    invalidateRequests();
+    m_store.deactivate();
+    m_connectionStatus.clear();
+    m_profileId.clear();
+    m_profileRoot.clear();
+    m_status.clear();
+    ++m_profileGeneration;
+    if (!profileId.isEmpty() && !profileRoot.isEmpty()) {
+        if (!QDir().mkpath(profileRoot) || !m_store.activate(profileId, profileRoot))
+            m_status = m_store.error().isEmpty() ? tr("Profile storage is unavailable.") : m_store.error();
+        else {
+            m_profileId = profileId;
+            m_profileRoot = QFileInfo(profileRoot).canonicalFilePath();
+            if (!m_client.isReady()) m_status = m_client.identityError();
+        }
+    }
+    emit profileChanged();
+    publish();
+}
+void HomeServerService::deactivate() { activate({}, {}); }
+bool HomeServerService::available() const { return m_store.available() && m_client.isReady(); }
+QVariantList HomeServerService::connections() const {
+    QVariantList rows;
+    for (const auto &value : m_store.connections()) {
+        const auto object = value.toObject();
+        const auto id = object.value("id").toString();
+        auto row = object.toVariantMap();
+        row.insert("needsReconnect", m_store.token(id).isEmpty());
+        row.insert("status", m_connectionStatus.value(id));
+        rows.append(row);
+    }
+    return rows;
+}
+QVariantList HomeServerService::plexServers() const {
+    QVariantList rows;
+    for (const auto &value : m_plexCandidates) {
+        const auto object = value.toObject();
+        rows.append(QVariantMap{{"id", object.value("id").toString()},
+            {"name", object.value("name").toString()}, {"available", object.value("available").toBool()}});
+    }
+    return rows;
+}
+bool HomeServerService::isInsecureAddress(const QString &address) const {
+    return HomeServerClient::normalizeAddress(address).scheme() == QLatin1String("http");
+}
+bool HomeServerService::canSignIn() {
+    if (!available()) {
+        m_status = !m_client.isReady() ? m_client.identityError()
+            : (m_store.error().isEmpty() ? tr("Secure profile storage is unavailable.") : m_store.error());
+        publish();
+        return false;
+    }
+    return !m_busy;
+}
+void HomeServerService::finishSignIn(const QString &message) {
+    m_pinTimer.stop();
+    m_busy = false;
+    m_status = message;
+    publish();
+}
+void HomeServerService::saveAuthenticated(const QJsonObject &metadata, const QString &token) {
+    const auto id = m_store.add(metadata, token);
+    if (id.isEmpty()) { finishSignIn(m_store.error()); return; }
+    m_plexCandidates = {};
+    m_pinCode.clear();
+    m_pinUrl.clear();
+    m_pinId = 0;
+    m_httpConsentRequired = false;
+    finishSignIn(tr("Connected to %1.").arg(metadata.value("name").toString()));
+    emit connectionAdded(id);
+}
+void HomeServerService::connectServer(const QString &provider, const QString &address,
+                                     const QString &username, const QString &password, bool allowHttp) {
+    if (!canSignIn()) return;
+    invalidateRequests();
+    const auto origin = HomeServerClient::normalizeAddress(address);
+    if (origin.isEmpty() || username.trimmed().isEmpty()) {
+        finishSignIn(tr("Enter a server address and username.")); return;
+    }
+    if (origin.scheme() == QLatin1String("http") && !allowHttp) {
+        m_httpConsentRequired = true;
+        finishSignIn(tr("Acknowledge the HTTP warning before connecting.")); return;
+    }
+    const auto generation = m_generation;
+    m_busy = true;
+    m_status = tr("Signing in…");
+    publish();
+    if (generation != m_generation) return;
+    m_client.authenticate(provider, origin.toString(), username, password, allowHttp,
+        [this, generation, provider, origin](HomeServerClient::Response response) {
+        if (generation != m_generation) return;
+        if (!response.ok()) {
+            finishSignIn(response.expired() ? tr("Sign-in failed. Check your username and password.") : response.error);
+            return;
+        }
+        const auto body = response.body.toObject();
+        const auto user = body.value("User").toObject();
+        const auto token = body.value("AccessToken").toString();
+        m_client.request(provider, origin, QStringLiteral("/System/Info"), "GET", token, {},
+            [this, generation, provider, origin, user, body, token](HomeServerClient::Response info) {
+            if (generation != m_generation) return;
+            if (info.expired()) { finishSignIn(tr("Sign-in expired. Try again.")); return; }
+            const auto system = info.ok() ? info.body.toObject() : QJsonObject{};
+            const auto authenticatedId = body.value("ServerId").toString();
+            const auto systemId = system.value("Id").toString();
+            if (!authenticatedId.isEmpty() && !systemId.isEmpty() && authenticatedId != systemId) {
+                finishSignIn(tr("The server identity changed while signing in.")); return;
+            }
+            QString name = system.value("ServerName").toString();
+            if (name.trimmed().isEmpty()) name = origin.authority() + origin.path();
+            saveAuthenticated({{"provider", provider}, {"origin", origin.toString()}, {"name", name},
+                {"userId", user.value("Id")}, {"userName", user.value("Name").toString()},
+                {"serverId", authenticatedId.isEmpty() ? systemId : authenticatedId}}, token);
+        });
+    });
+}
+void HomeServerService::beginPlex() {
+    if (!canSignIn()) return;
+    invalidateRequests();
+    const auto generation = m_generation;
+    m_busy = true;
+    m_status = tr("Requesting a Plex sign-in code…");
+    publish();
+    if (generation != m_generation) return;
+    m_client.createPlexPin([this, generation](HomeServerClient::Response response) {
+        if (generation != m_generation) return;
+        if (!response.ok()) { finishSignIn(response.error); return; }
+        const auto pin = response.body.toObject();
+        m_pinId = pin.value("id").toInteger();
+        m_pinCode = pin.value("code").toString();
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        const auto date = QDateTime::fromString(pin.value("expiresAt").toString(), Qt::ISODateWithMs);
+        const qint64 expiresIn = pin.value("expiresIn").toInteger(300);
+        m_pinDeadline = date.isValid() ? date.toMSecsSinceEpoch() : now + qBound(qint64(1), expiresIn, qint64(300)) * 1000;
+        m_pinDeadline = qMin(m_pinDeadline, now + 300000);
+        QUrl url(QStringLiteral("https://plex.tv/link"));
+        QUrlQuery query;
+        query.addQueryItem(QStringLiteral("pin"), m_pinCode);
+        url.setQuery(query);
+        m_pinUrl = url.toString();
+        m_status = tr("Open Plex sign-in and enter the code.");
+        publish();
+        m_pinTimer.start();
+    });
+}
+void HomeServerService::pollPlex() {
+    if (!m_busy || m_pinId == 0) return;
+    if (QDateTime::currentMSecsSinceEpoch() >= m_pinDeadline) {
+        m_pinCode.clear(); m_pinUrl.clear();
+        finishSignIn(tr("Plex sign-in expired. Try again.")); return;
+    }
+    const auto generation = m_generation;
+    m_client.pollPlexPin(m_pinId, m_pinCode, [this, generation](HomeServerClient::Response response) {
+        if (generation != m_generation) return;
+        if (!response.ok()) { finishSignIn(tr("Plex sign-in failed. Try again.")); return; }
+        const auto token = response.body.toObject().value("authToken").toString();
+        if (token.isEmpty()) { m_pinTimer.start(); return; }
+        m_pinId = 0; m_pinCode.clear(); m_pinUrl.clear();
+        m_status = tr("Finding your Plex servers…");
+        publish();
+        if (generation != m_generation) return;
+        m_client.discoverPlexServers(token, [this, generation](HomeServerClient::Response servers) {
+            if (generation != m_generation) return;
+            if (!servers.ok()) {
+                finishSignIn(servers.expired() ? tr("Plex sign-in expired. Try again.") : servers.error); return;
+            }
+            m_plexCandidates = servers.body.toArray();
+            finishSignIn(m_plexCandidates.isEmpty() ? tr("No Plex Media Server is available for this account.")
+                                                   : tr("Choose your Plex server."));
+        });
+    });
+}
+void HomeServerService::selectPlexServer(const QString &id, bool allowHttp) {
+    if (!canSignIn()) return;
+    for (const auto &value : m_plexCandidates) {
+        const auto candidate = value.toObject();
+        if (candidate.value("id").toString() != id) continue;
+        if (!candidate.value("available").toBool()) {
+            finishSignIn(tr("That Plex server is offline.")); return;
+        }
+        const auto generation = m_generation;
+        m_busy = true; m_httpConsentRequired = false;
+        m_status = tr("Connecting to your Plex server…");
+        publish();
+        probePlex(candidate, 0, allowHttp, false, generation);
+        return;
+    }
+    finishSignIn(tr("Choose a server from the current Plex sign-in."));
+}
+void HomeServerService::probePlex(const QJsonObject &candidate, int endpoint, bool allowHttp,
+                                 bool skippedHttp, quint64 generation) {
+    if (generation != m_generation) return;
+    const auto endpoints = candidate.value("endpoints").toArray();
+    if (endpoint >= endpoints.size() || endpoint >= 16) {
+        m_httpConsentRequired = skippedHttp;
+        finishSignIn(skippedHttp ? tr("This server has an HTTP connection. Acknowledge the warning to try it.")
+                                : tr("Could not reach this Plex server.")); return;
+    }
+    const QUrl origin(endpoints.at(endpoint).toObject().value("origin").toString());
+    if (origin.scheme() == QLatin1String("http") && !allowHttp) {
+        probePlex(candidate, endpoint + 1, allowHttp, true, generation); return;
+    }
+    m_client.verifyPlexServer(origin, candidate.value("token").toString(), allowHttp,
+        [this, candidate, endpoint, allowHttp, skippedHttp, generation, origin](HomeServerClient::Response response) {
+        if (generation != m_generation) return;
+        if (response.expired()) { finishSignIn(tr("Plex sign-in expired. Sign in again.")); return; }
+        if (!response.ok() || response.body.toObject().value("id") != candidate.value("id")) {
+            probePlex(candidate, endpoint + 1, allowHttp, skippedHttp, generation); return;
+        }
+        saveAuthenticated({{"provider", "plex"}, {"origin", origin.toString()},
+            {"name", candidate.value("name")}, {"userId", "plex"}, {"userName", "Plex"},
+            {"serverId", candidate.value("id")}}, candidate.value("token").toString());
+    });
+}
+void HomeServerService::cancelSignIn() {
+    invalidateRequests(); m_status.clear(); publish();
+}
+void HomeServerService::setEnabled(const QString &id, bool enabled) {
+    if (m_store.connection(id).isEmpty()) return;
+    invalidateRequests();
+    m_status = m_store.setEnabled(id, enabled) ? QString() : m_store.error();
+    publish();
+}
+void HomeServerService::remove(const QString &id) {
+    if (m_store.connection(id).isEmpty()) return;
+    invalidateRequests();
+    m_status = m_store.remove(id) ? QString() : m_store.error();
+    m_connectionStatus.remove(id);
+    publish();
+}
