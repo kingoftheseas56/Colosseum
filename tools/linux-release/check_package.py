@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
 """Verify relocated ELF closure and source/QML identity before archive creation."""
 import argparse, hashlib, json, os, re, subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from assemble import elf, sha, SYSTEM, validate_gdk_pixbuf_cache
+
+def baseline_library_name(name):
+    if '/' not in name:
+        return bool(SYSTEM.match(name))
+    # Arch ldd can print the ELF interpreter as an absolute name before
+    # "=>". It is the same system-provided loader allowed by SYSTEM, not
+    # an additional unbundled library. Do not accept arbitrary absolute paths.
+    path=PurePosixPath(name)
+    return path.name=='ld-linux-x86-64.so.2' and str(path.parent) in {
+        '/lib','/lib64','/usr/lib','/usr/lib64',
+        '/lib/x86_64-linux-gnu','/usr/lib/x86_64-linux-gnu'}
 
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('stage',type=Path);ap.add_argument('--report',type=Path,required=True);a=ap.parse_args();root=a.stage.resolve()
@@ -39,7 +50,7 @@ def main():
             name,location=m.groups()
             if not Path(location).resolve().is_relative_to(root):
                 external[name]=location
-                if not SYSTEM.match(name):failures.append(f'Unbundled non-baseline library {rel}: {name} -> {location}')
+                if not baseline_library_name(name):failures.append(f'Unbundled non-baseline library {rel}: {name} -> {location}')
         syms=subprocess.run(['readelf','--dyn-syms','--wide',str(p)],text=True,capture_output=True).stdout
         for line in syms.splitlines():
             if ' UND ' not in line:continue

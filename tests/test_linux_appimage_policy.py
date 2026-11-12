@@ -3,14 +3,26 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('package_appimage', ROOT / 'tools/linux-release/package_appimage.py')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
+sys.path.insert(0, str(ROOT / 'tools/linux-release'))
+from check_package import baseline_library_name
 
 
 class AppImageIdentityTests(unittest.TestCase):
+    def test_arch_absolute_loader_remains_system_baseline(self):
+        self.assertTrue(baseline_library_name('ld-linux-x86-64.so.2'))
+        self.assertTrue(baseline_library_name('/lib64/ld-linux-x86-64.so.2'))
+        self.assertTrue(baseline_library_name('/usr/lib64/ld-linux-x86-64.so.2'))
+
+    def test_absolute_nonbaseline_and_untrusted_loader_paths_rejected(self):
+        for name in ['/usr/lib/libssl.so.3', '/tmp/ld-linux-x86-64.so.2', '/lib64/not-the-loader.so', 'usr/lib64/ld-linux-x86-64.so.2']:
+            self.assertFalse(baseline_library_name(name), name)
+
     def test_changed_or_missing_original_file_rejected(self):
         original = {'AppRun': {'sha256': 'original', 'mode': 493}}
         for final in [{}, {'AppRun': {'sha256': 'changed', 'mode': 493}}, {'AppRun': {'sha256': 'original', 'mode': 420}}]:
