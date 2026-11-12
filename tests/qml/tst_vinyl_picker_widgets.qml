@@ -66,9 +66,10 @@ TestCase {
         var first=findChild(picker,"vinylPickerArtist_0");
         var artwork=findChild(picker,"vinylPickerArtistArtwork_0");
         verify(artwork !== null);
-        verify(artwork.includesTitle);
+        verify(!artwork.includesTitle);
         compare(artwork.title,"Initial One");
-        compare(labelCount(first,"Initial One"),1,"Only the record frame prints the artist name");
+        compare(labelCount(first,"Initial One"),1,"The host prints the artist name once below the record");
+        compare(findChild(first,"vinylPickerArtistCaption_0").text,"Initial One");
         verify(!first.showFocusFrame);
         compare(first.focusRadius,first.width*0.1);
         mouseClick(first,first.width/2,first.height/2);

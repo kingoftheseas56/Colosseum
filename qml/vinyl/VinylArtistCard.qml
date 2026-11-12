@@ -20,7 +20,7 @@ KeyboardAction {
     readonly property real artRadius: shape === "round" ? width * 0.1 : (shape === "wide" ? 9 : 13)
     readonly property string secondaryText: songCard
         ? Presentation.secondary(record, Presentation.artist(record)) : String(record.subtitle || "")
-    readonly property bool hasCaption: shape === "round" || songCard ? secondaryText.length > 0 : true
+    readonly property bool hasCaption: songCard ? secondaryText.length > 0 : true
     implicitHeight: artHeight + (hasCaption ? (shape === "wide" ? 0 : 14) + captionPlate.height : 0)
     focusRadius: artRadius
     spaceActivates: true
@@ -191,7 +191,7 @@ KeyboardAction {
 
             Text {
                 width: parent.width
-                visible: !card.songCard && card.shape !== "round"
+                visible: !card.songCard
                 text: String(card.record.title || "")
                 textFormat: Text.PlainText
                 color: theme.ink

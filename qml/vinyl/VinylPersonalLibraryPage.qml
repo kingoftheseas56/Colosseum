@@ -218,11 +218,21 @@ Item {
                         objectName: "vinylLibraryArtist_" + index
                         focusOnPointer: false; showFocusFrame: false
                         width: (artistGrid.width - (artistGrid.columns - 1) * artistGrid.columnSpacing) / artistGrid.columns
-                        height: art.height + 12
+                        height: artistName.y + artistName.height + 8
                         accessibleName: root.displayTitle(modelData)
                         onActiveFocusChanged: if (activeFocus) { root.currentIndex=index; root.selectedId=String(modelData.artistId || modelData.id || ""); }
                         onTriggered: root.libraryData.activateArtist(modelData)
                         VinylArtistWidget { id: art; width: artistCard.width; height: implicitHeight; title: root.displayTitle(artistCard.modelData); artworkSource: root.artwork(artistCard.modelData.cover); displayFont: theme.display }
+                        Text {
+                            id: artistName
+                            y: art.height + 11; width: parent.width; height: 20
+                            text: root.displayTitle(artistCard.modelData)
+                            textFormat: Text.PlainText
+                            color: theme.ink
+                            font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                            horizontalAlignment: Text.AlignHCenter
+                            elide: Text.ElideRight
+                        }
                     }
                 }
             }

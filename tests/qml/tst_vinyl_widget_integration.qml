@@ -8,7 +8,8 @@ TestCase {
     name: "VinylWidgetIntegration"
     visible: true
     width: 600; height: 700
-    when: windowShown
+    when: windowShown && faceFont.status === FontLoader.Ready
+    FontLoader { id: faceFont; source: "../../assets/fonts/Fraunces-Regular.ttf" }
     QtObject {
         id: worldStub
         property var session: null
@@ -28,12 +29,82 @@ TestCase {
     }
     Component { id: factory; Vinyl.VinylItemCard { width: 196; worldData: worldStub } }
     Component { id: catalogueFactory; Vinyl.VinylArtistCard { width: 196; artistData: worldStub } }
+    QtObject {
+        id: libraryStub
+        property string section: "artists"
+        property var artists: [{id:"fixture-artist", title:"Visible library artist", cover:""}]
+        property var activated: null
+        function activateArtist(artist) { activated = artist; }
+    }
+    Component { id: libraryFactory; Vinyl.VinylPersonalLibraryPage {
+        width: test.width; libraryData: libraryStub; backdrop: null
+    } }
     Component {
         id: songWidgetFactory
         Vinyl.VinylSongWidget {
             width: 196
             artworkSource: Qt.resolvedUrl("../../assets/icons/play.svg")
         }
+    }
+    function test_squareFootprints_data() {
+        var rows = [];
+        [130, 196].forEach(function(size) {
+            ["songs", "albums", "artists", "mixes", "radio"].forEach(function(kind) {
+                rows.push({tag:kind + "-" + size, kind:kind, size:size});
+            });
+        });
+        return rows;
+    }
+    function test_squareFootprints(data) {
+        var card = createTemporaryObject(factory, test, {
+            width:data.size, item:{id:"square-" + data.kind, kind:data.kind, title:"Fixture title"}
+        });
+        verify(card !== null);
+        var art = findChild(card, card.objectName + "_cover");
+        tryCompare(art, "status", Loader.Ready);
+        compare(art.item.implicitHeight, data.size, "The allocated face is square");
+        compare(art.height, data.size, "The host reserves that square footprint");
+    }
+    function labelCount(node, value) {
+        var count = node.visible && node.text === value ? 1 : 0;
+        for (var i = 0; node.children && i < node.children.length; ++i)
+            count += labelCount(node.children[i], value);
+        return count;
+    }
+    function test_libraryArtistKeepsHostCaptionAndActivation() {
+        var page = createTemporaryObject(libraryFactory, test);
+        verify(page !== null);
+        var card = findChild(page, "vinylLibraryArtist_0");
+        verify(card !== null && card.visible);
+        compare(labelCount(card, "Visible library artist"), 1);
+        libraryStub.activated = null;
+        mouseClick(card, card.width / 2, card.height / 2);
+        compare(libraryStub.activated, libraryStub.artists[0]);
+    }
+    function test_sameCaptionBlockAcrossEveryWidget() {
+        [130, 196].forEach(function(size) {
+            var referenceHeight = -1;
+            ["songs", "albums", "artists", "mixes", "radio"].forEach(function(kind) {
+                var card = createTemporaryObject(factory, test, {width:size,
+                    item:{id:"caption-" + kind, kind:kind, title:"Fixture title", artist:"Fixture singer",
+                        record:{title:"Fixture album", artists:["Fixture singer"]}}});
+                verify(card !== null);
+                var caption = findChild(card, card.objectName + "_caption");
+                verify(caption !== null);
+                compare(card.captionTop, size + 14);
+                compare(caption.y, size + 14);
+                if (referenceHeight < 0) referenceHeight = caption.height;
+                else compare(caption.height, referenceHeight);
+                if (kind === "songs") {
+                    compare(card.captionTitle, "Fixture singer · from Fixture album");
+                    compare(labelCount(card, "Fixture title"), 1, "Song title stays inside its face");
+                } else if (kind === "artists") {
+                    compare(card.captionTitle, "Fixture title");
+                    compare(card.captionDetail, "Artist radio");
+                    compare(labelCount(card, "Fixture title"), 1, "Artist name belongs to its host caption");
+                }
+            });
+        });
     }
     function test_hoverFeedbackBadgesAreDirectAndDoNotNavigate() {
         var source={id:"feedback",kind:"songs",title:"Track",artist:"Singer",ref:{itemId:"track"}};
@@ -78,13 +149,14 @@ TestCase {
         verify(card !== null);
         compare(card.secondaryText, "");
         compare(card.implicitHeight, card.artHeight, "An embedded artist must not leave an empty caption block");
-        verify(card.artHeight >= 256);
+        compare(card.artHeight, 196, "Song art now shares the square footprint");
         card.record = {title:"Track",subtitle:"Album name",song:song};
         compare(card.secondaryText, "Album name");
         verify(card.implicitHeight > card.artHeight);
         card.record = {title:"Artist"}; card.shape = "round";
         compare(card.focusRadius, 19.6);
-        compare(card.implicitHeight, card.artHeight);
+        verify(card.implicitHeight > card.artHeight, "The artist name moves to the host caption");
+        compare(labelCount(card, "Artist"), 1);
         card.record = {title:"Artist",subtitle:"Related to your listening"};
         verify(card.hasCaption, "Artist secondary metadata must remain outside the embedded name");
         card.shape = "wide";
@@ -144,7 +216,7 @@ TestCase {
         card.item = {id:"artist",kind:"artists",title:"Artist",subtitle:"12 songs"};
         compare(card.presentationKind, "artists");
         compare(card.secondaryText, "12 songs");
-        verify(card.includesTitle);
+        verify(!card.includesTitle, "Artist names are outside the record face");
         card.item = {id:"resume",kind:"resume",title:"Track",artist:"Real artist",subtitle:"Real artist"};
         compare(card.presentationKind, "songs");
         compare(card.artistText, "Real artist");
@@ -178,10 +250,12 @@ TestCase {
                 verify(artwork !== null && image !== null && paper !== null && title !== null && artist !== null);
                 compare(artwork.width, widget.coverSize);
                 compare(artwork.height, widget.coverSize, "Cover remains square at width " + widths[wi]);
-                compare(artwork.crop, false);
-                compare(image.fillMode, Image.PreserveAspectFit, "Artwork remains uncropped");
+                compare(widget.height, widths[wi], "The jukebox face stays square");
+                compare(artwork.crop, true);
+                compare(image.fillMode, Image.PreserveAspectCrop, "The cover fills the square face");
                 compare(paper.x, widget.inset);
-                compare(paper.y, artwork.y + artwork.height, "Paper begins below the full cover");
+                fuzzyCompare(paper.y + paper.height, artwork.y + artwork.height, 0.01,
+                    "The title strip overlays the bottom of the cover");
                 compare(paper.height, widget.labelHeight);
                 compare(title.height, widget.titleAreaHeight);
                 compare(title.verticalAlignment, Text.AlignVCenter);

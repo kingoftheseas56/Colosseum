@@ -31,9 +31,23 @@ KeyboardAction {
     readonly property string reason: item.reason || ""
     readonly property string presentationKind: Presentation.kind(item)
     readonly property string artistText: Presentation.artist(item)
-    readonly property bool includesTitle: presentationKind === "songs" || presentationKind === "artists"
+    readonly property bool includesTitle: presentationKind === "songs"
     readonly property string secondaryText: Presentation.secondary(item, artistText)
         + (feedbackError ? "\n" + feedbackError : "")
+    readonly property string albumText: {
+        var record = item.song && item.song.album || item.record || {};
+        var name = String(item.albumTitle || record.title || "");
+        return name === String(item.title || "") ? "" : name;
+    }
+    readonly property string captionTitle: presentationKind === "songs"
+        ? artistText + (albumText ? qsTr(" · from %1").arg(albumText) : "") : String(item.title || "")
+    readonly property string captionDetail: item.unavailable ? qsTr("Unavailable")
+        : reason || (presentationKind === "artists" ? qsTr("Artist radio")
+            : presentationKind === "mixes" ? String(item.subtitle || qsTr("Made for you"))
+            : presentationKind === "radio" ? String(item.subtitle || qsTr("Station"))
+            : presentationKind === "albums" ? artistText || String(item.subtitle || "")
+            : String(item.subtitle && item.subtitle !== artistText ? item.subtitle : ""))
+    readonly property real captionTop: copy.y
     readonly property url artworkSource: worldData && item ? worldData.artwork(item.cover) : ""
     readonly property var mixArtworkSources: (item.artworkCovers || []).slice(0, 3).map(function(cover) {
         return root.worldData ? root.worldData.artwork(cover) : "";
@@ -119,34 +133,44 @@ KeyboardAction {
     } }
     Column {
         id: copy
+        objectName: root.objectName + "_caption"
         y: art.height + 14
         width: parent.width
-        spacing: 6
+        spacing: 4
         Text {
+            objectName: root.objectName + "_captionTitle"
             width: parent.width
-            visible: !root.includesTitle
-            text: root.item.title
+            height: 20
+            text: root.captionTitle
             textFormat: Text.PlainText
             color: theme.ink
             font.family: theme.ui
             font.pixelSize: 15
             font.weight: Font.DemiBold
-            wrapMode: Text.WordWrap
-            maximumLineCount: 2
+            maximumLineCount: 1
             elide: Text.ElideRight
         }
         Text {
+            objectName: root.objectName + "_captionDetail"
             width: parent.width
-            visible: text.length > 0
-            text: root.secondaryText
+            height: 18
+            text: root.captionDetail
             textFormat: Text.PlainText
-            color: theme.inkDim
+            color: root.reason ? theme.gold : theme.inkDim
             font.family: theme.ui
             font.pixelSize: 12
-            wrapMode: Text.WordWrap
-            maximumLineCount: 3
+            maximumLineCount: 1
             elide: Text.ElideRight
             lineHeight: 1.25
+        }
+        Text {
+            width: parent.width
+            visible: root.feedbackError.length > 0
+            text: root.feedbackError
+            textFormat: Text.PlainText
+            color: theme.ink
+            font.family: theme.ui; font.pixelSize: 12
+            wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
         }
     }
 

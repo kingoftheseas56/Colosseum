@@ -1,31 +1,23 @@
 import QtQuick
 
-// v6 Kindred sounds: glass frame, full grooved record, 67% photo label.
+// Square record face with a 67% photo label; the host owns the name caption.
 Item {
     id: root
     property url artworkSource: ""
     property string title: ""
     property string displayFont: "Fraunces"
-    readonly property bool includesTitle: true
+    readonly property bool includesTitle: false
     readonly property string initials: title.trim().split(/\s+/).slice(0, 2)
         .map(function(word) { return word.charAt(0); }).join("").toLocaleUpperCase()
     implicitWidth: 196
-    implicitHeight: width * 1.084
+    implicitHeight: width
 
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: 1
-        radius: root.width * 0.1
-        color: Qt.rgba(1, 1, 1, 0.09)
-        border.width: 1
-        border.color: Qt.rgba(1, 1, 1, 0.16)
-    }
     Item {
         id: record
-        width: Math.min(root.width * 0.758, root.height * 0.72)
+        width: root.width
         height: width
         anchors.horizontalCenter: parent.horizontalCenter
-        y: root.height * 0.06
+        y: 0
         Rectangle {
             anchors.fill: parent
             radius: width / 2
@@ -33,6 +25,7 @@ Item {
         }
         VinylArtwork {
             id: photo
+            objectName: "vinylArtistArtwork"
             anchors.centerIn: parent
             width: record.width * 0.67
             height: width
@@ -63,6 +56,7 @@ Item {
             border.color: "#c0000000"
         }
         Text {
+            objectName: "vinylArtistInitials"
             anchors.centerIn: parent
             width: record.width * 0.52
             visible: !photo.ready
@@ -74,21 +68,5 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
         }
-    }
-    Text {
-        x: root.width * 0.05
-        y: record.y + record.height + root.width * 0.08
-        width: root.width * 0.9
-        height: Math.max(0, root.height - y - root.width * 0.06)
-        text: root.title
-        textFormat: Text.PlainText
-        color: "#f7f7f5"
-        font.family: root.displayFont
-        font.pixelSize: Math.max(16, root.width * 17 / 179)
-        font.weight: Font.Normal
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
-        maximumLineCount: 1
     }
 }

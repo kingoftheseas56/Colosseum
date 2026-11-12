@@ -10,20 +10,19 @@ Item {
     property string uiFont: "Segoe UI"
     readonly property bool includesTitle: true
     readonly property bool includesSubtitle: true
-    readonly property real unit: width / 280
-    readonly property real inset: Math.max(5, 8 * unit)
+    readonly property real unit: width / 220
+    readonly property real inset: 9 * unit
     readonly property real coverSize: Math.max(0, width - 2 * inset)
-    readonly property real titleAreaHeight: Math.ceil(titleMetrics.lineSpacing * titleCopy.lineHeight * 2)
-    readonly property real artistRowHeight: Math.ceil(artistMetrics.lineSpacing)
-    readonly property real labelHeight: Math.max(60, 76 * unit,
-        labelCopy.implicitHeight + Math.max(16, 24 * unit))
+    readonly property real titleAreaHeight: Math.ceil(titleMetrics.height * 1.08 * 2)
+    readonly property real artistRowHeight: Math.ceil(artistMetrics.height)
+    readonly property real labelHeight: 66 * unit
     implicitWidth: 196
-    implicitHeight: coverSize + labelHeight + 2 * inset
+    implicitHeight: width
 
     Rectangle {
         anchors.fill: parent
-        radius: Math.max(4, 7 * root.unit)
-        color: "transparent"
+        radius: 7 * root.unit
+        color: "#0c0d0e"
         border.width: 1
         border.color: "#393b3c"
     }
@@ -38,14 +37,14 @@ Item {
         x: root.inset; y: root.inset
         width: root.coverSize; height: width
         source: root.artworkSource
-        crop: false
+        crop: true
         backgroundColor: "#242225"
     }
     Rectangle {
         id: paper
         objectName: "vinylSongPaper"
         x: root.inset
-        y: root.inset + root.coverSize
+        y: root.inset + root.coverSize - height
         width: root.coverSize
         height: root.labelHeight
         gradient: Gradient {
@@ -63,8 +62,8 @@ Item {
             id: labelCopy
             objectName: "vinylSongLabelCopy"
             anchors.centerIn: parent
-            width: parent.width - Math.max(16, 26 * root.unit)
-            spacing: Math.max(3, 6 * root.unit)
+            width: parent.width - 28 * root.unit
+            spacing: 4 * root.unit
             Text {
                 id: titleCopy
                 objectName: "vinylSongTitle"
@@ -74,7 +73,7 @@ Item {
                 textFormat: Text.PlainText
                 color: "#f7f7f5"
                 font.family: root.displayFont
-                font.pixelSize: Math.max(16, 24 * root.unit)
+                font.pixelSize: 19 * root.unit
                 font.weight: Font.Medium
                 font.letterSpacing: -0.35 * root.unit
                 horizontalAlignment: Text.AlignHCenter
@@ -93,9 +92,9 @@ Item {
                 textFormat: Text.PlainText
                 color: "#c9c8d0"
                 font.family: root.uiFont
-                font.pixelSize: Math.max(10, 11 * root.unit)
+                font.pixelSize: 10.5 * root.unit
                 font.weight: Font.DemiBold
-                font.letterSpacing: Math.max(0.7, 1.4 * root.unit)
+                font.letterSpacing: 1.2 * root.unit
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 elide: Text.ElideRight
@@ -133,11 +132,11 @@ Item {
         model: 2
         delegate: Rectangle {
             required property int index
-            x: Math.max(3, 5 * root.unit)
-            y: index === 0 ? 1 : root.height - height - 1
+            x: 5 * root.unit
+            y: index === 0 ? root.unit : root.height - height - root.unit
             width: root.width - 2 * x
-            height: Math.max(4, 7 * root.unit)
-            radius: Math.max(2, 3 * root.unit)
+            height: 7 * root.unit
+            radius: 3 * root.unit
             gradient: Gradient {
                 GradientStop { position: 0; color: "#626664" }
                 GradientStop { position: 0.17; color: "#c5c8c4" }

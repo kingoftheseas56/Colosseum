@@ -1922,6 +1922,7 @@ foreach(vinyl_unit_suite IN ITEMS
     vinyl_shell_tabs
     vinyl_song_attribution
     vinyl_source_attribution
+    vinyl_square_faces
     vinyl_widget_integration
     vinyl_world_navigation
 )

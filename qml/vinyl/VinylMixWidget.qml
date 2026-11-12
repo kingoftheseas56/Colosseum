@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
+import ".."
 
 // Presentation only. The containing VinylItemCard owns its title and all input.
 Item {
@@ -7,17 +8,58 @@ Item {
     property var artworkSources: []
     property string title: ""
     implicitWidth: 196
-    implicitHeight: width * 194 / 304
+    implicitHeight: width
 
-    readonly property real objectScale: Math.max(0, Math.min(width / 304, height / 194))
+    readonly property real objectScale: Math.max(0, Math.min(width / 220, height / 220))
+    Theme { id: theme }
+
+    // The approved 220-unit J-card stands behind the existing cassette face.
+    Rectangle {
+        objectName: "vinylMixJCard"
+        x: (root.width - 220 * root.objectScale) / 2 + 12 * root.objectScale
+        y: (root.height - 220 * root.objectScale) / 2
+        width: 196; height: 150; radius: 6
+        scale: root.objectScale
+        transformOrigin: Item.TopLeft
+        border.width: 1; border.color: "#b0ad9e"
+        gradient: Gradient {
+            GradientStop { position: 0; color: "#e9e5d8" }
+            GradientStop { position: 1; color: "#d2cfc1" }
+        }
+        Rectangle { x: 10; y: 8; width: 176; height: 1; color: "#b9b6a8" }
+        Text {
+            x: 14; y: 16; width: 168; height: 52
+            text: root.title
+            textFormat: Text.PlainText
+            font.family: theme.display; font.pixelSize: 22; font.italic: true
+            color: "#2b2a26"
+            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+            verticalAlignment: Text.AlignVCenter
+        }
+        Text {
+            x: 14; y: 70; width: 168; height: 12
+            text: qsTr("SIDE A · MADE FOR YOU")
+            font.family: theme.ui; font.pixelSize: 9; font.weight: Font.DemiBold
+            font.letterSpacing: 1.4; color: "#6d6a5e"
+            elide: Text.ElideRight
+        }
+        Repeater {
+            model: 3
+            delegate: Rectangle {
+                required property int index
+                x: 30; y: 97 + index * 13; width: 140; height: 1
+                color: "#473c372d"
+            }
+        }
+    }
 
     Item {
         id: cassette
         width: 300
         height: 190
-        x: (root.width - width * scale) / 2
-        y: (root.height - height * scale) / 2
-        scale: root.objectScale
+        x: (root.width - 220 * root.objectScale) / 2
+        y: (root.height - 220 * root.objectScale) / 2 + 81 * root.objectScale
+        scale: root.objectScale * 220 / 300
         transformOrigin: Item.TopLeft
 
         Rectangle {

@@ -1,4 +1,5 @@
 import QtQuick
+import ".."
 
 // Artist imagery identifies the station; the host owns its name and playback.
 Item {
@@ -6,13 +7,14 @@ Item {
     property url artworkSource: ""
     property string title: ""
     implicitWidth: 196
-    implicitHeight: width * 224 / 304
+    implicitHeight: width
 
-    readonly property real objectScale: Math.max(0, Math.min(width / 304, height / 224))
+    readonly property real objectScale: Math.max(0, Math.min(width / 220, height / 220))
+    Theme { id: theme }
 
     Item {
         id: radio
-        width: 300
+        width: 220
         height: 220
         x: (root.width - width * scale) / 2
         y: (root.height - height * scale) / 2
@@ -20,10 +22,10 @@ Item {
         transformOrigin: Item.TopLeft
 
         // Open carrying handle: the space between its three pieces stays clear.
-        Rectangle { x: 85; y: 15; width: 9; height: 28; radius: 3; color: "#2c2c2c"; border.color: "#6f6f6f" }
-        Rectangle { x: 206; y: 15; width: 9; height: 28; radius: 3; color: "#2c2c2c"; border.color: "#6f6f6f" }
+        Rectangle { x: 70; y: 8; width: 8; height: 24; radius: 3; color: "#2c2c2c"; border.color: "#6f6f6f" }
+        Rectangle { x: 142; y: 8; width: 8; height: 24; radius: 3; color: "#2c2c2c"; border.color: "#6f6f6f" }
         Rectangle {
-            x: 85; y: 10; width: 130; height: 12; radius: 6
+            x: 70; y: 2; width: 80; height: 11; radius: 6
             gradient: Gradient {
                 GradientStop { position: 0; color: "#6d6d6d" }
                 GradientStop { position: 0.3; color: "#383838" }
@@ -32,11 +34,8 @@ Item {
             border.color: "#898989"
             border.width: 1
         }
-        Rectangle { x: 42; y: 207; width: 37; height: 9; radius: 3; color: "#1a1a1a" }
-        Rectangle { x: 221; y: 207; width: 37; height: 9; radius: 3; color: "#1a1a1a" }
-
         Rectangle {
-            x: 0; y: 34; width: 300; height: 177; radius: 17
+            x: 0; y: 22; width: 220; height: 198; radius: 17
             gradient: Gradient {
                 GradientStop { position: 0; color: "#666666" }
                 GradientStop { position: 0.035; color: "#494949" }
@@ -47,13 +46,13 @@ Item {
             border.width: 1
         }
         Rectangle {
-            x: 5; y: 39; width: 290; height: 166; radius: 13
+            x: 5; y: 27; width: 210; height: 188; radius: 13
             color: "transparent"
             border.color: "#222222"
             border.width: 2
         }
         Rectangle {
-            x: 12; y: 46; width: 276; height: 152; radius: 9
+            x: 11; y: 33; width: 198; height: 176; radius: 9
             gradient: Gradient {
                 GradientStop { position: 0; color: "#474747" }
                 GradientStop { position: 0.6; color: "#343434" }
@@ -62,11 +61,9 @@ Item {
             border.color: "#707070"
             border.width: 1
         }
-        Rectangle { x: 22; y: 48; width: 256; height: 1; color: "#aaaaaa"; opacity: 0.34 }
-
         Item {
             id: speaker
-            x: 24; y: 59; width: 117; height: 117
+            x: 21; y: 141; width: 62; height: 62
             Rectangle {
                 anchors.fill: parent
                 radius: width / 2
@@ -81,7 +78,7 @@ Item {
             }
             Rectangle {
                 anchors.fill: parent
-                anchors.margins: 5
+                anchors.margins: 3
                 radius: width / 2
                 color: "#1c1c1c"
                 border.color: "#777777"
@@ -89,11 +86,11 @@ Item {
             }
             // Chord lengths follow the circle; no rounded-Rectangle clipping assumption.
             Repeater {
-                model: 15
+                model: 9
                 delegate: Rectangle {
                     required property int index
-                    readonly property real offsetFromCentre: (index - 7) * 6.4
-                    readonly property real halfChord: Math.sqrt(Math.max(0, 49 * 49 - offsetFromCentre * offsetFromCentre))
+                    readonly property real offsetFromCentre: (index - 4) * 5.6
+                    readonly property real halfChord: Math.sqrt(Math.max(0, 25 * 25 - offsetFromCentre * offsetFromCentre))
                     x: speaker.width / 2 - halfChord
                     y: speaker.height / 2 + offsetFromCentre - 1
                     width: halfChord * 2
@@ -102,53 +99,37 @@ Item {
                     color: index % 2 === 0 ? "#676767" : "#4a4a4a"
                 }
             }
-            Repeater {
-                model: 13
-                delegate: Rectangle {
-                    required property int index
-                    readonly property real offsetFromCentre: (index - 6) * 7.2
-                    readonly property real halfChord: Math.sqrt(Math.max(0, 48 * 48 - offsetFromCentre * offsetFromCentre))
-                    x: speaker.width / 2 + offsetFromCentre
-                    y: speaker.height / 2 - halfChord
-                    width: 1
-                    height: halfChord * 2
-                    color: "#181818"
-                    opacity: 0.68
-                }
-            }
         }
 
         // The station portrait is almost as large as the speaker, never a tiny badge.
         Rectangle {
-            x: 154; y: 55; width: 122; height: 112; radius: 3
+            x: 19; y: 41; width: 182; height: 98; radius: 3
             color: "#191919"
             border.color: "#a1a1a1"
             border.width: 1
         }
         VinylArtwork {
-            x: 159; y: 60; width: 112; height: 102
+            x: 23; y: 45; width: 174; height: 90
             source: root.artworkSource
             crop: true
             backgroundColor: "#313131"
         }
         Rectangle {
-            x: 157; y: 58; width: 116; height: 106
+            x: 21; y: 43; width: 178; height: 94
             color: "transparent"
             border.color: "#090909"
             border.width: 2
         }
-        Rectangle { x: 160; y: 60; width: 109; height: 1; color: "#e9e9e9"; opacity: 0.26 }
-
         Rectangle {
-            x: 25; y: 182; width: 207; height: 9; radius: 3
+            x: 92; y: 160; width: 92; height: 9; radius: 3
             color: "#1c1c1c"
             border.color: "#838383"
             border.width: 1
             Repeater {
-                model: 29
+                model: 16
                 delegate: Rectangle {
                     required property int index
-                    x: 6 + index * 6.9
+                    x: 5 + index * 7
                     y: 2
                     width: 1
                     height: index % 4 === 0 ? 5 : 3
@@ -156,10 +137,10 @@ Item {
                     opacity: index % 4 === 0 ? 0.8 : 0.43
                 }
             }
-            Rectangle { x: 132; y: 1; width: 2; height: 7; color: "#dbdbdb" }
+            Rectangle { x: 58; y: 1; width: 2; height: 7; color: "#dbdbdb" }
         }
         Rectangle {
-            x: 247; y: 174; width: 23; height: 23; radius: 11.5
+            x: 188; y: 155; width: 20; height: 20; radius: 10
             gradient: Gradient {
                 GradientStop { position: 0; color: "#b6b6b6" }
                 GradientStop { position: 0.22; color: "#838383" }
@@ -170,14 +151,19 @@ Item {
             border.width: 1
             Rectangle {
                 anchors.fill: parent
-                anchors.margins: 4
+                anchors.margins: 3
                 radius: width / 2
                 color: "#444444"
                 border.color: "#b0b0b0"
                 border.width: 1
             }
-            Rectangle { x: 11; y: 4; width: 1; height: 4; color: "#e4e4e4" }
         }
-        Rectangle { x: 22; y: 207; width: 256; height: 1; color: "#9e9e9e"; opacity: 0.28 }
+        Text {
+            x: 92; y: 180; width: 116; height: 10
+            text: qsTr("FM · ENDLESS")
+            font.family: theme.ui; font.pixelSize: 8; font.weight: Font.DemiBold
+            font.letterSpacing: 1.4; color: "#9a9a9a"
+            elide: Text.ElideRight
+        }
     }
 }

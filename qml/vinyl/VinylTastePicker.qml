@@ -218,7 +218,7 @@ Item {
                     required property int index
                     objectName: "vinylPickerArtist_" + index
                     width: (root.width - (grid.columns - 1) * 24) / grid.columns
-                    height: artwork.implicitHeight + 8
+                    height: artistCaption.y + artistCaption.height + 8
                     readonly property bool chosen: root.selected.indexOf(modelData.key) >= 0
                     showFocusFrame: false
                     focusRadius: width * 0.1
@@ -243,6 +243,20 @@ Item {
                         displayFont: theme.display
                         Accessible.ignored: true
                     }
+                    Text {
+                        id: artistCaption
+                        objectName: "vinylPickerArtistCaption_" + artistCard.index
+                        y: artwork.height + 8
+                        width: parent.width
+                        height: 20
+                        text: artistCard.modelData.title
+                        textFormat: Text.PlainText
+                        color: theme.ink
+                        font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        Accessible.ignored: true
+                    }
                     Image {
                         objectName: "vinylPickerArtistSelected_" + artistCard.index
                         visible: artistCard.chosen
@@ -255,7 +269,7 @@ Item {
                     }
                     Rectangle {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        y: artwork.height + 4
+                        y: artistCaption.y + artistCaption.height + 4
                         width: parent.width * 0.3
                         height: 2; radius: 1
                         visible: artistCard.chosen || artistCard.activeFocus

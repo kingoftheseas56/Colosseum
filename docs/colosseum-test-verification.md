@@ -3307,3 +3307,25 @@ it is no longer Main's Vinyl route. Discover's presentation is unchanged.
   `artifacts/vinyl-v1/slice1/`.
 
 These two CTest declarations bring the configured inventory to 296 unit entries: 99 Vinyl and the unchanged 197 other names. At source `0c07d4204fc08fb280e0eb8d93535a714b7a2971`, the two new checks plus existing world-navigation CTest passed 3/3. The isolated actual-app shell journey passed 55/55 and same-tag restart 13/13, with distinct pipes, C: stores and graceful app/CLI exit 0. Root inspected all three tab PNGs. Capture export flags do not set window geometry; exact 1280x700 composition is not claimed. Proxy-blocked images, empty-icon fallback and shutdown GL-context warnings remain recorded. See `artifacts/vinyl-v1/slice1/receiving/shell-root-review.json`; later Home/Library content and playback remain separate.
+
+## Vinyl v1 Home — Slice 3 square widget checks (2026-11-13)
+
+`colosseum.qml.vinyl_square_faces` adds one `unit;qml;vinyl;regression` entry.
+Its Song and Artist face checks cover 130/196 allocated squares, the overlaid
+song title strip, the 67% artist label and its initials fallback. The existing
+widget integration suite covers all five footprints, aligned two-line captions,
+pointer activation, feedback, and visible names in the personal-library host.
+The taste-picker suite preserves pointer/keyboard selection with host captions.
+Album's already-square case remains unchanged.
+
+Direct copied-runner receiving checks passed: integration 20/20, picker 4/4 and
+focused faces 6/6. The production song height negative control failed two square
+cases; exact source bytes were restored and all 12 footprint cases passed.
+The typography regression uses the shipped Fraunces face and actual Qt font
+metrics to preserve two title lines within the strip.
+
+The explicit capture harness is `tests/vinyl-visual/tst_square_gallery.qml`.
+It is outside unit discovery and requires the repository working directory plus
+an existing `artifacts/vinyl-v1/slice3` directory. Its planned output is
+`artifacts/vinyl-v1/slice3/widget-gallery.png`, using labelled fixture artwork.
+Capture, real-app receiving checks and Hemanth's visual verdict are pending.
