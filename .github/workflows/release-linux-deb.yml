@@ -282,6 +282,9 @@ jobs:
             python3 tools/linux-release/smoke_installed.py --platform-theme gtk3 --output /tmp/installed-receipts
       - name: Play a checked-in local fixture through installed Player 1
         run: |
+          # Minimal containers may make checkout fall back to a source archive.
+          # Restore export-ignored capture media and verify its pinned digest.
+          python3 scripts/restore_source_archive_media.py --scope capture
           runuser -u package-test -- dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24' \
             python3 tools/linux-release/smoke_installed_player.py \
               --fixture "$GITHUB_WORKSPACE/tests/lanista_capture/assets/Colosseum.mp4" \
