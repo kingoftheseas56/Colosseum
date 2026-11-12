@@ -295,10 +295,9 @@ Item {
             Column {id:aboutCopy;width:parent.width;spacing:20
                 LabelText {text:"COLOSSEUM / TRIBUTES";color:root.gold;font.letterSpacing:3}
                 LabelText {text:"A universe in your hand.";width:parent.width;wrapMode:Text.WordWrap;font.family:root.titleFont;font.pixelSize:32}
-                LabelText {width:parent.width;wrapMode:Text.WordWrap;text:"Select the stones from right to left to explore Phases I–VI. This mapping is a navigation concept, not a claim about Marvel lore."}
-                LabelText {width:parent.width;wrapMode:Text.WordWrap;text:"The catalogue preserves the supplied HTML, including season-specific entries, adjacent releases and comic references. It is not a verified release schedule."}
-                LabelText {width:parent.width;wrapMode:Text.WordWrap;text:"Tab and Enter select stones; keys 1–6 open phases. Escape returns to the gauntlet. Inside a phase, ← advances and → goes back when search is not focused."}
-                LabelText {width:parent.width;wrapMode:Text.WordWrap;text:"Marvel characters and artwork belong to their respective owners. Unofficial fan-made design study. Gauntlet reference: PNGkey.";color:root.muted;font.pixelSize:11}
+                LabelText {width:parent.width;wrapMode:Text.WordWrap;text:"Each stone on the gauntlet opens one phase of the Marvel Cinematic Universe, from Phase I to Phase VI. Open a phase to see its films and shows, and the comics behind them."}
+                LabelText {width:parent.width;wrapMode:Text.WordWrap;text:"Keyboard: 1–6 open a phase, and Esc returns to the gauntlet."}
+                LabelText {width:parent.width;wrapMode:Text.WordWrap;text:"Marvel characters and artwork belong to their respective owners. Colosseum is not affiliated with Marvel.";color:root.muted;font.pixelSize:11}
             }
         }
     }

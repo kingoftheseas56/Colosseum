@@ -81,7 +81,7 @@ AccountPageFrame {
         placeholderText: "Choose a username"
         controlObjectName: "accountCreateUsername"
         maximumLength: 24
-        inputMethodHints: Qt.ImhNoPredictiveText
+        inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase | Qt.ImhPreferLowercase
         onAccepted: passwordField.forceInputFocus()
     }
 

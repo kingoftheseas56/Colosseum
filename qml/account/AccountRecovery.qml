@@ -79,7 +79,7 @@ AccountPageFrame {
         placeholderText: "Your username"
         controlObjectName: "accountRecoveryUsername"
         maximumLength: 24
-        inputMethodHints: Qt.ImhNoPredictiveText
+        inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase | Qt.ImhPreferLowercase
         onAccepted: recoveryKeyField.forceInputFocus()
     }
 

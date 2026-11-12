@@ -446,6 +446,7 @@ Item {
                     text: root.usernameDraft
                     enabled: root.controller && root.controller.mode === "signedIn" && !root.usernameRequestPending
                     controlObjectName: "accountProfileUsername"
+                    inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase | Qt.ImhPreferLowercase
                     onTextChanged: {
                         if (root.usernameDraft !== text) {
                             root.usernameDraft = text
