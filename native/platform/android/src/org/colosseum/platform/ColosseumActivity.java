@@ -131,6 +131,8 @@ public final class ColosseumActivity extends QtActivity {
         float scale = baselineScale * visualZoom;
         try {
             android.system.Os.setenv("QT_SCALE_FACTOR", Float.toString(scale), true);
+            // Keep Qt fields in-app; Gboard's fullscreen extracted editor can lose sync.
+            android.system.Os.setenv("QT_ANDROID_NO_FULLSCREEN_KEYBOARD", "1", true);
         } catch (android.system.ErrnoException error) {
             throw new IllegalStateException("Could not establish the desktop presentation scale", error);
         }
