@@ -79,6 +79,7 @@ public:
                                     qint64 positionMs, qint64 durationMs,
                                     bool paused, const QString &event);
     void syncProgress(const QString &canonicalId = QString());
+    void progressEntryApplied(const QString &kind, const QString &id);
     Q_INVOKABLE bool isInsecureAddress(const QString &address) const;
 
 signals:
@@ -165,5 +166,7 @@ private:
     bool m_httpConsentRequired = false;
     bool m_refreshOnActivation = true;
     bool m_android = false;
+    bool m_applyingProgress = false;
+    bool m_externalProgressScheduled = false;
     QVariantMap m_videoDecodeCapabilities;
 };

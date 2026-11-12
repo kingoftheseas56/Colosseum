@@ -2011,6 +2011,11 @@ int main(int argc, char *argv[]) {
         auto *progress = accountRuntime->profileStores()->progressStore();
         homeServers->activate(profile.profileId(), root, homeServerProgressBridge(progress));
         if (progress) {
+            const auto generation = homeServers->profileGeneration();
+            QObject::connect(progress, &ProgressStore::syncedEntryApplied, homeServers,
+                [homeServers, generation](const QString &kind, const QString &id) {
+                    if (generation == homeServers->profileGeneration()) homeServers->progressEntryApplied(kind, id);
+                });
             QObject::connect(progress, &ProgressStore::videoProgressRecorded, homeServers,
                 [homeServers](const QString &id) { homeServers->syncProgress(id); });
             QObject::connect(progress, &ProgressStore::watchStateChanged, homeServers,

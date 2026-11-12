@@ -1,8 +1,18 @@
 #include "HomeServerProgressOwner.h"
+#include "HomeServerService.h"
 #include "ProgressStore.h"
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
+
+class BridgeSecrets final : public AccountSecretBackend {
+public:
+  bool isAvailable() const override { return true; }
+  bool write(const QString &, const QByteArray &) override { return false; }
+  std::optional<QByteArray> read(const QString &) const override { return std::nullopt; }
+  bool remove(const QString &) override { return false; }
+  QStringList targets(const QString &) const override { return {}; }
+};
 
 class ProgressBridgeTest : public QObject {
   Q_OBJECT
@@ -17,6 +27,32 @@ class ProgressBridgeTest : public QObject {
         {"resume", QVariantMap{{"positionMs", 2500}, {"durationMs", 10000}}}};
   }
 private slots:
+  void serverVisibilityStaysLocalWhileCanonicalProgressIsPortable() {
+    QTemporaryDir dir;
+    ProgressStore store(dir.filePath("progress.ini"));
+    auto owner = homeServerProgressBridge(&store);
+    auto entry = video("tt101", 12345);
+    entry.insert("_homeServerHidden", true);
+    entry.insert("resume", QVariantMap{{"infoHash","home-server:device-only:item:copy"},{"position",25}});
+    QVERIFY(owner->apply(entry));
+    QVERIFY(owner->get("tt101").value("_homeServerHidden").toBool());
+    QVERIFY(owner->entries().first().toMap().value("_homeServerHidden").toBool());
+    const auto portable=store.syncEntries().first().toMap();
+    QVERIFY(!portable.contains("_homeServerHidden"));
+    QCOMPARE(portable.value("updatedAt").toLongLong(),12345LL);
+    QCOMPARE(portable.value("resume").toMap().value("position").toInt(),25);
+    HomeServerService service({std::make_shared<BridgeSecrets>(),dir.filePath("installation"),QUrl("https://plex.tv"),1500,false});
+    service.activate("a",dir.filePath("profile"),owner);
+    QSignalSpy applied(&store,&ProgressStore::syncedEntryApplied);
+    QObject::connect(&store,&ProgressStore::syncedEntryApplied,&service,&HomeServerService::progressEntryApplied);
+    entry.remove("_homeServerHidden"); entry.insert("updatedAt",54321);
+    QVERIFY(store.applySyncedEntry(entry));
+    QTRY_VERIFY_WITH_TIMEOUT(store.get("video","tt101").value("_homeServerHidden").toBool(),2000);
+    QCoreApplication::processEvents();
+    QCOMPARE(applied.size(),2); // External import and one local hide; no feedback loop.
+    QVERIFY(store.recent("video").isEmpty());
+    QCOMPARE(store.syncEntries().first().toMap().value("updatedAt").toInt(),54321);
+  }
   void exactAdapterPreservesTimestampsAndEpisodes() {
     QTemporaryDir dir;
     ProgressStore store(dir.filePath("progress.ini"));

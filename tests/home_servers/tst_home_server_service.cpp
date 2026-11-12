@@ -121,6 +121,26 @@ class HomeServerServiceTest : public QObject {
         return id;
     }
 private slots:
+    void importedContinueUsesCurrentConnectionAndQueuedImportIsProfileFenced() {
+        QTemporaryDir dir; ServiceHttp server; auto secrets=std::make_shared<ServiceSecrets>();
+        const auto id=seedCopy(secrets,dir.filePath("a"),server.origin()); QVERIFY(!id.isEmpty());
+        auto owner=std::make_shared<ServiceProgress>();
+        HomeServerService service({secrets,dir.filePath("installation"),QUrl("https://plex.tv"),1500,false});
+        service.activate("a",dir.filePath("a"),owner);
+        const QVariantMap imported{{"id","tt1234567"},{"kind","video"},{"updatedAt",5000},{"duration",100},
+            {"progress",.3},{"resume",QVariantMap{{"infoHash","home-server:other-device:item:copy"},{"position",30}}}};
+        owner->apply(imported); service.progressEntryApplied("video","tt1234567");
+        QTRY_VERIFY(owner->get("tt1234567").value("resume").toMap().value("infoHash").toString().startsWith("home-server:"+id+':'));
+        QCOMPARE(owner->get("tt1234567").value("updatedAt").toInt(),5000);
+        QVERIFY(!owner->get("tt1234567").value("_homeServerHidden").toBool());
+        owner->apply(imported); service.progressEntryApplied("video","tt1234567");
+        auto other=std::make_shared<ServiceProgress>(); service.activate("b",dir.filePath("b"),other);
+        const auto ordinary=QVariantMap{{"id","tt1234567"},{"kind","video"},{"updatedAt",7000},{"resume",QVariantMap{{"infoHash","ordinary-hash"},{"position",70}}}};
+        other->apply(ordinary); QTest::qWait(80); QCOMPARE(other->get("tt1234567"),ordinary);
+        other->apply(imported); service.progressEntryApplied("video","tt1234567");
+        QTRY_VERIFY(other->get("tt1234567").value("_homeServerHidden").toBool());
+        QCOMPARE(other->get("tt1234567").value("resume").toMap().value("position").toInt(),30);
+    }
     void fallbackMatchKeepsOneCanonicalProgressIdAcrossRestart() {
         QTemporaryDir dir; ServiceHttp server; auto secrets=std::make_shared<ServiceSecrets>();
         const auto id=seedCopy(secrets,dir.filePath("a"),server.origin()); QVERIFY(!id.isEmpty());

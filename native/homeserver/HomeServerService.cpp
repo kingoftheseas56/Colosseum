@@ -4,6 +4,7 @@
 #include <QFileInfo>
 #include <QJsonObject>
 #include <QUrlQuery>
+#include <QScopedValueRollback>
 #include "player/playerbackendcontract.h"
 
 HomeServerService::HomeServerService(QObject *parent)
@@ -43,6 +44,7 @@ void HomeServerService::invalidateRequests() {
 void HomeServerService::activate(const QString &profileId, const QString &profileRoot,
                                  std::shared_ptr<HomeServerProgressOwner> progress) {
     ++m_profileGeneration;
+    m_externalProgressScheduled = false;
     cancelPlaybacks();
     cancelRefreshes();
     invalidateRequests();
@@ -292,8 +294,10 @@ void HomeServerService::setEnabled(const QString &id, bool enabled) {
     invalidateRequests();
     m_status = m_store.setEnabled(id, enabled) ? QString() : m_store.error();
     const auto owner = m_progress;
-    if (owner && !m_store.connection(id).value("enabled").toBool())
+    if (owner && !m_store.connection(id).value("enabled").toBool()) {
+        QScopedValueRollback<bool> applying(m_applyingProgress, true);
         HomeServerProgress::hideConnection(*owner, id);
+    }
     if (generation != m_profileGeneration) return;
     if (enabled) reconcileProgress(id);
     publish();
@@ -313,7 +317,10 @@ void HomeServerService::remove(const QString &id) {
     invalidateRequests();
     m_status = m_store.remove(id) ? QString() : m_store.error();
     const auto owner = m_progress;
-    if (owner && m_store.connection(id).isEmpty()) HomeServerProgress::hideConnection(*owner, id);
+    if (owner && m_store.connection(id).isEmpty()) {
+        QScopedValueRollback<bool> applying(m_applyingProgress, true);
+        HomeServerProgress::hideConnection(*owner, id);
+    }
     if (generation != m_profileGeneration) return;
     m_connectionStatus.remove(id);
     if (m_store.connection(id).isEmpty()) {
@@ -627,7 +634,10 @@ void HomeServerService::reportPlayback(QObject *backend, const QString &sourceKe
         auto completedProgress = completedItem.value("progress").toObject();
         completedProgress.insert("durationMs", durationMs);
         completedItem.insert("progress", completedProgress);
-        if (owner) HomeServerProgress::completed(*owner, completedItem, snapshot.sourceKey, snapshot.state.updatedAt);
+        if (owner) {
+            QScopedValueRollback<bool> applying(m_applyingProgress, true);
+            HomeServerProgress::completed(*owner, completedItem, snapshot.sourceKey, snapshot.state.updatedAt);
+        }
         if (snapshot.profileGeneration != m_profileGeneration) return;
     } else {
         enqueuePlayback(playback, event);
@@ -655,6 +665,7 @@ void HomeServerService::reconcileProgress(const QString &id, const QString &cano
     const auto generation = m_profileGeneration;
     auto connection = m_store.connection(id);
     if (!owner || !connection.value("enabled").toBool() || m_expired.contains(id) || m_store.token(id).isEmpty()) return;
+    QScopedValueRollback<bool> applying(m_applyingProgress, true);
     connection.insert("serverMajor", m_serverMajor.value(id));
     const auto aliases = HomeServerProgress::identityAliases(owner->entries());
     for (const auto &value : m_index.value(id)) {
@@ -682,10 +693,22 @@ void HomeServerService::syncProgress(const QString &canonicalId) {
         if (generation != m_profileGeneration) return;
     }
 }
+void HomeServerService::progressEntryApplied(const QString &kind, const QString &id) {
+    if (kind != "video" || id.isEmpty() || m_applyingProgress || !m_progress || m_externalProgressScheduled) return;
+    m_externalProgressScheduled = true;
+    const auto generation = m_profileGeneration;
+    QTimer::singleShot(0, this, [this, generation] {
+        if (generation != m_profileGeneration) return;
+        m_externalProgressScheduled = false;
+        hideUnavailableProgress();
+        if (generation == m_profileGeneration) syncProgress();
+    });
+}
 void HomeServerService::hideUnavailableProgress() {
     const auto owner = m_progress;
     const auto generation = m_profileGeneration;
     if (!owner) return;
+    QScopedValueRollback<bool> applying(m_applyingProgress, true);
     QSet<QString> hidden;
     for (const auto &value : owner->entries()) {
         const auto resume = value.toMap().value("resume").toMap();

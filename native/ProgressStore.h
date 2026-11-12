@@ -440,8 +440,9 @@ public:
         QVariantList out;
         out.reserve(keys.size());
         for (const QString &key : keys) {
-            out.append(ProgressStoreDetail::withoutTrackerPrivateMetadata(
-                m_map.value(key).toMap()));
+            auto portable = ProgressStoreDetail::withoutTrackerPrivateMetadata(m_map.value(key).toMap());
+            portable.remove(QStringLiteral("_homeServerHidden")); // This installation's source visibility is not canonical account state.
+            out.append(portable);
         }
         return out;
     }

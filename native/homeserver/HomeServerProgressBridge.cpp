@@ -7,7 +7,7 @@ class ProgressBridge final : public HomeServerProgressOwner {
 public:
   explicit ProgressBridge(ProgressStore *store) : m_store(store) {}
   QVariantList entries() const override {
-    return m_store ? m_store->syncEntries() : QVariantList{};
+    return m_store ? m_store->deliveryEntries() : QVariantList{};
   }
   QVariantMap get(const QString &id) const override {
     return m_store ? m_store->get(QStringLiteral("video"), id) : QVariantMap{};

@@ -60,3 +60,8 @@ add_executable(tst_home_server_shelves tst_home_server_shelves.cpp)
 set_target_properties(tst_home_server_shelves PROPERTIES AUTOMOC ON)
 target_link_libraries(tst_home_server_shelves PRIVATE colosseum_home_servers Qt6::Test)
 add_test(NAME home_server_shelves COMMAND tst_home_server_shelves)
+
+set_tests_properties(home_server_clients home_server_store home_server_service
+  home_server_catalog home_server_playback home_server_progress_client
+  home_server_progress home_server_progress_bridge home_server_shelves
+  PROPERTIES LABELS "unit;homeserver;network" TIMEOUT 180)

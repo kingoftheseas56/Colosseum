@@ -7,6 +7,10 @@ on:
         description: "Report CodeQL, clang-tidy, and AddressSanitizer failures without failing desktop CI"
         type: boolean
         default: false
+      candidate_artifact:
+        description: "Upload a Windows review candidate for home-server and local playback testing"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -233,6 +237,9 @@ jobs:
             nuvio_repository_store_test `
             nuvio_plugin_host_test `
             nuvio_source_resolver_test `
+            tst_home_server_clients tst_home_server_store tst_home_server_service `
+            tst_home_server_catalog tst_home_server_playback tst_home_server_progress_client `
+            tst_home_server_progress tst_home_server_progress_bridge tst_home_server_shelves `
             feria_runtime_integration_test feria_operations_integration_test `
             --parallel 2 2>&1 | Tee-Object -FilePath $log
           $buildExit = $LASTEXITCODE
@@ -243,6 +250,56 @@ jobs:
             }
             exit $buildExit
           }
+
+      - name: Home server contracts
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
+          ctest --test-dir $env:COLOSSEUM_CI_BUILD `
+            -R '^home_server_' --output-on-failure --no-tests=error
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Stage Windows review candidate
+        if: inputs.candidate_artifact
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'colosseum-windows-review-candidate'
+          if (Test-Path -LiteralPath $stage) { throw 'Candidate stage already exists' }
+          New-Item -ItemType Directory -Path $stage | Out-Null
+          $tracked = (& git ls-files -z) -join "`n"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($relative in $tracked.Split([char]0, [StringSplitOptions]::RemoveEmptyEntries)) {
+            $target = Join-Path $stage $relative
+            New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
+            Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE $relative) -Destination $target
+          }
+          $build = $env:COLOSSEUM_CI_BUILD
+          $runtime = Join-Path $stage 'native/build-msvc'
+          New-Item -ItemType Directory -Path $runtime -Force | Out-Null
+          foreach ($name in 'colosseum.exe', 'colosseum-nuvio-host.exe', 'qml-build.manifest') {
+            Copy-Item -LiteralPath (Join-Path $build $name) -Destination $runtime
+          }
+          Get-ChildItem -LiteralPath $build -Filter '*.dll' | Copy-Item -Destination $runtime
+          Copy-Item -LiteralPath "$env:MPVQT_ROOT/bin/MpvQt.dll", "$env:LIBMPV_ROOT/libmpv-2.dll" -Destination $runtime -Force
+          Get-ChildItem "$env:VCPKG_ROOT/installed/x64-windows/bin" -Filter '*.dll' | Copy-Item -Destination $runtime -Force
+          & "$env:QT_ROOT_DIR/bin/windeployqt.exe" --release --qmldir "$stage/qml" "$runtime/colosseum.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item -LiteralPath "$env:QT_ROOT_DIR/plugins/imageformats/qwebp.dll" -Destination "$runtime/imageformats/qwebp.dll" -Force
+          cmake "-DQML_ROOT=$stage/qml" "-DOUTPUT_FILE=$runtime/qml-build.manifest" -DVERIFY_ONLY=ON -P "$stage/native/bootstrap/write_qml_build_manifest.cmake"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          @('@echo off', 'setlocal', 'set "COLOSSEUM_APPDATA_TAG=home-servers-140"',
+            'cd /d "%~dp0"', '"%~dp0native\build-msvc\colosseum.exe"') |
+            Set-Content -LiteralPath "$stage/Test-Home-Servers.cmd" -Encoding ascii
+
+      - name: Upload Windows review candidate
+        if: inputs.candidate_artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: colosseum-windows-review-candidate
+          path: ${{ runner.temp }}/colosseum-windows-review-candidate/
+          retention-days: 14
+          if-no-files-found: error
+          include-hidden-files: true
 
       # Vinyl is out of 1.3.0. Make these checks blocking again when Vinyl is scheduled.
       - name: Advisory Vinyl availability checks
