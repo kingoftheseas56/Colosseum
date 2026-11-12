@@ -41,7 +41,7 @@ QUrl HomeServerClient::normalizeAddress(QString address) {
 }
 QUrl HomeServerClient::relativeUrl(QUrl origin, QString path) {
     if (!validBase(origin) || path.contains('\\')) return {};
-    while (path.startsWith('/')) path.remove(0, 1);
+    if (path.startsWith("//")) return {};
     QUrl relative(path, QUrl::StrictMode);
     if (!relative.isValid() || !relative.isRelative() || relative.hasFragment() || !relative.host().isEmpty()) return {};
     const QString decoded = relative.path(QUrl::FullyDecoded);
@@ -49,7 +49,9 @@ QUrl HomeServerClient::relativeUrl(QUrl origin, QString path) {
     if (decoded.contains('\\')) return {};
     QString base = origin.path(QUrl::FullyEncoded);
     while (base.endsWith('/')) base.chop(1);
-    origin.setPath(base + '/' + relative.path(QUrl::FullyEncoded), QUrl::StrictMode);
+    QString encoded = relative.path(QUrl::FullyEncoded);
+    while (encoded.startsWith('/')) encoded.remove(0, 1);
+    origin.setPath(base + '/' + encoded, QUrl::StrictMode);
     origin.setQuery(relative.query(QUrl::FullyEncoded));
     return origin;
 }

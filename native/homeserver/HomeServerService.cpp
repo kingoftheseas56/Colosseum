@@ -11,6 +11,7 @@ HomeServerService::HomeServerService(QObject *parent)
 HomeServerService::HomeServerService(HomeServerServiceOptions options, QObject *parent)
     : QObject(parent), m_client(this, options.identityDirectory, options.plexOrigin),
       m_dataClient(this, options.identityDirectory, options.plexOrigin),
+      m_reportClient(this, options.identityDirectory, options.plexOrigin),
       m_store(options.secrets ? options.secrets : createAccountSecretBackend()),
       m_refreshOnActivation(options.refreshOnActivation), m_android(options.android),
       m_videoDecodeCapabilities(std::move(options.videoDecodeCapabilities)) {
@@ -39,14 +40,17 @@ void HomeServerService::invalidateRequests() {
     m_plexCandidates = {};
     m_httpConsentRequired = false;
 }
-void HomeServerService::activate(const QString &profileId, const QString &profileRoot) {
+void HomeServerService::activate(const QString &profileId, const QString &profileRoot,
+                                 std::shared_ptr<HomeServerProgressOwner> progress) {
     ++m_profileGeneration;
     cancelPlaybacks();
     cancelRefreshes();
     invalidateRequests();
+    m_progress = std::move(progress);
     m_store.deactivate();
     m_connectionStatus.clear();
     m_index.clear();
+    m_sourceIdentities.clear();
     m_serverMajor.clear();
     m_expired.clear();
     m_profileId.clear();
@@ -66,8 +70,10 @@ void HomeServerService::activate(const QString &profileId, const QString &profil
             }
         }
     }
+    hideUnavailableProgress();
     emit profileChanged();
     publish();
+    syncProgress();
     if (m_refreshOnActivation) scheduleRefreshes();
 }
 void HomeServerService::deactivate() { activate({}, {}); }
@@ -279,12 +285,19 @@ void HomeServerService::cancelSignIn() {
     invalidateRequests(); m_status.clear(); publish();
 }
 void HomeServerService::setEnabled(const QString &id, bool enabled) {
+    const auto generation = m_profileGeneration;
     if (m_store.connection(id).isEmpty()) return;
     if (!enabled) cancelPlaybacks(id);
     cancelRefresh(id);
     invalidateRequests();
     m_status = m_store.setEnabled(id, enabled) ? QString() : m_store.error();
+    const auto owner = m_progress;
+    if (owner && !m_store.connection(id).value("enabled").toBool())
+        HomeServerProgress::hideConnection(*owner, id);
+    if (generation != m_profileGeneration) return;
+    if (enabled) reconcileProgress(id);
     publish();
+    if (!enabled) syncProgress();
     if (enabled && m_refreshOnActivation) {
         const auto generation = m_profileGeneration;
         QTimer::singleShot(0, this, [this, id, generation] {
@@ -293,11 +306,15 @@ void HomeServerService::setEnabled(const QString &id, bool enabled) {
     }
 }
 void HomeServerService::remove(const QString &id) {
+    const auto generation = m_profileGeneration;
     if (m_store.connection(id).isEmpty()) return;
     cancelPlaybacks(id);
     cancelRefresh(id);
     invalidateRequests();
     m_status = m_store.remove(id) ? QString() : m_store.error();
+    const auto owner = m_progress;
+    if (owner && m_store.connection(id).isEmpty()) HomeServerProgress::hideConnection(*owner, id);
+    if (generation != m_profileGeneration) return;
     m_connectionStatus.remove(id);
     if (m_store.connection(id).isEmpty()) {
         m_index.remove(id);
@@ -305,6 +322,7 @@ void HomeServerService::remove(const QString &id) {
         m_expired.remove(id);
     }
     publish();
+    syncProgress();
 }
 
 int HomeServerService::itemCount(const QString &id) const { return m_index.value(id).size(); }
@@ -371,12 +389,16 @@ void HomeServerService::refresh(const QString &id) {
         const auto current = m_store.connection(id);
         if (current.isEmpty() || !current.value("enabled").toBool()) { drainRefreshQueue(); return; }
         if (result.ok() && m_store.replaceItems(id, result.items)) {
+            m_sourceIdentities.clear();
             m_index[id] = result.items;
             m_serverMajor[id] = result.serverMajor;
             m_connectionStatus[id] = tr("Refreshed %1 items.").arg(result.items.size());
+            reconcileProgress(id);
+            if (generation != m_profileGeneration) return;
         } else if (result.expired) {
             m_expired.insert(id);
             m_connectionStatus[id] = tr("Sign-in expired. Remove this connection and connect again.");
+            hideUnavailableProgress();
         } else {
             m_connectionStatus[id] = result.ok() ? m_store.error() : result.error;
         }
@@ -392,7 +414,13 @@ QVariantList HomeServerService::sources(const QVariantMap &identity) const {
         const auto connection = value.toObject();
         const auto id = connection.value("id").toString();
         if (!connection.value("enabled").toBool() || m_expired.contains(id) || m_store.token(id).isEmpty()) continue;
-        result.append(HomeServerCatalog::matchingSources(m_index.value(id), identity, connection));
+        const auto rows = HomeServerCatalog::matchingSources(m_index.value(id), identity, connection);
+        for (const auto &value : rows) {
+            const auto row = value.toMap();
+            if (m_sourceIdentities.size() >= 4096) m_sourceIdentities.clear();
+            m_sourceIdentities.insert(row.value("infoHash").toString(), QJsonObject::fromVariantMap(row.value("homeIdentity").toMap()));
+        }
+        result.append(rows);
     }
     return result;
 }
@@ -404,6 +432,8 @@ void HomeServerService::cancelBackend(QObject *backend, bool stop) {
     ++m_backendGenerations[backend];
     if (job) { job->cancel(); job->deleteLater(); }
     m_pendingSources.remove(backend);
+    const auto playback = m_playbacks.value(backend);
+    if (playback.started && !playback.ended) enqueuePlayback(playback, "stop");
     m_playbacks.remove(backend);
     if (owned && stop && backend)
         if (auto *player = dynamic_cast<PlayerBackendContract *>(backend)) player->stopPlayback();
@@ -446,6 +476,14 @@ bool HomeServerService::loadPlayback(QObject *backend, const QString &sourceKey,
         break;
     }
     if (item.isEmpty() || !versionFound || HomeServerCatalog::canonicalVideoId(item).isEmpty()) return false;
+    const auto knownIdentity = m_sourceIdentities.value(sourceKey);
+    if (!knownIdentity.isEmpty() && HomeServerCatalog::identitiesMatch(item, knownIdentity)) {
+        auto ids = item.value("identity").toObject();
+        if (ids.value("imdbId").toString().isEmpty() && knownIdentity.contains("imdbId")) {
+            ids.insert("imdbId", knownIdentity.value("imdbId")); item.insert("identity", ids);
+        }
+    }
+    if (m_progress) item = HomeServerProgress::withAliases(item, HomeServerProgress::identityAliases(m_progress->entries()));
     cancelBackend(backend, true);
     if (!guard || profileGeneration != m_profileGeneration) return false;
     if (!m_observedBackends.contains(backend)) {
@@ -462,7 +500,7 @@ bool HomeServerService::loadPlayback(QObject *backend, const QString &sourceKey,
     const auto backendGeneration = m_backendGenerations.value(backend);
     connection.insert("serverMajor", m_serverMajor.value(id));
     job->start(connection, item, versionId, token, {m_android, m_videoDecodeCapabilities, forceTranscode},
-        [this, guard, job, sourceKey, id, item, profileGeneration, backendGeneration](HomeServerPlaybackJob::Result result) {
+        [this, guard, job, sourceKey, id, item, connection, token, profileGeneration, backendGeneration](HomeServerPlaybackJob::Result result) {
         job->deleteLater();
         if (!guard || profileGeneration != m_profileGeneration
             || m_backendGenerations.value(guard.data()) != backendGeneration
@@ -475,6 +513,7 @@ bool HomeServerService::loadPlayback(QObject *backend, const QString &sourceKey,
             if (result.expired) {
                 m_expired.insert(id);
                 m_connectionStatus[id] = tr("Sign-in expired. Remove this connection and connect again.");
+                hideUnavailableProgress();
                 publish();
             }
             emit playbackFailed(sourceKey, result.error.isEmpty() ? tr("Could not play this server copy.") : result.error);
@@ -482,11 +521,179 @@ bool HomeServerService::loadPlayback(QObject *backend, const QString &sourceKey,
         }
         auto *player = dynamic_cast<PlayerBackendContract *>(guard.data());
         if (!player) return;
-        m_playbacks.insert(guard.data(), Playback{guard, sourceKey, id, item, result});
+        Playback playback{guard, sourceKey, id, item, result};
+        playback.profileGeneration = profileGeneration;
+        playback.connection = connection;
+        playback.token = token;
+        m_playbacks.insert(guard.data(), playback);
         player->loadSource(result.url, result.headers);
         if (guard && profileGeneration == m_profileGeneration
             && m_backendGenerations.value(guard.data()) == backendGeneration)
             emit playbackResolved(sourceKey, result.transcoded);
     });
     return true;
+}
+
+void HomeServerService::enqueueReport(Report report) {
+    if (report.token.isEmpty() || report.connection.isEmpty()) return;
+    // Keep lifecycle ordering global, including the final Stop from an outgoing
+    // profile. Coalesce only pending samples from the same profile and item.
+    if (report.event == "progress" || report.event == "sync") {
+        for (int i = m_reports.size() - 1; i >= 0; --i) {
+            auto &old = m_reports[i];
+            if (old.profileGeneration != report.profileGeneration
+                || old.connection.value("id") != report.connection.value("id")
+                || old.item.value("id") != report.item.value("id")) continue;
+            if (old.event != report.event) break;
+            if (old.state.updatedAt <= report.state.updatedAt) old = std::move(report);
+            return;
+        }
+    }
+    // A large imported library cannot enqueue unbounded network work. Refresh
+    // reconciliation is repeated on the next explicit refresh; lifecycle wins.
+    if (m_reports.size() >= 1024) {
+        if (report.event == "sync" || report.event == "progress") return;
+        for (int i = 0; i < m_reports.size(); ++i)
+            if (m_reports[i].event == "sync" || m_reports[i].event == "progress") {
+                m_reports.removeAt(i); break;
+            }
+    }
+    m_reports.enqueue(std::move(report));
+    drainReports();
+}
+void HomeServerService::drainReports() {
+    if (m_reportJob || m_reports.isEmpty()) return;
+    const auto report = m_reports.dequeue();
+    auto *job = new HomeServerProgressJob(&m_reportClient, this);
+    m_reportJob = job;
+    job->start(report.connection, report.item, report.playback, report.token,
+        report.event, report.state, [this, job, report](HomeServerProgressJob::Result result) {
+        job->deleteLater();
+        if (m_reportJob != job) return;
+        m_reportJob = nullptr;
+        const auto id = report.connection.value("id").toString();
+        if (result.expired) {
+            for (int i = m_reports.size() - 1; i >= 0; --i)
+                if (m_reports[i].profileGeneration == report.profileGeneration
+                    && m_reports[i].connection.value("id").toString() == id) m_reports.removeAt(i);
+            if (report.profileGeneration == m_profileGeneration && !m_store.connection(id).isEmpty()) {
+                m_expired.insert(id);
+                m_connectionStatus[id] = tr("Sign-in expired. Remove this connection and connect again.");
+                hideUnavailableProgress();
+                publish();
+            }
+        }
+        QTimer::singleShot(0, this, &HomeServerService::drainReports);
+    });
+}
+void HomeServerService::enqueuePlayback(const Playback &playback, const QString &event) {
+    auto state = playback.state;
+    state.writePlayed = event == "stop" && playback.ended;
+    enqueueReport({playback.connection, playback.item, playback.resolved, playback.token,
+                   event, state, playback.profileGeneration});
+}
+void HomeServerService::reportPlayback(QObject *backend, const QString &sourceKey,
+                                      qint64 positionMs, qint64 durationMs,
+                                      bool paused, const QString &event) {
+    if (!backend || backend->thread() != thread() || !m_playbacks.contains(backend)
+        || positionMs < 0 || durationMs <= 0 || durationMs > 31536000000LL
+        || (event != "start" && event != "progress" && event != "stop" && event != "ended")) return;
+    auto &playback = m_playbacks[backend];
+    if (playback.sourceKey != sourceKey || playback.profileGeneration != m_profileGeneration || playback.ended) return;
+    const auto connection = m_store.connection(playback.connectionId);
+    if (!connection.value("enabled").toBool() || m_expired.contains(playback.connectionId)) return;
+    playback.state.positionMs = qMin(positionMs, durationMs);
+    playback.state.durationMs = durationMs;
+    playback.state.updatedAt = QDateTime::currentMSecsSinceEpoch();
+    playback.state.paused = paused;
+    playback.state.played = playback.state.played || playback.item.value("progress").toObject().value("played").toBool();
+    if (!playback.started) {
+        playback.started = true;
+        enqueuePlayback(playback, "start");
+        if (event == "start") return;
+    } else if (event == "start") return;
+    if (event == "ended") {
+        playback.ended = true;
+        playback.state.played = true;
+        playback.state.positionMs = durationMs;
+        playback.state.paused = false;
+        const auto snapshot = playback;
+        enqueuePlayback(snapshot, "stop");
+        const auto owner = m_progress;
+        auto completedItem = snapshot.item;
+        auto completedProgress = completedItem.value("progress").toObject();
+        completedProgress.insert("durationMs", durationMs);
+        completedItem.insert("progress", completedProgress);
+        if (owner) HomeServerProgress::completed(*owner, completedItem, snapshot.sourceKey, snapshot.state.updatedAt);
+        if (snapshot.profileGeneration != m_profileGeneration) return;
+    } else {
+        enqueuePlayback(playback, event);
+        if (event == "stop") playback.ended = true;
+    }
+    if (event != "stop") {
+        const auto selected = m_playbacks.value(backend);
+        for (const auto &value : m_store.connections()) {
+            const auto other = value.toObject();
+            const auto id = other.value("id").toString();
+            if (id == selected.connectionId || !other.value("enabled").toBool() || m_expired.contains(id)) continue;
+            for (const auto &entry : m_index.value(id)) {
+                const auto item = entry.toObject();
+                if (!HomeServerCatalog::identitiesMatch(selected.item, item)) continue;
+                auto state = selected.state;
+                state.writePlayed = selected.ended;
+                auto target = other; target.insert("serverMajor", m_serverMajor.value(id));
+                enqueueReport({target, item, {}, m_store.token(id), "sync", state, m_profileGeneration});
+            }
+        }
+    }
+}
+void HomeServerService::reconcileProgress(const QString &id, const QString &canonicalId) {
+    const auto owner = m_progress;
+    const auto generation = m_profileGeneration;
+    auto connection = m_store.connection(id);
+    if (!owner || !connection.value("enabled").toBool() || m_expired.contains(id) || m_store.token(id).isEmpty()) return;
+    connection.insert("serverMajor", m_serverMajor.value(id));
+    const auto aliases = HomeServerProgress::identityAliases(owner->entries());
+    for (const auto &value : m_index.value(id)) {
+        const auto item = HomeServerProgress::withAliases(value.toObject(), aliases);
+        if (item.value("kind") != "movie" && item.value("kind") != "episode") continue;
+        if (!canonicalId.isEmpty() && HomeServerCatalog::canonicalVideoId(item) != canonicalId) continue;
+        bool active = false;
+        for (const auto &playback : m_playbacks)
+            if (playback.connectionId == id && playback.item.value("id") == item.value("id")) { active = true; break; }
+        if (active) continue;
+        const auto versions = item.value("versions").toArray();
+        if (versions.isEmpty()) continue;
+        const auto key = "home-server:" + id + ':' + QString::fromLatin1(QUrl::toPercentEncoding(item.value("id").toString()))
+            + ':' + QString::fromLatin1(QUrl::toPercentEncoding(versions.first().toObject().value("id").toString()));
+        const auto decision = HomeServerProgress::reconcile(*owner, item, key);
+        if (generation != m_profileGeneration || owner != m_progress) return;
+        if (decision.localWins)
+            enqueueReport({connection, item, {}, m_store.token(id), "sync", decision.state, generation});
+    }
+}
+void HomeServerService::syncProgress(const QString &canonicalId) {
+    const auto generation = m_profileGeneration;
+    for (const auto &value : m_store.connections()) {
+        reconcileProgress(value.toObject().value("id").toString(), canonicalId);
+        if (generation != m_profileGeneration) return;
+    }
+}
+void HomeServerService::hideUnavailableProgress() {
+    const auto owner = m_progress;
+    const auto generation = m_profileGeneration;
+    if (!owner) return;
+    QSet<QString> hidden;
+    for (const auto &value : owner->entries()) {
+        const auto resume = value.toMap().value("resume").toMap();
+        const auto key = resume.value("infoHash").toString();
+        if (!key.startsWith("home-server:") || !resume.value("localPath").toString().isEmpty()) continue;
+        const auto id = key.section(':', 1, 1);
+        const auto connection = m_store.connection(id);
+        if (!available() || !connection.value("enabled").toBool() || m_expired.contains(id) || m_store.token(id).isEmpty()) hidden.insert(id);
+    }
+    for (const auto &id : hidden) {
+        HomeServerProgress::hideConnection(*owner, id);
+        if (generation != m_profileGeneration) return;
+    }
 }

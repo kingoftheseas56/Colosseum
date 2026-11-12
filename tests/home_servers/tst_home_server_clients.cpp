@@ -64,6 +64,8 @@ private slots:
   QVERIFY(HomeServerClient::relativeUrl(QUrl("https://example.com/base"), "%2e%2e/escape").isEmpty());
   QVERIFY(HomeServerClient::relativeUrl(QUrl("https://example.com/base"), "https://elsewhere.test").isEmpty());
   QCOMPARE(HomeServerClient::relativeUrl(QUrl("https://example.com/base"), "/Items/a%2Fb").toEncoded(), QByteArray("https://example.com/base/Items/a%2Fb"));
+  QCOMPARE(HomeServerClient::relativeUrl(QUrl("https://example.com/base"), "/:/timeline?time=12000").toEncoded(), QByteArray("https://example.com/base/:/timeline?time=12000"));
+  QVERIFY(HomeServerClient::relativeUrl(QUrl("https://example.com/base"), "//elsewhere.test/stolen").isEmpty());
  }
  void stableIdentityAndFailClosed() {
   QTemporaryDir dir;

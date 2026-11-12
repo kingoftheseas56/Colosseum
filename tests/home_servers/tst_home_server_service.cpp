@@ -42,6 +42,17 @@ public:
     }
 };
 
+class ServiceProgress final : public HomeServerProgressOwner {
+public:
+    QHash<QString, QVariantMap> rows;
+    QVariantList entries() const override { QVariantList r; for (const auto &row : rows) r.append(row); return r; }
+    QVariantMap get(const QString &id) const override { return rows.value(id); }
+    bool apply(const QVariantMap &row) override { rows[row.value("id").toString()] = row; return true; }
+    bool remove(const QString &id) override { rows.remove(id); return true; }
+    Watch watch(const QString &) const override { return {}; }
+    bool applyWatched(const QString &, bool, qint64) override { return true; }
+};
+
 class ServiceHttp final : public QTcpServer {
 public:
     QList<QByteArray> requests;
@@ -110,6 +121,118 @@ class HomeServerServiceTest : public QObject {
         return id;
     }
 private slots:
+    void fallbackMatchKeepsOneCanonicalProgressIdAcrossRestart() {
+        QTemporaryDir dir; ServiceHttp server; auto secrets=std::make_shared<ServiceSecrets>();
+        const auto id=seedCopy(secrets,dir.filePath("a"),server.origin()); QVERIFY(!id.isEmpty());
+        { HomeServerStore saved(secrets); QVERIFY(saved.activate("a",dir.filePath("a")));
+          auto rows=saved.items(id); auto item=rows.first().toObject(); item["identity"]=QJsonObject{{"tmdbId",101}};
+          rows[0]=item; QVERIFY(saved.replaceItems(id,rows)); }
+        server.response=[](const QByteArray &r) { return r.contains("/PlaybackInfo")?playbackResponse(r):QByteArray("{}"); };
+        auto owner=std::make_shared<ServiceProgress>();
+        { HomeServerService service({secrets,dir.filePath("installation"),QUrl("https://plex.tv"),1500,false});
+          service.activate("a",dir.filePath("a"),owner);
+          const auto row=service.sources({{"type","movie"},{"id","tt1234567"},{"tmdbId",101}}).first().toMap();
+          QCOMPARE(row.value("canonicalId").toString(),QString("tt1234567"));
+          QVERIFY(!row.value("homeIdentity").toMap().isEmpty());
+          const auto key=row.value("infoHash").toString(); ServicePlayer player;
+          QVERIFY(service.loadPlayback(&player,key)); QTRY_COMPARE(player.loads,1);
+          service.reportPlayback(&player,key,100000,100000,false,"ended");
+          QVERIFY(owner->get("tt1234567").value("watched").toBool());
+          QVERIFY(owner->get("tmdb:movie:101").isEmpty()); }
+        HomeServerService restarted({secrets,dir.filePath("installation"),QUrl("https://plex.tv"),1500,false});
+        restarted.activate("a",dir.filePath("a"),owner);
+        QVERIFY(owner->get("tmdb:movie:101").isEmpty()); QCOMPARE(owner->rows.size(),1);
+    }
+    void disableAndRemoveHideContinueWithoutLosingPosition() {
+        QTemporaryDir dir; ServiceHttp server; auto secrets=std::make_shared<ServiceSecrets>();
+        const auto id=seedCopy(secrets,dir.filePath("a"),server.origin()); QVERIFY(!id.isEmpty());
+        auto owner=std::make_shared<ServiceProgress>();
+        const auto key="home-server:"+id+":new:copy";
+        owner->apply({{"id","tt1234567"},{"kind","video"},{"updatedAt",5000},{"duration",100},
+            {"progress",.3},{"resume",QVariantMap{{"infoHash",key},{"position",30}}}});
+        HomeServerService service({secrets,dir.filePath("installation"),QUrl("https://plex.tv"),1500,false});
+        service.activate("a",dir.filePath("a"),owner);
+        service.setEnabled(id,false);
+        QVERIFY(owner->get("tt1234567").value("_homeServerHidden").toBool());
+        QCOMPARE(owner->get("tt1234567").value("resume").toMap().value("position").toInt(),30);
+        service.setEnabled(id,true);
+        QVERIFY(!owner->get("tt1234567").value("_homeServerHidden").toBool());
+        QCOMPARE(owner->get("tt1234567").value("updatedAt").toInt(),5000);
+        service.remove(id); QVERIFY(owner->get("tt1234567").value("_homeServerHidden").toBool());
+        service.activate("b",dir.filePath("b"),owner);
+        QVERIFY(owner->get("tt1234567").value("_homeServerHidden").toBool());
+    }
+    void progressUnauthorizedPurgesQueueAndHidesProviderContinue() {
+        QTemporaryDir dir; ServiceHttp server; auto secrets=std::make_shared<ServiceSecrets>();
+        const auto id=seedCopy(secrets,dir.filePath("a"),server.origin()); QVERIFY(!id.isEmpty());
+        server.response=[](const QByteArray &r) { return playbackResponse(r); };
+        auto owner=std::make_shared<ServiceProgress>();
+        HomeServerService service({secrets,dir.filePath("installation"),QUrl("https://plex.tv"),1500,false});
+        service.activate("a",dir.filePath("a"),owner);
+        const auto key=service.sources({{"type","movie"},{"id","tt1234567"}}).first().toMap().value("infoHash").toString();
+        ServicePlayer player; QVERIFY(service.loadPlayback(&player,key)); QTRY_COMPARE(player.loads,1);
+        owner->apply({{"id","tt1234567"},{"kind","video"},{"resume",QVariantMap{{"infoHash",key},{"position",20}}}});
+        server.status=401;
+        service.reportPlayback(&player,key,20000,100000,false,"start");
+        service.reportPlayback(&player,key,25000,100000,false,"progress");
+        QTRY_VERIFY(service.connections().first().toMap().value("needsReconnect").toBool());
+        QVERIFY(owner->get("tt1234567").value("_homeServerHidden").toBool());
+        const auto count=server.requests.size();
+        service.reportPlayback(&player,key,30000,100000,false,"progress");
+        QTest::qWait(100); QCOMPARE(server.requests.size(),count); QCOMPARE(count,2);
+        QVERIFY(service.sources({{"type","movie"},{"id","tt1234567"}}).isEmpty());
+    }
+    void actualPlaybackEventsAndNaturalEnd() {
+        QTemporaryDir dir; ServiceHttp server;
+        auto secrets = std::make_shared<ServiceSecrets>();
+        const auto id = seedCopy(secrets, dir.filePath("a"), server.origin()); QVERIFY(!id.isEmpty());
+        server.response = [](const QByteArray &r) {
+            if (r.contains("/PlaybackInfo")) return playbackResponse(r);
+            if (r.startsWith("POST /Sessions/") || r.startsWith("POST /UserPlayedItems/")) return QByteArray("{}");
+            return catalogResponse(r);
+        };
+        HomeServerService service({secrets, dir.filePath("installation"), QUrl("https://plex.tv"), 1500, false});
+        auto owner = std::make_shared<ServiceProgress>();
+        service.activate("a", dir.filePath("a"), owner);
+        service.refresh(id); QTRY_VERIFY(!service.connections().first().toMap().value("refreshing").toBool());
+        const auto key = service.sources({{"type","movie"},{"id","tt1234567"}}).first().toMap().value("infoHash").toString();
+        ServicePlayer player; QVERIFY(service.loadPlayback(&player,key)); QTRY_COMPARE(player.loads,1);
+        service.reportPlayback(&player,key,12000,100000,false,"start");
+        service.reportPlayback(&player,key,30000,100000,true,"progress");
+        service.reportPlayback(&player,key,100000,100000,false,"ended");
+        service.cancelPlayback(&player);
+        auto reports = [&] { QList<QByteArray> r; for(const auto &q:server.requests) if(q.contains("/Sessions/") || q.contains("/UserPlayedItems/")) r.append(q); return r; };
+        QTRY_COMPARE(reports().size(),4);
+        QVERIFY(reports()[0].startsWith("POST /Sessions/Playing "));
+        QVERIFY(reports()[1].startsWith("POST /Sessions/Playing/Progress "));
+        QVERIFY(reports()[2].startsWith("POST /Sessions/Playing/Stopped "));
+        QVERIFY(reports()[3].startsWith("POST /UserPlayedItems/new?"));
+        QVERIFY(owner->get("tt1234567").value("watched").toBool());
+        service.reportPlayback(&player,key,0,100000,false,"start"); QTest::qWait(80); QCOMPARE(reports().size(),4);
+    }
+    void stopDoesNotMarkWatchedAndProfileReplyIsFenced() {
+        QTemporaryDir dir; ServiceHttp server; server.delayMs = 40;
+        auto secrets=std::make_shared<ServiceSecrets>();
+        const auto id=seedCopy(secrets,dir.filePath("a"),server.origin()); QVERIFY(!id.isEmpty());
+        server.response=[](const QByteArray &r) { return r.contains("/PlaybackInfo") ? playbackResponse(r) : QByteArray("{}"); };
+        HomeServerService service({secrets,dir.filePath("installation"),QUrl("https://plex.tv"),1500,false});
+        service.activate("a",dir.filePath("a"));
+        const auto key=service.sources({{"type","movie"},{"id","tt1234567"}}).first().toMap().value("infoHash").toString();
+        ServicePlayer player; QVERIFY(service.loadPlayback(&player,key)); QTRY_COMPARE(player.loads,1);
+        service.reportPlayback(&player,key,12000,100000,false,"start");
+        service.reportPlayback(&player,key,25000,100000,false,"progress");
+        service.reportPlayback(&player,key,28000,100000,false,"progress");
+        auto newOwner=std::make_shared<ServiceProgress>(); service.activate("b",dir.filePath("b"),newOwner);
+        service.reportPlayback(&player,key,100000,100000,false,"ended");
+        auto reports=[&] { QList<QByteArray> r; for(const auto &q:server.requests) if(q.contains("/Sessions/")) r.append(q); return r; };
+        QTRY_COMPARE(reports().size(),3);
+        QVERIFY(reports()[0].startsWith("POST /Sessions/Playing "));
+        QVERIFY(reports()[1].startsWith("POST /Sessions/Playing/Progress "));
+        QVERIFY(reports()[1].contains("280000000"));
+        QVERIFY(reports()[2].startsWith("POST /Sessions/Playing/Stopped "));
+        QVERIFY(newOwner->rows.isEmpty()); QVERIFY(service.connections().isEmpty());
+        for(const auto &r:server.requests) QVERIFY(!r.contains("/UserPlayedItems/"));
+    }
     void profileLifecycle() {
         QTemporaryDir dir;
         auto secrets = std::make_shared<ServiceSecrets>();

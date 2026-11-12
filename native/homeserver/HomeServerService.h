@@ -3,6 +3,7 @@
 #include "HomeServerClient.h"
 #include "HomeServerCatalog.h"
 #include "HomeServerPlayback.h"
+#include "HomeServerProgressOwner.h"
 #include "HomeServerStore.h"
 
 #include <QJsonArray>
@@ -10,6 +11,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QPointer>
+#include <QQueue>
 
 struct HomeServerServiceOptions {
     std::shared_ptr<AccountSecretBackend> secrets;
@@ -40,7 +42,8 @@ public:
     explicit HomeServerService(QObject *parent = nullptr);
     explicit HomeServerService(HomeServerServiceOptions options, QObject *parent = nullptr);
     ~HomeServerService() override;
-    void activate(const QString &profileId, const QString &profileRoot);
+    void activate(const QString &profileId, const QString &profileRoot,
+                  std::shared_ptr<HomeServerProgressOwner> progress = {});
     void deactivate();
 
     QVariantList connections() const;
@@ -68,6 +71,10 @@ public:
     Q_INVOKABLE bool loadPlayback(QObject *backend, const QString &sourceKey,
                                   qint64 resumeMs = 0, bool forceTranscode = false);
     Q_INVOKABLE void cancelPlayback(QObject *backend);
+    Q_INVOKABLE void reportPlayback(QObject *backend, const QString &sourceKey,
+                                    qint64 positionMs, qint64 durationMs,
+                                    bool paused, const QString &event);
+    void syncProgress(const QString &canonicalId = QString());
     Q_INVOKABLE bool isInsecureAddress(const QString &address) const;
 
 signals:
@@ -92,6 +99,9 @@ private:
     void drainRefreshQueue();
     void cancelBackend(QObject *backend, bool stop);
     void cancelPlaybacks(const QString &connectionId = QString());
+    void reconcileProgress(const QString &connectionId, const QString &canonicalId = QString());
+    void hideUnavailableProgress();
+    void drainReports();
 
     struct Playback {
         QPointer<QObject> backend;
@@ -99,10 +109,26 @@ private:
         QString connectionId;
         QJsonObject item;
         HomeServerPlaybackJob::Result resolved;
+        HomeServerProgressState state;
+        quint64 profileGeneration = 0;
+        bool started = false;
+        bool ended = false;
+        QJsonObject connection;
+        QString token;
     };
+    struct Report {
+        QJsonObject connection, item;
+        HomeServerPlaybackJob::Result playback;
+        QString token, event;
+        HomeServerProgressState state;
+        quint64 profileGeneration = 0;
+    };
+    void enqueueReport(Report report);
+    void enqueuePlayback(const Playback &playback, const QString &event);
 
     HomeServerClient m_client;
     HomeServerClient m_dataClient;
+    HomeServerClient m_reportClient;
     HomeServerStore m_store;
     QTimer m_pinTimer;
     QJsonArray m_plexCandidates;
@@ -117,6 +143,10 @@ private:
     QHash<QObject *, Playback> m_playbacks;
     QHash<QObject *, quint64> m_backendGenerations;
     QSet<QObject *> m_observedBackends;
+    mutable QHash<QString, QJsonObject> m_sourceIdentities;
+    std::shared_ptr<HomeServerProgressOwner> m_progress;
+    QQueue<Report> m_reports;
+    QPointer<HomeServerProgressJob> m_reportJob;
     QString m_profileId;
     QString m_profileRoot;
     QString m_status;

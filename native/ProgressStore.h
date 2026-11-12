@@ -836,6 +836,9 @@ public:
         QVariantList out;
         for (auto it = m_map.constBegin(); it != m_map.constEnd(); ++it) {
             const QVariantMap rec = it.value().toMap();
+            const QVariant hidden = rec.value(QStringLiteral("_homeServerHidden"));
+            if (hidden.metaType().id() == QMetaType::Bool && hidden.toBool())
+                continue; // Keep canonical resume state; only hide its Continue tile.
             // Internal music queue checkpoint is not a consumed item/Continue tile.
             // Explicit kind lookup remains available to its one session owner.
             if (kind.isEmpty() && rec.value(QStringLiteral("kind")).toString() == QLatin1String("music-session"))
@@ -1713,6 +1716,15 @@ private:
         if (id.count(QLatin1Char(':')) < 2)
             return id;
         const QStringList parts = id.split(QLatin1Char(':'));
+        // Typed provider ids keep the title component: tmdb:tv:101 and
+        // tmdb:tv:102 are separate shows, and movies never form a shared group.
+        if (parts.value(0) == QLatin1String("tmdb")
+            && parts.value(1) == QLatin1String("movie"))
+            return id;
+        if ((parts.value(0) == QLatin1String("tmdb")
+             || parts.value(0) == QLatin1String("tvdb"))
+            && parts.value(1) == QLatin1String("tv"))
+            return parts.mid(0, 3).join(QLatin1Char(':'));
         if (id.startsWith(QStringLiteral("tt")))
             return parts.value(0);
         return parts.value(0) + QLatin1Char(':') + parts.value(1);
@@ -2112,7 +2124,8 @@ private:
 
         const double progress = canonicalEntry.value(QStringLiteral("progress")).toDouble();
         const bool isSeriesEpisode =
-            kind == QStringLiteral("video") && id.count(QLatin1Char(':')) >= 2;
+            kind == QStringLiteral("video") && id.count(QLatin1Char(':')) >= 2
+            && !id.startsWith(QStringLiteral("tmdb:movie:"));
         if (kind == QStringLiteral("video") && progress >= 0.90 && !isSeriesEpisode) {
             // A vault id is "vault:<sha1>" — ONE colon — so every vault video, episodes
             // included, retires here; the mark is what survives the dropped resume record.
@@ -2135,6 +2148,9 @@ private:
         }
 
         QVariantMap rec = canonicalEntry;
+        if (!rec.contains(QStringLiteral("_homeServerIdentity"))
+            && previous.contains(QStringLiteral("_homeServerIdentity")))
+            rec.insert(QStringLiteral("_homeServerIdentity"), previous.value(QStringLiteral("_homeServerIdentity")));
         if (kind == QLatin1String("manga") && ProgressStoreDetail::isCanonicalMangaSeries(id)) {
             QVariantMap chapters = previous.value(QStringLiteral("_mangaChapterResumes")).toMap();
             const QString previousNumber = ProgressStoreDetail::mangaResumeChapterNumber(previous);

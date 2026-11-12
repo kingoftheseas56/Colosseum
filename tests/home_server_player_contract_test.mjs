@@ -6,8 +6,7 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../qml/PlayerPage.qml', import.meta.url), 'utf8');
 
 // Execute the shipped QML functions, with only native/media services replaced.
-function extractedFunction(name) {
-  const marker = `function ${name}(`;
+function extractedFunction(name, marker = `function ${name}(`) {
   const start = source.indexOf(marker);
   assert.ok(start >= 0, marker);
   const open = source.indexOf('{', start);
@@ -26,7 +25,7 @@ function extractedFunction(name) {
     if (c === '/' && next === '*') { mode = '/*'; i++; continue; }
     if (c === '"' || c === "'" || c === '`') { mode = c; continue; }
     if (c === '{') depth++;
-    if (c === '}' && --depth === 0) return source.slice(start, i + 1);
+    if (c === '}' && --depth === 0) return source.slice(name ? start : open, i + 1);
   }
   throw new Error(`Unclosed ${name}`);
 }
@@ -37,7 +36,7 @@ const home = () => ({ infoHash: key, homeServer: true, canonicalId: 'tt1234567:2
   sourceName: 'Your server · Living room', addonId: 'home-server:server-uuid',
   addonName: 'Your server · Living room', streamKind: 'Home server', fileIdx: 0 });
 function session(os = 'android') {
-  const native = [], plain = [], torrents = [], policyInputs = [], cancellations = [], events = [], progress = [];
+  const native = [], plain = [], torrents = [], policyInputs = [], cancellations = [], events = [], progress = [], reports = [];
   const noop = () => {};
   let restarts = 0, stops = 0;
   const service = {
@@ -48,12 +47,17 @@ function session(os = 'android') {
       return this.accepts;
     },
     cancelPlayback(backend) { cancellations.push(backend); events.push('native-cancel'); },
+    reportPlayback(backend, sourceKey, positionMs, durationMs, paused, event) {
+      reports.push({ backend, sourceKey, positionMs, durationMs, paused, event });
+      events.push('report-' + event);
+    },
   };
   const root = {
     homeServerSourceService: service, homePlaybackActive: false,
     homePlaybackTranscoded: false, homeTranscodeTried: false,
     homePlaybackKey: '', homePlaybackProfileGeneration: -1,
     homePlaybackService: null,
+    homePlaybackReportedStart: false, homePlaybackReportedTerminal: false,
     currentPlaybackUrl: '', activeDirectHeaders: { Authorization: 'old-direct-header' },
     currentStreamIndex: 0, streamCandidates: [home()], pendingSeekSec: 56.75,
     mediaResumeHash: '', mediaResumeFileIdx: 0, streamRetryCount: 0,
@@ -70,6 +74,11 @@ function session(os = 'android') {
     fetchSubtitles: noop, maybeHydrateContext: noop, resolveAdjacentContext: () => ({}),
     requestAudioPlayback: noop, recoveryExcluded: () => false,
     sendTraktPlayback: noop, activityEndSession: noop,
+    maybeAutoSelectTracks: noop, maybeAutoSub: noop, syncPowerInhibit: noop,
+    detectStubStream: noop, loadSkipSegments: noop, syncWatchPartyPlayerObservation: noop,
+    activityDiscontinuity: noop, activityNaturalEof: noop,
+    handleSleepEpisodeEnd: () => false, startUpNextCountdown: noop,
+    arrivingStreamUrl: '', audioHandoffPaused: false,
     streamRouteRetired: () => false, recoveryPauseIntent: () => false,
     captureSelectedSidecarSubtitle: () => null, resetRecoveryResume: noop,
     activityCompletionEventId: '', activitySessionId: '',
@@ -93,16 +102,27 @@ function session(os = 'android') {
     streamWatchdog: { restart: () => restarts++, stop: noop },
     Progress: { record: entry => progress.push(entry), recordSilent: entry => progress.push(entry), get: () => ({}) },
     EpisodeBrowser: { seriesRootId: id => id.split(':')[0] },
+    activityTracker: { playbackStateChanged: noop },
   });
-  for (const name of ['normalizeStreamCandidates', 'directStreamUrl', 'findStreamIndex', 'streamCandidateKey',
-    'currentStreamCandidate', 'clearActiveDirectHeaders', 'loadHomeServerCandidate', 'failHomeServerPlayback', 'invalidateHomeServerRoute',
+  for (const name of ['homeServerIdentityMetadata', 'normalizeStreamCandidates', 'directStreamUrl', 'findStreamIndex', 'streamCandidateKey',
+    'currentStreamCandidate', 'clearActiveDirectHeaders', 'loadHomeServerCandidate', 'failHomeServerPlayback', 'invalidateHomeServerRoute', 'reportHomeServerPlayback',
     'homePlaybackContextCurrent', 'homeServerPlaybackResolved', 'homeServerPlaybackFailed',
     'playStreamAt', 'playTorrent', 'retryCurrentStream', 'reloadActiveDirectSource', 'loadDirectStreamUrl',
-    'handlePlaybackFailure', 'prepareRecoveryResume', 'replayEndedPlayback', 'tickWakeReconnect', 'stop']) {
+    'handlePlaybackFailure', 'handlePlaybackIssue', 'prepareRecoveryResume', 'replayEndedPlayback', 'tickWakeReconnect', 'stop']) {
     root[name] = vm.runInContext(`(${extractedFunction(name)})`, context);
   }
   const recordProgress = vm.runInContext(`(${extractedFunction('recordProgress')})`, context);
-  return { root, mpv, service, native, plain, torrents, policyInputs, cancellations, events, progress, recordProgress,
+  const handlers = {};
+  for (const marker of ['onFileLoaded:', 'onEndFile:', 'onPauseChanged:', 'onPlaybackError:']) {
+    // Scope to PlayerItem: earlier Connections also have an onPauseChanged handler.
+    const playerSource = source.slice(source.indexOf('PlayerItem {'));
+    const at = source.indexOf(playerSource) + playerSource.indexOf(marker);
+    const uniqueMarker = source.slice(at, source.indexOf('{', at));
+    const body = extractedFunction(null, uniqueMarker);
+    const args = marker === 'onEndFile:' ? 'reason' : marker === 'onPlaybackError:' ? 'code, message' : '';
+    handlers[marker.slice(2, -1)] = vm.runInContext(`(function(${args}) ${body})`, context);
+  }
+  return { root, mpv, service, native, plain, torrents, policyInputs, cancellations, events, progress, reports, recordProgress, handlers,
     get restarts() { return restarts; }, get stops() { return stops; } };
 }
 
@@ -289,4 +309,154 @@ test('old-profile home EOF/stop cannot write into newly bound Progress; ordinary
   s.root.mediaResumeHash = 'url:https://video.example.org/movie.m3u8';
   s.recordProgress(false);
   assert.equal(s.progress.length, 2);
+});
+
+test('native start waits for actual fileLoaded; existing clock and pause hooks report progress', () => {
+  const s = session();
+  s.root.playStreamAt(0, 'start');
+  s.root.reportHomeServerPlayback('start');
+  s.recordProgress(true);
+  assert.equal(s.reports.length, 0);
+  s.root.pendingSeekSec = -1;
+  s.handlers.FileLoaded();
+  s.handlers.FileLoaded();
+  assert.deepEqual(s.reports.map(row => row.event), ['start']);
+  assert.equal(s.reports[0].backend, s.mpv);
+  assert.equal(s.reports[0].sourceKey, key);
+  assert.equal(s.reports[0].positionMs, 120000);
+  assert.equal(s.reports[0].durationMs, 3600000);
+  s.mpv.position = 125.25;
+  s.recordProgress(true);
+  s.mpv.pause = true;
+  s.handlers.PauseChanged();
+  assert.deepEqual(s.reports.map(row => row.event), ['start', 'progress', 'progress']);
+  assert.equal(s.reports[1].positionMs, 125250);
+  assert.equal(s.reports[2].paused, true);
+  s.root.stop();
+  assert.deepEqual(s.reports.map(row => row.event), ['start', 'progress', 'progress', 'stop']);
+  assert.ok(s.events.indexOf('report-stop') < s.events.indexOf('native-cancel'));
+});
+
+test('confirmed natural EOF reports ended once; later pause and stop cannot overwrite completion', () => {
+  const s = session();
+  s.root.playStreamAt(0, 'start');
+  s.root.pendingSeekSec = -1;
+  s.handlers.FileLoaded();
+  s.mpv.position = 3600;
+  s.handlers.EndFile('eof');
+  s.handlers.EndFile('eof');
+  s.handlers.PauseChanged();
+  s.recordProgress(true);
+  s.root.stop();
+  assert.deepEqual(s.reports.map(row => row.event), ['start', 'ended']);
+});
+
+test('error, stop end-file and failed transcode never report ended', () => {
+  const s = session();
+  s.root.playStreamAt(0, 'start');
+  s.root.pendingSeekSec = -1;
+  s.handlers.FileLoaded();
+  s.handlers.EndFile('stop');
+  assert.deepEqual(s.reports.map(row => row.event), ['start']);
+  s.handlers.PlaybackError('decode', 'Failed decoding');
+  assert.deepEqual(s.reports.map(row => row.event), ['start', 'stop']);
+  assert.equal(s.native[1].forceTranscode, true);
+  s.root.homeServerPlaybackFailed(key, 'Transcode unavailable');
+  assert.deepEqual(s.reports.map(row => row.event), ['start', 'stop']);
+  assert.equal(s.root.errored, true);
+});
+
+test('source switch reports final old key before cancellation and resets start for replacement', () => {
+  const s = session();
+  s.root.playStreamAt(0, 'start');
+  s.root.pendingSeekSec = -1;
+  s.handlers.FileLoaded();
+  const secondKey = 'home-server:server-uuid:SecondItem:SecondVersion';
+  s.root.streamCandidates.push({ ...home(), infoHash: secondKey });
+  s.root.playStreamAt(1, 'switch');
+  assert.deepEqual(s.reports.map(row => [row.event, row.sourceKey]), [['start', key], ['stop', key]]);
+  assert.ok(s.events.indexOf('report-stop') < s.events.indexOf('native-cancel'));
+  s.root.pendingSeekSec = -1;
+  s.root.recoveryResumePending = false;
+  s.handlers.FileLoaded();
+  assert.equal(s.reports[2].event, 'start');
+  assert.equal(s.reports[2].sourceKey, secondKey);
+});
+
+test('profile or owner replacement suppresses all old native reporting, including final stop', () => {
+  for (const replaceOwner of [false, true]) {
+    const s = session();
+    s.root.playStreamAt(0, 'start');
+    s.root.pendingSeekSec = -1;
+    s.handlers.FileLoaded();
+    if (replaceOwner) s.root.homeServerSourceService = { profileGeneration: 1 };
+    else s.service.profileGeneration++;
+    s.recordProgress(true);
+    s.handlers.PauseChanged();
+    s.handlers.EndFile('eof');
+    s.root.stop();
+    assert.deepEqual(s.reports.map(row => row.event), ['start']);
+  }
+});
+
+test('nonfinite and negative clock values are sanitized; ordinary player hooks do not report', () => {
+  const s = session();
+  s.root.playStreamAt(0, 'start');
+  s.root.pendingSeekSec = -1;
+  s.handlers.FileLoaded();
+  s.mpv.position = NaN;
+  s.mpv.duration = Infinity;
+  s.root.reportHomeServerPlayback('progress');
+  assert.equal(s.reports[1].positionMs, 0);
+  assert.equal(s.reports[1].durationMs, 0);
+  s.mpv.position = -2;
+  s.mpv.duration = -5;
+  s.root.reportHomeServerPlayback('progress');
+  assert.equal(s.reports[2].positionMs, 0);
+  assert.equal(s.reports[2].durationMs, 0);
+  s.mpv.position = 1e308;
+  s.mpv.duration = 1e308;
+  s.root.reportHomeServerPlayback('progress');
+  assert.equal(s.reports[3].positionMs, 0);
+  assert.equal(s.reports[3].durationMs, 0);
+  const ordinary = session();
+  ordinary.root.streamCandidates = [{ infoHash: 'url:https://video.example.org/ordinary', streamKind: 'Direct' }];
+  ordinary.root.playStreamAt(0, 'start');
+  ordinary.root.pendingSeekSec = -1;
+  ordinary.handlers.FileLoaded();
+  ordinary.recordProgress(true);
+  ordinary.handlers.PauseChanged();
+  ordinary.handlers.EndFile('eof');
+  ordinary.root.stop();
+  assert.equal(ordinary.reports.length, 0);
+});
+
+test('proven home aliases survive normalization and existing canonical Continue record without credentials', () => {
+  const s = session();
+  const aliases = { type: 'series', imdbId: 'tt1234567', tmdbId: 456, tvdbId: '789', season: 2, episode: 3,
+    token: 'secret', headers: { Authorization: 'secret' }, url: 'https://server.example.org/?token=secret' };
+  const row = { ...home(), homeIdentity: aliases };
+  s.root.playTorrent(key, 0, 'Episode', '', 'series', 'tmdb:tv:456:2:3', [row], {});
+  const candidate = s.root.currentStreamCandidate();
+  assert.notEqual(candidate.homeIdentity, aliases);
+  assert.deepEqual(JSON.parse(JSON.stringify(candidate.homeIdentity)),
+    { type: 'series', imdbId: 'tt1234567', tmdbId: 456, tvdbId: '789', season: 2, episode: 3 });
+  aliases.tmdbId = 999;
+  s.recordProgress(false);
+  assert.equal(s.progress[0].id, 'tt1234567:2:3');
+  assert.equal(s.progress[0].resume.infoHash, key);
+  assert.equal(s.progress[0]._homeServerIdentity.tmdbId, 456);
+  assert.equal(s.progress[0]._homeServerIdentity.imdbId, 'tt1234567');
+  assert.ok(!JSON.stringify(s.progress[0]._homeServerIdentity).includes('secret'));
+  candidate.homeIdentity.tmdbId = 111;
+  assert.equal(s.progress[0]._homeServerIdentity.tmdbId, 456);
+  const ordinary = session();
+  const [normal] = ordinary.root.normalizeStreamCandidates('ABCDEF', 0, 'Movie',
+    [{ infoHash: 'ABCDEF', streamKind: 'Torrent', homeIdentity: aliases }]);
+  assert.equal(Object.hasOwn(normal, 'homeIdentity'), false);
+  ordinary.root.streamCandidates = [normal];
+  ordinary.root.mediaResumeHash = 'ABCDEF';
+  ordinary.root.mediaId = 'tt1234567';
+  ordinary.recordProgress(false);
+  assert.equal(Object.hasOwn(ordinary.progress[0], '_homeServerIdentity'), false);
 });

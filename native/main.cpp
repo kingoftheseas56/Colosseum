@@ -48,6 +48,7 @@
 #include "ClipboardHelper.h"
 #include "MangaEngine.h"
 #include "ProgressStore.h"
+#include "homeserver/HomeServerProgressOwner.h"
 #include "CollectionStore.h"
 #include "SearchHistoryStore.h"
 #include "SessionStore.h"
@@ -2007,7 +2008,14 @@ int main(int argc, char *argv[]) {
         const QString root = profile.kind() == ProfilePaths::Kind::LegacyLocal
             ? accountRuntime->profileStores()->legacyStorage().devicePrivateProfileRoot()
             : profile.profileRoot();
-        homeServers->activate(profile.profileId(), root);
+        auto *progress = accountRuntime->profileStores()->progressStore();
+        homeServers->activate(profile.profileId(), root, homeServerProgressBridge(progress));
+        if (progress) {
+            QObject::connect(progress, &ProgressStore::videoProgressRecorded, homeServers,
+                [homeServers](const QString &id) { homeServers->syncProgress(id); });
+            QObject::connect(progress, &ProgressStore::watchStateChanged, homeServers,
+                [homeServers] { homeServers->syncProgress(); });
+        }
     };
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
                      homeServers, &HomeServerService::deactivate);

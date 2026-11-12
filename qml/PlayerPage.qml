@@ -321,6 +321,8 @@ Item {
     property string homePlaybackKey: ""
     property var homePlaybackProfileGeneration: -1
     property bool homePlaybackTranscoded: false
+    property bool homePlaybackReportedStart: false
+    property bool homePlaybackReportedTerminal: false
     property bool homeTranscodeTried: false
     // Slice 2: one credential-free Player 1 → Watch Party source seam. The native
     // inspector mirrors playStreamAt's real route decision; unsupported direct URLs
@@ -1214,6 +1216,7 @@ Item {
     }
 
     function failHomeServerPlayback(message) {
+        if (root.homePlaybackKey) root.reportHomeServerPlayback("stop")
         root.homePlaybackActive = false
         streamWatchdog.stop()
         root.errored = true
@@ -1224,11 +1227,35 @@ Item {
     }
 
     function invalidateHomeServerRoute() {
+        if (root.homePlaybackKey) root.reportHomeServerPlayback("stop")
         root.homePlaybackActive = false
         var owner = root.homePlaybackService
         root.homePlaybackService = null
         root.homePlaybackKey = ""
         if (owner) owner.cancelPlayback(mpv)
+    }
+
+    function reportHomeServerPlayback(event) {
+        var owner = root.homePlaybackService
+        var key = root.homePlaybackKey
+        if (!owner || owner !== root.homeServerSourceService || !key
+                || root.homePlaybackProfileGeneration !== owner.profileGeneration
+                || root.homePlaybackReportedTerminal)
+            return
+        if (event !== "stop" && !root.homePlaybackContextCurrent(key)) return
+        if (event === "start") {
+            if (!root.fileReady || root.homePlaybackReportedStart) return
+            root.homePlaybackReportedStart = true
+        } else if (!root.homePlaybackReportedStart) {
+            return
+        }
+        if (event === "stop" || event === "ended") root.homePlaybackReportedTerminal = true
+        var positionMs = Math.round(Math.max(0, Number(mpv.position)) * 1000)
+        var durationMs = Math.round(Math.max(0, Number(mpv.duration)) * 1000)
+        owner.reportPlayback(mpv, key,
+            isFinite(positionMs) ? positionMs : 0,
+            isFinite(durationMs) ? durationMs : 0,
+            !!mpv.pause, event)
     }
 
     function loadHomeServerCandidate(candidate, forceTranscode) {
@@ -1251,6 +1278,8 @@ Item {
         root.homePlaybackService = root.homeServerSourceService
         root.homePlaybackProfileGeneration = root.homeServerSourceService ? root.homeServerSourceService.profileGeneration : -1
         root.homePlaybackActive = true
+        root.homePlaybackReportedStart = false
+        root.homePlaybackReportedTerminal = false
         root.starting = true
         root.fileReady = false
         if (!root.homeServerSourceService || !root.homeServerSourceService.loadPlayback(
@@ -1285,6 +1314,18 @@ Item {
         root.invalidateHomeServerRoute()
         root.homePlaybackProfileGeneration = -1
         root.failHomeServerPlayback(qsTr("The home server connection changed. Choose a source again."))
+    }
+
+    function homeServerIdentityMetadata(identity) {
+        var out = ({})
+        var source = identity || ({})
+        var fields = ["type", "imdbId", "tmdbId", "tvdbId", "season", "episode"]
+        for (var i = 0; i < fields.length; ++i) {
+            var value = source[fields[i]]
+            if (typeof value === "string" || (typeof value === "number" && isFinite(value)))
+                out[fields[i]] = value
+        }
+        return out
     }
 
     function normalizeStreamCandidates(infoHash, fileIdx, title, candidates) {
@@ -1325,6 +1366,8 @@ Item {
                 "url": isHomeServer ? "" : isDirect ? admittedUrl : (c.url || ""),
                 "headers": isDirect ? DirectSourcePolicy.copyHeaders(c.headers) : ({})
             })
+            if (isHomeServer)
+                out[out.length - 1].homeIdentity = root.homeServerIdentityMetadata(c.homeIdentity)
         }
         if (!out.length && infoHash && String(infoHash).length) {
             var fallbackHash = String(infoHash)
@@ -2605,6 +2648,7 @@ Item {
     // notify-per-seek would re-introduce a smaller cascade); their position is picked up by the
     // next 5s tick or the next lifecycle write.
     function recordProgress(silent) {
+        if (root.homePlaybackKey) root.reportHomeServerPlayback("progress")
         if ((String(root.currentPlaybackUrl || "").indexOf("home-server:") === 0
                 || String(root.mediaResumeHash || "").indexOf("home-server:") === 0)
                 && (!root.homeServerSourceService
@@ -2647,6 +2691,13 @@ Item {
                         "subType": root.subStreamType,
                         "subId": root.subStreamId,
                         "position": mpv.position }
+        }
+        if (String(root.mediaResumeHash || "").indexOf("home-server:") === 0) {
+            var candidate = root.currentStreamCandidate()
+            if (candidate.homeServer && candidate.infoHash === root.mediaResumeHash && candidate.homeIdentity) {
+                var homeIdentity = root.homeServerIdentityMetadata(candidate.homeIdentity)
+                if (Object.keys(homeIdentity).length) entry["_homeServerIdentity"] = homeIdentity
+            }
         }
         if (root.activityCompletionEventId.length)
             entry["_trackerActivityEventId"] = root.activityCompletionEventId
@@ -4394,6 +4445,7 @@ Item {
             // session is begun later, in finishStartingIfPlaybackAdvanced, once playback
             // actually advances) — this only resets the baseline for a reload of the SAME item.
             root.activityDiscontinuity()
+            if (root.homePlaybackKey) root.reportHomeServerPlayback("start")
         }
         onPlaybackError: function(code, message) {
             root.activityDiscontinuity()   // Activity (§9 Lane A): "error" reset bullet
@@ -4425,6 +4477,7 @@ Item {
                     mpv.pause = true
                     return
                 }
+                if (root.homePlaybackKey) root.reportHomeServerPlayback("ended")
                 root.activityNaturalEof()   // Activity (§9 Lane A): real end of the item
                 root.sendTraktPlayback(false)
                 root.recordProgress()
@@ -4437,6 +4490,7 @@ Item {
         }
         onPauseChanged: {
             if (root.audioHandoffPaused && !mpv.pause) { mpv.pause = true; return }
+            if (root.homePlaybackKey) root.reportHomeServerPlayback("progress")
             if (mpv.pause) root.sendTraktPlayback(false)
             else if (!root.starting && root.fileReady && mpv.position > 0.25)
                 root.sendTraktPlayback(true)

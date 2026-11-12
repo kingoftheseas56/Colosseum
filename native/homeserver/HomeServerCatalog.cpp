@@ -260,8 +260,10 @@ QVariantList matchingSources(QJsonArray items,QVariantMap requested,QJsonObject 
             auto canonicalIdentity=item.value("identity").toObject();
             if(query.contains("imdbId")) canonicalIdentity.insert("imdbId",query.value("imdbId"));
             canonicalItem.insert("identity",canonicalIdentity);
+            auto homeIdentity=canonicalIdentity; homeIdentity.insert("type",query.value("type"));
             QVariantMap row{{"infoHash","home-server:"+connectionId+':'+encoded(itemId)+':'+encoded(versionId)},
                 {"canonicalId",canonicalVideoId(canonicalItem)},
+                {"homeIdentity",homeIdentity.toVariantMap()},
                 {"homeServer",true},{"connectionId",connectionId},{"itemId",itemId},{"versionId",versionId},
                 {"streamKind","Home server"},{"addonId","home-server:"+connectionId},{"addonName",sourceName},{"sourceName",sourceName},
                 {"title",title},{"release",title},{"seeders",-1},{"fileIdx",0}};
