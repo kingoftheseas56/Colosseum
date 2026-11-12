@@ -154,3 +154,16 @@ The PNGs are 1920x1080 physical pixels. CLI capture export settings did not resi
 Build regeneration initially failed while C: had only about 25 MB free. Only 1,616 regenerable .obj intermediates from this task's completed non-Vinyl test targets were removed (1,167,960,579 bytes); built programs/libraries/source/logs/evidence were retained. The subsequent scoped build passed. Exact checked paths and outcomes are in `build-intermediate-reclaim-plan.json`, `build-intermediate-reclaim.json` and `build-shell-runtime-03.*`. A prior wrapper-command rejection and failed-generation log remain separate, not build passes. Do not rerun the whole 186-target build merely to recreate these unnecessary intermediates.
 
 Evidence authority: `artifacts/vinyl-v1/slice1/receiving/shell-root-review.json`, `shell-runtime-pair.json`, `shell-units.*` and the two session manifests. This is the Slice 1 publication review checkpoint. Continue the source-pool/native integration and the already appearance-approved square widgets.
+
+
+## Slice 3 - Square widgets
+
+Slice 1 was pushed to master at `c1d005a6d77d6658191da9dfed3555e2bd6bbae1`, with remote readback matched. Independent Slice 3 was then received as `e1ab180113b099e1586ab56bc6a0d16569e65baf` and `30255b7d63e8844e462438996a4fa24921bed906`. The sole ledger conflict preserved the qualified Slice 1 text and received only the new Slice 3 section.
+
+Song, Album, Artist, Mix and Radio forms share square footprints and aligned two-line captions at 130/196 logical pixels. Song uses an over-cover title strip with actual font metrics; Artist has a record without its former glass frame; Mix has its J-card; Radio is square; Album's square jewel case is retained. All four ArtistWidget hosts preserve visible names. Card pointer actions and feedback remain covered.
+
+Runtime-ready build passed at `30255b7d6`. Registry: 297 unit entries, 100 Vinyl plus the unchanged 197 other names. Focused square faces, widget integration, picker, Album-page and Discover-page CTests passed 5/5 in 36.53 seconds. The production-component gallery passed 3/3 and reproduced the exact previously approved PNG SHA256 `bca5e97ccbd04fd53102203db4117246c8db11c4bd6eff30e6b9f95747e2072d`. Receiving widget/caption/gallery sources equal the approved ones after line-ending normalization; raw hashes are preserved separately.
+
+Hemanth's direct **"Looks right"** verdict covers all five forms at both sizes. This completes the slice's square-test and recorded appearance criterion. It does not approve the later full Home/Library pages, exact 1280x700 viewport, new app playback or live providers. The earlier restored song-height negative control and its two failing cases remain in `slice3/preintegration-C1`; no extra bridge run was ordered for this component look.
+
+Detailed evidence is under `artifacts/vinyl-v1/slice3/receiving/`: `root-review.json`, `approved-source-receiving.json`, `square-units.*`, `gallery-receiving.*`, plus the copied human verdict and original source receipts. Source-pool implementation and the later hero/Crate/Spin/Home/Library slices remain unfinished; this is a scoped publication checkpoint, not Vinyl v1 completion.

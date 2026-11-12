@@ -3333,3 +3333,14 @@ for all five forms at both sizes on 2026-11-13. The gallery SHA-256 is
 `bca5e97ccbd04fd53102203db4117246c8db11c4bd6eff30e6b9f95747e2072d`;
 the exact source hashes and verdict are in the local `human-widget-verdict.json`
 receipt. Full-page Home/Library appearance and real-app receiving remain separate.
+
+
+At integrated source `30255b7d63e8844e462438996a4fa24921bed906`, the configured
+listing is 297 unit entries (100 Vinyl + unchanged 197 other). Focused square,
+widget-integration, picker, Album page and Discover page CTests passed 5/5 in
+36.53 seconds. The rebuilt receiving gallery passed 3/3 and produced the exact
+same approved PNG bytes/hash. Approved widget/caption/gallery sources match
+after line-ending normalization; receiving hashes are recorded separately.
+This meets the square-test plus recorded human-look criterion, without claiming
+later full-page composition or new real-app playback/provider qualification.
+See `artifacts/vinyl-v1/slice3/receiving/root-review.json`.
