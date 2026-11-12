@@ -13,6 +13,7 @@ Flickable {
 
     signal albumRequested(var album)
     signal songRequested(var song)
+    signal playSongRequested(var song)
     signal artistRequested(var artist)
     signal backRequested()
 
@@ -277,6 +278,17 @@ Flickable {
             }
         }
 
+        VinylArtistSongs {
+            objectName: "vinylArtistPopularSongs"
+            x: root.gutter
+            width: root.bodyWidth
+            artistData: root.artistData
+            inlinePopular: true
+            onSongRequested: song => root.playSongRequested(song)
+            onSeeAllRequested: root.artistData.allSongs = !root.artistData.allSongs
+            onItemFocused: item => root.reveal(item)
+        }
+
         // Flow spacer for the 58px sticky tab bar
         Item {
             id: tabBarSlot
@@ -387,7 +399,11 @@ Flickable {
                 Text {
                     objectName: "vinylArtistEmptyReleases"
                     visible: root.artistData.liveMode && root.artistData.discographyCards.length === 0
-                    text: "No local releases match this artist and filter."
+                    text: !root.artistData.online ? qsTr("No local releases match this artist and filter.")
+                        : root.artistData.loading ? qsTr("Loading artist catalogue…")
+                        : root.artistData.catalogueError && root.artistData.allDiscographyCards.length === 0
+                            ? qsTr("The artist's releases could not be loaded.")
+                            : qsTr("No catalogue releases match this artist and filter.")
                     color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                     width: parent.width; wrapMode: Text.WordWrap
                 }

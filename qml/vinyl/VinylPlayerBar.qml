@@ -11,21 +11,28 @@ Item {
     readonly property var songData: songPageData || pageData
     property bool videoFullscreen: false
     property bool showSongPlay: false
+    property bool allowDismiss: false
+    readonly property int playingTrackIndex: pageData.playingIndex === undefined ? -1 : pageData.playingIndex
     readonly property bool hasPlayingSong: pageData.playingIndex === undefined || pageData.playingIndex >= 0
-    readonly property bool playViewedWithoutSession: showSongPlay && !hasPlayingSong
-    readonly property var displayedSong: playViewedWithoutSession ? songData : pageData
+    readonly property var displayedSong: pageData
     property string page: "album"
     property bool queueEnabled: true
     property bool trackNavigationEnabled: true
-    readonly property bool compactTools: page === "song" && (width < 1000 || (showSongPlay && hasPlayingSong && width < 1120))
-    readonly property bool metadataRow: page === "song" && width < 760
-    readonly property bool stackedTools: page === "song" && width < 520
-    readonly property real transportTop: page === "song" ? (metadataRow ? 72 : 12) : 8
-    readonly property real toolsTop: metadataRow ? 124 : 76
-    readonly property real timelineTop: stackedTools ? toolsTop + 88 : compactTools ? toolsTop + 46 : 72
-    readonly property real timelineInset: 26 + Math.max(32, elapsedLabel.implicitWidth, totalTimeLabel.implicitWidth)
-    readonly property real transportCenter: width / 2
-    readonly property bool busy: pageData.sourceState === "finding" || pageData.sourceState === "retrying"
+    readonly property real transportCenter: narrow ? width - 18 - transport.width / 2 : width / 2
+    readonly property bool busy: pageData.sourceState === "finding" || pageData.sourceState === "retrying" || pageData.sourceState === "resolving"
+    readonly property bool narrow: width < 900
+    readonly property bool torrentBusy: pageData.torrentBusy === true
+    readonly property bool videoBusy: pageData.videoBusy === true
+    readonly property bool videoShown: pageData.videoShown === true
+    readonly property bool localSong: pageData.sourceKind === "local"
+        || pageData.playingEdition.origin === "local" || !!pageData.playingTrack.localPath
+    readonly property bool defaultYouTubeChoice: hasPlayingSong && !localSong && !videoShown
+        && !videoBusy && !pageData.sourceKind
+    readonly property bool sourceReady: pageData.sourceState === "playing" && pageData.loaded !== false && !videoShown && !videoBusy
+    readonly property bool sourceSelectionEnabled: hasPlayingSong && !localSong && !videoShown && !videoBusy && (sourceReady || torrentBusy)
+    readonly property bool showDismiss: allowDismiss && page !== "song" && hasPlayingSong
+    readonly property real toolsLeft: width - 281 - (showDismiss ? 32 : 0)
+    readonly property real toolsTop: narrow ? 74 : 14
     property bool scrubbing: false
     property real previewPosition: 0
     property string scrubTrackKey: ""
@@ -41,19 +48,20 @@ Item {
     }
     readonly property real displayedPosition: scrubbing ? clampSeek(previewPosition) : clampSeek(pageData.position)
     readonly property real seekFraction: pageData.duration > 0 ? displayedPosition / pageData.duration : 0
+    signal closeRequested()
     signal songRequested
-    signal creditsRequested
+    signal videoRequested()
     signal videoFullscreenRequested()
     signal selectedSongPlayRequested()
     Theme {
         id: theme
     }
-    height: page === "song" ? timelineTop + 32 : 72
+    height: narrow ? 164 : 104
     Glass {
         anchors.fill: parent
         backdrop: root.backdrop
-        radius: 18
-        tint: 0.09
+        radius: root.narrow ? 18 : 21
+        tint: 0.10
         scrim: 0.08
     }
     function iconSvg(key, selected) {
@@ -121,29 +129,30 @@ Item {
         id: control
         property string glyph
         property string symbol: ""
+        property bool loading: false
         property bool selected: false
         focusOnPointer: false
-        width: 34
-        height: 34
+        width: 40
+        height: 40
         opacity: enabled ? 1 : 0.34
         Rectangle {
             anchors.fill: parent
             radius: 10
-            color: control.interactionActive || control.selected ? theme.glassHi : theme.glassTint
-            border.color: theme.edge
+            color: control.interactionActive || control.selected ? theme.glassHi : "transparent"
+            border.color: "transparent"
         }
         Image {
             anchors.centerIn: parent
             width: 17
             height: 17
-            visible: !control.symbol.length
+            visible: !control.symbol.length && !control.loading
             source: visible ? root.iconSvg(control.glyph, control.selected) : ""
         }
         VinylControlIcon {
             objectName: control.objectName + "Glyph"
             anchors.centerIn: parent
             width: 18; height: 18
-            visible: control.symbol.length > 0
+            visible: control.symbol.length > 0 && !control.loading
             symbol: control.symbol
             color: control.selected ? theme.gold : theme.inkDim
         }
@@ -151,35 +160,30 @@ Item {
     KeyboardAction {
         objectName: "vinylBarOpenSong"
         focusOnPointer: false
-        x: 12
+        x: 18
         y: 13
-        width: 46
-        height: 46
+        width: 44
+        height: 44
         focusRadius: 6
-        enabled: root.page !== "song" && (root.pageData.playingIndex === undefined || root.pageData.playingIndex >= 0)
+        enabled: root.hasPlayingSong
         accessibleName: "Open playing song"
         onTriggered: root.songRequested()
-        Image {
-            id: cover
+        RoundedPosterImage {
             anchors.fill: parent
-            source: root.displayedSong.artwork(root.displayedSong.playingEdition.cover)
-            fillMode: Image.PreserveAspectCrop
+            radius: 7
+            sources: [root.displayedSong.artwork(root.displayedSong.playingEdition.cover)]
         }
     }
-    KeyboardAction {
+    Item {
         id: nowPlaying
         objectName: "vinylBarNowPlaying"
-        focusOnPointer: false
-        enabled: root.page !== "song" && root.hasPlayingSong
-        focusRadius: 6
-        accessibleName: "Open playing song: " + root.displayedSong.playingTrack.title
-        onTriggered: root.songRequested()
-        x: 70
-        y: 12
-        width: root.page === "song" ? Math.max(0, (root.metadataRow ? sourceIndicator.x - 12
-            : root.compactTools ? Math.min(x + 220, root.transportCenter - 82) : collections.x - 14) - x)
-                                   : Math.max(120, root.width * 0.25 - 75)
-        height: 48
+        readonly property string accessibleName: qsTr("Now playing: %1").arg(root.displayedSong.playingTrack.title)
+        Accessible.role: Accessible.StaticText
+        Accessible.name: accessibleName
+        x: 74
+        y: 13
+        width: Math.max(0, root.transportCenter - transport.width / 2 - 16 - x)
+        height: 44
         Column {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width
@@ -204,8 +208,10 @@ Item {
         }
     }
     Row {
+        id: transport
+        objectName: "vinylBarTransport"
         x: root.transportCenter - width / 2
-        y: root.transportTop
+        y: 15.5
         spacing: 12
         KeyboardAction {
             objectName: "vinylBarPrev"
@@ -214,40 +220,38 @@ Item {
             enabled: root.trackNavigationEnabled && (root.pageData.canPrevious === undefined || root.pageData.canPrevious)
             opacity: enabled ? 1 : 0.35
             width: 32
-            height: 36
+            height: 39
             accessibleName: "Previous track"
             onTriggered: root.pageData.next(-1)
             VinylControlIcon { anchors.centerIn: parent; width: 21; height: 21; symbol: "previous"; color: theme.ink }
         }
         KeyboardAction {
             objectName: "vinylBarPlay"
-            tooltipText: root.playViewedWithoutSession ? qsTr("Play viewed song") : root.busy ? qsTr("Waiting for source") : root.pageData.paused ? qsTr("Play") : qsTr("Pause")
+            tooltipText: root.showSongPlay ? qsTr("Play viewed song") : root.busy ? qsTr("Waiting for source") : root.pageData.paused ? qsTr("Play") : qsTr("Pause")
             focusOnPointer: false
             focusRadius: 18
             focusPrimary: true
-            width: 36
-            height: 36
-            accessibleName: root.playViewedWithoutSession ? "Play viewed song" : root.busy ? "Waiting for source" : "Play or pause"
-            enabled: root.playViewedWithoutSession ? root.songData.playingTrack.available !== false : !root.busy && root.hasPlayingSong
-            onTriggered: {
-                if(root.playViewedWithoutSession)root.selectedSongPlayRequested();
-                else root.pageData.paused = !root.pageData.paused;
-            }
+            width: 39
+            height: 39
+            accessibleName: root.busy ? "Waiting for source" : "Play or pause"
+            enabled: !root.busy && root.hasPlayingSong
+            onTriggered: root.pageData.paused = !root.pageData.paused
             Rectangle {
                 anchors.fill: parent
-                radius: 18
+                radius: 19.5
                 color: theme.gold
             }
             VinylControlIcon {
                 anchors.centerIn: parent
                 width: 18; height: 18
-                symbol: root.playViewedWithoutSession || root.pageData.paused ? "play" : "pause"
-                visible: root.playViewedWithoutSession || !root.busy
+                symbol: root.pageData.paused ? "play" : "pause"
+                visible: !root.busy
                 color: theme.biblioWashBottom
             }
             BusyIndicator {
+                objectName: "vinylBarLoading"
                 anchors.fill: parent
-                running: root.busy && !root.playViewedWithoutSession
+                running: root.busy
                 visible: running
                 palette.dark: "#000000"
             }
@@ -259,7 +263,7 @@ Item {
             enabled: root.trackNavigationEnabled && (root.pageData.canNext === undefined || root.pageData.canNext)
             opacity: enabled ? 1 : 0.35
             width: 32
-            height: 36
+            height: 39
             accessibleName: "Next track"
             onTriggered: root.pageData.next(1)
             VinylControlIcon { anchors.centerIn: parent; width: 21; height: 21; symbol: "playNext"; color: theme.ink }
@@ -291,23 +295,31 @@ Item {
             event.accepted = true;
         }
         FocusRing { anchors.fill: parent; shown: seek.activeFocus; radius: 5 }
-        x: root.page === "song" ? root.timelineInset : root.transportCenter - width / 2
-        y: root.page === "song" ? root.timelineTop : 48
-        width: root.page === "song"
-            ? Math.max(0, root.width - 2 * root.timelineInset)
-            : Math.min(root.width * 0.31, Math.max(0, (tools.x - root.width / 2 - 12) * 2))
+        x: 18 + Math.max(26, elapsedLabel.implicitWidth) + 11
+        y: root.narrow ? 128 : 69
+        width: Math.max(0, root.width - x - 18 - Math.max(26, totalTimeLabel.implicitWidth) - 11)
         height: 22
         Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width
             height: 3
+            radius: 1.5
             color: theme.edge
         }
         Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width * root.seekFraction
             height: 3
+            radius: 1.5
             color: theme.gold
+        }
+        Rectangle {
+            x: parent.width * root.seekFraction - width / 2
+            anchors.verticalCenter: parent.verticalCenter
+            width: 8; height: 8
+            radius: 4
+            color: theme.gold
+            Accessible.ignored: true
         }
         MouseArea {
             objectName: "vinylBarSeekPointer"
@@ -323,107 +335,166 @@ Item {
             id: elapsedLabel
             objectName: "vinylBarElapsed"
             anchors.right: parent.left
-            anchors.rightMargin: 9
+            anchors.rightMargin: 11
             anchors.verticalCenter: parent.verticalCenter
             text: root.pageData.formatTime(root.displayedPosition)
             font.family: theme.ui
-            font.pixelSize: root.page === "song" ? 10 : 9
+            font.pixelSize: 10
             color: theme.inkDimmer
         }
         Text {
             id: totalTimeLabel
             objectName: "vinylBarDuration"
             anchors.left: parent.right
-            anchors.leftMargin: 9
+            anchors.leftMargin: 11
             anchors.verticalCenter: parent.verticalCenter
             text: root.pageData.formatTime(root.pageData.duration)
             font.family: theme.ui
-            font.pixelSize: root.page === "song" ? 10 : 9
+            font.pixelSize: 10
             color: theme.inkDimmer
         }
     }
-    Item {
-        id: collections
-        scale: root.stackedTools ? Math.min(1, Math.max(0, root.width - 24) / width) : 1
-        width: (root.page === "song" ? songActions.collectionWidth + tools.spacing : 0) + 34
-        height: 34
-        x: root.page === "song" ? (root.stackedTools ? (root.width - width) / 2
-            : root.transportCenter - (root.compactTools ? 12 : 92) - width) : tools.x - width - 42
-        y: root.page === "song" ? (root.compactTools ? root.toolsTop : 14) : (root.height - height) / 2
-        Tool {
-            x: collections.width - width
-            objectName: "vinylBarQueue"
-            enabled: root.queueEnabled
-            symbol: "queueOpen"
-            accessibleName: "Open queue"
-            onTriggered: root.pageData.queueRequested()
-        }
-    }
-    Row {
-        id: tools
-        scale: root.stackedTools ? Math.min(1, Math.max(0, root.width - 24) / width) : 1
-        x: root.page === "song" ? (root.stackedTools ? (root.width - width) / 2 : root.transportCenter + (root.compactTools ? 12 : 92)) : root.width - width - 12
-        y: root.page === "song" ? (root.compactTools ? root.toolsTop + (root.stackedTools ? 42 : 0) : 14) : (root.height - height) / 2
-        spacing: root.page === "song" ? (root.compactTools ? 8 : 12) : 7
-        Tool {
-            objectName: "vinylBarLyrics"
-            visible: root.page === "song"
-            glyph: "♩"
-            accessibleName: !root.songData.hasLyrics && root.songData.lyricsError ? "Retry lyrics" : "Lyrics"
-            enabled: !!root.songData.hasLyrics || !!root.songData.lyricsError
-            selected: !!root.songData.lyricsShown
-            onTriggered: root.songData.toggleLyrics()
-        }
-        Tool {
-            objectName: "vinylBarNotes"
-            visible: root.page === "song"
-            glyph: "≡"
-            accessibleName: root.songData.manualNoteLine >= 0 ? "Resume automatic annotations" : "Automatic annotations"
-            enabled: !!root.songData.hasNotes
-            selected: !!root.songData.autoNotes && root.songData.manualNoteLine < 0 && !!root.songData.lyricsShown
-            onTriggered: root.songData.toggleNotes()
-        }
-        VinylSongActionMenu {
-            id: songActions
-            objectName: "vinylBarSongActions"
-            collectionHost: collections
-            spacing: tools.spacing
-            videoFullscreen: root.videoFullscreen
-            visible: root.page === "song"
-            songData: root.songData
-            showPlay: root.showSongPlay && root.hasPlayingSong
-            showReaderTools: true
-            contextKey: JSON.stringify([root.page, root.songData.readingContextKey,
-                root.songData.playingEditionId, root.songData.playingIndex, root.songData.playingTrack.id])
-            onPlayRequested: root.selectedSongPlayRequested()
-            onVideoFullscreenRequested: root.videoFullscreenRequested()
-            onVideoRequested: root.songData.toggleVideo()
-            onCreditsRequested: root.creditsRequested()
-        }
-    }
-    Item {
-        id: sourceIndicator
-        // Passive provenance symbol; labels are accessibility-only.
-        objectName: "vinylBarSourceIndicator"
-        readonly property string kind: root.pageData.sourceKind || ""
-        readonly property string sourceName: kind==="torrent" ? "Torrent" : kind==="youtube" ? "YouTube" : kind==="local" ? "Local file" : "Audio source"
-        readonly property string description: root.busy ? (root.pageData.sourceState==="retrying" ? "Trying another source" : "Finding a source") : sourceName+(kind==="youtube" && root.pageData.qualityLabel ? " · "+root.pageData.qualityLabel : "")
-        ToolTip.text: sourceIndicator.description
-        ToolTip.delay: 350
-        ToolTip.visible: sourceTipHover.hovered
-        HoverHandler { id: sourceTipHover }
-        x: root.page === "song" ? root.width - width - 14 : tools.x - width - 7
-        y: 20
-        width: 28
-        height: 34
-        Accessible.role: Accessible.StaticText
-        Accessible.name: sourceIndicator.description
-        Image {
+    Tool {
+        objectName: "vinylBarVideo"
+        x: root.toolsLeft
+        y: root.toolsTop
+        enabled: !root.torrentBusy && (root.videoBusy ? root.pageData.videoSwitchCancellable === true
+            : root.pageData.hasVideo === true || root.videoShown)
+        selected: root.videoShown
+        loading: root.videoBusy && root.pageData.videoSwitchCancellable !== true
+        symbol: root.videoBusy && root.pageData.videoSwitchCancellable === true ? "cancel" : "video"
+        accessibleName: root.videoBusy
+            ? (root.pageData.videoSwitchCancellable === true ? qsTr("Cancel audio/video switch") : qsTr("Switching playback mode"))
+            : root.videoShown ? qsTr("Turn video off and return to original song audio") : qsTr("Switch to video")
+        onTriggered: root.videoRequested()
+        BusyIndicator {
             anchors.centerIn: parent
-            width: 18;height:18
-            source: root.iconSvg(["torrent","youtube","local"].indexOf(sourceIndicator.kind)>=0 ? sourceIndicator.kind : "unknown",false)
-            opacity:0.8;visible:!root.busy
+            width: 22; height: 22
+            running: root.videoBusy && root.pageData.videoSwitchCancellable !== true
+            visible: running
         }
-        BusyIndicator {anchors.centerIn:parent;width:22;height:22;running:root.busy;visible:root.busy}
+    }
+    Tool {
+        objectName: "vinylBarQueue"
+        x: root.toolsLeft + 45
+        y: root.toolsTop
+        enabled: root.queueEnabled
+        symbol: "queueOpen"
+        accessibleName: qsTr("Open queue")
+        onTriggered: root.pageData.queueRequested()
+    }
+    Item {
+        id: sourcePill
+        objectName: "vinylBarSources"
+        x: root.toolsLeft + 95
+        y: root.toolsTop + 3
+        width: 168
+        height: 34
+        Rectangle {
+            objectName: "vinylBarSourceCapsule"
+            anchors.fill: parent
+            radius: 17
+            color: "transparent"
+            border.color: theme.edge
+        }
+        component Source: KeyboardAction {
+            id: sourceControl
+            required property string kind
+            required property string label
+            required property url logo
+            readonly property bool selected: (root.sourceReady && root.pageData.sourceKind === kind)
+                || (kind === "youtube" && root.defaultYouTubeChoice)
+            readonly property bool pending: kind === "torrent" ? root.torrentBusy || (root.busy && root.pageData.sourceKind === "torrent")
+                : root.busy && !root.torrentBusy && root.pageData.sourceKind !== "torrent"
+            x: kind === "youtube" ? 0 : width
+            width: 84; height: 34
+            focusOnPointer: false
+            enabled: root.sourceSelectionEnabled && (kind === "torrent"
+                ? !root.torrentBusy && root.pageData.torrentAvailable === true && typeof root.pageData.findTorrent === "function"
+                : typeof root.pageData.selectYouTube === "function")
+            accessibleName: kind === "torrent" ? qsTr("Use Tankorent audio") : qsTr("Use YouTube audio")
+            accessibleDescription: root.localSong ? qsTr("Local audio is playing")
+                : root.videoShown || root.videoBusy ? qsTr("Audio source selection is unavailable during video")
+                : root.defaultYouTubeChoice && kind === "youtube" ? qsTr("YouTube is the default choice; current playback source is not confirmed")
+                : pending ? qsTr("Finding this source; selection changes only when audio is ready")
+                : selected ? qsTr("Current audio source") : qsTr("Audio source is not selected")
+            Accessible.checkable: true
+            Accessible.checked: selected
+            opacity: enabled || selected || pending ? 1 : 0.4
+            Rectangle {
+                objectName: sourceControl.objectName + "Selection"
+                anchors.fill: parent
+                radius: 17
+                color: theme.gold
+                border.width: 0
+                visible: sourceControl.selected
+            }
+            Rectangle {
+                x: sourceControl.kind === "youtube" ? parent.width / 2 : 0
+                width: parent.width / 2
+                height: parent.height
+                color: theme.gold
+                visible: sourceControl.selected
+            }
+            Image {
+                x: 8; anchors.verticalCenter: parent.verticalCenter
+                width: sourceControl.kind === "youtube" ? 18 : 16
+                height: 16
+                sourceSize: Qt.size(36, 32)
+                source: sourceControl.logo
+                visible: !sourceControl.pending
+                fillMode: Image.PreserveAspectFit
+            }
+            BusyIndicator {
+                x: 6; anchors.verticalCenter: parent.verticalCenter
+                width: 24; height: 24
+                running: sourceControl.pending
+                visible: running
+            }
+            Text {
+                objectName: sourceControl.objectName + "Label"
+                x: 29; anchors.verticalCenter: parent.verticalCenter
+                text: sourceControl.label
+                color: sourceControl.selected ? theme.biblioWashBottom : theme.inkDim
+                font.family: theme.ui
+                font.pixelSize: 10
+            }
+            onTriggered: {
+                if (kind === "youtube") root.pageData.selectYouTube()
+                else root.pageData.findTorrent()
+            }
+        }
+        Source {
+            objectName: "vinylBarYouTube"
+            kind: "youtube"; label: "YouTube"
+            logo: "../../assets/icons/providers/youtube.svg"
+        }
+        Source {
+            objectName: "vinylBarTankorent"
+            kind: "torrent"; label: "Tankorent"
+            logo: "../../assets/addon-logos/tankorent.png"
+        }
+    }
+    Tool {
+        objectName: "vinylBarClose"
+        visible: root.showDismiss
+        x: root.width - width - 8
+        y: root.toolsTop
+        width: 36
+        symbol: "cancel"
+        accessibleName: qsTr("Close player and stop playback")
+        onTriggered: root.closeRequested()
+    }
+    Text {
+        objectName: "vinylBarSourceError"
+        x: root.toolsLeft
+        y: root.toolsTop + 42
+        width: 263; height: 12
+        text: root.pageData.torrentError || root.pageData.videoError || ""
+        color: theme.inkDim
+        font.family: theme.ui
+        font.pixelSize: 10
+        elide: Text.ElideRight
+        Accessible.name: text
     }
 }

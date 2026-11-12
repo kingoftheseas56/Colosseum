@@ -3157,3 +3157,130 @@ any delivery claim that includes the native union code.
   receiving run. Dots' Linux visual evidence and the owner's v2 design approval
   are separate from these Windows integration checks. The previously documented
   intermittent title-action failure is not claimed fixed by this slice.
+
+## Vinyl v1 Home — Slice 0 test inventory (2026-11-12)
+
+The configured CTest registry contains **294 `unit` entries**: **97 Vinyl** and **197
+non-Vinyl**, with all 197 non-Vinyl names unchanged. This is registration inventory, not
+a completion or green claim. The current build, execution, and known-failure status is
+maintained in the [Slice 0 report](superpowers/plans/2026-11-09-vinyl-v1-home-REPORT.md).
+The deterministic unit selection must remain usable without live-provider network access.
+
+### Native unit contracts
+
+- Recommendation contracts (`vinyl;recommendations;unit`):
+  `colosseum.vinyl_recommendation_service`, `colosseum.vinyl_recommendation_contracts`,
+  `colosseum.vinyl_be1_contract`, `colosseum.vinyl_be2_state`,
+  `colosseum.vinyl_be2_persistence`, `colosseum.vinyl_derivation`, and
+  `colosseum.vinyl_be3_ranker`. History and Home checks are
+  `colosseum.vinyl_recommendation_history` (`vinyl;recommendations;history;unit`) and
+  `colosseum.vinyl_home_listening` (`vinyl;home;unit`).
+- Native harnesses now labeled `unit;vinyl`:
+  `colosseum.vinyl_test_profile_controller`, `colosseum.vinyl_personal_state`,
+  `colosseum.vinyl_taste_preferences`, and `colosseum.vinyl_session_store`.
+- Other deterministic native contracts: `colosseum.vinyl_genius_contracts`
+  (`vinyl;annotations;unit`), `colosseum.vinyl_lyrics_contracts` (`vinyl;lyrics;unit`),
+  `colosseum.vinyl_stream_contracts` (`unit;vinyl;stream`),
+  `colosseum.vinyl_torrent_provider_contracts` (`unit;vinyl;torrent`),
+  `colosseum.music_torrent_matcher` (`unit;vinyl;torrent`),
+  `colosseum.vinyl_local_source` (`unit;vinyl;local;identity`), and
+  `colosseum.vinyl_catalogue_source` (`unit;vinyl;catalogue;native-adapter`).
+- Availability variants `colosseum.vinyl_availability_development`,
+  `colosseum.vinyl_availability_qualification`, and
+  `colosseum.vinyl_availability_shipping_disabled` use `unit;vinyl`.
+- Account-owned Qt Tests are `colosseum.qttest.vinyl_music_actions`
+  (`vinyl;activity;history;unit`), `colosseum.qttest.vinyl_taste_selections`
+  (`unit;vinyl;preferences`), and `colosseum.qttest.vinyl_feedback_snapshot`
+  (`unit;qttest;vinyl;preferences`). `colosseum.vinyl_personal_library` uses
+  `unit;vinyl;personal;qttest`; `colosseum.qttest.vinyl_native_facade` uses
+  `unit;vinyl;qttest`.
+
+### Deterministic QML registrations
+
+- The donor QML loop's 23 fixture suites use `unit;qml;vinyl;regression`, offscreen
+  software rendering, and timeout 120: `colosseum.qml.vinyl_album_page`,
+  `colosseum.qml.vinyl_artist_header`, `colosseum.qml.vinyl_artist_model_replacement`,
+  `colosseum.qml.vinyl_artist_page`, `colosseum.qml.vinyl_artist_photo_layers`,
+  `colosseum.qml.vinyl_artist_repair`, `colosseum.qml.vinyl_artist_scrollbars`,
+  `colosseum.qml.vinyl_artist_shared_picker`, `colosseum.qml.vinyl_home_mix_page`,
+  `colosseum.qml.vinyl_live_world_state`, `colosseum.qml.vinyl_local_controls`,
+  `colosseum.qml.vinyl_live_artist`, `colosseum.qml.vinyl_note_picker`,
+  `colosseum.qml.vinyl_page_data`, `colosseum.qml.vinyl_personal_state`,
+  `colosseum.qml.vinyl_song_page`, `colosseum.qml.vinyl_song_action_menu`,
+  `colosseum.qml.vinyl_hud_context`, `colosseum.qml.vinyl_lyrics_column`,
+  `colosseum.qml.vinyl_reading_state`, `colosseum.qml.vinyl_notes_column`,
+  `colosseum.qml.vinyl_world_journeys`, and `colosseum.qml.vinyl_world_lists`.
+- Fixture-only UI suites use the same label and renderer, with timeout 120 except
+  `colosseum.qml.vinyl_world_navigation` which is 240:
+  `colosseum.qml.vinyl_carousel_actions`, `colosseum.qml.vinyl_discover_page`,
+  `colosseum.qml.vinyl_home_page`, `colosseum.qml.vinyl_picker_widgets`,
+  `colosseum.qml.vinyl_queue_panel`, `colosseum.qml.vinyl_recommendation_page`,
+  `colosseum.qml.vinyl_search_presentation`, `colosseum.qml.vinyl_song_attribution`,
+  `colosseum.qml.vinyl_source_attribution`, `colosseum.qml.vinyl_widget_integration`,
+  and `colosseum.qml.vinyl_world_navigation`. `colosseum.qml.vinyl_catalogue_browse`
+  uses `unit;qml;vinyl;catalogue;regression`, also offscreen/software with timeout 120.
+- Focused bridge CTests use `unit;qml;vinyl;native-adapter` with offscreen/software and
+  timeout 120: `colosseum.qml.vinyl_helper_warmup_native`,
+  `colosseum.qml.vinyl_cached_recommendation_playback_native`,
+  `colosseum.qml.vinyl_local_navigation_native`,
+  `colosseum.qml.vinyl_session_storage_seams_native`, and
+  `colosseum.qml.vinyl_local_queue_panel_native`.
+- Existing individual bridge checks are also unit-labeled:
+  `colosseum.qml.vinyl_continue_restore_native`, `colosseum.qml.vinyl_live_world_native`,
+  `colosseum.qml.vinyl_personal_library_native`, and `colosseum.qml.vinyl_home_native`
+  use `unit;qml;vinyl;local;native-adapter`; `colosseum.qml.vinyl_personalized_home_native`
+  uses `unit;qml;vinyl;recommendations;native-adapter`;
+  `colosseum.qml.vinyl_artist_onboarding_native` and
+  `colosseum.qml.vinyl_artist_onboarding_service_native` use `unit;vinyl;qml;onboarding`;
+  `colosseum.qml.vinyl_discovery_native`, `colosseum.qml.vinyl_catalogue_pages_native`,
+  `colosseum.qml.vinyl_youtube_browse_native`, and
+  `colosseum.qml.vinyl_music_discover_native` use `unit;qml;vinyl;catalogue;native-adapter`;
+  `colosseum.qml.vinyl_player_seek_native`, `colosseum.qml.vinyl_playback_queue_native`,
+  and `colosseum.qml.vinyl_playback_actions_native` use
+  `unit;qml;vinyl;playback;native-adapter`.
+
+### Conditional deterministic scripts
+
+- With Node: `colosseum.vinyl_runtime_integrity` (`unit;vinyl;stream`),
+  `colosseum.vinyl_shell_back`, `colosseum.vinyl_continue_opening`,
+  `colosseum.vinyl_direct_video_open`, `colosseum.vinyl_shell_presentation`,
+  `colosseum.vinyl_video_presentation`, `colosseum.vinyl_shell_lifecycle`, and
+  `colosseum.vinyl_audiobook_handoff` (`unit;vinyl;shell`), plus
+  `colosseum.vinyl_search_privacy` (`unit;vinyl;privacy`).
+- With Python 3: `colosseum.vinyl_provider_lifecycle` (`vinyl;provider;unit`),
+  `colosseum.vinyl_music_discover_provider` (`unit;vinyl;catalogue;provider`),
+  `colosseum.vinyl_song_recommendations_provider`
+  (`unit;vinyl;recommendations;provider`), `colosseum.vinyl_recommendation_provider`
+  (`unit;vinyl;provider`), and `colosseum.vinyl_lyrics_provider` (`unit;vinyl;provider`).
+  `colosseum.vinyl_youtube_browse_provider` (`unit;vinyl;catalogue;provider`) is added
+  only when the selected `VINYL_CATALOGUE_TEST_PYTHON` can import `ytmusicapi`; it uses
+  recorded parser fixtures, not live catalogue access.
+
+The shared Activity/History prerequisite remains
+`colosseum.qttest.consumption_history` (`unit;qttest;activity;history;profile`).
+
+### Outside the deterministic unit gate
+
+- The `tests/vinyl-live` runtime/provider family remains bespoke. Its existing source-only
+  Node exception is `colosseum.vinyl_runtime_integrity` (`unit;vinyl;stream`), running
+  `tests/vinyl-live/runtime_integrity.test.mjs`; it does not register the provider harness
+  or qualify a live provider. Provider smoke remains opt-in with
+  `COLOSSEUM_VINYL_LIVE_SMOKE=1`; the 20/20 transport result is specific to
+  `test_video_transport.py`.
+- `colosseum.qml.vinyl_world_visual` is capture-only. The
+  `colosseum.qttest.vinyl_native_mpv_events` test needs a real exposed GPU. The tagged
+  import CTest `colosseum.vinyl_tagged_import` uses an ffmpeg fixture and has no `unit`
+  label.
+- `colosseum.qml.vinyl_native_session_bridge` (labels `qml;vinyl;local;native-adapter`)
+  and `colosseum.qml.vinyl_local_session` (labels `qml;vinyl;local;session`) are broad
+  aggregates, not deterministic unit entries. The latter includes the four legacy model
+  cases `tst_local_session.qml`, `tst_queue_session.qml`,
+  `tst_lifecycle_persistence.qml`, and `tst_shutdown_session.qml`, which use fake-player
+  behavior and are not native playback qualification.
+- `tests/vinyl-next-preparation/tst_next_preparation.qml` remains unregistered; its
+  remote-media preparation cases are outside the deterministic gate. Standalone backend
+  prototype projects remain unintegrated; contract CTests do not change that status.
+- The Lanista observation seam is `vinylPlayerBar.playingTrackIndex` in
+  `qml/vinyl/VinylPlayerBar.qml`. It is a zero-based track index within the playing
+  disc/edition, distinct from the queue position; source registration is not a Lanista
+  run or runtime qualification.

@@ -22,9 +22,14 @@ struct PlaybackRequestHeader;
 // One transient command/event owner. Persistence and identity remain host-owned.
 class VinylBackendSession : public QObject {
     Q_OBJECT
+    Q_PROPERTY(bool nextPreparationEnabled READ nextPreparationEnabled WRITE setNextPreparationEnabled NOTIFY preparationChanged)
+    Q_PROPERTY(QVariantMap preparationState READ preparationState NOTIFY preparationChanged)
     Q_PROPERTY(QObject *source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(QObject *surface READ surface WRITE setSurface NOTIFY surfaceChanged)
     Q_PROPERTY(QObject *videoSurface READ videoSurface WRITE setVideoSurface NOTIFY videoSurfaceChanged)
+    Q_PROPERTY(bool torrentAvailable READ torrentAvailable NOTIFY stateChanged)
+    Q_PROPERTY(bool torrentBusy READ torrentBusy NOTIFY stateChanged)
+    Q_PROPERTY(QString torrentError READ torrentError NOTIFY stateChanged)
     Q_PROPERTY(bool hasVideo READ hasVideo NOTIFY stateChanged)
     Q_PROPERTY(bool videoActive READ videoActive NOTIFY stateChanged)
     Q_PROPERTY(bool videoBusy READ videoBusy NOTIFY stateChanged)
@@ -57,11 +62,17 @@ class VinylBackendSession : public QObject {
 public:
     explicit VinylBackendSession(QObject *parent=nullptr);
     ~VinylBackendSession() override;
+    bool nextPreparationEnabled() const { return m_preparationEnabled; }
+    void setNextPreparationEnabled(bool enabled);
+    QVariantMap preparationState() const;
     QObject *source() const { return m_source; }
     void setSource(QObject *source);
     QObject *surface() const { return m_surface; }
     QObject *videoSurface() const { return m_videoSurface; }
     void setVideoSurface(QObject *surface);
+    bool torrentAvailable() const;
+    bool torrentBusy() const { return m_torrentRequest>=0; }
+    QString torrentError() const { return m_torrentError; }
     bool hasVideo() const { return !m_videoCandidate.isEmpty(); }
     bool videoActive() const { return m_videoActive; }
     bool videoBusy() const { return m_videoBusy; }
@@ -110,6 +121,9 @@ public:
     Q_INVOKABLE void seek(double seconds);
     Q_INVOKABLE void retry();
     Q_INVOKABLE void toggleVideo();
+    Q_INVOKABLE void findTorrent();
+    Q_INVOKABLE void cancelTorrent();
+    Q_INVOKABLE void selectYouTube();
     Q_INVOKABLE void suspend();
     Q_INVOKABLE void clearProfile();
     Q_INVOKABLE void shutdown();
@@ -130,6 +144,7 @@ public:
     Q_INVOKABLE QString personalSongId(const QVariantMap &row) const;
     Q_INVOKABLE bool personalRowAvailable(const QVariantMap &row) const;
 signals:
+    void preparationChanged();
     void stateChanged();
     void pausedChanged();
     void queueChanged();
@@ -144,6 +159,8 @@ signals:
 private slots:
     void sourceCompleted(const QString &lane,int request,const QVariant &data,const QString &error);
 private:
+    void warmPlayback();
+    void invalidatePlaybackTransport();
     std::optional<vinyl::PlaybackLoadInput> inputFor(const vinyl::QueueOccurrence &);
     void loadFile(const vinyl::PlaybackWorkToken &,const QString &,const QString &);
     void loadFileWithHeaders(const vinyl::PlaybackWorkToken &,const QString &,
@@ -154,8 +171,24 @@ private:
     void beginActive(double seconds=0,bool play=true,bool fallback=false);
     bool tryFallback(const QString &reason,std::optional<double> resume=std::nullopt);
     void retirePlayer();
-    void cancelResolution();
+    void cancelResolution(const QString &retainPreparedOccurrence={});
+    void discardPreparation(const QString &retainReadyOccurrence={});
+    void updatePreparation();
+    bool validPreparedResource(const QVariantMap &resource,const QVariantMap &row) const;
+    void acceptAudioResource(const QVariantMap &resource,const QString &error);
+    bool retryPreparedAudio();
+    bool m_preparedAudioActive=false;
+    bool m_preparationEnabled=false;
+    int m_preparationRequest=-1;
+    quint64 m_preparationGeneration=0;
+    QPointer<QObject> m_preparationSource;
+    QString m_preparationProfile,m_preparationStatus="idle";
+    QVariantMap m_preparationRow,m_preparedResource;
+    qint64 m_preparationStarted=0,m_preparationElapsed=0;
+    int m_preparationStarts=0,m_preparationHits=0,m_preparationMisses=0;
     void resetVideo();
+    void torrentCompleted(const QVariantMap &,const QString &);
+    void acceptSourceCompleted(const QString &,int,const QVariant &,const QString &);
     void discoverVideo();
     int requestSource(const QString &lane,const QString &operation,const QString &value,const QVariantMap &options={});
     void videoCompleted(const QString &lane,int request,const QVariantMap &data,const QString &error);
@@ -199,6 +232,9 @@ private:
     double m_resume=0,m_duration=0;
     quint64 m_epoch=0;
     int m_request=-1;
+    int m_torrentRequest=-1;
+    quint64 m_torrentSerial=0,m_torrentEpoch=0;
+    QString m_torrentOccurrence,m_torrentTrack,m_torrentError;
     QString m_resolvingId;
     QHash<QString,QVariantMap> m_rows;
     struct Backend;

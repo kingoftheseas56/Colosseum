@@ -1,0 +1,60 @@
+{
+  "artists": {
+    "artist": [
+      {
+        "name": "Olivia Rodrigo",
+        "mbid": "6925db17-f35e-42f3-a4eb-84ee6bf5d4b0",
+        "url": "https://www.last.fm/music/Olivia+Rodrigo",
+        "image": [
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png",
+            "size": "small"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/64s/2a96cbd8b46e442fc41c2b86b821562f.png",
+            "size": "medium"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/174s/2a96cbd8b46e442fc41c2b86b821562f.png",
+            "size": "large"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png",
+            "size": "extralarge"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png",
+            "size": "mega"
+          }
+        ]
+      },
+      {
+        "name": "Radiohead",
+        "mbid": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+        "url": "https://www.last.fm/music/Radiohead",
+        "image": [
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png",
+            "size": "small"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/64s/2a96cbd8b46e442fc41c2b86b821562f.png",
+            "size": "medium"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/174s/2a96cbd8b46e442fc41c2b86b821562f.png",
+            "size": "large"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png",
+            "size": "extralarge"
+          },
+          {
+            "#text": "https://lastfm-img.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png",
+            "size": "mega"
+          }
+        ]
+      }
+    ]
+  }
+}

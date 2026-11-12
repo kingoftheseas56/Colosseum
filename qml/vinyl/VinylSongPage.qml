@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Effects
 import ".."
 
 Item {
@@ -15,20 +14,32 @@ Item {
     signal videoFullscreenRequested()
     signal videoInteraction()
     signal playRequested()
-    signal creditsRequested()
     signal artistRequested(string name)
     readonly property string songTitle: pageData.playingTrack.title
     readonly property bool lyricsShown: pageData.lyricsShown
     readonly property bool autoNotes: pageData.autoNotes
     readonly property bool videoShown: pageData.videoShown
     property alias videoSurface: videoFrame
-    readonly property real centerWidth: Math.max(96, Math.min(470, Window.height * 0.48, width * 0.38))
+    readonly property bool stackedReaders: width < 720
+    readonly property real sideInset: Math.max(20, Math.min(54, width * 0.034))
+    readonly property real sideGap: Math.max(18, Math.min(64, width * 0.034))
+    readonly property real headerBottom: backAction.y + backAction.height
+    readonly property real artworkTop: stackedReaders ? headerBottom + 18 : 4
+    // The fixed metadata reservation keeps toggling reading tools from moving the cover.
+    readonly property real centerWidth: Math.max(96, Math.min(540,
+        stackedReaders ? width - 2 * sideInset : width * 0.36,
+        stackedReaders ? height * 0.38 : height - artworkTop - 108))
+    readonly property real cardHeight: centerWidth
     readonly property real videoFrameHeight: Math.max(0, Math.min(height, width * 9 / 16))
-    readonly property real cardHeight: Math.max(96, Math.min(centerWidth,
-        height - backAction.y - backAction.height - songMetadata.implicitHeight - 38))
-    readonly property real readingHeight: Math.max(cardHeight, height - room.y - 8)
-    readonly property real sideInset: Math.max(24, Math.min(54, width * 0.04))
-    readonly property real sideGap: Math.max(18, Math.min(52, width * 0.04))
+    readonly property real readingTop: stackedReaders
+        ? room.y + cardHeight + 10 + songMetadata.implicitHeight + 54
+        : room.y + 42
+    readonly property real readingHeight: Math.max(0, height - readingTop - 8)
+    readonly property real notesAreaX: stackedReaders ? width / 2 + sideGap / 2
+        : (width + centerWidth) / 2 + sideGap
+    readonly property real readerWidth: stackedReaders
+        ? Math.max(0, (width - 2 * sideInset - sideGap) / 2)
+        : Math.max(0, Math.min(380, (width - centerWidth) / 2 - sideInset - sideGap))
     readonly property var displayedGeniusNotes: {
         if (!notesColumn.visible)
             return [];
@@ -94,13 +105,13 @@ Item {
     }
     BackAction {
         focusOnPointer: false
-        visible: !(root.videoFullscreen && root.videoShown) && opacity > 0.01
+        visible: opacity > 0.01
         enabled: visible
-        opacity: root.videoShown && !root.videoControlsVisible ? 0 : 1
+        opacity: root.videoFullscreen && root.videoShown && !root.videoControlsVisible ? 0 : 1
         Behavior on opacity { NumberAnimation { duration: 140 } }
         id: backAction
         objectName: "vinylSongBack"
-        x: root.videoShown ? (root.width - root.videoFrameHeight * 16 / 9) / 2 + 12 : theme.margin
+        x: root.videoShown ? 12 : theme.margin
         y: root.videoShown ? (root.height - root.videoFrameHeight) / 2 + 12 : 4
         z: root.videoShown ? 20 : 0
         label: root.backLabel
@@ -118,14 +129,46 @@ Item {
             color: "#b3000000"
         }
     }
+    VinylSongActionMenu {
+        id: songActions
+        objectName: "vinylSongPageActions"
+        x: root.width - width - (root.videoShown ? 12 : theme.margin)
+        y: root.videoShown ? backAction.y : (root.width < 560 ? 56 : 9)
+        z: 20
+        opacity: root.videoFullscreen && root.videoShown && !root.videoControlsVisible ? 0 : 1
+        visible: opacity > 0.01
+        enabled: visible
+        Behavior on opacity { NumberAnimation { duration: 140 } }
+        collectionHost: songCollectionHost
+        personalHost: songPersonalHost
+        playlistHost: songPlaylistHost
+        lyricsHost: lyricsHeading
+        notesHost: notesHeading
+        songData: root.pageData
+        showPlay: root.browseMode
+        showReaderTools: true
+        showLyricsTools: !root.videoShown
+        videoFullscreen: root.videoFullscreen
+        onPlayRequested: root.playRequested()
+        onVideoFullscreenRequested: { root.videoInteraction(); root.videoFullscreenRequested(); }
+        onVideoRequested: { root.videoInteraction(); root.pageData.toggleVideo(); }
+    }
+    Item {
+        id: songCollectionHost
+        objectName: "vinylSongCollectionActions"
+        x: root.width - width - theme.margin
+        y: backAction.y + (backAction.height - height) / 2
+        width: songActions.collectionWidth
+        height: 34
+        visible: !root.videoShown
+    }
     Item {
         id: room
         width: parent.width
         visible: !(root.videoFullscreen && root.videoShown)
         height: root.videoShown ? root.videoFrameHeight : root.cardHeight + 18 + songMetadata.implicitHeight
         y: root.videoShown ? (root.height - height) / 2
-            : backAction.y + backAction.height + Math.max(12,
-            (root.height - backAction.y - backAction.height - height) / 2)
+            : root.artworkTop
         Item {
             id: poster
             objectName: "vinylSongPoster"
@@ -146,33 +189,12 @@ Item {
                 color: theme.inkDimmer
                 visible: !root.videoShown && !root.pageData.playingEdition.cover
             }
-            Image {
-                id: cover
-                anchors.fill: parent
-                visible: false
-                source: root.pageData.artwork(root.pageData.playingEdition.cover)
-                fillMode: Image.PreserveAspectCrop
-            }
-            Rectangle {
-                id: mask
+            RoundedPosterImage {
+                objectName: "vinylSongArtwork"
                 anchors.fill: parent
                 radius: 18
-                visible: false
-                color: theme.ink
-                layer.enabled: true
-            }
-            MultiEffect {
-                anchors.fill: parent
-                source: cover
-                maskEnabled: true
-                maskSource: mask
-                visible: !root.videoShown
-            }
-            Rectangle {
-                anchors.fill: parent
-                radius: 18
-                color: Qt.rgba(0, 0, 0, 0)
-                border.color: theme.edge
+                sources: root.pageData.playingEdition.cover
+                    ? [root.pageData.artwork(root.pageData.playingEdition.cover)] : []
                 visible: !root.videoShown
             }
             KeyboardAction {
@@ -212,20 +234,43 @@ Item {
                 visible: !root.videoShown
                 objectName: "vinylSongMetadata"
                 x: (parent.width - width) / 2
-                y: parent.height + 18
-                width: root.videoShown
-                    ? Math.min(root.centerWidth * 16 / 9, Math.max(0, root.width - 2 * root.sideInset))
-                    : root.centerWidth * (root.pageData.playingEdition.id === "mounamela" ? 0.667 : 1)
-                spacing: 6
-                Text {
-                    objectName: "vinylSongTitle"
+                y: parent.height + 10
+                width: root.centerWidth
+                spacing: 2
+                Item {
                     width: parent.width
-                    text: root.songTitle
-                    color: theme.ink
-                    font.family: theme.display
-                    font.pixelSize: Math.min(34, Window.height * 0.038)
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
+                    height: 38
+                    Item {
+                        id: songPersonalHost
+                        objectName: "vinylSongPersonalActions"
+                        width: songActions.personalWidth
+                        height: 34
+                        x: Math.max(0, (parent.width - songTitleText.width) / 2 - width - 12)
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        id: songTitleText
+                        objectName: "vinylSongTitle"
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: Math.min(implicitWidth, Math.max(0, parent.width
+                            - 2 * (Math.max(songActions.personalWidth, songActions.playlistWidth) + 12)))
+                        text: root.songTitle
+                        color: theme.ink
+                        font.family: theme.display
+                        font.pixelSize: root.stackedReaders ? 28 : 30
+                        maximumLineCount: 1
+                        elide: Text.ElideRight
+                        wrapMode: Text.NoWrap
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    Item {
+                        id: songPlaylistHost
+                        objectName: "vinylSongPlaylistActions"
+                        x: (parent.width + songTitleText.width) / 2 + 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: songActions.playlistWidth
+                        height: 34
+                    }
                 }
                 TextMetrics {
                     id: artistNameMetrics
@@ -233,20 +278,52 @@ Item {
                     font.family: theme.ui
                     font.pixelSize: 14
                 }
-                VinylArtistLinks {
-                    id: songArtists
-                    objectName: "vinylSongArtist"
-                    x: (parent.width - width) / 2
-                    width: Math.min(parent.width, Math.max(24, artistNameMetrics.advanceWidth))
-                    names: root.pageData.playingTrack.artists || root.pageData.playingEdition.artists || (root.pageData.playingEdition.sourceAlbum && root.pageData.playingEdition.sourceAlbum.artists) || []
-                    fallbackName: root.pageData.playingEdition.artist
-                    navigationEnabled: root.artistNavigationEnabled
-                    fontSize: 14
-                    onArtistRequested: name => root.artistRequested(name)
+                Item {
+                    width: parent.width
+                    height: 24
+                    Row {
+                        id: songIdentity
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 6
+                        VinylArtistLinks {
+                            id: songArtists
+                            objectName: "vinylSongArtist"
+                            width: Math.min(songMetadata.width * 0.55, Math.max(24, artistNameMetrics.advanceWidth))
+                            names: root.pageData.playingTrack.artists || root.pageData.playingEdition.artists || (root.pageData.playingEdition.sourceAlbum && root.pageData.playingEdition.sourceAlbum.artists) || []
+                            fallbackName: root.pageData.playingEdition.artist
+                            navigationEnabled: root.artistNavigationEnabled
+                            fontSize: 14
+                            onArtistRequested: name => root.artistRequested(name)
+                        }
+                        Text {
+                            text: "\u00b7"
+                            color: theme.inkDimmer
+                            font.family: theme.ui
+                            font.pixelSize: 13
+                        }
+                        KeyboardAction {
+                            objectName: "vinylSongAlbum"
+                            width: Math.min(albumLabel.implicitWidth,
+                                Math.max(0, songMetadata.width - songArtists.width - 20))
+                            height: 24
+                            focusOnPointer: false
+                            accessibleName: qsTr("Open album %1").arg(albumLabel.text)
+                            onTriggered: root.albumRequested()
+                            Text {
+                                id: albumLabel
+                                anchors.fill: parent
+                                text: root.pageData.playingEdition.title || root.pageData.playingEdition.name || ""
+                                color: theme.inkDim
+                                font.family: theme.ui
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
                 }
                 Item {
                     width: parent.width
-                    height: 34
+                    height: 32
                     VinylSourceAttribution {
                         objectName: "vinylSongSources"
                         anchors.verticalCenter: parent.verticalCenter
@@ -262,9 +339,29 @@ Item {
                 }
             }
         }
+        Item {
+            id: lyricsHeading
+            objectName: "vinylSongLyricsHeading"
+            x: root.stackedReaders ? root.sideInset
+                : (root.width - root.centerWidth) / 2 - root.sideGap - width
+            y: root.stackedReaders ? root.readingTop - room.y - 42 : 0
+            width: songActions.lyricsWidth
+            height: 34
+            visible: !root.videoShown
+        }
+        Item {
+            id: notesHeading
+            objectName: "vinylSongNotesHeading"
+            x: root.notesAreaX
+            y: lyricsHeading.y
+            width: songActions.notesWidth
+            height: 34
+            visible: !root.videoShown
+        }
         VinylLyricsColumn {
             x: root.sideInset
-            width: Math.max(0, Math.min(380, (root.width - songMetadata.width) / 2 - root.sideInset - root.sideGap))
+            y: root.readingTop - room.y
+            width: root.readerWidth
             height: root.readingHeight
             pageData: root.pageData
             showSourceCredit: false
@@ -272,8 +369,9 @@ Item {
         }
         VinylNotesColumn {
             id: notesColumn
-            x: (root.width + songMetadata.width) / 2 + root.sideGap
-            width: Math.max(0, Math.min(380, root.width - x - root.sideInset))
+            x: root.notesAreaX
+            y: root.readingTop - room.y
+            width: root.readerWidth
             height: root.readingHeight
             pageData: root.pageData
             inlineAttribution: false

@@ -122,6 +122,8 @@ Item {
     onEnabledChanged: if (!enabled) keyboardSections.clear()
     property string medium: ""               // which library pill reads as selected
     property bool topBarBackOnly: false       // Extensions: the bar keeps only Back and the page's name
+    property string topBarObjectName: ""
+    property bool topBarTrackersEnabled: true
     property string topBarTitle: ""
     property string topBarSubtitle: ""
     property string initialFocusName: ""
@@ -245,6 +247,7 @@ Item {
     // ---- pinned top bar (this medium selected; "‹ Home" shown) ----
     TopBar {
         id: topbar
+        objectName: world.topBarObjectName
         backdrop: world.backdrop
         activeMedium: world.medium
         backOnly: world.topBarBackOnly
@@ -257,7 +260,7 @@ Item {
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
-        trackersEnabled: true
+        trackersEnabled: world.topBarTrackersEnabled
         trackersActive: world.trackersActive
         onTrackersClicked: world.trackersClicked()
         onSettingsClicked: world.settingsClicked()
@@ -281,6 +284,8 @@ Item {
     // The one vertical scroller itself, for content that must scroll WITH the page rather than
     // inside its own box (the Discover walls, world-feel Slice 7).
     readonly property Flickable pageFlickable: page
+    readonly property real boardTopPadding: board.topPadding
+    readonly property real boardSectionSpacing: board.spacing
 
     // ---- the widget board (scrolls vertically) ----
     Flickable {
@@ -354,6 +359,9 @@ Item {
     // compact copy pins at the top of the board and the in-flow bar keeps its space, hidden.
     // A world opts in by pointing tabBarSource at its in-flow tab bar.
     property Item tabBarSource: null
+    readonly property Item dockedTabBar: tabDock
+    property string dockObjectName: medium.length > 0 ? medium.toLowerCase() + "TabDock" : "worldTabDock"
+    property string dockTabPrefix: medium.length > 0 ? medium.toLowerCase() + "TabDock" : "worldTabDock"
     // Where the content column starts inside the board when a page puts a rail beside it (the
     // Discover sidebar): the docked bar then sits over that column, right of the rail, as in the
     // retractable concept (.dock left = margin + rail + gap, right = margin). 0 = full width.
@@ -374,8 +382,8 @@ Item {
     }
     WorldTabBar {
         id: tabDock
-        objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "TabDock" : "worldTabDock"
-        tabPrefix: world.medium.length > 0 ? world.medium.toLowerCase() + "TabDock" : "worldTabDock"
+        objectName: world.dockObjectName
+        tabPrefix: world.dockTabPrefix
         compact: true
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: world.dockContentLeft > 0 ? (world.androidHost && adaptive.desktopPresentation

@@ -324,10 +324,16 @@ Item {
                 comingSoon: !bar.Window.window || bar.Window.window.feriaComingSoon !== false
             }
             Pill {
+                id: vinylPill
                 label: "Vinyl"
                 readonly property bool qualificationEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
                 comingSoon: !qualificationEnabled
                 objectName: bar.visible && bar.lifecycleActive ? (qualificationEnabled ? "worldPillVinyl" : "modePill_Vinyl") : ""
+                Item {
+                    readonly property bool qualificationEnabled: vinylPill.qualificationEnabled
+                    anchors.fill: parent
+                    objectName: (bar.visible && bar.lifecycleActive && vinylPill.qualificationEnabled) ? "modePill_Vinyl" : ""
+                }
             }
         }
     }

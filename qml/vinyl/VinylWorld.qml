@@ -6,32 +6,59 @@ Item {
     required property var worldData
     required property Item backdrop
     required property Flickable pageFlick
+    property bool active: true
+    readonly property bool catalogueTab: ["songs","albums","artists"].indexOf(currentTab)>=0
     property string currentTab: "home"
     property string listKey: ""
     property bool listHome: false
     property real listReturnY: 0
     property real dockedInset: 0
     property Item dockedTabBar: null
+    property WorldPage pageShell: null
+    readonly property Item flowTabs: tabHost.item
+    readonly property real dockContentLeft: discover.visible ? discover.contentLeft : 0
+    readonly property var tabModel: [
+        {key:"home",label:qsTr("Home")}, {key:"discover",label:qsTr("Discover")},
+        {key:"songs",label:qsTr("Songs")}, {key:"albums",label:qsTr("Albums")},
+        {key:"artists",label:qsTr("Artists")}, {key:"library",label:qsTr("Library")}
+    ]
+    readonly property real sharedBoardTop: pageShell ? pageShell.boardTopPadding : 0
+    readonly property real tabEntryY: pageShell && (currentTab==="discover" || catalogueTab) && !listKey
+        ? 0 : Math.max(0,contentTop-dockedInset)
     property var tabOffsets: ({})
     property var tabRoutes: ({})
     property Item listReturnFocus: null
     readonly property var personalData: root.worldData.personalLibrary || null
     readonly property Item libraryDestination: personalLibraryHost.item || library
+    function carouselActionLabel(slide) {
+        var item=slide.item || {}, kind=String(item.kind || "");
+        var destination=item.destination || {};
+        if(slide.key==="resume" || kind==="resume") return qsTr("Resume");
+        if(kind==="mixes") return qsTr("Open mix");
+        if(kind==="radio") return qsTr("Start radio");
+        if(destination.kind==="artist" || kind==="artists") return qsTr("Explore artist");
+        if(destination.kind==="album" || kind==="albums") return qsTr("Open album");
+        if(destination.kind==="song" || destination.kind==="saved-song"
+            || kind==="songs" || kind==="saved-song") return qsTr("View song");
+        if(slide.key==="local-albums" || slide.key==="library") return qsTr("Open library");
+        return qsTr("Explore collection");
+    }
     function focusArtistSearch() {return home.focusArtistSearch();}
     function focusCurrent() {
         if (listKey) list.focusCurrent();
         else if (currentTab === "library") libraryDestination.focusCurrent();
         else if(dockedTabBar && dockedTabBar.visible) dockedTabBar.forceActiveFocus();
-        else tabs.forceActiveFocus();
+        else if(flowTabs) flowTabs.forceActiveFocus();
     }
-    readonly property real contentTop: body.y
+    readonly property real contentTop: sharedBoardTop + body.y
     // Where the page sits while Home shows the picker: the tab bar at the
     // top of the page area, so the tab bar stays usable beside the picker.
-    readonly property real pickerParkY: tabs.y
+    readonly property real pickerParkY: sharedBoardTop + tabHost.y
     // Local data arrives after construction. A newly available carousel changes
     // the picker anchor; keep the unanswered picker in the visible viewport.
     onPickerParkYChanged: Qt.callLater(root.syncPickerPlacement)
-    implicitHeight: body.y + body.height + 50
+    implicitHeight: body.y + body.height + (pageShell ? 0 : 50)
+    height: implicitHeight
     function parkPage(y) {
         // Set at once so a click in the same event-loop pass already sees the
         // parked page, then re-assert once heights have settled, because a
@@ -106,8 +133,8 @@ Item {
     function resetRouteState(tab) {
         tabOffsets={};tabRoutes={};listKey="";listHome=false;listReturnY=0;listReturnFocus=null;
         list.currentIndex=0;list.selectedId="";library.currentIndex=0;library.selectedId="";
-        currentTab=["home","discover","library"].indexOf(tab)>=0 ? tab : "library";
-        parkPage(Math.max(0,root.contentTop-root.dockedInset));
+        currentTab=["home","songs","albums","artists","discover","library"].indexOf(tab)>=0 ? tab : "library";
+        parkPage(tabEntryY);
     }
     function syncPickerPlacement() {
         if(currentTab==="home" && root.worldData.tastePickerOpen===true && !listKey)parkPage(root.pickerParkY);
@@ -120,7 +147,7 @@ Item {
         routes[currentTab]=captureRouteState();tabRoutes=routes
     }
     function setTab(tab) {
-        if (["home","discover","library"].indexOf(tab)<0) return
+        if (["home","songs","albums","artists","discover","library"].indexOf(tab)<0) return
         if(root.worldData && root.worldData.canEnterVinyl===false) {
             root.enforceHomeGate();
             return;
@@ -136,7 +163,7 @@ Item {
         }
         // First entry to a tab parks at the tab bar; later entries return to
         // where the listener left that tab, list detours included.
-        parkPage(tabOffsets[tab] !== undefined ? tabOffsets[tab] : Math.max(0,root.contentTop-root.dockedInset))
+        parkPage(tabOffsets[tab] !== undefined ? tabOffsets[tab] : tabEntryY)
         syncPickerPlacement()
     }
     onCurrentTabChanged: {
@@ -167,11 +194,11 @@ Item {
         objectName: "vinylCarousel"
         width: parent.width
         height: visible ? (root.width<1300 ? 290 : 330) : 0
-        visible: slides.length > 0
+        visible: root.currentTab==="home" && slides.length > 0
         slides: root.worldData.carouselSlides.map(function(slide) {
             return Object.assign({},slide,{c1:theme.biblioWashTop,c2:theme.biblioWashBottom,
                 artKind:slide.artKind==="poster" ? "square" : (slide.artKind || "square"),
-                primaryIcon:slide.key==="resume" || (slide.item && slide.item.kind==="resume") ? "play" : "chevronRight"});
+                cta:root.carouselActionLabel(slide),primaryIcon:""});
         })
         kicker: slides[index] ? slides[index].kicker : ""
         primaryLabel: slides[index] ? slides[index].cta : ""
@@ -187,38 +214,49 @@ Item {
             else {root.setTab("discover");root.worldData.openList(s.key,false)}
         }
     }
-    WorldTabBar {
-        id: tabs
-        objectName: "vinylFlowTabs"
-        visible: !root.dockedTabBar || !root.dockedTabBar.visible
-        y: carousel.height+26
+    Loader {
+        id: tabHost
+        y: root.pageShell ? (carousel.visible ? carousel.height + root.pageShell.boardSectionSpacing : 0)
+                          : carousel.height + 26
         width: parent.width
-        backdrop: root.backdrop
-        track: root.pageFlick.contentY
-        tabPrefix: tabs.visible ? "vinylTab" : "vinylHiddenFlowTab"
-        tabModel: [{key:"home",label:"Home"},{key:"discover",label:"Discover"},{key:"library",label:"Library"}]
-        currentTab: root.currentTab
-        onTabRequested: tab => root.setTab(tab)
+        sourceComponent: root.pageShell ? sharedFlowTabs : legacyFlowTabs
+    }
+    Component {
+        id: sharedFlowTabs
+        TheatreTabBar {
+            objectName: "vinylFlowTabs"
+            backdrop: root.backdrop
+            track: root.pageFlick.contentY
+            tabPrefix: root.pageShell && root.pageShell.tabsDocked ? "vinylHiddenFlowTab" : "vinylTab"
+            tabModel: root.tabModel
+            currentTab: root.currentTab
+            onTabRequested: tab => root.setTab(tab)
+        }
+    }
+    Component {
+        id: legacyFlowTabs
+        WorldTabBar {
+            objectName: "vinylFlowTabs"
+            visible: !root.dockedTabBar || !root.dockedTabBar.visible
+            backdrop: root.backdrop
+            track: root.pageFlick.contentY
+            tabPrefix: visible ? "vinylTab" : "vinylHiddenFlowTab"
+            tabModel: root.tabModel
+            currentTab: root.currentTab
+            onTabRequested: tab => root.setTab(tab)
+        }
     }
     Item {
         id: body
-        y: tabs.y+tabs.height+36
+        y: tabHost.y + tabHost.height + (root.pageShell ? root.pageShell.boardSectionSpacing : 36)
         width: parent.width
         height: panels.y+panels.height
-        VinylLens {
-            id: lens
-            width: parent.width
-            visible: root.currentTab==="discover" && root.worldData.discoveryLanding!==true
-            worldData: root.worldData
-            backdrop: root.backdrop
-            pageFlick: root.pageFlick
-        }
         Item {
             id: panels
-            y: lens.visible ? lens.implicitHeight+30 : 0
+            y: 0
             width: parent.width
             height: root.listKey ? list.implicitHeight : root.currentTab==="home" ? home.implicitHeight
-                  : root.currentTab==="discover" ? discover.implicitHeight : root.libraryDestination.implicitHeight
+                  : root.currentTab==="discover" ? discover.implicitHeight : root.catalogueTab ? 0 : root.libraryDestination.implicitHeight
         VinylHomePage {
             id: home
             width: parent.width
@@ -229,6 +267,7 @@ Item {
         }
         VinylDiscoverPage {
             id: discover
+            active: root.active && visible
             width: parent.width
             visible: !root.listKey && root.currentTab==="discover"
             worldData: root.worldData

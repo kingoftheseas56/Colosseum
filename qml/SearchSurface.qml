@@ -19,6 +19,11 @@ Item {
     // Optional paged catalogue adapter. The shared layout stays the owner of
     // search interaction; each world keeps its existing transport and identity.
     property var searchProvider: null
+    // Optional desktop result content. The delegate receives `entry`; this surface owns input.
+    property Component resultPresentation: null
+    // Optional passive loading footprint per desktop result group.
+    property Component resultLoadingPresentation: null
+    readonly property real desktopResultCardWidth: Math.max(0, (scroll.width - 5 * 22) / 6)
     property real coverAspect: 2 / 3
     property url primaryIcon: ""
     property bool keepOpenOnActivation: false
@@ -621,29 +626,40 @@ Item {
                                 : ""
                     visible: surf.results.length > 0 && !surf.phoneNarrow
                     property var m: surf.results.length > 0 ? surf.results[0] : ({})
-                    width: parent.width; height: 210; radius: 18
+                    width: parent.width; height: Math.max(210, topPresentation.active ? topPresentation.height + 56 : 0); radius: 18
                     color: theme.glassTint; border.width: 1; border.color: theme.edge
 
                     Item {                                   // cover-object (Biblio's mini dust-jacket)
                         id: tmCover
                         anchors.left: parent.left; anchors.leftMargin: 28
                         anchors.verticalCenter: parent.verticalCenter
-                        width: surf.coverAspect === 1 ? 154 : 110; height: width / surf.coverAspect
+                        width: topPresentation.active ? 196 : surf.coverAspect === 1 ? 154 : 110
+                        height: topPresentation.active ? topPresentation.height : width / surf.coverAspect
+                        Loader {
+                            id: topPresentation
+                            objectName: "searchTopPresentation"
+                            property var entry: topCard.m
+                            active: !!surf.resultPresentation && !surf.phoneNarrow
+                            width: parent.width
+                            height: status === Loader.Ready && item ? (item as Item).implicitHeight : width
+                            sourceComponent: surf.resultPresentation
+                        }
                         Image {
-                            id: tmImg; anchors.fill: parent
+                            id: tmImg; visible: !topPresentation.active; anchors.fill: parent
                             source: topCard.m && topCard.m.cover ? topCard.m.cover : ""
                             fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
                             layer.enabled: true
                             layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Qt.rgba(0,0,0,0.7)
                                 shadowBlur: 1.0; shadowVerticalOffset: 16; autoPaddingEnabled: true }
                         }
-                        Rectangle { visible: surf.coverAspect !== 1; anchors.left: parent.left; width: 8; height: parent.height; radius: 2
+                        Rectangle { visible: !topPresentation.active && surf.coverAspect !== 1; anchors.left: parent.left; width: 8; height: parent.height; radius: 2
                             gradient: Gradient { orientation: Gradient.Horizontal
                                 GradientStop { position: 0; color: Qt.rgba(0,0,0,0.5) }
                                 GradientStop { position: 0.6; color: Qt.rgba(0,0,0,0.05) }
                                 GradientStop { position: 1; color: Qt.rgba(1,1,1,0.08) } } }
                     }
                     Column {
+                        visible: !topPresentation.active
                         anchors.left: tmCover.right; anchors.leftMargin: 28
                         anchors.right: openBtn.left; anchors.rightMargin: 24
                         anchors.verticalCenter: parent.verticalCenter
@@ -734,6 +750,9 @@ Item {
                         id: section
                         required property var modelData          // { group, items }
                         readonly property bool expanded: surf.expandedGroups.indexOf(modelData.group) >= 0
+                        readonly property bool usingCustomLoading: !!surf.resultLoadingPresentation
+                            && !surf.phoneNarrow && !!modelData.loading
+                        readonly property bool showLoadingPresentation: usingCustomLoading && modelData.items.length === 0
                         function toggleExpanded() {
                             var g = section.modelData.group
                             var open = surf.expandedGroups.slice()
@@ -743,7 +762,9 @@ Item {
                         }
                         width: parent.width; spacing: 0
                         Text {
-                            text: modelData.group.toUpperCase() + "  ·  " + modelData.items.length
+                            objectName: "searchGroupHeading_" + (section.modelData.key || "")
+                            text: modelData.group.toUpperCase() + (section.showLoadingPresentation
+                                ? "" : "  ·  " + modelData.items.length)
                             color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                             font.weight: Font.DemiBold; font.letterSpacing: 1.6
                         }
@@ -752,7 +773,7 @@ Item {
                             id: secGrid
                             width: parent.width; columns: surf.phoneNarrow ? 1 : 6
                             columnSpacing: surf.phoneNarrow ? 0 : 22; rowSpacing: surf.phoneNarrow ? 12 : 26
-                            property real cellW: (width - columnSpacing * (columns - 1)) / columns
+                            property real cellW: surf.phoneNarrow ? width : surf.desktopResultCardWidth
                             readonly property var visibleItems: section.expanded ? section.modelData.items : section.modelData.items.slice(0, secGrid.columns)
                             property int currentIndex: visibleItems.length > 0 ? 0 : -1
                             focusPolicy: visibleItems.length > 0 ? Qt.TabFocus : Qt.NoFocus
@@ -780,8 +801,24 @@ Item {
                                         entry: resultCard.modelData; keyboardSelected: resultCard.keyboardSelected
                                         onActivated: surf.openItem(resultCard.modelData.data)
                                     }
+                                    Loader {
+                                        id: resultPresentation
+                                        objectName: "searchGroupedPresentation_" + String(resultCard.modelData.data.id || resultCard.index)
+                                        property var entry: resultCard.modelData
+                                        active: !!surf.resultPresentation && !surf.phoneNarrow
+                                        visible: active
+                                        width: parent.width
+                                        height: status === Loader.Ready && item ? (item as Item).implicitHeight : width
+                                        sourceComponent: surf.resultPresentation
+                                        Rectangle {
+                                            anchors.fill: parent; visible: resultCard.keyboardSelected
+                                            color: "transparent"; radius: 8; border.width: 2; border.color: theme.gold
+                                        }
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: surf.openItem(resultCard.modelData.data) }
+                                    }
                                     Rectangle {
-                                        visible: !surf.phoneNarrow
+                                        visible: !surf.phoneNarrow && !resultPresentation.active
                                         width: parent.width; height: width / surf.coverAspect; radius: 8; clip: true; color: "#14131a"
                                         border.width: resultCard.keyboardSelected ? 2 : 0; border.color: theme.gold
                                         Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
@@ -792,12 +829,33 @@ Item {
                                         MouseArea { id: cardMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                             onClicked: surf.openItem(modelData.data) }
                                     }
-                                    Text { visible: !surf.phoneNarrow; width: parent.width; text: modelData.title ? modelData.title : ""
+                                    Text { visible: !surf.phoneNarrow && !resultPresentation.active; width: parent.width; text: modelData.title ? modelData.title : ""
                                         color: theme.ink; font.family: theme.ui; font.pixelSize: 13
                                         elide: Text.ElideRight; maximumLineCount: 1 }
-                                    Text { visible: !surf.phoneNarrow; width: parent.width; text: modelData.subtitle ? modelData.subtitle : ""
+                                    Text { visible: !surf.phoneNarrow && !resultPresentation.active; width: parent.width; text: modelData.subtitle ? modelData.subtitle : ""
                                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                                         elide: Text.ElideRight; maximumLineCount: 1 }
+                                }
+                            }
+                        }
+                        Row {
+                            objectName: "searchLoadingRow_" + (section.modelData.key || "")
+                            visible: section.showLoadingPresentation
+                            width: parent.width
+                            spacing: secGrid.columnSpacing
+                            Accessible.role: Accessible.StaticText
+                            Accessible.name: qsTr("Loading %1").arg(section.modelData.group)
+                            Accessible.ignored: !visible
+                            Repeater {
+                                model: section.showLoadingPresentation ? secGrid.columns : 0
+                                delegate: Loader {
+                                    required property int index
+                                    objectName: "searchLoading_" + (section.modelData.key || "") + "_" + index
+                                    property string loadingKind: section.modelData.key || ""
+                                    width: secGrid.cellW
+                                    height: status === Loader.Ready && item ? (item as Item).implicitHeight : width
+                                    sourceComponent: surf.resultLoadingPresentation
+                                    Accessible.ignored: true
                                 }
                             }
                         }
@@ -835,9 +893,9 @@ Item {
                                 onTriggered: section.toggleExpanded()
                             }
                         }
-                        Item { width: 1; height: 34 }
+                        Item { width: 1; height: surf.resultLoadingPresentation && !surf.phoneNarrow ? 24 : 34 }
                         Text {
-                            visible: !!section.modelData.loading || !!section.modelData.error
+                            visible: (!!section.modelData.loading && !section.usingCustomLoading) || !!section.modelData.error
                             width: parent.width; wrapMode: Text.Wrap
                             text: section.modelData.error || "Searching…"
                             color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 14

@@ -25,6 +25,9 @@
 #include <QtWebEngineQuick/QtWebEngineQuick>
 #endif
 #include <QQmlContext>
+#include <QRegularExpression>
+#include <QTcpServer>
+#include <QTcpSocket>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <qqml.h>
@@ -292,6 +295,27 @@ private:
 };
 
 int main(int argc, char *argv[]) {
+    const QString vinylFixtureTag = qEnvironmentVariable("COLOSSEUM_APPDATA_TAG");
+    const bool vinylV1OfflineBoot =
+        qEnvironmentVariable("COLOSSEUM_VINYL_TEST_FIXTURES") == QLatin1String("1")
+        && vinylFixtureTag.startsWith(QLatin1String("vinylv1"));
+    if (vinylV1OfflineBoot) {
+#if defined(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES) && defined(Q_OS_WIN)
+        const QRegularExpression tagPattern(
+            QStringLiteral(R"(\Avinylv1(?:-[a-z0-9][a-z0-9_-]{0,47})?\z)"));
+        const QRegularExpression pipePattern(
+            QStringLiteral(R"(\AColosseumLanista-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}\z)"));
+        if (!tagPattern.match(vinylFixtureTag).hasMatch()
+            || !pipePattern.match(qEnvironmentVariable("COLOSSEUM_LANISTA_PIPE")).hasMatch()
+            || qEnvironmentVariable("COLOSSEUM_LANISTA_DRIVE") != QLatin1String("1")) {
+            qCritical("Vinyl V1 offline boot requires a valid fixture tag and Lanista drive session.");
+            return 2;
+        }
+#else
+        qCritical("Vinyl V1 offline boot requires a Windows Vinyl fixture build.");
+        return 2;
+#endif
+    }
     if (argc == 2 && std::strcmp(argv[1], "--version") == 0) {
         std::printf("Colosseum %s\n", COLOSSEUM_VERSION);
         return 0;
@@ -337,7 +361,8 @@ int main(int argc, char *argv[]) {
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 #endif
 #if !defined(Q_OS_ANDROID)
-    QtWebEngineQuick::initialize();
+    if (!vinylV1OfflineBoot)
+        QtWebEngineQuick::initialize();
 #endif
 
     // Qt Quick Controls style: the default on Windows is the NATIVE style, which refuses to
@@ -378,11 +403,36 @@ int main(int argc, char *argv[]) {
 
     const QString instanceAppData =
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QString vinylV1FixtureHelper;
 #if defined(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
-    // Refuse a misconfigured synthetic launch before constructing personal stores
-    // or installing the application log. The fixture must prepare its own root.
-    if (qEnvironmentVariable("COLOSSEUM_VINYL_TEST_FIXTURES") == QLatin1String("1")
-        && !VinylTestProfileController(instanceAppData, {}, {}).enabled()) {
+    // Check both fixture routes before opening any personal stores or the app log.
+    if (vinylV1OfflineBoot) {
+        const QDir sourceRoot(QDir::current().canonicalPath());
+        const QFileInfo fixtureData(instanceAppData);
+        const QFileInfo expectedMain(sourceRoot.filePath(QStringLiteral("qml/Main.qml")));
+        const QFileInfo requestedMain(QCoreApplication::arguments().value(1));
+        const QFileInfo helper(sourceRoot.filePath(QStringLiteral("tests/vinyl-live/fake_provider.py")));
+        const QString bundledPython = QDir(QCoreApplication::applicationDirPath())
+            .filePath(QStringLiteral("scripts/vinyl/runtime/python.exe"));
+        const QFileInfo python(qEnvironmentVariable("COLOSSEUM_VINYL_PYTHON", bundledPython));
+
+        if (!VinylTestProfileController::unredirectedDirectoryPath(instanceAppData)
+            || !VinylTestProfileController::unredirectedDirectoryPath(
+                QStandardPaths::writableLocation(QStandardPaths::CacheLocation))
+            || fixtureData.fileName() != app.applicationName()
+            || !expectedMain.isFile() || expectedMain.canonicalFilePath() != expectedMain.absoluteFilePath()
+            || requestedMain.canonicalFilePath() != expectedMain.canonicalFilePath()
+            || !helper.isFile() || !helper.isReadable()
+            || helper.canonicalFilePath() != helper.absoluteFilePath()
+            || !python.isAbsolute() || !python.isFile() || !python.isExecutable()
+            || !qEnvironmentVariableIsEmpty("COLOSSEUM_TEST_CATALOGUE_ORIGIN")) {
+            qCritical("Vinyl V1 offline boot requires unredirected tagged AppData/cache, source-root Main.qml, the fake provider and Python.");
+            return 2;
+        }
+        vinylV1FixtureHelper = helper.canonicalFilePath();
+        qputenv("COLOSSEUM_VINYL_PYTHON", python.canonicalFilePath().toUtf8());
+    } else if (qEnvironmentVariable("COLOSSEUM_VINYL_TEST_FIXTURES") == QLatin1String("1")
+               && !VinylTestProfileController(instanceAppData, {}, {}).enabled()) {
         qCritical("Vinyl synthetic fixture launch containment check failed.");
         return 2;
     }
@@ -449,7 +499,26 @@ int main(int argc, char *argv[]) {
     qmlRegisterType<ActivityPlaybackTracker>("Colosseum.Activity", 1, 0, "ActivityPlaybackTracker");
 
     QNetworkProxyFactory::setUseSystemConfiguration(false);
-    QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
+    std::unique_ptr<QTcpServer> vinylV1RejectProxy;
+    if (vinylV1OfflineBoot) {
+        vinylV1RejectProxy = std::make_unique<QTcpServer>();
+        auto *rejectProxy = vinylV1RejectProxy.get();
+        if (!rejectProxy->listen(QHostAddress::LocalHost, 0)) {
+            qCritical("Vinyl V1 offline boot could not bind its loopback proxy.");
+            return 2;
+        }
+        QObject::connect(rejectProxy, &QTcpServer::newConnection, rejectProxy, [rejectProxy] {
+            while (auto *socket = rejectProxy->nextPendingConnection()) {
+                socket->abort();
+                socket->deleteLater();
+            }
+        });
+        QNetworkProxy::setApplicationProxy(QNetworkProxy(
+            QNetworkProxy::HttpProxy, QStringLiteral("127.0.0.1"), rejectProxy->serverPort()));
+        qInfo("[vinyl] V1 offline boot fixture installed its rejecting Qt proxy");
+    } else {
+        QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
+    }
 
     // Backend stores and workers must finish while Qt and its event dispatcher
     // still exist. QML goes first so its destruction handlers can flush activity.
@@ -761,15 +830,18 @@ int main(int argc, char *argv[]) {
         // Keep the canonical GetComics URL as the QNetworkDiskCache key.
         QStringLiteral("getcomics.org")
     };
-    auto *concierge = new LoopbackPinProxy(pinStore, &backendServices);
-    const bool conciergeOk = concierge->start();
-    if (conciergeOk)
-        qInfo("[net] connection concierge on 127.0.0.1:%u (metahub + GetComics hostname-preserved)", concierge->port());
-    else
-        qWarning("[net] concierge could not bind -> metahub + GetComics fall back to URL-pin + HTTP/1.1");
-    QNetworkProxyFactory::setApplicationProxyFactory(
-        new PinProxyFactory(connectionPinnedHosts, pinStore,
-                            conciergeOk ? concierge->port() : quint16(0), conciergeOk));
+    bool conciergeOk = false;
+    if (!vinylV1OfflineBoot) {
+        auto *concierge = new LoopbackPinProxy(pinStore, &backendServices);
+        conciergeOk = concierge->start();
+        if (conciergeOk)
+            qInfo("[net] connection concierge on 127.0.0.1:%u (metahub + GetComics hostname-preserved)", concierge->port());
+        else
+            qWarning("[net] concierge could not bind -> metahub + GetComics fall back to URL-pin + HTTP/1.1");
+        QNetworkProxyFactory::setApplicationProxyFactory(
+            new PinProxyFactory(connectionPinnedHosts, pinStore,
+                                conciergeOk ? concierge->port() : quint16(0), conciergeOk));
+    }
 
     // When the concierge is up, metahub and GetComics keep their hostnames for
     // TLS/h2 and canonical image-cache keys; the proxy pins their connections.
@@ -1225,7 +1297,8 @@ int main(int argc, char *argv[]) {
     // already-running official Stremio Service is adopted rather than clashed with. Cost accepted
     // knowingly: a comics- or books-only session spawns a runtime it never uses, but any video
     // session would have spawned it seconds later anyway. (2026-07-30, Theatre lane)
-    QTimer::singleShot(3000, stream, [stream]() { stream->warmUp(); });
+    if (!vinylV1OfflineBoot)
+        QTimer::singleShot(3000, stream, [stream]() { stream->warmUp(); });
 
     // Audiobook download backbone exposed to QML as `Audiobooks`. BookDownloader
     // lineage, but multi-file and Stremio-fed: a book's paired audiobook torrent
@@ -1291,7 +1364,8 @@ int main(int argc, char *argv[]) {
     QObject::connect(dlnaLibrary, &DlnaLibrary::snapshotChanged, dlnaServer,
                      &DlnaServer::handleSnapshotChanged);
     engine.rootContext()->setContextProperty(QStringLiteral("dlnaSharing"), dlnaServer);
-    dlnaServer->maybeStartFromSettings();
+    if (!vinylV1OfflineBoot)
+        dlnaServer->maybeStartFromSettings();
     QObject::connect(&app, &QCoreApplication::aboutToQuit, dlnaServer,
                      [dlnaServer]() { dlnaServer->stopForQuit(); });
 #endif
@@ -1915,9 +1989,10 @@ int main(int argc, char *argv[]) {
     // explicit resource-root fallback. Never resolve Python through PATH.
     const auto vinylBundledHelper = QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("scripts/vinyl/provider.py");
     auto *vinylProvider = new VinylProvider(
-        QFileInfo::exists(vinylBundledHelper) ? vinylBundledHelper :
-            QDir(startupLayout->resourceRoot.isEmpty() ? QDir::currentPath() : startupLayout->resourceRoot)
-                .absoluteFilePath("scripts/vinyl/provider.py"), &backendServices);
+        vinylV1OfflineBoot ? vinylV1FixtureHelper :
+            (QFileInfo::exists(vinylBundledHelper) ? vinylBundledHelper :
+                QDir(startupLayout->resourceRoot.isEmpty() ? QDir::currentPath() : startupLayout->resourceRoot)
+                    .absoluteFilePath("scripts/vinyl/provider.py")), &backendServices);
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      vinylProvider, &VinylProvider::shuttingDown);
     auto *vinylCatalogueSource = new VinylCatalogueSource(vinylLocalSource, vinylProvider, nullptr, &backendServices);
@@ -2200,7 +2275,7 @@ int main(int argc, char *argv[]) {
     else
         qWarning("[boot] QtQuick 6 module could not be sealed");
 
-    if (!hasQmlOverride) {
+    if (!vinylV1OfflineBoot && !hasQmlOverride) {
         QTimer::singleShot(0, pinStore, [pinStore, pinnedHosts] {
             pinStore->refresh(pinnedHosts);
         });

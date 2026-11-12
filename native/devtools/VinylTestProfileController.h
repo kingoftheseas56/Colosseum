@@ -7,6 +7,8 @@
 #include <QFileInfo>
 #include <QJsonObject>
 #include <QString>
+#include <QStringList>
+#include <algorithm>
 #include <functional>
 #include <utility>
 
@@ -39,6 +41,35 @@ public:
         : m_appDataRoot(std::move(actualAppDataRoot)),
           m_activate(std::move(activate)), m_status(std::move(status)),
           m_armShutdown(std::move(armShutdown)) {}
+
+    // Validate existing ancestors before allowing creation of missing components.
+    // Building lexical prefixes must not descend through a redirected directory.
+    static bool unredirectedDirectoryPath(const QString &path) {
+        if (!QFileInfo(path).isAbsolute() || path != QDir::cleanPath(path)) return false;
+        QStringList prefixes;
+        QString prefix = path;
+        for (;;) {
+            prefixes.append(prefix);
+            const QString parent = QFileInfo(prefix).absolutePath();
+            if (parent == prefix) break;
+            prefix = parent;
+        }
+        std::reverse(prefixes.begin(), prefixes.end());
+        for (const QString &candidate : prefixes) {
+            const QFileInfo info(candidate);
+            // Check redirection before exists/canonical can follow the prefix.
+            if (info.isSymLink() || info.isJunction()) return false;
+            if (!info.exists()) return true;
+            if (!info.isDir()) return false;
+#ifdef Q_OS_WIN
+            constexpr auto sensitivity = Qt::CaseInsensitive;
+#else
+            constexpr auto sensitivity = Qt::CaseSensitive;
+#endif
+            if (info.canonicalFilePath().compare(candidate, sensitivity) != 0) return false;
+        }
+        return true;
+    }
 
     bool enabled() const {
         if (qEnvironmentVariable("COLOSSEUM_VINYL_TEST_FIXTURES") != "1") return false;

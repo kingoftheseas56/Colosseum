@@ -15,7 +15,7 @@ Item {
     property int previewCount: 8
     property int currentIndex: 0
     readonly property string rowStatus: String(root.row && root.row.status || "")
-    readonly property bool showRowStatus: (root.row && (root.row.recommendation === true
+    readonly property bool showRowStatus: !root.hasCards && (root.row && (root.row.recommendation === true
         || root.row.personal === false))
         && ["loading", "stale", "error"].indexOf(rowStatus) >= 0
     readonly property bool hasCards: !!(root.row && root.row.items && root.row.items.length > 0)
@@ -26,7 +26,7 @@ Item {
     readonly property string rowStatusText: {
         if(rowStatus === "loading") return "Loading this shelf…";
         if(rowStatus === "stale") return root.row.loading === true
-            ? "Refreshing cached results…" : "Showing cached results.";
+            ? "Loading this shelf…" : "Could not refresh this shelf.";
         if(rowStatus === "error") return "Could not load this shelf.";
         return "";
     }
@@ -127,7 +127,10 @@ Item {
                     exposureRevision: root.exposureRevision
                     onActiveFocusChanged: if(activeFocus){root.currentIndex=index;root.reveal(index)}
                     Keys.onPressed: event => {if([Qt.Key_Left,Qt.Key_Right,Qt.Key_Home,Qt.Key_End].indexOf(event.key)>=0)nav.handle(event)}
-                    width: root.cardSize
+                    width: modelData.kind === "mixes"
+                        ? Math.min(rail.width, root.cardSize * 1.5)
+                        : modelData.kind === "radio"
+                            ? Math.min(rail.width, root.cardSize * 1.25) : root.cardSize
                     height: implicitHeight
                 }
             }

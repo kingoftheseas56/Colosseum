@@ -43,6 +43,21 @@ signals:
 private:
     int serial=0;
 };
+class WarmTestSource : public VideoTestSource {
+    Q_OBJECT
+    Q_PROPERTY(int warmCount READ warmCount NOTIFY warmed)
+    Q_PROPERTY(int invalidationCount READ invalidationCount NOTIFY invalidated)
+public:
+    explicit WarmTestSource(QObject *parent=nullptr):VideoTestSource(parent){}
+    int warmCount() const{return m_warmCount;}
+    int invalidationCount() const{return m_invalidationCount;}
+    Q_INVOKABLE void warmPlayback(){++m_warmCount;emit warmed();}
+    Q_INVOKABLE void invalidatePlaybackTransport(){++m_invalidationCount;emit invalidated();}
+signals:
+    void warmed();void invalidated();
+private:
+    int m_warmCount=0,m_invalidationCount=0;
+};
 class Setup : public QObject {
     Q_OBJECT
     QTemporaryDir directory;
@@ -85,7 +100,7 @@ class Setup : public QObject {
         const QStringList lines = QString::fromLatin1(request).split(QStringLiteral("\r\n"));
         const QStringList requestLine = lines.value(0).split(QChar(' '));
         const QString method = requestLine.value(0);
-        const QString path = requestLine.value(1);
+        const QString path = QUrl(requestLine.value(1)).path();
         bool authorized = false;
         for (const auto &line : lines)
             authorized |= line.compare(QStringLiteral("X-Vinyl-Seek-Test: required"), Qt::CaseInsensitive) == 0;
@@ -95,7 +110,7 @@ class Setup : public QObject {
             return;
         }
         if ((method != QStringLiteral("GET") && method != QStringLiteral("HEAD"))
-            || path != QStringLiteral("/media")) {
+            || (path != QStringLiteral("/media") && path != QStringLiteral("/audio"))) {
             socket->write("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
             socket->disconnectFromHost();
             return;
@@ -141,7 +156,7 @@ class Setup : public QObject {
         // The origin has bytes only through the twenty-second boundary. Every
         // sequential request crossing that boundary remains open after the
         // available prefix. Requests starting at or beyond it are fully served.
-        if (method == QStringLiteral("GET") && crossesFrontier) {
+        if (method == QStringLiteral("GET") && path == QStringLiteral("/media") && crossesFrontier) {
             heldProgressiveSockets.insert(socket);
             QByteArray header;
             if (hasRange) {
@@ -232,6 +247,10 @@ public slots:
         if (!progressiveServer.listen(QHostAddress::LocalHost, 0)) return {};
         return QStringLiteral("http://127.0.0.1:%1/media").arg(progressiveServer.serverPort());
     }
+    QString startCompleteHttpAudioFixture() {
+        auto url=startProgressiveHttpFixture();
+        return url.replace(QStringLiteral("/media"),QStringLiteral("/audio"));
+    }
     QString progressiveHttpWavUrl() const { return QUrl::fromLocalFile(progressiveWavPath).toString(); }
     QVariantList progressiveHttpRequestOffsets() const { return progressiveRequestOffsets; }
     QVariantList progressiveHttpServedRanges() const { return progressiveServedRanges; }
@@ -266,6 +285,7 @@ public slots:
 
     void qmlEngineAvailable(QQmlEngine *engine) {
         qmlRegisterType<VideoTestSource>("Colosseum.Vinyl",1,0,"VideoTestSource");
+        qmlRegisterType<WarmTestSource>("Colosseum.Vinyl",1,0,"WarmTestSource");
         qmlRegisterType<VinylBackendSession>("Colosseum.Vinyl",1,0,"VinylBackendSession");
         qmlRegisterType<VinylLyricsService>("Colosseum.Vinyl",1,0,"VinylLyricsService");
         qmlRegisterType<VinylGeniusService>("Colosseum.Vinyl",1,0,"VinylGeniusService");

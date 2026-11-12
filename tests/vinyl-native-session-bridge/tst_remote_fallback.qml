@@ -42,7 +42,8 @@ TestCase {
             function cancel(lane: string) {}
             function request(lane: string,operation: string,value: string): int {
                 var id=++serial;
-                calls=calls.concat([{operation:operation,track:value}]);
+                if(operation==="resolve" || operation==="resolveFallback")
+                    calls=calls.concat([{operation:operation,track:value}]);
                 Qt.callLater(function(){
                     completed(lane,id,{trackId:value,
                         url:operation==="resolve" ? torrentUrl : (fallbackUrl || test.wave),

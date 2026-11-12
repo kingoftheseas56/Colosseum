@@ -213,11 +213,18 @@ Item {
                 id: artistCards
                 model: root.offered
                 delegate: KeyboardAction {
+                    id: artistCard
                     required property var modelData
                     required property int index
                     objectName: "vinylPickerArtist_" + index
                     width: (root.width - (grid.columns - 1) * 24) / grid.columns
-                    height: width + label.implicitHeight + 18
+                    height: artwork.implicitHeight + 8
+                    readonly property bool chosen: root.selected.indexOf(modelData.key) >= 0
+                    showFocusFrame: false
+                    focusRadius: width * 0.1
+                    Accessible.role: Accessible.CheckBox
+                    Accessible.checkable: true
+                    Accessible.checked: chosen
                     accessibleName: modelData.title
                     onTriggered: root.toggleArtist(modelData)
                     onActiveFocusChanged: if (activeFocus) root.currentIndex = index
@@ -226,23 +233,35 @@ Item {
                             nav.handle(event);
                     }
 
-                    RoundedPosterImage {
+                    VinylArtistWidget {
+                        id: artwork
+                        objectName: "vinylPickerArtistArtwork_" + artistCard.index
                         width: parent.width
-                        height: width
-                        radius: width / 2
-                        sources: [root.worldData.artwork(modelData.cover)]
-                        hovered: root.selected.indexOf(modelData.key) >= 0
+                        height: implicitHeight
+                        artworkSource: root.worldData.artwork(artistCard.modelData.cover)
+                        title: artistCard.modelData.title
+                        displayFont: theme.display
+                        Accessible.ignored: true
                     }
-                    Text {
-                        id: label
-                        y: parent.width + 12
-                        width: parent.width
-                        horizontalAlignment: Text.AlignHCenter
-                        text: parent.modelData.title
-                        wrapMode: Text.WordWrap
-                        color: root.selected.indexOf(parent.modelData.key) >= 0 ? theme.gold : theme.ink
-                        font.family: theme.ui
-                        font.pixelSize: 14
+                    Image {
+                        objectName: "vinylPickerArtistSelected_" + artistCard.index
+                        visible: artistCard.chosen
+                        x: parent.width - width - 9
+                        y: 9
+                        width: 18; height: 18
+                        source: "../../assets/icons/lucide/circle-check.svg"
+                        sourceSize.width: 36; sourceSize.height: 36
+                        Accessible.ignored: true
+                    }
+                    Rectangle {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        y: artwork.height + 4
+                        width: parent.width * 0.3
+                        height: 2; radius: 1
+                        visible: artistCard.chosen || artistCard.activeFocus
+                        color: theme.gold
+                        opacity: artistCard.chosen ? 0.7 : 0.4
+                        Accessible.ignored: true
                     }
                 }
             }

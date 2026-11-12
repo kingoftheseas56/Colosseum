@@ -8,6 +8,7 @@ import importlib.util
 import json
 import pathlib
 import sys
+import tempfile
 import time
 import types
 import unittest
@@ -122,6 +123,19 @@ class VideoTransportTests(unittest.TestCase):
         self.assertNotIn("googlevideo", message)
         self.assertNotIn("User-Agent", message)
         return ctx.exception
+
+    @unittest.skipUnless(importlib.util.find_spec("yt_dlp"), "Prepared yt-dlp runtime required")
+    def test_tagged_extractors_keep_cache_disposable(self):
+        for tag in ("vinylv1-cache", ""):
+            with self.subTest(tag=tag), tempfile.TemporaryDirectory() as cache_root:
+                with mock.patch.dict(provider.os.environ, {
+                    "COLOSSEUM_APPDATA_TAG": tag,
+                    "XDG_CACHE_HOME": cache_root,
+                }):
+                    with provider._youtube_dl("audio") as extractor:
+                        extractor.cache.store("vinyl-test", "tagged", {"value": 1})
+                self.assertFalse(any(pathlib.Path(cache_root).iterdir()),
+                                 "Tagged extraction wrote to the shared dependency cache")
 
     def test_muxed_success_and_contract_fields(self):
         result, factory = self.resolve_success(muxed_result())

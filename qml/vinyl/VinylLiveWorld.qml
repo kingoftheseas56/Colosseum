@@ -11,9 +11,15 @@ Item {
     property string medium: "Vinyl"
     property bool lifecycleActive: true
     property bool homeLanding: false
+    property bool deferInitialRestore: false
+    property bool resumePresentationPending: false
+    visible: !resumePresentationPending || resumeRequiresArtistSelection
     property Item backdrop
     property string page: "library"
     property bool videoFullscreen: false
+    property var pendingVideoOpen: null
+    readonly property string videoOpenContextKey: JSON.stringify([session.profileScope,session.profileGeneration,session.activeQueueRow ? session.activeQueueRow.queueId : ""])
+    onVideoOpenContextKeyChanged: root.cancelPendingVideoOpen(false)
     readonly property bool videoDisplayed: page==="song" && !!song.pageData && song.pageData.videoShown===true
     onVideoDisplayedChanged: {
         if(!videoDisplayed){exitVideoFullscreen();videoHudVisible=true;videoHudTimer.stop();}
@@ -24,7 +30,7 @@ Item {
     property alias session: session
     property alias worldData: worldData
     property alias artistData: artistData
-    property alias worldScroll: worldScroll
+    readonly property Flickable worldScroll: browseShell.pageFlickable
     property alias worldView: world
     property alias personalLibrary: personalData
     readonly property var recommendationService: recommendations
@@ -32,6 +38,10 @@ Item {
         && recommendations.profileActive && recommendations.profileScope === session.profileScope
         && recommendations.profileGeneration === session.profileGeneration
         && recommendations.canEnterVinyl === true
+    readonly property bool resumeRequiresArtistSelection: componentReady && session.profileActive && !session.shuttingDown
+        && recommendations.profileActive && recommendations.profileScope === session.profileScope
+        && recommendations.profileGeneration === session.profileGeneration && !!recommendations.preferences
+        && recommendations.canEnterVinyl !== true
     property string importStatus: ""
     readonly property bool importing: session.importing
     readonly property string importProgressText: {
@@ -40,6 +50,10 @@ Item {
         return total > 0 ? "Opening local music (" + processed + " of " + total + " files)…" : "Opening local music…";
     }
     property var routeStack: []
+    onRouteStackChanged: root.cancelPendingVideoOpen(true)
+    property var feedbackRequest: null
+    property string feedbackError: ""
+    readonly property var recommendationPage: feedbackLayer.item
     property bool browsingSong: false
     property bool restoringRoute: false
     property var pendingAlbumRoute: null
@@ -61,10 +75,15 @@ Item {
     property var searchOriginCatalogue: null
     readonly property var searchPage: searchLayer.item
     readonly property real footerLeft: Math.max(theme.margin, shellDockRight > 0 ? shellDockRight + 12 : 0)
-    readonly property real contentBottom: bar.visible ? bar.y - (videoDisplayed ? 14 : 54) : height - Math.max(62, shellDockBottomExtent)
+    property real contentBottomInset: 0
+    readonly property real contentBottom: bar.visible
+        ? bar.y - (videoDisplayed || (page === "song" && !statusText.text.length) ? 14 : 54)
+        : height - Math.max(62, shellDockBottomExtent)
     readonly property bool worldVisible: canEnterVinyl
-        ? ["home","discover","library"].indexOf(page)>=0 : worldData.tastePickerOpen===true
-    readonly property Item chromeBackdrop: worldVisible && root.backdrop ? root.backdrop : vinylBackdrop
+        ? ["home","songs","albums","artists","discover","library"].indexOf(page)>=0 : worldData.tastePickerOpen===true
+    readonly property bool detailBackdrop: canEnterVinyl && ["album","song","artist","mix"].includes(page)
+    readonly property bool browsingShell: !detailBackdrop && page!=="feedback"
+    readonly property Item chromeBackdrop: detailBackdrop || !root.backdrop ? vinylBackdrop : root.backdrop
     readonly property bool discoverOnlineMode: {
         if(worldData.activeTab==="discover") return !!worldData.onlineMode;
         var states=worldData.browseStates;
@@ -98,12 +117,13 @@ Item {
             if (session.browsing) session.cancelBrowse();
             pendingAlbumRoute = null;
             routeStack = [];
+            feedbackRequest = null;
+            feedbackError = "";
             searchOpen = false;
             artistSearchOpen = false;
 
             if(queuePanel)queuePanel.close();
             if(playlistPicker)playlistPicker.close();
-            if(creditsPopup)creditsPopup.close();
             if(audioDialog)audioDialog.close();
             if(audioFolderDialog)audioFolderDialog.close();
             world.listKey = "";
@@ -119,15 +139,31 @@ Item {
     }
     function captureRoute() {
         var focusItem=Window.window ? Window.window.activeFocusItem : null;
-        return {page:page,searchOpen:searchOpen,searchSnapshot:searchSnapshot,searchOriginCatalogue:searchOriginCatalogue,focus:focusItem,keyboardFocus:!!focusItem && focusItem.accessibleName!==undefined,
+        return {page:page,feedbackRequest:feedbackRequest,searchOpen:searchOpen,searchSnapshot:searchSnapshot,searchOriginCatalogue:searchOriginCatalogue,focus:focusItem,keyboardFocus:!!focusItem && focusItem.accessibleName!==undefined,
             worldY:worldScroll.contentY,albumY:album.contentY,artistY:artist.contentY,
             browseState:typeof worldData.captureBrowseState==="function" ? worldData.captureBrowseState() : null,
             worldState:world.captureRouteState(),
             edition:session.shownEdition,disc:session.shownDisc,
-            artistName:artistData.name,artistId:artistData.artistId,artistTab:artistData.activeTab,artistCategory:artist.selectedCategory,artistFilter:artistData.filter,artistCategoryFilter:artistData.categoryFilter,artistNewest:artistData.newestFirst,artistAllSongs:artistData.allSongs,
+            artistName:artistData.name,artistId:artistData.artistId,artistCover:artistData.openingCover,artistTab:artistData.activeTab,artistCategory:artist.selectedCategory,artistFilter:artistData.filter,artistCategoryFilter:artistData.categoryFilter,artistNewest:artistData.newestFirst,artistAllSongs:artistData.allSongs,
             browsingSong:browsingSong,songAlbum:browseSong.album,songIndex:browseSong.trackIndex,songEdition:browseSong.editionId};
     }
-    function pushRoute() {routeStack=routeStack.concat([captureRoute()]);}
+    function pushRoute() {root.cancelPendingVideoOpen(true);routeStack=routeStack.concat([captureRoute()]);}
+    function showRecommendationActions(request) {
+        if(!canEnterVinyl || !request || request.generation!==worldData.recommendationProfileGeneration()) return false;
+        session.cancelBrowse();pendingAlbumRoute=null;
+        pushRoute();feedbackRequest=request;feedbackError="";
+        searchOpen=false;artistSearchOpen=false;page="feedback";
+        Qt.callLater(root.parkFocus);
+        return true;
+    }
+    function applyRecommendationAction(ref,action,generation) {
+        if(page!=="feedback" || !feedbackRequest || generation!==feedbackRequest.generation) return false;
+        if(!worldData.setRecommendationFeedback(ref,action,generation)) {
+            feedbackError=worldData.persistenceError || qsTr("Could not update recommendations. Try again.");
+            return false;
+        }
+        return goBack();
+    }
     function openArtistOnboarding() {
         if(lifecycleActive && page==="home" && worldData.tastePickerOpen
             && worldData.onboardingState==="draft" && !searchOpen)
@@ -135,7 +171,35 @@ Item {
     }
     onLifecycleActiveChanged: {
         if(lifecycleActive){Qt.callLater(root.openArtistOnboarding);revealVideoHud();}
-        else {exitVideoFullscreen();videoHudVisible=true;videoHudTimer.stop();}
+        else {root.cancelPendingVideoOpen(true);exitVideoFullscreen();videoHudVisible=true;videoHudTimer.stop();}
+    }
+    function cancelPendingVideoOpen(cancelLookup) {
+        const pending=pendingVideoOpen;
+        pendingVideoOpen=null;
+        if(cancelLookup && pending && pending.context===videoOpenContextKey
+                && session.videoBusy && session.videoSwitchCancellable && !session.videoShown)
+            session.toggleVideo();
+    }
+    function finishPendingVideoOpen() {
+        const pending=pendingVideoOpen;
+        if(!pending)return;
+        if(pending.context!==videoOpenContextKey){cancelPendingVideoOpen(false);return;}
+        if(!canEnterVinyl || !visible || !lifecycleActive || searchOpen || artistSearchOpen){
+            cancelPendingVideoOpen(true);return;
+        }
+        if(session.videoShown){pendingVideoOpen=null;showSong();return;}
+        if(!session.videoBusy)cancelPendingVideoOpen(false);
+    }
+    function requestHudVideo() {
+        if(!canEnterVinyl || !visible || !lifecycleActive || searchOpen || artistSearchOpen)return;
+        if(pendingVideoOpen){cancelPendingVideoOpen(true);return;}
+        if(session.videoBusy || session.videoShown || (page==="song" && (!browsingSong || browseSong.isCurrent))){
+            session.toggleVideo();return;
+        }
+        if(!session.hasVideo || !session.loaded || !session.activeQueueRow)return;
+        pendingVideoOpen={context:videoOpenContextKey};
+        session.toggleVideo();
+        finishPendingVideoOpen();
     }
     function focusInside(item) {
         var focused=Window.window ? Window.window.activeFocusItem : null;
@@ -148,7 +212,7 @@ Item {
     }
     function revealVideoHud() {
         videoHudVisible=true;
-        if(videoDisplayed && visible && lifecycleActive && !searchOpen
+        if(videoFullscreen && videoDisplayed && visible && lifecycleActive && !searchOpen
                 && !session.paused && !videoHudHover.hovered && !focusInside(bar))videoHudTimer.restart();
         else videoHudTimer.stop();
     }
@@ -172,10 +236,10 @@ Item {
     Timer {
         id: videoHudTimer
         interval: 2500
-        running: root.videoDisplayed && root.visible && root.lifecycleActive && !root.searchOpen
+        running: root.videoFullscreen && root.videoDisplayed && root.visible && root.lifecycleActive && !root.searchOpen
             && root.videoHudVisible && !session.paused
             && !videoHudHover.hovered && !root.focusInside(bar)
-        onTriggered: root.videoHudVisible=false
+        onTriggered: if(root.videoFullscreen)root.videoHudVisible=false
     }
     Shortcut {
         sequence: "F"
@@ -185,14 +249,18 @@ Item {
     }
     Connections {
         target: root
-        function onPageChanged(){if(root.page!=="song")root.exitVideoFullscreen();}
-        function onSearchOpenChanged(){if(root.searchOpen)root.exitVideoFullscreen();else if(root.videoDisplayed)root.revealVideoHud();}
+        function onPageChanged(){root.cancelPendingVideoOpen(true);if(root.page!=="song")root.exitVideoFullscreen();}
+        function onSearchOpenChanged(){if(root.searchOpen){root.cancelPendingVideoOpen(true);root.exitVideoFullscreen();}else if(root.videoDisplayed)root.revealVideoHud();}
+        function onArtistSearchOpenChanged(){if(root.artistSearchOpen)root.cancelPendingVideoOpen(true);}
+        function onVisibleChanged(){if(!root.visible)root.cancelPendingVideoOpen(true);}
+        function onCanEnterVinylChanged(){if(!root.canEnterVinyl)root.cancelPendingVideoOpen(true);}
     }
     Connections {
         target: session
-        function onVideoShownChanged(){if(!session.videoShown)root.exitVideoFullscreen();}
+        function onVideoShownChanged(){root.finishPendingVideoOpen();if(!session.videoShown)root.exitVideoFullscreen();}
+        function onVideoBusyChanged(){root.finishPendingVideoOpen();}
         function onPausedChanged(){if(root.videoDisplayed)root.revealVideoHud();}
-        function onProfileGenerationChanged(){root.exitVideoFullscreen();}
+        function onProfileGenerationChanged(){root.cancelPendingVideoOpen(false);root.exitVideoFullscreen();}
     }
     function enterDiscoverSearch(online,modeToggle) {
         if(searchOpen) return;
@@ -406,8 +474,84 @@ Item {
         }
         showArtist(name);
     }
+    property var pendingDiscoverItem: null
+    property string discoverStatus: ""
+    readonly property bool discoverActivationAllowed: page==="discover" && canEnterVinyl
+        && visible && lifecycleActive && !searchOpen && !artistSearchOpen
+    onDiscoverActivationAllowedChanged: if(!discoverActivationAllowed) root.cancelDiscoverItem()
+    Component.onDestruction: root.cancelDiscoverItem()
+
+    function cancelDiscoverItem() {
+        var pending=pendingDiscoverItem;
+        pendingDiscoverItem=null;
+        discoverStatus="";
+        if(pending) pending.source.cancel("catalogue-item");
+    }
+
+    function resolveDiscoverItem(item) {
+        if(!discoverActivationAllowed || pendingDiscoverItem) return;
+        var source=session.source;
+        session.browseError="";
+        var id=source ? source.request("catalogue-item","resolveCatalogueItem",item.id,{item:item}) : -1;
+        if(id<0) {
+            discoverStatus=qsTr("Couldn't look up “%1”. Select it again to retry.").arg(item.title);
+            return;
+        }
+        pendingDiscoverItem={id:id,item:item,source:source,generation:session.profileGeneration};
+        discoverStatus=qsTr("Looking up “%1” on YouTube Music…").arg(item.title);
+    }
+
+    function acceptDiscoverItem(id,data,error) {
+        var pending=pendingDiscoverItem;
+        if(!pending || pending.id!==id) return;
+        pendingDiscoverItem=null;
+        discoverStatus="";
+        if(!discoverActivationAllowed || session.source!==pending.source
+            || session.profileGeneration!==pending.generation) return;
+        var item=pending.item;
+        if(error || !data || data.version!==1 || data.id!==item.id || data.kind!==item.kind
+            || typeof data.matched!=="boolean") {
+            discoverStatus=qsTr("Couldn't look up “%1”. Select it again to retry.").arg(item.title);
+            return;
+        }
+        if(!data.matched) {
+            discoverStatus=qsTr("Couldn't find “%1” on YouTube Music.").arg(item.title);
+            return;
+        }
+        if(item.kind==="songs" && data.record && data.record.tracks && data.record.tracks.length) {
+            session.playAlbum(data.record,0);
+            root.showSong();
+        } else if(item.kind==="artists" && data.artistId) {
+            showArtist({id:data.artistId,name:item.title,cover:data.cover || ""});
+        } else if(item.kind==="albums" && data.albumId) {
+            openAlbum(data.albumId);
+        } else {
+            discoverStatus=qsTr("Couldn't open “%1”. Select it again to retry.").arg(item.title);
+        }
+    }
+
+    Connections {
+        target: session.source
+        ignoreUnknownSignals: true
+        function onCompleted(lane,id,data,error) {
+            if(lane==="catalogue-item") root.acceptDiscoverItem(id,data,error);
+        }
+        function onProfileLeaving() {root.cancelDiscoverItem();}
+        function onShuttingDown() {root.cancelDiscoverItem();}
+    }
+
+    Connections {
+        target: session
+        function onProfileGenerationChanged() {root.cancelDiscoverItem();}
+        function onSourceChanged() {root.cancelDiscoverItem();}
+    }
+
     function activateItem(item) {
         if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        if(item.catalogueCard===true) {
+            root.resolveDiscoverItem(item);
+            return;
+        }
         if(item.kind==="mixes") {
             root.pushRoute();searchOpen=false;artistSearchOpen=false;
             session.browseError="";homeListeningError="";
@@ -476,6 +620,8 @@ Item {
             recommendations.refillHomeRadio(root.queuedAudioIds());
     }
     function goBack() {
+        if(pendingDiscoverItem) {root.cancelDiscoverItem();return true;}
+        root.cancelPendingVideoOpen(true);
         if(videoFullscreen){exitVideoFullscreen();return true;}
         if(searchOpen) {closeSearch();return true;}
         if(!root.canEnterVinyl) {
@@ -505,9 +651,10 @@ Item {
             artistSearchOpen=false;
             searchOpen=state.searchOpen===true;
             session.shownEdition=state.edition;session.shownDisc=state.disc;session.refreshLibrary();
-            if(artistData.name!==state.artistName || artistData.artistId!==state.artistId) artistData.open({name:state.artistName,id:state.artistId});
+            if(artistData.name!==state.artistName || artistData.artistId!==state.artistId) artistData.open({name:state.artistName,id:state.artistId,cover:state.artistCover});
             artistData.activeTab=state.artistTab;artist.selectedCategory=state.artistCategory;artistData.filter=state.artistFilter;artistData.categoryFilter=state.artistCategoryFilter;artistData.newestFirst=state.artistNewest;artistData.allSongs=state.artistAllSongs;
             browsingSong=state.browsingSong;browseSong.album=state.songAlbum;browseSong.editionId=state.songEdition;browseSong.trackIndex=state.songIndex;
+            feedbackRequest=state.feedbackRequest || null;feedbackError="";
             page=state.page;restoringRoute=false;
             Qt.callLater(function(){
                 if(!root) return;
@@ -568,6 +715,7 @@ Item {
     Theme {id:theme}
     VinylLiveSession {
         id:session
+        deferInitialRestore: root.deferInitialRestore
         videoSurface: song.videoSurface
         onImportFinished: outcome => root.updateImportStatus(outcome)
         onAlbumOpened: {
@@ -580,17 +728,19 @@ Item {
         onQueueRequested: if(root.canEnterVinyl)queuePanel.open()
         onProfileGenerationChanged: {
             root.cancelNamedCollectionOpen();root.namedCollectionReturn=null;root.importStatus="";
+            root.feedbackRequest=null;root.feedbackError="";
             pendingAlbumRoute=null;root.searchSnapshot=null;root.searchOriginCatalogue=null;root.searchOpen=false;root.artistSearchOpen=false;
             artistData.open({id:"",name:""});root.routeStack=[];root.page="home";world.resetRouteState("home");
             Qt.callLater(function(){
                 if(!root)return;
+                if(root.deferInitialRestore || root.page!=="home")return;
                 if(root.canEnterVinyl){if(root.homeLanding)root.showHome();else root.showLibrary();}
                 else root.enforceTasteGate();
             });
         }
         onImportingChanged: {if(!session.importing && root.importStatus==="Opening local music…") root.importStatus="Import cancelled. Your library was kept.";}
     }
-    VinylLiveWorldData {id:worldData;session:session;personalLibrary:personalData;recommendationService:recommendations;onItemRequested: item => root.activateItem(item);onResumeRequested:root.activateItem({kind:"resume",resumeCurrent:true});onHomeDestinationRequested:(tab,section,id)=>root.openHomeDestination(tab,section,id)}
+    VinylLiveWorldData {id:worldData;session:session;personalLibrary:personalData;recommendationService:recommendations;onItemRequested: item => root.activateItem(item);onResumeRequested:root.activateItem({kind:"resume",resumeCurrent:true});onHomeDestinationRequested:(tab,section,id)=>root.openHomeDestination(tab,section,id);onRecommendationActionsRequested:request=>root.showRecommendationActions(request)}
     Connections {
         target:recommendations
         function onStateChanged() {
@@ -683,10 +833,10 @@ Item {
         onAccepted: root.importLocalFiles([String(selectedFolder)])
         onRejected: root.parkFocus()
     }
-    VinylBackdrop {id:vinylBackdrop;anchors.fill:parent;visible:!root.worldVisible || !root.backdrop;source:root.page==="song" ? song.pageData.playingEdition.cover : root.page==="album" ? session.shownEdition.cover : ""}
+    VinylBackdrop {id:vinylBackdrop;anchors.fill:parent;visible:root.detailBackdrop || !root.backdrop;source:root.page==="song" ? song.pageData.playingEdition.cover : root.page==="album" ? session.shownEdition.cover : ""}
     TopBar {
-        id:top;objectName:"vinylTopBar"
-        visible: !root.videoFullscreen
+        id:top;objectName:root.browsingShell ? "" : "vinylTopBar"
+        visible: !root.browsingShell && !root.videoFullscreen
         anchors {left:parent.left;right:parent.right;top:parent.top;margins:theme.margin}
         backdrop:root.chromeBackdrop;activeMedium:"Vinyl";lifecycleActive:root.lifecycleActive
         onAccountClicked:(anchorRight,anchorBottom)=>root.accountClicked(anchorRight,anchorBottom)
@@ -696,24 +846,46 @@ Item {
         onSearchClicked:root.enterDiscoverSearch(true,false)
         onMinimizeClicked:root.minimizeClicked();onFullscreenClicked:root.fullscreenClicked();onPowerClicked:root.powerClicked()
     }
-    Flickable {
-        id:worldScroll;objectName:"vinylWorldScroll";x:theme.margin;y:top.y+top.height+38;width:parent.width-2*x;height:Math.max(0,root.contentBottom-y)
-        visible:root.worldVisible;clip:true;contentWidth:width;contentHeight:world.implicitHeight;boundsBehavior:Flickable.StopAtBounds
-        ScrollGlide {flick:worldScroll}
-        // Keep scrolled content out of the sticky tab strip without changing
-        // the page's content coordinates or its keyboard/scroll restoration.
-        Item {
-            id:worldViewport
-            y:worldScroll.contentY+(dockedTabs.visible ? world.dockedInset : 0)
-            width:worldScroll.width
-            height:Math.max(0,worldScroll.height-(dockedTabs.visible ? world.dockedInset : 0))
-            clip:true
-            VinylWorld {
-                id:world;y:-worldViewport.y;width:parent.width;worldData:worldData;backdrop:root.chromeBackdrop;pageFlick:worldScroll;dockedInset:70;dockedTabBar:dockedTabs;currentTab:"library"
-                onCurrentTabChanged: {
-                    if(!root.canEnterVinyl && currentTab!=="home"){root.enforceTasteGate();return;}
-                    if(root.worldVisible){root.page=currentTab;root.searchOpen=false;root.artistSearchOpen=false;}
-                }
+    WorldPage {
+        id: browseShell
+        objectName: "vinylBrowseShell"
+        anchors.fill: parent
+        visible: root.browsingShell
+        lifecycleActive: root.lifecycleActive && root.browsingShell && !root.searchOpen
+        medium: root.medium
+        backdrop: root.chromeBackdrop
+        topBarObjectName: root.browsingShell ? "vinylTopBar" : ""
+        contentBottomInset: bar.visible ? Math.max(root.contentBottomInset, root.height - root.contentBottom)
+                                       : root.contentBottomInset
+        topBarTrackersEnabled: false
+        tabBarSource: root.canEnterVinyl ? world.flowTabs : null
+        dockContentLeft: world.dockContentLeft
+        dockObjectName: "vinylDockedTabs"
+        dockTabPrefix: tabsDocked ? "vinylTab" : "vinylHiddenDockedTab"
+        onAccountClicked: (anchorRight, anchorBottom) => root.accountClicked(anchorRight, anchorBottom)
+        onDlnaClicked: (anchorRight, anchorBottom) => root.dlnaClicked(anchorRight, anchorBottom)
+        onHomeRequested: root.homeRequested()
+        onMediumSelected: medium => root.mediumSelected(medium)
+        onSearchClicked: root.enterDiscoverSearch(true,false)
+        onMinimizeClicked: root.minimizeClicked()
+        onFullscreenClicked: root.fullscreenClicked()
+        onPowerClicked: root.powerClicked()
+
+        VinylWorld {
+            id: world
+            width: parent.width
+            visible: root.worldVisible
+            active: browseShell.lifecycleActive && root.visible && visible
+            worldData: worldData
+            backdrop: root.chromeBackdrop
+            pageFlick: browseShell.pageFlickable
+            pageShell: browseShell
+            dockedInset: browseShell.parkDockSpace
+            dockedTabBar: browseShell.dockedTabBar
+            currentTab: "library"
+            onCurrentTabChanged: {
+                if(!root.canEnterVinyl && currentTab!=="home"){root.enforceTasteGate();return;}
+                if(root.worldVisible){root.page=currentTab;root.searchOpen=false;root.artistSearchOpen=false;}
             }
         }
     }
@@ -732,13 +904,16 @@ Item {
             onCloseRequested:root.powerClicked()
         }
     }
-    WorldTabBar {
-        id:dockedTabs
-        objectName:"vinylDockedTabs";x:theme.margin;y:worldScroll.y;width:worldScroll.width;z:5
-        visible:root.canEnterVinyl && root.worldVisible && worldScroll.contentY>world.pickerParkY
-        compact:true;backdrop:root.chromeBackdrop;track:worldScroll.contentY;tabPrefix:visible ? "vinylTab" : "vinylHiddenDockedTab"
-        tabModel:[{key:"home",label:"Home"},{key:"discover",label:"Discover"},{key:"library",label:"Library"}]
-        currentTab:world.currentTab;onTabRequested:tab=>world.setTab(tab)
+    Loader {
+        id:feedbackLayer
+        x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,root.contentBottom-y)
+        active:root.canEnterVinyl && root.page==="feedback" && !!root.feedbackRequest
+        visible:active
+        sourceComponent: VinylRecommendationPage {
+            request:root.feedbackRequest;worldData:root.worldData;backdrop:root.chromeBackdrop;error:root.feedbackError
+            onBackRequested:root.goBack()
+            onActionRequested:(ref,action,generation)=>root.applyRecommendationAction(ref,action,generation)
+        }
     }
     BackAction {
         focusOnPointer: false
@@ -754,18 +929,18 @@ Item {
         onBackRequested:root.goBack();onArtistRequested:name=>root.showArtist(name)
         onAlbumRequested:record=>root.openAlbum(record.id)
         onSongRequested:value=>root.showBrowseSong(value.album,value.index)
+        onPlaySongRequested:value=>session.playSongs([value],false)
     }
     VinylSongPage {
-        id:song;x:0;y:root.videoFullscreen ? 0 : top.y+top.height+(root.videoDisplayed ? 8 : 24);width:parent.width
-        height:root.videoFullscreen ? root.height : Math.max(0,(root.videoDisplayed ? root.height : root.contentBottom)-y)
-        visible:root.canEnterVinyl && root.page==="song";pageData:root.browsingSong && !browseSong.isCurrent ? browseSong : session;browseMode:root.browsingSong;artistNavigationEnabled:true
+        id:song;x:0;y:root.videoFullscreen ? 0 : top.y+top.height+24;width:parent.width
+        height:root.videoFullscreen ? root.height : Math.max(0,root.contentBottom-y)
+        visible:root.canEnterVinyl && root.page==="song";pageData:root.browsingSong && !browseSong.isCurrent ? browseSong : session;browseMode:root.browsingSong && !browseSong.isCurrent;artistNavigationEnabled:true
         videoFullscreen: root.videoFullscreen
-        videoControlsVisible: root.videoHudVisible
+        videoControlsVisible: !root.videoFullscreen || root.videoHudVisible
         onVideoFullscreenRequested: root.toggleVideoFullscreen()
         onVideoInteraction: if(root.videoDisplayed)root.revealVideoHud()
         backLabel:"Back";onBackRequested:root.goBack();onArtistRequested:name=>root.showRecordArtist(name,root.browsingSong ? browseSong.album : session.playingEdition.sourceAlbum || {})
         onPlayRequested:if(browseSong.playingTrack.available!==false)browseSong.play()
-        onCreditsRequested:{creditsPopup.pageData=song.pageData;creditsPopup.open()}
         onAlbumRequested:{if(!root.canEnterVinyl){root.enforceTasteGate();return;}if(root.browsingSong)root.openAlbum(browseSong.album.id);else {root.pushRoute();session.showPlayingAlbum();root.page="album";root.parkFocus();}}
     }
     VinylHomeMixPage {
@@ -781,9 +956,11 @@ Item {
     Row {
         objectName:"vinylStatusRow";x:root.footerLeft;y:root.contentBottom+8;width:parent.width-x-theme.margin;spacing:12
         Text {
+            id: statusText
             objectName:"vinylStatus"
             width:parent.width-(cancelImport.visible ? cancelImport.width+12 : 0)-(retry.visible ? retry.width+12 : 0)-(catalogueRetry.visible ? catalogueRetry.width+12 : 0)-(radioRetry.visible ? radioRetry.width+12 : 0)
             readonly property string contextualBrowseStatus: {
+                if(session.browseError) return session.browseError;
                 if(root.pendingAlbumRoute && session.browseOperation==="album")
                     return session.browseError || (session.browsing ? "Opening album…" : "");
                 if(root.page==="discover" && worldData.onlineMode)
@@ -794,27 +971,34 @@ Item {
                     return session.browseError || (session.browsing ? "Searching local music…" : "");
                 return "";
             }
-            text:session.persistenceError || session.personalError || personalData.error || artistData.persistenceError || worldData.persistenceError || (root.importing ? root.importProgressText : session.error || root.homeListeningError || root.homeRadioStatus || (root.page==="artist" ? artistData.catalogueStatus : contextualBrowseStatus || root.importStatus))
+            text:session.persistenceError || session.personalError || personalData.error || artistData.persistenceError || worldData.persistenceError || (root.importing ? root.importProgressText : (root.page==="discover" ? root.discoverStatus || session.browseError || session.error : session.error || session.browseError) || root.homeListeningError || root.homeRadioStatus || (root.page==="artist" ? artistData.catalogueStatus : contextualBrowseStatus || root.importStatus))
             color:!root.importing && (session.error || contextualBrowseStatus) ? theme.gold : theme.inkDim
             font.family:theme.ui;font.pixelSize:12;wrapMode:Text.WordWrap
         }
         VinylWorldButton {id:cancelImport;objectName:"vinylCancelImport";label:"Cancel import";symbol:"cancel";backdrop:root.chromeBackdrop;visible:root.importing;onTriggered:{session.cancelImport();root.importStatus="Import cancelled. Your library was kept."}}
-        VinylWorldButton {id:catalogueRetry;objectName:"vinylCatalogueRetry";label:"Retry catalogue";symbol:"retry";backdrop:root.chromeBackdrop;visible:root.page==="artist" && artistData.online && !artistData.loading && !!artistData.catalogueStatus;onTriggered:if(artistData.catalogueService)artistData.catalogueService.retryArtist()}
+        VinylWorldButton {id:catalogueRetry;objectName:"vinylCatalogueRetry";label:"Retry catalogue";symbol:"retry";backdrop:root.chromeBackdrop;visible:root.page==="artist" && artistData.online && !artistData.loading && !!artistData.catalogueError;onTriggered:if(artistData.catalogueService)artistData.catalogueService.retryArtist()}
         VinylWorldButton {id:retry;objectName:"vinylRetryTrack";label:"Retry track";symbol:"retry";backdrop:root.chromeBackdrop;visible:session.error!=="";onTriggered:session.retry()}
         VinylWorldButton {id:radioRetry;objectName:"vinylRadioRetry";label:"Retry radio";symbol:"retry";backdrop:root.chromeBackdrop;visible:root.canEnterVinyl && recommendations.homeRadioActive && recommendations.homeRadioState==="error";onTriggered:{session.browseError="";recommendations.refillHomeRadio(root.queuedAudioIds());}}
     }
-    VinylCreditsPopup {id:creditsPopup;pageData:session;backdrop:root.chromeBackdrop;x:Math.max(0,root.width-width-theme.margin);y:Math.max(0,bar.y-height-12)}
     VinylPlaylistPicker {id:playlistPicker;libraryData:personalData;backdrop:root.chromeBackdrop}
     Connections {target:session;function onProfileGenerationChanged(){playlistPicker.close();}}
-    VinylQueuePanel {id:queuePanel;pageData:session;backdrop:root.chromeBackdrop;onSongRequested:root.showSong()}
+    VinylQueuePanel {id:queuePanel;pageData:session;actionData:root.page==="song" ? song.pageData : session;backdrop:root.chromeBackdrop;onSongRequested:root.showSong()}
     VinylPlayerBar {
         id:bar;x:root.footerLeft;y:root.height-height-18;width:root.width-x-theme.margin
         visible:root.canEnterVinyl && (session.playingIndex>=0 || root.page==="song") && opacity>0.01
-        opacity:root.videoDisplayed && !root.videoHudVisible ? 0 : 1
+        opacity:root.videoFullscreen && root.videoDisplayed && !root.videoHudVisible ? 0 : 1
         enabled:visible
         Behavior on opacity { NumberAnimation { duration: 140 } }
         pageData:session;backdrop:root.chromeBackdrop;page:root.page==="song" ? "song" : "album";queueEnabled:true;trackNavigationEnabled:true
         videoFullscreen: root.videoFullscreen
+        allowDismiss: true
+        onCloseRequested: {
+            root.cancelPendingVideoOpen(false)
+            root.cancelDiscoverItem()
+            queuePanel.close()
+            session.clearQueue()
+        }
+        onVideoRequested: {root.requestHudVideo();}
         onVideoFullscreenRequested: root.toggleVideoFullscreen()
         HoverHandler {
             id: videoHudHover
@@ -823,7 +1007,7 @@ Item {
         songPageData:root.page==="song" ? song.pageData : session
         showSongPlay:root.page==="song" && root.browsingSong && !browseSong.isCurrent
         onSelectedSongPlayRequested:if(browseSong.playingTrack.available!==false)browseSong.play()
-        onSongRequested:root.showSong();onCreditsRequested:{creditsPopup.pageData=bar.songData;creditsPopup.open()}
+        onSongRequested:root.showSong()
     }
     Component.onCompleted:{root.componentReady=true;session.refreshLibrary();if(root.canEnterVinyl)root.focusLibrary();else root.enforceTasteGate();}
 }

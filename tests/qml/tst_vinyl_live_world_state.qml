@@ -131,7 +131,8 @@ TestCase {
         fakeRecommendationService.draftArtists=[];fakeRecommendationService.beginTasteEditCalls=0;
         fakeRecommendationService.onboardingState="answered";
         fakeRecommendationService.homeQuickPicks=[{id:"quick-one",title:"Quick song",kind:"songs"}];
-        fakeRecommendationService.homeListeningCards=[{id:"mix-one",title:"Daily mix",kind:"mixes"}];
+        fakeRecommendationService.homeListeningCards=[{id:"mix-one",title:"Daily mix",kind:"mixes"},
+            {id:"radio-one",title:"Artist radio",kind:"radio"}];
         fakeRecommendationService.homeCarouselItems=fixtureCarouselItems(6);
         fakeTasteService.draftArtistCount=0;fakePickerData.pickerDraft=[];fakePickerData.pickerQuery="";
         viewData=factory.createObject(test);
@@ -143,8 +144,10 @@ TestCase {
         compare(viewData.row("library",false).items.length,0);
         compare(viewData.homeRows.find(function(row){return row.key==="quick-picks";}).items[0].id,
             fakeRecommendationService.homeQuickPicks[0].id,"Home consumes the supplied quick picks");
-        compare(viewData.homeRows.find(function(row){return row.key==="mixes-radio";}).items[0].id,
+        compare(viewData.homeRows.find(function(row){return row.key==="mixes";}).items[0].id,
             fakeRecommendationService.homeListeningCards[0].id,"Home consumes the supplied listening cards");
+        compare(viewData.homeRows.find(function(row){return row.key==="radio";}).items[0].id, "radio-one");
+        compare(viewData.homeRows.find(function(row){return row.key==="mixes";}).items.length, 1);
         verify(!viewData.homeRows.some(function(row){return ["library","saved-albums","saved-songs","saved-artists"].indexOf(row.key)>=0;}));
         compare(viewData.catalogue.homeRegion.length,0,"Home has no regional catalogue feed");
         compare(viewData.carouselSlides[0].title,"Spotlight 1");
