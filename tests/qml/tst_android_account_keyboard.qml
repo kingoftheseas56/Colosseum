@@ -24,6 +24,9 @@ TestCase {
     }
     Component { id: signInComponent; Account.AccountSignIn { anchors.fill: parent; inputMethod: ime; controller: fakeController } }
     Component { id: createComponent; Account.AccountCreate { anchors.fill: parent; inputMethod: ime; controller: fakeController } }
+    Component { id: profileComponent; Account.AccountProfilePage { anchors.fill: parent; controller: fakeController; active: true } }
+    Component { id: securityComponent; Account.AccountSecurityPage { anchors.fill: parent; controller: fakeController; active: true } }
+    Component { id: recoveryComponent; Account.AccountRecoveryPage { anchors.fill: parent; controller: fakeController; active: true } }
 
     function init() {
         ime.visible = false
@@ -33,7 +36,36 @@ TestCase {
         testWindow.requestActivate()
         tryVerify(function () { return testWindow.active }, 1000)
     }
-    QtObject { id: fakeController; property string lastErrorMessage: ""; property string mode: "localOnly" }
+    QtObject {
+        id: fakeController
+        property string lastErrorMessage: ""
+        property string mode: "signedIn"
+        property string username: "Synthetic User"
+        property string avatarId: "initial"
+        property bool newDeviceProtection: true
+        property bool signOutSyncWarningPending: false
+        signal approvalRequestsChanged(var requests)
+        signal passwordChangeSucceeded()
+        signal recoveryKeyReplacementSucceeded()
+        signal recoveryKeyReplacementFailed(string message)
+        signal usernameRenameSucceeded()
+        signal usernameRenameFailed(string message)
+        signal builtinAvatarChangeSucceeded()
+        signal builtinAvatarChangeFailed(string message)
+        signal signedOut()
+        signal currentDeviceLocked()
+        signal accountError(string category, string code, string message)
+        function refreshProfile() {}
+        function refreshApprovals() {}
+        function renameUsername(value) {}
+        function setBuiltinAvatar(value) {}
+        function setNewDeviceProtection(value) {}
+        function changePassword(currentPassword, newPassword) {}
+        function replaceRecoveryKey(password) {}
+        function logoutEverywhere() {}
+        function decideApproval(kind, challengeId, approve) {}
+    }
+    QtObject { id: nativeKeyboard; property real dockedKeyboardTop: -1 }
     function find(root, name) {
         if (!root) return null
         if (root.objectName === name) return root
@@ -49,6 +81,76 @@ TestCase {
     function showKeyboard(height) {
         ime.keyboardRectangle = Qt.rect(0, testWindow.height - height, testWindow.width, height)
         ime.visible = true
+    }
+
+    function centreCases() {
+        return [
+            { tag: "profile", component: profileComponent, field: "accountProfileUsername", scroll: "accountProfileScrollRegion" },
+            { tag: "security", component: securityComponent, field: "securityConfirmPassword", scroll: "accountSecurityScrollRegion" },
+            { tag: "recovery", component: recoveryComponent, field: "recoveryCurrentPassword", scroll: "accountRecoveryScrollRegion" }
+        ]
+    }
+    function createCentre(data) {
+        const page = createTemporaryObject(data.component, surface)
+        verify(page !== null)
+        // Pre-fix pages lack this property: the red test must fail on geometry, not setup.
+        if (page.inputMethod !== undefined) page.inputMethod = ime
+        if (data.tag === "security") page.openPasswordEditor()
+        if (data.tag === "recovery") page.beginReplacement()
+        waitForRendering(page)
+        const field = find(page, data.field)
+        verify(field !== null)
+        field.text = "synthetic-draft"
+        field.forceActiveFocus(Qt.OtherFocusReason)
+        return { page: page, field: field, scroll: find(page, data.scroll) }
+    }
+    function fullFieldAbove(field, page, bottom) {
+        const position = field.mapToItem(page, 0, 0)
+        return position.y >= -0.5 && position.y + field.height <= bottom + 0.5
+    }
+    function test_centre_focused_fields_above_docked_keyboard_data() { return centreCases() }
+    function test_centre_focused_fields_above_docked_keyboard(data) {
+        const fixture = createCentre(data)
+        showKeyboard(230)
+        tryVerify(function() { return fullFieldAbove(fixture.field, fixture.page, 303) }, 1000,
+            "complete editable field must be above docked keyboard")
+        compare(fixture.field.text, "synthetic-draft")
+        compare(fixture.scroll.height, 303)
+        ime.visible = false
+        tryCompare(fixture.scroll, "height", 533)
+        compare(fixture.field.text, "synthetic-draft")
+    }
+    function test_centre_zero_rectangle_and_field_switch_data() { return centreCases() }
+    function test_centre_zero_rectangle_and_field_switch(data) {
+        const fixture = createCentre(data)
+        ime.visible = true
+        tryVerify(function() {
+            const top = fixture.field.mapToItem(fixture.page, 0, 0).y
+            return top >= 0 && top <= 40
+        }, 1000, "floating keyboard fallback lifts the field")
+        if (data.tag === "security") {
+            const first = find(fixture.page, "securityCurrentPassword")
+            first.forceActiveFocus(Qt.OtherFocusReason)
+            tryVerify(function() { return fullFieldAbove(first, fixture.page, 533) }, 1000)
+            fixture.field.forceActiveFocus(Qt.OtherFocusReason)
+            tryVerify(function() { return fixture.field.mapToItem(fixture.page, 0, 0).y <= 40 }, 1000)
+        }
+        compare(fixture.field.text, "synthetic-draft")
+        ime.visible = false
+        tryCompare(fixture.scroll, "height", 533)
+    }
+    function test_native_keyboard_top_overrides_stale_qt_rectangle() {
+        const frame = createTemporaryObject(signInComponent, surface)
+        const viewport = find(frame, "accountKeyboardViewport")
+        verify(viewport !== null)
+        viewport.keyboardPlatform = nativeKeyboard
+        nativeKeyboard.dockedKeyboardTop = 303
+        showKeyboard(100)
+        tryCompare(frame, "keyboardOverlap", 230)
+        nativeKeyboard.dockedKeyboardTop = -1
+        tryCompare(frame, "keyboardOverlap", 100)
+        ime.visible = false
+        tryCompare(frame, "keyboardOverlap", 0)
     }
 
     function test_focused_last_field_and_submit_reachable_above_keyboard_data() {
