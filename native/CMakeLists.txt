@@ -163,6 +163,7 @@ endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebSockets Concurrent)
 add_subdirectory(account/credentials)
+add_subdirectory(homeserver)
 if(NOT ANDROID)
     # Desktop Reader 2 still uses Foliate/Qt WebEngine; Android deliberately has no WebEngine product path.
     find_package(Qt6 REQUIRED COMPONENTS WebEngineQuick WebChannel)
@@ -1194,7 +1195,7 @@ if(COLOSSEUM_ACCOUNT_SERVICE_URL)
         COLOSSEUM_ACCOUNT_SERVICE_URL="${COLOSSEUM_ACCOUNT_SERVICE_URL}")
     message(STATUS "Account service baked in: ${COLOSSEUM_ACCOUNT_SERVICE_URL}")
 endif()
-target_link_libraries(colosseum PRIVATE colosseum_account_credentials
+target_link_libraries(colosseum PRIVATE colosseum_home_servers colosseum_account_credentials
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent
     Qt6::WebSockets colosseum_libtorrent
 )
