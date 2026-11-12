@@ -129,4 +129,17 @@ TestCase {
         compare(scroller.contentY, 0)
         compare(scroller.contentHeight, before)
     }
+
+    // Android keyboards re-enable Shift after every letter unless auto-uppercase is off.
+    function test_username_fields_do_not_auto_capitalise_data() {
+        return [{ tag: "signIn", component: signInComponent, field: "accountSignInUsername" },
+                { tag: "create", component: createComponent, field: "accountCreateUsername" }]
+    }
+    function test_username_fields_do_not_auto_capitalise(data) {
+        const frame = createTemporaryObject(data.component, surface, { touchInput: true })
+        const field = find(frame, data.field)
+        verify(field, data.field)
+        verify(field.inputMethodHints & Qt.ImhNoAutoUppercase)
+        verify(field.inputMethodHints & Qt.ImhPreferLowercase)
+    }
 }

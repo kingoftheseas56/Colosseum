@@ -52,7 +52,7 @@ AccountPageFrame {
         placeholderText: "Your username"
         controlObjectName: "accountSignInUsername"
         maximumLength: 24
-        inputMethodHints: Qt.ImhNoPredictiveText
+        inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase | Qt.ImhPreferLowercase
         onAccepted: passwordField.forceInputFocus()
     }
 
