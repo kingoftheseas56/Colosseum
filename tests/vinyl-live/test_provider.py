@@ -6,6 +6,7 @@ import subprocess
 import sys
 import unittest
 import uuid
+from unittest.mock import patch
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -449,6 +450,60 @@ class ProviderTests(unittest.TestCase):
         err_payload = json.loads(err_proc.stdout.decode("utf-8"))
         self.assertFalse(err_payload["ok"])
         self.assertEqual(err_payload["errorCode"], "not_found")
+
+    def test_fake_provider_fixture_artist_page_is_offline_and_uses_catalogue_contract(self):
+        request = {
+            "operation": "cataloguePage",
+            "value": "fixture",
+            "kind": "artists",
+            "cursor": {},
+        }
+        with patch.object(fake_provider, "_load_provider_module", return_value=provider):
+            with patch.object(
+                provider, "_ytmusic_client",
+                side_effect=AssertionError("offline fixture attempted a provider fallback"),
+            ) as network:
+                response = fake_provider.handle_fake_request(request)
+                rejected_responses = [
+                    fake_provider.handle_fake_request(unsupported)
+                    for unsupported in (
+                        {"operation": "cataloguePage", "value": "other", "kind": "artists"},
+                        {"operation": "cataloguePage", "value": "fixture", "kind": "songs"},
+                        {"operation": "cataloguePage", "value": "fixture", "kind": "artists",
+                         "cursor": {"version": 1, "token": "unsupported"}},
+                    )
+                ]
+
+        network.assert_not_called()
+        self.assertTrue(response["ok"])
+        page = response["data"]
+        expected_ids = [f"UC{index:022d}" for index in range(1, 6)]
+        self.assertEqual(page["version"], 1)
+        self.assertEqual(page["query"], "fixture")
+        self.assertEqual(page["kind"], "artists")
+        self.assertEqual(page["source"], "youtube-music")
+        self.assertEqual(page["items"], [
+            {
+                "id": "ytm:artist:" + channel,
+                "artistId": "ytm:artist:" + channel,
+                "kind": "artists",
+                "title": f"Fixture Artist {index}",
+                "cover": "",
+                "round": True,
+                "artist": f"Fixture Artist {index}",
+            }
+            for index, channel in enumerate(expected_ids, start=1)
+        ])
+        self.assertEqual(page["records"], [])
+        self.assertEqual(page["offset"], 0)
+        self.assertEqual(page["nextOffset"], 5)
+        self.assertEqual(page["nextCursor"], {})
+        self.assertTrue(page["complete"])
+
+        for rejected in rejected_responses:
+            self.assertFalse(rejected["ok"])
+            self.assertEqual(rejected["errorCode"], "invalid_argument")
+        network.assert_not_called()
 
     @unittest.skipUnless(
         os.environ.get("COLOSSEUM_VINYL_LIVE_SMOKE") == "1",
