@@ -52,11 +52,22 @@ Item {
             target = position.y - 16
         else if (position.y + focused.height + 24 > target + flick.height)
             target = position.y + focused.height + 24 - flick.height
+        // A short landscape viewport may fit the control but not the usual margins.
+        if (focused.height <= flick.height)
+            target = Math.max(position.y + focused.height - flick.height, Math.min(target, position.y))
         flick.contentY = Math.max(0, Math.min(target, flick.contentHeight - flick.height))
     }
     onFocusedTextControlChanged: Qt.callLater(root.revealFocusedControl)
     onKeyboardOverlapChanged: Qt.callLater(root.revealFocusedControl)
     onKeyboardVisibleChanged: Qt.callLater(root.revealFocusedControl)
+    Timer {
+        interval: 100
+        repeat: true
+        triggeredOnStart: true
+        running: root.keyboardVisible && !!root.keyboardPlatform
+            && typeof root.keyboardPlatform.sampleDockedKeyboard === "function"
+        onTriggered: root.keyboardPlatform.sampleDockedKeyboard()
+    }
     Connections {
         target: root.container.Window.window
         ignoreUnknownSignals: true

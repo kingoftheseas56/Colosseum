@@ -66,6 +66,15 @@ TestCase {
         function decideApproval(kind, challengeId, approve) {}
     }
     QtObject { id: nativeKeyboard; property real dockedKeyboardTop: -1 }
+    Component {
+        id: sampledKeyboardComponent
+        QtObject {
+            property real dockedKeyboardTop: -1
+            property real nextTop: 303
+            property int sampleCalls: 0
+            function sampleDockedKeyboard() { ++sampleCalls; dockedKeyboardTop = nextTop }
+        }
+    }
     function find(root, name) {
         if (!root) return null
         if (root.objectName === name) return root
@@ -153,6 +162,53 @@ TestCase {
         tryCompare(frame, "keyboardOverlap", 0)
     }
 
+    function test_security_stacked_fields_reveal_on_keyboard_reopen() {
+        testWindow.width = 600
+        const fixture = createCentre(centreCases()[1])
+        const current = find(fixture.page, "securityCurrentPassword")
+        const next = find(fixture.page, "securityNewPassword")
+        current.forceActiveFocus(Qt.MouseFocusReason)
+        showKeyboard(230)
+        tryVerify(function() { return fullFieldAbove(current, fixture.page, 303) }, 1000)
+        const fields = [next, fixture.field]
+        for (let i = 0; i < fields.length; ++i) {
+            ime.visible = false
+            tryCompare(fixture.scroll, "height", 533)
+            fields[i].forceActiveFocus(Qt.MouseFocusReason)
+            showKeyboard(230)
+            tryVerify(function() { return fullFieldAbove(fields[i], fixture.page, 303) }, 1000,
+                "stacked lower field must reveal on focus/reopen without explicit reveal")
+        }
+        compare(fixture.field.text, "synthetic-draft")
+    }
+    function test_native_sampling_reveals_lower_field_despite_stale_qt_rectangle_data() {
+        return [{ tag: "regular", nativeTop: 303, pageTop: 0 },
+                { tag: "smallViewport", nativeTop: 129, pageTop: 64 }]
+    }
+    function test_native_sampling_reveals_lower_field_despite_stale_qt_rectangle(data) {
+        testWindow.width = 600
+        const fixture = createCentre(centreCases()[1])
+        fixture.page.anchors.topMargin = data.pageTop
+        const sampler = createTemporaryObject(sampledKeyboardComponent, surface)
+        sampler.nextTop = data.nativeTop
+        find(fixture.page, "accountKeyboardViewport").keyboardPlatform = sampler
+        // Qt reports too little obstruction; only a fresh native sample knows the real top.
+        showKeyboard(100)
+        tryVerify(function() { return fullFieldAbove(fixture.field, fixture.page, data.nativeTop - data.pageTop) }, 1000,
+            "native sample must reveal lower field above actual keyboard, not stale Qt rectangle")
+        verify(sampler.sampleCalls > 0)
+        ime.visible = false
+        wait(150)
+        const hiddenSamples = sampler.sampleCalls
+        wait(150)
+        compare(sampler.sampleCalls, hiddenSamples, "sampling stops with hidden IME")
+        sampler.nextTop = data.nativeTop - 10
+        fixture.field.forceActiveFocus(Qt.MouseFocusReason)
+        showKeyboard(100)
+        tryVerify(function() { return fullFieldAbove(fixture.field, fixture.page, data.nativeTop - 10 - data.pageTop) }, 1000,
+            "keyboard reopen refreshes native top")
+        compare(fixture.field.text, "synthetic-draft")
+    }
     function test_focused_last_field_and_submit_reachable_above_keyboard_data() {
         return [{ tag: "zoom1.20", w: 1185, h: 533, kb: 230 },
                 { tag: "zoom1.15", w: 1237, h: 556, kb: 240 },
