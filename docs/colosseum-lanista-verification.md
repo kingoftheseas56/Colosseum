@@ -1855,3 +1855,26 @@ single-column without overlap. The app binary used for these runs predates
 the registry union relink (blocked by a concurrent long-lived instance); the
 journey exercises the seed-pinned Frieren identity, which the union path does
 not alter, so the run is valid evidence for the fixes it demonstrates.
+
+### Vinyl v1 receiving (2026-11-13)
+
+The Main route hosts `VinylAppWorld`/`VinylHouseShell` with one existing native
+session and the named `vinylWorld.ready`/`activeTab` read surfaces. Tabs are
+`vinylTab_Home`, `vinylTab_Discover`, `vinylTab_Library`. The outer Loader enum
+is serialized as the string `Ready`, rather than numeric 1. The player read seam
+`vinylPlayerBar.playingTrackIndex` is zero-based within the current disc/edition.
+
+The tagged Windows fixture route requires the fixture build flag, fixture env,
+valid vinylv1 tag, source Main/helper/Python, unique Lanista pipe and Drive mode;
+it validates C: tagged storage and rejects Qt proxy transport. This is a bounded
+Qt fence, not an all-process network sandbox. Never use the daily pipe/profile.
+The real picker can save five synthetic artists via the existing profile owner.
+The shell scenario passed 55/55; same-tag restart passed 13/13, both graceful 0,
+at source `0c07d4204fc08fb280e0eb8d93535a714b7a2971`.
+
+`--capture-width`/`--capture-height` configure capture output, not root-window
+geometry. `window-set-state` only restores/minimizes/hides; it has no geometry
+setter. A planned exact 1280x700 composition needs separately observed geometry
+and an available sizing route; the shell captures do not qualify that viewport.
+Detailed source/runtime/warning boundaries are in the Vinyl v1 report and
+`artifacts/vinyl-v1/slice1/receiving/shell-root-review.json`.

@@ -1,6 +1,6 @@
 {
   "name": "vinyl-v1-slice1-world-tab-shell",
-  "comment": "Explicit Lanista shell journey using the test-only offline fixture helper. Set COLOSSEUM_VINYL_TEST_FIXTURES=1 and run with --tag vinylv1-slice1-shell plus --capture-width 1280 --capture-height 700. Reuse that exact tag for vinyl_v1_shell_restart.json and omit --seed so the saved profile remains in place. The query fixture returns five synthetic artist identities; no live provider is used. The session runner closes the child through its graceful WM_CLOSE path after the final ping.",
+  "comment": "Explicit Lanista shell journey using the test-only offline fixture helper. Set COLOSSEUM_VINYL_TEST_FIXTURES=1 and run with --tag vinylv1-slice1-shell. Capture export dimensions can be supplied separately; they do not resize the app window. Record actual window/PNG dimensions when qualifying a viewport. Reuse that exact tag for vinyl_v1_shell_restart.json and omit --seed so the saved profile remains in place. The query fixture returns five synthetic artist identities; no live provider is used. The session runner closes the child through its graceful WM_CLOSE path after the final ping.",
   "steps": [
     {
       "cmd": "ping",
@@ -689,7 +689,7 @@
     },
     {
       "cmd": "qml-get",
-      "label": "Capture Library at 1280 by 700",
+      "label": "Capture the Library shell",
       "payload": {
         "object": "vinylWorld",
         "props": [
@@ -750,7 +750,7 @@
     },
     {
       "cmd": "qml-get",
-      "label": "Capture Discover at 1280 by 700",
+      "label": "Capture the Discover shell",
       "payload": {
         "object": "vinylWorld",
         "props": [
@@ -811,7 +811,7 @@
     },
     {
       "cmd": "qml-get",
-      "label": "Capture Home at 1280 by 700",
+      "label": "Capture the Home shell",
       "payload": {
         "object": "vinylWorld",
         "props": [

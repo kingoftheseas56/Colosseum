@@ -3306,6 +3306,4 @@ it is no longer Main's Vinyl route. Discover's presentation is unchanged.
   the original browse-layer order. Detailed local receipts are under
   `artifacts/vinyl-v1/slice1/`.
 
-These two CTest declarations add two Vinyl unit entries to Slice 0's inventory.
-The configured listing and real-app Lanista scenario remain pending until the
-frozen Slice 0 native baseline build and reconciliation finish.
+These two CTest declarations bring the configured inventory to 296 unit entries: 99 Vinyl and the unchanged 197 other names. At source `0c07d4204fc08fb280e0eb8d93535a714b7a2971`, the two new checks plus existing world-navigation CTest passed 3/3. The isolated actual-app shell journey passed 55/55 and same-tag restart 13/13, with distinct pipes, C: stores and graceful app/CLI exit 0. Root inspected all three tab PNGs. Capture export flags do not set window geometry; exact 1280x700 composition is not claimed. Proxy-blocked images, empty-icon fallback and shutdown GL-context warnings remain recorded. See `artifacts/vinyl-v1/slice1/receiving/shell-root-review.json`; later Home/Library content and playback remain separate.

@@ -6,13 +6,13 @@ Execution resumed on 2026-11-12 from `origin/master` at `049f1fbd59771082856bd05
 
 The local archive checkpoint is `4358b6e32df6000938c0e2e5d47327c724692fd8`. The full build and regression run used `21fd507e35ad0b173a41fecf004e2de87a12f92e`, which preserves the five newer Linux release commits through `d0b2f0d2b0cf10e93b785c405e65f8fe1c932a15`. Current integration source `89d98e5272b00fc32fd9dc469bd3e7e7179bfe92` also preserves `origin/master` at `f0f92894b7a9d426a1890e7d1b111dcc7dbb1a46`: seven README/account-QML/MCU-QML/keyboard-test paths changed after the full regression source. The approved starting SHA remains `049f1fbd59771082856bd057dadd131120842dac`.
 
-At this pre-publication checkpoint the integration is local. The latest-master runtime-ready refresh passed, the app binary remained unchanged, and the targeted Android account keyboard QML check passed 9/9. Full regression results below remain explicitly tied to `21fd507`, rather than being relabelled as a run of the later source.
+The Slice 0 pre-publication review used that integrated source. Its latest-master runtime-ready refresh passed, the app binary remained unchanged, and the targeted Android account keyboard QML check passed 9/9. Full regression results below remain explicitly tied to `21fd507`, rather than being relabelled as a run of the later source. Publication and subsequent receiving updates are recorded by slice below.
 
 The checkout, build, temporary files, logs, and evidence are on C:. The ignored receipt `artifacts/vinyl-v1/slice0/20261112/resume-baseline.json` records their exact locations. The shared dirty checkout is preserved.
 
 ## Slice 0 - Foundation
 
-**Overall: the archive is integrated locally, the full native build completed, and the safe non-Vinyl regression run completed. ON/OFF entry checks passed. The named Vinyl gaps and the unchanged-source stream-server fixture failure below remain explicit; this is not an all-green verdict. The next step is the authorized master publication, then Slice 1 runtime receiving.**
+**Overall: the archive was pushed to master at `b353114d945573f817ac16464313db5dea2e0ac5`, with remote readback verified. The full native build, safe regression run and ON/OFF entry checks completed. Named Vinyl gaps and the unchanged-source stream-server fixture failure remain explicit; this is not an all-green verdict. Slice 1 receiving is recorded below.**
 
 The archive is merged locally with eight resolved conflict paths. Shared-shell resolutions retain current Android presentation guards, the Universes loading surface, Collections tooltip timing, and Nuvio registrations. Four Vinyl component conflicts use the archive implementation with current tooltips restored on surviving controls.
 
@@ -47,7 +47,7 @@ The deterministic registry contains **97 Vinyl unit CTests** and the same **197 
 | Safe non-Vinyl CTests | 195 executed: 183 passed, 12 failed, 0 CTest skips; native CTest exit 8, 808.58 seconds. `non-vinyl-safe-final.log/.exit/.xml` and `non-vinyl-safe-final-command.json`. Two registered Vault tests were excluded for proven D-path I/O and remain unexecuted, neither passes nor baseline failures. `no-d-test-path-audit.md`. |
 | Tagged Home boot with gate ON/OFF | Final ON session `20261112-232203-3cacfbcd` passed 13/13 with Loader status `Ready`, Home page, `canEnterVinyl=false`, and artist-selection gate true. Final OFF session `20261112-230948-a05034a7` passed 9/9 with Home visible and Vinyl qualification disabled. Both apps exited 0, did not crash, and stopped gracefully. |
 | Invalid-tag control | `20261112-230238-4a3b4041`: Lanista exit 4, app exit 2, no crash; tagged data/cache paths were absent. This is a negative control, not a normal boot pass. |
-| Commit and push | Integrated source `89d98e5272b00fc32fd9dc469bd3e7e7179bfe92`; this report records the pre-publication review. Publication must be confirmed by the subsequent push receipt. |
+| Commit and push | Integrated source `89d98e5272b00fc32fd9dc469bd3e7e7179bfe92` was published with its report as `b353114d945573f817ac16464313db5dea2e0ac5`; remote readback matched. `publication.json`. |
 
 Evidence names are relative to `artifacts/vinyl-v1/slice0/20261112/`. The first receiving gate stopped at 61/98 completed to correct the fake catalogue runtime. A 41-test completion selection, core repair checks and focused UI repairs provide the current observations. No blanket green claim is made for the 19 retained archive failures.
 
@@ -132,10 +132,25 @@ The stream fixture is outside Vinyl's changed implementation. Its unresolved rea
 | Existing harnesses | Accepted earlier failures and bespoke exclusions retained. |
 | Lanista | Final ON passed 13/13 with string Loader status `Ready`; final OFF passed 9/9 with Vinyl disabled on Home. Earlier incomplete and diagnostic attempts are kept separate in `fixture-runtime-observations.json`. |
 | Human aesthetic verdict | Not applicable to Slice 0. |
-| Integration / publication | Current source `89d98e5272b00fc32fd9dc469bd3e7e7179bfe92` preserves latest received master; authorized push follows this pre-publication review. |
+| Integration / publication | Source `89d98e5272b00fc32fd9dc469bd3e7e7179bfe92` preserves latest received master; published as `b353114d945573f817ac16464313db5dea2e0ac5`. |
 
 ### Test classification and next action
 
 Deterministic individual native/QML cases and fake-provider scripts are unit-labelled. The standalone `tests/vinyl-live` runtime/provider family remains bespoke, with its existing source-only Node runtime-integrity exception. The remote-media native-session aggregate, capture-only visual suite, exposed-GPU MPV event tests, tagged import and standalone prototype backend projects retain their separate classifications.
 
-The build, safe regression run and latest-master refresh are complete. Preserve the named 19 Vinyl gaps, the accepted baseline classification, the separate renderer discriminator, the unresolved unchanged-source stream fixture and the two unexecuted no-D checks. Publish the reviewed scoped integration to master, then continue the approved Slice 1 app/restart scenarios. Later component work and Hemanth's square-widget appearance approval remain separate from this Slice 0 source/runtime evidence. No release, deployment, live-provider or full-page acceptance is claimed.
+The build, safe regression run and latest-master refresh are complete, and the scoped archive integration is published. Preserve the named 19 Vinyl gaps, accepted baseline classification, separate renderer discriminator, unresolved unchanged-source stream fixture and two unexecuted no-D checks. Later component work and Hemanth's square-widget appearance approval remain separate from this Slice 0 evidence. No release, deployment, live-provider or full-page acceptance is claimed.
+
+
+## Slice 1 - Three-tab house shell
+
+Slice 0 was pushed to `origin/master` at `b353114d945573f817ac16464313db5dea2e0ac5`; remote readback matched. Shell implementation and offline scenarios were received as `051a87f14` and `0c07d4204fc08fb280e0eb8d93535a714b7a2971`. Main now uses the house WorldPage with Home, Discover and Library, retaining one existing runtime/session/player/detail owner. The compatibility wrapper remains only for standalone component consumers. Discover presentation is unchanged; Home/Library are intentional intermediate placeholders.
+
+At `0c07d4204`, runtime-ready/lanista/component harness build passed. The configured registry is 296 unit tests (99 Vinyl + 197 other). New shell, native runtime and existing world-navigation CTests passed 3/3. Component negative controls and prior receiving checks remain in `slice1/preintegration-C1`.
+
+Actual fixture sessions `20261113-030918-64cacba6` and `20261113-030952-66733177` passed 55/55 and 13/13. Five real picker selections were saved through the current preferences owner, all three tabs were clicked, Theatre round-trip passed, and restart retained the choices with Home default. Unique pipes shared only the same task tag and C: stores. Both apps and launchers exited 0 gracefully, without a crash. Root viewed all three tab images and copied them into `slice1/receiving/captures`.
+
+The PNGs are 1920x1080 physical pixels. CLI capture export settings did not resize the app window; exact 1280x700 composition is unverified and remains a visual receiving prerequisite. The scenario's capture labels were corrected after the run without changing actions/assertions. Logs retain Qt-proxy image failures, empty-icon fallback and GL-context warnings during shutdown; no reference/type/binding-loop errors were found. This qualifies shell routing and persistence, not warning-free rendering, live providers, playback or later Home/Library content.
+
+Build regeneration initially failed while C: had only about 25 MB free. Only 1,616 regenerable .obj intermediates from this task's completed non-Vinyl test targets were removed (1,167,960,579 bytes); built programs/libraries/source/logs/evidence were retained. The subsequent scoped build passed. Exact checked paths and outcomes are in `build-intermediate-reclaim-plan.json`, `build-intermediate-reclaim.json` and `build-shell-runtime-03.*`. A prior wrapper-command rejection and failed-generation log remain separate, not build passes. Do not rerun the whole 186-target build merely to recreate these unnecessary intermediates.
+
+Evidence authority: `artifacts/vinyl-v1/slice1/receiving/shell-root-review.json`, `shell-runtime-pair.json`, `shell-units.*` and the two session manifests. This is the Slice 1 publication review checkpoint. Continue the source-pool/native integration and the already appearance-approved square widgets.
