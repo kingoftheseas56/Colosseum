@@ -4,13 +4,15 @@
 
 Execution resumed on 2026-11-12 from `origin/master` at `049f1fbd59771082856bd057dadd131120842dac`, including the 1.3.0 release work. The archive source is `bb346e35a377caea50f89e626ec9a47e09534b14`. Hemanth directed publication to master and C:-only execution.
 
-At this report update, `origin/master` is `d0b2f0d2b0cf10e93b785c405e65f8fe1c932a15`, five Linux release commits beyond the starting snapshot, across 13 non-overlapping paths. The recorded initial `049f1fbd59771082856bd057dadd131120842dac` source SHA is unchanged; integration of the newer origin ancestry into the local receiving tree remains pending.
+The local archive checkpoint is `4358b6e32df6000938c0e2e5d47327c724692fd8`. The full build and regression run used `21fd507e35ad0b173a41fecf004e2de87a12f92e`, which preserves the five newer Linux release commits through `d0b2f0d2b0cf10e93b785c405e65f8fe1c932a15`. Current integration source `89d98e5272b00fc32fd9dc469bd3e7e7179bfe92` also preserves `origin/master` at `f0f92894b7a9d426a1890e7d1b111dcc7dbb1a46`: seven README/account-QML/MCU-QML/keyboard-test paths changed after the full regression source. The approved starting SHA remains `049f1fbd59771082856bd057dadd131120842dac`.
+
+At this pre-publication checkpoint the integration is local. The latest-master runtime-ready refresh passed, the app binary remained unchanged, and the targeted Android account keyboard QML check passed 9/9. Full regression results below remain explicitly tied to `21fd507`, rather than being relabelled as a run of the later source.
 
 The checkout, build, temporary files, logs, and evidence are on C:. The ignored receipt `artifacts/vinyl-v1/slice0/20261112/resume-baseline.json` records their exact locations. The shared dirty checkout is preserved.
 
 ## Slice 0 - Foundation
 
-**Overall: archive implementation and deterministic registration are local; runtime and regression verification remain incomplete. No integration commit or push yet.**
+**Overall: the archive is integrated locally, the full native build completed, and the safe non-Vinyl regression run completed. ON/OFF entry checks passed. The named Vinyl gaps and the unchanged-source stream-server fixture failure below remain explicit; this is not an all-green verdict. The next step is the authorized master publication, then Slice 1 runtime receiving.**
 
 The archive is merged locally with eight resolved conflict paths. Shared-shell resolutions retain current Android presentation guards, the Universes loading surface, Collections tooltip timing, and Nuvio registrations. Four Vinyl component conflicts use the archive implementation with current tooltips restored on surviving controls.
 
@@ -24,7 +26,8 @@ The deterministic registry contains **97 Vinyl unit CTests** and the same **197 
 - Two Node sandboxes now supply the current QML context. Their original behavioral assertions pass. The Album prototype connects the current video signal; Album tests exercise the named song action, source controls, and retained artwork scale with scrolling.
 - Artist replacement tests reveal the real tab and prove it is selected before activating the updated card. Carousel tests isolate independent cases. Navigation tests preserve the same carousel instance, verify Home-only presentation, and wait for deferred Back restoration. Their receiving CTests pass.
 - A native regression exposed completed-empty mixes disappearing, leaving no retry action. Removing one filter retains their existing error/retry cards. Home listening, recommendation service, and recommendation contracts passed **3/3** after rebuilding.
-- Fixture-prefix containment checks that were red for a missing leaf under a directory junction and a regular-file path now pass in the existing controller suite: **55 checks, CTest 1/1 in 0.55 seconds**. Only the owned C: junction was removed. The app-guard rebuild and final Home boots remain pending.
+- Fixture-prefix containment checks that were red for a missing leaf under a directory junction and a regular-file path now pass in the existing controller suite: **55 checks, CTest 1/1 in 0.55 seconds**. Only the owned C: junction was removed. The ON configuration restore/build and final ON/OFF Home entry runs have since passed.
+- The final disposable ON and OFF Home-entry scenarios passed **13/13** and **9/9**. The ON Loader check observes the bridge's string `"Ready"`; both app sessions exited 0 without crashing and shut down gracefully. The invalid-tag control returned Lanista 4/app 2 without a crash and created neither tagged data nor cache roots. Exact receipts and boundaries are in `artifacts/vinyl-v1/slice0/20261112/fixture-runtime-observations.json`.
 - The planned negative control compiled one deliberately incorrect recommendation assertion. CTest failed for actual 10 versus expected 11. The original bytes/hash were restored, the target rebuilt, and CTest passed **1/1**. The final receipt is `negative-restored-verified.*`; an earlier missing-wrapper/stale-binary attempt is retained and excluded from this claim.
 
 ### Verification evidence
@@ -32,26 +35,29 @@ The deterministic registry contains **97 Vinyl unit CTests** and the same **197 
 | Check | Observed result |
 | --- | --- |
 | Starting source | `049f1fbd59771082856bd057dadd131120842dac` |
+| Current local integration | `89d98e5272b00fc32fd9dc469bd3e7e7179bfe92` includes archive checkpoint `4358b6e32df6000938c0e2e5d47327c724692fd8` and latest received `origin/master` `f0f92894b7a9d426a1890e7d1b111dcc7dbb1a46`; pre-publication checkpoint. |
 | Current-source and receiving configuration | MSVC / Qt 6.11.1 passed; wrappers and exits are under `configure/`. |
 | Registry | 294 unit entries: 97 Vinyl and 197 other; non-Vinyl names unchanged. |
 | Shared-owner preservation | Ten comparisons passed: seven named sections, two whole files, and native CMake normalized for only four reviewed Vinyl test-label additions. `postmerge-preservation.json`. |
 | Focused native build | Initial and additional target builds passed. |
 | Focused receiving observations | 78/97 Vinyl CTests passed; 19 retained failures are listed below. Every Vinyl entry was executed across scoped runs. `focused-observations.json` is an observation index, not a monolithic final-tree suite verdict. |
 | Negative control | Correct compiled red, exact source restoration and rebuilt green. |
-| App-first native build | `colosseum_runtime_ready` plus `lanista` MSVC build passed: 280/280 actions, exit 0. |
-| Remaining 197 non-Vinyl CTests | Pending; the saved selection preserves every baseline name. |
-| Tagged Home boot with gate ON/OFF | First ON session `20261112-222522-39132498` passed 11/11; tagged C: data/cache and graceful app/Lanista exit 0 were observed. Its capture preceded outer Loader readiness. Final ON capture and compiled OFF remain pending. A repeat timed out at Welcome and is incomplete, not a pass. |
-| Commit and push | Pending final verification/report. |
+| Full native build | All 186 requested native/unit/runtime targets built at `21fd507`, exit 0. The controlled incomplete j1 attempt remains separate; j2 completed 1680 resumed actions without compiler/linker errors. `build-app-unit-final-j2.*`, `build-final-root-review.json`. |
+| Latest-master refresh | At `89d98e5`, runtime-ready/lanista refresh exited 0 and updated the QML manifest. App SHA256 remained `890ccf980b50ee8987466c3c4d533a570dec00f74991abc44a46020420cfc38f`. Targeted account keyboard QML check passed 9/9; one Windows portrait-window geometry warning, no physical Android IME claim. `latest-master-runtime-build-02.*`, `latest-master-keyboard.*`. |
+| Safe non-Vinyl CTests | 195 executed: 183 passed, 12 failed, 0 CTest skips; native CTest exit 8, 808.58 seconds. `non-vinyl-safe-final.log/.exit/.xml` and `non-vinyl-safe-final-command.json`. Two registered Vault tests were excluded for proven D-path I/O and remain unexecuted, neither passes nor baseline failures. `no-d-test-path-audit.md`. |
+| Tagged Home boot with gate ON/OFF | Final ON session `20261112-232203-3cacfbcd` passed 13/13 with Loader status `Ready`, Home page, `canEnterVinyl=false`, and artist-selection gate true. Final OFF session `20261112-230948-a05034a7` passed 9/9 with Home visible and Vinyl qualification disabled. Both apps exited 0, did not crash, and stopped gracefully. |
+| Invalid-tag control | `20261112-230238-4a3b4041`: Lanista exit 4, app exit 2, no crash; tagged data/cache paths were absent. This is a negative control, not a normal boot pass. |
+| Commit and push | Integrated source `89d98e5272b00fc32fd9dc469bd3e7e7179bfe92`; this report records the pre-publication review. Publication must be confirmed by the subsequent push receipt. |
 
-Evidence names are relative to `artifacts/vinyl-v1/slice0/20261112/`. The first receiving gate stopped at 61/98 completed to correct the fake catalogue runtime. A 41-test completion selection, core repair checks and focused UI repairs provide the current observations. No blanket green claim is made for the retained archive failures.
+Evidence names are relative to `artifacts/vinyl-v1/slice0/20261112/`. The first receiving gate stopped at 61/98 completed to correct the fake catalogue runtime. A 41-test completion selection, core repair checks and focused UI repairs provide the current observations. No blanket green claim is made for the 19 retained archive failures.
 
-The first ON session passed 11/11 and closed its tagged app and Lanista process with exit 0, but the screenshot was taken before the enclosing Vinyl Loader reached `Ready`. The repeat session `20261112-223839-83a707b8` timed out at Welcome: PowerShell treated native stderr as terminating under `Stop`, interrupting launcher cleanup. Root verified the child PID, executable path, and tag, then gracefully closed only that owned child and recorded the cleanup. This attempt is incomplete, not a pass. The fixture now waits for `worldLoader_Vinyl.status == 1` and for `accountWelcomeContinueLocal.visible == true`; the wrapper handles native stderr separately while preserving the real Lanista exit.
+The exact final commands, scenario/app/QML hashes, tag-derived C: roots, runner/app exits, step counts, and page replies are recorded in `fixture-runtime-observations.json`. Earlier observations remain separate: the 11-step ON capture preceded outer Loader readiness; a Welcome-timeout run remains incomplete; and a strict numeric `status == 1` wait failed because the bridge serializes Loader enum values as strings. The diagnostic probe returned `"Loading"`, then component readiness and the Home/taste-gate state; the final strict wait now checks `"Ready"`. The numeric check was a serialization mismatch, not a Vinyl product failure.
 
 ### Store and fixture isolation
 
 Vinyl personal state uses the existing tagged/profile owners. The provider cache receives the tagged cache root; yt-dlp's separate shared cache is disabled whenever the tag variable is present. The read-only `vinylPlayerBar.playingTrackIndex` seam is zero-based within the current disc/edition, distinct from queue position.
 
-The new Windows fixture startup validates its tag, unique Lanista pipe, Drive mode, tagged AppData, source-root Main.qml, fake helper and absolute Python before personal stores/logging. It selects the fake provider and installs a rejecting Qt proxy, with shared service warmups suppressed for this fixture route. This is a bounded Qt transport fence. The account credential implementation was also inspected: active/revocation/deletion/Stremio/Nuvio targets use the nonempty tag's hash namespace. The first ON session observed tagged C: data/cache; final ON capture and compiled OFF verification remain pending.
+The new Windows fixture startup validates its tag, unique Lanista pipe, Drive mode, tagged AppData, source-root Main.qml, fake helper and absolute Python before personal stores/logging. It selects the fake provider and installs a rejecting Qt proxy, with shared service warmups suppressed for this fixture route. This is a bounded Qt transport fence. The account credential implementation was also inspected: active/revocation/deletion/Stremio/Nuvio targets use the nonempty tag's hash namespace. Final ON and OFF sessions used distinct tag-derived C: data/cache roots; the invalid-tag control created neither. These boot/entry observations do not establish playback or live-provider behavior.
 
 Current `COLOSSEUM_VINYL_IN_APP` semantics control availability; both configurations retain compiled Vinyl machinery. The ON/OFF receiving checks exercise this existing gate.
 
@@ -106,6 +112,17 @@ The current merge comparison preserves those owner sections. The related snapsho
 - `colosseum.qttest.trakt_direct`
 - `colosseum.qttest.tracker_delivery`
 
+### Completed non-Vinyl reconciliation
+
+The safe run preserved the 197-name baseline registry and executed 195 entries. Ten of the sixteen accepted earlier failures recurred: the reader2, startup-deferral, startup-responsiveness, hidden-Home-work, world-lifecycle, phone-immersive-navigation, phone-keyboard-avoidance, wide-Android-navigation, Android-symbol-fallback and Back-action contracts listed above. The other six earlier account/tracker failures passed on this run; no claim is made that Vinyl fixed them.
+
+Two additional failures were investigated separately from that accepted set:
+
+- `colosseum.qttest.journey_play_video` timed out in the aggregate run under a software/offscreen renderer. Its unchanged test, player sources and fixture passed one focused rerun with the required Windows/OpenGL renderer: CTest 1/1, native 21 passed/0 failed/0 skipped, exit 0 in 43.49 seconds. This qualifies the renderer environment; it does not change the aggregate 183/195 result. `journey-native-renderer.*`.
+- `colosseum.qttest.stream_server_failfast` failed `ownedChildWithDeadListenerRestartsPendingPlay`: the fake child missed its 500 ms readiness deadline, leaving `stream.ready()` false. One focused rerun reproduced it (native CTest exit 8, 19.21 seconds). The test, fake child, StreamServer implementation/header and exact target build block are byte-identical to the starting `049f1fb` source. The exact runtime cause is unresolved; no original-base runtime was executed, so this is not presented as a proven historical baseline failure. The Windows compatibility messages came from an expected negative-start slot that passed. `stream-failfast-focused.*`, `stream-server-failfast-source-audit.md`.
+
+The stream fixture is outside Vinyl's changed implementation. Its unresolved readiness failure is retained as an out-of-Vinyl verification gap, without blocking the bounded archive integration or expanding into unrelated repair. The two excluded tests are `colosseum.qttest.vault_stores` and `colosseum.qttest.vault_browse_detail`; `vault_index` was source-cleared and executed. The no-D review is bounded source evidence, not a whole-process filesystem trace. `non-vinyl-root-reconciliation.json` preserves the classifications.
+
 ### Layer status
 
 | Layer | State |
@@ -113,12 +130,12 @@ The current merge comparison preserves those owner sections. The related snapsho
 | Qt Test | Core, catalogue, account-owned Vinyl contracts and scoped fixes passed; exact selection receipts retained. |
 | Qt Quick Test | Registered and executed; current pass observations and named archive gaps above. |
 | Existing harnesses | Accepted earlier failures and bespoke exclusions retained. |
-| Lanista | Initial ON scenario passed 11/11 with process exit 0; its capture preceded outer Loader readiness. A repeat timed out at Welcome and is incomplete. Fresh ON capture and compiled OFF are pending. |
+| Lanista | Final ON passed 13/13 with string Loader status `Ready`; final OFF passed 9/9 with Vinyl disabled on Home. Earlier incomplete and diagnostic attempts are kept separate in `fixture-runtime-observations.json`. |
 | Human aesthetic verdict | Not applicable to Slice 0. |
-| Integration / publication | Local merge; uncommitted and unpushed. Newer origin ancestry integration remains pending. |
+| Integration / publication | Current source `89d98e5272b00fc32fd9dc469bd3e7e7179bfe92` preserves latest received master; authorized push follows this pre-publication review. |
 
 ### Test classification and next action
 
 Deterministic individual native/QML cases and fake-provider scripts are unit-labelled. The standalone `tests/vinyl-live` runtime/provider family remains bespoke, with its existing source-only Node runtime-integrity exception. The remote-media native-session aggregate, capture-only visual suite, exposed-GPU MPV event tests, tagged import and standalone prototype backend projects retain their separate classifications.
 
-Capture a fresh ON boot after the existing Loader and welcome readiness waits, then verify the compiled OFF boot. Resume any remaining native-unit compilation and the 197 non-Vinyl checks. Reconcile the newer origin ancestry, update session manifests and outcomes, and inspect the final diff before integration. The 19 named Vinyl failures and accepted 16 non-Vinyl baseline failures remain distinct; no final-green verdict is recorded.
+The build, safe regression run and latest-master refresh are complete. Preserve the named 19 Vinyl gaps, the accepted baseline classification, the separate renderer discriminator, the unresolved unchanged-source stream fixture and the two unexecuted no-D checks. Publish the reviewed scoped integration to master, then continue the approved Slice 1 app/restart scenarios. Later component work and Hemanth's square-widget appearance approval remain separate from this Slice 0 source/runtime evidence. No release, deployment, live-provider or full-page acceptance is claimed.
