@@ -226,6 +226,7 @@ jobs:
           run-id: ${{ inputs.receive_run_id || github.run_id }}
           github-token: ${{ github.token }}
       - name: Install on clean Linux without a Qt SDK
+        id: install
         env:
           DEBIAN_FRONTEND: noninteractive
           RECEIVE_RUN_ID: ${{ inputs.receive_run_id }}
@@ -282,11 +283,24 @@ jobs:
             python3 tools/linux-release/smoke_installed.py --platform-theme gtk3 --output /tmp/installed-receipts
       - name: Play a checked-in local fixture through installed Player 1
         run: |
+          # Minimal containers may make checkout fall back to a source archive.
+          # Restore export-ignored capture media and verify its pinned digest.
+          python3 scripts/restore_source_archive_media.py --scope capture
+          # Restored files are root-owned mkstemp outputs (0600); the app runs
+          # as package-test and must be able to read this public fixture.
+          chmod 0644 tests/lanista_capture/assets/Colosseum.mp4
+          runuser -u package-test -- test -r tests/lanista_capture/assets/Colosseum.mp4
           runuser -u package-test -- dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24' \
             python3 tools/linux-release/smoke_installed_player.py \
               --fixture "$GITHUB_WORKSPACE/tests/lanista_capture/assets/Colosseum.mp4" \
               --output /tmp/installed-receipts
+      - name: Prove installed WebEngine, Home screenshots and retained profile
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          runuser -u package-test -- dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24' \
+            python3 tools/linux-release/smoke_installed_runtime.py --output /tmp/installed-receipts
       - name: Verify clean uninstall preserves user files
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
           runuser -u package-test -- sh -c 'mkdir -p "$HOME/.local/share/Colosseum"; echo preserve > "$HOME/.local/share/Colosseum/package-uninstall-sentinel"'
           apt-get remove -y colosseum

@@ -1,0 +1,22 @@
+{
+  "version": "1.3.0",
+  "application_source_commit": "1c22f0b3935367073dee1ad3e1e2dc0b16857d53",
+  "appdir_run": "43232636422",
+  "appdir_sha256": "5e562f5c7a32d587e6af2d65bebd72e8ad5208eb98a9df918325cb62e2aaf555",
+  "supported_glibc_floor": "2.39",
+  "appimagetool": {
+    "version": "1.9.1",
+    "source_commit": "8c8c91f762b412a19f4e8d2c4b35afb98f2d7c81",
+    "url": "https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage",
+    "sha256": "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0",
+    "source_url": "https://github.com/AppImage/appimagetool/tree/8c8c91f762b412a19f4e8d2c4b35afb98f2d7c81"
+  },
+  "runtime": {
+    "version": "type2-runtime-continuous-fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+    "source_commit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+    "url": "https://api.github.com/repos/AppImage/type2-runtime/releases/assets/657374641",
+    "sha256": "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46",
+    "source_url": "https://github.com/AppImage/type2-runtime/tree/fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+    "license_sha256": "aa154fc9070614bbe7921f89db11efd1dba7a1f3a41685958110e2230f9c0ca1"
+  }
+}

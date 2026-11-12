@@ -88,6 +88,15 @@ class LinuxReleasePolicyTests(unittest.TestCase):
         self.assertIn("homeUniverseBannerArt", source)
         self.assertIn("readySource", source)
 
+    def test_installed_player_restores_export_ignored_fixture_before_use(self):
+        workflow = (ROOT / ".github/workflows/release-linux-deb.yml").read_text()
+        player_step = workflow.split("- name: Play a checked-in local fixture through installed Player 1", 1)[1]
+        player_step = player_step.split("- name:", 1)[0]
+        restore = "python3 scripts/restore_source_archive_media.py --scope capture"
+        self.assertIn(restore, player_step)
+        self.assertLess(player_step.index(restore), player_step.index("python3 tools/linux-release/smoke_installed_player.py"))
+        self.assertIn('--fixture "$GITHUB_WORKSPACE/tests/lanista_capture/assets/Colosseum.mp4"', player_step)
+
     def test_catalogue_log_parsing_reads_real_records(self):
         broken_bundle = ('colosseum.catalogue.static: {"bucketAdmissions":0,"dataset":"content",'
                          '"method":"bundle","networkBytes":0,"networkFiles":1,"outcome":"failure"}\n'
