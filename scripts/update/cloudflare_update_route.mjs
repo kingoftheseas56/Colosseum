@@ -7,8 +7,7 @@ import { notesHtml as notes120Html, notesETag as notes120ETag } from "./release_
 
 export const stableUpdatePath = "/updates/stable.json";
 export const stableUpdateOrigin =
-  "https://gitlab.com/kingoftheseas56/colosseum-site/-/raw/" +
-  "release-assets/stable/updates/stable.json?ref_type=heads";
+  "https://api.github.com/repos/kingoftheseas56/Colosseum/releases/latest";
 
 const CAP_BYTES = 2 * 1024 * 1024;
 const releaseNotes = new Map([
@@ -35,7 +34,10 @@ export async function serveStableFeed(request, fetcher = fetch) {
     return new Response(null, { status: 405, headers: { Allow: "GET, HEAD" } });
   }
 
-  const headers = new Headers({ Accept: "application/json" });
+  const headers = new Headers({
+    Accept: "application/vnd.github+json",
+    "User-Agent": "Colosseum-Update-Feed",
+  });
   const validator = request.headers.get("If-None-Match");
   if (validator && validator.length <= 128 && !/[\r\n]/.test(validator)) {
     headers.set("If-None-Match", validator);
@@ -46,6 +48,7 @@ export async function serveStableFeed(request, fetcher = fetch) {
       method: "GET",
       headers,
       redirect: "manual",
+      cf: { cacheEverything: true, cacheTtlByStatus: { "200-299": 300, "400-599": 0 } },
     });
     if (upstream.status === 304) {
       const responseHeaders = new Headers({ "Cache-Control": "public, max-age=300, must-revalidate" });
@@ -61,7 +64,7 @@ export async function serveStableFeed(request, fetcher = fetch) {
     if (bytes.byteLength > CAP_BYTES || bytes.byteLength === 0) return unavailable();
 
     // A very small syntax gate helps prevent accidentally serving an HTML
-    // error page from GitLab. Client trust still relies on Ed25519 verification.
+    // upstream error page. Client trust still relies on Ed25519 verification.
     const release = JSON.parse(new TextDecoder().decode(bytes));
     if (typeof release !== "object" || !release || Array.isArray(release)
         || typeof release.tag_name !== "string"

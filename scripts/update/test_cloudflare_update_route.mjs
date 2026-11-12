@@ -17,8 +17,12 @@ const feed = JSON.stringify({
 function fetcher(body = feed, status = 200) {
   return async (url, options) => {
     assert.equal(url, stableUpdateOrigin);
+    assert.equal(url, "https://api.github.com/repos/kingoftheseas56/Colosseum/releases/latest");
     assert.equal(options.method, "GET");
     assert.equal(options.redirect, "manual");
+    assert.equal(options.headers.get("User-Agent"), "Colosseum-Update-Feed");
+    assert.equal(options.cf.cacheTtlByStatus["200-299"], 300);
+    assert.equal(options.cf.cacheTtlByStatus["400-599"], 0);
     return new Response(body, { status, headers: { ETag: '"release-1.1.9"' } });
   };
 }
@@ -59,7 +63,7 @@ test("ETag validators pass through and 304 is preserved", async () => {
   assert.equal(await response.text(), "");
 });
 
-test("broken, redirect, missing or invalid GitLab data fails closed", async () => {
+test("broken, redirect, missing or invalid release data fails closed", async () => {
   const cases = [
     async () => new Response("missing", { status: 404 }),
     async () => new Response(null, { status: 302, headers: { Location: "https://evil.example" } }),
