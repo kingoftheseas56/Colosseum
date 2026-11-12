@@ -3,12 +3,19 @@ name: macOS arm64 preview application
 on:
   workflow_dispatch:
     inputs:
+      source_sha:
+        description: Exact application source commit to build (empty uses workflow commit)
+        type: string
+        default: ''
       release_dmg:
         description: Package and qualify a release DMG from this exact source
         type: boolean
         default: false
   workflow_call:
     inputs:
+      source_sha:
+        type: string
+        default: ''
       release_dmg:
         type: boolean
         default: false
@@ -29,6 +36,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 150
     env:
+      SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
       MACOSX_DEPLOYMENT_TARGET: '26.1'
       COLOSSEUM_BUILD_JOBS: '2'
       COLOSSEUM_MAC_BUNDLE: '1'
@@ -37,6 +45,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
       - name: Allocate isolated preview output and record runner SDK
         run: |
           set -euo pipefail
@@ -45,6 +55,11 @@ jobs:
           echo "PREVIEW_OUTPUT=$output" >> "$GITHUB_ENV"
           echo "COLOSSEUM_MAC_WORK_ROOT=$work" >> "$GITHUB_ENV"
           echo "COLOSSEUM_MAC_RECEIPT_PATH=$output/build-receipt.json" >> "$GITHUB_ENV"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          # Receive the SDK/build wrapper from the workflow revision while
+          # keeping the exact tagged application source clean and unchanged.
+          git fetch --depth=1 origin "$GITHUB_SHA"
+          git show "$GITHUB_SHA:tools/macos-build/build-m1-preview.sh" > "$RUNNER_TEMP/build-m1-release.sh"
           if [[ -d /Applications/Xcode_26.1.1.app ]]; then
             sudo xcode-select --switch /Applications/Xcode_26.1.1.app/Contents/Developer
           fi
@@ -70,7 +85,7 @@ jobs:
       - name: Compile exact checkout with coherent official Qt
         run: |
           set -euo pipefail
-          bash tools/macos-build/build-m1-preview.sh "$GITHUB_WORKSPACE" "$GITHUB_SHA" \
+          bash "$RUNNER_TEMP/build-m1-release.sh" "$GITHUB_WORKSPACE" "$SOURCE_SHA" \
             2>&1 | tee "$PREVIEW_OUTPUT/build.log"
       - name: Verify native Mac bundle bootstrap contracts
         run: |

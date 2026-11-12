@@ -1,6 +1,11 @@
 name: Package Colosseum 1.3.0 macOS DMG
 on:
   workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact application source commit to build (empty uses workflow commit)
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -8,3 +13,4 @@ jobs:
     uses: ./.github/workflows/release-macos-preview.yml
     with:
       release_dmg: true
+      source_sha: ${{ inputs.source_sha || github.sha }}
