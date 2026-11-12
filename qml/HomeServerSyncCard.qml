@@ -100,6 +100,15 @@ Rectangle {
                     }
                     Item { Layout.fillWidth: true }
                     Button {
+                        objectName: "homeServerRefresh_" + serverRow.modelData.id
+                        Layout.minimumHeight: 44
+                        text: qsTr("Refresh")
+                        enabled: !!serverRow.modelData.enabled
+                                 && !serverRow.modelData.needsReconnect
+                                 && !serverRow.modelData.refreshing
+                        onClicked: if (root.service) root.service.refresh(serverRow.modelData.id)
+                    }
+                    Button {
                         objectName: "homeServerRemove_" + serverRow.modelData.id
                         Layout.minimumHeight: 44
                         text: qsTr("Remove")

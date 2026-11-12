@@ -31,6 +31,7 @@ TestCase {
         property string enabledId: ""
         property bool enabledValue: false
         property string removedId: ""
+        property string refreshedId: ""
         signal changed()
         signal connectionAdded(string id)
         function isInsecureAddress(address) { return address.trim().toLowerCase().indexOf("http://") === 0 }
@@ -43,6 +44,7 @@ TestCase {
         function cancelSignIn() { cancels++ }
         function setEnabled(id, value) { enabledId = id; enabledValue = value }
         function remove(id) { removedId = id }
+        function refresh(id) { refreshedId = id }
     }
     Component { id: panelComponent; Colosseum.HomeServerConnectPanel { service: fixture } }
     Component { id: cardComponent; Colosseum.HomeServerSyncCard { width: 420; service: fixture } }
@@ -65,6 +67,7 @@ TestCase {
         fixture.selectedHttp = false
         fixture.enabledId = ""
         fixture.removedId = ""
+        fixture.refreshedId = ""
     }
     function openPanel() {
         let panel = createTemporaryObject(panelComponent, testCase)
@@ -88,9 +91,14 @@ TestCase {
         verify(card !== null)
         verify(findChild(card, "homeServerConnectButton").visible)
         compare(findChild(card, "homeServerEnabled_server1"), null)
-        fixture.connections = [{ id: "server1", name: "Living room", provider: "jellyfin", enabled: true, status: "Connected" }]
+        fixture.connections = [{ id: "server1", name: "Living room", provider: "jellyfin", enabled: true, needsReconnect: false, refreshing: false, status: "Connected" }]
         let toggle = null
         tryVerify(function() { toggle = findChild(card, "homeServerEnabled_server1"); return toggle !== null })
+        let refresh = findChild(card, "homeServerRefresh_server1")
+        verify(refresh !== null)
+        verify(refresh.enabled)
+        mouseClick(refresh)
+        compare(fixture.refreshedId, "server1")
         mouseClick(toggle)
         compare(fixture.enabledId, "server1")
         compare(fixture.enabledValue, false)
@@ -99,6 +107,22 @@ TestCase {
         mouseClick(findChild(card, "homeServerConnectButton"))
         compare(card.panelOpen, true)
         card.panelOpen = false
+    }
+    function test_refreshRequiresEnabledConnectedIdleServer() {
+        let card = createTemporaryObject(cardComponent, testCase)
+        verify(card !== null)
+        fixture.connections = [{ id: "server1", name: "Living room", provider: "jellyfin", enabled: true, needsReconnect: false, refreshing: false }]
+        let refresh = null
+        tryVerify(function() { refresh = findChild(card, "homeServerRefresh_server1"); return refresh !== null && refresh.enabled })
+
+        fixture.connections = [{ id: "server1", name: "Living room", provider: "jellyfin", enabled: false, needsReconnect: false, refreshing: false }]
+        tryVerify(function() { refresh = findChild(card, "homeServerRefresh_server1"); return refresh !== null && !refresh.enabled })
+
+        fixture.connections = [{ id: "server1", name: "Living room", provider: "jellyfin", enabled: true, needsReconnect: true, refreshing: false }]
+        tryVerify(function() { refresh = findChild(card, "homeServerRefresh_server1"); return refresh !== null && !refresh.enabled })
+
+        fixture.connections = [{ id: "server1", name: "Living room", provider: "jellyfin", enabled: true, needsReconnect: false, refreshing: true }]
+        tryVerify(function() { refresh = findChild(card, "homeServerRefresh_server1"); return refresh !== null && !refresh.enabled })
     }
     function test_credentialsAndHttpConsent() {
         let panel = openPanel()

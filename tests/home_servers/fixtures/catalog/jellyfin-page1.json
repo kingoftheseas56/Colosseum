@@ -1,0 +1,1 @@
+{"Items":[{"Id":"series","Type":"Series","Name":"Replay Show","ProviderIds":{"Imdb":"tt1234567","Tmdb":"77"}},{"Id":"season","Type":"Season","ParentId":"series","Name":"Specials","IndexNumber":0}],"TotalRecordCount":3,"StartIndex":0}

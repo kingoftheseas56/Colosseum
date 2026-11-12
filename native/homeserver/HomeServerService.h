@@ -1,18 +1,21 @@
 #pragma once
 
 #include "HomeServerClient.h"
+#include "HomeServerCatalog.h"
 #include "HomeServerStore.h"
 
 #include <QJsonArray>
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QPointer>
 
 struct HomeServerServiceOptions {
     std::shared_ptr<AccountSecretBackend> secrets;
     QString identityDirectory;
     QUrl plexOrigin = QUrl(QStringLiteral("https://plex.tv"));
     int pinPollIntervalMs = 1500;
+    bool refreshOnActivation = true;
 };
 
 // The QML boundary contains display metadata and commands only. Passwords are
@@ -56,6 +59,8 @@ public:
     Q_INVOKABLE void cancelSignIn();
     Q_INVOKABLE void setEnabled(const QString &id, bool enabled);
     Q_INVOKABLE void remove(const QString &id);
+    Q_INVOKABLE void refresh(const QString &id);
+    Q_INVOKABLE int itemCount(const QString &id) const;
     Q_INVOKABLE bool isInsecureAddress(const QString &address) const;
 
 signals:
@@ -72,12 +77,22 @@ private:
                    bool skippedHttp, quint64 generation);
     void saveAuthenticated(const QJsonObject &metadata, const QString &token);
     bool canSignIn();
+    void cancelRefresh(const QString &id);
+    void cancelRefreshes();
+    void scheduleRefreshes();
+    void drainRefreshQueue();
 
     HomeServerClient m_client;
+    HomeServerClient m_dataClient;
     HomeServerStore m_store;
     QTimer m_pinTimer;
     QJsonArray m_plexCandidates;
     QHash<QString, QString> m_connectionStatus;
+    QHash<QString, QJsonArray> m_index;
+    QHash<QString, int> m_serverMajor;
+    QHash<QString, QPointer<HomeServerRefresh>> m_refreshes;
+    QSet<QString> m_expired;
+    QStringList m_refreshQueue;
     QString m_profileId;
     QString m_profileRoot;
     QString m_status;
@@ -90,4 +105,5 @@ private:
     quint64 m_revision = 0;
     bool m_busy = false;
     bool m_httpConsentRequired = false;
+    bool m_refreshOnActivation = true;
 };

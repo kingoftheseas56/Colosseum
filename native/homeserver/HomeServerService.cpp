@@ -9,14 +9,18 @@ HomeServerService::HomeServerService(QObject *parent)
     : HomeServerService(HomeServerServiceOptions{}, parent) {}
 HomeServerService::HomeServerService(HomeServerServiceOptions options, QObject *parent)
     : QObject(parent), m_client(this, options.identityDirectory, options.plexOrigin),
-      m_store(options.secrets ? options.secrets : createAccountSecretBackend()) {
+      m_dataClient(this, options.identityDirectory, options.plexOrigin),
+      m_store(options.secrets ? options.secrets : createAccountSecretBackend()),
+      m_refreshOnActivation(options.refreshOnActivation) {
     m_pinTimer.setSingleShot(true);
     m_pinTimer.setInterval(qBound(10, options.pinPollIntervalMs, 5000));
     connect(&m_pinTimer, &QTimer::timeout, this, &HomeServerService::pollPlex);
 }
 HomeServerService::~HomeServerService() {
     ++m_generation;
+    ++m_profileGeneration;
     m_pinTimer.stop();
+    cancelRefreshes();
     m_client.cancelAll();
 }
 void HomeServerService::publish() { ++m_revision; emit changed(); }
@@ -33,13 +37,17 @@ void HomeServerService::invalidateRequests() {
     m_httpConsentRequired = false;
 }
 void HomeServerService::activate(const QString &profileId, const QString &profileRoot) {
+    ++m_profileGeneration;
+    cancelRefreshes();
     invalidateRequests();
     m_store.deactivate();
     m_connectionStatus.clear();
+    m_index.clear();
+    m_serverMajor.clear();
+    m_expired.clear();
     m_profileId.clear();
     m_profileRoot.clear();
     m_status.clear();
-    ++m_profileGeneration;
     if (!profileId.isEmpty() && !profileRoot.isEmpty()) {
         if (!QDir().mkpath(profileRoot) || !m_store.activate(profileId, profileRoot))
             m_status = m_store.error().isEmpty() ? tr("Profile storage is unavailable.") : m_store.error();
@@ -47,21 +55,29 @@ void HomeServerService::activate(const QString &profileId, const QString &profil
             m_profileId = profileId;
             m_profileRoot = QFileInfo(profileRoot).canonicalFilePath();
             if (!m_client.isReady()) m_status = m_client.identityError();
+            else if (!m_dataClient.isReady()) m_status = m_dataClient.identityError();
+            for (const auto &value : m_store.connections()) {
+                const auto id = value.toObject().value("id").toString();
+                m_index.insert(id, m_store.items(id));
+            }
         }
     }
     emit profileChanged();
     publish();
+    if (m_refreshOnActivation) scheduleRefreshes();
 }
 void HomeServerService::deactivate() { activate({}, {}); }
-bool HomeServerService::available() const { return m_store.available() && m_client.isReady(); }
+bool HomeServerService::available() const { return m_store.available() && m_client.isReady() && m_dataClient.isReady(); }
 QVariantList HomeServerService::connections() const {
     QVariantList rows;
     for (const auto &value : m_store.connections()) {
         const auto object = value.toObject();
         const auto id = object.value("id").toString();
         auto row = object.toVariantMap();
-        row.insert("needsReconnect", m_store.token(id).isEmpty());
+        row.insert("needsReconnect", m_expired.contains(id) || m_store.token(id).isEmpty());
         row.insert("status", m_connectionStatus.value(id));
+        row.insert("refreshing", m_refreshes.contains(id) || m_refreshQueue.contains(id));
+        row.insert("itemCount", itemCount(id));
         rows.append(row);
     }
     return rows;
@@ -81,7 +97,8 @@ bool HomeServerService::isInsecureAddress(const QString &address) const {
 bool HomeServerService::canSignIn() {
     if (!available()) {
         m_status = !m_client.isReady() ? m_client.identityError()
-            : (m_store.error().isEmpty() ? tr("Secure profile storage is unavailable.") : m_store.error());
+            : (!m_dataClient.isReady() ? m_dataClient.identityError()
+               : (m_store.error().isEmpty() ? tr("Secure profile storage is unavailable.") : m_store.error()));
         publish();
         return false;
     }
@@ -94,6 +111,7 @@ void HomeServerService::finishSignIn(const QString &message) {
     publish();
 }
 void HomeServerService::saveAuthenticated(const QJsonObject &metadata, const QString &token) {
+    const auto profileGeneration = m_profileGeneration;
     const auto id = m_store.add(metadata, token);
     if (id.isEmpty()) { finishSignIn(m_store.error()); return; }
     m_plexCandidates = {};
@@ -102,7 +120,13 @@ void HomeServerService::saveAuthenticated(const QJsonObject &metadata, const QSt
     m_pinId = 0;
     m_httpConsentRequired = false;
     finishSignIn(tr("Connected to %1.").arg(metadata.value("name").toString()));
+    if (profileGeneration != m_profileGeneration) return;
     emit connectionAdded(id);
+    if (m_refreshOnActivation) {
+        QTimer::singleShot(0, this, [this, id, profileGeneration] {
+            if (profileGeneration == m_profileGeneration) refresh(id);
+        });
+    }
 }
 void HomeServerService::connectServer(const QString &provider, const QString &address,
                                      const QString &username, const QString &password, bool allowHttp) {
@@ -252,14 +276,105 @@ void HomeServerService::cancelSignIn() {
 }
 void HomeServerService::setEnabled(const QString &id, bool enabled) {
     if (m_store.connection(id).isEmpty()) return;
+    cancelRefresh(id);
     invalidateRequests();
     m_status = m_store.setEnabled(id, enabled) ? QString() : m_store.error();
     publish();
+    if (enabled && m_refreshOnActivation) {
+        const auto generation = m_profileGeneration;
+        QTimer::singleShot(0, this, [this, id, generation] {
+            if (generation == m_profileGeneration) refresh(id);
+        });
+    }
 }
 void HomeServerService::remove(const QString &id) {
     if (m_store.connection(id).isEmpty()) return;
+    cancelRefresh(id);
     invalidateRequests();
     m_status = m_store.remove(id) ? QString() : m_store.error();
     m_connectionStatus.remove(id);
+    if (m_store.connection(id).isEmpty()) {
+        m_index.remove(id);
+        m_serverMajor.remove(id);
+        m_expired.remove(id);
+    }
     publish();
+}
+
+int HomeServerService::itemCount(const QString &id) const { return m_index.value(id).size(); }
+
+void HomeServerService::cancelRefresh(const QString &id) {
+    const auto job = m_refreshes.take(id);
+    if (job) { job->cancel(); job->deleteLater(); }
+    m_refreshQueue.removeAll(id);
+}
+
+void HomeServerService::cancelRefreshes() {
+    const auto ids = m_refreshes.keys();
+    for (const auto &id : ids) cancelRefresh(id);
+    m_refreshQueue.clear();
+    m_dataClient.cancelAll();
+}
+
+void HomeServerService::scheduleRefreshes() {
+    const auto generation = m_profileGeneration;
+    QTimer::singleShot(0, this, [this, generation] {
+        if (generation != m_profileGeneration) return;
+        for (const auto &value : m_store.connections()) {
+            const auto row = value.toObject();
+            if (row.value("enabled").toBool()) refresh(row.value("id").toString());
+        }
+    });
+}
+
+void HomeServerService::drainRefreshQueue() {
+    if (m_refreshQueue.isEmpty() || m_refreshes.size() >= 3) return;
+    const auto id = m_refreshQueue.takeFirst();
+    refresh(id);
+}
+
+void HomeServerService::refresh(const QString &id) {
+    const auto row = m_store.connection(id);
+    if (!available() || row.isEmpty() || !row.value("enabled").toBool() || m_refreshes.contains(id)) return;
+    if (m_expired.contains(id)) {
+        m_connectionStatus[id] = tr("Sign-in expired. Remove this connection and connect again.");
+        publish(); return;
+    }
+    const auto token = m_store.token(id);
+    if (token.isEmpty()) {
+        m_expired.insert(id);
+        m_connectionStatus[id] = tr("Sign-in expired. Remove this connection and connect again.");
+        publish(); return;
+    }
+    if (m_refreshes.size() >= 3) {
+        if (!m_refreshQueue.contains(id)) m_refreshQueue.append(id);
+        m_connectionStatus[id] = tr("Waiting to refresh…");
+        publish(); return;
+    }
+    m_refreshQueue.removeAll(id);
+    auto *job = new HomeServerRefresh(&m_dataClient, this);
+    m_refreshes.insert(id, job);
+    const auto generation = m_profileGeneration;
+    m_connectionStatus[id] = tr("Refreshing…");
+    publish();
+    if (generation != m_profileGeneration || m_refreshes.value(id) != job) return;
+    job->start(row, token, [this, id, generation, job](HomeServerRefresh::Result result) {
+        job->deleteLater();
+        if (generation != m_profileGeneration || m_refreshes.value(id) != job) return;
+        m_refreshes.remove(id);
+        const auto current = m_store.connection(id);
+        if (current.isEmpty() || !current.value("enabled").toBool()) { drainRefreshQueue(); return; }
+        if (result.ok() && m_store.replaceItems(id, result.items)) {
+            m_index[id] = result.items;
+            m_serverMajor[id] = result.serverMajor;
+            m_connectionStatus[id] = tr("Refreshed %1 items.").arg(result.items.size());
+        } else if (result.expired) {
+            m_expired.insert(id);
+            m_connectionStatus[id] = tr("Sign-in expired. Remove this connection and connect again.");
+        } else {
+            m_connectionStatus[id] = result.ok() ? m_store.error() : result.error;
+        }
+        publish();
+        if (generation == m_profileGeneration) drainRefreshQueue();
+    });
 }
