@@ -286,6 +286,10 @@ jobs:
           # Minimal containers may make checkout fall back to a source archive.
           # Restore export-ignored capture media and verify its pinned digest.
           python3 scripts/restore_source_archive_media.py --scope capture
+          # Restored files are root-owned mkstemp outputs (0600); the app runs
+          # as package-test and must be able to read this public fixture.
+          chmod 0644 tests/lanista_capture/assets/Colosseum.mp4
+          runuser -u package-test -- test -r tests/lanista_capture/assets/Colosseum.mp4
           runuser -u package-test -- dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24' \
             python3 tools/linux-release/smoke_installed_player.py \
               --fixture "$GITHUB_WORKSPACE/tests/lanista_capture/assets/Colosseum.mp4" \

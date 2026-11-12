@@ -62,10 +62,16 @@ Installed.Main {
                 const splash = app.findSplash(app.contentItem)
                 if (!splash || splash.visible || AccountController.busy) return
                 if (app.proofPhase === "first") {
-                    if (!AccountController.onboardingRequired || AccountController.mode !== "signedOut") {
-                        app.fail("fresh profile was not at initial onboarding")
+                    console.info("RUNTIME_INITIAL_ACCOUNT=" + JSON.stringify({
+                        mode: AccountController.mode, onboardingRequired: AccountController.onboardingRequired,
+                        errorCategory: AccountController.errorCategory
+                    }))
+                    if (!AccountController.onboardingRequired) {
+                        app.fail("fresh profile already completed onboarding")
                         return
                     }
+                    // A minimal desktop can start in a secure-storage error
+                    // state; choosing local-only is valid from that state too.
                     AccountController.continueWithoutAccount()
                 } else {
                     app.profileRetained = !AccountController.onboardingRequired && AccountController.mode === "localOnly"

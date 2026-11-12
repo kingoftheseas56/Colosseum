@@ -56,9 +56,16 @@ def run_phase(phase, profile, output, url, transcript, env):
             proc = subprocess.Popen(['/usr/bin/colosseum', str(driver), phase, str(home), str(web), url], env=env, stdout=log, stderr=subprocess.STDOUT)
             deadline = time.monotonic() + 115
             state = None
+            startup_recorded = False
             while time.monotonic() < deadline:
                 if proc.poll() is not None:
                     raise RuntimeError(f'{phase} exited early: {proc.returncode}; see {log_path}')
+                if not startup_recorded and address.exists():
+                    try:
+                        ipc('get-state')
+                        startup_recorded = True
+                    except OSError:
+                        pass
                 records = [json.loads(line.split(MARKER, 1)[1]) for line in log_path.read_text(errors='replace').splitlines() if MARKER in line]
                 if records:
                     if len(records) != 1:
