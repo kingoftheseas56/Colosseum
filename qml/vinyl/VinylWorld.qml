@@ -64,7 +64,7 @@ Item {
         // parked page, then re-assert once heights have settled, because a
         // content-height change while a tab rebuilds can clamp contentY back.
         root.pageFlick.contentY=y
-        Qt.callLater(function(){root.pageFlick.contentY=y})
+        Qt.callLater(function(){if(root && root.pageFlick)root.pageFlick.contentY=y})
     }
     function enforceHomeGate() {
         if(!root.worldData || root.worldData.canEnterVinyl!==false) return false;

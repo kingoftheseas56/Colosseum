@@ -1645,7 +1645,7 @@ Window {
         { name: "Universes", source: "UniversesWorld.qml", icon: "../assets/icons/universes-atom.svg" }
     ]
     function worldSourceFor(medium) {
-        if (medium === "Vinyl" && vinylEnabled) return "vinyl/VinylLiveWorld.qml"
+        if (medium === "Vinyl" && vinylEnabled) return "vinyl/VinylAppWorld.qml"
         for (var i = 0; i < win.worldDefinitions.length; ++i)
             if (win.worldDefinitions[i].name === medium)
                 return win.worldDefinitions[i].source
@@ -5061,6 +5061,9 @@ Window {
                     else {
                         initialProperties.backdrop = wall
                         initialProperties.homeLanding = true
+                        initialProperties.hostReady = Qt.binding(function() {
+                            return worldLoader.status === Loader.Ready
+                        })
                         initialProperties.deferInitialRestore = Qt.binding(function() {
                             return win.hasPendingVinylResume()
                         })

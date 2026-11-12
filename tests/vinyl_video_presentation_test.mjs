@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
-const world=fs.readFileSync(new URL('../qml/vinyl/VinylLiveWorld.qml',import.meta.url),'utf8').replaceAll('\r\n','\n');
+const world=fs.readFileSync(new URL('../qml/vinyl/VinylRuntime.qml',import.meta.url),'utf8').replaceAll('\r\n','\n');
 function expression(source,pattern,label) { const match=source.match(pattern);assert.ok(match,label);return new vm.Script('('+match[1]+')'); }
 function method(name,context) {
     const match=world.match(new RegExp('    function '+name+'\\(([^)]*)\\) \\{([\\s\\S]*?)\\n    \\}'));

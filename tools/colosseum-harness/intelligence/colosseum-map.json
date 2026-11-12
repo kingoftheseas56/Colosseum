@@ -536,7 +536,7 @@
       ],
       "entry_points": [
         "qml/Main.qml",
-        "qml/vinyl/VinylLiveWorld.qml",
+        "qml/vinyl/VinylAppWorld.qml",
         "native/main.cpp",
         "scripts/vinyl/provider.py"
       ],
@@ -554,14 +554,26 @@
           ]
         },
         {
-          "name": "VinylLiveWorld",
-          "path": "qml/vinyl/VinylLiveWorld.qml",
+          "name": "VinylRuntime",
+          "path": "qml/vinyl/VinylRuntime.qml",
           "confidence": "observed",
           "responsibility": "QML world composition and navigation for Home, discovery, personal library, and playback surfaces.",
           "provenance": [
             {
-              "path": "qml/vinyl/VinylLiveWorld.qml",
+              "path": "qml/vinyl/VinylRuntime.qml",
               "contains": "VinylRecommendationService {"
+            }
+          ]
+        },
+        {
+          "name": "Vinyl house shell",
+          "path": "qml/vinyl/VinylHouseShell.qml",
+          "confidence": "observed",
+          "responsibility": "House WorldPage, one vertical scroller, Home/Discover/Library tabs and readiness surface.",
+          "provenance": [
+            {
+              "path": "qml/vinyl/VinylHouseShell.qml",
+              "contains": "objectName: \"vinylWorld\""
             }
           ]
         },

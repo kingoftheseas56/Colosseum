@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
-const source=fs.readFileSync(new URL('../qml/vinyl/VinylLiveWorld.qml',import.meta.url),'utf8').replaceAll('\r\n','\n');
+const source=fs.readFileSync(new URL('../qml/vinyl/VinylRuntime.qml',import.meta.url),'utf8').replaceAll('\r\n','\n');
 const hud=source.slice(source.indexOf('    VinylPlayerBar {'));
 const rootSignals=source.match(/    Connections \{\n        target: root\n([\s\S]*?)\n    \}/)[1];
 const sessionSignals=source.match(/    Connections \{\n        target: session\n([\s\S]*?)\n    \}/)[1];

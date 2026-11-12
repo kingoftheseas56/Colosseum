@@ -1919,6 +1919,7 @@ foreach(vinyl_unit_suite IN ITEMS
     vinyl_queue_panel
     vinyl_recommendation_page
     vinyl_search_presentation
+    vinyl_shell_tabs
     vinyl_song_attribution
     vinyl_source_attribution
     vinyl_widget_integration
@@ -5526,6 +5527,12 @@ set_tests_properties(colosseum.qml.vinyl_continue_restore_native PROPERTIES
 add_test(NAME colosseum.qml.vinyl_live_world_native
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_live_world.qml")
+add_test(NAME colosseum.qml.vinyl_house_runtime_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_house_shell.qml")
+set_tests_properties(colosseum.qml.vinyl_house_runtime_native PROPERTIES
+    LABELS "unit;qml;vinyl;native-adapter" TIMEOUT 60
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 add_test(NAME colosseum.qml.vinyl_personal_library_native
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_personal_library.qml")

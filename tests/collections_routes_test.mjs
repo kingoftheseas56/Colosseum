@@ -309,7 +309,7 @@ for (const {name:sourceName,source} of theatrePageSources) {
     assert.equal(c.collectionsPanel.showing,true);
 }
 
-const vinylSource = qml('vinyl/VinylLiveWorld.qml');
+const vinylSource = qml('vinyl/VinylRuntime.qml');
 function vinyl() {
     const outcomes = [], calls = [];
     const c = {

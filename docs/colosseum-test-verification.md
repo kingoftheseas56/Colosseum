@@ -3284,3 +3284,28 @@ The shared Activity/History prerequisite remains
   `qml/vinyl/VinylPlayerBar.qml`. It is a zero-based track index within the playing
   disc/edition, distinct from the queue position; source registration is not a Lanista
   run or runtime qualification.
+
+## Vinyl v1 Home — Slice 1 shell checks (2026-11-13)
+
+The route now enters `VinylAppWorld.qml`, which supplies `VinylHouseShell.qml` to
+the existing session/detail/player owner extracted into `VinylRuntime.qml`.
+The old `VinylLiveWorld.qml` wrapper remains for standalone component consumers;
+it is no longer Main's Vinyl route. Discover's presentation is unchanged.
+
+- `colosseum.qml.vinyl_shell_tabs` (`unit;qml;vinyl;regression`) checks three
+  ordered tabs, Home default, actual pointer switching, readiness, the interim
+  taste gate, list detours, visibility and shared tab-name fallback.
+- `colosseum.qml.vinyl_house_runtime_native` (`unit;qml;vinyl;native-adapter`)
+  loads the new and compatibility entries with the existing native bridge,
+  checks one session owner and host readiness, and sends a pointer through the
+  real player control to catch shell-layer interception. No provider or playback
+  qualification is implied.
+- The tab-order negative control failed for the actual swapped production model;
+  exact source bytes were restored and the suite passed. A separate pointer
+  regression reproduced the player interception, then passed after preserving
+  the original browse-layer order. Detailed local receipts are under
+  `artifacts/vinyl-v1/slice1/`.
+
+These two CTest declarations add two Vinyl unit entries to Slice 0's inventory.
+The configured listing and real-app Lanista scenario remain pending until the
+frozen Slice 0 native baseline build and reconciliation finish.
