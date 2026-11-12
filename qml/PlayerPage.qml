@@ -315,6 +315,13 @@ Item {
 
     property var streamCandidates: []
     property int currentStreamIndex: -1
+    property var homeServerSourceService: typeof HomeServers !== "undefined" ? HomeServers : null
+    property var homePlaybackService: null
+    property bool homePlaybackActive: false
+    property string homePlaybackKey: ""
+    property var homePlaybackProfileGeneration: -1
+    property bool homePlaybackTranscoded: false
+    property bool homeTranscodeTried: false
     // Slice 2: one credential-free Player 1 → Watch Party source seam. The native
     // inspector mirrors playStreamAt's real route decision; unsupported direct URLs
     // stay unsupported until a provider owner supplies verified debrid semantics.
@@ -1170,6 +1177,7 @@ Item {
 
     function directStreamUrl(candidate) {
         var c = candidate || ({})
+        if (c.homeServer || String(c.infoHash || "").indexOf("home-server:") === 0) return ""
         if (c.url && String(c.url).length)
             return String(c.url)
         var routed = String(c.infoHash || "")
@@ -1183,12 +1191,15 @@ Item {
     function reloadActiveDirectSource() {
         if (!root.currentPlaybackUrl.length)
             return false
+        if (root.currentPlaybackUrl.indexOf("home-server:") === 0)
+            return root.loadHomeServerCandidate(root.currentStreamCandidate(), root.homePlaybackTranscoded || root.homeTranscodeTried)
         root.playbackEnded = false
         mpv.loadSource(root.currentPlaybackUrl, root.activeDirectHeaders)
         return true
     }
 
     function loadDirectStreamUrl(url, headers) {
+        if (String(url || "").indexOf("home-server:") === 0) return false
         var directUrl = DirectSourcePolicy.admitProviderUrl(url)
         if (!directUrl.length)
             return false
@@ -1202,6 +1213,80 @@ Item {
         return true
     }
 
+    function failHomeServerPlayback(message) {
+        root.homePlaybackActive = false
+        streamWatchdog.stop()
+        root.errored = true
+        root.starting = false
+        root.fileReady = false
+        root.statusMsg = message || qsTr("Could not play this home server source.")
+        root.wakeChrome()
+    }
+
+    function invalidateHomeServerRoute() {
+        root.homePlaybackActive = false
+        var owner = root.homePlaybackService
+        root.homePlaybackService = null
+        root.homePlaybackKey = ""
+        if (owner) owner.cancelPlayback(mpv)
+    }
+
+    function loadHomeServerCandidate(candidate, forceTranscode) {
+        var c = candidate || ({})
+        var key = String(c.infoHash || root.currentPlaybackUrl || "")
+        if (key.indexOf("home-server:") !== 0) return false
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
+        root.streamRouteUrl = ""
+        root.streamDemandActive = false
+        root.streamDemandEpoch++
+        if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
+            Stream.stopDemand()
+        root.clearActiveDirectHeaders()
+        root.mediaResumeHash = key
+        root.currentPlaybackUrl = key
+        root.playbackEnded = false
+        root.mediaTransport = qsTr("Home server")
+        root.updateMediaSubtitle()
+        root.homePlaybackKey = key
+        root.homePlaybackService = root.homeServerSourceService
+        root.homePlaybackProfileGeneration = root.homeServerSourceService ? root.homeServerSourceService.profileGeneration : -1
+        root.homePlaybackActive = true
+        root.starting = true
+        root.fileReady = false
+        if (!root.homeServerSourceService || !root.homeServerSourceService.loadPlayback(
+                    mpv, key, Math.max(0, root.pendingSeekSec) * 1000, !!forceTranscode)) {
+            root.failHomeServerPlayback(qsTr("This home server source is no longer available."))
+            return false
+        }
+        return true
+    }
+
+    function homePlaybackContextCurrent(sourceKey) {
+        return root.homePlaybackActive && sourceKey === root.homePlaybackKey
+                && sourceKey === root.currentPlaybackUrl
+                && sourceKey === String(root.currentStreamCandidate().infoHash || "")
+                && root.homeServerSourceService
+                && root.homePlaybackProfileGeneration === root.homeServerSourceService.profileGeneration
+    }
+
+    function homeServerPlaybackResolved(sourceKey, transcoded) {
+        if (!root.homePlaybackContextCurrent(sourceKey)) return
+        root.homePlaybackTranscoded = !!transcoded
+        root.resetRecoveryWatch()
+        streamWatchdog.restart()
+    }
+
+    function homeServerPlaybackFailed(sourceKey, message) {
+        if (!root.homePlaybackContextCurrent(sourceKey)) return
+        root.failHomeServerPlayback(message)
+    }
+
+    onHomeServerSourceServiceChanged: if (root.homePlaybackKey) {
+        root.invalidateHomeServerRoute()
+        root.homePlaybackProfileGeneration = -1
+        root.failHomeServerPlayback(qsTr("The home server connection changed. Choose a source again."))
+    }
+
     function normalizeStreamCandidates(infoHash, fileIdx, title, candidates) {
         var out = []
         var rows = candidates || []
@@ -1210,9 +1295,10 @@ Item {
             var routed = String(c.infoHash || "")
             if (!routed.length)
                 continue
-            var isDirect = String(c.streamKind || "") === "Direct"
+            var isHomeServer = !!c.homeServer || routed.indexOf("home-server:") === 0
+            var isDirect = !isHomeServer && (String(c.streamKind || "") === "Direct"
                         || routed.indexOf("url:") === 0
-                        || (c.url && String(c.url).length)
+                        || (c.url && String(c.url).length))
             var admittedUrl = ""
             if (isDirect) {
                 admittedUrl = DirectSourcePolicy.admitProviderUrl(root.directStreamUrl(c))
@@ -1230,13 +1316,19 @@ Item {
                 // Watch Party may inspect this provenance locally; transportUrl never enters the row.
                 "addonId": c.addonId || "",
                 "addonName": c.addonName || "",
-                "streamKind": isDirect ? "Direct" : (c.streamKind || ""),
-                "url": isDirect ? admittedUrl : (c.url || ""),
+                "homeServer": isHomeServer,
+                "canonicalId": c.canonicalId || "",
+                "connectionId": c.connectionId || "",
+                "itemId": c.itemId || "",
+                "versionId": c.versionId || "",
+                "streamKind": isHomeServer ? "Home server" : isDirect ? "Direct" : (c.streamKind || ""),
+                "url": isHomeServer ? "" : isDirect ? admittedUrl : (c.url || ""),
                 "headers": isDirect ? DirectSourcePolicy.copyHeaders(c.headers) : ({})
             })
         }
         if (!out.length && infoHash && String(infoHash).length) {
             var fallbackHash = String(infoHash)
+            var fallbackHomeServer = fallbackHash.indexOf("home-server:") === 0
             var fallbackDirect = fallbackHash.indexOf("url:") === 0
             var fallbackUrl = fallbackDirect
                             ? DirectSourcePolicy.admitProviderUrl(fallbackHash.substring(4)) : ""
@@ -1247,10 +1339,11 @@ Item {
                     "title": title || "Stream",
                     "quality": "",
                     "seeders": -1,
-                    "sourceName": "Torrentio",
+                    "sourceName": fallbackHomeServer ? qsTr("Home server") : "Torrentio",
                     "addonId": "",
                     "addonName": "",
-                    "streamKind": fallbackDirect ? "Direct" : "Torrent",
+                    "homeServer": fallbackHomeServer,
+                    "streamKind": fallbackHomeServer ? "Home server" : fallbackDirect ? "Direct" : "Torrent",
                     "url": fallbackUrl,
                     "headers": ({})
                 })
@@ -1260,10 +1353,13 @@ Item {
     }
 
     function findStreamIndex(infoHash, fileIdx) {
-        var hash = String(infoHash || "").toLowerCase()
+        var rawHash = String(infoHash || "")
+        var homeSource = rawHash.indexOf("home-server:") === 0
+        var hash = homeSource ? rawHash : rawHash.toLowerCase()
         for (var i = 0; i < root.streamCandidates.length; i++) {
             var c = root.streamCandidates[i] || ({})
-            if (String(c.infoHash || "").toLowerCase() === hash && Number(c.fileIdx || 0) === Number(fileIdx || 0))
+            var candidateHash = String(c.infoHash || "")
+            if ((homeSource ? candidateHash : candidateHash.toLowerCase()) === hash && Number(c.fileIdx || 0) === Number(fileIdx || 0))
                 return i
         }
         return root.streamCandidates.length ? 0 : -1
@@ -1273,7 +1369,8 @@ Item {
         var c = (typeof candidateOrHash === "object" && candidateOrHash !== null) ? candidateOrHash : null
         var hash = c ? c.infoHash : candidateOrHash
         var fileIdx = c ? c.fileIdx : maybeFileIdx
-        return String(hash || "").toLowerCase() + ":" + Number(fileIdx || 0)
+        var routed = String(hash || "")
+        return (routed.indexOf("home-server:") === 0 ? routed : routed.toLowerCase()) + ":" + Number(fileIdx || 0)
     }
 
     function currentStreamCandidate() {
@@ -1526,6 +1623,12 @@ Item {
             return
         }
         var c = root.streamCandidates[index] || ({})
+        if (!c.homeServer && String(c.infoHash || "").indexOf("home-server:") !== 0
+                && root.currentPlaybackUrl.indexOf("home-server:") === 0)
+            root.currentPlaybackUrl = ""
+        root.homePlaybackActive = false
+        root.homeTranscodeTried = false
+        root.homePlaybackTranscoded = false
         // A fresh stream start is not a retired-route reopen.
         var pendingSubtitle = root.streamRouteRestoreSubtitle
         root.clearStreamRouteRestore()
@@ -1542,6 +1645,7 @@ Item {
                 root.streamRouteRestoreSubtitle = pendingSubtitle
             root.prepareRecoveryResume()
         }
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.errored = false
         root.starting = true
         root.fileReady = false
@@ -1557,6 +1661,10 @@ Item {
         // torrent engine — mpv plays the url natively. They arrive either as an
         // explicit url field or under the "url:" infoHash routing prefix (the
         // resume path carries only the hash). Extensions spec Phase 2, slice G.
+        if (c.homeServer || String(c.infoHash || "").indexOf("home-server:") === 0) {
+            root.loadHomeServerCandidate(c, false)
+            return
+        }
         var directUrl = root.directStreamUrl(c)
         if (directUrl.length) {
             // Leaving a torrent for a direct source ends the torrent's playing demand, as
@@ -1591,6 +1699,8 @@ Item {
     }
 
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
+        root.homePlaybackActive = false
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.streamDemandActive = false
         root.streamDemandEpoch++
         root.streamRouteUrl = ""
@@ -1619,6 +1729,12 @@ Item {
         var m = String(posterUrl || "").match(/\/(tt\d+)\//)
         root.mediaId = (subType === "series" && subId) ? subId
                      : ((m && m[1]) ? m[1] : (infoHash + ":" + fileIdx))
+        var selectedHomeSource = (streamCandidates || []).find(function(candidate) {
+            return candidate && candidate.homeServer && candidate.infoHash === infoHash
+                    && Number(candidate.fileIdx || 0) === Number(fileIdx || 0)
+        })
+        if (selectedHomeSource && selectedHomeSource.canonicalId)
+            root.mediaId = String(selectedHomeSource.canonicalId)
         // Cross-stream resume (spec 2026-07-08): the store keys progress by IDENTITY
         // (tt / tt:season:episode), so a position saved while watching one torrent is
         // valid for every other torrent of the same episode. Seed it here; onFileLoaded's
@@ -1711,6 +1827,10 @@ Item {
         root.resetRecoveryWatch()
         streamWatchdog.restart()
         root.wakeChrome()
+        if (c.homeServer || String(c.infoHash || "").indexOf("home-server:") === 0) {
+            root.loadHomeServerCandidate(c, root.homePlaybackTranscoded || root.homeTranscodeTried)
+            return
+        }
         var directUrl = root.directStreamUrl(c)
         if (directUrl.length) {
             root.loadDirectStreamUrl(directUrl, c.headers)
@@ -1980,6 +2100,11 @@ Item {
         root.statusMsg = "Reconnecting stream..."
         streamWatchdog.restart()
         var c = root.currentStreamCandidate()
+        if (c.homeServer || root.currentPlaybackUrl.indexOf("home-server:") === 0) {
+            root.pendingSeekSec = pos
+            root.loadHomeServerCandidate(c, root.homePlaybackTranscoded || root.homeTranscodeTried)
+            return
+        }
         var directUrl = root.directStreamUrl(c)
         if (directUrl.length || (!root.streamCandidates.length && !root.mediaResumeHash.length))
             root.reloadActiveDirectSource()
@@ -1992,6 +2117,23 @@ Item {
     function handlePlaybackFailure(reason) {
         streamWatchdog.stop()
         root.recordProgress()
+        if (root.currentPlaybackUrl.indexOf("home-server:") === 0) {
+            if (!root.homePlaybackActive) return
+            root.prepareRecoveryResume()
+            if (!root.homeTranscodeTried && !root.homePlaybackTranscoded) {
+                root.homeTranscodeTried = true
+                root.errored = false
+                root.starting = true
+                root.fileReady = false
+                root.statusMsg = qsTr("Trying a compatible home server stream...")
+                root.resetRecoveryWatch()
+                streamWatchdog.restart()
+                root.loadHomeServerCandidate(root.currentStreamCandidate(), true)
+            } else {
+                root.failHomeServerPlayback(qsTr("Playback failed. Try another source."))
+            }
+            return
+        }
         if (root.mediaLocalPath.length) {
             // A local file has no retry ladder or alternate candidates — fail honestly.
             root.errored = true
@@ -2463,6 +2605,11 @@ Item {
     // notify-per-seek would re-introduce a smaller cascade); their position is picked up by the
     // next 5s tick or the next lifecycle write.
     function recordProgress(silent) {
+        if ((String(root.currentPlaybackUrl || "").indexOf("home-server:") === 0
+                || String(root.mediaResumeHash || "").indexOf("home-server:") === 0)
+                && (!root.homeServerSourceService
+                    || root.homePlaybackProfileGeneration !== root.homeServerSourceService.profileGeneration))
+            return
         if (root.mediaId === "" || mpv.duration <= 0 || mpv.position <= 0)
             return
         // Anti-clutter floor (matches Tankoban 2's MIN_POSITION_SEC = 10): an accidental
@@ -2752,6 +2899,8 @@ Item {
 
 
     function playUrl(url, title) {
+        root.homePlaybackActive = false
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.explicitResumePosition = false
         if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
@@ -2845,6 +2994,8 @@ Item {
     }
 
     function playLocalFile(target) {
+        root.homePlaybackActive = false
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.explicitResumePosition = false
         if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
@@ -2921,6 +3072,8 @@ Item {
     // grade like playLocalFile: subtitles + progress key off the video id, so the
     // landed copy resumes where this live watch leaves off.
     function playRemoteUrl(target) {
+        root.homePlaybackActive = false
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.explicitResumePosition = false
         if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
@@ -3087,6 +3240,7 @@ Item {
     }
 
     function stop() {
+        root.homePlaybackActive = false
         root.streamDemandActive = false
         root.streamDemandEpoch++
         root.resetRecoveryResume()
@@ -3094,6 +3248,7 @@ Item {
         root.hydrateGen += 1   // player closing: cancel any in-flight context hydration
         root.sendTraktPlayback(false)
         root.recordProgress()   // capture where we left off BEFORE mpv clears position
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.activityEndSession()   // Activity (§9 Lane A): close/lifecycle exit ends the session
         root.closeMenus()
         root.clearActiveDirectHeaders()
@@ -3575,7 +3730,8 @@ Item {
     function replayEndedPlayback() {
         // Media3 keeps the ended item and re-arms it on explicit Play. Its
         // loopback URL may already be retired; desktop mpv needs a new load.
-        if (typeof Qt !== "undefined" && Qt.platform.os === "android")
+        if (typeof Qt !== "undefined" && Qt.platform.os === "android"
+                && root.currentPlaybackUrl.indexOf("home-server:") !== 0)
             return false
         // Room-controlled play remains on its existing authoritative command path.
         if (typeof WatchPartySync !== "undefined" && WatchPartySync.active)
@@ -3586,6 +3742,8 @@ Item {
         root.cancelUpNext()
         root.autoPausedInactive = false
         root.pendingSeekSec = 0
+        root.homeTranscodeTried = false
+        root.homePlaybackTranscoded = false
         root.wakeReconnectPendingSeek = -1
         root.resumeChoiceOpen = false
         root.resumeChoiceSec = -1
@@ -3866,6 +4024,7 @@ Item {
             mpv.setAudioNormalization(root.loudnessMode)
     }
     Component.onDestruction: {
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         if (PlatformRuntime.android) {
             PlatformRuntime.setPlayerLandscape(false)
             PlatformRuntime.restorePlaybackBrightness()
@@ -4422,8 +4581,21 @@ Item {
     }
 
     Connections {
+        target: root.homeServerSourceService
+        function onPlaybackResolved(sourceKey, transcoded) { root.homeServerPlaybackResolved(sourceKey, transcoded) }
+        function onPlaybackFailed(sourceKey, message) { root.homeServerPlaybackFailed(sourceKey, message) }
+        function onProfileChanged() {
+            if (root.homePlaybackKey) {
+                root.invalidateHomeServerRoute()
+                root.failHomeServerPlayback(qsTr("The home server connection changed. Choose a source again."))
+            }
+        }
+    }
+
+    Connections {
         target: Stream
         function onStreamReady(url, infoHash, fileIdx) {
+            if (root.currentPlaybackUrl.indexOf("home-server:") === 0 || root.homePlaybackActive) return
             if (Qt.platform.os === "android" && (!root.streamDemandActive
                     || String(infoHash || "") !== root.streamRouteHash
                     || Number(fileIdx || 0) !== root.streamRouteFileIdx)) return
@@ -4454,6 +4626,7 @@ Item {
                 mpv.pause = true
         }
         function onStreamStats(infoHash, fileIdx, stats) {
+            if (root.homePlaybackActive) return
             if (!root.starting)
                 return
             root.streamStatsSeen = true
@@ -4462,6 +4635,7 @@ Item {
             root.streamStatsDownloaded = Number(stats.downloaded || 0)
         }
         function onStreamError(message) {
+            if (root.currentPlaybackUrl.indexOf("home-server:") === 0 || root.homePlaybackActive) return
             root.statusMsg = message
             if (typeof Stream !== "undefined" && Stream.engineUnavailable) {
                 // Missing packaged runtime is an installation/deployment failure,

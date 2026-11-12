@@ -1991,7 +1991,12 @@ int main(int argc, char *argv[]) {
     accountRuntime->setExtensionsStore(extensions);
     accountRuntime->prepareForQml(&engine);
 
-    auto *homeServers = new HomeServerService(&backendServices);
+    HomeServerServiceOptions homeServerOptions;
+#ifdef Q_OS_ANDROID
+    homeServerOptions.android = true;
+    homeServerOptions.videoDecodeCapabilities = platformRuntime->videoDecodeCapabilities();
+#endif
+    auto *homeServers = new HomeServerService(homeServerOptions, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("HomeServers"), homeServers);
     auto bindHomeServerProfile = [accountRuntime, homeServers] {
         const auto &profile = accountRuntime->profileStores()->activeProfile();

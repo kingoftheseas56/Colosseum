@@ -9,3 +9,4 @@ target_sources(colosseum_home_servers PRIVATE
     HomeServerStore.cpp HomeServerStore.h HomeServerService.cpp HomeServerService.h)
 target_link_libraries(colosseum_home_servers PUBLIC colosseum_account_credentials)
 target_sources(colosseum_home_servers PRIVATE HomeServerCatalog.cpp HomeServerCatalog.h)
+target_sources(colosseum_home_servers PRIVATE HomeServerPlayback.cpp HomeServerPlayback.h)

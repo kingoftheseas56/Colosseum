@@ -256,7 +256,12 @@ QVariantList matchingSources(QJsonArray items,QVariantMap requested,QJsonObject 
             const auto version=versionValue.toObject(); const auto versionId=version.value("id").toString(), itemId=item.value("id").toString();
             if(versionId.isEmpty() || itemId.isEmpty()) continue;
             const auto title=version.value("name").toString().isEmpty()?item.value("title").toString():version.value("name").toString();
+            auto canonicalItem=item;
+            auto canonicalIdentity=item.value("identity").toObject();
+            if(query.contains("imdbId")) canonicalIdentity.insert("imdbId",query.value("imdbId"));
+            canonicalItem.insert("identity",canonicalIdentity);
             QVariantMap row{{"infoHash","home-server:"+connectionId+':'+encoded(itemId)+':'+encoded(versionId)},
+                {"canonicalId",canonicalVideoId(canonicalItem)},
                 {"homeServer",true},{"connectionId",connectionId},{"itemId",itemId},{"versionId",versionId},
                 {"streamKind","Home server"},{"addonId","home-server:"+connectionId},{"addonName",sourceName},{"sourceName",sourceName},
                 {"title",title},{"release",title},{"seeders",-1},{"fileIdx",0}};

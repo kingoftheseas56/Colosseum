@@ -2,6 +2,7 @@
 
 #include "HomeServerClient.h"
 #include "HomeServerCatalog.h"
+#include "HomeServerPlayback.h"
 #include "HomeServerStore.h"
 
 #include <QJsonArray>
@@ -16,6 +17,8 @@ struct HomeServerServiceOptions {
     QUrl plexOrigin = QUrl(QStringLiteral("https://plex.tv"));
     int pinPollIntervalMs = 1500;
     bool refreshOnActivation = true;
+    bool android = false;
+    QVariantMap videoDecodeCapabilities;
 };
 
 // The QML boundary contains display metadata and commands only. Passwords are
@@ -61,12 +64,18 @@ public:
     Q_INVOKABLE void remove(const QString &id);
     Q_INVOKABLE void refresh(const QString &id);
     Q_INVOKABLE int itemCount(const QString &id) const;
+    Q_INVOKABLE QVariantList sources(const QVariantMap &identity) const;
+    Q_INVOKABLE bool loadPlayback(QObject *backend, const QString &sourceKey,
+                                  qint64 resumeMs = 0, bool forceTranscode = false);
+    Q_INVOKABLE void cancelPlayback(QObject *backend);
     Q_INVOKABLE bool isInsecureAddress(const QString &address) const;
 
 signals:
     void changed();
     void profileChanged();
     void connectionAdded(const QString &id);
+    void playbackResolved(const QString &sourceKey, bool transcoded);
+    void playbackFailed(const QString &sourceKey, const QString &message);
 
 private:
     void publish();
@@ -81,6 +90,16 @@ private:
     void cancelRefreshes();
     void scheduleRefreshes();
     void drainRefreshQueue();
+    void cancelBackend(QObject *backend, bool stop);
+    void cancelPlaybacks(const QString &connectionId = QString());
+
+    struct Playback {
+        QPointer<QObject> backend;
+        QString sourceKey;
+        QString connectionId;
+        QJsonObject item;
+        HomeServerPlaybackJob::Result resolved;
+    };
 
     HomeServerClient m_client;
     HomeServerClient m_dataClient;
@@ -93,6 +112,11 @@ private:
     QHash<QString, QPointer<HomeServerRefresh>> m_refreshes;
     QSet<QString> m_expired;
     QStringList m_refreshQueue;
+    QHash<QObject *, QPointer<HomeServerPlaybackJob>> m_playbackJobs;
+    QHash<QObject *, QString> m_pendingSources;
+    QHash<QObject *, Playback> m_playbacks;
+    QHash<QObject *, quint64> m_backendGenerations;
+    QSet<QObject *> m_observedBackends;
     QString m_profileId;
     QString m_profileRoot;
     QString m_status;
@@ -106,4 +130,6 @@ private:
     bool m_busy = false;
     bool m_httpConsentRequired = false;
     bool m_refreshOnActivation = true;
+    bool m_android = false;
+    QVariantMap m_videoDecodeCapabilities;
 };

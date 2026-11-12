@@ -6,6 +6,22 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include "HomeServerService.h"
+#include "player/playerbackendcontract.h"
+
+class ServicePlayer final : public QObject, public PlayerBackendContract {
+public:
+    QString url;
+    QVariantMap headers;
+    int loads = 0, stops = 0;
+    std::function<void()> onStop;
+    QVariantMap capabilities() const override { return {}; }
+    void loadSource(const QString &value, const QVariantMap &fields) override { url = value; headers = fields; ++loads; }
+    void stopPlayback() override { ++stops; if (onStop) { auto callback = onStop; callback(); } }
+    void setHostLifecycleState(const QString &) override {}
+    void setAudioFocusState(const QString &) override {}
+    void releaseVideoSurface() override {}
+    void restoreVideoSurface() override {}
+};
 
 class ServiceSecrets final : public AccountSecretBackend {
 public:
@@ -79,6 +95,19 @@ class HomeServerServiceTest : public QObject {
         const bool next = request.toLower().contains("startindex=1");
         return QJsonDocument(QJsonObject{{"Items", next ? QJsonArray{} : QJsonArray{movie("new")}},
             {"TotalRecordCount", partial ? 2 : 1}, {"StartIndex", next ? 1 : 0}}).toJson();
+    }
+    static QByteArray playbackResponse(const QByteArray &) {
+        return "{\"PlaySessionId\":\"replay-session\",\"MediaSources\":[{\"Id\":\"copy\",\"SupportsDirectPlay\":true,\"Container\":\"mp4\"}]}";
+    }
+    static QString seedCopy(const std::shared_ptr<ServiceSecrets> &secrets, const QString &root, const QUrl &origin) {
+        if (!QDir().mkpath(root)) return {};
+        HomeServerStore saved(secrets);
+        if (!saved.activate("a", root)) return {};
+        const auto id = saved.add({{"provider", "jellyfin"}, {"name", "Home"},
+            {"origin", origin.toString()}, {"userId", "user"}}, "REPLAY_NATIVE_SECRET");
+        const auto item = HomeServerCatalog::normalizeJellyfinItem(movie("new"), {{"id", "films"}, {"name", "Films"}});
+        if (id.isEmpty() || !saved.replaceItems(id, QJsonArray{item})) return {};
+        return id;
     }
 private slots:
     void profileLifecycle() {
@@ -322,6 +351,100 @@ private slots:
         const auto id = service.connections().first().toMap().value("id").toString();
         QTRY_COMPARE(service.itemCount(id), 1);
         QCOMPARE(service.connections().first().toMap().value("name").toString(), QString("Living room"));
+    }
+    void nativeBackendReceivesCredentialsWhileSourceRowsStayOpaque() {
+        QTemporaryDir dir;
+        ServiceHttp server;
+        server.response = playbackResponse;
+        auto secrets = std::make_shared<ServiceSecrets>();
+        const auto id = seedCopy(secrets, dir.filePath("a"), server.origin());
+        QVERIFY(!id.isEmpty());
+        HomeServerService service({secrets, dir.filePath("installation"), QUrl("https://plex.tv"), 1500, false});
+        service.activate("a", dir.filePath("a"));
+        auto rows = service.sources({{"type", "movie"}, {"id", "tt1234567"}});
+        QCOMPARE(rows.size(), 1);
+        const auto row = rows.first().toMap();
+        QCOMPARE(row.value("canonicalId").toString(), QString("tt1234567"));
+        QVERIFY(!row.contains("url"));
+        QVERIFY(!row.contains("headers"));
+        QVERIFY(!QJsonDocument::fromVariant(rows).toJson().contains("REPLAY_NATIVE_SECRET"));
+        ServicePlayer player;
+        QSignalSpy resolved(&service, &HomeServerService::playbackResolved);
+        const auto key = row.value("infoHash").toString();
+        QVERIFY(service.loadPlayback(&player, key, 60000));
+        QTRY_COMPARE(player.loads, 1);
+        QCOMPARE(resolved.size(), 1);
+        QVERIFY(player.url.startsWith(server.origin().toString() + "/Videos/new/stream?"));
+        QVERIFY(!player.url.contains("REPLAY_NATIVE_SECRET"));
+        QVERIFY(player.headers.value("Authorization").toString().contains("REPLAY_NATIVE_SECRET"));
+        service.setEnabled(id, false);
+        QVERIFY(player.stops > 0);
+        QVERIFY(service.sources({{"type", "movie"}, {"id", "tt1234567"}}).isEmpty());
+        QVERIFY(!service.loadPlayback(&player, key));
+        service.remove(id);
+        QVERIFY(service.connections().isEmpty());
+    }
+    void cancelledNegotiationCannotReplaceAnotherSource() {
+        QTemporaryDir dir;
+        ServiceHttp server;
+        server.delayMs = 150;
+        server.response = playbackResponse;
+        auto secrets = std::make_shared<ServiceSecrets>();
+        QVERIFY(!seedCopy(secrets, dir.filePath("a"), server.origin()).isEmpty());
+        HomeServerService service({secrets, dir.filePath("installation"), QUrl("https://plex.tv"), 1500, false});
+        service.activate("a", dir.filePath("a"));
+        const auto key = service.sources({{"type", "movie"}, {"id", "tt1234567"}}).first().toMap().value("infoHash").toString();
+        ServicePlayer player;
+        QVERIFY(service.loadPlayback(&player, key));
+        QTRY_COMPARE(server.requests.size(), 1);
+        service.cancelPlayback(&player);
+        player.loadSource("https://ordinary.test/video", {});
+        QTest::qWait(250);
+        QCOMPARE(player.loads, 1);
+        QCOMPARE(player.url, QString("https://ordinary.test/video"));
+        QVERIFY(player.headers.isEmpty());
+    }
+    void stopReentrancyCannotStartPlaybackInAnotherProfile() {
+        QTemporaryDir dir;
+        ServiceHttp server;
+        server.response = playbackResponse;
+        auto secrets = std::make_shared<ServiceSecrets>();
+        QVERIFY(!seedCopy(secrets, dir.filePath("a"), server.origin()).isEmpty());
+        HomeServerService service({secrets, dir.filePath("installation"), QUrl("https://plex.tv"), 1500, false});
+        service.activate("a", dir.filePath("a"));
+        const auto key = service.sources({{"type", "movie"}, {"id", "tt1234567"}}).first().toMap().value("infoHash").toString();
+        ServicePlayer player;
+        QVERIFY(service.loadPlayback(&player, key));
+        QTRY_COMPARE(player.loads, 1);
+        player.onStop = [&] { player.onStop = {}; service.activate("b", dir.filePath("b")); };
+        QVERIFY(!service.loadPlayback(&player, key));
+        QCOMPARE(player.loads, 1);
+        QCOMPARE(server.requests.size(), 1);
+        QVERIFY(service.connections().isEmpty());
+    }
+    void backendLifetimeAndProfileLeaveFenceHomePlayback() {
+        QTemporaryDir dir;
+        ServiceHttp server;
+        server.delayMs = 150;
+        server.response = playbackResponse;
+        auto secrets = std::make_shared<ServiceSecrets>();
+        QVERIFY(!seedCopy(secrets, dir.filePath("a"), server.origin()).isEmpty());
+        HomeServerService service({secrets, dir.filePath("installation"), QUrl("https://plex.tv"), 1500, false});
+        service.activate("a", dir.filePath("a"));
+        const auto key = service.sources({{"type", "movie"}, {"id", "tt1234567"}}).first().toMap().value("infoHash").toString();
+        QSignalSpy resolved(&service, &HomeServerService::playbackResolved);
+        auto player = std::make_unique<ServicePlayer>();
+        QVERIFY(service.loadPlayback(player.get(), key));
+        QTRY_COMPARE(server.requests.size(), 1);
+        player.reset();
+        QTest::qWait(250);
+        QCOMPARE(resolved.size(), 0);
+        ServicePlayer next;
+        QVERIFY(service.loadPlayback(&next, key));
+        QTRY_COMPARE(next.loads, 1);
+        service.deactivate();
+        QVERIFY(next.stops > 0);
+        QVERIFY(!service.loadPlayback(&next, key));
     }
 };
 QTEST_GUILESS_MAIN(HomeServerServiceTest)
