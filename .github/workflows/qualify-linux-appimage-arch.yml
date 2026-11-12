@@ -1,0 +1,73 @@
+name: Qualify existing Colosseum 1.3.0 AppImage on Arch
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Existing tagged application identity; no packaging or build
+        required: true
+        default: '1c22f0b3935367073dee1ad3e1e2dc0b16857d53'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  qualify:
+    name: Existing AppImage (Arch only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: archlinux@sha256:fcee73ea1b96e236248f53a213f71276cc9072d9025b58bce9915e32f19963ae
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify fixed application source
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: test "$SOURCE_SHA" = 1c22f0b3935367073dee1ad3e1e2dc0b16857d53
+      - uses: actions/download-artifact@v4
+        with:
+          name: Colosseum-1.3.0-linux-appimage-candidate
+          run-id: '43256888776'
+          github-token: ${{ github.token }}
+          path: candidate
+      - name: Verify immutable candidate before qualification
+        run: |
+          cd candidate
+          sha256sum --check --strict Colosseum-1.3.0-x86_64.AppImage.sha256
+          printf '%s  %s\n' f00f05fc6f383748792d14dea6c4d3aa838007cb574ab00924c1edd6cc25fedf Colosseum-1.3.0-x86_64.AppImage | sha256sum --check --strict
+      - name: Install desktop system baseline without a Qt SDK
+        run: |
+          pacman -Syu --noconfirm --needed python binutils xorg-server-xvfb dbus ca-certificates fontconfig ttf-dejavu shadow util-linux mesa libglvnd libdrm vulkan-icd-loader libva
+          useradd --create-home --shell /bin/bash appimage-test
+          mkdir -p /tmp/.X11-unix
+          chmod 1777 /tmp/.X11-unix
+          python3 scripts/restore_source_archive_media.py --scope capture
+          chmod 0644 tests/lanista_capture/assets/Colosseum.mp4
+      - name: Prepare isolated AppImage launch adapter
+        run: |
+          python3 tools/linux-release/smoke_appimage.py --prepare \
+            --image "$GITHUB_WORKSPACE/candidate/Colosseum-1.3.0-x86_64.AppImage" \
+            --identity candidate/AppImage-identity.json \
+            --baseline-report candidate/appimage-package-check.json \
+            --fixture "$GITHUB_WORKSPACE/tests/lanista_capture/assets/Colosseum.mp4" \
+            --output /tmp/appimage-evidence
+      - name: Qualify real AppImage Home WebEngine mpv and profile restart
+        run: |
+          cat /etc/os-release > /tmp/appimage-evidence/os-release.txt
+          getconf GNU_LIBC_VERSION > /tmp/appimage-evidence/glibc-version.txt
+          pacman -Q > /tmp/appimage-evidence/system-packages.txt
+          runuser -u appimage-test -- env TMPDIR=/tmp/colosseum-appimage-130 \
+            dbus-run-session -- python3 tools/linux-release/smoke_appimage.py \
+            --image "$GITHUB_WORKSPACE/candidate/Colosseum-1.3.0-x86_64.AppImage" \
+            --identity candidate/AppImage-identity.json \
+            --baseline-report candidate/appimage-package-check.json \
+            --fixture "$GITHUB_WORKSPACE/tests/lanista_capture/assets/Colosseum.mp4" \
+            --output /tmp/appimage-evidence
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Colosseum-1.3.0-appimage-evidence-arch-corrected
+          path: /tmp/appimage-evidence/
+          if-no-files-found: warn
+          retention-days: 14
