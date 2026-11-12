@@ -89,9 +89,15 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning qtimageformats qtquick3d qtshadertools"
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning qtimageformats qtquick3d qtquicktimeline qtshadertools"
           aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
           cache: true
+      - name: Verify Quick3D Timeline runtime dependency is installed
+        shell: pwsh
+        run: |
+          if (-not (Test-Path (Join-Path $env:QT_ROOT_DIR 'bin/Qt6QuickTimeline.dll'))) {
+            throw 'Qt Quick Timeline is required by the shipped Quick3D runtime'
+          }
       - name: Enable MSVC developer environment
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:

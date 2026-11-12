@@ -101,9 +101,11 @@ jobs:
           host: linux
           target: desktop
           arch: linux_gcc_64
-          modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning qtserialport qtimageformats qtquick3d qtshadertools'
+          modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning qtserialport qtimageformats qtquick3d qtquicktimeline qtshadertools'
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b'
           cache: true
+      - name: Verify Quick3D Timeline runtime dependency is installed
+        run: test -f "$QT_ROOT_DIR/lib/libQt6QuickTimeline.so.6"
       - name: Verify Linux account persistence and locked-keyring failures
         run: |
           mkdir -p release-output/accounts
