@@ -89,14 +89,6 @@ All these wildly different mediums, their rich catalogues, sources, readers, and
 
 **macOS preview:** Requires macOS 26.1 or newer and Apple Silicon. The DMG is ad-hoc signed and not notarized; see the [release instructions and checksum](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.3.0) before installing.
 
-## What's new in 1.3.0
-
-- **Nuvio** — optional Theatre account sync, plus opt-in native plugin repositories and sources on Windows and Linux.
-- **Tributes** — the Marvel Infinity Gauntlet and Dexter experiences join Colosseum.
-- **Live Reading** — opt in to reading available manga pages while a chapter downloads in Tankoban Chapter Mode.
-- **Theatre** — repaired season selection and episode scrolling, with clearer account import choices.
-- **Universes** — comic pages list their releases; the catalogue opens over the shell wallpaper.
-- **Feedback and Extensions** — in-app report and Universe request forms, compact source shelves, and icon tooltips.
 
 ## Build and contribute
 
