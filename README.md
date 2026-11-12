@@ -1,5 +1,6 @@
 <p align="center">
-  <img src="assets/icons/colosseum-wordmark.svg" alt="Colosseum" width="640" />
+  <img src="assets/icons/colosseum-wordmark.svg#gh-dark-mode-only" alt="Colosseum" width="640" />
+  <img src="assets/icons/colosseum-wordmark-light.svg#gh-light-mode-only" alt="Colosseum" width="640" />
 </p>
 
 <p align="center"><strong>One media app for all art.</strong></p>
