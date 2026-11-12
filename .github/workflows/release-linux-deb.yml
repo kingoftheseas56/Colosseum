@@ -3,6 +3,11 @@ name: Linux Debian installer candidate
 on:
   workflow_dispatch:
     inputs:
+      source_sha:
+        description: Exact application source commit to build (empty uses workflow commit)
+        required: false
+        default: ''
+        type: string
       receive_run_id:
         description: Existing Linux candidate run to qualify without rebuilding (empty builds normally)
         required: false
@@ -47,12 +52,25 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     env:
+      SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
       ECM_VERSION: '6.15.0'
       ECM_SHA256: f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2
       MPVQT_VERSION: '1.2.0'
       MPVQT_SHA256: 8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+      - name: Verify exact application source and receive qualification harness
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          # Keep the tagged product tree clean. Only the test driver comes from
+          # this workflow revision; it reads the exact tagged PlayerPage.qml.
+          git fetch --depth=1 origin "$GITHUB_SHA"
+          for driver in player_local_error_retry_test.mjs theatre_terminal_replay_test.mjs; do
+            git show "$GITHUB_SHA:tests/$driver" > "$RUNNER_TEMP/$driver"
+          done
       - name: Install build and package tools
         run: |
           sudo apt-get update
@@ -73,9 +91,9 @@ jobs:
           node tests/continue_local_comic_routing_test.mjs
           node tests/continue_manga_resume_routing_test.mjs
           node tests/collections_routes_test.mjs
-          node tests/player_local_error_retry_test.mjs
+          node "$RUNNER_TEMP/player_local_error_retry_test.mjs" "$GITHUB_WORKSPACE/qml/PlayerPage.qml"
           node tests/player_recovery_resume_test.mjs
-          node tests/theatre_terminal_replay_test.mjs
+          node "$RUNNER_TEMP/theatre_terminal_replay_test.mjs" "$GITHUB_WORKSPACE"
       - name: Install Qt 6.11.1
         uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
         with:
@@ -209,7 +227,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
           RECEIVE_RUN_ID: ${{ inputs.receive_run_id }}
-          EXPECTED_SOURCE_SHA: ${{ inputs.receive_source_sha || github.sha }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.receive_source_sha || inputs.source_sha || github.sha }}
           EXPECTED_DEB_SHA256: ${{ inputs.receive_sha256 }}
           QUALIFICATION_SOURCE_SHA: ${{ github.sha }}
         run: |

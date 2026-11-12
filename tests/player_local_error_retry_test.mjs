@@ -15,7 +15,7 @@ function fixture() {
   requestAudioPlayback(){this.audioHandoffPaused=false;calls.push('claim')},
   resetRecoveryWatch:()=>calls.push('reset-watch'),activityDiscontinuity:()=>calls.push('discontinuity')};
  const ctx={root,mpv,WatchPartySync:{active:false},streamWatchdog:{restart:()=>calls.push('watch')},Stream:{play:()=>calls.push('stream')}};
- for(const name of ['prepareRecoveryResume','retryFailedLocalPlayback','retryCurrentStream','replayEndedPlayback','resumeFromMinimize','togglePlayPause','reloadActiveDirectSource']) {
+ for(const name of ['recoveryPauseIntent','prepareRecoveryResume','retryFailedLocalPlayback','retryCurrentStream','replayEndedPlayback','resumeFromMinimize','togglePlayPause','reloadActiveDirectSource']) {
   const m=source.match(new RegExp('    function '+name+'\\(([^)]*)\\) \\{([\\s\\S]*?)\\n    \\}'));
   if(m)root[name]=vm.runInNewContext('(function('+m[1]+'){'+m[2]+'\n})',ctx);
  }

@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const player = fs.readFileSync(new URL('../qml/PlayerPage.qml', import.meta.url), 'utf8');
-const main = fs.readFileSync(new URL('../qml/Main.qml', import.meta.url), 'utf8');
-const policySource = fs.readFileSync(new URL('../qml/DirectSourcePolicy.js', import.meta.url), 'utf8').replace(/^\s*\.pragma library\s*/, '');
+import { join } from 'node:path';
+const qmlPath = name => process.argv[2] ? join(process.argv[2], 'qml', name) : new URL('../qml/' + name, import.meta.url);
+const player = fs.readFileSync(qmlPath('PlayerPage.qml'), 'utf8');
+const main = fs.readFileSync(qmlPath('Main.qml'), 'utf8');
+const policySource = fs.readFileSync(qmlPath('DirectSourcePolicy.js'), 'utf8').replace(/^\s*\.pragma library\s*/, '');
 function fn(source, name, context) {
     const match = source.match(new RegExp('    function ' + name + '\\(([^)]*)\\) \\{([\\s\\S]*?)\\n    \\}'));
     assert.ok(match, name + ' production function exists');
@@ -28,11 +30,11 @@ function fixture() {
         requestAudioPlayback() { this.audioHandoffPaused = false; events.push('claim'); }};
     for (const name of ['syncPowerInhibit', 'syncWatchPartyPlayerObservation', 'activityNaturalEof',
         'activityDiscontinuity', 'sendTraktPlayback', 'recordProgress', 'wakeChrome', 'healAudio',
-        'closeMenus', 'cancelUpNext', 'resetRecoveryWatch', 'activityEndSession', 'switchArrivingToStream'])
+        'closeMenus', 'cancelUpNext', 'cancelTouchInteraction', 'resetRecoveryWatch', 'activityEndSession', 'switchArrivingToStream'])
         root[name] = () => events.push(name);
     const DirectSourcePolicy = vm.runInNewContext('(function(){' + policySource + '\nreturn {admitProviderUrl, copyHeaders};})()');
-    const context = {root, mpv, DirectSourcePolicy, streamWatchdog: {stop() { events.push('watch-stop'); }, restart() { events.push('watch-start'); }}};
-    for (const name of ['togglePlayPause', 'resumeFromMinimize', 'suspendForMinimize', 'suspendForAudioHandoff', 'stop', 'loadDirectStreamUrl', 'reloadActiveDirectSource', 'clearActiveDirectHeaders', 'resetRecoveryResume'])
+    const context = {root, mpv, DirectSourcePolicy, Qt: {platform: {os: 'linux'}}, PlatformRuntime: {android: false}, streamWatchdog: {stop() { events.push('watch-stop'); }, restart() { events.push('watch-start'); }}};
+    for (const name of ['togglePlayPause', 'resumeFromMinimize', 'suspendForMinimize', 'suspendForAudioHandoff', 'stop', 'loadDirectStreamUrl', 'reloadActiveDirectSource', 'clearActiveDirectHeaders', 'resetRecoveryResume', 'clearStreamRouteRestore'])
         root[name] = fn(player, name, context);
     if (player.includes('function replayEndedPlayback(')) root.replayEndedPlayback = fn(player, 'replayEndedPlayback', context);
     return {root, mpv, events, loads, context, end: handler('onEndFile', context, 'reason')};
