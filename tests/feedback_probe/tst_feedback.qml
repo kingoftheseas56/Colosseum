@@ -274,8 +274,14 @@ Item {
             ]) verify(!Route.isSupportExternalUrl(url), url);
         }
 
-        function test_home_feedback_buttons_open_the_requested_form() {
+        function test_home_support_is_hidden_until_enabled() {
             const row = createTemporaryObject(homeFeedbackComponent, parent, {width: 860, height: 39});
+            verify(row);
+            verify(findChild(row, "homeReportBug") && findChild(row, "homeRequestFeature"));
+            compare(findChild(row, "homeSupport"), null);
+        }
+        function test_home_feedback_buttons_open_the_requested_form() {
+            const row = createTemporaryObject(homeFeedbackComponent, parent, {width: 860, height: 39, supportEnabled: true});
             verify(row);
             homeFeedbackSpy.target = row;
             homeFeedbackSpy.clear();
