@@ -35,6 +35,11 @@ TestCase {
         {id:"gallery-mix", kind:"mixes", title:"Late Night Mix", artworkCovers:[cover("#8f5647"),cover("#627765"),cover("#655c8a")]},
         {id:"gallery-station", kind:"radio", title:"Night Radio", cover:cover("#647b87")}
     ]
+    Window {
+        id: host
+        width: test.width; height: test.height
+        visible: true
+        title: "Vinyl widget component gallery"
     Rectangle {
         id: sheet
         anchors.fill: parent
@@ -76,6 +81,7 @@ TestCase {
             }
         }
     }
+    }
     function artworkReady(node) {
         if (node.visible && node.objectName === "vinylArtworkImage" && String(node.source).length
                 && node.status !== Image.Ready) return false;
@@ -85,9 +91,24 @@ TestCase {
     }
     function test_capture() {
         tryVerify(function() { return artworkReady(sheet); }, 15000);
-        verify(waitForRendering(sheet));
+        verify(sheet.visible && host.visible);
+        compare(sheet.Window.window, host);
         var shot = grabImage(sheet);
         verify(shot.width > 0 && shot.height > 0);
+        var scale = shot.width / sheet.width;
+        [130, 196].forEach(function(size) {
+            test.entries.forEach(function(entry) {
+                var art = findChild(sheet, entry.id + "-" + size + "_cover");
+                verify(art !== null);
+                var point = art.mapToItem(sheet, art.width / 2, art.height / 2);
+                var x = Math.floor(point.x * scale), y = Math.floor(point.y * scale);
+                verify(x >= 0 && x < shot.width && y >= 0 && y < shot.height);
+                var pixel = shot.pixel(x, y);
+                verify(Math.abs(pixel.r - sheet.color.r) + Math.abs(pixel.g - sheet.color.g)
+                    + Math.abs(pixel.b - sheet.color.b) > 0.05, "Every widget face is painted");
+            });
+        });
         shot.save("artifacts/vinyl-v1/slice3/widget-gallery.png");
     }
+    function cleanupTestCase() { host.close(); }
 }

@@ -3328,4 +3328,8 @@ The explicit capture harness is `tests/vinyl-visual/tst_square_gallery.qml`.
 It is outside unit discovery and requires the repository working directory plus
 an existing `artifacts/vinyl-v1/slice3` directory. Its planned output is
 `artifacts/vinyl-v1/slice3/widget-gallery.png`, using labelled fixture artwork.
-Capture, real-app receiving checks and Hemanth's visual verdict are pending.
+The gallery capture passed 3/3 and was inspected. Hemanth answered **"Looks right"**
+for all five forms at both sizes on 2026-11-13. The gallery SHA-256 is
+`bca5e97ccbd04fd53102203db4117246c8db11c4bd6eff30e6b9f95747e2072d`;
+the exact source hashes and verdict are in the local `human-widget-verdict.json`
+receipt. Full-page Home/Library appearance and real-app receiving remain separate.
