@@ -7,17 +7,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReleaseInstallerSmokeContract(unittest.TestCase):
-    def test_release_metadata_targets_1_1_10(self):
+    def test_release_metadata_targets_1_3_0(self):
         cmake = (ROOT / 'native/CMakeLists.txt').read_text(encoding='utf-8')
         workflow = (ROOT / '.github/workflows/release-installer-smoke.yml').read_text(encoding='utf-8')
-        self.assertIn('project(colosseum VERSION 1.1.10 ', cmake)
-        self.assertIn("default: \"1.1.10\"", workflow)
+        self.assertIn('project(colosseum VERSION 1.3.0 ', cmake)
+        self.assertIn("default: \"1.3.0\"", workflow)
         for relative in ('native/update/UpdateReleaseClient.cpp', 'native/update/UpdateDownload.cpp', 'native/main.cpp'):
             source = (ROOT / relative).read_text(encoding='utf-8')
             self.assertNotIn('Colosseum/1.1.4', source, relative)
-        self.assertTrue((ROOT / 'docs/release-notes/v1.1.10.md').is_file())
-        current = load_presentation(ROOT / 'release/presentation/1.1.10.json', '1.1.10')
-        self.assertEqual(current['title'], 'Colosseum 1.1.10')
+        self.assertTrue((ROOT / 'docs/release-notes/v1.3.0.md').is_file())
+        current = load_presentation(ROOT / 'release/presentation/1.3.0.json', '1.3.0')
+        self.assertEqual(current['title'], 'Colosseum 1.3.0')
+        self.assertEqual(len(current['highlights']), 6)
+        self.assertEqual(current['highlights'][0]['section'], 'NUVIO')
         self.assertTrue((ROOT / 'docs/release-notes/v1.1.9.md').is_file())
         self.assertTrue((ROOT / 'release/presentation/1.1.9.json').is_file())
         presentation = load_presentation(ROOT / 'release/presentation/1.1.9.json', '1.1.9')

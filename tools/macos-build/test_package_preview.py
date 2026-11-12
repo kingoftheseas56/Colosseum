@@ -20,6 +20,49 @@ spec.loader.exec_module(package)
 
 
 class PackagingBoundary(unittest.TestCase):
+    def release_inputs(self, root):
+        identity = dict(version='1.3.0', source_sha='a' * 40)
+        receipt = root / 'build-receipt.json'
+        receipt.write_text(json.dumps(dict(source_sha=identity['source_sha'])))
+        (root / 'BUILD-IDENTITY.json').write_text(json.dumps(identity))
+        resources = root / 'Colosseum.app/Contents/Resources'
+        resources.mkdir(parents=True)
+        (resources / 'BUILD-IDENTITY.json').write_text(json.dumps(identity))
+        archive = root / 'Colosseum-1.3.0-macOS-arm64-preview.zip'
+        archive.write_bytes(b'checked archive')
+        return receipt, archive
+
+    def test_release_dmg_rejects_stale_source_and_version_before_packaging(self):
+        self.assertTrue(callable(getattr(package, 'release_dmg', None)))
+        for field, value in [('source_sha', 'b' * 40), ('version', '1.2.0')]:
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                receipt, _ = self.release_inputs(root)
+                identity = json.loads((root / 'BUILD-IDENTITY.json').read_text())
+                identity[field] = value
+                (root / 'BUILD-IDENTITY.json').write_text(json.dumps(identity))
+                with patch.object(package, 'create_dmg') as create:
+                    with self.assertRaisesRegex(RuntimeError, 'identity'):
+                        package.release_dmg(receipt, root)
+                    create.assert_not_called()
+
+    def test_release_dmg_checks_embedded_identity_and_smokes_mounted_copy(self):
+        self.assertTrue(callable(getattr(package, 'release_dmg', None)))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            receipt, archive = self.release_inputs(root)
+            dmg = root / 'Colosseum-1.3.0-macOS-arm64.dmg'
+            with patch.object(package, 'run') as run, \
+                    patch.object(package, 'verify_archive') as audit, \
+                    patch.object(package, 'create_dmg', side_effect=lambda app, image: image.write_bytes(b'dmg')) as create, \
+                    patch.object(package, 'smoke') as smoke:
+                package.release_dmg(receipt, root)
+            audit.assert_called_once_with(archive)
+            create.assert_called_once_with(root / 'Colosseum.app', dmg)
+            smoke.assert_called_once_with(root, archive=archive, dmg=dmg)
+            self.assertTrue((root / (dmg.name + '.sha256')).read_text().endswith('  ' + dmg.name + '\n'))
+            run.assert_called_once_with('codesign', '--verify', '--deep', '--strict', '--verbose=2', root / 'Colosseum.app')
+
     def test_release_dmg_uses_signed_app_and_ad_hoc_signs_compressed_image(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

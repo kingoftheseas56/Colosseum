@@ -1,47 +1,10 @@
-name: Package Colosseum 1.2.0 macOS DMG
+name: Package Colosseum 1.3.0 macOS DMG
 on:
   workflow_dispatch:
 permissions:
   contents: read
-  actions: read
 jobs:
   distribution:
-    runs-on: macos-26
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - name: Packaging helper regressions
-        run: |
-          python3 tools/macos-build/test_package_preview.py
-          python3 tools/macos-distribution/test_package_distribution.py
-      - name: Package pinned signed app and smoke test the copy from the mounted DMG
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          output="$RUNNER_TEMP/colosseum-distribution-$GITHUB_RUN_ID"
-          echo "DISTRIBUTION_OUTPUT=$output" >> "$GITHUB_ENV"
-          python3 tools/macos-distribution/package-distribution.py --release-dmg "$output" \
-            2>&1 | tee "$RUNNER_TEMP/distribution.log"
-      - name: Upload verified release DMG and checksum
-        uses: actions/upload-artifact@v4
-        with:
-          name: Colosseum-1.2.0-macOS-arm64-DMG
-          if-no-files-found: error
-          retention-days: 14
-          compression-level: 0
-          path: |
-            ${{ env.DISTRIBUTION_OUTPUT }}/*.dmg
-            ${{ env.DISTRIBUTION_OUTPUT }}/*.dmg.sha256
-      - name: Upload qualification evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Colosseum-1.2.0-macOS-arm64-DMG-evidence
-          retention-days: 14
-          compression-level: 0
-          path: |
-            ${{ env.DISTRIBUTION_OUTPUT }}/*.json
-            ${{ env.DISTRIBUTION_OUTPUT }}/*.log
-            ${{ env.DISTRIBUTION_OUTPUT }}/*.png
-            ${{ runner.temp }}/distribution.log
+    uses: ./.github/workflows/release-macos-preview.yml
+    with:
+      release_dmg: true

@@ -62,10 +62,10 @@ def validate_shipping_cache(cache, version=None):
     if 'COLOSSEUM_NO_ACCOUNT_EDITION:BOOL=OFF' not in cache:raise ValueError('Standard edition must be explicit')
     if not re.search(r'^COLOSSEUM_CONTENT_API_URL:STRING=https://colosseum-content-api\.colosseum-watchparty-relay\.workers\.dev$',cache,re.M):
         raise ValueError('Qualified production catalogue origin required')
-    if version in ('1.1.10', '1.2.0') and not re.search(r'^COLOSSEUM_VINYL_IN_APP:BOOL=OFF$',cache,re.M):
+    if version in ('1.1.10', '1.2.0', '1.3.0') and not re.search(r'^COLOSSEUM_VINYL_IN_APP:BOOL=OFF$',cache,re.M):
         raise ValueError('Vinyl must be explicitly disabled in '+version+' shipping builds')
-    if version == '1.2.0' and not re.search(r'^COLOSSEUM_FERIA_IN_APP:BOOL=OFF$',cache,re.M):
-        raise ValueError('Feria must be explicitly disabled in 1.2.0 shipping builds')
+    if version in ('1.2.0', '1.3.0') and not re.search(r'^COLOSSEUM_FERIA_IN_APP:BOOL=OFF$',cache,re.M):
+        raise ValueError(f'Feria must be explicitly disabled in {version} shipping builds')
 
 def main():
     ap=argparse.ArgumentParser()

@@ -10,18 +10,18 @@ on:
       expected_version:
         description: Expected installed Colosseum version
         required: true
-        default: "1.2.0"
+        default: "1.3.0"
         type: string
 
       previous_version:
         description: Published version to upgrade from
         required: true
-        default: "1.1.10"
+        default: "1.2.0"
         type: string
       previous_sha256:
         description: Exact published prior installer SHA256
         required: true
-        default: "40885add0155834d0c2f5c6019cd74a7eaa0c8a853a9af9d09a886cb789c33ef"
+        default: "32c9eafa99bd0735490b2d9b5525f174757cbaf19db57d3c80f4970bdf8d050d"
         type: string
       receive_run_id:
         description: Existing installer run to qualify without rebuilding (empty builds normally)
@@ -48,7 +48,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
-      VERSION: ${{ inputs.expected_version || '1.2.0' }}
+      VERSION: ${{ inputs.expected_version || '1.3.0' }}
       VCPKG_TAG: "2026.07.29"
       MPV_RELEASE: "20261011"
       MPV_VERSION: "20261011-git-accb7b2821"
@@ -266,7 +266,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     env:
-      VERSION: ${{ inputs.expected_version || '1.2.0' }}
+      VERSION: ${{ inputs.expected_version || '1.3.0' }}
     steps:
       - uses: actions/checkout@v7
       - name: Download canonical installer artifact
@@ -308,7 +308,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     env:
-      VERSION: ${{ inputs.expected_version || '1.2.0' }}
+      VERSION: ${{ inputs.expected_version || '1.3.0' }}
       PREVIOUS_VERSION: ${{ inputs.previous_version }}
       PREVIOUS_SHA256: ${{ inputs.previous_sha256 }}
     steps:

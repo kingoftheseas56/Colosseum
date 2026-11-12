@@ -65,13 +65,13 @@ else
     "$py" -m aqt list-qt mac desktop --arch 6.11.1
     "$py" -m aqt list-qt mac desktop --modules 6.11.1 clang_64
     "$py" -m aqt install-qt mac desktop 6.11.1 clang_64 -O "$work/qt" \
-        -m qtwebengine qtwebchannel qtwebsockets qtpositioning qtserialport qtimageformats
+        -m qtwebengine qtwebchannel qtwebsockets qtpositioning qtserialport qtimageformats qtquick3d qtshadertools
     qtbase="$work/qt/6.11.1/macos"
 fi
 [[ -x "$qtbase/bin/qmake" ]] || fail "Official Qt SDK qmake missing under $qtbase"
 [[ $("$qtbase/bin/qmake" -query QT_VERSION) == 6.11.1 ]] || fail 'Use one coherent Qt 6.11.1 SDK'
 lipo "$qtbase/lib/QtCore.framework/QtCore" -verify_arch arm64
-for module in QtQuick/Dialogs QtQuick/Controls QtWebEngine; do
+for module in QtQuick/Dialogs QtQuick/Controls QtWebEngine QtQuick3D QtQuick3D/Helpers; do
     [[ -f "$qtbase/qml/$module/qmldir" ]] || fail "Full Qt QML SDK missing $module (PySide is insufficient)"
     printf 'QML_MODULE=%s\n' "$qtbase/qml/$module/qmldir"
 done
@@ -138,7 +138,7 @@ cmake -S "$repo/native" -B "$work/app" -G Ninja \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="$deployment" \
     -DMACOSX_BUNDLE_GUI_IDENTIFIER=world.getcolosseum.Colosseum \
     -DMACOSX_BUNDLE_BUNDLE_NAME=Colosseum \
-    -DMACOSX_BUNDLE_BUNDLE_VERSION=1.2.0 -DMACOSX_BUNDLE_SHORT_VERSION_STRING=1.2.0 \
+    -DMACOSX_BUNDLE_BUNDLE_VERSION=1.3.0 -DMACOSX_BUNDLE_SHORT_VERSION_STRING=1.3.0 \
     -DBUILD_TESTING=OFF -DCOLOSSEUM_BUILD_PLAYER2=OFF \
     -DCMAKE_PREFIX_PATH="$qtbase;$deps;$(brew --prefix libtorrent-rasterbar);$(brew --prefix boost);$(brew --prefix openssl@3)" \
     -DQT_ADDITIONAL_PACKAGES_PREFIX_PATH="$qtbase" \
