@@ -410,11 +410,14 @@ void HomeServerService::refresh(const QString &id) {
 QVariantList HomeServerService::sources(const QVariantMap &identity) const {
     QVariantList result;
     if (!available()) return result;
+    const auto aliases = m_progress ? HomeServerProgress::identityAliases(m_progress->entries()) : HomeServerProgress::IdentityAliases{};
     for (const auto &value : m_store.connections()) {
         const auto connection = value.toObject();
         const auto id = connection.value("id").toString();
         if (!connection.value("enabled").toBool() || m_expired.contains(id) || m_store.token(id).isEmpty()) continue;
-        const auto rows = HomeServerCatalog::matchingSources(m_index.value(id), identity, connection);
+        QJsonArray projected;
+        for (const auto &item : m_index.value(id)) projected.append(HomeServerProgress::withAliases(item.toObject(), aliases));
+        const auto rows = HomeServerCatalog::matchingSources(projected, identity, connection);
         for (const auto &value : rows) {
             const auto row = value.toMap();
             if (m_sourceIdentities.size() >= 4096) m_sourceIdentities.clear();

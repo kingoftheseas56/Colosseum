@@ -42,6 +42,11 @@ QVariantMap entryFor(const QJsonObject &item, const QString &id, const QString &
 namespace HomeServerProgress {
 IdentityAliases identityAliases(const QVariantList &entries) {
     IdentityAliases aliases;
+    const auto add = [&aliases](const QString &alias, const QString &canonical) {
+        if (alias.isEmpty()) return;
+        if (aliases.contains(alias) && aliases.value(alias) != canonical) aliases[alias] = QString();
+        else aliases.insert(alias, canonical);
+    };
     for (const auto &value : entries) {
         const auto entry = value.toMap();
         const auto identity = QJsonObject::fromVariantMap(entry.value("_homeServerIdentity").toMap());
@@ -54,9 +59,10 @@ IdentityAliases identityAliases(const QVariantList &entries) {
             auto external = identity; external.remove("imdbId");
             external.remove(QString(key) == "tmdbId" ? "tvdbId" : "tmdbId");
             const auto alias = HomeServerCatalog::canonicalVideoId({{"kind",kind},{"identity",external}});
-            if (!alias.isEmpty()) {
-                if (aliases.contains(alias) && aliases.value(alias) != canonical) aliases[alias] = QString();
-                else aliases.insert(alias, canonical);
+            add(alias, canonical);
+            if (kind == "series") {
+                external.remove("season"); external.remove("episode");
+                add(HomeServerCatalog::canonicalVideoId({{"kind",kind},{"identity",external}}), canonical.section(':',0,0));
             }
         }
     }
@@ -69,7 +75,12 @@ QJsonObject withAliases(QJsonObject item, const IdentityAliases &aliases) {
         auto external = identity;
         external.remove(QString(key) == "tmdbId" ? "tvdbId" : "tmdbId");
         auto reference = item; reference.insert("identity", external);
-        const auto canonical = aliases.value(HomeServerCatalog::canonicalVideoId(reference));
+        auto canonical = aliases.value(HomeServerCatalog::canonicalVideoId(reference));
+        if (canonical.isEmpty() && item.value("kind") == "episode") {
+            external.remove("season"); external.remove("episode");
+            reference.insert("kind", "series"); reference.insert("identity", external);
+            canonical = aliases.value(HomeServerCatalog::canonicalVideoId(reference));
+        }
         if (!canonical.startsWith("tt")) continue;
         identity.insert("imdbId", canonical.section(':', 0, 0));
         item.insert("identity", identity);

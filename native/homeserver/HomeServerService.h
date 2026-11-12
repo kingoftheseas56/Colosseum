@@ -28,6 +28,7 @@ struct HomeServerServiceOptions {
 class HomeServerService final : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList connections READ connections NOTIFY changed)
+    Q_PROPERTY(QVariantList shelves READ shelves NOTIFY changed)
     Q_PROPERTY(QVariantList plexServers READ plexServers NOTIFY changed)
     Q_PROPERTY(bool available READ available NOTIFY changed)
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
@@ -47,6 +48,9 @@ public:
     void deactivate();
 
     QVariantList connections() const;
+    QVariantList shelves() const;
+    Q_INVOKABLE QVariantList shelfTitles(const QString &connectionId) const;
+    Q_INVOKABLE QVariantMap titleMetadata(const QVariantMap &identity) const;
     QVariantList plexServers() const;
     bool available() const;
     bool busy() const { return m_busy; }

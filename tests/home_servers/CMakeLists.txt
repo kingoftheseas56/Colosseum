@@ -55,3 +55,8 @@ add_executable(tst_home_server_progress_bridge tst_home_server_progress_bridge.c
 set_target_properties(tst_home_server_progress_bridge PROPERTIES AUTOMOC ON)
 target_link_libraries(tst_home_server_progress_bridge PRIVATE colosseum_home_servers Qt6::Test)
 add_test(NAME home_server_progress_bridge COMMAND tst_home_server_progress_bridge)
+
+add_executable(tst_home_server_shelves tst_home_server_shelves.cpp)
+set_target_properties(tst_home_server_shelves PROPERTIES AUTOMOC ON)
+target_link_libraries(tst_home_server_shelves PRIVATE colosseum_home_servers Qt6::Test)
+add_test(NAME home_server_shelves COMMAND tst_home_server_shelves)

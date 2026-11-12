@@ -22,6 +22,72 @@ Item {
     signal openMediaRequested(string path)
     signal viewWorldRequested(var identity)
 
+    property var homeServerSourceService: typeof HomeServers !== "undefined" ? HomeServers : null
+    readonly property var serverShelves: homeServerSourceService
+        ? (homeServerSourceService.revision, homeServerSourceService.shelves) : []
+    property string selectedServerId: ""
+    property var selectedServerProfileGeneration: -1
+    property var serverTitleRows: []
+    property bool serverUiReady: false
+    property bool localViewRequested: false
+    readonly property bool serverViewActive: selectedServerId.length > 0
+    readonly property bool hasBrowseSurface: hasConfirmedStorage || serverShelves.length > 0
+    readonly property string selectedServerName: {
+        var shelf = serverShelves.find(row => row.id === selectedServerId)
+        return shelf ? shelf.name : ""
+    }
+    function leaveServerShelf() {
+        root.selectedServerId = ""
+        root.selectedServerProfileGeneration = -1
+        root.serverTitleRows = []
+        root.localViewRequested = true
+    }
+    function selectServer(id) {
+        if (!root.homeServerSourceService || !root.serverShelves.some(row => row.id === id)) return
+        root.rememberCurrentScroll()
+        root.leaveSearchView()
+        root.hiddenViewActive = false
+        root.detailSheetVisible = false
+        cardContextMenu.close()
+        root.localViewRequested = false
+        root.selectedServerId = id
+        root.selectedServerProfileGeneration = root.homeServerSourceService.profileGeneration
+        root.serverTitleRows = root.homeServerSourceService.shelfTitles(id) || []
+    }
+    function refreshServerShelf() {
+        if (!root.serverUiReady) return
+        if (root.serverViewActive) {
+            if (!root.homeServerSourceService
+                    || root.selectedServerProfileGeneration !== root.homeServerSourceService.profileGeneration
+                    || !root.serverShelves.some(row => row.id === root.selectedServerId)) {
+                root.leaveServerShelf()
+                root.localViewRequested = false
+            } else {
+                root.serverTitleRows = root.homeServerSourceService.shelfTitles(root.selectedServerId) || []
+            }
+        }
+        if (!root.serverViewActive && !root.hasConfirmedStorage && !root.localViewRequested && root.serverShelves.length)
+            root.selectServer(root.serverShelves[0].id)
+    }
+    function openServerTitle(row, serverId, profileGeneration) {
+        if (!root.serverViewActive || serverId !== root.selectedServerId
+                || !root.homeServerSourceService || profileGeneration !== root.homeServerSourceService.profileGeneration
+                || profileGeneration !== root.selectedServerProfileGeneration || !row) return
+        var current = root.serverTitleRows.find(title => title.id === row.id)
+        if (current && current.identity) root.viewWorldRequested(current.identity)
+    }
+    onServerShelvesChanged: root.refreshServerShelf()
+    onHomeServerSourceServiceChanged: {
+        root.leaveServerShelf()
+        root.localViewRequested = false
+        if (root.serverUiReady) root.refreshServerShelf()
+    }
+    Connections {
+        target: root.homeServerSourceService
+        function onChanged() { root.refreshServerShelf() }
+        function onProfileChanged() { root.leaveServerShelf(); root.localViewRequested = false }
+    }
+
     VaultTheme { id: theme }
 
     // ---- read-model: the Vault's published truth (revision-driven refresh) ----
@@ -94,6 +160,7 @@ Item {
     }
     property string searchQuery: ""
     function openSearch() {
+        root.leaveServerShelf()
         root.rememberCurrentScroll()
         root.hiddenViewActive = false
         root.searchViewActive = true
@@ -637,6 +704,7 @@ Item {
         }
     }
     function selectRoot(path, name) {
+        root.leaveServerShelf()
         root.rememberCurrentScroll()
         root.leaveSearchView()
         root.hiddenViewActive = false
@@ -675,6 +743,7 @@ Item {
         if (root.crumbStack.length > 1) root.goToCrumb(root.crumbStack.length - 2)
     }
     function openHidden() {
+        root.leaveServerShelf()
         root.rememberCurrentScroll()
         root.leaveSearchView()
         root.hiddenViewActive = true
@@ -819,7 +888,10 @@ Item {
         root.crumbStack = [{ key: avail.path, displayTitle: avail.name }]
         root.currentBrowsePath = avail.path
     }
-    onHasConfirmedStorageChanged: if (root.hasConfirmedStorage && root.crumbStack.length === 0) root.initBrowseState()
+    onHasConfirmedStorageChanged: {
+        if (root.hasConfirmedStorage && root.crumbStack.length === 0) root.initBrowseState()
+        if (root.serverUiReady) root.refreshServerShelf()
+    }
 
     // (Phase-4 G3 ruling, 2026-08-25: the retired tab-bar vocabulary, the old shelf tile
     // components, and the Slice-13 folder-detail overlay were deleted — fully built, never
@@ -952,6 +1024,8 @@ Item {
             VaultLibrary.rescanDegradedRoots()   // Slice 15: watcher-failure fallback, silently
         }
         if (root.hasConfirmedStorage) root.initBrowseState()
+        root.serverUiReady = true
+        root.refreshServerShelf()
     }
     // Leaving Vault (the taskbar door) deactivates vaultLayer's Loader, destroying this whole
     // page — a plain scroll (ui-scroll / a mouse drag) never runs through pushCrumb/goToCrumb/
@@ -979,8 +1053,8 @@ Item {
         // face (Slice 5) is the sibling `browseFace` Item below, which needs its own
         // bounded-height layout for the grid's virtualization rather than living inside this
         // unbounded outer Flickable.
-        visible: !root.hasConfirmedStorage
-        enabled: !root.hasConfirmedStorage
+        visible: !root.hasBrowseSurface
+        enabled: !root.hasBrowseSurface
         anchors.fill: parent
         activeFocusOnTab: enabled
         Keys.onPressed: (event) => pageKeys.handle(event)
@@ -1124,10 +1198,10 @@ Item {
     Item {
         id: browseFace
         objectName: "vaultBrowseFace"
-        visible: root.hasConfirmedStorage
+        visible: root.hasBrowseSurface
         enabled: visible
         anchors.fill: parent
-        focus: root.hasConfirmedStorage
+        focus: root.hasBrowseSurface
         Keys.onPressed: (event) => {
             if (event.key === Qt.Key_Backspace) { root.ascendBrowse(); event.accepted = true }
             else if (!root.searchViewActive && (event.key === Qt.Key_Slash
@@ -1149,8 +1223,11 @@ Item {
                 anchors.top: parent.top; anchors.bottom: parent.bottom
                 anchors.topMargin: vaultHeader.y + vaultHeader.height + 24; anchors.bottomMargin: 80
                 roots: root.browseRootsDetail
+                servers: root.serverShelves
+                selectedServerId: root.selectedServerId
+                onServerSelected: (id) => root.selectServer(id)
                 expanded: root.width < 860 ? root.narrowRailExpanded : browseSettings.railExpanded
-                selectedRootPath: root.crumbStack.length ? root.crumbStack[0].key : ""
+                selectedRootPath: !root.serverViewActive && root.crumbStack.length ? root.crumbStack[0].key : ""
                 hiddenActive: root.hiddenViewActive
                 hiddenCount: root.hiddenSeriesRows.length
                 // S9 (vault ux uplift): the marquee count + the synthetic downloads root's
@@ -1195,14 +1272,30 @@ Item {
                 // segments Tab-cycle inside it (the crumb's own FocusScope).
             }
         Text {
-            visible: browseRail.expanded
+            visible: browseRail.expanded && !root.serverViewActive
             anchors.left: parent.left; anchors.leftMargin: 24
             anchors.bottom: parent.bottom; anchors.bottomMargin: 36
             text: root.scanning ? "●  Scanning your library…" : "●  On this machine"
             color: root.scanning ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
         }
+        Loader {
+            objectName: "homeServerVaultShelfLoader"
+            active: root.serverViewActive
+            anchors.left: browseRail.right; anchors.leftMargin: root.width < 1000 ? 22 : theme.margin
+            anchors.right: parent.right; anchors.rightMargin: root.width < 1000 ? 22 : theme.margin
+            anchors.top: parent.top; anchors.topMargin: vaultHeader.y + vaultHeader.height + 20
+            anchors.bottom: parent.bottom; anchors.bottomMargin: 24
+            sourceComponent: VaultHomeServerShelf {
+                serverId: root.selectedServerId
+                profileGeneration: root.selectedServerProfileGeneration
+                title: root.selectedServerName
+                rows: root.serverTitleRows
+                onTitleRequested: (row, serverId, profileGeneration) => root.openServerTitle(row, serverId, profileGeneration)
+            }
+        }
         Item {
             id: mainArea
+            visible: !root.serverViewActive
             anchors.left: browseRail.right; anchors.leftMargin: root.width < 1000 ? 22 : theme.margin
             anchors.right: parent.right; anchors.rightMargin: root.width < 1000 ? 22 : theme.margin
             anchors.top: parent.top; anchors.topMargin: vaultHeader.y + vaultHeader.height + 20

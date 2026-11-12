@@ -21,6 +21,15 @@ Item {
     objectName: "theatreSeriesPage"
     property Item backdrop
     property var itemData: ({})
+    function homeServerMetadataFallback(meta, type, id) {
+        if (meta) return meta
+        if (typeof HomeServers === "undefined" || !HomeServers.titleMetadata) return null
+        var identity = { "id": id, "type": type }
+        if (itemData && Number(itemData.tmdbId) > 0) identity.tmdbId = Number(itemData.tmdbId)
+        if (itemData && Number(itemData.tvdbId) > 0) identity.tvdbId = Number(itemData.tvdbId)
+        var fallback = HomeServers.titleMetadata(identity)
+        return fallback && fallback.id ? fallback : null
+    }
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -893,6 +902,7 @@ Item {
         var expectedCanonicalId = String((itemData && itemData.canonicalSourceId) || "")
         // PF-06: the exact catalogue record is a movie-only fallback after provider misses.
         TheatreApi.loadMeta(mediaType, id, function(meta) {
+            meta = page.homeServerMetadataFallback(meta, mediaType, id)
             if (!meta) {
                 errorMsg = "Couldn't load details.";
                 loading = false;

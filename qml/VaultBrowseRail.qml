@@ -14,6 +14,7 @@
 import QtQuick
 import QtQuick.Window
 import QtQuick.Controls
+import QtQuick.Controls.Basic as Basic
 
 Item {
     id: rail
@@ -24,6 +25,8 @@ Item {
     activeFocusOnTab: true
 
     property var roots: []                 // VaultLibrary.rootsDetail() rows: {path,name,available,itemCount,fileCount}
+    property var servers: []
+    property string selectedServerId: ""
     property bool expanded: false
     property string selectedRootPath: ""
     property bool hiddenActive: false
@@ -42,6 +45,7 @@ Item {
     property var scanIgnore: []
 
     signal rootSelected(string path)
+    signal serverSelected(string id)
     signal hiddenRequested()
     signal addRequested()
     signal toggleRequested()
@@ -183,6 +187,67 @@ Item {
                     tooltipText: accessibleName
                     tooltipHovered: toggleMa.containsMouse
                     onTriggered: rail.toggleRequested()
+                }
+            }
+        }
+
+        Text {
+            visible: rail.servers.length > 0 && rail.expanded
+            width: col.width
+            text: qsTr("Home servers")
+            color: theme.inkDimmer
+            font.family: theme.ui
+            font.pixelSize: 11
+        }
+        Repeater {
+            model: rail.servers
+            delegate: Basic.Button {
+                id: serverRow
+                required property var modelData
+                objectName: "vaultBrowseRailServer_" + modelData.id
+                width: col.width
+                height: 52
+                Accessible.name: modelData.name
+                onClicked: rail.serverSelected(serverRow.modelData.id)
+                background: Rectangle {
+                    radius: 6
+                    color: rail.selectedServerId === serverRow.modelData.id ? theme.glassHi
+                        : serverRow.hovered ? theme.glassTint : "transparent"
+                    border.width: serverRow.activeFocus ? 1 : 0
+                    border.color: theme.gold
+                }
+                contentItem: Item {
+                    Text {
+                        id: serverIcon
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: rail.expanded ? 8 : (parent.width - width) / 2
+                        text: "▤"
+                        color: theme.gold
+                        font.pixelSize: 23
+                    }
+                    Column {
+                        visible: rail.expanded
+                        anchors.left: serverIcon.right; anchors.leftMargin: 11
+                        anchors.right: parent.right; anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 4
+                        Text {
+                            objectName: "vaultBrowseRailServerName_" + serverRow.modelData.id
+                            width: parent.width
+                            text: serverRow.modelData.name
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            color: theme.ink
+                            font.family: theme.ui; font.pixelSize: 13
+                        }
+                        Text {
+                            width: parent.width
+                            text: serverRow.modelData.titleCount === 1 ? qsTr("1 title")
+                                : qsTr("%1 titles").arg(serverRow.modelData.titleCount)
+                            color: theme.inkDimmer
+                            font.family: theme.ui; font.pixelSize: 11
+                        }
+                    }
                 }
             }
         }

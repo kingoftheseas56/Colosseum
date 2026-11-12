@@ -13,3 +13,4 @@ target_sources(colosseum_home_servers PRIVATE HomeServerPlayback.cpp HomeServerP
 target_sources(colosseum_home_servers PRIVATE HomeServerProgressClient.cpp HomeServerProgressClient.h)
 target_sources(colosseum_home_servers PRIVATE HomeServerProgressOwner.cpp HomeServerProgressOwner.h)
 target_sources(colosseum_home_servers PRIVATE HomeServerProgressBridge.cpp)
+target_sources(colosseum_home_servers PRIVATE HomeServerShelves.cpp)

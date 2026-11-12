@@ -1674,7 +1674,8 @@ Window {
                 win.openSeries(identity.title || "")
         } else if (identity.world === "Theatre") {
             win.openWorld("Theatre")
-            win.openTheatreSeries({ id: sid.replace(/^imdb:/, ""), type: "movie",
+            win.openTheatreSeries({ id: sid.replace(/^imdb:/, ""), type: identity.type === "series" ? "series" : "movie",
+                                    tmdbId: identity.tmdbId || 0, tvdbId: identity.tvdbId || 0,
                                     title: identity.title || "", cover: identity.coverUrl || "" })
         } else if (identity.world === "Biblio") {
             win.openWorld("Biblio")

@@ -39,6 +39,15 @@ private slots:
         QCOMPARE(HomeServerCatalog::canonicalVideoId(HomeServerProgress::withAliases(remote,aliases)),QString("tt999"));
         row["id"]="ttWrong"; o.rows.clear(); o.apply(row); QVERIFY(HomeServerProgress::identityAliases(o.entries()).isEmpty());
     }
+    void provenEpisodeAliasAlsoKeepsItsShowAndSiblingIdentities() {
+        Owner o; auto row=local(); row["id"]="tt123:0:2";
+        row["_homeServerIdentity"]=QVariantMap{{"type","series"},{"imdbId","tt123"},{"tmdbId",101},{"season",0},{"episode",2}}; o.apply(row);
+        const auto aliases=HomeServerProgress::identityAliases(o.entries());
+        QJsonObject show{{"kind","series"},{"identity",QJsonObject{{"tmdbId",101}}}};
+        QCOMPARE(HomeServerCatalog::canonicalVideoId(HomeServerProgress::withAliases(show,aliases)),QString("tt123"));
+        show["kind"]="episode"; show["identity"]=QJsonObject{{"tmdbId",101},{"season",1},{"episode",3}};
+        QCOMPARE(HomeServerCatalog::canonicalVideoId(HomeServerProgress::withAliases(show,aliases)),QString("tt123:1:3"));
+    }
     void importsOriginalTimeAndOpaqueResume() {
         Owner o; auto d=HomeServerProgress::reconcile(o,item(),"home-server:c:i:v");
         QCOMPARE(d.canonicalId,QString("tt123")); QVERIFY(!d.localWins);
