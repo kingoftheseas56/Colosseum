@@ -70,6 +70,28 @@ TestCase {
         Account.AccountWelcome { width: host.width; height: host.height }
     }
     Component { id: metricsComponent; App.AdaptiveLayout {} }
+    Component {
+        id: rowIndexComponent
+        App.RowIndexSidebar {
+            pageFlick: null
+            rows: [{key: "fixture", title: "Shelf", target: wallpaper}]
+        }
+    }
+    function test_row_index_chevron_has_phone_touch_target() {
+        const rail = createTemporaryObject(rowIndexComponent, host.contentItem)
+        verify(rail)
+        const metrics = findChild(rail, "rowIndexTouchMetrics")
+        verify(metrics)
+        metrics.presentationScale = 0.830357
+        wait(50)
+        const action = findChild(rail, "rowIndexCollapseAction")
+        verify(action)
+        verify(action.width * metrics.presentationScale >= 48 - 0.001)
+        verify(action.height * metrics.presentationScale >= 48 - 0.001)
+        const visual = action.parent
+        mouseClick(rail, visual.x + 4, visual.y - 4)
+        compare(rail.collapsed, false, "A tap above the visible chevron expands the row index")
+    }
     property var win: host
     QtObject {
         id: volumeService
