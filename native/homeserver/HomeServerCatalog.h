@@ -23,6 +23,7 @@ public:
         QString error;
         bool expired = false;
         int serverMajor = 0;
+        QJsonArray libraries;
         bool ok() const { return error.isEmpty(); }
     };
     using Callback = std::function<void(Result)>;
@@ -43,6 +44,7 @@ private:
     QJsonArray m_libraries, m_items;
     QSet<QString> m_ids;
     QHash<QString,QJsonObject> m_buffered;
+    QHash<QString,QJsonArray> m_libraryItems;
     qint64 m_snapshotBytes = 0;
     int m_library = 0, m_stage = 0, m_start = 0, m_total = -1, m_pages = 0, m_major = 0;
     bool m_started = false, m_finished = false;

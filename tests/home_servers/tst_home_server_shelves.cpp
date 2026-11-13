@@ -81,15 +81,56 @@ class HomeServerShelvesTest : public QObject {
         HomeServerServiceOptions out;out.secrets=secrets;out.identityDirectory=dir.filePath("installation");out.refreshOnActivation=false;return out;
     }
 private slots:
+    void serverTabsKeepDisabledLibrariesAndRestartOrderWithoutSecrets() {
+        QTemporaryDir dir; auto secrets=std::make_shared<ShelfSecrets>(); const auto root=dir.filePath("profile");
+        const auto id=seed(secrets,root,"jellyfin"); QVERIFY(!id.isEmpty());
+        HomeServerStore saved(secrets); QVERIFY(saved.activate("p",root));
+        QJsonArray members; for(const auto &value:heldItems()) members.append(value.toObject().value("id"));
+        const QJsonArray libraries{
+            QJsonObject{{"id","video"},{"name","Zulu"},{"kind","mixed"},{"itemIds",members},{"token","SECRET-MANIFEST"},{"poster","https://SECRET/private"}},
+            QJsonObject{{"id","empty"},{"name","Empty library"},{"kind","series"},{"itemIds",QJsonArray{}}},
+            QJsonObject{{"id","movies"},{"name","Alpha copies"},{"kind","movie"},{"itemIds",QJsonArray{"movie"}}}};
+        QVERIFY(saved.replaceCatalog(id,libraries,heldItems()));
+        HomeServerService service(options(secrets,dir)); service.activate("p",root);
+        auto tabs=service.serverTabs(); QCOMPARE(tabs.size(),1); QCOMPARE(tabs.first().toMap().value("state").toString(),QString("cached"));
+        QVERIFY(tabs.first().toMap().value("manifestKnown").toBool()); QCOMPARE(tabs.first().toMap().value("libraryCount").toInt(),3); QCOMPARE(tabs.first().toMap().value("titleCount").toInt(),4);
+        auto rows=service.serverLibraries(id); QCOMPARE(rows.size(),3);
+        QCOMPARE(rows.at(0).toMap().value("name").toString(),QString("Zulu")); QCOMPARE(rows.at(0).toMap().value("kind").toString(),QString("mixed"));
+        QCOMPARE(rows.at(0).toMap().value("titleCount").toInt(),4);
+        QCOMPARE(rows.at(1).toMap().value("name").toString(),QString("Empty library")); QCOMPARE(rows.at(1).toMap().value("itemCount").toInt(),0);
+        QCOMPARE(rows.at(2).toMap().value("position").toInt(),2); QCOMPARE(rows.at(2).toMap().value("titleCount").toInt(),1);
+        const auto json=QJsonDocument::fromVariant(QVariantList{tabs,rows}).toJson();
+        QVERIFY(!json.contains("SECRET")); QVERIFY(!json.contains("origin")); QVERIFY(!json.contains("userId")); QVERIFY(!json.contains("versions")); QVERIFY(!json.contains("infoHash"));
+        service.setEnabled(id,false); QCOMPARE(service.serverTabs().size(),1); QCOMPARE(service.serverTabs().first().toMap().value("state").toString(),QString("disabled"));
+        QVERIFY(service.serverLibraries(id).first().toMap().value("dimmed").toBool()); QCOMPARE(service.serverLibraries(id).size(),3);
+        QVERIFY(service.shelves().isEmpty()); QVERIFY(service.sources({{"id","tt100"},{"type","movie"}}).isEmpty());
+        HomeServerService restarted(options(secrets,dir)); restarted.activate("p",root); QCOMPARE(restarted.serverLibraries(id).size(),3); QCOMPARE(restarted.serverTabs().first().toMap().value("state").toString(),QString("disabled"));
+        service.setEnabled(id,true); secrets->values.clear(); QCOMPARE(service.serverTabs().first().toMap().value("state").toString(),QString("needsReconnect")); QCOMPARE(service.serverLibraries(id).size(),3); QVERIFY(service.shelves().isEmpty());
+        service.activate("other",dir.filePath("other-profile")); QVERIFY(service.serverTabs().isEmpty()); QVERIFY(service.serverLibraries(id).isEmpty());
+        service.activate("p",root); service.remove(id); QVERIFY(service.serverTabs().isEmpty()); QVERIFY(service.serverLibraries(id).isEmpty());
+    }
+    void knownEmptyManifestDiffersFromLegacyAndPostersUseOnlyValidatedImdb() {
+        QTemporaryDir dir; auto secrets=std::make_shared<ShelfSecrets>(); const auto root=dir.filePath("profile");
+        auto malicious=item("malicious","movie","Bad poster",{{"imdbId","tt1/SECRET?token=x"},{"tmdbId",901}},true);
+        malicious.insert("coverUrl","https://SECRET/private?token=x");
+        const auto id=seed(secrets,root,"emby",QJsonArray{malicious}); QVERIFY(!id.isEmpty());
+        HomeServerService service(options(secrets,dir)); service.activate("p",root);
+        QVERIFY(!service.serverTabs().first().toMap().value("manifestKnown").toBool()); QVERIFY(service.serverLibraries(id).isEmpty());
+        QCOMPARE(service.shelfTitles(id).size(),1); QVERIFY(service.shelfTitles(id).first().toMap().value("coverUrl").toString().isEmpty());
+        HomeServerStore saved(secrets); QVERIFY(saved.activate("p",root)); QVERIFY(saved.replaceCatalog(id,{},{}));
+        service.activate("p",root); QVERIFY(service.serverTabs().first().toMap().value("manifestKnown").toBool());
+        QCOMPARE(service.serverTabs().first().toMap().value("libraryCount").toInt(),0); QVERIFY(service.serverLibraries(id).isEmpty());
+        service.deactivate(); QVERIFY(service.serverTabs().isEmpty()); QVERIFY(service.serverLibraries(id).isEmpty());
+    }
     void providerProjection_data() {QTest::addColumn<QString>("provider");for(auto provider:{"jellyfin","emby","plex"})QTest::newRow(provider)<<QString(provider);}
     void providerProjection() {
         QFETCH(QString,provider);QTemporaryDir dir;auto secrets=std::make_shared<ShelfSecrets>();const auto id=seed(secrets,dir.filePath("profile"),provider);QVERIFY(!id.isEmpty());
         HomeServerService service(options(secrets,dir));service.activate("p",dir.filePath("profile"));
         const auto shelves=service.shelves();QCOMPARE(shelves.size(),1);QCOMPARE(shelves.first().toMap(),(QVariantMap{{"id",id},{"name","Home"},{"titleCount",4}}));
         const auto rows=service.shelfTitles(id);QCOMPARE(rows.size(),4);
-        QStringList titles,ids;for(const auto &value:rows){const auto row=value.toMap();titles.append(row.value("title").toString());ids.append(row.value("id").toString());QCOMPARE(row.value("year").toInt(),2024);QCOMPARE(row.value("coverUrl").toString(),QString());const auto identity=row.value("identity").toMap();QCOMPARE(identity.value("world").toString(),QString("Theatre"));QCOMPARE(identity.value("identityId"),row.value("id"));QCOMPARE(identity.value("type"),row.value("kind"));}
+        QStringList titles,ids;for(const auto &value:rows){const auto row=value.toMap();titles.append(row.value("title").toString());ids.append(row.value("id").toString());QCOMPARE(row.value("year").toInt(),2024);const auto publicId=row.value("id").toString();const auto cover=publicId.startsWith("tt")?QString("https://live.metahub.space/poster/small/%1/img").arg(publicId):QString();QCOMPARE(row.value("coverUrl").toString(),cover);const auto identity=row.value("identity").toMap();QCOMPARE(identity.value("coverUrl").toString(),cover);QCOMPARE(identity.value("world").toString(),QString("Theatre"));QCOMPARE(identity.value("identityId"),row.value("id"));QCOMPARE(identity.value("type"),row.value("kind"));}
         QCOMPARE(titles,(QStringList{"Alpha","Beta","Delta","Gamma"}));QCOMPARE(ids,(QStringList{"tt100","tt200","tvdb:tv:888","tmdb:movie:777"}));
-        const auto publicJson=QJsonDocument::fromVariant(QVariantList{shelves,rows}).toJson();QVERIFY(!publicJson.contains("SECRET"));QVERIFY(!publicJson.contains("://"));QVERIFY(!publicJson.contains("versions"));QVERIFY(!publicJson.contains("origin"));QVERIFY(!publicJson.contains("infoHash"));
+        const auto publicJson=QJsonDocument::fromVariant(QVariantList{shelves,rows}).toJson();QVERIFY(!publicJson.contains("SECRET"));QVERIFY(!publicJson.contains("versions"));QVERIFY(!publicJson.contains("origin"));QVERIFY(!publicJson.contains("infoHash"));
     }
     void offlineMetadataAndExactEpisodes() {
         QTemporaryDir dir;auto secrets=std::make_shared<ShelfSecrets>();const auto id=seed(secrets,dir.filePath("profile"),"jellyfin");QVERIFY(!id.isEmpty());HomeServerService service(options(secrets,dir));service.activate("p",dir.filePath("profile"));
