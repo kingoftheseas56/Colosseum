@@ -140,6 +140,7 @@ Popup {
                 compact: true
                 Accessible.name: qsTr("Close")
                 tooltipText: qsTr("Close")
+                androidTooltipPolicy: "drop"
                 onClicked: root.close()
             }
         }

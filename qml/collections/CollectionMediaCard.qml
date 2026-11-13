@@ -10,6 +10,7 @@ Item {
     required property var media
     property string noteText: ""
     property bool editing: false
+    readonly property bool androidTouch: Qt.platform.os === "android"
     property int position: 0
     property int itemCount: 0
     signal titleRequested()
@@ -21,6 +22,11 @@ Item {
     Theme { id: theme }
 
     function focusReorder(direction) {
+        if (card.androidTouch) {
+            cardActions.forceActiveFocus(Qt.TabFocusReason)
+            card.ensureVisibleRequested(cardActions)
+            return
+        }
         if (direction < 0 && earlier.enabled) earlier.forceActiveFocus(Qt.TabFocusReason)
         else if (later.enabled) later.forceActiveFocus(Qt.TabFocusReason)
         else remove.forceActiveFocus(Qt.TabFocusReason)
@@ -182,9 +188,34 @@ Item {
                 font.pixelSize: 11
                 textFormat: Text.PlainText
             }
+            ActionOverflowMenu {
+                id: cardActions
+                objectName: "collectionMediaMore_" + card.media.id
+                visible: card.androidTouch
+                showLabel: false
+                Layout.preferredWidth: 40
+                Layout.preferredHeight: 40
+                actions: [
+                    { id: "moveEarlier", label: qsTr("Move earlier"), iconName: "up",
+                      enabled: card.position > 0 },
+                    { id: "moveLater", label: qsTr("Move later"), iconName: "down",
+                      enabled: card.position < card.itemCount - 1 },
+                    { id: "remove", label: qsTr("Remove from collection"), iconName: "trash",
+                      danger: true }
+                ]
+                onActionTriggered: function(actionId) {
+                    if (actionId === "moveEarlier") card.moveRequested(-1)
+                    else if (actionId === "moveLater") card.moveRequested(1)
+                    else if (actionId === "remove") card.removeRequested()
+                }
+                onActiveFocusChanged: if (activeFocus) card.ensureVisibleRequested(cardActions)
+                Keys.onReturnPressed: cardActions.open()
+                Keys.onEnterPressed: cardActions.open()
+            }
             CollectionActionButton {
                 id: earlier
                 objectName: "moveEarlier_" + card.media.id
+                visible: !card.androidTouch
                 iconName: "up"
                 compact: true
                 emphasis: "ghost"
@@ -197,6 +228,7 @@ Item {
             CollectionActionButton {
                 id: later
                 objectName: "moveLater_" + card.media.id
+                visible: !card.androidTouch
                 iconName: "down"
                 compact: true
                 emphasis: "ghost"
@@ -209,6 +241,7 @@ Item {
             CollectionActionButton {
                 id: remove
                 objectName: "removeTitle_" + card.media.id
+                visible: !card.androidTouch
                 iconName: "close"
                 compact: true
                 emphasis: "ghost"

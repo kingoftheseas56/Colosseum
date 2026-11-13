@@ -48,6 +48,7 @@ TextField {
         visible: root.text.length > 0
         Accessible.name: qsTr("Clear search")
         tooltipText: qsTr("Clear search")
+        androidTooltipPolicy: "drop"
         onClicked: { root.clear(); root.forceActiveFocus(Qt.OtherFocusReason) }
     }
 }

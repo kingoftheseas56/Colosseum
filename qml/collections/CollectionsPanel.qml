@@ -237,7 +237,15 @@ Item {
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                 Accessible.role: Accessible.AlertMessage
             }
-            CollectionActionButton { iconName: "close"; compact: true; emphasis: "ghost"; Accessible.name: qsTr("Dismiss message"); tooltipText: qsTr("Dismiss message"); onClicked: panel.message = "" }
+            CollectionActionButton {
+                iconName: "close"
+                compact: true
+                emphasis: "ghost"
+                Accessible.name: qsTr("Dismiss message")
+                tooltipText: qsTr("Dismiss message")
+                androidTooltipPolicy: "drop"
+                onClicked: panel.message = ""
+            }
         }
     }
     Component {

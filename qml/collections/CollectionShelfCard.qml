@@ -10,8 +10,9 @@ Button {
     required property var collection
     readonly property var covers: card.collection.items.slice(0, 3)
     readonly property color shelfTint: card.collection.tint || "#465265"
+    readonly property bool androidTouch: Qt.platform.os === "android"
     objectName: "collectionCard_" + card.collection.id
-    implicitHeight: 300
+    implicitHeight: card.androidTouch ? Math.max(300, collectionSummary.y + collectionSummary.height + 18) : 300
     padding: 0
     hoverEnabled: true
     focusPolicy: Qt.StrongFocus
@@ -82,14 +83,28 @@ Button {
                 anchors.top: parent.top
                 anchors.right: parent.right
                 anchors.margins: 12
-                width: 28; height: 28; radius: 14
+                width: card.androidTouch ? Math.max(72, openCue.implicitWidth + 16) : 28
+                height: 28
+                radius: 14
                 color: "#aa11151f"
-                visible: card.hovered || card.visualFocus
-                CollectionIcon {
+                visible: card.androidTouch || card.hovered || card.visualFocus
+                Row {
+                    id: openCue
                     anchors.centerIn: parent
-                    width: 15; height: 15
-                    name: "arrow"
-                    strokeColor: theme.ink
+                    spacing: 5
+                    Text {
+                        visible: card.androidTouch
+                        text: qsTr("Open")
+                        font.family: theme.ui
+                        font.pixelSize: 12
+                        color: theme.ink
+                        textFormat: Text.PlainText
+                    }
+                    CollectionIcon {
+                        width: 15; height: 15
+                        name: "arrow"
+                        strokeColor: theme.ink
+                    }
                 }
             }
         }
@@ -102,12 +117,13 @@ Button {
             font.family: theme.ui
             font.pixelSize: 19
             font.weight: Font.DemiBold
-            maximumLineCount: 2
-            wrapMode: Text.Wrap
-            elide: Text.ElideRight
+            maximumLineCount: card.androidTouch ? 1000 : 2
+            wrapMode: card.androidTouch ? Text.WrapAtWordBoundaryOrAnywhere : Text.Wrap
+            elide: card.androidTouch ? Text.ElideNone : Text.ElideRight
             textFormat: Text.PlainText
         }
         Text {
+            id: collectionSummary
             x: 2; y: collectionTitle.y + collectionTitle.height + 6
             width: parent.width - 4
             text: card.collection.items.length === 0 ? qsTr("Ready for your first title") : qsTr("%1 titles  ·  %2").arg(card.collection.items.length).arg(card.store.summary(card.collection))
