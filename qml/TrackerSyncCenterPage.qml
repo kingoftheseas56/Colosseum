@@ -12,6 +12,9 @@ Item {
     id: root
     objectName: "trackerSyncCenterPage"
 
+    function openHomeServers() {
+        vaultHomeServersCard.panelOpen = true
+    }
     property Item backdrop: null
     property var stremioState: null
     property var nuvioAccount: typeof NuvioAccounts !== "undefined" ? NuvioAccounts : null
@@ -2191,6 +2194,7 @@ Item {
                     }
                 }
                 HomeServerSyncCard {
+                    id: vaultHomeServersCard
                     Layout.fillWidth: true
                     service: root.homeServers
                 }

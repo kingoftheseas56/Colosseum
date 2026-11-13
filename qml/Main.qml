@@ -1725,7 +1725,8 @@ Window {
             win.openWorld("Theatre")
             win.openTheatreSeries({ id: sid.replace(/^imdb:/, ""), type: identity.type === "series" ? "series" : "movie",
                                     tmdbId: identity.tmdbId || 0, tvdbId: identity.tvdbId || 0,
-                                    title: identity.title || "", cover: identity.coverUrl || "" })
+                                    title: identity.title || "", cover: identity.coverUrl || "",
+                                    resumeSources: identity.resumeSources || null })
         } else if (identity.world === "Biblio") {
             win.openWorld("Biblio")
             win.openBook({ id: sid, title: identity.title || "", synopsis: identity.synopsis || "" })
@@ -2742,6 +2743,15 @@ Window {
         if (syncCenterLayer.item && syncCenterLayer.item.takeKeyboardFocus)
             Qt.callLater(syncCenterLayer.item.takeKeyboardFocus)
     }
+    property bool vaultServerConnectionsPending: false
+    function openVaultServerConnections() {
+        vaultServerConnectionsPending = true
+        win.openSyncCenterPage()
+        if (syncCenterLayer.item && syncCenterLayer.item.openHomeServers) {
+            syncCenterLayer.item.openHomeServers()
+            vaultServerConnectionsPending = false
+        }
+    }
     function closeSyncCenterPage() {
         syncCenterLayer.active = false
         win.focusTrackersDoor()
@@ -2842,26 +2852,10 @@ Window {
     }
     function closeVaultPage() { vaultLayer.active = false; win.restoreNamedCollectionsReturn() }
 
-    // Esc inside the Vault, mirroring VaultPage's own top-left Back law: sheet, then folder
-    // detail, then one browse level up (or out of the Hidden shelf), and only leave once
-    // there is nowhere left to ascend.
-    // The sheet must be handled HERE, not by its own Keys.onPressed: the window-context
-    // Escape Shortcut above is matched before the key reaches the focus item, and nothing in
-    // the Vault accepts Keys.onShortcutOverride, so an inner handler can never win Escape
-    // back. Backspace is not a Shortcut, so inner ascend handlers still see it.
+    // One Back law: transient sheet/search, then Home, then leave Vault.
     function vaultBack() {
-        var page = vaultLayer.item
-        if (!page) { win.closeVaultPage(); return }
-        if (page.detailSheetVisible) { page.closeDetailSheet(); return }
-        // Vault ux uplift S14: Escape leaves the search pseudo-level first — it is the most
-        // transient view state (the field itself can never see the key: the window-context
-        // Shortcut is matched before the focus item, the S2 lesson).
-        if (page.searchViewActive) { page.leaveSearchView(); return }
-        if (page.hiddenViewActive || (page.crumbStack && page.crumbStack.length > 1)) {
-            page.ascendBrowse()
-            return
-        }
-        win.closeVaultPage()
+        if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack()
+        else win.closeVaultPage()
     }
 
     Loader {
@@ -5672,6 +5666,7 @@ Window {
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.playRequested.connect(win.openMovieSession)
             item.playLocalRequested.connect(win.openLocalVideoSession)
+            item.localMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
             item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
@@ -6007,7 +6002,7 @@ Window {
         // frames so opening the folder door does not synchronously block the world underneath.
         // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
         asynchronous: true
-        source: win.androidHost ? "" : "VaultPage.qml"
+        source: win.androidHost ? "" : "VaultLibraryPage.qml"
         onLoaded: {
             item.backdrop = wall
             item.backRequested.connect(win.closeVaultPage)
@@ -6016,6 +6011,7 @@ Window {
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
                 item.openMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
             item.viewWorldRequested.connect(win.openVaultIdentity)
+            item.connectServerRequested.connect(function() { win.openVaultServerConnections() })
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
@@ -6409,6 +6405,10 @@ Window {
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.mainSyncRequested.connect(win.openStremioSyncPanel)
+            if (win.vaultServerConnectionsPending && item.openHomeServers) {
+                item.openHomeServers()
+                win.vaultServerConnectionsPending = false
+            }
             item.takeKeyboardFocus()
         }
     }
