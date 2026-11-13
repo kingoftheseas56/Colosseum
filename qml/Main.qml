@@ -278,7 +278,7 @@ Window {
         androidHost: win.androidHost
     }
     readonly property alias desktopPresentation: presentationPolicy.desktopPresentation
-    readonly property real headerOuterMargin: theme.margin
+    readonly property real headerOuterMargin: win.androidHost ? presentationPolicy.headerMargin : theme.margin
     readonly property real outerPageMargin: theme.margin
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
@@ -4412,7 +4412,7 @@ Window {
         backdrop: wall
         activeMedium: ""
         androidHost: win.androidHost
-        x: win.headerOuterMargin; y: presentationPolicy.stackedWorldChrome ? presentationPolicy.topInset : 18
+        x: win.headerOuterMargin; y: 18
         width: win.width - win.headerOuterMargin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")

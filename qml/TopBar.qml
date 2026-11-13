@@ -22,15 +22,13 @@ Item {
     property string activeMedium: ""         // "" = home / no selection
     property bool compactBrowserChrome: false
     readonly property bool compactChrome: compactBrowserChrome || width < (androidHost ? 1100 : 1200)
-    // Narrow Android headers reserve a full row for the desktop-shaped world picker.
+    // Android uses the outer header space to keep every group in one row.
     readonly property real leftOtherWidth:
         (backAction.visible ? backAction.implicitWidth : 0)
         + (leftTitle.visible ? leftTitle.implicitWidth : 0)
     readonly property int leftOtherCount: (backAction.visible ? 1 : 0) + (leftTitle.visible ? 1 : 0)
-    readonly property bool stackedWorldChrome: !backOnly && inputMetrics.stackedWorldChrome
-    readonly property real utilityRowHeight: stackedWorldChrome ? inputMetrics.chromeUtilityHeight : height
     readonly property real clockFreeSpace: width - systemChrome.implicitWidth
-        - (stackedWorldChrome ? 0 : pillsRow.implicitWidth + 14)
+        - (pillsRow.implicitWidth + 14)
         - 24 - leftOtherWidth - leftOtherCount * (bar.androidHost ? inputMetrics.chromeGap : 18)
     readonly property bool clockFits: !backOnly && width > 0 && clockBlock.implicitWidth <= clockFreeSpace
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
@@ -45,7 +43,7 @@ Item {
     property bool lifecycleActive: true
     // Host capability is independent of the desktop-shaped presentation on Android.
     property bool androidHost: Qt.platform.os === "android"
-    AdaptiveLayout { id: inputMetrics; objectName: "topBarInputMetrics"; androidHost: bar.androidHost; viewportWidth: bar.width; chromeAvailableWidth: bar.width }
+    AdaptiveLayout { id: inputMetrics; objectName: "topBarInputMetrics"; androidHost: bar.androidHost; viewportWidth: bar.width }
     readonly property real touchTargetSize: inputMetrics.touchTargetSize
     readonly property real touchHorizontalInset: bar.touchTargetSize > 0
         ? Math.min((bar.touchTargetSize - 22) / 2, Math.floor(systemChrome.spacing / 2)) : 0
@@ -129,7 +127,7 @@ Item {
     readonly property bool shellWindowed:
         typeof WindowMode !== "undefined" && WindowMode.shellWindowed
 
-    implicitHeight: stackedWorldChrome ? inputMetrics.topBarHeight : 56
+    implicitHeight: 56
 
     Theme { id: theme }
 
@@ -209,8 +207,9 @@ Item {
         property bool comingSoon: false
         readonly property bool active: !pill.comingSoon && bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + (bar.androidHost ? inputMetrics.chromePillPadding
-            : (bar.width < 900 ? 16 : (bar.width < 1100 ? 24 : 34)))
+        implicitWidth: Math.max(bar.androidHost ? inputMetrics.touchTargetSize : 0,
+            pillContent.implicitWidth + (bar.androidHost ? inputMetrics.chromePillPadding
+            : (bar.width < 900 ? 16 : (bar.width < 1100 ? 24 : 34))))
         implicitHeight: 34
 
         Rectangle {
@@ -259,8 +258,7 @@ Item {
     Row {
         id: leftChrome
         objectName: "topBarLeftChrome"
-        anchors.left: parent.left
-        y: (bar.utilityRowHeight - height) / 2
+        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
         spacing: bar.androidHost ? inputMetrics.chromeGap : 18
         BackAction {
             id: backAction
@@ -320,8 +318,8 @@ Item {
         objectName: "topBarWorldPicker"
         visible: !bar.backOnly
         backdrop: bar.backdrop
-        y: bar.stackedWorldChrome ? bar.utilityRowHeight + inputMetrics.chromeRowGap : (bar.height - height) / 2
-        x: bar.stackedWorldChrome ? (bar.width - width) / 2 : Math.max(leftChrome.width + 12,
+        anchors.verticalCenter: parent.verticalCenter
+        x: Math.max(leftChrome.width + 12,
                     Math.min((bar.width - width) / 2, systemChrome.x - width - 12))
         radius: 999
         width: pillsRow.implicitWidth + 14; height: 46
@@ -362,8 +360,7 @@ Item {
         id: systemChrome
         objectName: "topBarSystemChrome"
         visible: !bar.backOnly
-        anchors.right: parent.right
-        y: (bar.utilityRowHeight - height) / 2
+        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
         spacing: bar.androidHost ? inputMetrics.chromeSystemGap : (bar.width < 1000 ? 12 : (bar.width < 1200 ? 20 : 24))
         // Search — worlds only, except Universes (no search behaviour there yet).
         SysIcon {

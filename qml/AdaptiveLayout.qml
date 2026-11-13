@@ -19,15 +19,11 @@ QtObject {
     readonly property bool shortAndroid: androidHost && desktopPresentation && viewportHeight > 0 && viewportHeight < 600
     readonly property bool tightAndroidChrome: androidHost && viewportWidth < 900
     readonly property real chromeGap: tightAndroidChrome ? 8 : 18
-    property real chromeAvailableWidth: viewportWidth - pageMargin * 2
-    readonly property bool stackedWorldChrome: androidHost && chromeAvailableWidth < 1000
-    readonly property real chromeUtilityHeight: Math.max(48, touchTargetSize)
-    readonly property real chromeRowGap: 4
-    readonly property real chromePickerHeight: 46
-    readonly property real chromePillPadding: chromeAvailableWidth < 620 ? 24 : 34
+    readonly property real headerMargin: androidHost ? 12 : pageMargin
+    readonly property real chromePillPadding: tightAndroidChrome ? 12 : 20
     readonly property real chromePillGap: 4
     readonly property real chromePillContentGap: 6
-    readonly property real chromePillFontSize: 14
+    readonly property real chromePillFontSize: tightAndroidChrome ? 13 : 14
     readonly property real chromeSoonFontSize: 8
     readonly property real chromeSystemGap: tightAndroidChrome ? 8 : 12
     readonly property real chromeClockSize: tightAndroidChrome ? 26 : 32
@@ -89,9 +85,8 @@ QtObject {
                                                     : 54
     // Restore desktop gutters while retaining the existing adaptive phone margins.
     readonly property real outerPageMargin: pageMargin
-    readonly property real topInset: compactChrome || stackedWorldChrome ? 12 : 30
-    readonly property real topBarHeight: compactChrome ? 102 : stackedWorldChrome
-        ? chromeUtilityHeight + chromeRowGap + chromePickerHeight : 56
+    readonly property real topInset: compactChrome ? 12 : 30
+    readonly property real topBarHeight: compactChrome ? 102 : 56
     readonly property real contentTop: topInset + topBarHeight + (compactChrome ? 8 : 10)
     readonly property real sectionSpacing: phone ? 22 : (tablet ? 28 : 36)
     // Home historically used a slightly tighter 30 px desktop rhythm than WorldPage's 36 px.

@@ -54,9 +54,10 @@ TestCase {
     Component {
         id: barComponent
         App.TopBar {
+            App.AdaptiveLayout { id: headerMetrics; androidHost: host.androidHost; viewportWidth: host.width }
             backdrop: wallpaper
             androidHost: host.androidHost
-            width: host.width - 108
+            width: host.width - headerMetrics.headerMargin * 2
             activeMedium: "Theatre"
             trackersEnabled: true
             accountController: localAccount
@@ -348,14 +349,21 @@ TestCase {
         }
     }
     function test_clock_and_controls_fit_data() {
-        return [{tag: "t20", width: 762}, {tag: "oneplus", width: 955},
-                {tag: "t20-125", width: 914}]
+        return [{tag: "t20-Theatre", width: 762, medium: "Theatre"},
+                {tag: "t20-Tankoban", width: 762, medium: "Tankoban"},
+                {tag: "t20-Biblio", width: 762, medium: "Biblio"},
+                {tag: "t20-Universes", width: 762, medium: "Universes"},
+                {tag: "t20-Home", width: 762, medium: ""},
+                {tag: "oneplus", width: 955, medium: "Theatre"},
+                {tag: "t20-125", width: 914, medium: "Theatre"}]
     }
     function test_clock_and_controls_fit(data) {
         host.width = data.width
         const bar = createTemporaryObject(barComponent, host.contentItem)
         verify(bar)
         findChild(bar, "topBarInputMetrics").presentationScale = data.width > 940 ? 0.830357 : 1.5
+        bar.activeMedium = data.medium
+        bar.clock = "12:59"
         bar.date = "Wednesday, September 30"
         wait(50)
         const clock = findChild(bar, "topBarClock")
@@ -364,18 +372,22 @@ TestCase {
         const left = findChild(bar, "topBarLeftChrome")
         verify(clock.visible, "Clock must remain visible")
         verify(left.x + left.width + 8 <= systems.x, "Clock and Back must clear system controls")
-        verify(picker.y >= left.y + left.height && picker.y >= systems.y + systems.height,
-               "World tabs have their own row below clock and controls")
+        verify(picker.x >= left.x + left.width + 8, "Tabs clear the clock and Back")
+        verify(picker.x + picker.width + 8 <= systems.x, "Tabs clear system controls: " + JSON.stringify([left.width, picker.x, picker.width, systems.x, systems.width, bar.clockFreeSpace]))
         verify(picker.x >= 0 && picker.x + picker.width <= bar.width, "All six world tabs fit")
-        compare(picker.y + picker.height, bar.height)
+        compare(bar.height, 56, "The header retains one row")
+        compare(picker.y + picker.height / 2, bar.height / 2)
         for (const label of ["Tankoban", "Biblio", "Theatre", "Universes", "Feria", "Vinyl"]) {
             const text = textDescendant(picker, label)
             verify(text)
-            compare(text.font.pixelSize, 14, "World text retains desktop size")
+            compare(text.font.pixelSize, bar.width < 900 ? 13 : 14)
             const pill = text.parent.parent
-            compare(pill.width - text.parent.implicitWidth, 34, "World tabs retain desktop padding")
+            const metrics = findChild(bar, "topBarInputMetrics")
+            const padding = bar.width < 900 ? 12 : 20
+            compare(pill.width, Math.max(metrics.touchTargetSize, text.parent.implicitWidth + padding))
             const action = findChild(bar, "modePillFocus_" + label)
-            verify(action.height >= 48)
+            verify(action.height * metrics.presentationScale >= 48 - 0.001)
+            verify(action.width * metrics.presentationScale >= 48 - 0.001)
         }
         verify(systems.x + systems.width <= bar.width + 1)
     }
