@@ -152,6 +152,32 @@ TestCase {
         library.cardVisible=true
         page.handleBack(); compare(library.dismissed,1); compare(page.cardVisible,false)
     }
+    function test_matchSearchPrefersFilenameStem() {
+        const dialog = findChild(page, "vaultIdentifyDialog")
+        verify(dialog !== null)
+        var queries = []
+        dialog.searchProvider = { search: function(query, kind, callback) {
+            queries.push(query)
+            return []
+        } }
+        page.matchRow({seriesKey:"/fixture/vault",nativeKind:"video",kind:"movie",
+            path:"/fixture/vault/qualification-unmatched-xyz-4827.mp4",payload:{title:"vault"}})
+        tryCompare(dialog, "opened", true)
+        compare(dialog.titleText, "qualification-unmatched-xyz-4827")
+        compare(dialog.query, "qualification-unmatched-xyz-4827")
+        verify(queries.length > 0)
+        compare(queries[queries.length - 1], "qualification-unmatched-xyz-4827")
+        dialog.close(); tryCompare(dialog, "opened", false)
+        page.matchRow({seriesKey:"group",nativeKind:"video",kind:"movie",payload:{title:"vault"},
+            items:[{path:"C:\\Media\\Film.Name.2024.mkv"}]})
+        tryCompare(dialog, "opened", true)
+        compare(dialog.query, "Film.Name.2024")
+        dialog.close(); tryCompare(dialog, "opened", false)
+        page.matchRow({seriesKey:"group",nativeKind:"video",kind:"movie",payload:{title:"Known group"}})
+        tryCompare(dialog, "opened", true)
+        compare(dialog.query, "Known group")
+        dialog.close()
+    }
     function test_hoverFocusAndPress() {
         const nav=findChild(page,"vaultNav_books")
         mouseMove(nav,nav.width/2,nav.height/2)

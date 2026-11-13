@@ -94,7 +94,16 @@ FocusScope {
     function matchRow(row) {
         identifyDialog.groupKey = row.seriesKey || row.key || ""
         var raw = row.payload || ({})
-        identifyDialog.titleText = raw.title || raw.displayTitle || String(row.path || row.seriesKey || "").split(/[\\/]/).pop()
+        var filePath = String(row.path || "")
+        if (!filePath && row.items) {
+            for (var i = 0; i < row.items.length; ++i) {
+                if (row.items[i].path) { filePath = String(row.items[i].path); break }
+            }
+        }
+        var fileName = filePath.split(/[\\/]/).pop() || ""
+        var fileStem = fileName.replace(/\.[^.]+$/, "")
+        identifyDialog.titleText = fileStem || raw.title || raw.displayTitle || row.matchTitle
+            || String(row.seriesKey || "").split(/[\\/]/).pop()
         identifyDialog.kind = row.nativeKind || (row.kind === "book" ? "book" : row.kind === "comic" ? "comic" : "video")
         identifyDialog.embeddedIdentity = row.kind === "book" && row.items && row.items.length ? row.items[0] : ({})
         identifyDialog.feedback = ""
