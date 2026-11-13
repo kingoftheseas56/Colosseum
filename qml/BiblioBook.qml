@@ -9,6 +9,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import QtQuick.Window
 import "BiblioApi.js" as BiblioApi
 import "AbbApi.js" as Abb
 import "collections" as CollectionsUi
@@ -24,7 +25,12 @@ Item {
     property real safeAreaRight: detail.SafeArea.margins.right
     readonly property real outerLeftInset: Math.max(layout.outerPageMargin, detail.safeAreaLeft)
     readonly property real outerRightInset: Math.max(layout.outerPageMargin, detail.safeAreaRight)
-    AdaptiveLayout { id: layout; androidHost: detail.androidHost; viewportWidth: detail.width }
+    AdaptiveLayout {
+        id: layout
+        androidHost: detail.androidHost
+        viewportWidth: detail.width
+        viewportHeight: detail.Window.window ? detail.Window.window.height : detail.height
+    }
     property var editions: []
     property bool edLoading: false
     property string localPath: ""        // a downloaded edition of this book on disk ("" = none yet)
@@ -835,13 +841,15 @@ Item {
             // ── cover column ──
             Column {
                 id: coverCol
-                width: 268
-                topPadding: 16
-                spacing: 28
+                width: layout.bookCoverColumnWidth
+                topPadding: layout.bookCoverTopPadding
+                spacing: layout.bookCoverGap
 
                 // the book as a physical object: soft shadow + cover + spine + page edge
                 Item {
-                    width: 268; height: 402
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    height: layout.bookCoverHeight(page.height)
+                    width: height * 2 / 3
 
                     Rectangle {                       // page edge (right)
                         anchors.right: parent.right; anchors.rightMargin: -5
@@ -884,11 +892,11 @@ Item {
                 }
 
                 Column {                              // actions
-                    width: 268; spacing: 12
+                    width: parent.width; spacing: 12
                     Rectangle {
                         id: primaryCta
                         objectName: "biblioPrimaryRead"
-                        width: parent.width; height: 50; radius: 13; color: theme.gold
+                        width: parent.width; height: layout.bookPrimaryHeight; radius: 13; color: theme.gold
                         opacity: enabled ? 1.0 : 0.5
                         enabled: detail.localPath.length > 0 || detail.pendingReadActive
                                  || detail.edLoading || detail.torLoading
@@ -901,11 +909,15 @@ Item {
                         }
                         MouseArea {
                             anchors.fill: parent; enabled: primaryCta.enabled
+                            anchors.topMargin: -layout.targetInset(parent.height)
+                            anchors.bottomMargin: -layout.targetInset(parent.height)
                             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: detail.readBook()
                         }
                         KeyboardAction {
                             id: primaryReadKeyboard; anchors.fill: parent; pointerEnabled: false
+                            anchors.topMargin: -layout.targetInset(parent.height)
+                            anchors.bottomMargin: -layout.targetInset(parent.height)
                             focusEnabled: primaryCta.enabled; accessibleName: detail.primaryReadLabel()
                             focusRadius: primaryCta.radius; onTriggered: detail.readBook()
                         }
@@ -940,7 +952,7 @@ Item {
             // ── text column ──
             Column {
                 id: textCol
-                anchors.left: coverCol.right; anchors.leftMargin: 64
+                anchors.left: coverCol.right; anchors.leftMargin: layout.bookColumnGap
                 anchors.right: parent.right
                 topPadding: 18
                 spacing: 0
@@ -953,7 +965,7 @@ Item {
                 Item { width: 1; height: 14 }
                 Text {                                // title
                     text: detail.book && detail.book.title ? detail.book.title : ""
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 54
+                    color: theme.ink; font.family: theme.display; font.pixelSize: layout.bookTitleSize
                     width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.02
                 }
                 Item { width: 1; height: 20 }
@@ -961,7 +973,7 @@ Item {
                     visible: text.length > 0
                     text: detail.book && detail.book.tagline ? "“" + detail.book.tagline + "”" : ""
                     color: theme.ink; opacity: 0.92
-                    font.family: theme.display; font.italic: true; font.pixelSize: 28
+                    font.family: theme.display; font.italic: true; font.pixelSize: layout.bookTaglineSize
                     width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.3
                 }
                 Item { width: 1; height: 30 }

@@ -6,6 +6,10 @@ import QtQuick
 // (universe-tile law). Naming Collection.revision keeps `saved` live.
 Rectangle {
     id: lib
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(lib.Window.window && lib.Window.window.androidHost === true)
+    }
     property string world: ""
     property var entry: null
     signal removeRequested(var entry)
@@ -50,6 +54,10 @@ Rectangle {
     KeyboardAction {
         id: input
         anchors.fill: parent
+        anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+        anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+        anchors.topMargin: -touchMetrics.targetInset(parent.height)
+        anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
         focusEnabled: lib.visible && lib.enabled && !!(lib.entry && lib.entry.id)
         accessibleName: lib.saved ? "Remove from Library" : "Add to Library"
         focusRadius: lib.radius

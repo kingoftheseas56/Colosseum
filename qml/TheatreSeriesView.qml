@@ -22,6 +22,10 @@ import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: page
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(page.Window.window && page.Window.window.androidHost === true)
+    }
     readonly property bool phoneNarrow: !!(page.Window.window && page.Window.window.androidHost && page.Window.window.desktopPresentation !== true
                                             && page.Window.window.width < 840)
     readonly property int bodyInset: page.phoneNarrow ? 20 : theme.margin
@@ -1335,6 +1339,10 @@ Item {
                             KeyboardAction {
                                 id: heroWatchKeyboard
                                 anchors.fill: parent
+                                anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+                                anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+                                anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                                anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                                 accessibleName: "Watch " + page.title
                                 focusRadius: parent.radius
                                 showFocusFrame: false

@@ -22,6 +22,10 @@ import QtQuick.Controls
 
 Item {
     id: rail
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(rail.Window.window && rail.Window.window.androidHost === true)
+    }
 
     required property DiscoverBrowser host
     property Item backdrop: null
@@ -251,6 +255,10 @@ Item {
         KeyboardAction {
             id: toggleAction
             anchors.fill: parent
+            anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+            anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+            anchors.topMargin: -touchMetrics.targetInset(parent.height)
+            anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
             accessibleName: rail.collapsed ? "Expand sidebar" : "Retract sidebar"
             tooltipText: accessibleName
             focusRadius: 14

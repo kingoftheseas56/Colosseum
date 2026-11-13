@@ -117,13 +117,13 @@ public final class ColosseumActivity extends QtActivity {
             : new int[] {metrics.widthPixels, metrics.heightPixels, metrics.widthPixels, metrics.heightPixels};
         int width = Math.max(drawable[0], drawable[1]);
         int height = Math.min(drawable[0], drawable[1]);
-        // Installed Beta composition: whole-Qt visual zoom on cold launch (default 1.5, i.e. 50% over the fitted baseline),
-        // optionally overridden by the non-persistent colosseum_visual_zoom extra (0.9-1.6).
+        // Keep desktop size when the canvas fits; preserve the fitted phone composition otherwise.
+        // The non-persistent colosseum_visual_zoom extra still overrides either default (0.9-1.6).
         float baselineScale = DesktopPresentationScale.forBounds(width, height, metrics.density);
-        float visualZoom = 1.5f;
+        float visualZoom = DesktopPresentationScale.defaultVisualZoom(baselineScale);
         Intent launchIntent = getIntent();
         if (launchIntent != null) {
-            float requestedZoom = launchIntent.getFloatExtra("colosseum_visual_zoom", 1.5f);
+            float requestedZoom = launchIntent.getFloatExtra("colosseum_visual_zoom", visualZoom);
             if (Float.isFinite(requestedZoom) && requestedZoom >= 0.9f && requestedZoom <= 1.6f) {
                 visualZoom = requestedZoom;
             }

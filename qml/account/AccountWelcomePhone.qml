@@ -16,6 +16,12 @@ Item {
     signal createAccountRequested()
 
     Theme { id: theme }
+    AdaptiveLayout {
+        id: adaptive
+        androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost === true)
+        viewportWidth: root.visualViewportWidth
+        viewportHeight: root.visualViewportHeight
+    }
 
     // The Windows phone-shell harness creates a pixel-sized native window at
     // the desktop DPI. Keep its visual viewport within those physical pixels;
@@ -82,7 +88,7 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         contentWidth: width
-        contentHeight: Math.max(height, content.y + content.implicitHeight + 24)
+        contentHeight: Math.max(height, content.y + content.implicitHeight + (adaptive.compactWelcome ? adaptive.welcomeInset : 24))
 
         ScrollBar.vertical: ScrollBar {
             policy: scroller.contentHeight > scroller.height
@@ -92,7 +98,7 @@ Item {
         Column {
             id: content
             x: 20
-            y: 28
+            y: adaptive.compactWelcome ? adaptive.welcomeInset : 28
             width: Math.max(0, scroller.width - 40)
             spacing: 0
 
@@ -107,21 +113,21 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            Item { width: 1; height: 12 }
+            Item { width: 1; height: adaptive.compactWelcome ? adaptive.welcomeSmallGap : 12 }
 
             Text {
                 width: parent.width
                 text: "Welcome to Colosseum."
                 color: theme.ink
                 font.family: theme.display
-                font.pixelSize: root.width < 380 ? 31 : 34
+                font.pixelSize: adaptive.compactWelcome ? adaptive.welcomeTitleSize : (root.width < 380 ? 31 : 34)
                 font.weight: Font.Medium
                 font.letterSpacing: -0.8
                 lineHeight: 1.05
                 wrapMode: Text.WordWrap
             }
 
-            Item { width: 1; height: 22 }
+            Item { width: 1; height: adaptive.compactWelcome ? adaptive.welcomeGap : 22 }
 
             Rectangle {
                 width: 34
@@ -130,24 +136,24 @@ Item {
                 color: theme.gold
             }
 
-            Item { width: 1; height: 20 }
+            Item { width: 1; height: adaptive.compactWelcome ? adaptive.welcomeGap : 20 }
 
             Text {
                 width: parent.width
                 text: "Use Colosseum completely locally, or sign in to carry your Collection, progress, reader setup, preferences, and other personal choices between devices."
                 color: theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: 14
-                lineHeight: 1.55
+                font.pixelSize: adaptive.compactWelcome ? adaptive.welcomeBodySize : 14
+                lineHeight: adaptive.compactWelcome ? 1.25 : 1.55
                 wrapMode: Text.WordWrap
             }
 
-            Item { width: 1; height: 28 }
+            Item { width: 1; height: adaptive.compactWelcome ? adaptive.welcomeInset : 28 }
 
             Glass {
                 id: panel
                 width: parent.width
-                height: panelColumn.implicitHeight + 36
+                height: panelColumn.implicitHeight + (adaptive.compactWelcome ? adaptive.welcomeInset * 2 : 36)
                 backdrop: wallpaper
                 radius: 18
                 tint: 0.09
@@ -155,20 +161,22 @@ Item {
 
                 Column {
                     id: panelColumn
-                    x: 18
-                    y: 18
-                    width: parent.width - 36
+                    x: adaptive.compactWelcome ? adaptive.welcomeInset : 18
+                    y: adaptive.compactWelcome ? adaptive.welcomeInset : 18
+                    width: parent.width - x * 2
                     spacing: 0
 
                     AccountPanelHeader {
+                        compact: adaptive.compactWelcome
                         kicker: "START"
                         title: "How do you want to begin?"
                         copy: "An account is optional. You can change your mind later."
                     }
 
-                    Item { width: 1; height: 22 }
+                    Item { width: 1; height: adaptive.compactWelcome ? adaptive.welcomeGap : 22 }
 
                     AccountWelcomeChoice {
+                        compact: adaptive.compactWelcome
                         objectName: "accountWelcomeContinueLocal"
                         width: parent.width
                         title: "Continue without account"
@@ -176,9 +184,10 @@ Item {
                         onChosen: if (root.controller) root.controller.continueWithoutAccount()
                     }
 
-                    Item { width: 1; height: 10 }
+                    Item { width: 1; height: adaptive.compactWelcome ? adaptive.welcomeSmallGap : 10 }
 
                     AccountWelcomeChoice {
+                        compact: adaptive.compactWelcome
                         objectName: "accountWelcomeSignIn"
                         visible: root.accountEntryAvailable
                         width: parent.width
@@ -187,9 +196,10 @@ Item {
                         onChosen: root.signInRequested()
                     }
 
-                    Item { width: 1; height: 10 }
+                    Item { width: 1; height: adaptive.compactWelcome ? adaptive.welcomeSmallGap : 10 }
 
                     AccountWelcomeChoice {
+                        compact: adaptive.compactWelcome
                         objectName: "accountWelcomeCreateAccount"
                         visible: root.accountEntryAvailable
                         width: parent.width
@@ -198,7 +208,7 @@ Item {
                         onChosen: root.createAccountRequested()
                     }
 
-                    Item { width: 1; height: 20 }
+                    Item { width: 1; height: adaptive.compactWelcome ? adaptive.welcomeGap : 20 }
 
                     Text {
                         width: parent.width

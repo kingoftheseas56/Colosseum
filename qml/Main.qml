@@ -269,9 +269,16 @@ Window {
     property string wallpaperSource: win.defaultWallpaperSource
     onDefaultWallpaperSourceChanged: Qt.callLater(win.refreshWallpaper)
     property alias androidHost: phoneShell.androidHost
-    AdaptiveLayout { id: presentationPolicy; viewportWidth: win.width; androidHost: win.androidHost }
+    readonly property real browseBottomInset: win.androidHost ? phoneShell.contentBottomInset : 0
+    AdaptiveLayout {
+        id: presentationPolicy
+        viewportWidth: win.width
+        viewportHeight: win.height
+        bottomInset: win.browseBottomInset
+        androidHost: win.androidHost
+    }
     readonly property alias desktopPresentation: presentationPolicy.desktopPresentation
-    readonly property real headerOuterMargin: theme.margin
+    readonly property real headerOuterMargin: win.androidHost ? presentationPolicy.headerMargin : theme.margin
     readonly property real outerPageMargin: theme.margin
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
@@ -4548,7 +4555,7 @@ Window {
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         y: topbar.y + topbar.height + 10
-        height: win.height - y
+        height: Math.max(0, win.height - y - win.browseBottomInset)
         contentWidth: width
         contentHeight: contentCol.implicitHeight + 40
         clip: true
@@ -4630,7 +4637,7 @@ Window {
                     id: hero
                     backdrop: wall
                     track: page.contentY
-                    width: parent.width; height: 360; radius: 20
+                    width: parent.width; height: presentationPolicy.homeHeroHeight; radius: 20
                     tint: 0.06
 
                     SwipeView {
@@ -4675,11 +4682,16 @@ Window {
                                 // content over the scrim (chips row retired — ratified 2026-07-12)
                                 Column {
                                     anchors.left: parent.left; anchors.bottom: parent.bottom
-                                    anchors.margins: 44
+                                    anchors.margins: presentationPolicy.shortAndroid ? presentationPolicy.heroCopyInset : 44
                                     width: Math.min(620, parent.width - anchors.leftMargin * 2)
                                     spacing: 12
                                     Text { text: "TRIBUTE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
-                                    Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
+                                    Text {
+                                        text: slide.modelData.name; color: theme.ink; font.family: theme.display
+                                        font.pixelSize: presentationPolicy.heroTitleSize
+                                        width: presentationPolicy.shortAndroid ? parent.width : implicitWidth
+                                        wrapMode: presentationPolicy.shortAndroid ? Text.WordWrap : Text.NoWrap
+                                    }
                                     // (the blurb line went with the baked list — the roster carries
                                     // identity and art, no prose, and a faked one would be a lie)
                                     Row {
@@ -5227,6 +5239,7 @@ Window {
     Loader {
         id: genreLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 45
         active: false
         visible: active
@@ -5251,6 +5264,7 @@ Window {
     Loader {
         id: genreIndexLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 44
         active: false
         visible: active
@@ -5272,6 +5286,7 @@ Window {
     Loader {
         id: biblioGenreIndexLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 46
         active: false
         visible: active
@@ -5291,6 +5306,7 @@ Window {
     Loader {
         id: biblioGenreLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 46
         active: false
         visible: active
@@ -5315,6 +5331,7 @@ Window {
     Loader {
         id: theatreGenreLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 48
         active: false
         visible: active
@@ -5341,6 +5358,7 @@ Window {
     Loader {
         id: theatreGenreIndexLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 47
         active: false
         visible: active
@@ -5365,6 +5383,7 @@ Window {
     Loader {
         id: seriesLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a manga opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
@@ -5443,6 +5462,7 @@ Window {
     Loader {
         id: westernLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a comic opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
@@ -5492,6 +5512,7 @@ Window {
     Loader {
         id: comicSeriesLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 50
         active: false
         visible: active
@@ -5541,6 +5562,7 @@ Window {
     Loader {
         id: continueSeeAllLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 49
         active: false
         visible: active
@@ -5631,6 +5653,7 @@ Window {
     Loader {
         id: theatreSeriesLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a film/show opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
@@ -5756,6 +5779,7 @@ Window {
         id: bookLayer
         objectName: "biblioBookRouteState"
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 53
         active: false
         visible: active
@@ -6027,6 +6051,7 @@ Window {
         id: universeLayer
         objectName: "universeLayer"
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 52
         active: false
         visible: active
