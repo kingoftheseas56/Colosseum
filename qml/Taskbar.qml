@@ -160,9 +160,6 @@ Item {
                 Layout.preferredWidth: 48
                 Layout.preferredHeight: 48
                 Layout.alignment: Qt.AlignVCenter
-                activeFocusOnTab: true
-                Accessible.role: Accessible.Button
-                Accessible.name: bar.open ? "Close taskbar" : "Open taskbar"
 
                 Rectangle {
                     anchors.fill: parent
@@ -184,6 +181,8 @@ Item {
 
                 KeyboardAction {
                     id: startInput
+                    objectName: "taskbarToggleAction"
+                    spaceActivates: true
                     // Touch toggles should not leave the keyboard-focus glow behind.
                     focusOnPointer: !touchMetrics.androidHost
                     anchors.fill: parent
@@ -199,9 +198,6 @@ Item {
                         bar.autoRevealed = false
                     }
                 }
-                Keys.onReturnPressed: { bar.open = !bar.open; bar.autoRevealed = false }
-                Keys.onEnterPressed: { bar.open = !bar.open; bar.autoRevealed = false }
-                Keys.onSpacePressed: { bar.open = !bar.open; bar.autoRevealed = false }
             }
 
             // ---- Vault: the permanent folder door — opens the "On this machine" full page (Slice 10).
