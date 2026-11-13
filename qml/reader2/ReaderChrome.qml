@@ -4,7 +4,7 @@
 // cursor enters the top/bottom edge band — or on the book-open beat / a double-click.
 // A ~300ms Timer ticks it toward sleep after 3s idle; `awake` (= revealState.shown)
 // fades the top scrim + TopBar and the bottom scrim + BottomRail in/out. Body movement,
-// scroll, and keys NEVER wake it — there is NO "move" path into the reducer (that was
+// scroll, and reading keys NEVER wake it — there is NO "move" path into the reducer (that was
 // the bug this doctrine fixes). Left/right edge zones turn pages. Keys are handled by
 // ReaderShell and never routed here. Pixel contract: the chrome mock
 // (.scrim/.topbar/.bottombar/.turn).
@@ -173,6 +173,26 @@ Item {
     property bool awake: false
     property var revealState: ({ shown: false, lastActive: 0, pinned: false, frozen: false })
 
+    // Keyboard navigation deliberately reaches for chrome too. The two entry stops
+    // exist only while asleep; entering one reveals the real controls immediately.
+    // Closed panels are disabled separately, not merely translated offscreen.
+    function ownsFocus(item) {
+        for (var p = item; p; p = p.parent)
+            if (p === chrome) return true
+        return false
+    }
+    readonly property bool keyboardFocusWithin: chrome.Window.window
+        ? ownsFocus(chrome.Window.window.activeFocusItem) : false
+    onKeyboardFocusWithinChanged: updatePin()
+
+    Item {
+        activeFocusOnTab: !chrome.awake || activeFocus
+        onActiveFocusChanged: if (activeFocus) {
+            chrome.wake()
+            topBar.focusBack()
+        }
+    }
+
     // book-open orientation beat / toggle-from-hidden — show, then let idle reclaim it.
     function wake() { revealState = L.revealReducer(revealState, "wake", Date.now()); awake = revealState.shown }
     // cursor reached the top/bottom edge band → reveal AND freeze while it stays inside.
@@ -264,7 +284,7 @@ Item {
     // last one unpins and restarts the idle countdown. Both open-state changes route here.
     // Read the RAW open flags (not the derived anyPanelOpen binding, which can lag one beat
     // behind a change signal) so the pin reflects the just-applied state.
-    function updatePin() { setPanelOpen(chrome.panelOpen || chrome.appearanceOpen || chrome.searchOpen) }
+    function updatePin() { setPanelOpen(chrome.panelOpen || chrome.appearanceOpen || chrome.searchOpen || chrome.keyboardFocusWithin) }
     onPanelOpenChanged: updatePin()
     onAppearanceOpenChanged: updatePin()
     onSearchOpenChanged: updatePin()
@@ -876,4 +896,12 @@ Item {
         onResultActivated: (cfi) => { chrome.searchResultActivated(cfi); chrome.leaveSheetOnPick() }
         onCloseRequested: chrome.closeSearch()
     }
+    Item {
+        activeFocusOnTab: !chrome.awake || activeFocus
+        onActiveFocusChanged: if (activeFocus) {
+            chrome.wake()
+            bottomRail.focusLast()
+        }
+    }
+
 }

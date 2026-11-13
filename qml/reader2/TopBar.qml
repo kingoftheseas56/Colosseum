@@ -32,6 +32,7 @@ ReaderOverlay {
     signal fullscreenRequested()
     signal closeRequested()
 
+    function focusBack() { backBtn.focusKeyboard() }
     function focusSearch() { searchBtn.focusKeyboard() }
     function focusContents() { contentsBtn.focusKeyboard() }
     function focusAppearance() { appearanceBtn.focusKeyboard() }

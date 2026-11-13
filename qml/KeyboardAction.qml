@@ -44,11 +44,11 @@ Item {
     signal triggered()
     signal contextRequested()
 
-    // Keep the focus policy stable while a focused action is being hidden or disabled.
-    // Qt warns when an active item changes its policy to NoFocus during that transition;
-    // the focus engine already excludes invisible/disabled items, while focusEnabled still
-    // controls activation and accessibility eligibility.
-    focusPolicy: Qt.TabFocus
+    // Some visible delegates are clipped offscreen or are pointer-only faces.
+    // Their explicit focusEnabled contract must also govern the native Tab chain.
+    // Qt cannot revoke Tab focus on the active item. Keep it until focus moves,
+    // then re-evaluate so an excluded face cannot re-enter the next traversal.
+    focusPolicy: (action.focusEnabled || action.activeFocus) ? Qt.TabFocus : Qt.NoFocus
 
     function activate(focusReason) {
         if (!action.enabled || !action.visible)

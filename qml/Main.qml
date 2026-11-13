@@ -4635,6 +4635,12 @@ Window {
                 spacing: page.width <= 740 ? 13 : 15
                 Glass {
                     id: hero
+                    readonly property bool keyboardFocusWithin: {
+                        for (var item = win.activeFocusItem; item; item = item.parent) {
+                            if (item === hero) return true
+                        }
+                        return false
+                    }
                     backdrop: wall
                     track: page.contentY
                     width: parent.width; height: presentationPolicy.homeHeroHeight; radius: 20
@@ -4649,6 +4655,10 @@ Window {
                             delegate: Item {
                                 id: slide
                                 required property var modelData
+                                readonly property bool keyboardActionFocused: exKey.activeFocus
+                                // SwipeView clips its other pages but does not remove their
+                                // descendants from Tab navigation or accessibility.
+                                enabled: SwipeView.isCurrentItem
 
                                 // banner key-art full-bleed; a neutral plate stands in while it
                                 // loads, then the left-weighted scrim keeps the words legible
@@ -4733,15 +4743,6 @@ Window {
                                                 onClicked: win.openUniverse(slide.modelData.extensionId,
                                                                             slide.modelData.name)
                                             }
-                                            KeyboardAction {
-                                                anchors.fill: parent
-                                                pointerEnabled: false
-                                                focusEnabled: win.televisionMode && slide.visible
-                                                accessibleName: "Explore " + slide.modelData.name
-                                                focusRadius: 12
-                                                onTriggered: win.openUniverse(slide.modelData.extensionId,
-                                                                              slide.modelData.name)
-                                            }
                                         }
                                     }
                                 }
@@ -4749,12 +4750,22 @@ Window {
                         }
                     }
 
+                    FocusRing {
+                        objectName: "homeHeroFocusRing"
+                        anchors.fill: heroView
+                        radius: hero.radius
+                        shown: heroView.activeFocus
+                               && (!heroView.currentItem || !heroView.currentItem.keyboardActionFocused)
+                    }
+
                     // gentle auto-advance through the collection (not visualized — ratified)
                     Timer {
                         // Stands down while the player is up: this advances a carousel nobody can see
                         // behind the film, and every advance is an animation plus cover work on the
                         // GUI thread — the thread Qt Quick needs free to present video frames.
-                        interval: 6500; running: page.visible && !win.immersiveSurfaceOpen; repeat: true
+                        interval: 6500
+                        running: page.visible && !win.immersiveSurfaceOpen && !hero.keyboardFocusWithin
+                        repeat: true
                         // guarded: an empty roster would turn the modulo into NaN
                         onTriggered: if (heroView.count > 0)
                                          heroView.currentIndex = (heroView.currentIndex + 1) % heroView.count
@@ -4794,14 +4805,6 @@ Window {
                             id: hallMa; anchors.fill: parent
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: win.openWorld("Universes")
-                        }
-                        KeyboardAction {
-                            anchors.fill: parent
-                            pointerEnabled: false
-                            focusEnabled: win.televisionMode
-                            accessibleName: "Hall of Worlds"
-                            focusRadius: 8
-                            onTriggered: win.openUniverseHall()
                         }
                     }
                 }

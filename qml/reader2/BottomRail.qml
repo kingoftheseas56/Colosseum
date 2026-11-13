@@ -27,6 +27,11 @@ ReaderOverlay {
     signal scrubbed(real fraction)
     signal returnRequested()
 
+    function focusLast() {
+        if (returnVisible) chipMa.focusKeyboard()
+        else scrubArea.focusKeyboard()
+    }
+
     // total height: rail row (22) + meta gap (8) + meta (~16) + bottom padding (18)
     height: 22 + 8 + metaRow.height + 18
 
