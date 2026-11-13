@@ -7,6 +7,7 @@ Column {
     property bool compact: false
     signal matchRequested(var row)
     signal restoreRequested(var row)
+    signal extrasRequested(var row)
     Theme { id: theme }
     function hint(row) {
         if (row.subtitle) return row.subtitle
@@ -29,7 +30,11 @@ Column {
                 Text { width: parent.width; text: root.hiddenMode ? modelData.title : modelData.path || modelData.seriesKey || "Unidentified file"; color: theme.ink; font.family: root.hiddenMode ? theme.ui : "monospace"; font.pixelSize: theme.vaultCaption; elide: Text.ElideMiddle }
                 Text { width: parent.width; text: root.hint(modelData); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultCaption; elide: Text.ElideRight }
             }
-            VaultLibraryButton { id: action; objectName: root.hiddenMode ? "vaultRestoreTitle" : "vaultMatchTitle"; anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter; text: root.hiddenMode ? "Restore" : "Match"; onClicked: root.hiddenMode ? root.restoreRequested(modelData) : root.matchRequested(modelData) }
+            Row {
+                id: action; anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter; spacing: 8
+                VaultLibraryButton { visible: !root.hiddenMode && modelData.nativeKind === "video"; objectName: "vaultFileExtras"; text: "File as extras"; onClicked: root.extrasRequested(modelData) }
+                VaultLibraryButton { objectName: root.hiddenMode ? "vaultRestoreTitle" : "vaultMatchTitle"; text: root.hiddenMode ? "Restore" : "Match"; onClicked: root.hiddenMode ? root.restoreRequested(modelData) : root.matchRequested(modelData) }
+            }
         }
     }
 }

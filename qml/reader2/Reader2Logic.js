@@ -81,6 +81,8 @@ function progressRecord(prev, relocated, bookPath) {
     if (r.href !== undefined && r.href !== null) loc.href = r.href
     if (r.fraction !== undefined && r.fraction !== null) loc.fraction = r.fraction
     if (r.updatedAt !== undefined && r.updatedAt !== null) loc.updatedAt = r.updatedAt
+    if (r.chapterTitle !== undefined && r.chapterTitle !== null) loc.chapterTitle = String(r.chapterTitle)
+    if (Number.isFinite(r.tocIndex)) loc.tocIndex = r.tocIndex
     out.locator = loc
 
     // percent (0..100 scale, same as the old reader's store) + finished flag.
@@ -96,6 +98,16 @@ function progressRecord(prev, relocated, bookPath) {
     if (out.format === undefined || out.format === null) out.format = formatFromPath(out.path)
 
     return out
+}
+
+// Chapter text is supplied by the reader's relocation event, never inferred
+// from the CFI or TOC ordinal. The reader store remains the exact-resume owner.
+function progressResume(context, relocated) {
+    var r = relocated || {}, ctx = context || {}
+    var resume = { path: ctx.bookPath || "", book: ctx.bookMeta || {} }
+    if (r.chapterTitle !== undefined && r.chapterTitle !== null)
+        resume.chapterTitle = String(r.chapterTitle)
+    return resume
 }
 
 // resumeCfiOf(entry) → the CFI to open the book at ("" = open at the start).

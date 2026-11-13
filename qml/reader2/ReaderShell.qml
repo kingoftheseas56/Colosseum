@@ -870,7 +870,7 @@ FocusScope {
                 "c1": m.c1 !== undefined ? m.c1 : "#2a2440",
                 "c2": m.c2 !== undefined ? m.c2 : "#15111f",
                 "progress": fraction,
-                "resume": { "path": ctx.bookPath, "book": m }
+                "resume": L.progressResume(ctx, pend)
             })
         }
         shell.pendingSave = null

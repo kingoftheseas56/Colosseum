@@ -25,10 +25,21 @@ TestCase {
             property int degraded: 0
             property int confirmed: 0
             property int dismissed: 0
+            property var attached: []
             function offerUnconfirmedRoots() { offered++ }
             function rescanDegradedRoots() { degraded++ }
             function confirmRoot(path, overrides) { confirmed++; cardVisible=false }
             function dismissCard() { dismissed++; cardVisible=false }
+            function attachExtrasToShow(from, to) { attached = [from, to]; return true }
+            function extrasForShow(key) { return [{id:"supplement",title:"Featurette",path:"/fixture/extra.mkv",supplemental:true,away:false}] }
+        }
+    }
+    Component {
+        id: serverComponent
+        QtObject {
+            property int profileGeneration: 4
+            property var serverTabs: []
+            function serverLibraries(id) { return [] }
         }
     }
     Component { id: pageComponent; App.VaultLibraryPage { width:1280; height:700 } }
@@ -177,6 +188,31 @@ TestCase {
         tryCompare(dialog, "opened", true)
         compare(dialog.query, "Known group")
         dialog.close()
+    }
+    function test_canonicalServerResumeContext() {
+        model.homeServers=createTemporaryObject(serverComponent,suite)
+        page.resumeRow({serverId:"server",profileGeneration:4,kind:"show",title:"Show",identity:{world:"Theatre",identityId:"tmdb:tv:123"},
+            progressRecord:{id:"tmdb:tv:123:2:3",resume:{position:45}}})
+        compare(world.count,1)
+        var context=world.signalArguments[0][0].resumeSources.context
+        compare(context.tmdbId,123); compare(context.season,2); compare(context.episode,3)
+        verify(context.imdbId === undefined); compare(context.resumePosition,45)
+        page.resumeRow({serverId:"server",profileGeneration:3,kind:"show",identity:{identityId:"tt1"},progressRecord:{id:"tt1:1:1"}})
+        compare(world.count,1)
+    }
+    function test_extrasExplicitTargetAndSupplementalOpen() {
+        const library=createTemporaryObject(admissionLibraryComponent,suite,{cardVisible:false})
+        model.library=library
+        model.shows=[{seriesKey:"show-group",kind:"show",title:"The Wire"}]
+        page.fileExtras({seriesKey:"extra-group",nativeKind:"video"})
+        const dialog=findChild(page,"vaultExtrasDialog")
+        tryCompare(dialog,"opened",true)
+        mouseClick(findButton(dialog.contentItem,"The Wire"))
+        compare(library.attached.length,2); compare(library.attached[0],"extra-group"); compare(library.attached[1],"show-group")
+        compare(dialog.supplemental.length,1); verify(dialog.supplemental[0].supplemental)
+        mouseClick(findButton(dialog.contentItem,"Featurette"))
+        compare(playback.count,1); compare(playback.signalArguments[0][0],"/fixture/extra.mkv")
+        page.handleBack(); tryCompare(dialog,"opened",false)
     }
     function test_hoverFocusAndPress() {
         const nav=findChild(page,"vaultNav_books")

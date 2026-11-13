@@ -17,13 +17,20 @@ function normalize(group, items, structure, hidden, detail) {
     }
     // Native series.title and item.title both fall back to filenames. EPUB metadataSource
     // is set even when the embedded title is empty, so it is not proof of a curated title.
+    var autoEpub = group.kind === "book" && String(first.identitySource || group.identSource || "") === "EPUB" && first.identityState !== "manual"
+    if (autoEpub) adoptedTitle = first.metadataSource === "EPUB" ? String(first.embeddedTitle || "").trim() : ""
     var identified = !!identityId && !!adoptedTitle
+    // EPUB source IDs identify physical files; these embedded facts only join their display copies.
+    var epubCopyKey = autoEpub && identified && first.metadataSource === "EPUB" && String(first.author || "").trim()
+        ? JSON.stringify([String(first.embeddedTitle).trim().replace(/\s+/g, " ").toLowerCase(), String(first.author).trim().replace(/\s+/g, " ").toLowerCase()]) : ""
     var addedAt = 0
     for (var m = 0; m < items.length; ++m) addedAt = Math.max(addedAt, Number(items[m].mtimeMs) || 0)
     var seasons = (structure || {}).seasons || [], show = false
     for (var s = 0; s < seasons.length; ++s)
         if (seasons[s].key && !seasons[s].supplemental) show = true
-    var kind = group.kind === "video" ? (show ? "show" : "movie") : group.kind
+    var identityType = String(group.identityType || "")
+    if (identityType) show = identityType === "series" || identityType === "mini"
+    var kind = group.kind === "video" ? (show ? "show" : identityType === "movie" ? "movie" : "unknown") : group.kind
     var title = identified ? adoptedTitle : "Needs a match"
     var cover = group.coverUrl || first.coverUrl || ""
     var path = first.path || "", key = String(group.key || group.subtreePath || first.id || "")
@@ -40,9 +47,9 @@ function normalize(group, items, structure, hidden, detail) {
         identityId: identityId, source: group.identSource || first.identitySource || "", title: title,
         coverUrl: cover, type: show ? "series" : "movie", synopsis: group.synopsis || first.synopsis || "" }
     return { id: identityId || first.id || key, seriesKey: key, key: key, kind: kind, nativeKind: group.kind,
-        title: title, matchTitle: group.title || first.displayTitle || "", author: first.author || "",
+        title: title, matchTitle: group.title || first.displayTitle || "", author: first.author || "", epubCopyKey: epubCopyKey,
         year: group.identityYear || first.identityYear || detail.year || 0, subtitle: first.author || "",
-        poster: cover, cover: cover, coverUrl: cover, backdrop: "", logo: "", synopsis: identity.synopsis,
+        poster: cover, cover: cover, coverUrl: cover, backdrop: group.backdropUrl || "", logo: group.logoUrl || "", synopsis: identity.synopsis,
         blurb: identity.synopsis, runtimeText: detail.runtimeText || runtime(first.durationSec),
         genres: detail.genresLine || "", imdbRating: /^IMDb ([0-9]+(?:\.[0-9]+)?)$/.test(detail.ratingText || "") ? Number(String(detail.ratingText).slice(5)) : 0,
         progress: 0, progressFraction: 0, progressText: "", addedAt: addedAt, isNew: addedAt > 0 && Date.now() - addedAt >= 0 && Date.now() - addedAt < 7 * 86400000, completed: false, lastReadMs: 0, finished: false, hidden: !!hidden,
@@ -65,8 +72,8 @@ function episodeFor(row, file, record) {
             if (episodes[e].id === file.id && Number(episodes[e].episode) > 0)
                 return {season: Number(episodes[e].season), episode: Number(episodes[e].episode)}
     }
-    var match = /^tt\d+:(\d+):(\d+)$/.exec(String(record.id || ""))
-    if (row.serverId && match) return {season:Number(match[1]), episode:Number(match[2])}
+    var context = canonicalContext(record.id)
+    if (row.serverId && context.episode !== undefined) return {season:context.season, episode:context.episode}
     return null
 }
 function progressLabel(row, file, record) {
@@ -84,19 +91,19 @@ function progressLabel(row, file, record) {
         parts.push("Page " + Number(resume.page))
         if (Number(file.pages) > 0) parts[0] += " of " + Number(file.pages)
     } else {
-        // Reader2's unified book Progress has no chapter location, only percent/path.
-        if (resume.chapterNumber !== undefined && String(resume.chapterNumber).length)
-            parts.push("Chapter " + resume.chapterNumber)
+        if (String(resume.chapterTitle || "").trim()) parts.push(String(resume.chapterTitle).trim())
         parts.push(percent)
     }
     return parts.join(" · ")
 }
 function deduplicate(rows) {
-    var out = [], byId = {}
+    var out = [], byId = {}, byEpub = {}
     for (var i = 0; i < rows.length; ++i) {
         var r = rows[i], key = r.kind + ":" + (r.identity.identityId || r.seriesKey)
-        if (!byId[key]) { byId[key] = r; out.push(r); continue }
-        var previous = byId[key]
+        var previous = byId[key] || (r.epubCopyKey ? byEpub[r.epubCopyKey] : null)
+        byId[key] = previous || r
+        if (r.epubCopyKey) byEpub[r.epubCopyKey] = previous || r
+        if (!previous) { out.push(r); continue }
         previous.copies = previous.copies.concat(r.copies)
         previous.items = previous.items.concat(r.items)
         previous.progressItems = previous.progressItems.concat(r.progressItems)
@@ -119,7 +126,7 @@ function deduplicate(rows) {
     return out
 }
 function joinProgress(row, progress, admission) {
-    var out = copy(row), best = null, target = null, completed = {}, completionKeys = {}
+    var out = copy(row), best = null, target = null, completed = {}, completionKeys = {}, completionUpdated = {}
     if (progress && typeof progress.get === "function") {
         var candidates = row.serverId ? [{id: row.id, kind: "video"}] : row.progressItems || row.items
         for (var i = 0; i < candidates.length; ++i) {
@@ -131,10 +138,36 @@ function joinProgress(row, progress, admission) {
             var ep = episodeFor(row, file, pg || {})
             var completionKey = ep ? ep.season + ":" + ep.episode : file.id
             if (row.kind !== "show" || ep) { completionKeys[completionKey] = true; if (done) completed[completionKey] = true }
+            completionUpdated[completionKey] = pg && pg.id ? Number(pg.updatedAt) || 0 : -1
             if (!row.serverId && row.nativeKind === "video" && (!admission || admission[file.id] !== "Admitted")) continue
             if (pg && pg._homeServerHidden) continue
             if (row.serverId && String(((pg || {}).resume || {}).infoHash || "").indexOf("home-server:" + row.serverId + ":") !== 0) continue
             if (pg && pg.id && (!best || Number(pg.updatedAt) > Number(best.updatedAt))) { best = pg; target = file; out.finished = done }
+        }
+    }
+    if (!row.serverId && (row.kind === "book" || row.kind === "comic") && progress && typeof progress.recent === "function") {
+        var readerRecent = progress.recent(row.nativeKind, 0) || []
+        for (var r = 0; r < readerRecent.length; ++r) {
+            var record = readerRecent[r], saved = record.resume || {}, exact = null
+            for (var f = 0; f < row.items.length; ++f) {
+                var candidate = row.items[f]
+                var hasLocation = !!saved.path || !!saved.chapterId
+                if (hasLocation ? candidate.path && (saved.path === candidate.path || saved.chapterId === candidate.path) : record.id === candidate.id) { exact = candidate; break }
+            }
+            if (!exact || !record.id) continue
+            var recordTime = Number(record.updatedAt) || 0
+            var readerDone = !!(record.finished || record.watched || fraction(record.progress) === 1 || saved.finished)
+            // A reader's canonical ID may differ from Vault's ID; completion still belongs to this exact file.
+            if (completionUpdated[exact.id] === undefined || recordTime > completionUpdated[exact.id]) {
+                completionKeys[exact.id] = true
+                completionUpdated[exact.id] = recordTime
+                if (readerDone) completed[exact.id] = true
+                else delete completed[exact.id]
+            }
+            if (!best || recordTime > (Number(best.updatedAt) || 0)) {
+                best = record; target = exact
+                out.finished = readerDone
+            }
         }
     }
     // Server episode records use canonical title:season:episode ids and are already
@@ -164,7 +197,7 @@ function joinProgress(row, progress, admission) {
     return out
 }
 function continuing(rows) {
-    return rows.filter(function(r) { return r.identified && !r.hidden && r.hasProgress && r.progress > 0 && r.progress < 1 && !r.finished })
+    return rows.filter(function(r) { return r.identified && !r.hidden && !r.continueBlocked && r.kind !== "unknown" && r.hasProgress && r.progress > 0 && r.progress < 1 && !r.finished })
         .sort(function(a,b) { return b.lastReadMs - a.lastReadMs })
 }
 function search(rows, query) {
@@ -181,6 +214,25 @@ function serverRow(row, server) {
     out.kind = row.kind === "series" ? "show" : "movie"
     out.identity = row.identity || out.identity
     out.payload = row; out.serverId = server.id; out.offline = !!server.offline || !!server.needsReconnect || server.enabled === false
+    out.state = row.state || server.state || "cached"
+    out.dimmed = !!row.dimmed || !!server.dimmed
+    out.offline = out.offline || out.state === "unavailable" || out.state === "needsReconnect" || out.state === "disabled"
+    out.continueBlocked = out.state === "disabled" || out.state === "needsReconnect" || server.enabled === false || !!server.needsReconnect || !!server.authRequired
     out.profileGeneration = server.profileGeneration
+    return out
+}
+// Match HomeServerCatalog's supported canonical IDs without conflicting context.
+function canonicalContext(id) {
+    var match = /^(tt[0-9]+)(?::([0-9]+):([0-9]+))?$/.exec(String(id || "")), out = {}
+    if (match) {
+        out.imdbId = match[1]
+        if (match[2] !== undefined) { out.season = Number(match[2]); out.episode = Number(match[3]) }
+        return out
+    }
+    match = /^(tmdb|tvdb):(movie|tv)[:/]([0-9]+)(?::([0-9]+):([0-9]+))?$/.exec(String(id || ""))
+    if (match) {
+        out[match[1] + "Id"] = Number(match[3])
+        if (match[4] !== undefined) { out.season = Number(match[4]); out.episode = Number(match[5]) }
+    }
     return out
 }

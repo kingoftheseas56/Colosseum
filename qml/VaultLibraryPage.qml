@@ -1,6 +1,7 @@
 // Desktop Vault library. Native services own scanning, identity and durable progress.
 import QtQuick
 import QtQuick.Controls
+import "VaultLibraryData.js" as Data
 
 FocusScope {
     id: root
@@ -37,6 +38,7 @@ FocusScope {
     function openSearch() { bar.focusSearch() }
     function leaveSearchView() { bar.query = "" }
     function handleBack() {
+        if (extrasDialog.opened) { extrasDialog.close(); return }
         if (admission.handleBack()) return
         if (identifyDialog.opened) { identifyDialog.close(); return }
         if (sources.open) { sources.close(); return }
@@ -77,11 +79,9 @@ FocusScope {
             var progress = row.progressRecord
             identity.resumeSources = { id: progress.id, title: row.title,
                 type: row.kind === "show" ? "series" : "movie",
-                context: { title: row.title, backdrop: row.backdrop || row.cover || "",
-                    imdbId: String(progress.id || "").split(":")[0],
-                    season: Number(String(progress.id || "").split(":")[1]) || 0,
-                    episode: Number(String(progress.id || "").split(":")[2]) || 0,
-                    resumePosition: Number((progress.resume || {}).position) || 0 } }
+                context: Object.assign(Data.canonicalContext(progress.id), { title: row.title,
+                    backdrop: row.backdrop || row.cover || "",
+                    resumePosition: Number((progress.resume || {}).position) || 0 }) }
             viewWorldRequested(identity)
         } else openRow(row)
     }
@@ -110,6 +110,16 @@ FocusScope {
         identifyDialog.open()
     }
     function flash(text) { notice = text; noticeTimer.restart() }
+    function fileExtras(row) { extrasDialog.sourceRow = row; extrasDialog.show = null; extrasDialog.open() }
+    function showExtras(show) { extrasDialog.sourceRow = null; extrasDialog.show = show; extrasDialog.open() }
+    function activateExtras(item) {
+        if (extrasDialog.sourceRow) {
+            if (root.adapter.attachExtras(extrasDialog.sourceRow, item)) {
+                extrasDialog.sourceRow = null
+                extrasDialog.show = item
+            } else root.flash("These files could not be filed as extras.")
+        } else if (item.path) root.openMediaRequested(item.path)
+    }
     Keys.onEscapePressed: event => { handleBack(); event.accepted = true }
     Component.onCompleted: { forceActiveFocus(); Qt.callLater(admission.initialize) }
     // Capture a non-recursive page surface for the drawer’s backdrop blur.
@@ -162,6 +172,33 @@ FocusScope {
             else feedback = "That match could not be applied. Your files have not moved."
         }
     }
+    Dialog {
+        id: extrasDialog; objectName: "vaultExtrasDialog"
+        property var sourceRow: null
+        property var show: null
+        readonly property var supplemental: show ? root.adapter.extrasForShow(show) : []
+        anchors.centerIn: parent; width: Math.min(560, root.width - 48); height: Math.min(440, root.height - 48)
+        modal: true; title: sourceRow ? "File as extras under a show" : "Supplemental files · " + (show ? show.title : "")
+        standardButtons: Dialog.Close
+        ScrollView {
+            anchors.fill: parent; contentWidth: availableWidth
+            Column {
+                width: parent.width; spacing: 10
+                Text { width: parent.width; visible: extrasDialog.sourceRow && !root.adapter.shows.length; text: "Match a show first to file extras under it."; wrapMode: Text.Wrap; color: theme.ink }
+                Repeater {
+                    model: extrasDialog.sourceRow ? root.adapter.shows : extrasDialog.supplemental
+                    delegate: VaultLibraryButton {
+                        required property var modelData
+                        width: parent.width
+                        text: extrasDialog.sourceRow ? modelData.title : (modelData.title || modelData.path) + (modelData.away ? " · Drive not connected" : "")
+                        enabled: !!extrasDialog.sourceRow || !modelData.away
+                        onClicked: root.activateExtras(modelData)
+                    }
+                }
+                Text { visible: !!extrasDialog.show && !extrasDialog.supplemental.length; text: "No supplemental files filed here."; color: theme.inkDim }
+            }
+        }
+    }
     Rectangle {
         visible: root.notice.length > 0; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 24; z: 40
         width: Math.min(parent.width - 48, noticeText.implicitWidth + 32); height: noticeText.implicitHeight + 24; radius: 12; color: theme.vaultSurface; border.color: theme.edge
@@ -183,7 +220,7 @@ FocusScope {
                     visible: root.adapter.unmatchedItems.length > 0; spacing: 12
                     Text { text: "Needs a match"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultSectionTitle }
                     Text { width: parent.width; text: "Files Vault couldn't name. Search once and they join the shelves."; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.Wrap }
-                    VaultMatchList { width: parent.width; rows: root.adapter.unmatchedItems; compact: true; onMatchRequested: row => root.matchRow(row) }
+                    VaultMatchList { width: parent.width; rows: root.adapter.unmatchedItems; compact: true; onMatchRequested: row => root.matchRow(row); onExtrasRequested: row => root.fileExtras(row) }
                     VaultLibraryButton { visible: root.adapter.unmatchedItems.length > 3; text: "See all unmatched files ›"; quiet: true; onClicked: root.showView("match", "") }
                 }
             }
@@ -205,7 +242,7 @@ FocusScope {
     }
     Component {
         id: serverComponent
-        VaultServerView { server: root.selectedServer; rows: root.adapter.rowsForServer(root.currentServer); onActivated: row => root.openRow(row); onReconnectRequested: root.connectServerRequested() }
+        VaultServerView { server: root.selectedServer; rows: root.adapter.rowsForServer(root.currentServer); groups: root.adapter.groupsForServer(root.currentServer); onActivated: row => root.openRow(row); onReconnectRequested: root.connectServerRequested() }
     }
     Component {
         id: listComponent
@@ -216,7 +253,15 @@ FocusScope {
                 id: listBody; width: parent.width - 12; spacing: 18
                 Text { text: root.currentView === "hidden" ? "Hidden" : "Needs a match"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultPageTitle }
                 Text { width: parent.width; text: root.currentView === "hidden" ? "Titles you have hidden. Restore one to return it to your library." : "Choose the title these files belong to. Unmatched files stay off the shelves."; wrapMode: Text.Wrap; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultBody }
-                VaultMatchList { width: parent.width; hiddenMode: root.currentView === "hidden"; rows: hiddenMode ? root.adapter.hiddenItems : root.adapter.unmatchedItems; onMatchRequested: row => root.matchRow(row); onRestoreRequested: row => root.adapter.restore(row) }
+                VaultMatchList { width: parent.width; hiddenMode: root.currentView === "hidden"; rows: hiddenMode ? root.adapter.hiddenItems : root.adapter.unmatchedItems; onMatchRequested: row => root.matchRow(row); onRestoreRequested: row => root.adapter.restore(row); onExtrasRequested: row => root.fileExtras(row) }
+                Repeater {
+                    model: root.currentView === "match" ? root.adapter.shows : []
+                    delegate: VaultLibraryButton {
+                        required property var modelData
+                        text: "Supplemental files · " + modelData.title
+                        onClicked: root.showExtras(modelData)
+                    }
+                }
             }
         }
     }

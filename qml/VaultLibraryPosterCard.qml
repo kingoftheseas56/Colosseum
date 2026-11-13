@@ -6,6 +6,8 @@ FocusScope {
     id: card
     property var row: ({})
     property bool keyboardFocused: activeFocus
+    property bool hideAllowed: true
+    property bool dimmed: row.dimmed === true || row.offline === true
     readonly property bool reading: row.kind === "book" || row.kind === "comic"
     readonly property real progress: Math.max(0, Math.min(1, Number(row.progressFraction || 0)))
     signal activated(var row)
@@ -13,6 +15,7 @@ FocusScope {
     width: theme.vaultPosterWidth
     implicitHeight: width * 1.5 + 64
     height: implicitHeight
+    opacity: dimmed ? 0.48 : 1
     Theme { id: theme }
     CataloguePosterCard {
         id: catalogue
@@ -24,7 +27,6 @@ FocusScope {
     }
     Item {
         width: parent.width; height: width * 1.5
-        opacity: card.row.offline ? 0.48 : 1
         y: hover.hovered || card.keyboardFocused ? -4 : 0
         scale: action.pressed ? 0.98 : 1
         Behavior on y { NumberAnimation { duration: theme.vaultMotionDuration; easing.type: Easing.OutCubic } }
@@ -58,11 +60,11 @@ FocusScope {
     }
     HoverHandler { id: hover }
     KeyboardAction {
-        id: action; anchors.fill: parent; showFocusFrame: false
+        id: action; objectName: "vaultPosterAction"; anchors.fill: parent; showFocusFrame: false
         accessibleName: String(card.row.title || "Open title")
-        contextEnabled: true
+        contextEnabled: card.hideAllowed
         onTriggered: card.activated(card.row)
-        onContextRequested: menu.popup()
+        onContextRequested: if (card.hideAllowed) menu.popup()
     }
-    Menu { id: menu; MenuItem { text: "Hide from Vault"; onTriggered: card.hideRequested(card.row) } }
+    Menu { id: menu; objectName: "vaultPosterMenu"; MenuItem { visible: card.hideAllowed; enabled: card.hideAllowed; text: "Hide from Vault"; onTriggered: card.hideRequested(card.row) } }
 }

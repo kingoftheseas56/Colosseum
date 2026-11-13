@@ -77,8 +77,8 @@ FocusScope {
                 VaultLibraryButton { Layout.fillWidth: true; text: "Connect a server ›"; onClicked: { root.close(); root.connectServerRequested() } }
             }
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: theme.edge }
-            VaultLibraryButton { Layout.fillWidth: true; text: root.editingIgnore ? "Save patterns" : "Ignore patterns ›"; quiet: !root.editingIgnore; primary: root.editingIgnore; onClicked: { if (root.editingIgnore) { root.adapter.setScanIgnore(ignoreInput.text.split(/\r?\n/).map(s => s.trim()).filter(s => s.length)); root.editingIgnore = false } else root.editingIgnore = true } }
-            VaultLibraryButton { visible: root.editingIgnore; text: "Cancel"; quiet: true; onClicked: root.editingIgnore = false }
+            VaultLibraryButton { objectName: "vaultEditIgnorePatterns"; Layout.fillWidth: true; text: root.editingIgnore ? "Save patterns" : "Ignore patterns ›"; quiet: !root.editingIgnore; primary: root.editingIgnore; onClicked: { if (root.editingIgnore) { root.adapter.setScanIgnore(ignoreInput.text.split(/\r?\n/).map(s => s.trim()).filter(s => s.length)); root.editingIgnore = false } else { ignoreInput.text = root.adapter.scanIgnore().join("\n"); root.editingIgnore = true } } }
+            VaultLibraryButton { objectName: "vaultCancelIgnorePatterns"; visible: root.editingIgnore; text: "Cancel"; quiet: true; onClicked: { ignoreInput.text = root.adapter.scanIgnore().join("\n"); root.editingIgnore = false } }
         }
     }
     Dialog {

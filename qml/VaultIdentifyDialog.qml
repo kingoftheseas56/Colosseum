@@ -40,6 +40,7 @@ Popup {
             source: source,
             sourceId: sourceId,
             title: String(title),
+            type: String(row.type || ""),
             year: year,
             synopsis: String(row.synopsis || row.description || row.overview || ""),
             coverUrl: String(row.coverUrl || row.cover || row.poster ||

@@ -19,6 +19,7 @@ QtObject {
     property var roots: []
     property var servers: []
     property var serverRows: ({})
+    property var serverGroups: ({})
     property var allItems: []
     property var counts: ({ movies: movies.length, shows: shows.length, books: books.length, comics: comics.length,
                               unmatched: unmatchedItems.length, hidden: hiddenItems.length })
@@ -34,13 +35,7 @@ QtObject {
         return offline ? offline + " source" + (offline === 1 ? "" : "s") + " unavailable"
                        : total + (total === 1 ? " source · " : " sources · ") + (busy ? "Updating…" : servers.length ? "Libraries loaded" : "Folders indexed")
     }
-    property var gaps: ["Server API does not expose library grouping, poster artwork, or structured network reachability.",
-        "Signed-out server titles are unavailable from the native shelf API; no retained QML cache is invented.",
-        "Vault metadata does not expose backdrop or logo artwork.",
-        "Unified book Progress does not expose chapter position; only percentage is shown.",
-        "Embedded EPUB metadata without an adopted title cannot prove the title is not a filename.",
-        "Flat video groups without season structure do not expose a reliable movie/show identity type.",
-        "Filing extras under another show is not exposed by VaultLibrary."]
+    property var gaps: []
     property string actionError: ""
     property var libraryConnection: Connections {
         target: adapter.library
@@ -83,7 +78,7 @@ QtObject {
                 var structure = g.kind === "video" ? call("seasonFactsForShow", [g.key], {}) : {}
                 var detail = g.kind === "video" ? call("browseDetail", [g.key], {}) : {}
                 var row = Data.normalize(g, files, structure, false, detail)
-                if (row.identified) local.push(row); else unmatched.push(row)
+                if (row.identified && row.kind !== "unknown") local.push(row); else unmatched.push(row)
             }
         }
         var hiddenGroups = call("hiddenSeries", [], [])
@@ -100,25 +95,33 @@ QtObject {
         books = local.filter(function(r) { return r.kind === "book" })
         comics = local.filter(function(r) { return r.kind === "comic" })
         unmatchedItems = unmatched; hiddenItems = hidden
-        var connections = homeServers ? homeServers.connections || [] : [], mapped = {}, remote = [], tabs = []
+        var connections = homeServers ? homeServers.serverTabs || [] : [], mapped = {}, grouped = {}, remote = [], tabs = []
         for (var s = 0; s < connections.length; ++s) {
             var connection = Data.copy(connections[s])
             connection.profileGeneration = homeServers.profileGeneration
-            connection.authRequired = !!connection.needsReconnect
-            connection.disabled = connection.enabled === false
-            // Current native connections has no structured reachability field. Do not
-            // classify translated status strings as network health or claim online.
-            connection.offline = connection.offline === true || connection.available === false || connection.health === "offline"
-            connection.state = connection.authRequired ? "Reconnect in Sync Center"
-                : connection.disabled ? "Disabled in Sync Center"
-                : connection.offline ? "Server offline" : connection.status || "Library available"
-            var titles = typeof homeServers.shelfTitles === "function" ? homeServers.shelfTitles(connection.id) : []
-            var projected = []
-            for (var t = 0; t < titles.length; ++t) projected.push(Data.joinProgress(Data.serverRow(titles[t], connection), progressStore))
+            connection.authRequired = connection.state === "needsReconnect"
+            connection.disabled = connection.state === "disabled" || connection.enabled === false
+            connection.offline = connection.state === "unavailable"
+            connection.stateLabel = ({cached:"Cached library", pending:"Waiting to refresh", refreshing:"Refreshing",
+                ready:"Library ready", unavailable:"Server unavailable", needsReconnect:"Reconnect in Sync Center", disabled:"Disabled in Sync Center"})[connection.state] || "Cached library"
+            var libraries = typeof homeServers.serverLibraries === "function" ? homeServers.serverLibraries(connection.id) : []
+            var projected = [], groups = [], seen = {}
+            for (var l = 0; l < libraries.length; ++l) {
+                var manifest = libraries[l], items = [], titles = manifest.titles || []
+                for (var t = 0; t < titles.length; ++t) {
+                    var title = Data.copy(titles[t])
+                    title.state = manifest.state || connection.state; title.dimmed = manifest.dimmed || connection.dimmed
+                    var item = Data.joinProgress(Data.serverRow(title, connection), progressStore)
+                    items.push(item)
+                    if (!seen[item.id]) { seen[item.id] = true; projected.push(item) }
+                }
+                groups.push({id:manifest.id, name:manifest.name, kind:manifest.kind, items:items,
+                    state:manifest.state || connection.state, dimmed:!!manifest.dimmed || !!connection.dimmed})
+            }
             connection.count = projected.length
-            tabs.push(connection); mapped[connection.id] = projected; remote = remote.concat(projected)
+            tabs.push(connection); mapped[connection.id] = projected; grouped[connection.id] = groups; remote = remote.concat(projected)
         }
-        servers = tabs; serverRows = mapped
+        servers = tabs; serverRows = mapped; serverGroups = grouped
         continueItems = Data.continuing(local.concat(remote))
         // Continue leads; identified newcomers follow, without invented artwork or progress.
         var heroes = continueItems.slice(0, 5), seen = {}
@@ -138,6 +141,13 @@ QtObject {
         return allItems
     }
     function rowsForServer(id) { return serverRows[id] || [] }
+    function groupsForServer(id) { return serverGroups[id] || [] }
+    function attachExtras(row, show) {
+        if (!row || !show || row.nativeKind !== "video" || show.kind !== "show") return false
+        var ok = call("attachExtrasToShow", [row.seriesKey, show.seriesKey], false)
+        refresh(); return ok
+    }
+    function extrasForShow(show) { return show ? call("extrasForShow", [show.seriesKey], []) : [] }
     function search(query, view, serverId) { return Data.search(serverId ? rowsForServer(serverId) : rowsForKind(view), query) }
     function rescan(path) {
         if (busy) return false

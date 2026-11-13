@@ -1,6 +1,6 @@
 // Exercise actual SourcesSheet JS function bodies without a GUI/backend.
 const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm');
-const source = fs.readFileSync('qml/SourcesSheet.qml','utf8');
+const source = fs.readFileSync('qml/SourcesSheet.qml','utf8').replace(/\r\n/g,'\n');
 function method(name) {
     const start = source.indexOf('function ' + name + '(');
     assert.ok(start >= 0, name);
@@ -44,7 +44,8 @@ const resumeStart=pageSource.indexOf('function resumeRow(');
 let resumeEnd=pageSource.indexOf('{',resumeStart)+1, resumeDepth=1;
 for (;resumeDepth;resumeEnd++) {if(pageSource[resumeEnd]==='{')resumeDepth++;else if(pageSource[resumeEnd]==='}')resumeDepth--;}
 let routes=0, notices=0, refreshes=0;
-const pageContext={adapter:{homeServers:{profileGeneration:2},refresh:()=>refreshes++},flash:()=>notices++,openRow:()=>routes++,viewWorldRequested:()=>routes++};
+const Data={};vm.createContext(Data);vm.runInContext(fs.readFileSync('qml/VaultLibraryData.js','utf8').replace(/^\.pragma library\s*/,''),Data);
+const pageContext={Data,adapter:{homeServers:{profileGeneration:2},refresh:()=>refreshes++},flash:()=>notices++,openRow:()=>routes++,viewWorldRequested:()=>routes++};
 vm.createContext(pageContext);vm.runInContext(pageSource.slice(resumeStart,resumeEnd),pageContext);
 pageContext.resumeRow({serverId:'server',profileGeneration:1,progressRecord:{id:'tt1',resume:{position:1}},identity:{identityId:'tt1'}});
 assert.equal(routes,0);assert.equal(notices,1);assert.equal(refreshes,1);
@@ -58,3 +59,37 @@ assert.equal(localResumeOpens,0);assert.equal(notices,2);
 pageContext.resumeRow({kind:'movie',offline:false,resumeOffline:false,resumePath:'/online-copy',path:'/online-copy'});
 assert.equal(localResumeOpens,1);
 console.log('Unavailable exact resume copy routing test passed');
+
+let routedIdentity;
+pageContext.viewWorldRequested=identity=>routedIdentity=identity;
+for (const [id,provider,number,season,episode] of [['tmdb:tv:123:2:3','tmdbId',123,2,3],['tvdb:tv/456:0:1','tvdbId',456,0,1],['tt123:4:5','imdbId','tt123',4,5]]) {
+    pageContext.resumeRow({serverId:'server',profileGeneration:2,kind:'show',progressRecord:{id,resume:{position:77}},identity:{identityId:'show'}});
+    const ctx=routedIdentity.resumeSources.context;
+    assert.equal(ctx[provider],number);assert.equal(ctx.season,season);assert.equal(ctx.episode,episode);assert.equal(ctx.resumePosition,77);
+    if(provider!=='imdbId') assert.equal(ctx.imdbId,undefined);
+}
+const adapterSource=fs.readFileSync('qml/VaultLibraryAdapter.qml','utf8');
+function adapterMethod(name) {
+    const start=adapterSource.indexOf('function '+name+'('), open=adapterSource.indexOf('{',start);
+    assert.ok(start>=0);let end=open+1,depth=1;
+    for(;depth;end++){if(adapterSource[end]==='{')depth++;else if(adapterSource[end]==='}')depth--;}
+    return adapterSource.slice(start,end);
+}
+const nativeContext={Data, library:null, progressStore:{get:()=>({}),recent:()=>[]},homeServers:{profileGeneration:5,
+    serverTabs:[{id:'s',state:'cached',dimmed:true,enabled:true}],
+    serverLibraries:id=>{assert.equal(id,'s');return [{id:'empty',name:'',kind:'movies',state:'cached',titles:[]},
+        {id:'second',name:'Shows',kind:'series',state:'cached',titles:[{id:'tt2',title:'Show',kind:'series'}]},
+        {id:'third',name:'Duplicate',titles:[{id:'tt2',title:'Show',kind:'series'}]}]}}};
+vm.createContext(nativeContext);
+for(const name of ['call','refresh','groupsForServer','rowsForServer','attachExtras','extrasForShow']) vm.runInContext(adapterMethod(name),nativeContext);
+nativeContext.refresh();
+assert.deepEqual(Array.from(nativeContext.groupsForServer('s'),g=>g.id),['empty','second','third']);
+assert.equal(nativeContext.groupsForServer('s')[0].name,'');assert.equal(nativeContext.groupsForServer('s')[0].items.length,0);
+assert.equal(nativeContext.rowsForServer('s').length,1);assert.equal(nativeContext.rowsForServer('s')[0].profileGeneration,5);
+assert.equal(nativeContext.allItems.length,0);assert.ok(pageSource.includes('groups: root.adapter.groupsForServer(root.currentServer)'));
+let attachments=[];
+nativeContext.library={attachExtrasToShow:(from,to)=>{attachments.push([from,to]);return true},extrasForShow:key=>[{id:'supplement',supplemental:true,path:'/extras'}]};
+assert.equal(nativeContext.attachExtras({nativeKind:'video',seriesKey:'unmatched'},{kind:'show',seriesKey:'show'}),true);
+assert.deepEqual(attachments,[['unmatched','show']]);assert.equal(nativeContext.extrasForShow({seriesKey:'show'})[0].supplemental,true);
+assert.equal(nativeContext.attachExtras({nativeKind:'book'},{kind:'show'}),false);
+console.log('Canonical server Resume, ordered native library groups and explicit extras contract tests passed');

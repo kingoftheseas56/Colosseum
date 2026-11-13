@@ -8,13 +8,16 @@ FocusScope {
     property var rows: []
     property bool continueShelf: false
     property bool showSeeAll: !continueShelf
+    property bool preserveEmptyHeading: false
+    property bool hideAllowed: true
+    property bool dimmed: false
     signal activated(var row)
     signal hideRequested(var row)
     signal showKind(string kind)
     signal moveUp()
     signal moveDown()
     function focusFirst() { rail.forceActiveFocus(); rail.currentIndex = Math.max(0, rail.currentIndex) }
-    implicitHeight: rows.length ? (continueShelf ? 232 : theme.vaultPosterWidth * 1.5 + 108) : 0
+    implicitHeight: rows.length ? (continueShelf ? 232 : theme.vaultPosterWidth * 1.5 + 108) : (preserveEmptyHeading ? Math.max(40, heading.implicitHeight) : 0)
     height: implicitHeight
     Theme { id: theme }
     Text { text: shelf.title; color: theme.ink; font.family: theme.display; font.pixelSize: 24 }
@@ -28,7 +31,8 @@ FocusScope {
     }
     ListView {
         id: rail
-        y: 40; width: parent.width; height: parent.height - y
+        y: 40; width: parent.width; height: Math.max(0, parent.height - y)
+        visible: shelf.rows.length > 0
         clip: true; orientation: ListView.Horizontal; spacing: theme.vaultGap
         model: shelf.rows; boundsBehavior: Flickable.StopAtBounds
         keyNavigationEnabled: true
@@ -51,6 +55,8 @@ FocusScope {
                 id: posterComponent
                 VaultLibraryPosterCard {
                     width: parent.width; row: delegateLoader.modelData
+                    hideAllowed: shelf.hideAllowed
+                    dimmed: shelf.dimmed || row.dimmed === true || row.offline === true
                     keyboardFocused: rail.activeFocus && rail.currentIndex === delegateLoader.index || activeFocus
                     onActivated: row => { rail.currentIndex = delegateLoader.index; shelf.activated(row) }
                     onHideRequested: row => shelf.hideRequested(row)
