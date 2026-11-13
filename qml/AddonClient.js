@@ -101,6 +101,14 @@ function _size(s) {
     return m ? m[1].replace(/\s+/g, " ").trim() : "";
 }
 
+// The SDK videoSize hint describes the selected video file, whereas the
+// provider's displayed size can describe its parent torrent/season pack.
+function _videoSize(s) {
+    var bytes = s.behaviorHints && s.behaviorHints.videoSize;
+    return typeof bytes === "number" && isFinite(bytes) && bytes > 0
+            && Math.floor(bytes) === bytes && bytes <= 9007199254740991 ? bytes : undefined;
+}
+
 function _release(s) {
     return (s.title || s.name || s.description || "").split("\n")[0].trim();
 }
@@ -517,6 +525,7 @@ function parseStream(s, addonName, addonPriority, addonId, platformRuntime) {
         rank: _rank(q),
         seeders: isTorrent ? _seeders(s) : -1,
         size: _size(s),
+        sizeBytes: _videoSize(s),
         release: _release(s),
         tags: tags,
         qualityLine: _qualityLine(tags, q),

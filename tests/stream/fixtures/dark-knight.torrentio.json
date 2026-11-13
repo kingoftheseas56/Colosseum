@@ -1,0 +1,1582 @@
+{
+  "streams": [
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Dark Knight 2008 Bluray IMAX 2160p AV1 HDR10 EN/ITA/FR/ES OPUS.5.1-UH [UserHEVC]\n👤 80 💾 9.54 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹 / 🇪🇸 / 🇫🇷",
+      "infoHash": "6ae0ed5ab38c545dd2ad37556c29e356e0d21ade",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|av1|10bit|HDR",
+        "filename": "The.Dark.Knight.2008.Bluray.2160p.AV1.HDR10.OPUS.5.1-UH.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV",
+      "title": "The Dark Knight 2008 UHD BluRay 2160p TrueHD 5 1 DV HEVC HYBRID REMUX-FraMeSToR\n👤 71 💾 53.75 GB ⚙️ 1337x",
+      "infoHash": "28343685e847b2c7e13f48f11dced699104ac003",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc|DV",
+        "filename": "The.Dark.Knight.2008.UHD.BluRay.2160p.TrueHD.5.1.DV.HEVC.HYBRID.REMUX-FraMeSToR.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The.Dark.Knight.2008.2160p.UHD.BluRay.x265.10bit.HDR.DTS-HD.MA.5\n👤 63 💾 21.57 GB ⚙️ ThePirateBay",
+      "infoHash": "a5fc2e0ac62e290c9c62fbd47a2462e96a84f52c",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit|HDR",
+        "filename": "The.Dark.Knight.2008.2160p.UHD.BluRay.X265-IAMABLE.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV",
+      "title": "The.Dark.Knight.2008.IMAX.UHD.BluRay.2160p.HEVC.DV.DTS-HD.MA.5.1.x265-E\n👤 53 💾 33.12 GB ⚙️ 1337x",
+      "infoHash": "46e817191657e8505b6f85f31116ea2613c16a00",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|DV",
+        "filename": "The Dark Knight (2008) 4K.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Dark.Knight.2008.IMAX.2160p.10bit.HDR.DV.BluRay.6CH.x265.HEVC-PSA\n👤 32 💾 5.68 GB ⚙️ 1337x",
+      "infoHash": "759ca07141be32f7bad81eccb3a2e914066c680f",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|DV|HDR",
+        "filename": "The.Dark.Knight.2008.IMAX.2160p.10bit.HDR.DV.BluRay.6CH.x265.HEVC-PSA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Il Cavaliere Oscuro.2008.IMAX.4K.HDR.DV.2160p.BDRemux Ita Eng x265-NAHOM\n👤 32 💾 51.36 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "dfa72b42e989abadd926f2a6046e46b62fac3e01",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|x265|DV|HDR",
+        "filename": "The.Dark.Knight.2008.IMAX.4K.HDR.DV.2160p.BDRemux Ita Eng x265-NAHOM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Темный рыцарь / The Dark Knight [2008 UHD BDRemux 2160p HDR10] [IMAX] Dub + MVO + 3x AVO + 2x VO + Original (Eng) + Sub (Rus Eng)\n👤 32 💾 65.19 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "cf39f456828aa3a8014c8a235c2ea5351a845fe6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|10bit|HDR",
+        "filename": "Темный рыцарь.2008.UHD.Blu-Ray.Remux.2160p.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:cf39f456828aa3a8014c8a235c2ea5351a845fe6",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The Dark Knight 2008 IMAX 2160p UHD BDRip HEVC 10bit DV HDR DTS-HD.MA.5.1 MUSHR00M\n👤 25 💾 25.13 GB ⚙️ EXT",
+      "infoHash": "5c674d72c93fbbb9cd485da72ceb4370c4930669",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|hevc|10bit|DV|HDR",
+        "filename": "The Dark Knight 2008 IMAX 2160p UHD BDRip HEVC 10bit DV HDR DTS-HD.MA.5.1 MUSHR00M.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "BATMAN.Dark.Knight.TRILOGY.2005.2008.2012.2160p.REMUX.HDRDV.DTSHD.TrueHD.H265-KC\nThe.Dark.Knight.2008.UHD.2160p.REMUX.Hybrid.HDR10.DV.P8.DTS-HD.TrueHD.5.1.H265-KC/the.dark.knight.2008.4k-kc.mkv\n👤 25 💾 57.42 GB ⚙️ ThePirateBay",
+      "infoHash": "51ca9f15ed9981499e4fceb8dd1bfc7456915746",
+      "fileIdx": 16,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|DV|HDR",
+        "filename": "the.dark.knight.2008.4k-kc.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Dark Knight (2008) (2160p BluRay x265 HEVC 10bit HDR AAC 5.1 Tigole) [QxR]\n👤 19 💾 15.89 GB ⚙️ 1337x",
+      "infoHash": "733585d589e248a4b1a2ec0db15b0241ee77df74",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|HDR",
+        "filename": "The Dark Knight (2008) (2160p x265 10bit HDR Tigole).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Dark.Knight.2008.Eng.Fre.Ger.Ita.Por.Spa.Cze.Hun.Pol.Rus.Tha.Jpn.2160p.BluRay.Hybrid.Remux.DV.HDR.HEVC.DTS-HD.MA-SGF.mkv\n👤 18 💾 66.28 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇯🇵 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇫🇷 / 🇩🇪 / 🇵🇱 / 🇨🇿 / 🇭🇺",
+      "infoHash": "e7d4d6a669459da1e0a554b2e867d1cb97b6a00d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc|DV|HDR",
+        "filename": "The.Dark.Knight.2008.Eng.Fre.Ger.Ita.Por.Spa.Cze.Hun.Pol.Rus.Tha.Jpn.2160p.BluRay.Hybrid.Remux.DV.HDR.HEVC.DTS-HD.MA-SGF.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Dark.Knight.2008.2160p.MAX.WEB-DL.DDP.5.1.DV.HDR.H.265-PiRaTeS[TGx]\n👤 17 💾 22.32 GB ⚙️ TorrentGalaxy",
+      "infoHash": "29c6ff3e04c8789815a2b0d622d8368d3b10991c",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|WEB-DL|h265|DV|HDR",
+        "filename": "The.Dark.Knight.2008.2160p.MAX.WEB-DL.DDP.5.1.DV.HDR.H.265-PiRaTeS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Dark.Knight.2008.IMAX.2160p.10bit.HDR.DV.BluRay.6CH.x265.HEVC-PSA\n👤 14 💾 5.68 GB ⚙️ 1337x",
+      "infoHash": "7769f945cdcad618de9f414a9fc1160a50eeb3dd",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|DV|HDR",
+        "filename": "The.Dark.Knight.2008.IMAX.2160p.10bit.HDR.DV.BluRay.6CH.x265.HEVC-PSA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV",
+      "title": "The Dark Knight 2008 UHD BluRay 2160p TrueHD 5 1 DV HEVC HYBRID REMUX-FraMeSToR \n👤 14 💾 53.75 GB ⚙️ TorrentGalaxy",
+      "infoHash": "3e58c70a4cb4f5504adf808aa8f276f227d74169",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc|DV",
+        "filename": "The.Dark.Knight.2008.UHD.BluRay.2160p.TrueHD.5.1.DV.HEVC.HYBRID.REMUX-FraMeSToR.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Dark Knight.2008.2160p.HDR10.BRRip.OPUS5.1.AV1.BluBit\n👤 11 💾 1.5 GB ⚙️ TorrentGalaxy",
+      "infoHash": "916c9c6b4371d4c05ee36dfca9e196090a960f66",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BRRip|av1|10bit|HDR",
+        "filename": "The Dark Knight (2008).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The.Dark.Knight.2008.bluray.hdr.2160p.av1.5.1.opus.subs-Dust\n👤 11 💾 9.78 GB ⚙️ 1337x",
+      "infoHash": "8cefabb6ec1d3915c49788057c126e4b15a3a867",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|av1|HDR",
+        "filename": "The.Dark.Knight.2008.bluray.hdr.2160p.av1.5.1.opus.subs-Dust.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR10+",
+      "title": "Il Cavaliere Oscuro - The Dark Knight IMAX (2008) 2160p H265 BluRay Rip 10 bit DV HDR10+ ita eng AC3 5.1 sub ita eng Licdom\n👤 11 💾 7.73 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇮🇹",
+      "infoHash": "bc206fea859a3c25759e83badd5756696dbd4988",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BRRip|h265|10bit|DV|HDR10+",
+        "filename": "Il Cavaliere Oscuro - The Dark Knight IMAX (2008) 2160p H265 10 bit DV HDR10+ ita eng AC3 5.1 sub ita eng Licdom.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Il Cavaliere oscuro Trilogia (2005-2012) IMAX 2160p H265 HDR10 ITA.ENG sub NUitaeng Sp33dy94 MIRCrew\nIl cavaliere oscuro - The Dark Knight (2008) ITA.ENG IMAX 2160p H265 HDR10 sub NUita.eng Sp33dy94-MIRCrew.mkv\n👤 10 💾 4.12 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "a8d8f67cd535dcbccbfceaf182a68c1a910ff30e",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|HDR",
+        "filename": "Il cavaliere oscuro - The Dark Knight (2008) ITA.ENG IMAX 2160p H265 HDR10 sub NUita.eng Sp33dy94-MIRCrew.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Dark.Knight.2008.UHD.2160p.REMUX.Hybrid.HDR10.DV.DTS-HD.TrueHD.5.1.H265-KC\n👤 9 💾 57.42 GB ⚙️ ThePirateBay",
+      "infoHash": "8eaa738f0cbb4bb461793224bb5a060dc4fe3c0c",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|DV|HDR",
+        "filename": "the.dark.knight.2008.4k-kc.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Темный рыцарь / The Dark Knight (2008) UHD BDRip 2160p | 4K | HDR | Dolby Vision Profile 8 | IMAX | D P A L1\n👤 9 💾 37.22 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "2de4f8a3253098a3895d4381bbcdc36ba4bda644",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|x265|DV|HDR",
+        "filename": "The.Dark.Knight.2008.2160p.UHD.BDRip.HDR.DV.x265.DD+5.1-DVT.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:2de4f8a3253098a3895d4381bbcdc36ba4bda644",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Темный рыцарь / The Dark Knight (2008) UHD BDRemux 2160p | 4K | HDR | Dolby Vision Profile 8 | IMAX | D P A\n👤 8 💾 65.6 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "b5db896238e87cabbfa3cdbb175c5d02c907f680",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|DV|HDR",
+        "filename": "The.Dark.Knight.2008.UHD.BDRemux.2160p.DoVi.HYBRID.by.DVT.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:b5db896238e87cabbfa3cdbb175c5d02c907f680",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Dark Knight (2008) REPACK [2160p x265 HEVC 10bit HDR BluRay TrueHD 5.1] [Prof]\n👤 7 💾 23.93 GB ⚙️ 1337x",
+      "infoHash": "b716eb1c2afc36ca096a3eb9a76cf15f8726b81d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|HDR",
+        "filename": "The Dark Knight (2008) [2160p x265 HEVC 10bit HDR BluRay TrueHD 5.1] [Prof].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Dark.Knight.2008.IMAX.4K.HDR.DV.2160p.BDRip Ita Eng x265-NAHOM\n👤 6 💾 31.3 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹",
+      "infoHash": "1b23425791ddfa8ea04a0b34a668d3e951f85689",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|x265|DV|HDR",
+        "filename": "The.Dark.Knight.2008.IMAX.4K.HDR.DV.2160p.BDRip Ita Eng x265-NAHOM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Dark.Knight.2008.IMAX.Ger.Eng.Atmos.DL.2160p.UHD.BluRay.DV.HDR.HEVC.Hybrid.Remux-QfG\n👤 5 💾 65.15 GB ⚙️ EXT\n🇬🇧 / 🇩🇪",
+      "infoHash": "bcfda6b7f96a48cee4d47fd7e479a3c338109a31",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc|DV|HDR",
+        "filename": "The.Dark.Knight.2008.IMAX.Ger.Eng.Atmos.DL.2160p.UHD.BluRay.DV.HDR.HEVC.Hybrid.Remux-QfG.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Dark.Knight.2008.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT\n👤 116 💾 63.11 GB ⚙️ RARBG",
+      "infoHash": "d2e2b4974ce3340fc06dad26bc0b66b792fce870",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc",
+        "filename": "The.Dark.Knight.2008.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The Dark Knight (2008) [2160p] [4K] [BluRay] [5.1] [YTS] [YIFY]\n👤 112 💾 7.52 GB ⚙️ 1337x",
+      "infoHash": "61be42fb337b1b84f844b88fd904982a0a2330e3",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit",
+        "filename": "The.Dark.Knight.2008.2160p.4K.BluRay.x265.10bit.AAC5.1-[YTS.MX].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Dark.Knight.2008.PROPER.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT\n👤 59 💾 63.79 GB ⚙️ TorrentGalaxy",
+      "infoHash": "01081e25993efc5008d3f35de64e78b7fbde2c49",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc",
+        "filename": "The.Dark.Knight.2008.PROPER.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Dark.Knight.2008.2160P.Ai.BluRay.60FPS.H265.10bit.SDR.DTS-HD.MA.5.1_Marjenbo\n👤 21 💾 24.93 GB ⚙️ ThePirateBay",
+      "infoHash": "94ea254389cb2250c2c617ba52c6700368193a8e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|h265|10bit",
+        "filename": "The.Dark.Knight.2008.2160P Ai Upscaled.BluRay.60FPS H265 10bit.SDR.DTS-HD.MA.5.1_Marjenbo .mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Темный рыцарь / The Dark Knight [2008 UHD Blu-ray disc 2160p] [IMAX Edition] [EUR] Dub + Sub Rus Eng + Original Eng\n👤 19 💾 67.89 GB ⚙️ Rutracker\n🇬🇧 / 🇯🇵 / 🇷🇺 / 🇮🇹 / 🇪🇸 / 🇫🇷 / 🇩🇪",
+      "infoHash": "679e0f280184a6a1ac190f2b8bdfb4d055eb55e9",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:679e0f280184a6a1ac190f2b8bdfb4d055eb55e9",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Dark.Knight.2008.2160p.BluRay.HEVC.DTS-HD.MA.5.1-OLDHAM\n👤 10 💾 67.89 GB ⚙️ RARBG",
+      "infoHash": "7140319b780252ccdcf56023f49e56d1a243d5d5",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The Dark Knight (2008) 2160p BluRay x265 HEVC 10bit AAC 5.1 Joy\n👤 8 💾 6.76 GB ⚙️ ThePirateBay",
+      "infoHash": "58cb561e616fa4fcce3d5fe48ad4ab48101cddcb",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p HDR",
+      "title": "Темный рыцарь / The Dark Knight [2008 UHD BDRip 1080p HDR10] [IMAX] Dub + MVO + 3x AVO + 2x VO + Original (Eng) + Sub (Rus Eng)\n👤 109 💾 23.38 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "be0d5492026b588e7f33242ee386143c4a82536b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|10bit|HDR",
+        "filename": "Темный рыцарь.2008.UHD.BDRip.1080p.HDR.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:be0d5492026b588e7f33242ee386143c4a82536b",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p HDR",
+      "title": "Темный рыцарь / The Dark Knight [2008 35mm Film Scan Telecine 1080p] 2x Dub + MVO + 5x AVO + 5x VO + Original Eng + Sub Rus Eng\n👤 6 💾 40.71 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "84e86fcb546c0edcdcab70ba8617865be344f2c4",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|HDR",
+        "filename": "The.Dark.Knight.2008.35mmScan.Grindhouse.HDR.1080p.13xRUS.UKR.3xENG.Subs (Rus, Ukr, Eng).mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:84e86fcb546c0edcdcab70ba8617865be344f2c4",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight (2008) 1080p BluRay x264 - 1.7GB - YIFY\n👤 710 💾 1.7 GB ⚙️ ThePirateBay",
+      "infoHash": "a54926c2e07b0e5f0243954330b599b31c804f0b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Batman.The.Dark.Knight.2008.1080p.BluRay.x264.YIFY.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Dark.Knight.2008.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265\n👤 214 💾 4.02 GB ⚙️ TorrentGalaxy",
+      "infoHash": "28fb373db2c936015e967544e50a7bffdbb5d3a1",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit",
+        "filename": "The.Dark.Knight.2008.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight (2008) 1080p PROPER Bluray 10-bit x265 HEVC TrueHD AC3 5.1 [XannyFamily]\n👤 103 💾 8.39 GB ⚙️ 1337x",
+      "infoHash": "d65e4ea7c6404a026266da6b2845fe94cb9ce100",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The Dark Knight (2008) 1080p PROPER Bluray 10-bit x265 HEVC TrueHD AC3 5.1 [XannyFamily].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Batman The Dark Knight 2008 (1080p X265 HEVC AAC 5.1 Joy) [UTR]\n👤 70 💾 1.87 GB ⚙️ MagnetDL",
+      "infoHash": "e7c2571e97b4f3937f2c3d2d1954b11ca8ef12de",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|hevc",
+        "filename": "Batman The Dark Knight 2008 (1080p x265 Joy).m4v"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Dark.Knight.2008.1080p.MA.WEB-DL.DDP5.1.H.264-Azkars\n👤 57 💾 8.72 GB ⚙️ ThePirateBay",
+      "infoHash": "e7aa68546a660907c232370789bccb7e016af0d6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "The.Dark.Knight.2008.1080p.MA.WEB-DL.DDP5.1.H.264-Azkars.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight (2008) (1080p BluRay x265 HEVC 10bit AAC 5.1 Tigole) [QxR]\n👤 50 💾 8.9 GB ⚙️ 1337x",
+      "infoHash": "ff638fdbad9301919ec5cf9acc6ebfe3a1dafd8c",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight 2008 IMAX 1080p AV1 10Bit DKong\n👤 44 💾 1.22 GB ⚙️ ThePirateBay\n🇬🇧 / 🇮🇱",
+      "infoHash": "d94d910a8b8aacaebe064d51eb0473ce4d2c2b2c",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|av1|10bit",
+        "filename": "The Dark Knight 2008 IMAX 1080p AV1 10Bit DKong.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Темный рыцарь / The Dark Knight [2008 BDRip 1080p] Dub + MVO + 3x AVO + 2x VO + Original eng + Sub rus eng\n👤 42 💾 27.32 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "d173e129018fe587916d3b4ebaf8b85c30bd8e0b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x264",
+        "filename": "The.Dark.Knight.2008.1080p.BluRay.x264.7xRus.Eng-SbR.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:d173e129018fe587916d3b4ebaf8b85c30bd8e0b",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Темный рыцарь / The Dark Knight [2008 BDRemux 1080p] Dub + MVO + 3x AVO + 2x VO + Original eng + Sub rus eng\n👤 36 💾 37.99 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "e2387b242f46d895845638ae18df21a699d13f95",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX",
+        "filename": "The.Dark.Knight.2008.1080p.Remux.VC-1.7xRus.Eng.mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:e2387b242f46d895845638ae18df21a699d13f95",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Темный рыцарь / The Dark Knight (2008) BDRip 1080p | IMAX\n👤 34 💾 7.76 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "536023f3aed2142df575f376b8f778175c8ede56",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "The.Dark.Knight.2008.BDRip.1080p.Rus.Eng.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:536023f3aed2142df575f376b8f778175c8ede56",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight 2008 1080p AMZN WEB-DL DDP5 1 H 265-NINJACENTRAL\n👤 26 💾 3.96 GB ⚙️ ThePirateBay",
+      "infoHash": "e4d42a923688438130abc28546ca26bda227c2d0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h265",
+        "filename": "The Dark Knight 2008 1080p AMZN WEB-DL DDP5 1 H 265-NINJACENTRAL.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight 2008 Bluray 1080p AV1 EN/FR/DE/ITA/ES OPUS 5.1-UH\n👤 26 💾 6.45 GB ⚙️ ThePirateBay\n🇬🇧 / 🇮🇹 / 🇫🇷 / 🇩🇪",
+      "infoHash": "59fd33a647a3e4d122dd562682274e10976cf0af",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "The.Dark.Knight.2008.Bluray.1080p.AV1.OPUS.5.1-UH.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight 2008 BluRay 1080p DTS AC3 x264-3Li\n👤 24 💾 13.49 GB ⚙️ TorrentGalaxy",
+      "infoHash": "d3fc9ed860d87dbadd4fadf83aefa77ea3d6f3c3",
+      "fileIdx": 25,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The Dark Knight 2008 BluRay 1080p DTS AC3 x264-3Li.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Batman.The.Dark.Knight.2008.1080p.REMUX.ENG.And.ESP.LATINO.DTS-HD.Master.DDP5.1.MKV-BEN.THE.MEN\n👤 21 💾 29.91 GB ⚙️ 1337x\n🇬🇧 / 🇪🇸 / 🇲🇽",
+      "infoHash": "abbd90e582410f505140952373e0f148ba304f52",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Batman.The.Dark.Knight.2008.1080p.REMUX.ENG.And.ESP.LATINO.DTS-HD.Master.DDP5.1.MKV-BEN.THE.MEN.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight [2008] 1080p BDRip x265 TrueHD 5.1 Kira [SEV]\n👤 19 💾 15.37 GB ⚙️ 1337x",
+      "infoHash": "fd43bdd56532c5464ed7801e2f26cda981534498",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x265",
+        "filename": "The Dark Knight [2008] 1080p BDRip x265 TrueHD 5.1 Kira [SEV].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight.2008.1080p.MULTi BluRay x264-PopHD\n👤 17 💾 3.29 GB ⚙️ Torrent9\nMulti Audio / 🇫🇷",
+      "infoHash": "6d6299065dbcf374b5a7d8564e4a6540b80b9c67",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "[ OxTorrent.cc ] The Dark Knight.2008.1080p.MULTi BluRay x264-PopHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Il cavaliere oscuro (2008) WEBRip 1080p x264 EAC3 ITA ENG SUB ITA ENG - Lullozzo\n👤 16 💾 6.42 GB ⚙️ ThePirateBay\n🇬🇧 / 🇮🇹",
+      "infoHash": "0dacdee0e77d913f3ecb4ecdcb287093aa1a5e47",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEBRip|x264",
+        "filename": "Il cavaliere oscuro (2008) WEBRip 1080p x264 EAC3 ITA ENG SUB ITA ENG - Lullozzo.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.dark.knight.2008.1080P-Dual-Lat\n👤 16 💾 2.34 GB ⚙️ Cinecalidad\nDual Audio / 🇲🇽",
+      "infoHash": "dbfe324f534b17a5eed439d1b570aa53c7b3ff81",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "The.dark.knight.2008.1080P-Dual-Lat.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight (2008) 1080p H264 AC-3.mkv\n👤 15 💾 6.75 GB ⚙️ TorrentGalaxy",
+      "infoHash": "7d250c58655ab1bb92870e6af094f0743dc98724",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|h264",
+        "filename": "The Dark Knight (2008) 1080p H264 AC-3.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Dark.Knight.2008.IMAX.1080p.10bit.BluRay.6CH.x265.HEVC-PSA\n👤 14 💾 3.46 GB ⚙️ 1337x",
+      "infoHash": "ec5773bcf6c4b579894d49ca754dadb80dbb42ad",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The.Dark.Knight.2008.IMAX.1080p.10bit.BluRay.6CH.x265.HEVC-PSA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Batman (Integrale) FRENCH BluRay 1080p 1989-2012\n6-The Dark Knight (2008) [1080p] MULTi BluRay x264-PopHD.mkv\n👤 14 💾 3.29 GB ⚙️ Torrent9\nMulti Audio / 🇫🇷",
+      "infoHash": "0972e37e37a2e46eac62e56fb7a193dfcf29d326",
+      "fileIdx": 5,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "6-The Dark Knight (2008) [1080p] MULTi BluRay x264-PopHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight 2008 1080p BluRay x265\n👤 14 💾 2.37 GB ⚙️ KickassTorrents",
+      "infoHash": "9ef4b0086770cdd327481ee3b4940ed294efe0c3",
+      "fileIdx": 3,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The.Dark.Knight.2008.1080p.BluRay.x265-RARBG.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Amazing Films 11 - Mp4 x264 AC3 1080p\nDK2 The Dark Knight (2008) 1080p Surround.mp4\n👤 13 💾 4.43 GB ⚙️ ThePirateBay",
+      "infoHash": "3ef7e04f3c6e00e2621ea2ad9ad19440f2891c10",
+      "fileIdx": 12,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "DK2 The Dark Knight (2008) 1080p Surround.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Темный рыцарь / The Dark Knight [2008 BDRip 1080p HEVC 60 FPS] Dub + Original (Eng) + Sub (Rus Eng)\n👤 12 💾 9.33 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "0d7a496009cf102038f4fe08c976d138d9280f1a",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|hevc",
+        "filename": "The Dark Knight (2008) BDRip 1080p.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:0d7a496009cf102038f4fe08c976d138d9280f1a",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight (2008) (1080p BluRay 10bit x265 HEVC DTS 5.1 Qman) [UTR]\n👤 12 💾 4.2 GB ⚙️ 1337x",
+      "infoHash": "157de2ebe06bafb043b0d54e2e7eef3aa86e6575",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The.Dark.Knight.(2008).1080p.BluRay.10-bit.x265.DTS.5.1 Qman[UTR].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "IMDB TOP 001-050 BluRay 1080p x265 10bit MNHD-FRDS\n004.蝙蝠侠前传2黑暗骑士.The.Dark.Knight.2008.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS/The.Dark.Knight.2008.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv\n👤 11 💾 8.18 GB ⚙️ EXT",
+      "infoHash": "9351bcf9e7437f706549f8b60314c39259c420b4",
+      "fileIdx": 27,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit",
+        "filename": "The.Dark.Knight.2008.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Il Cavaliere Oscuro - The Dark Knight IMAX (2008) 1080p H265 ita eng AC3 5.1 sub ita eng Licdom.mkv\n👤 10 💾 3.14 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇮🇹",
+      "infoHash": "3aa61d8a2debf9aa6625eb4d4f0df28a1901a970",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|h265",
+        "filename": "Il Cavaliere Oscuro - The Dark Knight IMAX (2008) 1080p H265 ita eng AC3 5.1 sub ita eng Licdom.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight Trilogy (2005-2012) IMAX DS4K 1080p BDRip [Hin-Eng] DDP 5.1 — PeruGuy\n02. The Dark Knight (2008) IMAX DS4K 1080p 10bit BDRip x265 [Hindi (NF) DDP 2.0 II English DDP 5.1] ESub — PeruGuy.mkv\n👤 9 💾 7.02 GB ⚙️ 1337x\n🇬🇧 / 🇮🇳",
+      "infoHash": "1fe3b1da0b04f67b37467d086f8f1f1fcdc549b3",
+      "fileIdx": 4,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x265|10bit",
+        "filename": "02. The Dark Knight (2008) IMAX DS4K 1080p 10bit BDRip x265 [Hindi (NF) DDP 2.0 II English DDP 5.1] ESub — PeruGuy.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight 2008 IMAX 1080p BluRay DD+ 5.1 x265-edge2020\n👤 9 💾 4.33 GB ⚙️ TorrentGalaxy",
+      "infoHash": "466b4abccee26bd97234ea0d20d0771c960165a9",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The.Dark.Knight.2008.IMAX.1080p.BluRay.DDP.5.1.H.265-EDGE2020.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight (2008) 1080p BluRay AV1 Opus Multi12 [GRAV1TY]\n👤 9 💾 6.24 GB ⚙️ 1337x",
+      "infoHash": "6a6796cc3a915416f0120a15e4a9942d6c41f702",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "The Dark Knight (2008) 1080p BluRay AV1 Opus Multi12 [GRAV1TY].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Dark.Knight.2008.1080p.REGRADED.70mm.IMAX.BluRay.x265.10Bit.HEVC.(English AAC 5.1).VITOENCODES\n👤 7 💾 5.58 GB ⚙️ 1337x",
+      "infoHash": "ea5a8d686284110ffaceadab23befbdea907dfe5",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The.Dark.Knight.2008.1080p.REGRADED.70mm.IMAX.BluRay.x265.10Bit.HEVC.(English AAC 5.1).VITOENCODES.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Batman - O Cavaleiro das Trevas (2008) 1080p Dublado / Dual Audi\n👤 7 💾 2.54 GB ⚙️ ThePirateBay\nDual Audio / 🇵🇹",
+      "infoHash": "3ed20a355091dc8e79d1a7b84b0cb4dc570bb093",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Темный рыцарь: Трилогия / The Dark Knight: Trilogy (2005-2012) BDRip 1080p | D\nThe.Dark.Knight.2008.UHD.BDRip.1080p.mkv\n👤 6 💾 21.26 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "5729284d8efe0afcf005b4bdff2c31538c5f9fde",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "The.Dark.Knight.2008.UHD.BDRip.1080p.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:5729284d8efe0afcf005b4bdff2c31538c5f9fde",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Christopher Nolan Collection (2000-2023) BDRip 1080p\n2008.The.Dark.Knight.1920x1080.BDRip.x264.TrueHD.mkv\n👤 6 💾 17.62 GB ⚙️ ThePirateBay",
+      "infoHash": "96913f3281621ef4748c1136bcfb96d12e8a4f0c",
+      "fileIdx": 6,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x264",
+        "filename": "2008.The.Dark.Knight.1920x1080.BDRip.x264.TrueHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Dark.Knight.2008.1080p.NF.WEB-DL.H264-ETRG[EtHD]\n👤 6 💾 6.75 GB ⚙️ ThePirateBay",
+      "infoHash": "e42384d6a7710761540c4e31a2fc0ed7b16cc60c",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "The.Dark.Knight.2008.1080p.NF.WEB-DL.H264-ETRG[EtHD].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Il Cavaliere oscuro - The Dark Knight Trilogia 1080p H265 AC3 5.1 ITA.ENG sub ita.eng (2005-2012) Sp33dy94 MIRCrew\nIl Cavaliere oscuro 2 - The Dark Knight AC3 5.1 ITA.ENG 1080p H265 sub ita.eng (2008) Sp33dy94-MIRCrew.mkv\n👤 6 💾 3.23 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹",
+      "infoHash": "05f443bc700b276c2853c5cbe7af862f63564083",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|h265",
+        "filename": "Il Cavaliere oscuro 2 - The Dark Knight AC3 5.1 ITA.ENG 1080p H265 sub ita.eng (2008) Sp33dy94-MIRCrew.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight Trilogy 1080p 10bit BluRay x265 HEVC 6CH-MRN\nThe.Dark.Knight.2008.IMAX.1080p.10bit.BluRay.x265.HEVC.6CH-MRN.mkv\n👤 6 💾 2.24 GB ⚙️ 1337x",
+      "infoHash": "d9fc8c64e56641006cd97bd9ef0cf44453c242e7",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The.Dark.Knight.2008.IMAX.1080p.10bit.BluRay.x265.HEVC.6CH-MRN.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight (2008) BDRip IMAX H264 AC3 AAC ENG ITA 1080p [ICV-MIRCrew]\n👤 6 💾 8.1 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹",
+      "infoHash": "6885d743912aab42b1ff064f30e3578a7dcaf75d",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|h264"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight 2008 IMAX Bluray 1080p AV1 OPUS 5.1-UH [UserHEVC]\n👤 5 💾 5.59 GB ⚙️ TorrentGalaxy",
+      "infoHash": "b3ad668b239b8ddf355f1ee71c1557b67cd9575e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "The.Dark.Knight.2008.IMAX.Bluray.1080p.AV1.OPUS.5.1-UH.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight 2008 IMAX BluRay 1080p DTS AC3 x264-MgB\n👤 5 💾 9.96 GB ⚙️ ThePirateBay",
+      "infoHash": "a3b5fdd23c3803a0287ca5c5a3e4b126e855ff98",
+      "fileIdx": 65,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The Dark Knight 2008 IMAX BluRay 1080p DTS AC3 x264-MgB.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Dark Knight 2008 1080p BluRay x264 DTS - 5-1 KINGDOM-RG\n👤 5 💾 5.27 GB ⚙️ TorrentGalaxy",
+      "infoHash": "bc3c9274eea83501c6d76fb9ff2e1cac79d146f0",
+      "fileIdx": 8,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The Dark Knight 2008 1080p BluRay x264 DTS - 5-1  KINGDOM-RG.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Темный рыцарь: Трилогия / The Dark Knight: Trilogy (2005-2012) BDRip 1080p от HELLYWOOD | D P P2 A\n2#Temnyi.Rytcar.2008.IMAX.7xRus.Eng.BDRip.1080p.-HELLYWOOD.mkv\n👤 5 💾 15.28 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "c053b23d1023f9e3b0ff590d35014912e9278eab",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "2#Temnyi.Rytcar.2008.IMAX.7xRus.Eng.BDRip.1080p.-HELLYWOOD.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:c053b23d1023f9e3b0ff590d35014912e9278eab",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Темный рыцарь / The Dark Knight [2008 BDRip 720p] Dub + MVO + 3x AVO + VO + Original eng + Sub rus eng\n👤 42 💾 11.61 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "920d2b4401dd2fa98087db4a2c6f5d3acea14954",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BDRip|x264",
+        "filename": "The.Dark.Knight.2008.720p.BluRay.DD5.1.x264.6xRus.Eng-CtrlHD.mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:920d2b4401dd2fa98087db4a2c6f5d3acea14954",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The Dark Knight (2008) 720p BrRip x264 - YIFY\n👤 26 💾 949.99 MB ⚙️ ThePirateBay",
+      "infoHash": "f5d61bf3d57082ba2ee1305da5df8dcd10d34539",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BRRip|x264",
+        "filename": "The.Dark.Knight.2008.720p.BluRay.x264.YIFY.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Batman O Cavaleiro Das Trevas (2008) 720p Dublado Pt Br\n👤 15 💾 1.1 GB ⚙️ ThePirateBay\n🇵🇹",
+      "infoHash": "83af9dc022fb32f0f0ba7a7fcfd86d3d1ec0c923",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Batman.The.Dark.Knight.Trilogy.720p.BluRayx264 88\n2008 The Dark Knight 720p.BluRay.x264.mp4\n👤 14 💾 949.99 MB ⚙️ ThePirateBay",
+      "infoHash": "33d235fe2a2e1867d99c0e306a21574688ef0f7f",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x264",
+        "filename": "2008 The Dark Knight 720p.BluRay.x264.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Batman Collection (8 Films) 1989-2016 720p BluRay x264 Ganool\nThe Dark Knight 2008 720p BluRay x264 Ganool.mkv\n👤 10 💾 1.2 GB ⚙️ 1337x",
+      "infoHash": "9190ac70ad666ba19777c19a2ad3e44f46cd8e6e",
+      "fileIdx": 6,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x264",
+        "filename": "The Dark Knight 2008 720p BluRay x264 Ganool.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Темный рыцарь / The Dark Knight (2008) BDRip 720p от Leonardo and Scarabey | Лицензия\n👤 7 💾 4.31 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "dd16051ba5f7b4731ebb4b9193d5b8c1c546736c",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BDRip|x264",
+        "filename": "The Dark Knight.2008.720p.BluRay.x264-LEONARDO_[scarabey.org].mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:dd16051ba5f7b4731ebb4b9193d5b8c1c546736c",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Dark (2026) 720p 10bit DS4K AMZN WEBRip x265 HEVC [Hindi DDP 5.1…\n👤 5 💾 787.26 MB ⚙️ TorrentGalaxy\n🇬🇧 / 🇮🇳",
+      "infoHash": "a8cee9d258e9cfd3b5d4ca50ab8f3b30553282e6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|WEBRip|hevc|10bit",
+        "filename": "Dark (2026) 720p 10bit DS4K AMZN WEBRip x265 HEVC [Hindi DDP 5.1 + Tamil DDP 5.1] ESub - Immortal.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The Dark Knight (2008) 720p BRRip x264 [Dual Audio] [Hindi DD 5.1 English DD 5.1]\n👤 5 💾 1010.82 MB ⚙️ 1337x\nDual Audio / 🇬🇧 / 🇮🇳",
+      "infoHash": "0a683702f52b1659df3c11c441e6f327c733bd64",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BRRip|x264",
+        "filename": "The Dark Knight (2008) [Worldfree4u.Wiki] 720p BRRip x264 [Dual Audio] [Hindi DD 5.1 + English DD 5.1].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Темный рыцарь / The Dark Knight [2008 BDRip-AVC] [IMAX Version] Dub + Original (Eng) + Sub (Rus Eng)\n👤 122 💾 1.45 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "3f9323ac8334412d082e2ed6b0eb6cc8160c5a43",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "The.Dark.Knight.2008.Bdrip.Imax.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:3f9323ac8334412d082e2ed6b0eb6cc8160c5a43",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Темный рыцарь / The Dark Knight [2008 BDRip-AVC] [IMAX Version] Dub + Original + Sub (Rus Eng)\n👤 39 💾 2.94 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "72d03007bda5f014f022dc6e67d1afc656255233",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "The Dark Knight (2008) BDRip.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:72d03007bda5f014f022dc6e67d1afc656255233",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Темный рыцарь / The Dark Knight [IMAX Version] [2008 BDRip] Dub\n👤 19 💾 2.18 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "207308138b626a325d72e801c00e690e9fc53a96",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|xvid",
+        "filename": "Temnyj.Rycar.IMAX.2008.RUS.BDRip.XviD.AC3.-AllFilms.avi"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:207308138b626a325d72e801c00e690e9fc53a96",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "GARO (All Series Batch + Movies + Specials + Anime) [BD + WebRip]\nGARO Movies and Specials/[O-T-MCS]_KIBA_-_Dark_Knight_Apocrypha_[Hi10p][40F0ED69].mkv\n👤 11 💾 533.15 MB ⚙️ EXT",
+      "infoHash": "66e2ec8b626081990accf6f71eb2aa88dcb04aaf",
+      "fileIdx": 4,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|66e2ec8b626081990accf6f71eb2aa88dcb04aaf",
+        "filename": "[O-T-MCS]_KIBA_-_Dark_Knight_Apocrypha_[Hi10p][40F0ED69].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nHDR",
+      "title": "Batman.The.Dark.Knight.Saga.Complete.2005-2012.MULTi.VFF.4KLight.HDR.10bits.x265.DTS-HD.MA-MenZo\nThe.Dark.Knight.Le.Chevalier.Noir.2008.MULTi.VFF.4KLight.HDR.10bits.x265.DTS-HD.MA-MenZo.mkv\n👤 8 💾 10.64 GB ⚙️ Torrent9\nMulti Audio / 🇫🇷",
+      "infoHash": "3715e1b359ede29682395c056f1ffd182911048b",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|x265|10bit|HDR",
+        "filename": "The.Dark.Knight.Le.Chevalier.Noir.2008.MULTi.VFF.4KLight.HDR.10bits.x265.DTS-HD.MA-MenZo.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Темный рыцарь / The Dark Knight [2008 BDRip-AVC] Dub + Original (Eng) + Sub (Rus Eng)\n👤 8 💾 1.46 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "779f3ee3777a7530fa0090aab0377c73fddf0ca7",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Dark Knight.2008.BDRip-AVC.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:779f3ee3777a7530fa0090aab0377c73fddf0ca7",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Official IMDb Top 250 Movies Collection 6/17/2011\nBatman The Dark Knight [2008] dvd rip nlx.avi\n👤 8 💾 698.99 MB ⚙️ ThePirateBay",
+      "infoHash": "4986ace2ee7a564508e0d5cfdde2d9018b8af942",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip",
+        "filename": "Batman The Dark Knight [2008] dvd rip nlx.avi"
+      }
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Темный рыцарь / Ночной рыцарь / The Dark Knight [2008 HDRip] AVO (Юрий Живов)\n👤 7 💾 2.17 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "85dd7db71823e0c00fb36ea72f6e958ae1c8968f",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip",
+        "filename": "Темный рыцарь (боевик, приключения, криминал 2008 год).avi"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:85dd7db71823e0c00fb36ea72f6e958ae1c8968f",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Приключения Петрова и Васечкина. Обыкновенные и невероятные (1983-1984) DVDRip\n2.Каникулы Петрова и Васечкина. Обыкновенные и невероятные/2.Рыцарь.avi\n👤 7 💾 1.72 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "8dcf52624e0ca24c029f8560562ff4c0b7706638",
+      "fileIdx": 3,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip",
+        "filename": "2.Рыцарь.avi"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:8dcf52624e0ca24c029f8560562ff4c0b7706638",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Темный рыцарь / The Dark Knight [2008 BDRip-AVC] Dub + MVO + AVO + VO + Original (Eng) + Sub (Rus Eng)\nThe.Dark.Knight.2008.BDRip.x264.DD5.1.Rus.Eng-E76.mkv\n👤 6 💾 5.38 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "961ae73a39e415c332bea16af9f5af94a1052dfd",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "The.Dark.Knight.2008.BDRip.x264.DD5.1.Rus.Eng-E76.mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:961ae73a39e415c332bea16af9f5af94a1052dfd",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio",
+      "title": "Batman.The.Dark.Knight.2008.VF.XViD-Ox\n👤 7 💾 699.56 MB ⚙️ Torrent9\n🇫🇷",
+      "infoHash": "ba8106fcca5108880f4a0182b37cfe0a693a6dd6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|xvid",
+        "filename": "[ OxTorrent.cc ] Batman.The.Dark.Knight.2008.VF.XViD-Ox.avi"
+      }
+    },
+    {
+      "name": "Torrentio",
+      "title": "Темный рыцарь / The Dark Knight (2008) HybridRip-AVC | D P | IMAX\n👤 6 💾 4.41 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "ba7dfa5650098d2dfcb2599f32ccf6a36fb97106",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|avc",
+        "filename": "Темный рыцарь (2008) IMAX.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:ba7dfa5650098d2dfcb2599f32ccf6a36fb97106",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio",
+      "title": "The.Dark.Knight.2008.1.43.IMAX.Restoration.Snoopy\n👤 5 💾 27.05 GB ⚙️ TorrentGalaxy",
+      "infoHash": "4f0303aa49daf6f8c847bf1f779e17518eb4c8cd",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "filename": "The.Dark.Knight.2008.1.43.IMAX.Restoration.Snoopy.mkv"
+      }
+    }
+  ],
+  "cacheMaxAge": 3600,
+  "staleRevalidate": 14400,
+  "staleError": 604800
+}

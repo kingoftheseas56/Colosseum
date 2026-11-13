@@ -1,0 +1,859 @@
+// Behavioral port of Harbor scoring tests, plus Colosseum selection policy.
+#include "stream/SourceScorer.h"
+#include <QCoreApplication>
+#include <cmath>
+#include <functional>
+#include <iostream>
+#include <limits>
+#include <stdexcept>
+using namespace colosseum::stream;
+#define CHECK(x)                                                                                   \
+    do {                                                                                           \
+        if (!(x))                                                                                  \
+            throw std::runtime_error(std::string(#x) + " at line " + std::to_string(__LINE__));    \
+    } while (false)
+static ParsedStream base(int index = 0) {
+    ParsedStream p;
+    p.resolution = Resolution::P1080;
+    p.source = Source::WebDl;
+    p.stream.input_index = index;
+    p.stream.info_hash = "test-hash";
+    return p;
+}
+static ScoreOptions options() {
+    ScoreOptions o;
+    o.today = QDate(2026, 11, 8);
+    return o;
+}
+static ScoredStream scored(ParsedStream p, ScoreOptions o = options(), CorpusStats c = {}) {
+    return SourceScorer::score(p, o, c);
+}
+static bool reason(const ScoredStream &s, const QString &name,
+                   double delta = std::numeric_limits<double>::quiet_NaN()) {
+    for (const auto &r : s.reasons)
+        if (r.signal == name && (std::isnan(delta) || r.delta == delta))
+            return true;
+    return false;
+}
+static int primary(const RankedPicker &p) {
+    return p.primary ? p.primary->parsed.stream.input_index : -1;
+}
+static void conservation(const ScoredStream &s) {
+    double sum = 0;
+    for (const auto &r : s.reasons)
+        sum += r.delta;
+    CHECK(std::abs(sum - s.score) < 1e-9);
+}
+int main(int argc, char **argv) {
+    QCoreApplication app(argc, argv);
+    int tests = 0, failures = 0;
+    auto run = [&](const char *name, const std::function<void()> &f) {
+        ++tests;
+        try {
+            f();
+        } catch (const std::exception &e) {
+            ++failures;
+            std::cerr << "FAIL " << name << ": " << e.what() << '\n';
+        }
+    };
+    run("4K HDR Atmos HEVC", [] {
+        auto p = base();
+        p.resolution = Resolution::UHD;
+        p.hdr_format = HdrFormat::Hdr10;
+        p.codec = Codec::Hevc;
+        p.audio.codec = AudioCodec::Atmos;
+        p.audio.channels = 8;
+        auto s = scored(p);
+        CHECK(s.score == 36);
+        CHECK(s.tier == Tier::UhdHdr);
+        CHECK(reason(s, "Atmos", 3));
+        conservation(s);
+    });
+    run("Dolby Vision", [] {
+        auto p = base();
+        p.resolution = Resolution::UHD;
+        p.hdr_format = HdrFormat::DvHdr10;
+        auto o = options();
+        o.dolby_vision_supported = true; // Harbor behavior requires explicit capability.
+        auto s = scored(p, o);
+        CHECK(s.score == 31);
+        CHECK(s.tier == Tier::UhdDv);
+        CHECK(reason(s, "DV+HDR10", 6));
+    });
+    run("No debrid, Easynews or URL bonus", [] {
+        auto p = base();
+        p.stream.addon_name = "Easynews+";
+        p.stream.url = "https://example.invalid/video";
+        p.stream.raw.insert("cached", true);
+        CHECK(scored(p).score == 20);
+        p.stream.addon_name = "MediaFusion";
+        CHECK(scored(p).score == 28);
+    });
+    run("CAM rough", [] {
+        auto p = base();
+        p.resolution = Resolution::P720;
+        p.source = Source::CAM;
+        auto s = scored(p);
+        CHECK(s.score == -72);
+        CHECK(s.tier == Tier::Rough);
+    });
+    run("Seeders", [] {
+        auto p = base();
+        p.seeders = 5;
+        CHECK(std::abs(scored(p).score - (20 + 3 * std::log2(6.0))) < 1e-9);
+        p.seeders = 0;
+        auto s = scored(p);
+        CHECK(s.score == -8);
+        CHECK(reason(s, "zero-seeders-stale-meta", -20));
+        CHECK(reason(s, "zero-seeders-soft", -8));
+        p.seeders = 95;
+        CHECK(std::abs(scored(p).score - (20 + 3 * std::log2(96.0))) < 1e-9);
+        p.seeders = 500;
+        CHECK(scored(p).score == 44);
+        auto o = options();
+        o.seeder_bonus_cap = std::numeric_limits<double>::infinity();
+        o.seeder_log_weight = std::numeric_limits<double>::quiet_NaN();
+        CHECK(std::isfinite(scored(p, o).score));
+        o.seeder_bonus_cap = -1; o.seeder_log_weight = -1;
+        CHECK(scored(p, o).score == 20);
+    });
+    run("Preferred languages", [] {
+        auto p = base();
+        auto o = options();
+        o.preferred_languages = {"en"};
+        p.audio_languages = {"English"};
+        CHECK(scored(p, o).score == 32);
+        p.audio_languages = {"French"};
+        CHECK(scored(p, o).score == 6);
+        p.audio_languages.clear();
+        CHECK(scored(p, o).score == 17);
+        p.audio_languages = {"Multi"};
+        CHECK(scored(p, o).score == 24);
+    });
+    run("All tiers", [] {
+        auto p = base();
+        p.resolution = Resolution::UHD;
+        p.hdr_format = HdrFormat::Dv;
+        CHECK(scored(p).tier == Tier::UhdDv);
+        p.hdr_format = HdrFormat::Hdr10;
+        CHECK(scored(p).tier == Tier::UhdHdr);
+        p.hdr_format.reset();
+        CHECK(scored(p).tier == Tier::Uhd);
+        p.resolution = Resolution::P1080;
+        CHECK(scored(p).tier == Tier::P1080);
+        p.hdr_format = HdrFormat::Hlg;
+        CHECK(scored(p).tier == Tier::P1080Hdr);
+        p.resolution = Resolution::P720;
+        CHECK(scored(p).tier == Tier::P720);
+        p.resolution = Resolution::P480;
+        CHECK(scored(p).tier == Tier::SD);
+        p.source = Source::SCR;
+        CHECK(scored(p).tier == Tier::Rough);
+    });
+    run("Primary 1080p before 720p before 4K", [] {
+        auto a = base(0), b = base(1), c = base(2);
+        b.resolution = Resolution::P720;
+        c.resolution = Resolution::UHD;
+        auto r = SourceScorer::rankAndPick({scored(c), scored(b), scored(a)}, options());
+        CHECK(primary(r) == 0);
+        CHECK(r.all.front().parsed.stream.input_index == 2);
+        CHECK(r.by_tier.size() == 3);
+        CHECK(primary(SourceScorer::rankAndPick({scored(c), scored(b)}, options())) == 1);
+        CHECK(primary(SourceScorer::rankAndPick({scored(c)}, options())) == 2);
+    });
+    run("All rows score sorted and tier best", [] {
+        auto a = base(0), b = base(1);
+        a.seeders = 20;
+        b.seeders = 200;
+        auto r = SourceScorer::rankAndPick({scored(a), scored(b)}, options());
+        CHECK(primary(r) == 1);
+        CHECK(r.all.front().score > r.all.back().score);
+        CHECK(r.by_tier["1080p"].parsed.stream.input_index == 1);
+    });
+    run("Unsafe 1080p falls back", [] {
+        auto a = base(0), b = base(1);
+        a.scam_score = 100;
+        b.resolution = Resolution::P720;
+        CHECK(primary(SourceScorer::rankAndPick({scored(a), scored(b)}, options())) == 1);
+    });
+    run("No pick for CAM, screener or zero seed torrent", [] {
+        auto a = base();
+        a.source = Source::CAM;
+        CHECK(!SourceScorer::rankAndPick({scored(a)}, options()).primary);
+        a.source = Source::SCR;
+        CHECK(!SourceScorer::rankAndPick({scored(a)}, options()).primary);
+        a.source = Source::WebDl;
+        a.seeders = 0;
+        a.stream.addon_name = "MediaFusion";
+        a.stream.addon_priority = 0;
+        CHECK(!SourceScorer::rankAndPick({scored(a)}, options()).primary);
+    });
+    run("No pick empty or nonplayable", [] {
+        CHECK(!SourceScorer::rankAndPick({}, options()).primary);
+        auto p = base();
+        p.stream.info_hash.clear();
+        CHECK(!SourceScorer::rankAndPick({scored(p)}, options()).primary);
+    });
+    run("Addon priority tie deterministic", [] {
+        auto a = base(0), b = base(1);
+        a.stream.addon_priority = 2;
+        b.stream.addon_priority = 0;
+        auto x = scored(a), y = scored(b);
+        x.score = y.score = 40;
+        auto r = SourceScorer::rankAndPick({x, y}, options());
+        CHECK(primary(r) == 1);
+    });
+    run("Respect addon order cannot override score", [] {
+        auto a = base(0), b = base(1);
+        a.seeders = 100;
+        b.seeders = 10;
+        auto o = options();
+        o.respect_addon_order = true;
+        a.stream.addon_return_idx = 1;
+        b.stream.addon_return_idx = 0;
+        CHECK(primary(SourceScorer::rankAndPick({scored(b, o), scored(a, o)}, o)) == 0);
+    });
+    run("Dual audio wins exact score ties", [] {
+        auto a = base(0), b = base(1);
+        b.dual_audio = true;
+        b.stream.addon_priority = 5;
+        auto x = scored(a), y = scored(b);
+        CHECK(x.score == y.score);
+        CHECK(primary(SourceScorer::rankAndPick({x, y}, options())) == 1);
+    });
+    run("Single episode beats pack", [] {
+        auto a = base(0), b = base(1);
+        a.batch_release = true;
+        a.season_pack = true;
+        a.seeders = 1000;
+        b.seeders = 1;
+        auto o = options();
+        o.episode_requested = true;
+        CHECK(primary(SourceScorer::rankAndPick({scored(a, o), scored(b, o)}, o)) == 1);
+        b.resolution = Resolution::P720;
+        CHECK(primary(SourceScorer::rankAndPick({scored(a, o), scored(b, o)}, o)) == 1);
+    });
+    run("Pack available when no single", [] {
+        auto a = base(0);
+        a.batch_release = true;
+        a.season_pack = true;
+        auto o = options();
+        o.episode_requested = true;
+        CHECK(primary(SourceScorer::rankAndPick({scored(a, o)}, o)) == 0);
+    });
+    run("Corpus fractions", [] {
+        auto a = base(), b = base(), c = base(), d = base();
+        a.source = Source::CAM;
+        a.seeders = 30;
+        b.seeders = 100;
+        c.source = Source::HDTV;
+        c.seeders = 5;
+        d.source = Source::BluRay;
+        d.stream.url = "https://example.invalid/x";
+        auto cs = SourceScorer::computeCorpusStats({a, b, c, d}, options());
+        CHECK(cs.trusted_tracked_count == 3);
+        CHECK(cs.trusted_tracked_fraction == 0.75);
+        CHECK(std::abs(cs.theater_capture_fraction - 1.0 / 3) < 1e-9);
+        CHECK(std::abs(cs.webish_fraction - 2.0 / 3) < 1e-9);
+    });
+    run("Corpus empty", [] {
+        auto c = SourceScorer::computeCorpusStats({}, options());
+        CHECK(c.trusted_tracked_count == 0);
+        CHECK(c.theater_capture_fraction == 0);
+        CHECK(!c.median_size);
+    });
+    run("Corpus percentiles", [] {
+        QList<ParsedStream> list;
+        for (auto size : {1, 5, 10, 50, 100}) {
+            auto p = base();
+            p.size = size;
+            p.seeders = size;
+            list.push_back(p);
+        }
+        auto c = SourceScorer::computeCorpusStats(list, options());
+        CHECK(c.median_size == 10);
+        CHECK(c.p90_size == 50);
+        CHECK(c.p10_seeders == 1);
+        CHECK(c.p90_seeders == 50);
+    });
+    run("Repack proper", [] {
+        auto p = base();
+        p.proper = true;
+        CHECK(scored(p).score == 21);
+        p.proper = false;
+        p.repack_iteration = 1;
+        CHECK(scored(p).score == 21);
+        p.repack_iteration = 5;
+        CHECK(scored(p).score == 22);
+    });
+    run("Trusted group REMUX preferred", [] {
+        auto p = base();
+        p.release_group_normalized = "FLUX";
+        p.remux = true;
+        p.source = Source::BluRay;
+        CHECK(scored(p).score == 25);
+        auto o = options();
+        o.preferred_release_group = "FLUX";
+        CHECK(scored(p, o).score == 33);
+    });
+    run("CAM hidden in filename", [] {
+        auto p = base();
+        p.stream.title = "Some.Movie.1080p.WEB-DL.HDCAM.mkv";
+        auto s = scored(p);
+        CHECK(s.score == -80);
+        CHECK(reason(s, "title-says-hires-filename-says-cam", -100));
+        p.resolution = Resolution::UHD;
+        CHECK(scored(p).score == -175);
+    });
+    run("Addon priority decay", [] {
+        auto p = base();
+        p.stream.addon_priority = 0;
+        CHECK(scored(p).score == 32);
+        p.stream.addon_priority = 2;
+        CHECK(scored(p).score == 24);
+        p.stream.addon_priority = 5;
+        CHECK(scored(p).score == 20);
+    });
+    run("Lossless audio and AV1 not browser penalized", [] {
+        auto p = base();
+        p.audio.codec = AudioCodec::DtsHdMa;
+        p.codec = Codec::Av1;
+        p.container = "mkv";
+        CHECK(scored(p).score == 23);
+    });
+    run("Size mismatch and lossy exemption", [] {
+        auto p = base();
+        p.size = 200 * 1024 * 1024;
+        auto o = options();
+        o.runtime_minutes = 120;
+        CHECK(reason(scored(p, o), "size-mismatch", -120));
+        p.release_group_normalized = "YTS";
+        CHECK(!reason(scored(p, o), "size-mismatch"));
+    });
+    run("Bandwidth budget", [] {
+        auto p = base();
+        p.size = quint64(10) * 1024 * 1024 * 1024;
+        auto o = options();
+        o.runtime_minutes = 90;
+        o.bandwidth_mbps = 5;
+        auto s = scored(p, o);
+        CHECK(s.score < 0);
+        bool found = false;
+        for (auto r : s.reasons)
+            if (r.signal.startsWith("bitrate-exceeds-budget"))
+                found = true;
+        CHECK(found);
+    });
+    run("Recent tiny movie", [] {
+        auto p = base();
+        p.size = 100 * 1024 * 1024;
+        auto o = options();
+        o.media_kind = "movie";
+        o.release_date = o.today.addDays(-5);
+        CHECK(reason(scored(p, o), "new-release-virus-100mb", -250));
+        o.media_kind = "series";
+        CHECK(!reason(scored(p, o), "new-release-virus-100mb"));
+    });
+    run("Recent undersized 4K", [] {
+        auto p = base();
+        p.resolution = Resolution::UHD;
+        p.size = quint64(4) * 1024 * 1024 * 1024;
+        auto o = options();
+        o.release_date = o.today.addDays(-45);
+        CHECK(reason(scored(p, o), "4k-undersized-4.0gb", -250));
+    });
+    run("Dominated theater pool extends window", [] {
+        auto p = base();
+        auto o = options();
+        o.media_kind = "movie";
+        o.release_date = o.today.addDays(-50);
+        CorpusStats c;
+        c.trusted_tracked_count = 10;
+        c.theater_capture_fraction = .8;
+        c.webish_fraction = .1;
+        p.source = Source::TS;
+        CHECK(reason(scored(p, o, c), "fresh-theater-cinema-window", 75));
+        p.source = Source::WEBRip;
+        CHECK(reason(scored(p, o, c), "fresh-fake-soft", -45));
+        c.theater_capture_fraction = .1;
+        c.webish_fraction = .7;
+        CHECK(!reason(scored(p, o, c), "fresh-fake-soft"));
+    });
+    run("Recent year mismatch", [] {
+        auto p = base();
+        p.year = 2025;
+        auto o = options();
+        o.release_date = QDate(2026, 10, 1);
+        CHECK(reason(scored(p, o), "year-off-by-1:2025vs2026-recent", -75));
+    });
+    run("Severe fake never selected despite origin bonus", [] {
+        auto p = base();
+        p.stream.addon_id = "origin";
+        p.scam_score = 20;
+        auto o = options();
+        o.prefer_addon_id = "origin";
+        CHECK(scored(p, o).score > 0);
+        CHECK(!SourceScorer::rankAndPick({scored(p, o)}, o).primary);
+    });
+    run("Nonfinite scores never selected", [] {
+        auto a = scored(base(0)), b = scored(base(1));
+        a.score = std::numeric_limits<double>::quiet_NaN();
+        CHECK(primary(SourceScorer::rankAndPick({a, b}, options())) == 1);
+    });
+    run("Rough row skipped beside clean primary", [] {
+        auto a = base(0), b = base(1);
+        a.source = Source::CAM;
+        auto x = scored(a), y = scored(b);
+        x.score = 500;
+        CHECK(primary(SourceScorer::rankAndPick({x, y}, options())) == 1);
+    });
+    run("Ordinary anime size warning is not a hard rejection", [] {
+        Stream raw;
+        raw.title = "[SubsPlease] One Piece - 1164 (1080p).mkv";
+        raw.info_hash = "0123456789abcdef0123456789abcdef01234567";
+        raw.size = 300ULL * 1024 * 1024;
+        raw.seeders = 200;
+        raw.input_index = 9;
+        raw.behavior_hints.insert("filename", raw.title);
+        TrustOptions trust;
+        trust.kind = "series";
+        trust.expected_title = "One Piece";
+        trust.expected_episode = 1164;
+        trust.is_anime = true;
+        auto o = options();
+        o.media_kind = "series";
+        o.runtime_minutes = 24;
+        auto r = SourceScorer::evaluate({raw}, trust, o);
+        CHECK(r.rejected.isEmpty());
+        CHECK(r.all.size() == 1);
+        CHECK(r.all.front().parsed.scam_score == 3);
+        CHECK(primary(r) == 9);
+    });
+    run("Underscore CAM cannot bypass scorer fallback", [] {
+        auto p = base();
+        p.stream.title = "Movie_2020_CAM_1080p.mkv";
+        CHECK(reason(scored(p), "title-says-hires-filename-says-cam", -100));
+        p.stream.title = "GUTS_2020_1080p.mkv";
+        CHECK(!reason(scored(p), "title-says-hires-filename-says-cam"));
+    });
+    run("R2 selected episode file is not a pack", [] {
+        auto pack = base(0), upscale = base(1);
+        pack.batch_release = true;
+        pack.season_pack = true;
+        pack.stream.raw.insert("fileIdx", 33);
+        pack.stream.behavior_hints.insert("filename", "[Erai-raws] One Piece - 001 [1080p].mkv");
+        upscale.resolution = Resolution::UHD;
+        auto o = options();
+        o.episode_requested = true;
+        o.expected_episode = 1;
+        o.expected_season = 1;
+        auto r = SourceScorer::rankAndPick({scored(upscale, o), scored(pack, o)}, o);
+        CHECK(primary(r) == 0);
+        CHECK(r.all.front().parsed.stream.input_index == 1);
+        CHECK(reason(*r.primary, "selected-episode-file:batch-torrent-treated-as-single", 0));
+    });
+    run("R2 true pack controls", [] {
+        auto pack = base(0), single = base(1);
+        pack.batch_release = true;
+        pack.season_pack = true;
+        single.resolution = Resolution::UHD;
+        auto o = options();
+        o.episode_requested = true;
+        o.expected_episode = 1;
+        o.expected_season = 1;
+        const auto pick = [&] { return primary(SourceScorer::rankAndPick({scored(pack, o), scored(single, o)}, o)); };
+        pack.stream.behavior_hints.insert("filename", "Show.S01E01.1080p.mkv");
+        CHECK(pick() == 1); // No fileIdx: an episode label alone is not selection.
+        for (const QJsonValue &idx : {QJsonValue(-1), QJsonValue(1.5), QJsonValue("33"), QJsonValue()}) {
+            pack.stream.raw.insert("fileIdx", idx);
+            CHECK(pick() == 1);
+        }
+        pack.stream.raw.insert("fileIdx", 0);
+        pack.stream.behavior_hints.insert("filename", "Show.S01E01-E02.1080p.mkv");
+        CHECK(pick() == 1);
+        pack.stream.behavior_hints.insert("filename", "Show.S01E02.1080p.mkv");
+        CHECK(pick() == 1);
+        pack.stream.behavior_hints.insert("filename", "Show.S02E01.1080p.mkv");
+        CHECK(pick() == 1);
+        pack.stream.behavior_hints.insert("filename", "Show.S01E01.1080p.mkv");
+        CHECK(pick() == 0); // Zero is a valid file index.
+        o.expected_episode.reset();
+        CHECK(pick() == 1); // Do not guess which requested episode a file identifies.
+    });
+    run("R2 selected file evaluate propagates episode context", [] {
+        Stream pack;
+        pack.input_index = 0;
+        pack.info_hash = "0123456789abcdef0123456789abcdef01234567";
+        pack.title = "One Piece Complete 001-1000 1080p";
+        pack.raw.insert("fileIdx", 33);
+        pack.behavior_hints.insert("filename", "[Erai-raws] One Piece - 001 [1080p].mkv");
+        pack.size = 733ULL * 1024 * 1024;
+        pack.seeders = 100;
+        Stream upscale = pack;
+        upscale.input_index = 1;
+        upscale.raw.remove("fileIdx");
+        upscale.title = "One Piece EP0001 2160p WEBRip";
+        upscale.behavior_hints.insert("filename", upscale.title + ".mkv");
+        upscale.size = 3ULL * 1024 * 1024 * 1024;
+        TrustOptions t;
+        t.kind = "series";
+        t.expected_title = "One Piece";
+        t.expected_season = 1;
+        t.expected_episode = 1;
+        t.is_anime = true;
+        auto o = options();
+        o.runtime_minutes = 24;
+        CHECK(primary(SourceScorer::evaluate({upscale, pack}, t, o)) == 0);
+    });
+    run("R2 primary streaming size band preserves ranked scores", [] {
+        auto large = base(0), friendly = base(1);
+        large.size = 35000000000ULL;
+        large.remux = true;
+        large.seeders = 500;
+        friendly.size = 8000000000ULL;
+        friendly.seeders = 20;
+        auto o = options();
+        o.media_kind = "movie";
+        o.runtime_minutes = 120;
+        const auto a = scored(large, o), b = scored(friendly, o);
+        CHECK(a.score > b.score);
+        const auto r = SourceScorer::rankAndPick({a, b}, o);
+        CHECK(primary(r) == 1);
+        CHECK(r.all.front().parsed.stream.input_index == 0);
+        CHECK(r.all.front().score == a.score);
+        CHECK(r.by_tier["1080p"].parsed.stream.input_index == 0);
+        bool printed = false;
+        for (const auto &reason : r.all.front().reasons)
+            if (reason.signal.startsWith("streaming-size:")) printed = true;
+        CHECK(printed);
+    });
+    run("R2 streaming band fallbacks and bitrate controls", [] {
+        auto large = base(0), friendly = base(1), unknown = base(2);
+        large.size = 16000000000ULL;
+        large.seeders = 100;
+        friendly.size = 14000000000ULL;
+        friendly.seeders = 10;
+        unknown.seeders = 500;
+        auto o = options();
+        o.media_kind = "movie";
+        auto rank = [&](const QList<ParsedStream> &rows) {QList<ScoredStream> ss; for (const auto &p : rows) ss.push_back(scored(p, o)); return SourceScorer::rankAndPick(ss, o);};
+        CHECK(primary(rank({large})) == 0); // Oversized is fallback, not removed.
+        CHECK(primary(rank({large, unknown})) == 2);
+        CHECK(primary(rank({unknown, friendly})) == 1);
+        CHECK(primary(rank({large, friendly})) == 1); // Unknown runtime: size cap.
+        large.size = 10000000000ULL;
+        friendly.size = 4000000000ULL;
+        o.runtime_minutes = 60;
+        CHECK(primary(rank({large, friendly})) == 1); // Both <15GB, one exceeds 20Mbps.
+        large.size = 3100000000ULL;
+        friendly.size = 2500000000ULL;
+        o.media_kind = "series";
+        o.runtime_minutes.reset();
+        CHECK(primary(rank({large, friendly})) == 1);
+        friendly.resolution = Resolution::P720;
+        CHECK(primary(rank({large, friendly})) == 0); // Band does not override resolution order.
+    });
+    run("R2 secondary preferred audio gets smaller bonus", [] {
+        auto p = base();
+        p.audio_languages = {"Multi", "Russian", "English"};
+        p.stream.title = QString::fromUtf8("Начало / Inception Dub + 2x DVO + 2x Ukr + Original (Eng)");
+        p.stream.description = "Rutracker";
+        auto o = options();
+        o.preferred_languages = {"en"};
+        const auto s = scored(p, o);
+        CHECK(reason(s, "preferred-language-secondary", 3));
+        CHECK(!reason(s, "preferred-language", 12));
+        p.audio_languages = {"English"}; // Dub-first text still signals another default track.
+        CHECK(reason(scored(p, o), "preferred-language-secondary", 3));
+    });
+    run("R2 primary only and multi audio controls", [] {
+        auto p = base();
+        auto o = options();
+        o.preferred_languages = {"en"};
+        p.audio_languages = {"Multi", "English", "Japanese"};
+        p.stream.title = "Inception English Japanese Dual Audio";
+        CHECK(reason(scored(p, o), "preferred-language", 12));
+        p.audio_languages = {"English"};
+        p.stream.title = QString::fromUtf8("Начало / Inception English Dub");
+        CHECK(reason(scored(p, o), "preferred-language", 12));
+        p.stream.title.clear();
+        p.audio_languages = {"Multi"};
+        CHECK(reason(scored(p, o), "multi-language", 4));
+        p.audio_languages = {"French"};
+        CHECK(reason(scored(p, o), "language-mismatch", -14));
+    });
+    run("R2 nonLatin preferred primary is not downgraded", [] {
+        auto p = base();
+        p.audio_languages = {"Multi", "English", "Japanese"}; // Parser ordering is not track ordering.
+        p.stream.title = QString::fromUtf8("進撃の巨人 Japanese English Dual Audio");
+        auto o = options();
+        o.preferred_languages = {"ja"};
+        CHECK(reason(scored(p, o), "preferred-language", 12));
+        CHECK(!reason(scored(p, o), "preferred-language-secondary"));
+    });
+    run("R2 unknown-order Rutracker audio is conservative", [] {
+        auto p = base();
+        p.audio_languages = {"Multi", "English", "Russian"};
+        p.stream.title = "Movie 2010 English Multi Audio";
+        p.stream.description = "Rutracker";
+        auto o = options();
+        o.preferred_languages = {"en"};
+        CHECK(reason(scored(p, o), "preferred-language-secondary", 3));
+    });
+    run("R2 contextual ISO order establishes primary audio", [] {
+        auto p = base();
+        p.audio_languages = {"Multi", "Russian", "English"};
+        auto o = options();
+        o.preferred_languages = {"en"};
+        for (const auto &text : {"Movie [EN/RU]", "Movie [EN RU]", "Movie\nLanguages: EN RU", "Movie\nAudio: EN / RU"}) {
+            p.stream.title = text;
+            CHECK(reason(scored(p, o), "preferred-language", 12));
+        }
+        for (const auto &text : {"Movie [RU/EN]", "Movie\nLanguages: RU EN", "Movie 6.45 GB Russian English"}) {
+            p.stream.title = text;
+            CHECK(reason(scored(p, o), "preferred-language-secondary", 3));
+        }
+    });
+    run("R2 unsupported DV scoring and primary deferral", [] {
+        auto dv = base(0), hdr = base(1);
+        dv.hdr_format = HdrFormat::Dv;
+        dv.seeders = 500;
+        hdr.hdr_format = HdrFormat::Hdr10;
+        auto o = options();
+        CHECK(!o.dolby_vision_supported);
+        CHECK(!reason(scored(dv, o), "DV", 6));
+        auto r = SourceScorer::rankAndPick({scored(dv, o), scored(hdr, o)}, o);
+        CHECK(primary(r) == 1);
+        CHECK(r.all.front().parsed.stream.input_index == 0);
+        CHECK(primary(SourceScorer::rankAndPick({scored(dv, o)}, o)) == 0);
+        dv.hdr_format = HdrFormat::DvHdr10;
+        CHECK(reason(scored(dv, o), "HDR10-fallback", 5));
+        CHECK(primary(SourceScorer::rankAndPick({scored(dv, o), scored(hdr, o)}, o)) == 0);
+        o.dolby_vision_supported = true;
+        CHECK(reason(scored(dv, o), "DV+HDR10", 6));
+        dv.hdr_format = HdrFormat::Dv;
+        CHECK(reason(scored(dv, o), "DV", 6));
+        CHECK(primary(SourceScorer::rankAndPick({scored(dv, o), scored(hdr, o)}, o)) == 0);
+    });
+    run("R2 DV safety precedes size within resolution", [] {
+        auto dv = base(0), safe = base(1);
+        dv.hdr_format = HdrFormat::Dv;
+        dv.size = 4000000000ULL;
+        safe.size = 25000000000ULL;
+        auto o = options();
+        o.media_kind = "movie";
+        CHECK(primary(SourceScorer::rankAndPick({scored(dv, o), scored(safe, o)}, o)) == 1);
+    });
+    run("R3 source tier inside chosen band", [] {
+        auto bad = base(0), good = base(1);
+        bad.source = Source::HDTV; good.source = Source::BluRay;
+        bad.seeders = 5000; good.seeders = 30;
+        bad.size = good.size = 4000000000ULL;
+        CHECK(primary(SourceScorer::rankAndPick({scored(bad), scored(good)}, options())) == 1);
+        for (const auto source : {Source::BluRay, Source::BDRip, Source::REMUX, Source::WebDl, Source::WEBRip}) {
+            good.source = source;
+            for (const auto low : {Source::HDTV, Source::DVDRip, Source::SDTV}) {
+                bad.source = low;
+                CHECK(primary(SourceScorer::rankAndPick({scored(bad), scored(good)}, options())) == 1);
+            }
+        }
+        good.size = 20000000000ULL;
+        CHECK(primary(SourceScorer::rankAndPick({scored(bad), scored(good)}, options())) == 0);
+        CHECK(primary(SourceScorer::rankAndPick({scored(bad)}, options())) == 0);
+    });
+    run("R3 upscale penalty and deferral", [] {
+        auto ai = base(0), native = base(1);
+        ai.filename = "Movie.1080p.AI.Lab.conv";
+        ai.seeders = 5000; native.seeders = 20;
+        CHECK(reason(scored(ai), "upscale-or-conversion", -15));
+        CHECK(primary(SourceScorer::rankAndPick({scored(ai), scored(native)}, options())) == 1);
+        CHECK(primary(SourceScorer::rankAndPick({scored(ai)}, options())) == 0);
+        for (const auto &name : {"Movie.upscaled", "Movie.AI.upscale", "Movie.conversion", "Movie.conv"}) {
+            ai.filename = name;
+            CHECK(reason(scored(ai), "upscale-or-conversion", -15));
+        }
+        ai.filename = "Movie.1080p";
+        ai.stream.behavior_hints.insert("filename", "Episode 001-206 (1080p Upscale)/Movie.mkv");
+        CHECK(reason(scored(ai), "upscale-or-conversion", -15));
+        ai.stream.behavior_hints = {};
+        for (const auto &name : {"Movie.regrade", "Movie.conversation", "Movie.Conviction", "Movie.Airplane", "A.I.Artificial.Intelligence.2001"}) {
+            ai.filename = name;
+            CHECK(!reason(scored(ai), "upscale-or-conversion"));
+        }
+    });
+    run("R3 conservative preHD television inference", [] {
+        auto p = base(); p.resolution = Resolution::UHD; p.source = Source::WEBRip;
+        p.year = 1999; p.episode = 1; p.filename = "Show.1999.S01E01.2160p.WEBRip";
+        auto o = options(); o.media_kind = "series";
+        CHECK(reason(scored(p, o), "suspected-preHD-TV-upscale", -15));
+        o.media_kind = "movie"; CHECK(!reason(scored(p, o), "suspected-preHD-TV-upscale"));
+        o.media_kind = "series"; p.filename += ".Remastered";
+        CHECK(!reason(scored(p, o), "suspected-preHD-TV-upscale"));
+        p.filename = "Show.2020.S01E01"; p.year = 2020;
+        CHECK(!reason(scored(p, o), "suspected-preHD-TV-upscale"));
+        p.year.reset(); o.release_date = QDate(1999, 1, 1);
+        CHECK(reason(scored(p, o), "suspected-preHD-TV-upscale", -15));
+        p.year = 1999; p.source = Source::BluRay;
+        CHECK(!reason(scored(p, o), "suspected-preHD-TV-upscale"));
+    });
+    run("R3 healthy torrent floor within best source", [] {
+        auto weak = base(0), healthy = base(1);
+        weak.source = Source::BluRay; weak.seeders = 19; weak.audio.codec = AudioCodec::Atmos;
+        healthy.source = Source::HDTV; healthy.seeders = 20;
+        CHECK(primary(SourceScorer::rankAndPick({scored(weak), scored(healthy)}, options())) == 0);
+        healthy.source = Source::BluRay;
+        CHECK(primary(SourceScorer::rankAndPick({scored(weak), scored(healthy)}, options())) == 1);
+        healthy.seeders = 19;
+        CHECK(primary(SourceScorer::rankAndPick({scored(weak), scored(healthy)}, options())) == 0);
+        healthy.source = Source::BluRay; healthy.seeders = 200;
+        CHECK(scored(healthy).score > scored(weak).score);
+        auto o = options(); o.healthy_seeders = 30; healthy.seeders = 20;
+        CHECK(primary(SourceScorer::rankAndPick({scored(weak, o), scored(healthy, o)}, o)) == 0);
+    });
+    run("R3 French led is secondary unless French preferred", [] {
+        auto fr = base(0), en = base(1);
+        fr.french_led = true; fr.audio_languages = {"Japanese"}; fr.seeders = 5000;
+        en.dual_audio = true; en.audio_languages = {"Japanese", "English"}; en.seeders = 20;
+        auto o = options(); o.preferred_languages = {"ja"};
+        CHECK(reason(scored(fr, o), "preferred-language-secondary", 3));
+        CHECK(primary(SourceScorer::rankAndPick({scored(fr, o), scored(en, o)}, o)) == 1);
+        fr.audio_languages = {"French"}; o.preferred_languages = {"fr"};
+        CHECK(reason(scored(fr, o), "preferred-language", 12));
+        CHECK(primary(SourceScorer::rankAndPick({scored(fr, o), scored(en, o)}, o)) == 0);
+        fr.audio_languages.clear(); fr.subtitle_languages = {"English"};
+        o.preferred_languages = {"en"};
+        CHECK(!reason(scored(fr, o), "preferred-language"));
+    });
+    run("4K target changes only resolution selection", [] {
+        auto hd = base(0), uhd = base(1), low = base(2);
+        uhd.resolution = Resolution::UHD;
+        low.resolution = Resolution::P720;
+        auto o = options();
+        CHECK(primary(SourceScorer::rankAndPick({scored(hd), scored(uhd), scored(low)}, o)) == 0);
+        o.target_resolution = Resolution::UHD;
+        CHECK(primary(SourceScorer::rankAndPick({scored(hd), scored(uhd), scored(low)}, o)) == 1);
+        CHECK(scored(uhd, o).score == scored(uhd).score);
+        CHECK(primary(SourceScorer::rankAndPick({scored(low), scored(hd)}, o)) == 0);
+        CHECK(primary(SourceScorer::rankAndPick({scored(low)}, o)) == 2);
+    });
+    run("4K target preserves size and DV guards", [] {
+        auto friendly = base(0), large = base(1), dv = base(2);
+        friendly.resolution = large.resolution = dv.resolution = Resolution::UHD;
+        friendly.size = 10000000000ULL;
+        large.size = 50000000000ULL;
+        dv.size = 9000000000ULL;
+        dv.hdr_format = HdrFormat::Dv;
+        auto o = options();
+        o.target_resolution = Resolution::UHD;
+        auto oversized = scored(large, o), incompatible = scored(dv, o);
+        oversized.score += 100;
+        incompatible.score += 100;
+        CHECK(primary(SourceScorer::rankAndPick({oversized, incompatible, scored(friendly, o)}, o)) == 0);
+    });
+    run("4K target preserves trust and primary safety", [] {
+        auto make = [](const QString &title, int index, int seeders) {
+            return stream_from_json({{"title", title}, {"infoHash", QString(40, 'a')},
+                                     {"size", 20000000000.0}, {"seeders", seeders}}, index);
+        };
+        auto o = options();
+        o.target_resolution = Resolution::UHD;
+        TrustOptions trust;
+        trust.kind = "movie";
+        trust.expected_title = "Fixture";
+        trust.expected_year = 2020;
+        trust.today = o.today;
+        const auto pick = SourceScorer::evaluate({
+            make("Fixture.2020.2160p.CAM.x265.mkv", 0, 1000),
+            make("Fixture.2020.2160p.WEB-DL.x265.mkv", 1, 0),
+            make("Fixture.2020.1080p.WEB-DL.x265.mkv", 2, 100),
+            make("Unrelated.2020.2160p.WEB-DL.x265.mkv", 3, 1000)}, trust, o);
+        CHECK(primary(pick) == 2);
+        CHECK(pick.rejected.size() == 1);
+        CHECK(pick.rejected[0].stream.stream.input_index == 3);
+        CHECK(pick.rejected[0].reason == "title-mismatch");
+    });
+    run("Synthetic fast start episode budget retains quality within budget", [] {
+        auto small = base(0), rich = base(1);
+        small.size = 679820000ULL; small.seeders = 1313; small.codec = Codec::Hevc;
+        rich.size = 2500000000ULL; rich.seeders = 1313;
+        rich.audio.codec = AudioCodec::Atmos; rich.audio.channels = 6;
+        auto o = options(); o.media_kind = "series"; o.episode_requested = true;
+        o.runtime_minutes = 45;
+        const auto pick = [&] { return primary(SourceScorer::rankAndPick({scored(rich, o), scored(small, o)}, o)); };
+        CHECK(pick() == 1); // Legacy library policy remains unchanged.
+        o.prefer_fast_start = true;
+        CHECK(pick() == 0);
+        rich.size = 1200000000ULL;
+        CHECK(pick() == 1); // Quality still wins when both fit.
+        o.runtime_minutes.reset(); rich.size = 2500000000ULL;
+        CHECK(pick() == 0); // Size cap works without runtime.
+        rich.size.reset(); CHECK(pick() == 0); // Unknown remains a fallback.
+        small.size.reset(); rich.size = 2500000000ULL;
+        CHECK(pick() == 0); // Unknown before oversized.
+        small.size = 3000000000ULL;
+        CHECK(pick() == 1); // Oversized fallback still available.
+    });
+    run("Fast start profile movie bitrate and 4K target", [] {
+        auto small = base(0), rich = base(1);
+        small.size = 4000000000ULL; rich.size = 5500000000ULL;
+        small.seeders = rich.seeders = 500; rich.audio.codec = AudioCodec::Atmos;
+        auto o = options(); o.prefer_fast_start = true; o.media_kind = "movie";
+        o.runtime_minutes = 60;
+        CHECK(primary(SourceScorer::rankAndPick({scored(rich, o), scored(small, o)}, o)) == 1);
+        small.size = 3000000000ULL; // 6.67Mbps vs 12.22Mbps.
+        CHECK(primary(SourceScorer::rankAndPick({scored(rich, o), scored(small, o)}, o)) == 0);
+        small.resolution = rich.resolution = Resolution::UHD;
+        small.size = 18000000000ULL; rich.size = 24000000000ULL;
+        o.runtime_minutes = 120; o.target_resolution = Resolution::UHD;
+        CHECK(primary(SourceScorer::rankAndPick({scored(rich, o), scored(small, o)}, o)) == 0);
+        o.media_kind = "series"; o.runtime_minutes = 45;
+        small.size = 3500000000ULL; rich.size = 5000000000ULL;
+        CHECK(primary(SourceScorer::rankAndPick({scored(rich, o), scored(small, o)}, o)) == 0);
+    });
+    run("Fast start preserves trust zero seed CAM and DV guards", [] {
+        auto safe = base(0), bad = base(1);
+        safe.size = 2500000000ULL; safe.seeders = 50;
+        bad.size = 500000000ULL; bad.seeders = 0;
+        auto o = options(); o.media_kind = "series"; o.prefer_fast_start = true;
+        const auto pick = [&] { return primary(SourceScorer::rankAndPick({scored(bad, o), scored(safe, o)}, o)); };
+        CHECK(pick() == 0);
+        bad.seeders = 500; bad.source = Source::CAM; CHECK(pick() == 0);
+        bad.source = Source::WebDl; bad.hdr_format = HdrFormat::Dv; CHECK(pick() == 0);
+        TrustOptions trust; trust.kind = "series"; trust.expected_title = "Fixture";
+        trust.expected_season = 1; trust.expected_episode = 1;
+        auto wrong = stream_from_json({{"title", "Unrelated.S01E01.1080p.WEB-DL"},
+            {"infoHash", QString(40, 'a')}, {"size", 679820000.0}, {"seeders", 1313}}, 1);
+        CHECK(!SourceScorer::evaluate({wrong}, trust, o).primary);
+    });
+    run("Fast start 720p caps and movie size cap without runtime", [] {
+        auto small = base(0), rich = base(1);
+        small.seeders = rich.seeders = 500; rich.audio.codec = AudioCodec::Atmos;
+        auto o = options(); o.prefer_fast_start = true;
+        const auto pick = [&] { return primary(SourceScorer::rankAndPick({scored(rich, o), scored(small, o)}, o)); };
+        o.media_kind = "movie";
+        small.size = 5500000000ULL; rich.size = 6500000000ULL;
+        CHECK(pick() == 0);
+        small.resolution = rich.resolution = Resolution::P720;
+        small.size = 2500000000ULL; rich.size = 3500000000ULL;
+        CHECK(pick() == 0);
+        o.media_kind = "series"; small.size = 600000000ULL; rich.size = 1000000000ULL;
+        CHECK(pick() == 0);
+        rich.size = 700000000ULL; o.runtime_minutes = 20;
+        CHECK(pick() == 0); // 4Mbps cap distinguishes two under-size-cap rows.
+    });
+    run("Selection explanations", [] {
+        auto r = SourceScorer::rankAndPick({}, options());
+        CHECK(!r.selection_reasons.isEmpty());
+        auto p = base();
+        p.seeders = 0;
+        r = SourceScorer::rankAndPick({scored(p)}, options());
+        CHECK(!r.selection_reasons.isEmpty());
+        p.seeders = 20;
+        r = SourceScorer::rankAndPick({scored(p)}, options());
+        CHECK(r.primary);
+        CHECK(!r.selection_reasons.isEmpty());
+        CHECK(r.selection_reasons.front().contains("1080p"));
+    });
+    std::cout << tests - failures << "/" << tests << " scorer cases passed\n";
+    return failures ? 1 : 0;
+}

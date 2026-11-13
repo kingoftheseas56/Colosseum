@@ -1,0 +1,1152 @@
+{
+  "schema": 1,
+  "as_of": "2026-11-08",
+  "scope": "Metadata-only actual public add-on responses; offline test fixtures. No playback verified.",
+  "fixtures": [
+    {
+      "id": "inception",
+      "title": "Inception",
+      "kind": "movie",
+      "imdbId": "tt1375666",
+      "season": null,
+      "episode": null,
+      "isAnime": false,
+      "releaseDate": "2010-07-16",
+      "runtimeMinutes": 148,
+      "expectedTitles": [
+        "Inception"
+      ],
+      "responseFile": "inception.torrentio.json",
+      "requestId": "tt1375666",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/movie/tt1375666.json",
+        "retrieved_at": "2026-11-08T17:41:46.465126+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "031c87fc7886385685fd09b56a62f5a747834ddd8465fcd012e5a8db28253f0e",
+        "raw_bytes": 58079
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/movie/tt1375666.json",
+        "retrieved_at": "2026-11-08T17:41:53.009907+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "cceb79dce0a5527b8d274773e4d9ef2fd7c805ce871bd65d718fe1a4ae05ece1",
+        "raw_bytes": 2650
+      },
+      "context": {
+        "kind": "movie",
+        "imdb_id": "tt1375666",
+        "expected_title": "Inception",
+        "is_anime": false,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "en"
+        ],
+        "release_date": "2010-07-16T00:00:00.000Z",
+        "release_info": "2010",
+        "runtime_text": "148 min",
+        "runtime_minutes": 148,
+        "expected_year": 2010
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 99,
+      "scrubbed_sha256": "c3ad57e62ae4957485592c6bd784d82ef37be553f7dd6a900ffa9036ef0d9fbd",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "matrix",
+      "title": "The Matrix",
+      "kind": "movie",
+      "imdbId": "tt0133093",
+      "season": null,
+      "episode": null,
+      "isAnime": false,
+      "releaseDate": "1999-03-31",
+      "runtimeMinutes": 136,
+      "expectedTitles": [
+        "The Matrix"
+      ],
+      "responseFile": "matrix.torrentio.json",
+      "requestId": "tt0133093",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/movie/tt0133093.json",
+        "retrieved_at": "2026-11-08T17:41:46.466421+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "3b38be3e0b40f176b0fc6736294f1c26bf66eb627e2578c7b004e8092316f907",
+        "raw_bytes": 92986
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/movie/tt0133093.json",
+        "retrieved_at": "2026-11-08T17:41:53.139686+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "70c00210cb62c271b342b5dd80e8e027350bef631925cf27b2fb4e05b24ae38c",
+        "raw_bytes": 2646
+      },
+      "context": {
+        "kind": "movie",
+        "imdb_id": "tt0133093",
+        "expected_title": "The Matrix",
+        "is_anime": false,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "en"
+        ],
+        "release_date": "1999-03-31T00:00:00.000Z",
+        "release_info": "1999",
+        "runtime_text": "136 min",
+        "runtime_minutes": 136,
+        "expected_year": 1999
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 130,
+      "scrubbed_sha256": "54179c49070b211d3cf5f9cb21cd5454feabce9c7746c03b5942269b13624a32",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "shawshank",
+      "title": "The Shawshank Redemption",
+      "kind": "movie",
+      "imdbId": "tt0111161",
+      "season": null,
+      "episode": null,
+      "isAnime": false,
+      "releaseDate": "1994-10-14",
+      "runtimeMinutes": 142,
+      "expectedTitles": [
+        "The Shawshank Redemption"
+      ],
+      "responseFile": "shawshank.torrentio.json",
+      "requestId": "tt0111161",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/movie/tt0111161.json",
+        "retrieved_at": "2026-11-08T17:41:46.467539+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "63c10f65acdf7c93bd48ba6eec2ece2cd9b54a801b3af511e345b10b0d81c410",
+        "raw_bytes": 71836
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/movie/tt0111161.json",
+        "retrieved_at": "2026-11-08T17:41:53.209844+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "5aeaf5418768531dff1e9d75b6f57a2d9a2eadb141ca011fcf50edcb5b5d503e",
+        "raw_bytes": 2276
+      },
+      "context": {
+        "kind": "movie",
+        "imdb_id": "tt0111161",
+        "expected_title": "The Shawshank Redemption",
+        "is_anime": false,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "en"
+        ],
+        "release_date": "1994-10-14T00:00:00.000Z",
+        "release_info": "1994",
+        "runtime_text": "142 min",
+        "runtime_minutes": 142,
+        "expected_year": 1994
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 95,
+      "scrubbed_sha256": "4c451eff873cbbc9a617317f0c9ad7313017b1d704224c68c9be52a2dec4b543",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "godfather",
+      "title": "The Godfather",
+      "kind": "movie",
+      "imdbId": "tt0068646",
+      "season": null,
+      "episode": null,
+      "isAnime": false,
+      "releaseDate": "1972-03-24",
+      "runtimeMinutes": 175,
+      "expectedTitles": [
+        "The Godfather"
+      ],
+      "responseFile": "godfather.torrentio.json",
+      "requestId": "tt0068646",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/movie/tt0068646.json",
+        "retrieved_at": "2026-11-08T17:41:46.467920+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "1381e2444ab1c0d20faaa0a088cc258306dda6608782cb3d975796d3708f04f6",
+        "raw_bytes": 80365
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/movie/tt0068646.json",
+        "retrieved_at": "2026-11-08T17:41:53.059106+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "624074e44ae6d732073c196d99b70352d936fe94d7b69dd094821c730dc3aa2a",
+        "raw_bytes": 2345
+      },
+      "context": {
+        "kind": "movie",
+        "imdb_id": "tt0068646",
+        "expected_title": "The Godfather",
+        "is_anime": false,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "en"
+        ],
+        "release_date": "1972-03-24T00:00:00.000Z",
+        "release_info": "1972",
+        "runtime_text": "175 min",
+        "runtime_minutes": 175,
+        "expected_year": 1972
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 101,
+      "scrubbed_sha256": "e9cceb4761322eab0a308fb325a431a6fd0f866796bb8e6b77dfba570314cfc0",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "dark-knight",
+      "title": "The Dark Knight",
+      "kind": "movie",
+      "imdbId": "tt0468569",
+      "season": null,
+      "episode": null,
+      "isAnime": false,
+      "releaseDate": "2008-07-18",
+      "runtimeMinutes": 152,
+      "expectedTitles": [
+        "The Dark Knight"
+      ],
+      "responseFile": "dark-knight.torrentio.json",
+      "requestId": "tt0468569",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/movie/tt0468569.json",
+        "retrieved_at": "2026-11-08T17:41:56.429720+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "30e4ee06e7669ea8c4fb3e1b12f4ec1ed1127c1c59f2bcb34f31d65ee9849740",
+        "raw_bytes": 64199
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/movie/tt0468569.json",
+        "retrieved_at": "2026-11-08T17:41:59.989946+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "3dc2317dc2bf91512c81bb05dde4e412b3dcab1f2eeafa1ccf3b758f49b760c6",
+        "raw_bytes": 2839
+      },
+      "context": {
+        "kind": "movie",
+        "imdb_id": "tt0468569",
+        "expected_title": "The Dark Knight",
+        "is_anime": false,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "en"
+        ],
+        "release_date": "2008-07-18T00:00:00.000Z",
+        "release_info": "2008",
+        "runtime_text": "152 min",
+        "runtime_minutes": 152,
+        "expected_year": 2008
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 96,
+      "scrubbed_sha256": "7795ec6d7ce378fa62083938b6d80976a29e57040d91ba3f81f85f816835a1f1",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "interstellar",
+      "title": "Interstellar",
+      "kind": "movie",
+      "imdbId": "tt0816692",
+      "season": null,
+      "episode": null,
+      "isAnime": false,
+      "releaseDate": "2014-11-07",
+      "runtimeMinutes": 169,
+      "expectedTitles": [
+        "Interstellar"
+      ],
+      "responseFile": "interstellar.torrentio.json",
+      "requestId": "tt0816692",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/movie/tt0816692.json",
+        "retrieved_at": "2026-11-08T17:41:56.451119+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "cc71645f247c945b9d7d2e7544de2e8c66265dc13cf3c67c1eecfbb1e0a5eb89",
+        "raw_bytes": 90774
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/movie/tt0816692.json",
+        "retrieved_at": "2026-11-08T17:41:59.992048+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "414119687abea3eae198bcdc4e59c9b56476f39deef05da930cf77335e489d17",
+        "raw_bytes": 2712
+      },
+      "context": {
+        "kind": "movie",
+        "imdb_id": "tt0816692",
+        "expected_title": "Interstellar",
+        "is_anime": false,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "en"
+        ],
+        "release_date": "2014-11-07T00:00:00.000Z",
+        "release_info": "2014",
+        "runtime_text": "169 min",
+        "runtime_minutes": 169,
+        "expected_year": 2014
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 145,
+      "scrubbed_sha256": "7085428d7cdf1f6ce98f5505d501c6bcc3115b63126cd5da21ee581fc55506cf",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "parasite",
+      "title": "Parasite",
+      "kind": "movie",
+      "imdbId": "tt6751668",
+      "season": null,
+      "episode": null,
+      "isAnime": false,
+      "releaseDate": "2019-11-08",
+      "runtimeMinutes": 133,
+      "expectedTitles": [
+        "Parasite"
+      ],
+      "responseFile": "parasite.torrentio.json",
+      "requestId": "tt6751668",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/movie/tt6751668.json",
+        "retrieved_at": "2026-11-08T17:41:56.451646+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "90606ecc0dd083bac9d00eae37605b4077e2ac0f6fa3c28dcf0a87f7d71431c1",
+        "raw_bytes": 25954
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/movie/tt6751668.json",
+        "retrieved_at": "2026-11-08T17:41:59.998808+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "4cd1ba4a85d927579d74d2a512e3bda351bf65fef816a0e393e354a5b61e426a",
+        "raw_bytes": 3883
+      },
+      "context": {
+        "kind": "movie",
+        "imdb_id": "tt6751668",
+        "expected_title": "Parasite",
+        "is_anime": false,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "en"
+        ],
+        "release_date": "2019-11-08T00:00:00.000Z",
+        "release_info": "2019",
+        "runtime_text": "133 min",
+        "runtime_minutes": 133,
+        "expected_year": 2019
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 58,
+      "scrubbed_sha256": "fa0258a5ffeb1ec21e3bcae9f6f5c5358c44e7a039b003ef9b62eb22295455fb",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "spirited-away",
+      "title": "Spirited Away",
+      "kind": "movie",
+      "imdbId": "tt0245429",
+      "season": null,
+      "episode": null,
+      "isAnime": false,
+      "releaseDate": "2003-03-28",
+      "runtimeMinutes": 125,
+      "expectedTitles": [
+        "Spirited Away"
+      ],
+      "responseFile": "spirited-away.torrentio.json",
+      "requestId": "tt0245429",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/movie/tt0245429.json",
+        "retrieved_at": "2026-11-08T17:41:56.486569+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "4aa03cb4d4d71f686ad2a3cbbf7c5eb67f32149330d7ffc67913cb663ac3b2da",
+        "raw_bytes": 66632
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/movie/tt0245429.json",
+        "retrieved_at": "2026-11-08T17:41:59.970142+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "5cce29bb6d2de3a2bbf500eb18fce7c24d7ad85006a9d01b99a7789036392037",
+        "raw_bytes": 2534
+      },
+      "context": {
+        "kind": "movie",
+        "imdb_id": "tt0245429",
+        "expected_title": "Spirited Away",
+        "is_anime": false,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "en"
+        ],
+        "release_date": "2003-03-28T00:00:00.000Z",
+        "release_info": "2003",
+        "runtime_text": "125 min",
+        "runtime_minutes": 125,
+        "expected_year": 2003
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 77,
+      "scrubbed_sha256": "b72187354e9784874465e7825532a79e595d8960e1ea2bf59fa2726a7c82f3ec",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "dune",
+      "title": "Dune",
+      "kind": "movie",
+      "imdbId": "tt1160419",
+      "season": null,
+      "episode": null,
+      "isAnime": false,
+      "releaseDate": "2021-10-22",
+      "runtimeMinutes": 155,
+      "expectedTitles": [
+        "Dune"
+      ],
+      "responseFile": "dune.torrentio.json",
+      "requestId": "tt1160419",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/movie/tt1160419.json",
+        "retrieved_at": "2026-11-08T17:42:05.604476+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "9074e130387071f4399fa4617fb2e24e84ae2aecbc0ac7288678ee4f63ad3af9",
+        "raw_bytes": 99235
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/movie/tt1160419.json",
+        "retrieved_at": "2026-11-08T17:42:09.196905+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "f7f4c4be88bd045fc4e3b1a6423208b55eac7fa6b43b18f78055b8b3f1148691",
+        "raw_bytes": 2719
+      },
+      "context": {
+        "kind": "movie",
+        "imdb_id": "tt1160419",
+        "expected_title": "Dune",
+        "is_anime": false,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "en"
+        ],
+        "release_date": "2021-10-22T00:00:00.000Z",
+        "release_info": "2021",
+        "runtime_text": "155 min",
+        "runtime_minutes": 155,
+        "expected_year": 2021
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 142,
+      "scrubbed_sha256": "1872ed77c7302064bd0a4901e5ce25b8b58eec5629986470439291aa795b9e45",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "clayface",
+      "title": "Clayface",
+      "kind": "movie",
+      "imdbId": "tt34890576",
+      "season": null,
+      "episode": null,
+      "isAnime": false,
+      "releaseDate": "2026-10-23",
+      "runtimeMinutes": 109,
+      "expectedTitles": [
+        "Clayface"
+      ],
+      "responseFile": "clayface.torrentio.json",
+      "requestId": "tt34890576",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/movie/tt34890576.json",
+        "retrieved_at": "2026-11-08T17:42:05.606322+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "bb05c873c29ebbe3f33422e94f9282bbd5d78c3e01996c4c36942fee8428da43",
+        "raw_bytes": 4009
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/movie/tt34890576.json",
+        "retrieved_at": "2026-11-08T17:42:09.132571+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "0ecdda010b96b8bfefc6b3901a8d78c5dca8796b37a6638cd686c58eb80df2ef",
+        "raw_bytes": 2499
+      },
+      "context": {
+        "kind": "movie",
+        "imdb_id": "tt34890576",
+        "expected_title": "Clayface",
+        "is_anime": false,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "en"
+        ],
+        "release_date": "2026-10-23",
+        "release_info": "2026",
+        "runtime_text": "109 min",
+        "runtime_minutes": 109,
+        "expected_year": 2026,
+        "release_date_source": "https://www.warnerbros.com/movies/clayface",
+        "release_date_source_excerpt": "Theatrical Release October 23, 2026; released only in theaters in North America on October 23, 2026, and internationally beginning 21 October 2026.",
+        "release_date_region": "North America"
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 14,
+      "scrubbed_sha256": "2a564ee1ef275e811fa5cd27ee8bd3ba02d8253420c03f28c75084e84c80fa1e",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "one-piece",
+      "title": "One Piece",
+      "kind": "series",
+      "imdbId": "tt0388629",
+      "season": 1,
+      "episode": 1,
+      "isAnime": true,
+      "releaseDate": "1999-10-20",
+      "runtimeMinutes": 25,
+      "expectedTitles": [
+        "One Piece"
+      ],
+      "responseFile": "one-piece.torrentio.json",
+      "requestId": "tt0388629:1:1",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/series/tt0388629:1:1.json",
+        "retrieved_at": "2026-11-08T17:42:05.612715+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "ac39a98ddab90e8355bef2aef68ec9e11a3cb4401dfde966bd41c713c44dbb6f",
+        "raw_bytes": 235357
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/series/tt0388629.json",
+        "retrieved_at": "2026-11-08T17:42:09.227119+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "4ce15b3086b6cbc8f8f56a6aed32d2b867a0bab3f76b0fa157b0fa4eb58d6462",
+        "raw_bytes": 1359941
+      },
+      "context": {
+        "kind": "series",
+        "imdb_id": "tt0388629",
+        "expected_title": "One Piece",
+        "is_anime": true,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "ja",
+          "en"
+        ],
+        "expected_season": 1,
+        "expected_episode": 1,
+        "release_date": "1999-10-20T00:00:00.000Z",
+        "release_info": "1999–",
+        "runtime_text": "25 min",
+        "runtime_minutes": 25,
+        "expected_year": 1999,
+        "episode_metadata": {
+          "id": "tt0388629:1:1",
+          "title": null,
+          "season": 1,
+          "episode": 1,
+          "released": "1999-10-20T14:15:00.000Z"
+        }
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 500,
+      "scrubbed_sha256": "eec06cca3189291e3c3b477d3c093392d2dec00d6ca72488d4cd554f8517a246",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "naruto",
+      "title": "Naruto",
+      "kind": "series",
+      "imdbId": "tt0409591",
+      "season": 1,
+      "episode": 1,
+      "isAnime": true,
+      "releaseDate": "2005-09-10",
+      "runtimeMinutes": 24,
+      "expectedTitles": [
+        "Naruto"
+      ],
+      "responseFile": "naruto.torrentio.json",
+      "requestId": "tt0409591:1:1",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/series/tt0409591:1:1.json",
+        "retrieved_at": "2026-11-08T17:42:05.643320+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "b2a3ee3a8570bc32340e3a980a946747600e10778d95516b866a6ad951d6be37",
+        "raw_bytes": 76618
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/series/tt0409591.json",
+        "retrieved_at": "2026-11-08T17:42:09.217334+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "fe8ef7961e36fb8e28591d327fb8edbdf3eea177bed47120b775a0484b76c9fb",
+        "raw_bytes": 66691
+      },
+      "context": {
+        "kind": "series",
+        "imdb_id": "tt0409591",
+        "expected_title": "Naruto",
+        "is_anime": true,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "ja",
+          "en"
+        ],
+        "expected_season": 1,
+        "expected_episode": 1,
+        "release_date": "2005-09-10T00:00:00.000Z",
+        "release_info": "2002–2007",
+        "runtime_text": "24 min",
+        "runtime_minutes": 24,
+        "expected_year": 2002,
+        "episode_metadata": {
+          "id": "tt0409591:1:1",
+          "title": null,
+          "season": 1,
+          "episode": 1,
+          "released": "2002-10-03T00:00:00.000Z"
+        }
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 50,
+      "scrubbed_sha256": "ba0a741fff423e3d6aa58dac98cbd9a057e1d73ca6e56295df26902e133f95e1",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "attack-on-titan",
+      "title": "Attack on Titan",
+      "kind": "series",
+      "imdbId": "tt2560140",
+      "season": 1,
+      "episode": 1,
+      "isAnime": true,
+      "releaseDate": "2013-09-28",
+      "runtimeMinutes": 25,
+      "expectedTitles": [
+        "Attack on Titan"
+      ],
+      "responseFile": "attack-on-titan.torrentio.json",
+      "requestId": "tt2560140:1:1",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/series/tt2560140:1:1.json",
+        "retrieved_at": "2026-11-08T17:42:12.489072+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "bc5d2c99f0873af0b536634c4a930cd40e4ffec0aa9df779f394dc4684b69107",
+        "raw_bytes": 111680
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/series/tt2560140.json",
+        "retrieved_at": "2026-11-08T17:42:17.268039+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "691e5eeb07ca63e6275156f9ba4994ee530d29375291ca5f58ed98891ed19413",
+        "raw_bytes": 85839
+      },
+      "context": {
+        "kind": "series",
+        "imdb_id": "tt2560140",
+        "expected_title": "Attack on Titan",
+        "is_anime": true,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "ja",
+          "en"
+        ],
+        "expected_season": 1,
+        "expected_episode": 1,
+        "release_date": "2013-09-28T00:00:00.000Z",
+        "release_info": "2013–2023",
+        "runtime_text": "25 min",
+        "runtime_minutes": 25,
+        "expected_year": 2013,
+        "episode_metadata": {
+          "id": "tt2560140:1:1",
+          "title": null,
+          "season": 1,
+          "episode": 1,
+          "released": "2013-04-06T15:30:00.000Z"
+        }
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 81,
+      "scrubbed_sha256": "d51b8d49f5f5eb342cb4f8399ef6d4927cdc93dfb0e4b53639b36786c7b50d95",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "death-note",
+      "title": "Death Note",
+      "kind": "series",
+      "imdbId": "tt0877057",
+      "season": 1,
+      "episode": 1,
+      "isAnime": true,
+      "releaseDate": "2007-10-20",
+      "runtimeMinutes": 24,
+      "expectedTitles": [
+        "Death Note"
+      ],
+      "responseFile": "death-note.torrentio.json",
+      "requestId": "tt0877057:1:1",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/series/tt0877057:1:1.json",
+        "retrieved_at": "2026-11-08T17:42:12.521474+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "08ba6d6d95cef2eea9d87386cd337356950ea72d7cd5a5f60fbb51642e641d15",
+        "raw_bytes": 66952
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/series/tt0877057.json",
+        "retrieved_at": "2026-11-08T17:42:17.311261+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "6527d6c8db225041cca291e8daa1a1e3359accd01f123a628604733ca86d62ae",
+        "raw_bytes": 13394
+      },
+      "context": {
+        "kind": "series",
+        "imdb_id": "tt0877057",
+        "expected_title": "Death Note",
+        "is_anime": true,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "ja",
+          "en"
+        ],
+        "expected_season": 1,
+        "expected_episode": 1,
+        "release_date": "2007-10-20T00:00:00.000Z",
+        "release_info": "2006–2007",
+        "runtime_text": "24 min",
+        "runtime_minutes": 24,
+        "expected_year": 2006,
+        "episode_metadata": {
+          "id": "tt0877057:1:1",
+          "title": null,
+          "season": 1,
+          "episode": 1,
+          "released": "2006-10-04T00:00:00.000Z"
+        }
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 53,
+      "scrubbed_sha256": "2eb31772a48ce257e49c064fc0a2de9b550375dce2c62599b81f3212bddfee79",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "fullmetal-alchemist",
+      "title": "Fullmetal Alchemist: Brotherhood",
+      "kind": "series",
+      "imdbId": "tt1355642",
+      "season": 1,
+      "episode": 1,
+      "isAnime": true,
+      "releaseDate": "2009-04-09",
+      "runtimeMinutes": null,
+      "expectedTitles": [
+        "Fullmetal Alchemist: Brotherhood"
+      ],
+      "responseFile": "fullmetal-alchemist.torrentio.json",
+      "requestId": "tt1355642:1:1",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/series/tt1355642:1:1.json",
+        "retrieved_at": "2026-11-08T17:42:12.617375+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "a04d46bbc9ad9fc2e5b3f6a9d0f9aee02c8c62586dca307be625a673e750e6d4",
+        "raw_bytes": 82119
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/series/tt1355642.json",
+        "retrieved_at": "2026-11-08T17:42:17.272672+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "64798b06496295bfebda5ae4c255f34cbb3b94d915e388083712c7159ee6995a",
+        "raw_bytes": 118490
+      },
+      "context": {
+        "kind": "series",
+        "imdb_id": "tt1355642",
+        "expected_title": "Fullmetal Alchemist: Brotherhood",
+        "is_anime": true,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "ja",
+          "en"
+        ],
+        "expected_season": 1,
+        "expected_episode": 1,
+        "release_date": "2009-04-09T00:00:00.000Z",
+        "release_info": "2009–2010",
+        "runtime_text": "54S min",
+        "runtime_minutes": 54,
+        "expected_year": 2009,
+        "episode_metadata": {
+          "id": "tt1355642:1:1",
+          "title": null,
+          "season": 1,
+          "episode": 1,
+          "released": "2009-04-05T08:00:00.000Z"
+        }
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 54,
+      "scrubbed_sha256": "64e973f0114d21b3817e31057dd171615f96a94c4fb89ba465c7c92b581d82e1",
+      "scrubbing_changed_values": false,
+      "runtimeContextNote": "Cinemeta reports 54 min for the series. The requested episode runtime was not verified, so scoring runtime is deliberately unknown rather than assuming this series-level value is correct."
+    },
+    {
+      "id": "demon-slayer",
+      "title": "Demon Slayer: Kimetsu no Yaiba",
+      "kind": "series",
+      "imdbId": "tt9335498",
+      "season": 1,
+      "episode": 1,
+      "isAnime": true,
+      "releaseDate": "2021-01-22",
+      "runtimeMinutes": 26,
+      "expectedTitles": [
+        "Demon Slayer: Kimetsu no Yaiba"
+      ],
+      "responseFile": "demon-slayer.torrentio.json",
+      "requestId": "tt9335498:1:1",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/series/tt9335498:1:1.json",
+        "retrieved_at": "2026-11-08T17:42:12.981452+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "2ff9b7e17bef834053196f9444d8a126db6a724e952922ccc8a1bba906ba942d",
+        "raw_bytes": 73506
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/series/tt9335498.json",
+        "retrieved_at": "2026-11-08T17:42:17.309976+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "aadf25f1b0468e0338549d0e3a9b08e6612b51d3b4c490596278b1a0c5c5ea73",
+        "raw_bytes": 76649
+      },
+      "context": {
+        "kind": "series",
+        "imdb_id": "tt9335498",
+        "expected_title": "Demon Slayer: Kimetsu no Yaiba",
+        "is_anime": true,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "ja",
+          "en"
+        ],
+        "expected_season": 1,
+        "expected_episode": 1,
+        "release_date": "2021-01-22T00:00:00.000Z",
+        "release_info": "2019–2024",
+        "runtime_text": "26 min",
+        "runtime_minutes": 26,
+        "expected_year": 2019,
+        "episode_metadata": {
+          "id": "tt9335498:1:1",
+          "title": null,
+          "season": 1,
+          "episode": 1,
+          "released": "2019-04-06T14:15:00.000Z"
+        }
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 50,
+      "scrubbed_sha256": "b0682c936181ae5dbdcd80ff9d8e5482422388ccaf761eec0a2dff7b54f32ea6",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "jujutsu-kaisen",
+      "title": "Jujutsu Kaisen",
+      "kind": "series",
+      "imdbId": "tt12343534",
+      "season": 1,
+      "episode": 1,
+      "isAnime": true,
+      "releaseDate": "2020-10-02",
+      "runtimeMinutes": 24,
+      "expectedTitles": [
+        "Jujutsu Kaisen"
+      ],
+      "responseFile": "jujutsu-kaisen.torrentio.json",
+      "requestId": "tt12343534:1:1",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/series/tt12343534:1:1.json",
+        "retrieved_at": "2026-11-08T17:42:21.571789+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "bbd559b1cf5c4522cb3e9b31e7baa5f766c438d7bc5e770f1373903e62060654",
+        "raw_bytes": 90206
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/series/tt12343534.json",
+        "retrieved_at": "2026-11-08T17:42:24.867765+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "ff2e079a293a6a7e613db343977197726a7cf3140aaf92a5b029279605af9109",
+        "raw_bytes": 56869
+      },
+      "context": {
+        "kind": "series",
+        "imdb_id": "tt12343534",
+        "expected_title": "Jujutsu Kaisen",
+        "is_anime": true,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "ja",
+          "en"
+        ],
+        "expected_season": 1,
+        "expected_episode": 1,
+        "release_date": "2020-10-02T00:00:00.000Z",
+        "release_info": "2020–",
+        "runtime_text": "24 min",
+        "runtime_minutes": 24,
+        "expected_year": 2020,
+        "episode_metadata": {
+          "id": "tt12343534:1:1",
+          "title": null,
+          "season": 1,
+          "episode": 1,
+          "released": "2020-10-02T15:30:00.000Z"
+        }
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 60,
+      "scrubbed_sha256": "b5cc72a7cb0e836c1813cca687b52b223d97f70ed6a9f0e5f118ef1f858c30a0",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "cowboy-bebop",
+      "title": "Cowboy Bebop",
+      "kind": "series",
+      "imdbId": "tt0213338",
+      "season": 1,
+      "episode": 1,
+      "isAnime": true,
+      "releaseDate": "2001-09-02",
+      "runtimeMinutes": 24,
+      "expectedTitles": [
+        "Cowboy Bebop"
+      ],
+      "responseFile": "cowboy-bebop.torrentio.json",
+      "requestId": "tt0213338:1:1",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/series/tt0213338:1:1.json",
+        "retrieved_at": "2026-11-08T17:42:21.639215+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "7f37ea8d8279278dc212b14cf22573eede4f365392db3eef5ac3cc0551d4594e",
+        "raw_bytes": 69506
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/series/tt0213338.json",
+        "retrieved_at": "2026-11-08T17:42:24.870811+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "4ab60c6321081d6501baad2f9fb6031d3e054be5c97b5a5df981d4749161916e",
+        "raw_bytes": 30700
+      },
+      "context": {
+        "kind": "series",
+        "imdb_id": "tt0213338",
+        "expected_title": "Cowboy Bebop",
+        "is_anime": true,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "ja",
+          "en"
+        ],
+        "expected_season": 1,
+        "expected_episode": 1,
+        "release_date": "2001-09-02T00:00:00.000Z",
+        "release_info": "1998–1999",
+        "runtime_text": "24 min",
+        "runtime_minutes": 24,
+        "expected_year": 1998,
+        "episode_metadata": {
+          "id": "tt0213338:1:1",
+          "title": null,
+          "season": 1,
+          "episode": 1,
+          "released": "1998-10-25T01:00:00.000Z"
+        }
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 50,
+      "scrubbed_sha256": "698f728c1e7cf8f36069a580e250bfd5ee61faf5ea1a6022c572a6eb0cf2406c",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "frieren",
+      "title": "Frieren: Beyond Journey's End",
+      "kind": "series",
+      "imdbId": "tt22248376",
+      "season": 1,
+      "episode": 1,
+      "isAnime": true,
+      "releaseDate": "2023-09-29",
+      "runtimeMinutes": 25,
+      "expectedTitles": [
+        "Frieren: Beyond Journey's End"
+      ],
+      "responseFile": "frieren.torrentio.json",
+      "requestId": "tt22248376:1:1",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/series/tt22248376:1:1.json",
+        "retrieved_at": "2026-11-08T17:42:21.639854+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "a0c41ce18c126832696f8bfb2960e11cade289e2ea12f48f29957be7b325124b",
+        "raw_bytes": 139294
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/series/tt22248376.json",
+        "retrieved_at": "2026-11-08T17:42:24.745656+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "a40450c9ccaf5c5c48b728cdd979094667fe6ad02e1ba3db76bb546143e9f0fc",
+        "raw_bytes": 47436
+      },
+      "context": {
+        "kind": "series",
+        "imdb_id": "tt22248376",
+        "expected_title": "Frieren: Beyond Journey's End",
+        "is_anime": true,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "ja",
+          "en"
+        ],
+        "expected_season": 1,
+        "expected_episode": 1,
+        "release_date": "2023-09-29T00:00:00.000Z",
+        "release_info": "2023–",
+        "runtime_text": "25 min",
+        "runtime_minutes": 25,
+        "expected_year": 2023,
+        "episode_metadata": {
+          "id": "tt22248376:1:1",
+          "title": null,
+          "season": 1,
+          "episode": 1,
+          "released": "2023-09-29T14:00:00.000Z"
+        }
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 91,
+      "scrubbed_sha256": "43e440d06a5a803e68b97ba89aba586661c18d73702580b5af9b39e3a000e209",
+      "scrubbing_changed_values": false
+    },
+    {
+      "id": "steins-gate",
+      "title": "Steins; Gate",
+      "kind": "series",
+      "imdbId": "tt1910272",
+      "season": 1,
+      "episode": 1,
+      "isAnime": true,
+      "releaseDate": "2011-04-06",
+      "runtimeMinutes": 25,
+      "expectedTitles": [
+        "Steins; Gate",
+        "Steins;Gate"
+      ],
+      "responseFile": "steins-gate.torrentio.json",
+      "requestId": "tt1910272:1:1",
+      "provider": "Torrentio",
+      "source": {
+        "endpoint": "https://torrentio.strem.fun/stream/series/tt1910272:1:1.json",
+        "retrieved_at": "2026-11-08T17:42:21.857181+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "5354c61ef0d359449de059e5e72c6e66abe76d598d259df5ca0749bc4d912151",
+        "raw_bytes": 69584
+      },
+      "metadataSource": {
+        "endpoint": "https://v3-cinemeta.strem.io/meta/series/tt1910272.json",
+        "retrieved_at": "2026-11-08T17:42:24.855545+00:00",
+        "curl_exit": 0,
+        "raw_sha256": "68a29c915869f9aef4c2f0ef0c28fee9ab6b246a8d1df8fe1b892206cbc21a04",
+        "raw_bytes": 53674
+      },
+      "context": {
+        "kind": "series",
+        "imdb_id": "tt1910272",
+        "expected_title": "Steins; Gate",
+        "is_anime": true,
+        "today": "2026-11-08",
+        "preferred_languages": [
+          "ja",
+          "en"
+        ],
+        "expected_season": 1,
+        "expected_episode": 1,
+        "release_date": "2011-04-06T00:00:00.000Z",
+        "release_info": "2011–2015",
+        "runtime_text": "25 min",
+        "runtime_minutes": 25,
+        "expected_year": 2011,
+        "episode_metadata": {
+          "id": "tt1910272:1:1",
+          "title": null,
+          "season": 1,
+          "episode": 1,
+          "released": "2011-04-06T03:00:00.000Z"
+        }
+      },
+      "humanPick": null,
+      "agentPick": null,
+      "humanReviewStatus": "pending: no human-reviewed label was supplied; agent output is not a human label",
+      "stream_count": 50,
+      "scrubbed_sha256": "f454f19f2282e14b643cababbdd811a920e3480b537164e2929466d371202174",
+      "scrubbing_changed_values": false
+    }
+  ]
+}

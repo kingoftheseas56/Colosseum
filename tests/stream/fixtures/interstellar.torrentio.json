@@ -1,0 +1,2294 @@
+{
+  "streams": [
+    {
+      "name": "Torrentio\n4k DV | HDR10+",
+      "title": "Interstellar 2014 2160p PROPER IMAX REMUX DV HDR10+ TrueHD 7.1 Atmos-jennaortegaUHD\n👤 251 💾 95.63 GB ⚙️ TorrentGalaxy",
+      "infoHash": "d8d05ebec7303f05a7243986e8c7d0e201b0ac0d",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|10bit|DV|HDR10+",
+        "filename": "Interstellar.2014.2160p.PROPER.IMAX.REMUX.DV.HDR10+.TrueHD.7.1.Atmos-jennaortegaUHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Интерстеллар / Interstellar [2014 UHD BDRemux 2160p HDR10] [IMAX] Dub + MVO + 2x AVO + 2x VO + Original (Eng) + Sub (Rus Eng)\n👤 224 💾 89.56 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "c26f753911e2c24a82049368421423f3ab9d06d8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|10bit|HDR",
+        "filename": "Интерстеллар.2014.UHD.Blu-Ray.Remux.2160p.mkv"
+      },
+      "sources": [
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:c26f753911e2c24a82049368421423f3ab9d06d8"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar 2014 2160p AV1 HDR10 EN/ITA/FR/ES OPUS 5.1-UH [UserHEVC]\n👤 146 💾 16.87 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹 / 🇪🇸 / 🇫🇷",
+      "infoHash": "abf5451366b96d8c518a7f56820f7d247b11222d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|av1|10bit|HDR",
+        "filename": "Interstellar.2014.2160p.AV1.HDR10.OPUS.5.1-UH.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar.2014.2160p.UHD.BluRay.x265.10bit.HDR.DTS-HD.MA.5.1-TERMiNAL\n👤 142 💾 33.34 GB ⚙️ RARBG",
+      "infoHash": "3f42d8909d53921cefcd51529e85d46eebb545d0",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit|HDR",
+        "filename": "interstellar.2014.2160p.uhd.bluray.x265-terminal.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar.2014.IMAX.2160p.10bit.HDR.BluRay.6CH.2CH.x265.HEVC-PSA\n👤 76 💾 5.75 GB ⚙️ 1337x",
+      "infoHash": "163d2082453d037f3bec8bb77ddce782797a7fc3",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|HDR",
+        "filename": "Interstellar.2014.IMAX.2160p.10bit.HDR.BluRay.6CH.x265.HEVC-PSA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Interstellar.2014.IMAX.4K.HDR.DV.2160p.BDRemux Ita Eng x265-NAHOM\n👤 66 💾 63 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "cd48aa3be9b0a324cb23e49aa5a32646f958e62c",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|x265|DV|HDR",
+        "filename": "Interstellar.2014.IMAX.4K.HDR.DV.2160p.BDRemux Ita Eng x265-NAHOM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar (2014) IMAX AC3 5.1 ITA.ENG 2160p HDR H265 sub NUita.eng Sp33dy94 MIRCrew\n👤 35 💾 5.17 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "edfd780b93a10009ac6b9352ca27dc7a7e14eb73",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|HDR",
+        "filename": "Interstellar (2014) IMAX AC3 5.1 ITA.ENG 2160p HDR H265 sub NUita.eng Sp33dy94-MIRCrew.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Interstellar 2014 IMAX UHD BluRay 2160p HDR10 DV HEVC DTS-HD MA 5.1 x265-E\n👤 30 💾 36.92 GB ⚙️ EXT\n🇬🇧 / 🇯🇵 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇰🇷 / 🇨🇳 / 🇫🇷 / 🇩🇪 / 🇳🇱 / 🇵🇱 / 🇨🇿 / 🇭🇺 / 🇧🇬 / 🇭🇷 / 🇩🇰 / 🇸🇪 / 🇳🇴 / 🇹🇷 / 🇸🇦 / 🇮🇱 / 🇮🇩 / 🇹🇭",
+      "infoHash": "cc0aab92efefff11714a53acbb1dec714c4271f9",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|DV|HDR",
+        "filename": "Interstellar 2014.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV",
+      "title": "Interstellar.2014.IMAX.UHD.Blu-Ray.2160p.DV.HEVC.TrueHD.7.1.Atmos.x265-E\n👤 28 💾 66.49 GB ⚙️ 1337x",
+      "infoHash": "20c13c11f513b4c7c14c29840d294e72d21a67d8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|DV",
+        "filename": "Interstellar.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar IMAX (2014) 2160p H265 BluRay Rip 10 bit HDR ita eng AC3 5.1 sub ita eng Licdom\n👤 25 💾 7.58 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇮🇹",
+      "infoHash": "e4634727ced0b106268a010a1e22883ffbc6ec15",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BRRip|h265|10bit|HDR",
+        "filename": "Interstellar IMAX (2014) 2160p H265 10 bit ita eng AC3 5.1 sub ita eng Licdom.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Interstellar.2014.Eng.Fre.Ger.Ita.Por.Spa.Cze.Pol.Rus.Jpn.2160p.BluRay.Hybrid.Remux.DV.HDR.HEVC.DTS-HD.MA-SGF\n👤 23 💾 78.22 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇯🇵 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇫🇷 / 🇩🇪 / 🇵🇱 / 🇨🇿",
+      "infoHash": "86bb6ae15a5cec1a3be3cf8b1eba1f15a48b9913",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc|DV|HDR",
+        "filename": "Interstellar.2014.Eng.Fre.Ger.Ita.Por.Spa.Cze.Pol.Rus.Jpn.2160p.BluRay.Hybrid.Remux.DV.HDR.HEVC.DTS-HD.MA-SGF.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar (2014) v2 IMAX MULTi VFI 2160p 10bit 4KLight HDR BluRay AC3 5.1 x265-QTZ\n👤 23 💾 7.46 GB ⚙️ EXT\nMulti Audio / 🇫🇷",
+      "infoHash": "70bae01111dd21e1568e882ea450a61c5c66d554",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit|HDR",
+        "filename": "Interstellar (2014) v2 IMAX MULTi VFI 2160p 10bit 4KLight HDR BluRay AC3 5.1 x265-QTZ.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Interstellar.2014.2160p.DV.HDR10.Ai-Enhanced.H265.DTS-HD.5.1-RIFE.4.15-60fps-DirtyHippie\n👤 22 💾 37.51 GB ⚙️ TorrentGalaxy",
+      "infoHash": "bffe42abca9bdf44121be8e3b0fc5ace68e3d4c8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|DV|HDR",
+        "filename": "Interstellar.2014.2160p.DV.HDR10.Ai-Enhanced.H265.DTS-HD.5.1-RIFE.4.15-60fps-DirtyHippie.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Interstellar.2014.iMAX.UHD.2160p.REMUX.HDR10.DV.MULTi.DTS-HD.7.1.ATMOS.H265-KC\n👤 21 💾 88.57 GB ⚙️ ThePirateBay\nMulti Audio / 🇬🇧 / 🇯🇵 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇰🇷 / 🇨🇳 / 🇫🇷 / 🇩🇪 / 🇳🇱 / 🇵🇱 / 🇨🇿 / 🇭🇺 / 🇧🇬 / 🇭🇷 / 🇩🇰 / 🇸🇪 / 🇳🇴 / 🇹🇷 / 🇮🇱 / 🇮🇩 / 🇹🇭",
+      "infoHash": "9c4e8ddfc6d8c9f91ef0e1567b87801a2d024238",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|DV|HDR",
+        "filename": "interstellar.2014.imax.4k-kc.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar.2014.bluray.hdr.2160p.av1.5.1.opus.subs-Dust\n👤 19 💾 15.38 GB ⚙️ 1337x",
+      "infoHash": "e2ee70febb72657d0007eb176b2eb938bb052faa",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|av1|HDR",
+        "filename": "Interstellar.2014.bluray.hdr.2160p.av1.5.1.opus.subs-Dust.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar.2014.2160p.IMAX.BluRay.DTS-HDMA5.1.HDR.H265-WiKi.DUAL-andrehsa\n👤 17 💾 39.85 GB ⚙️ ThePirateBay\nDual Audio",
+      "infoHash": "d222e20cd004c1d19a0a1ac84c9be5c5eda9f207",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|h265|HDR",
+        "filename": "Interstellar.2014.2160p.IMAX.BluRay.DTS-HDMA5.1.HDR.H265-WiKi.DUAL-andrehsa.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar.2014.4K.HDR.2160p.BDRip Ita Eng x265-NAHOM\n👤 16 💾 29.9 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹",
+      "infoHash": "886d803085f9a0d42b56b1f80858e2ca59a77eb0",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|x265|HDR"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Интерстеллар / Interstellar (2014) UHD BDRemux 2160p | 4K | HDR | IMAX Edition | Dolby Vision Profile 8 | D P A | Лицензия\n👤 15 💾 88.02 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "796c49623e7b43103de2e25f648257f281b27783",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|DV|HDR",
+        "filename": "Interstellar.2014.2160p.UHD.BDRemux.DTS-HD.MA.5.1.P8.HYBRID.DoVi-DVT.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:udp://opentor.org:2710",
+        "tracker:http://retracker.local/announce",
+        "dht:796c49623e7b43103de2e25f648257f281b27783",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Интерстеллар / Interstellar (2014) BDRip 2160p от VoX | 4K | HDR | IMAX | D P A\n👤 14 💾 41.4 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "4e601d51b73c9a860bf2a8754b7d4579366e1ccd",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|x265|HDR",
+        "filename": "Interstellar.2014.2160p.UHD.BDRip.HDR.x265.DD+5.1-VoX.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:4e601d51b73c9a860bf2a8754b7d4579366e1ccd",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar (2014) IMAX (2160p x265 10bit HDR UHD BD DTS-HD MA 5.1) [Prof]\n👤 13 💾 39.32 GB ⚙️ 1337x",
+      "infoHash": "0570516261fb339abb9dec9809fbf5c8951e166d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|x265|10bit|HDR",
+        "filename": "Interstellar (2014).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar (2014) (2160p BluRay x265 HEVC 10bit HDR AAC 5.1 Tigole) [QxR]\n👤 13 💾 25.72 GB ⚙️ 1337x",
+      "infoHash": "643294b09097abe573f60d81999891ed5bf0d299",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|HDR",
+        "filename": "Interstellar (2014) (2160p x265 10bit HDR Tigole).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar (2014) 2160p UHD HDR IMAX Bluray AV1 Opus Multi6 [dAV1nci]\n👤 12 💾 8.61 GB ⚙️ 1337x",
+      "infoHash": "cdc623383e7560ae192f04285c3ab60f3e1db7da",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|av1|HDR",
+        "filename": "Interstellar.2014.2160p.UHD.HDR.AV1.Opus.Multi6-dAV1nci.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar.2014.2160p.IMAX.DV8.HDR10.H265.AC3.DTS.UKR.60fps\n👤 11 💾 38.2 GB ⚙️ EXT\n🇬🇧 / 🇺🇦",
+      "infoHash": "af17c435fca251dc39f692c620264dbd8d016c44",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|HDR"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Интерстеллар / Interstellar (2014) UHD BDRemux 2160p от Rusatmos | HDR | D | IMAX Edition\n👤 11 💾 68.45 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "4c8b290c8b7c8245922f3f12c129544570e13550",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|HDR",
+        "filename": "Интерстеллар (2014) 4K DTS X.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:4c8b290c8b7c8245922f3f12c129544570e13550",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Interstellar.2014.2160p.IMAX.DV.HDR10.H265.AC3.DTS-HD.5.1.UKR.60fps\n👤 10 💾 36.99 GB ⚙️ EXT\n🇬🇧 / 🇺🇦",
+      "infoHash": "f3fbca85c965d26fc8a9a5a17f6511b1ed269813",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|DV|HDR"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar.IMAX.2014.2160p.HDR10.BRRip.OPUS7.1.AV1.BluBit\n👤 9 💾 5.56 GB ⚙️ EXT",
+      "infoHash": "cddbdc6633dcb64aefc22f772b2c97a07c33679e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BRRip|av1|10bit|HDR",
+        "filename": "Interstellar (IMAX) (2014).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Interstellar 2014 IMAX UHD BluRay 2160p HDR10 DV HEVC DTS-HD MA 5.1 x265-E\n👤 9 💾 31.74 GB ⚙️ 1337x",
+      "infoHash": "6e51635522c34610e944ffedb2d322ecfe992ba8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|DV|HDR",
+        "filename": "Interstellar (2014) IMAX.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Interstellar (2014)(CZ/EN)[2160p][HDR/DV][HEVC]\n👤 8 💾 7.4 GB ⚙️ EXT\n🇬🇧 / 🇨🇿",
+      "infoHash": "57a3a7eafe89e29320576ccb6a92ebadda14ebe4",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|hevc|DV|HDR"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar.2014.2160p.UHD.BluRay.x265.10bit.HDR.DTS-HD.MA.5.1-RARBG\n👤 6 💾 14.28 GB ⚙️ TorrentGalaxy",
+      "infoHash": "84c693183f30cb65a79b49ca80e7409414758533",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit|HDR",
+        "filename": "Interstellar.2014.2160p.UHD.BluRay.x265.10bit.HDR.DTS-HD.MA.5.1-RARBG.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Interstellar (2014) 2160p H265 HDR10 IMAX ITA ENG AC3 5.1 MultiSub -Raccoon- [MIRCrew]\n👤 5 💾 14.74 GB ⚙️ ilCorSaRoNeRo\nMulti Subs / 🇬🇧 / 🇮🇹",
+      "infoHash": "e0318df8fa516a6f776ef109f0071880f339f176",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|h265|10bit|HDR",
+        "filename": "Interstellar (2014) 2160p H265 HDR10 IMAX iTA-ENG AC3 5.1 MultiSub (BluRay) -Raccoon- [MIRCrew].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV",
+      "title": "Interstellar.2014.2160p.WEB-DL.DD5.1.DV.MP4.x265-DVSUX\n👤 5 💾 29.68 GB ⚙️ RARBG",
+      "infoHash": "2796b0913cee8e9255e8c9f57d890ff0036f8dc1",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|WEB-DL|x265|DV",
+        "filename": "Interstellar.2014.2160p.WEB-DL.DD5.1.DV.MP4.x265-DVSUX.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Интерстеллар / Interstellar (2014) BDRemux 2160p | 4K | HDR | IMAX | D P A\n👤 5 💾 89.29 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "af9c4501de08d591611b3717c82a0b0fe3e1e0e9",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc|HDR",
+        "filename": "Interstellar.2014.2160p.BluRay.HEVC.HDR.DTS-HD.MA.5.1.IVA(6xRUS.UKR.ENG)_proper.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:af9c4501de08d591611b3717c82a0b0fe3e1e0e9",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Interstellar 2014 2160p BluRay\n👤 89 💾 8.36 GB ⚙️ YTS",
+      "infoHash": "fa9773b96054338d1f1c10f2a4d2d9bd5a578b92",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit",
+        "filename": "Interstellar.2014.2160p.4K.BluRay.x265.10bit.AAC5.1-[YTS.MX].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Interstellar.2014.2160p.BluRay.HEVC.DTS-HD.MA.5.1-TASTED\n👤 88 💾 84.1 GB ⚙️ RARBG",
+      "infoHash": "c1b50fdb2b28e5eb93dce97db908ed7fb881ea4c",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Interstellar.2014.UHD.BluRay.2160p.DTS-HD.MA.5.1.HEVC.REMUX-FraMeSToR\n👤 77 💾 65.74 GB ⚙️ ThePirateBay",
+      "infoHash": "844928fa99d4b7d59c5825a790298c573acda925",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc",
+        "filename": "Interstellar.2014.UHD.BluRay.2160p.DTS-HD.MA.5.1.HEVC.REMUX-FraMeSToR.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Interstellar.2014.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT\n👤 33 💾 77.81 GB ⚙️ RARBG",
+      "infoHash": "5e745883e5e3c73b71282751be9e05a6c419ad90",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc",
+        "filename": "Interstellar.2014.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Interstellar (2014) BluRay - 4K SDR - 2160p HQ - HEVC - [Tamil +…\n👤 32 💾 7.5 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇮🇳",
+      "infoHash": "0c5209438e8baab2d5f51f1ae87b6b20f6ebd7bd",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc",
+        "filename": "www.1TamilMV.ing - Interstellar (2014) BluRay - 4K SDR - 2160p HQ - HEVC - [Tamil + Eng] - (DD+2.0 - 224Kbps) - 7.4GB - ESub.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Interstellar.2014.PROPER.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT\n👤 19 💾 77.8 GB ⚙️ RARBG",
+      "infoHash": "bb8b23481702f504aac74f6e671aa4bbc0fe5fea",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc",
+        "filename": "Interstellar.2014.PROPER.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Interstellar.2014.2160p.4K.UHD.Full.Blu-Ray.HEVC.DTS-HD-MassModz\n👤 14 💾 84.1 GB ⚙️ TorrentGalaxy",
+      "infoHash": "b37bbb8d04b37159c3ca704c00836f1a26eb1483",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Interstellar.2014.2160p.BluRay.x264.8bit.SDR.DTS-HD.MA.5.1-SWTYBLZ\n👤 14 💾 71.13 GB ⚙️ RARBG",
+      "infoHash": "f718b7c6a6e35fb29fb49fd9f24599b0db1c6b44",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x264|8bit"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Интерстеллар / Interstellar [2014 UHD Blu-ray disc 2160p] [IMAX] Dub (EUR) + Sub Rus Eng + Original Eng\n👤 11 💾 84.1 GB ⚙️ Rutracker\n🇬🇧 / 🇯🇵 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇫🇷 / 🇩🇪",
+      "infoHash": "968545a4b5308081986b437a0b65d34f06fe45e9",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:968545a4b5308081986b437a0b65d34f06fe45e9",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Interstellar (2014) BluRay - 4K SDR - 2160p HQ - HEVC - [Tamil + Eng] - (DD+2.0 - 224Kbps) - 7.4GB - ESub\n👤 10 💾 7.5 GB ⚙️ EXT\n🇬🇧 / 🇮🇳",
+      "infoHash": "e4b82454158cfb2f53ec80edace0e0a4c7e08ef0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc",
+        "filename": "Interstellar (2014) BluRay - 4K SDR - 2160p HQ - HEVC - [Tamil + Eng] - (DD+2.0 - 224Kbps) - 7.4GB - ESub.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Интерстеллар / Interstellar (2014) UHD BDRip 2160p | SDR | D P A | IMAX Edition\n👤 9 💾 31.95 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "e4776512929c30820683ecc5f22046e3faaf5fa0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|hevc",
+        "filename": "Interstellar.2014.BDRip.2160p.SDR.HEVC.5xRus.Eng.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:e4776512929c30820683ecc5f22046e3faaf5fa0",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Interstellar (2014) IMAX Complete (2160p BluRay x265 HEVC 10bit SDR AAC 5.1 Joy) [UTR]\n👤 9 💾 11.3 GB ⚙️ 1337x",
+      "infoHash": "a2a342d5ddd4f8844ec9f25f6e9c6f3f2762a657",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "Interstellar.2014.4K.UltraHD.BluRay.2160p.x264.DTS-HD.MA.5.1.AAC\n👤 7 💾 14.83 GB ⚙️ ThePirateBay",
+      "infoHash": "4e01400cbaf903d5f4d8a5fab4428785fad1fa77",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x264",
+        "filename": "Interstellar.2014.4K.UltraHD.BluRay.2160p.x264.DTS-HD.MA.5.1.AAC.5.1-POOP.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p DV | HDR",
+      "title": "Interstellar.2014.PROPER.IMAX.1080p.UHD.BluRay.x265.HDR.DV.DD+5.1.Dual.YG⭐\n👤 504 💾 4.21 GB ⚙️ TorrentGalaxy\nDual Audio / 🇪🇸",
+      "infoHash": "13121036a0a971d7ae5601b9b95b5cc77d440b01",
+      "fileIdx": 6,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|DV|HDR",
+        "filename": "Interstellar.2014.PROPER.IMAX.1080p.UHD.BluRay.x265.HDR.DV.DD+5.1.Dual.YG.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p HDR",
+      "title": "Интерстеллар / Interstellar [2014 UHD BDRip 1080p HDR10] [IMAX] Dub + MVO + 2x AVO + 2x VO + Original (Eng) + Sub (Rus Eng)\n👤 40 💾 37.03 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "df5852a7a108110dd4e066bdc0e601c832b064f4",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|10bit|HDR",
+        "filename": "Интерстеллар.2014.UHD.BDRip.1080p.HDR.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:df5852a7a108110dd4e066bdc0e601c832b064f4",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p DV | HDR",
+      "title": "Interstellar 2014 IMAX Hybrid 1080p UHD BluRay DD+5.1 DV HDR x265-HiDt\n👤 19 💾 23.91 GB ⚙️ ThePirateBay",
+      "infoHash": "32db9a247cffcb107ae9385ce72243b5e5f1a2ff",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|DV|HDR",
+        "filename": "Interstellar 2014 IMAX Hybrid 1080p UHD BluRay DD+5.1 DV HDR x265-HiDt.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p HDR",
+      "title": "Interstellar.2014.1080p.BRRip.DS4K.HDR10.HEVC.AAC.mSubs-HeCviCu\n👤 14 💾 2.43 GB ⚙️ EXT\nMulti Subs",
+      "infoHash": "185b9dfbb1a8df07ee8f26fc76ea67b5361790ce",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BRRip|hevc|10bit|HDR"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p HDR",
+      "title": "Interstellar 2014 1080p DS4K BluRay x265 10 bit HDR AAC 5 1\n👤 9 💾 11.45 GB ⚙️ TorrentGalaxy",
+      "infoHash": "f61bef7f51c1ae5b9a1cb0e776586ffa0cfa7858",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit|HDR",
+        "filename": "Interstellar (2014) (1080p DS4K BluRay x265 10-bit HDR AAC 5.1) [WeSLeY].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p HDR",
+      "title": "Interstellar.2014.1080p.UHD.BluRay.DD5.1.HDR.x265-TnP\n👤 9 💾 25.8 GB ⚙️ 1337x",
+      "infoHash": "b1f1e42f85b0be5e91ee37bbedf94a1fcd14acb2",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|HDR"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p DV | HDR",
+      "title": "Interstellar 2014 IMAX Hybrid 1080p UHD BluRay DD 5 1 DV HDR x265-HiDt\n👤 7 💾 23.91 GB ⚙️ ThePirateBay",
+      "infoHash": "2bfe0422dff4164b97b2ae106194e40937e971c2",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|DV|HDR",
+        "filename": "Interstellar 2014 IMAX Hybrid 1080p UHD BluRay DD 5 1 DV HDR x265-HiDt.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) (2014) 1080p BrRip x264 - YIFY\n👤 787 💾 2.26 GB ⚙️ ThePirateBay",
+      "infoHash": "89599bf4dc369a3a8eca26411c5ccf922d78b486",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BRRip|x264",
+        "filename": "Interstellar.2014.2014.1080p.BluRay.x264.YIFY.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Интерстеллар / Interstellar [2014 BDRip 1080p] Dub + MVO (Омикрон) + AVO (Сербин) + AVO (Живов) + Sub Rus Eng + Original Eng\n👤 234 💾 28.24 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "a17b923ebbadbd8d9aa2aef66577a1a48f8d3d50",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "Интерстеллар.IMAX.1080p. Ton.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:a17b923ebbadbd8d9aa2aef66577a1a48f8d3d50",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265\n👤 156 💾 4.49 GB ⚙️ TorrentGalaxy",
+      "infoHash": "9bb5a1b259c6a945eaf71ce162926514712296c7",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit",
+        "filename": "Interstellar.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar 2014 IMAX 1080p BluRay HEVC x265 5 1 BONE\n👤 114 💾 3.99 GB ⚙️ TorrentGalaxy",
+      "infoHash": "77af86b82b2514aad0d91ce2599907579f263550",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc",
+        "filename": "Interstellar 2014 IMAX 1080p BluRay HEVC x265 5.1 BONE.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) BluRay - 1080p - x264 - [Tamil + Eng] - (DD+…\n👤 53 💾 2.56 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇮🇳",
+      "infoHash": "5852fa30d4a6cc90ba85389e3658d4760996753a",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Interstellar (2014) BluRay - 1080p - x264 - [Tamil + Eng] - (DD+2.0 - 224Kbps) - 2.5GB - ESub.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Интерстеллар / Interstellar [2014 BDRemux 1080p] Dub + MVO + 2x AVO (Сербин Живов) + VO (Есарев) + Ukr + Sub Rus Eng + Original Eng\n👤 49 💾 51.71 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "94487f2a5adb1d11c5a86c0eefac7101e940a4ae",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX|avc",
+        "filename": "Interstellar.2014 IMAX.1080p.Blu-ray Remux.AVC.DTS-HD MA 5.1 - Talian-.mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:94487f2a5adb1d11c5a86c0eefac7101e940a4ae",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-RARBG\n👤 44 💾 42.71 GB ⚙️ RARBG",
+      "infoHash": "f468064f94d1470f94fc637676fad1f1c399ba52",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX|avc",
+        "filename": "Interstellar.2014.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-RARBG.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.1080p.BluRay.REMUX-DDB\n👤 41 💾 33.26 GB ⚙️ ThePirateBay",
+      "infoHash": "cbed175cb7f8bc02f04ba49d983e50ad1ff5a951",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) IMAX (1080p BluRay x265 HEVC 10bit AAC 5.1 Tigole) [QxR]\nInterstellar (2014) IMAX (1080p BluRay x265 10bit Tigole).mkv\n👤 41 💾 6.48 GB ⚙️ 1337x",
+      "infoHash": "b476e787603fbbd7be4a0c0190efeed4cbcaf8ba",
+      "fileIdx": 19,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "Interstellar (2014) IMAX (1080p BluRay x265 10bit Tigole).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) BluRay - 1080p - x264 - [Tamil + Eng] - (DD+2.0 - 224Kbps) - 2.5GB - ESub\n👤 37 💾 2.56 GB ⚙️ EXT\n🇬🇧 / 🇮🇳",
+      "infoHash": "11044633ea7ce8e8fe25ec53035fc5a315a0089c",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "www.1TamilMV.ing - Interstellar (2014) BluRay - 1080p - x264 - [Tamil + Eng] - (DD+2.0 - 224Kbps) - 2.5GB - ESub.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar 2014 IMAX 1080p AV1 10Bit DKong\n👤 37 💾 1.16 GB ⚙️ ThePirateBay\n🇬🇧 / 🇮🇱",
+      "infoHash": "951ee443d9b8614f745bd56aa68e2f957a90bcaf",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|av1|10bit",
+        "filename": "Interstellar 2014 IMAX 1080p AV1 10Bit DKong.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar 2014 BluRay 1080p DD 5 1 x264-BHDStudio\n👤 33 💾 10.07 GB ⚙️ ThePirateBay",
+      "infoHash": "05a9e8affd01d0bf49a5a5ca9ae17af68444177e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Interstellar 2014 BluRay 1080p DD 5 1 x264-BHDStudio.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.MULTi.1080p.BluRay.x264-LOST\n👤 31 💾 13.12 GB ⚙️ Torrent9\nMulti Audio / 🇫🇷",
+      "infoHash": "b13842f8a1a7308addd75ccd8f6b3e1679c1454b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Interstellar.2014.MULTi.1080p.BluRay.x264-LOST.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Интерстеллар / Interstellar (2014) BDRip 1080p | IMAX\n👤 29 💾 11.55 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "e958af0b4a221a9e3bd11a019a4be286a18e254b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "Interstellar.2014.BDRip.1080p.Rus.Eng.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:e958af0b4a221a9e3bd11a019a4be286a18e254b",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar 2014 1080p ATVP WEB-DL DD 5 1 H 264-PiRaTeS\n👤 27 💾 8.25 GB ⚙️ ThePirateBay",
+      "infoHash": "4d9a55a604927febdfcdbceb0bdbe253462bb95b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "Interstellar 2014 1080p ATVP WEB-DL DD 5 1 H 264-PiRaTeS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) IMAX 1080p Bluray x265 10bit EAC3 5.1 FLMN\n👤 25 💾 6.88 GB ⚙️ 1337x",
+      "infoHash": "4924b1ee17d2c6582f49f404e830d168deb1d0a5",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit",
+        "filename": "Interstellar (2014) IMAX 1080p Bluray x265 10bit EAC3 5.1 FLMN.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Интерстеллар / Interstellar (2014) BDRip-HEVC 1080p | D P A L1 | IMAX\n👤 25 💾 17.19 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "92e5c663ec1eef104d144a7dccb63ca5c9c845f8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|hevc",
+        "filename": "Интерстеллар.Interstellar.2014.BDRip-HEVC.1080p.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:92e5c663ec1eef104d144a7dccb63ca5c9c845f8",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interestelar (2014) 1080p Dublado / Dual Audio pt-BR\n👤 23 💾 2.77 GB ⚙️ ThePirateBay\nDual Audio / 🇬🇧 / 🇵🇹",
+      "infoHash": "ac3ee9395349ad9a0b6ef13e1520511a6b9ee2b2",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Interestelar (2014) 1080p BluRay x264 - 210GJI.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.MULTI.VFF.1080p.BluRay.REMUX.DTS.HD.MA.5.1.AVC-Asgardia\n👤 21 💾 39.14 GB ⚙️ Torrent9\nMulti Audio / 🇫🇷",
+      "infoHash": "6199065c220864aaf34775f9b0179c97d047879a",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX|avc",
+        "filename": "Interstellar.2014.MULTI.VFF.1080p.BluRay.REMUX.DTS.HD.MA.5.1.AVC-Asgardia.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Videos cosas\nInterstellar [MicroHD][1080 px][AC3 5.1-Castellano-AC3 5.1 Ingles+Subs][ES-EN]/InterstellarM1080.www.newpct1.com.mkv\n👤 20 💾 5.64 GB ⚙️ Wolfmax4k\n🇬🇧 / 🇪🇸",
+      "infoHash": "b78480949e8acea0135133ad162116947588c494",
+      "fileIdx": 299,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|HDRip",
+        "filename": "InterstellarM1080.www.newpct1.com.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Anne Hathaway 22 Best Movies eSubs jQZ RARBG+\nInterstellar (2014) IMDB 8.6 #D-ChristopherNolan #SciFi AnneHathaway JessicaChastain MackenzieFoy MatthewMcConaughey/Interstellar.2014.PROPER.1080p.BluRay.x265-RARBG.mp4\n👤 17 💾 2.63 GB ⚙️ TorrentGalaxy",
+      "infoHash": "3aaf8394429cd3c0126a369de1e75a40a293aff7",
+      "fileIdx": 37,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "Interstellar.2014.PROPER.1080p.BluRay.x265-RARBG.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.1080p.WEB-DL.AAC.x264-skyflickz\n👤 16 💾 2.3 GB ⚙️ 1337x",
+      "infoHash": "4e8919ffc99ad81bd7ad10164c8e2898efcfaff3",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|x264",
+        "filename": "Interstellar.2014.1080p.WEB-DL.AAC.x264-skyflickz.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.MULTi.1080p.BluRay.x264-LOST\n👤 16 💾 13.12 GB ⚙️ Torrent9\nMulti Audio / 🇫🇷",
+      "infoHash": "67b0e6b69b9a1042e4bf41f559a2f5f409854cad",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "[ OxTorrent.com ] Interstellar.2014.MULTi.1080p.BluRay.x264-LOST.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.PROPER.1080p.BluRay.x265-RARBG\n👤 15 💾 2.63 GB ⚙️ RARBG",
+      "infoHash": "6d20728512a9fbefa69abe3dbf77ebfbab7001e5",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "Interstellar.2014.PROPER.1080p.BluRay.x265-RARBG.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p 3D SBS",
+      "title": "Interstellar.2014.1080p.3D.FULL-SBS.HEVC.SBS-SUB.ENG-HUN.iFA-AI3D\n👤 14 💾 25.96 GB ⚙️ 1337x\n🇬🇧 / 🇭🇺",
+      "infoHash": "396f812a69aa38cd0ceb702e43af849b1b689e44",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|hevc",
+        "filename": "Interstellar.2014.1080p.3D.FULL-SBS.HEVC.SBS-SUB.ENG-HUN.iFA-AI3D.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Интерстеллар / Interstellar (2014) BDRip 1080p от Leonardo and Scarabey | IMAX Edition | Лицензия\n👤 14 💾 13.68 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "e823db5929677cbc687f039c4f41ddb9970c5df6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x264",
+        "filename": "Interstellar.2014.1080p.BluRay.x264-LEONARDO_[scarabey.org].mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:e823db5929677cbc687f039c4f41ddb9970c5df6",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.1080p.IMAX.BluRay.DTS.HDMA5.1.H264-hallowed.DUAL-andrehsa\n👤 13 💾 21.83 GB ⚙️ ThePirateBay\nDual Audio",
+      "infoHash": "b3445a7fd563f432a820868ed03785c8c427a5d7",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|h264",
+        "filename": "Interstellar.2014.1080p.IMAX.BluRay.DTS.HDMA5.1.H264-hallowed.DUAL-andrehsa.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar 2014 IMAX 1080p 10bit BluRay 6CH x265 HEVC-PSA\n👤 12 💾 3.79 GB ⚙️ EXT",
+      "infoHash": "c02842d9282e0063a8833438eccf7b4b8844c61a",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "Interstellar 2014 IMAX 1080p 10bit BluRay 6CH x265 HEVC-PSA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) 1080p IMAX Bluray AV1 Opus Multi5 [V2] [dAV1nci]\n👤 12 💾 4.32 GB ⚙️ 1337x",
+      "infoHash": "853025c69305ebdad63db3023c7e4541d783ca83",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "Interstellar.2014.1080p.Bluray.AV1.Opus.Multi5.V2-dAV1nci.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar 2014 1080p PCOK WEB-DL DDP 5 1 H 264-PiRaTeS\n👤 11 💾 7.46 GB ⚙️ ThePirateBay",
+      "infoHash": "ff17c8707692ba9b8180253ef749b2066b2be69b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "Interstellar 2014 1080p PCOK WEB-DL DDP 5 1 H 264-PiRaTeS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "[moon] Interstellar 2014 1080p x264 WEBRip AC3 MultiSubs\n👤 11 💾 2.95 GB ⚙️ 1337x\nMulti Subs / 🇬🇧",
+      "infoHash": "ceafad344ea2e07d58ab18268ead930c863c0148",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEBRip|x264",
+        "filename": "Interstellar 2014 1080p x264 WEBRip AC3 MultiSubs.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Amazing Films 8 - Mp4 x264 AC3 1080p\nInterstellar (2014) 1080p Surround.mp4\n👤 11 💾 4.92 GB ⚙️ ThePirateBay",
+      "infoHash": "86cdbd9f120d27ddd1af7a9ce497555046fb6678",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "Interstellar (2014) 1080p Surround.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) [1080p H264 Eng Ita EAC3 5.1 Sub Eng Ita][4.93GB]\n👤 10 💾 4.59 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "8e893d9fc0b1f574c995f33c46733b9d649fcc91",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|h264",
+        "filename": "Interstellar (2014) [1080p H264 Eng Ita EAC3 Sub Eng Ita].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) IMAX (1080p BluRay x265 SDR DDP 5.1 English - DarQ HONE)\n👤 10 💾 8.45 GB ⚙️ ThePirateBay",
+      "infoHash": "02ab0df8dd8103c0eb14f65d40c8fd6c9b2886c0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "Interstellar (2014) IMAX (1080p BluRay x265 SDR DDP 5.1 English - DarQ HONE).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.1080p.Bluray.x264-SURGE\n👤 10 💾 5.97 GB ⚙️ 1337x",
+      "infoHash": "467d65eb147e186a766add127d641bb4199bb4f9",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Interstellar.2014.1080p.Bluray.x264-SURGE.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Интерстеллар / Interstellar (2014) BDRip-HEVC 1080p от HEVC-CLUB | Лицензия | IMAX Edition\n👤 10 💾 13.4 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "25eb305c4974680f0cc62511a28968e362aef84d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|hevc",
+        "filename": "Interstellar (2014) BDRip 1080p.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:25eb305c4974680f0cc62511a28968e362aef84d",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.1080p.BluRay.H264.AAC-RARBG\n👤 10 💾 3.23 GB ⚙️ ThePirateBay",
+      "infoHash": "7e73ef6fa1f2c495720d268794c55d020d8b4fcb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|h264",
+        "filename": "Interstellar.2014.1080p.BluRay.H264.AAC-RARBG.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar 2014 m1080p BluRay x264-GeneMige\n👤 9 💾 6.95 GB ⚙️ ThePirateBay",
+      "infoHash": "e93582759d381d21dd7d8a9352141fecfa2b8037",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Interstellar 2014 m1080p BluRay x264-GeneMige.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar 2014 1080p BluRay DD+ 5.1 x265-edge2020\n👤 9 💾 5.24 GB ⚙️ TorrentGalaxy",
+      "infoHash": "58d52b6eb13970b5d6a6fa94d973df7d8c0769d9",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "Interstellar.2014.1080p.BluRay.DDP.5.1.x265-EDGE2020.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) 1080p BluRay x264 DTS-HD MA Soup\n👤 9 💾 25.9 GB ⚙️ ThePirateBay",
+      "infoHash": "c5949a30f4a123c3b252a1f5b6b03baa05044659",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Interstellar (2014) 1080p BluRay x264 DTS-HD MA Soup.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Epic Films 6 - Mp4 x264 AC3 1080p\nInterstellar (2014) 1080p Surround.mp4\n👤 9 💾 4.92 GB ⚙️ ThePirateBay",
+      "infoHash": "93b968d8033ce026146c9c414ecdfb9ab7eb6092",
+      "fileIdx": 21,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "Interstellar (2014) 1080p Surround.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) IMAX MULTI 1080p BluRay AV1 Opus (Eng Fr Spa) [AV1D]\n👤 9 💾 2.6 GB ⚙️ 1337x\nMulti Audio / 🇬🇧 / 🇪🇸 / 🇫🇷",
+      "infoHash": "b4dc1e6b6247406de73beb0c80df23137b62c970",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "Interstellar (2014) 1080p BluRay AV1 Opus.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) IMAX [BDrip 1080p: H264: Ita Eng Ac3 5.1: Sub NUIta NUEng] : Fratposa [TNT ..\n👤 9 💾 12.14 GB ⚙️ MagnetDL\n🇬🇧 / 🇮🇹",
+      "infoHash": "05ba074d37d81c724669425ac6f143e9f579dc62",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|h264",
+        "filename": "Interstellar.2014.IMAX.Ita.Eng.1080p.BDrip.x264-Fratposa.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar IMAX 2014 BDRip 1080p x264 AC3 English Castellano U\n👤 9 💾 5.31 GB ⚙️ ThePirateBay\n🇬🇧 / 🇪🇸",
+      "infoHash": "2e0407b04cab0417b04aa5ed26a217ad39affebb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x264",
+        "filename": "Interstellar IMAX 2014 BDRip 1080p x264 AC3 English Castellano URBiN4HD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "IMDB TOP 001-050 BluRay 1080p x265 10bit MNHD-FRDS\n032.星际穿越.Interstellar.2014.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS/Interstellar.2014.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv\n👤 8 💾 8.47 GB ⚙️ EXT",
+      "infoHash": "9351bcf9e7437f706549f8b60314c39259c420b4",
+      "fileIdx": 226,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit",
+        "filename": "Interstellar.2014.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar IMAX (2014) 1080p H265 BluRay Rip ita eng AC3 5.1 sub ita eng Licdom\n👤 8 💾 4.32 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇮🇹",
+      "infoHash": "e94c24d9c119af9857f7d7d16b1e27944c805d55",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BRRip|h265",
+        "filename": "Interstellar IMAX (2014) 1080p H265 ita eng AC3 5.1 sub ita eng Licdom.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar IMAX AC3 5.1 ITA.ENG 1080p H265 sub ita.eng (2014) Sp33dy94 MIRCrew\n👤 8 💾 4.7 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹",
+      "infoHash": "827a878136da487419122170b1ea9b50133eaf6e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|h265",
+        "filename": "Interstellar IMAX AC3 5.1 ITA.ENG 1080p H265 sub ita.eng (2014) Sp33dy94-MIRCrew.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar IMAX 2014 (1080p Bluray x265 HEVC AAC 5.1 Joy)[UTR]\n👤 8 💾 1.73 GB ⚙️ ThePirateBay",
+      "infoHash": "83ec29e6bbf6d334e4a33ad105675f92ad23ef0b",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Интерстеллар / Interstellar [2014 Blu-ray disc 1080p] [CEE] Dub + Sub Rus Eng + Original Eng\n👤 8 💾 42.27 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇨🇳 / 🇺🇦 / 🇹🇷",
+      "infoHash": "e1d4d09369a6c13029ee147a6fae3ca84e52a511",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:e1d4d09369a6c13029ee147a6fae3ca84e52a511",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interestelar (2014) BRrip IMAX Blu-Ray 1080p 5.1 Ch Dublado - AndreTPF\n👤 7 💾 2.69 GB ⚙️ Comando\n🇬🇧 / 🇵🇹",
+      "infoHash": "1b8302c5e59b36671858f9bf0a7049093e25a22f",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay",
+        "filename": "Interestelar (2014) BRrip IMAX Blu-Ray 1080p 5.1 Ch Dublado - AndreTPF.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar 2014 BDRip 1080p x264 AC3 English 5.1 Latino 2.0 UR\n👤 7 💾 4.37 GB ⚙️ ThePirateBay\n🇬🇧 / 🇲🇽",
+      "infoHash": "30bdfe31bf1bf827d9b9d208f6d9f693a87bd59e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x264",
+        "filename": "Interstellar 2014 BDRip 1080p x264 AC3 English 5.1 Latino 2.0 URBiN4HD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar 2014 1080p BluRay x265-YAWNTiC\n👤 6 💾 8.43 GB ⚙️ ThePirateBay",
+      "infoHash": "a69586540768a095359525d05a5589bc2e11c5dd",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "Interstellar 2014 1080p BluRay x265-YAWNTiC.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar 2014 1080p PTV WEB-DL AAC 2 0 H 264-PiRaTeS\n👤 6 💾 4.15 GB ⚙️ ThePirateBay",
+      "infoHash": "306995463214adc16c9504162decc6f076bf04a4",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "Interstellar 2014 1080p PTV WEB-DL AAC 2 0 H 264-PiRaTeS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Christopher Nolan Collection (2000-2023) BDRip 1080p\n2014.Interstellar.1920x1080.BDRip.x264.DTS-HD.MA.mkv\n👤 6 💾 22.06 GB ⚙️ ThePirateBay",
+      "infoHash": "96913f3281621ef4748c1136bcfb96d12e8a4f0c",
+      "fileIdx": 10,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|x264",
+        "filename": "2014.Interstellar.1920x1080.BDRip.x264.DTS-HD.MA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.1080p.dual-lat.cinecalidad.lol.mp4\n👤 6 💾 3.26 GB ⚙️ Cinecalidad\nDual Audio / 🇲🇽",
+      "infoHash": "046e835abf1d87e05884cf893e3f48df7646aab2",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p",
+        "filename": "Interstellar.2014.1080p.dual-lat.cinecalidad.lol.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interestelar (2014) IMAX 1080p 6ch BrRip Dual Audio - 1046\n👤 6 💾 2.82 GB ⚙️ Comando\nDual Audio / 🇬🇧 / 🇵🇹",
+      "infoHash": "d00c231fcfbafdb26afc448a84211c37cbe6717b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BRRip",
+        "filename": "Interestelar (2014) IMAX 1080p 6ch BrRip Dual Audio - 1046.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.2014.IMAX.1080p.10bit.BluRay.6CH.x265.HEVC-PSA\n👤 6 💾 3.79 GB ⚙️ 1337x",
+      "infoHash": "9d1945b5c27ba67b5eddc16e8391056e38020766",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "Interstellar.2014.IMAX.1080p.10bit.BluRay.6CH.x265.HEVC-PSA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) [IMAX 1080p] DTS Gryms\n👤 6 💾 15.6 GB ⚙️ MagnetDL",
+      "infoHash": "3d05b54ad501a578dd84ffb453a765eab39991cc",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "Interstellar.2014.1080p.BDRip.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar 2014 1080p NF WEB-DL DDP5 1 AV1-ViSTA\n👤 5 💾 3.04 GB ⚙️ ThePirateBay\n🇬🇧 / 🇮🇳",
+      "infoHash": "b2057b1d767155d990fa67e040435323d98a160e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|av1",
+        "filename": "Interstellar 2014 1080p NF WEB-DL DDP5 1 AV1-ViSTA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar.(2014).1080p.IMAX.BluRay.Hindi.English.DD5.1.ESubs.H.264-themoviesboss\n👤 5 💾 2.44 GB ⚙️ 1337x\n🇬🇧 / 🇮🇳",
+      "infoHash": "2725383ab687853847052421311f3fb46561dbab",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|h264",
+        "filename": "Interstellar.(2014).1080p.IMAX.BluRay.Hindi.English.DD5.1.ESubs.H.264-themoviesboss.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar (2014) IMAX 1080p [Hindi ORG 2.0 English 5.1] Dual Audio Bluray 10bit HEVC x265 ESub ~ PSA (Shàdów)\n👤 5 💾 2.86 GB ⚙️ 1337x\nDual Audio / 🇬🇧 / 🇮🇳",
+      "infoHash": "f7da57ba462b5269bd4ade94331bb376e9f3655c",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "Interstellar (2014) IMAX 1080p [Hindi ORG 2.0 + English 5.1] Dual Audio Bluray 10bit HEVC x265 ESub ~ PSA (Shàdów).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstelar.2014.1080p.60fps.BluRay.H264.AC3.5.1.DUAL-RICKSZ\n👤 5 💾 24.42 GB ⚙️ Comando\nDual Audio / 🇬🇧 / 🇵🇹",
+      "infoHash": "5d6c55e229294460a1b10c3bcd32454d8875d435",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|h264",
+        "filename": "Interstelar.2014.1080p.60fps.BluRay.H264.AC3.5.1.DUAL-RICKSZ.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar IMAX (2015) [1080p] MULTi BluRay X264-PopHD.mkv\n👤 5 💾 3.89 GB ⚙️ MagnetDL\nMulti Audio",
+      "infoHash": "12c4da846294544145de165a6f0894588d0114c1",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Interstellar IMAX (2015) [1080p] MULTi BluRay x264-PopHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Interstellar [MicroHD][1080 px][AC3 5.1-Castellano-AC3 5.1 Ingles+Subs][ES-EN]\n👤 5 💾 5.64 GB ⚙️ MejorTorrent\n🇬🇧 / 🇪🇸",
+      "infoHash": "3fb3060253ac95dddd5bde9563a99153576ef4dd",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|HDRip",
+        "filename": "InterstellarM1080.www.newpct1.com.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Interstellar (2014) 720p BrRip x264 - YIFY\n👤 164 💾 1.02 GB ⚙️ ThePirateBay",
+      "infoHash": "6e88b3f25ba49d483d740a652bf013c341bc5373",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BRRip|x264",
+        "filename": "Interstellar.2014.720p.BluRay.x264.YIFY.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Интерстеллар / Interstellar [2014 BDRip 720p] Dub + MVO + 2x AVO (Сербин Живов) + VO (Есарев) + Ukr + Sub Rus Eng + Original Eng\n👤 107 💾 12.55 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "da54640c212285c1aa415780da8d5b83835f8e39",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BDRip|x264",
+        "filename": "Interstellar.2014.IMAX.EDITION.720p.BluRay.DD5.1.x264-Talian-.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:da54640c212285c1aa415780da8d5b83835f8e39",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Интерстеллар / Interstellar (2014) BDRip 720p от Leonardo and Scarabey | IMAX Edition | Лицензия\n👤 19 💾 5.19 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "9876fdef6bb563a79a9bf975257febe742303d04",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BDRip|x264",
+        "filename": "Interstellar.2014.720p.BluRay.x264-LEONARDO_[scarabey.org].mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:9876fdef6bb563a79a9bf975257febe742303d04",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Interstellar.2014.FRENCH.720p.BluRay.x264-CARPEDIEM\n👤 15 💾 7.49 GB ⚙️ Torrent9\n🇫🇷",
+      "infoHash": "700c4e390a1c9790edec3569c939da4ab9d6fe87",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x264",
+        "filename": "Interstellar.2014.FRENCH.720p.BluRay.x264-CARPEDIEM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Intersteller 2014 720p IMAX BRRIP H264 AAC-MAJESTiC\n👤 12 💾 3.96 GB ⚙️ MagnetDL",
+      "infoHash": "692d24d81c07ea7a1908ede807e33d98914d84bd",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BRRip|h264",
+        "filename": "Interstellar.2014.720p.IMAX.BRRIP.H264.AAC-MAJESTiC.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Interstellar (2014) IMAX 720p BluRay x264 Hindi-Eng Subs [Dual Audio] [Hindi HQ DD 2.0 - English 2.0] Exclusive By -=!Dr.STAR!=-\n👤 11 💾 1.82 GB ⚙️ 1337x\nDual Audio / 🇬🇧 / 🇮🇳",
+      "infoHash": "8074e2f8326cf1d24751d6880d52e8da2a9c4eb5",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x264",
+        "filename": "Interstellar (2014) IMAX 720p BluRay x264 Hindi-Eng Subs [Dual Audio] [Hindi HQ DD 2.0 - English 2.0].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Interestelar (2014) BRrip IMAX Blu-Ray 720p 5.1 Ch Dublado - AndreTPF\n👤 11 💾 1.51 GB ⚙️ Comando\n🇬🇧 / 🇵🇹",
+      "infoHash": "56dd7a1443fa923aed3577af2af2154ed9f8ce8f",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay",
+        "filename": "Interestelar (2014) BRrip IMAX Blu-Ray 720p 5.1 Ch Dublado - AndreTPF.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Interstellar (2014) BluRay - 720p - x264 - [Tamil + Eng] - (AAC 2.0) - 1.2GB - ESub\n👤 10 💾 1.24 GB ⚙️ EXT\n🇬🇧 / 🇮🇳",
+      "infoHash": "4bde022c72cf8aecb172652a0af33b833af0bf9c",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x264"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Interstellar.2014.720p.BluRay.x264.DTS-RARBG\n👤 10 💾 8.21 GB ⚙️ RARBG",
+      "infoHash": "9ce598aa2eb2611eff6f110bf2bfa9430fb92424",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x264",
+        "filename": "Interstellar.2014.720p.BluRay.x264.DTS-RARBG.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Interstellar (2014) BluRay - 720p - x264 - [Tamil + Eng] - (AAC 2.0) - 1.2GB - ESub\n👤 9 💾 1.24 GB ⚙️ EXT\n🇬🇧 / 🇮🇳",
+      "infoHash": "c6ac340d81d3374a75c870403eb0961deaca879e",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x264",
+        "filename": "www.1TamilMV.ing - Interstellar (2014) BluRay - 720p - x264 - [Tamil + Eng] - (AAC 2.0) - 1.2GB - ESub.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Интерстеллар / Interstellar (2014) BDRip 720p от HELLYWOOD | IMAX | Лицензия\n👤 7 💾 9.03 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "72f559ca03a86770c985174ad62b8da35a1323d3",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BDRip",
+        "filename": "Interstelar.2014.IMAX.DUB.MVO.AVO.BDRip.720p.-HELLYWOOD.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:72f559ca03a86770c985174ad62b8da35a1323d3",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n360p",
+      "title": "Interstellar 2014: Threesixtyp\n👤 6 💾 661.72 MB ⚙️ MagnetDL",
+      "infoHash": "00469af27016188867a663680c0eee3ed18f0cc5",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|360p",
+        "filename": "Interstellar (2014 360p re-blurip).mp4"
+      }
+    },
+    {
+      "name": "Torrentio\nTeleSync",
+      "title": "Interstellar.2014.ENG.1080p.HD.WEBRip.2.64GiB.AAC.x264-PortalGoods\n👤 9 💾 2.64 GB ⚙️ TorrentGalaxy",
+      "infoHash": "38c4a823bf4fbb6c1692a25d7c9b03ef976b5254",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|TeleSync|WEBRip|x264",
+        "filename": "Interstellar.2014.ENG.1080p.HD.WEBRip.2.64GiB.AAC.x264-PortalGoods.ts"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Интерстеллар / Interstellar [2014 BDRip] Dub\n👤 170 💾 2.91 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "e963b655c43241a46f73a559dabfd6365846f3ce",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "Interstellar.avi"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:e963b655c43241a46f73a559dabfd6365846f3ce",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Интерстеллар / Interstellar [2014 HDRip] [IMAX Edition] DVO (Tantuki Production) + Original Eng\n👤 103 💾 2.85 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "3bdbc8d478e6d8e3894df854c188b89f33b759cf",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip",
+        "filename": "Interstellar [2014 HDRip].avi"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:3bdbc8d478e6d8e3894df854c188b89f33b759cf",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Интерстеллар / Interstellar [2014 BDRip-AVC] [IMAX Edition] Dub + Original (Eng) + Sub (Rus Ukr Eng)\n👤 65 💾 2.18 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "3bec9dff215dd678f78fb8068dd25492512b5ed2",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Interstellar_(2014).BDRip-AVC.aac.Dub.Eng.Sub_[All.Films][RG].mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:3bec9dff215dd678f78fb8068dd25492512b5ed2",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Интерстеллар / Interstellar [2014 BDRip-AVC] Dub + MVO (Омикрон) +Sub Rus Eng + Original Eng\nInterstellar. by_IVAN@.190282.mkv\n👤 53 💾 4.56 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "be7fbb1ce7f2c9d4e9923a2fed934e61facb3acc",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Interstellar. by_IVAN@.190282.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:be7fbb1ce7f2c9d4e9923a2fed934e61facb3acc",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Интерстеллар / Interstellar [2014 BDRip] [IMAX Edition] Dub\n👤 48 💾 1.46 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "1cf568233c1fdcd8624659c54b416549c4bdfded",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "Interstellar_2014_BDRip_[IMAX]_by_Dalemake.avi"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:1cf568233c1fdcd8624659c54b416549c4bdfded",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Интерстеллар / Interstellar [2014 BDRip-AVC] [IMAX Edition] Dub + Sub (Rus Ukr Eng)\n👤 35 💾 1.46 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "003f4b0580b8bf870211ea3832ac6fd7d188968b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Interstellar_(2014).BDRip-AVC.aac.Dub.Sub_[All.Films][RG].mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:003f4b0580b8bf870211ea3832ac6fd7d188968b",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Интерстеллар / Interstellar (2014) BDRip-AVC от ExKinoRay | IMAX Edition | Лицензия\n👤 31 💾 3.17 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "6095f48b12a0f42629124e2e1e74cc1bd8e54b3d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Interstellar.2014.D.BDRip.AVC.ExKinoRay.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:6095f48b12a0f42629124e2e1e74cc1bd8e54b3d",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBRRip",
+      "title": "Interstellar.2014.TRUEFRENCH.BRRip.XviD-Slay3R\n👤 25 💾 1.39 GB ⚙️ Torrent9\n🇫🇷",
+      "infoHash": "e84b38d0e88735929680d2e46f1ef9554b449938",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BRRip|xvid",
+        "filename": "Interstellar.2014.TRUEFRENCH.BRRip.XviD-Slay3R.avi"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Интерстеллар / Interstellar [2014 BDRip-AVC] Dub (Rus Ukr) + MVO (Омикрон) + AVO (Ю.Сербин Ю.Живов) + Original (Eng) + Sub\nInterstellar.2014.IMAX.Edition.BDRip-AVC.Rus.Eng.Subs.by.zOJIOtOi.mkv\n👤 25 💾 6 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "45f314f1fb11a081cbf1a3ce5d8a522005a1e753",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Interstellar.2014.IMAX.Edition.BDRip-AVC.Rus.Eng.Subs.by.zOJIOtOi.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:45f314f1fb11a081cbf1a3ce5d8a522005a1e753",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Interstellar (2014) HDRip\n👤 23 💾 2.73 GB ⚙️ MejorTorrent\n🇪🇸",
+      "infoHash": "5ccfc47fc65919cd79472af5af4c9490e04a52cf",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip",
+        "filename": "Interstellar (HDRip) (Elitetorrent.net).avi"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Интерстеллар / Interstellar (2014) BDRip-AVC от HELLYWOOD | IMAX | Лицензия\n👤 12 💾 1.46 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "d10a4157348ded912d08ad2c0a054f7c5c12b5d6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Interstelar.2014.IMAX.RUS.BDRip.x264.-HELLYWOOD.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:d10a4157348ded912d08ad2c0a054f7c5c12b5d6",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Интерстеллар / Interstellar (2014) BDRip от Scarabey | IMAX | P\n👤 12 💾 1.46 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "0dcb40bcf5e7840a63e13ae46b319304af1f3962",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "Interstellar.2014_BDRip_mvo_[scarabey.org].avi"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:0dcb40bcf5e7840a63e13ae46b319304af1f3962",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Интерстеллар / Interstellar [2014 BDRip] [IMAX Edition] Dub\n👤 11 💾 2.18 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "16262535369ff231d6e2d3c0accce3d7acf5c077",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "Interstellar_2014_BDRip_[IMAX_2.18]_by_Dalemake.avi"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:16262535369ff231d6e2d3c0accce3d7acf5c077",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Интерстеллар / Interstellar (2014) BDRip-AVC от HQ-ViDEO | IMAX Edition | D P A | Лицензия\n👤 9 💾 4.36 GB ⚙️ Rutor\nDual Audio / 🇷🇺",
+      "infoHash": "044c4c03046469b5d869acd4d7f0d51fb927c14d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Interstellar.2014.IMAX.DUAL.BDRip-AVC.AC3.-HQ-ViDEO.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:044c4c03046469b5d869acd4d7f0d51fb927c14d",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "INTERSTELLAR.2014.FANSUB.VOSTFR.BDRIP.XVID-NOTAG\n👤 8 💾 1.38 GB ⚙️ Torrent9\n🇫🇷",
+      "infoHash": "3db32034b9aa24e474b6c792691511df6465ae82",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|xvid",
+        "filename": "[ OxTorrent.com ] INTERSTELLAR.2014.FANSUB.VOSTFR.BDRIP.XVID-NOTAG.avi"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Interstellar 2014 DUAL BDRip-AVC IMAX Edition ExKinoRay\n👤 7 💾 3.1 GB ⚙️ MagnetDL\nDual Audio",
+      "infoHash": "a13f6d472ace265eb13b28fd524fb24d2c6110b3",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Interstellar.2014.D.BDRip.AVC.ExKinoRay.mkv"
+      }
+    }
+  ],
+  "cacheMaxAge": 3600,
+  "staleRevalidate": 14400,
+  "staleError": 604800
+}

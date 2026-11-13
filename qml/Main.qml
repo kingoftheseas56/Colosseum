@@ -3156,6 +3156,7 @@ Window {
             "target": { "showKey": EpisodeBrowser.seriesRootId(job.id || ""),
                         "streamUrl": job.url, "partPath": part, "id": job.id || "",
                         "title": job.title || "", "headers": job.headers || ({}),
+                        "playbackContext": job.playbackContext || ({}),
                         "art": job.art || "", "kind": job.kind || "", "position": pos }
         })
     }
@@ -3856,6 +3857,7 @@ Window {
             "appType": "theatre", "contentKind": "movie", "title": v.title || "Video",
             "target": { "showKey": EpisodeBrowser.seriesRootId(v.id || ""),
                         "localPath": v.path, "id": v.id || "", "title": v.title || "",
+                        "playbackContext": v.playbackContext || ({}),
                         "art": v.art || "", "kind": v.kind || "", "position": v.position || 0 }
         })
     }

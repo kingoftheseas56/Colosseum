@@ -21,6 +21,10 @@
 #include <QtQml/qqml.h>
 
 #include <QCoreApplication>
+#include <QDir>
+#include <QFile>
+#include <QRegularExpression>
+#include <QUrl>
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QObject>
@@ -29,6 +33,7 @@
 #include <QVariantMap>
 
 #include "account/ProfilePaths.h"
+#include "stream/SmartPlayBridge.h"
 #include "trackers/TrackerConnectionStore.h"
 #include "trackers/TrackerDeliveryStore.h"
 #include "trackers/TrackerImportStore.h"
@@ -83,6 +88,7 @@ class ColosseumQmlTestSetup : public QObject
 public slots:
     void applicationAvailable()
     {
+        qputenv("QML_XHR_ALLOW_FILE_READ", "1"); // Source-extract regression tests read repository QML.
         qmlRegisterType<TestActivityPlaybackTracker>("Colosseum.Activity", 1, 0,
                                                      "ActivityPlaybackTracker");
         QCoreApplication::setOrganizationName(QStringLiteral("BrotherhoodTest"));
@@ -100,6 +106,19 @@ public slots:
     {
         if (!engine)
             return;
+        engine->rootContext()->setContextProperty(QStringLiteral("SmartPlay"), new SmartPlayBridge(engine));
+        static QTemporaryDir smartPlayProfile(QDir::tempPath() + "/colosseum-smart-play-test-XXXXXX");
+        engine->rootContext()->setContextProperty(QStringLiteral("SmartPlayTestSettingsUrl"),
+            QUrl::fromLocalFile(smartPlayProfile.filePath("player.ini")));
+        // Execute the production selection function without loading the video renderer.
+        QFile playerSource(QStringLiteral(SMART_PLAY_PLAYER_SOURCE));
+        if (!playerSource.open(QIODevice::ReadOnly)) qFatal("Cannot read Smart Play player test source");
+        auto functions = QRegularExpression(
+            QStringLiteral(R"(    function (?:pickEpisodeSource|episodePlaybackContext)\([\s\S]*?\n    \})"))
+            .globalMatch(QString::fromUtf8(playerSource.readAll()));
+        QStringList pickFunctions;
+        while (functions.hasNext()) pickFunctions.push_back(functions.next().captured());
+        engine->rootContext()->setContextProperty(QStringLiteral("SmartPlayTestPlayerPickFunction"), pickFunctions.join('\n'));
         static QTemporaryDir trackerDataRoot;
         static std::unique_ptr<TrackerConnectionStore> connections;
         static std::unique_ptr<TrackerMappingStore> mappings;

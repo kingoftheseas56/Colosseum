@@ -1796,6 +1796,11 @@ set_tests_properties(colosseum.qml.vault_offline_restore PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 120)
 colosseum_add_tracker_sync_center_sources(colosseum_qml_tests)
+target_sources(colosseum_qml_tests PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/stream/SmartPlayBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stream/SmartPlayBridge.h")
+target_link_libraries(colosseum_qml_tests PRIVATE colosseum_stream_picker)
+target_compile_definitions(colosseum_qml_tests PRIVATE SMART_PLAY_PLAYER_SOURCE="${COLOSSEUM_NATIVE_DIR}/../qml/PlayerPage.qml")
 target_include_directories(colosseum_qml_tests PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(colosseum_qml_tests
@@ -5935,3 +5940,6 @@ if(VINYL_CATALOGUE_TEST_PYTHON)
         message(STATUS "Skipping Vinyl YouTube browse provider CTest: select VINYL_CATALOGUE_TEST_PYTHON with ytmusicapi installed")
     endif()
 endif()
+
+# Pure Qt Core source metadata picker and offline fixture replay.
+add_subdirectory(stream)

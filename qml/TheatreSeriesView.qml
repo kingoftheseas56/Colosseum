@@ -53,6 +53,7 @@ Item {
     property string genresLine: ""
     property string rating: ""
     property string runtime: ""
+    property var sourceMetadata: ({})
     property string synopsis: ""
     property var factRows: []
     property var castPeople: []
@@ -622,6 +623,7 @@ Item {
         for (var i = 0; i < queue.length; i++)
             if (queue[i].id === targetId) { idx = i; break; }
         return {
+            "metadata": page.sourceMetadata,
             "year": page.year,
             "episodeQueue": queue,
             "episodeIndex": idx,
@@ -770,6 +772,7 @@ Item {
                 "title": vids[i].title || label,
                 "art": vids[i].art || page.cover,
                 "kind": kind,
+                "playbackContext": { "metadata": page.sourceMetadata, "year": page.year, "logo": page.logo },
                 "position": Number(resume.position || 0)
             });
             return true;
@@ -785,7 +788,10 @@ Item {
         var rows = Download.jobs() || [];
         for (var i = 0; i < rows.length; i++) {
             if (rows[i].id === sid && String(rows[i].url || "").length) {
-                page.playArrivingRequested(rows[i]);
+                page.playArrivingRequested(Object.assign({}, rows[i], {
+                    playbackContext: Object.assign({}, rows[i].playbackContext || ({}), {
+                        metadata: page.sourceMetadata, year: page.year, logo: page.logo })
+                }));
                 return true;
             }
         }
@@ -884,6 +890,7 @@ Item {
         genresLine = "";
         rating = "";
         runtime = "";
+        sourceMetadata = ({});
         synopsis = "";
         sourceVideos = [];
         animeOrder = page.defaultAnimeOrder();
@@ -934,6 +941,8 @@ Item {
             if (meta.genres && meta.genres.length) genresLine = meta.genres.slice(0, 3).join(" - ");
             rating = meta.imdbRating || "";
             runtime = meta.runtime || "";
+            sourceMetadata = { released: meta.released || "", runtime: meta.runtime || "",
+                aliases: meta.aliases || [], sourceId: page.requestedSourceId };
             synopsis = meta.description || "";
             page.factRows = TheatreFacts.factRows(meta, null)
             var doorForCast = page.animeDoor
@@ -1338,6 +1347,11 @@ Item {
                                         page.openHeroForPlay()
                                 }
                             }
+                        }
+                        SmartPickToggle {
+                            visible: page.mediaType !== "series"
+                            sourcePicker: sources
+                            width: Math.min(implicitWidth, parent.width)
                         }
                         LibraryButton {
                             world: "theatre"
@@ -2048,6 +2062,10 @@ Item {
             width: Math.min(ledgerBarFloat.controlsWidth, singleRowWidth)
             spacing: 10
 
+            SmartPickToggle {
+                sourcePicker: sources
+                width: Math.min(implicitWidth, ledgerBarFloat.controlsWidth)
+            }
             // Download the active season (hidden in Absolute order: "episodes" is the whole run).
             Rectangle {
                 id: seasonDownloadAction
@@ -2318,6 +2336,7 @@ Item {
 
     SourcesSheet {
         id: sources
+        mediaMetadata: page.sourceMetadata
         z: 60
         backdrop: page.backdrop
         onOpenExtensionsRequested: (browseMoreSources) => page.openExtensionsRequested(browseMoreSources)

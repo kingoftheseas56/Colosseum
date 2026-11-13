@@ -1,0 +1,89 @@
+[
+  {
+    "endpoint": "https://comet.elfhosted.com/manifest.json",
+    "retrieved_at": "2026-11-08T17:42:00.191878+00:00",
+    "curl_exit": 0,
+    "raw_sha256": "b34d26fa12c865d94d8909424437db9436e1ae40b300e023141372c5332e8dee",
+    "raw_bytes": 549,
+    "json_keys": [
+      "id",
+      "description",
+      "version",
+      "catalogs",
+      "resources",
+      "types",
+      "logo",
+      "background",
+      "behaviorHints",
+      "name"
+    ],
+    "stream_count": null,
+    "fixture": "comet.manifest.json"
+  },
+  {
+    "endpoint": "https://mediafusion.elfhosted.com/manifest.json",
+    "retrieved_at": "2026-11-08T17:42:00.192570+00:00",
+    "curl_exit": 0,
+    "raw_sha256": "858173ebf3c8af5de59db60f81b192ae20fb1da43675ad494b32667bf04936af",
+    "raw_bytes": 669,
+    "json_keys": [
+      "behaviorHints",
+      "catalogs",
+      "contactEmail",
+      "description",
+      "id",
+      "logo",
+      "name",
+      "resources",
+      "types",
+      "version"
+    ],
+    "stream_count": null,
+    "fixture": "mediafusion.manifest.json"
+  },
+  {
+    "endpoint": "https://comet.elfhosted.com/stream/movie/tt1375666.json",
+    "retrieved_at": "2026-11-08T17:42:00.192955+00:00",
+    "curl_exit": 0,
+    "raw_sha256": "78342a0905a72ce44da083dcb5d23b8ea0c16992ba2a82eece97e033d76ba3d3",
+    "raw_bytes": 9,
+    "error": "Non-JSON response",
+    "response_prefix": "Forbidden"
+  },
+  {
+    "endpoint": "https://mediafusion.elfhosted.com/stream/movie/tt1375666.json",
+    "retrieved_at": "2026-11-08T17:42:00.193587+00:00",
+    "curl_exit": 0,
+    "raw_sha256": "b48108c5ebff13b6ff249409b4d2356397417e29a15268d5bf9296aa19edf599",
+    "raw_bytes": 14,
+    "json_keys": [
+      "streams"
+    ],
+    "stream_count": 0,
+    "fixture": "mediafusion.inception.json"
+  },
+  {
+    "endpoint": "https://mediafusion.elfhosted.com/stream/series/tt0388629:1:1.json",
+    "retrieved_at": "2026-11-08T17:43:26.645737+00:00",
+    "curl_exit": 0,
+    "raw_sha256": "b48108c5ebff13b6ff249409b4d2356397417e29a15268d5bf9296aa19edf599",
+    "raw_bytes": 14,
+    "json_keys": [
+      "streams"
+    ],
+    "stream_count": 0,
+    "fixture": "mediafusion.one-piece.json"
+  },
+  {
+    "endpoint": "https://mediafusion.elfhosted.com/stream/movie/tt0133093.json",
+    "retrieved_at": "2026-11-08T17:43:26.647109+00:00",
+    "curl_exit": 0,
+    "raw_sha256": "b48108c5ebff13b6ff249409b4d2356397417e29a15268d5bf9296aa19edf599",
+    "raw_bytes": 14,
+    "json_keys": [
+      "streams"
+    ],
+    "stream_count": 0,
+    "fixture": "mediafusion.matrix.json"
+  }
+]
