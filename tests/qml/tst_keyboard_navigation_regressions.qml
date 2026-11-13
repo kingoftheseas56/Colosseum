@@ -67,7 +67,8 @@ TestCase {
         const request = new XMLHttpRequest()
         request.open("GET", Qt.resolvedUrl("../../qml/Main.qml"), false)
         request.send()
-        const source = request.responseText
+        // Windows checkouts may carry CRLF; the slice markers below expect LF.
+        const source = request.responseText.replace(/\r\n/g, "\n")
         const marker = source.indexOf("id: hero\n")
         verify(marker > 0)
         const start = source.lastIndexOf("Glass {", marker)

@@ -181,8 +181,12 @@ Item {
             if (p === chrome) return true
         return false
     }
-    readonly property bool keyboardFocusWithin: chrome.Window.window
-        ? ownsFocus(chrome.Window.window.activeFocusItem) : false
+    // A mouse or touch press also focuses a chrome control; that must not pin it awake.
+    readonly property bool keyboardFocusWithin: {
+        var w = chrome.Window.window
+        var item = w ? w.activeFocusItem : null
+        return ownsFocus(item) && item.pointerFocused !== true
+    }
     onKeyboardFocusWithinChanged: updatePin()
 
     Item {

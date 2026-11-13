@@ -66,6 +66,25 @@ TestCase {
         paper.forceActiveFocus()
         tryCompare(chrome, "awake", false, 4200)
     }
+    function test_mouse_focus_does_not_pin_toolbar() {
+        chrome.wake()
+        tryCompare(chrome, "awake", true)
+        wait(350)
+        var bookmark = action("Bookmark")
+        verify(bookmark !== null)
+        mouseClick(bookmark)
+        compare(win.activeFocusItem, bookmark)
+        compare(chrome.revealState.pinned, false, "A click must not pin the toolbar")
+        tryCompare(chrome, "awake", false, 4200)
+        // Keyboard travel from that clicked control takes the pin back.
+        chrome.wake()
+        tryCompare(chrome, "awake", true)
+        keyClick(Qt.Key_Tab)
+        verify(win.activeFocusItem !== bookmark)
+        tryVerify(function() { return chrome.revealState.pinned === true })
+        wait(3500)
+        compare(chrome.awake, true)
+    }
     function test_tab_can_exit_both_directions() {
         keyClick(Qt.Key_Tab)
         tryCompare(chrome, "awake", true)
