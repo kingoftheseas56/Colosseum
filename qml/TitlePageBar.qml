@@ -20,6 +20,7 @@ Item {
     property string backObjectName: ""        // keeps each page's historical Back automation name
     property bool solid: false                // true once the page has scrolled under the bar
     property bool searchVisible: true
+    readonly property bool onAndroid: Qt.platform.os === "android"
     readonly property bool menuOpen: systemMenu.visible
     readonly property Item backItem: backAction
 
@@ -137,17 +138,24 @@ Item {
                 anchors.fill: parent
                 accessibleName: "Search"
                 tooltipText: accessibleName
+                androidTooltipPolicy: "drop"
                 focusRadius: 20
                 focusColor: bar.focusGold
                 onTriggered: bar.searchRequested()
             }
         }
         Item {
-            width: 40; height: 40
-            Rectangle { anchors.fill: parent; radius: 20
-                        color: (menuButtonAction.interactionActive || bar.menuOpen) ? Qt.rgba(1, 1, 1, 0.12) : "transparent" }
+            width: bar.onAndroid ? 112 : 40
+            height: bar.onAndroid ? 58 : 40
+            Rectangle {
+                anchors.top: parent.top; anchors.topMargin: bar.onAndroid ? 9 : 0
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: 40; height: 40; radius: 20
+                color: (menuButtonAction.interactionActive || bar.menuOpen) ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+            }
             Row {
-                anchors.centerIn: parent
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top; anchors.topMargin: bar.onAndroid ? 27 : 18
                 spacing: 4
                 Repeater {
                     model: 3
@@ -157,9 +165,14 @@ Item {
             KeyboardAction {
                 id: menuButtonAction
                 objectName: "titleBarSystemMenu"
-                anchors.fill: parent
+                anchors.top: parent.top; anchors.topMargin: bar.onAndroid ? 9 : 0
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.width; height: 40
                 accessibleName: "Window and app"
                 tooltipText: accessibleName
+                androidTooltipPolicy: "caption"
+                androidCaptionText: qsTr("Window and app")
+                androidCaptionPlacement: "below"
                 focusRadius: 20
                 focusColor: bar.focusGold
                 onTriggered: bar.menuOpen ? bar.closeMenu(true) : bar.openMenu()

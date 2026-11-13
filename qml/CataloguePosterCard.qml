@@ -6,8 +6,9 @@
 //     the polish stays pixel-behaviour identical (Discover/Tankoban/Comics until their own gate).
 //   • "gallery" — the approved Theatre polish: 148px poster, 12px radius, a reserved two-line title,
 //     a quiet 7px/260ms hover, a bottom-only scrim, an SVG rating star, and a source attribution.
-// In BOTH profiles the IMDb rating is POINTER-HOVER-ONLY; keyboard focus draws the focus halo but
-// never the hover reveal. Gallery has NO centered play ring and NO Unicode poster-control glyph.
+// On desktop the IMDb rating remains pointer-hover-only; keyboard focus draws the focus halo
+// without opening the hover reveal. Android keeps existing metadata visible at rest.
+// Gallery has NO centered play ring and NO Unicode poster-control glyph.
 import QtQuick
 import QtQuick.Window
 import "PosterSourcePolicy.js" as PosterPolicy
@@ -43,6 +44,7 @@ Item {
 
     readonly property var _m: Metrics.profile(card.visualProfile)
     readonly property bool _gallery: card.visualProfile === "gallery"
+    readonly property bool androidHost: Qt.platform.os === "android"
     readonly property bool televisionMode: {
         const w = card.Window.window
         return !!(w && w["televisionMode"] === true)
@@ -59,6 +61,13 @@ Item {
     readonly property string ratingValue: card.item
         ? String((card.item.rating !== undefined ? card.item.rating : card.item.imdbRating) || "") : ""
     readonly property string ratingText: card.ratingValue.length > 0 ? ("★ " + card.ratingValue) : ""
+    readonly property string touchMetadataText: {
+        const parts = []
+        if (card.yearText.length > 0) parts.push(card.yearText)
+        if (card.ratingText.length > 0) parts.push(card.ratingText)
+        if (card.hoverSourceText.length > 0) parts.push(card.hoverSourceText)
+        return parts.join(" · ")
+    }
     // the author (Biblio's Discover cards) — always-on when showAuthorAtRest is true.
     readonly property string authorText: card.item ? (card.item.author || "") : ""
     // the rating is visible ONLY under an active reveal (hover, or hover+focus when opted in).
@@ -69,7 +78,8 @@ Item {
     readonly property bool sourceVisible: card._gallery && !card.skeleton
                                           && card.revealActive && card.hoverSourceText.length > 0
     // classic keeps its centered play ring on hover; gallery never shows one.
-    readonly property bool centerPlayVisible: !card._gallery && !card.skeleton && card.effectiveHovered
+    readonly property bool centerPlayVisible: !card._gallery && !card.skeleton
+                                              && (card.effectiveHovered || card.androidHost)
 
     // profile tokens exposed for harness inspection and layout math upstream.
     readonly property int posterWidthToken: card._m.posterWidth
@@ -181,7 +191,7 @@ Item {
 
                         // classic centered play ring (gold outline + ▶). Gallery omits it entirely.
                         Rectangle {
-                            visible: !card._gallery
+                            visible: !card._gallery && !card.androidHost
                             anchors.centerIn: parent
                             width: 46; height: 46; radius: 23
                             color: Qt.rgba(8 / 255, 7 / 255, 14 / 255, 0.34)
@@ -195,7 +205,7 @@ Item {
 
                         // classic metadata — year + ★rating, bottom-left (unchanged look for Discover).
                         Row {
-                            visible: !card._gallery
+                            visible: !card._gallery && !card.androidHost
                             anchors.left: parent.left; anchors.leftMargin: 11
                             anchors.right: parent.right; anchors.rightMargin: 11
                             anchors.bottom: parent.bottom; anchors.bottomMargin: 11
@@ -214,7 +224,7 @@ Item {
 
                         // gallery metadata — SVG star + rating bottom-left, source attribution bottom-right.
                         Item {
-                            visible: card._gallery
+                            visible: card._gallery && !card.androidHost
                             anchors.left: parent.left; anchors.leftMargin: 11
                             anchors.right: parent.right; anchors.rightMargin: 11
                             anchors.bottom: parent.bottom; anchors.bottomMargin: 12
@@ -243,6 +253,43 @@ Item {
                         }
                     }
                 }
+            }
+        }
+
+        // Touch has no hover reveal. Keep the original values in the artwork plane
+        // so fixed-height poster rails still fit their title and author below it.
+        Rectangle {
+            visible: card.androidHost && !card.skeleton && card.touchMetadataText.length > 0
+            anchors.left: parent.left; anchors.leftMargin: 8
+            anchors.right: parent.right; anchors.rightMargin: 8
+            anchors.bottom: parent.bottom; anchors.bottomMargin: 8
+            height: touchMetadata.implicitHeight + 10
+            radius: 7
+            color: Qt.rgba(0.02, 0.025, 0.035, 0.82)
+            Text {
+                id: touchMetadata
+                anchors.left: parent.left; anchors.leftMargin: 5
+                anchors.right: parent.right; anchors.rightMargin: 5
+                anchors.verticalCenter: parent.verticalCenter
+                text: card.touchMetadataText
+                textFormat: Text.PlainText
+                color: theme.ink
+                font.family: theme.ui; font.pixelSize: 11
+                wrapMode: Text.WordWrap
+                maximumLineCount: 2
+                elide: Text.ElideRight
+            }
+        }
+        Rectangle {
+            visible: card.androidHost && !card._gallery && !card.skeleton
+            anchors.centerIn: parent
+            width: 46; height: 46; radius: 23
+            color: Qt.rgba(8 / 255, 7 / 255, 14 / 255, 0.34)
+            border.width: 1.5; border.color: theme.gold
+            Text {
+                anchors.centerIn: parent
+                anchors.horizontalCenterOffset: 2
+                text: "▶"; color: theme.gold; font.pixelSize: 16
             }
         }
     }

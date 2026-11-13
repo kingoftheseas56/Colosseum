@@ -251,6 +251,7 @@ Item {
                 anchors.fill: parent
                 accessibleName: "Back"
                 tooltipText: accessibleName
+                androidTooltipPolicy: "drop"
                 focusRadius: 20
                 onTriggered: root.backRequested()
             }

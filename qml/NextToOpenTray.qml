@@ -8,6 +8,7 @@ Rectangle {
     objectName: "nextToOpenTray"
 
     property var model: []
+    readonly property bool androidHost: Qt.platform.os === "android"
     readonly property int stagedCount: model ? model.length : 0
     signal openRequested(int index, var entry)
     signal removeRequested(int index, var entry)
@@ -56,7 +57,8 @@ Rectangle {
 
                 Column {
                     anchors.left: parent.left; anchors.leftMargin: 11
-                    anchors.right: removeButton.left; anchors.rightMargin: 8
+                    anchors.right: tray.androidHost ? removeOverflow.left : removeButton.left
+                    anchors.rightMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
                     Text {
@@ -78,7 +80,10 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: tray.openRequested(index, modelData)
+                    onClicked: function(mouse) {
+                        if (!tray.androidHost || mouse.x < removeOverflow.x)
+                            tray.openRequested(index, modelData)
+                    }
                 }
                 KeyboardAction {
                     id: rowKeyboard
@@ -90,6 +95,7 @@ Rectangle {
                 Rectangle {
                     id: removeButton
                     objectName: "nextToOpenRemove_" + index
+                    visible: !tray.androidHost
                     anchors.right: parent.right; anchors.rightMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
                     width: 27; height: 27; radius: 8
@@ -112,6 +118,19 @@ Rectangle {
                         tooltipHovered: removeMouse.containsMouse
                         focusRadius: 8
                         onTriggered: tray.removeRequested(index, modelData)
+                    }
+                }
+                ActionOverflowMenu {
+                    id: removeOverflow
+                    objectName: "nextToOpenMore_" + index
+                    visible: tray.androidHost
+                    anchors.right: parent.right; anchors.rightMargin: 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 40; height: 40
+                    showLabel: false
+                    actions: [{ id: "remove", label: qsTr("Remove"), iconName: "trash", danger: true }]
+                    onActionTriggered: function(actionId) {
+                        if (actionId === "remove") tray.removeRequested(index, modelData)
                     }
                 }
             }

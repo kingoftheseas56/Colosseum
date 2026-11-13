@@ -49,6 +49,7 @@ Item {
     signal removeRequested()
 
     readonly property bool isHome: variant === "home"
+    readonly property bool androidHost: Qt.platform.os === "android"
     readonly property string kind: entry.kind !== undefined ? entry.kind : ""
     readonly property bool isMangaReading: kind === "manga" || kind === "tankoban"
     readonly property var videoPresentation: {
@@ -332,13 +333,13 @@ Item {
         Row {
             id: watchedRow; anchors.centerIn: parent; spacing: 4
             Text { text: "✓"; color: theme.gold; font.pixelSize: 10; font.weight: Font.DemiBold }
-            Text { visible: tile.isHome; text: "WATCHED"; color: theme.gold
+            Text { visible: tile.isHome || tile.androidHost; text: "WATCHED"; color: theme.gold
                    font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: 0.6 }
         }
         HoverHandler { id: watchedBadgeHover; enabled: !tile.isHome && tile.watched }
         ToolTip.text: qsTr("Watched")
         ToolTip.delay: 350
-        ToolTip.visible: watchedBadgeHover.hovered
+        ToolTip.visible: watchedBadgeHover.hovered && !tile.androidHost
     }
 
     // ── shared: 46px resume circle — centered on the art ──
@@ -370,6 +371,9 @@ Item {
             focusEnabled: !tile.effectiveCollectionManaged
             accessibleName: "Resume " + tile.label
             tooltipText: qsTr("Resume")
+            androidTooltipPolicy: "caption"
+            androidCaptionText: qsTr("Resume")
+            androidCaptionPlacement: "below"
             tooltipHovered: rbHov.hovered
             focusRadius: resumeButton.radius
             onTriggered: tile.activateResumeControl()
@@ -379,6 +383,7 @@ Item {
     // ── shared: hover-revealed ✕ remove ──
     Rectangle {
         id: removeBtn
+        visible: !tile.androidHost
         width: 24; height: 24; radius: 12
         anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 8
         color: rmMa.containsMouse ? Qt.rgba(0, 0, 0, 0.85) : Qt.rgba(0, 0, 0, 0.62)
@@ -401,6 +406,21 @@ Item {
             tooltipHovered: rmMa.containsMouse
             focusRadius: removeBtn.radius
             onTriggered: tile.removeRequested()
+        }
+    }
+
+    // The destructive action remains direct on desktop; on touch the visible More
+    // target exposes its original handler in a named row without stealing Resume.
+    ActionOverflowMenu {
+        visible: tile.androidHost && !tile.keyboardContextOpen
+        z: 10001
+        anchors.top: parent.top; anchors.topMargin: 2
+        anchors.right: parent.right; anchors.rightMargin: 4
+        width: 40; height: 40
+        showLabel: false
+        actions: [{ id: "remove", label: qsTr("Remove from Continue"), iconName: "trash", danger: true }]
+        onActionTriggered: function(actionId) {
+            if (actionId === "remove") tile.removeRequested()
         }
     }
 

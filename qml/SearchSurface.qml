@@ -350,6 +350,7 @@ Item {
                     onClicked: { queryInput.text = ""; queryInput.forceActiveFocus() } }
                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Clear search"; focusRadius: 13
                     tooltipText: accessibleName
+                    androidTooltipPolicy: "drop"
                     tooltipHovered: clearMa.containsMouse
                     onTriggered: { queryInput.text = ""; queryInput.forceActiveFocus() } }
             }
