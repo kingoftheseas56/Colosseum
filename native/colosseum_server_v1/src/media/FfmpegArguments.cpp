@@ -202,7 +202,7 @@ QStringList FfmpegArguments::build(const QJsonObject &o,
     auto inputs = c["inputArgs"].toArray();
     for (auto x : pv["inputArgs"].toArray())
       inputs.append(x);
-    auto enc = pv["encoders"].toObject()[str(c["encoderH264"])];
+    const QJsonValue enc = pv["encoders"].toObject()[str(c["encoderH264"])];
     if (truth(enc))
       c["encoderH264"] = enc;
     QMap<QString, QString> map{{"preset", "videoPreset"},
@@ -219,7 +219,7 @@ QStringList FfmpegArguments::build(const QJsonObject &o,
           truth(pv[key]))
         c[map.value(key, key)] = pv[key];
     }
-    auto dec = pv["decoders"].toObject()[v["codec"].toString()];
+    const QJsonValue dec = pv["decoders"].toObject()[v["codec"].toString()];
     if (vt && truth(dec)) {
       inputs.append("-c:v");
       inputs.append(dec);
@@ -230,10 +230,10 @@ QStringList FfmpegArguments::build(const QJsonObject &o,
     auto inputs = c["inputArgs"].toArray();
     for (auto x : pa["inputArgs"].toArray())
       inputs.append(x);
-    auto enc = pa["encoders"].toObject()[str(c["encoderAAC"])];
+    const QJsonValue enc = pa["encoders"].toObject()[str(c["encoderAAC"])];
     if (truth(enc))
       c["encoderAAC"] = enc;
-    auto dec = pa["decoders"].toObject()[a["codec"].toString()];
+    const QJsonValue dec = pa["decoders"].toObject()[a["codec"].toString()];
     if (at && truth(dec)) {
       inputs.append("-c:a");
       inputs.append(dec);

@@ -15,7 +15,28 @@ namespace server1::media {
 namespace {
 QString str(QJsonValue v){if(v.isUndefined())return "undefined";if(v.isNull())return "null";if(v.isBool())return v.toBool()?"true":"false";if(v.isDouble())return QString::number(v.toDouble(),'g',16);if(v.isArray()){QStringList a;for(auto x:v.toArray())a<< (x.isNull()?QString():str(x));return a.join(',');}return v.toString();}
 bool truth(QJsonValue v){return !v.isUndefined()&&!v.isNull()&&(!v.isBool()||v.toBool())&&(!v.isString()||!v.toString().isEmpty())&&(!v.isDouble()||v.toDouble()!=0);}
-double num(QJsonValue v){if(v.isUndefined())return NAN;if(v.isNull())return 0;if(v.isDouble())return v.toDouble();if(v.isBool())return v.toBool();auto s=str(v).trimmed();if(s.isEmpty())return 0;bool ok;double n=s.toDouble(&ok);return ok?n:NAN;}
+double num(QJsonValue v){
+ if(v.isUndefined()||v.isObject())return NAN;
+ if(v.isNull())return 0;
+ if(v.isDouble())return v.toDouble();
+ if(v.isBool())return v.toBool();
+ const auto s=str(v).trimmed();
+ if(s.isEmpty())return 0;
+ if(s=="Infinity"||s=="+Infinity")return std::numeric_limits<double>::infinity();
+ if(s=="-Infinity")return -std::numeric_limits<double>::infinity();
+ // Global isNaN uses Number, not parseInt. Unsigned radix-prefixed strings
+ // choose transcoding even though the later decimal parseInt returns zero.
+ if(s.size()>2&&s[0]=='0'){
+  const auto prefix=s[1].toLower();const int radix=prefix=='x'?16:prefix=='b'?2:prefix=='o'?8:0;
+  if(radix){double result=0;for(qsizetype i=2;i<s.size();++i){const auto c=s[i].toLower();const int digit=c>='0'&&c<='9'?c.unicode()-'0':c>='a'&&c<='f'?c.unicode()-'a'+10:-1;if(digit<0||digit>=radix)return NAN;result=result*radix+digit;}return result;}
+ }
+ // QString accepts "inf" while JavaScript does not. Validate the decimal
+ // grammar before conversion. Qt reports range errors for both overflow and
+ // underflow, but JavaScript keeps the resulting Infinity or zero.
+ static const QRegularExpression decimal("^[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?$");
+ if(!decimal.match(s).hasMatch())return NAN;
+ return s.toDouble();
+}
 double integer(QJsonValue v){auto m=QRegularExpression("^\\s*([+-]?[0-9]+)").match(str(v));return m.hasMatch()?m.captured(1).toDouble():NAN;}
 QString secs(double n){return QString::number(n/1000,'f',3);}
 QString nstr(double n){return std::isfinite(n)?QString::number(n,'g',16):"NaN";}
@@ -188,6 +209,28 @@ o["bod"]="བོད་ཡིག";
 o["tuk"]="Türkmen";
 o["tgl"]="Wikang Tagalog";
 o["tsn"]="Setswana";
+o["ton"]="faka Tonga";
+o["tur"]="Türkçe";
+o["tso"]="Xitsonga";
+o["tat"]="татар теле";
+o["twi"]="Twi";
+o["tah"]="Reo Tahiti";
+o["uig"]="Uyƣurqə";
+o["ukr"]="українська мова";
+o["urd"]="اردو";
+o["uzb"]="O'zbek";
+o["ven"]="Tshivenḓa";
+o["vie"]="Tiếng Việt";
+o["vol"]="Volapük";
+o["wln"]="walon";
+o["cym"]="Cymraeg";
+o["wol"]="Wollof";
+o["fry"]="Frysk";
+o["xho"]="isiXhosa";
+o["yid"]="ייִדיש";
+o["yor"]="Yorùbá";
+o["zha"]="Saɯ cueŋƅ";
+o["zul"]="isiZulu";
 return o;}();return names[code].toString();}
 }
 LegacyResponse LegacyHlsService::render(QString action,QJsonObject inst,QJsonObject in,QJsonArray subtitles,bool hasSplitter){
@@ -216,7 +259,9 @@ LegacyResponse LegacyHlsService::render(QString action,QJsonObject inst,QJsonObj
  }
  if(action=="segment"||action=="transcode"){
   auto quality=p["quality"];if(!truth(quality))quality=inst["segmentsByFrame"].isArray()?QJsonValue("o"):QJsonValue(720);
-  double index=integer(p["seg"]);int si=-1;bool sok=false;if(p["stream"].isString())si=p["stream"].toString().toInt(&sok);else if(p["stream"].isDouble()){si=p["stream"].toInt();sok=true;}QJsonObject selected=(sok&&si>=0&&si<streams.size())?streams[si].toObject():QJsonObject();
+  double index=integer(p["seg"]);const auto streamKey=str(p["stream"]);bool sok=false;const int si=streamKey.toInt(&sok);
+  // JS array property lookup does not canonicalize "01", "+1", or " 1 ".
+  QJsonObject selected=(sok&&si>=0&&si<streams.size()&&QString::number(si)==streamKey)?streams[si].toObject():QJsonObject();
   bool trans=action=="transcode"||!std::isnan(num(quality));if(!trans){auto segs=inst["segmentsByFrame"].toArray();if(!std::isfinite(index)||index<0||index>=segs.size())return error("segment does not exist in segmentsByFrame",404);if(!selected.isEmpty())trans=selected["codec_type"]=="video"&&!transmux(selected);else for(auto s:streams)trans|=s.toObject()["codec_type"]=="video"&&!transmux(s.toObject());if(!trans){auto seg=segs[int(index)].toObject();r.program="ffsplit";r.arguments={from,str(seg["at"]),str(seg["duration"]),selected.isEmpty()?"-1":str(selected["stream"])};r.headers={{"content-type","video/mp2t"},{"x-hls-flow","splitter"}};return r;}}
   auto segs=inst["segmentsUniform"].toArray();if(!std::isfinite(index)||index<0||index>=segs.size())return error("segment does not exist in segmentsUniform",404);auto seg=segs[int(index)].toObject();double qual=integer(quality);if(std::isfinite(qual)&&qual!=0&&!qualities.contains(qual))return error("no such quality",404);
   r.arguments={"-ss",secs(seg["at"].toDouble()),"-t",secs(seg["duration"].toDouble()),"-i",from,"-af","aselect=gt(n\\,1)"};if(std::isfinite(qual)&&qual!=0&&vs["size"].toArray().at(1).toDouble()-qual>100)r.arguments<<"-vf"<<"scale=-2:"+str(quality);
@@ -243,6 +288,12 @@ struct LegacyHlsService::Impl {
  ExecutablePaths paths;
  QMap<QString,QJsonObject> cache;
  QMap<QString,QJsonArray> subs;
+ struct Preparation {
+  std::shared_ptr<LegacyOperation> operation;
+  struct Waiter { std::weak_ptr<LegacyOperation> operation; std::function<void(QJsonObject,QJsonObject)> deliver; };
+  QVector<Waiter> waiters;
+ };
+ QMap<QString,std::shared_ptr<Preparation>> preparing;
  QVector<std::weak_ptr<LegacyOperation>> operations;
  int active=0;
  QQueue<std::function<bool()>> queue;
@@ -255,7 +306,15 @@ void LegacyHlsService::receiveSubtitles(QString id,QJsonArray subs){impl->subs[i
 std::shared_ptr<LegacyOperation> LegacyHlsService::request(QString action,QJsonObject input,Callback callback){
  auto op=std::make_shared<LegacyOperation>();impl->operations.erase(std::remove_if(impl->operations.begin(),impl->operations.end(),[](auto w){return w.expired();}),impl->operations.end());impl->operations.append(op);std::weak_ptr<LegacyOperation> weak=op;QPointer<LegacyHlsService> guard(this);auto from=str(input["params"].toObject()["from"]);
  auto deliver=[weak,guard,action,input,callback](QJsonObject instance,QJsonObject err){auto o=weak.lock();if(!o||o->impl->canceled||!guard)return;
-  if(action=="probe"){LegacyResponse r;r.status=err.isEmpty()?200:500;r.headers["content-type"]="application/json";r.body=err.isEmpty()?QJsonDocument(instance).toJson(QJsonDocument::Compact):QByteArray();callback(r);return;}
+  if(action=="_prepare"){
+   LegacyResponse r;r.status=err.isEmpty()?200:500;
+   r.body=QJsonDocument(err.isEmpty()?instance:err).toJson(QJsonDocument::Compact);callback(r);return;
+  }
+  if(action=="probe"){LegacyResponse r;r.status=err.isEmpty()?200:500;r.headers["content-type"]="application/json";
+   // Module 305 returns undefined only for the early missing-executable error;
+   // its runtime failure/timeout callback supplies null to the /probe JSON body.
+   r.body=err.isEmpty()?QJsonDocument(instance).toJson(QJsonDocument::Compact)
+      :(guard->impl->paths.ffmpeg.isEmpty()?QByteArray():QByteArray("null"));callback(r);return;}
   if(!err.isEmpty()){callback(error(err["message"].toString(),err["httpCode"].toInt(500)));return;}
   auto enriched=input;auto subId=input["query"].toObject()["waitForSubs"].toString();enriched["_subtitlesPresent"]=guard->impl->subs.contains(subId);auto response=render(action,instance,enriched,guard->impl->subs.value(subId),!guard->impl->paths.ffsplit.isEmpty());
   if(response.program.isEmpty()){callback(response);return;}
@@ -267,6 +326,30 @@ std::shared_ptr<LegacyOperation> LegacyHlsService::request(QString action,QJsonO
    o->impl->release=[guard]{if(!guard)return;--guard->impl->active;QTimer::singleShot(0,guard,[guard]{if(guard)guard->impl->pump();});};
    o->impl->processId=o->impl->port.start(spec,std::move(cb));return true;});guard->impl->pump();
  };
+ // Preparation belongs to the service, not to its first HTTP consumer. A
+ // disconnect must not tear down probing/keyframe retrieval for other waiters.
+ if(action!="probe"&&action!="thumb"&&action!="_prepare"){
+  if(impl->cache.contains(from)){
+   auto instance=impl->cache[from];QTimer::singleShot(0,op.get(),[deliver,instance]{deliver(instance,{});});return op;
+  }
+  auto pending=impl->preparing.value(from);
+  const bool first=!pending;
+  if(first){pending=std::make_shared<Impl::Preparation>();impl->preparing.insert(from,pending);}
+  pending->waiters.append({weak,deliver});
+  op->impl->release=[guard,from]{
+   if(!guard)return;
+   auto pending=guard->impl->preparing.value(from);if(!pending)return;
+   pending->waiters.erase(std::remove_if(pending->waiters.begin(),pending->waiters.end(),[](const auto& w){auto op=w.operation.lock();return !op||op->impl->canceled;}),pending->waiters.end());
+   if(pending->waiters.isEmpty()){guard->impl->preparing.remove(from);if(pending->operation)pending->operation->cancel();}
+  };
+  if(first)pending->operation=request("_prepare",input,[guard,from](LegacyResponse response){
+   if(!guard)return;
+   auto pending=guard->impl->preparing.take(from);if(!pending)return;
+   auto value=QJsonDocument::fromJson(response.body).object();
+   for(const auto& waiter:pending->waiters){auto op=waiter.operation.lock();if(!op||op->impl->canceled)continue;op->impl->release={};waiter.deliver(response.status==200?value:QJsonObject{},response.status==200?QJsonObject{}:value);}
+  });
+  return op;
+ }
  auto prepared=[weak,guard,from,deliver](QJsonObject instance,QJsonObject err){auto o=weak.lock();if(!o||o->impl->canceled||!guard)return;if(err.isEmpty())guard->impl->cache[from]=instance;deliver(instance,err);};
  auto probed=[weak,guard,action,from,deliver,prepared](const ProbeResult& result){auto o=weak.lock();if(!o||o->impl->canceled||!guard)return;if(action=="thumb"||action=="probe"||!result.ok()){deliver(result.value,result.error);return;}
   auto instance=result.value;auto streams=instance["streams"].toArray();QJsonObject video;for(auto v:streams)if(v.toObject()["codec_type"]=="video"){video=v.toObject();break;}if(video.isEmpty()){deliver({},{{"message","no video stream found"},{"httpCode",415}});return;}double duration=instance["duration"].toDouble();if(!duration){deliver({},{{"message","no video stream duration"},{"httpCode",415}});return;}

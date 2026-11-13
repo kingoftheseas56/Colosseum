@@ -37,6 +37,9 @@ mocks/
 # Retired bespoke universe pages (One Piece, Dragon Ball, Cosmere, etc.) —
 # half-built feature clutter, not 1.0-relevant. No runtime references.
 archive/
+# Native archive protocol implementation is product source, not retired UI.
+!native/colosseum_server_v1/include/server1/archive/
+!native/colosseum_server_v1/src/archive/
 # Local planning/specification scratch and generated mock material.
 docs/superpowers/
 

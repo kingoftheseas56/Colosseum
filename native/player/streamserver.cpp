@@ -15,6 +15,11 @@
 #include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
+#include <stdexcept>
+
+#ifdef COLOSSEUM_ENABLE_SERVER1
+#include "server1/ServerComposition.h"
+#endif
 
 namespace {
 
@@ -46,6 +51,11 @@ StreamServer::StreamServer(QObject *parent)
 
 StreamServer::~StreamServer()
 {
+    unwatchStats();
+#ifdef COLOSSEUM_ENABLE_SERVER1
+    // The composition and its callbacks belong to this Qt application lane.
+    m_embedded.reset();
+#endif
     if (m_proc) {
         // Teardown is not a startup failure. Disconnect lifecycle callbacks before
         // stopping the owned runtime so an intentional exit cannot emit the
@@ -69,6 +79,8 @@ void StreamServer::setEngineUnavailable(bool unavailable)
 
 void StreamServer::markEngineUnavailable(const QString &message)
 {
+    ++m_settingsEpoch;
+    m_tuning = false;
     // Requests queued before a terminal startup failure belong to the failed
     // attempt. Do not replay them later if the installation is repaired.
     m_pending.clear();
@@ -130,6 +142,13 @@ void StreamServer::ensureStarted()
     m_starting = true;
     Q_EMIT startingChanged();
 
+    // Opt-in stays separate from adopt-first: testing our native server must not
+    // accidentally succeed by adopting a Stremio process on the standard port.
+    if (qEnvironmentVariable("COLOSSEUM_SERVER1") == QStringLiteral("1")) {
+        launchEmbedded();
+        return;
+    }
+
     // Adopt-first: when the OFFICIAL Stremio Service is running it already owns
     // :11470 — a child launch just dies on the port clash (the exact silent
     // failure that stalled season downloads, diagnosed 2026-07-05). Probe, and
@@ -141,6 +160,7 @@ void StreamServer::ensureStarted()
         r->deleteLater();
         if (r->error() == QNetworkReply::NoError) {
             m_port = 11470;
+            m_tuning = true;
             setEngineUnavailable(false);
             m_starting = false;
             qInfo("[stream] adopted the running Stremio server on port %d", m_port);
@@ -151,6 +171,44 @@ void StreamServer::ensureStarted()
         }
         launchChild();
     });
+}
+
+void StreamServer::launchEmbedded()
+{
+#ifdef COLOSSEUM_ENABLE_SERVER1
+    try {
+        const auto cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+            + QStringLiteral("/colosseum-server1");
+        if (!QDir().mkpath(cacheDir))
+            throw std::runtime_error("Cannot create the native server cache directory");
+        server1::policy::EngineRegistryConfig config;
+        config.cacheRoot = cacheDir.toStdString();
+        m_embedded = std::make_unique<server1::ServerComposition>(std::move(config));
+        if (!m_embedded->listen(0))
+            throw std::runtime_error(m_embedded->error());
+        m_port = m_embedded->port();
+        m_tuning = true;
+        m_starting = false;
+        setEngineUnavailable(false);
+        qInfo("[stream] native Server 1 listening on port %d", m_port);
+        Q_EMIT readyChanged();
+        Q_EMIT startingChanged();
+        pushTunedSettings();
+        return;
+    } catch (const std::exception &error) {
+        m_embedded.reset();
+        m_port = -1;
+        m_starting = false;
+        Q_EMIT startingChanged();
+        markEngineUnavailable(QStringLiteral("Native streaming server failed: %1")
+            .arg(QString::fromUtf8(error.what())));
+        return;
+    }
+#else
+    m_starting = false;
+    Q_EMIT startingChanged();
+    markEngineUnavailable(QStringLiteral("Native Server 1 is not enabled in this build."));
+#endif
 }
 
 void StreamServer::launchChild()
@@ -216,6 +274,8 @@ void StreamServer::launchChild()
                     return;
                 }
                 m_port = -1;
+                ++m_settingsEpoch;
+                m_tuning = false;
                 m_starting = false;
                 // Reset the handle so a later play() can relaunch the engine. Without this,
                 // m_proc stays non-null after the runtime exits (e.g. a port-11470 clash) and
@@ -240,6 +300,7 @@ void StreamServer::onStdout()
         const auto m = re.match(m_stdoutBuf);
         if (m.hasMatch()) {
             m_port = m.captured(1).toInt();
+            m_tuning = true;
             setEngineUnavailable(false);
             m_starting = false;
             qInfo("[stream] ready on port %d", m_port);
@@ -269,7 +330,7 @@ void StreamServer::play(const QString &infoHash, int fileIdx)
         Q_EMIT streamError(QStringLiteral("This source has no torrent hash to play."));
         return;
     }
-    if (m_port > 0) {
+    if (m_port > 0 && !m_tuning) {
         registerThenReady(infoHash, fileIdx, false);
         return;
     }
@@ -283,7 +344,7 @@ void StreamServer::prefetch(const QString &infoHash, int fileIdx)
         Q_EMIT streamError(QStringLiteral("This source has no torrent hash to fetch."));
         return;
     }
-    if (m_port > 0) {
+    if (m_port > 0 && !m_tuning) {
         registerThenReady(infoHash, fileIdx, true);
         return;
     }
@@ -341,6 +402,9 @@ void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool 
 
 void StreamServer::pushTunedSettings()
 {
+    m_tuning = true;
+    const auto epoch = ++m_settingsEpoch;
+    const auto port = m_port;
     // Swarm tuning (2026-08-02, Hemanth's "maximise the peers"): the runtime's stock caps are
     // sized for a background service — 35 peer connections and a 1.6 / 2.5 MB/s soft/hard
     // download throttle (server.js getDefaults: btMaxConnections, btDownloadSpeed*Limit).
@@ -358,13 +422,16 @@ void StreamServer::pushTunedSettings()
         "\"btDownloadSpeedSoftLimit\":20971520,"
         "\"btDownloadSpeedHardLimit\":41943040}");
     QNetworkReply *r = m_nam->post(req, body);
-    connect(r, &QNetworkReply::finished, this, [this, r]() {
+    connect(r, &QNetworkReply::finished, this, [this, r, epoch, port]() {
         r->deleteLater();
+        if (epoch != m_settingsEpoch || port != m_port)
+            return;
         if (r->error() == QNetworkReply::NoError)
             qInfo("[stream] swarm tuning pushed (200 conns, 20/40 MB/s caps)");
         else
             qWarning("[stream] swarm tuning push failed (streams keep stock caps): %s",
                      qUtf8Printable(r->errorString()));
+        m_tuning = false;
         flushPending();   // tuning is best-effort; playback must never be blocked by it
     });
 }

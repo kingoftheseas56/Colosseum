@@ -658,8 +658,20 @@ struct EngineRegistry::Impl final : std::enable_shared_from_this<EngineRegistry:
 
         // M172: util._extend(getDefaults(hash), options); path fallback; emit
         // engine-create; then options.id = spoofedPeerId().
-        Value options = shallowExtend(defaultsFor(key), pending.request.options);
-        const std::string path = effectivePath(options, config.cacheRoot, key);
+        Value options;
+        std::string path;
+        try {
+            options = shallowExtend(config.defaultsProvider ? config.defaultsProvider(key) : defaultsFor(key), pending.request.options);
+            const auto *explicitPath = options.find("path");
+            path = config.cachePathProvider && (!explicitPath || !jsTruthy(*explicitPath))
+                ? config.cachePathProvider(key).string() : effectivePath(options, config.cacheRoot, key);
+        } catch (const std::exception &error) {
+            decideAndDeliver(pending.completion, EngineCreateOutcome::SourceError, {}, error.what());
+            return;
+        } catch (...) {
+            decideAndDeliver(pending.completion, EngineCreateOutcome::SourceError, {}, "engine application policy failed");
+            return;
+        }
         options = shallowExtend(options, Value::object({{"path", Value::string(path)}}));
         const Value emitted = options;
         options = shallowExtend(options, Value::object({
@@ -944,6 +956,14 @@ EngineRequestToken EngineRegistry::create(EngineCreateRequest request,
     }
     if (scheduleAfterReturn) schedule();
     return token;
+}
+
+bool EngineRegistry::setSwarmPaused(const std::string &sourceKey, bool paused)
+{
+    auto engine = get(sourceKey);
+    if (!engine || engine->closed()) return false;
+    engine->setSwarmPaused(paused);
+    return true;
 }
 
 std::shared_ptr<TorrentEngine> EngineRegistry::get(const std::string &sourceKey) const

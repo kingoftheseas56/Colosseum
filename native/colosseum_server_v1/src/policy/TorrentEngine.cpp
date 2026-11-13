@@ -1840,6 +1840,11 @@ bool TorrentEngine::discoverPeer(std::size_t sourceIndex, std::string address)
     return true;
 }
 
+void TorrentEngine::setSwarmPaused(bool paused)
+{
+    impl_->setSwarmPaused(paused);
+}
+
 void TorrentEngine::resume(Value options)
 {
     impl_->resume(std::move(options));

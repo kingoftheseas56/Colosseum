@@ -1,0 +1,760 @@
+[
+  {
+    "name": "heartbeat",
+    "path": "/heartbeat",
+    "method": "GET",
+    "body": "",
+    "headers": {},
+    "webUI": "https://app.strem.io/shell-v4.4/",
+    "drives": [],
+    "networkError": false,
+    "formPost": false,
+    "extension": {},
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": "{\"success\":true}"
+    }
+  },
+  {
+    "name": "network",
+    "path": "/network-info",
+    "method": "GET",
+    "body": "",
+    "headers": {},
+    "webUI": "https://app.strem.io/shell-v4.4/",
+    "drives": [],
+    "networkError": false,
+    "formPost": false,
+    "extension": {},
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "cache-control": "no-store"
+      },
+      "body": "{\"availableInterfaces\":[\"192.0.2.8\",\"10.0.0.4\"]}"
+    }
+  },
+  {
+    "name": "settings-linux",
+    "path": "/settings",
+    "method": "GET",
+    "body": "",
+    "headers": {},
+    "webUI": "https://app.strem.io/shell-v4.4/",
+    "drives": [],
+    "networkError": false,
+    "formPost": false,
+    "extension": {},
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "cache-control": "no-store"
+      },
+      "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"},{\"name\":\"192.0.2.8\",\"val\":\"192.0.2.8\"},{\"name\":\"10.0.0.4\",\"val\":\"10.0.0.4\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"∞\",\"val\":null}]}],\"values\":{},\"baseUrl\":\"http://192.0.2.8:11470\"}"
+    }
+  },
+  {
+    "name": "settings-windows",
+    "path": "/settings",
+    "method": "GET",
+    "body": "",
+    "headers": {},
+    "webUI": "https://app.strem.io/shell-v4.4/",
+    "drives": [
+      "C:\\",
+      "E:\\"
+    ],
+    "networkError": false,
+    "formPost": false,
+    "extension": {},
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "cache-control": "no-store"
+      },
+      "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"},{\"name\":\"192.0.2.8\",\"val\":\"192.0.2.8\"},{\"name\":\"10.0.0.4\",\"val\":\"10.0.0.4\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"∞\",\"val\":null}]},{\"id\":\"cacheRoot\",\"label\":\"SETTINGS_CACHING_DRIVE\",\"type\":\"select\",\"class\":\"caching\",\"selections\":[{\"val\":\"C:\\\\\",\"name\":\"C:\"},{\"val\":\"E:\\\\\",\"name\":\"E:\"}]}],\"values\":{},\"baseUrl\":\"http://192.0.2.8:11470\"}"
+    }
+  },
+  {
+    "name": "settings-post",
+    "path": "/settings",
+    "method": "POST",
+    "body": "{\"btMaxConnections\":79,\"cacheSize\":0}",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "webUI": "https://app.strem.io/shell-v4.4/",
+    "drives": [],
+    "networkError": false,
+    "formPost": false,
+    "extension": {
+      "btMaxConnections": 79,
+      "cacheSize": 0
+    },
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "cache-control": "no-store"
+      },
+      "body": "{\"success\":true}"
+    }
+  },
+  {
+    "name": "redirect",
+    "path": "/",
+    "method": "GET",
+    "body": "",
+    "headers": {
+      "host": "localhost:11470"
+    },
+    "webUI": "https://app.strem.io/shell-v4.4/",
+    "drives": [],
+    "networkError": false,
+    "formPost": false,
+    "extension": {},
+    "expected": {
+      "status": 307,
+      "headers": {
+        "location": "https://app.strem.io/shell-v4.4/?streamingServer=http%3A%2F%2Flocalhost%3A11470"
+      },
+      "body": ""
+    }
+  },
+  {
+    "name": "redirect-query",
+    "path": "/",
+    "method": "GET",
+    "body": "",
+    "headers": {
+      "host": "[::1]:11470"
+    },
+    "webUI": "https://example.test/ui?x=1",
+    "drives": [],
+    "networkError": false,
+    "formPost": false,
+    "extension": {},
+    "expected": {
+      "status": 307,
+      "headers": {
+        "location": "https://example.test/ui?x=1&streamingServer=http%3A%2F%2F%5B%3A%3A1%5D%3A11470"
+      },
+      "body": ""
+    }
+  },
+  {
+    "name": "redirect-encodeURIComponent",
+    "path": "/",
+    "method": "GET",
+    "body": "",
+    "headers": {
+      "host": "foo!'()*:11470"
+    },
+    "webUI": "https://app.strem.io/shell-v4.4/",
+    "drives": [],
+    "networkError": false,
+    "formPost": false,
+    "extension": {},
+    "expected": {
+      "status": 307,
+      "headers": {
+        "location": "https://app.strem.io/shell-v4.4/?streamingServer=http%3A%2F%2Ffoo!'()*%3A11470"
+      },
+      "body": ""
+    }
+  },
+  {
+    "name": "redirect-no-host",
+    "path": "/",
+    "method": "GET",
+    "body": "",
+    "headers": {},
+    "webUI": "https://app.strem.io/shell-v4.4/",
+    "drives": [],
+    "networkError": false,
+    "formPost": false,
+    "extension": {},
+    "expected": {
+      "status": 500,
+      "headers": {
+        "content-type": "text/plain"
+      },
+      "body": "No host header"
+    }
+  },
+  {
+    "name": "configured",
+    "action": "defaults",
+    "settings": {
+      "btMaxConnections": 55,
+      "btHandshakeTimeout": 9000,
+      "btRequestTimeout": 3000,
+      "btDownloadSpeedSoftLimit": 2000000,
+      "btDownloadSpeedHardLimit": 3000000,
+      "btMinPeersForStable": 7,
+      "cacheSize": 2147483648
+    },
+    "noCache": false,
+    "expected": {
+      "peerSearch": {
+        "min": 40,
+        "max": 150,
+        "sources": [
+          "tracker:udp://zer0day.ch:1337/announce",
+          "tracker:udp://tracker.publictracker.xyz:6969/announce",
+          "tracker:udp://tracker.opentrackr.org:1337/announce",
+          "tracker:udp://open.demonii.com:1337/announce",
+          "tracker:udp://open.stealth.si:80/announce",
+          "tracker:udp://tracker2.dler.org:80/announce",
+          "tracker:udp://tracker.torrent.eu.org:451/announce",
+          "tracker:udp://tracker.qu.ax:6969/announce",
+          "tracker:udp://tracker.dler.org:6969/announce",
+          "tracker:udp://tracker.auctor.tv:6969/announce",
+          "tracker:udp://tracker-udp.gbitt.info:80/announce",
+          "tracker:udp://torrentclub.online:54123/announce",
+          "tracker:udp://torrentclub.online:1984/announce",
+          "tracker:udp://t.overflow.biz:6969/announce",
+          "tracker:udp://retracker01-msk-virt.corbina.net:80/announce",
+          "tracker:udp://ipv4announce.sktorrent.eu:6969/announce",
+          "tracker:udp://explodie.org:6969/announce",
+          "tracker:udp://exodus.desync.com:6969/announce",
+          "tracker:udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce",
+          "tracker:https://tracker.zhuqiy.com:443/announce",
+          "dht:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "connections": 55,
+      "handshakeTimeout": 9000,
+      "timeout": 3000,
+      "virtual": true,
+      "swarmCap": {
+        "minPeers": 7,
+        "maxSpeed": 2000000
+      },
+      "growler": {
+        "flood": 0,
+        "pulse": 3000000
+      }
+    }
+  },
+  {
+    "name": "disabled-cache",
+    "action": "defaults",
+    "settings": {
+      "btMaxConnections": 55,
+      "btHandshakeTimeout": 9000,
+      "btRequestTimeout": 3000,
+      "btDownloadSpeedSoftLimit": 2000000,
+      "btDownloadSpeedHardLimit": 3000000,
+      "btMinPeersForStable": 7,
+      "cacheSize": 0
+    },
+    "noCache": false,
+    "expected": {
+      "peerSearch": {
+        "min": 40,
+        "max": 150,
+        "sources": [
+          "tracker:udp://zer0day.ch:1337/announce",
+          "tracker:udp://tracker.publictracker.xyz:6969/announce",
+          "tracker:udp://tracker.opentrackr.org:1337/announce",
+          "tracker:udp://open.demonii.com:1337/announce",
+          "tracker:udp://open.stealth.si:80/announce",
+          "tracker:udp://tracker2.dler.org:80/announce",
+          "tracker:udp://tracker.torrent.eu.org:451/announce",
+          "tracker:udp://tracker.qu.ax:6969/announce",
+          "tracker:udp://tracker.dler.org:6969/announce",
+          "tracker:udp://tracker.auctor.tv:6969/announce",
+          "tracker:udp://tracker-udp.gbitt.info:80/announce",
+          "tracker:udp://torrentclub.online:54123/announce",
+          "tracker:udp://torrentclub.online:1984/announce",
+          "tracker:udp://t.overflow.biz:6969/announce",
+          "tracker:udp://retracker01-msk-virt.corbina.net:80/announce",
+          "tracker:udp://ipv4announce.sktorrent.eu:6969/announce",
+          "tracker:udp://explodie.org:6969/announce",
+          "tracker:udp://exodus.desync.com:6969/announce",
+          "tracker:udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce",
+          "tracker:https://tracker.zhuqiy.com:443/announce",
+          "dht:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "connections": 55,
+      "handshakeTimeout": 9000,
+      "timeout": 3000,
+      "virtual": true,
+      "swarmCap": {
+        "minPeers": 7,
+        "maxBuffer": 0.75
+      },
+      "growler": {
+        "flood": 0,
+        "pulse": 3000000
+      },
+      "buffer": 15728640,
+      "circularBuffer": {
+        "type": "memory",
+        "size": 47185920
+      }
+    }
+  },
+  {
+    "name": "string-zero",
+    "action": "defaults",
+    "settings": {
+      "btMaxConnections": 55,
+      "btHandshakeTimeout": 9000,
+      "btRequestTimeout": 3000,
+      "btDownloadSpeedSoftLimit": 2000000,
+      "btDownloadSpeedHardLimit": 3000000,
+      "btMinPeersForStable": 7,
+      "cacheSize": "0"
+    },
+    "noCache": false,
+    "expected": {
+      "peerSearch": {
+        "min": 40,
+        "max": 150,
+        "sources": [
+          "tracker:udp://zer0day.ch:1337/announce",
+          "tracker:udp://tracker.publictracker.xyz:6969/announce",
+          "tracker:udp://tracker.opentrackr.org:1337/announce",
+          "tracker:udp://open.demonii.com:1337/announce",
+          "tracker:udp://open.stealth.si:80/announce",
+          "tracker:udp://tracker2.dler.org:80/announce",
+          "tracker:udp://tracker.torrent.eu.org:451/announce",
+          "tracker:udp://tracker.qu.ax:6969/announce",
+          "tracker:udp://tracker.dler.org:6969/announce",
+          "tracker:udp://tracker.auctor.tv:6969/announce",
+          "tracker:udp://tracker-udp.gbitt.info:80/announce",
+          "tracker:udp://torrentclub.online:54123/announce",
+          "tracker:udp://torrentclub.online:1984/announce",
+          "tracker:udp://t.overflow.biz:6969/announce",
+          "tracker:udp://retracker01-msk-virt.corbina.net:80/announce",
+          "tracker:udp://ipv4announce.sktorrent.eu:6969/announce",
+          "tracker:udp://explodie.org:6969/announce",
+          "tracker:udp://exodus.desync.com:6969/announce",
+          "tracker:udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce",
+          "tracker:https://tracker.zhuqiy.com:443/announce",
+          "dht:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "connections": 55,
+      "handshakeTimeout": 9000,
+      "timeout": 3000,
+      "virtual": true,
+      "swarmCap": {
+        "minPeers": 7,
+        "maxBuffer": 0.75
+      },
+      "growler": {
+        "flood": 0,
+        "pulse": 3000000
+      },
+      "buffer": 15728640,
+      "circularBuffer": {
+        "type": "memory",
+        "size": 47185920
+      }
+    }
+  },
+  {
+    "name": "null-cache",
+    "action": "defaults",
+    "settings": {
+      "btMaxConnections": 55,
+      "btHandshakeTimeout": 9000,
+      "btRequestTimeout": 3000,
+      "btDownloadSpeedSoftLimit": 2000000,
+      "btDownloadSpeedHardLimit": 3000000,
+      "btMinPeersForStable": 7,
+      "cacheSize": null
+    },
+    "noCache": false,
+    "expected": {
+      "peerSearch": {
+        "min": 40,
+        "max": 150,
+        "sources": [
+          "tracker:udp://zer0day.ch:1337/announce",
+          "tracker:udp://tracker.publictracker.xyz:6969/announce",
+          "tracker:udp://tracker.opentrackr.org:1337/announce",
+          "tracker:udp://open.demonii.com:1337/announce",
+          "tracker:udp://open.stealth.si:80/announce",
+          "tracker:udp://tracker2.dler.org:80/announce",
+          "tracker:udp://tracker.torrent.eu.org:451/announce",
+          "tracker:udp://tracker.qu.ax:6969/announce",
+          "tracker:udp://tracker.dler.org:6969/announce",
+          "tracker:udp://tracker.auctor.tv:6969/announce",
+          "tracker:udp://tracker-udp.gbitt.info:80/announce",
+          "tracker:udp://torrentclub.online:54123/announce",
+          "tracker:udp://torrentclub.online:1984/announce",
+          "tracker:udp://t.overflow.biz:6969/announce",
+          "tracker:udp://retracker01-msk-virt.corbina.net:80/announce",
+          "tracker:udp://ipv4announce.sktorrent.eu:6969/announce",
+          "tracker:udp://explodie.org:6969/announce",
+          "tracker:udp://exodus.desync.com:6969/announce",
+          "tracker:udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce",
+          "tracker:https://tracker.zhuqiy.com:443/announce",
+          "dht:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "connections": 55,
+      "handshakeTimeout": 9000,
+      "timeout": 3000,
+      "virtual": true,
+      "swarmCap": {
+        "minPeers": 7,
+        "maxSpeed": 2000000
+      },
+      "growler": {
+        "flood": 0,
+        "pulse": 3000000
+      }
+    }
+  },
+  {
+    "name": "invalid-numbers",
+    "action": "defaults",
+    "settings": {
+      "btMaxConnections": -1,
+      "btHandshakeTimeout": 0,
+      "btRequestTimeout": "400",
+      "btDownloadSpeedSoftLimit": 1.5,
+      "btDownloadSpeedHardLimit": null,
+      "btMinPeersForStable": false,
+      "cacheSize": 2147483648
+    },
+    "noCache": false,
+    "expected": {
+      "peerSearch": {
+        "min": 40,
+        "max": 150,
+        "sources": [
+          "tracker:udp://zer0day.ch:1337/announce",
+          "tracker:udp://tracker.publictracker.xyz:6969/announce",
+          "tracker:udp://tracker.opentrackr.org:1337/announce",
+          "tracker:udp://open.demonii.com:1337/announce",
+          "tracker:udp://open.stealth.si:80/announce",
+          "tracker:udp://tracker2.dler.org:80/announce",
+          "tracker:udp://tracker.torrent.eu.org:451/announce",
+          "tracker:udp://tracker.qu.ax:6969/announce",
+          "tracker:udp://tracker.dler.org:6969/announce",
+          "tracker:udp://tracker.auctor.tv:6969/announce",
+          "tracker:udp://tracker-udp.gbitt.info:80/announce",
+          "tracker:udp://torrentclub.online:54123/announce",
+          "tracker:udp://torrentclub.online:1984/announce",
+          "tracker:udp://t.overflow.biz:6969/announce",
+          "tracker:udp://retracker01-msk-virt.corbina.net:80/announce",
+          "tracker:udp://ipv4announce.sktorrent.eu:6969/announce",
+          "tracker:udp://explodie.org:6969/announce",
+          "tracker:udp://exodus.desync.com:6969/announce",
+          "tracker:udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce",
+          "tracker:https://tracker.zhuqiy.com:443/announce",
+          "dht:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "connections": 35,
+      "handshakeTimeout": 20000,
+      "timeout": 4000,
+      "virtual": true,
+      "swarmCap": {
+        "minPeers": 5,
+        "maxSpeed": 1677721.6
+      },
+      "growler": {
+        "flood": 0,
+        "pulse": 2621440
+      }
+    }
+  },
+  {
+    "name": "command-no-cache",
+    "action": "defaults",
+    "settings": {
+      "btMaxConnections": 55,
+      "btHandshakeTimeout": 9000,
+      "btRequestTimeout": 3000,
+      "btDownloadSpeedSoftLimit": 2000000,
+      "btDownloadSpeedHardLimit": 3000000,
+      "btMinPeersForStable": 7,
+      "cacheSize": 2147483648
+    },
+    "noCache": true,
+    "expected": {
+      "peerSearch": {
+        "min": 40,
+        "max": 150,
+        "sources": [
+          "tracker:udp://zer0day.ch:1337/announce",
+          "tracker:udp://tracker.publictracker.xyz:6969/announce",
+          "tracker:udp://tracker.opentrackr.org:1337/announce",
+          "tracker:udp://open.demonii.com:1337/announce",
+          "tracker:udp://open.stealth.si:80/announce",
+          "tracker:udp://tracker2.dler.org:80/announce",
+          "tracker:udp://tracker.torrent.eu.org:451/announce",
+          "tracker:udp://tracker.qu.ax:6969/announce",
+          "tracker:udp://tracker.dler.org:6969/announce",
+          "tracker:udp://tracker.auctor.tv:6969/announce",
+          "tracker:udp://tracker-udp.gbitt.info:80/announce",
+          "tracker:udp://torrentclub.online:54123/announce",
+          "tracker:udp://torrentclub.online:1984/announce",
+          "tracker:udp://t.overflow.biz:6969/announce",
+          "tracker:udp://retracker01-msk-virt.corbina.net:80/announce",
+          "tracker:udp://ipv4announce.sktorrent.eu:6969/announce",
+          "tracker:udp://explodie.org:6969/announce",
+          "tracker:udp://exodus.desync.com:6969/announce",
+          "tracker:udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce",
+          "tracker:https://tracker.zhuqiy.com:443/announce",
+          "dht:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      },
+      "dht": false,
+      "tracker": false,
+      "connections": 55,
+      "handshakeTimeout": 9000,
+      "timeout": 3000,
+      "virtual": true,
+      "swarmCap": {
+        "minPeers": 7,
+        "maxBuffer": 0.75
+      },
+      "growler": {
+        "flood": 0,
+        "pulse": 3000000
+      },
+      "buffer": 15728640,
+      "circularBuffer": {
+        "type": "memory",
+        "size": 47185920
+      }
+    }
+  },
+  {
+    "name": "form cacheSize=0&btMaxConnections=79",
+    "action": "form",
+    "body": "cacheSize=0&btMaxConnections=79",
+    "expected": {
+      "cacheSize": "0",
+      "btMaxConnections": "79"
+    }
+  },
+  {
+    "name": "form profile[video][codec]=h264&profile[video][width]=1920&tags[]=one&tags[]=two",
+    "action": "form",
+    "body": "profile[video][codec]=h264&profile[video][width]=1920&tags[]=one&tags[]=two",
+    "expected": {
+      "profile": {
+        "video": {
+          "codec": "h264",
+          "width": "1920"
+        }
+      },
+      "tags": [
+        "one",
+        "two"
+      ]
+    }
+  },
+  {
+    "name": "form items[2]=two&items[0]=zero&items[100]=hundred&items[101]=object",
+    "action": "form",
+    "body": "items[2]=two&items[0]=zero&items[100]=hundred&items[101]=object",
+    "expected": {
+      "items": {
+        "0": "zero",
+        "2": "two",
+        "100": "hundred",
+        "101": "object"
+      }
+    }
+  },
+  {
+    "name": "form x[0][a]=one&x[0][b]=two&x[1][a]=three",
+    "action": "form",
+    "body": "x[0][a]=one&x[0][b]=two&x[1][a]=three",
+    "expected": {
+      "x": [
+        {
+          "a": "one",
+          "b": "two"
+        },
+        {
+          "a": "three"
+        }
+      ]
+    }
+  },
+  {
+    "name": "form x[a]=one&x=two",
+    "action": "form",
+    "body": "x[a]=one&x=two",
+    "expected": {
+      "x": {
+        "a": "one",
+        "two": true
+      }
+    }
+  },
+  {
+    "name": "form x=one&x[a]=two",
+    "action": "form",
+    "body": "x=one&x[a]=two",
+    "expected": {
+      "x": [
+        "one",
+        {
+          "a": "two"
+        }
+      ]
+    }
+  },
+  {
+    "name": "form x[]=one&x[a]=two",
+    "action": "form",
+    "body": "x[]=one&x[a]=two",
+    "expected": {
+      "x": {
+        "0": "one",
+        "a": "two"
+      }
+    }
+  },
+  {
+    "name": "form x=one&x=two&x[]=three",
+    "action": "form",
+    "body": "x=one&x=two&x[]=three",
+    "expected": {
+      "x": [
+        "one",
+        "two",
+        "three"
+      ]
+    }
+  },
+  {
+    "name": "form a.b=c&empty&x[]=",
+    "action": "form",
+    "body": "a.b=c&empty&x[]=",
+    "expected": {
+      "a.b": "c",
+      "empty": "",
+      "x": [
+        ""
+      ]
+    }
+  },
+  {
+    "name": "form encoded%5Bname%5D=hello+world&encoded%5Buri%5D=a%26b%3Dc",
+    "action": "form",
+    "body": "encoded%5Bname%5D=hello+world&encoded%5Buri%5D=a%26b%3Dc",
+    "expected": {
+      "encoded": {
+        "name": "hello world",
+        "uri": "a&b=c"
+      }
+    }
+  },
+  {
+    "name": "form x[01]=leading&x[-1]=negative&x[1]=indexed",
+    "action": "form",
+    "body": "x[01]=leading&x[-1]=negative&x[1]=indexed",
+    "expected": {
+      "x": {
+        "1": "indexed",
+        "01": "leading",
+        "-1": "negative"
+      }
+    }
+  },
+  {
+    "name": "form x[abc]suffix=one&x[abc]=two",
+    "action": "form",
+    "body": "x[abc]suffix=one&x[abc]=two",
+    "expected": {
+      "x": {
+        "abc": [
+          "one",
+          "two"
+        ]
+      }
+    }
+  },
+  {
+    "name": "form __proto__[polluted]=true&safe=ok",
+    "action": "form",
+    "body": "__proto__[polluted]=true&safe=ok",
+    "expected": {
+      "safe": "ok"
+    }
+  },
+  {
+    "name": "settings-nested-form",
+    "path": "/settings",
+    "method": "POST",
+    "body": "btMaxConnections=79&profile[video][codec]=h264&tags[]=one&tags[]=two",
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    "webUI": "https://app.strem.io/shell-v4.4/",
+    "drives": [],
+    "networkError": false,
+    "formPost": true,
+    "extension": {
+      "btMaxConnections": "79",
+      "profile": {
+        "video": {
+          "codec": "h264"
+        }
+      },
+      "tags": [
+        "one",
+        "two"
+      ]
+    },
+    "expected": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json",
+        "cache-control": "no-store"
+      },
+      "body": "{\"success\":true}"
+    }
+  },
+  {
+    "name": "network-error",
+    "path": "/network-info",
+    "method": "GET",
+    "body": "",
+    "headers": {},
+    "webUI": "https://app.strem.io/shell-v4.4/",
+    "drives": [],
+    "networkError": true,
+    "formPost": false,
+    "extension": {},
+    "expected": {
+      "status": 500,
+      "headers": {
+        "content-type": "text/plain",
+        "content-length": "24",
+        "cache-control": "no-store"
+      },
+      "body": "controlled network error"
+    }
+  }
+]

@@ -12,7 +12,7 @@ QString sourceUrl(const QJsonValue &v){return v.isObject()?v.toObject()["url"].t
 }
 SourceDescriptor describeSource(SourceFamily f,const QJsonValue &value,const QList<qint64>&prior,bool last){
  SourceDescriptor d;d.url=sourceUrl(value); if(d.url.isEmpty()){d.error="Invalid source URL";return d;}
- if(value.isObject()&&truthy(value.toObject()["bytes"])) {bool ok=false;auto b=value.toObject()["bytes"];qint64 n=b.isString()?b.toString().toLongLong(&ok):b.toInteger(-1);if(!b.isString())ok=n>=0;if(ok)d.length=n;else d.error="Invalid source length";}
+ if(value.isObject()&&truthy(value.toObject()["bytes"])) {bool ok=false;const QJsonValue b=value.toObject()["bytes"];qint64 n=b.isString()?b.toString().toLongLong(&ok):b.toInteger(-1);if(!b.isString())ok=n>=0;if(ok)d.length=n;else d.error="Invalid source length";}
  QString tail=d.url.section('/',-1);if(tail.contains('.')){for(int p=0;(p=tail.indexOf('%',p))>=0;p+=3)if(p+2>=tail.size()||!QRegularExpression("^[0-9a-fA-F]{2}$").match(tail.mid(p+1,2)).hasMatch()){d.error="URI malformed";return d;}d.name=QUrl::fromPercentEncoding(tail.toUtf8()).section('?',0,0);}else{QString ext=f==SourceFamily::SevenZip?"7z":f==SourceFamily::Gzip?"gz":familyName(f);d.name="archive."+ext;}
  if(!d.length&&prior.size()>1&&prior[0]==prior[1]){bool infer=false;switch(f){case SourceFamily::Rar:break;case SourceFamily::SevenZip:infer=!last;break;case SourceFamily::Zip:infer=!d.name.endsWith(".zip",Qt::CaseInsensitive);break;case SourceFamily::Tar:infer=!d.name.endsWith(".tar",Qt::CaseInsensitive);break;case SourceFamily::Gzip:infer=!QRegularExpression("\\.t?gz$",QRegularExpression::CaseInsensitiveOption).match(d.name).hasMatch();break;}if(infer)d.length=prior[0];}return d;
 }

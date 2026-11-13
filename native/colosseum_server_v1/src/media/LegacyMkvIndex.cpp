@@ -67,46 +67,51 @@ double value(const Element& element)
 {
     return element.id ? double(be(element.data, 0, element.data.size())) : std::numeric_limits<double>::quiet_NaN();
 }
-constexpr quint64 Info = 0x1549a966, Tracks = 0x1654ae6b, Cues = 0x1c53bb6b;
-bool target(quint64 id) { return id == Info || id == Tracks || id == Cues; }
+constexpr quint64 Tracks = 0x1654ae6b, Cues = 0x1c53bb6b;
+bool target(quint64 id) { return id == Tracks || id == Cues; }
 SamplesResult decodeSelected(const QVector<Element>& selected, const QVector<int>& indexes)
 {
+    Q_UNUSED(indexes);
     SamplesResult result;
     try {
-        const auto info = find(selected, Info), tracks = find(selected, Tracks), cues = find(selected, Cues);
-        if (!info.id) throw std::runtime_error("Info element missing");
-        if (!tracks.id) throw std::runtime_error("Tracks element missing");
-        const double scale = value(find(parseChildren(info.data), 0x2ad7b1));
-        if (cues.id && cues.data.isEmpty()) throw std::runtime_error("Cannot read properties of undefined (reading 'filter')");
-        const auto points = parseChildren(cues.data);
-        int index = -1;
+        const auto tracks = find(selected, Tracks), cues = find(selected, Cues);
+        if (!tracks.id) throw std::runtime_error("Cannot read properties of undefined (reading 'children')");
+        int index = -1, videoIndex = -1;
+        double videoNumber = -1;
         for (const auto& track : parseChildren(tracks.data)) {
             if (track.id != 0xae) continue;
             ++index;
             const auto fields = parseChildren(track.data);
-            const double number = value(find(fields, 0xd7)), type = value(find(fields, 0x83));
-            if ((type != 1 && type != 2) || (!indexes.isEmpty() && !indexes.contains(index))) continue;
-            const auto defaultDuration = find(fields, 0x23e383);
-            QVector<double> times;
-            for (const auto& point : points) {
-                if (point.id != 0xbb) continue;
-                const auto values = parseChildren(point.data);
-                const auto trackPositions = find(values, 0xb7);
-                if (!trackPositions.id) throw std::runtime_error("Cannot read properties of undefined (reading 'children')");
-                const auto cueTrack = find(parseChildren(trackPositions.data), 0xf7);
-                if (!cueTrack.id) throw std::runtime_error("Cannot read properties of undefined (reading 'getUInt')");
-                if (value(cueTrack) == number) {
-                    const auto time = find(values, 0xb3);
-                    if (!time.id) throw std::runtime_error("Cannot read properties of undefined (reading 'getUInt')");
-                    times.append(value(time));
-                }
-            }
-            // Legacy module 678 preserves CuePoint order; unlike v2, do not sort.
-            QJsonArray samples;
-            for (double time : times) samples.append(QJsonObject{{"key", true}, {"pts", time}});
-            result.tracks[QString::number(index)] = QJsonObject{{"type", type == 1 ? "video" : "audio"},
-                {"timescale", scale / 1000}, {"sampleDuration", defaultDuration.id ? QJsonValue(value(defaultDuration) / scale) : QJsonValue()}, {"samples", samples}};
+            const auto number = find(fields, 0xd7), type = find(fields, 0x83);
+            if (!number.id || !type.id) throw std::runtime_error("Cannot read properties of undefined (reading 'getUInt')");
+            if (value(type) == 1) { videoIndex = index; videoNumber = value(number); }
         }
+        if (videoNumber == -1) throw std::runtime_error("no video tracks found");
+        const auto points = parseChildren(cues.data);
+        if (!cues.id || points.isEmpty()) throw std::runtime_error("no cues found in doc -> Segment -> Cues");
+        bool hasCuePoint = false;
+        QJsonArray samples;
+        for (const auto& point : points) {
+            if (point.id != 0xbb) continue;
+            hasCuePoint = true;
+            const auto fields = parseChildren(point.data);
+            // Module 678 intentionally reads these children by position rather
+            // than by ID and only considers the first CueTrackPositions entry.
+            if (fields.size() < 2) throw std::runtime_error("Cannot read properties of undefined (reading 'children')");
+            const auto positions = parseChildren(fields[1].data);
+            if (positions.isEmpty()) throw std::runtime_error("Cannot read properties of undefined (reading 'getUInt')");
+            if (value(positions.first()) == videoNumber) {
+                const auto time = value(fields.first());
+                samples.append(QJsonObject{{"key", true}, {"pts", time}, {"dts", time}});
+            }
+        }
+        if (!hasCuePoint) throw std::runtime_error("no CuePoints");
+        // Legacy module 678 selects the last video in document order, ignores
+        // Info/TimecodeScale, and preserves raw CuePoint timestamps and order.
+        // Return only that track so QJsonObject's lexical ordering ("10" before
+        // "9") cannot change the legacy service's selected video.
+        result.tracks[QString::number(videoIndex)] = QJsonObject{{"type", "video"},
+            {"timescale", 1000}, {"samples", samples}};
         result.available = true;
     } catch (const std::exception& e) { result.error = QString::fromUtf8(e.what()); result.tracks = {}; }
     return result;

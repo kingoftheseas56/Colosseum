@@ -10,9 +10,16 @@ struct ServerMediaConfig final {
     std::string ffprobe;
     bool hlsV2Enabled=true;
 };
+struct ServerRuntimeConfig final {
+    std::string appPath;
+    std::string settingsPathOverride;
+    std::string webUiLocation;
+    std::string ipcDownloadKey;
+};
 class ServerComposition final {
 public:
-    explicit ServerComposition(policy::EngineRegistryConfig config = {}, ServerMediaConfig mediaConfig = {});
+    explicit ServerComposition(policy::EngineRegistryConfig config = {},
+        ServerMediaConfig mediaConfig = {}, ServerRuntimeConfig runtimeConfig = {});
     ~ServerComposition();
     ServerComposition(const ServerComposition &) = delete;
     ServerComposition &operator=(const ServerComposition &) = delete;

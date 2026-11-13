@@ -12,6 +12,10 @@ option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
     OFF)
 
+option(COLOSSEUM_ENABLE_SERVER1
+    "Build the opt-in native Server 1 streaming path (COLOSSEUM_SERVER1=1 at runtime)"
+    OFF)
+
 # Empty by default: the public source carries no invented production endpoint.
 # AccountServiceEndpoint reads the environment variable first and only falls
 # back to this define, so a dev/test run can still point a baked release build
@@ -622,6 +626,12 @@ qt_add_resources(colosseum "tankoyomi_resources"
     PREFIX "/"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
     FILES ${TANKOYOMI_RESOURCE_FILES})
+if(COLOSSEUM_ENABLE_SERVER1)
+    add_subdirectory(colosseum_server_v1)
+    target_compile_definitions(colosseum PRIVATE COLOSSEUM_ENABLE_SERVER1=1)
+    target_link_libraries(colosseum PRIVATE colosseum_server_v1)
+endif()
+
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent
     ${Libmpv_INCLUDE_DIRS})   # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API (Slice 8)
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")

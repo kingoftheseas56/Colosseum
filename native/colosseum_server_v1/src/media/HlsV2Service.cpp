@@ -557,6 +557,13 @@ void HlsV2Service::setClock(std::function<qint64()> c) {
 void HlsV2Service::setTranscodeSettings(QJsonObject s, int c) {
   impl_->settings = s;
   impl_->cpu = c;
+  // M865 reads the shared M106 settings when constructing a new track. Keep
+  // existing source converters current, but never mutate an already-created
+  // TrackConverter or its running process configuration.
+  for (auto &entry : impl_->entries) {
+    entry.converter->impl_->settings = s;
+    entry.converter->impl_->cpu = c;
+  }
 }
 void HlsV2Service::status(std::function<void(QJsonObject, QString)> cb) {
   struct State {

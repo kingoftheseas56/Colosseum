@@ -19,6 +19,8 @@ public:
  ZipSource(qint64 length, Read read, Cancel cancel, QObject *parent=nullptr);
  ~ZipSource() override;
  void open(Completion completion);
+ // Configure physical volumes before open for disk-relative ZIP directory offsets.
+ void setVolumeLengths(const QList<qint64>& lengths);
  void localEntry(ZipEntry entry,std::function<void(ZipEntry,QString)> completion);
  void cancel();
 private:

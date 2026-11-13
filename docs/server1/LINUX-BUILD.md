@@ -57,4 +57,26 @@ failure. The explicit SERVER1_TEST_FIXED_INTERFACE=1 test profile disables only
 libtorrent's optional OS IP-change notifier. It does not change host security or
 production defaults. Real wire tests passed in that bounded fixed-interface profile;
 network-interface-change behavior is not thereby qualified.
-The host remains a skeleton until the K12/H01/H02 composition is implemented.
+The current host composes torrent HTTP, media, settings, downloader and archive
+services. Passing these components does not establish all of server.js parity.
+
+## Opt-in full application
+
+Build the ordinary native application using its documented Qt/mpv dependencies,
+adding `-DCOLOSSEUM_ENABLE_SERVER1=ON` to the CMake configuration. Then launch
+with `COLOSSEUM_SERVER1=1`. This explicitly selects the in-process native server
+on an ephemeral loopback port rather than adopting or launching Stremio Service.
+Without both switches, the existing streaming path remains the default.
+
+The integrated application can be checked with a disposable profile:
+
+```sh
+python3 tools/server_lab/probes/native_app_smoke.py \
+  --candidate "$APP_BUILD/colosseum" --source "$PWD" \
+  --work "$TEST_OUTPUT" --offscreen
+```
+
+Provide the same Qt/mpv library environment used to run the application normally.
+The Linux smoke test verifies actual startup, HTTP heartbeat, persisted tuning,
+repository-fixture HLS output, and FFmpeg decode. It does not prove public-peer
+connectivity, UI interaction, platform packaging, or hardware acceleration.

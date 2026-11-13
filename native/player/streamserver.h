@@ -1,8 +1,9 @@
 // StreamServer — turns a torrent (infoHash + fileIdx) into a localhost HTTP URL mpv can play.
 //
-// It does NOT reimplement torrent streaming: it runs Stremio's proven stream-server
-// runtime (`stremio-runtime[.exe] server.js`) as a child process when no official
-// Stremio Service is already answering on :11470. The runtime binds
+// By default it adopts Stremio Service on :11470 or launches the official
+// `stremio-runtime[.exe] server.js` child. Builds with COLOSSEUM_ENABLE_SERVER1
+// can opt into the native composition at runtime with COLOSSEUM_SERVER1=1.
+// The selected runtime binds
 // http://127.0.0.1:<port>/<infoHash>/<fileIdx> and we surface that URL to QML.
 //
 // Lifecycle: lazy — the 88 MB runtime is only spawned on the FIRST play() call, so a
@@ -20,6 +21,11 @@
 #include <QObject>
 #include <QString>
 #include <QVariantMap>
+#include <memory>
+
+#ifdef COLOSSEUM_ENABLE_SERVER1
+namespace server1 { class ServerComposition; }
+#endif
 
 class QProcess;
 class QNetworkAccessManager;
@@ -90,6 +96,7 @@ private:
 
     void ensureStarted();                 // adopt a running official server, else launch our own
     void launchChild();                   // spawn the platform Stremio runtime + server.js ourselves
+    void launchEmbedded();                // explicitly opted-in native Server 1 development path
     void setEngineUnavailable(bool unavailable);
     void markEngineUnavailable(const QString &message);
     QString findRuntimeDir() const;       // first dir containing this platform's runtime + server.js
@@ -110,6 +117,11 @@ private:
     QString m_statsHash;
     int m_statsIdx = -1;
     bool m_statsInflight = false;
+    bool m_tuning = false;
+    quint64 m_settingsEpoch = 0;
+#ifdef COLOSSEUM_ENABLE_SERVER1
+    std::unique_ptr<server1::ServerComposition> m_embedded;
+#endif
 };
 
 #endif // COLOSSEUM_STREAMSERVER_H

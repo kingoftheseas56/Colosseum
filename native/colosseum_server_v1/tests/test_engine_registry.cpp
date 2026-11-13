@@ -2764,6 +2764,63 @@ void runK1103()
     realWorker.waitIdle(std::chrono::milliseconds(30000));
     std::cout << "K11-03 generations/isolation/source/production PASS\n";
 }
+void regressionApplicationPolicy()
+{
+    LaneWorker worker;
+    FakeFactory factory;
+    auto root = uniqueRoot("runtime-policy");
+    std::string selected = "first";
+    int connections = 35;
+    bool fail = false;
+    int hookCount = 0;
+    EngineRegistryConfig config;
+    config.cacheRoot = root;
+    config.workExecutor = [&](EngineContinuation task) { return worker.post(std::move(task)); };
+    config.transportFactory = [&](const TorrentOpenRequest &request) { return factory.open(request); };
+    config.beforeCreate = [&](const EngineCreateRequest &, EngineContinuation next) { ++hookCount; next(); };
+    config.defaultsProvider = [&](const std::string &) {
+        if (fail) throw std::runtime_error("controlled policy failure");
+        return Value::object({{"connections", Value::number(connections)}, {"peerSearch", Value::boolean(false)}});
+    };
+    config.cachePathProvider = [&](const std::string &key) { return root / selected / key; };
+    EngineRegistry registry(std::move(config));
+    const std::string first(40,'a'), second(40,'b'), third(40,'c');
+    registry.create({first, Value::object({})});
+    settle(registry,worker);
+    auto engine = registry.get(first);
+    expect(engine && engine->options().find("connections")->asNumber()==35,"application defaults not applied");
+    expect(engine->options().find("path")->asString()==(root/"first"/first).string(),"dynamic cache path missing");
+    selected="second"; connections=79;
+    registry.create({first, Value::object({})});
+    registry.create({second, Value::object({{"connections",Value::number(12)},{"path",Value::string((root/"explicit").string())}})});
+    settle(registry,worker);
+    expect(engine->options().find("connections")->asNumber()==79,"M172 existing engine options must refresh");
+    expect(factory.count()==2,"existing engine was reconstructed after cache path change");
+    expect(factory.at(0)->request.savePath==(root/"first"/first).string(),"existing transport cache path changed");
+    auto other=registry.get(second);
+    expect(other && other->options().find("connections")->asNumber()==12,"request failed to override defaults");
+    expect(other->options().find("path")->asString()==(root/"explicit").string(),"explicit path lost");
+    registry.create({third, Value::object({})});settle(registry,worker);
+    expect(registry.get(third)->options().find("connections")->asNumber()==79,"new engine missed changed defaults");
+    expect(registry.get(third)->options().find("path")->asString()==(root/"second"/third).string(),"new engine missed changed path");
+    const auto resumes=engine->resumeCount();
+    expect(registry.setSwarmPaused(first,true),"pause missing engine");
+    expect(engine->resumeCount()==resumes,"settings pause increments create count");
+    settle(registry,worker);
+    auto pauses=actionsOf<PauseAction>(factory.at(0));
+    expect(!pauses.empty() && pauses.back().paused,"pause action missing");
+    expect(registry.setSwarmPaused(first,false),"resume missing engine");
+    settle(registry,worker);
+    pauses=actionsOf<PauseAction>(factory.at(0));
+    expect(!pauses.back().paused && engine->resumeCount()==resumes,"settings resume changed create count");
+    expect(!registry.setSwarmPaused(std::string(40,'e'),true),"unknown engine pause accepted");
+    fail=true;int failures=0;
+    registry.create({std::string(40,'d'),Value::object({})},[&](auto result){expect(result.outcome==EngineCreateOutcome::SourceError,"callback exception outcome");++failures;});
+    settle(registry,worker);
+    expect(failures==1 && hookCount==5,"policy failure must complete once and preserve hook");
+    registry.remove(first);registry.remove(second);registry.remove(third);settle(registry,worker);
+    std::cout<<"K11-R26 application defaults/cache path PASS\n";
+}
 } // namespace
 
 int main(int argc, char **argv)
@@ -2788,6 +2845,7 @@ int main(int argc, char **argv)
         else if (id == "R8") regressionCircularActiveReaders(true);
         else if (id == "R9") regressionCircularActiveReaders(true, 1);
         else if (id == "R10") regressionCircularActiveReaders(true, 2);
+        else if (id == "R26") regressionApplicationPolicy();
         else if (id == "R25") regressionCacheDeparture();
         else if (id == "R24") regressionCacheObservation(true);
         else if (id == "R23") regressionCacheObservation();

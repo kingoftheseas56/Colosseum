@@ -14,6 +14,7 @@
 namespace server1::media {
 namespace {
 constexpr qsizetype MaxSamples = 10000000;
+constexpr qsizetype MaxMetadataBytes = 256 * 1024 * 1024;
 quint64 uintAt(const QByteArray& b, qsizetype p, int n)
 {
     if (p < 0 || p > b.size() || n > b.size() - p)
@@ -57,8 +58,8 @@ QVector<double> table(const Box& box, bool composition)
     }
     return out;
 }
-struct HeaderScan { qint64 moovOffset = -1; quint64 moovLength = 0; quint64 skip = 0; };
-HeaderScan scanHeaders(const QByteArray& b)
+struct HeaderScan { qint64 moovOffset = -1; quint64 moovLength = 0; quint64 skip = 0; bool mdatFound = false; };
+HeaderScan scanHeaders(const QByteArray& b, bool retainIncompletePayloads = false)
 {
     HeaderScan result;
     quint64 p = 0;
@@ -69,6 +70,14 @@ HeaderScan scanHeaders(const QByteArray& b)
         if (size < quint64(header)) throw std::runtime_error("Invalid box length");
         if (size > quint64(std::numeric_limits<qint64>::max()) - p) throw std::runtime_error("Invalid box length");
         if (b.mid(p + 4, 4) == "moov") { result.moovOffset = qint64(p); result.moovLength = size; return result; }
+        if (b.mid(p + 4, 4) == "mdat") result.mdatFound = true;
+        // MP4Box buffers ordinary atoms, but skips a large mdat once its header
+        // is known. Fragmentation must not turn ftyp/free payloads into seeks.
+        if (retainIncompletePayloads && b.mid(p + 4, 4) != "mdat") {
+            if (size > quint64(MaxMetadataBytes))
+                throw std::runtime_error("MP4 atom exceeds resource limit");
+            if (size > quint64(b.size()) - p) break;
+        }
         p += size;
     }
     result.skip = p;
@@ -159,7 +168,7 @@ public:
     QByteArray chunk;
     quint64 offset = 0, moovLength = 0;
     int seeks = 0, redirects = 0;
-    bool first = true, completed = false;
+    bool first = true, completed = false, sawMdat = false;
     explicit Mp4Job(QObject* parent) : QObject(parent) {}
     void finish(SamplesResult result) {
         if (completed) return;
@@ -181,7 +190,7 @@ public:
         if (url.isLocalFile()) {
             auto* file = new QFile(url.toLocalFile(), this); stream = file;
             if (!file->open(QIODevice::ReadOnly) || !file->seek(qint64(offset))) { fail(file->errorString()); return; }
-            QTimer::singleShot(0, this, [this] { consume(true); });
+            QTimer::singleShot(0, this, [this] { consume(false); });
         } else if (url.scheme() == "http" || url.scheme() == "https") {
             QNetworkRequest request(url);
             request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
@@ -207,15 +216,34 @@ public:
             if (!reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl().isEmpty()) return;
         try {
             if (first) {
-                auto data = stream->read(65536); stats.bytesFetched += data.size();
+                // Ordinary atoms may span many data events. Keep their retained
+                // bytes under the same limit as moov, including cumulative reads.
+                const auto capacity = MaxMetadataBytes - chunk.size();
+                if (capacity <= 0) { fail("MP4 atom exceeds resource limit"); return; }
+                auto data = stream->read(qMin<qsizetype>(65536, capacity)); stats.bytesFetched += data.size();
+                if (qobject_cast<QFile*>(stream.data()) && stream->atEnd()) ended = true;
                 if (data.isEmpty() && !ended) return;
-                const auto scan = scanHeaders(data);
+                chunk += data;
+                const auto scan = scanHeaders(chunk, true);
+                sawMdat |= scan.mdatFound;
                 if (scan.moovOffset < 0) {
                     if (scan.skip > quint64(std::numeric_limits<qint64>::max()) - offset) { fail("Invalid box length"); return; }
+                    // readyRead may split either the ordinary 8-byte header or
+                    // the extended 16-byte header. Keep an incomplete header on
+                    // this stream rather than spending a seek on the same range.
+                    // Once mdat has been seen, module 716 restarts at the end of
+                    // completed boxes even if mdat itself fit in this chunk.
+                    if (!ended && scan.skip <= quint64(chunk.size()) && (!sawMdat || scan.skip == 0)) {
+                        offset += scan.skip;
+                        chunk.remove(0, qsizetype(scan.skip));
+                        if (stream->bytesAvailable() > 0)
+                            QTimer::singleShot(0, this, [this] { consume(false); });
+                        return;
+                    }
                     offset += scan.skip; open(); return;
                 }
-                first = false; moovLength = scan.moovLength; chunk = data.mid(scan.moovOffset);
-                if (moovLength > 256 * 1024 * 1024) { fail("moov exceeds resource limit"); return; }
+                first = false; moovLength = scan.moovLength; chunk = chunk.mid(scan.moovOffset);
+                if (moovLength > quint64(MaxMetadataBytes)) { fail("moov exceeds resource limit"); return; }
             }
             if (quint64(chunk.size()) < moovLength) {
                 const auto data = stream->read(moovLength - chunk.size());

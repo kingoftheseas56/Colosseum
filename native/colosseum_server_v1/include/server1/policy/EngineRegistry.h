@@ -122,6 +122,10 @@ using EngineTransportFactory =
 struct EngineRegistryConfig final {
     std::filesystem::path cacheRoot;
     BeforeCreateEngine beforeCreate;
+    // Optional application policy, evaluated on the app lane after beforeCreate.
+    // Explicit request options win; a created engine retains its original path.
+    std::function<Value(const std::string &)> defaultsProvider;
+    std::function<std::filesystem::path(const std::string &)> cachePathProvider;
     EngineEventCallback onEvent;
     EngineTransportFactory transportFactory;
     // Invoked on the app lane once per PeerSearch; null preserves pure policy use.
@@ -225,6 +229,7 @@ private:
     static std::shared_ptr<TorrentEngine> make(Wiring wiring);
 
     void resume(Value options);
+    void setSwarmPaused(bool paused);
     void pollTransport();
     void selectCacheFile(std::size_t index);
     void close(std::function<void()> onClosed = {});
@@ -268,6 +273,8 @@ public:
                 EngineRemoveCallback callback = {});
     [[nodiscard]] std::vector<std::string> list() const;
     [[nodiscard]] Value statistics(const std::string &sourceKey, Value index = Value::missing()) const;
+    // M172 settings(hash, {swarm: "PAUSE"/"RESUME"}); app lane only.
+    bool setSwarmPaused(const std::string &sourceKey, bool paused);
     bool prewarmStream(const std::string &sourceKey, std::size_t fileIndex);
     [[nodiscard]] std::shared_ptr<EngineStreamLease> openStream(const std::string &sourceKey, std::size_t fileIndex);
 

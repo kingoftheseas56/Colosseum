@@ -5,7 +5,7 @@
 #include <iostream>
 using namespace server1::archive;
 int main(int argc,char **argv) {
- QCoreApplication app(argc,argv); QFile f(argv[1]); if(!f.open(QIODevice::ReadOnly))return 2;auto root=QJsonDocument::fromJson(f.readAll()).object(); int failures=0;
+ QCoreApplication app(argc,argv); if(argc<2)return 2; QFile f(argv[1]); if(!f.open(QIODevice::ReadOnly))return 2;auto root=QJsonDocument::fromJson(f.readAll()).object(); int failures=0;
  auto check=[&](bool ok,const QString &s){if(!ok){std::cerr<<s.toStdString()<<'\n';++failures;}};
  for(auto row:root["rows"].toArray()){auto r=row.toObject(),e=r["expected"].toObject();QString family=r["family"].toString();auto kind=family=="rar"?SourceFamily::Rar:family=="zip"?SourceFamily::Zip:family=="7z"?SourceFamily::SevenZip:family=="tar"?SourceFamily::Tar:SourceFamily::Gzip;QList<qint64> prior;for(auto x:r["lengths"].toArray())prior.append(x.toInteger());auto d=describeSource(kind,r["url"],prior,r["isLast"].toBool());check(d.name==e["name"].toString(),"name "+family);check(d.length.has_value()==(e["probes"].toInt()==0),"inference "+family);qint64 len=d.length.value_or(90);check(len==e["length"].toInteger(),"length");QList<QJsonObject> ranges{{},{{"start",0},{"end",0}},{{"start",2},{"end",5}},{{"start",2},{"end",999}},{{"end",5}},{{"start",2}}};auto calls=e["calls"].toArray();for(int i=0;i<ranges.size();++i)check(sourceRangeHeader(len,ranges[i])==calls[i].toObject()["range"].toString().toUtf8(),"range "+family);}
  for(auto v:root["lz"].toArray()){auto o=v.toObject();check(decompressUriQuery(o["encoded"].toString())==o["input"].toString(),"LZ");}

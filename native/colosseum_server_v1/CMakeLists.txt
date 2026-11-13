@@ -351,6 +351,25 @@ if(BUILD_TESTING)
   endif()
 endif()
 
+# Legacy HLS is distinct from HLSv2 and follows the pinned legacy factories.
+target_sources(colosseum_server_v1 PRIVATE
+  src/media/LegacyHlsService.cpp src/media/LegacyMp4Index.cpp
+  src/media/LegacyMkvIndex.cpp src/http/LegacyMediaRoutes.cpp)
+if(BUILD_TESTING)
+  include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/M07.cmake")
+  server1_register_m07_tests()
+endif()
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/N07A02.cmake")
+target_sources(colosseum_server_v1 PRIVATE src/http/RootRoutes.cpp
+  src/settings/RuntimeSettings.cpp src/settings/MediaSettings.cpp)
+target_link_libraries(colosseum_server_v1 PUBLIC server1_k13_settings_cache)
+include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/E00.cmake")
+if(BUILD_TESTING)
+  include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/RootRoutes.cmake")
+  server1_register_root_tests()
+endif()
+
 # Node's system-statistics primitive uses these exact native libuv APIs.
 include(FetchContent)
 set(LIBUV_BUILD_SHARED OFF CACHE BOOL "" FORCE)

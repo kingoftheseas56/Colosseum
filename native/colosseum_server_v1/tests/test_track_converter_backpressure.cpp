@@ -1,6 +1,7 @@
 #include "server1/ports/ProcessPort.h"
 #include <QCoreApplication>
 #include <QEventLoop>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QPointer>
 #include <QTimer>
@@ -46,7 +47,12 @@ int main(int argc, char **argv) {
       ++finished;
     };
     id = port.start(spec, cb);
-    spin(200);
+    // FFmpeg startup competes with other test processes. Wait for observable
+    // output, not an assumed 200 ms startup, while keeping failure bounded.
+    QElapsedTimer startup;
+    startup.start();
+    while (received == 0 && finished == 0 && startup.elapsed() < 3000)
+      spin(20);
     auto paused = received;
     check(paused > 0 && paused <= 65536, "bounded first chunk");
     spin(300);

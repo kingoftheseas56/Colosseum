@@ -17,10 +17,13 @@ namespace server1::downloads {
 struct DownloadManager::Impl {
  struct Handler {
   QString id,url,currentUrl,name,path; QPointer<QNetworkReply> reply; QFile file;
+  // Node's downloader has no six-request per-origin queue. A manager per
+  // handler keeps independent downloads from inheriting Qt's host pool cap.
+  QNetworkAccessManager network;
   qint64 downloaded=0,total=0,speed=0,previous=0; bool knownTotal=true,resumable=false,resumed=false,initialized=false,active=true;
   int incompleteRetries=0; QElapsedTimer speedTime; QTimer timer;
  };
- DownloadManager* owner; QString directory,statsPath; QNetworkAccessManager network; QJsonObject records; QStringList order;
+ DownloadManager* owner; QString directory,statsPath; QJsonObject records; QStringList order;
  std::map<QString,std::shared_ptr<Handler>> handlers;
  static QStringList keyOrder(const QByteArray& raw){QStringList keys;int depth=0;for(qsizetype i=0;i<raw.size();++i){char c=raw[i];if(c=='"'){auto start=i;while(++i<raw.size()){if(raw[i]=='\\'){++i;continue;}if(raw[i]=='"')break;}auto next=i+1;while(next<raw.size()&&isspace(static_cast<unsigned char>(raw[next])))++next;if(depth==1&&next<raw.size()&&raw[next]==':'){auto a=QJsonDocument::fromJson("["+raw.mid(start,i-start+1)+"]").array();if(!a.isEmpty()){auto key=a.first().toString();if(!keys.contains(key))keys.append(key);}}}else if(c=='{'||c=='[')++depth;else if(c=='}'||c==']')--depth;}
   auto index=[](const QString& k)->quint64{bool ok=false;auto n=k.toULongLong(&ok);return ok&&n<4294967295ULL&&QString::number(n)==k?n:4294967295ULL;};std::stable_sort(keys.begin(),keys.end(),[&](const QString&a,const QString&b){return index(a)<index(b);});return keys;}
@@ -47,7 +50,7 @@ struct DownloadManager::Impl {
   name.remove(QRegularExpression("\\.*$"));return name;
  }
  void begin(const std::shared_ptr<Handler>&h){h->initialized=false;QNetworkRequest req(QUrl(h->currentUrl.isEmpty()?h->url.trimmed():h->currentUrl));req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);if(h->resumed)req.setRawHeader("range","bytes="+QByteArray::number(h->downloaded)+"-");
-  auto reply=network.get(req);h->reply=reply;
+  auto reply=h->network.get(req);reply->setReadBufferSize(64*1024);h->reply=reply;
   QObject::connect(reply,&QNetworkReply::readyRead,owner,[this,h,reply]{if(h->active&&h->reply==reply)consume(h,reply);});
   QObject::connect(reply,&QNetworkReply::finished,owner,[this,h,reply]{if(!h->active||h->reply!=reply){reply->deleteLater();return;}consume(h,reply);if(h->reply!=reply){reply->deleteLater();return;}h->reply=nullptr;
    const int code=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
