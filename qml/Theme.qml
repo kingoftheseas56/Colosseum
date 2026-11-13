@@ -57,4 +57,33 @@ QtObject {
     readonly property int extensionCardWidth: 208
     readonly property int extensionCardHeight: 182
     readonly property int extensionCardArtHeight: 98
+
+    // Vault library: locked desktop composition, shared by its small view components.
+    readonly property color vaultSurface: "#1a1b22"
+    readonly property color vaultSurfaceHi: "#2c2f3a"
+    readonly property color vaultBackdrop: "#06070b"
+    readonly property color vaultScrim: Qt.rgba(0, 0, 0, 0.40)
+    readonly property color vaultGoldInk: "#1a1408"
+    readonly property color vaultHealthy: "#5fd38a"
+    readonly property color vaultVeilTop: Qt.rgba(6 / 255, 7 / 255, 11 / 255, 0.55)
+    readonly property color vaultVeilBottom: Qt.rgba(6 / 255, 7 / 255, 11 / 255, 0.82)
+    readonly property int vaultRadius: 18
+    readonly property int vaultGap: 16
+    readonly property int vaultPosterWidth: 140
+    readonly property int vaultMotionDuration: 220
+    readonly property int vaultSidebarWidth: 248
+    readonly property int vaultSidebarInset: 16
+    readonly property int vaultSidebarTop: 84
+    readonly property int vaultDockClearance: 96
+    readonly property int vaultContentLeft: 296
+    readonly property int vaultContentRight: 40
+    readonly property int vaultSheetWidth: 400
+    readonly property int vaultRowHeight: 38
+    readonly property int vaultControlRadius: 10
+    readonly property int vaultSectionGap: 28
+    readonly property int vaultSmall: 11
+    readonly property int vaultCaption: 12
+    readonly property int vaultBody: 14
+    readonly property int vaultSectionTitle: 24
+    readonly property int vaultPageTitle: 40
 }

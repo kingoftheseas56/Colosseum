@@ -16,6 +16,7 @@ import "AddonClient.js" as AddonClient
 import "Magnet.js" as Magnet
 import "TrackLanguage.js" as TrackLanguage
 import "SmartPlayPreferences.js" as SmartPlayPreferences
+import "LocalLibrarySources.js" as LocalLibrarySources
 
 Item {
     id: sheet
@@ -144,6 +145,8 @@ Item {
     property var nuvioSourceService: typeof NuvioSources !== "undefined" ? NuvioSources : null
     property var homeServerSourceService: typeof HomeServers !== "undefined" ? HomeServers : null
     property var homeServerRows: []
+    property var vaultLibraryService: typeof VaultLibrary !== "undefined" ? VaultLibrary : null
+    property var vaultLocalRows: []
     property var homeServerProfileGeneration: -1
     property int nuvioRequestId: 0
     readonly property bool nuvioPending: nuvioRequestId !== 0
@@ -202,9 +205,21 @@ Item {
         if (index < 0 || index >= available.length) return
         sheet.smartPlayCancelled = true
         var row=available[index]
+        if (row.vaultLocal) {
+            if (sheet.mode !== "play") return
+            // Revalidate current native truth before opening, not the old sheet snapshot.
+            var current = LocalLibrarySources.sources(sheet.vaultLibraryService, sheet.subType, sheet.subId, sheet.playbackContext)
+            if (!current.some(function(candidate) { return candidate.localPath === row.localPath && candidate.vaultId === row.vaultId })) {
+                sheet.refreshVaultLocalRows(); return
+            }
+            var path = row.localPath
+            sheet.hide()
+            sheet.localMediaRequested(path)
+            return
+        }
         if (sheet.mode !== "play") { if (row.homeServer) return; sheet.downloadRequested(row); sheet.hide() }
         else {
-            var candidates = sheet.baseRows()
+            var candidates = sheet.baseRows().filter(function(candidate) { return !candidate.vaultLocal })
             if (row.nuvio) {
                 // Players look up a direct stream by its URL. Keep the chosen provider's headers.
                 var rowIndex = candidates.indexOf(row)
@@ -221,14 +236,14 @@ Item {
     }
     function copySource(index) {
         if (index < 0 || index >= sheet.visibleRows.length) return
-        if (sheet.visibleRows[index].homeServer || String(sheet.visibleRows[index].infoHash || "").indexOf("home-server:") === 0) return
+        if (sheet.visibleRows[index].vaultLocal || sheet.visibleRows[index].homeServer || String(sheet.visibleRows[index].infoHash || "").indexOf("home-server:") === 0) return
         var link=Magnet.linkFor(sheet.visibleRows[index]); if(!link.length) return
         Clipboard.copy(link)
         if (list.itemAtIndex) { var item=list.itemAtIndex(index); if(item && item.markCopied) item.markCopied() }
     }
     function downloadSource(index) {
         if (sheet.mode !== "play" || sheet.titleQueued || index < 0 || index >= sheet.visibleRows.length) return
-        if (sheet.visibleRows[index].homeServer || String(sheet.visibleRows[index].infoHash || "").indexOf("home-server:") === 0) return
+        if (sheet.visibleRows[index].vaultLocal || sheet.visibleRows[index].homeServer || String(sheet.visibleRows[index].infoHash || "").indexOf("home-server:") === 0) return
         sheet.downloadRequested(sheet.visibleRows[index]); sheet.titleQueued=true
     }
     function activateSourceContext(choice) {
@@ -252,6 +267,7 @@ Item {
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
     // download/season mode's row action: the full chosen row (infoHash/fileIdx/url/…)
     signal downloadRequested(var row)
+    signal localMediaRequested(string path)
     // season mode only: the ask came back with no full-season torrent
     signal seasonNoPacks()
     readonly property bool androidHost: !!(sheet.Window.window && sheet.Window.window.androidHost)
@@ -284,7 +300,7 @@ Item {
         sheet.closeExtMenu(true)
     }
     function sourceContextOptions() {
-        if (sheet.sourceContextRow && sheet.sourceContextRow.homeServer) return [qsTr("Play")]
+        if (sheet.sourceContextRow && (sheet.sourceContextRow.homeServer || sheet.sourceContextRow.vaultLocal)) return [qsTr("Play")]
         var out=[sheet.mode === "play" ? "Play" : "Choose source", "Copy link"]
         if (sheet.mode === "play" && typeof Download !== "undefined") out.push("Download")
         return out
@@ -300,6 +316,7 @@ Item {
     }
 
     function show(type, id, lbl, context, pickMode) {
+        sheet.vaultLocalRows = [];
         sheet.homeServerProfileGeneration = -1;
         sheet.homeServerRows = [];
         sheet.smartPlayCancelled = true;
@@ -335,6 +352,7 @@ Item {
         sheet.gen += 1;
         sheet.homeServerProfileGeneration = sheet.homeServerSourceService ? sheet.homeServerSourceService.profileGeneration : -1;
         sheet.refreshHomeServerRows();
+        sheet.refreshVaultLocalRows();
         Qt.callLater(function(){ sourcesBack.forceActiveFocus(Qt.PopupFocusReason) });
         var myGen = sheet.gen;
         timeout.restart();
@@ -416,6 +434,23 @@ Item {
         }
     }
 
+    function refreshVaultLocalRows() {
+        sheet.vaultLocalRows = sheet.open && sheet.mode === "play"
+            ? LocalLibrarySources.sources(sheet.vaultLibraryService, sheet.subType, sheet.subId, sheet.playbackContext) : []
+        // Keep copies selectable and never auto-launch a remote source over them.
+        if (sheet.vaultLocalRows.length) {
+            sheet.smartPlayCancelled = true
+            sheet.smartPlayRow = null
+        }
+        if (sheet.extFilter === "vault-local" && !sheet.vaultLocalRows.length) sheet.extFilter = "all"
+        if (sheet.sourceContextRow && sheet.sourceContextRow.vaultLocal) sheet.closeSourceContext(false)
+    }
+    onVaultLibraryServiceChanged: sheet.refreshVaultLocalRows()
+    Connections {
+        target: sheet.vaultLibraryService
+        ignoreUnknownSignals: true
+        function onChanged() { sheet.refreshVaultLocalRows() }
+    }
     function refreshHomeServerRows() {
         if (!sheet.open || sheet.mode !== "play" || !sheet.homeServerSourceService
                 || sheet.homeServerProfileGeneration !== sheet.homeServerSourceService.profileGeneration) {
@@ -431,10 +466,10 @@ Item {
             sheet.extFilter = "all";
     }
     onHomeServerSourceServiceChanged: { sheet.homeServerRows = []; sheet.homeServerProfileGeneration = -1 }
-    onSubTypeChanged: sheet.refreshHomeServerRows()
-    onSubIdChanged: sheet.refreshHomeServerRows()
-    onPlaybackContextChanged: sheet.refreshHomeServerRows()
-    onModeChanged: sheet.refreshHomeServerRows()
+    onSubTypeChanged: { sheet.refreshHomeServerRows(); sheet.refreshVaultLocalRows() }
+    onSubIdChanged: { sheet.refreshHomeServerRows(); sheet.refreshVaultLocalRows() }
+    onPlaybackContextChanged: { sheet.refreshHomeServerRows(); sheet.refreshVaultLocalRows() }
+    onModeChanged: { sheet.refreshHomeServerRows(); sheet.refreshVaultLocalRows() }
     Connections {
         target: sheet.homeServerSourceService
         function onChanged() { sheet.refreshHomeServerRows() }
@@ -446,6 +481,7 @@ Item {
         }
     }
     onOpenChanged: if (!sheet.open) {
+        sheet.vaultLocalRows = [];
         sheet.cancelNuvio();
         sheet.homeServerRows = [];
         sheet.homeServerProfileGeneration = -1;
@@ -462,6 +498,7 @@ Item {
     // Bounded to ONE row on purpose — warming all of them would open a swarm per row.
     property string warmedHash: ""
     function warmTopRow() {
+        if (sheet.mode === "play" && sheet.vaultLocalRows.length && (sheet.extFilter === "all" || sheet.extFilter === "vault-local")) return;
         if (typeof Stream === "undefined" || sheet.mode === "download") return;
         var rows = sheet.smartPlayRow ? [sheet.smartPlayRow] : sheet.filteredRows();
         for (var i = 0; i < rows.length; ++i) {
@@ -518,7 +555,7 @@ Item {
     function baseRows() {
         if (sheet.mode !== "season") {
             var providers = sheet.nuvioRows.length ? sheet.rows.concat(sheet.nuvioRows) : sheet.rows;
-            return sheet.mode === "play" && sheet.homeServerRows.length ? sheet.homeServerRows.concat(providers) : providers;
+            return sheet.mode === "play" ? sheet.vaultLocalRows.concat(sheet.homeServerRows, providers) : providers;
         }
         var out = [];
         for (var i = 0; i < sheet.rows.length; ++i)
@@ -537,6 +574,7 @@ Item {
     }
 
     function providerKey(row) {
+        if (row.vaultLocal) return "vault-local";
         if (row.homeServer) return "home-server:" + row.connectionId;
         return row.nuvio ? "nuvio" : "stremio:" + (row.addonName || "?");
     }
@@ -549,20 +587,22 @@ Item {
         var byKey = ({ nuvio: nuvio });
         var stremio = [];
         var homeServers = [];
+        var localCopies = [];
         for (var i = 0; i < base.length; ++i) {
             var row = base[i];
             var key = providerKey(row);
             if (!byKey[key]) {
                 var option = { key: key, label: row.addonName || "?", count: 0 };
                 byKey[key] = option;
-                if (row.homeServer) homeServers.push(option);
+                if (row.vaultLocal) localCopies.push(option);
+                else if (row.homeServer) homeServers.push(option);
                 else stremio.push(option);
             }
             ++byKey[key].count;
         }
         if (nuvio.count && byKey["stremio:Nuvio"])
             byKey["stremio:Nuvio"].label = qsTr("Nuvio (Stremio)");
-        return [all].concat(homeServers, nuvio.count ? [nuvio] : [], stremio);
+        return [all].concat(localCopies, homeServers, nuvio.count ? [nuvio] : [], stremio);
     }
 
     function filteredRows() {
@@ -586,6 +626,7 @@ Item {
     function chipText(q) { return q === "all" ? "All" : q; }
 
     function streamTypeText(row) {
+        if (row.vaultLocal) return "Local · Your copy";
         return (row.streamKind || "Torrent") + " · " + (row.streamLabel || "P2P stream");
     }
 
@@ -1079,7 +1120,7 @@ Item {
                         spacing: 12
                         Text { text: row.modelData.addonName; color: theme.ink
                             objectName: "sourceProviderWide_" + row.index
-                            textFormat: row.modelData.homeServer ? Text.PlainText : Text.AutoText
+                            textFormat: (row.modelData.homeServer || row.modelData.vaultLocal) ? Text.PlainText : Text.AutoText
                             font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter }
                         Text { text: row.modelData.qualityLine || row.modelData.quality
@@ -1099,7 +1140,7 @@ Item {
                         width: parent.width
                         text: row.modelData.release
                         objectName: "sourceReleaseWide_" + row.index
-                        textFormat: row.modelData.homeServer ? Text.PlainText : Text.AutoText
+                        textFormat: (row.modelData.homeServer || row.modelData.vaultLocal) ? Text.PlainText : Text.AutoText
                         color: theme.ink; font.family: theme.ui; font.pixelSize: 14; elide: Text.ElideRight
                     }
                     Text {
@@ -1192,7 +1233,7 @@ Item {
                 Rectangle {
                     id: copyBtn
                     objectName: "sourceCopyWide_" + row.index
-                    visible: !sheet.phoneLayout && !row.modelData.homeServer
+                    visible: !sheet.phoneLayout && !row.modelData.homeServer && !row.modelData.vaultLocal
                     anchors.right: play.left; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
                     width: 40; height: 40; radius: 20
@@ -1226,7 +1267,7 @@ Item {
                 Rectangle {
                     id: dlBtn
                     objectName: "sourceDownloadWide_" + row.index
-                    visible: !sheet.phoneLayout && !row.modelData.homeServer && sheet.mode === "play" && typeof Download !== "undefined"
+                    visible: !sheet.phoneLayout && !row.modelData.homeServer && !row.modelData.vaultLocal && sheet.mode === "play" && typeof Download !== "undefined"
                     anchors.right: copyBtn.left; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
                     width: 40; height: 40; radius: 20
@@ -1292,7 +1333,7 @@ Item {
                                 width: parent.width
                                 text: row.modelData.addonName || ""
                                 objectName: "sourceProviderPhone_" + row.index
-                                textFormat: row.modelData.homeServer ? Text.PlainText : Text.AutoText
+                                textFormat: (row.modelData.homeServer || row.modelData.vaultLocal) ? Text.PlainText : Text.AutoText
                                 color: theme.ink; font.family: theme.ui
                                 font.pixelSize: 15; font.weight: Font.DemiBold
                                 wrapMode: Text.WrapAnywhere
@@ -1320,7 +1361,7 @@ Item {
                         width: parent.width
                         text: row.modelData.release || ""
                         objectName: "sourceReleasePhone_" + row.index
-                        textFormat: row.modelData.homeServer ? Text.PlainText : Text.AutoText
+                        textFormat: (row.modelData.homeServer || row.modelData.vaultLocal) ? Text.PlainText : Text.AutoText
                         color: theme.ink; font.family: theme.ui; font.pixelSize: 14
                         wrapMode: Text.WrapAnywhere
                         maximumLineCount: 2; elide: Text.ElideRight
@@ -1410,7 +1451,7 @@ Item {
                             }
                         }
                         Rectangle {
-                            visible: !row.modelData.homeServer
+                            visible: !row.modelData.homeServer && !row.modelData.vaultLocal
                             width: 48; height: 48; radius: 24
                             color: Qt.rgba(1, 1, 1, 0.05)
                             border.width: 1; border.color: theme.edge
@@ -1435,7 +1476,7 @@ Item {
                             }
                         }
                         Rectangle {
-                            visible: !row.modelData.homeServer && sheet.mode === "play" && typeof Download !== "undefined"
+                            visible: !row.modelData.homeServer && !row.modelData.vaultLocal && sheet.mode === "play" && typeof Download !== "undefined"
                             width: 48; height: 48; radius: 24
                             color: Qt.rgba(1, 1, 1, 0.05)
                             border.width: 1; border.color: theme.edge
