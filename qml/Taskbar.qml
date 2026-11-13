@@ -7,6 +7,10 @@ import QtQuick.Controls
 
 Item {
     id: bar
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(bar.Window.window && bar.Window.window.androidHost === true)
+    }
     objectName: "colosseumTaskbar"
     anchors.fill: parent
 
@@ -181,6 +185,10 @@ Item {
                 KeyboardAction {
                     id: startInput
                     anchors.fill: parent
+                    anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                    anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                     accessibleName: bar.open ? "Close Colosseum taskbar" : "Open Colosseum taskbar"
                     tooltipText: accessibleName
                     focusRadius: bar.open ? 14 : 24
@@ -237,6 +245,10 @@ Item {
                     id: collectionsInput
                     objectName: "taskbarCollectionsAction"
                     anchors.fill: parent
+                    anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                    anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                     accessibleName: "Your Collections"
                     accessibleDescription: "Open your named collections"
                     tooltipText: accessibleName

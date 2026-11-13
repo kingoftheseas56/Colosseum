@@ -8,6 +8,7 @@ Control {
 
     property string title: ""
     property string detail: ""
+    property bool compact: false
     signal chosen()
 
     Accessible.role: Accessible.Button
@@ -15,25 +16,27 @@ Control {
     Accessible.description: control.detail
     Accessible.onPressAction: if (control.enabled) control.chosen()
 
-    implicitHeight: Math.max(76, implicitContentHeight + topPadding + bottomPadding)
+    implicitHeight: Math.max(control.compact ? adaptive.targetSize(adaptive.welcomeChoiceHeight) : 76,
+                             implicitContentHeight + topPadding + bottomPadding)
     leftPadding: 18
     rightPadding: 18
-    topPadding: 16
-    bottomPadding: 16
+    topPadding: control.compact ? adaptive.welcomeChoicePadding : 16
+    bottomPadding: control.compact ? adaptive.welcomeChoicePadding : 16
     hoverEnabled: true
     focusPolicy: Qt.StrongFocus
 
     Theme { id: theme }
+    AdaptiveLayout { id: adaptive }
 
     contentItem: Column {
-        spacing: 5
+        spacing: control.compact ? adaptive.welcomeSmallGap : 5
 
         Text {
             width: parent.width
             text: control.title
             color: theme.ink
             font.family: theme.ui
-            font.pixelSize: 15
+            font.pixelSize: control.compact ? adaptive.welcomeChoiceTitleSize : 15
             font.weight: Font.DemiBold
             wrapMode: Text.WordWrap
         }
@@ -43,7 +46,7 @@ Control {
             text: control.detail
             color: theme.inkDimmer
             font.family: theme.ui
-            font.pixelSize: 12
+            font.pixelSize: control.compact ? adaptive.welcomeChoiceDetailSize : 12
             wrapMode: Text.WordWrap
         }
     }

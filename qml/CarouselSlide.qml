@@ -16,7 +16,7 @@ Item {
     property bool shortAndroid: false
     AdaptiveLayout {
         id: adaptive
-        androidHost: slideRoot.shortAndroid
+        androidHost: Qt.platform.os === "android" || !!(slideRoot.Window.window && slideRoot.Window.window.androidHost === true)
         viewportHeight: slideRoot.Window.window ? slideRoot.Window.window.height : 0
     }
     signal primaryClicked()
@@ -163,12 +163,21 @@ Item {
                         ink: "#1a1408"
                         Accessible.ignored: true
                     }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    MouseArea { anchors.fill: parent;
+                        anchors.leftMargin: -adaptive.targetInset(parent.width)
+                        anchors.rightMargin: -adaptive.targetInset(parent.width)
+                        anchors.topMargin: -adaptive.targetInset(parent.height)
+                        anchors.bottomMargin: -adaptive.targetInset(parent.height)
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: slideRoot.primaryClicked() }
                     KeyboardAction {
                         id: primaryKeyboard
                         objectName: slideRoot.slideIndex >= 0 ? "featuredPrimaryAction_" + slideRoot.slideIndex : ""
                         anchors.fill: parent
+                        anchors.leftMargin: -adaptive.targetInset(parent.width)
+                        anchors.rightMargin: -adaptive.targetInset(parent.width)
+                        anchors.topMargin: -adaptive.targetInset(parent.height)
+                        anchors.bottomMargin: -adaptive.targetInset(parent.height)
                         pointerEnabled: false
                         focusRadius: 11
                         focusPrimary: true
@@ -184,12 +193,21 @@ Item {
                     color: Qt.rgba(1, 1, 1, 0.10); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.18)
                     Text { id: sl; anchors.centerIn: parent; text: slideRoot.secondaryLabel; color: theme.ink
                         font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 16 : 14; font.weight: Font.Medium }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    MouseArea { anchors.fill: parent;
+                        anchors.leftMargin: -adaptive.targetInset(parent.width)
+                        anchors.rightMargin: -adaptive.targetInset(parent.width)
+                        anchors.topMargin: -adaptive.targetInset(parent.height)
+                        anchors.bottomMargin: -adaptive.targetInset(parent.height)
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: slideRoot.secondaryClicked() }
                     KeyboardAction {
                         id: secondaryKeyboard
                         objectName: slideRoot.slideIndex >= 0 ? "featuredSecondaryAction_" + slideRoot.slideIndex : ""
                         anchors.fill: parent
+                        anchors.leftMargin: -adaptive.targetInset(parent.width)
+                        anchors.rightMargin: -adaptive.targetInset(parent.width)
+                        anchors.topMargin: -adaptive.targetInset(parent.height)
+                        anchors.bottomMargin: -adaptive.targetInset(parent.height)
                         pointerEnabled: false
                         focusRadius: 11
                         focusEnabled: slideRoot.secondaryLabel.length > 0

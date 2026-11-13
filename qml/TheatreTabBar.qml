@@ -7,6 +7,10 @@ pragma ComponentBehavior: Bound
 
 Item {
     id: tabs
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(tabs.Window.window && tabs.Window.window.androidHost === true)
+    }
     objectName: "theatreTabBar"
 
     required property Item backdrop
@@ -124,6 +128,8 @@ Item {
                     MouseArea {
                         id: ma
                         anchors.fill: parent
+                        anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                        anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: tabs.requestIndex(pill.index, Qt.MouseFocusReason)
@@ -155,7 +161,10 @@ Item {
                 width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                 height: parent.height
                 readonly property bool activeState: !!entry && tabs.currentTab === entry.key
-                MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(target.tabIndex, Qt.MouseFocusReason) }
+                MouseArea { anchors.fill: parent;
+                    anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                    anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
+                    onClicked: tabs.requestIndex(target.tabIndex, Qt.MouseFocusReason) }
             }
 
             AutomationPill { tabIndex: 0 }

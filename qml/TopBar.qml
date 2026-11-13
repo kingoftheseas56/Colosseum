@@ -22,8 +22,8 @@ Item {
     property string activeMedium: ""         // "" = home / no selection
     property bool compactBrowserChrome: false
     readonly property bool compactChrome: compactBrowserChrome || width < (androidHost ? 1100 : 1200)
-    // Clock/date shows only when its implicit width fits in what is left after the
-    // other left items, the world pills and the right-side controls (no overlap).
+    // Android reserves the clock, tightening the pills and fitting the date into
+    // the remaining space. Desktop retains its existing fit policy.
     readonly property real leftOtherWidth:
         (backAction.visible ? backAction.implicitWidth : 0)
         + (leftTitle.visible ? leftTitle.implicitWidth : 0)
@@ -304,7 +304,7 @@ Item {
                 width: bar.androidHost ? Math.max(clockTime.implicitWidth + 5 + clockPeriod.implicitWidth,
                     Math.min(implicitWidth, bar.clockFreeSpace)) : implicitWidth
                 fontSizeMode: bar.androidHost ? Text.Fit : Text.FixedSize
-                minimumPixelSize: 8
+                minimumPixelSize: inputMetrics.chromeMinimumDateSize
             }
         }
     }

@@ -12,6 +12,9 @@ QtObject {
     property real viewportWidth: 0
     property real viewportHeight: 0
     property real bottomInset: 0
+    property real presentationScale: typeof PlatformRuntime !== "undefined" && PlatformRuntime
+        && typeof PlatformRuntime.androidPresentationScale === "number"
+        ? PlatformRuntime.androidPresentationScale : 1
 
     readonly property bool shortAndroid: androidHost && desktopPresentation && viewportHeight > 0 && viewportHeight < 600
     readonly property bool tightAndroidChrome: androidHost && viewportWidth < 900
@@ -25,9 +28,21 @@ QtObject {
     readonly property real chromeClockSize: tightAndroidChrome ? 26 : 32
     readonly property real chromeClockPeriodSize: tightAndroidChrome ? 12 : 16
     readonly property real chromeDateSize: tightAndroidChrome ? 11 : 13
+    readonly property real chromeMinimumDateSize: 8
     readonly property real heroCopyInset: shortAndroid ? 20 : 42
     readonly property real heroTitleSize: shortAndroid ? 34 : 48
     readonly property real availableHeroHeight: Math.max(0, viewportHeight - contentTop - bottomInset - 22)
+    readonly property bool compactWelcome: androidHost && viewportWidth >= 600 && viewportHeight > 0 && viewportHeight < 600
+    readonly property real welcomeInset: 12
+    readonly property real welcomeGap: 8
+    readonly property real welcomeSmallGap: 4
+    readonly property real welcomeTitleSize: 28
+    readonly property real welcomeBodySize: 12
+    readonly property real welcomePanelTitleSize: 22
+    readonly property real welcomeChoiceTitleSize: 14
+    readonly property real welcomeChoiceDetailSize: 11
+    readonly property real welcomeChoiceHeight: 52
+    readonly property real welcomeChoicePadding: 8
 
     readonly property bool compactPhone: !desktopPresentation && viewportWidth >= 0 && viewportWidth <= 430
     readonly property bool phone: !desktopPresentation && viewportWidth < 600
@@ -54,8 +69,10 @@ QtObject {
     readonly property real homeSectionSpacing: phone ? 22 : (tablet ? 28 : 30)
     // Input metrics are presentation-independent: Android desktop presentation keeps the
     // desktop composition but still receives finger-sized hit hosts. Desktop returns 0/identity.
-    readonly property real touchTargetSize: androidHost ? TouchMetrics.minimumTargetSize : 0
-    function targetSize(size) { return androidHost ? Math.max(TouchMetrics.minimumTargetSize, size) : size }
+    readonly property real touchTargetSize: androidHost
+        ? TouchMetrics.minimumTargetSize / Math.min(1, Math.max(0.1, presentationScale)) : 0
+    function targetSize(size) { return Math.max(touchTargetSize, size) }
+    function targetInset(size) { return (targetSize(size) - size) / 2 }
     readonly property real heroHeight: shortAndroid ? Math.min(340, availableHeroHeight)
                                                   : phone ? 260 : (tablet ? 300 : 340)
     readonly property real homeHeroHeight: shortAndroid ? Math.min(360, availableHeroHeight) : 360
