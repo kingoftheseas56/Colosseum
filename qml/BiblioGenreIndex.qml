@@ -243,7 +243,7 @@ Item {
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
                     HoverHandler { id: genreIndexSearchHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; tooltipText: accessibleName; tooltipHovered: genreIndexSearchHover.hovered; focusRadius: 4; onTriggered: root.searchClicked() } }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; tooltipText: accessibleName; androidTooltipPolicy: "drop"; tooltipHovered: genreIndexSearchHover.hovered; focusRadius: 4; onTriggered: root.searchClicked() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
                     HoverHandler { id: genreIndexMinHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }

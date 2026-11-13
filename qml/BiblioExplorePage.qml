@@ -591,11 +591,12 @@ Item {
                     opacity: rowBlock.modelData.hidden ? 0.45 : 1
 
                     // edit-mode control strip: drag handle + move up/down + hide/show
-                    Row {
+                    Flow {
                         id: editControls
                         visible: page.editMode
+                        width: rowBlock.width
                         spacing: 10
-                        height: 28
+                        height: Qt.platform.os === "android" ? implicitHeight : 28
 
                         Rectangle {
                             id: dragHandle
@@ -610,7 +611,7 @@ Item {
                             Accessible.name: "Reorder " + rowBlock.modelData.title
                             Accessible.description: "Ctrl+Shift+Up or Ctrl+Shift+Down moves this shelf"
                             ToolTip.text: qsTr("Drag to reorder %1").arg(rowBlock.modelData.title)
-                            ToolTip.visible: dragHandleMa.containsMouse
+                            ToolTip.visible: Qt.platform.os !== "android" && dragHandleMa.containsMouse
                             ToolTip.delay: 350
                             Keys.onPressed: (event) => {
                                 const reorder = (event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier)
@@ -644,11 +645,12 @@ Item {
                             }
                         }
                         Rectangle {
-                            width: 28; height: 28; radius: 6
+                            width: Qt.platform.os === "android" ? 100 : 28; height: 28; radius: 6
                             border.width: 1; border.color: theme.edge
                             color: upMa.containsMouse || moveUpAction.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                             opacity: page.canMoveUp(rowBlock.rowKey) ? 1 : 0.35
-                            Text { anchors.centerIn: parent; text: "▲"; color: theme.ink; font.pixelSize: 12 }
+                            Text { x: Qt.platform.os === "android" ? 8 : (parent.width - implicitWidth) / 2
+                                anchors.verticalCenter: parent.verticalCenter; text: "▲"; color: theme.ink; font.pixelSize: 12 }
                             HoverHandler { id: moveUpHover }
                             MouseArea {
                                 id: upMa; anchors.fill: parent; hoverEnabled: true
@@ -657,21 +659,26 @@ Item {
                                 onClicked: page.moveRowBy(rowBlock.rowKey, -1)
                             }
                             KeyboardAction {
-                                id: moveUpAction; anchors.fill: parent; pointerEnabled: false
+                                id: moveUpAction; x: 0; y: 0; width: 28; height: parent.height; pointerEnabled: false
+                                enabled: page.canMoveUp(rowBlock.rowKey)
                                 focusEnabled: editControls.visible && page.canMoveUp(rowBlock.rowKey)
                                 accessibleName: "Move " + rowBlock.modelData.title + " up"
                                 tooltipText: accessibleName
+                                androidTooltipPolicy: "caption"
+                                androidCaptionText: qsTr("Move up")
+                                androidCaptionPlacement: "right"
                                 tooltipHovered: moveUpHover.hovered
                                 focusRadius: 6
                                 onTriggered: page.moveRowBy(rowBlock.rowKey, -1, true)
                             }
                         }
                         Rectangle {
-                            width: 28; height: 28; radius: 6
+                            width: Qt.platform.os === "android" ? 100 : 28; height: 28; radius: 6
                             border.width: 1; border.color: theme.edge
                             color: downMa.containsMouse || moveDownAction.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                             opacity: page.canMoveDown(rowBlock.rowKey) ? 1 : 0.35
-                            Text { anchors.centerIn: parent; text: "▼"; color: theme.ink; font.pixelSize: 12 }
+                            Text { x: Qt.platform.os === "android" ? 8 : (parent.width - implicitWidth) / 2
+                                anchors.verticalCenter: parent.verticalCenter; text: "▼"; color: theme.ink; font.pixelSize: 12 }
                             HoverHandler { id: moveDownHover }
                             MouseArea {
                                 id: downMa; anchors.fill: parent; hoverEnabled: true
@@ -680,10 +687,14 @@ Item {
                                 onClicked: page.moveRowBy(rowBlock.rowKey, 1)
                             }
                             KeyboardAction {
-                                id: moveDownAction; anchors.fill: parent; pointerEnabled: false
+                                id: moveDownAction; x: 0; y: 0; width: 28; height: parent.height; pointerEnabled: false
+                                enabled: page.canMoveDown(rowBlock.rowKey)
                                 focusEnabled: editControls.visible && page.canMoveDown(rowBlock.rowKey)
                                 accessibleName: "Move " + rowBlock.modelData.title + " down"
                                 tooltipText: accessibleName
+                                androidTooltipPolicy: "caption"
+                                androidCaptionText: qsTr("Move down")
+                                androidCaptionPlacement: "right"
                                 tooltipHovered: moveDownHover.hovered
                                 focusRadius: 6
                                 onTriggered: page.moveRowBy(rowBlock.rowKey, 1, true)

@@ -15,6 +15,7 @@
 // [Agent 2 (Claude), biblio]
 import QtQuick
 import QtQuick.Window
+import ".." as Shared
 import "Reader2Logic.js" as L
 
 Item {
@@ -411,8 +412,11 @@ Item {
         anchors.bottom: bottomRail.top
         anchors.bottomMargin: 10
         property bool showRemaining: false        // scrub total ↔ remaining (click the total)
-        width: Math.min(600, (parent ? parent.width : 648) - 48)
-        height: 138
+        readonly property bool touchChrome: Qt.platform.os === "android"
+        readonly property int captionCellWidth: Math.max(50, Math.min(80,
+            Math.floor((width - 24 - 48 - 16) / 4)))
+        width: Math.min(600, (parent ? parent.width : 648) - (touchChrome ? 16 : 48))
+        height: touchChrome ? 254 : 138
         radius: 24
         color: Theme.bar
         border.color: Theme.barBorder
@@ -433,33 +437,47 @@ Item {
             property string kind: ""
             property string label: ""
             property string tooltipText: ""
+            property string touchCaptionText: tooltipText
             property int box: 40                              // round-button diameter
             signal clicked()
-            width: box; height: box
-            function focusKeyboard() { hgbMa.focusKeyboard() }
+            width: audioHud.touchChrome ? audioHud.captionCellWidth : box
+            height: audioHud.touchChrome ? 80 : box
+            function focusKeyboard() { hgbMa.forceActiveFocus(Qt.OtherFocusReason) }
             anchors.verticalCenter: parent.verticalCenter
-            scale: hgbMa.pressed ? 0.95 : (hgbMa.containsMouse ? 1.04 : 1.0)
+            scale: hgbMa.pressed ? 0.95 : (hgbMa.hovered ? 1.04 : 1.0)
             Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
             Rectangle {
-                anchors.fill: parent
+                id: hgbDisc
+                width: hgb.box; height: hgb.box
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
                 radius: width / 2
-                color: hgbMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+                color: hgbMa.hovered ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
                 Behavior on color { ColorAnimation { duration: 120 } }
             }
             AudioGlyph {
-                anchors.centerIn: parent
+                anchors.centerIn: hgbDisc
                 width: Math.round(hgb.box * 0.62); height: Math.round(hgb.box * 0.62)
                 kind: hgb.kind
                 label: hgb.label
                 ink: Theme.ink
-                opacity: hgbMa.containsMouse ? 1.0 : 0.62
+                opacity: hgbMa.hovered ? 1.0 : 0.62
                 Behavior on opacity { NumberAnimation { duration: 120 } }
             }
-            ReaderKeyboardArea { id: hgbMa; anchors.fill: parent
-                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        keyboardLabel: hgb.label !== "" ? hgb.label : hgb.kind
-                        tooltipText: hgb.tooltipText
-                        onClicked: hgb.clicked() }
+            Shared.KeyboardAction {
+                id: hgbMa
+                x: 0; y: 0; width: parent.width
+                height: audioHud.touchChrome ? 48 : hgb.box
+                accessibleName: hgb.tooltipText.length > 0 ? hgb.tooltipText : (hgb.label !== "" ? hgb.label : hgb.kind)
+                tooltipText: hgb.tooltipText
+                androidTooltipPolicy: "caption"
+                spaceActivates: true
+                // Hard line breaks keep exact action wording inside phone-width cells.
+                androidCaptionText: hgb.touchCaptionText
+                androidCaptionPlacement: "below"
+                focusRadius: hgb.box / 2
+                onTriggered: hgb.clicked()
+            }
         }
 
         // ---- tier 1 · now-playing chapter line (Fraunces — the book's own serif) ----
@@ -582,7 +600,8 @@ Item {
                              && !(chrome.readAlongAvailable && chrome.readAlongPreviewActive)
                     color: Qt.rgba(0, 0, 0, 0.86); radius: 7
                     height: 24; width: tipText.implicitWidth + 18
-                    anchors.bottom: parent.top; anchors.bottomMargin: 6
+                    anchors.bottom: parent.top
+                    anchors.bottomMargin: audioHud.touchChrome && railMa.pressed ? 28 : 6
                     x: Math.max(0, Math.min(scrubRail.width - width, railMa.mouseX - width / 2))
                     Text {
                         id: tipText
@@ -611,22 +630,27 @@ Item {
             id: transport
             anchors.top: scrubRow.bottom; anchors.topMargin: 8
             anchors.left: parent.left; anchors.right: parent.right
-            anchors.leftMargin: 22; anchors.rightMargin: 22
-            height: 52
+            anchors.leftMargin: audioHud.touchChrome ? 12 : 22
+            anchors.rightMargin: audioHud.touchChrome ? 12 : 22
+            height: audioHud.touchChrome ? 168 : 52
 
             // LEFT zone · volume (the video HUD places volume on the left)
             Row {
-                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
+                anchors.verticalCenter: audioHud.touchChrome ? undefined : parent.verticalCenter
+                anchors.bottom: audioHud.touchChrome ? parent.bottom : undefined
                 spacing: 6
                 HudGlyphButton {
                     kind: (chrome.audioMuted || chrome.audioVolume <= 0) ? "mute" : "volume"
                     tooltipText: chrome.audioMuted ? qsTr("Unmute audiobook") : qsTr("Mute audiobook")
+                    touchCaptionText: chrome.audioMuted ? qsTr("Unmute\naudiobook") : qsTr("Mute\naudiobook")
                     box: 36
                     onClicked: chrome.audioMuteToggled()
                 }
                 Item {
                     id: volRail
-                    width: 58; height: 20
+                    width: audioHud.touchChrome ? 56 : 58
+                    height: audioHud.touchChrome ? 80 : 20
                     anchors.verticalCenter: parent.verticalCenter
                     Rectangle {                   // track
                         anchors.left: parent.left; anchors.right: parent.right
@@ -643,14 +667,24 @@ Item {
                         Behavior on height { NumberAnimation { duration: 120 } }
                     }
                     Rectangle {                   // knob — hover/drag only (rail manners)
-                        visible: volMa.containsMouse || volMa.pressed
+                        visible: audioHud.touchChrome || volMa.containsMouse || volMa.pressed
                         x: parent.width * (chrome.audioMuted ? 0 : Math.max(0, Math.min(1, chrome.audioVolume))) - width / 2
                         anchors.verticalCenter: parent.verticalCenter
                         width: 11; height: 11; radius: 5.5; color: Theme.gold
                     }
+                    Text {
+                        visible: audioHud.touchChrome
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                        text: qsTr("Volume")
+                        color: Theme.inkDim
+                        font.family: Theme.ui; font.pixelSize: 11
+                    }
                     ReaderKeyboardArea {
                         id: volMa
-                        anchors.fill: parent; anchors.topMargin: -6; anchors.bottomMargin: -6
+                        anchors.fill: parent
+                        anchors.topMargin: audioHud.touchChrome ? 16 : -6
+                        anchors.bottomMargin: audioHud.touchChrome ? 16 : -6
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         keyboardLabel: "Audiobook volume"
                         keyboardRole: Accessible.Slider
@@ -668,10 +702,11 @@ Item {
             // CENTER zone · transport
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 10
-                HudGlyphButton { kind: "prevChapter"; tooltipText: qsTr("Previous chapter"); box: 40; onClicked: chrome.audioPrevChapterRequested() }
-                HudGlyphButton { kind: "seekBack"; label: "10"; tooltipText: qsTr("Back 10 seconds"); box: 40; onClicked: chrome.audioSkipRequested(-10) }
+                anchors.verticalCenter: audioHud.touchChrome ? undefined : parent.verticalCenter
+                anchors.top: audioHud.touchChrome ? parent.top : undefined
+                spacing: audioHud.touchChrome ? 4 : 10
+                HudGlyphButton { kind: "prevChapter"; tooltipText: qsTr("Previous chapter"); touchCaptionText: qsTr("Previous\nchapter"); box: 40; onClicked: chrome.audioPrevChapterRequested() }
+                HudGlyphButton { kind: "seekBack"; label: "10"; tooltipText: qsTr("Back 10 seconds"); touchCaptionText: qsTr("Back 10\nseconds"); box: 40; onClicked: chrome.audioSkipRequested(-10) }
                 Rectangle {                       // HERO play — white circle, dark forged-line glyph
                     anchors.verticalCenter: parent.verticalCenter
                     width: 48; height: 48; radius: 24; color: Theme.ink
@@ -688,43 +723,63 @@ Item {
                     ReaderKeyboardArea { id: heroMa; anchors.fill: parent; hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor; keyboardLabel: chrome.audioPlaying ? "Pause audiobook" : "Play audiobook"; tooltipText: heroMa.keyboardLabel; onClicked: chrome.audioPlayToggled() }
                 }
-                HudGlyphButton { kind: "seekForward"; label: "10"; tooltipText: qsTr("Forward 10 seconds"); box: 40; onClicked: chrome.audioSkipRequested(10) }
-                HudGlyphButton { kind: "nextChapter"; tooltipText: qsTr("Next chapter"); box: 40; onClicked: chrome.audioNextChapterRequested() }
+                HudGlyphButton { kind: "seekForward"; label: "10"; tooltipText: qsTr("Forward 10 seconds"); touchCaptionText: qsTr("Forward\n10 seconds"); box: 40; onClicked: chrome.audioSkipRequested(10) }
+                HudGlyphButton { kind: "nextChapter"; tooltipText: qsTr("Next chapter"); touchCaptionText: qsTr("Next\nchapter"); box: 40; onClicked: chrome.audioNextChapterRequested() }
             }
 
             // RIGHT zone · utilities (speed · chapter list)
             Row {
-                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                anchors.right: parent.right
+                anchors.verticalCenter: audioHud.touchChrome ? undefined : parent.verticalCenter
+                anchors.bottom: audioHud.touchChrome ? parent.bottom : undefined
                 spacing: 4
                 Item {                            // speed — gauge glyph + rate, pill hover
-                    width: speedInner.implicitWidth + 16; height: 34
+                    width: audioHud.touchChrome ? 92 : speedInner.implicitWidth + 16
+                    height: audioHud.touchChrome ? 80 : 34
                     anchors.verticalCenter: parent.verticalCenter
                     Rectangle {
-                        anchors.fill: parent; radius: 17
-                        color: spdMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                        width: parent.width
+                        height: audioHud.touchChrome ? 34 : parent.height
+                        anchors.top: parent.top
+                        radius: 17
+                        color: spdMa.hovered ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
                         Behavior on color { ColorAnimation { duration: 120 } }
                     }
                     Row {
                         id: speedInner
-                        anchors.centerIn: parent
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.verticalCenter: audioHud.touchChrome ? undefined : parent.verticalCenter
+                        anchors.top: audioHud.touchChrome ? parent.top : undefined
+                        anchors.topMargin: audioHud.touchChrome ? 6 : 0
                         spacing: 5
                         AudioGlyph {
                             anchors.verticalCenter: parent.verticalCenter
                             width: 22; height: 22; kind: "speed"; ink: Theme.ink
-                            opacity: spdMa.containsMouse ? 1.0 : 0.62
+                            opacity: spdMa.hovered ? 1.0 : 0.62
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: chrome.audioSpeedLabel
-                            color: spdMa.containsMouse ? Theme.ink : Theme.inkDim
+                            color: spdMa.hovered ? Theme.ink : Theme.inkDim
                             font.family: Theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
                             font.features: ({ "tnum": 1 })
                         }
                     }
-                    ReaderKeyboardArea { id: spdMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor; keyboardLabel: "Playback speed " + chrome.audioSpeedLabel; tooltipText: qsTr("Change playback speed"); onClicked: chrome.audioSpeedCycled() }
+                    Shared.KeyboardAction {
+                        id: spdMa
+                        x: 0; y: 0; width: parent.width
+                        height: audioHud.touchChrome ? 48 : parent.height
+                        accessibleName: "Playback speed " + chrome.audioSpeedLabel
+                        tooltipText: qsTr("Change playback speed")
+                        androidTooltipPolicy: "caption"
+                        spaceActivates: true
+                        androidCaptionText: qsTr("Playback speed")
+                        androidCaptionPlacement: "below"
+                        focusRadius: 17
+                        onTriggered: chrome.audioSpeedCycled()
+                    }
                 }
-                HudGlyphButton { id: playlistButton; kind: "playlist"; label: "Audiobook chapters"; tooltipText: qsTr("Audiobook chapters"); box: 36; onClicked: chrome.openPanelTo("audio", "audioPlaylist") }
+                HudGlyphButton { id: playlistButton; kind: "playlist"; label: "Audiobook chapters"; tooltipText: qsTr("Audiobook chapters"); touchCaptionText: qsTr("Audiobook\nchapters"); box: 36; onClicked: chrome.openPanelTo("audio", "audioPlaylist") }
             }
         }
     }

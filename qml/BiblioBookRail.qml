@@ -123,9 +123,9 @@ Column {
                             ? String(card.book.rating) : ""
                         readonly property string sourceText: card.book.source || ""
                         // ranked mode shows ONLY the numeral badge — never a competing star glyph.
-                        readonly property bool ratingVisible: card.revealed && !rail.ranked
+                        readonly property bool ratingVisible: (card.revealed || Qt.platform.os === "android") && !rail.ranked
                             && card.ratingText.length > 0
-                        readonly property bool sourceVisible: card.revealed && card.sourceText.length > 0
+                        readonly property bool sourceVisible: (card.revealed || Qt.platform.os === "android") && card.sourceText.length > 0
 
                         width: 130
                         height: rail.ranked ? 236 : 218
@@ -182,7 +182,9 @@ Column {
                                     text: card.sourceText
                                     color: theme.inkDim
                                     font.family: theme.ui; font.pixelSize: 10
-                                    elide: Text.ElideRight
+                                    elide: Qt.platform.os === "android" ? Text.ElideNone : Text.ElideRight
+                                    wrapMode: Qt.platform.os === "android" ? Text.WordWrap : Text.NoWrap
+                                    maximumLineCount: Qt.platform.os === "android" ? 2 : 1
                                     width: parent.width
                                 }
                             }

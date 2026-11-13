@@ -1,5 +1,5 @@
-// TopBar.qml — the reader's ICON-ONLY top chrome (Hemanth's ratified amendment: no
-// pills, no text buttons). Left: a back arrow. Center: title (Fraunces) + author
+// TopBar.qml — the reader's icon-only desktop chrome with labelled Android reader
+// actions. Left: a back arrow. Center: title (Fraunces) + author
 // (Inter, quiet). Right: the current chapter label + four line icons — search,
 // contents, appearance, bookmark. Glass over the paper; it fades/slides in with the
 // reveal (ReaderChrome drives `shown`). Pixel contract: the chrome mock's `.topbar`.
@@ -9,11 +9,12 @@
 //
 // [Agent 2 (Claude), biblio]
 import QtQuick
+import ".." as Shared
 
 ReaderOverlay {
     id: root
     overlayActive: shown
-    height: 64
+    height: twoRow ? 158 : (onAndroid ? 72 : 64)
 
     // ---- inputs (the shell feeds these from book metadata + the paper's relocated) ----
     property string title: ""
@@ -40,15 +41,16 @@ ReaderOverlay {
 
     // Android phone width. This bar lives in its own native overlay window there, so the app
     // window's androidHost is out of reach: gate on the platform and on the bar's own width.
-    // Compact = back, the book title, the four reader actions. The chapter name and the author
-    // do not fit beside 44px targets at 412 and are dropped from the bar (Contents still lists
-    // chapters). The window verbs never show on Android: Close is the same goBack as Back.
+    // Android places title, author and chapter above its labelled reader actions where
+    // side-by-side controls would collide. Desktop remains its original icon-only bar.
+    // Window verbs stay excluded on Android: Back already closes the reader session.
     readonly property bool onAndroid: Qt.platform.os === "android"
-    // Under 600 is a phone. A portrait tablet (the Nokia T20 is 686 wide) keeps the full bar.
+    // Keep a second row whenever the complete metadata and labelled action set
+    // would collide, including portrait tablets. Never elide controls to force one row.
     readonly property bool compact: onAndroid && width < 600
-    // Any Android width under 840 puts the title left of the actions. Centred, the title must
-    // clear the wider side cluster on BOTH sides, which left it 86px at the T20's 686.
-    readonly property bool leftTitle: onAndroid && width < 840
+    readonly property bool twoRow: onAndroid && width < 1180
+    // Left-align Android metadata to retain space for the complete title and author.
+    readonly property bool leftTitle: onAndroid
 
     Rectangle { anchors.fill: parent; color: Theme.scrim; visible: Qt.platform.os === "android"; opacity: 0.88; z: -1 }
 
@@ -67,29 +69,39 @@ ReaderOverlay {
         property int box: 19
         property string label: "Action"
         signal clicked()
-        implicitWidth: root.compact ? Math.max(44, box + 10) : box + 10
-        implicitHeight: root.compact ? Math.max(44, box + 10) : box + 10
+        implicitWidth: root.onAndroid
+            ? (root.twoRow ? Math.max(66, Math.min(84, Math.floor((root.width - 28) / 4))) : 84)
+            : box + 10
+        implicitHeight: root.onAndroid ? 72 : box + 10
         function focusKeyboard() { ma.forceActiveFocus(Qt.OtherFocusReason) }
         Image {
             id: img
-            anchors.centerIn: parent
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: root.onAndroid ? undefined : parent.verticalCenter
+            anchors.top: root.onAndroid ? parent.top : undefined
+            anchors.topMargin: root.onAndroid ? 8 : 0
             width: ib.box
             height: ib.box
             sourceSize.width: ib.box * 2
             sourceSize.height: ib.box * 2
             fillMode: Image.PreserveAspectFit
             smooth: true
-            opacity: ma.containsMouse ? 1.0 : 0.62      // ink → inkDim
+            opacity: ma.hovered ? 1.0 : 0.62      // ink → inkDim
             Behavior on opacity { NumberAnimation { duration: 120 } }
         }
-        ReaderKeyboardArea {
+        Shared.KeyboardAction {
             id: ma
-            anchors.fill: parent
-            keyboardLabel: ib.label
+            x: 0; y: 0; width: parent.width
+            height: root.onAndroid ? 48 : parent.height
+            accessibleName: ib.label
             tooltipText: ib.label
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: ib.clicked()
+            spaceActivates: true
+            androidTooltipPolicy: ib.label === "Contents" || ib.label === "Appearance" || ib.label === "Bookmark"
+                ? "caption" : "drop"
+            androidCaptionText: ib.label
+            androidCaptionPlacement: "below"
+            focusRadius: 8
+            onTriggered: ib.clicked()
         }
     }
 
@@ -97,7 +109,9 @@ ReaderOverlay {
     IconButton {
         id: backBtn
         objectName: "bookReaderBack"   // test-only seam: Lanista ui-click closes the reader session (goBack -> closed)
-        anchors.verticalCenter: parent.verticalCenter
+        anchors.verticalCenter: root.twoRow ? undefined : parent.verticalCenter
+        anchors.top: root.twoRow ? parent.top : undefined
+        anchors.topMargin: root.twoRow ? 12 : 0
         anchors.left: parent.left
         anchors.leftMargin: root.compact ? 6 : 22
         box: 22
@@ -121,20 +135,26 @@ ReaderOverlay {
         anchors.centerIn: root.leftTitle ? undefined : parent
         anchors.left: root.leftTitle ? backBtn.right : undefined
         anchors.leftMargin: root.leftTitle ? (root.compact ? 6 : 14) : 0
-        anchors.verticalCenter: root.leftTitle ? parent.verticalCenter : undefined
-        height: parent.height
-        readonly property real authorW: authorText.visible ? authorText.implicitWidth + 10 : 0
+        anchors.verticalCenter: root.leftTitle && !root.twoRow ? parent.verticalCenter : undefined
+        anchors.top: root.twoRow ? parent.top : undefined
+        anchors.topMargin: root.twoRow ? 6 : 0
+        height: root.twoRow ? 72 : parent.height
+        readonly property real authorW: root.twoRow ? 0 : (authorText.visible ? authorText.implicitWidth + 10 : 0)
         readonly property real sideReserve: Math.max(rightRow.width, backBtn.width) + 22 + 18
-        readonly property real availW: root.leftTitle
-            ? Math.max(40, rightRow.x - (backBtn.x + backBtn.width) - (root.compact ? 14 : 28))
-            : Math.max(80, root.width - 2 * sideReserve)
-        width: Math.min(titleText.implicitWidth + authorW, availW)
+        readonly property real availW: root.twoRow
+            ? Math.max(40, root.width - (backBtn.x + backBtn.width) - 24)
+            : (root.leftTitle
+                ? Math.max(40, rightRow.x - (backBtn.x + backBtn.width) - (root.compact ? 14 : 28))
+                : Math.max(80, root.width - 2 * sideReserve))
+        width: root.twoRow ? availW : Math.min(titleText.implicitWidth + authorW, availW)
 
         Text {
             id: titleText
             anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(0, parent.width - titleBlock.authorW)
+            anchors.verticalCenter: root.twoRow ? undefined : parent.verticalCenter
+            anchors.top: root.twoRow ? parent.top : undefined
+            anchors.topMargin: root.twoRow ? 3 : 0
+            width: root.twoRow ? parent.width : Math.max(0, parent.width - titleBlock.authorW)
             text: root.title
             elide: Text.ElideRight
             color: Theme.inkTitle
@@ -144,34 +164,51 @@ ReaderOverlay {
         }
         Text {
             id: authorText
-            anchors.left: titleText.right
-            anchors.leftMargin: 10
-            anchors.baseline: titleText.baseline
+            anchors.left: root.twoRow ? parent.left : titleText.right
+            anchors.leftMargin: root.twoRow ? 0 : 10
+            anchors.baseline: root.twoRow ? undefined : titleText.baseline
+            anchors.top: root.twoRow ? titleText.bottom : undefined
+            anchors.topMargin: root.twoRow ? 2 : 0
             text: root.author
-            visible: root.author !== "" && !root.compact
+            visible: root.author !== ""
             // elide is INERT without an explicit width — unconstrained, a squeezed block
             // let the author overflow at natural width into the right cluster (the same
             // 2026-07-20 double-print). Clamp to the room the block actually has.
-            width: Math.min(implicitWidth, Math.max(0, titleBlock.width - titleText.width - 10))
+            width: root.twoRow ? parent.width : Math.min(implicitWidth, Math.max(0, titleBlock.width - titleText.width - 10))
             elide: Text.ElideRight
             color: Theme.inkFaint
             font.family: Theme.ui
             font.pixelSize: 13
+        }
+        Text {
+            visible: root.twoRow && root.chapterLabel !== ""
+            anchors.left: parent.left
+            anchors.top: authorText.visible ? authorText.bottom : titleText.bottom
+            anchors.topMargin: 2
+            width: parent.width
+            text: root.chapterLabel
+            elide: Text.ElideRight
+            color: Theme.inkDim
+            font.family: Theme.ui
+            font.pixelSize: 12
         }
     }
 
     // right cluster: chapter label + four icons
     Row {
         id: rightRow
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.right: parent.right
-        anchors.rightMargin: root.compact ? 6 : 22
-        spacing: root.compact ? 0 : 12
+        anchors.verticalCenter: root.twoRow ? undefined : parent.verticalCenter
+        anchors.right: root.twoRow ? undefined : parent.right
+        anchors.rightMargin: root.twoRow ? 0 : (root.compact ? 6 : 22)
+        anchors.horizontalCenter: root.twoRow ? parent.horizontalCenter : undefined
+        anchors.bottom: root.twoRow ? parent.bottom : undefined
+        anchors.bottomMargin: root.twoRow ? 4 : 0
+        spacing: root.twoRow ? 4 : 12
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: root.chapterLabel
-            visible: root.chapterLabel !== "" && !root.compact
+            visible: root.chapterLabel !== "" && !root.twoRow
             // CAP (2026-07-20, the Wool 'Prologue 2110: Beneath the hills of…' finding):
             // uncapped, a long chapter name grows the right cluster until the centered
             // title block crushes to its 80px floor and the two print over each other.
