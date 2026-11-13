@@ -174,6 +174,38 @@ KeyboardAction {
         }
     }
 
+    // The existing recommendation-options destination must be reachable by tap on touch.
+    // Desktop retains the original hover feedback affordances unchanged.
+    KeyboardAction {
+        id: recommendationOptions
+        objectName: "vinylRecommendationOptions_" + String(root.item.id || "item")
+        visible: Qt.platform.os === "android" && root.feedbackAvailable
+        enabled: root.enabled && visible
+        x: Math.max(0, art.width - width - 8)
+        y: Math.max(0, art.height - height - 8)
+        z: 3
+        width: 36; height: 36
+        focusOnPointer: false
+        tooltipText: qsTr("Feedback options")
+        androidTooltipPolicy: "longPress"
+        accessibleName: qsTr("Feedback options")
+        onTriggered: root.openRecommendationActions()
+        Rectangle {
+            anchors.fill: parent
+            radius: 18
+            color: Qt.rgba(0.025, 0.025, 0.035, 0.76)
+            border.width: 1
+            border.color: theme.edge
+        }
+        Text {
+            anchors.centerIn: parent
+            text: "⋯"
+            color: theme.ink
+            font.family: theme.ui
+            font.pixelSize: 20
+        }
+    }
+
     VinylFeedbackBadge {
         id: likeBadge
         objectName: "vinylRecommendationLike_" + String(root.item.id || "item")

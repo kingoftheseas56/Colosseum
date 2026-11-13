@@ -49,6 +49,7 @@ Popup {
                 focusOnPointer: false
                 id: closeAction;objectName:"vinylArtistSearchClose";anchors.right:parent.right
                 tooltipText: accessibleName
+                androidTooltipPolicy: "drop"
                 width:40;height:40;focusRadius:20;accessibleName:"Close search";onTriggered:root.close()
                 Rectangle {anchors.fill:parent;radius:20;color:closeAction.interactionActive ? theme.glassHi : theme.glassTint;border.width:1;border.color:theme.edge}
                 Image {anchors.centerIn:parent;width:16;height:16;source:"../../assets/icons/reader2/close.svg"}

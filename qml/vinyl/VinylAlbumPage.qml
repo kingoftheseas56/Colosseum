@@ -51,7 +51,11 @@ Flickable {
         && typeof pageData.shownAlbumRows === "function"
         && typeof pageData.addRowsToPlaylist === "function"
     readonly property bool personalTrackActionsVisible: trackSaveAvailable || trackPlaylistAvailable
-    readonly property real personalTrackActionsWidth: personalTrackActionsVisible ? 80 : 0
+    readonly property bool trackQueueAvailable: queueActionsEnabled && !!pageData
+        && typeof pageData.enqueueTrack === "function"
+    readonly property bool trackContextAvailable: personalTrackActionsVisible || trackQueueAvailable
+    readonly property real personalTrackActionsWidth: Qt.platform.os === "android"
+        ? (trackContextAvailable ? 48 : 0) : (personalTrackActionsVisible ? 80 : 0)
     readonly property var albumActionModel: {
         var actions = ["Play", "Shuffle", "Save"];
         if (queueActionsEnabled && pageData && typeof pageData.enqueueAlbum === "function")
@@ -64,7 +68,8 @@ Flickable {
     property bool songNavigationEnabled: false
     property bool queueActionsEnabled: false
     function focusPrimaryControl() {
-        var play = albumActions.itemAt(0);
+        var slot = albumActions.itemAt(0);
+        var play = slot && slot.children.length > 0 ? slot.children[0] : null;
         if (play) play.forceActiveFocus(Qt.TabFocusReason);
     }
     function personalRowForTrack(index) {
@@ -185,12 +190,26 @@ Flickable {
                 }
                 Repeater {
                     id: albumActions
-                    model: root.albumActionModel
-                    delegate: KeyboardAction {
-                        focusOnPointer: false
+                    model: Qt.platform.os === "android" ? ["Play", "Shuffle", "Save"] : root.albumActionModel
+                    delegate: Item {
+                        id: albumActionSlot
                         required property string modelData
+                        property alias button: albumActionButton
+                        width: Qt.platform.os === "android"
+                            ? (modelData === "Shuffle" ? 118 : modelData === "Save" ? 130 : 40) : 40
+                        height: 36
+                    KeyboardAction {
+                        id: albumActionButton
+                        focusOnPointer: false
+                        property string modelData: albumActionSlot.modelData
                         objectName: "vinylAlbum" + modelData
                         tooltipText: modelData === "Save" ? (root.pageData.saved ? qsTr("Unsave album") : qsTr("Save album")) : accessibleName
+                        androidTooltipPolicy: modelData === "Play" ? "drop"
+                            : (modelData === "Shuffle" || modelData === "Save" ? "caption" : "legacy")
+                        androidCaptionPlacement: "right"
+                        androidCaptionText: modelData === "Save"
+                            ? (root.pageData.saved ? qsTr("Unsave album") : qsTr("Save album"))
+                            : modelData === "Shuffle" ? qsTr("Shuffle") : ""
                         width: 40
                         height: 36
                         accessibleName: modelData === "Save" && root.pageData.saved ? "Saved"
@@ -240,6 +259,33 @@ Flickable {
                                 : theme.inkDim
                         }
                     }
+                    }
+                }
+                ActionOverflowMenu {
+                    objectName: "vinylAlbumMore"
+                    visible: Qt.platform.os === "android" && root.albumActionModel.length > 3
+                    width: visible ? implicitWidth : 0
+                    height: 36
+                    actions: {
+                        var items = [];
+                        if (root.queueActionsEnabled && root.pageData
+                                && typeof root.pageData.enqueueAlbum === "function") {
+                            items.push({id:"next", label:qsTr("Play album next"), iconName:"plus",
+                                enabled:root.trackCount > 0});
+                            items.push({id:"queue", label:qsTr("Add to queue"), iconName:"list",
+                                enabled:root.trackCount > 0});
+                        }
+                        if (root.albumPlaylistAvailable)
+                            items.push({id:"playlist", label:qsTr("Add to playlist"), iconName:"collections",
+                                enabled:root.pageData.personalEnabled && !root.partialPlaylist
+                                    && root.albumRowsForPlaylist().length > 0});
+                        return items;
+                    }
+                    onActionTriggered: function(actionId) {
+                        if (actionId === "next") root.pageData.enqueueAlbum(root.pageData.shownAlbumId, true);
+                        else if (actionId === "queue") root.pageData.enqueueAlbum(root.pageData.shownAlbumId, false);
+                        else if (actionId === "playlist") root.pageData.addRowsToPlaylist(root.albumRowsForPlaylist());
+                    }
                 }
             }
         }
@@ -287,7 +333,7 @@ Flickable {
                         width: 32
                         y: parent.compactTrackActions ? parent.baseTrackHeight + 4 : 0
                         height: parent.compactTrackActions ? 32 : parent.height
-                        visible: root.trackSaveAvailable
+                        visible: root.trackSaveAvailable && Qt.platform.os !== "android"
                         enabled: visible && trackVisual.enabled && root.pageData.personalEnabled && root.hasPersonalRow(personalRow)
                         opacity: enabled ? 1 : 0.35
                         accessibleName: root.trackIsSaved(personalRow) ? "Unsave song" : "Save song"
@@ -313,7 +359,7 @@ Flickable {
                         width: 32
                         y: parent.compactTrackActions ? parent.baseTrackHeight + 4 : 0
                         height: parent.compactTrackActions ? 32 : parent.height
-                        visible: root.trackPlaylistAvailable
+                        visible: root.trackPlaylistAvailable && Qt.platform.os !== "android"
                         enabled: visible && trackVisual.enabled && root.pageData.personalEnabled && root.hasPersonalRow(personalRow)
                         opacity: enabled ? 1 : 0.35
                         accessibleName: "Add song to playlist"
@@ -332,10 +378,45 @@ Flickable {
                     readonly property real baseTrackHeight: root.height < 600
                         ? (root.pageData.trackArtists(index) ? 58 : 50)
                         : (root.pageData.trackArtists(index) ? 62 : 57)
-                    readonly property bool compactTrackActions: trackList.width < 400
-                        && root.personalTrackActionsVisible
+                    readonly property bool compactTrackActions: Qt.platform.os !== "android"
+                        && trackList.width < 400 && root.personalTrackActionsVisible
                     readonly property real trackActionWidth: root.personalTrackActionsWidth
                     height: baseTrackHeight + (compactTrackActions ? 40 : 0)
+                    ActionOverflowMenu {
+                        id: trackMore
+                        objectName: "vinylTrackMore_" + parent.index
+                        visible: Qt.platform.os === "android" && root.trackContextAvailable
+                        x: Math.max(0, parent.width - width - 4)
+                        y: Math.max(0, (parent.baseTrackHeight - height) / 2)
+                        width: 40; height: 36
+                        label: qsTr("Track actions")
+                        showLabel: false
+                        actions: {
+                            var items = [];
+                            var row = root.personalRowForTrack(parent.index);
+                            var canPlay = trackVisual.enabled;
+                            if (root.trackSaveAvailable)
+                                items.push({id:"save", label:root.trackIsSaved(row) ? qsTr("Unsave song") : qsTr("Save song"),
+                                    iconName:root.trackIsSaved(row) ? "check" : "plus",
+                                    selected:root.trackIsSaved(row),
+                                    enabled:canPlay && root.pageData.personalEnabled && root.hasPersonalRow(row)});
+                            if (root.trackPlaylistAvailable)
+                                items.push({id:"playlist", label:qsTr("Add to playlist"), iconName:"collections",
+                                    enabled:canPlay && root.pageData.personalEnabled && root.hasPersonalRow(row)});
+                            if (root.trackQueueAvailable) {
+                                items.push({id:"next", label:qsTr("Play next"), iconName:"up", enabled:canPlay});
+                                items.push({id:"queue", label:qsTr("Add to queue"), iconName:"list", enabled:canPlay});
+                            }
+                            return items;
+                        }
+                        onActionTriggered: function(actionId) {
+                            var row = root.personalRowForTrack(parent.index);
+                            if (actionId === "save") root.pageData.toggleSongSaved(row);
+                            else if (actionId === "playlist") root.pageData.addRowsToPlaylist([row]);
+                            else if (actionId === "next") root.pageData.enqueueTrack(parent.index, true);
+                            else if (actionId === "queue") root.pageData.enqueueTrack(parent.index, false);
+                        }
+                    }
                     VinylTrackRow {
                         id: trackVisual
                         trackIndex: parent.index
@@ -350,11 +431,18 @@ Flickable {
                 width: trackList.width
                 height: visible ? Math.max(40, playlistMoreStatus.implicitHeight) + 10 : 0
                 spacing: 10
+                Item {
+                    id: playlistMoreSlot
+                    width: Qt.platform.os === "android" ? 164 : 36
+                    height: 36
                 KeyboardAction {
                     id: playlistMoreAction
                     focusOnPointer: false
                     objectName: "vinylPlaylistMore"
                     tooltipText: accessibleName
+                    androidTooltipPolicy: "caption"
+                    androidCaptionText: qsTr("Load more tracks")
+                    androidCaptionPlacement: "right"
                     width: 36
                     height: 36
                     accessibleName: "Load more tracks"
@@ -374,10 +462,11 @@ Flickable {
                         color: theme.inkDim
                     }
                 }
+                }
                 Text {
                     id: playlistMoreStatus
-                    width: Math.max(0, parent.width - playlistMoreAction.width - parent.spacing)
-                    anchors.verticalCenter: playlistMoreAction.verticalCenter
+                    width: Math.max(0, parent.width - playlistMoreSlot.width - parent.spacing)
+                    anchors.verticalCenter: playlistMoreSlot.verticalCenter
                     visible: root.playlistPageLoading || root.playlistPageError.length > 0
                     text: root.playlistPageLoading ? "Loading tracks…" : root.playlistPageError
                     color: root.playlistPageError.length > 0 && !root.playlistPageLoading

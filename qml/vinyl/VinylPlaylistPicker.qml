@@ -66,6 +66,7 @@ Popup {
             KeyboardAction {
                 objectName: "vinylPlaylistPickerClose"
                 tooltipText: accessibleName
+                androidTooltipPolicy: "drop"
                 anchors.right: parent.right
                 width: 36; height: 36
                 focusOnPointer: false
@@ -83,7 +84,7 @@ Popup {
             TextField {
                 id: nameField
                 objectName: "vinylPlaylistPickerName"
-                width: Math.max(0, parent.width - 48)
+                width: Math.max(0, parent.width - (Qt.platform.os === "android" ? 178 : 48))
                 height: parent.height
                 maximumLength: 80
                 placeholderText: "Create a new playlist"
@@ -100,6 +101,9 @@ Popup {
                 id: createPlaylistAction
                 objectName: "vinylPlaylistPickerCreate"
                 tooltipText: accessibleName
+                androidTooltipPolicy: "caption"
+                androidCaptionText: qsTr("Create playlist")
+                androidCaptionPlacement: "right"
                 width: 40; height: 40
                 focusOnPointer: false
                 accessibleName: "Create playlist and add songs"

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Window
 import ".."
 import "../collections"
 import "../CollectionsReferences.js" as CollectionsReferences
@@ -9,6 +10,7 @@ Item {
 
     width: inlineActions.implicitWidth
     height: 34
+    readonly property bool androidSelectedMenu: Qt.platform.os === "android"
     property real spacing: 7
     property Item collectionHost: null
     property Item personalHost: null
@@ -78,6 +80,8 @@ Item {
         }
     }
     readonly property bool videoShown: songData && songData.videoShown === true
+    readonly property bool videoBusy: songData && songData.videoBusy === true
+    readonly property bool videoSwitchCancellable: songData && songData.videoSwitchCancellable === true
     readonly property bool hasActions: root.showPlay || root.canToggleSaved
                                                   || root.canAddToPlaylist
                                                   || root.showReaderTools || root.showLyricsTools
@@ -124,6 +128,7 @@ Item {
 
     component Action: KeyboardAction {
         tooltipText: accessibleName
+        androidTooltipPolicy: "drop"
         id: control
         property string symbol: ""
         property string label: ""
@@ -190,7 +195,7 @@ Item {
             spacing: root.spacing
             Action {
                 objectName: "vinylSongPlay"
-                visible: root.showPlay
+                visible: root.showPlay && !root.androidSelectedMenu
                 enabled: root.playEnabled
                 symbol: "playViewed"
                 accessibleName: qsTr("Play viewed song")
@@ -198,7 +203,7 @@ Item {
             }
             Action {
                 objectName: "vinylSongSave"
-                visible: root.canToggleSaved
+                visible: root.canToggleSaved && !root.androidSelectedMenu
                 symbol: root.currentSongSaved ? "saved" : "save"
                 selected: root.currentSongSaved
                 accessibleName: root.currentSongSaved ? qsTr("Unsave") : qsTr("Save")
@@ -211,7 +216,7 @@ Item {
             visible: root.visible
             Action {
                 objectName: "vinylSongPlaylist"
-                visible: root.canAddToPlaylist
+                visible: root.canAddToPlaylist && !root.androidSelectedMenu
                 iconSource: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#c7c0b4" stroke-width="1.7" stroke-linecap="round"><path d="M3 5h13M3 10h9M3 15h6M17 12v9M12.5 16.5h9"/></svg>')
                 accessibleName: qsTr("Add to playlist")
                 onTriggered: root.invokeCurrentSong("addPlayingSongToPlaylist")
@@ -222,7 +227,9 @@ Item {
             parent: root.collectionHost || inlineActions
             visible: root.visible
             AddToCollectionsButton {
+                id: collectionButton
                 objectName: "vinylSongAddToCollections"
+                visible: !root.androidSelectedMenu
                 reference: CollectionsReferences.song(root.songData)
                 labelText: qsTr("Add to Collection")
                 iconOnly: true
@@ -266,12 +273,74 @@ Item {
             }
             Action {
                 objectName: "vinylBarFullscreen"
-                visible: root.showReaderTools && root.videoShown
+                visible: !root.androidSelectedMenu && root.showReaderTools && root.videoShown
                 selected: root.videoFullscreen
                 iconSource: root.videoFullscreen ? "../../assets/icons/fullscreen-exit.svg"
                 : "../../assets/icons/fullscreen.svg"
                 accessibleName: root.videoFullscreen ? qsTr("Exit fullscreen") : qsTr("Enter fullscreen")
                 onTriggered: root.videoFullscreenRequested()
+            }
+        }
+        // V2 keeps the reading tools in their existing labelled hosts. Selected-song
+        // utilities share a single tap-visible action bank on Android.
+        ActionOverflowMenu {
+            id: selectedSongMore
+            objectName: "vinylSongMore"
+            visible: root.androidSelectedMenu
+                && (root.showPlay || root.showReaderTools || root.canToggleSaved
+                    || root.canAddToPlaylist || root.hasEnqueueMethod)
+            width: 86; height: 34
+            label: qsTr("More")
+            actions: {
+                var items = [];
+                if (root.showPlay)
+                    items.push({id:"play", label:qsTr("Play viewed song"), iconName:"song",
+                        enabled:root.playEnabled});
+                if (root.canToggleSaved)
+                    items.push({id:"save", label:root.currentSongSaved ? qsTr("Unsave") : qsTr("Save"),
+                        iconName:root.currentSongSaved ? "check" : "plus",
+                        selected:root.currentSongSaved});
+                items.push({id:"collection", label:qsTr("Add to Collections"), iconName:"collections",
+                    enabled:collectionButton.available});
+                if (root.canAddToPlaylist)
+                    items.push({id:"playlist", label:qsTr("Add to playlist"), iconName:"plus"});
+                if (root.hasEnqueueMethod) {
+                    items.push({id:"next", label:qsTr("Play next"), iconName:"up",
+                        enabled:root.canEnqueue});
+                    items.push({id:"queue", label:qsTr("Add to queue"), iconName:"list",
+                        enabled:root.canEnqueue});
+                }
+                if (root.showReaderTools) {
+                    var canVideo = root.videoShown || root.videoBusy || root.songData.hasVideo === true;
+                    var videoLabel = root.videoBusy
+                        ? (root.videoSwitchCancellable ? qsTr("Cancel audio/video switch")
+                            : qsTr("Switching playback mode"))
+                        : root.videoShown ? qsTr("Turn video off") : qsTr("Switch to video");
+                    items.push({id:"video", label:videoLabel, iconName:"film",
+                        selected:root.videoShown,
+                        enabled:canVideo && (!root.videoBusy || root.videoSwitchCancellable),
+                        busy:root.videoBusy && !root.videoSwitchCancellable});
+                    if (root.videoShown)
+                        items.push({id:"fullscreen", label:root.videoFullscreen
+                            ? qsTr("Exit fullscreen") : qsTr("Enter fullscreen"),
+                            iconName:"grid", selected:root.videoFullscreen});
+                }
+                return items;
+            }
+            onActionTriggered: function(actionId) {
+                if (actionId === "play") root.playRequested();
+                else if (actionId === "save") root.invokeCurrentSong("togglePlayingSongSaved");
+                else if (actionId === "collection") {
+                    var window = root.Window.window;
+                    if (collectionButton.available && window
+                            && typeof window.openNamedCollectionsPicker === "function")
+                        window.openNamedCollectionsPicker(collectionButton.resolution.reference, selectedSongMore);
+                } else if (actionId === "playlist")
+                    root.invokeCurrentSong("addPlayingSongToPlaylist");
+                else if (actionId === "next" || actionId === "queue")
+                    root.invokeCurrentSong("enqueuePlayingSong", [actionId === "next"]);
+                else if (actionId === "video") root.videoRequested();
+                else if (actionId === "fullscreen") root.videoFullscreenRequested();
             }
         }
     }

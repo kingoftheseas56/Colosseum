@@ -341,7 +341,7 @@ Column {
                     Text {
                         anchors.right: parent.right
                         anchors.rightMargin: row.isCompact
-                            ? (root.compactQueueAvailable ? 88 : 20) : 8
+                            ? (root.compactQueueAvailable ? (Qt.platform.os === "android" ? 52 : 88) : 20) : 8
                         anchors.verticalCenter: parent.verticalCenter
                         readonly property real seconds: (!row.isCompact && row.modelData.track)
                             ? Number(row.modelData.track.seconds) : 0
@@ -368,6 +368,7 @@ Column {
                         objectName: row.isCompact ? "vinylArtistSinglesNext_" + row.index : ""
                         tooltipText: qsTr("Play next")
                         visible: row.isCompact && root.compactQueueAvailable
+                            && Qt.platform.os !== "android"
                         x: parent.width - 76
                         y: (parent.height - 32) / 2
                         width: 32; height: 32
@@ -385,6 +386,7 @@ Column {
                         objectName: row.isCompact ? "vinylArtistSinglesQueue_" + row.index : ""
                         tooltipText: qsTr("Add to queue")
                         visible: row.isCompact && root.compactQueueAvailable
+                            && Qt.platform.os !== "android"
                         x: parent.width - 40
                         y: (parent.height - 32) / 2
                         width: 32; height: 32
@@ -394,6 +396,22 @@ Column {
                         onTriggered: root.artistData.enqueueDemoSong(row.index, false)
                         Rectangle { anchors.fill: parent; radius: 7; color: parent.interactionActive ? theme.glassTint : "transparent" }
                         VinylControlIcon { anchors.centerIn: parent; symbol: "queue"; color: theme.inkDim }
+                    }
+                    ActionOverflowMenu {
+                        objectName: "vinylArtistSinglesMore_" + row.index
+                        visible: Qt.platform.os === "android" && row.isCompact && root.compactQueueAvailable
+                        x: parent.width - width - 6
+                        y: (parent.height - height) / 2
+                        width: 40; height: 36
+                        showLabel: false
+                        label: qsTr("Track actions")
+                        actions: [
+                            {id:"next", label:qsTr("Play next"), iconName:"up", enabled:row.modelData.playable !== false},
+                            {id:"queue", label:qsTr("Add to queue"), iconName:"list", enabled:row.modelData.playable !== false}
+                        ]
+                        onActionTriggered: function(actionId) {
+                            root.artistData.enqueueDemoSong(row.index, actionId === "next");
+                        }
                     }
                 }
             }
