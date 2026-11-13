@@ -276,21 +276,25 @@ TestCase {
     function test_inset_hero_copy_clears_cover_data() {
         return [{tag: "t20-poster", width: 762, kind: "poster"},
                 {tag: "t20-square", width: 762, kind: "square"},
-                {tag: "phone-poster", width: 955, height: 427, kind: "poster"}]
+                {tag: "phone-poster", width: 955, height: 427, kind: "poster"},
+                {tag: "phone-long-copy", width: 955, height: 427, kind: "banner", longCopy: true}]
     }
     function test_inset_hero_copy_clears_cover(data) {
         host.width = data.width
         host.height = data.height || 457
         host.androidHost = true
-        const title = "A Court of Thorns and Roses"
+        const title = data.longCopy ? "Mission: Impossible – The Final Reckoning" : "A Court of Thorns and Roses"
         const slide = createTemporaryObject(insetHeroComponent, host.contentItem,
-            {slide: {title: title, artKind: data.kind, blurb: "By Sarah J. Maas."}})
+            {slide: {title: title, artKind: data.kind, blurb: data.longCopy ? "A long featured description that occupies both available lines while keeping the original title and both primary actions visible in the first viewport." : "By Sarah J. Maas."}})
         verify(slide)
         wait(50)
         const copy = textDescendant(slide, title).parent
         const cover = findChild(slide, "featuredInsetArt_0")
-        verify(copy.x + copy.width + 12 <= cover.x, "Hero copy must clear the inset cover")
+        if (data.kind !== "banner")
+            verify(copy.x + copy.width + 12 <= cover.x, "Hero copy must clear the inset cover")
         verify(copy.y >= 0 && copy.y + copy.height <= slide.height)
+        const titleText = textDescendant(slide, title)
+        verify(titleText.contentHeight <= titleText.height + 0.01, "The fitted title itself stays inside its bounds")
         host.androidHost = false
         host.width = 1280
         wait(50)

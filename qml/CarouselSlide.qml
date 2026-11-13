@@ -121,6 +121,7 @@ Item {
         }
         // copy
         Column {
+            id: copyColumn
             anchors.left: parent.left
             anchors.bottom: parent.bottom
             anchors.leftMargin: slideRoot.shortAndroid ? adaptive.heroCopyInset : (slideRoot.televisionMode ? 52 : (slideRoot.narrowLayout ? 20 : 42))
@@ -130,21 +131,28 @@ Item {
                                 ? Math.max(0, insetArt.x - anchors.leftMargin - adaptive.heroCoverCopyGap)
                                 : parent.width - (slideRoot.televisionMode ? 104 : (slideRoot.narrowLayout ? 40 : 84)))
             spacing: slideRoot.compactCopy ? 8 : (slideRoot.televisionMode ? 12 : 10)
-            Text { text: slideRoot.kicker.toUpperCase(); color: theme.gold
+            Text { id: kickerText; text: slideRoot.kicker.toUpperCase(); color: theme.gold
                 visible: text.length > 0
                 font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 13 : 11; font.letterSpacing: 3 }
-            Text { text: slideRoot.slide.title !== undefined ? slideRoot.slide.title : ""
+            Text { id: titleText; text: slideRoot.slide.title !== undefined ? slideRoot.slide.title : ""
+                height: slideRoot.shortAndroid ? Math.min(implicitHeight, Math.max(adaptive.heroMinimumTitleSize,
+                    slideRoot.height - adaptive.heroCopyTopInset - copyColumn.anchors.bottomMargin
+                    - (kickerText.visible ? kickerText.height : 0) - (blurbText.visible ? blurbText.height : 0)
+                    - heroActions.height - copyColumn.spacing * (1 + (kickerText.visible ? 1 : 0) + (blurbText.visible ? 1 : 0)))) : implicitHeight
+                fontSizeMode: slideRoot.shortAndroid ? Text.Fit : Text.FixedSize
+                minimumPixelSize: adaptive.heroMinimumTitleSize
                 color: theme.ink; font.family: theme.display
                 font.pixelSize: slideRoot.shortAndroid ? adaptive.heroTitleSize : (slideRoot.televisionMode ? 58 : (slideRoot.narrowLayout ? 34 : (slideRoot.compactCopy ? 42 : 50)))
                 lineHeight: 0.96; maximumLineCount: 2; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap }
-            Text { text: slideRoot.slide.blurb !== undefined ? slideRoot.slide.blurb : ""
+            Text { id: blurbText; text: slideRoot.slide.blurb !== undefined ? slideRoot.slide.blurb : ""
                 visible: text.length > 0
                 color: theme.inkDim; font.family: theme.ui
                 font.pixelSize: slideRoot.compactCopy ? 13 : (slideRoot.televisionMode ? 16 : 14)
                 maximumLineCount: slideRoot.compactCopy ? 2 : 3; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.25 }
             Row {
+                id: heroActions
                 spacing: 10; topPadding: 6
                 Rectangle {
                     radius: slideRoot.televisionMode ? 13 : 11

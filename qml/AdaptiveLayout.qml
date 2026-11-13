@@ -36,6 +36,8 @@ QtObject {
     readonly property real chromeMinimumDateSize: 8
     readonly property real heroCopyInset: shortAndroid ? 20 : 42
     readonly property real heroTitleSize: shortAndroid ? 34 : 48
+    readonly property real heroMinimumTitleSize: 24
+    readonly property real heroCopyTopInset: 8
     readonly property real heroCoverCopyGap: 20
     readonly property real libraryFilterInset: 10
     readonly property real libraryToolsGap: 12
