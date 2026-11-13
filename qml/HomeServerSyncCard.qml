@@ -79,7 +79,7 @@ Rectangle {
         Label {
             objectName: "homeServerCardStatus"
             Layout.fillWidth: true
-            visible: text.length > 0
+            visible: text.length > 0 && !root.panelOpen
             text: root.service ? root.service.status : ""
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
@@ -177,6 +177,7 @@ Rectangle {
         }
     }
     Loader {
+        objectName: "homeServerPanelLoader"
         active: root.panelOpen
         sourceComponent: HomeServerConnectPanel {
             service: root.service

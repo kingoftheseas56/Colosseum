@@ -26,6 +26,7 @@ TestCase {
         property int cancels: 0
         property int plexStarts: 0
         property var received: ({})
+        property string expectedPassword: ""
         property string selectedId: ""
         property bool selectedHttp: false
         property string enabledId: ""
@@ -37,7 +38,8 @@ TestCase {
         function isInsecureAddress(address) { return address.trim().toLowerCase().indexOf("http://") === 0 }
         function connectServer(provider, address, username, password, allowHttp) {
             submits++
-            received = { provider: provider, address: address, username: username, hadPassword: password.length > 0, allowHttp: allowHttp }
+            received = { provider: provider, address: address, username: username, hadPassword: password.length > 0,
+                         passwordMatched: password === expectedPassword, allowHttp: allowHttp }
         }
         function beginPlex() { plexStarts++ }
         function selectPlexServer(id, allowHttp) { selectedId = id; selectedHttp = allowHttp }
@@ -63,6 +65,7 @@ TestCase {
         fixture.cancels = 0
         fixture.plexStarts = 0
         fixture.received = ({})
+        fixture.expectedPassword = ""
         fixture.selectedId = ""
         fixture.selectedHttp = false
         fixture.enabledId = ""
@@ -160,6 +163,28 @@ TestCase {
         compare(fixture.received.hadPassword, false)
         compare(fixture.received.allowHttp, true)
         compare(field(panel, "homeServerPassword").text, "")
+        panel.close()
+    }
+    function test_passwordSingleLineSanitation_data() {
+        return [
+            { tag: "assigned_crlf", insert: false, raw: "\r\n  fake pass Ω\r\nword  \n", clean: "  fake pass Ωword  " },
+            { tag: "inserted_crlf", insert: true, raw: "\r\n  fake pass Ω\r\nword  \n", clean: "  fake pass Ωword  " },
+            { tag: "spaces_and_other_characters", insert: false, raw: "  fake\tpass Ω  ", clean: "  fake\tpass Ω  " }
+        ]
+    }
+    function test_passwordSingleLineSanitation(data) {
+        let panel = openPanel()
+        field(panel, "homeServerAddress").text = "https://server.local"
+        field(panel, "homeServerUsername").text = "viewer"
+        fixture.expectedPassword = data.clean
+        let password = field(panel, "homeServerPassword")
+        if (data.insert) password.insert(0, data.raw)
+        else password.text = data.raw
+        compare(password.text, data.clean)
+        mouseClick(field(panel, "homeServerSubmit"))
+        compare(fixture.submits, 1)
+        compare(fixture.received.passwordMatched, true)
+        compare(password.text, "")
         panel.close()
     }
     function test_cardShowsUnavailableAndRemovalStatus() {
@@ -297,6 +322,8 @@ TestCase {
         testWindow.width = 320
         testWindow.height = 480
         let panel = openPanel()
+        credentials(panel, "http://server.local:8096")
+        fixture.status = "The server could not complete sign-in.\nPlease try again."
         tryVerify(function() { return panel.width <= testWindow.width })
         tryVerify(function() { return panel.height <= testWindow.height })
         let cancel = field(panel, "homeServerCancel")
@@ -304,8 +331,69 @@ TestCase {
         verify(cancel.height >= 44 && submit.height >= 44)
         verify(cancel.mapToItem(panel.contentItem, 0, cancel.height).y <= panel.contentItem.height)
         verify(submit.mapToItem(panel.contentItem, 0, submit.height).y <= panel.contentItem.height)
+        let status = field(panel, "homeServerStatus")
+        let statusY = status.mapToItem(panel.contentItem, 0, 0).y
+        verify(statusY >= 0)
+        verify(status.mapToItem(panel.contentItem, 0, status.height).y <= cancel.mapToItem(panel.contentItem, 0, 0).y)
+        let scroll = field(panel, "homeServerFormScroll")
+        tryVerify(function() { return scroll.contentHeight > scroll.availableHeight })
+        scroll.contentItem.contentY = scroll.contentItem.contentHeight - scroll.contentItem.height
+        let consent = field(panel, "homeServerHttpConsent")
+        tryVerify(function() { return consent.mapToItem(scroll, 0, 0).y >= -1 })
+        verify(consent.mapToItem(scroll, 0, consent.height).y <= scroll.height + 1)
+        mouseClick(consent)
+        compare(consent.checked, true)
+        compare(status.mapToItem(panel.contentItem, 0, 0).y, statusY)
         panel.close()
         testWindow.width = oldWidth
         testWindow.height = oldHeight
+    }
+    function test_httpFailureFitsDesktopAndStaysInDialog() {
+        let testWindow = testCase.Window.window
+        let oldWidth = testWindow.width
+        let oldHeight = testWindow.height
+        testWindow.width = 1280
+        testWindow.height = 720
+        let card = createTemporaryObject(cardComponent, testCase)
+        try {
+            mouseClick(findChild(card, "homeServerConnectButton"))
+            let loader = findChild(card, "homeServerPanelLoader")
+            tryCompare(loader, "status", Loader.Ready)
+            let panel = loader.item
+            tryCompare(panel, "opened", true)
+            credentials(panel, "http://server.local:8096")
+            let consent = field(panel, "homeServerHttpConsent")
+            mouseClick(consent)
+            mouseClick(field(panel, "homeServerSubmit"))
+            compare(fixture.submits, 1)
+            fixture.status = "<b>The server could not complete sign-in.</b>\nPlease try again or check server access."
+            fixture.changed()
+            let scroll = field(panel, "homeServerFormScroll")
+            tryVerify(function() { return scroll.contentHeight <= scroll.availableHeight + 1 })
+            compare(scroll.contentItem.contentY, 0)
+            for (let name of ["homeServerAddress", "homeServerUsername", "homeServerPassword", "homeServerHttpConsent"]) {
+                let item = field(panel, name)
+                verify(item.mapToItem(scroll, 0, 0).y >= -1, name + " top is visible")
+                verify(item.mapToItem(scroll, 0, item.height).y <= scroll.height + 1, name + " bottom is visible")
+            }
+            let status = field(panel, "homeServerStatus")
+            compare(status.parent, panel.contentItem)
+            compare(status.text, fixture.status)
+            compare(status.textFormat, Text.PlainText)
+            verify(status.mapToItem(panel.contentItem, 0, 0).y >= 0)
+            let cancel = field(panel, "homeServerCancel")
+            let submit = field(panel, "homeServerSubmit")
+            verify(status.mapToItem(panel.contentItem, 0, status.height).y <= cancel.mapToItem(panel.contentItem, 0, 0).y)
+            verify(cancel.mapToItem(panel.contentItem, 0, cancel.height).y <= panel.contentItem.height + 1)
+            verify(submit.mapToItem(panel.contentItem, 0, submit.height).y <= panel.contentItem.height + 1)
+            compare(findChild(card, "homeServerCardStatus").visible, false)
+            panel.close()
+            tryCompare(card, "panelOpen", false)
+            compare(findChild(card, "homeServerCardStatus").visible, true)
+        } finally {
+            card.panelOpen = false
+            testWindow.width = oldWidth
+            testWindow.height = oldHeight
+        }
     }
 }

@@ -20,7 +20,7 @@ Popup {
     height: Math.min(implicitHeight, parent ? parent.height - 24 : implicitHeight)
     x: parent ? (parent.width - width) / 2 : 0
     y: parent ? (parent.height - height) / 2 : 0
-    padding: width < 400 ? 20 : 26
+    padding: 20
     modal: true
     focus: true
     closePolicy: Popup.CloseOnEscape
@@ -113,7 +113,7 @@ Popup {
     }
 
     contentItem: ColumnLayout {
-        spacing: 20
+        spacing: 12
         Keys.onReleased: event => {
             if (event.key === Qt.Key_Back) {
                 root.close()
@@ -122,6 +122,7 @@ Popup {
         }
         ScrollView {
             id: scroll
+            objectName: "homeServerFormScroll"
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.minimumHeight: 0
@@ -131,13 +132,8 @@ Popup {
         ColumnLayout {
             id: form
             width: scroll.availableWidth
-            spacing: 20
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 6
-                Label { text: qsTr("Connect a home server"); color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(26); Layout.fillWidth: true; wrapMode: Text.Wrap }
-                Label { text: qsTr("Choose the server you use."); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); Layout.fillWidth: true; wrapMode: Text.Wrap }
-            }
+            spacing: 12
+            Label { text: qsTr("Connect a home server"); color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(24); Layout.fillWidth: true; wrapMode: Text.Wrap }
             RowLayout {
                 id: providerChoice
                 objectName: "homeServerProvider"
@@ -166,7 +162,8 @@ Popup {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
                         Layout.minimumWidth: 0
-                        implicitHeight: 92
+                        implicitHeight: 54
+                        padding: root.width < 400 ? 6 : 8
                         checkable: true
                         autoExclusive: true
                         checked: providerChoice.currentIndex === index
@@ -179,45 +176,36 @@ Popup {
                             border.color: providerTile.checked || providerTile.activeFocus ? theme.gold : theme.edge
                             border.width: providerTile.activeFocus ? 2 : 1
                         }
-                        contentItem: ColumnLayout {
-                            spacing: 8
+                        contentItem: RowLayout {
+                            spacing: root.width < 400 ? 4 : 8
                             Image {
                                 objectName: "homeServerProviderLogo_" + providerTile.modelData
-                                Layout.alignment: Qt.AlignHCenter
-                                Layout.preferredWidth: 36
-                                Layout.preferredHeight: 36
+                                Layout.preferredWidth: root.width < 400 ? 20 : 24
+                                Layout.preferredHeight: root.width < 400 ? 20 : 24
                                 source: "../assets/icons/servers/" + providerTile.modelData + ".svg"
-                                sourceSize: Qt.size(72, 72)
+                                sourceSize: Qt.size(48, 48)
                                 fillMode: Image.PreserveAspectFit
                                 Accessible.ignored: true
                             }
                             Label {
                                 Layout.fillWidth: true
+                                Layout.minimumWidth: 0
                                 text: providerTile.Accessible.name
                                 color: providerTile.checked ? theme.ink : theme.inkDim
                                 font.family: theme.ui
                                 font.pixelSize: theme.fontSize(12)
                                 font.weight: Font.DemiBold
                                 horizontalAlignment: Text.AlignHCenter
+                                elide: Text.ElideRight
                             }
                         }
                     }
                 }
             }
             ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 5
-                Label { text: root.providerName; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(17); font.weight: Font.DemiBold }
-                Label {
-                    Layout.fillWidth: true
-                    text: root.provider === "plex" ? qsTr("Approve sign-in in your browser, then choose a server.") : qsTr("Use the address and account for your server.")
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); wrapMode: Text.Wrap
-                }
-            }
-            ColumnLayout {
                 visible: root.provider !== "plex"
                 Layout.fillWidth: true
-                spacing: 16
+                spacing: 12
                 Account.AccountField {
                     id: addressField
                     controlObjectName: "homeServerAddress"
@@ -244,12 +232,16 @@ Popup {
                     placeholderText: qsTr("Password")
                     Accessible.name: placeholderText
                     password: true
+                    onTextChanged: {
+                        const singleLine = passwordField.text.replace(/[\r\n]/g, "")
+                        if (passwordField.text !== singleLine) passwordField.text = singleLine
+                    }
                     onAccepted: root.submit()
                 }
                 Label {
                     visible: root.insecure
                     Layout.fillWidth: true
-                    text: qsTr("HTTP sends your sign-in and media without encryption. Only continue on a network you trust.")
+                    text: qsTr("HTTP sends sign-in and media without encryption.")
                     wrapMode: Text.Wrap
                     color: theme.gold
                     font.family: theme.ui; font.pixelSize: theme.fontSize(12)
@@ -267,6 +259,11 @@ Popup {
                 visible: root.provider === "plex"
                 Layout.fillWidth: true
                 spacing: 12
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Approve sign-in in your browser, then choose a server.")
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); wrapMode: Text.Wrap
+                }
                 Account.AccountButton {
                     objectName: "homeServerBeginPlex"
                     Layout.fillWidth: true
@@ -358,17 +355,17 @@ Popup {
                     }
                 }
             }
-            Label {
-                objectName: "homeServerStatus"
-                Layout.fillWidth: true
-                visible: text.length > 0
-                text: root.service ? root.service.status : ""
-                textFormat: Text.PlainText
-                wrapMode: Text.Wrap
-                color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: theme.fontSize(12)
-            }
         }
+        }
+        Label {
+            objectName: "homeServerStatus"
+            Layout.fillWidth: true
+            visible: text.length > 0
+            text: root.service ? root.service.status : ""
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            color: theme.inkDim
+            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
         }
         RowLayout {
             Layout.fillWidth: true
