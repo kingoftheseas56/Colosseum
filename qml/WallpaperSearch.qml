@@ -214,6 +214,7 @@ Item {
                     KeyboardAction { anchors.fill: parent; anchors.margins: -10; pointerEnabled: false
                         accessibleName: "Close wallpaper picker"
                         tooltipText: accessibleName
+                        androidTooltipPolicy: "drop"
                         tooltipHovered: closeMa.containsMouse
                         onTriggered: root.closeRequested() }
                 }

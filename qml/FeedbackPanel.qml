@@ -78,15 +78,15 @@ FocusScope {
                 Layout.fillWidth: true
             }
             Item {
-                Layout.preferredWidth: 48
+                Layout.preferredWidth: Qt.platform.os === "android" ? 108 : 48
                 Layout.preferredHeight: 48
                 Rectangle {
-                    anchors.fill: parent
+                    anchors.fill: refreshInput
                     radius: 12
                     color: refreshInput.interactionActive ? theme.glassHi : "transparent"
                 }
                 Image {
-                    anchors.centerIn: parent
+                    anchors.centerIn: refreshInput
                     width: 22; height: 22
                     source: "../assets/icons/lucide/rotate-cw.svg"
                     sourceSize.width: 44; sourceSize.height: 44
@@ -95,15 +95,21 @@ FocusScope {
                 KeyboardAction {
                     id: refreshInput
                     objectName: "feedbackRefresh"
-                    anchors.fill: parent
+                    width: 48
+                    height: 48
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
                     accessibleName: root.supportPage ? qsTr("Refresh support") : qsTr("Refresh feedback")
+                    androidTooltipPolicy: "caption"
+                    androidCaptionText: qsTr("Refresh")
+                    androidCaptionPlacement: "right"
                     focusRadius: 12
                     onTriggered: {
                         if (root.browserItem && root.browserItem.reload) root.browserItem.reload()
                         else { browser.active = false; Qt.callLater(function() { browser.active = true }) }
                     }
                 }
-                ToolTip.visible: refreshInput.interactionActive
+                ToolTip.visible: Qt.platform.os !== "android" && refreshInput.interactionActive
                 ToolTip.delay: 350
                 ToolTip.text: qsTr("Refresh")
             }
@@ -128,6 +134,7 @@ FocusScope {
                     anchors.fill: parent
                     accessibleName: qsTr("Close Universe request")
                     tooltipText: accessibleName
+                    androidTooltipPolicy: "drop"
                     onTriggered: root.closeRequested()
                 }
             }

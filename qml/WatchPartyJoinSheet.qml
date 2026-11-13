@@ -223,7 +223,7 @@ Popup {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Close Join Watch Party"
-                ToolTip.visible: closeMouse.containsMouse
+                ToolTip.visible: Qt.platform.os !== "android" && closeMouse.containsMouse
                 ToolTip.text: qsTr("Close Join Watch Party")
                 ToolTip.delay: 350
 
