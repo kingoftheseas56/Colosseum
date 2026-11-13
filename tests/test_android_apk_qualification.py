@@ -3,7 +3,9 @@
 headers; no Android build, signing, install or CI dispatch."""
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
 import struct
 import subprocess
@@ -16,6 +18,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts" / "android"))
 import qualify_apk  # noqa: E402
+
+APP_LIBRARY = "lib/arm64-v8a/libcolosseum_arm64-v8a.so"
+HOST_LIBRARY = "lib/arm64-v8a/libcolosseum_nuvio_host_arm64-v8a.so"
 
 
 def elf(machine=183, align=16384, cls=2, offset=0, vaddr=0, filesz=120, memsz=120):
@@ -32,6 +37,36 @@ def elf(machine=183, align=16384, cls=2, offset=0, vaddr=0, filesz=120, memsz=12
     struct.pack_into("<QQ", ph, 32, filesz, memsz)
     struct.pack_into("<Q", ph, 48, align)
     return bytes(header + ph)
+
+
+def elf_with_sections(section_names=()):
+    blob = bytearray(elf())
+    names = bytearray(b"\0")
+    section_name_offsets = []
+    for name in (".shstrtab", *section_names):
+        section_name_offsets.append(len(names))
+        names.extend(name.encode("ascii") + b"\0")
+
+    section_count = 2 + len(section_names)
+    section_offset = len(blob)
+    names_offset = section_offset + section_count * 64
+    headers = [bytes(64)]
+    headers.append(struct.pack(
+        "<IIQQQQIIQQ", section_name_offsets[0], 3, 0, 0, names_offset,
+        len(names), 0, 0, 1, 0,
+    ))
+    for name, name_offset in zip(section_names, section_name_offsets[1:]):
+        section_type = 2 if name == ".symtab" else 1
+        headers.append(struct.pack(
+            "<IIQQQQIIQQ", name_offset, section_type, 0, 0, 0, 0,
+            0, 0, 1, 0,
+        ))
+
+    blob.extend(b"".join(headers))
+    blob.extend(names)
+    struct.pack_into("<Q", blob, 40, section_offset)
+    struct.pack_into("<HHH", blob, 58, 64, section_count, 1)
+    return bytes(blob)
 
 
 def make_apk(path: Path, libs=None, extra=None, signing_block=False):
@@ -63,6 +98,122 @@ class InspectTests(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def inspect_cli(self, apk, label, require_stripped=False, engine_library=None):
+        output = self.dir / f"{label}.json"
+        args = ["inspect", "--apk", str(apk)]
+        if engine_library:
+            args.extend(["--engine-library", str(engine_library)])
+        if require_stripped:
+            args.append("--require-stripped-app-libs")
+        args.extend(["--output", str(output)])
+        stdout, stderr = io.StringIO(), io.StringIO()
+        try:
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                status = qualify_apk.main(args)
+        except SystemExit as exc:
+            status = exc.code
+        receipt = json.loads(output.read_text(encoding="utf-8")) if output.exists() else None
+        return status, receipt, stdout.getvalue(), stderr.getvalue()
+
+    def test_required_stripped_app_libraries_accept_clean_pair_and_leave_engine_exempt(self):
+        app = elf_with_sections()
+        host = elf_with_sections()
+        engine = elf_with_sections((".debug_info", ".symtab"))
+        engine_path = self.dir / "libnuvio_engine.so"
+        engine_path.write_bytes(engine)
+        apk = make_apk(self.dir / "stripped-pair.apk", libs={
+            APP_LIBRARY: app,
+            HOST_LIBRARY: host,
+            "lib/arm64-v8a/libnuvio_engine.so": engine,
+        })
+
+        status, receipt, _, error = self.inspect_cli(
+            apk, "stripped-pair", require_stripped=True, engine_library=engine_path,
+        )
+
+        self.assertEqual(status, 0, error)
+        self.assertEqual(receipt["engineNativeLibrary"]["sha256"], hashlib.sha256(engine).hexdigest())
+        self.assertEqual({item["path"] for item in receipt["nativeLibraries"]}, {
+            APP_LIBRARY, HOST_LIBRARY, "lib/arm64-v8a/libnuvio_engine.so",
+        })
+
+    def test_required_stripped_app_libraries_reject_debug_and_symbol_tables(self):
+        bad_sections = (".debug_info", ".zdebug_info", ".symtab")
+        for member in (APP_LIBRARY, HOST_LIBRARY):
+            for section in bad_sections:
+                with self.subTest(member=member, section=section):
+                    libs = {APP_LIBRARY: elf_with_sections(), HOST_LIBRARY: elf_with_sections()}
+                    libs[member] = elf_with_sections((section,))
+                    apk = make_apk(self.dir / f"reject-{member.rsplit('/', 1)[-1]}-{section[1:]}.apk",
+                                   libs=libs)
+
+                    status, _, _, error = self.inspect_cli(
+                        apk, f"reject-{member.rsplit('/', 1)[-1]}-{section[1:]}",
+                        require_stripped=True,
+                    )
+
+                    self.assertEqual(status, 2)
+                    self.assertIn("unstripped section", error)
+                    self.assertIn(section, error)
+
+    def test_required_stripped_app_libraries_require_both_members(self):
+        clean = elf_with_sections()
+        cases = (
+            ("app", {HOST_LIBRARY: clean}, APP_LIBRARY),
+            ("host", {APP_LIBRARY: clean}, HOST_LIBRARY),
+        )
+        for label, libs, missing_member in cases:
+            with self.subTest(missing=missing_member):
+                apk = make_apk(self.dir / f"missing-{label}.apk", libs=libs)
+
+                status, _, _, error = self.inspect_cli(
+                    apk, f"missing-{label}", require_stripped=True,
+                )
+
+                self.assertEqual(status, 2)
+                self.assertIn("required app native library", error)
+                self.assertIn(missing_member, error)
+
+    def test_required_stripped_app_libraries_reject_malformed_section_bounds(self):
+        valid = bytearray(elf_with_sections((".safe",)))
+        section_offset = struct.unpack_from("<Q", valid, 40)[0]
+        malformed = {}
+
+        bad_table = bytearray(valid)
+        struct.pack_into("<Q", bad_table, 40, len(bad_table) - 16)
+        malformed["section_table"] = (bytes(bad_table), "section header table bounds")
+
+        bad_string_table = bytearray(valid)
+        struct.pack_into("<Q", bad_string_table, section_offset + 64 + 24, len(bad_string_table) - 2)
+        struct.pack_into("<Q", bad_string_table, section_offset + 64 + 32, 16)
+        malformed["name_table"] = (bytes(bad_string_table), "section name string table bounds")
+
+        bad_name_offset = bytearray(valid)
+        struct.pack_into("<I", bad_name_offset, section_offset + 2 * 64, 0xFFFFFFFF)
+        malformed["name_offset"] = (bytes(bad_name_offset), "section name offset")
+
+        for label, (app, message) in malformed.items():
+            with self.subTest(label=label):
+                apk = make_apk(self.dir / f"malformed-{label}.apk", libs={
+                    APP_LIBRARY: app,
+                    HOST_LIBRARY: elf_with_sections(),
+                })
+
+                status, _, _, error = self.inspect_cli(
+                    apk, f"malformed-{label}", require_stripped=True,
+                )
+
+                self.assertEqual(status, 2)
+                self.assertIn(message, error.lower())
+
+    def test_stripped_app_library_requirement_is_off_by_default(self):
+        apk = make_apk(self.dir / "legacy-app-only.apk", libs={APP_LIBRARY: elf()})
+
+        status, receipt, _, error = self.inspect_cli(apk, "legacy-default")
+
+        self.assertEqual(status, 0, error)
+        self.assertEqual([item["path"] for item in receipt["nativeLibraries"]], [APP_LIBRARY])
 
     def test_clean_unsigned_arm64(self):
         apk = make_apk(self.dir / "a.apk")
