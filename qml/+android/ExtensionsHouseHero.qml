@@ -167,7 +167,7 @@ Item {
                 readonly property bool hasToggle: modelData.kind === "source"
                 readonly property bool installed: hasToggle && hero.isInstalled(modelData.id)
                 width: mobileHouseList.width
-                height: 60
+                height: modelData.kind === "universes" || modelData.id === "colosseum.well.tankoyomi" ? 82 : 60
 
                 Rectangle {
                     anchors.bottom: parent.bottom
@@ -177,20 +177,30 @@ Item {
                 }
                 KeyboardAction {
                     objectName: "houseRow_" + (mobileRow.modelData.id || mobileRow.modelData.kind)
-                    anchors.fill: parent
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    height: 60
                     enabled: mobileRow.modelData.kind === "universes"
                              || mobileRow.modelData.id === "colosseum.well.tankoyomi"
-                    accessibleName: mobileRow.modelData.kind === "universes"
-                                    ? "Open Universes" : mobileRow.modelData.name + " settings"
-                    tooltipText: mobileRow.modelData.id === "colosseum.well.tankoyomi" ? accessibleName : ""
+                    accessibleName: mobileRow.modelData.kind === "universes" ? qsTr("Open Tributes")
+                                    : mobileRow.modelData.id === "colosseum.well.tankoyomi" ? qsTr("Configure Tankoyomi")
+                                    : mobileRow.modelData.name + " settings"
+                    tooltipText: enabled ? accessibleName : ""
+                    androidTooltipPolicy: enabled ? "caption" : "drop"
+                    androidCaptionText: accessibleName
+                    androidCaptionPlacement: "below"
                     focusRadius: 8
                     onTriggered: mobileRow.modelData.kind === "universes"
                                  ? hero.universesRequested()
                                  : hero.configureRequested(mobileRow.modelData.id)
                 }
                 Row {
-                    anchors.fill: parent
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
                     anchors.leftMargin: 2
+                    height: 60
                     spacing: 12
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
@@ -205,7 +215,7 @@ Item {
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: Math.max(0, mobileRow.width - 44 - 24 - (mobileRow.hasToggle ? 54 : 0))
+                        width: Math.max(0, mobileRow.width - 44 - 24 - (mobileRow.hasToggle ? 122 : 0))
                         text: mobileRow.modelData.name
                         color: theme.ink
                         font.family: theme.ui; font.pixelSize: 16; font.weight: Font.Medium
@@ -213,13 +223,14 @@ Item {
                     }
                     Item {
                         visible: mobileRow.hasToggle
-                        width: visible ? 42 : 0
+                        width: visible ? 114 : 0
                         height: parent.height
                         Rectangle {
                             id: mobileToggle
                             objectName: "houseToggle_" + mobileRow.modelData.id
                             readonly property bool checked: mobileRow.installed
-                            anchors.centerIn: parent
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
                             width: 42; height: 28; radius: 14
                             color: mobileRow.installed ? "#328d67" : "#454953"
                             opacity: hero.isPresent(mobileRow.modelData.id) ? 1 : 0.5
@@ -231,10 +242,15 @@ Item {
                             }
                         }
                         KeyboardAction {
-                            anchors.fill: parent
+                            anchors.left: mobileToggle.left
+                            anchors.verticalCenter: mobileToggle.verticalCenter
+                            width: 44; height: 44
                             accessibleName: (mobileRow.installed ? "Turn off " : "Turn on ")
                                             + mobileRow.modelData.name
                             tooltipText: accessibleName
+                            androidTooltipPolicy: enabled ? "caption" : "drop"
+                            androidCaptionText: mobileRow.installed ? qsTr("Turn off") : qsTr("Turn on")
+                            androidCaptionPlacement: "right"
                             enabled: hero.isPresent(mobileRow.modelData.id)
                             focusRadius: 14
                             onTriggered: hero.toggle(mobileRow.modelData.id)
@@ -252,7 +268,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom; anchors.bottomMargin: 22
         width: parent.width * 0.94
-        height: 174
+        height: Qt.platform.os === "android" ? 250 : 174
 
         Glass {
             anchors.fill: parent
@@ -286,7 +302,7 @@ Item {
                     readonly property bool installed: tile.modelData.kind !== "source" || hero.isInstalled(tile.modelData.id)
                     readonly property bool lit: tileAction.interactionActive
                     width: hero.compact ? 122 : 136
-                    height: 140
+                    height: Qt.platform.os === "android" ? 210 : 140
 
                     Rectangle {
                         id: appTile
@@ -316,22 +332,28 @@ Item {
                         KeyboardAction {
                             id: tileAction
                             objectName: "houseTile_" + (tile.modelData.id || tile.modelData.kind)
-                            anchors.fill: parent
+                            anchors.centerIn: parent
+                            width: Qt.platform.os === "android" ? tile.width : parent.width
+                            height: parent.height
                             // Universes opens the Hall; Tankoyomi opens its own settings page.
                             enabled: tile.modelData.kind === "universes" || tile.modelData.id === "colosseum.well.tankoyomi"
-                            accessibleName: tile.modelData.kind === "universes" ? tile.modelData.name
-                                                                                 : tile.modelData.name + " settings"
-                            tooltipText: tile.modelData.id === "colosseum.well.tankoyomi" ? accessibleName : ""
+                            accessibleName: tile.modelData.kind === "universes" ? qsTr("Open Tributes") : qsTr("Configure Tankoyomi")
+                            tooltipText: enabled ? accessibleName : ""
+                            androidTooltipPolicy: enabled ? "caption" : "drop"
+                            androidCaptionText: accessibleName
+                            androidCaptionPlacement: "below"
                             focusRadius: 19
                             onTriggered: tile.modelData.kind === "universes" ? hero.universesRequested()
                                                                              : hero.configureRequested(tile.modelData.id)
                         }
                     }
                     // Name chip, and for a House source its own add / on button beside it, with room.
-                    Row {
+                    Grid {
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.bottom: parent.bottom
-                        spacing: 8
+                        columns: Qt.platform.os === "android" ? 1 : 2
+                        columnSpacing: 8
+                        rowSpacing: Qt.platform.os === "android" ? 6 : 0
                         Rectangle {
                             width: Math.min(tile.modelData.kind === "source" ? 100 : 112, label.implicitWidth + 20); height: 28
                             radius: 11
@@ -352,12 +374,14 @@ Item {
                             readonly property bool checked: tile.installed   // automation reads this
                             visible: tile.modelData.kind === "source"
                             width: 28; height: 28; radius: 14
-                            y: toggleAction.interactionActive ? -2 : 0
+                            transform: Translate {
+                                y: toggleAction.interactionActive ? -2 : 0
+                                Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+                            }
                             color: tile.installed ? Qt.rgba(40 / 255, 120 / 255, 82 / 255, 0.82) : Qt.rgba(18 / 255, 19 / 255, 24 / 255, 0.72)
                             border.width: 1
                             border.color: tile.installed ? Qt.rgba(159 / 255, 1, 210 / 255, 0.55) : Qt.rgba(1, 1, 1, 0.34)
                             opacity: hero.isPresent(tile.modelData.id) ? 1 : 0.5
-                            Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                             Text {
                                 anchors.centerIn: parent
                                 text: tile.installed ? "✓" : "+"
@@ -375,8 +399,13 @@ Item {
                                         : parent.height
                                 focusInset: Qt.platform.os === "android" ? (width - parent.width) / 2 - 2 : -2
                                 enabled: hero.isPresent(tile.modelData.id)
-                                accessibleName: (tile.installed ? "Turn off " : "Add ") + tile.modelData.name
+                                accessibleName: (tile.installed ? "Turn off "
+                                                : hero.isPresent(tile.modelData.id) ? "Turn on " : "Add ")
+                                                + tile.modelData.name
                                 tooltipText: accessibleName
+                                androidTooltipPolicy: enabled ? "caption" : "drop"
+                                androidCaptionText: tile.installed ? qsTr("Turn off") : qsTr("Turn on")
+                                androidCaptionPlacement: "right"
                                 focusRadius: 14
                                 onTriggered: hero.toggle(tile.modelData.id)
                             }

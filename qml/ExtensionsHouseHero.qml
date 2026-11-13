@@ -175,7 +175,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom; anchors.bottomMargin: 22
         width: parent.width * 0.94
-        height: 174
+        height: Qt.platform.os === "android" ? 214 : 174
 
         Glass {
             anchors.fill: parent
@@ -217,7 +217,7 @@ Item {
                     readonly property bool installed: tile.modelData.kind !== "source" || hero.isInstalled(tile.modelData.id)
                     readonly property bool lit: tileAction.interactionActive
                     width: hero.compact ? 122 : 136
-                    height: 140
+                    height: Qt.platform.os === "android" ? 194 : 140
 
                     Rectangle {
                         id: appTile
@@ -247,22 +247,31 @@ Item {
                         KeyboardAction {
                             id: tileAction
                             objectName: "houseTile_" + (tile.modelData.id || tile.modelData.kind)
-                            anchors.fill: parent
+                            anchors.centerIn: parent
+                            width: Qt.platform.os === "android" ? tile.width : parent.width
+                            height: parent.height
                             // Universes opens the Hall; Tankoyomi opens its own settings page.
                             enabled: tile.modelData.kind === "universes" || tile.modelData.id === "colosseum.well.tankoyomi"
-                            accessibleName: tile.modelData.kind === "universes" ? tile.modelData.name
-                                                                                 : tile.modelData.name + " settings"
+                            accessibleName: tile.modelData.kind === "universes"
+                                            ? (Qt.platform.os === "android" ? qsTr("Open Tributes") : tile.modelData.name)
+                                            : (Qt.platform.os === "android" && tile.modelData.id === "colosseum.well.tankoyomi"
+                                               ? qsTr("Configure Tankoyomi") : tile.modelData.name + " settings")
                             tooltipText: tile.modelData.kind === "universes" ? qsTr("Open Tributes") : qsTr("Configure Tankoyomi")
+                            androidTooltipPolicy: tileAction.enabled ? "caption" : "drop"
+                            androidCaptionText: tooltipText
+                            androidCaptionPlacement: "below"
                             focusRadius: 19
                             onTriggered: tile.modelData.kind === "universes" ? hero.universesRequested()
                                                                              : hero.configureRequested(tile.modelData.id)
                         }
                     }
                     // Name chip, and for a House source its own add / on button beside it, with room.
-                    Row {
+                    Grid {
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.bottom: parent.bottom
-                        spacing: 8
+                        columns: Qt.platform.os === "android" ? 1 : 2
+                        columnSpacing: 8
+                        rowSpacing: Qt.platform.os === "android" ? 6 : 0
                         Rectangle {
                             width: Math.min(tile.modelData.kind === "source" ? 100 : 112, label.implicitWidth + 20); height: 28
                             radius: 11
@@ -283,12 +292,14 @@ Item {
                             readonly property bool checked: tile.installed   // automation reads this
                             visible: tile.modelData.kind === "source"
                             width: 28; height: 28; radius: 14
-                            y: toggleAction.interactionActive ? -2 : 0
+                            transform: Translate {
+                                y: toggleAction.interactionActive ? -2 : 0
+                                Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+                            }
                             color: tile.installed ? Qt.rgba(40 / 255, 120 / 255, 82 / 255, 0.82) : Qt.rgba(18 / 255, 19 / 255, 24 / 255, 0.72)
                             border.width: 1
                             border.color: tile.installed ? Qt.rgba(159 / 255, 1, 210 / 255, 0.55) : Qt.rgba(1, 1, 1, 0.34)
                             opacity: hero.isPresent(tile.modelData.id) ? 1 : 0.5
-                            Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                             Text {
                                 anchors.centerIn: parent
                                 text: tile.installed ? "✓" : "+"
@@ -297,10 +308,17 @@ Item {
                             }
                             KeyboardAction {
                                 id: toggleAction
-                                anchors.fill: parent
+                                anchors.centerIn: parent
+                                width: Qt.platform.os === "android" ? 44 : parent.width
+                                height: Qt.platform.os === "android" ? 44 : parent.height
                                 enabled: hero.isPresent(tile.modelData.id)
-                                accessibleName: (tile.installed ? "Turn off " : "Add ") + tile.modelData.name
+                                accessibleName: (tile.installed ? "Turn off "
+                                                : Qt.platform.os === "android" && hero.isPresent(tile.modelData.id) ? "Turn on "
+                                                : "Add ") + tile.modelData.name
                                 tooltipText: accessibleName
+                                androidTooltipPolicy: enabled ? "caption" : "drop"
+                                androidCaptionText: tile.installed ? qsTr("Turn off") : qsTr("Turn on")
+                                androidCaptionPlacement: "right"
                                 focusRadius: 14
                                 onTriggered: hero.toggle(tile.modelData.id)
                             }

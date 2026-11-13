@@ -850,6 +850,7 @@ Item {
                             anchors.fill: parent; focusRadius: 16
                             accessibleName: "Close install from URL"
                             tooltipText: accessibleName
+                            androidTooltipPolicy: "drop"
                             onTriggered: root.closeUrlInstaller()
                         }
                     }

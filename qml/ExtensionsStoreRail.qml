@@ -84,7 +84,7 @@ Column {
                 padding: 0
                 text: "←"
                 Accessible.name: qsTr("Previous add-ons in %1").arg(rail.title)
-                ToolTip.visible: hovered
+                ToolTip.visible: Qt.platform.os !== "android" && hovered
                 ToolTip.delay: 350
                 ToolTip.text: qsTr("Previous add-ons in %1").arg(rail.title)
                 onClicked: rail.scrollByPage(-1)
@@ -97,7 +97,7 @@ Column {
                 padding: 0
                 text: "→"
                 Accessible.name: qsTr("Next add-ons in %1").arg(rail.title)
-                ToolTip.visible: hovered
+                ToolTip.visible: Qt.platform.os !== "android" && hovered
                 ToolTip.delay: 350
                 ToolTip.text: qsTr("Next add-ons in %1").arg(rail.title)
                 onClicked: rail.scrollByPage(1)
