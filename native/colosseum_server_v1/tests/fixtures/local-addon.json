@@ -1939,6 +1939,1775 @@
     "expected": {}
   },
   {
+    "action": "resolveMeta",
+    "id": "bt:remote",
+    "now": 1700000000000,
+    "entry": {
+      "itemId": "bt:remote",
+      "ih": "remote",
+      "name": "Remote",
+      "sources": null,
+      "files": [
+        {
+          "idx": 4,
+          "path": "Remote/clip.mkv",
+          "name": "clip.mkv",
+          "length": 100
+        }
+      ]
+    },
+    "torrent": {
+      "infoHash": "remote",
+      "name": "Remote",
+      "files": [
+        {
+          "idx": 4,
+          "path": "Remote/clip.mkv",
+          "name": "clip.mkv",
+          "length": 100
+        }
+      ]
+    },
+    "fail": false,
+    "expected": {
+      "meta": {
+        "id": "bt:remote",
+        "type": "other",
+        "name": "Remote",
+        "showAsVideos": true,
+        "videos": [
+          {
+            "id": "remote/4",
+            "title": "clip.mkv",
+            "publishedAt": "2023-11-14T22:13:20.000Z",
+            "released": "2023-11-14T22:13:20.000Z",
+            "stream": {
+              "infoHash": "remote",
+              "fileIdx": 4,
+              "title": "remote/4",
+              "sources": null
+            },
+            "thumbnail": null
+          }
+        ]
+      }
+    }
+  },
+  {
+    "action": "resolveMeta",
+    "id": "bt:remote",
+    "now": 1700000000000,
+    "entry": {
+      "itemId": "bt:remote",
+      "ih": "remote",
+      "name": "Remote",
+      "sources": null,
+      "files": [
+        {
+          "idx": 4,
+          "path": "Remote/clip.mkv",
+          "name": "clip.mkv",
+          "length": 100
+        }
+      ]
+    },
+    "torrent": {
+      "infoHash": "remote",
+      "name": "Remote",
+      "files": [
+        {
+          "idx": 4,
+          "path": "Remote/clip.mkv",
+          "name": "clip.mkv",
+          "length": 100
+        }
+      ]
+    },
+    "fail": true,
+    "expected": {}
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie"
+    },
+    "expected": {
+      "name": "Optional",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": null
+    },
+    "expected": {
+      "name": "Optional",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 0
+    },
+    "expected": {
+      "name": "Optional",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": false
+    },
+    "expected": {
+      "name": "Optional",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": true
+    },
+    "expected": {
+      "name": "Optional",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "bad"
+    },
+    "expected": {
+      "name": "Optional",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "2020-2021"
+    },
+    "expected": {
+      "name": "Optional",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 2020
+    },
+    "expected": {
+      "name": "Optional",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": null
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": null
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": null
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": null
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 0
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": null
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": false
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": null
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": true
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": null
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "bad"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": null
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "2020-2021"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": null
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 2020
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 0
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 0,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 0
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": null
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 0,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 0
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 0
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 0,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 0
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": false
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 0,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 0
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": true
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 0,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 0
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "bad"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 0,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 0
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "2020-2021"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 0,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 0
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 2020
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 0,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": ""
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": "",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": ""
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": null
+    },
+    "expected": {
+      "name": "Optional",
+      "year": "",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": ""
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 0
+    },
+    "expected": {
+      "name": "Optional",
+      "year": "",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": ""
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": false
+    },
+    "expected": {
+      "name": "Optional",
+      "year": "",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": ""
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": true
+    },
+    "expected": {
+      "name": "Optional",
+      "year": "",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": ""
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "bad"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": "",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": ""
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "2020-2021"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": "",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": ""
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 2020
+    },
+    "expected": {
+      "name": "Optional",
+      "year": "",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": false
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": false,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": false
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": null
+    },
+    "expected": {
+      "name": "Optional",
+      "year": false,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": false
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 0
+    },
+    "expected": {
+      "name": "Optional",
+      "year": false,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": false
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": false
+    },
+    "expected": {
+      "name": "Optional",
+      "year": false,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": false
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": true
+    },
+    "expected": {
+      "name": "Optional",
+      "year": false,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": false
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "bad"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": false,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": false
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "2020-2021"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": false,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": false
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 2020
+    },
+    "expected": {
+      "name": "Optional",
+      "year": false,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": true
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": true
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": null
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": true
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 0
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": true
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": false
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": true
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": true
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": true
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "bad"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": true
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "2020-2021"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": true
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 2020
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "2020-2024"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 2020,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "2020-2024"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": null
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 2020,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "2020-2024"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 0
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 2020,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "2020-2024"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": false
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 2020,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "2020-2024"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": true
+    },
+    "expected": {}
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "2020-2024"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "bad"
+    },
+    "expected": {}
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "2020-2024"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "2020-2021"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 2020,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "2020-2024"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 2020
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 2020,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "bad"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "bad"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": null
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "bad"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 0
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "bad"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": false
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "bad"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": true
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "bad"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "bad"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "bad"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "2020-2021"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "bad"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 2020
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "-2020"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "-2020"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": null
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "-2020"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 0
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "-2020"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": false
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "-2020"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": true
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "-2020"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "bad"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "-2020"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "2020-2021"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": "-2020"
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 2020
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 2020.5
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 2020,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 2020.5
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": null
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 2020,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 2020.5
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 0
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 2020,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 2020.5
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": false
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 2020,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 2020.5
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": true
+    },
+    "expected": {}
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 2020.5
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "bad"
+    },
+    "expected": {}
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 2020.5
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": "2020-2021"
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 2020,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": 2020.5
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": 2020
+    },
+    "expected": {
+      "name": "Optional",
+      "year": 2020,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "imdb_id": null
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie"
+    },
+    "expected": {
+      "id": null,
+      "name": "Optional",
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional",
+        "type": "movie",
+        "year": null
+      }
+    ],
+    "query": {
+      "name": "Optional",
+      "type": "movie",
+      "year": null
+    },
+    "expected": {
+      "name": "Optional",
+      "year": null,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional 0",
+        "type": "movie",
+        "year": 0
+      }
+    ],
+    "query": {
+      "name": "Optional 0",
+      "type": "movie",
+      "year": 0
+    },
+    "expected": {
+      "name": "Optional 0",
+      "year": 0,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "Optional true",
+        "type": "movie",
+        "year": true
+      }
+    ],
+    "query": {
+      "name": "Optional true",
+      "type": "movie",
+      "year": true
+    },
+    "expected": {}
+  },
+  {
+    "action": "genericMeta",
+    "entry": {
+      "files": []
+    },
+    "expected": {
+      "type": "other",
+      "showAsVideos": true
+    }
+  },
+  {
+    "action": "genericMeta",
+    "entry": {
+      "itemId": "local:tt1",
+      "files": [
+        {
+          "path": "/fixture/unknown.mp4"
+        }
+      ]
+    },
+    "expected": {
+      "id": "local:tt1",
+      "type": "other",
+      "showAsVideos": true
+    }
+  },
+  {
+    "action": "genericMeta",
+    "entry": {
+      "itemId": "local:tt1",
+      "name": null,
+      "files": [
+        {
+          "imdb_id": "tt1",
+          "type": "movie"
+        }
+      ]
+    },
+    "expected": {
+      "id": "local:tt1",
+      "type": "other",
+      "name": null,
+      "showAsVideos": true,
+      "poster": "https://images.metahub.space/poster/medium/tt1/img",
+      "background": "https://images.metahub.space/background/medium/tt1/img",
+      "logo": "https://images.metahub.space/logo/medium/tt1/img"
+    }
+  },
+  {
     "action": "enrich",
     "entry": {
       "itemId": "local:tt123",

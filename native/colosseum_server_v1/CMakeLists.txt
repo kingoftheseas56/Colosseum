@@ -385,16 +385,26 @@ if(BUILD_TESTING)
   server1_register_root_tests()
 endif()
 
-# Node's system-statistics primitive uses these exact native libuv APIs.
+# The pinned Node 22.16.0 oracle uses libuv 1.49.2. Keep its native
+# system-statistics backend aligned; Node 24 is a separate diagnostic profile.
 include(FetchContent)
 set(LIBUV_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 set(LIBUV_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(LIBUV_BUILD_BENCH OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(server1_libuv
-  URL https://dist.libuv.org/dist/v1.52.1/libuv-v1.52.1.tar.gz
-  URL_HASH SHA256=66d511b9e6e334c0e62279eb234fbfb2b3110b1479c09b95b44c7afca8cff9e7
+  URL https://dist.libuv.org/dist/v1.49.2/libuv-v1.49.2.tar.gz
+  URL_HASH SHA256=8c10706bd2cf129045c42b94799a92df9aaa75d05f07e99cf083507239bae5a8
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 FetchContent_MakeAvailable(server1_libuv)
+# FetchContent source overrides bypass URL_HASH. Reject stale backend versions.
+file(READ "${server1_libuv_SOURCE_DIR}/include/uv/version.h" SERVER1_UV_HEADER)
+foreach(SERVER1_UV_PART IN ITEMS "MAJOR;1" "MINOR;49" "PATCH;2")
+  list(GET SERVER1_UV_PART 0 SERVER1_UV_NAME)
+  list(GET SERVER1_UV_PART 1 SERVER1_UV_EXPECTED)
+  if(NOT SERVER1_UV_HEADER MATCHES "#define[ \t]+UV_VERSION_${SERVER1_UV_NAME}[ \t]+${SERVER1_UV_EXPECTED}([^0-9]|$)")
+    message(FATAL_ERROR "Server 1 statistics requires libuv 1.49.2 for the pinned Node 22.16.0 oracle; check FETCHCONTENT_SOURCE_DIR_SERVER1_LIBUV")
+  endif()
+endforeach()
 add_library(server1_system_statistics STATIC src/http/SystemStatistics.cpp)
 target_include_directories(server1_system_statistics PUBLIC include)
 target_link_libraries(server1_system_statistics PUBLIC server1_k00_policy PRIVATE uv_a)
@@ -440,4 +450,14 @@ if(BUILD_TESTING)
       "${CMAKE_CURRENT_SOURCE_DIR}/../../tools/server_lab/check_source_peer_address.py"
       --oracle "${SERVER1_K12_ORACLE}" --candidate "$<TARGET_FILE:server1_k12_source_peer_address_test>")
   endif()
+endif()
+
+# Optional native local-library runtime and source-compatible profiling routes.
+include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/LocalIndexing.cmake")
+target_sources(colosseum_server_v1 PRIVATE src/http/AncillaryRoutes.cpp
+  src/media/HardwareProfiler.cpp)
+include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/AncillaryRoutes.cmake")
+if(BUILD_TESTING)
+  server1_register_local_indexing_tests()
+  server1_register_ancillary_tests()
 endif()

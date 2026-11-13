@@ -105,9 +105,12 @@ def main():
             (work / 'video.mp4').write_bytes(joined)
             subprocess.run([args.ffmpeg, '-v', 'error', '-i', str(work / 'video.mp4'),
                             '-f', 'null', '-'], check=True, timeout=15)
+            # First playback must work without waiting for device profiling to finish.
+            assert json.loads(get('/device-info')) == {'availableHardwareAccelerations': False}
             receipt.update(result='pass', checks=[
                 'full application starts native server in-process', 'heartbeat',
                 'passive casting and local addon routes without discovery',
+                'device info does not fabricate hardware support without samples',
                 'tuned settings persisted', 'local media HLS master/playlist/init/segment',
                 'FFmpeg decode'])
         except Exception as error:

@@ -27,7 +27,7 @@ QJsonObject genericMeta(const QJsonObject &entry) {
 }
 }
 LocalAddon::LocalAddon(Config config,QObject *parent):QObject(parent),config_(std::move(config)){}
-LocalAddon::~LocalAddon(){cancelIndexing();}
+LocalAddon::~LocalAddon(){destroying_=true;cancelIndexing();cancelRequests();}
 QJsonObject LocalAddon::manifest() const {
     QJsonArray resources;
     if(!config_.disableCatalogSupport)resources.append("catalog");
@@ -59,6 +59,10 @@ QJsonObject LocalAddon::streams(const QString &type,const QString &id) const {
 }
 QJsonObject LocalAddon::meta(const QString &id,qint64 nowMs) const {
     auto entry=aggregate(id);if(entry.isEmpty())return {};
+    return projectMeta(entry,nowMs);
+}
+QJsonObject LocalAddon::projectMeta(QJsonObject entry,qint64 nowMs,QJsonObject suppliedMeta) const {
+    const auto id=entry.value("itemId").toString();
     auto array=entry["files"].toArray();std::vector<QJsonObject> files;for(auto v:array)files.push_back(v.toObject());
     // JS comparator returns NaN (treated as zero) for absent episode data.
     // Stable insertion avoids passing this non-total relation to std::sort.
@@ -73,8 +77,33 @@ QJsonObject LocalAddon::meta(const QString &id,qint64 nowMs) const {
         for(auto key:{"season","episode"})if(f.contains(key))video[key]=f[key];
         if(!f["imdb_id"].toString().isEmpty())video["thumbnail"]=(f["season"].toInt()&&f["episode"].toInt())?"https://episodes.metahub.space/"+f["imdb_id"].toString()+"/"+QString::number(f["season"].toInt())+"/"+QString::number(f["episode"].toInt())+"/w780.jpg":image("background",f["imdb_id"].toString());
         videos.append(video);
-    }auto result=metas_.contains(id)?metas_[id].toObject():genericMeta(entry);result["videos"]=videos;return {{"meta",result}};
+    }auto result=!suppliedMeta.isEmpty()?suppliedMeta:metas_.contains(id)?metas_[id].toObject():genericMeta(entry);result["videos"]=videos;return {{"meta",result}};
 }
+void LocalAddon::completeMeta(quint64 request,QJsonObject result){auto it=metaRequests_.find(request);if(it==metaRequests_.end())return;auto callback=std::move(it->second);metaRequests_.erase(it);callback(result);}
+void LocalAddon::cancelRequests(){auto requests=std::move(metaRequests_);metaRequests_.clear();for(auto &request:requests)request.second({});}
+void LocalAddon::resolveMeta(QString id,qint64 nowMs,std::function<void(QJsonObject)> callback){
+    auto cached=meta(id,nowMs);
+    if(destroying_||!cached.isEmpty()||!id.startsWith("bt:")||!config_.lookupTorrent||!config_.indexTorrentAsync){callback(cached);return;}
+    const auto request=++nextRequest_;metaRequests_[request]=std::move(callback);QPointer<LocalAddon> owner(this);
+    auto project=[owner,request,nowMs](QJsonObject entry){
+        if(!owner||!owner->metaRequests_.count(request))return;
+        if(entry.isEmpty()){owner->completeMeta(request,{});return;}
+        auto finish=[owner,request,nowMs,entry](QJsonObject metadata){if(owner&&owner->metaRequests_.count(request))owner->completeMeta(request,owner->projectMeta(entry,nowMs,metadata));};
+        auto id=entry.value("itemId").toString();
+        try{
+            if(owner->metas_.contains(id))finish(owner->metas_.value(id).toObject());
+            else if(owner->config_.enrichLookupMetaAsync)owner->config_.enrichLookupMetaAsync(entry,finish);
+            else if(owner->config_.enrichMetaAsync)owner->config_.enrichMetaAsync(entry,finish);
+            else finish(owner->config_.enrichMeta?owner->config_.enrichMeta(entry):genericMeta(entry));
+        }catch(...){if(owner)owner->completeMeta(request,{});}
+    };
+    try{config_.lookupTorrent(id.mid(3),[owner,request,project](QJsonObject torrent){
+        if(!owner||!owner->metaRequests_.count(request))return;
+        if(torrent.isEmpty()){owner->completeMeta(request,{});return;}
+        try{owner->config_.indexTorrentAsync(torrent,project);}catch(...){if(owner)owner->completeMeta(request,{});}
+    });}catch(...){if(owner)owner->completeMeta(request,{});}
+}
+
 bool LocalAddon::load(const QString &database){QFile file(database);if(!file.open(QIODevice::ReadOnly))return false;while(!file.atEnd()){auto r=QJsonDocument::fromJson(file.readLine()).object();auto key=r["id"].toString();if(r["v"]!="1.10.0"||!QFileInfo(key).isReadable()||!r["entry"].isObject())continue;saveEntry(key,r["entry"].toObject());}return true;}
 bool LocalAddon::persist(const QString &database) const {QSaveFile file(database);if(!file.open(QIODevice::WriteOnly))return false;for(const auto &r:entries_){auto line=QJsonDocument(QJsonObject{{"id",r.key},{"entry",r.entry},{"v","1.10.0"}}).toJson(QJsonDocument::Compact)+'\n';if(file.write(line)!=line.size())return false;}return file.commit();}
 void LocalAddon::cancelIndexing(){++generation_;}
@@ -121,9 +150,17 @@ void LocalAddon::step(std::shared_ptr<QStringList> files,quint64 generation,std:
 
 namespace {
 struct Route{QPointer<LocalAddon> addon;QString resource;};
-int handle(const void *request,void *response,server1_http_next_fn,void*,void *context){auto route=*static_cast<Route*>(context);if(!route.addon){server1_http_response_set_status(response,503);return 1;}auto param=[&](const char*k){auto v=server1_http_request_param(request,k);return QString::fromUtf8(v?v:"");};QJsonObject result;
-if(route.resource=="manifest")result=route.addon->manifest();else if(route.resource=="catalog")result=route.addon->catalog();else if(route.resource=="stream")result=route.addon->streams(param("type"),param("id"));else result=route.addon->meta(param("id"),QDateTime::currentMSecsSinceEpoch());
-server1_http_response_set_status(response,200);server1_http_response_set_header(response,"Content-Type","application/json; charset=utf-8");server1_http_response_set_header(response,"Access-Control-Allow-Origin","*");auto bytes=result.isEmpty()?QByteArray("null"):QJsonDocument(result).toJson(QJsonDocument::Compact);server1_http_response_set_body(response,bytes.data(),bytes.size());return 1;}
+void jsonResponse(void *response,const QJsonObject &result){server1_http_response_set_status(response,200);server1_http_response_set_header(response,"Content-Type","application/json; charset=utf-8");server1_http_response_set_header(response,"Access-Control-Allow-Origin","*");auto bytes=result.isEmpty()?QByteArray("null"):QJsonDocument(result).toJson(QJsonDocument::Compact);server1_http_response_set_body(response,bytes.data(),bytes.size());}
+struct PendingMeta{void *handle=nullptr;~PendingMeta(){server1_http_deferred_destroy(handle);}};
+int handle(const void *request,void *response,server1_http_next_fn,void*,void *context){
+    auto route=*static_cast<Route*>(context);if(!route.addon){server1_http_response_set_status(response,503);return 1;}
+    auto param=[&](const char*k){auto v=server1_http_request_param(request,k);return QString::fromUtf8(v?v:"");};QJsonObject result;
+    if(route.resource=="meta"){
+        auto pending=std::make_shared<PendingMeta>();pending->handle=server1_http_response_defer(response);
+        route.addon->resolveMeta(param("id"),QDateTime::currentMSecsSinceEpoch(),[pending](QJsonObject meta){auto *response=server1_http_deferred_response(pending->handle);if(!response)return;jsonResponse(response,meta);server1_http_deferred_complete(pending->handle);});return 1;
+    }
+    if(route.resource=="manifest")result=route.addon->manifest();else if(route.resource=="catalog")result=route.addon->catalog();else result=route.addon->streams(param("type"),param("id"));jsonResponse(response,result);return 1;
+}
 }
 bool installLocalAddonRoutes(void *router,LocalAddon &addon){
     for(const auto &resource:{QString("manifest"),QString("catalog"),QString("meta"),QString("stream")}){

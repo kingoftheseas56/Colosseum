@@ -201,8 +201,10 @@ static int lre_case_folding_entry(uint32_t c, uint32_t idx, uint32_t v, BOOL is_
         } else {
             /* handle the few specific multi-character cases (see
                unicode_gen.c:dump_case_folding_special_cases()) */
-            if (c == 0xfb06) {
-                c = 0xfb05;
+            if (c == 0xfb05) {
+                /* Use the Unicode simple-fold representative. The reverse
+                   representative is equivalent for /iu but not V8 /iv q{}. */
+                c = 0xfb06;
             } else if (c == 0x01fd3) {
                 c = 0x390;
             } else if (c == 0x01fe3) {
@@ -738,6 +740,55 @@ int cr_regexp_canonicalize(CharRange *cr, BOOL is_unicode)
     cr_free(&cr_mask);
     cr_free(&cr_result);
     cr_free(&cr_sub);
+    return -1;
+}
+
+/* V8's /iv set algebra operates on actual case-closed code point sets, not
+   just folded representatives. This also preserves its distinct treatment of
+   one-code-point q{} alternatives, which are folded without case closure. */
+static BOOL cr_contains_point(const CharRange *cr, uint32_t c)
+{
+    int low = 0, high = cr->len;
+    while (low < high) {
+        int mid = low + (high - low) / 2;
+        if (cr->points[mid] <= c)
+            low = mid + 1;
+        else
+            high = mid;
+    }
+    return low & 1;
+}
+
+int cr_regexp_case_closure(CharRange *cr)
+{
+    CharRange folded, result;
+    uint32_t idx, v, first, length, c, folded_c;
+    cr_init(&folded, cr->mem_opaque, cr->realloc_func);
+    cr_init(&result, cr->mem_opaque, cr->realloc_func);
+    if (cr_copy(&folded, cr) || cr_regexp_canonicalize(&folded, TRUE) ||
+        cr_copy(&result, &folded))
+        goto fail;
+    /* Only case-table entries can have nonidentity folding. Enumerating these
+       few thousand points avoids scanning the complete Unicode range. */
+    for (idx = 0; idx < countof(case_conv_table1); idx++) {
+        v = case_conv_table1[idx];
+        first = v >> (32 - 17);
+        length = (v >> (32 - 17 - 7)) & 0x7f;
+        for (c = first; c < first + length; c++) {
+            folded_c = lre_case_folding_entry(c, idx, v, TRUE);
+            if (c != folded_c && cr_contains_point(&folded, folded_c) &&
+                cr_add_interval(&result, c, c + 1))
+                goto fail;
+        }
+    }
+    cr_sort_and_remove_overlap(&result);
+    cr_free(cr);
+    *cr = result;
+    cr_free(&folded);
+    return 0;
+ fail:
+    cr_free(&result);
+    cr_free(&folded);
     return -1;
 }
 
@@ -1632,6 +1683,19 @@ int unicode_prop(CharRange *cr, const char *prop_name)
     if (prop_idx < 0)
         return -2;
     prop_idx += UNICODE_PROP_ASCII_Hex_Digit;
+
+    /* V8 12.4 / Node 22.16.0 ECMAScript property allowlist excludes these
+       UCD properties, which upstream libunicode also exposes by name. */
+    switch (prop_idx) {
+    case UNICODE_PROP_IDS_Unary_Operator:
+    case UNICODE_PROP_Modifier_Combining_Mark:
+    case UNICODE_PROP_ID_Compat_Math_Start:
+    case UNICODE_PROP_ID_Compat_Math_Continue:
+    case UNICODE_PROP_InCB:
+        return -2;
+    default:
+        break;
+    }
 
     ret = 0;
     switch(prop_idx) {

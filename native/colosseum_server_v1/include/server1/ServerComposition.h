@@ -2,6 +2,7 @@
 #include "server1/policy/EngineRegistry.h"
 #include <memory>
 #include <string>
+#include <vector>
 namespace server1 {
 // Shared production composition for the standalone host and native embedding.
 // Construct, call and destroy on the Qt application lane.
@@ -15,6 +16,12 @@ struct ServerRuntimeConfig final {
     std::string settingsPathOverride;
     std::string webUiLocation;
     std::string ipcDownloadKey;
+    // Explicit opt-in only: no home-directory discovery or online recognition.
+    std::vector<std::string> localRoots;
+    std::string localDatabasePath;
+    bool localMetadataEnabled=false;
+    // Externally supplied pinned samples; empty means samples return 404.
+    std::string sampleDirectory;
 };
 class ServerComposition final {
 public:

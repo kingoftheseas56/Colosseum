@@ -9,14 +9,19 @@
 int main(int argc,char **argv){
     QCoreApplication app(argc,argv);
     QCommandLineParser args;args.addHelpOption();
-    args.addOptions({{"ffmpeg","FFmpeg executable.","path"},{"ffprobe","FFprobe executable.","path"},{"disable-hlsv2","Disable HLS V2 service."},{"serve","Run the production HTTP composition."},{"port","Listener port (0 selects an ephemeral port).","port","11470"},{"cache","Torrent cache root.","path"},{"torrent","Preload a metainfo file for the standalone driver.","path"},{"peer","Connect a source peer for the preloaded torrent.","address:port"},{"tracker","Tracker source for the preloaded torrent.","url"},{"no-discovery","Disable source network discovery for controlled fixtures."},{"fixed-interface","Disable OS interface-change monitoring for controlled fixtures."},{"quit-after-ms","Graceful test-host lifetime limit.","milliseconds"}});
+    args.addOptions({{"local-root","Explicit media discovery root (repeatable).","path"},{"local-db","Explicit local-addon database path.","path"},{"local-metadata","Allow parsed titles and IDs to be sent to source Cinemeta/IMDb metadata providers."},{"sample-dir","Externally supplied pinned profiler samples.","path"},{"ffmpeg","FFmpeg executable.","path"},{"ffprobe","FFprobe executable.","path"},{"disable-hlsv2","Disable HLS V2 service."},{"serve","Run the production HTTP composition."},{"port","Listener port (0 selects an ephemeral port).","port","11470"},{"cache","Torrent cache root.","path"},{"torrent","Preload a metainfo file for the standalone driver.","path"},{"peer","Connect a source peer for the preloaded torrent.","address:port"},{"tracker","Tracker source for the preloaded torrent.","url"},{"no-discovery","Disable source network discovery for controlled fixtures."},{"fixed-interface","Disable OS interface-change monitoring for controlled fixtures."},{"quit-after-ms","Graceful test-host lifetime limit.","milliseconds"}});
     args.process(app);
     server1::policy::EngineRegistryConfig config;config.cacheRoot=args.value("cache").toStdString();
     if(args.isSet("fixed-interface"))config.transportFactory=[](const server1::ports::TorrentOpenRequest &request){auto fixed=request;fixed.monitorNetworkChanges=false;return server1::ports::openTorrentTransport(fixed);};
     if(args.isSet("no-discovery"))config.discoveryNetworkFactory=[] {return std::shared_ptr<server1::discovery::DiscoveryNetwork>();};
     try{
         server1::ServerMediaConfig mediaConfig;mediaConfig.ffmpeg=args.value("ffmpeg").toStdString();mediaConfig.ffprobe=args.value("ffprobe").toStdString();mediaConfig.hlsV2Enabled=!args.isSet("disable-hlsv2");
-        server1::ServerComposition server(std::move(config),std::move(mediaConfig));
+        server1::ServerRuntimeConfig runtimeConfig;
+        for(const auto &root:args.values("local-root"))runtimeConfig.localRoots.push_back(root.toStdString());
+        runtimeConfig.localDatabasePath=args.value("local-db").toStdString();
+        runtimeConfig.localMetadataEnabled=args.isSet("local-metadata");
+        runtimeConfig.sampleDirectory=args.value("sample-dir").toStdString();
+        server1::ServerComposition server(std::move(config),std::move(mediaConfig),std::move(runtimeConfig));
         bool valid=false;const auto port=args.isSet("serve")?args.value("port").toUShort(&valid):0;
         if(args.isSet("serve") && !valid){std::cerr<<"invalid port\n";return 2;}
         if(!server.listen(port)){std::cerr<<server.error()<<'\n';return 1;}

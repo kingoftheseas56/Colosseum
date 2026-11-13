@@ -99,7 +99,8 @@ FileRegexResult matchFilePattern(const QString &subject,const QString &expressio
     if(!bytecode)bytecode=compile(expression,0);
     if(!bytecode)return {false,std::nullopt,QString::fromUtf8(error)};
     const auto flags=lre_get_flags(bytecode.get());
-    std::vector<std::uint8_t *> captures(static_cast<std::size_t>(lre_get_capture_count(bytecode.get()))*2);
+    // The engine also stores repetition registers after the visible captures.
+    std::vector<std::uint8_t *> captures(static_cast<std::size_t>(lre_get_alloc_count(bytecode.get())));
     const auto *text=reinterpret_cast<const std::uint8_t *>(subject.utf16());
     heap.deadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(500);
     int start=0;bool found=false;

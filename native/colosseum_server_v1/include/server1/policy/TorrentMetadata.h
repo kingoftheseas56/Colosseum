@@ -92,6 +92,9 @@ class TorrentMetadata final {
 public:
     [[nodiscard]] static std::optional<TorrentMetadata> parse(const ByteBuffer &torrent,
                                                                std::string *error = nullptr);
+    // Metadata-only consumers must not allocate the full playback geometry.
+    [[nodiscard]] static std::optional<TorrentMetadata> parseForIndexing(
+        const ByteBuffer &torrent, std::string *error = nullptr);
     [[nodiscard]] static std::optional<TorrentMetadata> decode(const ByteBuffer &torrent,
                                                                 std::string *error = nullptr)
     {
@@ -118,6 +121,8 @@ public:
     [[nodiscard]] const VirtualPieceMap &geometry() const;
 
 private:
+    static std::optional<TorrentMetadata> parseInternal(
+        const ByteBuffer &torrent, std::string *error, bool withGeometry);
     TorrentMetadata(Value info,
                     ByteBuffer infoBuffer,
                     ByteBuffer infoHashBytes,

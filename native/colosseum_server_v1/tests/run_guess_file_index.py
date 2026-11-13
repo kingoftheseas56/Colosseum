@@ -1,7 +1,8 @@
 """Differential M304/M663 default-options parity against the hash-locked bundle.
 
 The production candidate is native C++; Node is used only for this test oracle.
-Node 24 is the default gate. Node 22 requires the explicit portable-runtime flag.
+The accepted oracle is exactly Node 22.16.0. Node 24.22.1 is an explicit
+diagnostic profile, not the accepted portable runtime.
 """
 import argparse
 import hashlib
@@ -18,7 +19,8 @@ def arguments():
     parser.add_argument("--oracle", required=True)
     parser.add_argument("--index", required=True)
     parser.add_argument("--node", default="node")
-    parser.add_argument("--allow-portable-node22", action="store_true")
+    parser.add_argument("--runtime-profile", choices=["pinned-node22", "diagnostic-node24"], default="pinned-node22")
+    parser.add_argument("--allow-portable-node22", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--random-cases", type=int, default=4000)
     return parser.parse_args()
 
@@ -123,9 +125,11 @@ def corpus(random_cases):
 def main():
     args = arguments()
     version = subprocess.check_output([args.node, "--version"], text=True).strip()
-    major = int(version.lstrip("v").split(".")[0])
-    if major != 24 and not (major == 22 and args.allow_portable_node22):
-        raise SystemExit(f"Oracle requires Node 24; Node 22 needs --allow-portable-node22 (found {version})")
+    expected = {"pinned-node22": "v22.16.0", "diagnostic-node24": "v24.22.1"}[args.runtime_profile]
+    if args.allow_portable_node22 and args.runtime_profile != "pinned-node22":
+        raise SystemExit("--allow-portable-node22 is only compatible with pinned-node22")
+    if version != expected:
+        raise SystemExit(f"Oracle profile {args.runtime_profile} requires {expected} (found {version})")
     bundle = pathlib.Path(args.oracle).read_bytes()
     digest = hashlib.sha256(bundle).hexdigest()
     assert digest == "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f", digest
@@ -186,7 +190,7 @@ for (const line of require('fs').readFileSync(0,'utf8').trimEnd().split('\n')) {
         print(json.dumps(failures[:25], indent=2, ensure_ascii=True))
         raise SystemExit(f"FAIL {len(failures)}/{len(cases)} M304/M663 cases")
     parse_count = sum(case.get("mode") == "parse" for case in cases)
-    gate = "Node24" if major == 24 else "portable-Node22"
+    gate = args.runtime_profile
     print(f"PASS {len(cases)} exact M304/M663 cases ({parse_count} complete default-options metadata, {len(cases)-parse_count} selection); {gate} {version}; bundle {digest}")
 
 

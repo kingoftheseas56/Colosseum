@@ -1,0 +1,699 @@
+{
+  "samples": [
+    {
+      "path": "/samples/aac-6chan.wav",
+      "mime": "audio/x-wav",
+      "bytes": 232,
+      "sha256": "99c1c9ff7074a1438e44232009f5e1f1ce2db283c66092ef412f77ada563707d"
+    },
+    {
+      "path": "/samples/ac3-2chan.wav",
+      "mime": "audio/x-wav",
+      "bytes": 4270,
+      "sha256": "24af006f3142b9c3614b916491f33fd0a9bb16daee70fbbfc6a29d5f16f3ed9a"
+    },
+    {
+      "path": "/samples/hevc.mkv",
+      "mime": "video/x-matroska",
+      "bytes": 3955,
+      "sha256": "8f4075a670ebea23ddbe0b54ede2a2d47b722a5aebfb2709cfc951ff082c8b9c"
+    }
+  ],
+  "profiles": [
+    {
+      "callback": true,
+      "port": 12471,
+      "supported": [],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "linux-none",
+      "platform": "linux",
+      "expected": {
+        "requests": [
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-linux-video-hevc.mkv/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=nvenc-linux&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-linux-video-hevc.mkv/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-vaapi-renderD128-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=vaapi-renderD128&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-vaapi-renderD128-video-hevc.mkv/destroy"
+        ],
+        "events": [
+          {
+            "callback": false
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": false,
+              "allTranscodeProfiles": []
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": false,
+          "allTranscodeProfiles": []
+        },
+        "called": true,
+        "result": false
+      }
+    },
+    {
+      "callback": true,
+      "port": 12471,
+      "supported": [
+        "nvenc-linux"
+      ],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "linux-one",
+      "platform": "linux",
+      "expected": {
+        "requests": [
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-linux-video-hevc.mkv/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=nvenc-linux&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-linux-video-hevc.mkv/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-vaapi-renderD128-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=vaapi-renderD128&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-vaapi-renderD128-video-hevc.mkv/destroy"
+        ],
+        "events": [
+          {
+            "save": {
+              "transcodeHardwareAccel": true,
+              "allTranscodeProfiles": []
+            }
+          },
+          {
+            "callback": [
+              "nvenc-linux"
+            ]
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": true,
+              "allTranscodeProfiles": [
+                "nvenc-linux"
+              ]
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": true,
+          "allTranscodeProfiles": [
+            "nvenc-linux"
+          ]
+        },
+        "called": true,
+        "result": [
+          "nvenc-linux"
+        ]
+      }
+    },
+    {
+      "callback": true,
+      "port": 12471,
+      "supported": [
+        "qsv-linux",
+        "nvenc-linux",
+        "vaapi-renderD128"
+      ],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "linux-all",
+      "platform": "linux",
+      "expected": {
+        "requests": [
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-linux-video-hevc.mkv/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=nvenc-linux&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-linux-video-hevc.mkv/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-vaapi-renderD128-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=vaapi-renderD128&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-vaapi-renderD128-video-hevc.mkv/destroy"
+        ],
+        "events": [
+          {
+            "save": {
+              "transcodeHardwareAccel": true,
+              "allTranscodeProfiles": []
+            }
+          },
+          {
+            "callback": [
+              "qsv-linux",
+              "nvenc-linux",
+              "vaapi-renderD128"
+            ]
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": true,
+              "allTranscodeProfiles": [
+                "qsv-linux",
+                "nvenc-linux",
+                "vaapi-renderD128"
+              ]
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": true,
+          "allTranscodeProfiles": [
+            "qsv-linux",
+            "nvenc-linux",
+            "vaapi-renderD128"
+          ]
+        },
+        "called": true,
+        "result": [
+          "qsv-linux",
+          "nvenc-linux",
+          "vaapi-renderD128"
+        ]
+      }
+    },
+    {
+      "callback": true,
+      "port": 12471,
+      "supported": [
+        "videotoolbox"
+      ],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "mac-audio-failure",
+      "platform": "darwin",
+      "audioFail": true,
+      "expected": {
+        "requests": [
+          "http://127.0.0.1:12471/hlsv2/12471-videotoolbox-audio-ac3-2chan.wav/audio0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fac3-2chan.wav&profile=videotoolbox&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-videotoolbox-audio-ac3-2chan.wav/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-videotoolbox-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=videotoolbox&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-videotoolbox-video-hevc.mkv/destroy"
+        ],
+        "events": [
+          {
+            "callback": false
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": false,
+              "allTranscodeProfiles": []
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": false,
+          "allTranscodeProfiles": []
+        },
+        "called": true,
+        "result": false
+      }
+    },
+    {
+      "callback": true,
+      "port": 12471,
+      "supported": [
+        "videotoolbox"
+      ],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "mac-success",
+      "platform": "darwin",
+      "expected": {
+        "requests": [
+          "http://127.0.0.1:12471/hlsv2/12471-videotoolbox-audio-ac3-2chan.wav/audio0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fac3-2chan.wav&profile=videotoolbox&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-videotoolbox-audio-ac3-2chan.wav/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-videotoolbox-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=videotoolbox&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-videotoolbox-video-hevc.mkv/destroy"
+        ],
+        "events": [
+          {
+            "save": {
+              "transcodeHardwareAccel": true,
+              "allTranscodeProfiles": []
+            }
+          },
+          {
+            "callback": [
+              "videotoolbox"
+            ]
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": true,
+              "allTranscodeProfiles": [
+                "videotoolbox"
+              ]
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": true,
+          "allTranscodeProfiles": [
+            "videotoolbox"
+          ]
+        },
+        "called": true,
+        "result": [
+          "videotoolbox"
+        ]
+      }
+    },
+    {
+      "callback": true,
+      "port": 12471,
+      "supported": [
+        "qsv-win",
+        "amf"
+      ],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "win-success",
+      "platform": "win32",
+      "expected": {
+        "requests": [
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-win-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=qsv-win&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-win-video-hevc.mkv/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-win-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=nvenc-win&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-win-video-hevc.mkv/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-amf-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=amf&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-amf-video-hevc.mkv/destroy"
+        ],
+        "events": [
+          {
+            "save": {
+              "transcodeHardwareAccel": true,
+              "allTranscodeProfiles": []
+            }
+          },
+          {
+            "callback": [
+              "qsv-win",
+              "amf"
+            ]
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": true,
+              "allTranscodeProfiles": [
+                "qsv-win",
+                "amf"
+              ]
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": true,
+          "allTranscodeProfiles": [
+            "qsv-win",
+            "amf"
+          ]
+        },
+        "called": true,
+        "result": [
+          "qsv-win",
+          "amf"
+        ]
+      }
+    },
+    {
+      "callback": true,
+      "port": 12471,
+      "supported": [
+        "v4l2m2m"
+      ],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "rpi",
+      "platform": "rpi",
+      "expected": {
+        "requests": [
+          "http://127.0.0.1:12471/hlsv2/12471-v4l2m2m-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=v4l2m2m&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-v4l2m2m-video-hevc.mkv/destroy"
+        ],
+        "events": [
+          {
+            "save": {
+              "transcodeHardwareAccel": true,
+              "allTranscodeProfiles": []
+            }
+          },
+          {
+            "callback": [
+              "v4l2m2m"
+            ]
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": true,
+              "allTranscodeProfiles": [
+                "v4l2m2m"
+              ]
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": true,
+          "allTranscodeProfiles": [
+            "v4l2m2m"
+          ]
+        },
+        "called": true,
+        "result": [
+          "v4l2m2m"
+        ]
+      }
+    },
+    {
+      "callback": true,
+      "port": 12471,
+      "supported": [],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "android-disabled",
+      "platform": "android",
+      "expected": {
+        "requests": [],
+        "events": [
+          {
+            "callback": false
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": false,
+              "allTranscodeProfiles": []
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": false,
+          "allTranscodeProfiles": []
+        },
+        "called": true,
+        "result": false
+      }
+    },
+    {
+      "callback": true,
+      "port": 12471,
+      "supported": [],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "unknown",
+      "platform": "unknown",
+      "expected": {
+        "requests": [],
+        "events": [
+          {
+            "callback": false
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": false,
+              "allTranscodeProfiles": []
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": false,
+          "allTranscodeProfiles": []
+        },
+        "called": true,
+        "result": false
+      }
+    },
+    {
+      "callback": true,
+      "port": 12471,
+      "supported": [],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "ios-override",
+      "platform": "linux",
+      "ios": true,
+      "expected": {
+        "requests": [],
+        "events": [
+          {
+            "callback": false
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": false,
+              "allTranscodeProfiles": []
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": false,
+          "allTranscodeProfiles": []
+        },
+        "called": true,
+        "result": false
+      }
+    },
+    {
+      "callback": true,
+      "port": 12471,
+      "supported": [],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "fetch-failure",
+      "platform": "linux",
+      "networkFail": true,
+      "expected": {
+        "requests": [
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=nvenc-linux&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-vaapi-renderD128-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=vaapi-renderD128&maxWidth=1200"
+        ],
+        "events": [
+          {
+            "callback": false
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": false,
+              "allTranscodeProfiles": []
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": false,
+          "allTranscodeProfiles": []
+        },
+        "called": true,
+        "result": false
+      }
+    },
+    {
+      "callback": false,
+      "port": 12471,
+      "supported": [],
+      "initial": {
+        "transcodeHardwareAccel": false,
+        "allTranscodeProfiles": []
+      },
+      "name": "disabled-startup",
+      "platform": "linux",
+      "expected": {
+        "requests": [],
+        "events": [],
+        "settings": {
+          "transcodeHardwareAccel": false,
+          "allTranscodeProfiles": []
+        },
+        "called": false
+      }
+    },
+    {
+      "callback": false,
+      "port": 12471,
+      "supported": [],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": "saved"
+      },
+      "name": "string-profile-startup",
+      "platform": "linux",
+      "expected": {
+        "requests": [],
+        "events": [],
+        "settings": {
+          "transcodeHardwareAccel": true,
+          "allTranscodeProfiles": "saved"
+        },
+        "called": false
+      }
+    },
+    {
+      "callback": false,
+      "port": 12471,
+      "supported": [],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": [
+          "nvenc-linux"
+        ]
+      },
+      "name": "known-startup",
+      "platform": "linux",
+      "expected": {
+        "requests": [],
+        "events": [],
+        "settings": {
+          "transcodeHardwareAccel": true,
+          "allTranscodeProfiles": [
+            "nvenc-linux"
+          ]
+        },
+        "called": false
+      }
+    },
+    {
+      "callback": false,
+      "port": 12471,
+      "supported": [],
+      "initial": {
+        "transcodeHardwareAccel": false,
+        "allTranscodeProfiles": [
+          "old"
+        ]
+      },
+      "name": "debug-forces-retest",
+      "platform": "linux",
+      "debug": true,
+      "expected": {
+        "requests": [
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-linux-video-hevc.mkv/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=nvenc-linux&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-linux-video-hevc.mkv/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-vaapi-renderD128-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=vaapi-renderD128&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-vaapi-renderD128-video-hevc.mkv/destroy"
+        ],
+        "events": [
+          {
+            "save": {
+              "transcodeHardwareAccel": false,
+              "allTranscodeProfiles": [
+                "old"
+              ]
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": false,
+          "allTranscodeProfiles": [
+            "old"
+          ]
+        },
+        "called": false
+      }
+    },
+    {
+      "callback": false,
+      "port": 12471,
+      "supported": [
+        "qsv-linux"
+      ],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "startup-initial-detect",
+      "platform": "linux",
+      "expected": {
+        "requests": [
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-qsv-linux-video-hevc.mkv/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=nvenc-linux&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-nvenc-linux-video-hevc.mkv/destroy",
+          "http://127.0.0.1:12471/hlsv2/12471-vaapi-renderD128-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A12471%2Fsamples%2Fhevc.mkv&profile=vaapi-renderD128&maxWidth=1200",
+          "http://127.0.0.1:12471/hlsv2/12471-vaapi-renderD128-video-hevc.mkv/destroy"
+        ],
+        "events": [
+          {
+            "save": {
+              "transcodeHardwareAccel": true,
+              "allTranscodeProfiles": []
+            }
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": true,
+              "allTranscodeProfiles": [
+                "qsv-linux"
+              ]
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": true,
+          "allTranscodeProfiles": [
+            "qsv-linux"
+          ]
+        },
+        "called": false
+      }
+    },
+    {
+      "callback": true,
+      "port": 0,
+      "supported": [],
+      "initial": {
+        "transcodeHardwareAccel": true,
+        "allTranscodeProfiles": []
+      },
+      "name": "port-default",
+      "platform": "linux",
+      "expected": {
+        "requests": [
+          "http://127.0.0.1:11470/hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200",
+          "http://127.0.0.1:11470/hlsv2/11470-qsv-linux-video-hevc.mkv/destroy",
+          "http://127.0.0.1:11470/hlsv2/11470-nvenc-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=nvenc-linux&maxWidth=1200",
+          "http://127.0.0.1:11470/hlsv2/11470-nvenc-linux-video-hevc.mkv/destroy",
+          "http://127.0.0.1:11470/hlsv2/11470-vaapi-renderD128-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=vaapi-renderD128&maxWidth=1200",
+          "http://127.0.0.1:11470/hlsv2/11470-vaapi-renderD128-video-hevc.mkv/destroy"
+        ],
+        "events": [
+          {
+            "callback": false
+          },
+          {
+            "save": {
+              "transcodeHardwareAccel": false,
+              "allTranscodeProfiles": []
+            }
+          }
+        ],
+        "settings": {
+          "transcodeHardwareAccel": false,
+          "allTranscodeProfiles": []
+        },
+        "called": true,
+        "result": false
+      }
+    }
+  ]
+}

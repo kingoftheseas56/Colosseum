@@ -1,4 +1,7 @@
-# Native local addon: implemented boundary and remaining parity
+# Native local addon: initial checkpoint
+
+This first checkpoint is superseded where noted by `LOCAL-INDEXING-2026-11-13.md`,
+which includes the native parser/provider/indexer/log/runtime additions and later fixes.
 
 Source: official Stremio Service v4.21.1 server bundle, SHA-256
 `405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f`.

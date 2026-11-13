@@ -554,6 +554,16 @@ TorrentMetadata::TorrentMetadata(Value info,
 
 std::optional<TorrentMetadata> TorrentMetadata::parse(const ByteBuffer &torrent, std::string *error)
 {
+    return parseInternal(torrent, error, true);
+}
+
+std::optional<TorrentMetadata> TorrentMetadata::parseForIndexing(const ByteBuffer &torrent, std::string *error)
+{
+    return parseInternal(torrent, error, false);
+}
+
+std::optional<TorrentMetadata> TorrentMetadata::parseInternal(const ByteBuffer &torrent, std::string *error, bool withGeometry)
+{
     if (error)
         error->clear();
     try {
@@ -678,7 +688,10 @@ std::optional<TorrentMetadata> TorrentMetadata::parse(const ByteBuffer &torrent,
         ByteBuffer infoHashBytes = sha1(infoBuffer);
         const std::string infoHash = hex(infoHashBytes);
         std::string geometryError;
-        const auto geometry = nativeGeometry(totalLength, pieceLength, geometryError);
+        const auto geometry = withGeometry ? nativeGeometry(totalLength, pieceLength, geometryError)
+                                           : std::optional<VirtualPieceMap>{};
+        if (!withGeometry)
+            geometryError = "geometry is unavailable on metadata-only indexing results";
         const std::int64_t remainder = totalLength % pieceLength;
         const std::int64_t lastPieceLength = remainder == 0 ? pieceLength : remainder;
 

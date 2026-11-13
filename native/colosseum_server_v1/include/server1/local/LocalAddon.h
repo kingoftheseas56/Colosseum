@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <functional>
 #include <memory>
+#include <map>
 #include <vector>
 namespace server1::local {
 // All access and callbacks belong to the object's Qt thread. No implicit discovery,
@@ -17,6 +18,10 @@ public:
         std::function<QJsonObject(const QString &)> indexFile;
         std::function<void(const QString &, std::function<void(QJsonObject)>)> indexFileAsync;
         std::function<void(const QJsonObject &, std::function<void(QJsonObject)>)> enrichMetaAsync;
+        std::function<void(const QJsonObject &, std::function<void(QJsonObject)>)> enrichLookupMetaAsync;
+        // Optional engine-registry adapter. Empty result denotes lookup failure.
+        std::function<void(const QString &, std::function<void(QJsonObject)>)> lookupTorrent;
+        std::function<void(const QJsonObject &, std::function<void(QJsonObject)>)> indexTorrentAsync;
         std::function<QJsonObject(const QJsonObject &)> enrichMeta;
     };
     explicit LocalAddon(Config config, QObject *parent = nullptr);
@@ -25,6 +30,8 @@ public:
     QJsonObject catalog() const;
     QJsonObject streams(const QString &type, const QString &id) const;
     QJsonObject meta(const QString &id, qint64 nowMs) const;
+    void resolveMeta(QString id, qint64 nowMs, std::function<void(QJsonObject)> callback);
+    void cancelRequests();
     bool saveEntry(const QString &key, const QJsonObject &entry);
     void saveMeta(const QString &id, const QJsonObject &meta);
     bool load(const QString &database);
@@ -39,6 +46,11 @@ private:
     QJsonObject metas_;
     quint64 generation_ = 0;
     QJsonObject aggregate(const QString &id) const;
+    QJsonObject projectMeta(QJsonObject entry, qint64 nowMs, QJsonObject suppliedMeta = {}) const;
+    void completeMeta(quint64 request, QJsonObject result);
+    std::map<quint64,std::function<void(QJsonObject)>> metaRequests_;
+    quint64 nextRequest_ = 0;
+    bool destroying_ = false;
     void step(std::shared_ptr<QStringList> files, quint64 generation, std::function<void()> finished);
 };
 // Routes hold a weak QObject pointer, never ownership. Owner may be destroyed first.

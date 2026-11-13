@@ -449,6 +449,8 @@ static int cr_init_char_range(REParseState *s, REStringList *cr, uint32_t c)
         if (cr_add_point(&cr->cr, c_pt[i]))
             goto fail;
     }
+    if (s->ignore_case && s->unicode_sets && cr_regexp_case_closure(&cr->cr))
+        goto fail;
     if (invert) {
         if (cr_invert(&cr->cr))
             goto fail;
@@ -962,8 +964,11 @@ static int parse_unicode_property(REParseState *s, REStringList *cr,
        unicode_sets. 'unicode_sets' ordering is more consistent */
     /* XXX: the spec seems incorrect, we do it as the other engines
        seem to do it. */
-    if (s->ignore_case && s->unicode_sets) {
-        if (re_string_list_canonicalize(s, cr, s->is_unicode)) {
+    /* Pinned V8 LookupSpecialPropertyValueName keeps ASCII as its literal
+       code point range, without case closure, including for its complement. */
+    if (s->ignore_case && s->unicode_sets && strcmp(name, "ASCII")) {
+        if (re_string_list_canonicalize(s, cr, s->is_unicode) ||
+            cr_regexp_case_closure(&cr->cr)) {
             re_string_list_free(cr);
             goto out_of_memory;
         }
@@ -1239,7 +1244,7 @@ static int re_emit_range(REParseState *s, const CharRange *cr)
         if (high <= 0xffff) {
             /* can use 16 bit ranges with the conversion that 0xffff =
                infinity */
-            re_emit_op_u16(s, s->ignore_case ? REOP_range_i : REOP_range, len);
+            re_emit_op_u16(s, s->ignore_case && !s->unicode_sets ? REOP_range_i : REOP_range, len);
             for(i = 0; i < cr->len; i += 2) {
                 dbuf_put_u16(&s->byte_code, cr->points[i]);
                 high = cr->points[i + 1] - 1;
@@ -1248,7 +1253,7 @@ static int re_emit_range(REParseState *s, const CharRange *cr)
                 dbuf_put_u16(&s->byte_code, high);
             }
         } else {
-            re_emit_op_u16(s, s->ignore_case ? REOP_range32_i : REOP_range32, len);
+            re_emit_op_u16(s, s->ignore_case && !s->unicode_sets ? REOP_range32_i : REOP_range32, len);
             for(i = 0; i < cr->len; i += 2) {
                 dbuf_put_u32(&s->byte_code, cr->points[i]);
                 dbuf_put_u32(&s->byte_code, cr->points[i + 1] - 1);
@@ -1353,6 +1358,24 @@ static int re_emit_string_list(REParseState *s, const REStringList *sl)
 
 static int re_parse_nested_class(REParseState *s, REStringList *cr, const uint8_t **pp);
 
+/* Ordinary /iv character operands receive case closure before set algebra. */
+static int re_add_class_character(REParseState *s, CharRange *cr, uint32_t c)
+{
+    if (s->ignore_case && s->unicode_sets) {
+        CharRange single;
+        int ret;
+        cr_init(&single, s->opaque, lre_realloc);
+        ret = cr_add_interval(&single, c, c + 1) ||
+              cr_regexp_case_closure(&single) ||
+              cr_op1(cr, single.points, single.len, CR_OP_UNION);
+        cr_free(&single);
+        return ret ? -1 : 0;
+    }
+    if (s->ignore_case)
+        c = lre_canonicalize(c, s->is_unicode);
+    return cr_union_interval(cr, c, c);
+}
+
 static int re_parse_class_set_operand(REParseState *s, REStringList *cr, const uint8_t **pp)
 {
     int c1;
@@ -1368,9 +1391,7 @@ static int re_parse_class_set_operand(REParseState *s, REStringList *cr, const u
         if (c1 < CLASS_RANGE_BASE) {
             /* create a range with a single character */
             re_string_list_init(s, cr);
-            if (s->ignore_case)
-                c1 = lre_canonicalize(c1, s->is_unicode);
-            if (cr_union_interval(&cr->cr, c1, c1)) {
+            if (re_add_class_character(s, &cr->cr, c1)) {
                 re_string_list_free(cr);
                 return -1;
             }
@@ -1446,7 +1467,8 @@ static int re_parse_nested_class(REParseState *s, REStringList *cr, const uint8_
                     CharRange cr2_s, *cr2 = &cr2_s;
                     cr_init(cr2, s->opaque, lre_realloc);
                     if (cr_add_interval(cr2, c1, c2 + 1) ||
-                        cr_regexp_canonicalize(cr2, s->is_unicode) ||
+                        (s->unicode_sets ? cr_regexp_case_closure(cr2) :
+                         cr_regexp_canonicalize(cr2, s->is_unicode)) ||
                         cr_op1(&cr->cr, cr2->points, cr2->len, CR_OP_UNION)) {
                         cr_free(cr2);
                         goto memory_error;
@@ -1466,9 +1488,7 @@ static int re_parse_nested_class(REParseState *s, REStringList *cr, const uint8_
                     if (ret)
                         goto memory_error;
                 } else {
-                    if (s->ignore_case)
-                        c1 = lre_canonicalize(c1, s->is_unicode);
-                    if (cr_union_interval(&cr->cr, c1, c1))
+                    if (re_add_class_character(s, &cr->cr, c1))
                         goto memory_error;
                 }
             }
@@ -1782,11 +1802,10 @@ static int find_group_name(REParseState *s, const char *name, BOOL emit_group_in
     return n;
 }
 
-static BOOL is_duplicate_group_name(REParseState *s, const char *name, int scope)
+static BOOL is_duplicate_group_name(REParseState *s, const char *name)
 {
     const char *p, *buf_end;
     size_t len, name_len;
-    int scope1;
     
     p = (char *)s->group_names.buf;
     if (!p)
@@ -1796,9 +1815,8 @@ static BOOL is_duplicate_group_name(REParseState *s, const char *name, int scope
     while (p < buf_end) {
         len = strlen(p);
         if (len == name_len && memcmp(name, p, name_len) == 0) {
-            scope1 = (uint8_t)p[len + 1];
-            if (scope == scope1)
-                return TRUE;
+            /* Node 22.16.0 rejects duplicate capture names in every scope. */
+            return TRUE;
         }
         p += len + LRE_GROUP_NAME_TRAILER_LEN;
     }
@@ -1806,41 +1824,6 @@ static BOOL is_duplicate_group_name(REParseState *s, const char *name, int scope
 }
 
 static int re_parse_disjunction(REParseState *s, BOOL is_backward_dir);
-
-static int re_parse_modifiers(REParseState *s, const uint8_t **pp)
-{
-    const uint8_t *p = *pp;
-    int mask = 0;
-    int val;
-
-    for(;;) {
-        if (*p == 'i') {
-            val = LRE_FLAG_IGNORECASE;
-        } else if (*p == 'm') {
-            val = LRE_FLAG_MULTILINE;
-        } else if (*p == 's') {
-            val = LRE_FLAG_DOTALL;
-        } else {
-            break;
-        }
-        if (mask & val)
-            return re_parse_error(s, "duplicate modifier: '%c'", *p);
-        mask |= val;
-        p++;
-    }
-    *pp = p;
-    return mask;
-}
-
-static BOOL update_modifier(BOOL val, int add_mask, int remove_mask,
-                            int mask)
-{
-    if (add_mask & mask)
-        val = TRUE;
-    if (remove_mask & mask)
-        val = FALSE;
-    return val;
-}
 
 static int re_parse_term(REParseState *s, BOOL is_backward_dir)
 {
@@ -1911,43 +1894,8 @@ static int re_parse_term(REParseState *s, BOOL is_backward_dir)
                 if (re_parse_expect(s, &p, ')'))
                     return -1;
             } else if (p[2] == 'i' || p[2] == 'm' || p[2] == 's' || p[2] == '-') {
-                BOOL saved_ignore_case, saved_multi_line, saved_dotall;
-                int add_mask, remove_mask;
-                p += 2;
-                remove_mask = 0;
-                add_mask = re_parse_modifiers(s, &p);
-                if (add_mask < 0)
-                    return -1;
-                if (*p == '-') {
-                    p++;
-                    remove_mask = re_parse_modifiers(s, &p);
-                    if (remove_mask < 0)
-                        return -1;
-                }
-                if ((add_mask == 0 && remove_mask == 0) ||
-                    (add_mask & remove_mask) != 0) {
-                    return re_parse_error(s, "invalid modifiers");
-                }
-                if (re_parse_expect(s, &p, ':'))
-                    return -1;
-                saved_ignore_case = s->ignore_case;
-                saved_multi_line = s->multi_line;
-                saved_dotall = s->dotall;
-                s->ignore_case = update_modifier(s->ignore_case, add_mask, remove_mask, LRE_FLAG_IGNORECASE);
-                s->multi_line = update_modifier(s->multi_line, add_mask, remove_mask, LRE_FLAG_MULTILINE);
-                s->dotall = update_modifier(s->dotall, add_mask, remove_mask, LRE_FLAG_DOTALL);
-
-                last_atom_start = s->byte_code.size;
-                last_capture_count = s->capture_count;
-                s->buf_ptr = p;
-                if (re_parse_disjunction(s, is_backward_dir))
-                    return -1;
-                p = s->buf_ptr;
-                if (re_parse_expect(s, &p, ')'))
-                    return -1;
-                s->ignore_case = saved_ignore_case;
-                s->multi_line = saved_multi_line;
-                s->dotall = saved_dotall;
+                /* Scoped modifiers are disabled in the pinned V8 profile. */
+                return re_parse_error(s, "invalid group");
             } else if ((p[2] == '=' || p[2] == '!')) {
                 is_neg = (p[2] == '!');
                 is_backward_lookahead = FALSE;
@@ -1985,10 +1933,9 @@ static int re_parse_term(REParseState *s, BOOL is_backward_dir)
                                         &p)) {
                     return re_parse_error(s, "invalid group name");
                 }
-                /* poor's man method to test duplicate group
-                   names. */
-                /* XXX: this method does not catch all the errors*/
-                if (is_duplicate_group_name(s, s->u.tmp_buf, s->group_name_scope)) {
+                /* Names are already decoded by re_parse_group_name, so
+                   escaped aliases obey the same Node 22 uniqueness rule. */
+                if (is_duplicate_group_name(s, s->u.tmp_buf)) {
                     return re_parse_error(s, "duplicate group name");
                 }
                 /* group name with a trailing zero */

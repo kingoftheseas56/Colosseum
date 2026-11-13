@@ -15,13 +15,18 @@
 #include "server1/http/YouTubeRoutes.h"
 #include "server1/youtube/YouTubeResolver.h"
 #include "server1/casting/CastingService.h"
-#include "server1/local/LocalAddon.h"
+#include "server1/local/LocalAddonRuntime.h"
+#include "server1/http/AncillaryRoutes.h"
+#include "server1/media/HardwareProfiler.h"
+#include "server1/media/HardwareProbeFetch.h"
 #include "server1/downloads/DownloadManager.h"
 #include "server1/settings/RuntimeSettings.h"
 #include "server1/settings/MediaSettings.h"
 #include "server1/settings/CachePolicy.h"
 #include <QCoreApplication>
 #include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QStandardPaths>
 #include <QThread>
 #include "server1/network/ProxyService.h"
@@ -40,15 +45,20 @@ struct ServerComposition::Impl final {
     std::unique_ptr<downloads::DownloadManager> downloads;
     std::unique_ptr<policy::EngineRegistry> registry;
     std::unique_ptr<media::HlsV2Service> hls;
+    QString probeFfmpeg,probeFfprobe;
     std::unique_ptr<media::LegacyHlsService> legacyHls;
     std::unique_ptr<youtube::YouTubeResolver> youtube;
     std::unique_ptr<casting::CastingService> casting;
-    std::unique_ptr<local::LocalAddon> localAddon;
+    std::unique_ptr<local::LocalAddonRuntime> localAddon;
+    std::unique_ptr<media::HardwareProfiler> profiler;
+    bool startupProfileStarted=false;
     void *router=nullptr;
     void *server=nullptr;
     std::string failure;
     bool stopping=false;
     explicit Impl(policy::EngineRegistryConfig config,ServerMediaConfig mediaConfig,ServerRuntimeConfig runtimeConfig){
+        if(!runtimeConfig.localRoots.empty() && runtimeConfig.localDatabasePath.empty())
+            throw std::invalid_argument("local indexing requires an explicit database path");
         auto appPath=QString::fromStdString(runtimeConfig.appPath);
         if(appPath.isEmpty())appPath=qEnvironmentVariable("APP_PATH");
         if(appPath.isEmpty() && !config.cacheRoot.empty())appPath=QString::fromStdString(config.cacheRoot.string());
@@ -98,6 +108,7 @@ struct ServerComposition::Impl final {
             const auto executables=locator.locateAll({paths(mediaConfig.ffmpeg,"FFMPEG_BIN","ffmpeg"),paths(mediaConfig.ffprobe,"FFPROBE_BIN","ffprobe"),paths({},"FFSPLIT_BIN","ffsplit")});
             if(mediaConfig.hlsV2Enabled && qgetenv("HLS_V2_DISABLED").isEmpty())
                 hls=std::make_unique<media::HlsV2Service>(executables.ffmpeg,executables.ffprobe,&lane);
+            probeFfmpeg=executables.ffmpeg;probeFfprobe=executables.ffprobe;
             legacyHls=std::make_unique<media::LegacyHlsService>(executables,&lane);
             casting=std::make_unique<casting::CastingService>(executables.ffmpeg,&lane);
         }
@@ -105,9 +116,40 @@ struct ServerComposition::Impl final {
         youtube=std::make_unique<youtube::YouTubeResolver>(&lane);
         // Desktop manifest support does not authorize discovery of user files.
         // Explicit roots and recognition remain required before indexing.
-        local::LocalAddon::Config addonConfig;
+        local::LocalAddonRuntime::Config addonConfig;
         addonConfig.disableCatalogSupport=false;
-        localAddon=std::make_unique<local::LocalAddon>(std::move(addonConfig),&lane);
+        for(const auto &root:runtimeConfig.localRoots)
+            addonConfig.roots.append(QString::fromStdString(root));
+        addonConfig.indexing.metadata=local::LocalMetadata::Config::sourceEndpoints();
+        addonConfig.indexing.metadata.enabled=runtimeConfig.localMetadataEnabled;
+        addonConfig.indexing.imdb.enabled=runtimeConfig.localMetadataEnabled;
+        addonConfig.enrichment=addonConfig.indexing.metadata;
+        addonConfig.lookupTorrent=[this](const QString &hash,std::function<void(QJsonObject)> callback){
+            registry->create({hash.toStdString(),policy::Value::object({})},
+                [callback=std::move(callback)](policy::EngineCreateResult result){
+                    QJsonObject torrent;
+                    if(result.outcome==policy::EngineCreateOutcome::Ready && result.engine){
+                        try{
+                            const auto bytes=policy::jsonStringify(result.engine->statistics());
+                            torrent=QJsonDocument::fromJson(QByteArray::fromStdString(bytes)).object();
+                        }catch(const std::exception &){ }
+                    }
+                    callback(std::move(torrent));
+                });
+        };
+        localAddon=std::make_unique<local::LocalAddonRuntime>(std::move(addonConfig),&lane);
+        if(!runtimeConfig.localDatabasePath.empty() &&
+           !localAddon->start(QString::fromStdString(runtimeConfig.localDatabasePath))){
+            server1_http_router_destroy(router);router=nullptr;
+            throw std::runtime_error(localAddon->lastError().toStdString());
+        }
+        profiler=std::make_unique<media::HardwareProfiler>(*settings,[this]{
+            if(hls)settings::applyMediaSettings(*settings,*hls,QThread::idealThreadCount());
+        },&lane,QString{},media::hardwareProbeFetch([this]{
+            auto service=std::make_shared<media::HlsV2Service>(probeFfmpeg,probeFfprobe);
+            settings::applyMediaSettings(*settings,*service,QThread::idealThreadCount());
+            return service;
+        }));
         auto localBase=[this]{return QString("http://127.0.0.1:%1").arg(server1_http_server_port(server));};
         cleanupTimer.setSingleShot(true);
         cleanupTimer.setInterval(10000);
@@ -122,7 +164,7 @@ struct ServerComposition::Impl final {
         rootRoutes.webUILocation=runtimeConfig.webUiLocation.empty()
             ? qEnvironmentVariable("WEBUI_LOCATION","https://app.strem.io/shell-v4.4/").toStdString()
             : runtimeConfig.webUiLocation;
-        if(!http::installExternalCors(router) || (hls && !http::installHlsV2Routes(router,hls.get(),localBase)) || !http::installLegacyMediaRoutes(router,legacyHls.get(),localBase) || !http::installRootRoutes(router,std::move(rootRoutes)) || !http::installYouTubeRoutes(router,*youtube) || !casting::installCastingRoutes(router,*casting) || !local::installLocalAddonRoutes(router,*localAddon) || !network::registerProxyRoutes(router) || !media::installSubtitleRoutes(router,&lane)){server1_http_router_destroy(router);router=nullptr;throw std::runtime_error("server route installation failed");}
+        if(!http::installExternalCors(router) || (hls && !http::installHlsV2Routes(router,hls.get(),localBase)) || !http::installLegacyMediaRoutes(router,legacyHls.get(),localBase) || !http::installRootRoutes(router,std::move(rootRoutes)) || !http::installYouTubeRoutes(router,*youtube) || !casting::installCastingRoutes(router,*casting) || !local::installLocalAddonRoutes(router,localAddon->addon()) || !http::installAncillaryRoutes(router,*profiler,[this]{return server1_http_server_port(server);},QString::fromStdString(runtimeConfig.sampleDirectory)) || !network::registerProxyRoutes(router) || !media::installSubtitleRoutes(router,&lane)){server1_http_router_destroy(router);router=nullptr;throw std::runtime_error("server route installation failed");}
         const auto ipcKey=runtimeConfig.ipcDownloadKey.empty()
             ? qEnvironmentVariable("SERVER_IPC_KEY") : QString::fromStdString(runtimeConfig.ipcDownloadKey);
         http::mountDownloadRoutes(router,downloads.get(),ipcKey);
@@ -140,6 +182,7 @@ struct ServerComposition::Impl final {
         cleanupTimer.stop();
         server1_http_server_destroy(server);
         server1_http_router_destroy(router);
+        profiler.reset();
         localAddon.reset();
         casting.reset();
         youtube.reset();
@@ -160,7 +203,14 @@ struct ServerComposition::Impl final {
 };
 ServerComposition::ServerComposition(policy::EngineRegistryConfig config,ServerMediaConfig mediaConfig,ServerRuntimeConfig runtimeConfig):impl_(std::make_unique<Impl>(std::move(config),std::move(mediaConfig),std::move(runtimeConfig))){}
 ServerComposition::~ServerComposition()=default;
-bool ServerComposition::listen(unsigned short port){return server1_http_server_listen(impl_->server,port)!=0;}
+bool ServerComposition::listen(unsigned short port){
+    if(!server1_http_server_listen(impl_->server,port))return false;
+    if(!impl_->startupProfileStarted){
+        impl_->startupProfileStarted=true;
+        impl_->profiler->run(server1_http_server_port(impl_->server));
+    }
+    return true;
+}
 void ServerComposition::stop(){server1_http_server_stop(impl_->server);}
 unsigned short ServerComposition::port()const{return server1_http_server_port(impl_->server);}
 std::string ServerComposition::error()const{return impl_->failure.empty()?server1_http_server_error(impl_->server):impl_->failure;}

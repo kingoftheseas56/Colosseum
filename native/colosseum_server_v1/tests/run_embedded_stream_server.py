@@ -54,6 +54,8 @@ try:
     (root / 'media.mp4').write_bytes(init + segment)
     subprocess.run(['ffmpeg', '-v', 'error', '-i', str(root / 'media.mp4'), '-f', 'null', '-'],
                    check=True, timeout=8)
+    # First playback must work without waiting for device profiling to finish.
+    assert json.loads(request('/device-info')) == {'availableHardwareAccelerations': False}
     assert process.wait(timeout=20) == 0, (root / 'host.log').read_text()
     assert 'STOPPED' in (root / 'host.log').read_text()
     print('PASS real StreamServer embedded startup/idempotency/settings/local HLS/decode/shutdown;', root)

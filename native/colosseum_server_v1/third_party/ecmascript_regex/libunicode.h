@@ -27,7 +27,7 @@
 #include <stdint.h>
 
 /* unicode standard version */
-#define LIBUNICODE_UNICODE_VERSION_MAJOR 17
+#define LIBUNICODE_UNICODE_VERSION_MAJOR 16
 #define LIBUNICODE_UNICODE_VERSION_MINOR 0
 #define LIBUNICODE_UNICODE_VERSION_PATCH 0
 
@@ -94,6 +94,7 @@ static inline int cr_union_interval(CharRange *cr, uint32_t c1, uint32_t c2)
 int cr_invert(CharRange *cr);
 
 int cr_regexp_canonicalize(CharRange *cr, int is_unicode);
+int cr_regexp_case_closure(CharRange *cr);
 
 typedef enum {
     UNICODE_NFC,
