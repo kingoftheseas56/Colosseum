@@ -116,6 +116,12 @@ TestCase {
         verify(room)
         wait(50)
         compare(room.library.volumeRows.length, 1)
+        const fallback = findChild(room, "mangaHeaderCoverFallback")
+        verify(fallback)
+        if (data.width < 840) {
+            verify(fallback.contentWidth <= fallback.width && fallback.contentHeight <= fallback.height,
+                   "The cover fallback title fits while artwork is unavailable")
+        }
         verify(room.library.flowViewportHeight > 0)
         verify(room.library.maxScaledVolumeHeight <= room.library.flowViewportHeight,
                "The full volume art and caption must fit their own viewport")

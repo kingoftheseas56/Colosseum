@@ -177,9 +177,12 @@ Item {
                 anchors.fill: parent
                 anchors.margins: 8
                 visible: phoneCoverImage.status !== Image.Ready
+                objectName: "mangaHeaderCoverFallback"
                 text: root.seriesTitle
                 color: theme.inkDim
                 font.family: theme.display; font.pixelSize: 17
+                fontSizeMode: adaptive.shortAndroid ? Text.Fit : Text.FixedSize
+                minimumPixelSize: adaptive.mangaHeaderCoverTitleMinimum
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
