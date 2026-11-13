@@ -4,7 +4,6 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import "collections" as CollectionsUi
 
 Item {
     id: bar
@@ -225,11 +224,14 @@ Item {
                     border.width: bar.collectionsActive ? 1 : 0
                     border.color: Qt.rgba(0.94, 0.76, 0.35, 0.45)
                 }
-                CollectionsUi.CollectionIcon {
+                Image {
                     anchors.centerIn: parent
-                    width: 22; height: 22
-                    name: "collections"
-                    strokeColor: bar.collectionsActive ? theme.gold : theme.ink
+                    width: 28; height: 28
+                    source: "../assets/icons/collections-app.png"
+                    sourceSize.width: 56
+                    sourceSize.height: 56
+                    fillMode: Image.PreserveAspectFit
+                    Accessible.ignored: true
                 }
                 KeyboardAction {
                     id: collectionsInput

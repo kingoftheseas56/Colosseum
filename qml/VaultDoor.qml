@@ -53,10 +53,12 @@ Item {
 
     Image {
         anchors.centerIn: parent
-        width: 21; height: 21
-        source: "../assets/icons/vault-door.svg"
+        width: 28; height: 28
+        source: "../assets/icons/vault-app.png"
+        sourceSize.width: 56
+        sourceSize.height: 56
         fillMode: Image.PreserveAspectFit
-        opacity: door.active ? 1 : 0.75
+        Accessible.ignored: true
     }
 
     // active-page underline, same gold language as session tiles

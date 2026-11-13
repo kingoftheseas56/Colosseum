@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Colosseum dock icon artwork</title>
+<!-- Editable HTML/CSS source for vault-app.png and collections-app.png.
+     Render ?icon=vault or ?icon=collections at 256 x 256 with a transparent background. -->
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+body { display: flex; }
+.icon { position: relative; width: 256px; height: 256px; flex: none; isolation: isolate; }
+.vault .case{position:absolute;inset:15px;border-radius:49px;background:#393733;box-shadow:inset 0 2px 0 #777065,inset 0 -6px 0 #1d1c1a,0 5px 9px #0003}
+.vault .door{position:absolute;left:37px;top:36px;width:181px;height:181px;border-radius:31px;background:#2a2927;border:3px solid #8b7650;box-shadow:inset 0 -4px 0 #22211f}
+.vault .hinge{position:absolute;right:26px;width:17px;height:33px;background:#aa9161;border-radius:5px;box-shadow:inset 0 -4px #7b6642}
+.vault .hinge.top{top:61px}
+.vault .hinge.bottom{top:162px}
+.vault .wheel{position:absolute;left:67px;top:67px;width:121px;height:121px;border:12px solid #efc15a;border-radius:50%;box-shadow:0 4px 0 #171715,inset 0 2px 0 #f5d68e}
+.vault .spoke{position:absolute;width:12px;height:44px;left:42.5px;top:4px;border-radius:4px;background:#efc15a;transform-origin:6px 44.5px}
+.vault .spoke.b{transform:rotate(120deg)}
+.vault .spoke.c{transform:rotate(240deg)}
+.vault .hub{position:absolute;width:34px;height:34px;left:31.5px;top:31.5px;border:4px solid #f5d68e;border-radius:50%;background:#c69b47;box-shadow:0 2px 0 #2a2927}
+.collections .card{position:absolute;width:166px;height:189px;border-radius:30px}
+.collections .back{left:26px;top:22px;background:#ba954d;transform:rotate(-12deg);box-shadow:inset 0 2px #dfb96a,inset 0 -5px #866832}
+.collections .middle{left:55px;top:36px;background:#786344;transform:rotate(7deg);box-shadow:inset 0 2px #ad9260,inset 0 -5px #4f4332}
+.collections .front{left:49px;top:56px;background:#34312b;border:2px solid #9f8555;box-shadow:inset 0 -5px #25231f,0 5px 8px #0003}
+.collections .bookmark{position:absolute;left:48px;top:37px;width:67px;height:108px;background:#efc15a;clip-path:polygon(0 0,100% 0,100% 100%,50% 77%,0 100%);border-radius:7px 7px 0 0}
+.collections .bookmark:after{content:'';position:absolute;left:0;right:0;top:0;height:5px;background:#f5d68e;border-radius:7px 7px 0 0}
+
+</style>
+<body>
+<template id="vault"><div class="icon vault" role="img" aria-label="Vault"><div class="case"></div><div class="door"></div><div class="hinge top"></div><div class="hinge bottom"></div><div class="wheel"><div class="spoke"></div><div class="spoke b"></div><div class="spoke c"></div><div class="hub"></div></div></div></template>
+<template id="collections"><div class="icon collections" role="img" aria-label="Your Collections"><div class="card back"></div><div class="card middle"></div><div class="card front"><div class="bookmark"></div></div></div></template>
+<script>
+const requested = new URLSearchParams(location.search).get('icon');
+const names = requested === 'vault' || requested === 'collections'
+    ? [requested] : ['vault', 'collections'];
+for (const name of names)
+    document.body.append(document.getElementById(name).content.cloneNode(true));
+</script>
+</body>
+</html>
