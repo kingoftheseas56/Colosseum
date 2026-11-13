@@ -7,8 +7,9 @@ scripts/android/build_apk.sh (or a local lane):
 
   inspect     structural ZIP/ELF checks: unique EOCD, no duplicate members, arm64-v8a-only
               native libraries that are AArch64 ELF64 with >=16 KiB PT_LOAD alignment, optional
-              Nuvio engine member hash against the verified prefix, and the signing state
-              (APK Signing Block / v1 JAR members) reported - or rejected with --require-unsigned.
+              Nuvio engine member hash against the verified prefix, optional stripped-section
+              checks for the two Colosseum app libraries, and the signing state (APK Signing
+              Block / v1 JAR members) reported - or rejected with --require-unsigned.
   identity    parse `aapt dump badging` output and compare package/versionCode/versionName with
               the expected identity; the package must be inside the Colosseum lanes (default:
               the authorized Beta world.getcolosseum.app.beta, see native/cmake/AndroidPackageIdentity.cmake).
@@ -36,6 +37,10 @@ from pathlib import Path
 BETA_PACKAGE = "world.getcolosseum.app.beta"
 APK_SIG_MAGIC = b"APK Sig Block 42"
 ENGINE_MEMBER = "lib/arm64-v8a/libnuvio_engine.so"
+APP_NATIVE_LIBRARY_MEMBERS = frozenset((
+    "lib/arm64-v8a/libcolosseum_arm64-v8a.so",
+    "lib/arm64-v8a/libcolosseum_nuvio_host_arm64-v8a.so",
+))
 PACKAGE_LANES = (
     re.compile(r"world[.]getcolosseum[.]app([.][a-z][a-z0-9_]*)?"),
     re.compile(r"org[.]qtproject[.]example([.]colosseum([.][a-z][a-z0-9_]*)?)?"),
@@ -164,8 +169,59 @@ def _elf_receipt(name: str, blob: bytes) -> dict:
             "ptLoadAlignments": aligns}
 
 
+def _elf_section_names(name: str, blob: bytes) -> list[bytes]:
+    """Read ELF64 section names after validating the section and string-table bounds."""
+    if len(blob) < 64:
+        raise ValueError(f"{name} is too short for an ELF64 header")
+    section_offset = struct.unpack_from("<Q", blob, 40)[0]
+    entry_size, section_count, name_table_index = struct.unpack_from("<HHH", blob, 58)
+    if section_offset == 0:
+        if section_count == 0 and name_table_index == 0:
+            return []
+        raise ValueError(f"{name} has inconsistent ELF section header metadata")
+    if entry_size < 64 or section_offset > len(blob) - 64:
+        raise ValueError(f"{name} has invalid ELF section header table bounds")
+
+    first = struct.unpack_from("<IIQQQQIIQQ", blob, section_offset)
+    if section_count == 0:
+        section_count = first[5]  # Extended section count is in section zero's sh_size.
+        if section_count == 0:
+            raise ValueError(f"{name} has invalid ELF section header table bounds")
+    if name_table_index == 0xFFFF:
+        name_table_index = first[6]  # Extended string-table index is in section zero's sh_link.
+    if section_count > (len(blob) - section_offset) // entry_size:
+        raise ValueError(f"{name} has invalid ELF section header table bounds")
+    if name_table_index == 0 or name_table_index >= section_count:
+        raise ValueError(f"{name} has invalid ELF section name string table index")
+
+    def section_header(index: int) -> tuple[int, ...]:
+        offset = section_offset + index * entry_size
+        return struct.unpack_from("<IIQQQQIIQQ", blob, offset)
+
+    string_header = section_header(name_table_index)
+    if string_header[1] != 3:  # SHT_STRTAB
+        raise ValueError(f"{name} ELF section name table is not a string table")
+    string_offset, string_size = string_header[4], string_header[5]
+    if string_offset > len(blob) or string_size > len(blob) - string_offset:
+        raise ValueError(f"{name} has invalid ELF section name string table bounds")
+    string_table = blob[string_offset:string_offset + string_size]
+    if not string_table or string_table[0] != 0:
+        raise ValueError(f"{name} has malformed ELF section name string table")
+
+    names = []
+    for index in range(section_count):
+        name_offset = section_header(index)[0]
+        if name_offset >= len(string_table):
+            raise ValueError(f"{name} has invalid ELF section name offset")
+        name_end = string_table.find(b"\0", name_offset)
+        if name_end < 0:
+            raise ValueError(f"{name} has unterminated ELF section name")
+        names.append(string_table[name_offset:name_end])
+    return names
+
+
 def inspect_apk(apk_path: str, engine_library: str | None = None,
-                require_unsigned: bool = False) -> dict:
+                require_unsigned: bool = False, require_stripped_app_libs: bool = False) -> dict:
     path = Path(apk_path)
     data = path.read_bytes()
     _, cd_offset, _ = find_eocd(data)
@@ -183,7 +239,7 @@ def inspect_apk(apk_path: str, engine_library: str | None = None,
             if "AndroidManifest.xml" not in names:
                 raise ValueError("APK lacks AndroidManifest.xml")
             jar_signatures = has_jar_signatures(names)
-            abis, libs = set(), []
+            abis, libs, app_library_blobs = set(), [], {}
             for info in infos:
                 if not info.filename.startswith("lib/"):
                     continue
@@ -194,11 +250,24 @@ def inspect_apk(apk_path: str, engine_library: str | None = None,
                 if parts[1] != "arm64-v8a":
                     raise ValueError(f"unexpected native ABI in APK: {parts[1]}")
                 if re.fullmatch(r"lib/[^/]+/[^/]+[.]so", info.filename):
-                    libs.append(_elf_receipt(info.filename, zf.read(info)))
+                    blob = zf.read(info)
+                    libs.append(_elf_receipt(info.filename, blob))
+                    if info.filename in APP_NATIVE_LIBRARY_MEMBERS:
+                        app_library_blobs[info.filename] = blob
     except zipfile.BadZipFile as exc:
         raise ValueError(f"malformed APK ZIP: {exc}") from exc
     if abis != {"arm64-v8a"} or not libs:
         raise ValueError("APK must contain arm64-v8a native libraries only")
+    if require_stripped_app_libs:
+        missing = sorted(APP_NATIVE_LIBRARY_MEMBERS - app_library_blobs.keys())
+        if missing:
+            raise ValueError("APK lacks required app native library members: " + ", ".join(missing))
+        for member in sorted(APP_NATIVE_LIBRARY_MEMBERS):
+            for section_name in _elf_section_names(member, app_library_blobs[member]):
+                if (section_name.startswith(b".debug") or section_name.startswith(b".zdebug")
+                        or section_name == b".symtab"):
+                    decoded = section_name.decode("ascii", "replace")
+                    raise ValueError(f"{member} contains unstripped section {decoded}")
     signed = signing_block or jar_signatures or external_v4
     if require_unsigned and signed:
         raise ValueError("APK is signed but --require-unsigned was requested")
@@ -299,6 +368,8 @@ def main(argv: list[str] | None = None) -> int:
     i.add_argument("--apk", required=True)
     i.add_argument("--engine-library")
     i.add_argument("--require-unsigned", action="store_true")
+    i.add_argument("--require-stripped-app-libs", action="store_true",
+                   help="require both Colosseum app libraries and reject debug/static symbol sections")
     i.add_argument("--output", required=True)
     d = sub.add_parser("identity")
     d.add_argument("--aapt-output", required=True, help="file with `aapt dump badging` output")
@@ -316,7 +387,8 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     try:
         if args.cmd == "inspect":
-            result = inspect_apk(args.apk, args.engine_library, args.require_unsigned)
+            result = inspect_apk(args.apk, args.engine_library, args.require_unsigned,
+                                 args.require_stripped_app_libs)
         elif args.cmd == "identity":
             result = check_identity(parse_aapt_identity(Path(args.aapt_output).read_text(encoding="utf-8")),
                                     args.package, args.version_code, args.version_name)

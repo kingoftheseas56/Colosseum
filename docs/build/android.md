@@ -96,6 +96,16 @@ cmake --build native/build-android-arm64 --target apk --parallel 1
 
 The `apk` target is the FIRST-APK/device format. Use `cmake --build native/build-android-arm64 --target aab --parallel 1` only after the APK lane is green and Play-style distribution packaging matters. Qt runs `androiddeployqt` and Gradle under these CMake targets.
 
+For a public release, keep `ANDROID_NDK_ROOT` (or `ANDROID_NDK_HOME`) set during Gradle packaging so its strip tool uses the selected NDK. Reject a package if Gradle reports that it could not strip libraries. Check the unsigned APK before signing, then repeat the inspection on the signed APK without `--require-unsigned`:
+
+```bash
+python3 scripts/android/qualify_apk.py inspect --apk "$RELEASE_APK" \
+  --engine-library "$NUVIO_ENGINE_LIBRARY" --require-unsigned --require-stripped-app-libs \
+  --output "${RELEASE_APK}.qualification.json"
+```
+
+The release check requires stripped application and Nuvio-host libraries. The separately attested Nuvio engine keeps its existing byte-identity contract.
+
 ## Low-RAM Linux host
 
 The old touchscreen Linux laptop has 3.7 GiB RAM plus 3.9 GiB swap, CMake 3.28.3 and Ninja 1.11.1. Its CPU/RAM are sufficient for a serialized cross-build, but it currently has only Qt 6.10.3 `gcc_64` and no JDK, Android SDK/NDK, ADB, or Qt Android kit.
