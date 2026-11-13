@@ -44,6 +44,7 @@ QtObject {
     readonly property real mangaHeaderCoverHeight: shortAndroid ? 64 : 164
     readonly property real mangaHeaderCoverTitleMinimum: shortAndroid ? 8 : 17
     readonly property real mangaShelfMinimumHeight: 340
+    readonly property real mangaFooterHeight: Math.ceil(targetSize(52))
     function mangaCoverHeight(viewportHeight, captionHeight, itemScale) {
         return Math.max(80, Math.min(276, Math.floor(viewportHeight / itemScale - captionHeight - 16)))
     }

@@ -56,6 +56,7 @@ Item {
     property Item actionBarHost: null
     AdaptiveLayout {
         id: adaptive
+        objectName: "mangaShelfLayout"
         androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost === true)
     }
     property bool touchInput: Qt.platform.os === "android"
@@ -553,7 +554,7 @@ Item {
     // ------------------------------------------------------------------
 
     readonly property int laneHeaderHeight: 44
-    readonly property int actionBarHeight: root.showVolumes ? 52 : 0
+    readonly property int actionBarHeight: root.showVolumes ? adaptive.mangaFooterHeight : 0
     readonly property int captionHeight: 54
     // The Cover-Flow current-item scale. Named so bookHeight's own budget and
     // scaleForIndex's centre case read from one source instead of restating 1.10 twice.

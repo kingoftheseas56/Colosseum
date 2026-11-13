@@ -114,6 +114,9 @@ TestCase {
         const room = createTemporaryObject(mangaRoomComponent, host.contentItem,
             {width: host.width, height: host.height - host.browseBottomInset})
         verify(room)
+        const shelfMetrics = findChild(room.library, "mangaShelfLayout")
+        verify(shelfMetrics)
+        shelfMetrics.presentationScale = data.width > 840 ? 0.830357 : 1.5
         wait(50)
         compare(room.library.volumeRows.length, 1)
         const fallback = findChild(room, "mangaHeaderCoverFallback")
@@ -128,6 +131,11 @@ TestCase {
         const readVolume = textDescendant(room, room.library.currentActionLabel).parent
         const volumeTop = readVolume.mapToItem(room, 0, 0).y
         verify(volumeTop >= 0 && volumeTop + readVolume.height <= room.height)
+        const readPointer = readVolume.children.find(child => child.acceptedButtons !== undefined)
+        verify(readPointer)
+        const hitTop = readPointer.mapToItem(room, 0, 0).y
+        verify(hitTop >= 0 && hitTop + readPointer.height <= room.height,
+               "The entire minimum touch target stays inside the viewport")
         const scroll = findChild(room, "mangaReadingRoomScroll")
         verify(scroll)
         scroll.contentY = Math.max(0, scroll.contentHeight - scroll.height)
