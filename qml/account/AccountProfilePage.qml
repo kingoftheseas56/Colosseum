@@ -11,6 +11,7 @@ Item {
     id: root
     objectName: "accountProfilePage"
 
+    property var inputMethod: Qt.inputMethod
     property var controller: null
     property bool active: false
     property string usernameDraft: ""
@@ -32,6 +33,13 @@ Item {
         && usernameDraft.trim() !== currentUsername.trim()
 
     Theme { id: theme }
+
+    AccountKeyboardViewport {
+        id: keyboardViewport
+        container: root
+        flick: scroller
+        inputMethod: root.inputMethod
+    }
 
     KeyboardScrollController {
         id: keyboardScroll
@@ -259,9 +267,10 @@ Item {
         id: scroller
         objectName: "accountProfileScrollRegion"
         anchors.fill: parent
+        anchors.bottomMargin: keyboardViewport.keyboardOverlap
         clip: true
         contentWidth: width
-        contentHeight: pageColumn.implicitHeight + 24
+        contentHeight: Math.max(pageColumn.implicitHeight + 24, keyboardViewport.focusedScrollExtent)
         boundsBehavior: Flickable.StopAtBounds
 
         ScrollBar.vertical: HouseScrollBar { flick: scroller; glassStyle: true }
