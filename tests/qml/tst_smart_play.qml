@@ -36,6 +36,7 @@ Item {
     SignalSpy { id: playSpy; target: sheet; signalName: "playRequested" }
     SignalSpy { id: downloadSpy; target: sheet; signalName: "downloadRequested" }
     SignalSpy { id: seasonSpy; target: sheet; signalName: "seasonNoPacks" }
+    SignalSpy { id: pickingSpy; target: sheet; signalName: "smartPickingChanged" }
 
     TestCase {
         name: "SmartPlay"
@@ -55,6 +56,7 @@ Item {
         function cleanup() {
             sheet.hide()
             fixture.Window.window.width = 1280
+            fixture.width = 1280
             findChild(frontToggle, "smartPickExplanation").close()
             findChild(frontToggle, "smartPickInfo").focus = false
             if (selectionHarness) { selectionHarness.destroy(); selectionHarness = null }
@@ -76,7 +78,8 @@ Item {
             compare(sheet.visibleRows.map(r => r.infoHash), ["1".repeat(40), "2".repeat(40)])
             compare(sheet.smartPlayRow.infoHash, "2".repeat(40))
             tryVerify(() => findChild(sheet, "sourceBestMatch_1") !== null)
-            verify(findChild(sheet, "sourceBestMatch_1").visible)
+            compare(findChild(sheet, "sourceBestMatch_1").visible, false)
+            compare(sheet.smartPicking, true)
         }
         function test_noPick_keepsSheetOpen() {
             show(); finish([row(0, "1080p", "CAM")])
@@ -86,10 +89,96 @@ Item {
         function test_manualTap_duringLoading_wins() {
             var rows = [row(0, "720p"), row(1, "1080p")]
             show(); stremio.requests[0].partial(rows)
+            var manual = findChild(sheet, "smartPickingManualAction")
+            verify(manual !== null, "Pending screen must offer a manual escape")
+            mouseClick(manual, 60, 24)
             tryVerify(() => findChild(sheet, "sourceRow_0") !== null)
             mouseClick(findChild(sheet, "sourceRow_0"), 160, 60)
             compare(playSpy.count, 1); compare(playSpy.signalArguments[0][0], "1".repeat(40))
             finish(rows); wait(0); compare(playSpy.count, 1)
+        }
+        function test_pendingScreen_hidesInteractiveSources_untilHandoff() {
+            show()
+            var rows = [row(0, "720p"), row(1, "1080p")]
+            stremio.requests[0].partial(rows)
+            var list = findChild(sheet, "sourcesSheetList")
+            compare(list.visible, false); compare(list.enabled, false)
+            compare(sheet.smartPicking, true)
+            var screen = findChild(sheet, "smartPickingScreen")
+            verify(screen !== null); compare(screen.visible, true)
+            compare(findChild(sheet, "sourcesSheetTable").visible, false)
+            compare(findChild(sheet, "extPickerTrigger").visible, false)
+            compare(findChild(sheet, "sourceQuality_all").visible, false)
+            verify(!list.activeFocus)
+            compare(sheet.visibleRows.map(r => r.infoHash), rows.map(r => r.infoHash))
+            pickingSpy.clear()
+            finish(rows); tryCompare(playSpy, "count", 1)
+            compare(pickingSpy.count, 0, "Picking screen must remain continuously visible through playback handoff")
+            compare(sheet.smartPicking, true)
+            compare(list.visible, false)
+            compare(screen.allowManual, false)
+            sheet.hide(); compare(screen.visible, false)
+        }
+        function test_manualEscape_cancelsLateCompletionAndTimeout_onlyThisVisit() {
+            show()
+            var request = stremio.requests[0]
+            var manual = findChild(sheet, "smartPickingManualAction")
+            verify(manual !== null, "Pending screen must offer a manual escape")
+            manual.forceActiveFocus(); keyClick(Qt.Key_Space)
+            compare(sheet.smartPicking, false)
+            compare(sheet.smartPlayCancelled, true)
+            compare(sheet.loading, true)
+            prefs.sync(); compare(prefs.value("smartPlayQuality"), "1080p")
+            request.partial([row(0, "1080p")])
+            compare(findChild(sheet, "sourcesSheetList").visible, true)
+            var timeout = findChild(sheet, "sourcesTimeout")
+            timeout.interval = 1; timeout.restart(); wait(10)
+            timeout.interval = 22000
+            nuvio.finished(nuvio.lastId)
+            request.done([row(0, "1080p")])
+            sheet.finishSmartPlay(true)
+            wait(0); compare(playSpy.count, 0)
+            sheet.hide(); show()
+            compare(sheet.smartPicking, true)
+            request.done([row(0, "1080p")]); compare(playSpy.count, 0)
+            stremio.requests[1].done([row(1, "1080p")]); nuvio.finished(nuvio.lastId)
+            tryCompare(playSpy, "count", 1)
+        }
+        function test_pendingBack_cancelsLateReply_andReopenStartsFresh() {
+            show()
+            var stale = stremio.requests[0]
+            verify(sheet.requestEscape())
+            compare(sheet.open, false); compare(sheet.smartPicking, false)
+            compare(sheet.smartPlayCancelled, true)
+            stale.done([row(0, "1080p")]); nuvio.finished(nuvio.lastId)
+            compare(playSpy.count, 0)
+            show(); compare(sheet.smartPicking, true)
+            stremio.requests[1].done([row(1, "1080p")]); nuvio.finished(nuvio.lastId)
+            tryCompare(playSpy, "count", 1)
+        }
+        function test_pendingScreen_narrowBounds_andManualFallback() {
+            fixture.Window.window.width = 320
+            fixture.width = 320
+            show(); wait(0)
+            var manual = findChild(sheet, "smartPickingManualAction")
+            var screen = findChild(sheet, "smartPickingScreen")
+            verify(screen !== null, "Automatic picking must replace the browser with its pending screen")
+            compare(screen.width, 320)
+            verify(manual.width >= 44); verify(manual.height >= 44)
+            var position = manual.mapToItem(screen, 0, 0)
+            verify(position.x >= 0); verify(position.x + manual.width <= screen.width)
+            finish([row(0, "1080p", "CAM")]); wait(0)
+            compare(screen.visible, false); compare(playSpy.count, 0)
+            compare(findChild(sheet, "sourcesSheetTable").visible, true)
+            compare(sheet.smartPlayStatus, "No source passed the quality check. Choose one below.")
+        }
+        function test_pendingScreen_doesNotReplaceOffDownloadOrSeason() {
+            prefs.setValue("smartPlayQuality", "off"); prefs.sync()
+            show(); compare(sheet.smartPicking, false); sheet.hide()
+            prefs.setValue("smartPlayQuality", "1080p"); prefs.sync()
+            show("download"); compare(sheet.smartPicking, false); sheet.hide()
+            sheet.show("series", "tt12345:1:1", "Fixture", { season: 1 }, "season")
+            compare(sheet.smartPicking, false)
         }
         function test_off_preservesManualSelection() {
             prefs.setValue("smartPlayQuality", "off"); prefs.sync()
@@ -360,8 +449,9 @@ Item {
             compare(SmartPlay.pick(rows, "1080p", context).index, -1)
             context.metadata.released = "2020-01-01T00:00:00.000Z"
             compare(SmartPlay.pick(rows, "1080p", context).index, 0)
-            var large = row(0, "1080p"); large.size = "10 GB"; large.seeders = 1000
-            rows = [large, row(1, "1080p")]
+            var large = row(0, "1080p"); large.size = "5 GB"; large.seeders = 1000
+            var small = row(1, "1080p"); small.size = "1 GB"
+            rows = [large, small]
             context.metadata.runtime = "120 min"
             compare(SmartPlay.pick(rows, "1080p", context).index, 0)
             context.metadata.runtime = "30 min"
@@ -390,12 +480,17 @@ Item {
         }
         function test_nextEpisode_keepsAvailableMetadata() {
             var player = selectionPlayer()
-            var large = row(0, "1080p", "WEB-DL", "S01E02."); large.size = "2.5 GB"; large.seeders = 1000
-            var small = row(1, "1080p", "WEB-DL", "S01E02."); small.size = "0.5 GB"
+            // Both fit the 8Mbps budget at 20min; only the smaller file fits at 10min.
+            var large = row(0, "1080p", "WEB-DL", "S01E02."); large.size = "1 GB"; large.sizeBytes = 1073741824; large.seeders = 1000
+            var small = row(1, "1080p", "WEB-DL", "S01E02."); small.size = "0.5 GB"; small.sizeBytes = 536870912
             var target = { type: "series", id: "tt12345:1:2", title: "Fixture - S1E2", season: 1, episode: 2 }
+            compare(SmartPlay.pick([small], "1080p", { type: "series", title: "Fixture", id: target.id,
+                metadata: { runtime: "20 min" } }).index, 0, "Smaller fixture remains eligible at the longer runtime")
+            compare(SmartPlay.pick([small], "1080p", { type: "series", title: "Fixture", id: target.id,
+                metadata: { runtime: "10 min" } }).index, 0, "Smaller fixture remains eligible at the shorter runtime")
             player.mediaMetadata = { runtime: "20 min" }
             compare(player.pickEpisodeSource([large, small], {}, target).infoHash, "1".repeat(40))
-            player.mediaMetadata = { runtime: "5 min" }
+            player.mediaMetadata = { runtime: "10 min" }
             compare(player.pickEpisodeSource([large, small], {}, target).infoHash, "2".repeat(40))
         }
     }

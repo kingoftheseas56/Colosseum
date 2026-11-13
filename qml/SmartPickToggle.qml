@@ -5,7 +5,7 @@ Item {
     id: control
     required property var sourcePicker
     readonly property bool checked: sourcePicker.smartPlayQuality !== "off"
-    readonly property string explanationText: qsTr("Smart Pick checks available streaming sources and starts a suitable one when you press Play, using your preferred quality. Turn it off to choose a source yourself. Downloaded videos play directly from your device.")
+    readonly property string explanationText: qsTr("Smart Pick starts a streaming source automatically at your preferred quality. Turn it off to choose a source yourself.")
     implicitWidth: 252
     implicitHeight: 44
     width: implicitWidth

@@ -772,6 +772,75 @@ int main(int argc, char **argv) {
         CHECK(pick.rejected[0].stream.stream.input_index == 3);
         CHECK(pick.rejected[0].reason == "title-mismatch");
     });
+    run("Synthetic fast start episode budget retains quality within budget", [] {
+        auto small = base(0), rich = base(1);
+        small.size = 679820000ULL; small.seeders = 1313; small.codec = Codec::Hevc;
+        rich.size = 2500000000ULL; rich.seeders = 1313;
+        rich.audio.codec = AudioCodec::Atmos; rich.audio.channels = 6;
+        auto o = options(); o.media_kind = "series"; o.episode_requested = true;
+        o.runtime_minutes = 45;
+        const auto pick = [&] { return primary(SourceScorer::rankAndPick({scored(rich, o), scored(small, o)}, o)); };
+        CHECK(pick() == 1); // Legacy library policy remains unchanged.
+        o.prefer_fast_start = true;
+        CHECK(pick() == 0);
+        rich.size = 1200000000ULL;
+        CHECK(pick() == 1); // Quality still wins when both fit.
+        o.runtime_minutes.reset(); rich.size = 2500000000ULL;
+        CHECK(pick() == 0); // Size cap works without runtime.
+        rich.size.reset(); CHECK(pick() == 0); // Unknown remains a fallback.
+        small.size.reset(); rich.size = 2500000000ULL;
+        CHECK(pick() == 0); // Unknown before oversized.
+        small.size = 3000000000ULL;
+        CHECK(pick() == 1); // Oversized fallback still available.
+    });
+    run("Fast start profile movie bitrate and 4K target", [] {
+        auto small = base(0), rich = base(1);
+        small.size = 4000000000ULL; rich.size = 5500000000ULL;
+        small.seeders = rich.seeders = 500; rich.audio.codec = AudioCodec::Atmos;
+        auto o = options(); o.prefer_fast_start = true; o.media_kind = "movie";
+        o.runtime_minutes = 60;
+        CHECK(primary(SourceScorer::rankAndPick({scored(rich, o), scored(small, o)}, o)) == 1);
+        small.size = 3000000000ULL; // 6.67Mbps vs 12.22Mbps.
+        CHECK(primary(SourceScorer::rankAndPick({scored(rich, o), scored(small, o)}, o)) == 0);
+        small.resolution = rich.resolution = Resolution::UHD;
+        small.size = 18000000000ULL; rich.size = 24000000000ULL;
+        o.runtime_minutes = 120; o.target_resolution = Resolution::UHD;
+        CHECK(primary(SourceScorer::rankAndPick({scored(rich, o), scored(small, o)}, o)) == 0);
+        o.media_kind = "series"; o.runtime_minutes = 45;
+        small.size = 3500000000ULL; rich.size = 5000000000ULL;
+        CHECK(primary(SourceScorer::rankAndPick({scored(rich, o), scored(small, o)}, o)) == 0);
+    });
+    run("Fast start preserves trust zero seed CAM and DV guards", [] {
+        auto safe = base(0), bad = base(1);
+        safe.size = 2500000000ULL; safe.seeders = 50;
+        bad.size = 500000000ULL; bad.seeders = 0;
+        auto o = options(); o.media_kind = "series"; o.prefer_fast_start = true;
+        const auto pick = [&] { return primary(SourceScorer::rankAndPick({scored(bad, o), scored(safe, o)}, o)); };
+        CHECK(pick() == 0);
+        bad.seeders = 500; bad.source = Source::CAM; CHECK(pick() == 0);
+        bad.source = Source::WebDl; bad.hdr_format = HdrFormat::Dv; CHECK(pick() == 0);
+        TrustOptions trust; trust.kind = "series"; trust.expected_title = "Fixture";
+        trust.expected_season = 1; trust.expected_episode = 1;
+        auto wrong = stream_from_json({{"title", "Unrelated.S01E01.1080p.WEB-DL"},
+            {"infoHash", QString(40, 'a')}, {"size", 679820000.0}, {"seeders", 1313}}, 1);
+        CHECK(!SourceScorer::evaluate({wrong}, trust, o).primary);
+    });
+    run("Fast start 720p caps and movie size cap without runtime", [] {
+        auto small = base(0), rich = base(1);
+        small.seeders = rich.seeders = 500; rich.audio.codec = AudioCodec::Atmos;
+        auto o = options(); o.prefer_fast_start = true;
+        const auto pick = [&] { return primary(SourceScorer::rankAndPick({scored(rich, o), scored(small, o)}, o)); };
+        o.media_kind = "movie";
+        small.size = 5500000000ULL; rich.size = 6500000000ULL;
+        CHECK(pick() == 0);
+        small.resolution = rich.resolution = Resolution::P720;
+        small.size = 2500000000ULL; rich.size = 3500000000ULL;
+        CHECK(pick() == 0);
+        o.media_kind = "series"; small.size = 600000000ULL; rich.size = 1000000000ULL;
+        CHECK(pick() == 0);
+        rich.size = 700000000ULL; o.runtime_minutes = 20;
+        CHECK(pick() == 0); // 4Mbps cap distinguishes two under-size-cap rows.
+    });
     run("Selection explanations", [] {
         auto r = SourceScorer::rankAndPick({}, options());
         CHECK(!r.selection_reasons.isEmpty());

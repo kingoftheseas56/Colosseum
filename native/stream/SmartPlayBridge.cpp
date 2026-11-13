@@ -43,6 +43,7 @@ QVariantMap SmartPlayBridge::pick(const QVariantList &rows, const QString &quali
     trust.is_anime = context.value("isAnime").toBool() || id.startsWith("kitsu:")
         || metadata.value("sourceId").toString().startsWith("kitsu:");
     ScoreOptions score;
+    score.prefer_fast_start = true;
     score.target_resolution = quality == "4k" ? Resolution::UHD : Resolution::P1080;
     score.release_date = trust.release_date;
     int runtime = context.value("runtimeMinutes").toInt();

@@ -363,6 +363,25 @@ StreamingBand streamingBand(const ParsedStream &p, const ScoreOptions &o) {
     case Resolution::P1080:
         break;
     }
+    if (o.prefer_fast_start) {
+        switch (p.resolution) {
+        case Resolution::UHD:
+            capGB = episode ? 4 : 20;
+            capMbps = 25;
+            break;
+        case Resolution::P720:
+            capGB = episode ? .75 : 3;
+            capMbps = 4;
+            break;
+        case Resolution::P1080:
+            capGB = episode ? 1.5 : 6;
+            capMbps = 8;
+            break;
+        case Resolution::P480:
+        case Resolution::SD:
+            break;
+        }
+    }
     const double sizeGB = static_cast<double>(*p.size) / 1000000000.0;
     const bool runtimeKnown = o.runtime_minutes && *o.runtime_minutes > 0;
     const double bitrate = runtimeKnown

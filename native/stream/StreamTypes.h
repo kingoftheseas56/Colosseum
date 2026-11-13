@@ -84,6 +84,8 @@ struct ScoreOptions {
     std::optional<double> bandwidth_mbps;
     bool in_theaters = false, respect_addon_order = false, episode_requested = false;
     bool dolby_vision_supported = false;
+    // Conservative data budget for interactive Smart Pick; not a speed measurement.
+    bool prefer_fast_start = false;
     // Primary torrent health gate and numeric log bonus (tunable, round 3).
     quint32 healthy_seeders = 20;
     double seeder_log_weight = 3.0, seeder_bonus_cap = 24.0;

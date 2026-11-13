@@ -105,6 +105,20 @@ Item {
     property bool smartPlayCancelled: false
     property bool smartPlaySettled: false
     property var smartPlayRow: null
+    readonly property bool smartPicking: sheet.open && sheet.smartPlayEnabled
+        && ((!sheet.smartPlaySettled && !sheet.smartPlayCancelled) || sheet.smartPlayRow !== null)
+    function chooseSourceManually() {
+        if (!sheet.smartPicking || sheet.smartPlaySettled) return
+        sheet.smartPlayCancelled = true
+        sheet.smartPlayRow = null
+        sheet.closeSourceContext(false)
+        sheet.closeExtMenu(false)
+        Qt.callLater(function() {
+            if (!sheet.open || sheet.smartPicking) return
+            if (list.visible) list.forceActiveFocus(Qt.OtherFocusReason)
+            else sourcesBack.focusControl(Qt.OtherFocusReason)
+        })
+    }
     readonly property int smartPlayVisibleIndex: sheet.visibleRows.indexOf(sheet.smartPlayRow)
     readonly property string smartPlayStatus: !sheet.smartPlayEnabled || sheet.smartPlayCancelled ? ""
         : !sheet.smartPlaySettled ? qsTr("Finding the best source…")
@@ -112,7 +126,6 @@ Item {
     function finishSmartPlay(atTimeout) {
         if (!sheet.open || !sheet.smartPlayEnabled || sheet.smartPlayCancelled || sheet.smartPlaySettled
                 || (!atTimeout && (sheet.loading || sheet.nuvioPending))) return
-        sheet.smartPlaySettled = true
         timeout.stop()
         var allRows = sheet.baseRows()
         var pick = SmartPlay.pick(allRows, sheet.smartPlayQuality,
@@ -120,6 +133,7 @@ Item {
                 preferredLanguages: TrackLanguage.parseLanguageList(
                     smartPlaySettings.value("preferredAudioLanguages", "eng,jpn"), ["eng", "jpn"]) }))
         sheet.smartPlayRow = pick.index >= 0 ? allRows[pick.index] : null
+        sheet.smartPlaySettled = true
         sheet.warmTopRow()
         if (pick.index >= 0) sheet.activateSource(pick.index, allRows)
     }
@@ -449,6 +463,8 @@ Item {
         sheet.closeSourceContext(false);
         sheet.extMenuOpen = false;
         sheet.open = false;
+        sheet.smartPlayCancelled = true;
+        sheet.smartPlayRow = null;
         timeout.stop();
         var target=sheet.focusReturnItem; sheet.focusReturnItem=null
         if(target) Qt.callLater(function(){ if(target.visible&&target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
@@ -638,9 +654,20 @@ Item {
         onTriggered: sheet.hide()
     }
 
+    SmartPickingScreen {
+        objectName: "smartPickingScreen"
+        anchors.fill: parent
+        z: 10
+        visible: sheet.smartPicking
+        enabled: visible
+        allowManual: !sheet.smartPlaySettled
+        onManualRequested: sheet.chooseSourceManually()
+    }
+
     // ---- title block, pinned to the bottom of the banner ----
     Column {
         id: titleBlock
+        visible: !sheet.smartPicking
         objectName: "sourcesSheetTitleBlock"
         anchors.left: parent.left; anchors.right: parent.right
         // Short Android banners share the first line with Back instead of overlapping it.
@@ -690,7 +717,8 @@ Item {
         border.width: 1
         border.color: tbMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.45) : theme.edge
         Behavior on border.color { ColorAnimation { duration: 140 } }
-        visible: sheet.rows.length > 0 || sheet.nuvioRows.length > 0
+        visible: !sheet.smartPicking && (sheet.rows.length > 0 || sheet.nuvioRows.length > 0)
+        enabled: !sheet.smartPicking
 
         Rectangle {                                                      // grid glyph
             id: gridBadge
@@ -790,6 +818,8 @@ Item {
     // ===================== the glass source table =====================
     Glass {
         id: table
+        visible: !sheet.smartPicking
+        enabled: !sheet.smartPicking
         backdrop: sheet.backdrop
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
@@ -903,10 +933,11 @@ Item {
             anchors.top: tableHead.bottom; anchors.bottom: parent.bottom
             anchors.topMargin: 4; anchors.bottomMargin: 8
             clip: true
-            visible: sheet.visibleRows.length > 0
+            visible: !sheet.smartPicking && sheet.visibleRows.length > 0
+            enabled: !sheet.smartPicking
             model: sheet.visibleRows
             boundsBehavior: Flickable.StopAtBounds
-            focusPolicy: sheet.visibleRows.length > 0 ? Qt.TabFocus : Qt.NoFocus
+            focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
             Keys.onPressed: (event) => sourceKeys.handle(event)
             KeyboardCollectionController {
                 id: sourceKeys; view: list; orientation: "vertical"; count: sheet.visibleRows.length
@@ -1377,7 +1408,8 @@ Item {
 
     Rectangle {
         id: sourceContextMenu
-        visible: sheet.sourceContextOpen
+        visible: sheet.sourceContextOpen && !sheet.smartPicking
+        enabled: !sheet.smartPicking
         z: 120
         anchors.centerIn: parent
         width: 210; height: sourceContextCol.implicitHeight + 12; radius: 12
@@ -1418,13 +1450,15 @@ Item {
     // Click-away closer: any click outside the menu closes it without falling through.
     MouseArea {
         anchors.fill: parent
-        visible: sheet.extMenuOpen
+        visible: sheet.extMenuOpen && !sheet.smartPicking
+        enabled: !sheet.smartPicking
         onClicked: sheet.closeExtMenu(true)
     }
     Rectangle {
         id: extMenu
         objectName: "extPickerMenu"
-        visible: sheet.extMenuOpen
+        visible: sheet.extMenuOpen && !sheet.smartPicking
+        enabled: !sheet.smartPicking
         anchors.left: topBar.left; anchors.right: topBar.right
         anchors.top: topBar.bottom; anchors.topMargin: 6
         // Bounded by the sheet so every extension stays reachable on short viewports.
