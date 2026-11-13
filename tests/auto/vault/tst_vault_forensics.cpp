@@ -20,6 +20,8 @@
 #include "engine/VaultConfig.h"
 #include "engine/VaultIdentity.h"
 #include "engine/VaultScanner.h"
+#include "engine/VaultIdentifier.h"
+#include "engine/ImdbCatalog.h"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -374,6 +376,8 @@ private slots:
     void browse_empty_cause_filtered_from_production_path();
     void search_library_matches_all_three_spellings();
     void season_facts_derives_the_group_structure();
+    void season_facts_use_episode_numbers_in_release_folders();
+    void real_drama_scan_read_only_when_requested();
 };
 
 void tst_vault_forensics::schema_and_shape_v1()
@@ -1378,6 +1382,84 @@ void tst_vault_forensics::season_facts_derives_the_group_structure()
     // A path with no rows (an unscanned folder) returns empty — honest, never a fake show.
     QVERIFY(fx->library->seasonFactsForShow(
                 QDir(fx->rootPath).filePath(QStringLiteral("no-such"))).isEmpty());
+}
+
+void tst_vault_forensics::season_facts_use_episode_numbers_in_release_folders()
+{
+    auto fx = buildFlatFixture(0);
+    const QString show = QFileInfo(QDir(fx->rootPath).filePath(QStringLiteral("Sopranos"))).absoluteFilePath();
+    QList<VaultIndex::FileRow> rows;
+    for (int season : {1, 3, 4, 5, 6}) {
+        const QString name = QStringLiteral("The.Sopranos.S%1E01.1080p.mkv")
+            .arg(season, 2, 10, QLatin1Char('0'));
+        auto row = makeFilmRow(fx->rootPath, show, show + QLatin1Char('/') + name,
+                              QStringLiteral("vault:release-%1").arg(season), 1000);
+        row.realName = name;
+        row.subfolder = QStringLiteral("The.Sopranos.S%1.1080p.Bluray.AAC.51-HazMatt")
+            .arg(season, 2, 10, QLatin1Char('0'));
+        rows.append(row);
+    }
+    QVERIFY(fx->index->publish(rows));
+    const auto seasons = fx->library->seasonFactsForShow(show).value("seasons").toList();
+    QCOMPARE(seasons.size(), 5);
+    const QList<int> held{1, 3, 4, 5, 6};
+    for (int i = 0; i < seasons.size(); ++i) {
+        QCOMPARE(seasons.at(i).toMap().value("season").toInt(), held.at(i));
+        QVERIFY(!seasons.at(i).toMap().value("supplemental").toBool());
+    }
+    auto band = makeFilmRow(fx->rootPath, show, show + QStringLiteral("/Band.Of.Brothers.E01.mkv"),
+                            QStringLiteral("vault:band-e01"), 1000);
+    band.realName = QStringLiteral("Band.Of.Brothers.E01.mkv");
+    QVERIFY(fx->index->publish({band}));
+    const auto flat = fx->library->seasonFactsForShow(show).value("seasons").toList();
+    QCOMPARE(flat.size(), 1);
+    QCOMPARE(flat.first().toMap().value("season").toInt(), 1);
+    QVERIFY(!flat.first().toMap().value("supplemental").toBool());
+}
+
+void tst_vault_forensics::real_drama_scan_read_only_when_requested()
+{
+    const QString root = qEnvironmentVariable("COLOSSEUM_VAULT_REAL_DRAMA_ROOT");
+    const QString catalogue = qEnvironmentVariable("COLOSSEUM_VAULT_REAL_IMDB_DB");
+    if (root.isEmpty() || catalogue.isEmpty())
+        QSKIP("Optional read-only real-folder check requires explicit root and catalogue paths");
+    QVERIFY(QDir(root).exists());
+    QVERIFY(QFileInfo(catalogue).isFile());
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    VaultIndex index(temp.path() + QStringLiteral("/index.sqlite"));
+    VaultIdentity identity(temp.path());
+    VaultScanner scanner(&index, &identity);
+    VaultConfig config(temp.path()); // no real root is configured or watched
+    VaultLibrary library(&index, &scanner, &config, &identity, temp.path());
+    const auto generation = scanner.nextGeneration();
+    const auto scan = VaultScanner::buildScan(root, {}, generation, nullptr);
+    QVERIFY(!scan.rows.isEmpty());
+    scanner.applyPublish({scan}, generation);
+    ImdbCatalog imdb(catalogue); // existing owner's openAt is QSQLITE_OPEN_READONLY
+    QVERIFY(imdb.available());
+    VaultIdentifier identifier(&index, nullptr, nullptr, &imdb);
+    QVERIFY(identifier.autoIdentifyExisting() >= 3);
+    QSet<QString> seen;
+    const QSet<QString> expected{QStringLiteral("imdb:tt0141842"), QStringLiteral("imdb:tt0306414"),
+                                 QStringLiteral("imdb:tt0185906")};
+    for (const auto& value : index.groupsForKind(QStringLiteral("video"))) {
+        const auto group = value.toMap();
+        const QString id = group.value("identityId").toString();
+        if (!expected.contains(id)) continue;
+        seen.insert(id);
+        QVERIFY(!group.value("identityTitle").toString().isEmpty());
+        QVERIFY(!group.value("identityCoverUrl").toString().isEmpty());
+        const auto seasons = library.seasonFactsForShow(group.value("groupKey").toString())
+                                 .value("seasons").toList();
+        int held = 0;
+        for (const auto& season : seasons)
+            if (!season.toMap().value("supplemental").toBool()) ++held;
+        QVERIFY(held > 0);
+        qInfo().noquote() << "real_drama" << id << group.value("identityTitle").toString()
+                          << "held_seasons=" << held << "files=" << group.value("count").toInt();
+    }
+    QCOMPARE(seen, expected);
 }
 
 QTEST_GUILESS_MAIN(tst_vault_forensics)

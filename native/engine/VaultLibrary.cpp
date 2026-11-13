@@ -1165,6 +1165,18 @@ QVariantMap VaultLibrary::seasonFactsForShow(const QString& showFolderPath) cons
             entryLabel = QStringLiteral("Season %1").arg(ord);
             break;
         }
+        if (entryKey.isEmpty()) {
+            const auto episode = VaultKit::parseEpisodeNumber(row.realName);
+            const bool extra = std::any_of(relParts.cbegin(), relParts.cend(),
+                [](const QString& part) { return VaultKit::isExtrasDirName(part); });
+            // Release-named season folders need not be bare "Season N". Use
+            // the held file's numbering, never a season span claimed by its folder.
+            if (episode.matched && !extra) {
+                ord = episode.absolute ? 1 : episode.season;
+                entryKey = showFolderPath + QStringLiteral("::season::") + QString::number(ord);
+                entryLabel = ord == 0 ? QStringLiteral("Specials") : QStringLiteral("Season %1").arg(ord);
+            }
+        }
         if (entryKey.isEmpty() && !relParts.isEmpty()) {
             const QString top = relParts.first();
             entryKey = QDir(showFolderPath).filePath(top);
@@ -1172,14 +1184,6 @@ QVariantMap VaultLibrary::seasonFactsForShow(const QString& showFolderPath) cons
             if (entryLabel.isEmpty())
                 entryLabel = top;
             supplemental = true;
-        }
-        if (entryKey.isEmpty() && showFolderPath.contains(QLatin1String("::show::"))) {
-            const auto episode = VaultKit::parseEpisodeNumber(row.realName);
-            if (episode.matched) {
-                ord = episode.absolute ? 1 : episode.season;
-                entryKey = showFolderPath + QStringLiteral("::season::") + QString::number(ord);
-                entryLabel = ord == 0 ? QStringLiteral("Specials") : QStringLiteral("Season %1").arg(ord);
-            }
         }
         const QString mapKey = entryKey.isEmpty()
             ? QStringLiteral("__flat__")

@@ -357,15 +357,17 @@ SeasonEpisode parseSeasonEpisode(const QString& fileName)
 {
     SeasonEpisode r;
     static const QRegularExpression re(
-        QStringLiteral("[._\\s]?[Ss](\\d{1,2})[._\\s]?[Ee](\\d+)"),
+        QStringLiteral("(?:[Ss](\\d{1,2})[._\\s]?[Ee](\\d+)|"
+                       "Season[._\\s]+(\\d{1,2})[._\\s]+Episode[._\\s]+(\\d+))"),
         QRegularExpression::CaseInsensitiveOption);
     const QString base = QFileInfo(fileName).completeBaseName();
     const auto m = re.match(base);
     if (!m.hasMatch())
         return r;
     r.matched = true;
-    r.season = m.captured(1).toInt();
-    r.episode = m.captured(2).toInt();
+    const int first = m.captured(1).isEmpty() ? 3 : 1;
+    r.season = m.captured(first).toInt();
+    r.episode = m.captured(first + 1).toInt();
     return r;
 }
 
@@ -377,7 +379,13 @@ SeasonEpisode parseAbsoluteEpisode(const QString& fileName)
     // range like "1-5" or "S01-S05" (no spaces around '-') never matches either.
     static const QRegularExpression re(QStringLiteral("\\s-\\s(\\d{2,4})(?=\\s|$|\\[|\\()"));
     const QString base = QFileInfo(fileName).completeBaseName();
-    const auto m = re.match(base);
+    auto m = re.match(base);
+    if (!m.hasMatch()) {
+        static const QRegularExpression episodeOnly(
+            QStringLiteral("(?:^|[._\\s-])E(\\d{1,4})(?=[._\\s-]|$)"),
+            QRegularExpression::CaseInsensitiveOption);
+        m = episodeOnly.match(base);
+    }
     if (!m.hasMatch())
         return r;
     const int number = m.captured(1).toInt();
@@ -402,9 +410,14 @@ QString episodeSeriesTitle(const QString& fileName)
     const auto episode = parseEpisodeNumber(fileName);
     if (!episode.matched) return {};
     const QString base = QFileInfo(fileName).completeBaseName();
-    static const QRegularExpression explicitToken(QStringLiteral("[Ss]\\d{1,2}[._\\s]?[Ee]\\d+"));
-    static const QRegularExpression absoluteToken(QStringLiteral("\\s-\\s\\d{2,4}(?=\\s|$|\\[|\\()"));
+    static const QRegularExpression explicitToken(
+        QStringLiteral("(?:S\\d{1,2}[._\\s]?E\\d+|Season[._\\s]+\\d{1,2}[._\\s]+Episode[._\\s]+\\d+)"),
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression absoluteToken(
+        QStringLiteral("(?:\\s-\\s\\d{2,4}(?=\\s|$|\\[|\\()|(?:^|[._\\s-])E\\d{1,4}(?=[._\\s-]|$))"),
+        QRegularExpression::CaseInsensitiveOption);
     const auto token = (episode.absolute ? absoluteToken : explicitToken).match(base);
+    if (!token.hasMatch()) return {};
     QString title = base.left(token.capturedStart());
     static const QRegularExpression releaseGroup(QStringLiteral("^(?:\\[[^\\]]+\\]\\s*)+"));
     static const QRegularExpression trailing(QStringLiteral("[._\\s-]+$"));

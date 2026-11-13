@@ -102,6 +102,10 @@ public:
     // Path of a file relative to its subtree ("" for a file directly in the subtree) —
     // shared with VaultWatcher so live-shelf rows match census rows exactly.
     static QString subfolderOf(const QString& subtree, const QString& filePath);
+    // Shared with live arrivals: a container can hold different shows. Physical
+    // file identity never changes when its derived title group is corrected.
+    static bool hasMixedVideoTitles(const QStringList& files);
+    static void assignVideoGroup(VaultIndex::FileRow& row, bool loose, bool mixedTitles);
 
 signals:
     void progress(const QString& root, int done, int total, const QString& currentName);

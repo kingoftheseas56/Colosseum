@@ -218,6 +218,21 @@ void tst_vault_kit::title_cleaner_data()
     QTest::newRow("ddp_audio_tag_and_domain_tag_stripped")
         << "Movie Name (2019) [2160p] [DDP5.1] [RARBG.to]"
         << "Movie Name";
+    QTest::newRow("real_sopranos_compact_audio")
+        << "The.Sopranos.Complete.1080p.Bluray.10bit.x265.AAC.51-HazMatt"
+        << "The Sopranos";
+    QTest::newRow("real_band_of_brothers_channel_suffix")
+        << "Band.Of.Brothers.HBO.Mini-Series.1080p.5.1Ch.BluRay.ReEnc-DeeJayAhmed"
+        << "Band Of Brothers";
+    QTest::newRow("real_wire_season_release_tags")
+        << "The.Wire.Season.01.S01.Complete.REMASTERED.720p.WEB-DL.2CH.x265.HEVC-PSA"
+        << "The Wire Season 1";
+    QTest::newRow("numeric_title_51") << "51" << "51";
+    QTest::newRow("numeric_title_24") << "24" << "24";
+    QTest::newRow("numeric_title_apollo") << "Apollo.13.1080p.AAC.5.1" << "Apollo 13";
+    QTest::newRow("numeric_title_district") << "District.9.1080p.2CH" << "District 9";
+    QTest::newRow("numeric_title_room") << "Room.237" << "Room 237";
+    QTest::newRow("numeric_title_2001") << "2001.A.Space.Odyssey" << "2001 A Space Odyssey";
 }
 
 void tst_vault_kit::title_cleaner()

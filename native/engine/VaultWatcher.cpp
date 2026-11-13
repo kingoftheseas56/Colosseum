@@ -405,6 +405,7 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
         QString groupTitle = VaultKit::cleanMediaFolderTitle(groupRaw);
         if (groupTitle.isEmpty())
             groupTitle = groupRaw;
+        const bool mixedVideoTitles = VaultScanner::hasMixedVideoTitles(it.value());
 
         for (const QString& f : it.value()) {
             const VaultKit::MediaKind fk = VaultKit::kindForFile(f);
@@ -437,13 +438,7 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
             row.size = fi.size();
             row.mtimeMs = fi.lastModified().toMSecsSinceEpoch();
             row.format = fi.suffix().toLower();
-            if (loose && row.kind == QLatin1String("video") && VaultKit::isEpisodeVideo(row.realName)) {
-                const QString title = VaultKit::episodeSeriesTitle(row.realName);
-                if (!title.isEmpty()) {
-                    row.groupTitle = title;
-                    row.groupKey = row.subtreePath = VaultKit::episodeShowKey(root, title);
-                }
-            }
+            VaultScanner::assignVideoGroup(row, loose, mixedVideoTitles);
             toUpsert.append(row);
 
             // New-kind arrival: the law exists (override or index truth) and disagrees.

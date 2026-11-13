@@ -26,6 +26,7 @@
 #include <QtConcurrent>
 
 #include <memory>
+#include <algorithm>
 
 namespace {
 QString writeMediaFile(const QString& dir, const QString& name);
@@ -76,6 +77,8 @@ private:
     }
 
 private slots:
+    void real_release_names_keep_nested_shows_separate();
+    void real_episode_numbering_is_recognized();
     void watcher_preserves_overlapping_download_identity();
     void build_scan_produces_expected_census();
     // ── Vault ux uplift S16: the census year the cleaner stripped is captured ──
@@ -111,6 +114,79 @@ private slots:
     void watcher_override_law_raises_card_for_known_kind_arrival();
     void watcher_degraded_flag_on_failed_watch_and_recovers();
 };
+
+void tst_vault_scanner::real_episode_numbering_is_recognized()
+{
+    const auto worded = VaultKit::parseEpisodeNumber(
+        QStringLiteral("The Sopranos Season 1 Episode 01 - Pilot.avi"));
+    QVERIFY(worded.matched);
+    QCOMPARE(worded.season, 1);
+    QCOMPARE(worded.episode, 1);
+    QCOMPARE(VaultKit::episodeSeriesTitle(
+                 QStringLiteral("The Sopranos Season 1 Episode 01 - Pilot.avi")),
+             QStringLiteral("The Sopranos"));
+    const QString band = QStringLiteral("Band.Of.Brothers.E01.1080p.5.1Ch.BluRay.ReEnc-DeeJayAhmed.mkv");
+    const auto episodeOnly = VaultKit::parseEpisodeNumber(band);
+    QVERIFY(episodeOnly.matched);
+    QVERIFY(episodeOnly.absolute); // the filename does not claim a season
+    QCOMPARE(episodeOnly.episode, 1);
+    QCOMPARE(VaultKit::episodeSeriesTitle(band), QStringLiteral("Band Of Brothers"));
+    QVERIFY(!VaultKit::parseEpisodeNumber(QStringLiteral("Apollo 13 (1995).mkv")).matched);
+    QVERIFY(!VaultKit::parseEpisodeNumber(QStringLiteral("2001 A Space Odyssey.mkv")).matched);
+}
+
+void tst_vault_scanner::real_release_names_keep_nested_shows_separate()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString root = temp.path() + QStringLiteral("/Drama");
+    const QString nested = root + QStringLiteral("/The Wire/The Sopranos - The Complete Series (Season 1, 2, 3, 4, 5 & 6) + Extras");
+    const QString wireSeason = root + QStringLiteral("/The Wire/The.Wire.Season.01.S01.Complete.REMASTERED.720p.WEB-DL.2CH.x265.HEVC-PSA");
+    QVERIFY(QDir().mkpath(nested + QStringLiteral("/Season 1")));
+    QVERIFY(QDir().mkpath(nested + QStringLiteral("/Extras")));
+    QVERIFY(QDir().mkpath(wireSeason));
+    const QString sopranos = writeMediaFile(nested + QStringLiteral("/Season 1"),
+        QStringLiteral("The Sopranos Season 1 Episode 01 - Pilot.avi"));
+    const QString wire = writeMediaFile(wireSeason,
+        QStringLiteral("The.Wire.S01E01.The.Target.REMASTERED.720p.WEB-DL.2CH.x265.HEVC-PSA.mkv"));
+    const QString extras = writeMediaFile(nested + QStringLiteral("/Extras"), QStringLiteral("Interview.mkv"));
+    QVERIFY(!sopranos.isEmpty());
+    QVERIFY(!wire.isEmpty());
+    QVERIFY(!extras.isEmpty());
+    const auto scan = VaultScanner::buildScan(root, {}, 1, nullptr);
+    QCOMPARE(scan.rows.size(), 3);
+    QString sopranosKey, wireKey;
+    for (const auto& row : scan.rows) {
+        if (row.path == sopranos) {
+            QCOMPARE(row.groupTitle, QStringLiteral("The Sopranos"));
+            QCOMPARE(row.subtreePath, nested);
+            sopranosKey = row.groupKey;
+        } else if (row.path == wire) {
+            QCOMPARE(row.groupTitle, QStringLiteral("The Wire"));
+            wireKey = row.groupKey;
+        } else if (row.path == extras) {
+            // An unlabelled bonus in a mixed container cannot silently become The Wire.
+            QVERIFY(row.groupTitle != QStringLiteral("The Wire"));
+        }
+    }
+    QVERIFY(!sopranosKey.isEmpty());
+    QVERIFY(!wireKey.isEmpty());
+    QVERIFY(sopranosKey != wireKey);
+
+    VaultIndex index(temp.path() + QStringLiteral("/index.sqlite"));
+    VaultIdentity identity(temp.path());
+    VaultWatcher watcher(&index, &identity, nullptr);
+    watcher.processRoot(root, {}, {});
+    const auto landed = index.rowsForKind(QStringLiteral("video"));
+    QCOMPARE(landed.size(), scan.rows.size());
+    for (const auto& row : landed) {
+        const auto source = std::find_if(scan.rows.cbegin(), scan.rows.cend(),
+            [&row](const auto& other) { return other.path == row.path; });
+        QVERIFY(source != scan.rows.cend());
+        QCOMPARE(row.groupKey, source->groupKey);
+        QCOMPARE(row.groupTitle, source->groupTitle);
+    }
+}
 
 void tst_vault_scanner::build_scan_produces_expected_census()
 {

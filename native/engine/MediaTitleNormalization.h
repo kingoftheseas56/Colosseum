@@ -14,7 +14,8 @@ inline const QRegularExpression kShowTitleNoiseRe(
         "2160p|1080p|720p|480p|x264|x265|h\\.?264|h\\.?265|hevc|10bit|8bit|hdr|dv|"
         "webrip|web[\\s.\\-]?dl|bluray|bdrip|dvdrip|hdtv|remux|aac|dts|ddp\\d?|"
         "proper|repack|extended|unrated|multi|dual[\\s.\\-]?audio|dubbed|subbed|"
-        "subs?|nf|amzn|hulu|atvp|max|uhd|complete|batch|season[\\s._\\-]*\\d{1,2}|s\\d{1,2}"
+        "subs?|nf|amzn|hulu|atvp|max|hbo|uhd|complete|batch|remastered|reenc|"
+        "mini[\\s._\\-]?series|season[\\s._\\-]*\\d{1,2}|s\\d{1,2}"
         ")\\b"));
 
 inline const QRegularExpression kSeasonTokenRe(
@@ -31,6 +32,13 @@ inline const QRegularExpression kBracketChunkRe(
 inline const QRegularExpression kAudioChannelRawRe(
     QStringLiteral("(?i)^(?:ddp|dd\\+|dd|ac-?3|eac3|truehd|dts-?hd(?:\\s*ma)?|dts|atmos)?"
                    "\\s*\\d(?:\\.\\d){1,2}$"));
+
+// Unbracketed channel counts need a codec or CH suffix: AAC.51 and 5.1Ch are
+// release metadata, whereas a standalone 51 may be part of the actual title.
+inline const QRegularExpression kQualifiedAudioChannelRawRe(
+    QStringLiteral("(?i)\\b(?:(?:aac|ddp|dd\\+|dd|ac-?3|eac3|truehd|dts-?hd(?:\\s*ma)?|dts)"
+                   "[\\s._-]*(?:[1-8]\\.\\d(?:\\.\\d)?|[1-8][01])(?:ch)?|"
+                   "[1-8](?:\\.\\d){0,2}ch)\\b"));
 
 // Release-site / group domain tags ("YTS.MX", "RARBG.to") — a single dotted word pair with no
 // internal spaces, the scene-tag convention for a tracker/site credit. Same raw-text reasoning
@@ -123,6 +131,8 @@ inline QString cleanMediaFolderTitle(const QString& rawName)
     // otherwise turn "5.1" into the unrecognizable "5 1" and "YTS.MX" into "YTS MX" BEFORE the
     // noise test ever saw them (the exact bug behind a real folder's stray "5 1"/"YTS MX").
     QString cleaned = stripNoiseBracketChunks(raw);
+
+    cleaned.replace(kQualifiedAudioChannelRawRe, QStringLiteral(" "));
 
     cleaned.replace('_', ' ');
     cleaned.replace('.', ' ');

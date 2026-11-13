@@ -46,6 +46,68 @@ QString VaultScanner::subfolderOf(const QString& subtree, const QString& filePat
         return QString();
     return rel;
 }
+
+bool VaultScanner::hasMixedVideoTitles(const QStringList& files)
+{
+    QSet<QString> titles;
+    for (const QString& file : files) {
+        if (VaultKit::kindForFile(file) != VaultKit::MediaKind::Video) continue;
+        const QString title = VaultKit::episodeSeriesTitle(file);
+        if (!title.isEmpty()) titles.insert(VaultKit::normalizedTitle(title));
+        if (titles.size() > 1) return true;
+    }
+    return false;
+}
+
+void VaultScanner::assignVideoGroup(VaultIndex::FileRow& row, bool loose, bool mixedTitles)
+{
+    if (row.kind != QLatin1String("video")) return;
+    const QString title = VaultKit::episodeSeriesTitle(row.realName);
+    if (title.isEmpty()) {
+        if (mixedTitles) {
+            // There is no safe parent-show inference for an unlabelled file in
+            // a mixed container. Keep it matchable instead of adopting a neighbour.
+            const QString parent = QFileInfo(row.path).absolutePath();
+            const bool individual = parent == row.subtreePath;
+            row.groupKey = individual ? row.path : parent;
+            row.subtreePath = parent;
+            row.groupTitle = VaultKit::cleanMediaFolderTitle(
+                individual ? QFileInfo(row.path).completeBaseName() : QFileInfo(parent).fileName());
+            row.subfolder.clear();
+        }
+        return;
+    }
+    if (loose) {
+        if (!VaultKit::isEpisodeVideo(row.realName)) return;
+        row.groupTitle = title;
+        row.groupKey = row.subtreePath = VaultKit::episodeShowKey(row.rootPath, title);
+        return;
+    }
+
+    const QString original = QDir::cleanPath(row.subtreePath);
+    const QString normalized = VaultKit::normalizedTitle(title);
+    QString candidate = QFileInfo(row.path).absolutePath(), showRoot;
+#ifdef Q_OS_WIN
+    constexpr auto pathCase = Qt::CaseInsensitive;
+#else
+    constexpr auto pathCase = Qt::CaseSensitive;
+#endif
+    while (candidate.compare(original, pathCase) == 0
+           || candidate.startsWith(original + QLatin1Char('/'), pathCase)) {
+        const QString folderTitle = VaultKit::normalizedTitle(QFileInfo(candidate).fileName());
+        if (folderTitle == normalized || folderTitle.startsWith(normalized + QLatin1Char(' ')))
+            showRoot = candidate;
+        if (candidate.compare(original, pathCase) == 0) break;
+        const QString parent = QFileInfo(candidate).absolutePath();
+        if (parent == candidate) break;
+        candidate = parent;
+    }
+    row.groupTitle = title;
+    row.groupKey = showRoot.isEmpty() ? VaultKit::episodeShowKey(original, title) : showRoot;
+    row.subtreePath = row.groupKey;
+    if (!showRoot.isEmpty()) row.subfolder = subfolderOf(showRoot, row.path);
+}
+
 VaultScanner::RawResult VaultScanner::buildScan(
     QString root, QStringList scanIgnore, quint64 generation,
     std::shared_ptr<VaultKit::CancellationToken> cancel,
@@ -86,6 +148,7 @@ VaultScanner::RawResult VaultScanner::buildScan(
         const bool loose = key.endsWith(QStringLiteral("::LOOSE"));
         const QString subtree = loose ? root : key;
         const QStringList files = it.value();
+        const bool mixedVideoTitles = hasMixedVideoTitles(files);
 
         const VaultKit::LeafClassification cls = VaultKit::classifyLeaf(files);
         if (cls.dominant == VaultKit::MediaKind::Unknown)
@@ -187,13 +250,7 @@ VaultScanner::RawResult VaultScanner::buildScan(
             row.size = ff.size;
             row.mtimeMs = ff.mtimeMs;
             row.format = fi.suffix().toLower();
-            if (loose && row.kind == QLatin1String("video") && VaultKit::isEpisodeVideo(row.realName)) {
-                const QString title = VaultKit::episodeSeriesTitle(row.realName);
-                if (!title.isEmpty()) {
-                    row.groupTitle = title;
-                    row.groupKey = row.subtreePath = VaultKit::episodeShowKey(root, title);
-                }
-            }
+            assignVideoGroup(row, loose, mixedVideoTitles);
             r.rows.append(row);
         }
 
