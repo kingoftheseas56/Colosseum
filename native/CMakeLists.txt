@@ -3325,6 +3325,7 @@ target_sources(colosseum PRIVATE
     torrent/MusicTorrentMatcher.h torrent/MusicTorrentMatcher.cpp
     torrent/MusicTorrentQueryPlanner.h torrent/MusicTorrentQueryPlanner.cpp)
 include("${CMAKE_CURRENT_SOURCE_DIR}/vinyl/backend/CMakeLists.txt")
+target_sources(colosseum_vinyl_backend PRIVATE vinyl/VinylSourcePool.cpp)
 add_library(colosseum_vinyl_app STATIC
     vinyl/VinylGeniusService.h vinyl/VinylGeniusService.cpp
     vinyl/VinylLyricsService.h vinyl/VinylLyricsService.cpp

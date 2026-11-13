@@ -1,0 +1,235 @@
+{
+  "syntheticFixturesOnly": true,
+  "examples": [
+    {
+      "request": {
+        "operation": "chartCandidates",
+        "value": "apple:us:albums",
+        "seed": {},
+        "fetchedAt": "2026-11-13T00:00:00.000Z"
+      },
+      "response": {
+        "version": 1,
+        "seed": {},
+        "items": [
+          {
+            "id": "apple-music:albums:fe675fe7aaee830b6fed09b6",
+            "kind": "albums",
+            "title": "Album 日本語",
+            "artist": "竹内まりや",
+            "subtitle": "竹内まりや",
+            "cover": "https://is1-ssl.mzstatic.com/image.jpg",
+            "year": "",
+            "catalogueCard": true,
+            "source": "apple-music",
+            "sourceIds": {
+              "id": "1001",
+              "artistId": "2000",
+              "url": "https://music.apple.com/us/album/1001"
+            },
+            "hints": {
+              "releaseDate": "2026-03",
+              "artists": [
+                "竹内まりや"
+              ]
+            },
+            "rank": 1,
+            "chartKind": "albums",
+            "storefront": "us"
+          }
+        ],
+        "provenance": {
+          "source": "apple-music",
+          "generator": "chart-feed",
+          "feed": "apple:us:albums",
+          "updated": "2026-11-13"
+        },
+        "fetchedAt": "2026-11-13T00:00:00.000Z",
+        "complete": true,
+        "status": "ready"
+      },
+      "transportCallCount": 1,
+      "timeoutsSeconds": [
+        4
+      ],
+      "asciiStdioWrapperBytes": 804
+    },
+    {
+      "request": {
+        "operation": "chartCandidates",
+        "value": "lastfm:tracks",
+        "seed": {},
+        "fetchedAt": "2026-11-13T00:00:00.000Z"
+      },
+      "response": {
+        "version": 1,
+        "seed": {},
+        "items": [
+          {
+            "id": "lastfm:songs:b7ad83d6646ef127e3ead7c8",
+            "kind": "songs",
+            "title": "Song",
+            "artist": "Artist",
+            "subtitle": "Artist",
+            "cover": "",
+            "year": "",
+            "catalogueCard": true,
+            "source": "lastfm",
+            "sourceIds": {
+              "id": "https://www.last.fm/music/Artist/_/Song"
+            },
+            "hints": {
+              "mbidEvidence": {
+                "recording": "11111111-1111-4111-8111-111111111111",
+                "artist": "b95ce3ff-3d05-4e87-9e01-c97b66af13d4"
+              },
+              "duration": 180,
+              "artists": [
+                "Artist"
+              ]
+            },
+            "rank": 1,
+            "chartKind": "songs"
+          }
+        ],
+        "provenance": {
+          "source": "lastfm",
+          "generator": "chart-feed",
+          "method": "chart.getTopTracks"
+        },
+        "fetchedAt": "2026-11-13T00:00:00.000Z",
+        "complete": true,
+        "status": "ready"
+      },
+      "transportCallCount": 1,
+      "timeoutsSeconds": [
+        4
+      ],
+      "asciiStdioWrapperBytes": 695
+    },
+    {
+      "request": {
+        "operation": "similarArtists",
+        "value": "b95ce3ff-3d05-4e87-9e01-c97b66af13d4",
+        "seed": {
+          "identity": "canonical",
+          "kind": "artist",
+          "mbid": "b95ce3ff-3d05-4e87-9e01-c97b66af13d4"
+        },
+        "source": "lastfm",
+        "artistName": "竹内まりや",
+        "fetchedAt": "2026-11-13T00:00:00.000Z"
+      },
+      "response": {
+        "version": 1,
+        "seed": {
+          "identity": "canonical",
+          "kind": "artist",
+          "mbid": "b95ce3ff-3d05-4e87-9e01-c97b66af13d4"
+        },
+        "items": [
+          {
+            "id": "lastfm:artists:8a5e2d20ebb76946d27a03e7",
+            "kind": "artists",
+            "title": "竹内まりや",
+            "artist": "竹内まりや",
+            "subtitle": "竹内まりや",
+            "cover": "",
+            "year": "",
+            "catalogueCard": true,
+            "source": "lastfm",
+            "sourceIds": {
+              "id": "https://www.last.fm/music/Artist"
+            },
+            "hints": {
+              "mbidEvidence": {
+                "artist": "11111111-1111-4111-8111-111111111111"
+              },
+              "artists": [
+                "竹内まりや"
+              ]
+            },
+            "rank": 1,
+            "similarity": 0.9
+          }
+        ],
+        "provenance": {
+          "source": "lastfm",
+          "generator": "artist-similarity",
+          "method": "artist.getSimilar",
+          "artistName": "竹内まりや"
+        },
+        "fetchedAt": "2026-11-13T00:00:00.000Z",
+        "complete": true,
+        "status": "ready"
+      },
+      "transportCallCount": 1,
+      "timeoutsSeconds": [
+        4
+      ],
+      "asciiStdioWrapperBytes": 860
+    },
+    {
+      "request": {
+        "operation": "similarArtists",
+        "value": "b95ce3ff-3d05-4e87-9e01-c97b66af13d4",
+        "seed": {
+          "identity": "canonical",
+          "kind": "artist",
+          "mbid": "b95ce3ff-3d05-4e87-9e01-c97b66af13d4"
+        },
+        "source": "listenbrainz",
+        "fetchedAt": "2026-11-13T00:00:00.000Z"
+      },
+      "response": {
+        "version": 1,
+        "seed": {
+          "identity": "canonical",
+          "kind": "artist",
+          "mbid": "b95ce3ff-3d05-4e87-9e01-c97b66af13d4"
+        },
+        "items": [
+          {
+            "id": "listenbrainz:artists:efd268cc469e5891ae6e08b9",
+            "kind": "artists",
+            "title": "Similar 日本語 0",
+            "artist": "Similar 日本語 0",
+            "subtitle": "Similar 日本語 0",
+            "cover": "",
+            "year": "",
+            "catalogueCard": true,
+            "source": "listenbrainz",
+            "sourceIds": {
+              "id": "00000000-0000-0000-0000-000000000064"
+            },
+            "hints": {
+              "mbidEvidence": {
+                "artist": "00000000-0000-0000-0000-000000000064",
+                "referenceArtist": "b95ce3ff-3d05-4e87-9e01-c97b66af13d4"
+              },
+              "artists": [
+                "Similar 日本語 0"
+              ]
+            },
+            "rank": 1,
+            "similarity": 7273
+          }
+        ],
+        "provenance": {
+          "source": "listenbrainz",
+          "generator": "artist-similarity",
+          "algorithm": "fixture_advertised"
+        },
+        "fetchedAt": "2026-11-13T00:00:00.000Z",
+        "complete": true,
+        "status": "ready"
+      },
+      "transportCallCount": 2,
+      "timeoutsSeconds": [
+        2.5,
+        2.5
+      ],
+      "asciiStdioWrapperBytes": 890
+    }
+  ]
+}

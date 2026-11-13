@@ -20,9 +20,13 @@
 #include <QRegularExpression>
 #include <QElapsedTimer>
 #include <QDebug>
+#include <QMutex>
+#include <QMutexLocker>
+#include <chrono>
 #include <functional>
 #include <memory>
 #include "VinylRecommendationIdentity.h"
+#include "VinylSourcePool.h"
 #include "RecommendationEntityRef.h"
 
 // Public metadata uses the existing app cache. Resolved audio never enters it.
@@ -37,12 +41,15 @@ public:
         m_clock(clock?std::move(clock):std::function<qint64()>([]{return QDateTime::currentMSecsSinceEpoch();})),
         m_cacheRoot(cacheRoot.isEmpty()?QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+"/vinyl/catalogue":std::move(cacheRoot)),
         m_mediaIdleMs(qBound(1,mediaIdleMs,600000)),m_catalogueIdleMs(qBound(1,catalogueIdleMs,180000)) {
+        m_waitingWake=new QTimer(this);m_waitingWake->setSingleShot(true);
+        connect(m_waitingWake,&QTimer::timeout,this,&VinylProvider::startWaiting);
         connect(this,&VinylProvider::profileLeaving,this,&VinylProvider::cancelAll);
         connect(this,&VinylProvider::shuttingDown,this,&VinylProvider::cancelAll);
     }
     ~VinylProvider() override {cancelAll();}
-    static bool homeOperation(const QString &op){return QStringList{"artistCandidates","songCandidates","recommendationIdentity","recordingMatch","populationCandidates"}.contains(op);}
+    static bool homeOperation(const QString &op){return VinylSourcePool::metadataOperation(op)||QStringList{"artistCandidates","songCandidates","recommendationIdentity","recordingMatch","populationCandidates"}.contains(op);}
     static bool normalizeHome(const QString &op,const QString &value,const QVariantMap &options,const QVariant &raw,QVariantMap *out){
+        if(VinylSourcePool::metadataOperation(op))return VinylSourcePool::normalizeMetadataEnvelope(op,value,options,raw,out);
         if(raw.metaType().id()!=QMetaType::QVariantMap||QJsonDocument::fromVariant(raw).toJson(QJsonDocument::Compact).size()>256*1024)return false;
         auto data=raw.toMap();
         const QSet<QString> fields{"version","seed","items","provenance","fetchedAt","complete","status","capabilities","artist","mapping","mappingStatus","mbid","error","sourceStatus","retryAfterSeconds","videoId","ref","key","destination","_cached","_cacheError","_stale"};
@@ -182,10 +189,14 @@ public:
         prune();
     }
     Q_INVOKABLE int requestPayload(const QString &lane,const QString &operation,const QString &value,const QVariantMap &payload){
-        static const QStringList operations{"browseCategories","browseCatalogue","resolveCatalogueItem","resolveCatalogueArt","mediaWarmup","search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","resolveVideo","relatedVideo","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","songCandidates","recommendationIdentity","recordingMatch","populationCandidates","lyrics"};
+        static const QStringList operations{"browseCategories","browseCatalogue","resolveCatalogueItem","resolveCatalogueArt","mediaWarmup","search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","resolveVideo","relatedVideo","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","songCandidates","recommendationIdentity","recommendationDiscography","chartCandidates","similarArtists","recordingMatch","populationCandidates","lyrics"};
         static const QStringList lanes{"catalogue-categories","catalogue-songs","catalogue-albums","catalogue-artists","catalogue-item","catalogue-art","media-warmup","browse","queue","play","playFallback","prepare-next","video-match","video-stream","playlist-page","search-albums","search-artists","search-songs","search-playlists","taste-artists","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork","home-seed-0","home-seed-1","home-identity","home-population","home-listening-0","home-listening-1","named-collections","lyrics"};
         const bool songLane=lane=="home-song-0"||lane=="home-song-1";
-        if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane)||value.size()>300)return -1;
+        const bool metadataLane=lane=="home-metadata-0"||lane=="home-metadata-1";
+        const bool metadata=VinylSourcePool::metadataOperation(operation);
+        if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane&&!metadataLane)||value.size()>300)return -1;
+        // Reject malformed enrichment before it can cancel an accepted request.
+        if(metadata!=metadataLane||(metadata&&!VinylSourcePool::validMetadataRequest(operation,value,payload)))return -1;
         if(operation=="browseCategories"){
             if(lane!="catalogue-categories"||!value.isEmpty())return -1;
         }else if(operation=="browseCatalogue"){
@@ -214,7 +225,7 @@ public:
             &&QStringList{"lastfm","jiosaavn"}.contains(payload.value("catalogueSource").toString());
         const bool discoverResolver=operation=="resolveCatalogueItem"||operation=="resolveCatalogueArt";
         const bool cacheable=!warming&&operation!="resolve"&&operation!="resolveVideo"&&!discoverBrowse&&!discoverResolver;
-        if(home){
+        if(home&&!metadata){
             const QSet<QString> allowed{"seed","recording","refresh","region","fetchedAt","limit"};
             for(auto it=payload.cbegin();it!=payload.cend();++it)if(!allowed.contains(it.key()))return -1;
             const QSet<QString> seedFields{"identity","mbid","kind","provider","providerId","id","key","name","title","image","cover","mappingStatus","canonicalMbid","legacyId","mapping"};
@@ -264,6 +275,7 @@ public:
         auto finish=[guard=QPointer<VinylProvider>(this),this,process,lane,id,home,cacheable,path,key,operation,value,payload,elapsed,warm,server,deadline,reused](QVariant data,QString error){
             if(!guard||m_active.value(lane)!=process)return;
             const bool ran=m_running.contains(process);
+            releaseMusicBrainz(process);
             deadline->stop();deadline->deleteLater();
             m_active.remove(lane);m_running.remove(process);process->disconnect(this);
             if(server){
@@ -296,12 +308,24 @@ public:
             const auto map=data.toMap();
             if(home&&ran&&map.value("sourceStatus")=="rate_limited"){
                 const auto retry=qBound(1,map.value("retryAfterSeconds",60).toInt(),3600);
-                m_deferred[service(operation)]=m_clock()+qint64(retry)*1000;
+                m_deferred[service(operation,value,payload)]=m_clock()+qint64(retry)*1000;
             }
             const bool unavailable=home&&map.value("status")=="unavailable";
             if(cacheable){
-                if(error.isEmpty()&&!unavailable&&!map.value("_cached").toBool()){
-                    const bool positive=!map.value("items").toList().isEmpty()||map.value("status")=="verified";
+                const bool incompleteChart=operation=="chartCandidates"&&(!error.isEmpty()||map.value("status")!="ready"
+                    ||!map.value("complete").toBool()||map.value("items").toList().isEmpty());
+                if(incompleteChart){
+                    // A failed, empty or truncated refresh cannot replace a good
+                    // chart week. Its original timestamp remains authoritative.
+                    auto cached=readCache(path,key,operation,value,payload,true,false);
+                    if(!cached.value("items").toList().isEmpty()){
+                        cached["_cached"]=true;cached["_stale"]=true;
+                        cached["_cacheError"]=error.isEmpty()?map.value("error","The chart refresh was incomplete.").toString():error;
+                        data=cached;error.clear();
+                    }
+                }else if(error.isEmpty()&&!unavailable&&!map.value("_cached").toBool()){
+                    const bool positive=!map.value("items").toList().isEmpty()||map.value("status")=="verified"
+                        ||!map.value("artist").toMap().value("releaseGroups").toList().isEmpty();
                     if(!home||positive||(map.value("complete").toBool()&&map.value("status")!="partial")){
                         QJsonObject wire=QJsonObject::fromVariantMap(map);
                         if(home)wire={{"version",2},{"requestKey",key},{"storedAtMs",m_clock()},{"ttlMs",ttl(operation,map)},{"data",wire}};
@@ -373,11 +397,9 @@ public:
         if(operation=="lyrics"&&m_deferred.value("lrclib")>m_clock()){
             QTimer::singleShot(0,process,[finish]{finish({},"Lyrics are temporarily rate limited. Retry later.");});return id;
         }
-        if(home&&m_deferred.value(service(operation))>m_clock()){
-            QVariantMap data{{"version",1},{"seed",payload.value("seed",QVariantMap())},{"items",QVariantList()},
-                {"provenance",QVariantMap{{"source",service(operation)}}},{"fetchedAt",QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)},
-                {"complete",false},{"status","unavailable"},{"sourceStatus","rate_limited"},{"retryAfterSeconds",(m_deferred.value(service(operation))-m_clock()+999)/1000},
-                {"error","The source is temporarily rate limited."}};
+        const auto deferred=home?deferredHome(operation,value,payload):QVariantMap();
+        if(!deferred.isEmpty()){
+            const auto data=deferred;
             QTimer::singleShot(0,process,[finish,data]{finish(data,{});});return id;
         }
 #ifdef Q_OS_WIN
@@ -386,10 +408,17 @@ public:
         const auto bundled=QFileInfo(m_helper).absolutePath()+"/runtime/bin/python3";
 #endif
         const auto python=qEnvironmentVariable("COLOSSEUM_VINYL_PYTHON",bundled);
-        auto launch=[guard=QPointer<VinylProvider>(this),this,process,deadline,lane,python,requestBytes,operation,home,server,trace]{
+        const bool musicBrainz=QStringList{"artistIdentity","recommendationIdentity","recommendationDiscography"}.contains(operation);
+        auto launch=[guard=QPointer<VinylProvider>(this),this,process,deadline,lane,python,requestBytes,operation,value,payload,home,musicBrainz,server,trace,finish]{
             if(!guard||m_active.value(lane)!=process)return;
+            // A source may enter backoff while this accepted request waits for
+            // a worker slot. Recheck at the point of actual dispatch as well.
+            const auto deferred=home?deferredHome(operation,value,payload):QVariantMap();
+            if(!deferred.isEmpty()){finish(deferred,{});return;}
             trace("dispatch");
-            if(home){m_running.insert(process);if(operation=="songCandidates")deadline->start(20000);}
+            if(home||musicBrainz)m_running.insert(process);
+            if(home)deadline->start(operation=="artistCandidates"?8000:operation=="recommendationDiscography"?30000
+                :operation=="recommendationIdentity"||operation=="songCandidates"?20000:12000);
             else deadline->start(operation=="lyrics"?12000:operation=="discover"?18000:operation=="artistIdentity"?180000:90000);
             if(server){
                 if(process->state()!=QProcess::Running)process->start(python,{"-I",m_helper,"--serve"});
@@ -399,19 +428,19 @@ public:
                 if(guard&&m_active.value(lane)==process){process->write(requestBytes);process->closeWriteChannel();}
             }
         };
-        if(home){if(operation!="songCandidates")deadline->start(8000);m_waiting.enqueue({QPointer<QProcess>(process),launch});QTimer::singleShot(0,this,[this]{startWaiting();});}
+        if(home||musicBrainz){m_waiting.enqueue({QPointer<QProcess>(process),launch,musicBrainz});QTimer::singleShot(0,this,[this]{startWaiting();});}
         else QTimer::singleShot(0,process,launch);
         return id;
     }
     Q_INVOKABLE void cancel(const QString &lane){
-        auto *process=m_active.take(lane);if(!process)return;m_running.remove(process);
+        auto *process=m_active.take(lane);if(!process)return;m_running.remove(process);releaseMusicBrainz(process);
         for(auto *slot:{&m_mediaWarm,&m_catalogueWarm}){
             if(slot->process==process){slot->process=nullptr;slot->busy=false;++slot->idleGeneration;}
         }
         retireProcess(process);QTimer::singleShot(0,this,[this]{startWaiting();});
     }
     Q_INVOKABLE void cancelAll(){
-        m_waiting.clear();for(const auto &lane:m_active.keys())cancel(lane);
+        m_waiting.clear();m_waitingWake->stop();for(const auto &lane:m_active.keys())cancel(lane);
         for(auto *slot:{&m_mediaWarm,&m_catalogueWarm}){
             auto *process=slot->process.data();
             slot->process=nullptr;slot->busy=false;++slot->idleGeneration;
@@ -442,9 +471,25 @@ private:
         bool busy=false;
         quint64 idleGeneration=0;
     };
-    static QString service(const QString &op){return op=="recommendationIdentity"?"musicbrainz":op=="populationCandidates"?"listenbrainz":"youtube-music";}
+    static QString service(const QString &op,const QString &value,const QVariantMap &payload){
+        return VinylSourcePool::metadataOperation(op)?VinylSourcePool::metadataSource(op,value,payload)
+            :op=="recommendationIdentity"?"musicbrainz":op=="populationCandidates"?"listenbrainz":"youtube-music";
+    }
+    QVariantMap deferredHome(const QString &op,const QString &value,const QVariantMap &payload)const{
+        const auto source=service(op,value,payload);
+        const qint64 remaining=m_deferred.value(source)-m_clock();
+        if(remaining<=0)return {};
+        return {{"version",1},{"seed",payload.value("seed",QVariantMap())},{"items",QVariantList()},
+            {"provenance",QVariantMap{{"source",source}}},{"fetchedAt",QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)},
+            {"complete",false},{"status","unavailable"},{"sourceStatus","rate_limited"},
+            {"retryAfterSeconds",int(qBound<qint64>(qint64(1),(remaining+999)/1000,qint64(3600)))},
+            {"error","The source is temporarily rate limited."}};
+    }
     static qint64 ttl(const QString &op,const QVariantMap &data){
-        if(data.value("items").toList().isEmpty()&&data.value("status")!="verified")return 3600000;
+        if(VinylSourcePool::metadataOperation(op)&&data.value("status")=="partial")return 3600000;
+        if(data.value("items").toList().isEmpty()&&data.value("status")!="verified"
+            &&data.value("artist").toMap().value("releaseGroups").toList().isEmpty())return 3600000;
+        if(VinylSourcePool::metadataOperation(op))return 86400000;
         return op=="recommendationIdentity"?7LL*86400000:op=="populationCandidates"?86400000:6LL*3600000;
     }
     QVariantMap readCache(const QString &path,const QString &key,const QString &op,const QString &value,const QVariantMap &payload,bool home,bool fresh)const{
@@ -462,12 +507,37 @@ private:
         qint64 total=0;for(const auto &file:files)total+=file.size();int remaining=files.size();
         for(const auto &file:files){if(total<=m_cacheBudget&&remaining<=4096)break;if(QFile::remove(file.absoluteFilePath())){total-=file.size();--remaining;}}
     }
+    struct QueuedWork {QPointer<QProcess> process;std::function<void()> launch;bool musicBrainz=false;};
+    struct MusicBrainzGate {QMutex mutex;QProcess *active=nullptr;qint64 notBefore=0;};
+    static MusicBrainzGate &musicBrainzGate(){static MusicBrainzGate gate;return gate;}
+    static qint64 monotonicMs(){return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();}
+    static bool claimMusicBrainz(QProcess *process,int *retryMs){
+        auto &gate=musicBrainzGate();QMutexLocker lock(&gate.mutex);const auto now=monotonicMs();
+        if(gate.active||now<gate.notBefore){*retryMs=gate.active?1100:int(gate.notBefore-now);return false;}
+        gate.active=process;return true;
+    }
+    static void releaseMusicBrainz(QProcess *process){
+        auto &gate=musicBrainzGate();QMutexLocker lock(&gate.mutex);
+        if(gate.active==process){gate.active=nullptr;gate.notBefore=monotonicMs()+1100;}
+    }
     void startWaiting(){
-        while(m_running.size()<2&&!m_waiting.isEmpty()){auto job=m_waiting.dequeue();if(job.first&&m_active.values().contains(job.first.data()))job.second();}
+        QPointer<VinylProvider> guard(this);int retry=0;
+        const int attempts=m_waiting.size();
+        for(int index=0;index<attempts&&m_running.size()<2&&!m_waiting.isEmpty();++index){
+            auto job=m_waiting.dequeue();
+            if(!job.process||!m_active.values().contains(job.process.data()))continue;
+            int delay=0;
+            if(job.musicBrainz&&!claimMusicBrainz(job.process.data(),&delay)){
+                m_waiting.enqueue(std::move(job));retry=retry?qMin(retry,delay):delay;continue;
+            }
+            job.launch();if(!guard)return;
+        }
+        if(retry&&!m_waiting.isEmpty()&&(!m_waitingWake->isActive()||m_waitingWake->remainingTime()>retry))m_waitingWake->start(qMax(1,retry));
     }
     QString m_helper;int m_serial=0;QHash<QString,QProcess*> m_active;
     qint64 m_cacheBudget;std::function<qint64()> m_clock;QString m_cacheRoot;
-    QSet<QProcess*> m_running;QQueue<QPair<QPointer<QProcess>,std::function<void()>>> m_waiting;QHash<QString,qint64> m_deferred;
+    QSet<QProcess*> m_running;QQueue<QueuedWork> m_waiting;QHash<QString,qint64> m_deferred;
+    QTimer *m_waitingWake=nullptr;
     WarmSlot m_mediaWarm,m_catalogueWarm;
     const int m_mediaIdleMs,m_catalogueIdleMs;
 };

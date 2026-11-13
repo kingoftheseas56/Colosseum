@@ -1,6 +1,7 @@
 #include "VinylRecommendationService.h"
 #include "VinylProvider.h"
 #include "VinylRecommendationIdentity.h"
+#include "VinylSourcePool.h"
 #include "DeterministicRanker.h"
 #include "FeedbackTastePersistence.h"
 #include "VinylRecommendationHistory.h"
@@ -46,7 +47,7 @@ std::optional<RecommendationEntityRef> typed(const QVariantMap &row){
     if(!converted.value("ok").toBool())return {};
     return RecommendationEntityRef::fromJson(QJsonObject::fromVariantMap(converted.value("ref").toMap())).value;
 }
-QVariantMap policy(){return {{"version","vinyl-home-v1"},{"seedAffinity",300},{"maxCandidates",300},{"maxGenerator",60},{"maxShelf",12},{"maxUncachedArtists",6},{"maxConcurrent",2},{"deadlineMs",8000},{"newWindowDays",90},{"maxArtist",3},{"maxRecordingReleaseGroup",2},{"historyComplete",false}};}
+QVariantMap policy(){return {{"version","vinyl-home-v1"},{"seedAffinity",300},{"maxCandidates",300},{"maxGenerator",60},{"maxShelf",12},{"maxUncachedArtists",6},{"maxConcurrent",2},{"deadlineMs",8000},{"newWindowMonths",12},{"maxArtist",3},{"maxRecordingReleaseGroup",2},{"historyComplete",false}};}
 bool readExposure(const QString &scope,const QString &snapshot,qint64 now,quint64 reset,qint64 historyReset,
                   RecommendationExposureLog &log,QVariantList &retained) {
     if(snapshot.isEmpty())return true;
@@ -602,8 +603,8 @@ void VinylRecommendationService::rebuildHome(){
             node.card["seedArtistRefs"]=seedRefs;node.card["candidateSources"]=sources;
         }
         node.sections.insert(section);
-        const auto date=QDate::fromString(raw.value("releaseDate").toString(),Qt::ISODate);const auto today=QDateTime::fromMSecsSinceEpoch(now,Qt::UTC).date();
-        if(section=="from-your-artists"&&destination.value("kind")=="album"&&date.isValid()&&date<=today&&date.daysTo(today)<=90)node.sections.insert("new-from-your-artists");
+        const auto today=QDateTime::fromMSecsSinceEpoch(now,Qt::UTC).date();
+        if(section=="from-your-artists"&&destination.value("kind")=="album"&&VinylSourcePool::isNewRelease(raw.value("releaseDate").toString(),today))node.sections.insert("new-from-your-artists");
         RecommendationCanonicalContext context;
         auto primary=raw.value("artistRefs").toList();auto artistRef=primary.isEmpty()?seedRef:typed(primary.first().toMap());
         if(!primary.isEmpty()&&primary.first().toMap().value("provider")==seed.value("provider")

@@ -5776,6 +5776,8 @@ add_test(NAME colosseum.vinyl_be3_ranker COMMAND vinyl_be3_ranker_test)
 
 add_executable(vinyl_recommendation_contracts_test vinyl_recommendation_contracts.cpp)
 add_executable(vinyl_recommendation_service_test vinyl_recommendation_service_test.cpp)
+add_executable(vinyl_source_pool_test tst_vinyl_source_pool.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h")
 
 add_executable(vinyl_home_listening_test vinyl_home_listening_test.cpp
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylHomeListening.cpp")
@@ -5805,9 +5807,14 @@ set_target_properties(vinyl_recommendation_contracts_test PROPERTIES AUTOMOC ON)
 target_include_directories(vinyl_recommendation_contracts_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(vinyl_recommendation_contracts_test PRIVATE colosseum_vinyl_backend Qt6::Test)
 add_test(NAME colosseum.vinyl_recommendation_contracts COMMAND vinyl_recommendation_contracts_test)
+set_target_properties(vinyl_source_pool_test PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_source_pool_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_source_pool_test PRIVATE colosseum_vinyl_backend Qt6::Test)
+add_test(NAME colosseum.vinyl_source_pool COMMAND vinyl_source_pool_test)
 set_tests_properties(
     colosseum.vinyl_be1_contract colosseum.vinyl_be2_state colosseum.vinyl_be2_persistence
     colosseum.vinyl_derivation colosseum.vinyl_be3_ranker colosseum.vinyl_recommendation_contracts
+    colosseum.vinyl_source_pool
     PROPERTIES ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" LABELS "vinyl;recommendations;unit" TIMEOUT 60)
 
 if(MSVC)
@@ -5817,7 +5824,8 @@ if(MSVC)
             vinyl_be2_persistence_test
             vinyl_derivation_test
             vinyl_be3_ranker_test
-            vinyl_recommendation_contracts_test)
+            vinyl_recommendation_contracts_test
+            vinyl_source_pool_test)
         target_compile_options(${vinyl_recommendation_target} PRIVATE /utf-8)
     endforeach()
 endif()
@@ -5873,6 +5881,8 @@ target_compile_definitions(vinyl_provider_lifecycle_test PRIVATE
     VINYL_LIFECYCLE_HELPER="${CMAKE_CURRENT_SOURCE_DIR}/vinyl-provider-lifecycle/provider.py")
 find_package(Python3 QUIET COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
+    set_property(TEST colosseum.vinyl_source_pool APPEND PROPERTY ENVIRONMENT
+        "COLOSSEUM_VINYL_PYTHON=${Python3_EXECUTABLE}")
     set_property(TEST colosseum.vinyl_catalogue_source APPEND PROPERTY ENVIRONMENT
         "COLOSSEUM_VINYL_PYTHON=${Python3_EXECUTABLE}")
     add_test(NAME colosseum.vinyl_provider_lifecycle COMMAND vinyl_provider_lifecycle_test)
@@ -5890,6 +5900,10 @@ if(Python3_Interpreter_FOUND)
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_recommendation_provider_test.py")
     set_tests_properties(colosseum.vinyl_recommendation_provider PROPERTIES
         LABELS "unit;vinyl;provider" TIMEOUT 60)
+    add_test(NAME colosseum.vinyl_source_pool_provider
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_source_pool_provider_test.py")
+    set_tests_properties(colosseum.vinyl_source_pool_provider PROPERTIES
+        LABELS "unit;vinyl;recommendations;provider" TIMEOUT 60)
     add_test(NAME colosseum.vinyl_lyrics_provider
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_vinyl_lyrics_provider.py")
     set_tests_properties(colosseum.vinyl_lyrics_provider PROPERTIES

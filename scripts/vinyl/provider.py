@@ -8,6 +8,7 @@ import datetime
 import hashlib
 import email.utils
 import html
+from html.parser import HTMLParser
 import json
 import math
 import os
@@ -1830,7 +1831,7 @@ def fetch_artist_artwork(mbid, get_json=None):
 
 
 # Home operations are deliberately separate from full artist-page enumeration.
-HOME_OPERATIONS = {"artistCandidates", "songCandidates", "recommendationIdentity", "recordingMatch", "populationCandidates"}
+HOME_OPERATIONS = {"artistCandidates", "songCandidates", "recommendationIdentity", "recommendationDiscography", "chartCandidates", "similarArtists", "recordingMatch", "populationCandidates"}
 LB_ARTIST_EVIDENCE_QUALIFIED = True  # Public artist-radio route qualified 2026-10-22; failures remain optional.
 
 
@@ -2368,33 +2369,239 @@ def channel_relation(detail, channel):
     return None
 
 
+def _musicbrainz_artist_names(detail):
+    """Keep every distinct official spelling; folding is only for query matching."""
+    names, seen = [], set()
+    complete = True
+
+    def append(value):
+        nonlocal complete
+        if not isinstance(value, str) or not value.strip():
+            complete = False
+            return
+        value = value.strip()
+        if value not in seen:
+            seen.add(value)
+            names.append(value)
+
+    append(detail.get("name"))
+    if detail.get("sort-name") is not None:
+        append(detail["sort-name"])
+    aliases = detail.get("aliases", [])
+    if not isinstance(aliases, list):
+        return names, False
+    for alias in aliases:
+        if not isinstance(alias, dict):
+            complete = False
+            continue
+        append(alias.get("name"))
+        if alias.get("sort-name") is not None:
+            append(alias["sort-name"])
+    return names, complete
+
+
+def _identity_metadata_fits(result):
+    # Native normalizeHome accepts 256 KiB. Leave headroom for Qt's serialization
+    # and the receiving ref/key/destination projection; count UTF-8, not characters.
+    return len(json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode("utf-8")) <= 239 * 1024
+
+
+def _enrich_recommendation_aliases(result, detail):
+    artist = result["artist"]
+    artist.update({"aliases": [], "aliasesComplete": False})
+    names, names_complete = _musicbrainz_artist_names(detail)
+    for name in names:
+        artist["aliases"].append(name)
+        if not _identity_metadata_fits(result):
+            artist["aliases"].pop()
+            break
+    else:
+        artist["aliasesComplete"] = names_complete
+
+
+
+def _load_recommendation_release_groups(result, mb, window=None):
+    # Metadata only: the caller's canonical artist binding is validated separately.
+    # This phase never creates or revises an identity attestation.
+    artist = result["artist"]
+    fits = _pool_wire_fits if window is not None else _identity_metadata_fits
+    offset, total, seen = 0, None, set()
+    for _ in range(5):
+        parameters = {"limit":100, "offset":offset, "fmt":"json"}
+        if window is None:
+            parameters["artist"] = artist["id"]
+        else:
+            parameters["query"] = (f'arid:"{artist["id"]}" AND firstreleasedate:'
+                                   f'[{window["since"]} TO {window["until"]}]')
+        query = urllib.parse.urlencode(parameters)
+        try:
+            page = mb.get_json("https://musicbrainz.org/ws/2/release-group?" + query)
+        except Exception as exc:
+            result["error"] = "The optional release-group source is unavailable."
+            code = getattr(exc, "code", "unavailable")
+            result["sourceStatus"] = code if isinstance(code, str) else "unavailable"
+            if code == "rate_limited" or (isinstance(exc, urllib.error.HTTPError) and code in (429, 503)):
+                result["sourceStatus"] = "rate_limited"
+                try:
+                    retry = int(getattr(exc, "retry_after", (getattr(exc, "headers", None) or {}).get("Retry-After", 60)))
+                except (TypeError, ValueError):
+                    retry = 60
+                result["retryAfterSeconds"] = max(1, min(3600, retry))
+            return
+        if not isinstance(page, dict):
+            return
+        rows, count, returned_offset = (page.get("release-groups"),
+            page.get("count" if window is not None else "release-group-count"),
+            page.get("offset" if window is not None else "release-group-offset"))
+        if (not isinstance(rows, list) or len(rows) > 100 or type(count) is not int or count < 0
+                or type(returned_offset) is not int or returned_offset != offset
+                or (total is not None and count != total) or offset + len(rows) > count):
+            return
+        total = count
+        artist["releaseGroupCount"] = total
+        if not fits(result):
+            artist["releaseGroupCount"] = None
+            return
+        normalized, page_ids = [], set()
+        for row in rows:
+            if (not isinstance(row, dict) or not isinstance(row.get("id"), str)
+                    or not MBID_RE.fullmatch(row["id"]) or uuid.UUID(row["id"]).int == 0
+                    or not isinstance(row.get("title"), str) or not row["title"].strip()):
+                return
+            if window is not None:
+                credits = row.get("artist-credit")
+                if not isinstance(credits, list) or not any(
+                        isinstance(credit, dict) and isinstance(credit.get("artist"), dict)
+                        and isinstance(credit["artist"].get("id"), str)
+                        and credit["artist"]["id"].lower() == artist["id"].lower()
+                        for credit in credits):
+                    return
+            key = row["id"].lower()
+            if key in seen or key in page_ids:
+                return
+            if ("first-release-date" in row and not isinstance(row["first-release-date"], str)
+                    or "primary-type" in row and row["primary-type"] is not None and not isinstance(row["primary-type"], str)
+                    or "secondary-types" in row and (not isinstance(row["secondary-types"], list)
+                        or any(not isinstance(value, str) for value in row["secondary-types"]))):
+                return
+            group = {field: row[field] for field in ("id", "title", "first-release-date", "primary-type", "secondary-types") if field in row}
+            group["id"] = key
+            normalized.append(group)
+            page_ids.add(key)
+        for group in normalized:
+            artist["releaseGroups"].append(group)
+            if not fits(result):
+                artist["releaseGroups"].pop()
+                return
+        seen.update(page_ids)
+        offset += len(rows)
+        if offset == total:
+            artist["releaseGroupsComplete"] = True
+            return
+        if len(rows) < 100:  # Missing rows or a premature empty/short page.
+            return
+
+
+
+def recommendation_discography(request, mb_client=None):
+    if set(request) - {"operation", "value", "seed", "fetchedAt", "refresh", "since", "until"}:
+        raise InvalidArgumentError("Unknown discography request option.")
+    if ("fetchedAt" in request and (type(request["fetchedAt"]) is not str or len(request["fetchedAt"]) > 128)
+            or "refresh" in request and type(request["refresh"]) is not bool):
+        raise InvalidArgumentError("Invalid discography request metadata.")
+    window = None
+    if "since" in request or "until" in request:
+        dates = {}
+        for key in ("since", "until"):
+            value = request.get(key)
+            if type(value) is not str or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+                raise InvalidArgumentError("Discography dates require paired full ISO dates.")
+            try:
+                dates[key] = datetime.date.fromisoformat(value)
+            except ValueError:
+                raise InvalidArgumentError("Discography dates are invalid.") from None
+        if dates["since"] > dates["until"]:
+            raise InvalidArgumentError("Discography date window is inverted.")
+        window = {key:request[key] for key in ("since", "until")}
+    value, seed = request.get("value"), request.get("seed")
+    if (type(value) is not str or not MBID_RE.fullmatch(value) or uuid.UUID(value).int == 0
+            or type(seed) is not dict
+            or seed != {"identity":"canonical", "kind":"artist", "mbid":value}):
+        raise InvalidArgumentError("Discography requires an exactly bound canonical artist reference.")
+    result = home_envelope(request, "musicbrainz")
+    result["artist"] = {"id":value, "releaseGroups":[], "releaseGroupsComplete":False,
+                        "releaseGroupCount":None}
+    if window is not None:
+        result["artist"].update({"releaseGroupScope":"recent-releases", "releaseGroupWindow":window})
+    mb = mb_client or MusicBrainzClient(max_retries=1, timeout=2.5)
+    _load_recommendation_release_groups(result, mb, window)
+    groups = result["artist"]["releaseGroups"]
+    # Include any late transport/error metadata in the actual ASCII stdio budget.
+    # Keep the legacy browse response/schema unchanged when no window is supplied.
+    if window is not None:
+        while groups and not _pool_wire_fits(result):
+            groups.pop()
+            result["artist"]["releaseGroupsComplete"] = False
+    result["complete"] = result["artist"]["releaseGroupsComplete"]
+    result["status"] = ("ready" if groups else "empty") if result["complete"] else ("partial" if groups else "unavailable")
+    if result["status"] == "unavailable":
+        result["error"] = "The optional release-group evidence is unavailable or incomplete."
+    return result
+
+
 def recommendation_identity(request, client, mb_client=None):
     result = home_envelope(request, "musicbrainz", "unresolved", True)
     seed = home_seed(request)
     raw = home_raw_artist(client, seed)
     mb = mb_client or MusicBrainzClient(max_retries=1, timeout=2.5)
     name = raw["name"].strip()[:300]
-    query = urllib.parse.urlencode({"query": 'artist:"' + name.replace('"', '') + '"', "limit": 5, "fmt": "json"})
+    phrase = name.replace("\\", "\\\\").replace('"', '\\"')
+    query = urllib.parse.urlencode({"query": '(artist:"' + phrase + '" OR alias:"' + phrase + '")',
+                                   "limit": 5, "fmt": "json"})
     searched = mb.get_json("https://musicbrainz.org/ws/2/artist/?" + query)
     if not isinstance(searched, dict) or not isinstance(searched.get("artists"), list):
         raise ProviderUnavailableError("The artist identity search is incomplete.")
-    result["complete"] = int(searched.get("count", len(searched["artists"]))) <= len(searched["artists"])
-    candidates = [a for a in searched["artists"][:5] if isinstance(a, dict) and MBID_RE.fullmatch(str(a.get("id", ""))) and uuid.UUID(a["id"]).int != 0
-                  and fold(a.get("name", "")) == fold(name)]
-    result["mappingStatus"] = "ambiguous" if len(candidates) > 1 else "unresolved"
+    rows = searched["artists"]
+    count = searched.get("count", len(rows))
+    if type(count) is not int or count < 0:
+        raise ProviderUnavailableError("The artist identity search count is invalid.")
+    offset = searched.get("offset", 0)
+    result["complete"] = count == len(rows) and len(rows) <= 5 and type(offset) is int and offset == 0
+    candidates, seen = [], set()
+    for candidate in rows[:5]:
+        if (not isinstance(candidate, dict) or not isinstance(candidate.get("id"), str)
+                or not MBID_RE.fullmatch(candidate["id"]) or uuid.UUID(candidate["id"]).int == 0
+                or candidate["id"].lower() in seen):
+            result["complete"] = False
+            continue
+        seen.add(candidate["id"].lower())
+        candidates.append(candidate)
+    if sum(fold(candidate.get("name", "")) == fold(name) for candidate in candidates) > 2:
+        result.update({"mappingStatus": "ambiguous", "status": "ambiguous"})
+        return result
+    matching = []
+    for candidate in candidates:
+        detail = mb.get_json("https://musicbrainz.org/ws/2/artist/" + candidate["id"] + "?inc=aliases%2Burl-rels%2Brelease-groups&fmt=json")
+        if (not isinstance(detail, dict) or not isinstance(detail.get("id"), str)
+                or detail["id"].lower() != candidate["id"].lower()
+                or not isinstance(detail.get("name"), str) or not detail["name"].strip()):
+            raise ProviderUnavailableError("The canonical artist detail is invalid.")
+        names, names_complete = _musicbrainz_artist_names(detail)
+        if not names_complete:
+            result["complete"] = False
+        if fold(name) in {fold(value) for value in names}:
+            matching.append((candidate, detail))
+    result["mappingStatus"] = "ambiguous" if len(matching) > 1 else "unresolved"
     result["status"] = result["mappingStatus"]
-    if len(candidates) > 2:  # A name alone cannot choose one; no discography walk.
+    if len(matching) > 2:
         return result
     confirmed = []
-    for candidate in candidates:
-        detail = mb.get_json("https://musicbrainz.org/ws/2/artist/" + candidate["id"] + "?inc=url-rels%2Brelease-groups&fmt=json")
-        if not isinstance(detail, dict) or detail.get("id", "").lower() != candidate["id"].lower():
-            raise ProviderUnavailableError("The canonical artist detail is invalid.")
+    for candidate, detail in matching:
         relation = channel_relation(detail, seed["providerId"])
         method, evidence = ("external-id", [relation]) if relation else (None, [])
-        # Unique name plus two independently dated releases is corroboration,
-        # not a name-only guess; never use it to select between same-name artists.
-        if not method and len(candidates) == 1:
+        # Alias equality only admits a candidate. Unique name plus two dated
+        # releases or the bound channel relation still supplies the attestation.
+        if not method and len(matching) == 1:
             own = set()
             for section in ("albums", "singles"):
                 for entry in (raw.get(section) or {}).get("results", [])[:20]:
@@ -2403,7 +2610,7 @@ def recommendation_identity(request, client, mb_client=None):
             for group in detail.get("release-groups", [])[:25]:
                 if isinstance(group, dict) and (fold(group.get("title", "")), str(group.get("first-release-date", ""))[:4]) in own:
                     evidence.append(group.get("id"))
-            evidence = list(dict.fromkeys(e for e in evidence if isinstance(e, str) and MBID_RE.fullmatch(e)))
+            evidence = list(dict.fromkeys(e for e in evidence if isinstance(e, str) and MBID_RE.fullmatch(e) and uuid.UUID(e).int != 0))
             if len(evidence) >= 2:
                 method = "corroborated-metadata"
         if method:
@@ -2414,7 +2621,10 @@ def recommendation_identity(request, client, mb_client=None):
     if len(confirmed) == 1 and result["complete"]:
         mapping, detail = confirmed[0]
         result.update({"status": "verified", "mappingStatus": "verified", "mapping": mapping, "mbid": mapping["mbid"],
-                       "artist": {"name": detail.get("name", name), "disambiguation": detail.get("disambiguation", "")}})
+                       "artist": {"id": mapping["mbid"], "name": detail["name"], "disambiguation": detail.get("disambiguation", "")}})
+        if not _identity_metadata_fits(result):
+            raise ProviderUnavailableError("The canonical artist identity exceeds its response budget.")
+        _enrich_recommendation_aliases(result, detail)
     elif len(confirmed) > 1:
         result.update({"status": "ambiguous", "mappingStatus": "ambiguous"})
     return result
@@ -2524,9 +2734,11 @@ def population_candidates(request, population_client=None):
     return result
 
 
-def handle_home(request, client=None, mb_client=None, population_client=None):
+def handle_home(request, client=None, mb_client=None, population_client=None, source_pool_transport=None):
     operation = request.get("operation")
-    source = "musicbrainz" if operation == "recommendationIdentity" else "listenbrainz" if operation == "populationCandidates" else "youtube-music"
+    if operation in {"chartCandidates", "similarArtists"}:
+        return source_pool_metadata(request, source_pool_transport)
+    source = "musicbrainz" if operation in {"recommendationIdentity", "recommendationDiscography"} else "listenbrainz" if operation == "populationCandidates" else "youtube-music"
     envelope_request = request
     if operation == "songCandidates":
         seed = request.get("seed")
@@ -2545,6 +2757,8 @@ def handle_home(request, client=None, mb_client=None, population_client=None):
     try:
         if len(json.dumps(request).encode()) > 256 * 1024:
             raise InvalidArgumentError("The recommendation request is oversized.")
+        if operation == "recommendationDiscography":
+            return recommendation_discography(request, mb_client)
         if operation == "populationCandidates":
             return population_candidates(request, population_client)
         if operation in {"artistCandidates", "recommendationIdentity"}:
@@ -2870,7 +3084,7 @@ def _discover_write(key, entry):
                     temporary.unlink(missing_ok=True)
 
 
-def _discover_http(source, method, params, language=""):
+def _discover_http(source, method, params, language="", *, transport=None, timeout=8):
     global _LASTFM_NEXT_REQUEST
     if source == "lastfm":
         key = os.environ.get("COLOSSEUM_VINYL_LASTFM_API_KEY", "").strip()
@@ -2896,8 +3110,10 @@ def _discover_http(source, method, params, language=""):
         headers = {"User-Agent": "Mozilla/5.0", "Cookie": "L=" + language}
     label = "Last.fm" if source == "lastfm" else "JioSaavn"
     try:
-        opener = urllib.request.build_opener(_DiscoverNoRedirect())
-        with opener.open(urllib.request.Request(url, headers=headers), timeout=8) as response:
+        opener = transport or urllib.request.build_opener(_DiscoverNoRedirect())
+        with opener.open(urllib.request.Request(url, headers=headers), timeout=timeout) as response:
+            if not 200 <= getattr(response, "status", 200) < 300:
+                raise urllib.error.HTTPError(url, response.status, "Metadata request failed", response.headers, None)
             raw = response.read(_DISCOVER_RESPONSE_LIMIT + 1)
             if len(raw) > _DISCOVER_RESPONSE_LIMIT:
                 raise ProviderUnavailableError(label + " returned too much catalogue data.")
@@ -3285,7 +3501,7 @@ def _catalogue_input(item, expected_id=None):
     title, artist, hints = item.get("title"), item.get("artist"), item.get("hints")
     ids = item.get("sourceIds")
     key = ids.get("id") if isinstance(ids, dict) else None
-    if (source not in ("lastfm", "jiosaavn") or kind not in DISCOVER_KINDS
+    if (source not in ("lastfm", "jiosaavn", "apple-music", "listenbrainz") or kind not in DISCOVER_KINDS
             or not isinstance(key, str) or not 1 <= len(key) <= 1600
             or identifier != f"{source}:{kind}:" + hashlib.sha256(key.encode()).hexdigest()[:24]
             or (expected_id is not None and identifier != expected_id)
@@ -3293,6 +3509,10 @@ def _catalogue_input(item, expected_id=None):
             or not isinstance(artist, str) or len(artist) > 10000
             or not isinstance(hints, dict)):
         raise InvalidArgumentError("Invalid music catalogue card.")
+    if source == "apple-music" and not re.fullmatch(r"[1-9][0-9]{0,19}", key):
+        raise InvalidArgumentError("Invalid Apple catalogue identity.")
+    if source == "listenbrainz" and (not MBID_RE.fullmatch(key) or uuid.UUID(key).int == 0):
+        raise InvalidArgumentError("Invalid ListenBrainz catalogue identity.")
     credits = hints.get("artists", [artist] if artist else [])
     if (not isinstance(credits, list) or len(credits) > 100
             or not all(isinstance(name, str) and 1 <= len(name) <= 600 for name in credits)
@@ -3491,7 +3711,304 @@ def _catalogue_match(client, row, kind):
     return {"albumId": record["id"], "record": record, "cover": record["cover"]}, ""
 
 
-def handle(request, client=None, mb_client=None, population_client=None):
+
+_POOL_STOREFRONTS = ("us", "gb", "jp", "kr", "in", "br", "ng", "de", "fr", "mx")
+_LABS_ALGORITHM_CACHE = None
+_LABS_ALGORITHM_LOCK = threading.Lock()
+
+
+def _pool_text(value, maximum=600):
+    if (type(value) is not str or not value.strip() or len(value) > maximum
+            or any(ord(c) < 32 for c in value)):
+        raise ProviderUnavailableError("The source returned invalid metadata text.")
+    return value.strip()
+
+
+def _pool_mbid(value):
+    if value is None or value == "":
+        return ""
+    if type(value) is not str or not MBID_RE.fullmatch(value) or uuid.UUID(value).int == 0:
+        raise ProviderUnavailableError("The source returned an invalid metadata identifier.")
+    return value.lower()
+
+
+def _pool_http(url, transport=None, *, text=False, timeout=4):
+    opener = transport or urllib.request.build_opener(_DiscoverNoRedirect())
+    maximum = 256 * 1024 if text else _DISCOVER_RESPONSE_LIMIT
+    try:
+        request = urllib.request.Request(url, headers={"User-Agent":MB_USER_AGENT,
+            "Accept":"text/html" if text else "application/json"})
+        with opener.open(request, timeout=timeout) as response:
+            status = getattr(response, "status", 200)
+            if type(status) is not int or not 200 <= status < 300:
+                raise urllib.error.HTTPError(url, status, "Metadata request failed", response.headers, None)
+            raw = response.read(maximum + 1)
+            if len(raw) > maximum:
+                raise ProviderUnavailableError("The metadata response exceeded its limit.")
+            return raw.decode("utf-8") if text else json.loads(raw)
+    except urllib.error.HTTPError as exc:
+        if exc.code in (429, 503):
+            raise RateLimitError("The metadata source is limiting requests.") from None
+        raise ProviderUnavailableError("The metadata source is unavailable.") from None
+    except (OSError, ValueError, UnicodeError) as exc:
+        if _is_timeout_exception(exc):
+            raise ProviderTimeoutError("The metadata request timed out.") from None
+        raise ProviderUnavailableError("The metadata source returned invalid data.") from None
+
+
+class _LabsAlgorithmForm(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.active = False
+        self.closed = False
+        self.groups = []
+        self.choices = []
+        self.selected = []
+
+    def handle_starttag(self, tag, attributes):
+        attrs = dict(attributes)
+        if tag == "select":
+            self.active = attrs.get("name") == "algorithm" and "disabled" not in attrs
+            self.groups = []
+        elif self.active and tag == "optgroup":
+            self.groups.append("disabled" in attrs)
+        elif self.active and tag == "option" and "disabled" not in attrs and not any(self.groups):
+            value = attrs.get("value", "")
+            if re.fullmatch(r"[A-Za-z0-9_.:-]{1,300}", value) and value not in self.choices:
+                self.choices.append(value)
+                if "selected" in attrs:
+                    self.selected.append(value)
+
+    def handle_endtag(self, tag):
+        if tag == "select":
+            self.closed |= self.active
+            self.active = False
+        elif self.active and tag == "optgroup" and self.groups:
+            self.groups.pop()
+
+
+def _labs_algorithm(transport):
+    global _LABS_ALGORITHM_CACHE
+    with _LABS_ALGORITHM_LOCK:
+        cached = _LABS_ALGORITHM_CACHE
+        if cached and 0 <= time.monotonic() - cached["at"] < 300:
+            return cached["choice"]
+        parser = _LabsAlgorithmForm()
+        parser.feed(_pool_http("https://labs.api.listenbrainz.org/similar-artists", transport, text=True, timeout=2.5))
+        parser.close()
+        if not parser.closed or not 1 <= len(parser.choices) <= 64:
+            raise ProviderUnavailableError("ListenBrainz did not advertise a usable algorithm.")
+        choice = (parser.selected or parser.choices)[0]
+        _LABS_ALGORITHM_CACHE = {"choice":choice, "at":time.monotonic()}
+        return choice
+
+
+def _pool_lastfm_card(row, kind):
+    if not isinstance(row, dict):
+        raise ProviderUnavailableError("Last.fm returned an invalid metadata row.")
+    title = _pool_text(row.get("name"))
+    mbid = _pool_mbid(row.get("mbid"))
+    raw_url = row.get("url")
+    if raw_url is not None and type(raw_url) is not str:
+        raise ProviderUnavailableError("Last.fm returned an invalid item URL.")
+    url = _discover_cover(raw_url, ("last.fm",)) if raw_url else ""
+    path = urllib.parse.urlparse(url).path.strip("/").split("/") if url else []
+    valid_path = (len(path) == 2 and path[0] == "music" and bool(path[1])) if kind == "artists" else (
+        len(path) == 4 and path[0] == "music" and bool(path[1]) and path[2] == "_" and bool(path[3]))
+    if raw_url and (not url or not valid_path):
+        raise ProviderUnavailableError("Last.fm returned an invalid item URL.")
+    key = url or ("mbid:" + mbid if mbid else "")
+    if not key:
+        raise ProviderUnavailableError("Last.fm returned no source identifier.")
+    evidence = {}
+    if mbid:
+        evidence["artist" if kind == "artists" else "recording"] = mbid
+    if kind == "artists":
+        credits = [title]
+    else:
+        artist = row.get("artist")
+        if not isinstance(artist, dict):
+            raise ProviderUnavailableError("Last.fm returned invalid artist credits.")
+        credits = [_pool_text(artist.get("name"))]
+        artist_mbid = _pool_mbid(artist.get("mbid"))
+        if artist_mbid:
+            evidence["artist"] = artist_mbid
+    hints = {"mbidEvidence":evidence} if evidence else {}
+    if kind == "songs" and _discover_number(row.get("duration")):
+        hints["duration"] = _discover_number(row["duration"])
+    return _discover_card("lastfm", kind, key, title, credits, _lastfm_image(row), **hints)
+
+
+def _pool_apple_rows(request, transport, cc, kind):
+    data = _pool_http("https://rss.marketingtools.apple.com/api/v2/" + cc + "/music/most-played/50/" + kind + ".json", transport)
+    feed = data.get("feed") if isinstance(data, dict) else None
+    if not isinstance(feed, dict) or ("country" in feed and feed["country"] != cc):
+        raise ProviderUnavailableError("Apple returned an invalid chart feed.")
+    rows = _discover_rows(feed.get("results"), 1000)
+    items = []
+    for rank, row in enumerate(rows, 1):
+        key = row.get("id")
+        if type(key) is not str or not re.fullmatch(r"[1-9][0-9]{0,19}", key) or row.get("kind") != kind:
+            raise ProviderUnavailableError("Apple returned an invalid item identity.")
+        artist_id = row.get("artistId")
+        if artist_id not in (None, "") and (type(artist_id) is not str or not re.fullmatch(r"[1-9][0-9]{0,19}", artist_id)):
+            raise ProviderUnavailableError("Apple returned an invalid artist identifier.")
+        date = row.get("releaseDate", "")
+        if type(date) is not str or len(date) > 32:
+            raise ProviderUnavailableError("Apple returned an invalid release date.")
+        item = _discover_card("apple-music", kind, key, _pool_text(row.get("name")),
+            [_pool_text(row.get("artistName"))], _discover_cover(row.get("artworkUrl100"), ("mzstatic.com",)), releaseDate=date)
+        if artist_id:
+            item["sourceIds"]["artistId"] = artist_id
+        url = _discover_cover(row.get("url"), ("music.apple.com",))
+        if url:
+            item["sourceIds"]["url"] = url
+        item.update(rank=rank, chartKind=kind, storefront=cc)
+        items.append(item)
+    return items, {"feed":request["value"], "updated":str(feed.get("updated", ""))[:128]}, True
+
+
+def _pool_lastfm_rows(request, transport, chart=False):
+    if chart:
+        leaf = request["value"].split(":")[1]
+        kind = "songs" if leaf == "tracks" else "artists"
+        method = "chart.getTopTracks" if leaf == "tracks" else "chart.getTopArtists"
+        params = {"limit":50, "page":1}
+    else:
+        leaf, kind, method = "similarartists", "artists", "artist.getSimilar"
+        params = {"artist":request["artistName"], "autocorrect":0, "limit":60}
+    data, *_ = _discover_http("lastfm", method, params, transport=transport, timeout=4)
+    envelope = data.get(leaf) if isinstance(data, dict) else None
+    if not isinstance(envelope, dict):
+        raise ProviderUnavailableError("Last.fm returned an invalid source list.")
+    rows = _discover_rows(envelope.get("track" if kind == "songs" else "artist"), 1000)
+    items = []
+    for rank, row in enumerate(rows, 1):
+        item = _pool_lastfm_card(row, kind)
+        item["rank"] = rank
+        if chart:
+            item["chartKind"] = kind
+        else:
+            raw_match = row.get("match")
+            if type(raw_match) not in (str, float, int):
+                raise ProviderUnavailableError("Last.fm returned invalid similarity evidence.")
+            try:
+                match = float(raw_match)
+            except ValueError:
+                raise ProviderUnavailableError("Last.fm returned invalid similarity evidence.") from None
+            if not math.isfinite(match) or not 0 <= match <= 1:
+                raise ProviderUnavailableError("Last.fm returned invalid similarity evidence.")
+            item["similarity"] = match
+        items.append(item)
+    return items, {"method":method, **({"artistName":request["artistName"]} if not chart else {})}, True
+
+
+def _pool_labs_rows(request, transport):
+    global _LABS_ALGORITHM_CACHE
+    algorithm = _labs_algorithm(transport)
+    url = "https://labs.api.listenbrainz.org/similar-artists/json?" + urllib.parse.urlencode({"artist_mbids":request["value"], "algorithm":algorithm})
+    try:
+        data = _pool_http(url, transport, timeout=2.5)
+    except ProviderError:
+        _LABS_ALGORITHM_CACHE = None
+        raise
+    rows = _discover_rows(data, 1000)
+    items, complete = [], True
+    for rank, row in enumerate(rows, 1):
+        identifier = _pool_mbid(row.get("artist_mbid"))
+        reference = _pool_mbid(row.get("reference_mbid"))
+        if reference and reference != request["value"].lower():
+            raise ProviderUnavailableError("ListenBrainz returned evidence for a different seed.")
+        if not identifier or row.get("name") is None:
+            complete = False
+            continue
+        name = _pool_text(row["name"])
+        score = row.get("score")
+        if score is not None and (type(score) is not int or score < 0):
+            raise ProviderUnavailableError("ListenBrainz returned invalid similarity evidence.")
+        evidence = {"artist":identifier}
+        if reference:
+            evidence["referenceArtist"] = reference
+        item = _discover_card("listenbrainz", "artists", identifier, name, [name], "", mbidEvidence=evidence)
+        item["rank"] = rank
+        if score is not None:
+            item["similarity"] = score
+        items.append(item)
+    return items, {"algorithm":algorithm}, complete
+
+
+def _pool_wire_fits(result):
+    return len(json.dumps({"ok":True, "data":result}, ensure_ascii=True).encode("utf-8")) + 1 <= 239 * 1024
+
+
+def source_pool_metadata(request, transport=None):
+    operation, value, source = request.get("operation"), request.get("value"), request.get("source")
+    origin = "apple-music" if type(value) is str and value.startswith("apple:") else ("listenbrainz" if source == "listenbrainz" else "lastfm")
+    seed = request.get("seed")
+    safe_seed = seed if type(seed) is dict and set(seed) == {"identity", "kind", "mbid"} and all(type(v) is str and len(v) < 128 for v in seed.values()) else {}
+    result = home_envelope({"seed":safe_seed}, origin)
+    result["provenance"]["generator"] = "chart-feed" if operation == "chartCandidates" else "artist-similarity"
+    try:
+        if len(json.dumps(request, ensure_ascii=True).encode("utf-8")) > 239 * 1024:
+            raise InvalidArgumentError("Source-pool request is oversized.")
+        allowed = {"operation", "value", "seed", "fetchedAt", "refresh"}
+        if operation == "similarArtists":
+            allowed.add("source")
+            if source == "lastfm":
+                allowed.add("artistName")
+        if set(request) - allowed or ("refresh" in request and type(request["refresh"]) is not bool):
+            raise InvalidArgumentError("Invalid source-pool request options.")
+        if "fetchedAt" in request:
+            if type(request["fetchedAt"]) is not str or len(request["fetchedAt"]) > 128:
+                raise InvalidArgumentError("Invalid source-pool timestamp.")
+            result["fetchedAt"] = now_iso(request["fetchedAt"])
+        if operation == "chartCandidates":
+            if type(seed) is not dict or seed or type(value) is not str:
+                raise InvalidArgumentError("Charts require an empty seed and a bound source feed.")
+            parts = value.split(":")
+            if len(parts) == 3 and parts[0] == "apple" and parts[1] in _POOL_STOREFRONTS and parts[2] in ("albums", "songs"):
+                items, provenance, complete = _pool_apple_rows(request, transport, parts[1], parts[2])
+            elif value in ("lastfm:tracks", "lastfm:artists"):
+                items, provenance, complete = _pool_lastfm_rows(request, transport, True)
+            else:
+                raise InvalidArgumentError("Unsupported global chart feed.")
+            limit = 50
+        else:
+            if (type(value) is not str or not MBID_RE.fullmatch(value) or uuid.UUID(value).int == 0
+                    or type(seed) is not dict or seed != {"identity":"canonical", "kind":"artist", "mbid":value}
+                    or source not in ("lastfm", "listenbrainz")):
+                raise InvalidArgumentError("Similarity requires an exactly bound canonical artist and source.")
+            if source == "lastfm":
+                name = request.get("artistName")
+                if type(name) is not str or not 1 <= len(name) <= 300 or not name.strip() or any(ord(c) < 32 for c in name):
+                    raise InvalidArgumentError("Similarity requires one artist spelling.")
+                items, provenance, complete = _pool_lastfm_rows(request, transport)
+            else:
+                items, provenance, complete = _pool_labs_rows(request, transport)
+            limit = 60
+        result["provenance"].update(provenance)
+        for item in items[:limit]:
+            _catalogue_input(item)
+            result["items"].append(item)
+            if not _pool_wire_fits(result):
+                result["items"].pop()
+                complete = False
+                break
+        complete &= len(items) <= limit
+        if not result["items"] and items:
+            complete = False
+        result["complete"] = complete
+        result["status"] = ("ready" if result["items"] else "empty") if complete else ("partial" if result["items"] else "unavailable")
+        if result["status"] == "unavailable":
+            result["error"] = "The source returned no usable metadata evidence."
+    except Exception as exc:
+        result.update(status="unavailable", complete=False, items=[], error="The optional metadata source is unavailable.")
+        result["sourceStatus"] = getattr(exc, "code", "unavailable")
+        if isinstance(exc, RateLimitError):
+            result["retryAfterSeconds"] = max(1, min(3600, exc.retry_after))
+    return result
+
+def handle(request, client=None, mb_client=None, population_client=None, source_pool_transport=None):
     discover_page = (request.get("operation") == "browseCatalogue"
                      and request.get("catalogueSource") in ("lastfm", "jiosaavn"))
     discover_art = request.get("operation") == "resolveCatalogueArt"
@@ -3510,7 +4027,7 @@ def handle(request, client=None, mb_client=None, population_client=None):
         client = client if client is not None else _ytmusic_client(region)
         return fetch_browse_categories(client) if request["operation"] == "browseCategories" else fetch_browse_catalogue(client, request)
     if request.get("operation") in HOME_OPERATIONS:
-        return handle_home(request, client, mb_client, population_client)
+        return handle_home(request, client, mb_client, population_client, source_pool_transport)
     operation, value = request["operation"], str(request.get("value", "")).strip()
     region = requested_region(request)
     if operation == "discover" and (value not in DISCOVERY_KEYS
@@ -3615,6 +4132,8 @@ def _answer(raw):
         if len(raw) > 1024 * 1024:
             raise InvalidArgumentError("Catalogue request is too large")
         request = json.loads(raw)
+        if isinstance(request, dict) and request.get("operation") in ("chartCandidates", "similarArtists") and len(raw) > 239 * 1024:
+            raise InvalidArgumentError("Source-pool request is oversized.")
         return {"ok": True, "data": handle(request)}
     except ImportError:
         return {"ok": False, "error": "Vinyl's catalogue helper is not installed.", "errorCode": "missing_dependency"}

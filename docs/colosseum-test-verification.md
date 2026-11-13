@@ -3344,3 +3344,22 @@ after line-ending normalization; receiving hashes are recorded separately.
 This meets the square-test plus recorded human-look criterion, without claiming
 later full-page composition or new real-app playback/provider qualification.
 See `artifacts/vinyl-v1/slice3/receiving/root-review.json`.
+
+## Vinyl v1 Home — Slice 2 metadata checks (2026-11-13)
+
+- `colosseum.vinyl_source_pool` (`unit;vinyl;recommendations`) checks aliases,
+  identity-safe merging, chart order/cache retention, twelve-month dates,
+  ten-neighbor widening, history-only Rediscover, strict recorded response
+  contracts, and real fixture subprocess/cache/queue/cooldown behavior.
+- `colosseum.vinyl_source_pool_provider` (`unit;vinyl;recommendations;provider`)
+  runs 23 network-fenced Python cases for the metadata adapters, preserving
+  absent scores and existing resolver guards. The existing identity/discography
+  suite now has 54 cases; the existing music Discover suite retains its 10.
+
+The final focused selection passed 11/11 in 84.57 seconds after rebuilding seven
+affected targets. Registry: 299 unit entries, 102 Vinyl and unchanged 197 others.
+The existing bespoke discovery contract separately passed 13/13 under a network
+fence. Source/command/hash and semantic-red/restored-green evidence is under
+`artifacts/vinyl-v1/slice2/receiving/`. These checks qualify the internal adapters
+and provider lifecycle; actual Home source orchestration and page acceptance
+remain unfinished.

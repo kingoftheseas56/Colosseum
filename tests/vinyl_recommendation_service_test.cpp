@@ -924,7 +924,7 @@ private slots:
         VinylRecommendationService service(nullptr,[&now]{return now;});service.setSource(&source);service.setPreferences(&prefs);
         prefs.setTaste(withFiveDistinctTasteArtists({artistSeed(70)}));service.beginHomeVisit();
         const auto call=source.pendingRequests("artistCandidates").first();auto data=source.defaultReply(call);
-        const auto seed=call.options.value("seed").toMap();const auto date=QDateTime::fromMSecsSinceEpoch(now,Qt::UTC).date().addDays(-89);
+        const auto seed=call.options.value("seed").toMap();const auto date=QDateTime::fromMSecsSinceEpoch(now,Qt::UTC).date().addMonths(-12).addDays(1);
         data["items"]=QVariantList{albumCandidate(seed,"MPRE_DATED","Dated",{{"releaseDate",date.toString(Qt::ISODate)}})};
         source.complete(call,data);QTRY_VERIFY(!sectionItems(service,"new-from-your-artists").isEmpty());
         for(const auto &optional:source.pendingRequests())source.complete(optional,{},"Optional fixture offline");
@@ -1454,11 +1454,17 @@ private slots:
         const QDate today = QDateTime::fromMSecsSinceEpoch(kFixedNowMs, Qt::UTC).date();
         const QVariantList rows{
             albumCandidate(seed, QStringLiteral("MPRE_RECENT"), QStringLiteral("Recent Release"),
-                           {{QStringLiteral("releaseDate"), today.addDays(-89).toString(Qt::ISODate)}}),
+                           {{QStringLiteral("releaseDate"), today.addMonths(-12).toString(Qt::ISODate)}}),
+            albumCandidate(seed, QStringLiteral("MPRE_MID_YEAR"), QStringLiteral("Six Months Ago"),
+                           {{QStringLiteral("releaseDate"), today.addMonths(-6).toString(Qt::ISODate)}}),
             albumCandidate(seed, QStringLiteral("MPRE_YEAR_ONLY"), QStringLiteral("Year Only"),
                            {{QStringLiteral("year"), QStringLiteral("2026")}}),
             albumCandidate(seed, QStringLiteral("MPRE_OLD"), QStringLiteral("Old Release"),
-                           {{QStringLiteral("releaseDate"), today.addDays(-91).toString(Qt::ISODate)}}),
+                           {{QStringLiteral("releaseDate"), today.addMonths(-12).addDays(-1).toString(Qt::ISODate)}}),
+            albumCandidate(seed, QStringLiteral("MPRE_FUTURE"), QStringLiteral("Future Release"),
+                           {{QStringLiteral("releaseDate"), today.addDays(1).toString(Qt::ISODate)}}),
+            albumCandidate(seed, QStringLiteral("MPRE_MONTH_ONLY"), QStringLiteral("Uncertain Day"),
+                           {{QStringLiteral("releaseDate"), today.toString(QStringLiteral("yyyy-MM"))}}),
             albumCandidate(seed, QStringLiteral("MPRE_BAD_DATE"), QStringLiteral("Invalid Date"),
                            {{QStringLiteral("releaseDate"), QStringLiteral("2026-19-42")}})};
         QVariantMap payload = fixture.source.defaultReply(call);
@@ -1469,12 +1475,18 @@ private slots:
                                          QStringLiteral("MPRE_RECENT")));
         const QVariantList recentItems = sectionItems(fixture.service, QStringLiteral("new-from-your-artists"));
         QVERIFY(!recentItems.isEmpty());
+        QVERIFY(sectionHasProviderId(fixture.service, QStringLiteral("new-from-your-artists"),
+                                    QStringLiteral("MPRE_MID_YEAR")));
         QVERIFY(!sectionHasProviderId(fixture.service, QStringLiteral("new-from-your-artists"),
                                      QStringLiteral("MPRE_YEAR_ONLY")));
         QVERIFY(!sectionHasProviderId(fixture.service, QStringLiteral("new-from-your-artists"),
                                      QStringLiteral("MPRE_OLD")));
         QVERIFY(!sectionHasProviderId(fixture.service, QStringLiteral("new-from-your-artists"),
                                      QStringLiteral("MPRE_BAD_DATE")));
+        QVERIFY(!sectionHasProviderId(fixture.service, QStringLiteral("new-from-your-artists"),
+                                     QStringLiteral("MPRE_FUTURE")));
+        QVERIFY(!sectionHasProviderId(fixture.service, QStringLiteral("new-from-your-artists"),
+                                     QStringLiteral("MPRE_MONTH_ONLY")));
     }
 };
 

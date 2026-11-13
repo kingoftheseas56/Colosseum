@@ -1,5 +1,7 @@
 """Bounded recommendation contracts for the anonymous Vinyl provider."""
 import importlib.util
+import json
+import uuid
 import pathlib
 import urllib.error
 import urllib.parse
@@ -129,16 +131,27 @@ class UnavailableMusicBrainz:
 class FakeMusicBrainz:
     """Offline MusicBrainz search/detail transport that records every URL."""
 
-    def __init__(self, artists, details):
+    def __init__(self, artists, details, pages=None, search_count=None):
         self.artists = list(artists)
         self.details = dict(details)
+        self.pages = pages or {0: {"release-groups": [], "release-group-count": 0, "release-group-offset": 0}}
+        self.search_count = search_count
         self.calls = []
 
     def get_json(self, url):
         self.calls.append(url)
         path = urllib.parse.urlparse(url).path
         if path.endswith("/artist/"):
-            return {"artists": self.artists}
+            return {"artists": self.artists, "count": len(self.artists) if self.search_count is None else self.search_count}
+        if path.endswith("/release-group"):
+            query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+            if "query" not in query:
+                assert query["artist"][0] in self.details
+            assert query["limit"] == ["100"]
+            page = self.pages[int(query["offset"][0])]
+            if isinstance(page, Exception):
+                raise page
+            return page
         artist_id = path.rsplit("/", 1)[-1]
         return self.details[artist_id]
 
@@ -415,8 +428,7 @@ class VinylRecommendationProviderTest(unittest.TestCase):
         self.assertEqual(result["mapping"]["providerId"], CHANNEL_ID)
         self.assertEqual(result["mapping"]["mbid"], MUSICBRAINZ_ARTIST_ID)
         self.assertEqual(len(mb_client.calls), 2)
-        self.assertTrue(all("/release-group" not in urllib.parse.urlparse(url).path
-                            for url in mb_client.calls))
+        self.assertTrue(all("/release-group" not in urllib.parse.urlparse(url).path for url in mb_client.calls))
 
     def test_same_name_musicbrainz_artists_remain_ambiguous_without_channel_relation(self):
         artist_ids = [MUSICBRAINZ_ARTIST_ID, OTHER_MUSICBRAINZ_ARTIST_ID]
@@ -479,6 +491,487 @@ class VinylRecommendationProviderTest(unittest.TestCase):
         self.assertEqual(result["status"], "unresolved")
         self.assertNotIn("mbid", result)
         self.assertNotIn("mapping", result)
+
+    def identity_fixture(self, *, name="Fixture", aliases=None, pages=None, search_count=None):
+        detail = {"id": MUSICBRAINZ_ARTIST_ID, "name": name,
+                  "sort-name": name, "aliases": aliases or [],
+                  "relations": [{"url": {"resource": "https://www.youtube.com/channel/" + CHANNEL_ID}}],
+                  "release-groups": []}
+        return FakeMusicBrainz([{ "id": MUSICBRAINZ_ARTIST_ID, "name": name}],
+                              {MUSICBRAINZ_ARTIST_ID: detail}, pages, search_count)
+
+    def identify(self, mb, name="Fixture"):
+        raw = raw_artist()
+        raw["name"] = name
+        return provider.handle({"operation":"recommendationIdentity", "value":CHANNEL_ID, "seed":SEED},
+                               client=FakeClient(raw), mb_client=mb)
+
+    def discography(self, mb, **options):
+        request = {"operation":"recommendationDiscography", "value":MUSICBRAINZ_ARTIST_ID,
+                   "seed":{"identity":"canonical", "kind":"artist", "mbid":MUSICBRAINZ_ARTIST_ID}}
+        request.update(options)
+        # The metadata-only operation must work with no YT packages installed.
+        with mock.patch.dict("sys.modules", {"requests":None, "ytmusicapi":None}), \
+             mock.patch.object(provider, "home_raw_artist", side_effect=AssertionError("No YT request permitted")) as yt:
+            result = provider.handle(request, mb_client=mb)
+        yt.assert_not_called()
+        self.assertEqual(result["version"], 1)
+        self.assertEqual(result["provenance"]["source"], "musicbrainz")
+        self.assertEqual(result["items"], [])
+        self.assertEqual(result["seed"], request["seed"])
+        self.assertNotIn("mapping", result)
+        self.assertNotIn("mappingStatus", result)
+        self.assertNotIn("mbid", result)
+        self.assertEqual(result["artist"]["id"], MUSICBRAINZ_ARTIST_ID)
+        self.assertIs(result["complete"], result["artist"]["releaseGroupsComplete"])
+        return result
+
+    def release_groups(self, start, end, title="Release"):
+        dates = ["2026", "2026-03", "2026-03-12", "", "2026-??-12"]
+        return [{"id":str(uuid.UUID(int=index + 10000)), "title":title + str(index),
+                 "first-release-date":dates[index % len(dates)], "primary-type":"Album",
+                 "secondary-types":[]} for index in range(start, end)]
+
+    def recent_groups(self, start, end, **options):
+        return [dict(row, **{"artist-credit":[{"name":"Native artist", "artist":{
+            "id":MUSICBRAINZ_ARTIST_ID, "name":"Native artist"}}]})
+            for row in self.release_groups(start, end, **options)]
+
+    def recent_discography(self, mb):
+        return self.discography(mb, since="2025-11-13", until="2026-11-13")
+
+    def test_recent_discography_searches_bounded_dates_and_validates_scope(self):
+        groups = self.recent_groups(0, 125)
+        # A joint credit is still evidence for the explicitly requested artist.
+        groups[0]["artist-credit"].insert(0, {"artist":{"id":OTHER_MUSICBRAINZ_ARTIST_ID}})
+        mb = self.identity_fixture(pages={
+            0:{"count":125, "offset":0, "release-groups":groups[:100]},
+            100:{"count":125, "offset":100, "release-groups":groups[100:]}})
+        result = self.recent_discography(mb)
+        self.assertEqual(result["status"], "ready")
+        self.assertIs(result["complete"], True)
+        self.assertEqual(result["artist"]["releaseGroupScope"], "recent-releases")
+        self.assertEqual(result["artist"]["releaseGroupWindow"], {"since":"2025-11-13", "until":"2026-11-13"})
+        self.assertEqual(result["artist"]["releaseGroupCount"], 125)
+        self.assertEqual(result["artist"]["releaseGroups"], self.release_groups(0, 125))
+        self.assertEqual(len(mb.calls), 2)
+        for offset, url in zip((0, 100), mb.calls):
+            parsed = urllib.parse.urlparse(url)
+            self.assertEqual(parsed.path, "/ws/2/release-group")
+            self.assertEqual(urllib.parse.parse_qs(parsed.query), {
+                "query":[f'arid:"{MUSICBRAINZ_ARTIST_ID}" AND firstreleasedate:[2025-11-13 TO 2026-11-13]'],
+                "fmt":["json"], "limit":["100"], "offset":[str(offset)]})
+
+    def test_recent_discography_preserves_partial_and_absent_dates(self):
+        groups = self.recent_groups(0, 5)
+        del groups[0]["first-release-date"]
+        result = self.recent_discography(self.identity_fixture(pages={
+            0:{"count":5, "offset":0, "release-groups":groups}}))
+        expected = [{key:value for key,value in row.items() if key != "artist-credit"} for row in groups]
+        self.assertEqual(result["artist"]["releaseGroups"], expected)
+        self.assertIs(result["complete"], True)
+
+    def test_recent_discography_successful_empty_subset_is_complete(self):
+        mb = self.identity_fixture(pages={0:{"count":0, "offset":0, "release-groups":[]}})
+        result = self.recent_discography(mb)
+        self.assertEqual(result["status"], "empty")
+        self.assertIs(result["complete"], True)
+        self.assertEqual(result["artist"]["releaseGroupCount"], 0)
+        self.assertEqual(result["artist"]["releaseGroupScope"], "recent-releases")
+        self.assertEqual(len(mb.calls), 1)
+
+    def test_recent_discography_rejects_invalid_options_before_transport(self):
+        valid = {"since":"2025-11-13", "until":"2026-11-13"}
+        cases = [{"since":"2025-11-13"}, {"until":"2026-11-13"},
+                 dict(valid, extra=True), dict(valid, limit=100)]
+        for value in (None, True, 20261113, "", "2026", "2026-11", "2026-02-30",
+                      "2026-1-01", "20261113", "2026-11-13T00:00:00Z", " 2026-11-13",
+                      "2026-11-13\n", "0000-01-01", "2026-11-13 TO *] OR arid:*"):
+            cases.extend((dict(valid, since=value), dict(valid, until=value)))
+        cases.append({"since":"2026-11-14", "until":"2026-11-13"})
+        for options in cases:
+            with self.subTest(options=options):
+                mb = self.identity_fixture()
+                request = {"operation":"recommendationDiscography", "value":MUSICBRAINZ_ARTIST_ID,
+                           "seed":{"identity":"canonical", "kind":"artist", "mbid":MUSICBRAINZ_ARTIST_ID}, **options}
+                with mock.patch.dict("sys.modules", {"requests":None, "ytmusicapi":None}):
+                    result = provider.handle(request, mb_client=mb)
+                self.assertEqual(result["status"], "unavailable")
+                self.assertEqual(result["sourceStatus"], "invalid_argument")
+                self.assertEqual(mb.calls, [])
+
+    def test_recent_discography_requires_requested_artist_credit_on_every_row(self):
+        valid = self.recent_groups(0, 1)[0]
+        for credit in (None, [], "Native artist", [{"artist":{"id":OTHER_MUSICBRAINZ_ARTIST_ID}}],
+                       [{"artist":{"id":"not-an-mbid"}}], [{"name":"Native artist"}]):
+            with self.subTest(credit=credit):
+                row = dict(valid, **{"artist-credit":credit})
+                result = self.recent_discography(self.identity_fixture(pages={
+                    0:{"count":1, "offset":0, "release-groups":[row]}}))
+                self.assertEqual(result["status"], "unavailable")
+                self.assertEqual(result["artist"]["releaseGroups"], [])
+                self.assertIs(result["complete"], False)
+
+    def test_recent_discography_rejects_malformed_search_count_and_offset(self):
+        valid = {"count":1, "offset":0, "release-groups":self.recent_groups(0, 1)}
+        pages = [dict(valid, count=value) for value in (None, False, 1.0, "1", -1)]
+        pages += [dict(valid, offset=value) for value in (None, False, 0.0, "0", 1)]
+        pages += [{"release-group-count":1, "release-group-offset":0, "release-groups":self.recent_groups(0, 1)}]
+        for page in pages:
+            with self.subTest(page=page):
+                result = self.recent_discography(self.identity_fixture(pages={0:page}))
+                self.assertEqual(result["status"], "unavailable")
+                self.assertIs(result["complete"], False)
+                self.assertEqual(result["artist"]["releaseGroups"], [])
+
+    def test_recent_discography_retains_prior_page_on_changed_count_or_offset(self):
+        first = self.recent_groups(0, 100)
+        for count, offset in ((201,100), (200,99), (False,100)):
+            with self.subTest(count=count, offset=offset):
+                mb = self.identity_fixture(pages={0:{"count":200, "offset":0, "release-groups":first},
+                    100:{"count":count, "offset":offset, "release-groups":self.recent_groups(100, 200)}})
+                result = self.recent_discography(mb)
+                self.assertEqual(result["status"], "partial")
+                self.assertEqual(len(result["artist"]["releaseGroups"]), 100)
+                self.assertEqual(result["artist"]["releaseGroupCount"], 200)
+                self.assertIs(result["complete"], False)
+                self.assertEqual(len(mb.calls), 2)
+
+    def test_recent_discography_page_cap_partial_repeat_and_failed_pages(self):
+        pages = {offset:{"count":600, "offset":offset, "release-groups":self.recent_groups(offset,offset+100)}
+                 for offset in range(0,500,100)}
+        mb = self.identity_fixture(pages=pages)
+        result = self.recent_discography(mb)
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(len(result["artist"]["releaseGroups"]), 500)
+        self.assertIs(result["complete"], False)
+        self.assertEqual(len(mb.calls), 5)
+        for second in (self.recent_groups(100,101), self.recent_groups(0,100), provider.ProviderTimeoutError()):
+            with self.subTest(second=type(second).__name__):
+                page = second if isinstance(second, Exception) else {"count":200,"offset":100,"release-groups":second}
+                result = self.recent_discography(self.identity_fixture(pages={
+                    0:{"count":200,"offset":0,"release-groups":self.recent_groups(0,100)},100:page}))
+                self.assertEqual(result["status"], "partial")
+                self.assertIs(result["complete"], False)
+                self.assertGreaterEqual(len(result["artist"]["releaseGroups"]), 100)
+                self.assertLessEqual(len(result["artist"]["releaseGroups"]), 101)
+
+    def test_recent_discography_wire_budget_handles_multibyte_titles(self):
+        mb = self.identity_fixture(pages={0:{"count":100,"offset":0,
+            "release-groups":self.recent_groups(0,100,title="日本語" * 500)}})
+        result = self.recent_discography(mb)
+        self.assertEqual(result["status"], "partial")
+        self.assertIs(result["complete"], False)
+        self.assertGreater(len(result["artist"]["releaseGroups"]), 0)
+        self.assertLess(len(result["artist"]["releaseGroups"]), 100)
+        self.assertLessEqual(len(json.dumps({"ok":True,"data":result},ensure_ascii=True).encode("utf-8"))+1,239*1024)
+        self.assertEqual(len(mb.calls), 1)
+
+    def test_recent_discography_failed_or_unusable_first_page_is_not_empty(self):
+        for page in (provider.ProviderTimeoutError(),
+                     urllib.error.HTTPError("https://musicbrainz.org/ws/2/release-group",401,"Unauthorized",{},None),
+                     {"count":1,"offset":0,"release-groups":self.recent_groups(0,1,title="日" * 300000)},
+                     {"count":101,"offset":0,"release-groups":self.recent_groups(0,101)}):
+            with self.subTest(page=type(page).__name__):
+                mb = self.identity_fixture(pages={0:page})
+                result = self.recent_discography(mb)
+                self.assertEqual(result["status"], "unavailable")
+                self.assertIs(result["complete"], False)
+                self.assertEqual(result["artist"]["releaseGroups"], [])
+                self.assertEqual(len(mb.calls), 1)
+
+    def test_recent_discography_later_mismatched_credit_retains_only_prior_page(self):
+        second = self.recent_groups(100,101)
+        second[0]["artist-credit"]=[{"artist":{"id":OTHER_MUSICBRAINZ_ARTIST_ID}}]
+        mb = self.identity_fixture(pages={0:{"count":101,"offset":0,"release-groups":self.recent_groups(0,100)},
+                                          100:{"count":101,"offset":100,"release-groups":second}})
+        result = self.recent_discography(mb)
+        self.assertEqual(result["status"], "partial")
+        self.assertIs(result["complete"], False)
+        self.assertEqual(len(result["artist"]["releaseGroups"]), 100)
+        self.assertEqual(len(mb.calls), 2)
+
+    def test_recent_discography_same_day_window_and_legacy_browse_shape(self):
+        mb = self.identity_fixture(pages={0:{"count":0,"offset":0,"release-groups":[]}})
+        result = self.discography(mb,since="2024-02-29",until="2024-02-29")
+        self.assertEqual(result["status"], "empty")
+        legacy = self.discography(self.identity_fixture())
+        self.assertNotIn("releaseGroupScope",legacy["artist"])
+        self.assertNotIn("releaseGroupWindow",legacy["artist"])
+
+    def test_native_name_verifies_through_english_alias_and_channel_relation(self):
+        mb = self.identity_fixture(name="竹内まりや", aliases=[
+            {"name":"Mariya Takeuchi", "sort-name":"Takeuchi, Mariya", "locale":None},
+            {"name":"竹内まりや"}])
+        result = self.identify(mb, "Mariya Takeuchi")
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["mapping"]["method"], "external-id")
+        self.assertEqual(result["artist"]["aliases"], ["竹内まりや", "Mariya Takeuchi", "Takeuchi, Mariya"])
+        self.assertIs(result["artist"]["aliasesComplete"], True)
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(mb.calls[0]).query)["query"][0]
+        self.assertEqual(query, '(artist:"Mariya Takeuchi" OR alias:"Mariya Takeuchi")')
+        self.assertIn("aliases", urllib.parse.parse_qs(urllib.parse.urlparse(mb.calls[1]).query)["inc"][0])
+
+    def test_receiving_verified_artist_id_matches_canonical_mapping(self):
+        mb = self.identity_fixture(name="竹内まりや",aliases=[{"name":"Mariya Takeuchi"}])
+        result = self.identify(mb,"Mariya Takeuchi")
+        self.assertEqual(result["status"],"verified")
+        self.assertEqual(result["artist"].get("id"),result["mbid"])
+        self.assertEqual(result["artist"]["id"],result["mapping"]["mbid"])
+        self.assertEqual(result["artist"]["aliases"],["竹内まりや","Mariya Takeuchi"])
+        self.assertIs(result["artist"]["aliasesComplete"],True)
+        self.assertEqual(len(mb.calls),2)
+
+    def test_receiving_undated_discography_rejects_malformed_metadata_before_transport(self):
+        invalid = [{"fetchedAt":value} for value in (None,False,123,[],{},"x"*129)]
+        invalid += [{"refresh":value} for value in (None,0,1,"true",[],{})]
+        for options in invalid:
+            with self.subTest(options=options):
+                mb = self.identity_fixture()
+                request = {"operation":"recommendationDiscography","value":MUSICBRAINZ_ARTIST_ID,
+                           "seed":{"identity":"canonical","kind":"artist","mbid":MUSICBRAINZ_ARTIST_ID},**options}
+                with mock.patch.dict("sys.modules",{"requests":None,"ytmusicapi":None}):
+                    result = provider.handle(request,mb_client=mb)
+                self.assertEqual(result["status"],"unavailable")
+                self.assertEqual(result["sourceStatus"],"invalid_argument")
+                self.assertEqual(mb.calls,[])
+
+    def test_alias_query_escapes_lucene_quotes_and_backslashes(self):
+        name = 'A "B" \\ C'
+        mb = self.identity_fixture(name="Native", aliases=[{"name":name}])
+        result = self.identify(mb, name)
+        self.assertEqual(result["status"], "verified")
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(mb.calls[0]).query)["query"][0]
+        escaped = name.replace("\\", "\\\\").replace('"', '\\"')
+        self.assertEqual(query, '(artist:"' + escaped + '" OR alias:"' + escaped + '")')
+
+    def test_verified_discography_browses_beyond_lookup_limit_and_preserves_partial_dates(self):
+        groups = self.release_groups(0, 125)
+        mb = self.identity_fixture(pages={
+            0:{"release-group-count":125, "release-group-offset":0, "release-groups":groups[:100]},
+            100:{"release-group-count":125, "release-group-offset":100, "release-groups":groups[100:]}})
+        result = self.discography(mb)
+        self.assertEqual(result["status"], "ready")
+        self.assertIs(result["complete"], True)
+        self.assertEqual(result["artist"]["releaseGroups"], groups)
+        self.assertIs(result["artist"]["releaseGroupsComplete"], True)
+        self.assertEqual(result["artist"]["releaseGroupCount"], 125)
+
+    def test_discography_failure_does_not_revoke_verified_identity(self):
+        mb = self.identity_fixture(pages={0:RuntimeError("offline fixture failure")})
+        identity = self.identify(mb)
+        self.assertEqual(identity["status"], "verified")
+        self.assertIs(identity["complete"], True)
+        self.assertEqual(len(mb.calls), 2)
+        self.assertNotIn("releaseGroups", identity["artist"])
+        result = self.discography(mb)
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIs(result["complete"], False)
+        self.assertEqual(result["artist"]["releaseGroups"], [])
+        self.assertIs(result["artist"]["releaseGroupsComplete"], False)
+        self.assertIsNone(result["artist"]["releaseGroupCount"])
+        self.assertEqual(identity["status"], "verified")
+        self.assertEqual(len(mb.calls), 3)
+
+
+    def test_discography_stops_on_partial_repeating_and_malformed_pages(self):
+        first = self.release_groups(0, 100)
+        for rows in (self.release_groups(100, 101), first, [{"id":"not-an-mbid", "title":"Bad"}]):
+            with self.subTest(rows=len(rows)):
+                mb = self.identity_fixture(pages={
+                    0:{"release-group-count":200, "release-group-offset":0, "release-groups":first},
+                    100:{"release-group-count":200, "release-group-offset":100, "release-groups":rows}})
+                result = self.discography(mb)
+                self.assertEqual(result["status"], "partial")
+                self.assertIs(result["artist"]["releaseGroupsComplete"], False)
+                self.assertEqual(result["artist"]["releaseGroups"][:100], first)
+                self.assertLessEqual(len(result["artist"]["releaseGroups"]), 101)
+                self.assertEqual(len(mb.calls), 2)
+
+    def test_discography_rejects_wrong_offsets_and_changed_totals(self):
+        first = self.release_groups(0, 100)
+        for page in ({"release-group-count":200, "release-group-offset":0, "release-groups":first},
+                     {"release-group-count":201, "release-group-offset":100, "release-groups":self.release_groups(100, 200)},
+                     {"release-group-count":"200", "release-group-offset":100, "release-groups":[]},
+                     {"release-group-count":200, "release-group-offset":100, "release-groups":None}):
+            with self.subTest(page=page):
+                mb = self.identity_fixture(pages={
+                    0:{"release-group-count":200, "release-group-offset":0, "release-groups":first}, 100:page})
+                result = self.discography(mb)
+                self.assertEqual(result["status"], "partial")
+                self.assertIs(result["artist"]["releaseGroupsComplete"], False)
+                self.assertEqual(result["artist"]["releaseGroups"], first)
+
+    def test_discography_page_cap_is_explicitly_incomplete(self):
+        pages = {offset:{"release-group-count":501, "release-group-offset":offset,
+                         "release-groups":self.release_groups(offset, offset + 100)} for offset in range(0, 500, 100)}
+        mb = self.identity_fixture(pages=pages)
+        result = self.discography(mb)
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(len(result["artist"]["releaseGroups"]), 500)
+        self.assertEqual(result["artist"]["releaseGroupCount"], 501)
+        self.assertIs(result["artist"]["releaseGroupsComplete"], False)
+        self.assertEqual(len(mb.calls), 5)
+
+    def test_metadata_multibyte_budget_preserves_identity_and_marks_truncation(self):
+        groups = self.release_groups(0, 100, title="日本語" * 500)
+        mb = self.identity_fixture(pages={0:{"release-group-count":100, "release-group-offset":0, "release-groups":groups}})
+        result = self.discography(mb)
+        self.assertEqual(result["status"], "partial")
+        self.assertLess(len(result["artist"]["releaseGroups"]), 100)
+        self.assertIs(result["artist"]["releaseGroupsComplete"], False)
+        self.assertLessEqual(len(json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode("utf-8")), 240 * 1024)
+        result = self.identify(self.identity_fixture(aliases=[{"name":"日本語" * 40000}]))
+        self.assertEqual(result["status"], "verified")
+        self.assertIs(result["artist"]["aliasesComplete"], False)
+        self.assertEqual(result["artist"]["aliases"], ["Fixture"])
+        self.assertLessEqual(len(json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode("utf-8")), 240 * 1024)
+
+    def test_identity_never_browses_discography(self):
+        mb = self.identity_fixture()
+        result = self.identify(mb)
+        self.assertEqual(result["status"], "verified")
+        self.assertIs(result["artist"]["aliasesComplete"], True)
+        self.assertNotIn("releaseGroups", result["artist"])
+        self.assertNotIn("releaseGroupsComplete", result["artist"])
+        self.assertNotIn("releaseGroupCount", result["artist"])
+        self.assertEqual(len(mb.calls), 2)
+        self.assertTrue(all("/release-group" not in urllib.parse.urlparse(url).path for url in mb.calls))
+
+    def test_discography_empty_is_only_complete_zero_groups_and_never_calls_yt(self):
+        mb = self.identity_fixture()
+        result = self.discography(mb)
+        self.assertEqual(result["status"], "empty")
+        self.assertIs(result["complete"], True)
+        self.assertEqual(result["artist"]["releaseGroupCount"], 0)
+        self.assertEqual(result["artist"]["releaseGroups"], [])
+        self.assertEqual(len(mb.calls), 1)
+        self.assertTrue(urllib.parse.urlparse(mb.calls[0]).path.endswith("/release-group"))
+
+    def test_discography_invalid_canonical_seed_stops_before_transport(self):
+        canonical = {"identity":"canonical", "kind":"artist", "mbid":MUSICBRAINZ_ARTIST_ID}
+        cases = [(None, canonical), (42, canonical), ("0" * 36, canonical),
+                 ("00000000-0000-0000-0000-000000000000", canonical),
+                 (MUSICBRAINZ_ARTIST_ID, None), (MUSICBRAINZ_ARTIST_ID, []),
+                 (MUSICBRAINZ_ARTIST_ID, SEED),
+                 (MUSICBRAINZ_ARTIST_ID, dict(canonical, mbid=OTHER_MUSICBRAINZ_ARTIST_ID)),
+                 (MUSICBRAINZ_ARTIST_ID, dict(canonical, kind="recording")),
+                 (MUSICBRAINZ_ARTIST_ID, dict(canonical, extra=True)),
+                 (MUSICBRAINZ_ARTIST_ID, dict(canonical, identity=True))]
+        for value, seed in cases:
+            with self.subTest(value=value, seed=seed):
+                mb = self.identity_fixture()
+                with mock.patch.dict("sys.modules", {"requests":None, "ytmusicapi":None}):
+                    result = provider.handle({"operation":"recommendationDiscography", "value":value,
+                                              "seed":seed}, mb_client=mb)
+                self.assertEqual(result["status"], "unavailable")
+                self.assertEqual(result["sourceStatus"], "invalid_argument")
+                self.assertIs(result["complete"], False)
+                self.assertEqual(result["provenance"]["source"], "musicbrainz")
+                self.assertNotIn("mappingStatus", result)
+                self.assertEqual(mb.calls, [])
+
+    def test_discography_unusable_first_page_cannot_be_reported_empty(self):
+        for page in ({"release-groups":[], "release-group-count":1, "release-group-offset":0},
+                     {"release-groups":[{"id":"bad", "title":"Bad"}], "release-group-count":1, "release-group-offset":0},
+                     {"release-groups":self.release_groups(0,1,title="日" * 300000), "release-group-count":1, "release-group-offset":0}):
+            with self.subTest(count=page["release-group-count"]):
+                mb = self.identity_fixture(pages={0:page})
+                result = self.discography(mb)
+                self.assertEqual(result["status"], "unavailable")
+                self.assertIs(result["complete"], False)
+                self.assertEqual(result["artist"]["releaseGroups"], [])
+                self.assertEqual(len(mb.calls), 1)
+
+    def test_discography_partial_transport_failure_retains_evidence(self):
+        first = self.release_groups(0,100)
+        mb = self.identity_fixture(pages={
+            0:{"release-groups":first, "release-group-count":200, "release-group-offset":0},
+            100:provider.RateLimitError(retry_after=123)})
+        result = self.discography(mb)
+        self.assertEqual(result["status"], "partial")
+        self.assertIs(result["complete"], False)
+        self.assertEqual(result["artist"]["releaseGroups"], first)
+        self.assertEqual(result["sourceStatus"], "rate_limited")
+        self.assertEqual(result["retryAfterSeconds"], 123)
+        self.assertEqual(len(mb.calls), 2)
+
+    def test_alias_match_alone_does_not_verify_identity(self):
+        mb = self.identity_fixture(name="Native", aliases=[{"name":"Fixture"}])
+        mb.details[MUSICBRAINZ_ARTIST_ID]["relations"] = []
+        result = self.identify(mb)
+        self.assertEqual(result["status"], "unresolved")
+        self.assertNotIn("mapping", result)
+        self.assertEqual(len(mb.calls), 2)
+
+    def test_incomplete_alias_search_cannot_verify_or_fetch_discography(self):
+        mb = self.identity_fixture(name="Native", aliases=[{"name":"Fixture"}], search_count=6)
+        result = self.identify(mb)
+        self.assertNotEqual(result["status"], "verified")
+        self.assertIs(result["complete"], False)
+        self.assertNotIn("mapping", result)
+        self.assertEqual(len(mb.calls), 2)
+
+    def test_malformed_search_offsets_cannot_verify_or_fetch_discography(self):
+        for offset in (False, 0.0, "0", True, 1):
+            with self.subTest(offset=repr(offset)):
+                mb = self.identity_fixture()
+                get_json = mb.get_json
+
+                def response(url):
+                    data = get_json(url)
+                    if urllib.parse.urlparse(url).path.endswith("/artist/"):
+                        return dict(data, offset=offset)
+                    return data
+
+                with mock.patch.object(mb, "get_json", side_effect=response):
+                    result = self.identify(mb)
+                self.assertNotEqual(result["status"], "verified")
+                self.assertIs(result["complete"], False)
+                self.assertNotIn("mapping", result)
+                self.assertEqual(len(mb.calls), 2)
+                self.assertTrue(all("/release-group" not in urllib.parse.urlparse(url).path for url in mb.calls))
+
+    def test_malformed_alias_metadata_cannot_hide_unexamined_name_matches(self):
+        for aliases in ({"name":"Fixture"}, [None], [{"name":42}]):
+            with self.subTest(aliases=aliases):
+                mb = self.identity_fixture()
+                mb.details[MUSICBRAINZ_ARTIST_ID]["aliases"] = aliases
+                result = self.identify(mb)
+                self.assertNotEqual(result["status"], "verified")
+                self.assertIs(result["complete"], False)
+                self.assertNotIn("mapping", result)
+                self.assertEqual(len(mb.calls), 2)
+
+    def test_discography_retains_absent_dates_without_inventing_a_full_date(self):
+        groups = [{"id":str(uuid.UUID(int=10000)), "title":"Undated", "primary-type":None}]
+        result = self.discography(self.identity_fixture(pages={
+            0:{"release-group-count":1, "release-group-offset":0, "release-groups":groups}}))
+        self.assertEqual(result["artist"]["releaseGroups"], groups)
+        self.assertIs(result["artist"]["releaseGroupsComplete"], True)
+        self.assertNotIn("first-release-date", result["artist"]["releaseGroups"][0])
+
+    def test_conflicting_native_alias_channel_matches_stay_ambiguous(self):
+        ids = [MUSICBRAINZ_ARTIST_ID, OTHER_MUSICBRAINZ_ARTIST_ID]
+        mb = FakeMusicBrainz([{"id":key, "name":"Native"} for key in ids],
+            {key:{"id":key, "name":"Native", "aliases":[{"name":"Fixture"}],
+                  "relations":[{"url":{"resource":"https://www.youtube.com/channel/" + CHANNEL_ID}}]} for key in ids})
+        result = self.identify(mb)
+        self.assertEqual(result["status"], "ambiguous")
+        self.assertNotIn("mapping", result)
+        self.assertEqual(len(mb.calls), 3)
+
+    def test_unique_alias_still_requires_two_dated_release_corroborations(self):
+        mb = self.identity_fixture(name="Native", aliases=[{"name":"Fixture"}])
+        detail = mb.details[MUSICBRAINZ_ARTIST_ID]
+        detail["relations"] = []
+        detail["release-groups"] = self.release_groups(0, 2)
+        raw = raw_artist(albums=[raw_release(group["title"], "MPRE_" + str(index), year=group["first-release-date"][:4])
+                                 for index, group in enumerate(detail["release-groups"])])
+        result = provider.handle({"operation":"recommendationIdentity", "value":CHANNEL_ID, "seed":SEED},
+                                 client=FakeClient(raw), mb_client=mb)
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["mapping"]["method"], "corroborated-metadata")
 
     def test_partial_recording_search_does_not_cache_a_negative_match(self):
         recording = {
