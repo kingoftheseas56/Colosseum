@@ -133,7 +133,7 @@ TestCase {
                "The full volume viewport is reachable above the fixed actions")
         volumeReadSpy.target = room
         volumeReadSpy.clear()
-        mouseClick(readVolume, readVolume.width / 2, readVolume.height / 2)
+        mouseClick(readVolume, readVolume.width / 2, -2)
         compare(volumeReadSpy.count, 1)
         compare(volumeReadSpy.signalArguments[0][0], "fixture-1")
         volumeReadSpy.target = null

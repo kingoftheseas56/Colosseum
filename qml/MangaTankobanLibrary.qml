@@ -46,6 +46,7 @@
 // inert-cursor status they carried in the pre-v2.3 vertical grid.
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Window
 import "MangaVolumes.js" as Vol
 
 Item {
@@ -53,7 +54,10 @@ Item {
     objectName: "volumeShelf"
     // The reading room may host these same actions outside its scrolling body.
     property Item actionBarHost: null
-    AdaptiveLayout { id: adaptive }
+    AdaptiveLayout {
+        id: adaptive
+        androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost === true)
+    }
     property bool touchInput: Qt.platform.os === "android"
 
     property string seriesId: ""
@@ -1005,12 +1009,16 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     enabled: root.currentDownloadEnabled
+                    anchors.topMargin: -adaptive.targetInset(parent.height)
+                    anchors.bottomMargin: -adaptive.targetInset(parent.height)
                     hoverEnabled: true
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: root.downloadAction(root.currentRow)
                 }
                 KeyboardAction {
                     id: actionDownloadKeyboard; anchors.fill: parent; pointerEnabled: false
+                    anchors.topMargin: -adaptive.targetInset(parent.height)
+                    anchors.bottomMargin: -adaptive.targetInset(parent.height)
                     focusEnabled: root.currentDownloadEnabled; accessibleName: "Download current volume"
                     focusRadius: parent.radius; onTriggered: root.downloadAction(root.currentRow)
                 }
@@ -1030,11 +1038,15 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     enabled: root.currentRow !== null
+                    anchors.topMargin: -adaptive.targetInset(parent.height)
+                    anchors.bottomMargin: -adaptive.targetInset(parent.height)
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: root.activateCurrent()
                 }
                 KeyboardAction {
                     id: actionReadKeyboard; anchors.fill: parent; pointerEnabled: false
+                    anchors.topMargin: -adaptive.targetInset(parent.height)
+                    anchors.bottomMargin: -adaptive.targetInset(parent.height)
                     focusEnabled: root.currentRow !== null; accessibleName: root.currentActionLabel
                     focusRadius: parent.radius; onTriggered: root.activateCurrent()
                 }
