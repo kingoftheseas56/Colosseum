@@ -98,16 +98,25 @@ TestCase {
         activatePointer()
         compare(dock.open, false)
         wait(300)
+        if (!data.android) {
+            mouseMove(action, action.width / 2, action.height / 2)
+            tryCompare(action, "hovered", true)
+        }
         mouseMove(host.contentItem, host.width - 10, 10)
         wait(50)
-        compare(action.activeFocus, !data.android, "Touch must not leave persistent keyboard focus")
-        compare(action.interactionActive, !data.android, "Touch highlight clears when the taskbar closes")
+        compare(action.activeFocus, false, "Pointer toggles must not leave persistent keyboard focus")
+        compare(action.interactionActive, false, "Pointer highlight clears after closing and leaving the taskbar")
         action.forceActiveFocus(Qt.TabFocusReason)
         keyClick(Qt.Key_Return)
         compare(dock.open, true)
         keyClick(Qt.Key_Return)
         compare(dock.open, false)
         verify(action.activeFocus, "Keyboard focus remains available after toggling")
+        keyClick(Qt.Key_Space)
+        compare(dock.open, true)
+        keyClick(Qt.Key_Space)
+        compare(dock.open, false)
+        verify(action.interactionActive, "Keyboard navigation retains its visible focus cue")
     }
     Component { id: metricsComponent; App.AdaptiveLayout {} }
     Component {

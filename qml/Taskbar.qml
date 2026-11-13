@@ -183,8 +183,8 @@ Item {
                     id: startInput
                     objectName: "taskbarToggleAction"
                     spaceActivates: true
-                    // Touch toggles should not leave the keyboard-focus glow behind.
-                    focusOnPointer: !touchMetrics.androidHost
+                    // Pointer toggles should not leave the keyboard-focus glow behind.
+                    focusOnPointer: false
                     anchors.fill: parent
                     anchors.leftMargin: -touchMetrics.targetInset(parent.width)
                     anchors.rightMargin: -touchMetrics.targetInset(parent.width)
