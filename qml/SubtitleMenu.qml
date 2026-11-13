@@ -520,6 +520,7 @@ Item {
                 icon: "fit"
                 active: menu.appearanceOpen
                 accessibleName: "Subtitle appearance"
+                androidCaption: qsTr("Subtitle appearance")
                 onClicked: {
                     menu.searching = false
                     menu.appearanceOpen = !menu.appearanceOpen
@@ -1088,7 +1089,7 @@ Item {
                 StyleSlider {
                     id: outlineSlider
                     x: 18
-                    y: 262
+                    y: Qt.platform.os === "android" ? 278 : 262
                     width: parent.width - 36
                     label: "OUTLINE"
                     valueText: Number(subtitleStylePrefs.outlineSize).toFixed(1)
@@ -1105,7 +1106,7 @@ Item {
                 StyleSlider {
                     id: positionSlider
                     x: 18
-                    y: 323
+                    y: Qt.platform.os === "android" ? 339 : 323
                     width: parent.width - 36
                     label: "VERTICAL POSITION"
                     valueText: String(subtitleStylePrefs.position)
@@ -1122,7 +1123,7 @@ Item {
                 Rectangle {
                     id: preview
                     x: 18
-                    y: 388
+                    y: Qt.platform.os === "android" ? 404 : 388
                     width: parent.width - 36
                     height: 46
                     radius: 12
@@ -1166,11 +1167,12 @@ Item {
         property string icon: ""
         property bool active: false
         property string accessibleName: ""
+        property string androidCaption: ""
         signal clicked()
-        width: 44
-        height: 44
+        width: Qt.platform.os === "android" && androidCaption.length ? Math.max(44, androidCaption.length * 7 + 12) : 44
+        height: Qt.platform.os === "android" && androidCaption.length ? 68 : 44
         Rectangle {
-            anchors.fill: parent
+            width: 44; height: 44; anchors.horizontalCenter: parent.horizontalCenter
             radius: 14
             color: button.active ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.14)
                                  : mouse.containsMouse ? Qt.rgba(1, 1, 1, 0.10)
@@ -1180,7 +1182,9 @@ Item {
                                         : Qt.rgba(1, 1, 1, 0.055)
         }
         PlayerIcon {
-            anchors.centerIn: parent
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 12
             width: 20
             height: 20
             kind: button.icon
@@ -1195,11 +1199,14 @@ Item {
             onClicked: button.clicked()
         }
         KeyboardAction {
-            anchors.fill: parent
+            anchors.top: parent.top
+            width: parent.width; height: 44
             pointerEnabled: false
             accessibleName: button.accessibleName
             tooltipText: accessibleName
             tooltipHovered: mouse.containsMouse
+            androidTooltipPolicy: button.androidCaption.length ? "caption" : "drop"
+            androidCaptionText: button.androidCaption
             onTriggered: button.clicked()
         }
     }
@@ -1420,10 +1427,11 @@ Item {
                 swatches.picked(String(colors[keyboardIndex])); event.accepted = true
             }
         }
-        height: 34
+        height: Qt.platform.os === "android" ? 50 : 34
         Row {
             anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 3
             spacing: 8
             Repeater {
                 model: swatches.colors
@@ -1436,7 +1444,7 @@ Item {
                     radius: 8
                     color: modelData
                     Controls.ToolTip.text: swatches.label + " " + dot.modelData
-                    Controls.ToolTip.visible: swatchHover.hovered
+                    Controls.ToolTip.visible: Qt.platform.os !== "android" && swatchHover.hovered
                     Controls.ToolTip.delay: 350
                     border.width: (swatches.activeFocus && swatches.keyboardIndex === dot.index)
                                   || swatches.selected.toLowerCase() === modelData.toLowerCase() ? 2 : 1
@@ -1452,6 +1460,15 @@ Item {
                     }
                 }
             }
+        }
+        Text {
+            visible: Qt.platform.os === "android"
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            text: qsTr("Text color: ") + swatches.selected
+            color: theme.inkDimmer
+            font.family: theme.ui
+            font.pixelSize: 11
         }
     }
 
@@ -1605,8 +1622,8 @@ Item {
         property real value: 0
         signal step(real delta)
         signal reset()
-        width: 210
-        height: 36
+        width: Qt.platform.os === "android" ? 350 : 210
+        height: Qt.platform.os === "android" ? 64 : 36
 
         Row {
             anchors.right: parent.right
@@ -1624,8 +1641,8 @@ Item {
             }
 
             Rectangle {
-                width: 128
-                height: 34
+                width: Qt.platform.os === "android" ? 292 : 128
+                height: Qt.platform.os === "android" ? 58 : 34
                 radius: 10
                 color: Qt.rgba(1, 1, 1, 0.035)
 
@@ -1636,6 +1653,7 @@ Item {
                     CompactIconButton {
                         icon: "chevronLeft"
                         accessibleName: "Move subtitles earlier by 0.1 seconds"
+                        androidCaption: qsTr("Earlier")
                         onClicked: delayControl.step(-0.1)
                     }
 
@@ -1646,6 +1664,7 @@ Item {
                         color: delayValueMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent"
                         Text {
                             anchors.centerIn: parent
+                            anchors.verticalCenterOffset: Qt.platform.os === "android" ? -9 : 0
                             text: menu.fmtSigned(delayControl.value)
                             color: theme.ink
                             font.family: theme.hud
@@ -1661,11 +1680,13 @@ Item {
                             onClicked: delayControl.reset()
                         }
                         KeyboardAction {
-                            anchors.fill: parent
+                            width: parent.width; height: 28
                             pointerEnabled: false
                             accessibleName: "Reset subtitle sync"
                             tooltipText: accessibleName
                             tooltipHovered: delayValueMouse.containsMouse
+                            androidTooltipPolicy: "caption"
+                            androidCaptionText: qsTr("Reset subtitle sync")
                             onTriggered: delayControl.reset()
                         }
                     }
@@ -1673,6 +1694,7 @@ Item {
                     CompactIconButton {
                         icon: "chevronRight"
                         accessibleName: "Move subtitles later by 0.1 seconds"
+                        androidCaption: qsTr("Later")
                         onClicked: delayControl.step(0.1)
                     }
                 }
@@ -1684,14 +1706,17 @@ Item {
         id: button
         property string icon: ""
         property string accessibleName: ""
+        property string androidCaption: ""
         signal clicked()
-        width: 28
-        height: 28
+        width: Qt.platform.os === "android" && androidCaption.length ? Math.max(28, androidCaption.length * 7 + 10) : 28
+        height: Qt.platform.os === "android" ? 38 : 28
         radius: 8
         color: compactMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.075) : "transparent"
 
         PlayerIcon {
-            anchors.centerIn: parent
+            anchors.top: parent.top
+            anchors.topMargin: 7
+            anchors.horizontalCenter: parent.horizontalCenter
             width: 14
             height: 14
             iconSize: 14
@@ -1707,11 +1732,13 @@ Item {
             onClicked: button.clicked()
         }
         KeyboardAction {
-            anchors.fill: parent
+            width: parent.width; height: 28
             pointerEnabled: false
             accessibleName: button.accessibleName
             tooltipText: accessibleName
             tooltipHovered: compactMouse.containsMouse
+            androidTooltipPolicy: "caption"
+            androidCaptionText: button.androidCaption
             onTriggered: button.clicked()
         }
     }

@@ -64,6 +64,14 @@ Item {
     readonly property real tableBottomMargin: Math.max(
         sheet.phoneLayout ? 16 : (sheet.compactControls ? 12 : 26), sheet.dockClearance)
 
+    property bool sourceFeedbackOpen: false
+    property string sourceFeedbackText: ""
+    function showSourceFeedback(message) {
+        if (Qt.platform.os !== "android") return
+        sheet.sourceFeedbackText = message
+        sheet.sourceFeedbackOpen = true
+        sourceFeedbackTimer.restart()
+    }
     property Item backdrop
     property string label: ""
     property string title: ""
@@ -221,10 +229,12 @@ Item {
         var link=Magnet.linkFor(sheet.visibleRows[index]); if(!link.length) return
         Clipboard.copy(link)
         if (list.itemAtIndex) { var item=list.itemAtIndex(index); if(item && item.markCopied) item.markCopied() }
+        sheet.showSourceFeedback(qsTr("Source link copied"))
     }
     function downloadSource(index) {
         if (sheet.mode !== "play" || sheet.titleQueued || index < 0 || index >= sheet.visibleRows.length) return
         sheet.downloadRequested(sheet.visibleRows[index]); sheet.titleQueued=true
+        sheet.showSourceFeedback(qsTr("Download queued"))
     }
     function activateSourceContext(choice) {
         var index=sheet.visibleRows.indexOf(sheet.sourceContextRow)
@@ -815,6 +825,20 @@ Item {
         }
     }
 
+    Timer { id: sourceFeedbackTimer; interval: 2200; onTriggered: sheet.sourceFeedbackOpen = false }
+    Rectangle {
+        visible: sheet.sourceFeedbackOpen
+        z: 210
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 90
+        width: Math.max(180, sourceFeedbackLabel.implicitWidth + 30)
+        height: 42; radius: 21
+        color: Qt.rgba(0.04, 0.05, 0.07, 0.96)
+        border.width: 1; border.color: theme.edge
+        Text { id: sourceFeedbackLabel; anchors.centerIn: parent; text: sheet.sourceFeedbackText; color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
+    }
+
     // ===================== the glass source table =====================
     Glass {
         id: table
@@ -1117,10 +1141,23 @@ Item {
                         font.weight: sheet.mode === "play" ? Font.Normal : Font.DemiBold }
                 }
 
+                KeyboardAction {
+                    parent: play
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    width: Qt.platform.os === "android" ? 140 : 56
+                    height: 56
+                    pointerEnabled: false
+                    accessibleName: sheet.mode === "play" ? qsTr("Play source") : qsTr("Download source")
+                    tooltipText: accessibleName
+                    androidTooltipPolicy: "caption"
+                    androidCaptionText: accessibleName
+                    onTriggered: sheet.activateSource(row.index)
+                }
                 MouseArea {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
                     ToolTip.text: sheet.mode === "play" ? qsTr("Play source") : qsTr("Download source")
-                    ToolTip.visible: containsMouse && mouseX >= play.x && mouseX < play.x + play.width && mouseY >= play.y && mouseY < play.y + play.height
+                    ToolTip.visible: Qt.platform.os !== "android" && containsMouse && mouseX >= play.x && mouseX < play.x + play.width && mouseY >= play.y && mouseY < play.y + play.height
                     ToolTip.delay: 350
                     visible: !sheet.phoneLayout
                     cursorShape: Qt.PointingHandCursor
@@ -1140,19 +1177,32 @@ Item {
                     visible: !sheet.phoneLayout
                     anchors.right: play.left; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 40; height: 40; radius: 20
+                    width: Qt.platform.os === "android" ? 142 : 40; height: 40; radius: 20
                     color: copyMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                     border.width: 1; border.color: theme.edge
                     Text {
-                        anchors.centerIn: parent
+                        anchors.left: parent.left
+                        anchors.leftMargin: Qt.platform.os === "android" ? 12 : 13
+                        anchors.verticalCenter: parent.verticalCenter
                         text: row.copiedTick ? "✓" : "⧉"   // ✓ tick / ⧉ two-squares copy glyph
                         color: row.copiedTick ? theme.gold : (copyMa.containsMouse ? theme.ink : theme.inkDim)
                         font.family: theme.ui; font.pixelSize: 15
                     }
+                    KeyboardAction {
+                        anchors.left: parent.left
+                        width: 40; height: 40
+                        pointerEnabled: false
+                        accessibleName: qsTr("Copy source link")
+                        tooltipText: accessibleName
+                        androidTooltipPolicy: "caption"
+                        androidCaptionPlacement: "right"
+                        androidCaptionText: accessibleName
+                        onTriggered: sheet.copySource(row.index)
+                    }
                     MouseArea {
                         id: copyMa; anchors.fill: parent; hoverEnabled: true
                         ToolTip.text: row.copiedTick ? qsTr("Source link copied") : qsTr("Copy source link")
-                        ToolTip.visible: containsMouse
+                        ToolTip.visible: Qt.platform.os !== "android" && containsMouse
                         ToolTip.delay: 350
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
@@ -1173,19 +1223,32 @@ Item {
                     visible: !sheet.phoneLayout && sheet.mode === "play" && typeof Download !== "undefined"
                     anchors.right: copyBtn.left; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 40; height: 40; radius: 20
+                    width: Qt.platform.os === "android" ? 148 : 40; height: 40; radius: 20
                     color: dlMa.containsMouse && !sheet.titleQueued ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                     border.width: 1; border.color: theme.edge
                     Text {
-                        anchors.centerIn: parent
+                        anchors.left: parent.left
+                        anchors.leftMargin: Qt.platform.os === "android" ? 12 : 13
+                        anchors.verticalCenter: parent.verticalCenter
                         text: sheet.titleQueued ? "✓" : "↓"   // ✓ on its way / ↓ download this torrent
                         color: sheet.titleQueued ? theme.gold : (dlMa.containsMouse ? theme.ink : theme.inkDim)
                         font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
                     }
+                    KeyboardAction {
+                        anchors.left: parent.left
+                        width: 40; height: 40
+                        pointerEnabled: false
+                        accessibleName: qsTr("Download source")
+                        tooltipText: accessibleName
+                        androidTooltipPolicy: "caption"
+                        androidCaptionPlacement: "right"
+                        androidCaptionText: accessibleName
+                        onTriggered: sheet.downloadSource(row.index)
+                    }
                     MouseArea {
                         id: dlMa; anchors.fill: parent; hoverEnabled: true
                         ToolTip.text: sheet.titleQueued ? qsTr("Download queued") : qsTr("Download source")
-                        ToolTip.visible: containsMouse
+                        ToolTip.visible: Qt.platform.os !== "android" && containsMouse
                         ToolTip.delay: 350
                         cursorShape: sheet.titleQueued ? Qt.ArrowCursor : Qt.PointingHandCursor
                         onClicked: {
@@ -1325,21 +1388,33 @@ Item {
                         font.pixelSize: 12; font.weight: Font.DemiBold
                         wrapMode: Text.WrapAnywhere
                     }
-                    Row {
-                        width: parent.width; height: 48; spacing: 12
+                    Flow {
+                        width: parent.width; height: childrenRect.height; spacing: 12
                         layoutDirection: Qt.RightToLeft
                         Rectangle {
-                            width: 56; height: 48; radius: 24; color: theme.gold
+                            width: 120; height: 76; radius: 24; color: "transparent"
+                            Rectangle { width: 56; height: 48; radius: 24; color: theme.gold; anchors.horizontalCenter: parent.horizontalCenter }
                             Text {
-                                anchors.centerIn: parent
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.top: parent.top
+                                anchors.topMargin: 13
                                 text: sheet.mode === "play" ? "▶" : "↓"
                                 color: "#1a1306"; font.pixelSize: 18
+                            }
+                            KeyboardAction {
+                                width: parent.width; height: 48
+                                pointerEnabled: false
+                                accessibleName: sheet.mode === "play" ? qsTr("Play source") : qsTr("Download source")
+                                tooltipText: accessibleName
+                                androidTooltipPolicy: "caption"
+                                androidCaptionText: accessibleName
+                                onTriggered: sheet.activateSource(row.index)
                             }
                             MouseArea {
                                 objectName: "sourcePlay_" + row.index
                                 anchors.fill: parent
                                 ToolTip.text: sheet.mode === "play" ? qsTr("Play source") : qsTr("Download source")
-                                ToolTip.visible: mobilePlayHover.hovered
+                                ToolTip.visible: Qt.platform.os !== "android" && mobilePlayHover.hovered
                                 ToolTip.delay: 350
                                 HoverHandler { id: mobilePlayHover }
                                 onClicked: {
@@ -1350,20 +1425,31 @@ Item {
                             }
                         }
                         Rectangle {
-                            width: 48; height: 48; radius: 24
+                            width: 136; height: 76; radius: 24
                             color: Qt.rgba(1, 1, 1, 0.05)
                             border.width: 1; border.color: theme.edge
                             Text {
-                                anchors.centerIn: parent
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.top: parent.top
+                                anchors.topMargin: 13
                                 text: row.copiedTick ? "✓" : "⧉"
                                 color: row.copiedTick ? theme.gold : theme.inkDim
                                 font.family: theme.ui; font.pixelSize: 16
+                            }
+                            KeyboardAction {
+                                width: parent.width; height: 48
+                                pointerEnabled: false
+                                accessibleName: qsTr("Copy source link")
+                                tooltipText: accessibleName
+                                androidTooltipPolicy: "caption"
+                                androidCaptionText: accessibleName
+                                onTriggered: sheet.copySource(row.index)
                             }
                             MouseArea {
                                 objectName: "sourceCopy_" + row.index
                                 anchors.fill: parent
                                 ToolTip.text: row.copiedTick ? qsTr("Source link copied") : qsTr("Copy source link")
-                                ToolTip.visible: mobileCopyHover.hovered
+                                ToolTip.visible: Qt.platform.os !== "android" && mobileCopyHover.hovered
                                 ToolTip.delay: 350
                                 HoverHandler { id: mobileCopyHover }
                                 onClicked: {
@@ -1375,20 +1461,32 @@ Item {
                         }
                         Rectangle {
                             visible: sheet.mode === "play" && typeof Download !== "undefined"
-                            width: 48; height: 48; radius: 24
+                            width: 136; height: 76; radius: 24
                             color: Qt.rgba(1, 1, 1, 0.05)
                             border.width: 1; border.color: theme.edge
                             Text {
-                                anchors.centerIn: parent
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.top: parent.top
+                                anchors.topMargin: 13
                                 text: sheet.titleQueued ? "✓" : "↓"
                                 color: sheet.titleQueued ? theme.gold : theme.inkDim
                                 font.family: theme.ui; font.pixelSize: 16
+                            }
+                            KeyboardAction {
+                                width: parent.width; height: 48
+                                pointerEnabled: false
+                                enabled: !sheet.titleQueued
+                                accessibleName: qsTr("Download source")
+                                tooltipText: accessibleName
+                                androidTooltipPolicy: "caption"
+                                androidCaptionText: accessibleName
+                                onTriggered: sheet.downloadSource(row.index)
                             }
                             MouseArea {
                                 objectName: "sourceDownload_" + row.index
                                 anchors.fill: parent
                                 ToolTip.text: sheet.titleQueued ? qsTr("Download queued") : qsTr("Download source")
-                                ToolTip.visible: mobileDownloadHover.hovered
+                                ToolTip.visible: Qt.platform.os !== "android" && mobileDownloadHover.hovered
                                 ToolTip.delay: 350
                                 HoverHandler { id: mobileDownloadHover }
                                 onClicked: {

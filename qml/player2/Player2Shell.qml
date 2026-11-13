@@ -322,6 +322,17 @@ Item {
     property real downloadProgress: 0
     property string downloadPath: ""
     property string downloadError: ""
+    property bool downloadFeedbackOpen: false
+    property bool downloadFeedbackFailed: false
+    property string downloadFeedbackText: ""
+    function showDownloadFeedback(message, failed) {
+        if (Qt.platform.os !== "android") return
+        shell.downloadFeedbackText = message
+        shell.downloadFeedbackFailed = failed
+        shell.downloadFeedbackOpen = true
+        downloadFeedbackTimer.restart()
+    }
+    Timer { id: downloadFeedbackTimer; interval: 2600; onTriggered: shell.downloadFeedbackOpen = false }
 
     function downloadTooltip() {
         if (shell.downloadKind === "queued")
@@ -455,6 +466,7 @@ Item {
                 return
             var s = state || ({})
             var kind = String(s.state || "")
+            var previousKind = shell.downloadKind
             shell.downloadProgress = Number(s.progress || 0)
             shell.downloadPath = String(s.path || "")
             shell.downloadError = String(s.error || "")
@@ -462,6 +474,10 @@ Item {
                                  : kind === "ready" ? "done"
                                  : kind === "failed" ? "failed"
                                  : kind.length ? "queued" : "idle"
+            if (shell.downloadKind !== previousKind && shell.downloadKind === "done")
+                shell.showDownloadFeedback("Saved to " + (shell.downloadPath.length ? shell.downloadPath : "Downloads"), false)
+            else if (shell.downloadKind !== previousKind && shell.downloadKind === "failed")
+                shell.showDownloadFeedback("Failed: " + (shell.downloadError.length ? shell.downloadError : "Download failed"), true)
         }
         function onAdjacentEpisodeResolved(mediaId, direction, episode) {
             if (mediaId !== shell.currentEpisodeId)
@@ -683,6 +699,7 @@ Item {
                              && String(shell.hostServices.mediaLocalPath || "").length === 0
                 downloadKind: shell.downloadKind
                 downloadTooltip: shell.downloadTooltip()
+                downloadProgress: shell.downloadProgress
                 onFullscreenRequested: shell.fullscreenRequested()
                 onBrowseRequested: { shell.rememberMenuFocus(); sourceDrawer.open = true; shell.wakeChrome() }
                 // His ruling: the drawer KEEPS ownership of switching, so the HUD button is a
@@ -695,6 +712,13 @@ Item {
                     shell.wakeChrome()
                 }
                 onDownloadRequested: shell.handleDownloadAction()
+                onOverflowActionRequested: function(actionId) {
+                    if (actionId === "stats") statsOverlay.open = !statsOverlay.open
+                    else if (actionId === "loudness") overflowMenu.cycleLoudness()
+                    else if (actionId === "pip") shell.pipRequested()
+                    else if (actionId === "shortcuts") { shell.rememberMenuFocus(); shortcutsSheet.open = true }
+                    shell.wakeChrome()
+                }
                 onPrevEpisodeRequested: shell.playAdjacentEpisode(-1)
                 onNextEpisodeRequested: shell.playAdjacentEpisode(1)
             }
@@ -761,6 +785,32 @@ Item {
         onToggleStatsRequested: { statsOverlay.open = !statsOverlay.open; overflowMenu.open = false }
         onShowShortcutsRequested: { shell.rememberMenuFocus(); shortcutsSheet.open = true; overflowMenu.open = false }
         onPipRequested: { overflowMenu.open = false; shell.pipRequested() }
+    }
+
+    // Terminal download feedback remains visible without hover after the download state changes.
+    Rectangle {
+        visible: shell.downloadFeedbackOpen
+        z: 200
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 92
+        width: Math.min(Math.max(1, parent.width - 32), feedbackLabel.implicitWidth + 34)
+        height: 42
+        radius: 21
+        color: shell.downloadFeedbackFailed ? Qt.rgba(0.48, 0.10, 0.12, 0.92) : Qt.rgba(0.04, 0.05, 0.07, 0.92)
+        border.width: 1
+        border.color: shell.downloadFeedbackFailed ? Qt.rgba(1, 0.35, 0.35, 0.45) : Qt.rgba(1, 1, 1, 0.18)
+        Text {
+            id: feedbackLabel
+            anchors.centerIn: parent
+            width: Math.max(1, parent.width - 28)
+            text: shell.downloadFeedbackText
+            elide: Text.ElideMiddle
+            color: shell.theme.ink
+            font.family: "Segoe UI"
+            font.pixelSize: 12
+            font.weight: Font.DemiBold
+        }
     }
 
     // Modal keyboard-shortcuts sheet (raised by "?" or the overflow menu). Data-driven from

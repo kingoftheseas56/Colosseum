@@ -137,6 +137,7 @@ Item {
             focusEnabled: menu.many
             accessibleName: menu.title.length ? menu.title : "Audio tracks"
             tooltipText: qsTr("Audio tracks")
+            androidTooltipPolicy: "drop"
             tooltipHovered: faceHover.hovered
             onTriggered: menu.toggleRequested(menu.panelOpen)
         }
@@ -161,8 +162,9 @@ Item {
         parent: menu.overlayParent ? menu.overlayParent : menu
         visible: menu.panelOpen
         z: menu.overlayParent ? 40 : 30
-        width: 360
-        height: Math.min(360, 94 + Math.max(1, (menu.tracks || []).length) * 54 + 44)
+        width: Qt.platform.os === "android" ? Math.min(500, menu.overlayParent ? Math.max(1, menu.overlayParent.width - 20) : 500) : 360
+        height: Math.min(Qt.platform.os === "android" ? 384 : 360,
+                         94 + Math.max(1, (menu.tracks || []).length) * 54 + (Qt.platform.os === "android" ? 68 : 44))
         onVisibleChanged: if (visible) menu.positionPanel(audioPopover)
         radius: 14
         // Native chrome (spec 2026-07-08): house popover surface.
@@ -385,7 +387,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: closeButton.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close audio menu"; tooltipText: accessibleName; tooltipHovered: closeMouse.containsMouse; onTriggered: closeButton.clicked() }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close audio menu"; tooltipText: accessibleName; androidTooltipPolicy: "drop"; tooltipHovered: closeMouse.containsMouse; onTriggered: closeButton.clicked() }
     }
 
     component DelayRow: Rectangle {
@@ -394,7 +396,7 @@ Item {
         property string label: ""
         signal step(real delta)
         signal reset()
-        height: 44
+        height: Qt.platform.os === "android" ? 68 : 44
         color: "transparent"
         Rectangle {
             anchors.top: parent.top
@@ -408,7 +410,7 @@ Item {
             anchors.rightMargin: 12
             spacing: 6
             Text {
-                width: 128
+                width: Qt.platform.os === "android" ? 48 : 128
                 anchors.verticalCenter: parent.verticalCenter
                 text: delayRow.label
                 color: theme.inkDimmer
@@ -417,7 +419,7 @@ Item {
                 font.weight: Font.Bold
                 font.letterSpacing: 1.4
             }
-            StepButton { text: "-0.1"; tooltip: qsTr("Move audio earlier by 0.1 seconds"); onClicked: delayRow.step(-0.1) }
+            StepButton { text: "-0.1"; tooltip: qsTr("Move audio earlier by 0.1 seconds"); androidCaption: qsTr("Earlier"); onClicked: delayRow.step(-0.1) }
             Text {
                 width: 58
                 anchors.verticalCenter: parent.verticalCenter
@@ -427,13 +429,14 @@ Item {
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
             }
-            StepButton { text: "+0.1"; tooltip: qsTr("Move audio later by 0.1 seconds"); onClicked: delayRow.step(0.1) }
+            StepButton { text: "+0.1"; tooltip: qsTr("Move audio later by 0.1 seconds"); androidCaption: qsTr("Later"); onClicked: delayRow.step(0.1) }
             StepButton {
                 visible: Math.abs(delayRow.value) > 0.0001
-                width: 32
+                width: Qt.platform.os === "android" ? 112 : 32
                 text: "0"
                 onClicked: delayRow.reset()
                 tooltip: qsTr("Reset audio sync")
+                androidCaption: qsTr("Reset audio sync")
             }
         }
     }
@@ -442,18 +445,21 @@ Item {
         id: stepButton
         property string text: ""
         property string tooltip: ""
+        property string androidCaption: ""
         signal clicked()
-        width: 44
-        height: 24
+        width: Qt.platform.os === "android" && androidCaption.length ? Math.max(44, androidCaption.length * 7 + 12) : 44
+        height: Qt.platform.os === "android" ? 48 : 24
         Rectangle {
-            anchors.fill: parent
+            width: parent.width; height: 24
             radius: 6
             color: stepMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.06)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.10)
         }
         Text {
-            anchors.centerIn: parent
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: (24 - height) / 2
             text: stepButton.text
             color: theme.inkDim
             font.family: theme.hud; font.features: ({ "tnum": 1 })
@@ -467,7 +473,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: stepButton.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: stepButton.text; tooltipText: stepButton.tooltip; tooltipHovered: stepMouse.containsMouse; onTriggered: stepButton.clicked() }
+        KeyboardAction { anchors.top: parent.top; width: parent.width; height: 24; pointerEnabled: false; accessibleName: stepButton.tooltip; tooltipText: stepButton.tooltip; tooltipHovered: stepMouse.containsMouse; androidTooltipPolicy: "caption"; androidCaptionText: stepButton.androidCaption; onTriggered: stepButton.clicked() }
     }
 
     component IconGlyph: Canvas {
