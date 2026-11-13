@@ -184,6 +184,8 @@ Item {
 
                 KeyboardAction {
                     id: startInput
+                    // Touch toggles should not leave the keyboard-focus glow behind.
+                    focusOnPointer: !touchMetrics.androidHost
                     anchors.fill: parent
                     anchors.leftMargin: -touchMetrics.targetInset(parent.width)
                     anchors.rightMargin: -touchMetrics.targetInset(parent.width)

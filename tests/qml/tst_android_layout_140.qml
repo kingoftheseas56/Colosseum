@@ -71,6 +71,44 @@ TestCase {
         id: welcomeComponent
         Account.AccountWelcome { width: host.width; height: host.height }
     }
+    Component { id: taskbarComponent; App.Taskbar { groups: [] } }
+    function test_taskbar_toggle_focus_follows_input_data() {
+        return [{tag: "android-touch", android: true}, {tag: "desktop-pointer", android: false}]
+    }
+    function test_taskbar_toggle_focus_follows_input(data) {
+        host.androidHost = data.android
+        host.requestActivate()
+        tryCompare(host, "active", true)
+        const dock = createTemporaryObject(taskbarComponent, host.contentItem)
+        verify(dock)
+        const home = findChild(dock, "colosseumTaskbarHomeButton")
+        const action = home.children.find(child => child.accessibleName !== undefined)
+        verify(action)
+        function activatePointer() {
+            if (data.android) {
+                touchEvent(action).press(0, action, action.width / 2, action.height / 2).commit()
+                touchEvent(action).release(0, action, action.width / 2, action.height / 2).commit()
+            } else {
+                mouseClick(action, action.width / 2, action.height / 2)
+            }
+        }
+        activatePointer()
+        compare(dock.open, true)
+        wait(300)
+        activatePointer()
+        compare(dock.open, false)
+        wait(300)
+        mouseMove(host.contentItem, host.width - 10, 10)
+        wait(50)
+        compare(action.activeFocus, !data.android, "Touch must not leave persistent keyboard focus")
+        compare(action.interactionActive, !data.android, "Touch highlight clears when the taskbar closes")
+        action.forceActiveFocus(Qt.TabFocusReason)
+        keyClick(Qt.Key_Return)
+        compare(dock.open, true)
+        keyClick(Qt.Key_Return)
+        compare(dock.open, false)
+        verify(action.activeFocus, "Keyboard focus remains available after toggling")
+    }
     Component { id: metricsComponent; App.AdaptiveLayout {} }
     Component {
         id: rowIndexComponent
