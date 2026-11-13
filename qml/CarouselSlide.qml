@@ -13,6 +13,12 @@ Item {
     property string primaryLabel: "Read"
     property string primaryIcon: ""
     property string secondaryLabel: "Details"
+    property bool shortAndroid: false
+    AdaptiveLayout {
+        id: adaptive
+        androidHost: slideRoot.shortAndroid
+        viewportHeight: slideRoot.Window.window ? slideRoot.Window.window.height : 0
+    }
     signal primaryClicked()
     signal secondaryClicked()
 
@@ -116,8 +122,8 @@ Item {
         Column {
             anchors.left: parent.left
             anchors.bottom: parent.bottom
-            anchors.leftMargin: slideRoot.televisionMode ? 52 : (slideRoot.narrowLayout ? 20 : 42)
-            anchors.bottomMargin: slideRoot.televisionMode ? 48 : (slideRoot.narrowLayout ? 22 : 42)
+            anchors.leftMargin: slideRoot.shortAndroid ? adaptive.heroCopyInset : (slideRoot.televisionMode ? 52 : (slideRoot.narrowLayout ? 20 : 42))
+            anchors.bottomMargin: slideRoot.shortAndroid ? adaptive.heroCopyInset : (slideRoot.televisionMode ? 48 : (slideRoot.narrowLayout ? 22 : 42))
             width: Math.min(slideRoot.televisionMode ? 680 : 560,
                             parent.width - (slideRoot.televisionMode ? 104 : (slideRoot.narrowLayout ? 40 : 84)))
             spacing: slideRoot.compactCopy ? 8 : (slideRoot.televisionMode ? 12 : 10)
@@ -126,7 +132,7 @@ Item {
                 font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 13 : 11; font.letterSpacing: 3 }
             Text { text: slideRoot.slide.title !== undefined ? slideRoot.slide.title : ""
                 color: theme.ink; font.family: theme.display
-                font.pixelSize: slideRoot.televisionMode ? 58 : (slideRoot.narrowLayout ? 34 : (slideRoot.compactCopy ? 42 : 50))
+                font.pixelSize: slideRoot.shortAndroid ? adaptive.heroTitleSize : (slideRoot.televisionMode ? 58 : (slideRoot.narrowLayout ? 34 : (slideRoot.compactCopy ? 42 : 50)))
                 lineHeight: 0.96; maximumLineCount: 2; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap }
             Text { text: slideRoot.slide.blurb !== undefined ? slideRoot.slide.blurb : ""

@@ -10,6 +10,24 @@ QtObject {
     // Android host capability; production derives it from the platform, fixtures may set it.
     property bool androidHost: Qt.platform.os === "android"
     property real viewportWidth: 0
+    property real viewportHeight: 0
+    property real bottomInset: 0
+
+    readonly property bool shortAndroid: androidHost && desktopPresentation && viewportHeight > 0 && viewportHeight < 600
+    readonly property bool tightAndroidChrome: androidHost && viewportWidth < 900
+    readonly property real chromeGap: tightAndroidChrome ? 8 : 18
+    readonly property real chromePillPadding: tightAndroidChrome ? 6 : 12
+    readonly property real chromePillGap: tightAndroidChrome ? 2 : 4
+    readonly property real chromePillContentGap: tightAndroidChrome ? 3 : 6
+    readonly property real chromePillFontSize: tightAndroidChrome ? 12 : 14
+    readonly property real chromeSoonFontSize: tightAndroidChrome ? 7 : 8
+    readonly property real chromeSystemGap: tightAndroidChrome ? 8 : 12
+    readonly property real chromeClockSize: tightAndroidChrome ? 26 : 32
+    readonly property real chromeClockPeriodSize: tightAndroidChrome ? 12 : 16
+    readonly property real chromeDateSize: tightAndroidChrome ? 11 : 13
+    readonly property real heroCopyInset: shortAndroid ? 20 : 42
+    readonly property real heroTitleSize: shortAndroid ? 34 : 48
+    readonly property real availableHeroHeight: Math.max(0, viewportHeight - contentTop - bottomInset - 22)
 
     readonly property bool compactPhone: !desktopPresentation && viewportWidth >= 0 && viewportWidth <= 430
     readonly property bool phone: !desktopPresentation && viewportWidth < 600
@@ -38,5 +56,7 @@ QtObject {
     // desktop composition but still receives finger-sized hit hosts. Desktop returns 0/identity.
     readonly property real touchTargetSize: androidHost ? TouchMetrics.minimumTargetSize : 0
     function targetSize(size) { return androidHost ? Math.max(TouchMetrics.minimumTargetSize, size) : size }
-    readonly property real heroHeight: phone ? 260 : (tablet ? 300 : 340)
+    readonly property real heroHeight: shortAndroid ? Math.min(340, availableHeroHeight)
+                                                  : phone ? 260 : (tablet ? 300 : 340)
+    readonly property real homeHeroHeight: shortAndroid ? Math.min(360, availableHeroHeight) : 360
 }

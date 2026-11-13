@@ -29,7 +29,7 @@ Item {
         + (leftTitle.visible ? leftTitle.implicitWidth : 0)
     readonly property int leftOtherCount: (backAction.visible ? 1 : 0) + (leftTitle.visible ? 1 : 0)
     readonly property real clockFreeSpace: width - systemChrome.implicitWidth - (pillsRow.implicitWidth + 14)
-        - 24 - leftOtherWidth - leftOtherCount * 18
+        - 24 - leftOtherWidth - leftOtherCount * (bar.androidHost ? inputMetrics.chromeGap : 18)
     readonly property bool clockFits: !backOnly && width > 0 && clockBlock.implicitWidth <= clockFreeSpace
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // World roots keep the historical Home destination; nested surfaces can name their
@@ -43,7 +43,7 @@ Item {
     property bool lifecycleActive: true
     // Host capability is independent of the desktop-shaped presentation on Android.
     property bool androidHost: Qt.platform.os === "android"
-    AdaptiveLayout { id: inputMetrics; androidHost: bar.androidHost }
+    AdaptiveLayout { id: inputMetrics; androidHost: bar.androidHost; viewportWidth: bar.width }
     readonly property real touchTargetSize: inputMetrics.touchTargetSize
     readonly property real touchHorizontalInset: bar.touchTargetSize > 0
         ? Math.min((bar.touchTargetSize - 22) / 2, Math.floor(systemChrome.spacing / 2)) : 0
@@ -207,7 +207,8 @@ Item {
         property bool comingSoon: false
         readonly property bool active: !pill.comingSoon && bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + (bar.width < 900 ? (bar.androidHost ? 12 : 16) : (bar.width < 1100 ? 24 : 34))
+        implicitWidth: pillContent.implicitWidth + (bar.androidHost ? inputMetrics.chromePillPadding
+            : (bar.width < 900 ? 16 : (bar.width < 1100 ? 24 : 34)))
         implicitHeight: 34
 
         Rectangle {
@@ -219,23 +220,23 @@ Item {
         Row {
             id: pillContent
             anchors.centerIn: parent
-            spacing: 6
+            spacing: bar.androidHost ? inputMetrics.chromePillContentGap : 6
             Text {
                 text: pill.label
                 color: pill.active ? "#1a1408" : (pillInput.interactionActive && !pill.comingSoon ? theme.ink : theme.inkDim)
                 opacity: pill.comingSoon ? 0.6 : 1.0
-                font.family: theme.ui; font.pixelSize: 14
+                font.family: theme.ui; font.pixelSize: bar.androidHost ? inputMetrics.chromePillFontSize : 14
                 font.weight: pill.active ? Font.DemiBold : Font.Medium
                 anchors.verticalCenter: parent.verticalCenter
             }
             Rectangle {   // Original inline "SOON" marker — no world yet
                 visible: pill.comingSoon
                 anchors.verticalCenter: parent.verticalCenter
-                radius: 4; height: 15; width: soonText.implicitWidth + 10
+                radius: 4; height: 15; width: soonText.implicitWidth + (inputMetrics.tightAndroidChrome ? 6 : 10)
                 color: Qt.rgba(1,1,1,0.10)
                 Text {
                     id: soonText; anchors.centerIn: parent; text: "SOON"
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 0.8
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: bar.androidHost ? inputMetrics.chromeSoonFontSize : 8; font.letterSpacing: inputMetrics.tightAndroidChrome ? 0.4 : 0.8
                 }
             }
         }
@@ -255,7 +256,7 @@ Item {
         id: leftChrome
         objectName: "topBarLeftChrome"
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-        spacing: 18
+        spacing: bar.androidHost ? inputMetrics.chromeGap : 18
         BackAction {
             id: backAction
             // world-root variant: destination label, dim→bright hover (never gold up here)
@@ -285,18 +286,26 @@ Item {
             readonly property real textWidth: Math.max(clockTime.implicitWidth + 5 + clockPeriod.implicitWidth,
                                                        clockDate.implicitWidth)
             readonly property real leftWidth: textWidth + (backAction.visible ? backAction.width + leftChrome.spacing : 0)
-            visible: bar.androidHost ? bar.clockFits
+            visible: bar.androidHost ? !bar.backOnly
                 : !bar.backOnly && !bar.compactBrowserChrome
                      && leftWidth + 24 + worldPicker.width <= systemChrome.x
             spacing: 3
             anchors.verticalCenter: parent.verticalCenter
             Row {
                 spacing: 5
-                Text { id: clockTime; text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: 32 }
-                Text { id: clockPeriod; text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
+                Text { id: clockTime; text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: bar.androidHost ? inputMetrics.chromeClockSize : 32 }
+                Text { id: clockPeriod; text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: bar.androidHost ? inputMetrics.chromeClockPeriodSize : 16
                     anchors.bottom: parent.bottom; anchors.bottomMargin: 4 }
             }
-            Text { id: clockDate; text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+            Text {
+                id: clockDate
+                text: bar.date; color: theme.inkDim; font.family: theme.ui
+                font.pixelSize: bar.androidHost ? inputMetrics.chromeDateSize : 13
+                width: bar.androidHost ? Math.max(clockTime.implicitWidth + 5 + clockPeriod.implicitWidth,
+                    Math.min(implicitWidth, bar.clockFreeSpace)) : implicitWidth
+                fontSizeMode: bar.androidHost ? Text.Fit : Text.FixedSize
+                minimumPixelSize: 8
+            }
         }
     }
 
@@ -314,7 +323,7 @@ Item {
         Row {
             id: pillsRow
             anchors.centerIn: parent
-            spacing: 4
+            spacing: bar.androidHost ? inputMetrics.chromePillGap : 4
             Pill { label: "Tankoban" }
             Pill { label: "Biblio" }
             Pill { label: "Theatre" }
@@ -349,7 +358,7 @@ Item {
         objectName: "topBarSystemChrome"
         visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: bar.width < 1000 ? 12 : (bar.width < 1200 ? 20 : 24)
+        spacing: bar.androidHost ? inputMetrics.chromeSystemGap : (bar.width < 1000 ? 12 : (bar.width < 1200 ? 20 : 24))
         // Search — worlds only, except Universes (no search behaviour there yet).
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each
