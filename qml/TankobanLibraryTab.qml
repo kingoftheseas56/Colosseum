@@ -12,10 +12,15 @@
 // LibraryPage — same fixed-viewport-height + self-scrolling GridView pattern both ship.
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Window
 import "TankobanLibraryApi.js" as Api
 
 Item {
     id: root
+    AdaptiveLayout {
+        id: adaptive
+        androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost === true)
+    }
     property bool touchInput: Qt.platform.os === "android"
 
     // The retained Library tab keeps its filter state, but hidden worlds must not scan all three
@@ -175,14 +180,18 @@ Item {
     Item {
         id: toolbar
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: 44
+        readonly property bool wrapped: adaptive.androidHost
+            && width < searchField.width + filterRow.width + sortRow.width + 2 * adaptive.libraryToolsGap
+        height: wrapped ? searchField.height + sortRow.height + adaptive.libraryToolsGap : 44
         anchors.leftMargin: Math.max(48, theme.margin); anchors.rightMargin: Math.max(38, theme.margin - 10)
         anchors.topMargin: 8
 
         // search field (mirrors LibraryPage.qml's searchField shape)
         TextField {
             id: searchField
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.left
+            anchors.verticalCenter: toolbar.wrapped ? undefined : parent.verticalCenter
+            anchors.top: toolbar.wrapped ? parent.top : undefined
             width: 220; height: 38; leftPadding: 16; rightPadding: 16
             placeholderText: "Search your library"; placeholderTextColor: theme.inkDimmer
             color: theme.ink; selectionColor: theme.gold; selectedTextColor: "#111111"
@@ -198,7 +207,10 @@ Item {
         // 3 filter pills: All / In Progress / Downloaded
         Row {
             id: filterRow
-            anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter
+            anchors.horizontalCenter: toolbar.wrapped ? undefined : parent.horizontalCenter
+            anchors.left: toolbar.wrapped ? searchField.right : undefined
+            anchors.leftMargin: toolbar.wrapped ? adaptive.libraryToolsGap : 0
+            anchors.verticalCenter: toolbar.wrapped ? searchField.verticalCenter : parent.verticalCenter
             spacing: 8
             Repeater {
                 model: [
@@ -217,7 +229,10 @@ Item {
         // 3 sort pills: Last Read / Recently Added / A-Z
         Row {
             id: sortRow
-            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+            anchors.right: parent.right
+            anchors.verticalCenter: toolbar.wrapped ? undefined : parent.verticalCenter
+            anchors.top: toolbar.wrapped ? searchField.bottom : undefined
+            anchors.topMargin: toolbar.wrapped ? adaptive.libraryToolsGap : 0
             spacing: 8
             Repeater {
                 model: [

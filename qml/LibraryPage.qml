@@ -8,11 +8,16 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import QtQuick.Window
 import "LibraryApi.js" as Api
 import "CollectionBackfill.js" as CB
 
 Item {
     id: root
+    AdaptiveLayout {
+        id: adaptive
+        androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost === true)
+    }
     property bool touchInput: Qt.platform.os === "android"
 
     // Retained Theatre worlds keep this page instance for filter/scroll state, but the saved
@@ -283,7 +288,8 @@ Item {
     Item {
         id: filterBar
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: header.bottom
-        height: 54; z: 19
+        height: adaptive.androidHost ? Math.max(54, filters.implicitHeight + 2 * adaptive.libraryFilterInset) : 54
+        z: 19
 
         component FilterPill: Rectangle {
             property string label: ""
@@ -304,9 +310,22 @@ Item {
                 onTriggered: parent.picked() }
         }
 
-        Row {
+        Flow {
+            id: filters
             anchors.left: parent.left; anchors.leftMargin: Math.max(64, theme.margin)
             anchors.verticalCenter: parent.verticalCenter; spacing: 8
+            readonly property real rowWidth: {
+                let total = 0
+                let count = 0
+                for (const child of children) {
+                    if (!child.visible || child.width <= 0 || child.height <= 0) continue
+                    total += child.width
+                    count++
+                }
+                return total + Math.max(0, count - 1) * spacing
+            }
+            width: adaptive.androidHost ? parent.width - 2 * Math.max(64, theme.margin)
+                                        : Math.max(parent.width, rowWidth)
 
             Repeater {
                 model: [ { key: "lastWatched", label: "Last watched" }, { key: "added", label: "Recently added" },
@@ -318,7 +337,10 @@ Item {
                     onPicked: root.sortMode = modelData.key
                 }
             }
-            Rectangle { width: 1; height: 22; anchors.verticalCenter: parent.verticalCenter; color: theme.edge }
+            Item {
+                width: 1; height: 34
+                Rectangle { width: 1; height: 22; anchors.centerIn: parent; color: theme.edge }
+            }
             Repeater {
                 model: [ { key: "", label: "All" }, { key: "movie", label: "Movies" }, { key: "series", label: "Series" } ]
                 delegate: FilterPill {
@@ -328,7 +350,10 @@ Item {
                     onPicked: root.typeFilter = modelData.key
                 }
             }
-            Rectangle { width: 1; height: 22; anchors.verticalCenter: parent.verticalCenter; color: theme.edge }
+            Item {
+                width: 1; height: 34
+                Rectangle { width: 1; height: 22; anchors.centerIn: parent; color: theme.edge }
+            }
             Repeater {
                 model: [ { key: "", label: "All" }, { key: "ongoing", label: "Ongoing" }, { key: "ended", label: "Ended" } ]
                 delegate: FilterPill {

@@ -31,6 +31,9 @@ QtObject {
     readonly property real chromeMinimumDateSize: 8
     readonly property real heroCopyInset: shortAndroid ? 20 : 42
     readonly property real heroTitleSize: shortAndroid ? 34 : 48
+    readonly property real heroCoverCopyGap: 20
+    readonly property real libraryFilterInset: 10
+    readonly property real libraryToolsGap: 12
     readonly property real availableHeroHeight: Math.max(0, viewportHeight - contentTop - bottomInset - 22)
     readonly property bool compactWelcome: androidHost && viewportWidth >= 600 && viewportHeight > 0 && viewportHeight < 600
     readonly property real welcomeInset: 12

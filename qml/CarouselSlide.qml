@@ -83,6 +83,7 @@ Item {
         }
         // …with the crisp poster stood on the right
         Image {
+            id: insetArt
             objectName: slideRoot.slideIndex >= 0 ? "featuredInsetArt_" + slideRoot.slideIndex : ""
             visible: slideRoot.hasInsetArt && !slideRoot.narrowLayout
             property string readySource: ""
@@ -125,7 +126,9 @@ Item {
             anchors.leftMargin: slideRoot.shortAndroid ? adaptive.heroCopyInset : (slideRoot.televisionMode ? 52 : (slideRoot.narrowLayout ? 20 : 42))
             anchors.bottomMargin: slideRoot.shortAndroid ? adaptive.heroCopyInset : (slideRoot.televisionMode ? 48 : (slideRoot.narrowLayout ? 22 : 42))
             width: Math.min(slideRoot.televisionMode ? 680 : 560,
-                            parent.width - (slideRoot.televisionMode ? 104 : (slideRoot.narrowLayout ? 40 : 84)))
+                            slideRoot.shortAndroid && slideRoot.hasInsetArt && !slideRoot.narrowLayout
+                                ? Math.max(0, insetArt.x - anchors.leftMargin - adaptive.heroCoverCopyGap)
+                                : parent.width - (slideRoot.televisionMode ? 104 : (slideRoot.narrowLayout ? 40 : 84)))
             spacing: slideRoot.compactCopy ? 8 : (slideRoot.televisionMode ? 12 : 10)
             Text { text: slideRoot.kicker.toUpperCase(); color: theme.gold
                 visible: text.length > 0
