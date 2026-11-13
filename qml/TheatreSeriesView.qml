@@ -1714,7 +1714,7 @@ Item {
                                         // Automation identity (Lanista): keyed by the episode's stream id,
                                         // stable while the virtual window recreates rows.
                                         objectName: "theatreEpisodePlay_" + String(ep.sid)
-                                        ToolTip.visible: playMa.containsMouse
+                                        ToolTip.visible: !touchMetrics.androidHost && playMa.containsMouse
                                         ToolTip.text: qsTr("Play episode")
                                         ToolTip.delay: 350
                                         width: 40; height: 40; radius: 20
@@ -1745,7 +1745,7 @@ Item {
                                     }
                                     Rectangle {
                                         visible: typeof Download !== "undefined"
-                                        ToolTip.visible: dlMa.containsMouse
+                                        ToolTip.visible: !touchMetrics.androidHost && dlMa.containsMouse
                                         ToolTip.text: ep.onDisk ? qsTr("Downloaded")
                                                       : ep.inQueue ? qsTr("Download queued") : qsTr("Download episode")
                                         ToolTip.delay: 350
@@ -1762,6 +1762,19 @@ Item {
                                                  : (dlMa.containsMouse ? theme.ink : theme.inkDim)
                                             font.pixelSize: 16
                                             font.weight: Font.DemiBold
+                                        }
+                                        KeyboardAction {
+                                            objectName: "episodeDownloadAndroidCaption"
+                                            x: (parent.width - width) / 2
+                                            width: 132
+                                            height: parent.height
+                                            pointerEnabled: false
+                                            focusEnabled: false
+                                            androidPresentationEnabled: touchMetrics.androidHost
+                                            androidTooltipPolicy: "caption"
+                                            androidCaptionText: ep.onDisk ? qsTr("Downloaded")
+                                                : ep.inQueue ? qsTr("Download queued") : qsTr("Download episode")
+                                            androidCaptionPlacement: "below"
                                         }
                                         MouseArea {
                                             id: dlMa
@@ -2240,7 +2253,7 @@ Item {
                     color: tick.current ? theme.gold : Qt.rgba(1, 1, 1, stripMa.containsMouse ? 0.45 : 0.25)
                 }
                 Text {
-                    visible: tick.current || (tick.index % rangeStrip.labelEvery === 0 && stripMa.containsMouse)
+                    visible: tick.current || (tick.index % rangeStrip.labelEvery === 0 && (touchMetrics.androidHost || stripMa.containsMouse))
                     anchors.right: parent.left
                     anchors.rightMargin: 4
                     anchors.verticalCenter: parent.verticalCenter

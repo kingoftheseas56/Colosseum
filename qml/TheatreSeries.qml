@@ -1747,7 +1747,7 @@ Item {
                                 // Automation identity (Lanista): keyed by the episode's own stream id.
                                 // The identity stays stable while the bounded virtual window is recreated.
                                 objectName: "theatreEpisodePlay_" + String(page.episodeStreamId(ep.modelData))
-                                ToolTip.visible: playMa.containsMouse
+                                ToolTip.visible: !touchMetrics.androidHost && playMa.containsMouse
                                 ToolTip.text: qsTr("Play episode")
                                 ToolTip.delay: 350
                                 x: rowActions.x
@@ -1782,7 +1782,7 @@ Item {
                             // (inert check), queued (inert download dim), ready to queue.
                             Rectangle {
                                 id: epDl
-                                ToolTip.visible: epDlMa.containsMouse
+                                ToolTip.visible: !touchMetrics.androidHost && epDlMa.containsMouse
                                 ToolTip.text: epDl.onDisk ? qsTr("Downloaded")
                                               : epDl.inQueue ? qsTr("Download queued") : qsTr("Download episode")
                                 ToolTip.delay: 350
@@ -1808,6 +1808,22 @@ Item {
                                     ink: epDl.onDisk ? page.watchedInk
                                          : epDl.inQueue ? theme.inkDimmer
                                          : (epDlMa.containsMouse ? theme.ink : theme.inkDim)
+                                }
+                                // State caption is rendered by the Slice 0 input seam,
+                                // outside the glyph's hit target without changing the
+                                // original pointer action or its queued/on-disk state.
+                                KeyboardAction {
+                                    objectName: "episodeDownloadAndroidCaption"
+                                    x: (parent.width - width) / 2
+                                    width: 132
+                                    height: parent.height
+                                    pointerEnabled: false
+                                    focusEnabled: false
+                                    androidPresentationEnabled: touchMetrics.androidHost
+                                    androidTooltipPolicy: "caption"
+                                    androidCaptionText: epDl.onDisk ? qsTr("Downloaded")
+                                        : epDl.inQueue ? qsTr("Download queued") : qsTr("Download episode")
+                                    androidCaptionPlacement: "below"
                                 }
                                 MouseArea {
                                     id: epDlMa

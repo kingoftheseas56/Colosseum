@@ -147,11 +147,15 @@ Item {
         if (menuRowId === row.entry.id) { closeMenu(true); return }
         menuRow = row; menuRowId = row.entry.id; menuX = x; menuY = y
         menuFocusReturn = invoker || wall; menuPanel.currentIndex = 0
-        Qt.callLater(function() { menuPanel.forceActiveFocus(Qt.PopupFocusReason) })
+        Qt.callLater(function() {
+            if (root.touchInput) libraryAndroidOverflow.open()
+            else menuPanel.forceActiveFocus(Qt.PopupFocusReason)
+        })
     }
     function closeMenu(restoreFocus) {
         const target = menuFocusReturn
         menuFocusReturn = null; menuRow = null; menuRowId = ""
+        if (root.touchInput) libraryAndroidOverflow.close()
         if (restoreFocus !== false && target)
             Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
@@ -511,11 +515,16 @@ Item {
                 }
                 // watched ✓ — top-right (hidden while hovering so the ⋮ can take the corner)
                 Rectangle {
-                    visible: card.watched && !card.hovered
-                    anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 8
-                    width: 22; height: 22; radius: 11; color: Qt.rgba(0.04, 0.04, 0.055, 0.72)
+                    visible: card.watched && (root.touchInput || !card.hovered)
+                    anchors.right: root.touchInput ? undefined : parent.right
+                    anchors.top: root.touchInput ? undefined : parent.top
+                    anchors.left: root.touchInput ? parent.left : undefined
+                    anchors.bottom: root.touchInput ? parent.bottom : undefined
+                    anchors.margins: 8
+                    width: root.touchInput ? 78 : 22
+                    height: 22; radius: 11; color: Qt.rgba(0.04, 0.04, 0.055, 0.72)
                     border.width: 1; border.color: theme.edge
-                    Text { anchors.centerIn: parent; text: "✓"; color: theme.inkDim; font.pixelSize: 12 }
+                    Text { anchors.centerIn: parent; text: root.touchInput ? qsTr("✓ Watched") : "✓"; color: theme.inkDim; font.pixelSize: 12 }
                 }
                 // in-progress hairline — cover base
                 Rectangle {
@@ -556,11 +565,25 @@ Item {
             Rectangle {
                 id: dots
                 anchors.right: worldContent.right; anchors.top: worldContent.top; anchors.margins: 8
-                width: 26; height: 26; radius: 8; color: Qt.rgba(0.04, 0.04, 0.075, 0.82)
+                width: root.touchInput ? 48 : 26
+                height: root.touchInput ? 45 : 26
+                radius: 8; color: Qt.rgba(0.04, 0.04, 0.075, 0.82)
                 border.width: 1; border.color: root.menuRowId === card.modelData.entry.id ? theme.gold : theme.edge
-                opacity: card.hovered ? 1 : 0
+                opacity: root.touchInput || card.hovered ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 150 } }
-                Text { anchors.centerIn: parent; text: "⋮"; color: theme.ink; font.pixelSize: 15 }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    y: root.touchInput ? 1 : (parent.height - height) / 2
+                    text: "⋮"; color: theme.ink; font.pixelSize: 15
+                }
+                Text {
+                    visible: root.touchInput
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 4
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: qsTr("More")
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                     onClicked: {
@@ -668,15 +691,52 @@ Item {
     }
     }
 
+    // Android presents the exact original menu actions through the one
+    // Slice 0 overflow owner. Desktop retains its original floating menu.
+    ActionOverflowMenu {
+        id: libraryAndroidOverflow
+        objectName: "theatreLibraryAndroidOptions"
+        z: 60
+        visible: root.touchInput && root.menuRow !== null
+        x: Math.max(8, Math.min(root.menuX - width, root.width - width - 8))
+        y: Math.max(8, Math.min(root.menuY, root.height - height - 8))
+        width: 40; height: 40
+        showLabel: false
+        label: qsTr("More")
+        menuWidth: 244
+        actions: {
+            var row = root.menuRow
+            if (!row) return []
+            var resume = row.progress > 0 || row.state === "progress"
+            var a = [{id:"resume", label: resume ? "Resume" + (row.sub ? " " + row.sub : "") : "Play", iconName:"film"},
+                     {id:"detail", label:qsTr("Details"), iconName:"note"}]
+            if (row.progress > 0)
+                a.push({id:"dismiss", label:qsTr("Dismiss progress"), iconName:"reset"})
+            a.push({id:"watch", label: row.state === "watched" ? qsTr("Mark unwatched") : qsTr("Mark watched"),
+                    iconName:"check", selected: row.state === "watched"})
+            a.push({id:"remove", label:qsTr("Remove from Library"), iconName:"close", danger:true})
+            return a
+        }
+        onActionTriggered: function(actionId) { root.triggerMenuAction(actionId) }
+        // The shared row closes its Popup *before* emitting actionTriggered.
+        // Restore focus on the next turn so the selected action can still
+        // consume root.menuRow and preserve its original handler.
+        onOpenedChanged: if (!opened && root.menuRow !== null && root.touchInput) {
+            Qt.callLater(function() {
+                if (!libraryAndroidOverflow.opened && root.menuRow !== null) root.closeMenu(true)
+            })
+        }
+    }
+
     // ── the floating ⋮ menu (root level — the wall clips) ──
     MouseArea {
-        anchors.fill: parent; z: 55; visible: root.menuRow !== null
+        anchors.fill: parent; z: 55; visible: root.menuRow !== null && !root.touchInput
         onClicked: root.closeMenu(true)
     }
     Rectangle {
         id: menuPanel
         objectName: "theatreLibraryMenuPanel"
-        z: 56; visible: root.menuRow !== null
+        z: 56; visible: root.menuRow !== null && !root.touchInput
         width: 200; radius: 13
         color: Qt.rgba(0.043, 0.047, 0.075, 0.98); border.width: 1; border.color: theme.edge
         implicitHeight: menuCol.implicitHeight + 12

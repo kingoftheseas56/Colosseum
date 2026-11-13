@@ -146,11 +146,15 @@ Item {
     readonly property string menuRowId: menuRow ? String(menuRow.entry && menuRow.entry.id || "") : ""
     function openMenu(row, x, y, invoker) {
         menuRow = row; menuX = x; menuY = y; menuFocusReturn = invoker || wall
-        Qt.callLater(function() { menuPanel.forceActiveFocus(Qt.PopupFocusReason) })
+        Qt.callLater(function() {
+            if (root.touchInput) tankobanAndroidOverflow.open()
+            else menuPanel.forceActiveFocus(Qt.PopupFocusReason)
+        })
     }
     function closeMenu(restoreFocus) {
         const target = menuFocusReturn
         menuFocusReturn = null; menuRow = null; menuX = 0; menuY = 0
+        if (root.touchInput) tankobanAndroidOverflow.close()
         if (restoreFocus !== false && target)
             Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
@@ -375,15 +379,31 @@ Item {
                 width: 26; height: 26; radius: 8; color: Qt.rgba(0.04, 0.04, 0.075, 0.82)
                 border.width: 1
                 border.color: root.menuRowId === String(modelData.entry.id || "") ? theme.gold : theme.edge
-                visible: card.effectiveHovered || root.menuRowId === String(modelData.entry.id || "")
-                HoverHandler { id: dotsTipHover }
-                ToolTip.visible: dotsTipHover.hovered
-                ToolTip.text: qsTr('Library options')
+                visible: root.touchInput || card.effectiveHovered || root.menuRowId === String(modelData.entry.id || "")
+                HoverHandler { id: dotsTipHover; enabled: !root.touchInput }
+                ToolTip.visible: !root.touchInput && dotsTipHover.hovered
+                ToolTip.text: qsTr("Library options")
                 ToolTip.delay: 350
                 Text { anchors.centerIn: parent; text: "⋮"; color: theme.ink; font.pixelSize: 15 }
                 MouseArea {
+                    visible: !root.touchInput
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                     onClicked: {
+                        wall.currentIndex = host.index
+                        wall.forceActiveFocus(Qt.MouseFocusReason)
+                        var pt = dots.mapToItem(root, dots.width, dots.height)
+                        root.openMenu(host.modelData, pt.x, pt.y, wall)
+                    }
+                }
+                KeyboardAction {
+                    visible: root.touchInput
+                    anchors.fill: parent
+                    accessibleName: qsTr("Library options")
+                    tooltipText: accessibleName
+                    androidPresentationEnabled: root.touchInput
+                    androidTooltipPolicy: "longPress"
+                    focusRadius: 8
+                    onTriggered: {
                         wall.currentIndex = host.index
                         wall.forceActiveFocus(Qt.MouseFocusReason)
                         var pt = dots.mapToItem(root, dots.width, dots.height)
@@ -417,6 +437,33 @@ Item {
     }
     }
 
+    // Android's visible ⋮ and long-press open the shared row menu;
+    // the original hand-built panel remains desktop-only.
+    ActionOverflowMenu {
+        id: tankobanAndroidOverflow
+        objectName: "tankobanLibraryAndroidOptions"
+        z: 60
+        visible: root.touchInput && root.menuRow !== null
+        x: Math.max(8, Math.min(root.menuX - width, root.width - width - 8))
+        y: Math.max(8, Math.min(root.menuY, root.height - height - 8))
+        width: 40; height: 40
+        showLabel: false
+        label: qsTr("More")
+        menuWidth: 230
+        actions: [{ id: "remove", label: qsTr("Remove from Library"), iconName: "trash", danger: true }]
+        onActionTriggered: function(actionId) {
+            if (actionId === "remove") root.triggerMenuIndex(0)
+        }
+        // The shared row closes its Popup *before* emitting actionTriggered.
+        // Restore focus on the next turn so the selected action can still
+        // consume root.menuRow and preserve its original handler.
+        onOpenedChanged: if (!opened && root.menuRow !== null && root.touchInput) {
+            Qt.callLater(function() {
+                if (!tankobanAndroidOverflow.opened && root.menuRow !== null) root.closeMenu(true)
+            })
+        }
+    }
+
     // ── TB-005 ⋮ menu panel (root-level so wall.clip doesn't clip it) ──
     // A click-swallower behind the panel closes it on outside click. The single action is
     // Remove from Library, which emits removeRequested(entry) — the owner (TankobanWorld)
@@ -424,7 +471,7 @@ Item {
     Item {
         id: menuLayer
         anchors.fill: parent
-        visible: root.menuRow !== null
+        visible: root.menuRow !== null && !root.touchInput
         MouseArea {
             anchors.fill: parent
             onClicked: root.closeMenu(true)      // outside click swallows + closes

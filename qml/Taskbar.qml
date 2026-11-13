@@ -23,12 +23,15 @@ Item {
     property var groups: (typeof Sessions !== "undefined") ? (Sessions.revision, Sessions.groups()) : []
     property string activeId: (typeof Sessions !== "undefined") ? Sessions.activeId : ""
     property bool open: false
+    // The Android APK stages this shared file, not +android/Taskbar.qml.
+    // Keep desktop's auto-hiding session dock byte-for-byte in its own branch.
+    property bool androidPresentationEnabled: Qt.platform.os === "android"
     property bool localMediaAvailable: typeof LocalLaunch !== "undefined" && LocalLaunch !== null
     readonly property string localMediaUnavailableReason: qsTr("Local file import is unavailable. Open downloaded media from Downloads.")
     readonly property int leftEdge: Math.max(18, Math.min(80, parent.width * 0.045))
     readonly property int bottomGap: 16
-    readonly property int closedSize: 64
-    readonly property real contentBottomInset: visible ? height - dock.y : 0
+    readonly property int closedSize: bar.androidPresentationEnabled ? 80 : 64
+    readonly property real contentBottomInset: visible ? height - (bar.androidPresentationEnabled ? androidDock.y : dock.y) : 0
     // Permanent buttons: Colosseum, Vault, and Your Collections.
     readonly property int closedWidth: 190
     Keys.onPressed: (event) => spatialNav.handle(event)
@@ -60,7 +63,11 @@ Item {
     readonly property string activityLabel: feriaContext ? "Your Feria" : "Your Colosseum"
     // Third-party trackers (the Sync Center) live in the TopBar's right cluster, not here.
 
-    onOpenChanged: if (!open) fan.visible = false
+    onOpenChanged: {
+        if (!open) fan.visible = false
+        else if (bar.androidPresentationEnabled) fan.openForAll()
+    }
+    onGroupsChanged: if (bar.androidPresentationEnabled && bar.open && fan) fan.openForAll()
 
     // ---- auto-reveal (2026-07-04): a minimize extends the bar out of the icon so you SEE the
     //      session arrive, then it pulls back after 15s without taskbar interaction. A bar the
@@ -77,13 +84,15 @@ Item {
         if (!bar.open)
             bar.open = true
         Qt.callLater(function() {
-            if (historyStatsInput.visible && historyStatsInput.enabled)
+            if (bar.androidPresentationEnabled) androidMore.open()
+            else if (historyStatsInput.visible && historyStatsInput.enabled)
                 historyStatsInput.forceActiveFocus(Qt.TabFocusReason)
         })
     }
     function focusCollectionsAction() {
         Qt.callLater(function() {
-            if (collectionsInput.visible && collectionsInput.enabled)
+            if (bar.androidPresentationEnabled) androidCollectionsInput.forceActiveFocus(Qt.TabFocusReason)
+            else if (collectionsInput.visible && collectionsInput.enabled)
                 collectionsInput.forceActiveFocus(Qt.TabFocusReason)
         })
     }
@@ -122,9 +131,222 @@ Item {
         return group.icon || ""
     }
 
+    // Android desktop-parity presentation: fixed five-door navigation on both
+    // phones and landscape tablets. Sessions remain reachable through Colosseum.
+    Rectangle {
+        id: androidDock
+        objectName: "taskbarAndroidDock"
+        visible: bar.androidPresentationEnabled
+        x: bar.leftEdge
+        y: bar.height - height - bar.bottomGap
+        width: Math.max(0, Math.min(bar.width - bar.leftEdge * 2, 480))
+        height: 80
+        radius: 20
+        color: "#ed08090d"
+        border.width: 1
+        border.color: "#29ffffff"
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: 6
+            spacing: 2
+            Item {
+                objectName: "androidTaskbarHomeDoor"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 44
+                Layout.alignment: Qt.AlignTop
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: androidHomeInput.interactionActive || bar.open
+                        ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: bar.open ? 1 : 0
+                    border.color: theme.gold
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 28; height: 28
+                    source: "../assets/icons/colosseum.svg"
+                    fillMode: Image.PreserveAspectFit
+                }
+                KeyboardAction {
+                    id: androidHomeInput
+                    anchors.fill: parent
+                    accessibleName: bar.open ? qsTr("Close Colosseum taskbar") : qsTr("Open Colosseum taskbar")
+                    tooltipText: accessibleName
+                    androidPresentationEnabled: bar.androidPresentationEnabled
+                    androidTooltipPolicy: "caption"
+                    androidCaptionText: qsTr("Colosseum")
+                    androidCaptionPlacement: "below"
+                    focusRadius: 13
+                    onTriggered: {
+                        bar.autoRevealed = false
+                        idleTimer.stop()
+                        bar.open = !bar.open
+                    }
+                }
+            }
+            Item {
+                objectName: "androidTaskbarVaultDoor"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 44
+                Layout.alignment: Qt.AlignTop
+                VaultDoor {
+                    anchors.fill: parent
+                    active: bar.vaultActive
+                    scanning: (typeof VaultLibrary !== "undefined") ? VaultLibrary.scanning : false
+                    arrivalTick: (typeof VaultLibrary !== "undefined")
+                                 ? (VaultLibrary.liveArrival, VaultLibrary.arrivalTick) : 0
+                    onClicked: bar.vaultClicked()
+                }
+            }
+            Item {
+                objectName: "androidTaskbarCollectionsDoor"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 44
+                Layout.alignment: Qt.AlignTop
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: androidCollectionsInput.interactionActive || bar.collectionsActive
+                        ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: bar.collectionsActive ? 1 : 0
+                    border.color: theme.gold
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 28; height: 28
+                    source: "../assets/icons/collections-app.png"
+                    fillMode: Image.PreserveAspectFit
+                    Accessible.ignored: true
+                }
+                KeyboardAction {
+                    id: androidCollectionsInput
+                    anchors.fill: parent
+                    accessibleName: qsTr("Your Collections")
+                    tooltipText: accessibleName
+                    androidPresentationEnabled: bar.androidPresentationEnabled
+                    androidTooltipPolicy: "caption"
+                    androidCaptionText: qsTr("Collections")
+                    androidCaptionPlacement: "below"
+                    focusRadius: 13
+                    onTriggered: bar.collectionsClicked()
+                }
+            }
+            Item {
+                objectName: "androidTaskbarDownloadsDoor"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 44
+                Layout.alignment: Qt.AlignTop
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: androidDownloadsInput.interactionActive || bar.downloadsActive
+                        ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: bar.downloadsActive ? 1 : 0
+                    border.color: theme.gold
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 24; height: 24
+                    source: "../assets/icons/download.svg"
+                    fillMode: Image.PreserveAspectFit
+                }
+                Rectangle {
+                    visible: bar.downloadsActive
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    width: 20; height: 3; radius: 2
+                    color: theme.gold
+                }
+                Rectangle {
+                    visible: bar.downloadsBadge > 0
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    width: Math.max(17, androidBadgeLabel.implicitWidth + 8)
+                    height: 17; radius: 9
+                    color: "#f0c44a"
+                    Text {
+                        id: androidBadgeLabel
+                        anchors.centerIn: parent
+                        text: bar.downloadsBadge
+                        color: "#141207"
+                        font.pixelSize: 11
+                        font.weight: Font.Bold
+                    }
+                }
+                KeyboardAction {
+                    id: androidDownloadsInput
+                    anchors.fill: parent
+                    accessibleName: qsTr("Downloads")
+                    tooltipText: accessibleName
+                    androidPresentationEnabled: bar.androidPresentationEnabled
+                    androidTooltipPolicy: "caption"
+                    androidCaptionText: qsTr("Downloads")
+                    androidCaptionPlacement: "below"
+                    focusRadius: 13
+                    onTriggered: bar.downloadsClicked()
+                }
+            }
+            Item {
+                objectName: "androidTaskbarMoreDoor"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 44
+                Layout.alignment: Qt.AlignTop
+                ActionOverflowMenu {
+                    id: androidMore
+                    objectName: "taskbarAndroidMore"
+                    anchors.fill: parent
+                    showLabel: false
+                    label: qsTr("More")
+                    menuWidth: 260
+                    actions: [
+                        { id: "media", label: qsTr("Open media"),
+                          iconSource: "../assets/icons/open-media.svg", enabled: bar.localMediaAvailable },
+                        { id: "recent", label: qsTr("Open recent media"),
+                          iconName: "folder", enabled: bar.localMediaAvailable },
+                        { id: "party", label: qsTr("Watch Party"),
+                          iconSource: "../assets/icons/watch-party.svg", selected: bar.watchPartyJoinOpen },
+                        { id: "extensions", label: qsTr("Extensions"),
+                          iconSource: "../assets/icons/extensions.svg", selected: bar.extensionsActive },
+                        { id: "activity", label: bar.activityLabel,
+                          iconSource: "../assets/icons/your-colosseum-laurel.svg",
+                          selected: bar.historyStatsActive },
+                        { id: "feedback", label: qsTr("Feedback"), iconName: "note" }
+                    ]
+                    onActionTriggered: function(actionId) {
+                        if (actionId === "media") bar.openMediaClicked()
+                        else if (actionId === "recent") bar.openRecentRequested()
+                        else if (actionId === "party") bar.watchPartyJoinClicked()
+                        else if (actionId === "extensions") bar.extensionsClicked()
+                        else if (actionId === "activity") bar.historyStatsClicked()
+                        else if (actionId === "feedback") {
+                            bar.feedbackClicked()
+                            bar.open = false
+                        }
+                    }
+                }
+                // The overflow owns the tap. This noninteractive caption uses
+                // the same Slice 0 KeyboardAction typography as the four doors.
+                KeyboardAction {
+                    anchors.top: parent.top
+                    width: parent.width
+                    height: parent.height
+                    pointerEnabled: false
+                    focusEnabled: false
+                    androidPresentationEnabled: bar.androidPresentationEnabled
+                    androidTooltipPolicy: "caption"
+                    androidCaptionText: qsTr("More")
+                    androidCaptionPlacement: "below"
+                }
+            }
+        }
+    }
+
     Rectangle {
         id: dock
         objectName: "taskbarDock"
+        visible: !bar.androidPresentationEnabled
         x: bar.leftEdge
         y: parent.height - height - bar.bottomGap
         width: bar.open ? Math.min(parent.width - (bar.leftEdge * 2), 1720) : bar.closedWidth
@@ -685,6 +907,25 @@ Item {
             onHoveredChanged: if (hovered && bar.autoRevealed) idleTimer.restart()
         }
 
+        // The four permanent Android doors never disappear on expansion.
+        // Colosseum opens the existing named session/close fan above that dock.
+        function openForAll() {
+            var allSessions = []
+            for (var i = 0; i < bar.groups.length; ++i) {
+                var groupSessions = bar.groups[i].sessions || []
+                for (var j = 0; j < groupSessions.length; ++j)
+                    allSessions.push(groupSessions[j])
+            }
+            fan.sessions = allSessions
+            fan.invoker = androidHomeInput
+            fan.x = bar.leftEdge
+            fan.y = Qt.binding(function() { return Math.max(8, androidDock.y - fan.height - 8) })
+            fan.visible = allSessions.length > 0
+            if (fan.visible) Qt.callLater(function() {
+                var first = fanRepeater.itemAt(0)
+                if (first) first.forceActiveFocus(Qt.TabFocusReason)
+            })
+        }
         function openFor(tile, nextSessions, invoker) {
             fan.sessions = nextSessions
             fan.invoker = invoker
@@ -712,6 +953,20 @@ Item {
             anchors.margins: 8
             spacing: 4
 
+            Text {
+                visible: bar.androidPresentationEnabled && fan.sessions.length > 0
+                width: parent.width
+                height: visible ? 22 : 0
+                text: fan.sessions.length === 1
+                    ? qsTr("Open session") : qsTr("Open %1 sessions").arg(fan.sessions.length)
+                color: theme.inkDim
+                font.family: theme.ui
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+                leftPadding: 9
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+            }
             Repeater {
                 id: fanRepeater
                 model: fan.sessions
@@ -738,7 +993,11 @@ Item {
                         bar.switchRequested(fanRow.modelData.id)
                         fan.visible = false
                         bar.open = false
-                        Qt.callLater(function() { startInput.forceActiveFocus(Qt.TabFocusReason) })
+                        Qt.callLater(function() {
+                            var home = bar.androidPresentationEnabled ? androidHomeInput : startInput
+                            if (home && home.visible && home.enabled)
+                                home.forceActiveFocus(Qt.TabFocusReason)
+                        })
                     }
 
                     Text {
@@ -781,7 +1040,7 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             ToolTip.text: qsTr("Close session")
                             ToolTip.delay: 350
-                            ToolTip.visible: containsMouse
+                            ToolTip.visible: !bar.androidPresentationEnabled && containsMouse
                             onClicked: {
                                 bar.closeRequested(modelData.id)
                                 fan.closeAndRestore()

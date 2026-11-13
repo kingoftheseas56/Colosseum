@@ -109,9 +109,29 @@ Item {
         tooltipText: !door.available ? ""
             : door.arrivalPulse ? qsTr("Open Vault · New media arrived")
             : door.scanning ? qsTr("Open Vault · Scanning") : accessibleName
+        androidPresentationEnabled: touchMetrics.androidHost
+        androidTooltipPolicy: touchMetrics.androidHost ? "caption" : "legacy"
+        androidCaptionText: qsTr("Vault")
+        androidCaptionPlacement: "below"
         tooltipHovered: doorMa.containsMouse
         accessibleDescription: door.available ? "" : qsTr("Vault is unavailable on Android.")
         onTriggered: door.clicked()
+    }
+    // Caption remains "Vault" while the scan/arrival state is a second,
+    // transient line. The original dot, ring animation and tooltip stay intact.
+    Text {
+        visible: touchMetrics.androidHost && (!door.available || door.scanning || door.arrivalPulse)
+        anchors.top: parent.bottom
+        anchors.topMargin: 18
+        width: parent.width
+        text: !door.available ? qsTr("Unavailable")
+            : door.arrivalPulse ? qsTr("New media arrived") : qsTr("Scanning")
+        color: !door.available ? "#8c8c94" : "#f0c44a"
+        font.pixelSize: 9
+        fontSizeMode: Text.Fit
+        minimumPixelSize: 8
+        horizontalAlignment: Text.AlignHCenter
+        elide: Text.ElideRight
     }
     ToolTip.visible: !door.available && doorMa.containsMouse
     ToolTip.text: qsTr("Vault is unavailable on Android.")
