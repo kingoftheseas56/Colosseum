@@ -184,6 +184,7 @@ Item {
                         KeyboardAction {
                             tooltipText: accessibleName
                             objectName: "mangaChapterPagePrev"
+                            androidTooltipPolicy: "drop"
                             anchors.fill: parent
                             enabled: root.currentPageIndex > 0
                             accessibleName: "Previous page"
@@ -224,6 +225,7 @@ Item {
                         KeyboardAction {
                             tooltipText: accessibleName
                             objectName: "mangaChapterPageNext"
+                            androidTooltipPolicy: "drop"
                             anchors.fill: parent
                             enabled: root.currentPageIndex < root.pageCount - 1
                             accessibleName: "Next page"
@@ -591,16 +593,25 @@ Item {
                         }
                         Text {
                             anchors.centerIn: parent
-                            text: row.dlState === "done" ? (trailingAction.interactionActive ? "✕" : "✓")
+                            text: row.dlState === "done" ? ((Qt.platform.os === "android" || trailingAction.interactionActive) ? "✕" : "✓")
                                 : row.inFlight ? "✕" : row.dlState === "error" ? "↻" : "↓"
                             color: row.dlState === "done" ? theme.gold : (trailingAction.interactionActive ? theme.gold : theme.inkDim)
                             font.pixelSize: 16
                         }
                         KeyboardAction {
                             tooltipText: row.dlState === 'error' ? qsTr('Retry chapter download') : accessibleName
+                            androidTooltipPolicy: "caption"
+                            androidCaptionText: row.dlState === "error" ? qsTr("Retry chapter download")
+                                : row.dlState === "done" ? qsTr("Delete download")
+                                : row.inFlight ? qsTr("Cancel download") : qsTr("Download chapter")
+                            androidCaptionPlacement: "below"
                             id: trailingAction
                             objectName: "mangaChapterDownload_" + row.chapterId
-                            anchors.fill: parent
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: Qt.platform.os === "android" ? 168 : parent.width
+                            height: parent.height
+                            pointerEnabled: Qt.platform.os !== "android"
                             focusRadius: 20
                             focusColor: root.focusGold
                             accessibleName: row.dlState === "done" ? ("Delete download of " + row.chapterLabel)
@@ -608,6 +619,12 @@ Item {
                                           : ("Download " + row.chapterLabel)
                             onTriggered: row.runTrailing()
                             Keys.onLeftPressed: row.takeFocus()
+                        }
+                        MouseArea {
+                            visible: Qt.platform.os === "android"
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: row.runTrailing()
                         }
                     }
                 }

@@ -1157,14 +1157,21 @@ Item {
                                         KeyboardAction {
                                             tooltipText: chapterRow.inFlight ? qsTr('Cancel download') : chapterRow.chapterState === 'done' ? qsTr('Read chapter') : (chapterRow.chapterState === 'failed' || chapterRow.chapterState === 'error') ? qsTr('Retry download') : qsTr('Download chapter')
                                             tooltipHovered: actionMouse.containsMouse
+                                            androidTooltipPolicy: "caption"
+                                            androidCaptionPlacement: "below"
                                             id: chapterUtilityKeyboard
-                                            anchors.fill: parent
+                                            anchors.right: parent.right
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: Qt.platform.os === "android" ? 150 : parent.width
+                                            height: parent.height
                                             pointerEnabled: false
                                             accessibleName: chapterRow.inFlight
                                                 ? "Cancel " + chapterRow.chapterLabel
                                                 : chapterRow.chapterState === "done"
-                                                    ? "Remove " + chapterRow.chapterLabel
-                                                    : "Download " + chapterRow.chapterLabel
+                                                    ? "Read " + chapterRow.chapterLabel
+                                                    : chapterRow.chapterState === "failed" || chapterRow.chapterState === "error"
+                                                        ? "Retry download of " + chapterRow.chapterLabel
+                                                        : "Download " + chapterRow.chapterLabel
                                             onTriggered: {
                                                 var d = root.downloaderObject
                                                 if (chapterRow.inFlight && d && d.cancelDownload)

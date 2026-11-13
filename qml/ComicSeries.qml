@@ -693,6 +693,7 @@ Item {
                             pointerEnabled: false
                             focusEnabled: clearBtn.visible
                             accessibleName: "Clear release search"
+                            androidTooltipPolicy: "drop"
                             onTriggered: filterInput.text = ""
                         }
                     }
@@ -959,10 +960,10 @@ Item {
                                             Text {
                                                 anchors.centerIn: parent
                                                 text: row.dlState === "dead" ? ""
-                                                    : row.dlState === "done" ? (trMa.containsMouse ? "✕" : "✓")
+                                                    : row.dlState === "done" ? ((Qt.platform.os === "android" || trMa.containsMouse) ? "✕" : "✓")
                                                     : row.inFlight ? "✕"
                                                     : row.dlState === "error" ? "↻" : "↓"
-                                                color: (row.dlState === "done" && trMa.containsMouse) ? "#e6a3a3"
+                                                color: (row.dlState === "done" && (Qt.platform.os === "android" || trMa.containsMouse)) ? "#e6a3a3"
                                                      : row.dlState === "done" ? theme.gold
                                                      : trMa.containsMouse ? theme.gold : theme.inkDim
                                                 font.pixelSize: 16
@@ -977,12 +978,21 @@ Item {
                                             KeyboardAction {
                                                 tooltipText: accessibleName
                                                 tooltipHovered: trMa.containsMouse
+                                                androidTooltipPolicy: "caption"
+                                                androidCaptionText: row.dlState === "done" ? qsTr("Remove downloaded release")
+                                                    : row.inFlight ? qsTr("Cancel release download")
+                                                    : row.dlState === "error" ? qsTr("Retry download") : qsTr("Download release")
+                                                androidCaptionPlacement: "below"
                                                 id: trailingKeyboard
-                                                anchors.fill: parent
+                                                anchors.right: parent.right
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                width: Qt.platform.os === "android" ? 180 : parent.width
+                                                height: parent.height
                                                 pointerEnabled: false
                                                 focusEnabled: row.dlState !== "dead"
                                                 accessibleName: row.dlState === "done" ? "Remove downloaded release"
-                                                    : row.inFlight ? "Cancel release download" : "Download release"
+                                                    : row.inFlight ? "Cancel release download"
+                                                    : row.dlState === "error" ? "Retry download" : "Download release"
                                                 onTriggered: trailing.activateTrailing()
                                             }
                                         }

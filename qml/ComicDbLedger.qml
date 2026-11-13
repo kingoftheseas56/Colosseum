@@ -26,6 +26,7 @@ Item {
     property string seriesTitle: ""
     property string gcTag: ""                    // download namespace: "gc:<tag>"
     property real   contentWidth: width
+    readonly property bool phoneAndroid: Qt.platform.os === "android" && contentWidth < 600
     property var libraryEntry: null   // Collection snapshot passed by the host page (+ Library / download-collect)
 
     signal readRequested(string chId, string label)
@@ -200,7 +201,7 @@ Item {
                         objectName: "comicDbEdition_" + ed.chId
                         required property var modelData
                         width: col.width
-                        height: 192 + sourceRail.implicitHeight
+                        height: 192 + sourceRail.implicitHeight + (ledger.phoneAndroid && ed.canAlternate ? 52 : 0)
 
                         property string chId: String(ed.modelData.locg_comic_id || ed.modelData.slug || "")
                         property var sourceRows: ed.modelData.sources || []
@@ -304,7 +305,9 @@ Item {
 
                         Column {                             // title · spec · blurb
                             anchors.left: edCover.right; anchors.leftMargin: 20
-                            anchors.right: ed.canAlternate ? altBtn.left : edState.left; anchors.rightMargin: 16
+                            anchors.right: ledger.phoneAndroid ? edState.left
+                                : (ed.canAlternate ? altBtn.left : edState.left)
+                            anchors.rightMargin: 16
                             anchors.verticalCenter: edCover.verticalCenter
                             spacing: 7
                             Text { width: parent.width; text: ledger.displayTitle(ed.modelData.display_title || ed.modelData.title)
@@ -441,15 +444,22 @@ Item {
                         Rectangle {
                             id: altBtn
                             visible: ed.canAlternate
-                            anchors.right: edState.left; anchors.rightMargin: 12
-                            anchors.verticalCenter: edCover.verticalCenter
-                            width: 38; height: 38; radius: 19
+                            anchors.left: ledger.phoneAndroid ? edCover.right : undefined
+                            anchors.leftMargin: ledger.phoneAndroid ? 20 : 0
+                            anchors.top: ledger.phoneAndroid ? sourceRail.bottom : undefined
+                            anchors.topMargin: ledger.phoneAndroid ? 8 : 0
+                            anchors.right: ledger.phoneAndroid ? undefined : edState.left
+                            anchors.rightMargin: ledger.phoneAndroid ? 0 : 12
+                            anchors.verticalCenter: ledger.phoneAndroid ? undefined : edCover.verticalCenter
+                            width: Qt.platform.os === "android" ? 180 : 38
+                            height: 38; radius: Qt.platform.os === "android" ? 10 : 19
                             color: altMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05)
                             border.width: 1
                             border.color: altMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.45) : theme.edge
                             Behavior on border.color { ColorAnimation { duration: 140 } }
                             Image {
-                                anchors.centerIn: parent
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: Qt.platform.os === "android" ? 12 : (parent.width - width) / 2
                                 source: "../assets/icons/search.svg"; width: 17; height: 17
                                 opacity: altMa.containsMouse ? 1.0 : 0.82
                             }
@@ -457,16 +467,22 @@ Item {
                                 id: altMa; anchors.fill: parent; enabled: ed.canAlternate
                                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: ledger.alternateSourcesRequested(ed.modelData, ed.chId)
-                                ToolTip.visible: containsMouse
+                                ToolTip.visible: Qt.platform.os !== "android" && containsMouse
                                 ToolTip.text: "Find alternate sources"
                                 ToolTip.delay: 350
                             }
                             KeyboardAction {
                                 id: alternateSourcesKeyboard
-                                anchors.fill: parent
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: Qt.platform.os === "android" ? 44 : parent.width
+                                height: parent.height
                                 pointerEnabled: false
                                 focusEnabled: ed.canAlternate
                                 accessibleName: "Find alternate sources"
+                                tooltipText: accessibleName
+                                androidTooltipPolicy: "caption"
+                                androidCaptionPlacement: "right"
                                 onTriggered: ledger.alternateSourcesRequested(ed.modelData, ed.chId)
                             }
                             Accessible.role: Accessible.Button

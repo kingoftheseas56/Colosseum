@@ -27,8 +27,8 @@ import "../"   // Theme (lives in qml/, the parent of qml/comicreader/)
 Item {
     id: bar
 
-    // Android phone width: the six commands show as icons only (their names stay as accessible
-    // labels). Named, the row is wider than a phone and ran off the left edge.
+    // On Android phones, keep Bookmark and Pages named inline; the other four
+    // commands move into the shared tap-visible More menu. Tablets retain all six.
     readonly property bool compact: Qt.platform.os === "android" && width < 600
     objectName: "readerCommandBar"
 
@@ -135,9 +135,14 @@ Item {
                 if (item && item.relayout) item.relayout()
             }
             row.forceLayout()
-            for (var j = 0; j < commands.length; j++) {
+            for (var j = 0; j < cmdRepeater.count; j++) {
                 var it = cmdRepeater.itemAt(j)
                 if (it) out[commands[j]] = row.x + it.x + it.width / 2
+            }
+            // A popover opened from a phone More row still anchors to the actual tap target.
+            if (bar.compact && moreCommands.visible) {
+                var moreCentre = row.x + moreCommands.x + moreCommands.width / 2
+                for (var k = 2; k < commands.length; k++) out[commands[k]] = moreCentre
             }
         }
         commandAnchors = out
@@ -150,6 +155,10 @@ Item {
         return (typeof v === "number" && isFinite(v) && v >= 0) ? v : -1
     }
     onWidthChanged:  Qt.callLater(refreshAnchors)
+    onCompactChanged: {
+        if (!compact) moreCommands.close()
+        Qt.callLater(refreshAnchors)
+    }
     onLayoutChanged: Qt.callLater(refreshAnchors)   // "Long strip" and "Paired pages" are different widths
     onOrderChanged:  Qt.callLater(refreshAnchors)   // ...so are "Manga order" and "Comic order"
     Component.onCompleted: Qt.callLater(refreshAnchors)
@@ -170,14 +179,14 @@ Item {
 
         Repeater {
             id: cmdRepeater
-            model: bar.commands
+            model: bar.compact ? ["bookmark", "pages"] : bar.commands
             delegate: Item {
                 id: cmd
                 required property string modelData
                 readonly property bool on: bar.activeFor(modelData)
                 // width/height come from the content: a command is its icon and its name, nothing else.
-                // phone: icon only in a 44px slot; six named commands are wider than the screen
-                width: bar.compact ? 44 : cmdRow.implicitWidth
+                // Named phone commands use their natural label width, never icon-only slots.
+                width: cmdRow.implicitWidth
                 height: 30
                 // settle this command's own content so the anchor seam can measure it in the same
                 // beat a label changed, rather than a polish pass later
@@ -186,7 +195,6 @@ Item {
                 Row {
                     id: cmdRow
                     anchors.verticalCenter: parent.verticalCenter
-                    anchors.horizontalCenter: bar.compact ? parent.horizontalCenter : undefined
                     spacing: 9
 
                     ComicReaderIcon {
@@ -199,7 +207,6 @@ Item {
                         ink: cmd.on ? theme.gold : (cmdMa.containsMouse ? theme.ink : theme.inkDim)
                     }
                     Text {
-                        visible: !bar.compact
                         anchors.verticalCenter: parent.verticalCenter
                         text: bar.labelFor(cmd.modelData)
                         color: cmd.on ? theme.gold : (cmdMa.containsMouse ? theme.ink : theme.inkDim)
@@ -229,6 +236,21 @@ Item {
                     onClicked: bar.trigger(cmd.modelData)
                 }
             }
+        }
+        // R1: only the approved four secondary reader utilities move into More on phones.
+        ActionOverflowMenu {
+            id: moreCommands
+            visible: bar.compact
+            anchors.verticalCenter: parent.verticalCenter
+            label: qsTr("More")
+            showLabel: true
+            actions: [
+                { id: "loupe", label: bar.labelFor("loupe"), iconName: "search", selected: bar.activeFor("loupe") },
+                { id: "image", label: bar.labelFor("image"), iconName: "grid", selected: bar.activeFor("image") },
+                { id: "layout", label: bar.labelFor("layout"), iconName: "grid", selected: bar.activeFor("layout") },
+                { id: "order", label: bar.labelFor("order"), iconName: "reset", selected: false }
+            ]
+            onActionTriggered: function(command) { bar.trigger(command) }
         }
     }
 }
