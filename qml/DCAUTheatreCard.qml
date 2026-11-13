@@ -11,6 +11,7 @@ FocusScope {
     readonly property string titleText: root.item ? (root.item.title || "") : ""
 
     width: 200
+    // Keep the existing 352px theatre lane: reserve the source line below the title on touch.
     height: 352
     activeFocusOnTab: true
 
@@ -21,7 +22,7 @@ FocusScope {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        height: 300
+        height: Qt.platform.os === "android" ? 285 : 300
 
         transform: Translate {
             y: pointer.containsMouse ? -8 : 0
@@ -89,6 +90,21 @@ FocusScope {
         lineHeight: 1.18
         wrapMode: Text.WordWrap
         maximumLineCount: 2
+        elide: Text.ElideRight
+    }
+
+    Text {
+        objectName: "dcauCardPersistentSource"
+        visible: Qt.platform.os === "android"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: frame.bottom
+        anchors.topMargin: 52
+        height: 15
+        text: root.sourceText
+        color: theme.inkDim
+        font.family: theme.ui
+        font.pixelSize: 11
         elide: Text.ElideRight
     }
 

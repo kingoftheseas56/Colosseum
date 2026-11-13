@@ -5,19 +5,24 @@ FocusScope {
     id: root
     property string glyph: "›"
     property string tooltipText: ""
-    ToolTip.visible: root.tooltipText.length > 0 && hover.hovered
+    readonly property bool androidTablet: Qt.platform.os === "android" && parent && parent.width >= 600
+    ToolTip.visible: Qt.platform.os !== "android" && root.tooltipText.length > 0 && hover.hovered
     ToolTip.text: root.tooltipText
     ToolTip.delay: 350
     signal triggered()
 
-    width: 44
-    height: 44
+    width: Qt.platform.os === "android" ? (androidTablet ? 176 : 132) : 44
+    height: Qt.platform.os === "android" && !androidTablet ? 70 : 44
     activeFocusOnTab: true
 
     Theme { id: theme }
 
     Rectangle {
-        anchors.fill: parent
+        width: 44
+        height: 44
+        anchors.top: parent.top
+        anchors.left: root.androidTablet ? parent.left : undefined
+        anchors.horizontalCenter: root.androidTablet ? undefined : parent.horizontalCenter
         radius: 22
         color: Qt.rgba(8 / 255, 10 / 255, 14 / 255, 0.76)
         border.width: 1
@@ -33,6 +38,25 @@ FocusScope {
             font.family: theme.ui
             font.pixelSize: 25
         }
+    }
+
+    // Slice 0 owns the Android caption. Keep this input wrapper non-interactive;
+    // the existing TapHandler and focus keys still own both portal directions.
+    KeyboardAction {
+        anchors.top: parent.top
+        anchors.left: root.androidTablet ? parent.left : undefined
+        anchors.horizontalCenter: root.androidTablet ? undefined : parent.horizontalCenter
+        width: root.androidTablet ? 44 : root.width
+        height: 44
+        pointerEnabled: false
+        focusEnabled: false
+        focusPolicy: Qt.NoFocus
+        showFocusFrame: false
+        accessibleName: root.tooltipText
+        tooltipText: root.tooltipText
+        androidTooltipPolicy: "caption"
+        androidCaptionPlacement: root.androidTablet ? "right" : "below"
+        onTriggered: root.triggered()
     }
 
     HoverHandler { id: hover }
