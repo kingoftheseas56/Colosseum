@@ -70,6 +70,74 @@ TestCase {
         Account.AccountWelcome { width: host.width; height: host.height }
     }
     Component { id: metricsComponent; App.AdaptiveLayout {} }
+    property var win: host
+    QtObject {
+        id: volumeService
+        property int revision: 0
+        function volumesForSeries(id) {
+            return [{id: "fixture-1", number: 1, title: "Romance Dawn", state: "ready", cover: ""}]
+        }
+    }
+    Component { id: bookComponent; App.BiblioBook {} }
+    SignalSpy { id: volumeReadSpy; signalName: "readVolumeRequested" }
+    Component {
+        id: mangaRoomComponent
+        App.MangaReadingRoom {
+            seriesId: "fixture"
+            seriesTitle: "One Piece"
+            author: "Eiichiro Oda"
+            status: "Publishing"
+            year: 1997
+            synopsis: "A long series description that remains available while the volume controls stay clear of the header."
+            service: volumeService
+        }
+    }
+    function test_title_actions_and_volume_art_fit_data() {
+        return [{tag: "t20", width: 762, height: 457},
+                {tag: "oneplus", width: 955, height: 427}]
+    }
+    function test_title_actions_and_volume_art_fit(data) {
+        host.width = data.width
+        host.height = data.height
+        const page = createTemporaryObject(bookComponent, host.contentItem,
+            {width: host.width, height: host.height - host.browseBottomInset,
+             androidHost: true, book: {title: "A Court of Thorns and Roses", id: "fixture"}})
+        verify(page)
+        wait(50)
+        const read = findChild(page, "biblioPrimaryRead")
+        verify(read)
+        const readTop = read.mapToItem(page, 0, 0).y
+        verify(readTop >= 0 && readTop + read.height <= page.height,
+               "Book Read action must fit before scrolling")
+        page.destroy()
+        wait(10)
+        const room = createTemporaryObject(mangaRoomComponent, host.contentItem,
+            {width: host.width, height: host.height - host.browseBottomInset})
+        verify(room)
+        wait(50)
+        compare(room.library.volumeRows.length, 1)
+        verify(room.library.flowViewportHeight > 0)
+        verify(room.library.maxScaledVolumeHeight <= room.library.flowViewportHeight,
+               "The full volume art and caption must fit their own viewport")
+        const readVolume = textDescendant(room, room.library.currentActionLabel).parent
+        const volumeTop = readVolume.mapToItem(room, 0, 0).y
+        verify(volumeTop >= 0 && volumeTop + readVolume.height <= room.height)
+        const scroll = findChild(room, "mangaReadingRoomScroll")
+        verify(scroll)
+        scroll.contentY = Math.max(0, scroll.contentHeight - scroll.height)
+        wait(50)
+        compare(readVolume.mapToItem(room, 0, 0).y, volumeTop,
+                "Volume actions remain fixed while the full header scrolls")
+        const shelfTop = room.library.mapToItem(room, 0, 0).y
+        verify(shelfTop >= 0 && shelfTop + room.library.flowViewportHeight <= volumeTop,
+               "The full volume viewport is reachable above the fixed actions")
+        volumeReadSpy.target = room
+        volumeReadSpy.clear()
+        mouseClick(readVolume, readVolume.width / 2, readVolume.height / 2)
+        compare(volumeReadSpy.count, 1)
+        compare(volumeReadSpy.signalArguments[0][0], "fixture-1")
+        volumeReadSpy.target = null
+    }
     Component { id: libraryComponent; App.LibraryPage { active: false } }
     Component { id: tankobanLibraryComponent; App.TankobanLibraryTab {} }
     function test_tankoban_library_tools_do_not_overlap_data() {

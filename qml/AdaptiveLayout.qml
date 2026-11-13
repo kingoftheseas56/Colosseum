@@ -34,6 +34,22 @@ QtObject {
     readonly property real heroCoverCopyGap: 20
     readonly property real libraryFilterInset: 10
     readonly property real libraryToolsGap: 12
+    readonly property real bookCoverColumnWidth: shortAndroid ? 200 : 268
+    readonly property real bookColumnGap: shortAndroid ? 24 : 64
+    readonly property real bookCoverGap: shortAndroid ? 14 : 28
+    readonly property real bookCoverTopPadding: 16
+    readonly property real bookPrimaryHeight: 50
+    readonly property real bookTitleSize: shortAndroid ? 32 : 54
+    readonly property real bookTaglineSize: shortAndroid ? 20 : 28
+    readonly property real mangaHeaderCoverHeight: shortAndroid ? 64 : 164
+    readonly property real mangaShelfMinimumHeight: 340
+    function mangaCoverHeight(viewportHeight, captionHeight, itemScale) {
+        return Math.max(80, Math.min(276, Math.floor(viewportHeight / itemScale - captionHeight - 16)))
+    }
+    function bookCoverHeight(availableHeight) {
+        return shortAndroid ? Math.max(80, Math.min(402,
+            availableHeight - bookCoverTopPadding - bookCoverGap - bookPrimaryHeight - 12)) : 402
+    }
     readonly property real availableHeroHeight: Math.max(0, viewportHeight - contentTop - bottomInset - 22)
     readonly property bool compactWelcome: androidHost && viewportWidth >= 600 && viewportHeight > 0 && viewportHeight < 600
     readonly property real welcomeInset: 12
