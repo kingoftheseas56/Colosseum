@@ -100,7 +100,8 @@ For a public release, keep `ANDROID_NDK_ROOT` (or `ANDROID_NDK_HOME`) set during
 
 ```bash
 python3 scripts/android/qualify_apk.py inspect --apk "$RELEASE_APK" \
-  --engine-library "$NUVIO_ENGINE_LIBRARY" --require-unsigned --require-stripped-app-libs
+  --engine-library "$NUVIO_ENGINE_LIBRARY" --require-unsigned --require-stripped-app-libs \
+  --output "${RELEASE_APK}.qualification.json"
 ```
 
 The release check requires stripped application and Nuvio-host libraries. The separately attested Nuvio engine keeps its existing byte-identity contract.
