@@ -7,6 +7,18 @@ Button {
     id: root
     property string iconName: ""
     property string tooltipText: ""
+    // "auto" uses caller text, or a short tooltip caption for icon-only actions.
+    // World slices select "drop" for universal glyphs or "legacy" if needed.
+    property string androidTooltipPolicy: "auto" // "auto" | "caption" | "drop" | "legacy"
+    property string androidCaptionText: ""
+    property bool androidPresentationEnabled: Qt.platform.os === "android"
+    readonly property bool _androidUniversal: iconName === "search"
+        || (iconName === "close" && /^(Clear|Close|Dismiss)(\s|$)/i.test(tooltipText))
+    readonly property bool _androidCaption: androidPresentationEnabled
+        && (androidTooltipPolicy === "caption"
+            || (androidTooltipPolicy === "auto" && text.length === 0 && !_androidUniversal))
+    readonly property string _visibleLabel: text.length > 0 ? text
+        : (_androidCaption ? (androidCaptionText.length > 0 ? androidCaptionText : tooltipText) : "")
     property string emphasis: "neutral"
     property bool selected: false
     property bool compact: false
@@ -22,6 +34,7 @@ Button {
     focusPolicy: Qt.StrongFocus
     hoverEnabled: true
     ToolTip.visible: root.hovered && root.tooltipText.length > 0
+        && (!root.androidPresentationEnabled || root.androidTooltipPolicy === "legacy")
     ToolTip.text: root.tooltipText
     ToolTip.delay: 350
     font.family: theme.ui
@@ -38,7 +51,7 @@ Button {
         opacity: root.enabled ? 1 : 0.45
     }
     contentItem: RowLayout {
-        spacing: root.iconName && root.text ? 8 : 0
+        spacing: root.iconName && root._visibleLabel ? 8 : 0
         CollectionIcon {
             visible: root.iconName.length > 0
             name: root.iconName
@@ -47,8 +60,8 @@ Button {
             Layout.preferredHeight: 18
         }
         Text {
-            visible: root.text.length > 0
-            text: root.text
+            visible: root._visibleLabel.length > 0
+            text: root._visibleLabel
             textFormat: Text.PlainText
             font: root.font
             color: root.foreground

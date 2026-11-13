@@ -1771,6 +1771,27 @@ set_tests_properties(colosseum.qttest.player1_selftest_bridge PROPERTIES
 # windows (physical hit-testing is their point): label `qml`, never an
 # offscreen gate.
 find_package(Qt6 REQUIRED COMPONENTS QuickTest Qml Quick)
+# Slice 0: isolated QML behavior runner; build ONLY this target for the tooltip check.
+add_executable(android_tooltip_qml_tests qml/tooltip_quicktest_main.cpp)
+set_target_properties(android_tooltip_qml_tests PROPERTIES AUTOMOC ON
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+target_link_libraries(android_tooltip_qml_tests PRIVATE
+    Qt6::Core Qt6::Gui Qt6::Quick Qt6::QuickTest Qt6::Qml)
+if(WIN32)
+    add_custom_command(TARGET android_tooltip_qml_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:android_tooltip_qml_tests>
+            "${CMAKE_CURRENT_BINARY_DIR}/.."
+        COMMAND_EXPAND_LISTS)
+endif()
+add_test(NAME colosseum.qml.android_tooltip_foundation
+    COMMAND android_tooltip_qml_tests -input
+        "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_android_tooltip_foundation.qml")
+set_tests_properties(colosseum.qml.android_tooltip_foundation PROPERTIES
+    LABELS "unit;qml;android;tooltip"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QT_FORCE_STDERR_LOGGING=1;QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::Gui>/../plugins;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml"
+    ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+    TIMEOUT 120)
 add_executable(colosseum_qml_tests qml/quicktest_main.cpp)
 add_executable(vault_browse_restore_qml_tests qml/vault_browse_restore_main.cpp)
 target_compile_definitions(vault_browse_restore_qml_tests PRIVATE
