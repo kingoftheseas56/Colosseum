@@ -19,10 +19,18 @@ QString firstNonEmpty(const QString& first, const QString& fallback)
     return first.isEmpty() ? fallback : first;
 }
 
+QString adoptedType(const QString& type)
+{
+    const auto normalized = type.trimmed().toLower();
+    return normalized == QLatin1String("movie") || normalized == QLatin1String("series")
+        || normalized == QLatin1String("mini") ? normalized : QString();
+}
+
 void clearIdentity(VaultIndex::FileRow& row)
 {
     row.identityId.clear();
     row.identityTitle.clear();
+    row.identityType.clear();
     row.identitySource.clear();
     row.identitySynopsis.clear();
     row.identityCoverUrl.clear();
@@ -41,22 +49,12 @@ struct LookupTitle {
 
 LookupTitle lookupTitle(const QString& title)
 {
-    QString withoutYear = title;
-    int year = 0;
-    const QRegularExpressionMatch yearMatch =
-        QRegularExpression(QStringLiteral("\\b((?:19|20)\\d{2})\\b")).match(withoutYear);
-    if (yearMatch.hasMatch()) {
-        year = yearMatch.captured(1).toInt();
-        withoutYear.remove(yearMatch.capturedStart(1), yearMatch.capturedLength(1));
-    }
-    return {VaultKit::normalizedTitle(withoutYear), year};
+    return {VaultKit::normalizedTitle(title), VaultKit::parsedTitleYear(title)};
 }
 
-// Vault ux uplift S16: the cleaner already found the year and stripped it; the identifier's
-// own re-grep then sees none and matchByTitle skips its year filter, so every remake reads
-// ambiguous. The census's parsedYear (the RAW name's first 19xx/20xx token) is the exact
-// find the cleaner made — it wins whenever the name had one; the re-grep is the fallback
-// for rows that predate the column or were assembled by a path that never stamped it.
+// The census captures the qualified release year before cleaning removes it.
+// Preserve that fact to disambiguate remakes; parse the title only for older rows
+// or paths that never stamped parsedYear. Leading numeric title words stay intact.
 void applyLookupYear(LookupTitle& lookup, const VaultIndex::FileRow& row)
 {
     if (row.parsedYear > 0)
@@ -121,6 +119,24 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
     if (row.away || !row.errorState.isEmpty())
         return match;
 
+    if (row.kind == QLatin1String("book")) {
+        const QString embeddedTitle = row.embeddedTitle.trimmed();
+        if (embeddedTitle.isEmpty()) return match;
+        for (const auto& candidate : rows) {
+            if (candidate.metadataSource != QLatin1String("EPUB") || candidate.away
+                || !candidate.errorState.isEmpty()
+                || candidate.embeddedTitle.simplified().compare(embeddedTitle.simplified(), Qt::CaseInsensitive) != 0)
+                return match;
+        }
+        match.adopted = true;
+        match.source = QStringLiteral("EPUB");
+        match.sourceId = QStringLiteral("epub:") + row.id;
+        match.title = embeddedTitle;
+        match.synopsis = row.synopsis;
+        match.world = QStringLiteral("Biblio");
+        return match;
+    }
+
     const QString title = row.groupTitle.trimmed();
     // Vault ux uplift S16: the census's parsed year is the cleaner's own find, and it wins
     // the lookup over the cleaned title (whose year the cleaner already removed), so a
@@ -130,20 +146,6 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
     const QString normalizedTitle = lookup.normalized;
     if (title.isEmpty() || normalizedTitle.isEmpty())
         return match;
-
-    if (row.kind == QLatin1String("book")) {
-        // EPUB metadata is already local and provenance-tagged by VaultEnricher;
-        // it is the only book identity source in this slice.
-        if (row.metadataSource != QLatin1String("EPUB"))
-            return match;
-        match.adopted = true;
-        match.source = QStringLiteral("EPUB");
-        match.sourceId = QStringLiteral("epub:") + row.id;
-        match.title = firstNonEmpty(row.displayTitle, row.groupTitle);
-        match.synopsis = row.synopsis;
-        match.world = QStringLiteral("Biblio");
-        return match;
-    }
 
     if (row.kind == QLatin1String("comic")) {
         QVariantList comics;
@@ -227,6 +229,7 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
         match.source = QStringLiteral("IMDB");
         match.sourceId = QStringLiteral("imdb:") + tt;
         match.title = hit.value(QStringLiteral("title")).toString();
+        match.type = adoptedType(hit.value(QStringLiteral("type")).toString());
         match.synopsis = hit.value(QStringLiteral("synopsis")).toString();
         match.coverUrl = QStringLiteral("https://live.metahub.space/poster/medium/%1/img").arg(tt);
         match.world = QStringLiteral("Theatre");
@@ -303,6 +306,7 @@ bool VaultIdentifier::applyGroup(const QString& groupKey, const Match& match)
     for (VaultIndex::FileRow& row : rows) {
         row.identityId = match.sourceId;
         row.identityTitle = match.title;
+        row.identityType = adoptedType(match.type);
         row.identitySource = match.source;
         row.identitySynopsis = match.synopsis;
         row.identityCoverUrl = match.coverUrl;
@@ -341,6 +345,7 @@ bool VaultIdentifier::unidentifyGroup(const QString& groupKey)
             row.coverRef.clear();
             row.synopsis.clear();
             row.metadataSource.clear();
+            row.embeddedTitle.clear();
         }
     }
     return m_index->upsertMany(rows);

@@ -108,6 +108,14 @@ void VaultScanner::assignVideoGroup(VaultIndex::FileRow& row, bool loose, bool m
     if (!showRoot.isEmpty()) row.subfolder = subfolderOf(showRoot, row.path);
 }
 
+void VaultScanner::assignBookGroup(VaultIndex::FileRow& row)
+{
+    if (row.kind != QLatin1String("book")) return;
+    row.groupKey = row.subtreePath = row.path;
+    row.groupTitle = row.displayTitle;
+    row.parsedYear = VaultKit::parsedTitleYear(QFileInfo(row.path).completeBaseName());
+}
+
 VaultScanner::RawResult VaultScanner::buildScan(
     QString root, QStringList scanIgnore, quint64 generation,
     std::shared_ptr<VaultKit::CancellationToken> cancel,
@@ -251,6 +259,7 @@ VaultScanner::RawResult VaultScanner::buildScan(
             row.mtimeMs = ff.mtimeMs;
             row.format = fi.suffix().toLower();
             assignVideoGroup(row, loose, mixedVideoTitles);
+            assignBookGroup(row);
             r.rows.append(row);
         }
 

@@ -229,6 +229,29 @@ QVariantMap VaultConfig::kindOverrides() const
     return m_doc.value(QStringLiteral("kinds")).toObject().toVariantMap();
 }
 
+QString VaultConfig::extrasParent(const QString& fileId) const
+{
+    return m_doc.value(QStringLiteral("extrasParents")).toObject().value(fileId).toString();
+}
+
+bool VaultConfig::setExtrasParent(const QStringList& fileIds, const QString& parentIdentityId)
+{
+    if (fileIds.isEmpty()) return false;
+    auto next = m_doc;
+    auto parents = next.value(QStringLiteral("extrasParents")).toObject();
+    for (const auto& id : fileIds) {
+        if (id.isEmpty()) return false;
+        if (parentIdentityId.isEmpty()) parents.remove(id);
+        else parents.insert(id, parentIdentityId);
+    }
+    next.insert(QStringLiteral("extrasParents"), parents);
+    if (!VaultStoreIo::save(m_dir, QStringLiteral("config.json"), next)) return false;
+    m_doc = next;
+    ++m_revision;
+    emit changed();
+    return true;
+}
+
 QStringList VaultConfig::scanIgnore() const
 {
     QStringList out;

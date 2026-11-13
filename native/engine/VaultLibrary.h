@@ -14,6 +14,7 @@
 // dismissCard, cancelScan.
 
 #include <QObject>
+#include <QPointer>
 #include <QSet>
 #include <QString>
 #include <QStringList>
@@ -30,6 +31,7 @@ class VaultIdentifier;
 class VaultThumbnailer;
 class VaultPosterFetcher;
 class VaultArtworkResolver;
+class ImdbCatalog;
 
 class VaultLibrary : public QObject {
     Q_OBJECT
@@ -69,6 +71,8 @@ public:
     // intentionally here, rather than in QML, so an existing stale index is repaired once
     // per process without adding a rescan control to the Vault surface.
     void republishAtBoot();
+    // Reuse the catalogue's local/remote presentation truth; no second type cache.
+    void setImdbCatalog(ImdbCatalog* catalog);
 
     int revision() const { return m_revision; }
     bool scanning() const { return m_scanning; }
@@ -106,6 +110,9 @@ public:
     // subtreePath }. items(kind, seriesKey): VaultIndex::filesInSubtree, facts preserved.
     Q_INVOKABLE QVariantList series(const QString& kind) const;
     Q_INVOKABLE QVariantList items(const QString& kind, const QString& seriesKey) const;
+    Q_INVOKABLE bool attachExtrasToShow(const QString& groupKey, const QString& showGroupKey);
+    Q_INVOKABLE QVariantList extrasForShow(const QString& showGroupKey) const;
+    Q_INVOKABLE bool detachExtras(const QString& fileId);
     Q_INVOKABLE QVariantList hiddenSeries() const;
 
     // ── Browse projection spine (browse-face execution plan, Slice 1) ──
@@ -325,6 +332,7 @@ private:
     void runAutoIdentifySlice();
 
     VaultIndex* m_index = nullptr;
+    QPointer<ImdbCatalog> m_imdbCatalog;
     VaultScanner* m_scanner = nullptr;
     VaultConfig* m_config = nullptr;
     VaultIdentity* m_identity = nullptr; // shared local identity mechanism for launch + Vault

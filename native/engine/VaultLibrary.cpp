@@ -1,4 +1,5 @@
 #include "VaultLibrary.h"
+#include "ImdbCatalog.h"
 #include "VaultIndex.h"
 #include "VaultScanner.h"
 #include "VaultConfig.h"
@@ -21,6 +22,7 @@
 #include <QFileInfo>
 #include <QMap>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
@@ -334,6 +336,20 @@ int VaultLibrary::rootCount() const
     return n;
 }
 
+void VaultLibrary::setImdbCatalog(ImdbCatalog* catalog)
+{
+    if (m_imdbCatalog == catalog) return;
+    if (m_imdbCatalog) disconnect(m_imdbCatalog, nullptr, this, nullptr);
+    m_imdbCatalog = catalog;
+    if (catalog) {
+        auto refresh = [this]() { ++m_revision; emit changed(); };
+        connect(catalog, &ImdbCatalog::readyChanged, this, refresh);
+        connect(catalog, &ImdbCatalog::revisionChanged, this, refresh);
+    }
+    ++m_revision;
+    emit changed();
+}
+
 QVariantList VaultLibrary::series(const QString& kind) const
 {
     if (!m_index)
@@ -359,6 +375,14 @@ QVariantList VaultLibrary::series(const QString& kind) const
             allHidden = false;
         }
         if (allHidden)
+            continue;
+        // An explicitly filed extra stops being an unmatched title while its
+        // parent still exists. Removing the parent makes orphaned files visible.
+        if (m_config && !groupRows.isEmpty()
+            && std::all_of(groupRows.cbegin(), groupRows.cend(), [this](const auto& row) {
+                const auto parent = m_config->extrasParent(row.id);
+                return !parent.isEmpty() && !m_index->rowsForIdentity(parent).isEmpty();
+            }))
             continue;
         QVariantMap s;
         s.insert(QStringLiteral("key"), groupKey);
@@ -432,9 +456,87 @@ QVariantList VaultLibrary::series(const QString& kind) const
                      ? QStringLiteral("Cinemeta") : identitySource);
         s.insert(QStringLiteral("identityWorld"), m.value(QStringLiteral("identityWorld")));
         s.insert(QStringLiteral("identityYear"), m.value(QStringLiteral("identityYear")));
+        s.insert(QStringLiteral("identityTitle"), identityTitle);
+        const QString identityId = m.value(QStringLiteral("identityId")).toString();
+        QString identityType;
+        for (const auto& row : groupRows) {
+            if (row.identitySuppressed || row.identityId != identityId || row.identityTitle.isEmpty()) continue;
+            if (row.identityType == QLatin1String("movie") || row.identityType == QLatin1String("series")
+                || row.identityType == QLatin1String("mini")) { identityType = row.identityType; break; }
+        }
+        s.insert(QStringLiteral("identityType"), identityType);
+        static const QRegularExpression imdbId(QStringLiteral("^(?:imdb:)?(tt[0-9]+)$"));
+        const auto imdbMatch = imdbId.match(identityId);
+        if (kind == QLatin1String("video") && imdbMatch.hasMatch()) {
+            const QString tt = imdbMatch.captured(1);
+            if (identityType.isEmpty()) {
+                const auto presentation = m_imdbCatalog ? m_imdbCatalog->titlePresentation(tt) : QVariantMap{};
+                s.insert(QStringLiteral("identityType"), presentation.value(QStringLiteral("type")));
+            }
+            // Same public, ID-only artwork endpoints Theatre already uses.
+            s.insert(QStringLiteral("backdropUrl"), QStringLiteral("https://live.metahub.space/background/medium/") + tt + QStringLiteral("/img"));
+            s.insert(QStringLiteral("logoUrl"), QStringLiteral("https://live.metahub.space/logo/medium/") + tt + QStringLiteral("/img"));
+        }
         out.append(s);
     }
     return out;
+}
+
+bool VaultLibrary::attachExtrasToShow(const QString& groupKey, const QString& showGroupKey)
+{
+    if (!m_index || !m_config || groupKey.isEmpty() || groupKey == showGroupKey) return false;
+    const auto source = m_index->rowsForGroup(groupKey);
+    const auto target = m_index->rowsForGroup(showGroupKey);
+    if (source.isEmpty() || target.isEmpty()) return false;
+    const auto& parent = target.first();
+    if (parent.kind != QLatin1String("video") || parent.identityId.isEmpty()
+        || parent.identitySuppressed || parent.identityTitle.isEmpty()) return false;
+    bool show = parent.identityType == QLatin1String("series") || parent.identityType == QLatin1String("mini");
+    for (const auto& value : seasonFactsForShow(showGroupKey).value(QStringLiteral("seasons")).toList()) {
+        const auto season = value.toMap();
+        if (!season.value(QStringLiteral("key")).toString().isEmpty()
+            && !season.value(QStringLiteral("supplemental")).toBool()) show = true;
+    }
+    if (!show && m_imdbCatalog) {
+        QString tt = parent.identityId;
+        if (tt.startsWith(QStringLiteral("imdb:"))) tt.remove(0, 5);
+        const auto type = m_imdbCatalog->titlePresentation(tt).value(QStringLiteral("type")).toString();
+        show = type == QLatin1String("series") || type == QLatin1String("mini");
+    }
+    if (!show) return false;
+    QStringList ids;
+    for (const auto& row : source) {
+        if (row.kind != QLatin1String("video") || !row.identityId.isEmpty()
+            || row.id.isEmpty() || row.identitySuppressed) return false;
+        ids.append(row.id);
+    }
+    if (!m_config->setExtrasParent(ids, parent.identityId)) return false;
+    ++m_revision; emit changed();
+    return true;
+}
+
+QVariantList VaultLibrary::extrasForShow(const QString& showGroupKey) const
+{
+    QVariantList out;
+    if (!m_index || !m_config) return out;
+    const auto parents = m_index->rowsForGroup(showGroupKey);
+    if (parents.isEmpty() || parents.first().identityId.isEmpty() || parents.first().identitySuppressed) return out;
+    const auto identity = parents.first().identityId;
+    for (const auto& row : m_index->rowsForKind(QStringLiteral("video"))) {
+        if (m_config->extrasParent(row.id) != identity || m_config->isHidden(row.id)) continue;
+        out.append(QVariantMap{{QStringLiteral("id"), row.id}, {QStringLiteral("path"), row.path},
+            {QStringLiteral("title"), row.displayTitle}, {QStringLiteral("away"), row.away},
+            {QStringLiteral("supplemental"), true}, {QStringLiteral("kind"), row.kind}});
+    }
+    return out;
+}
+
+bool VaultLibrary::detachExtras(const QString& fileId)
+{
+    if (!m_config || fileId.isEmpty() || m_config->extrasParent(fileId).isEmpty()) return false;
+    if (!m_config->setExtrasParent({fileId}, QString())) return false;
+    ++m_revision; emit changed();
+    return true;
 }
 
 QVariantMap VaultLibrary::admissionById() const
@@ -1307,6 +1409,7 @@ bool VaultLibrary::identifyGroupWith(const QString& groupKey,
     match.source = chosenIdentity.value(QStringLiteral("source")).toString();
     match.sourceId = chosenIdentity.value(QStringLiteral("sourceId")).toString();
     match.title = chosenIdentity.value(QStringLiteral("title")).toString();
+    match.type = chosenIdentity.value(QStringLiteral("type")).toString();
     match.synopsis = chosenIdentity.value(QStringLiteral("synopsis")).toString();
     match.coverUrl = chosenIdentity.value(QStringLiteral("coverUrl")).toString();
     match.world = chosenIdentity.value(QStringLiteral("world")).toString();

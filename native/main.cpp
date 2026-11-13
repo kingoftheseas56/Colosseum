@@ -1183,7 +1183,10 @@ int main(int argc, char *argv[]) {
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("book"))) {
             if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
                 && QFileInfo(r.path).suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) == 0
-                && r.errorState.isEmpty() && r.metadataSource.isEmpty())
+                && r.errorState.isEmpty()
+                && (r.metadataSource.isEmpty()
+                    || (r.embeddedTitle.isEmpty() && r.identitySource == QLatin1String("EPUB")
+                        && r.identityId.startsWith(QStringLiteral("epub:vault:")))))
                 todo.append(r);
         }
         if (todo.isEmpty()) {
@@ -1256,20 +1259,7 @@ int main(int argc, char *argv[]) {
 #endif
                 else if (r.kind == QLatin1String("book")) {
                     r.format = QFileInfo(r.path).suffix().toLower();
-                    const VaultEnricher::BookFacts book = VaultEnricher::readBookFacts(r.path);
-                    if (book.ok) {
-                        if (!book.title.isEmpty())
-                            r.displayTitle = book.title;
-                        r.author = book.author;
-                        r.synopsis = book.synopsis;
-                        r.coverRef = book.coverEntry;
-                        r.metadataSource = QStringLiteral("EPUB");
-                        r.errorState.clear();
-                        r.errorDetail.clear();
-                    } else {
-                        r.errorState = QStringLiteral("corrupt");
-                        r.errorDetail = book.errorDetail;
-                    }
+                    VaultEnricher::applyBookFacts(r, VaultEnricher::readBookFacts(r.path));
                 }
                 out.append(r);
             }
@@ -1503,6 +1493,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("TankobanCatalog"), tankobanCatalog);
     auto* imdbCatalog = new ImdbCatalog(contentApiConfigured ? QString() : imdbRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
+    vaultLibrary->setImdbCatalog(imdbCatalog);
 
     if (contentApiConfigured) {
         comicsCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/comics_api_v1.json"));

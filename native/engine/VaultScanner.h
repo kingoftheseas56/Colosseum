@@ -106,6 +106,8 @@ public:
     // file identity never changes when its derived title group is corrected.
     static bool hasMixedVideoTitles(const QStringList& files);
     static void assignVideoGroup(VaultIndex::FileRow& row, bool loose, bool mixedTitles);
+    // Books are individual titles even when their physical folder is shared.
+    static void assignBookGroup(VaultIndex::FileRow& row);
 
 signals:
     void progress(const QString& root, int done, int total, const QString& currentName);

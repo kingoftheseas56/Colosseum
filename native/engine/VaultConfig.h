@@ -72,6 +72,10 @@ public:
     // ── Hidden items (hide-don't-delete) ──
     Q_INVOKABLE bool isHidden(const QString& fileId) const;
     Q_INVOKABLE void setHidden(const QString& fileId, bool hidden);
+    // Explicit extras filing is user intent, keyed by stable file id and adopted
+    // parent identity. Files and their progress ids never move.
+    QString extrasParent(const QString& fileId) const;
+    bool setExtrasParent(const QStringList& fileIds, const QString& parentIdentityId);
 
 signals:
     void changed();

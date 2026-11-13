@@ -22,6 +22,7 @@ public:
         QString source;
         QString sourceId;
         QString title;
+        QString type; // movie/series/mini only; unknown values remain empty.
         QString synopsis;
         QString coverUrl;
         QString world;

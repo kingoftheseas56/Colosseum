@@ -66,7 +66,7 @@ private slots:
     void census_survives_accent_filename();
     void title_cleaner_data();
     void title_cleaner();
-    // ── Vault ux uplift S16: the cleaner's year find, first 19xx/20xx token ──
+    // ── Qualified release year, preserving leading numeric title words ──
     void parsed_year_data();
     void parsed_year();
     void season_episode_data();
@@ -221,6 +221,12 @@ void tst_vault_kit::title_cleaner_data()
     QTest::newRow("real_sopranos_compact_audio")
         << "The.Sopranos.Complete.1080p.Bluray.10bit.x265.AAC.51-HazMatt"
         << "The Sopranos";
+    QTest::newRow("art_movie_release_tail")
+        << "Barry Lyndon (1975) 1080p BluRay 5.1Ch x265 HEVC SUJAIDR"
+        << "Barry Lyndon";
+    QTest::newRow("subtitle_after_year_is_not_release_tail")
+        << "A Film (1984) Aftermath"
+        << "A Film Aftermath";
     QTest::newRow("real_band_of_brothers_channel_suffix")
         << "Band.Of.Brothers.HBO.Mini-Series.1080p.5.1Ch.BluRay.ReEnc-DeeJayAhmed"
         << "Band Of Brothers";
@@ -233,6 +239,14 @@ void tst_vault_kit::title_cleaner_data()
     QTest::newRow("numeric_title_district") << "District.9.1080p.2CH" << "District 9";
     QTest::newRow("numeric_title_room") << "Room.237" << "Room 237";
     QTest::newRow("numeric_title_2001") << "2001.A.Space.Odyssey" << "2001 A Space Odyssey";
+    QTest::newRow("numeric_title_2001_release") << "2001 A Space Odyssey (1968)" << "2001 A Space Odyssey";
+    QTest::newRow("numeric_title_1917_release") << "1917 (2019)" << "1917";
+    QTest::newRow("numeric_title_1984_release") << "1984 (1984)" << "1984";
+    QTest::newRow("numeric_title_1984_compact_release") << "1984(1984)" << "1984";
+    QTest::newRow("bare_four_digit_title") << "1984" << "1984";
+    QTest::newRow("bare_numeric_1917") << "1917" << "1917";
+    QTest::newRow("bare_numeric_2001") << "2001" << "2001";
+    QTest::newRow("leading_year_title_words") << "2001 Tales After Midnight" << "2001 Tales After Midnight";
 }
 
 void tst_vault_kit::title_cleaner()
@@ -250,12 +264,24 @@ void tst_vault_kit::parsed_year_data()
     // Vault ux uplift S16 — the cleaner's own find, captured for the identifier.
     QTest::newRow("trailing_bracket_year")  << QStringLiteral("Dune (2021)")     << 2021;
     QTest::newRow("trailing_dash_year")     << QStringLiteral("Blade Runner 2049") << 2049;
-    QTest::newRow("leading_year")           << QStringLiteral("2021 Dune")      << 2021;
+    QTest::newRow("leading_numeric_title")  << QStringLiteral("2021 Dune")      << 0;
     QTest::newRow("embedded_title_year")    << QStringLiteral("The Wire S01E05 2002 1080p") << 2002;
     QTest::newRow("no_year")                << QStringLiteral("Dune")           << 0;
     QTest::newRow("two_digit_season_is_not_a_year") << QStringLiteral("Vol 2")  << 0;
     QTest::newRow("three_digit_is_not_a_year") << QStringLiteral("episode 033") << 0;
     QTest::newRow("future_year_still_a_year")   << QStringLiteral("Horizon 2077") << 2077;
+    QTest::newRow("numeric_title_release") << QStringLiteral("2001 A Space Odyssey (1968)") << 1968;
+    QTest::newRow("numeric_title_square_release") << QStringLiteral("2001 A Space Odyssey [1968]") << 1968;
+    QTest::newRow("numeric_title_1917_release") << QStringLiteral("1917 (2019)") << 2019;
+    QTest::newRow("numeric_title_1984_release") << QStringLiteral("1984 (1984)") << 1984;
+    QTest::newRow("numeric_title_without_release") << QStringLiteral("2001 A Space Odyssey") << 0;
+    QTest::newRow("bare_1984") << QStringLiteral("1984") << 0;
+    QTest::newRow("bare_1917") << QStringLiteral("1917") << 0;
+    QTest::newRow("bare_2001") << QStringLiteral("2001") << 0;
+    QTest::newRow("year_inside_ordinary_words") << QStringLiteral("A Film 1984 Aftermath") << 0;
+    QTest::newRow("last_qualified_year") << QStringLiteral("2001 A Space Odyssey 1968 1080p") << 1968;
+    QTest::newRow("real_odyssey_held_filename") << QStringLiteral("2001.A.Space.Odyssey.1968.720p.BrRip.x264.YIFY.mp4") << 1968;
+    QTest::newRow("release_before_season") << QStringLiteral("Show 2002 S01E05") << 2002;
 }
 
 void tst_vault_kit::parsed_year()

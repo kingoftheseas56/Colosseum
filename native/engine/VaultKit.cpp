@@ -184,9 +184,33 @@ QString cleanMediaFolderTitle(const QString& rawName)
 
 int parsedTitleYear(const QString& rawName)
 {
+    // Bracketed release facts outrank numeric words in the title itself.
+    static const QRegularExpression bracketYear(QStringLiteral(
+        "\\(((?:19|20)\\d{2})\\)|\\[((?:19|20)\\d{2})\\]|\\{((?:19|20)\\d{2})\\}"));
+    int year = 0;
+    auto brackets = bracketYear.globalMatch(rawName);
+    while (brackets.hasNext()) {
+        const auto match = brackets.next();
+        for (int group = 1; group <= 3; ++group)
+            if (!match.captured(group).isEmpty()) year = match.captured(group).toInt();
+    }
+    if (year) return year;
+
     static const QRegularExpression yearToken(QStringLiteral("\\b(?:19|20)\\d{2}\\b"));
-    const QRegularExpressionMatch m = yearToken.match(rawName);
-    return m.hasMatch() ? m.captured(0).toInt() : 0;
+    static const QRegularExpression titleText(QStringLiteral("[\\p{L}\\p{N}]"));
+    static const QRegularExpression separators(QStringLiteral("^[\\s._-]+"));
+    static const QRegularExpression episodeNoise(QStringLiteral("(?i)^s\\d{1,2}(?:e\\d{1,3})?\\b"));
+    auto tokens = yearToken.globalMatch(rawName);
+    while (tokens.hasNext()) {
+        const auto match = tokens.next();
+        if (!titleText.match(rawName.left(match.capturedStart())).hasMatch()) continue;
+        QString suffix = rawName.mid(match.capturedEnd()).trimmed();
+        suffix.remove(separators);
+        const auto noise = MediaTitleNormalization::kShowTitleNoiseRe.match(suffix);
+        if (suffix.isEmpty() || (noise.hasMatch() && noise.capturedStart() == 0)
+            || episodeNoise.match(suffix).hasMatch()) year = match.captured().toInt();
+    }
+    return year;
 }
 
 QString normalizedTitle(const QString& rawTitle)

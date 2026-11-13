@@ -55,6 +55,8 @@ public:
         QString format;
         QString synopsis;       // embedded book description, when available
         QString metadataSource; // "EPUB" for embedded EPUB facts; empty otherwise
+        QString embeddedTitle; // Actual embedded book title, never the filename/display fallback.
+        QString identityType; // Adopted movie/series/mini fact; empty when unknown.
         QString identityId;     // adopted catalogue/source id, e.g. mal:123 or imdb:tt...
         QString identityTitle;  // user-facing title supplied by a certain identity
         QString identitySource; // MAL / IMDB / COMICS / EPUB

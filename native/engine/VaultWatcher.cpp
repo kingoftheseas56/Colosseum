@@ -439,6 +439,7 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
             row.mtimeMs = fi.lastModified().toMSecsSinceEpoch();
             row.format = fi.suffix().toLower();
             VaultScanner::assignVideoGroup(row, loose, mixedVideoTitles);
+            VaultScanner::assignBookGroup(row);
             toUpsert.append(row);
 
             // New-kind arrival: the law exists (override or index truth) and disagrees.

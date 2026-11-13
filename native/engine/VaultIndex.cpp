@@ -13,7 +13,7 @@ namespace {
 // Vault schema v5 adds identityState/identityCandidateCount (browse-face execution plan Slice 2:
 // a durable "Vault isn't sure" fact). A DB stamped higher than this was created by a newer owner
 // and is refused rather than downgraded.
-inline constexpr int kVaultSchemaVersion = 7; // v7: identityRating/identityGenres (phase-4 G1 ruling)
+inline constexpr int kVaultSchemaVersion = 8; // v8: factual embedded book title and adopted video type
 
 bool execSchemaSql(QSqlDatabase& db, const QString& sql)
 {
@@ -63,6 +63,8 @@ struct DurableFacts
     QString coverRef;
     QString synopsis;
     QString metadataSource;
+    QString embeddedTitle;
+    QString identityType;
     QString identityId;
     QString identityTitle;
     QString identitySource;
@@ -81,11 +83,11 @@ bool loadDurableFacts(QSqlDatabase& db, QHash<QString, DurableFacts>* out)
             "SELECT id, size, mtimeMs, progressed, admissionVerdict, admissionDetail, "
             "       errorState, errorDetail, displayTitle, author, format, coverRef, "
             "       synopsis, metadataSource, identityId, identityTitle, identitySource, "
-            "       identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed "
+            "       identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed, embeddedTitle, identityType "
             "FROM files "
             "WHERE progressed <> 0 OR admissionVerdict <> '' OR errorState <> '' "
             "   OR coverRef <> '' OR author <> '' OR synopsis <> '' OR metadataSource <> '' "
-            "   OR identityId <> '' OR identityTitle <> '' OR identitySource <> '' OR identitySuppressed <> 0")))
+            "   OR identityId <> '' OR identityTitle <> '' OR identitySource <> '' OR identitySuppressed <> 0 OR embeddedTitle <> '' OR identityType <> ''")))
         return false;
 
     while (q.next()) {
@@ -111,6 +113,8 @@ bool loadDurableFacts(QSqlDatabase& db, QHash<QString, DurableFacts>* out)
         a.identityWorld = q.value(19).toString();
         a.identityYear = q.value(20).toInt();
         a.identitySuppressed = q.value(21).toBool();
+        a.embeddedTitle = q.value(22).toString();
+        a.identityType = q.value(23).toString();
         out->insert(q.value(0).toString(), a);
     }
     return true;
@@ -297,6 +301,18 @@ bool VaultIndex::ensureSchema()
             "ALTER TABLE files ADD COLUMN identityGenres TEXT NOT NULL DEFAULT ''")))
         return rollback();
 
+    // v7 -> v8: actual embedded title evidence. Legacy EPUB provenance must not
+    // manufacture a title from the older display/filename fallback.
+    if (!afterMetadata.contains(QStringLiteral("embeddedTitle"))
+        && !execSchemaSql(m_db, QStringLiteral(
+            "ALTER TABLE files ADD COLUMN embeddedTitle TEXT NOT NULL DEFAULT ''")))
+        return rollback();
+
+    if (!afterMetadata.contains(QStringLiteral("identityType"))
+        && !execSchemaSql(m_db, QStringLiteral(
+            "ALTER TABLE files ADD COLUMN identityType TEXT NOT NULL DEFAULT ''")))
+        return rollback();
+
     const QSet<QString> finalColumns = tableColumns(m_db, &columnsOk);
     if (!columnsOk
         || !finalColumns.contains(QStringLiteral("admissionVerdict"))
@@ -318,7 +334,9 @@ bool VaultIndex::ensureSchema()
         || !finalColumns.contains(QStringLiteral("identityCandidateCount"))
         || !finalColumns.contains(QStringLiteral("parsedYear"))
         || !finalColumns.contains(QStringLiteral("identityRating"))
-        || !finalColumns.contains(QStringLiteral("identityGenres")))
+        || !finalColumns.contains(QStringLiteral("identityGenres"))
+        || !finalColumns.contains(QStringLiteral("embeddedTitle"))
+        || !finalColumns.contains(QStringLiteral("identityType")))
         return rollback();
 
     if (!execSchemaSql(m_db, QStringLiteral(
@@ -373,14 +391,14 @@ bool VaultIndex::insertRow(const FileRow& row)
         "durationSec, author, format, progressed, coverRef, away, errorState, errorDetail, "
         "admissionVerdict, admissionDetail, synopsis, metadataSource, identityId, identityTitle, "
         "identitySource, identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed, "
-        "identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
+        "identityState, identityCandidateCount, parsedYear, identityRating, identityGenres, embeddedTitle, identityType"
         ") VALUES ("
         ":id, :rootPath, :subtreePath, :groupKey, :groupTitle, :kind, :path, "
         ":displayTitle, :realName, :subfolder, :sortKey, :size, :mtimeMs, :pages, "
         ":durationSec, :author, :format, :progressed, :coverRef, :away, :errorState, :errorDetail, "
         ":admissionVerdict, :admissionDetail, :synopsis, :metadataSource, :identityId, :identityTitle, "
         ":identitySource, :identitySynopsis, :identityCoverUrl, :identityWorld, :identityYear, :identitySuppressed, "
-        ":identityState, :identityCandidateCount, :parsedYear, :identityRating, :identityGenres)"));
+        ":identityState, :identityCandidateCount, :parsedYear, :identityRating, :identityGenres, :embeddedTitle, :identityType)"));
 
     q.bindValue(QStringLiteral(":id"), row.id);
     q.bindValue(QStringLiteral(":rootPath"), row.rootPath);
@@ -402,6 +420,8 @@ bool VaultIndex::insertRow(const FileRow& row)
     q.bindValue(QStringLiteral(":format"), row.format);
     q.bindValue(QStringLiteral(":synopsis"), row.synopsis);
     q.bindValue(QStringLiteral(":metadataSource"), row.metadataSource);
+    q.bindValue(QStringLiteral(":embeddedTitle"), row.embeddedTitle);
+    q.bindValue(QStringLiteral(":identityType"), row.identityType);
     q.bindValue(QStringLiteral(":identityId"), row.identityId);
     q.bindValue(QStringLiteral(":identityTitle"), row.identityTitle);
     q.bindValue(QStringLiteral(":identitySource"), row.identitySource);
@@ -481,6 +501,8 @@ bool VaultIndex::publish(const QList<FileRow>& rows,
                 }
                 if (row.coverRef.isEmpty() && row.metadataSource.isEmpty())
                     row.coverRef = it->coverRef;
+                if (row.embeddedTitle.isEmpty() && row.metadataSource.isEmpty())
+                    row.embeddedTitle = it->embeddedTitle;
                 if (row.metadataSource.isEmpty() && !it->metadataSource.isEmpty()) {
                     row.displayTitle = it->displayTitle;
                     row.author = it->author;
@@ -496,6 +518,7 @@ bool VaultIndex::publish(const QList<FileRow>& rows,
                 if (!row.identitySuppressed && it->identitySuppressed) {
                     row.identityId.clear();
                     row.identityTitle.clear();
+                    row.identityType.clear();
                     row.identitySource.clear();
                     row.identitySynopsis.clear();
                     row.identityCoverUrl.clear();
@@ -506,6 +529,7 @@ bool VaultIndex::publish(const QList<FileRow>& rows,
                            && !it->identitySuppressed && !it->identitySource.isEmpty()) {
                     row.identityId = it->identityId;
                     row.identityTitle = it->identityTitle;
+                    row.identityType = it->identityType;
                     row.identitySource = it->identitySource;
                     row.identitySynopsis = it->identitySynopsis;
                     row.identityCoverUrl = it->identityCoverUrl;
@@ -634,7 +658,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForKind(const QString& kind) const
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
+        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres, embeddedTitle, identityType"
         " FROM files WHERE kind = ? ORDER BY subtreePath, sortKey"));
     q.addBindValue(kind);
     if (q.exec()) {
@@ -679,6 +703,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForKind(const QString& kind) const
         r.parsedYear = q.value(36).toInt();
         r.identityRating = q.value(37).toDouble();
         r.identityGenres = q.value(38).toString();
+        r.embeddedTitle = q.value(39).toString();
+        r.identityType = q.value(40).toString();
             out.append(r);
         }
     }
@@ -696,7 +722,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForRoot(const QString& rootPath) cons
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
+        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres, embeddedTitle, identityType"
         " FROM files WHERE rootPath = ? ORDER BY subtreePath, sortKey"));
     q.addBindValue(rootPath);
     if (!q.exec())
@@ -742,6 +768,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForRoot(const QString& rootPath) cons
         r.parsedYear = q.value(36).toInt();
         r.identityRating = q.value(37).toDouble();
         r.identityGenres = q.value(38).toString();
+        r.embeddedTitle = q.value(39).toString();
+        r.identityType = q.value(40).toString();
         out.append(r);
     }
     return out;
@@ -758,7 +786,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForGroup(const QString& groupKey) con
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
+        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres, embeddedTitle, identityType"
         " FROM files WHERE groupKey = ? ORDER BY sortKey"));
     q.addBindValue(groupKey);
     if (!q.exec())
@@ -804,6 +832,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForGroup(const QString& groupKey) con
         r.parsedYear = q.value(36).toInt();
         r.identityRating = q.value(37).toDouble();
         r.identityGenres = q.value(38).toString();
+        r.embeddedTitle = q.value(39).toString();
+        r.identityType = q.value(40).toString();
         out.append(r);
     }
     return out;
@@ -822,7 +852,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForPath(const QString& path) const
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
+        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres, embeddedTitle, identityType"
         " FROM files WHERE path = ? ORDER BY sortKey"));
     q.addBindValue(path);
     if (!q.exec())
@@ -868,6 +898,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForPath(const QString& path) const
         r.parsedYear = q.value(36).toInt();
         r.identityRating = q.value(37).toDouble();
         r.identityGenres = q.value(38).toString();
+        r.embeddedTitle = q.value(39).toString();
+        r.identityType = q.value(40).toString();
         out.append(r);
     }
     return out;
@@ -897,7 +929,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsMatching(const QString& needle, int l
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
+        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres, embeddedTitle, identityType"
         " FROM files WHERE displayTitle LIKE ? ESCAPE '\\'"
         "    OR identityTitle  LIKE ? ESCAPE '\\'"
         "    OR realName       LIKE ? ESCAPE '\\'"
@@ -948,6 +980,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsMatching(const QString& needle, int l
         r.parsedYear = q.value(36).toInt();
         r.identityRating = q.value(37).toDouble();
         r.identityGenres = q.value(38).toString();
+        r.embeddedTitle = q.value(39).toString();
+        r.identityType = q.value(40).toString();
             out.append(r);
         }
     }
@@ -967,7 +1001,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForIdentity(const QString& identityId
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
+        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres, embeddedTitle, identityType"
         " FROM files WHERE identityId = ? AND identitySuppressed = 0 ORDER BY groupKey, sortKey"));
     q.addBindValue(identityId);
     if (!q.exec())
@@ -1013,6 +1047,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForIdentity(const QString& identityId
         r.parsedYear = q.value(36).toInt();
         r.identityRating = q.value(37).toDouble();
         r.identityGenres = q.value(38).toString();
+        r.embeddedTitle = q.value(39).toString();
+        r.identityType = q.value(40).toString();
         out.append(r);
     }
     return out;
@@ -1131,7 +1167,7 @@ QVariantList VaultIndex::filesInSubtree(const QString& subtreePath) const
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount"
+        " identityState, identityCandidateCount, embeddedTitle, identityType"
         " FROM files WHERE subtreePath = ?"
         " ORDER BY subfolder COLLATE NOCASE, sortKey"));
     q.addBindValue(subtreePath);
@@ -1169,6 +1205,8 @@ QVariantList VaultIndex::filesInSubtree(const QString& subtreePath) const
             m[QStringLiteral("identitySuppressed")] = q.value(28).toInt() != 0;
             m[QStringLiteral("identityState")] = q.value(29).toString();
             m[QStringLiteral("identityCandidateCount")] = q.value(30).toInt();
+            m[QStringLiteral("embeddedTitle")] = q.value(31).toString();
+            m[QStringLiteral("identityType")] = q.value(32).toString();
             out.append(m);
         }
     }

@@ -81,6 +81,9 @@ private slots:
     void real_episode_numbering_is_recognized();
     void watcher_preserves_overlapping_download_identity();
     void build_scan_produces_expected_census();
+    void shared_book_folder_keeps_individual_title_groups();
+    void book_pdf_group_does_not_adopt_container_identity();
+    void watcher_book_arrivals_match_scanner_groups();
     // ── Vault ux uplift S16: the census year the cleaner stripped is captured ──
     void build_scan_derives_parsed_year_from_raw_folder_name();
     void build_scan_enriches_slice_model();
@@ -114,6 +117,108 @@ private slots:
     void watcher_override_law_raises_card_for_known_kind_arrival();
     void watcher_degraded_flag_on_failed_watch_and_recovers();
 };
+
+void tst_vault_scanner::shared_book_folder_keeps_individual_title_groups()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString root = temp.path() + QStringLiteral("/library");
+    const QString shared = root + QStringLiteral("/Books/Fantasy (2020)");
+    QVERIFY(QDir().mkpath(shared));
+    const QString first = writeMediaFile(shared, QStringLiteral("Dune (1965).epub"));
+    const QString second = writeMediaFile(shared, QStringLiteral("The Hobbit (1937).epub"));
+    QVERIFY(!first.isEmpty());
+    QVERIFY(!second.isEmpty());
+
+    const auto scan = VaultScanner::buildScan(root, {}, 1, {});
+    QCOMPARE(scan.rows.size(), 2);
+    QSet<QString> groups;
+    VaultIndex index(temp.path() + QStringLiteral("/index.sqlite"));
+    VaultIdentity identity(temp.path());
+    VaultScanner scanner(&index, &identity);
+    const quint64 generation = scanner.nextGeneration();
+    scanner.applyPublish({scan}, generation);
+    for (const auto& row : index.rowsForKind(QStringLiteral("book"))) {
+        groups.insert(row.groupKey);
+        QCOMPARE(row.groupKey, row.path);
+        QCOMPARE(row.subtreePath, row.path);
+        QCOMPARE(row.rootPath, root);
+        QCOMPARE(row.groupTitle, row.displayTitle);
+        QCOMPARE(row.groupTitle, row.path == first ? QStringLiteral("Dune")
+                                                   : QStringLiteral("The Hobbit"));
+        QCOMPARE(row.parsedYear, row.path == first ? 1965 : 1937);
+        QCOMPARE(row.id, identity.idForFile(row.path, row.size, row.mtimeMs));
+        const auto files = index.filesInSubtree(row.subtreePath);
+        QCOMPARE(files.size(), 1);
+        QCOMPARE(files.first().toMap().value(QStringLiteral("path")).toString(), row.path);
+    }
+    QCOMPARE(groups.size(), 2);
+    // Admission still describes the physical folder, independently of title groups.
+    QCOMPARE(scan.sliceModel.size(), 1);
+    QCOMPARE(scan.sliceModel.first().toMap().value(QStringLiteral("count")).toInt(), 2);
+}
+
+void tst_vault_scanner::book_pdf_group_does_not_adopt_container_identity()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString shared = temp.path() + QStringLiteral("/Books/Fantasy (2020)");
+    QVERIFY(QDir().mkpath(shared));
+    const QString path = writeMediaFile(shared, QStringLiteral("document.pdf"));
+    QVERIFY(!path.isEmpty());
+    const auto scan = VaultScanner::buildScan(temp.path(), {}, 1, {});
+    QCOMPARE(scan.rows.size(), 1);
+    const auto& row = scan.rows.first();
+    QCOMPARE(row.kind, QStringLiteral("book"));
+    QCOMPARE(row.groupKey, path);
+    QCOMPARE(row.subtreePath, path);
+    QCOMPARE(row.groupTitle, QStringLiteral("document"));
+    QCOMPARE(row.parsedYear, 0);
+    QVERIFY(row.embeddedTitle.isEmpty());
+    QVERIFY(row.identityId.isEmpty());
+    QVERIFY(row.identityTitle.isEmpty());
+}
+
+void tst_vault_scanner::watcher_book_arrivals_match_scanner_groups()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString root = temp.path() + QStringLiteral("/library");
+    const QString shared = root + QStringLiteral("/Books/Fantasy (2020)");
+    QVERIFY(QDir().mkpath(shared));
+    const QString first = writeMediaFile(shared, QStringLiteral("Dune (1965).epub"));
+    QVERIFY(!first.isEmpty());
+    VaultIndex index(temp.path() + QStringLiteral("/index.sqlite"));
+    VaultIdentity identity(temp.path());
+    VaultScanner scanner(&index, &identity);
+    const quint64 generation = scanner.nextGeneration();
+    scanner.applyPublish({VaultScanner::buildScan(root, {}, generation, {})}, generation);
+    const auto previous = index.rowsForPath(first);
+    QCOMPARE(previous.size(), 1);
+    const QString second = writeMediaFile(shared, QStringLiteral("The Hobbit (1937).epub"));
+    QVERIFY(!second.isEmpty());
+    VaultWatcher watcher(&index, &identity, nullptr);
+    QCOMPARE(watcher.processRoot(root, {}, {}).landedCount, 1);
+    const auto scan = VaultScanner::buildScan(root, {}, generation, {});
+    QCOMPARE(scan.rows.size(), 2);
+    for (const auto& expected : scan.rows) {
+        const auto rows = index.rowsForPath(expected.path);
+        QCOMPARE(rows.size(), 1);
+        const auto& actual = rows.first();
+        QCOMPARE(actual.groupKey, expected.groupKey);
+        QCOMPARE(actual.subtreePath, expected.subtreePath);
+        QCOMPARE(actual.groupTitle, expected.groupTitle);
+        QCOMPARE(actual.parsedYear, expected.parsedYear);
+        QCOMPARE(actual.rootPath, expected.rootPath);
+        QCOMPARE(actual.displayTitle, expected.displayTitle);
+        QCOMPARE(actual.subfolder, expected.subfolder);
+        QCOMPARE(actual.id, identity.idForFile(expected.path, expected.size, expected.mtimeMs));
+    }
+    QCOMPARE(index.rowsForPath(first).first().id, previous.first().id);
+    QCOMPARE(index.rowsForPath(first).first().groupKey, previous.first().groupKey);
+    QVERIFY(index.rowsForPath(first).first().groupKey != index.rowsForPath(second).first().groupKey);
+    QCOMPARE(watcher.processRoot(root, {}, {}).landedCount, 0);
+}
 
 void tst_vault_scanner::real_episode_numbering_is_recognized()
 {

@@ -34,6 +34,7 @@
 #include <QJsonObject>
 #include <QMap>
 #include <QSignalSpy>
+#include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QThread>
 #include <QtTest>
@@ -378,6 +379,9 @@ private slots:
     void season_facts_derives_the_group_structure();
     void season_facts_use_episode_numbers_in_release_folders();
     void real_drama_scan_read_only_when_requested();
+    void real_art_scan_read_only_when_requested();
+    void library_metadata_reuses_catalogue_type_and_public_art();
+    void explicit_extras_filing_survives_republish_without_moving_files();
 };
 
 void tst_vault_forensics::schema_and_shape_v1()
@@ -1460,6 +1464,97 @@ void tst_vault_forensics::real_drama_scan_read_only_when_requested()
                           << "held_seasons=" << held << "files=" << group.value("count").toInt();
     }
     QCOMPARE(seen, expected);
+}
+
+void tst_vault_forensics::real_art_scan_read_only_when_requested()
+{
+    const auto root = qEnvironmentVariable("COLOSSEUM_VAULT_REAL_ART_ROOT");
+    const auto db = qEnvironmentVariable("COLOSSEUM_VAULT_REAL_IMDB_DB");
+    if (root.isEmpty() || db.isEmpty()) QSKIP("Optional read-only Art check requires explicit root and catalogue paths");
+    QTemporaryDir temp; QVERIFY(temp.isValid());
+    VaultIndex index(temp.filePath("index.sqlite")); VaultIdentity identity(temp.path());
+    VaultScanner scanner(&index, &identity); VaultConfig config(temp.path());
+    VaultLibrary library(&index, &scanner, &config, &identity, temp.path());
+    const auto generation = scanner.nextGeneration();
+    scanner.applyPublish({VaultScanner::buildScan(root, {}, generation, nullptr)}, generation);
+    ImdbCatalog imdb(db); QVERIFY(imdb.available()); library.setImdbCatalog(&imdb);
+    VaultIdentifier identifier(&index, nullptr, nullptr, &imdb);
+    QVERIFY(identifier.autoIdentifyExisting() > 0);
+    QSet<QString> seen;
+    for (const auto& value : library.series("video")) {
+        const auto row = value.toMap();
+        seen.insert(row.value("identityId").toString());
+        qInfo().noquote() << "real_art" << row.value("title").toString() << row.value("identityId").toString();
+    }
+    QVERIFY(seen.contains(QStringLiteral("imdb:tt0062622")));
+    QVERIFY(seen.contains(QStringLiteral("imdb:tt0072684")));
+}
+
+void tst_vault_forensics::library_metadata_reuses_catalogue_type_and_public_art()
+{
+    auto fx = buildFlatFixture(0);
+    const QString dbPath = fx->tmp.path() + QStringLiteral("/presentation.sqlite");
+    const QString connection = QStringLiteral("vault_presentation_fixture");
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+        db.setDatabaseName(dbPath); QVERIFY(db.open());
+        QSqlQuery query(db);
+        QVERIFY(query.exec(QStringLiteral("CREATE TABLE title(tt TEXT, title TEXT, type TEXT)")));
+        QVERIFY(query.exec(QStringLiteral("INSERT INTO title VALUES('tt123', 'A flat show', 'mini')")));
+        db.close();
+    }
+    QSqlDatabase::removeDatabase(connection);
+    ImdbCatalog catalog(dbPath);
+    fx->library->setImdbCatalog(&catalog);
+    auto show = makeFilmRow(fx->rootPath, fx->rootPath + "/show", fx->rootPath + "/show/pilot.mkv", "vault:show", 1000);
+    show.identityId = "imdb:tt123"; show.identityTitle = "A flat show"; show.identitySource = "IMDB";
+    QVERIFY(fx->index->publish({show}));
+    auto row = fx->library->series("video").first().toMap();
+    QCOMPARE(row.value("identityType").toString(), QStringLiteral("mini"));
+    QCOMPARE(row.value("identityTitle").toString(), QStringLiteral("A flat show"));
+    QCOMPARE(row.value("backdropUrl").toString(), QStringLiteral("https://live.metahub.space/background/medium/tt123/img"));
+    QCOMPARE(row.value("logoUrl").toString(), QStringLiteral("https://live.metahub.space/logo/medium/tt123/img"));
+    show.identityId = "imdb:tt123/?token=invalid";
+    QVERIFY(fx->index->publish({show}));
+    row = fx->library->series("video").first().toMap();
+    QVERIFY(row.value("identityType").toString().isEmpty());
+    QVERIFY(row.value("backdropUrl").toString().isEmpty());
+    QVERIFY(row.value("logoUrl").toString().isEmpty());
+    QSignalSpy changed(fx->library.get(), &VaultLibrary::changed);
+    catalog.closeForSwap(); QVERIFY(changed.count() > 0);
+}
+
+void tst_vault_forensics::explicit_extras_filing_survives_republish_without_moving_files()
+{
+    auto fx = buildFlatFixture(0);
+    const auto showFolder = fx->rootPath + "/show";
+    const auto extraFolder = fx->rootPath + "/bonus";
+    auto show = makeFilmRow(fx->rootPath, showFolder, showFolder + "/Show.S01E01.mkv", "vault:show", 1000);
+    show.realName = "Show.S01E01.mkv";
+    show.identityId = "imdb:tt123"; show.identityTitle = "Show"; show.identitySource = "IMDB";
+    auto extra = makeFilmRow(fx->rootPath, extraFolder, extraFolder + "/behind.mkv", "vault:bonus", 1000);
+    // Commands consume the stored key returned by series(), not a reconstructed
+    // folder string: QFileInfo canonicalizes the Windows drive letter's case.
+    const auto showKey = show.groupKey;
+    const auto extraKey = extra.groupKey;
+    QVERIFY(fx->index->publish({show, extra}));
+    QCOMPARE(fx->index->rowsForGroup(showKey).size(), 1);
+    QCOMPARE(fx->index->rowsForGroup(extraKey).size(), 1);
+    QVERIFY(!fx->library->attachExtrasToShow(extraKey, extraKey));
+    QVERIFY(fx->library->attachExtrasToShow(extraKey, showKey));
+    QCOMPARE(fx->library->series("video").size(), 1);
+    QCOMPARE(fx->library->extrasForShow(showKey).size(), 1);
+    QCOMPARE(fx->library->seasonFactsForShow(showKey).value("total").toInt(), 1);
+    QCOMPARE(fx->library->extrasForShow(showKey).first().toMap().value("id").toString(), extra.id);
+    VaultConfig reopened(fx->tmp.path()); QCOMPARE(reopened.extrasParent(extra.id), show.identityId);
+    QVERIFY(fx->index->publish({show, extra}));
+    QCOMPARE(fx->library->extrasForShow(showKey).first().toMap().value("path").toString(), extra.path);
+    QVERIFY(fx->library->detachExtras(extra.id));
+    QCOMPARE(fx->library->series("video").size(), 2);
+    QVERIFY(fx->library->extrasForShow(showKey).isEmpty());
+    extra.identityId = "imdb:tt456"; extra.identityTitle = "An identified movie";
+    QVERIFY(fx->index->publish({show, extra}));
+    QVERIFY(!fx->library->attachExtrasToShow(extraKey, showKey));
 }
 
 QTEST_GUILESS_MAIN(tst_vault_forensics)

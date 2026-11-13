@@ -125,6 +125,15 @@ inline QString cleanMediaFolderTitle(const QString& rawName)
 
     const QList<int> seasonNumbers = extractSeasonNumbers(raw);
 
+    // An explicit release year followed immediately by technical release facts
+    // starts a release suffix (including an unhyphenated group credit). Ordinary
+    // words after a year remain title text; no release-group names are hardcoded.
+    static const QRegularExpression technicalTailAfterYear(QStringLiteral(
+        "(?i)\\((?:19|20)\\d{2}\\)[\\s._-]+(?=(?:2160p|1080p|720p|480p|"
+        "blu[ .-]?ray|b[dr]rip|dvdrip|web[ .-]?dl|webrip|hdtv|remux)\\b)"));
+    const auto tail = technicalTailAfterYear.match(raw);
+    if (tail.hasMatch()) raw.truncate(tail.capturedStart() + 6);
+
     // Strip bracket/paren/brace noise chunks FIRST, while dots/underscores are still intact —
     // an audio-channel tag ("[5.1]") or a release-site domain tag ("[YTS.MX]") is recognizable
     // as noise only from its own punctuation; the blanket '.'/'_' -> ' ' pass below would
@@ -154,7 +163,7 @@ inline QString cleanMediaFolderTitle(const QString& rawName)
     cleaned.replace(trailingGroup, QStringLiteral(" "));
 
     static const QRegularExpression trailingYear(
-        QStringLiteral("\\b(?:19|20)\\d{2}\\b$"));
+        QStringLiteral("(?<=\\S)\\s+(?:19|20)\\d{2}\\s*$"));
     cleaned.replace(trailingYear, QStringLiteral(" "));
 
     static const QRegularExpression multiSpace(QStringLiteral("\\s+"));
