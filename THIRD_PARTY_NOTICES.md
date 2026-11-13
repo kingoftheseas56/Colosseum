@@ -169,3 +169,10 @@ WHATWG URL and browser polyfills. Exact versions and license notices are in
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
 [TMDB API attribution](https://developer.themoviedb.org/docs/faq)
+
+## Home server service marks
+
+Jellyfin, Emby and Plex SVG paths come from Simple Icons 16.37.0 (CC0-1.0 repository),
+with their listed brand colors. Trademark rights remain with their owners; source
+links and brand guidelines are recorded in `assets/icons/servers/SOURCE.md`.
+Plex and the Plex logo are trademarks of Plex and used under a license.

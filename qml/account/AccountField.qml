@@ -62,7 +62,7 @@ Item {
         // Content-driven on Android large text; 46 at the default scale (desktop unchanged).
         height: Math.max(46, Math.ceil(theme.fontSize(13) * 1.5) + 22)
         leftPadding: 14
-        rightPadding: root.password ? 48 : 14
+        rightPadding: root.password ? 60 : 14
         color: theme.ink
         placeholderTextColor: theme.inkDimmer
         placeholderText: root.placeholderText
@@ -92,8 +92,8 @@ Item {
         anchors.right: field.right
         anchors.rightMargin: 8
         anchors.verticalCenter: field.verticalCenter
-        width: 32
-        height: 32
+        width: 44
+        height: 44
         flat: true
         focusPolicy: Qt.StrongFocus
         Accessible.name: root.reveal ? "Hide password" : "Show password"
@@ -112,6 +112,8 @@ Item {
 
         background: Rectangle {
             radius: 7
+            border.width: revealButton.activeFocus ? 1 : 0
+            border.color: theme.gold
             color: revealButton.hovered
                 ? Qt.rgba(1, 1, 1, 0.07)
                 : "transparent"

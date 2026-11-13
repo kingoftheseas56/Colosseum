@@ -217,13 +217,30 @@ Item {
                     border.color: theme.gold
                 }
                 contentItem: Item {
-                    Text {
+                    Item {
                         id: serverIcon
                         anchors.verticalCenter: parent.verticalCenter
                         x: rail.expanded ? 8 : (parent.width - width) / 2
-                        text: "▤"
-                        color: theme.gold
-                        font.pixelSize: 23
+                        width: 26
+                        height: 26
+                        readonly property string provider: serverRow.modelData.provider || ""
+                        readonly property bool branded: ["jellyfin", "emby", "plex"].indexOf(provider) >= 0
+                        Image {
+                            objectName: "vaultBrowseRailServerIcon_" + serverRow.modelData.id
+                            anchors.fill: parent
+                            visible: serverIcon.branded
+                            source: serverIcon.branded ? "../assets/icons/servers/" + serverIcon.provider + ".svg" : ""
+                            fillMode: Image.PreserveAspectFit
+                            sourceSize.width: 52
+                            sourceSize.height: 52
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            visible: !serverIcon.branded
+                            text: "▤"
+                            color: theme.gold
+                            font.pixelSize: 23
+                        }
                     }
                     Column {
                         visible: rail.expanded

@@ -90,6 +90,8 @@ TestCase {
         let card = createTemporaryObject(cardComponent, testCase)
         verify(card !== null)
         verify(findChild(card, "homeServerConnectButton").visible)
+        let logos = findChild(card, "homeServerLogoTrio")
+        for (let i = 0; i < 3; ++i) tryCompare(logos.itemAt(i), "status", Image.Ready)
         compare(findChild(card, "homeServerEnabled_server1"), null)
         fixture.connections = [{ id: "server1", name: "Living room", provider: "jellyfin", enabled: true, needsReconnect: false, refreshing: false, status: "Connected" }]
         let toggle = null
@@ -206,6 +208,38 @@ TestCase {
         compare(fixture.selectedHttp, true)
         panel.close()
     }
+    function test_brandedTilesSelectAndPreserveSingleSelection() {
+        let panel = openPanel()
+        let tiles = field(panel, "homeServerProviderTiles")
+        let jellyfin = tiles.itemAt(0)
+        let emby = tiles.itemAt(1)
+        let plex = tiles.itemAt(2)
+        for (let i = 0; i < 3; ++i) {
+            let provider = ["jellyfin", "emby", "plex"][i]
+            tryCompare(findChild(tiles.itemAt(i), "homeServerProviderLogo_" + provider), "status", Image.Ready)
+        }
+        verify(jellyfin.checked)
+        verify(jellyfin.height >= 44 && emby.height >= 44 && plex.height >= 44)
+        mouseClick(jellyfin)
+        verify(jellyfin.checked)
+        jellyfin.forceActiveFocus()
+        keyClick(Qt.Key_Right)
+        compare(panel.provider, "emby")
+        verify(emby.activeFocus)
+        keyClick(Qt.Key_Left)
+        compare(panel.provider, "jellyfin")
+        credentials(panel, "https://server.local")
+        mouseClick(emby)
+        compare(panel.provider, "emby")
+        verify(emby.checked && !jellyfin.checked && !plex.checked)
+        compare(field(panel, "homeServerPassword").text, "")
+        mouseClick(plex)
+        compare(panel.provider, "plex")
+        verify(plex.checked && !emby.checked)
+        compare(field(panel, "homeServerAddress").visible, false)
+        compare(field(panel, "homeServerSubmit").visible, false)
+        panel.close()
+    }
     function test_statusPreservesFormProfileClearsIt() {
         let panel = openPanel()
         credentials(panel, "https://server.local")
@@ -265,6 +299,11 @@ TestCase {
         let panel = openPanel()
         tryVerify(function() { return panel.width <= testWindow.width })
         tryVerify(function() { return panel.height <= testWindow.height })
+        let cancel = field(panel, "homeServerCancel")
+        let submit = field(panel, "homeServerSubmit")
+        verify(cancel.height >= 44 && submit.height >= 44)
+        verify(cancel.mapToItem(panel.contentItem, 0, cancel.height).y <= panel.contentItem.height)
+        verify(submit.mapToItem(panel.contentItem, 0, submit.height).y <= panel.contentItem.height)
         panel.close()
         testWindow.width = oldWidth
         testWindow.height = oldHeight

@@ -23,8 +23,15 @@ Item {
     signal viewWorldRequested(var identity)
 
     property var homeServerSourceService: typeof HomeServers !== "undefined" ? HomeServers : null
-    readonly property var serverShelves: homeServerSourceService
-        ? (homeServerSourceService.revision, homeServerSourceService.shelves) : []
+    readonly property var serverShelves: {
+        if (!homeServerSourceService) return []
+        homeServerSourceService.revision
+        var connections = homeServerSourceService.connections || []
+        return (homeServerSourceService.shelves || []).map(shelf => {
+            var connection = connections.find(row => row.id === shelf.id)
+            return Object.assign({}, shelf, { provider: connection ? connection.provider : "" })
+        })
+    }
     property string selectedServerId: ""
     property var selectedServerProfileGeneration: -1
     property var serverTitleRows: []

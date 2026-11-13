@@ -3,32 +3,74 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import "account" as Account
 
 Popup {
     id: root
     objectName: "homeServerConnectPanel"
     property var service: typeof HomeServers !== "undefined" ? HomeServers : null
     readonly property string provider: providerChoice.currentIndex === 0 ? "jellyfin" : providerChoice.currentIndex === 1 ? "emby" : "plex"
+    readonly property string providerName: providerChoice.currentIndex === 0 ? qsTr("Jellyfin") : providerChoice.currentIndex === 1 ? qsTr("Emby") : qsTr("Plex")
     readonly property bool insecure: !!service && service.isInsecureAddress(addressField.text)
     property var openedGeneration: -1
     property var sessionService: null
     signal dismissed()
     parent: Overlay.overlay
-    width: Math.min(480, parent ? parent.width - 24 : 480)
+    width: Math.min(520, parent ? parent.width - 24 : 520)
     height: Math.min(implicitHeight, parent ? parent.height - 24 : implicitHeight)
     x: parent ? (parent.width - width) / 2 : 0
     y: parent ? (parent.height - height) / 2 : 0
-    padding: 20
+    padding: width < 400 ? 20 : 26
     modal: true
     focus: true
     closePolicy: Popup.CloseOnEscape
-    palette.text: "#ede8dd"
-    palette.windowText: "#ede8dd"
-    palette.buttonText: "#ede8dd"
-    palette.button: "#272729"
-    palette.base: "#1b1c20"
-    palette.highlight: "#9d8134"
-    background: Rectangle { color: "#101115"; radius: 16; border.color: "#6d5f35" }
+    palette.text: theme.ink
+    palette.windowText: theme.ink
+    palette.buttonText: theme.ink
+    palette.highlight: theme.gold
+    background: Rectangle { color: theme.biblioWashTop; radius: 20; border.color: theme.edge }
+    Theme { id: theme }
+
+    component ConsentCheck: CheckBox {
+        id: control
+        implicitHeight: Math.max(44, contentItem.implicitHeight + 12)
+        spacing: 12
+        indicator: Rectangle {
+            implicitWidth: 20; implicitHeight: 20
+            x: 0; y: (control.height - height) / 2
+            radius: 5
+            color: control.checked ? theme.gold : "transparent"
+            border.color: control.checked || control.activeFocus ? theme.gold : theme.edge
+            Text {
+                anchors.centerIn: parent
+                text: control.checked ? "✓" : ""
+                color: theme.biblioWashBottom
+                font.pixelSize: 14
+            }
+        }
+        contentItem: Label {
+            leftPadding: control.indicator.width + control.spacing
+            text: control.text
+            color: theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: theme.fontSize(12)
+            wrapMode: Text.Wrap
+            verticalAlignment: Text.AlignVCenter
+        }
+        background: Rectangle {
+            color: "transparent"
+            radius: 8
+            border.width: control.activeFocus ? 1 : 0
+            border.color: theme.gold
+        }
+    }
+
+    function chooseProvider(index) {
+        if (providerChoice.currentIndex === index) return
+        providerChoice.currentIndex = index
+        root.resetSecrets()
+        if (root.service) root.service.cancelSignIn()
+    }
 
     function resetSecrets() {
         if (passwordField) passwordField.clear()
@@ -70,65 +112,138 @@ Popup {
         function onConnectionAdded(id) { if (root.visible) root.close() }
     }
 
-    contentItem: ScrollView {
-        id: scroll
-        clip: true
-        implicitHeight: form.implicitHeight
-        contentWidth: availableWidth
+    contentItem: ColumnLayout {
+        spacing: 20
         Keys.onReleased: event => {
             if (event.key === Qt.Key_Back) {
                 root.close()
                 event.accepted = true
             }
         }
+        ScrollView {
+            id: scroll
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumHeight: 0
+            clip: true
+            implicitHeight: form.implicitHeight
+            contentWidth: availableWidth
         ColumnLayout {
             id: form
             width: scroll.availableWidth
-            spacing: 12
-            Label { text: qsTr("Connect a home server"); color: "#ede8dd"; font.pixelSize: 22; Layout.fillWidth: true; wrapMode: Text.Wrap }
-            ComboBox {
+            spacing: 20
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                Label { text: qsTr("Connect a home server"); color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(26); Layout.fillWidth: true; wrapMode: Text.Wrap }
+                Label { text: qsTr("Choose the server you use."); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); Layout.fillWidth: true; wrapMode: Text.Wrap }
+            }
+            RowLayout {
                 id: providerChoice
                 objectName: "homeServerProvider"
                 Layout.fillWidth: true
-                Layout.minimumHeight: 44
-                model: ["Jellyfin", "Emby", "Plex"]
+                property int currentIndex: 0
+                spacing: 10
                 Accessible.name: qsTr("Server provider")
-                onActivated: {
-                    root.resetSecrets()
-                    if (root.service) root.service.cancelSignIn()
+                Keys.onPressed: event => {
+                    var next = currentIndex
+                    if (event.key === Qt.Key_Right || event.key === Qt.Key_Down) next = Math.min(2, currentIndex + 1)
+                    else if (event.key === Qt.Key_Left || event.key === Qt.Key_Up) next = Math.max(0, currentIndex - 1)
+                    else return
+                    root.chooseProvider(next)
+                    providerTiles.itemAt(next).forceActiveFocus()
+                    event.accepted = true
+                }
+                Repeater {
+                    id: providerTiles
+                    objectName: "homeServerProviderTiles"
+                    model: ["jellyfin", "emby", "plex"]
+                    delegate: Button {
+                        id: providerTile
+                        required property string modelData
+                        required property int index
+                        objectName: "homeServerProvider_" + modelData
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        implicitHeight: 92
+                        checkable: true
+                        autoExclusive: true
+                        checked: providerChoice.currentIndex === index
+                        Accessible.name: index === 0 ? qsTr("Jellyfin") : index === 1 ? qsTr("Emby") : qsTr("Plex")
+                        onClicked: root.chooseProvider(index)
+                        background: Rectangle {
+                            radius: 14
+                            color: providerTile.checked ? Qt.rgba(theme.gold.r, theme.gold.g, theme.gold.b, 0.07)
+                                : providerTile.hovered ? theme.glassHi : Qt.rgba(1, 1, 1, 0.035)
+                            border.color: providerTile.checked || providerTile.activeFocus ? theme.gold : theme.edge
+                            border.width: providerTile.activeFocus ? 2 : 1
+                        }
+                        contentItem: ColumnLayout {
+                            spacing: 8
+                            Image {
+                                objectName: "homeServerProviderLogo_" + providerTile.modelData
+                                Layout.alignment: Qt.AlignHCenter
+                                Layout.preferredWidth: 36
+                                Layout.preferredHeight: 36
+                                source: "../assets/icons/servers/" + providerTile.modelData + ".svg"
+                                sourceSize: Qt.size(72, 72)
+                                fillMode: Image.PreserveAspectFit
+                                Accessible.ignored: true
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: providerTile.Accessible.name
+                                color: providerTile.checked ? theme.ink : theme.inkDim
+                                font.family: theme.ui
+                                font.pixelSize: theme.fontSize(12)
+                                font.weight: Font.DemiBold
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+                        }
+                    }
+                }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 5
+                Label { text: root.providerName; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(17); font.weight: Font.DemiBold }
+                Label {
+                    Layout.fillWidth: true
+                    text: root.provider === "plex" ? qsTr("Approve sign-in in your browser, then choose a server.") : qsTr("Use the address and account for your server.")
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); wrapMode: Text.Wrap
                 }
             }
             ColumnLayout {
                 visible: root.provider !== "plex"
                 Layout.fillWidth: true
-                spacing: 12
-                TextField {
+                spacing: 16
+                Account.AccountField {
                     id: addressField
-                    objectName: "homeServerAddress"
+                    controlObjectName: "homeServerAddress"
                     Layout.fillWidth: true
-                    Layout.minimumHeight: 44
-                    placeholderText: qsTr("Server address")
-                    Accessible.name: placeholderText
+                    label: qsTr("Server address")
+                    placeholderText: qsTr("https://server.example.com")
                     inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoAutoUppercase
                     onTextChanged: httpConsent.checked = false
                 }
-                TextField {
+                Account.AccountField {
                     id: userField
-                    objectName: "homeServerUsername"
+                    controlObjectName: "homeServerUsername"
                     Layout.fillWidth: true
-                    Layout.minimumHeight: 44
+                    label: qsTr("Username")
                     placeholderText: qsTr("Username")
                     Accessible.name: placeholderText
                     inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
                 }
-                TextField {
+                Account.AccountField {
                     id: passwordField
-                    objectName: "homeServerPassword"
+                    controlObjectName: "homeServerPassword"
                     Layout.fillWidth: true
-                    Layout.minimumHeight: 44
+                    label: qsTr("Password")
                     placeholderText: qsTr("Password")
                     Accessible.name: placeholderText
-                    echoMode: TextInput.Password
+                    password: true
                     onAccepted: root.submit()
                 }
                 Label {
@@ -136,9 +251,10 @@ Popup {
                     Layout.fillWidth: true
                     text: qsTr("HTTP sends your sign-in and media without encryption. Only continue on a network you trust.")
                     wrapMode: Text.Wrap
-                    color: "#e5c36c"
+                    color: theme.gold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 }
-                CheckBox {
+                ConsentCheck {
                     id: httpConsent
                     objectName: "homeServerHttpConsent"
                     visible: root.insecure
@@ -146,41 +262,53 @@ Popup {
                     Layout.minimumHeight: 44
                     text: qsTr("Allow this HTTP connection")
                 }
-                Button {
-                    objectName: "homeServerSubmit"
-                    Layout.fillWidth: true
-                    Layout.minimumHeight: 44
-                    text: qsTr("Connect")
-                    enabled: !!root.service && root.service.available && !root.service.busy
-                             && addressField.text.trim().length > 0 && userField.text.trim().length > 0
-                             && (!root.insecure || httpConsent.checked)
-                    onClicked: root.submit()
-                }
             }
             ColumnLayout {
                 visible: root.provider === "plex"
                 Layout.fillWidth: true
                 spacing: 12
-                Button {
+                Account.AccountButton {
                     objectName: "homeServerBeginPlex"
                     Layout.fillWidth: true
                     Layout.minimumHeight: 44
                     text: qsTr("Sign in with Plex")
+                    variant: "primary"
                     enabled: !!root.service && root.service.available && !root.service.busy
                     onClicked: root.service.beginPlex()
                 }
-                Label {
-                    objectName: "homeServerPlexCode"
+                Rectangle {
                     Layout.fillWidth: true
-                    visible: text.length > 0
-                    text: root.service ? root.service.plexCode : ""
-                    textFormat: Text.PlainText
-                    horizontalAlignment: Text.AlignHCenter
-                    color: "#f0c44a"
-                    font.pixelSize: 28
-                    font.letterSpacing: 4
+                    implicitHeight: 104
+                    visible: !!root.service && root.service.plexCode.length > 0
+                    radius: 14
+                    color: Qt.rgba(1, 1, 1, 0.035)
+                    border.color: theme.edge
+                    Column {
+                        anchors.centerIn: parent
+                        width: parent.width - 32
+                        spacing: 10
+                        Label {
+                            width: parent.width
+                            text: qsTr("Enter this code in Plex")
+                            horizontalAlignment: Text.AlignHCenter
+                            color: theme.inkDimmer
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                        }
+                        Label {
+                            objectName: "homeServerPlexCode"
+                            width: parent.width
+                            text: root.service ? root.service.plexCode : ""
+                            textFormat: Text.PlainText
+                            horizontalAlignment: Text.AlignHCenter
+                            color: theme.gold
+                            font.family: theme.hud
+                            font.pixelSize: theme.fontSize(30)
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: 6
+                        }
+                    }
                 }
-                Button {
+                Account.AccountButton {
                     objectName: "homeServerPlexBrowser"
                     Layout.fillWidth: true
                     Layout.minimumHeight: 44
@@ -193,9 +321,10 @@ Popup {
                     visible: !!root.service && root.service.httpConsentRequired
                     text: qsTr("This Plex server requires HTTP. Your media and connection credentials will be sent without encryption.")
                     wrapMode: Text.Wrap
-                    color: "#e5c36c"
+                    color: theme.gold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 }
-                CheckBox {
+                ConsentCheck {
                     id: plexHttpConsent
                     objectName: "homeServerPlexHttpConsent"
                     Layout.fillWidth: true
@@ -206,13 +335,23 @@ Popup {
                 Repeater {
                     objectName: "homeServerPlexCandidates"
                     model: root.service ? root.service.plexServers : []
-                    delegate: Button {
+                    delegate: Account.AccountButton {
                         id: plexCandidate
                         required property var modelData
                         objectName: "homeServerPlexSelect_" + plexCandidate.modelData.id
                         Layout.fillWidth: true
                         Layout.minimumHeight: 44
                         text: plexCandidate.modelData.name
+                        contentItem: Label {
+                            text: plexCandidate.text
+                            textFormat: Text.PlainText
+                            color: plexCandidate.enabled ? theme.ink : theme.inkDimmer
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                            horizontalAlignment: Text.AlignLeft
+                            verticalAlignment: Text.AlignVCenter
+                            leftPadding: 16; rightPadding: 16
+                            elide: Text.ElideRight
+                        }
                         enabled: plexCandidate.modelData.available && !root.service.busy
                                  && (!root.service.httpConsentRequired || plexHttpConsent.checked)
                         onClicked: root.service.selectPlexServer(plexCandidate.modelData.id, plexHttpConsent.checked)
@@ -226,14 +365,34 @@ Popup {
                 text: root.service ? root.service.status : ""
                 textFormat: Text.PlainText
                 wrapMode: Text.Wrap
-                color: "#c5b47e"
+                color: theme.inkDim
+                font.family: theme.ui; font.pixelSize: theme.fontSize(12)
             }
-            Button {
+        }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
+            Account.AccountButton {
                 objectName: "homeServerCancel"
                 Layout.fillWidth: true
-                Layout.minimumHeight: 44
+                Layout.minimumWidth: 0
+                implicitWidth: 110
                 text: qsTr("Cancel")
                 onClicked: root.close()
+            }
+            Account.AccountButton {
+                objectName: "homeServerSubmit"
+                visible: root.provider !== "plex"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                implicitWidth: 180
+                variant: "primary"
+                text: root.service && root.service.busy ? qsTr("Connecting…") : qsTr("Connect")
+                enabled: !!root.service && root.service.available && !root.service.busy
+                    && addressField.text.trim().length > 0 && userField.text.trim().length > 0
+                    && (!root.insecure || httpConsent.checked)
+                onClicked: root.submit()
             }
         }
     }

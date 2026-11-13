@@ -11,6 +11,7 @@ TestCase {
         property int revision: 1
         property int profileGeneration: 1
         property var shelves: []
+        property var connections: [{ id: "one", provider: "jellyfin" }, { id: "two", provider: "plex" }]
         property var titleData: ({})
         signal changed()
         signal profileChanged()
@@ -71,6 +72,10 @@ TestCase {
         let serverLabel = findChild(rail, "vaultBrowseRailServerName_one")
         compare(serverLabel.text, "<b>Living room</b>")
         compare(serverLabel.textFormat, Text.PlainText)
+        let serverLogo = findChild(rail, "vaultBrowseRailServerIcon_one")
+        verify(serverLogo !== null)
+        tryCompare(serverLogo, "status", Image.Ready)
+        verify(serverLogo.source.toString().endsWith("/servers/jellyfin.svg"))
         let view = shelf()
         compare(findChild(view, "homeServerVaultShelfName").text, "<b>Living room</b>")
         compare(findChild(view, "homeServerVaultShelfName").textFormat, Text.PlainText)
