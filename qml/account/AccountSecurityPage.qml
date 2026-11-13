@@ -11,6 +11,7 @@ Item {
     id: root
     objectName: "accountSecurityPage"
 
+    property var inputMethod: Qt.inputMethod
     property var controller: null
     property bool active: false
 
@@ -38,6 +39,13 @@ Item {
         && !passwordRequestPending
 
     Theme { id: theme }
+
+    AccountKeyboardViewport {
+        id: keyboardViewport
+        container: root
+        flick: scroller
+        inputMethod: root.inputMethod
+    }
 
     KeyboardScrollController {
         id: keyboardScroll
@@ -300,9 +308,10 @@ Item {
         id: scroller
         objectName: "accountSecurityScrollRegion"
         anchors.fill: parent
+        anchors.bottomMargin: keyboardViewport.keyboardOverlap
         clip: true
         contentWidth: width
-        contentHeight: pageColumn.height + 58
+        contentHeight: Math.max(pageColumn.height + 58, keyboardViewport.focusedScrollExtent)
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
 

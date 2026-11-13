@@ -163,6 +163,7 @@ std::optional<QString> releaseGroupKeyFor(
 {
     QStringList keys;
     QStringList providerKeys;
+    QStringList providerReleaseKeys;
     const auto &entity = candidate.canonicalEntity();
 
     if (entity.kind() == CanonicalEntityKind::ReleaseGroup)
@@ -171,6 +172,8 @@ std::optional<QString> releaseGroupKeyFor(
     for (const auto &contribution : candidate.contributions()) {
         if (contribution.canonicalContext().providerReleaseGroup)
             providerKeys.push_back(contribution.canonicalContext().providerReleaseGroup->stableKey());
+        if (contribution.canonicalContext().providerRelease)
+            providerReleaseKeys.push_back(contribution.canonicalContext().providerRelease->stableKey());
         if (contribution.canonicalContext().releaseGroupMbid.has_value()) {
             keys.push_back(
                 RecommendationEntityRef(CanonicalEntityRef::from(*contribution.canonicalContext().releaseGroupMbid)).stableKey());
@@ -178,6 +181,7 @@ std::optional<QString> releaseGroupKeyFor(
     }
 
     if (keys.isEmpty()) keys = providerKeys;
+    if (keys.isEmpty()) keys = providerReleaseKeys;
     keys.removeDuplicates();
     std::sort(keys.begin(), keys.end());
     if (keys.isEmpty())

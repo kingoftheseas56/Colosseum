@@ -1,7 +1,12 @@
 #include "devtools/VinylTestProfileController.h"
 #include <QCoreApplication>
+#include <QFileInfo>
 #include <QTemporaryDir>
 #include <QTextStream>
+#include <QProcess>
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
 
 int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
@@ -12,6 +17,57 @@ int main(int argc, char **argv) {
     };
     QTemporaryDir fixture(QDir::tempPath() + "/vinyl075-fixture-XXXXXX");
     check(fixture.isValid(), "owned-temporary-fixture-created");
+    if (!fixture.isValid()) return 1;
+    const QString guardRoot = QFileInfo(fixture.path()).canonicalFilePath();
+    check(VinylTestProfileController::unredirectedDirectoryPath(guardRoot),
+          "unredirected-existing-directory-accepted");
+    const QString missingPath = guardRoot + "/missing-parent/missing-leaf";
+    check(VinylTestProfileController::unredirectedDirectoryPath(missingPath)
+          && !QFileInfo::exists(guardRoot + "/missing-parent"),
+          "clean-missing-components-accepted-without-creation");
+    check(!VinylTestProfileController::unredirectedDirectoryPath("relative/missing"),
+          "relative-directory-path-refused");
+    check(!VinylTestProfileController::unredirectedDirectoryPath(guardRoot + "/../unclean"),
+          "unclean-directory-path-refused");
+    QFile nonDirectory(guardRoot + "/file-prefix");
+    check(nonDirectory.open(QIODevice::WriteOnly), "owned-nondirectory-prefix-created");
+    nonDirectory.close();
+    check(!VinylTestProfileController::unredirectedDirectoryPath(nonDirectory.fileName()),
+          "existing-file-refused");
+    check(!VinylTestProfileController::unredirectedDirectoryPath(nonDirectory.fileName() + "/missing"),
+          "nondirectory-ancestor-with-missing-leaf-refused");
+#ifdef Q_OS_WIN
+    const QString junctionTarget = guardRoot + "/owned-junction-target";
+    const QString junctionPath = guardRoot + "/owned-directory-junction";
+    if (!QFileInfo(guardRoot).isAbsolute()
+        || !QDir().mkdir(junctionTarget)) {
+        check(false, "owned-junction-target-setup");
+        fixture.setAutoRemove(false);
+        return 1;
+    }
+    const int junctionExit = QProcess::execute(
+        qEnvironmentVariable("SystemRoot") + "/System32/cmd.exe",
+        {"/d", "/c", "mklink", "/J", QDir::toNativeSeparators(junctionPath),
+         QDir::toNativeSeparators(junctionTarget)});
+    if (junctionExit != 0 || !QFileInfo(junctionPath).isJunction()) {
+        check(false, "owned-windows-junction-setup");
+        fixture.setAutoRemove(false);
+        return 1;
+    }
+    check(true, "owned-windows-junction-created");
+    check(!VinylTestProfileController::unredirectedDirectoryPath(junctionPath),
+          "existing-junction-refused");
+    check(!VinylTestProfileController::unredirectedDirectoryPath(junctionPath + "/missing-parent/missing-leaf"),
+          "missing-leaf-below-existing-junction-refused");
+    // Remove only the owned link itself; never recurse into its target.
+    if (!RemoveDirectoryW(reinterpret_cast<LPCWSTR>(QDir::toNativeSeparators(junctionPath).utf16()))) {
+        check(false, "owned-windows-junction-link-cleanup");
+        fixture.setAutoRemove(false);
+        return 1;
+    }
+    check(!QFileInfo::exists(junctionPath) && QFileInfo(junctionTarget).isDir(),
+          "junction-link-removed-target-preserved");
+#endif
     QDir(fixture.path()).mkdir("data");
     const QString data = fixture.path() + "/data";
     QFile marker(fixture.path() + '/' + VinylTestProfileController::markerName);
@@ -58,8 +114,9 @@ int main(int argc, char **argv) {
     qputenv("XDG_CONFIG_HOME", QDir::tempPath().toUtf8());
     check(!c.enabled(), "configuration-outside-fixture-refused");
     qputenv("XDG_CONFIG_HOME", (fixture.path() + "/config").toUtf8());
-    const QString descendantLink = data + "/profiles-link";
+    const QString descendantLink = data + "/profiles-link.lnk";
     check(QFile::link(QDir::tempPath(), descendantLink), "owned-descendant-symlink-created");
+    check(QFileInfo(descendantLink).isSymLink(), "owned-descendant-is-symlink");
     check(!c.execute({{"action", "activate-a"}})["success"].toBool() && callbacks == 0,
           "descendant-profile-symlink-refused-before-callback");
     check(QFile::remove(descendantLink), "owned-descendant-link-removed");
@@ -126,11 +183,12 @@ int main(int argc, char **argv) {
     check(marker.open(QIODevice::WriteOnly | QIODevice::Truncate), "marker-restored-opened"); marker.write(VinylTestProfileController::markerContents); marker.close();
     VinylTestProfileController foreign(QDir::tempPath(), {}, {});
     check(!foreign.enabled(), "appdata-outside-fixture-refused");
-    const QString link = fixture.path() + "/linked-data";
+    const QString link = fixture.path() + "/linked-data.lnk";
     check(QFile::link(data, link), "owned-symlink-created-for-negative-case");
+    check(QFileInfo(link).isSymLink(), "owned-negative-link-is-symlink");
     VinylTestProfileController symlink(link, {}, {});
     check(!symlink.enabled(), "symlink-appdata-refused");
-    VinylTestProfileController lexical(fixture.path() + "/linked-data/../data", {}, {});
+    VinylTestProfileController lexical(fixture.path() + "/linked-data.lnk/../data", {}, {});
     check(!lexical.enabled(), "lexical-symlink-parent-traversal-refused");
     check(QFile::remove(link), "owned-negative-link-removed");
     VinylTestProfileController unchanged(data, [](const QString &, bool) { return true; },

@@ -4,10 +4,13 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import "collections" as CollectionsUi
 
 Item {
     id: bar
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(bar.Window.window && bar.Window.window.androidHost === true)
+    }
     objectName: "colosseumTaskbar"
     anchors.fill: parent
 
@@ -181,7 +184,13 @@ Item {
 
                 KeyboardAction {
                     id: startInput
+                    // Touch toggles should not leave the keyboard-focus glow behind.
+                    focusOnPointer: !touchMetrics.androidHost
                     anchors.fill: parent
+                    anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                    anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                     accessibleName: bar.open ? "Close Colosseum taskbar" : "Open Colosseum taskbar"
                     tooltipText: accessibleName
                     focusRadius: bar.open ? 14 : 24
@@ -225,16 +234,23 @@ Item {
                     border.width: bar.collectionsActive ? 1 : 0
                     border.color: Qt.rgba(0.94, 0.76, 0.35, 0.45)
                 }
-                CollectionsUi.CollectionIcon {
+                Image {
                     anchors.centerIn: parent
-                    width: 22; height: 22
-                    name: "collections"
-                    strokeColor: bar.collectionsActive ? theme.gold : theme.ink
+                    width: 28; height: 28
+                    source: "../assets/icons/collections-app.png"
+                    sourceSize.width: 56
+                    sourceSize.height: 56
+                    fillMode: Image.PreserveAspectFit
+                    Accessible.ignored: true
                 }
                 KeyboardAction {
                     id: collectionsInput
                     objectName: "taskbarCollectionsAction"
                     anchors.fill: parent
+                    anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                    anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                     accessibleName: "Your Collections"
                     accessibleDescription: "Open your named collections"
                     tooltipText: accessibleName

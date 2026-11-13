@@ -37,6 +37,8 @@ Item {
     readonly property var row: worldData.row(listKey,home)
     readonly property string title: row.title
     readonly property int itemCount: row.items.length
+    readonly property bool mixRow: row.kind === "mixes"
+    readonly property bool radioRow: row.kind === "radio"
     readonly property bool onlineList: !home && worldData.onlineMode === true
     readonly property bool searchPagingSupported: worldData.cataloguePagingSupported !== false
     readonly property bool rowLoading: row.loading === true
@@ -87,7 +89,8 @@ Item {
         id: grid
         y: header.y+header.height+26
         width: parent.width
-        columns: Math.max(1,Math.min(6,Math.floor((width+24)/180)))
+        columns: Math.max(1,Math.min(root.mixRow ? 4 : root.radioRow ? 5 : 6,
+            Math.floor((width+24)/(root.mixRow ? 270 : root.radioRow ? 225 : 180))))
         columnSpacing: 24
         rowSpacing: 32
         Repeater {

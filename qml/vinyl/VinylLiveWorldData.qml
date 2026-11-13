@@ -1,5 +1,6 @@
 import QtQuick
 import "VinylWorldLists.js" as Lists
+import "VinylRecommendationActions.js" as RecommendationActions
 
 // Presentation only. Collection records and the music session remain authoritative.
 // Taste is owned by the active profile preferences.
@@ -96,6 +97,7 @@ Item {
 
     // Transient presentation state only: the three destinations do not share
     // filters or search results. Collection and the session still own the data.
+    property var catalogueBrowse: null
     property string activeTab: "library"
     property var browseStates: initialBrowseStates()
     property bool changingTab: false
@@ -139,7 +141,7 @@ Item {
         recentContinue=values.map(function(entry){
             var summary=session.checkpointSummary(entry.resume),row=summary.row;
             if(!row || (summary.duration>0 && summary.position>=summary.duration-0.5))return null;
-            return {id:"resume:"+row.editionId,kind:"resume",title:row.title,subtitle:row.artist,
+            return {id:"resume:"+row.editionId,kind:"resume",title:row.title,artist:row.artist,subtitle:row.artist,
                 cover:row.cover || "",editionId:row.editionId,trackId:row.trackId,
                 lastPlaybackAtMs:Number(summary.lastPlaybackAtMs)||0,
                 unavailable:!session.personalRowAvailable(row),resumeEntry:entry};
@@ -245,6 +247,38 @@ Item {
             });
         }).slice(0,300);
     }
+    signal recommendationActionsRequested(var request)
+    function requestRecommendationPreferences() {
+        var generation=recommendationProfileGeneration(), entries=[], seen={};
+        homeRows.forEach(function(row) {
+            if(!row || (!row.recommendation && row.key!=="taste-artists" && row.key!=="saved-artists")) return;
+            (row.items || []).forEach(function(item) {
+                if(!item || !item.ref || Number(row.profileGeneration)!==generation) return;
+                var key=JSON.stringify(item.ref);
+                if(seen[key]) return;
+                seen[key]=true;
+                entries.push({item:item,options:RecommendationActions.options(root,item,row)});
+            });
+        });
+        var suppressed=recommendationHomeSnapshot.suppressedItems || [];
+        suppressed.forEach(function(entry) {
+            if(!entry || !entry.ref || seen[JSON.stringify(entry.ref)]) return;
+            var options=RecommendationActions.recoveryOptions(entry);
+            if(!options.length) return;
+            entries.push({item:{id:entry.ref.itemId,title:entry.title || "",cover:entry.cover || "",ref:entry.ref,
+                kind:entry.ref.kind==="artist" ? "artists" : entry.ref.kind==="recording" ? "songs" : "albums"},options:options});
+        });
+        recommendationActionsRequested({entries:entries,generation:generation});
+        return true;
+    }
+    function requestRecommendationActions(item, row) {
+        var generation=recommendationProfileGeneration();
+        if(!item || !item.ref || !row || Number(row.profileGeneration)!==generation) return false;
+        var options=RecommendationActions.options(root,item,row);
+        if(!options.length) return false;
+        recommendationActionsRequested({item:item,options:options,generation:generation});
+        return true;
+    }
     function setRecommendationFeedback(ref, action, expectedGeneration) {
         var generation=Number(expectedGeneration);
         if(!usesRecommendationService || typeof recommendationService.setFeedback!=="function"
@@ -309,7 +343,9 @@ Item {
     property string sortOrder: "title"
     function emptyLens() {return {kind:"albums",genre:"",decade:"",country:"",language:""};}
     function initialBrowseStates() {
-        return {home:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},
+        return {songs:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},
+            albums:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},
+            artists:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},home:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},
             discover:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:true},
             library:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false}};
     }
@@ -320,7 +356,7 @@ Item {
         browseStates=next;
     }
     function selectTab(tab) {
-        if(["home","discover","library"].indexOf(tab)<0) return;
+        if(["home","songs","albums","artists","discover","library"].indexOf(tab)<0) return;
         if(tab==="home" && !usesRecommendationService && !fallbackPickerAnswered)
             fallbackTastePickerOpen=true;
         if(tab==="home" && usesRecommendationService && typeof recommendationService.beginHomeVisit==="function")
@@ -329,8 +365,8 @@ Item {
         saveBrowseState();
         if(session.browsing && ["search","catalogueSearch"].indexOf(session.browseOperation)>=0) session.cancelBrowse();
         changingTab=true;activeTab=tab;
-        var state=browseStates[tab];query=state.query;lens=Object.assign({},state.lens);sortOrder=state.sortOrder;onlineMode=state.onlineMode;
-        changingTab=false;refreshSearch();if(tab==="home")refreshHome();ensureDiscovery();
+        var state=browseStates[tab] || {query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false};query=state.query;lens=Object.assign({},state.lens);sortOrder=state.sortOrder;onlineMode=state.onlineMode;
+        changingTab=false;refreshSearch();if(tab==="home"){refreshHome();ensureDiscovery();}
     }
     function setQuery(value) {query=String(value || "");}
     function setOnlineMode(value) {
@@ -377,7 +413,7 @@ Item {
         catalogueMatches={query:pendingCatalogueQuery,albums:session.onlineAlbums.slice(),artists:session.onlineArtists.slice()};
     }
     function refreshSearch() {
-        if(changingTab || activeTab==="home" || onlineMode) return;
+        if(changingTab || ["home","songs","albums","artists"].indexOf(activeTab)>=0 || onlineMode) return;
         if(!session.pagedSearchSupported) return;
         if(query.trim()) session.search(query);
         else if(session.browseOperation==="search") session.cancelBrowse();
@@ -388,7 +424,6 @@ Item {
         if(activeTab==="discover" && onlineMode && !query.trim()) {
             pendingCatalogueQuery="";
             if(session.browseOperation==="catalogueSearch")session.cancelBrowse();
-            ensureDiscovery();
         }
     }
     onLensChanged: {saveBrowseState();if(!changingTab && cataloguePagingSupported && activeTab==="discover" && onlineMode && query.trim())session.searchCatalogue(query.trim(),lens.kind,false);}
@@ -437,11 +472,16 @@ Item {
         var snapshot=recommendationHomeSnapshot;
         var generation=recommendationProfileGeneration();
         var result=[],historyRows=[];
-        if(homeQuickPicks.length)result.push({key:"quick-picks",title:"Quick picks",kind:"songs",items:homeQuickPicks});
-        if(homeListeningCards.length)result.push({key:"mixes-radio",title:"Mixes & radio",kind:"mixes",items:homeListeningCards});
+        if(homeQuickPicks.length)result.push({key:"quick-picks",title:"Quick picks",kind:"songs",items:homeQuickPicks,
+            recommendation:true,sectionId:"quick-picks",profileGeneration:generation,
+            exposureSnapshotId:String(snapshot.exposureSnapshotId || "")});
+        var mixes=homeListeningCards.filter(function(item){return item.kind==="mixes";});
+        var radio=homeListeningCards.filter(function(item){return item.kind==="radio";});
+        if(mixes.length)result.push({key:"mixes",title:"Mixes",kind:"mixes",items:mixes});
+        if(radio.length)result.push({key:"radio",title:"Radio",kind:"radio",items:radio});
         var continuing=[],active=session.activeQueueRow;
         if(active && session.sourceState!=="ended" && (!(session.duration>0) || session.position<session.duration-0.5))continuing.push({id:"resume:"+active.queueId,kind:"resume",resumeCurrent:true,
-            editionId:active.editionId,title:active.title,subtitle:active.artist,cover:active.cover || "",
+            editionId:active.editionId,title:active.title,artist:active.artist,subtitle:active.artist,cover:active.cover || "",
             unavailable:typeof session.personalRowAvailable==="function" && !session.personalRowAvailable(active)});
         continuing=continuing.concat(recentContinue.filter(item=>!active || item.editionId!==active.editionId));
         if(continuing.length)result.push({key:"continue-listening",title:"Continue listening",kind:"resume",items:continuing});
@@ -506,7 +546,7 @@ Item {
     function openHomeDestination(tab,section,id) {homeDestinationRequested(tab,section || "albums",id || "");}
     function artwork(url) { return url || ""; }
     function findAlbum(id) {
-        var records=libraryAlbums.concat(catalogueMatches.albums);
+        var records=libraryAlbums.concat(catalogueMatches.albums).concat(catalogueBrowse ? catalogueBrowse.records : []);
         if(cataloguePagingSupported)Object.keys(session.cataloguePages).forEach(kind=>{records=records.concat(session.cataloguePages[kind].records || []);});
         discoveryOrder.forEach(key=>{records=records.concat((discoverySections[key] || {}).records || []);});
         return records.find(function(a){return a.id===id;});

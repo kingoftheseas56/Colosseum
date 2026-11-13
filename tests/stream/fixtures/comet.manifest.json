@@ -1,0 +1,32 @@
+{
+  "id": "comet.elfhosted.com",
+  "description": "Stremio's fastest torrent/debrid search add-on.",
+  "version": "2.0.0",
+  "catalogs": [],
+  "resources": [
+    {
+      "name": "stream",
+      "types": [
+        "movie",
+        "series"
+      ],
+      "idPrefixes": [
+        "tt",
+        "kitsu"
+      ]
+    }
+  ],
+  "types": [
+    "movie",
+    "series",
+    "anime",
+    "other"
+  ],
+  "logo": "https://raw.githubusercontent.com/g0ldyy/comet/refs/heads/main/comet/assets/icon.png",
+  "background": "https://raw.githubusercontent.com/g0ldyy/comet/refs/heads/main/comet/assets/background.png",
+  "behaviorHints": {
+    "configurable": true,
+    "configurationRequired": false
+  },
+  "name": "Comet | ElfHosted"
+}

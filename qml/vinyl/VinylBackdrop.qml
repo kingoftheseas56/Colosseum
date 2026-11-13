@@ -52,7 +52,9 @@ Item {
             visible: false
         }
         MultiEffect {
-            anchors.fill: parent
+            // Size after the source: MultiEffect caches its source rectangle on resize.
+            width: art.width + 2 * art.anchors.margins
+            height: art.height + 2 * art.anchors.margins
             source: art
             blurEnabled: true
             blur: 1

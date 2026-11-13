@@ -1,0 +1,933 @@
+{
+  "name": "vinyl-v1-slice1-world-tab-shell",
+  "comment": "Explicit Lanista shell journey using the test-only offline fixture helper. Set COLOSSEUM_VINYL_TEST_FIXTURES=1 and run with --tag vinylv1-slice1-shell. Capture export dimensions can be supplied separately; they do not resize the app window. Record actual window/PNG dimensions when qualifying a viewport. Reuse that exact tag for vinyl_v1_shell_restart.json and omit --seed so the saved profile remains in place. The query fixture returns five synthetic artist identities; no live provider is used. The session runner closes the child through its graceful WM_CLOSE path after the final ping.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "Isolated Lanista pipe responds",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Boot splash has finished",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Local profile action is ready",
+      "payload": {
+        "object": "accountWelcomeContinueLocal",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Choose the local profile containing the Vinyl fixture",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "accountWelcomeContinueLocal"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Account welcome has closed",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Home is visible",
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl is available in this build",
+      "payload": {
+        "object": "modePill_Vinyl",
+        "prop": "qualificationEnabled",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Enter Vinyl",
+      "payload": {
+        "target": "modePill_Vinyl"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "modePill_Vinyl"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl Loader reaches Ready",
+      "payload": {
+        "object": "worldLoader_Vinyl",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl world reports ready",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "ready",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl starts on Home before any tab selection",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "activeTab",
+        "value": "Home",
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl world is visible",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Taste picker search is visible",
+      "payload": {
+        "object": "vinylPickerArtistSearch",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Confirm fresh taste draft is empty before fixture search",
+      "payload": {
+        "object": "vinylTastePicker",
+        "props": [
+          "query",
+          "selectedArtistCount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.query",
+          "op": "==",
+          "value": ""
+        },
+        {
+          "path": "props.selectedArtistCount",
+          "op": "==",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "cmd": "ui-text-input",
+      "label": "Search the offline fixture catalogue",
+      "payload": {
+        "target": "vinylPickerArtistSearch",
+        "text": "fixture"
+      },
+      "expect": [
+        {
+          "path": "typed",
+          "op": "==",
+          "value": "fixture"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture result 1 is present by title",
+      "payload": {
+        "object": "vinylPickerArtistArtwork_0",
+        "prop": "title",
+        "value": "Fixture Artist 1",
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select Fixture Artist 1",
+      "payload": {
+        "target": "vinylPickerArtist_0"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylPickerArtist_0"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture Artist 1 is selected",
+      "payload": {
+        "object": "vinylPickerArtist_0",
+        "prop": "chosen",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Taste draft contains 1 fixture artists",
+      "payload": {
+        "object": "vinylTastePicker",
+        "props": [
+          "selectedArtistCount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.selectedArtistCount",
+          "op": "==",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture result 2 is present by title",
+      "payload": {
+        "object": "vinylPickerArtistArtwork_1",
+        "prop": "title",
+        "value": "Fixture Artist 2",
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select Fixture Artist 2",
+      "payload": {
+        "target": "vinylPickerArtist_1"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylPickerArtist_1"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture Artist 2 is selected",
+      "payload": {
+        "object": "vinylPickerArtist_1",
+        "prop": "chosen",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Taste draft contains 2 fixture artists",
+      "payload": {
+        "object": "vinylTastePicker",
+        "props": [
+          "selectedArtistCount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.selectedArtistCount",
+          "op": "==",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture result 3 is present by title",
+      "payload": {
+        "object": "vinylPickerArtistArtwork_2",
+        "prop": "title",
+        "value": "Fixture Artist 3",
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select Fixture Artist 3",
+      "payload": {
+        "target": "vinylPickerArtist_2"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylPickerArtist_2"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture Artist 3 is selected",
+      "payload": {
+        "object": "vinylPickerArtist_2",
+        "prop": "chosen",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Taste draft contains 3 fixture artists",
+      "payload": {
+        "object": "vinylTastePicker",
+        "props": [
+          "selectedArtistCount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.selectedArtistCount",
+          "op": "==",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture result 4 is present by title",
+      "payload": {
+        "object": "vinylPickerArtistArtwork_3",
+        "prop": "title",
+        "value": "Fixture Artist 4",
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select Fixture Artist 4",
+      "payload": {
+        "target": "vinylPickerArtist_3"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylPickerArtist_3"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture Artist 4 is selected",
+      "payload": {
+        "object": "vinylPickerArtist_3",
+        "prop": "chosen",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Taste draft contains 4 fixture artists",
+      "payload": {
+        "object": "vinylTastePicker",
+        "props": [
+          "selectedArtistCount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.selectedArtistCount",
+          "op": "==",
+          "value": 4
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture result 5 is present by title",
+      "payload": {
+        "object": "vinylPickerArtistArtwork_4",
+        "prop": "title",
+        "value": "Fixture Artist 5",
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select Fixture Artist 5",
+      "payload": {
+        "target": "vinylPickerArtist_4"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylPickerArtist_4"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture Artist 5 is selected",
+      "payload": {
+        "object": "vinylPickerArtist_4",
+        "prop": "chosen",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Taste draft contains 5 fixture artists",
+      "payload": {
+        "object": "vinylTastePicker",
+        "props": [
+          "selectedArtistCount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.selectedArtistCount",
+          "op": "==",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Save is enabled at five distinct taste identities",
+      "payload": {
+        "object": "vinylPickerDone",
+        "prop": "enabled",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Save the five fixture artist choices through the profile owner",
+      "payload": {
+        "target": "vinylPickerDone"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylPickerDone"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Saved profile now qualifies for Vinyl navigation",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "navigationEnabled",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Taste picker closes after the saved answer",
+      "payload": {
+        "object": "vinylTastePicker",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Library tab button is materialized",
+      "payload": {
+        "object": "vinylTab_Library",
+        "prop": "enabled",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select Library",
+      "payload": {
+        "target": "vinylTab_Library"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylTab_Library"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Library is the active Vinyl tab",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "activeTab",
+        "value": "Library",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Capture the Library shell",
+      "payload": {
+        "object": "vinylWorld",
+        "props": [
+          "activeTab"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeTab",
+          "op": "==",
+          "value": "Library"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select Discover",
+      "payload": {
+        "target": "vinylTab_Discover"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylTab_Discover"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Discover is the active Vinyl tab",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "activeTab",
+        "value": "Discover",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Capture the Discover shell",
+      "payload": {
+        "object": "vinylWorld",
+        "props": [
+          "activeTab"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeTab",
+          "op": "==",
+          "value": "Discover"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select Home",
+      "payload": {
+        "target": "vinylTab_Home"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylTab_Home"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Home is the active Vinyl tab",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "activeTab",
+        "value": "Home",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Capture the Home shell",
+      "payload": {
+        "object": "vinylWorld",
+        "props": [
+          "activeTab"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeTab",
+          "op": "==",
+          "value": "Home"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Switch to Theatre",
+      "payload": {
+        "target": "modePill_Theatre"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "modePill_Theatre"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Theatre Loader reaches Ready",
+      "payload": {
+        "object": "worldLoader_Theatre",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Return to Vinyl",
+      "payload": {
+        "target": "modePill_Vinyl"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "modePill_Vinyl"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl is visible after the world round-trip",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Home tab is preserved after the world round-trip",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "activeTab",
+        "value": "Home",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ping",
+      "label": "Lanista pipe remains responsive before graceful session close",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    }
+  ]
+}

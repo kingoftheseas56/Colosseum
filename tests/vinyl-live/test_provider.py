@@ -6,6 +6,7 @@ import subprocess
 import sys
 import unittest
 import uuid
+from unittest.mock import patch
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -100,6 +101,90 @@ class ProviderTests(unittest.TestCase):
             cont["videos"],
             {"browseId": "VLOLAK5uy_nWHSgzxuQjrOSNsAmCBRTNjdoYoAUd57w", "params": "ggMCCAI%3D"},
         )
+
+    def test_artist_overview_uses_one_read_and_binds_browse_channel(self):
+        cid = "UCfM3zsQsOnfWNUppiycmBuw"
+        result = provider.handle({"operation": "artist", "value": cid, "overview": True}, client=self.yt)
+        self.assertEqual(self.yt.calls, [{"method": "get_artist", "channelId": cid}])
+        self.assertEqual(result["channelId"], cid)
+        self.assertEqual(result["id"], provider.identity("artist", cid))
+        self.assertTrue(any(image["width"] == 2880 for image in result["images"]))
+        first = result["songs"][0]
+        self.assertEqual(first["record"]["tracks"][0]["videoId"], first["videoId"])
+        self.assertEqual(first["record"]["tracks"][0]["id"], first["id"])
+        self.assertEqual(first["record"]["providerIds"]["youtube-music"], first["videoId"])
+        self.assertEqual(first["record"]["type"], "Song")
+        for kind, shelf_name in (("albums", "albumShelf"), ("singles", "singleShelf"), ("videos", "videoShelf")):
+            shelf = result[shelf_name]
+            self.assertEqual(shelf["requestedChannelId"], cid)
+            self.assertTrue(shelf["items"])
+            self.assertFalse(shelf["complete"])
+            self.assertTrue(result["continuations"][kind]["browseId"])
+
+    def test_artist_overview_sparse_shelves_and_exact_audio(self):
+        from unittest.mock import Mock
+
+        cid = "UCfM3zsQsOnfWNUppiycmBuw"
+        client = Mock()
+        track = {"title": "Audio", "videoId": "Abcdef12345", "duration": "2:15",
+                 "artists": [{"name": "Artist", "id": cid}], "album": {"name": "Album", "id": "MPREb_abc"}}
+        client.get_artist.return_value = {
+            "name": "Artist", "channelId": "UCedvOgsKFzcK3hA5taf3KoQ",
+            "songs": {"results": [
+                track, dict(track, title="Music Video", videoId="Abcdef12346", videoType="MUSIC_VIDEO_TYPE_OMV"),
+                dict(track, title="Podcast", videoId="Abcdef12347", category="Podcast"),
+                dict(track, title="Unknown", videoId="Abcdef12348", album=None),
+                dict(track, title="Typed", videoId="Abcdef12349", album=None, videoType="MUSIC_VIDEO_TYPE_ATV"),
+                dict(track, title="Unavailable", videoId="Abcdef12350", isAvailable=False),
+            ]},
+        }
+        result = provider.handle({"operation": "artist", "value": cid, "overview": True}, client=client)
+        client.get_artist.assert_called_once_with(cid)
+        client.get_playlist.assert_not_called()
+        self.assertEqual(result["channelId"], cid)
+        self.assertEqual(result["requestedChannelId"], cid)
+        self.assertTrue(result["complete"])
+        for shelf in ("albumShelf", "singleShelf", "videoShelf"):
+            self.assertEqual(result[shelf]["items"], [])
+            self.assertTrue(result[shelf]["complete"])
+        self.assertEqual([s["title"] for s in result["songs"] if "record" in s], ["Audio", "Typed"])
+        record = result["songs"][0]["record"]
+        self.assertEqual(record["tracks"][0]["seconds"], 135)
+        self.assertEqual(record["browseId"], "ytm:track:" + track["videoId"])
+
+    def test_artist_continuations_fetch_directly_and_keep_original_channel(self):
+        cid = "UCfM3zsQsOnfWNUppiycmBuw"
+        overview = provider.handle({"operation": "artist", "value": cid, "overview": True}, client=self.yt)
+        self.yt.calls.clear()
+        for kind in ("albums", "singles", "videos"):
+            with self.subTest(kind=kind):
+                handle = overview["continuations"][kind]
+                request = {"operation": "artistVideos" if kind == "videos" else "artistReleases",
+                           "value": cid, "kind": kind, "continuation": handle}
+                result = provider.handle(request, client=self.yt)
+                self.assertEqual(result["channelId"], cid)
+                self.assertEqual(result["requestedChannelId"], cid)
+                self.assertTrue(result["complete"])
+                self.assertTrue(result["items"])
+        self.assertEqual([c["method"] for c in self.yt.calls],
+                         ["get_artist_albums", "get_artist_albums", "get_playlist"])
+
+    def test_invalid_artist_continuations_are_rejected_before_reads(self):
+        cid = "UCfM3zsQsOnfWNUppiycmBuw"
+        bad = (
+            ("artistVideos", "bad-channel", {"browseId": "VLPLabc"}),
+            ("artistVideos", cid, None),
+            ("artistVideos", cid, {"browseId": "https://music.youtube.com"}),
+            ("artistVideos", cid, {"browseId": "VLPLabc", "params": "a%GH"}),
+            ("artistReleases", cid, {"browseId": "MPADUCabc"}),
+            ("artistReleases", cid, {"browseId": "MPADUCabc", "params": "a" * 4097}),
+        )
+        for operation, channel, handle in bad:
+            with self.subTest(operation=operation, channel=channel, handle_size=len(str(handle))):
+                with self.assertRaises(provider.InvalidArgumentError):
+                    provider.handle({"operation": operation, "value": channel, "kind": "albums",
+                                     "continuation": handle}, client=self.yt)
+        self.assertEqual(self.yt.calls, [])
 
     def test_eminem_releases_and_videos_via_continuation(self):
         albums = provider.handle(
@@ -365,6 +450,60 @@ class ProviderTests(unittest.TestCase):
         err_payload = json.loads(err_proc.stdout.decode("utf-8"))
         self.assertFalse(err_payload["ok"])
         self.assertEqual(err_payload["errorCode"], "not_found")
+
+    def test_fake_provider_fixture_artist_page_is_offline_and_uses_catalogue_contract(self):
+        request = {
+            "operation": "cataloguePage",
+            "value": "fixture",
+            "kind": "artists",
+            "cursor": {},
+        }
+        with patch.object(fake_provider, "_load_provider_module", return_value=provider):
+            with patch.object(
+                provider, "_ytmusic_client",
+                side_effect=AssertionError("offline fixture attempted a provider fallback"),
+            ) as network:
+                response = fake_provider.handle_fake_request(request)
+                rejected_responses = [
+                    fake_provider.handle_fake_request(unsupported)
+                    for unsupported in (
+                        {"operation": "cataloguePage", "value": "other", "kind": "artists"},
+                        {"operation": "cataloguePage", "value": "fixture", "kind": "songs"},
+                        {"operation": "cataloguePage", "value": "fixture", "kind": "artists",
+                         "cursor": {"version": 1, "token": "unsupported"}},
+                    )
+                ]
+
+        network.assert_not_called()
+        self.assertTrue(response["ok"])
+        page = response["data"]
+        expected_ids = [f"UC{index:022d}" for index in range(1, 6)]
+        self.assertEqual(page["version"], 1)
+        self.assertEqual(page["query"], "fixture")
+        self.assertEqual(page["kind"], "artists")
+        self.assertEqual(page["source"], "youtube-music")
+        self.assertEqual(page["items"], [
+            {
+                "id": "ytm:artist:" + channel,
+                "artistId": "ytm:artist:" + channel,
+                "kind": "artists",
+                "title": f"Fixture Artist {index}",
+                "cover": "",
+                "round": True,
+                "artist": f"Fixture Artist {index}",
+            }
+            for index, channel in enumerate(expected_ids, start=1)
+        ])
+        self.assertEqual(page["records"], [])
+        self.assertEqual(page["offset"], 0)
+        self.assertEqual(page["nextOffset"], 5)
+        self.assertEqual(page["nextCursor"], {})
+        self.assertTrue(page["complete"])
+
+        for rejected in rejected_responses:
+            self.assertFalse(rejected["ok"])
+            self.assertEqual(rejected["errorCode"], "invalid_argument")
+        network.assert_not_called()
 
     @unittest.skipUnless(
         os.environ.get("COLOSSEUM_VINYL_LIVE_SMOKE") == "1",

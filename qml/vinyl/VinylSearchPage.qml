@@ -15,6 +15,91 @@ SearchSurface {
     searchMode: "Vinyl"
     placeholder: artistPicker ? "Search artists…" : "Search artists, albums, songs & playlists…"
     coverAspect: 1
+    resultPresentation: artistPicker ? null : vinylResult
+    resultLoadingPresentation: artistPicker ? null : vinylLoading
+    VinylSongWidget {
+        id: songLoadingMetrics
+        objectName: "vinylSearchSongLoadingMetrics"
+        visible: false
+        width: page.desktopResultCardWidth
+        displayFont: footerTheme.display
+        uiFont: footerTheme.ui
+        Accessible.ignored: true
+    }
+    Component {
+        id: vinylLoading
+        Item {
+            id: placeholder
+            readonly property var loadingHost: parent
+            readonly property string kind: loadingHost ? loadingHost.loadingKind : ""
+            readonly property bool artist: kind === "artists"
+            readonly property bool song: kind === "songs"
+            readonly property real artworkHeight: artist ? width * 1.084
+                : song ? songLoadingMetrics.implicitHeight : width
+            implicitHeight: artworkHeight + (artist || song ? 8 : 53)
+            Accessible.ignored: true
+            Rectangle {
+                width: parent.width; height: placeholder.artworkHeight
+                radius: placeholder.artist ? width * 0.1 : 7
+                color: "#202126"; border.width: 1; border.color: "#393a40"
+                Rectangle {
+                    visible: placeholder.artist
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    y: parent.width * 0.065
+                    width: parent.width * 0.758; height: width; radius: width / 2
+                    color: "#101115"; border.width: 1; border.color: "#34353b"
+                    Rectangle { anchors.centerIn: parent; width: parent.width * 0.6; height: width
+                        radius: width / 2; color: "#2d2e34" }
+                }
+                Rectangle {
+                    visible: !placeholder.artist
+                    x: 6; y: 6; width: parent.width - 12; height: width
+                    color: "#2c2d33"
+                }
+                Rectangle {
+                    visible: placeholder.kind === "albums"
+                    x: 7; y: 6; width: 7; height: parent.width - 12
+                    color: "#44454b"
+                }
+                Rectangle {
+                    visible: placeholder.song
+                    x: 6; y: parent.width - 6; width: parent.width - 12
+                    height: parent.height - y - 6
+                    color: "#45454a"
+                }
+                Column {
+                    visible: placeholder.artist || placeholder.song
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    y: placeholder.artist ? parent.height * 0.85 : parent.width + 10
+                    width: parent.width * 0.56; spacing: 7
+                    Rectangle { width: parent.width; height: 7; radius: 3; color: "#62636a" }
+                    Rectangle { visible: placeholder.song; anchors.horizontalCenter: parent.horizontalCenter
+                        width: parent.width * 0.65; height: 5; radius: 2; color: "#62636a" }
+                }
+            }
+            Column {
+                visible: !placeholder.artist && !placeholder.song
+                y: placeholder.artworkHeight + 14
+                width: parent.width; spacing: 7
+                Rectangle { width: parent.width * 0.72; height: 8; radius: 3; color: "#3b3c43" }
+                Rectangle { width: parent.width * 0.48; height: 6; radius: 3; color: "#303137" }
+            }
+        }
+    }
+    Component {
+        id: vinylResult
+        VinylItemCard {
+            // The shared search surface owns mouse, keyboard, and accessible actions.
+            readonly property var presentationHost: parent
+            readonly property var entry: presentationHost ? presentationHost.entry : null
+            item: entry && entry.data ? entry.data : ({id:"",title:"",kind:""})
+            worldData: page.worldData
+            pointerEnabled: false
+            focusEnabled: false
+            showFocusFrame: false
+            Accessible.ignored: true
+        }
+    }
     primaryIcon: Qt.resolvedUrl(artistPicker ? "../../assets/icons/lucide/bookmark-plus.svg" : "../../assets/icons/lucide/chevron-right.svg")
     keepOpenOnActivation: artistPicker
     // Profile teardown may already have rebound the global history owner.
@@ -96,7 +181,7 @@ SearchSurface {
                     var record = (result.records || []).find(function(album) { return album.id === (item.albumId || item.id); });
                     return {title: item.title, cover: item.cover || "", round: kind === "artists",
                         subtitle: item.subtitle || (kind === "artists" ? "Artist" : ""),
-                        data: Object.assign({}, item, {record: record || null})};
+                        data: Object.assign({}, item, {kind:item.kind || kind, record: record || null})};
                 });
                 return {key: kind, group: kind.charAt(0).toUpperCase() + kind.slice(1), items: rows,
                     loading: !!page.session.catalogueRequests[kind], error: result.error || "",

@@ -25,6 +25,7 @@ QByteArray contributionKey(const RecommendationContribution &c) {
         context.releaseGroupMbid ? context.releaseGroupMbid->toString() : QString(),
         context.providerArtist ? context.providerArtist->stableKey() : QString(),
         context.providerReleaseGroup ? context.providerReleaseGroup->stableKey() : QString(),
+        context.providerRelease ? context.providerRelease->stableKey() : QString(),
         c.rawProviderScore() ? QJsonValue(*c.rawProviderScore()) : QJsonValue(QJsonValue::Null),
         QJsonArray::fromStringList(evidence)};
     return QJsonDocument(key).toJson(QJsonDocument::Compact);
@@ -204,7 +205,9 @@ RecommendationContribution::create(
     if ((canonicalContext.providerArtist && (canonicalContext.providerArtist->isCanonical()
             || canonicalContext.providerArtist->kind() != CanonicalEntityKind::Artist))
         || (canonicalContext.providerReleaseGroup && (canonicalContext.providerReleaseGroup->isCanonical()
-            || canonicalContext.providerReleaseGroup->kind() != CanonicalEntityKind::ReleaseGroup)))
+            || canonicalContext.providerReleaseGroup->kind() != CanonicalEntityKind::ReleaseGroup))
+        || (canonicalContext.providerRelease && (canonicalContext.providerRelease->isCanonical()
+            || canonicalContext.providerRelease->kind() != CanonicalEntityKind::Release)))
         return RecommendationCandidateResult<RecommendationContribution>::failure(
             RecommendationCandidateErrorCode::InvalidSeedContext, "provider_context");
 

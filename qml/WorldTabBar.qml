@@ -9,6 +9,10 @@ pragma ComponentBehavior: Bound
 
 Item {
     id: tabs
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(tabs.Window.window && tabs.Window.window.androidHost === true)
+    }
 
     required property Item backdrop
     // The world's scroll offset. The glass re-samples the wallpaper behind the bar as the page
@@ -128,7 +132,7 @@ Item {
                     // that share a key (e.g. "library") can't collide under resolveTarget's DFS
                     // lookup — a hidden pre-warmed world's pill would otherwise shadow the active
                     // one (observed: Tankoban's worldTab_library ate Biblio's click 2026-08-06).
-                    objectName: tabs.tabPrefix + "_" + pill.modelData.key
+                    objectName: tabs.tabPrefix + "_" + (pill.modelData.automationKey || pill.modelData.key)
                     readonly property bool activeState: pill.modelData.key === tabs.currentTab
 
                     width: parent ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length) : 0
@@ -154,6 +158,8 @@ Item {
                     MouseArea {
                         id: ma
                         anchors.fill: parent
+                        anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                        anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: tabs.requestIndex(pill.index, Qt.MouseFocusReason)

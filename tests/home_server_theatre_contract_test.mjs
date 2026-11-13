@@ -41,3 +41,93 @@ test('missing details use only current native identified server metadata', () =>
     const disconnected = shipped('TheatreSeries.qml', 'homeServerMetadataFallback', {itemData:{}});
     assert.equal(disconnected(null,'movie','tt123'),null);
 });
+
+for (const file of ['TheatreSeries.qml', 'TheatreSeriesView.qml']) {
+    function resolveTitle(providerMeta, native, itemData = {id:'tmdb:tv:101', type:'series', tmdbId:101, tvdbId:202}) {
+        const queries = [], shown = [];
+        const id = itemData.id;
+        const state = {
+            itemData,
+            currentId: () => id,
+            defaultAnimeOrder: () => ({}), cancelMoreLike() {},
+            rebuildAnimeOrder() {}, onMetaLoaded() { this.loaded = true; },
+            revealGuard: {restart() {}, stop() {}},
+            TheatreFacts: {factRows: () => []},
+            TheatreApi: {
+                loadMeta(type, requestedId, callback) { callback(providerMeta); },
+                normalizeArtUrl: value => value,
+                loadAnimeCast(id, callback) { callback(null); }, moreLikeThis() {},
+            },
+            sources: {show(...args) { shown.push(args); }},
+            tryPlayLocal: () => false, tryPlayArriving: () => false,
+            sourceMetaLine: () => '', sourceBackdrop: () => '',
+            episodeSourceLine: () => '', adjacentEpisodeContext: () => ({}),
+            episodeSeason: ep => ep.season, episodeNumber: ep => ep.episode,
+        };
+        if (native) state.HomeServers = {titleMetadata(query) { queries.push(query); return native(query); }};
+        state.page = state;
+        state.homeServerMetadataFallback = shipped(file, 'homeServerMetadataFallback', state);
+        state.episodeStreamId = shipped(file, 'episodeStreamId', state);
+        shipped(file, 'resolve', state)();
+        return {state, queries, shown};
+    }
+
+    test(file + ': actual resolve preserves provider success without calling native', () => {
+        const {state, queries} = resolveTitle({id:'tt123', name:'Provider title', tmdbId:303}, () => {
+            throw new Error('provider hit must not call fallback');
+        });
+        assert.equal(state.loaded, true);
+        assert.equal(state.title, 'Provider title');
+        assert.equal(state.resolvedId, 'tt123');
+        assert.equal(state.tmdbId, 303);
+        assert.equal(queries.length, 0);
+    });
+
+    test(file + ': actual resolve uses current native metadata and carries exact source context', () => {
+        const episode = {id:'tmdb:tv:101:0:2', season:0, episode:2};
+        const {state, queries, shown} = resolveTitle(null, () => ({
+            id:'tmdb:tv:101', name:'Server title', tmdbId:101, videos:[episode],
+        }));
+        assert.equal(state.loaded, true);
+        assert.equal(state.title, 'Server title');
+        assert.equal(queries.length, 1);
+        assert.equal(queries[0].id, 'tmdb:tv:101');
+        assert.equal(queries[0].type, 'series');
+        assert.equal(queries[0].tmdbId, 101);
+        assert.equal(queries[0].tvdbId, 202);
+        assert.equal(state.sourceVideos[0], episode);
+        shipped(file, 'openEpisodeForPlay', state)(state.sourceVideos[0]);
+        assert.equal(shown[0][0], 'series');
+        assert.equal(shown[0][1], 'tmdb:tv:101:0:2');
+        assert.equal(shown[0][3].tmdbId, 101);
+        assert.equal(shown[0][3].imdbId, 'tmdb:tv:101');
+        assert.equal(shown[0][3].season, 0);
+        assert.equal(shown[0][3].episode, 2);
+    });
+
+    test(file + ': movie fallback carries resolved IDs to the shared source sheet', () => {
+        const {state, queries, shown} = resolveTitle(null,
+            () => ({id:'tt123', name:'Server movie', tmdbId:101}),
+            {id:'tt123', type:'movie', tmdbId:101});
+        assert.equal(state.loaded, true);
+        assert.equal(queries[0].type, 'movie');
+        assert.equal(queries[0].id, 'tt123');
+        assert.equal(queries[0].tmdbId, 101);
+        shipped(file, 'openHeroForPlay', state)();
+        assert.equal(shown[0][0], 'movie');
+        assert.equal(shown[0][1], 'tt123');
+        assert.equal(shown[0][3].tmdbId, 101);
+        assert.equal(shown[0][3].imdbId, 'tt123');
+        assert.equal(shown[0][3].season, undefined);
+        assert.equal(shown[0][3].episode, undefined);
+    });
+
+    test(file + ': actual resolve fails closed without current identified native metadata', () => {
+        for (const native of [undefined, () => ({}), () => null]) {
+            const {state} = resolveTitle(null, native);
+            assert.equal(state.loaded, undefined);
+            assert.equal(state.loading, false);
+            assert.equal(state.errorMsg, "Couldn't load details.");
+        }
+    });
+}

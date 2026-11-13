@@ -8,6 +8,18 @@ if(WIN32)
     enable_language(RC)
 endif()
 
+# Arc 81: build the same pure Qt Core library/tests without the desktop engine stack.
+option(COLOSSEUM_STREAM_PICKER_TESTS_ONLY "Configure only the source-picker library and tests" OFF)
+if(COLOSSEUM_STREAM_PICKER_TESTS_ONLY)
+    find_package(Qt6 REQUIRED COMPONENTS Core)
+    include(CTest)
+    add_subdirectory(stream)
+    if(BUILD_TESTING)
+        add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests/stream" stream-tests)
+    endif()
+    return()
+endif()
+
 option(COLOSSEUM_NUVIO_ANDROID "Enable the private Android Nuvio plugin service" ON)
 option(COLOSSEUM_NUVIO_ANDROID_PROOF "Enable the emulator-only Nuvio fault/proof harness" OFF)
 if(COLOSSEUM_NUVIO_ANDROID_PROOF AND (NOT ANDROID OR NOT COLOSSEUM_NUVIO_ANDROID))
@@ -162,6 +174,7 @@ else()
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebSockets Concurrent)
+add_subdirectory(stream)
 add_subdirectory(account/credentials)
 add_subdirectory(homeserver)
 if(NOT ANDROID)
@@ -888,7 +901,8 @@ add_library(tankoyomi_addon_store STATIC
     engine/TankoyomiAddonPublicKey.h)
 target_include_directories(tankoyomi_addon_store PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_addon_store PRIVATE Qt6::Core Qt6::Network colosseum_update_crypto)
-target_link_libraries(colosseum PRIVATE tankoyomi_addon_store)
+target_link_libraries(colosseum PRIVATE tankoyomi_addon_store colosseum_stream_picker)
+target_sources(colosseum PRIVATE stream/SmartPlayBridge.cpp stream/SmartPlayBridge.h)
 if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux" OR (ANDROID AND COLOSSEUM_NUVIO_ANDROID))
     add_subdirectory(nuvio)
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_NUVIO_PLUGINS)
@@ -3326,6 +3340,7 @@ target_sources(colosseum PRIVATE
     torrent/MusicTorrentMatcher.h torrent/MusicTorrentMatcher.cpp
     torrent/MusicTorrentQueryPlanner.h torrent/MusicTorrentQueryPlanner.cpp)
 include("${CMAKE_CURRENT_SOURCE_DIR}/vinyl/backend/CMakeLists.txt")
+target_sources(colosseum_vinyl_backend PRIVATE vinyl/VinylSourcePool.cpp)
 add_library(colosseum_vinyl_app STATIC
     vinyl/VinylGeniusService.h vinyl/VinylGeniusService.cpp
     vinyl/VinylLyricsService.h vinyl/VinylLyricsService.cpp
@@ -3372,7 +3387,7 @@ if(BUILD_TESTING)
     target_link_libraries(vinyl_test_profile_controller_harness PRIVATE Qt6::Core)
     add_test(NAME colosseum.vinyl_test_profile_controller
              COMMAND vinyl_test_profile_controller_harness)
-    set_tests_properties(colosseum.vinyl_test_profile_controller PROPERTIES LABELS "vinyl")
+    set_tests_properties(colosseum.vinyl_test_profile_controller PROPERTIES LABELS "unit;vinyl")
 endif()
 
 if(BUILD_TESTING)
@@ -3381,7 +3396,7 @@ if(BUILD_TESTING)
     target_include_directories(vinyl_personal_state_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(vinyl_personal_state_harness PRIVATE Qt6::Core)
     add_test(NAME colosseum.vinyl_personal_state COMMAND vinyl_personal_state_harness)
-    set_tests_properties(colosseum.vinyl_personal_state PROPERTIES LABELS "vinyl")
+    set_tests_properties(colosseum.vinyl_personal_state PROPERTIES LABELS "unit;vinyl")
     add_executable(vinyl_taste_preferences_harness
         ../tests/vinyl_taste_preferences_harness.cpp SearchHistoryStore.h
         account/ProfilePreferencesStore.cpp account/ProfilePreferencesStore.h
@@ -3389,7 +3404,7 @@ if(BUILD_TESTING)
     target_include_directories(vinyl_taste_preferences_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(vinyl_taste_preferences_harness PRIVATE Qt6::Core)
     add_test(NAME colosseum.vinyl_taste_preferences COMMAND vinyl_taste_preferences_harness)
-    set_tests_properties(colosseum.vinyl_taste_preferences PROPERTIES LABELS "vinyl")
+    set_tests_properties(colosseum.vinyl_taste_preferences PROPERTIES LABELS "unit;vinyl")
 endif()
 
 if(BUILD_TESTING)
@@ -3398,7 +3413,7 @@ if(BUILD_TESTING)
     target_include_directories(vinyl_session_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(vinyl_session_store_harness PRIVATE Qt6::Core feria_discovery)
     add_test(NAME colosseum.vinyl_session_store COMMAND vinyl_session_store_harness)
-    set_tests_properties(colosseum.vinyl_session_store PROPERTIES LABELS "vinyl")
+    set_tests_properties(colosseum.vinyl_session_store PROPERTIES LABELS "unit;vinyl")
 endif()
 add_executable(tankoyomi_addon_store_harness
     ../tests/tankoyomi_addon_store_harness.cpp update/UpdateTrust.cpp)

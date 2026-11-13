@@ -18,6 +18,11 @@ repositories {
 
 apply plugin: qtGradlePluginType
 
+def configuredAndroidNdkPath = System.getenv('ANDROID_NDK_ROOT')?.trim()
+if (!configuredAndroidNdkPath) {
+    configuredAndroidNdkPath = System.getenv('ANDROID_NDK_HOME')?.trim()
+}
+
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
     //noinspection GradleDependency
@@ -47,6 +52,9 @@ android {
     compileSdkVersion androidCompileSdkVersion
     buildToolsVersion androidBuildToolsVersion
     ndkVersion = androidNdkVersion
+    if (configuredAndroidNdkPath) {
+        ndkPath = configuredAndroidNdkPath
+    }
 
     sourceSets {
         main {

@@ -1,13 +1,20 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import QtQuick.Window
 import "collections" as CollectionsUi
 import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: root
     objectName: "mangaSeriesSharedHeader"
-    readonly property bool phoneNarrow: win.androidHost && win.width < 840
+    AdaptiveLayout {
+        id: adaptive
+        androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost === true)
+        viewportWidth: root.Window.window ? root.Window.window.width : root.width
+        viewportHeight: root.Window.window ? root.Window.window.height : root.height
+    }
+    readonly property bool phoneNarrow: adaptive.androidHost && adaptive.viewportWidth < 840
     height: root.phoneNarrow ? chrome.height + hero.height : 263
 
     property bool tankobanMode: true
@@ -152,7 +159,8 @@ Item {
             anchors.top: parent.top
             anchors.topMargin: 12
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 112; height: 164
+            height: adaptive.mangaHeaderCoverHeight
+            width: adaptive.shortAndroid ? height * 112 / 164 : 112
             radius: 9
             color: "#15171f"
             border.width: 1; border.color: theme.edge
@@ -169,9 +177,12 @@ Item {
                 anchors.fill: parent
                 anchors.margins: 8
                 visible: phoneCoverImage.status !== Image.Ready
+                objectName: "mangaHeaderCoverFallback"
                 text: root.seriesTitle
                 color: theme.inkDim
                 font.family: theme.display; font.pixelSize: 17
+                fontSizeMode: adaptive.shortAndroid ? Text.Fit : Text.FixedSize
+                minimumPixelSize: adaptive.mangaHeaderCoverTitleMinimum
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter

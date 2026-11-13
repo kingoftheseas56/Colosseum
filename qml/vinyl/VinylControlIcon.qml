@@ -10,6 +10,22 @@ Item {
 
     readonly property string iconMarkup: {
         switch (root.symbol) {
+        case "tune":
+            return "<path d=\"M4 6h5M13 6h7M4 12h9M17 12h3M4 18h2M10 18h10M9 3v6M17 9v6M6 15v6\"/>";
+        case "reset":
+            return "<path d=\"M4 10a8 8 0 1 1 1 7M4 4v6h6M9 9l6 6M15 9l-6 6\"/>";
+        case "hide":
+            return "<path d=\"M3 3l18 18M10 5c6-1 11 7 11 7l-3 4M6 6c-3 2-4 6-4 6s5 8 11 7l4-2M10 10a3 3 0 0 0 4 4\"/>";
+        case "show":
+            return "<path d=\"M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>";
+        case "snooze":
+            return "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 6v6l4 2M8 19h8\"/>";
+        case "restore":
+            return "<path d=\"M4 10a8 8 0 1 1 1 7M4 4v6h6M12 7v5l3 2\"/>";
+        case "artistLess":
+            return "<circle cx=\"9\" cy=\"7\" r=\"3\"/><path d=\"M3 20v-2a6 6 0 0 1 12 0v2M16 11h6\"/>";
+        case "artistAllow":
+            return "<circle cx=\"9\" cy=\"7\" r=\"3\"/><path d=\"M3 20v-2a6 6 0 0 1 12 0v2M16 11l2 2 4-5\"/>";
         case "video":
             return "<rect x=\"3\" y=\"5\" width=\"13\" height=\"14\" rx=\"3\"/><path d=\"m16 9 5-3v12l-5-3z\"/>";
         case "previous":

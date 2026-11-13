@@ -9,10 +9,15 @@ Item {
     property var catalogueService: session && session.source && typeof session.source.openArtist === "function" ? session.source : null
     property bool online: false
     readonly property var onlineArtist: online && catalogueService ? catalogueService.artist : ({})
-    readonly property bool loading: online && catalogueService ? catalogueService.artistBusy : false
-    readonly property string catalogueStatus: !online || !catalogueService ? "" : (catalogueService.cached ? "Offline · cached artist catalogue. " : "") + (loading ? "Loading artist catalogue…" : catalogueService.artistError || "")
+    readonly property bool loading: !!online && !!catalogueService
+        && (catalogueService.artistCatalogueBusy === undefined ? catalogueService.artistBusy === true
+                                                               : catalogueService.artistCatalogueBusy === true)
+    readonly property string catalogueError: online && catalogueService ? catalogueService.artistError || "" : ""
+    readonly property string catalogueStatus: loading ? qsTr("Loading artist catalogue…")
+        : catalogueError || (online && catalogueService && catalogueService.cached ? qsTr("Showing cached artist catalogue.") : "")
     property string name: ""
     property string artistId: ""
+    property string openingCover: ""
     property string filter: "all"
     property string categoryFilter: "All"
     property bool newestFirst: true
@@ -64,8 +69,11 @@ Item {
     readonly property var record: {
         var releases = [], songs = [];
         albums.forEach(function(album) {
-            var own = artistId ? ((album.artistIds || []).indexOf(artistId) >= 0 || (album.artist && album.artist.id === artistId))
-                              : (album.artists || []).indexOf(name) >= 0;
+            // A name-only online route acquires a verified provider ID from
+            // the header. Keep the existing local credit rule when combining sources.
+            var creditId = online && album.origin !== "local" ? canonicalArtistId : artistId;
+            var own = creditId ? ((album.artistIds || []).indexOf(creditId) >= 0 || (album.artist && album.artist.id === creditId))
+                               : (album.artists || []).indexOf(name) >= 0;
             var contributed = false;
             var edition = album.editions && album.editions.length ? album.editions[0] : album;
             var tracks = (edition.tracks || []).slice().sort(function(a,b) {
@@ -130,10 +138,25 @@ Item {
     readonly property var libraryReleases: record.releases
     readonly property var libraryCards: releaseCards(libraryReleases)
     readonly property var releaseHistory: Catalogue.releaseHistory(record, [], 4)
-    readonly property var songOrder: record.songs
+    readonly property var onlineSongRows: online ? (onlineArtist.songs || []) : []
+    readonly property var onlineSongs: {
+        var songs = [];
+        for (var row of onlineSongRows) {
+            var album = row && row.record;
+            var track = album && album.tracks && album.tracks.length === 1 ? album.tracks[0] : null;
+            if (!album || album.origin !== "youtube-music" || !album.id || !track || !track.id
+                    || track.available === false || !/^[A-Za-z0-9_-]{11}$/.test(row.videoId || "")
+                    || track.videoId !== row.videoId) continue;
+            songs.push({album:album, track:track, index:0, editionId:album.id, discIndex:0, trackIndex:0,
+                        rank:row.rank, releaseTitle:row.albumName || ""});
+        }
+        return songs;
+    }
+    readonly property var songOrder: onlineSongs.length ? onlineSongs : record.songs
+    readonly property int trackCount: online && onlineSongRows.length ? onlineSongRows.length : songOrder.length
     readonly property var songs: allSongs ? songOrder : songOrder.slice(0,5)
-    readonly property var popularSongs: []
-    readonly property string popularSource: ""
+    readonly property var popularSongs: onlineSongs
+    readonly property string popularSource: onlineSongs.length ? "YouTube Music" : ""
     readonly property var songCards: songOrder.map(function(song) {
         return {title:song.track.title, subtitle:song.album.title, cover:song.album.cover || "", song:song};
     })
@@ -166,6 +189,23 @@ Item {
             focalX:0.5, focalY:0.4, autoRotate:true};
     })
     readonly property var heroPhotos: backdropOptions
+    readonly property string providerHeroUrl: {
+        if (!online) return "";
+        var best = "";
+        var distance = Infinity;
+        for (var image of onlineArtist.images || onlineArtist.thumbnails || []) {
+            if (!image || !/^https:\/\//i.test(image.url || "") || image.width < 480
+                    || !(image.height > 0 && image.width / image.height >= 1.6)) continue;
+            var candidate = Math.abs(image.width - 1920);
+            if (candidate < distance) {
+                best = image.url;
+                distance = candidate;
+            }
+        }
+        return best;
+    }
+    readonly property var providerHeroPhoto: providerHeroUrl
+        ? {id:"provider:"+providerHeroUrl, cover:providerHeroUrl, focalX:0.5, focalY:0.4} : null
     readonly property int queuedSongIndex: {
         var trackId = session && session.playingTrack ? session.playingTrack.id : "";
         if (!trackId) return -1;
@@ -182,19 +222,35 @@ Item {
         return -1;
     }
     readonly property var queuedSong: queuedSongIndex >= 0 ? singlesRows[queuedSongIndex] : null
-    readonly property bool playingOnlineArtist: online && session && albums.some(function(a){return a.id===session.playingEdition.albumId || (a.providerEditions || []).some(function(e){return e.browseId===session.playingEdition.browseId;});})
+    readonly property bool playingOnlineArtist: {
+        if (!online || !session || !session.playingEdition) return false;
+        var edition = session.playingEdition;
+        var videoId = session.playingTrack && session.playingTrack.videoId;
+        return (edition.origin === "youtube-music" && !!videoId
+                && onlineSongs.some(song => song.track.videoId === videoId))
+            || albums.some(function(album) {
+                return album.id === edition.albumId || (album.providerEditions || []).some(e => e.browseId === edition.browseId);
+            });
+    }
     readonly property bool demoPlaying: (queuedSongIndex >= 0 || playingOnlineArtist) && session && !session.paused && !session.error
     readonly property real playbackFraction: session && session.duration > 0 ? Math.max(0,Math.min(1,session.position/session.duration)) : 0
-    readonly property bool playable: singlesRows.some(function(row) { return row.playable; }) || (online && albums.some(function(a){return !!a.browseId;}))
+    readonly property bool playable: onlineSongs.length > 0 || singlesRows.some(function(row) { return row.playable; }) || (online && albums.some(function(a){return !!a.browseId;}))
     function artwork(url) { return url ? String(url) : ""; }
     function selectReleaseCategory(category) { categoryFilter = category || "All"; filter = categoryFilter === "All" ? "all" : categoryFilter; }
     function search(query) { return Catalogue.searchArtistCatalogue(allDiscographyCards, online ? [] : singlesRows, media.videos, liveCards, query); }
     function open(value) {
-        var nextName = typeof value === "object" ? value.name || "" : String(value || "");
-        var nextId = typeof value === "object" ? value.id || "" : "";
-        if (name === nextName && artistId === nextId) return;
-        online = nextId.indexOf("ytm:artist:")===0 || (nextName!=="" && !nextId && !localAlbums.some(function(a){return (a.artists || []).indexOf(nextName)>=0;}));
-        if(catalogueService) {if(online) catalogueService.openArtist({id:nextId,name:nextName});else catalogueService.leaveArtist();}
+        var nextName = value && typeof value === "object" ? value.name || "" : String(value || "");
+        var nextId = value && typeof value === "object" ? value.id || "" : "";
+        var nextCover = value && typeof value === "object" ? String(value.cover || "") : "";
+        if (!/^https:\/\//i.test(nextCover)) nextCover = "";
+        if (name === nextName && artistId === nextId) {
+            if (nextCover) openingCover = nextCover;
+            return;
+        }
+        openingCover = nextCover;
+        online = nextId.indexOf("ytm:artist:")===0 || (!!catalogueService && nextName!=="" && !nextId
+            && !localAlbums.some(function(a){return (a.artists || []).indexOf(nextName)>=0;}));
+        if(catalogueService) {if(online) catalogueService.openArtist({id:nextId,name:nextName,cover:openingCover});else catalogueService.leaveArtist();}
         name = nextName; artistId = nextId; personalError = ""; lastCreatedPlaylistId = "";
         filter = "all"; categoryFilter = "All"; newestFirst = true; allSongs = false;
         activeTab = "albums"; selectedWallpaper = "auto"; customBackdropUrl = "";
@@ -209,13 +265,22 @@ Item {
     }
     function toggleDemoPlayback() {
         if (!session) return;
-        if(online){if(playingOnlineArtist)session.togglePause();else if(albums.length)session.playCatalogueAlbum(albums[0].id,false);return;}
+        if (online) {
+            if (playingOnlineArtist) session.togglePause();
+            else if (onlineSongs.length) session.playSongs(onlineSongs, false);
+            else if (albums.length) session.playCatalogueAlbum(albums[0].id, false);
+            return;
+        }
         if (queuedSongIndex >= 0) session.togglePause();
         else for (var i=0; i<singlesRows.length; ++i) if (singlesRows[i].playable) { queueDemoSong(i); return; }
     }
     function stepDemoSong(delta) { if (session) session.next(delta); }
     function shuffleDemoSong() {
-        if(online && session && albums.length){session.playCatalogueAlbum(albums[0].id,true);return;}
+        if (online && session) {
+            if (onlineSongs.length) session.playSongs(onlineSongs, true);
+            else if (albums.length) session.playCatalogueAlbum(albums[0].id, true);
+            return;
+        }
         if (session && playable) session.playSongs(songOrder.filter(function(s) { return s.track.available !== false; }), true);
     }
     function toggleSaved() {

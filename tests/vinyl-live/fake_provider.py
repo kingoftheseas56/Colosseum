@@ -226,6 +226,40 @@ def make_mb_client(provider_mod=None, fixtures=None, fail_503_count=0):
     return client, transport
 
 
+def _fixture_artist_catalogue_page(request, value, mod):
+    if (value.casefold() != "fixture" or request.get("kind") != "artists"
+            or request.get("cursor") not in (None, {})):
+        return {
+            "ok": False,
+            "error": "Offline fixture supports only the first artists page for query 'fixture'.",
+            "errorCode": "invalid_argument",
+        }
+
+    rows = [
+        {"browseId": f"UC{index:022d}", "title": f"Fixture Artist {index}"}
+        for index in range(1, 6)
+    ]
+    original_read_search_page = mod.read_search_page
+
+    def read_fixture_search_page(_client, query, kind, token):
+        if query != "fixture" or kind != "artists" or token:
+            raise ValueError("Fixture artist search request did not match its bounded contract.")
+        return {"items": rows, "continuation": ""}
+
+    try:
+        region = mod.requested_region(request)
+        mod.read_search_page = read_fixture_search_page
+        try:
+            data = mod.fetch_catalogue_page(None, request, value, region)
+        finally:
+            mod.read_search_page = original_read_search_page
+        return {"ok": True, "data": data}
+    except mod.ProviderError as exc:
+        return exc.to_dict()
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc), "errorCode": "invalid_argument"}
+
+
 def handle_fake_request(request):
     operation = request.get("operation")
     value = str(request.get("value", "")).strip()
@@ -233,6 +267,9 @@ def handle_fake_request(request):
         time.sleep(2)
     if operation == "resolve":
         return {"ok": False, "error": "Fixture unavailable"}
+    if operation == "cataloguePage":
+        mod = _load_provider_module()
+        return _fixture_artist_catalogue_page(request, value, mod)
     if operation in ("artist", "artistReleases", "artistVideos", "artistIdentity"):
         mod = _load_provider_module()
         yt = FakeYTMusic()

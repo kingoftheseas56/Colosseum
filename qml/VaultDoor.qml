@@ -13,6 +13,10 @@ import QtQuick.Controls
 
 Item {
     id: door
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(door.Window.window && door.Window.window.androidHost === true)
+    }
     property bool available: Qt.platform.os !== "android"
     objectName: "taskbarVaultDoor"
 
@@ -53,10 +57,12 @@ Item {
 
     Image {
         anchors.centerIn: parent
-        width: 21; height: 21
-        source: "../assets/icons/vault-door.svg"
+        width: 28; height: 28
+        source: "../assets/icons/vault-app.png"
+        sourceSize.width: 56
+        sourceSize.height: 56
         fillMode: Image.PreserveAspectFit
-        opacity: door.active ? 1 : 0.75
+        Accessible.ignored: true
     }
 
     // active-page underline, same gold language as session tiles
@@ -81,6 +87,10 @@ Item {
     MouseArea {
         id: doorMa
         anchors.fill: parent
+        anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+        anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+        anchors.topMargin: -touchMetrics.targetInset(parent.height)
+        anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
         hoverEnabled: true
         cursorShape: door.available ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: if (door.available) door.clicked()
@@ -90,6 +100,10 @@ Item {
         enabled: door.available
         objectName: "vaultDoorKeyboardAction"
         anchors.fill: parent
+        anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+        anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+        anchors.topMargin: -touchMetrics.targetInset(parent.height)
+        anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
         pointerEnabled: false
         accessibleName: door.available ? qsTr("Open Vault") : qsTr("Vault unavailable")
         tooltipText: !door.available ? ""

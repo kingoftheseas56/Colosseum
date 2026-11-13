@@ -7,6 +7,10 @@ pragma ComponentBehavior: Bound
 
 Item {
     id: tabs
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(tabs.Window.window && tabs.Window.window.androidHost === true)
+    }
     objectName: "theatreTabBar"
 
     required property Item backdrop
@@ -25,7 +29,8 @@ Item {
 
     Theme { id: theme }
 
-    readonly property var tabModel: [
+    property string tabPrefix: "theatreTab"
+    property var tabModel: [
         { key: "discover", label: "Discover" },
         { key: "movies", label: "Movies" },
         { key: "shows", label: "Shows" },
@@ -55,6 +60,7 @@ Item {
         tabs.tabRequested(tabs.tabModel[tabs.keyboardIndex].key)
     }
 
+    onTabModelChanged: tabs.syncKeyboardIndex()
     onCurrentTabChanged: tabs.syncKeyboardIndex()
     Component.onCompleted: tabs.syncKeyboardIndex()
 
@@ -122,6 +128,8 @@ Item {
                     MouseArea {
                         id: ma
                         anchors.fill: parent
+                        anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                        anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: tabs.requestIndex(pill.index, Qt.MouseFocusReason)
@@ -144,41 +152,27 @@ Item {
             spacing: tabs.pillSpacing
             z: 100
 
-            Item {
-                objectName: "theatreTab_discover"
+            component AutomationPill: Item {
+                id: target
+                required property int tabIndex
+                readonly property var entry: tabs.tabModel[tabIndex]
+                objectName: entry ? tabs.tabPrefix + "_" + entry.key : ""
+                visible: !!entry
                 width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                 height: parent.height
-                readonly property bool activeState: tabs.currentTab === "discover"
-                MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(0, Qt.MouseFocusReason) }
+                readonly property bool activeState: !!entry && tabs.currentTab === entry.key
+                MouseArea { anchors.fill: parent;
+                    anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                    anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
+                    onClicked: tabs.requestIndex(target.tabIndex, Qt.MouseFocusReason) }
             }
-            Item {
-                objectName: "theatreTab_movies"
-                width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
-                height: parent.height
-                readonly property bool activeState: tabs.currentTab === "movies"
-                MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(1, Qt.MouseFocusReason) }
-            }
-            Item {
-                objectName: "theatreTab_shows"
-                width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
-                height: parent.height
-                readonly property bool activeState: tabs.currentTab === "shows"
-                MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(2, Qt.MouseFocusReason) }
-            }
-            Item {
-                objectName: "theatreTab_anime"
-                width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
-                height: parent.height
-                readonly property bool activeState: tabs.currentTab === "anime"
-                MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(3, Qt.MouseFocusReason) }
-            }
-            Item {
-                objectName: "theatreTab_library"
-                width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
-                height: parent.height
-                readonly property bool activeState: tabs.currentTab === "library"
-                MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(4, Qt.MouseFocusReason) }
-            }
+
+            AutomationPill { tabIndex: 0 }
+            AutomationPill { tabIndex: 1 }
+            AutomationPill { tabIndex: 2 }
+            AutomationPill { tabIndex: 3 }
+            AutomationPill { tabIndex: 4 }
+            AutomationPill { tabIndex: 5 }
         }
     }
 

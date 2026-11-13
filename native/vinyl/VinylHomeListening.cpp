@@ -257,19 +257,29 @@ QVariantList VinylHomeListening::cards() const {
         const auto songs = m_songs.value(kind);
         const bool loading = hasJobs("mix-", kind);
         const bool failed = m_errors.contains(kind);
-        if (songs.isEmpty() && !loading && !failed) continue;
         const auto cover = songs.isEmpty() ? QString() : songs.first().toMap().value("album").toMap().value("cover").toString();
+        QVariantList artworkCovers;
+        for (const auto &value : songs) {
+            const auto song = value.toMap();
+            const auto trackCover = song.value("track").toMap().value("cover").toString();
+            const auto songCover = trackCover.isEmpty()
+                ? song.value("album").toMap().value("cover").toString() : trackCover;
+            if (!songCover.isEmpty() && !artworkCovers.contains(songCover)) artworkCovers.append(songCover);
+            if (artworkCovers.size() == 3) break;
+        }
         result.append(QVariantMap{{"id", "home-mix:" + kind}, {"kind", "mixes"}, {"title", titleFor(kind)},
             {"subtitle", songs.isEmpty() ? (failed && !loading ? QStringLiteral("Unavailable") : QString()) : QStringLiteral("%1 songs").arg(songs.size())},
-            {"status", loading ? "loading" : songs.isEmpty() ? "error" : "ready"}, {"cover", cover}, {"mixId", kind}});
+            {"status", loading ? "loading" : songs.isEmpty() ? "error" : "ready"}, {"cover", cover}, {"artworkCovers", artworkCovers}, {"mixId", kind}});
     }
+    QSet<QString> seen;
     for (const auto &value : m_seeds) {
         const auto seed = artistRef(value.toMap());
-        if (seed.isEmpty() || m_excludedArtistProviderIds.contains(seed.value("providerId").toString())) continue;
-        result.append(QVariantMap{{"id", "home-radio:" + seed.value("providerId").toString()}, {"kind", "radio"},
+        const auto providerId = seed.value("providerId").toString();
+        if (seed.isEmpty() || m_excludedArtistProviderIds.contains(providerId) || seen.contains(providerId)) continue;
+        seen.insert(providerId);
+        result.append(QVariantMap{{"id", "home-radio:" + providerId}, {"kind", "radio"},
             {"title", seed.value("name").toString() + QStringLiteral(" radio")}, {"subtitle", QStringLiteral("Radio")},
             {"cover", seed.value("image", seed.value("cover"))}, {"seedArtist", seed}});
-        break;
     }
     return result;
 }
@@ -281,7 +291,7 @@ QVariantList VinylHomeListening::quickPicks() const {
         const auto key = trackKey(track); if (seen.contains(key)) continue; seen.insert(key);
         const auto names = track.value("artists", album.value("artists")).toStringList();
         result.append(QVariantMap{{"id", track.value("id")}, {"kind", "songs"}, {"title", track.value("title")},
-            {"subtitle", names.join(QStringLiteral(" · "))}, {"cover", album.value("cover")}, {"record", album},
+            {"artist", names.join(QStringLiteral(" \u00b7 "))}, {"subtitle", names.join(QStringLiteral(" · "))}, {"cover", album.value("cover")}, {"record", album},
             {"trackIndex", song.value("index")}, {"destination", QVariantMap{{"kind", "song"}, {"id", track.value("id")}, {"playable", true}}}});
         if (result.size() == 12) return result;
     }

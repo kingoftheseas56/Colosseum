@@ -8,62 +8,18 @@ import ".."
 Item {
     id: root
 
-    // Keyboard avoidance (WT-02). Touch hosts keep the focused account field and the
-    // following action reachable above the IME. Qt reports the keyboard rectangle in
-    // logical window coordinates (the same contract as the reader overlays), so it is
-    // mapped from the scene without any density division. Desktop adds no inset.
-    property bool touchInput: Qt.platform.os === "android"
-        || !!(root.Window.window && root.Window.window.androidHost)
-    property var inputMethod: Qt.inputMethod
-    readonly property real keyboardOverlap: {
-        if (!touchInput || !inputMethod || !inputMethod.visible) return 0
-        const keyboard = inputMethod.keyboardRectangle
-        if (!keyboard || keyboard.height <= 0) return 0
-        const top = root.mapFromItem(null, 0, keyboard.y).y
-        return Math.min(height, Math.max(0, height - top))
-    }
-    readonly property Item focusedTextControl: {
-        const window = root.Window.window
-        const focused = window ? window.activeFocusItem : null
-        if (!root.touchInput || !focused || focused.cursorRectangle === undefined) return null
-        let ancestor = focused
-        while (ancestor && ancestor !== root) ancestor = ancestor.parent
-        return ancestor === root ? focused : null
-    }
-    // An IME that reports no rectangle (floating/fullscreen) still gets enough scroll range
-    // to lift the focused field toward the top of the viewport.
-    readonly property real focusedScrollExtent: {
-        if (!root.focusedTextControl || root.keyboardOverlap > 0) return 0
-        return root.focusedTextControl.mapToItem(scroller.contentItem, 0, 0).y + scroller.height + 16
-    }
-    function revealFocusedControl() {
-        if (!root.touchInput || !root.visible || scroller.height <= 0) return
-        const window = root.Window.window
-        const focused = window ? window.activeFocusItem : null
-        if (!focused) return
-        let ancestor = focused
-        while (ancestor && ancestor !== root) ancestor = ancestor.parent
-        if (ancestor !== root) return
-        const position = focused.mapToItem(scroller.contentItem, 0, 0)
-        const imeUnreported = focused === root.focusedTextControl && root.keyboardOverlap <= 0
-            && root.inputMethod && root.inputMethod.visible
-        let target = scroller.contentY
-        if (imeUnreported)
-            target = position.y - 16
-        else if (position.y - 16 < target)
-            target = position.y - 16
-        else if (position.y + focused.height + 24 > target + scroller.height)
-            target = position.y + focused.height + 24 - scroller.height
-        scroller.contentY = Math.max(0, Math.min(target, scroller.contentHeight - scroller.height))
-    }
-    onFocusedTextControlChanged: Qt.callLater(root.revealFocusedControl)
-    onKeyboardOverlapChanged: Qt.callLater(root.revealFocusedControl)
-    Connections {
-        target: root.Window.window
-        ignoreUnknownSignals: true
-        function onActiveFocusItemChanged() { Qt.callLater(root.revealFocusedControl) }
-    }
+    property alias touchInput: keyboardViewport.touchInput
+    property alias inputMethod: keyboardViewport.inputMethod
+    readonly property real keyboardOverlap: keyboardViewport.keyboardOverlap
+    readonly property Item focusedTextControl: keyboardViewport.focusedTextControl
+    readonly property real focusedScrollExtent: keyboardViewport.focusedScrollExtent
+    function revealFocusedControl() { keyboardViewport.revealFocusedControl() }
 
+    AccountKeyboardViewport {
+        id: keyboardViewport
+        container: root
+        flick: scroller
+    }
     property Item backdrop: null
     property var contentStore: typeof Content !== "undefined" ? Content : null
     readonly property string fallbackWallpaperSource: root.contentStore
@@ -131,8 +87,6 @@ Item {
         objectName: "accountPageFrameScrollRegion"
         anchors.fill: parent
         anchors.bottomMargin: root.keyboardOverlap
-        onHeightChanged: Qt.callLater(root.revealFocusedControl)
-        onContentHeightChanged: Qt.callLater(root.revealFocusedControl)
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         contentWidth: width

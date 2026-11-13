@@ -1,10 +1,12 @@
 import QtQuick
 import QtTest
+import "../../qml/vinyl" as Vinyl
 
 TestCase {
     name: "VinylAlbumPage"
     when: windowShown
     property var host
+    Component { id: isolatedBackdrop; Vinyl.VinylBackdrop { contentStore: null } }
     function item(name) {
         function walk(o) {
             if (o.objectName === name)
@@ -33,6 +35,37 @@ TestCase {
             host.destroy();
         }
     }
+    function test_backdropResizeUsesCurrentArtworkGeometry() {
+        function standardEffect(node) {
+            if (node.blurMax !== undefined && node.source && node.source.fillMode !== undefined)
+                return node;
+            for (var i = 0; i < node.children.length; ++i) {
+                var effect = standardEffect(node.children[i]);
+                if (effect)
+                    return effect;
+            }
+            return null;
+        }
+        var backdrop = createTemporaryObject(isolatedBackdrop, host.contentItem);
+        verify(backdrop !== null);
+        backdrop.width = 640;
+        backdrop.height = 480;
+        var effect = standardEffect(backdrop);
+        verify(effect !== null);
+        var originalWidth = backdrop.width;
+        var originalHeight = backdrop.height;
+        for (var offset of [1, 0]) {
+            backdrop.width = originalWidth + offset;
+            backdrop.height = originalHeight + offset;
+            tryVerify(function() {
+                var padding = effect.blurMax * (1 + effect.blurMultiplier);
+                var expectedWidth = effect.source.width * (1 + 2 * padding / effect.width);
+                var expectedHeight = effect.source.height * (1 + 2 * padding / effect.height);
+                return Math.abs(effect.itemRect.width - expectedWidth) < 0.001
+                    && Math.abs(effect.itemRect.height - expectedHeight) < 0.001;
+            }, 1000, "Blur source rectangle must follow the current artwork size after resize");
+        }
+    }
     function test_sectionIconsAreDistinctAndLoaded() {
         var sidebar = item("vinylRowIndexSidebar");
         var sources = {};
@@ -51,7 +84,7 @@ TestCase {
         mouseClick(bar, 35, 35);
         compare(host.page, "song", "Artwork must open the playing song");
         host.page = "album";
-        mouseClick(item("vinylBarNowPlaying"));
+        mouseClick(item("vinylBarOpenSong"));
         compare(host.page, "song");
         host.page = "album";
         var paused = host.pageData.paused;
@@ -84,9 +117,17 @@ TestCase {
         host.pageData.setFixture("mounamela");
         verify(!item("vinylBarVideo").enabled);
         host.pageData.setSourceState("finding");
-        compare(item("vinylBarSourceIndicator").description, "Finding a source");
+        var youtube = item("vinylBarYouTube");
+        verify(youtube.pending);
+        verify(youtube.selected, "The fixture retains YouTube as its default source choice");
+        compare(youtube.accessibleName, "Use YouTube audio");
+        compare(youtube.accessibleDescription,
+                "YouTube is the default choice; current playback source is not confirmed");
         verify(bar.busy);
         host.pageData.setSourceState("playing");
+        verify(!youtube.pending);
+        verify(youtube.selected);
+        verify(!bar.busy);
         host.pageData.position = host.pageData.duration / 2;
         compare(bar.seekFraction, 0.5);
         var old = host.pageData.playingIndex;
@@ -116,14 +157,14 @@ TestCase {
         mouseClick(item("vinylDisc_1"));
         compare(page.trackCount, 10);
     }
-    function test_coverFitsViewport_data() {
+    function test_coverRetainsScaleAndScrollReachability_data() {
         return [
             { tag: "short-desktop", width: 1280, height: 672 },
             { tag: "desktop", width: 1280, height: 720 },
             { tag: "large-desktop", width: 1600, height: 900 }
         ];
     }
-    function test_coverFitsViewport(data) {
+    function test_coverRetainsScaleAndScrollReachability(data) {
         host.width = data.width;
         host.height = data.height;
         var page = item("vinylAlbumPage");
@@ -131,15 +172,20 @@ TestCase {
         page.contentY = 0;
         verify(waitForRendering(cover));
         compare(cover.width, cover.height, "Album artwork must stay square");
+        verify(cover.width >= 320 && cover.width <= 440,
+               "Album artwork must retain its desktop scale at every viewport height");
         var at = cover.mapToItem(page, 0, 0);
-        verify(at.y >= 0 && at.y + cover.height <= page.height,
-               "The entire square cover must fit before scrolling");
+        verify(at.y >= 0 && at.y < page.height,
+               "The top of the cover must be visible before scrolling");
+        var maxScroll = Math.max(0, page.contentHeight - page.height);
+        page.contentY = Math.max(0, Math.min(maxScroll, at.y + cover.height - page.height));
+        verify(waitForRendering(cover));
+        at = cover.mapToItem(page, 0, 0);
+        verify(at.y + cover.height > 0 && at.y + cover.height <= page.height,
+               "The bottom of the cover must be reachable by scrolling");
         var action = item("vinylAlbumPlay");
         var actionAt = action.mapToItem(page, 0, 0);
-        verify(actionAt.y >= 0 && actionAt.y + action.height <= page.height,
-               "Artwork sizing must leave room for the album details and actions");
-        page.contentY = Math.min(page.contentHeight - page.height,
-                                actionAt.y);
+        page.contentY = Math.max(0, Math.min(maxScroll, page.contentY + actionAt.y));
         verify(waitForRendering(cover));
         actionAt = action.mapToItem(page, 0, 0);
         verify(actionAt.y >= 0 && actionAt.y + action.height <= page.height,

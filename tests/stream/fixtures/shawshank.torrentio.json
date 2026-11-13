@@ -1,0 +1,1737 @@
+{
+  "streams": [
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 UHD BDRemux 2160p HDR10 Dolby Vision] [Hybrid] 2x Dub + 6x MVO + 4x DVO + 9x AVO + Original (Eng) + Sub (Rus Eng)\n👤 100 💾 78.61 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "23dfd11259dd6435dce2fef48d6721ffa8c08664",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|10bit|DV|HDR",
+        "filename": "Побег из Шоушенка.1994.Hybrid.UHD.Blu-Ray.Remux.2160p.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:23dfd11259dd6435dce2fef48d6721ffa8c08664",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k DV",
+      "title": "The.Shawshank.Redemption.1994.UHD.BluRay.2160p.DTS-HD.MA.5.1.DV.HEVC.HYBRID.REMUX-FraMeSToR\n👤 73 💾 54.33 GB ⚙️ TorrentGalaxy",
+      "infoHash": "45fa4233ef87c58f5f8b4817e4d50c9f5363caef",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc|DV",
+        "filename": "The.Shawshank.Redemption.1994.UHD.BluRay.2160p.DTS-HD.MA.5.1.DV.HEVC.HYBRID.REMUX-FraMeSToR.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Shawshank Redemption 1994 2160p BluRay\n👤 46 💾 6.91 GB ⚙️ YTS",
+      "infoHash": "c3da9a3dc2ce14d0d4fc0e87d1b2023502f8dcd6",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit|HDR",
+        "filename": "The.Shawshank.Redemption.1994.2160p.4K.BluRay.x265.10bit.HDR.AAC5.1-[YTS.MX].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Shawshank Redemption (1994) (2160p BluRay x265 HEVC 10bit HDR AAC 5.1 Tigole) [QxR]\n👤 29 💾 17.1 GB ⚙️ 1337x",
+      "infoHash": "ad9462066cdf17273f91c4b4f708f1650394fc00",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit|HDR",
+        "filename": "The Shawshank Redemption (1994) (2160p BluRay x265 10bit HDR Tigole).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Побег из Шоушенка / The Shawshank redemption [1994 UHD BDRip 2160p HDR10] 2x Dub + 6x MVO + 2x DVO + 9x AVO + Sub (Rus Eng) + Original (Eng)\n👤 22 💾 42.73 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "a06c8bf328b577a41c5b5c656dd64f73d0425427",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|10bit|HDR",
+        "filename": "Побег из Шоушенка (1994) UHD BDRip 2160p.mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:a06c8bf328b577a41c5b5c656dd64f73d0425427",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The.Shawshank.Redemption.1994.bluray.hdr.2160p.av1.5.1.opus.subs…\n👤 19 💾 7.42 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇯🇵 / 🇷🇺 / 🇰🇷 / 🇫🇷 / 🇳🇱 / 🇵🇱 / 🇨🇿 / 🇩🇰 / 🇸🇪 / 🇳🇴 / 🇹🇷 / 🇸🇦 / 🇹🇭",
+      "infoHash": "e0ff574fb2266d64c01069196b40e8c189d94763",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|av1|HDR",
+        "filename": "The.Shawshank.Redemption.1994.bluray.hdr.2160p.av1.5.1.opus.subs-Dust.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Shawshank Redemption (1994) [2160p] [4K] [BluRay] [HDR] [5.1]\n👤 18 💾 6.91 GB ⚙️ EXT",
+      "infoHash": "a46f55b06c6faf55d6efcd7ff7c83d4363af7ceb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit|HDR",
+        "filename": "The.Shawshank.Redemption.1994.2160p.4K.BluRay.x265.10bit.HDR.AAC5.1-[YTS.NZ].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Shawshank Redemption (1994) (2160p x265 10bit HDR UHD BD DTS-HD MA 5.1) [Prof]\n👤 17 💾 24.49 GB ⚙️ TorrentGalaxy",
+      "infoHash": "47e3da48a2c6e3703d2c126aac866f5e2adf8d58",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|x265|10bit|HDR",
+        "filename": "The Shawshank Redemption (1994).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV",
+      "title": "The.Shawshank.Redemption.1994.UHD.Blu-Ray.2160p.DTS-HD.MA.5.1.DV.HEVC.x265-E\n👤 16 💾 31.8 GB ⚙️ 1337x",
+      "infoHash": "f59295cac3294014f6f2c60ffe2606fd1ddc0459",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|DV",
+        "filename": "The Shawshank Redemption (1994).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "The.Shawshank.Redemption.1994.2160p.UHD.Blu-Ray.DV.HEVC.HDR.DTS-HD.MA.5.1.DTS.XLL.5.1x265-E\n👤 14 💾 30.28 GB ⚙️ 1337x",
+      "infoHash": "6c411957b6b6aff81473a435bd72c086034e60b8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|DV|HDR",
+        "filename": "The.Shawshank.Redemption.1994.2160p.UHD.Blu-Ray.DV.HEVC.HDR.DTS-HD.MA.5.1.DTS.XLL.5.1x265-E.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Shawshank Redemption.1994.2160p.HDR10.BRRip.OPUS5.1.AV1.BluBit\n👤 11 💾 3.54 GB ⚙️ EXT",
+      "infoHash": "1b129e169b5a911b38a6c56d1900fe8bc29e94b4",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BRRip|av1|10bit|HDR",
+        "filename": "The Shawshank Redemption (1994).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Le ali della libertà (1994) AC3 5.1 ITA.ENG 2160p H265 HDR10 sub NUita.eng Sp33dy94 MIRCrew\n👤 10 💾 3.91 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "c7a938573b6c4782b403929e7902658a29ca5dc5",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|HDR",
+        "filename": "Le ali della libertà - The Shawshank Redemption (1994) AC3 5.1 ITA.ENG 2160p H265 HDR10 sub NUita.eng Sp33dy94-MIRCrew.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The Shawshank Redemption (1994) 2160p UHD HDR BluRay AV1 Opus 5.1 [Enrav1sh]\n👤 9 💾 9.32 GB ⚙️ 1337x",
+      "infoHash": "c6e52e492c8f8bf8abb6eea9b8c70abcaf29ab69",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|av1|HDR",
+        "filename": "The.Shawshank.Redemption.1994.2160p.UHD.HDR.BluRay.AV1.Opus.5.1-Enrav1sh.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Le.ali.della.libertà.1994.UHDRip.2160p.Hevc.HDR.AC3.ITA.ENG.SUBS.LFi.mkv\n👤 7 💾 23.58 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹",
+      "infoHash": "61d0ec5059e0c05d3957869dcb530b5f035735e9",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|UHDRip|hevc|HDR",
+        "filename": "Le.ali.della.libertà.1994.UHDRip.2160p.Hevc.HDR.AC3.ITA.ENG.SUBS.LFi.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Le Ali Della Libertà (1994) 2160p H265 HDR10 DV ITA DTS-DH MA 5.1 ITA ENG AC3 5.1 SUB ITA ENG\n👤 6 💾 12.37 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "00443172c8abc7b0790b0c0b0c7f286f5b6b63c9",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|h265|10bit|DV|HDR",
+        "filename": "Le Ali Della Libertà (1994) 2160p H265 HDR10 DV ITA DTS-DH MA 5.1 ITA ENG AC3 5.1 SUB ITA ENG by  »᚛໓คสƙ ₹єคթєส᚜«.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Побег из Шоушенка / The Shawshank Redemption (1994) UHD BDRemux 2160p от селезень | 4K | HDR | D P P2 A\n👤 6 💾 84.17 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "bfa91eb985bf00f07f286b88c2cac9a4523a6b43",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|HDR",
+        "filename": "The.Shawshank.Redemption.1994.BDREMUX.2160p.HDR.seleZen.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:udp://opentor.org:2710",
+        "dht:bfa91eb985bf00f07f286b88c2cac9a4523a6b43",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The.Shawshank.Redemption.1994.2160p.UHD.BluRay.x265.10bit.HDR.DDP5.1-RARBG\n👤 5 💾 8.63 GB ⚙️ RARBG",
+      "infoHash": "597549004ea0f44302cb3512fbab1d8fde7c26d7",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit|HDR",
+        "filename": "The.Shawshank.Redemption.1994.2160p.UHD.BluRay.x265.10bit.HDR.DDP5.1-RARBG.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Побег из Шоушенка / The Shawshank Redemption (1994) BDRip 2160p | 4K | HDR | D P P2 A\n👤 5 💾 39.45 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "9f0214d33f420f335b238525ec9d440271f948c8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|HDR",
+        "filename": "PobegIzShoushenkaBDRip2160p.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:udp://opentor.org:2710",
+        "tracker:http://retracker.local/announce",
+        "dht:9f0214d33f420f335b238525ec9d440271f948c8",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "The.Shawshank.Redemption.1994.4K.HDR.2160p.BDRip Ita Eng x265-NAHOM\n👤 5 💾 23.17 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹",
+      "infoHash": "04c4fa7cc4b8a1d77f026436d2e98383081c8eaf",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|x265|HDR",
+        "filename": "The.Shawshank.Redemption.1994.4K.HDR.2160p.BDRip Ita Eng x265-NAHOM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The Shawshank Redemption (1994) Featurettes (2160p BluRay AI x265 HEVC 10bit DTS 5.1 Joy) [UTR]\nThe Shawshank Redemption (1994)  [2160p x265 10bit FS97 Joy].mkv\n👤 47 💾 7.13 GB ⚙️ 1337x",
+      "infoHash": "1b111948d6d63659b56d0b372a6b94d0b1e96551",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc|10bit",
+        "filename": "The Shawshank Redemption (1994)  [2160p x265 10bit FS97 Joy].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Shawshank.Redemption.1994.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT\n👤 34 💾 57.98 GB ⚙️ RARBG",
+      "infoHash": "32770c6dd35a4dd71deb80d5deff7a4e084eedab",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|hevc",
+        "filename": "The.Shawshank.Redemption.1994.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The Shawshank Redemption (1994) [2160p.BluRay.HEVC.DTS-HD.MA.5.1-REDANDY] [Lektor i Napisy PL]\n👤 9 💾 60.79 GB ⚙️ BestTorrents\n🇬🇧 / 🇯🇵 / 🇮🇹 / 🇪🇸 / 🇨🇳 / 🇫🇷 / 🇩🇪 / 🇵🇱 / 🇭🇺",
+      "infoHash": "a795c82e58a5f8f95f60f4911317e7082e19d505",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|hevc"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Shawshank.Redemption.1994.UHD.BDRip-HEVC.2160p\n👤 6 💾 25.19 GB ⚙️ EXT",
+      "infoHash": "752aa9285b00341b267625c8204b32df837717e8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BDRip|hevc",
+        "filename": "The.Shawshank.Redemption.1994.UHD.BDRip-HEVC.2160p.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k",
+      "title": "The.Shawshank.Redemption.1994.2160p.MA.WEB-PandaQT SDR 4k UHD [GoodFilms]\n👤 5 💾 24.88 GB ⚙️ ThePirateBay",
+      "infoHash": "ab83c9a2eb32796bfbc3bc294598c6bccd03ac0f",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|WEB",
+        "filename": "The.Shawshank.Redemption.1994.2160p.MA.WEB-PandaQT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1440p HDR",
+      "title": "Побег из Шоушенка / The Shawshank Redemption (1994) UHD BDRip 1440p | 4K | HDR10 | D P P2 A\n👤 7 💾 29.44 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "2342b9f680fb438fa23fd88ccb6d12b71c48030d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1440p|BDRip|10bit|HDR",
+        "filename": "The.Shawshank.Redemption.1994.UHD.BDRip.1440p.NNMClub.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:2342b9f680fb438fa23fd88ccb6d12b71c48030d",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p HDR",
+      "title": "The Shawshank Redemption (1994) (1080p DS4K BluRay x265 10-bit HDR AAC 5.1) [WeSLeY]\n👤 14 💾 6.81 GB ⚙️ 1337x",
+      "infoHash": "21a2d54c2526202822647bdbd637c50a7a135fea",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit|HDR",
+        "filename": "The Shawshank Redemption (1994) (1080p DS4K BluRay x265 10-bit HDR AAC 5.1) [WeSLeY].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p DV | HDR",
+      "title": "The Shawshank Redemption 1994 REPACK UHD BluRay 1080p DDP 5 1 DoVi HDR10 x265-SM737\n👤 9 💾 7.93 GB ⚙️ EXT\n🇬🇧 / 🇯🇵 / 🇷🇺 / 🇮🇹 / 🇵🇹 / 🇪🇸 / 🇰🇷 / 🇨🇳 / 🇫🇷 / 🇩🇪 / 🇳🇱 / 🇵🇱 / 🇨🇿 / 🇭🇺 / 🇺🇦 / 🇩🇰 / 🇸🇪 / 🇳🇴 / 🇹🇷 / 🇸🇦 / 🇮🇱 / 🇮🇩 / 🇲🇾 / 🇹🇭",
+      "infoHash": "203b171b1277f7315d2d2eb2c3238f7aebe5ccea",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit|DV|HDR",
+        "filename": "The Shawshank Redemption 1994 REPACK UHD BluRay 1080p DDP 5 1 DoVi HDR10 x265-SM737.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p HDR",
+      "title": "Побег из Шоушенка / The Shawshank Redemption (1994) UHD BDRip-HEVC 1080p от RIPS CLUB | HDR | D P\n👤 5 💾 9.03 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "8a1bfbc5620dae0b6fedbb5e069018f1fa5201e5",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip|hevc|HDR",
+        "filename": "The Shawshank Redemption (1994).mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:udp://opentor.org:2710",
+        "tracker:http://retracker.local/announce",
+        "dht:8a1bfbc5620dae0b6fedbb5e069018f1fa5201e5",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption (1994) 1080p BrRip - 1.6GB - YIFY\n👤 561 💾 1.6 GB ⚙️ ThePirateBay",
+      "infoHash": "e0d00667650aba9ee05aacbbbd8b55ea8a51f534",
+      "fileIdx": 3,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BRRip|x264",
+        "filename": "The.Shawshank.Redemption.1994.1080p.x264.YIFY.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.1080p.BluRay.x265.AAC.5.1 -88\n👤 169 💾 2.22 GB ⚙️ TorrentGalaxy",
+      "infoHash": "b111a115d5d68e7ccbe10f1c160e64ffb702f15a",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The.Shawshank.Redemption.1994.1080p.BluRay.x265.AAC.5.1.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption 1994 REPACK 1080p BluRay x265-YAWNTiC\n👤 141 💾 7.95 GB ⚙️ ThePirateBay",
+      "infoHash": "de45655f107904526620d21c3856ac29a5fd7e49",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The Shawshank Redemption 1994 REPACK 1080p BluRay x265-YAWNTiC.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption (1994) RM4K (1080p BluRay x265 HEVC 10bit AAC 5.1 afm72) [QxR]\nThe Shawshank Redemption (1994) RM4K (1080p BluRay x265 afm72).mkv\n👤 97 💾 7.96 GB ⚙️ TorrentGalaxy",
+      "infoHash": "9d03cb643f0a22c2aa7cf5479da2b81d19300362",
+      "fileIdx": 12,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The Shawshank Redemption (1994) RM4K (1080p BluRay x265 afm72).mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 BDRip 1080p] [UK / Warner Bros. Home Entertainment] 2x Dub + 7x MVO + 3x DVO + 9х AVO + VO + MVO Bel + DVO Bel + 2x MVO Ukr +DVO Ukr + Sub Rus Ukr Eng + Original Eng\n👤 80 💾 39.25 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "97f510d68c43be46fd43c32278a3b86210c66fe8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "The.Shawshank.Redemption.1994.REMASTERED.1080p.BluRay.23xRus.2xBel.3xUkr.Eng.c0kE.mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:97f510d68c43be46fd43c32278a3b86210c66fe8",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.REMASTERED.1080p.BluRay.H264.AAC-RARBG[TGx]\n👤 59 💾 2.72 GB ⚙️ TorrentGalaxy",
+      "infoHash": "e3f68e41da59bb358ce299180e41335378863180",
+      "fileIdx": 4,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|h264",
+        "filename": "The.Shawshank.Redemption.1994.REMASTERED.1080p.BluRay.H264.AAC-LAMA.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.RESTORED.1080p.BluRay.REMUX-DDB\n👤 52 💾 20.46 GB ⚙️ ThePirateBay\n🇬🇧 / 🇸🇪",
+      "infoHash": "a56bb24da7cfda22948fec4a3a8137e4306cbbdd",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.bluray.sdr.1080p.av1.5.1.opus.subs…\n👤 36 💾 3.87 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇯🇵 / 🇮🇹 / 🇪🇸 / 🇰🇷 / 🇨🇳 / 🇫🇷 / 🇩🇪 / 🇳🇱 / 🇵🇱 / 🇨🇿 / 🇭🇺 / 🇩🇰 / 🇸🇪 / 🇳🇴",
+      "infoHash": "cceadd69bc50cf7ca5f82ef2fdd7c2a6ba1de962",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "The.Shawshank.Redemption.1994.bluray.sdr.1080p.av1.5.1.opus.subs-Dust.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Um.Sonho.De.Liberdade.1994.BluRay.1080p.x264.DUAL.5.1-SF\n👤 29 💾 2.91 GB ⚙️ BluDV\nDual Audio / 🇬🇧 / 🇵🇹",
+      "infoHash": "5820de7418311440f7668a0219a775b395b77a6d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "Um.Sonho.De.Liberdade.1994.BluRay.1080p.x264.DUAL.5.1-SF.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.1080p.BluRay.x264-D-Z0N3\n👤 29 💾 15.4 GB ⚙️ ThePirateBay",
+      "infoHash": "6716f9c12e45114ad349b9642d82c77080d170dc",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Les evades 1994 - 1080p FR EN x264 ac3 mHDgz..mkv\n👤 24 💾 3.53 GB ⚙️ Torrent9\n🇬🇧 / 🇫🇷",
+      "infoHash": "8c47f58ec8246479c3a56046593426d5b3a30c2b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "Les evades (1994) - 1080p FR EN x264 ac3 mHDgz..mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption 1994 Bluray 1080p AV1 EN/FR/ES/DE/ITA OPUS 5.1-UH [UserHEVC]\n👤 20 💾 5.7 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇮🇹 / 🇪🇸 / 🇫🇷 / 🇩🇪",
+      "infoHash": "024912c56af6d30633869cbbcc368aea0d0a1012",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "The.Shawshank.Redemption.1994.Bluray.1080p.AV1.OPUS.5.1-UH.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Great Films 3: MP4 X264 AC3 1080p\nThe Shawshank Redemption (1994) 1080p Surround.mp4\n👤 20 💾 4.2 GB ⚙️ MagnetDL",
+      "infoHash": "40f15e970e6f21466402a1ec4fbd059097ad587a",
+      "fileIdx": 53,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "The Shawshank Redemption (1994) 1080p Surround.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The-Shawshank-Redemption_1994_AI_1080p.BluRay.10b.HEVC.DTS-MA.5.1_BLUDUAINE\n👤 19 💾 9.2 GB ⚙️ EXT",
+      "infoHash": "85509819d8e15ca2586e1515a8a017d791f9c9b3",
+      "fileIdx": 42,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc",
+        "filename": "The-Shawshank-Redemption_1994_AI_1080p.BluRay.10b.HEVC.DTS-MA.5.1_BLUDUAINE.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The-Shawshank-Redemption_1994_AI_1080p.BluRay.10b.HEVC.DTS-MA.5.1_BLUDUAINE\n👤 19 💾 827.56 MB ⚙️ EXT",
+      "infoHash": "85509819d8e15ca2586e1515a8a017d791f9c9b3",
+      "fileIdx": 44,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc",
+        "filename": "The-Shawshank-Redemption_1994_AI_1080p.BluRay.10b.HEVC.DTS-MA.5.1_BLUDUAINE.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption - Le ali della libertà (1994) RM4K + EXTRAS (1080p BluRay x265 HEVC 10bit ITA AC3 ENGAAC SUB ITA ENG) - GEGE [9.3 GB]\nThe Shawshank Redemption (1994) RM4K (1080p BluRay x265 HEVC 10bit ITA ENG) - GEGE.mkv\n👤 19 💾 8.62 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "2384d600de9c38c0b7ecb55b0a774082204a1f29",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The Shawshank Redemption (1994) RM4K (1080p BluRay x265 HEVC 10bit ITA ENG) - GEGE.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.1080p.Bluray.MULTi.DTS-HD.Master.H264-BEN.THE.MEN\n👤 17 💾 19.56 GB ⚙️ ThePirateBay\nMulti Audio / 🇬🇧 / 🇮🇹 / 🇪🇸 / 🇲🇽 / 🇫🇷 / 🇩🇪 / 🇮🇳",
+      "infoHash": "84729aecfccd94c19d117e91df59bb2edca6dfdb",
+      "fileIdx": 3,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|h264",
+        "filename": "The.Shawshank.Redemption.1994.1080p.Bluray.ENG.LATINO.CASTELLANO.FRE.GER.ITA.HINDI.DTS-HD.Master.H264-BEN.THE.MEN.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.REMASTERED.1080p.10bit.BluRay.6CH.x265.HEVC-PSA\n👤 17 💾 2.24 GB ⚙️ 1337x",
+      "infoHash": "715a52f82929451204feedc1812301235d9b3bdc",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The.Shawshank.Redemption.1994.REMASTERED.1080p.10bit.BluRay.6CH.x265.HEVC-PSA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption 1994 1080p ATVP WEB-DL DD 5 1 H 264-PiRaTeS\n👤 16 💾 6.98 GB ⚙️ ThePirateBay",
+      "infoHash": "0166d72663ca426c94575494787cc384a6ab0b92",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "The Shawshank Redemption 1994 1080p ATVP WEB-DL DD 5 1 H 264-PiRaTeS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.1080p.NF.WEB-DL.DDP5.1.x264-OzONE\n👤 13 💾 8.09 GB ⚙️ 1337x",
+      "infoHash": "e25694cc3c1c9409787921277c2bce83f94a8dc0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|x264",
+        "filename": "The.Shawshank.Redemption.1994.1080p.NF.WEB-DL.DDP5.1.x264-OzONE.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Побег из Шоушенка / The Shawshank redemption [1994 BDRemux 1080p] [DEU Transfer] 2x Dub (Кириллица IVI) + 6x MVO (Киномания LDV Союз Видео ОРТ СТС РТР) + 2x DVO (Videogram Видеофильм) + 9x AVO (Гаврилов Живов) + Sub (Rus Eng) + Original (Eng)\n👤 13 💾 54.05 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇩🇪",
+      "infoHash": "172ed9fccdc873416eaf08b62654c37bc16b11a0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX",
+        "filename": "Побег из Шоушенка (1994) BDRemux 1080p.mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:172ed9fccdc873416eaf08b62654c37bc16b11a0",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 Blu-ray disc 1080p]\n👤 12 💾 26.54 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "b022fcf5ac91d1d49d67d90b5e7ddf4f57aa9bd7",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:b022fcf5ac91d1d49d67d90b5e7ddf4f57aa9bd7",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "IMDB TOP 001-050 BluRay 1080p x265 10bit MNHD-FRDS\n001.肖申克的救赎The.Shawshank.Redemption.1994.BluRay.1080p.x265.10bit.5Audio.MNHD-FRDS/The.Shawshank.Redemption.1994.BluRay.1080p.x265.10bit.5Audio.MNHD-FRDS.mkv\n👤 11 💾 11.03 GB ⚙️ EXT",
+      "infoHash": "9351bcf9e7437f706549f8b60314c39259c420b4",
+      "fileIdx": 4,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265|10bit",
+        "filename": "The.Shawshank.Redemption.1994.BluRay.1080p.x265.10bit.5Audio.MNHD-FRDS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Les evades (1994) - 1080p FR EN x264 ac3 mHDgz\n👤 11 💾 3.53 GB ⚙️ Torrent9\n🇬🇧 / 🇫🇷",
+      "infoHash": "88e8caa12894a74d3f38636c32bf62cd9755cabb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "[ OxTorrent.com ] Les evades (1994) - 1080p FR EN x264 ac3 mHDgz..mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption (1994) (1080p BluRay x265 HEVC 10bit AAC 5.1 Tigole) [QxR]\n👤 11 💾 5.9 GB ⚙️ 1337x",
+      "infoHash": "688857fb719f493eee8f3d40b84a8cefeb1c4c94",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption 1994 1080p MA WEB-DL H264 SDR DDP 5 1 English HONE\n👤 10 💾 8.56 GB ⚙️ ThePirateBay",
+      "infoHash": "12ff3b4ae37f4be8a7a461dd45358b4c1fd797c5",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "The Shawshank Redemption 1994 1080p MA WEB-DL H264 SDR DDP 5 1 English HONE.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Побег из Шоушенка / The Shawshank Redemption (1994) BDRip 1080p | D P P2 A | Remastered\n👤 10 💾 16.96 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "981a6197cc8cee1fce5e2adf38f4030708e35741",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "The.Shawshank.Redemption.1994.REMASTERED.BDRip.1080p.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:981a6197cc8cee1fce5e2adf38f4030708e35741",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Stephen King Pack PACK (1985 - 2003) [ExtremlymTorrents]\nThe.Shawshank.Redemption.1994.1080p.Bluray.DTS.x264-PerfectionHD.mkv\n👤 10 💾 1.09 GB ⚙️ 1337x",
+      "infoHash": "31ff5f4db3944eb3bc7ad380eb4154883fc367b2",
+      "fileIdx": 5,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The.Shawshank.Redemption.1994.1080p.Bluray.DTS.x264-PerfectionHD.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.REMASTERED.1080p.BluRay.x265-RARBG\n👤 9 💾 2.22 GB ⚙️ RARBG",
+      "infoHash": "7d73b5ea9cc30e880f0b9acccc357b0ac00aaf71",
+      "fileIdx": 4,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The.Shawshank.Redemption.1994.REMASTERED.1080p.BluRay.x265-RARBG.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.1080p.NF.WEB-DL.H264-ETRG[EtHD]\n👤 9 💾 6.79 GB ⚙️ ThePirateBay",
+      "infoHash": "04b81a1f9e222356c0405f44d530253bfdba764e",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Le.Ali.Della.Liberta.1994.REMASTERED.iTA.ENG.AC3.SUB.iTA.ENG.BluRay.HEVC.1080p.x265.jeddak-MIRCrew\n👤 8 💾 2.8 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "9c21df3075e37e9570f8f0a8ebdca76cc89ba9a0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc",
+        "filename": "Le.Ali.Della.Liberta.1994.REMASTERED.iTA.ENG.AC3.SUB.iTA.ENG.BluRay.HEVC.1080p.x265.jeddak-MIRCrew.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption 1994 1080p BluRay DD 5.1 x265-edge2020\n👤 7 💾 3.85 GB ⚙️ 1337x",
+      "infoHash": "6b7ac0f0c9ff4895113c9863093784a7038554c4",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x265",
+        "filename": "The.Shawshank.Redemption.1994.1080p.BluRay.DDP.5.1.x265-EDGE2020.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "500 top all-time movies collection 1080p H.264 480GB (moviesbyrizzo upl)\nThe Shawshank Redemption (1994) 1080p (moviesbyrizzo upl).mp4\n👤 7 💾 1.1 GB ⚙️ 1337x",
+      "infoHash": "3facf8e9f4f7c506a2330ac2ba33645aa6f12b81",
+      "fileIdx": 530,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|h264",
+        "filename": "The Shawshank Redemption (1994) 1080p (moviesbyrizzo upl).mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption (1994) 1080p Bluray AV1 Opus Multi4 [dAV1nci]\n👤 7 💾 2.74 GB ⚙️ TorrentGalaxy",
+      "infoHash": "0741e366da44c103be05f1ea919c5ce995013e51",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|av1",
+        "filename": "The.Shawshank.Redemption.1994.1080p.Bluray.AV1.Opus.Multi4-dAV1nci.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Побег из Шоушенка / The Shawshank Redemption (1994) BDRip 1080p | Р\n👤 7 💾 7.76 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "f591bf1cb8e5790d93850322548a35164aa46f73",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BDRip",
+        "filename": "Побег из Шоушенка.1994.BDRip.1080p.Rus.Eng.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:f591bf1cb8e5790d93850322548a35164aa46f73",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 Blu-ray disc (custom) 1080p] 4x MVO (LDV Videogram Союз Видео Киномания) + 2x AVO (Горчаков Живов) + Ukr + Original Eng + Sub Rus Eng\n👤 7 💾 33.76 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "0ac833251c2093a8c1338f94fe6c4faf4173efac",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:0ac833251c2093a8c1338f94fe6c4faf4173efac",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption 1994 1080p MGMP WEB-DL DDP 5 1 H 264-PiRaTeS\n👤 6 💾 7.37 GB ⚙️ EXT",
+      "infoHash": "415746ada0eedb433bd4c8924c25d6c525a752ae",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|WEB-DL|h264",
+        "filename": "The Shawshank Redemption 1994 1080p MGMP WEB-DL DDP 5 1 H 264-PiRaTeS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption 1994 1080p BluRay DDP 5 1 10bit H 265-iVy\n👤 6 💾 3.05 GB ⚙️ ThePirateBay",
+      "infoHash": "7d81326fbd4dd3cc084d6175fe31c78997c7a4c7",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|h265|10bit",
+        "filename": "The Shawshank Redemption 1994 1080p BluRay DDP 5 1 10bit H 265-iVy.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.1080p.BluRay.x264.DTS-FGT\n👤 6 💾 12.4 GB ⚙️ RARBG",
+      "infoHash": "e7c736419bd0bbe76f48b51c7cf11d01b015bb20",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The.Shawshank.Redemption.1994.1080p.BluRay.x264.DTS-FGT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.Bluray.1080p.TrueHD.x264-Grym\n👤 6 💾 13.41 GB ⚙️ ThePirateBay",
+      "infoHash": "ecc4617ebed81019e903b2f86dc72997fcb597cd",
+      "fileIdx": 5,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|x264",
+        "filename": "The.Shawshank.Redemption.1994.Bluray.1080p.TrueHD.x264-Grym.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 BDRemux 1080p] [USA Transfer Remastered] 2x Dub + 7x MVO + 4x DVO + 9x AVO + Sub Rus Eng + Original Eng\n👤 5 💾 51.08 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "710409ce0755c903b65e4bace570bfdf908d20f1",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX",
+        "filename": "The.Shawshank.Redemption.1994.Warner.Bros.BDRemux.1080p.Remastered.mkv"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:710409ce0755c903b65e4bace570bfdf908d20f1",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Amazing Films 4 - Mp4 x264 AC3 1080p\nThe Shawshank Redemption (1994) 1080p Surround.mp4\n👤 5 💾 4.16 GB ⚙️ ThePirateBay",
+      "infoHash": "4e20131a166cee7614ce583330e0c0d2405bbce7",
+      "fileIdx": 68,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264",
+        "filename": "The Shawshank Redemption (1994) 1080p Surround.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The.Shawshank.Redemption.1994.REMASTERED.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-FGT\n👤 5 💾 29.23 GB ⚙️ RARBG",
+      "infoHash": "8f19010c25ea5d01f00a17e39acf7596322c9df2",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX|avc",
+        "filename": "The.Shawshank.Redemption.1994.REMASTERED.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-FGT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption (1994) (1080p BluRay AI x265 HEVC 10bit AAC 5.1 Joy) [UTR]\n👤 5 💾 1.91 GB ⚙️ 1337x",
+      "infoHash": "c6dcd7d080633ab9139c870a7162f38095b4f9d3",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay|hevc|10bit",
+        "filename": "The Shawshank Redemption (1994)  [1080p x265 10bit FS95 Joy].mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "The Shawshank Redemption (1994) 1080p BluRay [Dual Audio] [ENG HINDI] ESubs\n👤 5 💾 2.2 GB ⚙️ 1337x\nDual Audio / 🇬🇧 / 🇮🇳",
+      "infoHash": "63d9ed32582c970c8250b49451e83b66b5732f77",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The Shawshank Redemption (1994) 720p BrRip x264 - YIFY\n👤 85 💾 848.96 MB ⚙️ ThePirateBay",
+      "infoHash": "ac418db33fa5cea4fab11bc58008fe08f291c9be",
+      "fileIdx": 3,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BRRip|x264",
+        "filename": "The Shawshank Redemption 1994.720p.BRRip.x264.YIFY.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 BDRip 720p]\n👤 43 💾 7.88 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "b292a7cbc38b857f6acaf000ad75cdfc753e17f5",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BDRip|h264",
+        "filename": "Shawshank Redemption.1994.BD.Rip.720p.h264.Rus.Eng.mkv"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:b292a7cbc38b857f6acaf000ad75cdfc753e17f5",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The Shawshank Redemption 1994 720p NF WEB-DL DDP5 1 H 264-ViSTA\n👤 20 💾 3.75 GB ⚙️ ThePirateBay\n🇬🇧 / 🇮🇳",
+      "infoHash": "85e8ca0b89ebafa419d009b65a46cac4a1d8ca01",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|WEB-DL|h264",
+        "filename": "The Shawshank Redemption 1994 720p NF WEB-DL DDP5 1 H 264-ViSTA.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Um sonho de liberdade (1994) BDRip bluray HD 720p dublado - dere\n👤 12 💾 914.84 MB ⚙️ ThePirateBay\n🇵🇹",
+      "infoHash": "326803ca5c48ac50361c17e3e3654c99a068bba8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay",
+        "filename": "um sonho de liberdade.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "The.Shawshank.Redemption.1994.720p.BluRay.999MB.x265.10bit-Ga\n👤 7 💾 978.65 MB ⚙️ ThePirateBay",
+      "infoHash": "d81b9f3450d29f8243f49134fec8c9b99a9db191",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x265|10bit",
+        "filename": "The.Shawshank.Redemption.1994.720p.BluRay.999MB.HQ.x265.10bit-GalaxyRG.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 BDRip-AVC] MVO (Союз Видео) + 3x AVO + Sub Rus Eng + Original Eng\nThe Shawshank Redemption by_IVAN@190282.mkv\n👤 50 💾 4.83 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "a9b77a64a11d79d946fe3429fa3f38726c8635fc",
+      "fileIdx": 3,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "The Shawshank Redemption by_IVAN@190282.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:a9b77a64a11d79d946fe3429fa3f38726c8635fc",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 BDRip] MVO (FocusX) + AVO (С. Визгунов) + VO (Е. Гаевский) + MVO Ukr (1+1) + Original Eng + Sub Rus Ukr Eng\nPobeg.Iz.Shoushenka.1994.DUAL.BDRip.XviD.AC3.-HRIME.avi\n👤 33 💾 2.9 GB ⚙️ Rutracker\nDual Audio / 🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "874a72da29239f8bb05743e3db3453c928802e64",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|xvid",
+        "filename": "Pobeg.Iz.Shoushenka.1994.DUAL.BDRip.XviD.AC3.-HRIME.avi"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:874a72da29239f8bb05743e3db3453c928802e64",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 BDRip-AVC] MVO (ОРТ) + Original Eng + Sub\n👤 25 💾 1.45 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "37ab17a043f0341f8becd42bed58d76527eedded",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "The.Shawshank.Redemption.1994.BDRip.AVC.mkv"
+      },
+      "sources": [
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "dht:37ab17a043f0341f8becd42bed58d76527eedded",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 BDRip] DVO (Екатеринбург Арт) + Original Eng\n👤 23 💾 2.15 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "0d283bcf68d0c190d7e087481762dc321241c455",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "Побег из Шоушенка.1994.avi"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:0d283bcf68d0c190d7e087481762dc321241c455",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 BDRip-AVC] Dub (IVI) + Original Eng\n👤 19 💾 1.45 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "b7f110ff6feb63f9346a839d4157ee698b5f0dfe",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Побег из Шоушенка.mkv"
+      },
+      "sources": [
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "dht:b7f110ff6feb63f9346a839d4157ee698b5f0dfe",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 BDRip] MVO (СТС) + MVO (ОРТ)\n👤 14 💾 2.18 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "234314a69187bd1c0d1d4451a2d25c19a9000ae0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "Побег из Шоушенка (СТС + ОРТ).avi"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:234314a69187bd1c0d1d4451a2d25c19a9000ae0",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 HDRip] MVO (ТВ Центр)\n👤 13 💾 1.46 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "4e008c317b5c76bac5288bbc7e1864b751d6e726",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip",
+        "filename": "Pobeg_iz_Showshenka.avi"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:4e008c317b5c76bac5288bbc7e1864b751d6e726",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBluRay REMUX",
+      "title": "The Shawshank Redemption (1994) BD REMUX (AVC DTSHD-MA) - FiNAL\n👤 11 💾 29.29 GB ⚙️ 1337x",
+      "infoHash": "b142ea6b20950a7beaa7c6749a0cf87d61166768",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BluRay REMUX|avc",
+        "filename": "The Shawshank Redemption (1994) REMUX (AVC DTSHD-MA) - FiNAL.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 BDRip] 5x MVO + 2x DVO + 6x AVO + Original + Sub (4xRUS ENG)\nPobeg.Iz.Shoushenka.1994.RUS.BDRip.RERip.XviD.AC3.-HELLYWOOD.avi\n👤 10 💾 2.18 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺 / 🇺🇦",
+      "infoHash": "7dadaf0be54f581aa93e82ac2c0eac3581b7abf0",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|xvid",
+        "filename": "Pobeg.Iz.Shoushenka.1994.RUS.BDRip.RERip.XviD.AC3.-HELLYWOOD.avi"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:7dadaf0be54f581aa93e82ac2c0eac3581b7abf0",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBRRip",
+      "title": "The Shawshank Redemption 1994 BRRip H264 5.1 ch-SecretMyth (King\n👤 8 💾 1.42 GB ⚙️ ThePirateBay",
+      "infoHash": "acd9c5b201b23101d681a5fb25489f51bd27905d",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BRRip|h264"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption (1994) BDRip | D\n👤 7 💾 1.46 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "44009e3f8cdc521b915cd17005e2029ca1eb96eb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "Побег из Шоушенка.avi"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:44009e3f8cdc521b915cd17005e2029ca1eb96eb",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption (1994) BDRip-AVC от New-team | P\n👤 7 💾 1.45 GB ⚙️ Rutor\n🇷🇺",
+      "infoHash": "f72f7c0f866e9f648ce68424922dedf36a369737",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|avc",
+        "filename": "Shawshank.Redemption.1994.BDRip-AVC.by_dexter_lex.mkv"
+      },
+      "sources": [
+        "tracker:http://retracker.local/announce",
+        "tracker:udp://opentor.org:2710",
+        "dht:f72f7c0f866e9f648ce68424922dedf36a369737",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 BDRip] MVO [Киномания] + MVO [ТВ-Центр] + Original + Sub rus\n👤 7 💾 2.27 GB ⚙️ Rutracker\n🇬🇧 / 🇷🇺",
+      "infoHash": "7fc6359424b75aea0d1efdfb951baf328dbdb09f",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "Pobeg_iz_Shoushenka_BDRip_[rutracker.org].avi"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:7fc6359424b75aea0d1efdfb951baf328dbdb09f",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nDVDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 DVDRip] [Fullscreen version] DVO (Videogram / ТНТ)\n👤 6 💾 1.46 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "989ef4727ea433270df15e1b4ca4a59c38dcbca9",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|DVDRip|xvid",
+        "filename": "The Shawshank Redemption.Fullscreen version.1994.RUS.DVDRip.XviD.MPEG Audio.avi"
+      },
+      "sources": [
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "dht:989ef4727ea433270df15e1b4ca4a59c38dcbca9",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nHDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption (1994) HDRip-AVC от ExKinoRay | D | Remastered\n👤 5 💾 1.08 GB ⚙️ Rutor\n🇬🇧 / 🇷🇺",
+      "infoHash": "39d4acd50bf349d185acd9b78e910ff6630a125d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|HDRip|avc",
+        "filename": "The.Shawshank.Redemption.1994.HDRip-AVC.ExKinoRay.mkv"
+      },
+      "sources": [
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://retracker.local/announce",
+        "dht:39d4acd50bf349d185acd9b78e910ff6630a125d",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet",
+        "tracker:http://bt4.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Побег из Шоушенка / The Shawshank Redemption [1994 BDRip] DVO (Видеофильм/НТВ)\n👤 5 💾 2.18 GB ⚙️ Rutracker\n🇷🇺",
+      "infoHash": "b5e8c1ef5a54a60c5181925771ec93d0cf759b60",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip",
+        "filename": "Побег из Шоушенка (1994) BDRip.avi"
+      },
+      "sources": [
+        "tracker:http://bt4.t-ru.org/ann?magnet",
+        "dht:b5e8c1ef5a54a60c5181925771ec93d0cf759b60",
+        "tracker:udp://tracker.opentrackr.org:1337/announce",
+        "tracker:udp://open.stealth.si:80/announce",
+        "tracker:udp://open.demonii.com:1337/announce",
+        "tracker:udp://open.tracker.cl:1337/announce",
+        "tracker:udp://tracker.skynetcloud.site:6969/announce",
+        "tracker:udp://tracker.qu.ax:6969/announce",
+        "tracker:udp://tracker.theoks.net:6969/announce",
+        "tracker:udp://tracker-udp.gbitt.info:80/announce",
+        "tracker:udp://explodie.org:6969/announce",
+        "tracker:udp://tracker.ducks.party:1984/announce",
+        "tracker:udp://tracker.tryhackx.org:6969/announce",
+        "tracker:udp://tracker.nyaa.vc:6969/announce",
+        "tracker:udp://tracker.dler.org:6969/announce",
+        "tracker:udp://tracker2.dler.org:80/announce",
+        "tracker:http://tracker.dler.com:6969/announce",
+        "tracker:udp://tracker.gmi.gd:6969/announce",
+        "tracker:http://tracker.renfei.net:8080/announce",
+        "tracker:udp://tracker.peerfect.org:6969/announce",
+        "tracker:udp://tracker.opentrackr.com:6969/announce",
+        "tracker:udp://tracker.ilibr.org:6969/announce",
+        "tracker:udp://opentor.net:6969",
+        "tracker:http://bt.t-ru.org/ann?magnet",
+        "tracker:http://bt2.t-ru.org/ann?magnet",
+        "tracker:http://bt3.t-ru.org/ann?magnet"
+      ]
+    },
+    {
+      "name": "Torrentio",
+      "title": "Official IMDb Top 250 Movies Collection 6/17/2011\nThe Shawshank Redemption (1994).avi\n👤 8 💾 702.96 MB ⚙️ ThePirateBay",
+      "infoHash": "4986ace2ee7a564508e0d5cfdde2d9018b8af942",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "filename": "The Shawshank Redemption (1994).avi"
+      }
+    }
+  ],
+  "cacheMaxAge": 3600,
+  "staleRevalidate": 14400,
+  "staleError": 604800
+}

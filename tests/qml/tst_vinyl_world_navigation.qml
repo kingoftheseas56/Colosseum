@@ -93,39 +93,41 @@ TestCase {
         if(host){host.close();host.destroy()}
         if(gateData){gateData.destroy();gateData=null}
     }
-    function test_carouselSameAcrossTabs() {
+    function test_carouselSameInstanceAcrossTabsAndVisibleOnlyOnHome() {
         var world=item("vinylWorld"), carousel=item("vinylCarousel")
         verify(world!==null && carousel!==null)
         var playing=host.pageData.playingEditionId
         ;["home","discover","library"].forEach(function(tab) {
             world.setTab(tab); compare(item("vinylCarousel"),carousel)
-            verify(carousel.visible);compare(host.pageData.playingEditionId,playing)
+            compare(carousel.visible,tab==="home");compare(host.pageData.playingEditionId,playing)
         })
         host.worldData.resume();compare(host.page,"song")
     }
-    function test_primaryCtasUseIconGlyphsAndAccessibleLabels() {
+    function test_primaryCtasUseNamedLabelsAndAccessibleActions() {
         var carousel=item("vinylCarousel")
         verify(carousel!==null)
         tryVerify(function(){return carousel.slides.length>0
             && findChild(carousel,"featuredPrimaryIcon_0")!==null})
         carousel.slides.forEach(function(slide,index) {
-            var expected=slide.key==="resume" ? "play" : "chevronRight"
-            compare(slide.primaryIcon,expected)
+            var expected=slide.key==="resume" ? "Resume"
+                : slide.key==="local-albums" || slide.key==="library" ? "Open library" : "Explore collection"
+            compare(slide.cta,expected)
+            compare(slide.primaryIcon,"")
             compare(slide.artKind,"square","Vinyl album and artist artwork keeps its square aspect")
             var icon=findChild(carousel,"featuredPrimaryIcon_"+index)
             var label=findChild(carousel,"featuredPrimaryLabel_"+index)
             var action=findChild(carousel,"featuredPrimaryAction_"+index)
             var art=findChild(carousel,"featuredInsetArt_"+index)
-            verify(icon!==null && icon.visible,index+" renders its primary icon")
-            compare(icon.kind,expected)
-            verify(label!==null && !label.visible,index+" hides its visible CTA text")
+            verify(icon!==null && !icon.visible,index+" hides its primary icon")
+            verify(label!==null && label.visible,index+" renders its named CTA")
+            compare(label.text,expected)
             verify(art!==null && art.visible,index+" renders inset cover art")
             verify(Math.abs(art.width/art.height-1)<0.01,index+" keeps cover art square")
             verify(action!==null)
             compare(action.accessibleName,slide.cta,
-                "the icon action keeps the supplied CTA as its accessible name")
+                "the named action keeps the supplied CTA as its accessible name")
             compare(action.accessibleDescription,"",
-                "the icon action adds no hover descriptor")
+                "the named action adds no hover descriptor")
         })
         var originalWidth=host.width
         host.width=520
@@ -140,13 +142,15 @@ TestCase {
         var world=item("vinylWorld"),carousel=item("vinylCarousel")
         verify(world!==null)
         world.setTab("discover")
+        verify(waitForRendering(host.contentItem))
         verify(carousel.slides.length>1,"the route fixture must provide multiple featured slides")
         var featuredIndex=carousel.slides.length-1
         carousel.index=featuredIndex
-        var routeState=world.captureRouteState()
         var chosen=host.worldData.listItems("popular")[2]
         var y=world.contentTop
         host.worldScroll.contentY=y
+        verify(waitForRendering(host.contentItem))
+        var routeState=world.captureRouteState()
         host.worldData.activate(chosen)
         compare(host.page,"album")
         compare(host.pageData.shownAlbumId,chosen.albumId)
@@ -158,7 +162,7 @@ TestCase {
         world.restoreRouteState(routeState)
         compare(carousel.index,featuredIndex,"the featured slide must survive detail and Back")
         compare(world.currentTab,"discover")
-        verify(Math.abs(host.worldScroll.contentY-y)<4)
+        tryVerify(function(){return Math.abs(host.worldScroll.contentY-y)<4})
     }
     function test_seeAllReturnAndSongStays() {
         var world=item("vinylWorld");verify(world!==null)

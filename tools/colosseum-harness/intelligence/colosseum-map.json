@@ -517,6 +517,226 @@
       ]
     },
     {
+      "id": "vinyl",
+      "display_name": "Vinyl",
+      "aliases": [
+        "music",
+        "vinyl world",
+        "listening"
+      ],
+      "source_roots": [
+        "qml/Main.qml",
+        "qml/vinyl",
+        "native/vinyl",
+        "native/main.cpp",
+        "scripts/vinyl",
+        "tests/CMakeLists.txt",
+        "tests/vinyl-catalogue",
+        "tests/auto/account"
+      ],
+      "entry_points": [
+        "qml/Main.qml",
+        "qml/vinyl/VinylAppWorld.qml",
+        "native/main.cpp",
+        "scripts/vinyl/provider.py"
+      ],
+      "owners": [
+        {
+          "name": "Vinyl shell route",
+          "path": "qml/Main.qml",
+          "confidence": "observed",
+          "responsibility": "Feature-gated Vinyl world routing, resume handoff, and shell integration.",
+          "provenance": [
+            {
+              "path": "qml/Main.qml",
+              "contains": "if (medium === \"Vinyl\" && vinylEnabled)"
+            }
+          ]
+        },
+        {
+          "name": "VinylRuntime",
+          "path": "qml/vinyl/VinylRuntime.qml",
+          "confidence": "observed",
+          "responsibility": "QML world composition and navigation for Home, discovery, personal library, and playback surfaces.",
+          "provenance": [
+            {
+              "path": "qml/vinyl/VinylRuntime.qml",
+              "contains": "VinylRecommendationService {"
+            }
+          ]
+        },
+        {
+          "name": "Vinyl house shell",
+          "path": "qml/vinyl/VinylHouseShell.qml",
+          "confidence": "observed",
+          "responsibility": "House WorldPage, one vertical scroller, Home/Discover/Library tabs and readiness surface.",
+          "provenance": [
+            {
+              "path": "qml/vinyl/VinylHouseShell.qml",
+              "contains": "objectName: \"vinylWorld\""
+            }
+          ]
+        },
+        {
+          "name": "VinylRecommendationService",
+          "path": "native/vinyl/VinylRecommendationService.h",
+          "confidence": "observed",
+          "responsibility": "Native recommendation, Home projection, taste, and history service exposed to QML.",
+          "provenance": [
+            {
+              "path": "native/vinyl/VinylRecommendationService.h",
+              "contains": "class VinylRecommendationService : public QObject"
+            },
+            {
+              "path": "native/main.cpp",
+              "contains": "qmlRegisterType<VinylRecommendationService>"
+            }
+          ]
+        },
+        {
+          "name": "VinylRecommendationHistory",
+          "path": "native/vinyl/VinylRecommendationHistory.h",
+          "confidence": "observed",
+          "responsibility": "Projects existing Activity and History records for Vinyl recommendation history.",
+          "provenance": [
+            {
+              "path": "native/vinyl/VinylRecommendationHistory.h",
+              "contains": "class VinylRecommendationHistory"
+            }
+          ]
+        },
+        {
+          "name": "VinylBackendSession",
+          "path": "native/vinyl/VinylBackendSession.h",
+          "confidence": "observed",
+          "responsibility": "Local Vinyl queue, playback state, session restore, and native player handoff.",
+          "provenance": [
+            {
+              "path": "native/vinyl/VinylBackendSession.h",
+              "contains": "class VinylBackendSession : public QObject"
+            },
+            {
+              "path": "native/main.cpp",
+              "contains": "qmlRegisterType<VinylBackendSession>"
+            }
+          ]
+        },
+        {
+          "name": "VinylCatalogueSource",
+          "path": "native/vinyl/VinylCatalogueSource.h",
+          "confidence": "observed",
+          "responsibility": "Catalogue projection and provider transport seam; local media and playback remain owned by their existing services.",
+          "provenance": [
+            {
+              "path": "native/vinyl/VinylCatalogueSource.h",
+              "contains": "class VinylCatalogueSource final"
+            }
+          ]
+        },
+        {
+          "name": "VinylPlayerBar observation surface",
+          "path": "qml/vinyl/VinylPlayerBar.qml",
+          "confidence": "observed",
+          "responsibility": "Named player-bar state exposes a zero-based track index within the playing disc or edition; this differs from the playback queue position.",
+          "provenance": [
+            {
+              "path": "qml/vinyl/VinylPlayerBar.qml",
+              "contains": "readonly property int playingTrackIndex:"
+            }
+          ]
+        }
+      ],
+      "ctests": [
+        {
+          "name": "colosseum.vinyl_recommendation_service",
+          "labels": ["vinyl", "recommendations", "unit"]
+        },
+        {
+          "name": "colosseum.vinyl_recommendation_history",
+          "labels": ["vinyl", "recommendations", "history", "unit"]
+        },
+        {
+          "name": "colosseum.vinyl_home_listening",
+          "labels": ["vinyl", "home", "unit"]
+        },
+        {
+          "name": "colosseum.vinyl_recommendation_contracts",
+          "labels": ["vinyl", "recommendations", "unit"]
+        },
+        {
+          "name": "colosseum.vinyl_catalogue_source",
+          "labels": ["unit", "vinyl", "catalogue", "native-adapter"]
+        },
+        {
+          "name": "colosseum.qttest.vinyl_music_actions",
+          "labels": ["vinyl", "activity", "history", "unit"]
+        },
+        {
+          "name": "colosseum.qttest.vinyl_taste_selections",
+          "labels": ["unit", "vinyl", "preferences"]
+        },
+        {
+          "name": "colosseum.qttest.vinyl_feedback_snapshot",
+          "labels": ["unit", "qttest", "vinyl", "preferences"]
+        },
+        {
+          "name": "colosseum.qml.vinyl_picker_widgets",
+          "labels": ["unit", "qml", "vinyl", "regression"]
+        },
+        {
+          "name": "colosseum.qml.vinyl_widget_integration",
+          "labels": ["unit", "qml", "vinyl", "regression"]
+        },
+        {
+          "name": "colosseum.qml.vinyl_home_page",
+          "labels": ["unit", "qml", "vinyl", "regression"]
+        },
+        {
+          "name": "colosseum.qml.vinyl_world_navigation",
+          "labels": ["unit", "qml", "vinyl", "regression"]
+        },
+        {
+          "name": "colosseum.qml.vinyl_discover_page",
+          "labels": ["unit", "qml", "vinyl", "regression"]
+        },
+        {
+          "name": "colosseum.qml.vinyl_catalogue_browse",
+          "labels": ["unit", "qml", "vinyl", "catalogue", "regression"]
+        },
+        {
+          "name": "colosseum.qml.vinyl_personalized_home_native",
+          "labels": ["unit", "qml", "vinyl", "recommendations", "native-adapter"]
+        }
+      ],
+      "checks": [],
+      "lanista_scenarios": [
+        "tests/lanista_scenarios/vinyl_home_journey.json",
+        "tests/lanista_scenarios/vinyl_discover_journey.json",
+        "tests/lanista_scenarios/vinyl_album_journey.json",
+        "tests/lanista_scenarios/vinyl_song_journey.json"
+      ],
+      "context": [
+        {
+          "scope": "repo",
+          "path": "docs/colosseum-test-verification.md"
+        }
+      ],
+      "platform_constraints": [
+        "The configured unit inventory is 294 entries (97 Vinyl, 197 non-Vinyl); actual build, execution, and known-failure status is maintained in docs/superpowers/plans/2026-11-09-vinyl-v1-home-REPORT.md. This inventory is not a completion or green claim.",
+        "Deterministic QML fixtures use offscreen software rendering; Node and Python registrations depend on local interpreters, and YouTube browse parsing additionally requires ytmusicapi.",
+        "The full tests/vinyl-live family remains bespoke; vinyl_world_visual is capture-only; native MPV events need a real exposed GPU; tagged import uses an ffmpeg fixture.",
+        "The native-session and shared-runner local-session aggregates, four legacy fake-player model fixtures, and remote-media next-preparation probe are outside the deterministic unit gate.",
+        "Standalone Vinyl backend prototype projects remain unintegrated; source contract CTests do not establish project integration.",
+        "Some archive QML compatibility and product gaps remain documented in the Slice 0 report; source registration does not close them."
+      ],
+      "relations": [
+        "video-playback",
+        "vault",
+        "downloads",
+        "account-sync"
+      ]
+    },
+    {
       "id": "vault",
       "display_name": "Vault",
       "aliases": [

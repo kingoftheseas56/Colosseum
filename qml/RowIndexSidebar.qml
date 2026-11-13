@@ -4,9 +4,15 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Window
 
 Item {
     id: rail
+    AdaptiveLayout {
+        id: touchMetrics
+        objectName: "rowIndexTouchMetrics"
+        androidHost: Qt.platform.os === "android" || !!(rail.Window.window && rail.Window.window.androidHost === true)
+    }
 
     required property Flickable pageFlick
     property Item flowHost: null
@@ -361,6 +367,10 @@ Item {
             id: toggleAction
             objectName: rail.automationPrefix + "CollapseAction"
             anchors.fill: parent
+            anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+            anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+            anchors.topMargin: -touchMetrics.targetInset(parent.height)
+            anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
             accessibleName: rail.collapsed ? "Expand row index" : "Retract row index"
             tooltipText: accessibleName
             focusRadius: 14

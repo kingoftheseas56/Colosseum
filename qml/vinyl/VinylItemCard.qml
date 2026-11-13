@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
+import "VinylCardPresentation.js" as Presentation
 
 KeyboardAction {
     id: root
@@ -13,10 +14,7 @@ KeyboardAction {
     property Item backdrop: null
     property bool homePageVisible: false
     property int exposureRevision: 0
-    property int feedbackGeneration: -1
-    property real feedbackMenuMaxHeight: 360
-    property var feedbackOptions: []
-    readonly property bool feedbackMenuOpen: feedbackMenu.opened
+    property string feedbackError: ""
     readonly property bool feedbackAvailable: !!recommendationRow
         && (recommendationRow.recommendation === true
             || ((recommendationRow.key === "taste-artists" || recommendationRow.key === "saved-artists")
@@ -25,21 +23,41 @@ KeyboardAction {
         && worldData && typeof worldData.setRecommendationFeedback === "function"
         && typeof worldData.recommendationProfileGeneration === "function"
         && typeof worldData.recommendationArtistRef === "function"
+    readonly property bool quickFeedbackAvailable: feedbackAvailable && recommendationRow.recommendation === true
+    readonly property bool feedbackRevealed: quickFeedbackAvailable && (hovered || activeFocus
+        || likeBadge.hovered || likeBadge.activeFocus || hideBadge.hovered || hideBadge.activeFocus)
 
     enabled: root.item.unavailable !== true
-    contextEnabled: feedbackAvailable
     readonly property string reason: item.reason || ""
-    implicitHeight: art.height + 14 + copy.height + 8
+    readonly property string presentationKind: Presentation.kind(item)
+    readonly property string artistText: Presentation.artist(item)
+    readonly property bool includesTitle: presentationKind === "songs"
+    readonly property string secondaryText: Presentation.secondary(item, artistText)
+        + (feedbackError ? "\n" + feedbackError : "")
+    readonly property string albumText: {
+        var record = item.song && item.song.album || item.record || {};
+        var name = String(item.albumTitle || record.title || "");
+        return name === String(item.title || "") ? "" : name;
+    }
+    readonly property string captionTitle: presentationKind === "songs"
+        ? artistText + (albumText ? qsTr(" · from %1").arg(albumText) : "") : String(item.title || "")
+    readonly property string captionDetail: item.unavailable ? qsTr("Unavailable")
+        : reason || (presentationKind === "artists" ? qsTr("Artist radio")
+            : presentationKind === "mixes" ? String(item.subtitle || qsTr("Made for you"))
+            : presentationKind === "radio" ? String(item.subtitle || qsTr("Station"))
+            : presentationKind === "albums" ? artistText || String(item.subtitle || "")
+            : String(item.subtitle && item.subtitle !== artistText ? item.subtitle : ""))
+    readonly property real captionTop: copy.y
+    readonly property url artworkSource: worldData && item ? worldData.artwork(item.cover) : ""
+    readonly property var mixArtworkSources: (item.artworkCovers || []).slice(0, 3).map(function(cover) {
+        return root.worldData ? root.worldData.artwork(cover) : "";
+    })
+    implicitHeight: art.height + (copy.height > 0 ? 14 + copy.height : 0) + 8
     accessibleName: item.title + (item.unavailable ? ", unavailable" : "")
         + (reason ? ". " + reason : "")
     onTriggered: if(worldData) worldData.activate(item)
-    onContextRequested: openFeedbackMenu()
 
     function scheduleExposureCheck() { exposureTimer.restart(); }
-    function feedbackActionFor(key) {
-        var index=feedbackOptions.findIndex(function(option){return option.key===key;});
-        return index>=0 ? feedbackRepeater.itemAt(index) : null;
-    }
     function clipTo(bounds, clipItem) {
         var corner=clipItem.mapToItem(null,0,0);
         bounds.left=Math.max(bounds.left,corner.x);
@@ -73,282 +91,112 @@ KeyboardAction {
         return worldData.recordVisibleRecommendation(recommendationRow,item,
             recommendationRow.profileGeneration,actuallyVisible());
     }
-    function openFeedbackMenu() {
-        if(!feedbackAvailable || Number(recommendationRow.profileGeneration)
-            !== worldData.recommendationProfileGeneration()) return false;
-        feedbackGeneration=worldData.recommendationProfileGeneration();
-        feedbackMenu.keyboardEntry=feedbackButton.activeFocus || root.activeFocus;
-        var options=[];
-        var artistFeedbackRow=recommendationRow.key==="taste-artists"
-            || recommendationRow.key==="saved-artists";
-        if(artistFeedbackRow) {
-            var artistName=String(item.artist || item.title || "this artist");
-            options.push({key:"exclude-current-artist",action:"exclude-artist",
-                label:"Show less from "+artistName,ref:item.ref});
-            options.push({key:"allow-current-artist",action:"allow-artist",
-                label:"Allow "+artistName+" again",ref:item.ref});
-            var suppressed=typeof worldData.suppressedRecommendationsForArtist==="function"
-                ? worldData.suppressedRecommendationsForArtist(item.ref) : [];
-            var suppressedCount=suppressed && Number.isInteger(Number(suppressed.length))
-                ? Math.min(300,Number(suppressed.length)) : 0;
-            for(var suppressedIndex=0;suppressedIndex<suppressedCount && options.length<300;suppressedIndex++) {
-                var entry=suppressed[suppressedIndex];
-                if(!entry || !entry.ref) continue;
-                var suppressedTitle=String(entry.title || "this recommendation").trim();
-                if(entry.hidden===true && options.length<300)
-                    options.push({key:"unhide-suppressed-"+suppressedIndex,action:"unhide",
-                        label:"Show "+suppressedTitle+" again",ref:entry.ref});
-                if(entry.snoozed===true && options.length<300)
-                    options.push({key:"unsnooze-suppressed-"+suppressedIndex,action:"unsnooze",
-                        label:"Stop hiding "+suppressedTitle+" for 7 days",ref:entry.ref});
-                if(entry.excluded!==true || options.length>=300) continue;
-                var excludedArtists=Array.isArray(entry.excludedArtistRefs) ? entry.excludedArtistRefs : [];
-                var validExcludedCount=0;
-                for(var excludedIndex=0;excludedIndex<excludedArtists.length && options.length<300;excludedIndex++) {
-                    var excluded=excludedArtists[excludedIndex];
-                    if(!excluded || !excluded.ref || excluded.ref.identity!=="provider"
-                        || excluded.ref.kind!=="artist" || !excluded.ref.providerId || !excluded.ref.itemId) continue;
-                    var excludedName=String(excluded.name || "").trim();
-                    if(!excludedName && typeof worldData.recommendationRefsEqual==="function"
-                        && worldData.recommendationRefsEqual(excluded.ref,item.ref))
-                        excludedName=artistName;
-                    if(!excludedName) continue;
-                    validExcludedCount++;
-                    options.push({key:"allow-excluded-artist-"+suppressedIndex+"-"+excludedIndex,
-                        action:"allow-artist",label:"Allow "+excludedName+" again (from "+suppressedTitle+")",
-                        ref:excluded.ref});
-                }
-                if(validExcludedCount===0 && entry.ref.kind==="artist" && options.length<300) {
-                    var excludedRefName=String(entry.title || artistName).trim();
-                    options.push({key:"allow-excluded-artist-"+suppressedIndex+"-0",
-                        action:"allow-artist",label:"Allow "+excludedRefName+" again (from "+suppressedTitle+")",
-                        ref:entry.ref});
-                }
-            }
-        } else {
-            options=[
-                {key:"like",action:"like",label:"Like this recommendation",ref:item.ref},
-                {key:"dislike",action:"dislike",label:"Dislike this recommendation",ref:item.ref},
-                {key:"neutral",action:"neutral",label:"Clear feedback",ref:item.ref},
-                {key:"hide",action:"hide",label:"Hide this recommendation",ref:item.ref},
-                {key:"unhide",action:"unhide",label:"Show this recommendation again",ref:item.ref},
-                {key:"snooze-7d",action:"snooze-7d",label:"Hide for 7 days",ref:item.ref},
-                {key:"unsnooze",action:"unsnooze",label:"Stop hiding for 7 days",ref:item.ref}
-            ];
-        }
-        var artists=root.item ? root.item.artistRefs : null;
-        var artistCount=!artistFeedbackRow && artists && Number.isInteger(Number(artists.length))
-            ? Number(artists.length) : 0;
-        for(var index=0;index<artistCount;index++) {
-            var artist=artists[index];
-            var ref=worldData.recommendationArtistRef(artist);
-            if(!ref) continue;
-            var name=String(artist.name || artist.title || "").trim();
-            if(!name) continue;
-            options.push({key:"exclude-artist-"+index,action:"exclude-artist",
-                label:"Show less from "+name,ref:ref});
-            options.push({key:"allow-artist-"+index,action:"allow-artist",
-                label:"Allow "+name+" again",ref:ref});
-        }
-        feedbackOptions=options;
-
-        var overlay=Overlay.overlay;
-        var viewportOrigin=pageFlick.mapToItem(overlay,0,0);
-        var anchor=feedbackButton.mapToItem(overlay,0,feedbackButton.height+6);
-        var viewportWidth=pageFlick.width;
-        var viewportHeight=pageFlick.height;
-        feedbackMenuMaxHeight=Math.max(80,Math.min(360,viewportHeight-16));
-        var menuWidth=feedbackMenu.width;
-        var pageX=Math.max(0,Math.min(viewportWidth-menuWidth,
-            feedbackButton.mapToItem(pageFlick,0,0).x+feedbackButton.width-menuWidth));
-        feedbackMenu.x=viewportOrigin.x+pageX;
-        var below=anchor.y+feedbackMenu.height<=viewportOrigin.y+viewportHeight-8;
-        feedbackMenu.y=below ? anchor.y : Math.max(viewportOrigin.y+8,
-            feedbackButton.mapToItem(overlay,0,0).y-feedbackMenu.height-6);
-        feedbackMenu.open();
-        return true;
+    function openRecommendationActions() {
+        return feedbackAvailable && typeof worldData.requestRecommendationActions==="function"
+            && worldData.requestRecommendationActions(item,recommendationRow);
+    }
+    function submitFeedback(action) {
+        if(!quickFeedbackAvailable || ["like","hide"].indexOf(action)<0
+            || Number(recommendationRow.profileGeneration)!==worldData.recommendationProfileGeneration()) return false;
+        if(worldData.setRecommendationFeedback(item.ref,action,Number(recommendationRow.profileGeneration))) return true;
+        feedbackError=worldData.persistenceError || qsTr("Could not save feedback. Try again.");
+        return false;
     }
 
     Theme { id: theme }
-    RoundedPosterImage {
+    Loader {
         id: art
         objectName: root.objectName + "_cover"
         width: root.width
-        height: width / (root.item.aspect || 1)
-        radius: root.item.round ? width / 2 : 13
-        sources: root.worldData && root.item && root.worldData.artwork(root.item.cover)
-            ? [root.worldData.artwork(root.item.cover)] : []
-        hovered: root.interactionActive
+        height: status === Loader.Ready ? (item as Item).implicitHeight : width
+        sourceComponent: root.presentationKind === "songs" ? songArt
+            : root.presentationKind === "albums" ? albumArt
+            : root.presentationKind === "artists" ? artistArt
+            : root.presentationKind === "mixes" ? mixArt
+            : root.presentationKind === "radio" ? radioArt : ordinaryArt
     }
+    Component { id: songArt; VinylSongWidget {
+        artworkSource: root.artworkSource; title: root.item.title; artist: root.artistText
+        displayFont: theme.display; uiFont: theme.ui
+    } }
+    Component { id: albumArt; VinylAlbumWidget { artworkSource: root.artworkSource; title: root.item.title } }
+    Component { id: artistArt; VinylArtistWidget {
+        artworkSource: root.artworkSource; title: root.item.title; displayFont: theme.display
+    } }
+    Component { id: mixArt; VinylMixWidget { artworkSources: root.mixArtworkSources; title: root.item.title } }
+    Component { id: radioArt; VinylRadioWidget { artworkSource: root.artworkSource; title: root.item.title } }
+    Component { id: ordinaryArt; RoundedPosterImage {
+        implicitHeight: width / (root.item.aspect || 1)
+        radius: root.item.round ? width / 2 : 13
+        sources: root.artworkSource ? [root.artworkSource] : []
+        hovered: root.interactionActive
+    } }
     Column {
         id: copy
+        objectName: root.objectName + "_caption"
         y: art.height + 14
         width: parent.width
-        spacing: 6
+        spacing: 4
         Text {
+            objectName: root.objectName + "_captionTitle"
             width: parent.width
-            text: root.item.title
+            height: 20
+            text: root.captionTitle
             textFormat: Text.PlainText
             color: theme.ink
             font.family: theme.ui
             font.pixelSize: 15
             font.weight: Font.DemiBold
-            wrapMode: Text.WordWrap
-            maximumLineCount: 2
+            maximumLineCount: 1
             elide: Text.ElideRight
         }
         Text {
+            objectName: root.objectName + "_captionDetail"
             width: parent.width
-            visible: text.length > 0
-            text: root.item.unavailable ? "Unavailable" : root.reason || root.item.subtitle || ""
+            height: 18
+            text: root.captionDetail
             textFormat: Text.PlainText
-            color: theme.inkDim
+            color: root.reason ? theme.gold : theme.inkDim
             font.family: theme.ui
             font.pixelSize: 12
-            wrapMode: Text.WordWrap
-            maximumLineCount: 3
+            maximumLineCount: 1
             elide: Text.ElideRight
             lineHeight: 1.25
         }
+        Text {
+            width: parent.width
+            visible: root.feedbackError.length > 0
+            text: root.feedbackError
+            textFormat: Text.PlainText
+            color: theme.ink
+            font.family: theme.ui; font.pixelSize: 12
+            wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
+        }
     }
 
-    KeyboardAction {
-        id: feedbackButton
-        objectName: "vinylRecommendationActions_" + String(root.item.id || "item")
-        tooltipText: qsTr("Feedback options")
-        x: art.width-width-7
-        y: 7
+    VinylFeedbackBadge {
+        id: likeBadge
+        objectName: "vinylRecommendationLike_" + String(root.item.id || "item")
+        x: 9; y: 9
         z: 2
-        width: 36
-        height: 36
-        visible: root.feedbackAvailable
+        visible: root.quickFeedbackAvailable
         enabled: visible && root.enabled
-        focusOnPointer: false
-        contextEnabled: enabled
-        focusRadius: 11
-        accessibleName: (root.recommendationRow && (root.recommendationRow.key === "taste-artists"
-                || root.recommendationRow.key === "saved-artists")
-            ? "Artist feedback options for " : "More recommendation options for ") + root.item.title
-        accessibleDescription: "Choose how recommendations learn from this item."
-        onTriggered: root.openFeedbackMenu()
-        onContextRequested: root.openFeedbackMenu()
-        Glass {
-            anchors.fill: parent
-            backdrop: root.backdrop
-            radius: 11
-            tint: feedbackButton.interactionActive ? 0.18 : 0.08
-            scrim: 0.74
-        }
-        Row {
-            anchors.centerIn: parent
-            spacing: 3
-            Repeater {
-                model: 3
-                delegate: Rectangle {
-                    required property int index
-                    width: 3
-                    height: 3
-                    radius: 2
-                    color: theme.ink
-                    opacity: feedbackButton.interactionActive ? 1 : 0.8
-                }
-            }
-        }
+        revealed: root.feedbackRevealed
+        symbol: "check"
+        accessibleName: qsTr("More like %1").arg(root.item.title)
+        onTriggered: root.submitFeedback("like")
     }
-
-    Popup {
-        id: feedbackMenu
-        property bool keyboardEntry: false
-        objectName: "vinylRecommendationFeedbackMenu_" + String(root.item.id || "item")
-        parent: Overlay.overlay
-        focus: true
-        padding: 12
-        width: Math.max(80,Math.min(280,root.pageFlick ? root.pageFlick.width-16 : 260))
-        height: Math.min(root.feedbackMenuMaxHeight,menuActions.implicitHeight+24)
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        background: Glass { backdrop: root.backdrop; radius: 16; tint: 0.12; scrim: 0.64 }
-        onOpened: {
-            if(!keyboardEntry) { menuActions.forceActiveFocus(Qt.PopupFocusReason); return; }
-            var first=feedbackRepeater.itemAt(0);
-            if(first && first.enabled) first.forceActiveFocus(Qt.PopupFocusReason);
-        }
-        onClosed: if(keyboardEntry && root.visible && feedbackButton.visible && feedbackButton.enabled)
-            feedbackButton.forceActiveFocus(Qt.TabFocusReason)
-        contentItem: Flickable {
-            id: menuScroll
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
-            contentHeight: menuActions.implicitHeight
-            Column {
-                id: menuActions
-                width: menuScroll.width
-                spacing: 5
-                Keys.onPressed: event => {
-                    if([Qt.Key_Down,Qt.Key_Up,Qt.Key_Tab].indexOf(event.key)<0)return;
-                    var at=event.key===Qt.Key_Up ? feedbackRepeater.count-1 : 0;
-                    var target=feedbackRepeater.itemAt(at);
-                    if(target)target.forceActiveFocus(Qt.TabFocusReason);
-                    event.accepted=true;
-                }
-                Repeater {
-                    id: feedbackRepeater
-                    model: root.feedbackOptions
-                    delegate: KeyboardAction {
-                        id: menuAction
-                        required property var modelData
-                        required property int index
-                        width: menuActions.width
-                        height: Math.max(38,actionLabel.implicitHeight+12)
-                        focusOnPointer: false
-                        focusRadius: 9
-                        accessibleName: modelData.label
-                        objectName: "vinylFeedbackAction_" + modelData.key
-                        KeyNavigation.up: index>0 ? feedbackRepeater.itemAt(index-1) : null
-                        KeyNavigation.down: index+1<feedbackRepeater.count
-                            ? feedbackRepeater.itemAt(index+1) : null
-                        onActiveFocusChanged: if(activeFocus) {
-                            if(y<menuScroll.contentY) menuScroll.contentY=y;
-                            else if(y+height>menuScroll.contentY+menuScroll.height)
-                                menuScroll.contentY=y+height-menuScroll.height;
-                        }
-                        onTriggered: {
-                            // Applying feedback can replace this delegate immediately.
-                            var data=root.worldData,ref=modelData.ref,action=modelData.action;
-                            var generation=root.feedbackGeneration;
-                            feedbackMenu.close();
-                            data.setRecommendationFeedback(ref,action,generation);
-                        }
-                        Glass {
-                            anchors.fill: parent
-                            backdrop: root.backdrop
-                            radius: 9
-                            tint: 0.06
-                            scrim: menuAction.interactionActive ? 0.24 : 0.08
-                        }
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: 9
-                            color: menuAction.interactionActive ? theme.glassTint : "transparent"
-                        }
-                        Text {
-                            id: actionLabel
-                            anchors.fill: parent
-                            anchors.leftMargin: 12
-                            anchors.rightMargin: 12
-                            verticalAlignment: Text.AlignVCenter
-                            text: modelData.label
-                            textFormat: Text.PlainText
-                            color: theme.ink
-                            font.family: theme.ui
-                            font.pixelSize: 13
-                            wrapMode: Text.WordWrap
-                            maximumLineCount: 2
-                            elide: Text.ElideRight
-                        }
-                    }
-                }
-            }
-        }
+    VinylFeedbackBadge {
+        id: hideBadge
+        objectName: "vinylRecommendationHide_" + String(root.item.id || "item")
+        x: art.width-width-9; y: 9
+        z: 2
+        visible: root.quickFeedbackAvailable
+        enabled: visible && root.enabled
+        revealed: root.feedbackRevealed
+        symbol: "cancel"
+        accessibleName: qsTr("Hide %1").arg(root.item.title)
+        onTriggered: root.submitFeedback("hide")
     }
 
     Timer {
@@ -360,14 +208,14 @@ KeyboardAction {
     Connections {
         target: root.worldData ? root.worldData.session : null
         ignoreUnknownSignals: true
-        function onProfileGenerationChanged() { feedbackMenu.close(); root.scheduleExposureCheck() }
+        function onProfileGenerationChanged() { root.feedbackError=""; root.scheduleExposureCheck() }
     }
     onVisibleChanged: scheduleExposureCheck()
     onXChanged: scheduleExposureCheck()
     onYChanged: scheduleExposureCheck()
     onWidthChanged: scheduleExposureCheck()
     onHeightChanged: scheduleExposureCheck()
-    onItemChanged: scheduleExposureCheck()
+    onItemChanged: {feedbackError="";scheduleExposureCheck();}
     onRecommendationRowChanged: scheduleExposureCheck()
     onHomePageVisibleChanged: scheduleExposureCheck()
     onExposureRevisionChanged: scheduleExposureCheck()

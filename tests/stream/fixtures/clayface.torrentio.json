@@ -1,0 +1,145 @@
+{
+  "streams": [
+    {
+      "name": "Torrentio\nCAM",
+      "title": "Clayface.2026.CAM .1080p.FR.EN-OnlyFlix\n👤 435 💾 4.59 GB ⚙️ ThePirateBay\n🇬🇧 / 🇫🇷",
+      "infoHash": "3f0084def639d54b818fb6a0b48f40ef428f0693",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|CAM",
+        "filename": "Clayface.2026.camrip.1080p.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nCAM",
+      "title": "Clayface 2026 1080p CAM x264-OnlyFlix\n👤 46 💾 437.92 MB ⚙️ EXT",
+      "infoHash": "3a760ded108e8ceb88ec7d1bb52fdd0e81ff90d9",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|CAM|x264",
+        "filename": "Clayface 2026 1080p CAM x264-OnlyFlix.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\nTeleSync",
+      "title": "Clayface.2026.1080p.TELESYNC.DL.x264-CLEANUP\n👤 27 💾 5.2 GB ⚙️ EXT",
+      "infoHash": "5b0af600695907db3201d983bb78a5d3df4a538d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|TeleSync|x264",
+        "filename": "Clayface.2026.1080p.TELESYNC.DL.x264-CLEANUP.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nTeleSync",
+      "title": "Clayface.2026.TS.1080p.MULTi\n👤 14 💾 4.59 GB ⚙️ EXT\nMulti Audio",
+      "infoHash": "4604bfff3cf576cb9a8963e5777cb074ed2d74d8",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|TeleSync",
+        "filename": "Clayface.2026.TS.1080p.MULTi.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nCAM",
+      "title": "Clayface.2026.CAM.FR.EN-OnlyFlix\n👤 8 💾 862.03 MB ⚙️ ThePirateBay\n🇬🇧 / 🇫🇷",
+      "infoHash": "f5871517cb9f9b09a846e321b6ffeb651396d986",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|CAM",
+        "filename": "Clayface.2026.camrip.360p.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\nTeleSync",
+      "title": "CLAYFACE (2026) 1080p TELESYNC HEVC [Ukr Dub]\n👤 7 💾 5.89 GB ⚙️ ThePirateBay\n🇺🇦",
+      "infoHash": "e5f94b3a9bda9864ce140ada9bdebed8093ff5df",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|TeleSync|hevc",
+        "filename": "Clayface 1080.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nTeleCine",
+      "title": "Clayface.2026 HDTC Hindi 1080p 1.3GB\n👤 6 💾 1.35 GB ⚙️ EXT\n🇮🇳",
+      "infoHash": "be2957da74eb65622138972a8a7a57b1bf46e0a1",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|TeleCine",
+        "filename": "Clayface.2026.[Bolly4u.org] HDTC Hindi 1080p 1.3GB.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nCAM",
+      "title": "Clayface.2026.CAM .720p.FR.EN-OnlyFlix\n👤 6 💾 1.77 GB ⚙️ ThePirateBay\n🇬🇧 / 🇫🇷",
+      "infoHash": "ffa76a9755ac730254395a576aa9524f60dd7adb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|CAM",
+        "filename": "Clayface.2026.camrip.720p.mp4"
+      }
+    },
+    {
+      "name": "Torrentio\nTeleSync",
+      "title": "Clayface.2026.TS.1080p.DMS\n👤 2 💾 4.31 GB ⚙️ EXT",
+      "infoHash": "ac73590dd4241ea6a8d59670189718cee6b7eccd",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|TeleSync",
+        "filename": "Clayface.2026.TS.1080p.DMS.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nTeleSync",
+      "title": "Clayface.2026.TS.1080p.Dragon.Money.Studio\n👤 2 💾 4.45 GB ⚙️ EXT",
+      "infoHash": "4f2c67264d3fb1b1710dbd1bc842ad9407e4a142",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|TeleSync",
+        "filename": "Clayface.2026.TS.1080p.Dragon.Money.Studio.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nCAM",
+      "title": "Clayface.2026.720p.HDCAM.MD.HUN-D3MON\n👤 1 💾 1.87 GB ⚙️ EXT\n🇭🇺",
+      "infoHash": "f92b24e0caff60476e75d7629627ad14069cf121",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|CAM"
+      }
+    },
+    {
+      "name": "Torrentio\nTeleCine",
+      "title": "Clayface.2026 HDTC Hindi 720p 700MB\n👤 1 💾 728.76 MB ⚙️ EXT\n🇮🇳",
+      "infoHash": "a2e2e22029645208c353ba96b7ddefae3df8269b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|TeleCine",
+        "filename": "Clayface.2026.[Bolly4u.org] HDTC Hindi 720p 700MB.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nTeleSync",
+      "title": "Clayface.2026.D.TS.1080p\n👤 1 💾 3.73 GB ⚙️ EXT",
+      "infoHash": "85f4f55fd89aefaf808003e88b5c9717e4042a8c",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|TeleSync",
+        "filename": "Clayface.2026.D.TS.1O8Op.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\nTeleSync",
+      "title": "Clayface.2026.TS.1080p\n👤 1 💾 4.59 GB ⚙️ EXT",
+      "infoHash": "a442870e464717b1f5158731992c4f4be666db6b",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|TeleSync",
+        "filename": "Clayface.2026.TS.1080p.mkv"
+      }
+    }
+  ],
+  "cacheMaxAge": 3600,
+  "staleRevalidate": 14400,
+  "staleError": 604800
+}

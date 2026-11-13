@@ -115,6 +115,8 @@ struct VinylBackendSession::Backend {
     std::unique_ptr<ListenEventLedger> listens;
     std::unique_ptr<ListenEventRecorder> listenRecorder;
     qint64 projectedListeningMs=0;
+    double preparationPosition=-1;
+    bool preparationProgressed=false;
     explicit Backend(VinylBackendSession &owner):ports(owner),commands(ports,timeState),
         adapter(session,commands),coordinator(queue,session,adapter,ports),callbacks(adapter,timeState) {}
 };
@@ -135,6 +137,7 @@ VinylBackendSession::VinylBackendSession(QObject *parent)
             m_backend->physicalSeek.reset();
             if(!tryFallback("Torrent audio seek did not complete.",target))fail("The seek did not complete. Retry this track.");
         }
+        updatePreparation();
         const auto now=monotonicMs();
         if(m_sourceKind=="torrent"&&m_loaded&&m_state=="playing") {
             const auto at=position();
@@ -142,9 +145,10 @@ VinylBackendSession::VinylBackendSession(QObject *parent)
             else if(now-m_lastProgressMs>15000)tryFallback("Torrent audio stalled.");
         }
     });
+    connect(this,&VinylBackendSession::queueChanged,this,[this]{updatePreparation();});
     m_deadline.start();
 }
-VinylBackendSession::~VinylBackendSession() { m_shutdown=true;cancelResolution();retirePlayer(); }
+VinylBackendSession::~VinylBackendSession() { m_shutdown=true;cancelResolution();invalidatePlaybackTransport();retirePlayer(); }
 void VinylBackendSession::publishState() {
     emit stateChanged();
     // QML aliases observe every native NOTIFY emission, even for equal values.
@@ -158,11 +162,12 @@ bool VinylBackendSession::seekPending() const {return m_backend->session.pending
 void VinylBackendSession::setSource(QObject *source) {
     if(m_source==source)return;
     suspend();
+    invalidatePlaybackTransport();
     if(m_source)disconnect(m_source,nullptr,this,nullptr);
     m_source=source;
     if(m_source)connect(m_source,SIGNAL(completed(QString,int,QVariant,QString)),
-                       this,SLOT(sourceCompleted(QString,int,QVariant,QString)),Qt::QueuedConnection);
-    emit sourceChanged();
+                       this,SLOT(sourceCompleted(QString,int,QVariant,QString)),Qt::AutoConnection);
+    warmPlayback();emit sourceChanged();
 }
 void VinylBackendSession::setVideoSurface(QObject *surface) {
     if(m_videoSurface==surface)return;
@@ -184,11 +189,24 @@ void VinylBackendSession::attachVideoSurface() {
     m_player->setSize(m_videoActive&&m_videoSurface&&target?target->size():QSizeF(1,1));
     m_player->setVisible(m_videoActive&&m_videoSurface&&target&&target->isVisible());
 }
+void VinylBackendSession::invalidatePlaybackTransport() {
+    if(m_source&&m_source->metaObject()->indexOfMethod("invalidatePlaybackTransport()")>=0)
+        QMetaObject::invokeMethod(m_source,"invalidatePlaybackTransport",Qt::DirectConnection);
+}
+void VinylBackendSession::warmPlayback() {
+    if(!m_shutdown&&m_profileActive&&m_source&&m_source->metaObject()->indexOfMethod("warmPlayback()")>=0)
+        QMetaObject::invokeMethod(m_source,"warmPlayback",Qt::DirectConnection);
+}
 void VinylBackendSession::setProfileScope(const QString &profile) {
-    if(m_profile==profile){m_profileActive=ProfileScopeId::parse(profile).ok();return;}
+    if(m_profile==profile){
+        const bool wasActive=m_profileActive;
+        m_profileActive=ProfileScopeId::parse(profile).ok();
+        if(!wasActive&&m_profileActive)warmPlayback();
+        return;
+    }
     clearProfile();m_profile=profile;
     m_profileActive=ProfileScopeId::parse(profile).ok();
-    emit profileScopeChanged();publishState();
+    warmPlayback();emit profileScopeChanged();publishState();
 }
 void VinylBackendSession::setRadioContext(const QVariantMap &context) {
     QVariantMap normalized;
@@ -276,7 +294,7 @@ void VinylBackendSession::playQueue(int index) {
         && index!=activeIndex() && !m_naturalAdvancing && !m_navigationBack?"skip":"stop");
     m_listeningOrigin=m_naturalAdvancing
         ?(m_radioContext.isEmpty()?"album-continuation":"radio"):"manual";
-    cancelResolution();
+    cancelResolution(m_backend->queue.items()[index].occurrenceId().value());
     if(!m_backend->coordinator.stop().ok){fail("The previous queue occurrence could not be retired.");return;}
     m_backend->queue.activate(m_backend->queue.items()[index].occurrenceId());emit queueChanged();beginActive();
 }
@@ -320,11 +338,13 @@ void VinylBackendSession::cycleRepeat() {
     if(m_shutdown||!m_profileActive)return;
     m_repeat=m_repeat=="off"?"all":m_repeat=="all"?"one":"off";
     m_backend->coordinator.setRepeatMode(m_repeat=="all"?CoordinatorRepeatMode::Queue:CoordinatorRepeatMode::Off);
+    discardPreparation();updatePreparation();
     publishState();
 }
 void VinylBackendSession::beginActive(double seconds,bool play,bool fallback) {
     if(m_shutdown||!m_profileActive||!m_backend->queue.activeOccurrence())return;
     resetVideo();
+    m_backend->preparationPosition=-1;m_backend->preparationProgressed=false;
     m_resume=seconds;m_duration=activeRow().value("seconds").toDouble();m_paused=!play;
     m_error.clear();m_state="finding";m_backend->input.reset();
     m_forceFallback=fallback;
@@ -337,6 +357,18 @@ void VinylBackendSession::beginActive(double seconds,bool play,bool fallback) {
 std::optional<PlaybackLoadInput> VinylBackendSession::inputFor(const QueueOccurrence &item) {
     if(m_backend->input)return m_backend->input;
     if(m_request>=0)return std::nullopt;
+    if(!m_preparedResource.isEmpty()) {
+        const auto row=m_rows.value(item.occurrenceId().value());
+        if(m_preparationEnabled&&m_preparationSource==m_source&&m_preparationProfile==m_profile
+            &&row==m_preparationRow&&validPreparedResource(m_preparedResource,row)) {
+            const auto resource=m_preparedResource;
+            discardPreparation();++m_preparationHits;m_preparationStatus="consumed";emit preparationChanged();
+            m_resolvingId=item.occurrenceId().value();
+            m_preparedAudioActive=true;acceptAudioResource(resource,{});return m_backend->input;
+        }
+    }
+    if(m_preparationEnabled){++m_preparationMisses;emit preparationChanged();}
+    discardPreparation();
     const auto generation=m_epoch;
     m_resolvingId=item.occurrenceId().value();
     QTimer::singleShot(0,this,[this,generation,id=m_resolvingId] {
@@ -375,11 +407,33 @@ std::optional<PlaybackLoadInput> VinylBackendSession::inputFor(const QueueOccurr
     return std::nullopt;
 }
 void VinylBackendSession::sourceCompleted(const QString &lane,int request,const QVariant &data,const QString &error) {
-    if(sender()!=m_source||m_shutdown||!m_profileActive)return;
+    const QPointer<QObject> owner=sender();
+    // AutoConnection keeps this slot on its owner thread. Snapshot GUI
+    // emissions before the queued acceptance can observe a retired request.
+    const auto epoch=m_epoch,serial=m_torrentSerial;
+    QMetaObject::invokeMethod(this,[this,owner,epoch,serial,lane,request,data,error] {
+        if(owner!=m_source||epoch!=m_epoch||(lane=="play"&&serial!=m_torrentSerial)||m_shutdown||!m_profileActive)return;
+        acceptSourceCompleted(lane,request,data,error);
+    },Qt::QueuedConnection);
+}
+void VinylBackendSession::acceptSourceCompleted(const QString &lane,int request,const QVariant &data,const QString &error) {
+    if(lane=="prepare-next") {
+        if(request<0||request!=m_preparationRequest||m_preparationGeneration!=m_epoch
+            ||m_preparationSource!=m_source||m_preparationProfile!=m_profile)return;
+        m_preparationRequest=-1;m_preparationElapsed=monotonicMs()-m_preparationStarted;
+        if(error.isEmpty()&&validPreparedResource(data.toMap(),m_preparationRow)) {
+            m_preparedResource=data.toMap();m_preparationStatus="ready";
+        }else m_preparationStatus="failed";
+        emit preparationChanged();return;
+    }
+    if(lane=="play"&&request>=0&&request==m_torrentRequest) {torrentCompleted(data.toMap(),error);return;}
     if(lane=="video-match"||lane=="video-stream"){videoCompleted(lane,request,data.toMap(),error);return;}
     if(lane!="play"||request<0||request!=m_request)return;
     m_request=-1;
-    const auto *active=m_backend->queue.activeOccurrence();const auto result=data.toMap();
+    acceptAudioResource(data.toMap(),error);
+}
+void VinylBackendSession::acceptAudioResource(const QVariantMap &result,const QString &error) {
+    const auto *active=m_backend->queue.activeOccurrence();
     if(!active||active->occurrenceId().value()!=m_resolvingId)return;
     if(!error.isEmpty()||result.value("trackId")!=activeRow().value("trackId")) {
         fail(error.isEmpty()?"The source did not match this track.":error);return;
@@ -398,11 +452,142 @@ void VinylBackendSession::sourceCompleted(const QString &lane,int request,const 
     if(!started.ok)fail("The audio could not start.");
     publishState();
 }
-void VinylBackendSession::cancelResolution() {
+bool VinylBackendSession::torrentAvailable() const {
+    return !m_shutdown&&m_profileActive&&m_source&&m_loaded&&m_request<0
+        &&m_sourceKind=="youtube"&&!m_videoActive&&!m_videoBusy
+        &&activeRow().value("edition").toMap().value("origin","local").toString()!="local";
+}
+void VinylBackendSession::findTorrent() {
+    if(torrentBusy()||!torrentAvailable())return;
+    m_torrentError.clear();m_torrentOccurrence=activeRow().value("queueId").toString();
+    m_torrentTrack=activeRow().value("trackId").toString();m_torrentEpoch=m_epoch;
+    const auto serial=++m_torrentSerial;
+    QVariantMap options{{"source","torrent"}};
+    const auto edition=activeRow().value("edition").toMap();
+    const auto browseId=edition.value("browseId",edition.value("sourceAlbum").toMap().value("browseId")).toString();
+    if(!browseId.isEmpty())options.insert("browseId",browseId);
+    m_torrentRequest=requestSource("play","resolve",m_torrentTrack,options);
+    if(m_torrentRequest<0)m_torrentError="Torrent lookup is unavailable. Audio is still playing.";
+    else QTimer::singleShot(120000,this,[this,serial] {
+        if(serial!=m_torrentSerial||!torrentBusy())return;
+        cancelTorrent();m_torrentError="Torrent lookup timed out. Audio is still playing.";publishState();
+    });
+    publishState();
+}
+void VinylBackendSession::cancelTorrent() {
+    const bool pending=torrentBusy();m_torrentRequest=-1;if(pending)++m_torrentSerial;
+    m_torrentOccurrence.clear();m_torrentTrack.clear();m_torrentError.clear();
+    if(pending&&m_source)QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,QString("play")));
+    if(pending)publishState();
+}
+void VinylBackendSession::selectYouTube() {
+    if(m_shutdown||!m_profileActive||!m_source||!m_loaded||m_videoActive||m_videoBusy
+        ||!m_backend->queue.activeOccurrence()
+        ||activeRow().value("edition").toMap().value("origin","local").toString()=="local")return;
+    if(m_sourceKind=="youtube")cancelTorrent();
+    else if(m_sourceKind=="torrent")tryFallback(QString(),position());
+}
+void VinylBackendSession::torrentCompleted(const QVariantMap &resource,const QString &error) {
+    const bool current=m_torrentEpoch==m_epoch&&m_torrentOccurrence==activeRow().value("queueId").toString()
+        &&m_torrentTrack==activeRow().value("trackId").toString();
+    m_torrentRequest=-1;++m_torrentSerial;
+    m_torrentOccurrence.clear();m_torrentTrack.clear();
+    if(!current)return;
+    auto unavailable=[this] {m_torrentError="No exact torrent stream is available. Audio is still playing.";publishState();};
+    if(!error.isEmpty()||resource.value("trackId")!=activeRow().value("trackId")
+        ||resource.value("provider")!="torrent"||!m_loaded||m_videoActive||m_videoBusy){unavailable();return;}
+    QVector<PlaybackRequestHeader> headers;
+    const auto fields=resource.value("headers").toMap();
+    for(auto it=fields.cbegin();it!=fields.cend();++it) {
+        if(it.value().metaType().id()!=QMetaType::QString){unavailable();return;}
+        headers.append({it.key(),it.value().toString()});
+    }
+    const auto input=PlaybackLoadInput::create(resource.value("url").toString(),headers);
+    const auto *active=m_backend->queue.activeOccurrence();
+    if(!input.ok()||!active){unavailable();return;}
+    m_resume=position();m_resumeListeningFacts=bool(m_backend->listenRecorder);
+    if(m_resumeListeningFacts)endListeningFacts(false);
+    m_backend->input=*input.value;m_audioResource=resource;
+    m_quality=resource.value("qualityLabel","Torrent audio").toString();m_sourceKind="torrent";
+    m_fallbackAttempted=false;m_fallbackReason.clear();m_torrentError.clear();m_state="finding";
+    const auto result=m_backend->coordinator.restartActive(active->occurrenceId(),*input.value);
+    if(!result.ok){if(!tryFallback("Torrent audio could not start."))fail("The audio could not start.");}
+    emit discontinuity(m_resume);publishState();
+}
+void VinylBackendSession::cancelResolution(const QString &retainPreparedOccurrence) {
+    discardPreparation(retainPreparedOccurrence);m_preparedAudioActive=false;
+    cancelTorrent();m_torrentError.clear();
     resetVideo();
     ++m_epoch;m_request=-1;m_resolvingId.clear();m_backend->input.reset();
     if(m_source)QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,QString("play")));
 }
+
+bool VinylBackendSession::retryPreparedAudio() {
+    if(!m_preparedAudioActive||m_shutdown||!m_profileActive||activeIndex()<0)return false;
+    m_preparedAudioActive=false;
+    const auto at=position();const bool play=!m_paused;
+    cancelResolution();
+    if(!m_backend->coordinator.stop().ok)return false;
+    retirePlayer();beginActive(at,play);return true;
+}
+void VinylBackendSession::setNextPreparationEnabled(bool enabled) {
+    if(m_preparationEnabled==enabled)return;
+    m_preparationEnabled=enabled;discardPreparation();emit preparationChanged();
+}
+QVariantMap VinylBackendSession::preparationState() const {
+    return {{"clockMs",monotonicMs()},{"listenEvents",m_backend->listens?m_backend->listens->size():0},
+        {"listeningMs",m_backend->listens?m_backend->listens->totalListeningMs():0},
+        {"status",m_preparationStatus},{"requestInFlight",m_preparationRequest>=0},
+        {"ready",!m_preparedResource.isEmpty()},{"occurrenceId",m_preparationRow.value("queueId")},
+        {"starts",m_preparationStarts},{"hits",m_preparationHits},{"misses",m_preparationMisses},
+        {"elapsedMs",m_preparationRequest>=0?monotonicMs()-m_preparationStarted:m_preparationElapsed}};
+}
+void VinylBackendSession::discardPreparation(const QString &retainReadyOccurrence) {
+    const bool changed=m_preparationRequest>=0||!m_preparedResource.isEmpty()||!m_preparationRow.isEmpty()
+        ||m_preparationSource||!m_preparationProfile.isEmpty()||m_preparationStatus!="idle";
+    if(m_preparationRequest>=0&&m_source)
+        QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,QString("prepare-next")));
+    m_preparationRequest=-1;
+    if(!retainReadyOccurrence.isEmpty()&&!m_preparedResource.isEmpty()
+        &&m_preparationRow.value("queueId")==retainReadyOccurrence)return;
+    m_preparedResource.clear();m_preparationRow.clear();m_preparationSource=nullptr;
+    m_preparationProfile.clear();m_preparationStatus="idle";if(changed)emit preparationChanged();
+}
+bool VinylBackendSession::validPreparedResource(const QVariantMap &resource,const QVariantMap &row) const {
+    const auto text=resource.value("url").toString();
+    bool ok=false;const auto expires=QUrlQuery(QUrl(text)).queryItemValue("expire").toLongLong(&ok);
+    const auto expected=selectedTrack(row).value("videoId").toString();
+    if(row.value("track").toMap().value("available",true)==false||!videoResourceUrl(text)||!ok||expires<=QDateTime::currentSecsSinceEpoch()+120
+        ||expected.isEmpty()||resource.value("videoId")!=expected||resource.value("trackId")!=row.value("trackId")
+        ||resource.value("provider")!="youtube")return false;
+    QVector<PlaybackRequestHeader> headers;
+    const auto fields=resource.value("headers").toMap();
+    for(auto it=fields.begin();it!=fields.end();++it)headers.append({it.key(),it.value().toString()});
+    return PlaybackLoadInput::create(text,headers).ok();
+}
+void VinylBackendSession::updatePreparation() {
+    if(!m_preparationEnabled||m_shutdown||!m_profileActive||!m_source)return;
+    if(!m_preparedResource.isEmpty()&&m_preparationRow.value("queueId")==activeRow().value("queueId"))return;
+    int next=activeIndex()+1;
+    if(m_repeat=="one"||activeIndex()<0||m_backend->queue.size()<2){discardPreparation();return;}
+    if(next>=m_backend->queue.size()) {if(m_repeat!="all"){discardPreparation();return;}next=0;}
+    const auto row=m_rows.value(m_backend->queue.items()[next].occurrenceId().value());
+    if(!m_preparationRow.isEmpty()&&m_preparationRow!=row)discardPreparation();
+    if(!m_preparationRow.isEmpty())return; // one attempt per candidate; failure cannot spin/retry
+    if(!m_loaded||m_paused||m_state!="playing"||seekPending()||!m_backend->preparationProgressed||position()<0.25)return;
+    const auto edition=row.value("edition").toMap();
+    if(row.value("track").toMap().value("available",true)==false||edition.value("origin","local")=="local"||!QRegularExpression("^[A-Za-z0-9_-]{11}$").match(selectedTrack(row).value("videoId").toString()).hasMatch())return;
+    m_preparationRow=row;m_preparationSource=m_source;m_preparationProfile=m_profile;
+    m_preparationGeneration=m_epoch;m_preparationStarted=monotonicMs();m_preparationElapsed=0;
+    QVariantMap options{{"source","youtube"}};
+    const auto browseId=edition.value("browseId",edition.value("sourceAlbum").toMap().value("browseId")).toString();
+    if(!browseId.isEmpty())options["browseId"]=browseId;
+    ++m_preparationStarts;m_preparationStatus="preparing";
+    m_preparationRequest=requestSource("prepare-next","resolve",row.value("trackId").toString(),options);
+    if(m_preparationRequest<0)m_preparationStatus="failed";
+    emit preparationChanged();
+}
+
 void VinylBackendSession::resetVideo() {
     m_videoMatchRequest=-1;m_videoRequest=-1;m_videoOccurrence.clear();
     m_videoCandidate.clear();m_audioResource.clear();m_videoAudioUrl.clear();m_videoError.clear();
@@ -468,7 +653,7 @@ bool VinylBackendSession::videoSwitchCancellable() const {
         &&!resourceExpired(m_audioResource.value("url").toString());
 }
 void VinylBackendSession::toggleVideo() {
-    if(m_shutdown||!m_profileActive)return;
+    if(m_shutdown||!m_profileActive||torrentBusy())return;
     if(m_videoBusy&&m_videoRequest>=0) {
         if(!videoSwitchCancellable())return;
         QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,QString("video-stream")));
@@ -515,7 +700,7 @@ bool VinylBackendSession::commitVideoMode(bool video,const QVariantMap &resource
     const auto input=PlaybackLoadInput::create(url,headers);if(!input.ok())return false;
     // Capture the latest intent when resolution finishes, not when it begins.
     // The queue occurrence and durable listening session do not change.
-    m_resume=position();m_resumeListeningFacts=bool(m_backend->listenRecorder);
+    m_resume=position();m_resumeListeningFacts=m_resumeListeningFacts||bool(m_backend->listenRecorder);
     if(m_resumeListeningFacts)endListeningFacts(false);
     m_videoActive=video;m_videoBusy=true;m_videoAudioUrl=video?audio:QString();
     m_backend->input=*input.value;m_quality=resource.value("qualityLabel").toString();
@@ -572,7 +757,7 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
                 }
             }
             if(!m_backend->coordinator.engineLoaded(token).ok)return;
-            m_loaded=true;m_state="playing";m_videoBusy=false;
+            m_loaded=true;m_state="playing";m_videoBusy=false;m_preparedAudioActive=false;
             m_lastProgress=0;m_lastProgressMs=monotonicMs();
             if(std::isfinite(duration)&&duration>0){m_duration=duration;m_backend->callbacks.durationObserved(token,duration);}
             m_resume=std::clamp(m_resume,0.0,std::max(0.0,m_duration-0.1));
@@ -595,7 +780,7 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
         }else if(kind.startsWith("ended-")){
             auto work=m_backend->entries.tokenFor(entry);if(!work||*work!=token)return;
             if(kind=="ended-eof")naturalEnd(*work);
-            else if(kind=="ended-error"&&!tryFallback("Torrent audio could not be decoded or played."))fail("The audio could not be decoded or played. Retry this track.");
+            else if(kind=="ended-error"&&!retryPreparedAudio()&&!tryFallback("Torrent audio could not be decoded or played."))fail("The audio could not be decoded or played. Retry this track.");
         }
     });
     connect(item,&MpvItem::trackedSeekReply,this,[this,item,token](quint64 serial,bool success,quint64 load,quint64 observationFence) {
@@ -619,7 +804,11 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
     });
     connect(item,&MpvItem::positionChanged,this,[this,item,token,generation] {
         if(m_player!=item||generation!=m_epoch||!m_loaded)return;
-        m_backend->callbacks.positionObserved(token,item->position());publishState();
+        const auto at=item->position();
+        if(!m_paused&&m_backend->preparationPosition>=0&&at>m_backend->preparationPosition+0.05)
+            m_backend->preparationProgressed=true;
+        m_backend->preparationPosition=at;
+        m_backend->callbacks.positionObserved(token,at);publishState();
     });
     connect(item,&MpvItem::durationChanged,this,[this,item,token,generation] {
         if(m_player!=item||generation!=m_epoch||!m_loaded||item->duration()<=0)return;
@@ -633,7 +822,7 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
         }
     });
     connect(item,&MpvItem::playbackError,this,[this,item,generation](const QString &,const QString &) {
-        if(m_player==item&&generation==m_epoch&&!tryFallback("Torrent audio could not be decoded or played."))fail("The audio could not be decoded or played. Retry this track.");
+        if(m_player==item&&generation==m_epoch&&!retryPreparedAudio()&&!tryFallback("Torrent audio could not be decoded or played."))fail("The audio could not be decoded or played. Retry this track.");
     });
     QVariantMap fields;for(const auto &header:headers)fields.insert(header.name,header.value);
     // This first host adapter admits whole local files. Never silently discard a
@@ -672,11 +861,20 @@ void VinylBackendSession::setPaused(const PlaybackWorkToken &,bool paused) {
 bool VinylBackendSession::tryFallback(const QString &reason,std::optional<double> resume) {
     if(m_videoActive&&!m_shutdown&&m_profileActive&&activeIndex()>=0) {
         m_videoError="The video could not play. Returning to audio.";
+        // Repeated errors must not replace an in-flight audio recovery.
+        if(m_videoRequest>=0&&!m_targetVideo)return true;
+        const auto superseded=m_videoRequest;m_videoRequest=-1;
+        if(superseded>=0&&m_source)
+            QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,QString("video-stream")));
         // The old audio input is transient and was already validated by its owner.
         // Expired signed resources are resolved again while the queue stays put.
         if(!m_audioResource.isEmpty()&&!resourceExpired(m_audioResource.value("url").toString()))
             return commitVideoMode(false,m_audioResource);
-        if(!m_videoBusy)resolveVideoMode(false);
+        m_resume=resume.value_or(position());
+        m_resumeListeningFacts=m_resumeListeningFacts||bool(m_backend->listenRecorder);
+        if(m_backend->listenRecorder)endListeningFacts(false);
+        retirePlayer();m_state="finding";
+        resolveVideoMode(false);
         return m_videoBusy;
     }
     if(m_shutdown||!m_profileActive||m_sourceKind!="torrent"||m_fallbackAttempted||activeIndex()<0)return false;
@@ -754,18 +952,20 @@ void VinylBackendSession::fail(const QString &message) {
     if(m_player)m_player->setPause(true);publishState();
 }
 void VinylBackendSession::retry() { if(activeIndex()>=0){const auto at=position();cancelResolution();
+    if(m_state=="error"&&m_sourceKind=="youtube")invalidatePlaybackTransport();
     if(!m_backend->coordinator.stop().ok){fail("The previous queue occurrence could not be retired.");return;}beginActive(at);} }
 void VinylBackendSession::suspend() {
     const auto at=position();endPlayback("stop");cancelResolution();m_backend->coordinator.stop();retirePlayer();
     m_resume=at;m_paused=true;m_state=activeIndex()>=0?"paused":"idle";publishState();
 }
 void VinylBackendSession::clearProfile() {
-    suspend();m_backend->coordinator.clear();m_rows.clear();m_profileActive=false;
+    suspend();invalidatePlaybackTransport();
+    m_backend->coordinator.clear();m_rows.clear();m_profileActive=false;
     m_sourceKind.clear();m_fallbackReason.clear();m_forceFallback=false;m_fallbackAttempted=false;
     m_resume=0;m_duration=0;m_repeat="off";m_shuffleEnabled=false;m_state="idle";m_error.clear();
     m_listeningOrigin="manual";m_lastPlaybackAtMs=0;m_radioContext.clear();emit queueChanged();publishState();
 }
-void VinylBackendSession::shutdown() { if(m_shutdown)return;suspend();m_shutdown=true;m_deadline.stop(); }
+void VinylBackendSession::shutdown() { if(m_shutdown)return;suspend();invalidatePlaybackTransport();m_shutdown=true;m_deadline.stop(); }
 
 QVariantMap VinylBackendSession::checkpoint() const {
     auto profile=ProfileScopeId::parse(m_profile);if(!profile.ok())return {};

@@ -50,8 +50,6 @@ Flickable {
         && typeof pageData.personalEnabled === "boolean"
         && typeof pageData.shownAlbumRows === "function"
         && typeof pageData.addRowsToPlaylist === "function"
-    readonly property bool trackQueueAvailable: queueActionsEnabled && !!pageData
-        && typeof pageData.enqueueTrack === "function"
     readonly property bool personalTrackActionsVisible: trackSaveAvailable || trackPlaylistAvailable
     readonly property real personalTrackActionsWidth: personalTrackActionsVisible ? 80 : 0
     readonly property var albumActionModel: {
@@ -335,9 +333,8 @@ Flickable {
                         ? (root.pageData.trackArtists(index) ? 58 : 50)
                         : (root.pageData.trackArtists(index) ? 62 : 57)
                     readonly property bool compactTrackActions: trackList.width < 400
-                        && (root.personalTrackActionsVisible || root.trackQueueAvailable)
+                        && root.personalTrackActionsVisible
                     readonly property real trackActionWidth: root.personalTrackActionsWidth
-                        + (root.trackQueueAvailable ? 80 : 0)
                     height: baseTrackHeight + (compactTrackActions ? 40 : 0)
                     VinylTrackRow {
                         id: trackVisual
@@ -345,36 +342,6 @@ Flickable {
                         pageData: root.pageData
                         width: parent.compactTrackActions ? parent.width : Math.max(0, parent.width - parent.trackActionWidth)
                         height: parent.baseTrackHeight
-                    }
-                    KeyboardAction {
-                        focusOnPointer: false
-                        objectName: "vinylTrackNext_" + parent.index
-                        tooltipText: qsTr("Play next")
-                        visible: root.trackQueueAvailable
-                        x: parent.compactTrackActions ? parent.width - 72
-                            : trackVisual.width + root.personalTrackActionsWidth + 8
-                        y: parent.compactTrackActions ? parent.baseTrackHeight + 4 : 0
-                        width: 32; height: parent.compactTrackActions ? 32 : parent.height
-                        enabled: visible && trackVisual.enabled
-                        accessibleName: "Play next: " + trackVisual.track.title
-                        onTriggered: root.pageData.enqueueTrack(parent.index, true)
-                        Rectangle { anchors.fill: parent; radius: 6; color: parent.interactionActive ? theme.glassTint : "transparent" }
-                        VinylControlIcon { anchors.centerIn: parent; symbol: "playNext"; color: theme.inkDim }
-                    }
-                    KeyboardAction {
-                        focusOnPointer: false
-                        objectName: "vinylTrackQueue_" + parent.index
-                        tooltipText: qsTr("Add to queue")
-                        visible: root.trackQueueAvailable
-                        x: parent.compactTrackActions ? parent.width - 32
-                            : trackVisual.width + root.personalTrackActionsWidth + 48
-                        y: parent.compactTrackActions ? parent.baseTrackHeight + 4 : 0
-                        width: 32; height: parent.compactTrackActions ? 32 : parent.height
-                        enabled: visible && trackVisual.enabled
-                        accessibleName: "Add track to queue: " + trackVisual.track.title
-                        onTriggered: root.pageData.enqueueTrack(parent.index, false)
-                        Rectangle { anchors.fill: parent; radius: 6; color: parent.interactionActive ? theme.glassTint : "transparent" }
-                        VinylControlIcon { anchors.centerIn: parent; symbol: "queue"; color: theme.inkDim }
                     }
                 }
             }

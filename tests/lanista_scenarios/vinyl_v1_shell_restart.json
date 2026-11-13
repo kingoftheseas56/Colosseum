@@ -1,0 +1,108 @@
+{
+  "name": "vinyl-v1-slice1-shell-restart",
+  "comment": "Second launch for the profile created by vinyl_v1_shell.json. Run lanista session run tests/lanista_scenarios/vinyl_v1_shell_restart.json --tag vinylv1-slice1-shell --drive after the first scenario used the same exact tag. Keep COLOSSEUM_VINYL_TEST_FIXTURES=1, omit --seed, and do not reset or replace the tagged AppData. The session runner gives this process a new pipe/session id while retaining the tagged profile and cache roots; it closes through its graceful WM_CLOSE path after the final ping.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "Restarted Lanista pipe responds",
+      "expect": [
+        {"path": "type", "op": "==", "value": "reply"}
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Boot splash has finished",
+      "payload": {"object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000},
+      "expect": [
+        {"path": "matched", "op": "==", "value": "true"}
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Saved local profile opens without onboarding",
+      "payload": {"object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 30000},
+      "expect": [
+        {"path": "matched", "op": "==", "value": "true"}
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Home is visible",
+      "payload": {"object": "homePageFlickable", "prop": "visible", "value": true, "timeout_ms": 30000},
+      "expect": [
+        {"path": "matched", "op": "==", "value": "true"}
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl is available in this build",
+      "payload": {"object": "modePill_Vinyl", "prop": "qualificationEnabled", "value": true, "timeout_ms": 15000},
+      "expect": [
+        {"path": "matched", "op": "==", "value": "true"}
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Reopen Vinyl from the saved profile",
+      "payload": {"target": "modePill_Vinyl"},
+      "expect": [
+        {"path": "clicked", "op": "==", "value": "modePill_Vinyl"}
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl Loader reaches Ready on restart",
+      "payload": {"object": "worldLoader_Vinyl", "prop": "status", "value": "Ready", "timeout_ms": 60000},
+      "expect": [
+        {"path": "matched", "op": "==", "value": "true"}
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl world reports ready on restart",
+      "payload": {"object": "vinylWorld", "prop": "ready", "value": true, "timeout_ms": 60000},
+      "expect": [
+        {"path": "matched", "op": "==", "value": "true"}
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl world is visible after restart",
+      "payload": {"object": "vinylWorld", "prop": "visible", "value": true, "timeout_ms": 15000},
+      "expect": [
+        {"path": "matched", "op": "==", "value": "true"}
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Saved taste keeps Vinyl navigation enabled",
+      "payload": {"object": "vinylWorld", "prop": "navigationEnabled", "value": true, "timeout_ms": 60000},
+      "expect": [
+        {"path": "matched", "op": "==", "value": "true"}
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Taste picker stays closed for the saved profile",
+      "payload": {"object": "vinylTastePicker", "prop": "visible", "value": false, "timeout_ms": 15000},
+      "expect": [
+        {"path": "matched", "op": "==", "value": "true"}
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Restarted Vinyl opens on Home",
+      "payload": {"object": "vinylWorld", "prop": "activeTab", "value": "Home", "timeout_ms": 15000},
+      "expect": [
+        {"path": "matched", "op": "==", "value": "true"}
+      ]
+    },
+    {
+      "cmd": "ping",
+      "label": "Lanista pipe remains responsive before graceful session close",
+      "expect": [
+        {"path": "type", "op": "==", "value": "reply"}
+      ]
+    }
+  ]
+}

@@ -14,6 +14,8 @@ Main {
     property var queueIds: []
     property real positionBefore: 0
     property string persistedFeedback: ""
+    property var feedbackRoute: null
+    property bool feedbackReturnPending: false
     function plain(value) {return JSON.parse(JSON.stringify(value));}
     function check(ok,message) {if(!ok){console.error("VINYL_LEARNING_FAIL",stage,message);cycle.stop();Qt.exit(26);}return !!ok;}
     function next(value) {stage=value;ticks=0;console.log("VINYL_LEARNING_STAGE",phase,value);}
@@ -26,8 +28,53 @@ Main {
         scroll.contentY=Math.max(0,Math.min(scroll.contentHeight-scroll.height,point.y-85));
         return true;
     }
-    function openActions(w,key) {if(!reveal(w,key))return false;return check(card(w,key).openFeedbackMenu(),"Feedback menu did not open");}
-    function action(w,key,option) {var item=card(w,key),button=item&&item.feedbackActionFor(option);return check(button&&button.activate(Qt.MouseFocusReason),"Missing feedback action: "+option);}
+    function openActions(w,key) {
+        if(key!=="saved-artists" && !reveal(w,key))return false;
+        feedbackRoute={scroll:w.worldScroll.contentY,queue:w.session.queue.map(row=>row.queueId),
+            playingIndex:w.session.playingIndex,generation:w.session.profileGeneration};
+        if(key!=="saved-artists") {
+            card(w,key).forceActiveFocus(Qt.TabFocusReason);
+            return check(w.page==="home","Direct badges must stay on Home");
+        }
+        return check(w.worldData.requestRecommendationPreferences() && w.page==="feedback",
+            "Global recommendation preferences did not open");
+    }
+    function findTypedAction(node,key,ref) {
+        if(!node)return null;
+        if(node.modelData && node.modelData.key===key && node.modelData.ref
+            && ["identity","kind","providerId","itemId"].every(field=>node.modelData.ref[field]===ref[field])
+            && typeof node.activate==="function")return node;
+        for(var child of node.children||[]) {var found=findTypedAction(child,key,ref);if(found)return found;}
+        return null;
+    }
+    function action(w,key,option) {
+        if(option==="like" || option==="hide") {
+            var target=card(w,key);
+            if(!check(!!target,"Direct feedback card missing"))return false;
+            target.forceActiveFocus(Qt.TabFocusReason);
+            if(!check(["identity","kind","providerId","itemId"].every(field=>target.item.ref[field]===root.ref[field]),
+                "Direct badge changed typed target identity"))return false;
+            var badge=find(target,(option==="like" ? "vinylRecommendationLike_" : "vinylRecommendationHide_")+target.item.id);
+            if(!check(badge && badge.activate(Qt.MouseFocusReason),"Direct feedback badge missing: "+option))return false;
+            feedbackReturnPending=true;
+            return true;
+        }
+        if(!w.recommendationPage)return false;
+        var request=w.feedbackRequest,options=request.options
+            || (request.entries||[]).reduce((all,entry)=>all.concat(entry.options||[]),[]);
+        var entry=options.find(item=>item.key===option && item.ref.itemId===root.ref.itemId);
+        if(!check(entry && request.generation===feedbackRoute.generation,"Missing or stale typed action"))return false;
+        if(!check(entry.ref && entry.ref.identity && entry.ref.kind && entry.ref.itemId,
+            "Recommendation action lost typed identity"))return false;
+        if(["like","hide","unhide"].indexOf(entry.action)>=0
+            && !check(JSON.stringify(plain(entry.ref))===JSON.stringify(plain(root.ref)),"Action changed target identity"))return false;
+        var button=w.recommendationPage.actionFor(option);
+        if(!button || !button.modelData || button.modelData.ref.itemId!==entry.ref.itemId)
+            button=findTypedAction(w.recommendationPage,option,entry.ref);
+        if(!check(button&&button.activate(Qt.MouseFocusReason),"Missing feedback action: "+option))return false;
+        feedbackReturnPending=true;
+        return true;
+    }
     function capture(name,target) {next("capture");contentItem.grabToImage(result=>{result.saveToFile(Qt.application.arguments[3]+"/"+name+".png");next(target);});}
     function logSnapshot(r,label) {console.log("VINYL_LEARNING_EVIDENCE",label,JSON.stringify({home:r.homeSnapshot,history:r.historySnapshot,feedback:ProfilePreferences.vinylFeedbackSnapshot,exposure:ProfilePreferences.vinylRecommendationExposureSnapshot}));}
     Timer {
@@ -41,6 +88,14 @@ Main {
                 root.openWorld("Vinyl");root.next("world");return;
             }
             var w=root.vinylWorld;if(!w)return;var s=w.session,r=w.recommendationService,d=w.worldData;
+            if(root.feedbackReturnPending) {
+                if(!root.check(w.page==="home","Recommendation action did not return Home"))return;
+                if(!root.check(Math.abs(w.worldScroll.contentY-root.feedbackRoute.scroll)<1,"Feedback changed Home scroll"))return;
+                if(!root.check(s.playingIndex===root.feedbackRoute.playingIndex
+                    && s.queue.map(row=>row.queueId).join("|")===root.feedbackRoute.queue.join("|"),
+                    "Feedback changed playback or queue"))return;
+                root.feedbackReturnPending=false;
+            }
             if(root.stage==="world"&&root.ticks>5) {
                 w.showHome();
                 if(root.phase==="learn") {
@@ -90,9 +145,12 @@ Main {
                 root.openActions(w,"saved-artists");root.next("unhide");return;
             }
             if(root.stage==="unhide") {
-                var artist=root.card(w,"saved-artists"),options=artist.feedbackOptions||[];
+                if(!w.recommendationPage)return;
+                var options=w.feedbackRequest.options
+                    || (w.feedbackRequest.entries||[]).reduce((all,entry)=>all.concat(entry.options||[]),[]);
                 var undo=options.find(option=>option.action==="unhide"&&option.ref.itemId===root.ref.itemId);
-                if(!root.check(undo&&artist.feedbackActionFor(undo.key).activate(Qt.MouseFocusReason),"Hidden item recovery unreachable"))return;
+                if(!root.check(!!undo,"Hidden item recovery unreachable"))return;
+                if(!root.action(w,"saved-artists",undo.key))return;
                 root.next("recovered");return;
             }
             if(root.stage==="recovered") {

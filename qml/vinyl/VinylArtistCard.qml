@@ -1,5 +1,6 @@
 import QtQuick
 import ".."
+import "VinylCardPresentation.js" as Presentation
 
 KeyboardAction {
     focusOnPointer: false
@@ -10,12 +11,17 @@ KeyboardAction {
     property string badge: ""
     property string artObjectName: ""
     property bool darkCaptionSurface: true
-    pointerEnabled: shape !== "square"
-    showFocusFrame: shape !== "square"
+    pointerEnabled: true
+    showFocusFrame: true
 
-    readonly property real artHeight: width * (shape === "wide" ? 9 / 16 : 1)
-    readonly property real artRadius: shape === "round" ? width / 2 : (shape === "wide" ? 9 : 13)
-    implicitHeight: artHeight + (shape === "round" ? 68 : 78)
+    readonly property bool songCard: !!record.song
+    readonly property real artHeight: shape === "wide" ? width * 9 / 16
+        : presentation.status === Loader.Ready ? (presentation.item as Item).implicitHeight : width
+    readonly property real artRadius: shape === "round" ? width * 0.1 : (shape === "wide" ? 9 : 13)
+    readonly property string secondaryText: songCard
+        ? Presentation.secondary(record, Presentation.artist(record)) : String(record.subtitle || "")
+    readonly property bool hasCaption: songCard ? secondaryText.length > 0 : true
+    implicitHeight: artHeight + (hasCaption ? (shape === "wide" ? 0 : 14) + captionPlate.height : 0)
     focusRadius: artRadius
     spaceActivates: true
     accessibleName: String(record.title || "") + (record.subtitle ? ", " + record.subtitle : "")
@@ -25,30 +31,37 @@ KeyboardAction {
 
     Theme { id: theme }
 
-    // Album sleeves share the catalogue card used by the main worlds.
     Loader {
-        anchors.fill: parent
-        active: card.shape === "square"
-        sourceComponent: Component {
-            CataloguePosterCard {
-                visualProfile: "gallery"
-                artworkRatio: 1
-                artworkObjectName: card.artObjectName
-                item: ({title:String(card.record.title || ""),
-                    cover:card.artistData.artwork(card.record.cover),
-                    author:String(card.record.subtitle || "")})
-                showAuthorAtRest: true
-                keyboardFocused: card.activeFocus
-                onActivated: card.cardRequested(card.record)
-                Accessible.ignored: true
-            }
-        }
+        id: presentation
+        width: card.width
+        height: card.artHeight
+        active: card.shape !== "wide"
+        sourceComponent: card.shape === "round" ? artistPresentation
+            : card.songCard ? songPresentation : albumPresentation
     }
+    Component { id: artistPresentation; VinylArtistWidget {
+        objectName: card.artObjectName
+        title: String(card.record.title || "")
+        artworkSource: card.artistData.artwork(card.record.cover)
+        displayFont: theme.display
+    } }
+    Component { id: songPresentation; VinylSongWidget {
+        objectName: card.artObjectName
+        title: String(card.record.title || "")
+        artist: Presentation.artist(card.record)
+        artworkSource: card.artistData.artwork(card.record.cover)
+        displayFont: theme.display; uiFont: theme.ui
+    } }
+    Component { id: albumPresentation; VinylAlbumWidget {
+        objectName: card.artObjectName
+        title: String(card.record.title || "")
+        artworkSource: card.artistData.artwork(card.record.cover)
+    } }
 
     // Artwork container with composed HTML-parity fallback (.cover-fallback / .film-fallback)
     Rectangle {
         id: coverFrame
-        visible: card.shape !== "square"
+        visible: card.shape === "wide"
         width: parent.width
         height: card.artHeight
         radius: card.artRadius
@@ -89,6 +102,7 @@ KeyboardAction {
             }
             Text {
                 width: parent.width
+                visible: !card.songCard && card.shape !== "round"
                 text: String(card.record.title || "")
                 textFormat: Text.PlainText
                 color: theme.ink
@@ -154,10 +168,11 @@ KeyboardAction {
     // Protects 15px/12px caption legibility over bright blurred artist photographs.
     Rectangle {
         id: captionPlate
-        visible: card.shape !== "square"
-        y: card.artHeight
+        visible: card.hasCaption
+        y: card.artHeight + (card.shape === "wide" ? 0 : 14)
         width: parent.width
-        height: Math.max(card.shape === "round" ? 68 : 78, captionColumn.implicitHeight + 16)
+        height: card.shape === "wide" ? Math.max(78, captionColumn.implicitHeight + 16)
+            : captionColumn.implicitHeight + (card.darkCaptionSurface ? 16 : 0)
         radius: 0
         bottomLeftRadius: card.shape === "round" ? 0 : 13
         bottomRightRadius: card.shape === "round" ? 0 : 13
@@ -172,10 +187,11 @@ KeyboardAction {
             x: (card.darkCaptionSurface && card.shape !== "round") ? 10 : 0
             y: (card.darkCaptionSurface && card.shape !== "round") ? 8 : 2
             width: parent.width - 2 * x
-            spacing: 4
+            spacing: card.shape === "wide" ? 4 : 6
 
             Text {
                 width: parent.width
+                visible: !card.songCard
                 text: String(card.record.title || "")
                 textFormat: Text.PlainText
                 color: theme.ink
@@ -213,7 +229,7 @@ KeyboardAction {
                 }
                 Text {
                     width: Math.max(0, parent.width - wideTagText.width - 18)
-                    text: String(card.record.subtitle || "")
+                    text: card.secondaryText
                     textFormat: Text.PlainText
                     color: theme.inkDim
                     font.family: theme.ui
@@ -226,7 +242,7 @@ KeyboardAction {
             Text {
                 width: parent.width
                 visible: !(card.shape === "wide" && card.badge.length > 0)
-                text: String(card.record.subtitle || "")
+                text: card.secondaryText
                 textFormat: Text.PlainText
                 color: theme.inkDim
                 font.family: theme.ui

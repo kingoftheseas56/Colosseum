@@ -103,6 +103,12 @@ Window {
     property bool feriaRuntimeReady: false
     readonly property alias televisionMode: phoneShell.televisionMode
     property var vinylWorld: null
+    readonly property bool vinylSongPageOpen: !!win.vinylWorld && worldStack.current === "Vinyl"
+        && win.vinylWorld.page === "song" && win.vinylWorld.visible && win.vinylWorld.canEnterVinyl
+        && !win.vinylWorld.searchOpen && !win.vinylWorld.artistSearchOpen
+        && !win.fullWindowPageOpen && !downloadsLayer.active && !extensionsLayer.active
+        && !updateLayer.active && !historyStatsLayer.active && !syncCenterLayer.active
+        && !yourFeriaLayer.active && !feriaLayer.open
     readonly property bool vinylVideoFullscreen: !!win.vinylWorld && worldStack.current === "Vinyl"
         && win.vinylWorld.videoFullscreen === true
     property var vinylVideoReturnWindowed: null
@@ -122,6 +128,7 @@ Window {
         if (!vinylVideoFullscreen) vinylVideoReturnWindowed = null
     }
     property var pendingVinylResume: null
+    property int vinylResumeSerial: 0
     property bool audioHandoffBusy: false
     property string audioOwner: ""
     property bool vinylProfileActive: true
@@ -176,22 +183,56 @@ Window {
                 win.closeSession(records[i].id)
     }
     readonly property bool vinylEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
+    function traceVinylResume(phase, pending) {
+        if (typeof CatalogueTraceEnabled === "undefined" || !CatalogueTraceEnabled || !pending) return
+        var track = String(pending.entry && pending.entry.resume && pending.entry.resume.trackId || "")
+        if (phase === "commit" && win.vinylWorld && win.vinylWorld.session.playingTrack)
+            track = String(win.vinylWorld.session.playingTrack.id || "")
+        var entryId = String(pending.entry && pending.entry.id || "")
+        if (!/^[a-zA-Z0-9:_-]{1,200}$/.test(track)) track = "unavailable"
+        if (!/^[a-zA-Z0-9:_-]{1,200}$/.test(entryId)) entryId = "unavailable"
+        win.setGuiStallContext("vinyl-" + phase, "Vinyl")
+        console.info("[vinyl-opening] phase=" + phase + " serial=" + pending.serial
+                     + " entryId=" + entryId + " track=" + track + " atMs=" + Date.now())
+    }
     function openVinylResume(entry, play) {
         if (!vinylEnabled || !vinylProfileActive) return
-        pendingVinylResume = { entry: entry, play: play, generation: vinylShellGeneration }
+        pendingVinylResume = { entry: entry, play: play, generation: vinylShellGeneration, serial: ++vinylResumeSerial }
+        win.traceVinylResume("pending", pendingVinylResume)
         openWorld("Vinyl")
         applyVinylResume()
+    }
+    function hasPendingVinylResume() {
+        return !!pendingVinylResume && vinylProfileActive
+            && pendingVinylResume.generation === vinylShellGeneration
+    }
+    function holdVinylResumePresentation(world) {
+        return hasPendingVinylResume() && (!world || !world.resumeRequiresArtistSelection)
     }
     function applyVinylResume() {
         if (!vinylWorld || !pendingVinylResume) return
         var pending = pendingVinylResume
         if (!vinylProfileActive || pending.generation !== vinylShellGeneration) {pendingVinylResume=null;return}
         if (!vinylWorld.canEnterVinyl) {vinylWorld.enforceTasteGate();return}
-        pendingVinylResume = null
+        win.traceVinylResume("restore", pending)
         vinylWorld.session.snapshot()
-        vinylWorld.session.restore(pending.entry)
+        var restored = !!pending.entry && vinylWorld.session.restore(pending.entry) === true
+        if (pending !== pendingVinylResume || !vinylProfileActive
+                || pending.generation !== vinylShellGeneration) return false
+        if (!restored) {
+            win.traceVinylResume("failure", pending)
+            vinylWorld.session.browseError = qsTr("This listening session could not be restored. Open the song again to retry.")
+            pendingVinylResume = null
+            return false
+        }
+        vinylWorld.browsingSong = false
+        vinylWorld.searchOpen = false
+        vinylWorld.artistSearchOpen = false
         vinylWorld.page = pending.play ? "song" : "album"
+        win.traceVinylResume("commit", pending)
+        pendingVinylResume = null
         if (pending.play) vinylWorld.session.paused = false
+        return true
     }
     Connections {
         target: win.vinylWorld
@@ -228,9 +269,16 @@ Window {
     property string wallpaperSource: win.defaultWallpaperSource
     onDefaultWallpaperSourceChanged: Qt.callLater(win.refreshWallpaper)
     property alias androidHost: phoneShell.androidHost
-    AdaptiveLayout { id: presentationPolicy; viewportWidth: win.width; androidHost: win.androidHost }
+    readonly property real browseBottomInset: win.androidHost ? phoneShell.contentBottomInset : 0
+    AdaptiveLayout {
+        id: presentationPolicy
+        viewportWidth: win.width
+        viewportHeight: win.height
+        bottomInset: win.browseBottomInset
+        androidHost: win.androidHost
+    }
     readonly property alias desktopPresentation: presentationPolicy.desktopPresentation
-    readonly property real headerOuterMargin: theme.margin
+    readonly property real headerOuterMargin: win.androidHost ? presentationPolicy.headerMargin : theme.margin
     readonly property real outerPageMargin: theme.margin
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
@@ -1604,7 +1652,7 @@ Window {
         { name: "Universes", source: "UniversesWorld.qml", icon: "../assets/icons/universes-atom.svg" }
     ]
     function worldSourceFor(medium) {
-        if (medium === "Vinyl" && vinylEnabled) return "vinyl/VinylLiveWorld.qml"
+        if (medium === "Vinyl" && vinylEnabled) return "vinyl/VinylAppWorld.qml"
         for (var i = 0; i < win.worldDefinitions.length; ++i)
             if (win.worldDefinitions[i].name === medium)
                 return win.worldDefinitions[i].source
@@ -1647,6 +1695,7 @@ Window {
         // These worlds are not available in this release, including through indirect callers.
         var requestedWorld = String(medium || "").trim().toLowerCase()
         if ((requestedWorld === "feria" && win.feriaComingSoon !== false) || (requestedWorld === "vinyl" && !win.vinylEnabled)) return
+        if (medium !== "Vinyl") win.pendingVinylResume = null
         if (medium === "Feria") { win.openFeriaPage(); return }
         if (win.parkFeria) win.parkFeria(true)
         var found = false
@@ -1686,6 +1735,7 @@ Window {
         if (win.guardNamedCollectionsNavigation(function() { win.closeWorld() })) return
 
         if (win.androidHost && !win.desktopPresentation) return
+        win.pendingVinylResume = null
         win.cancelCatalogueRoute();
         win.parkFeria(true)
         worldStack.current = ""                           // hide all worlds; none destroyed
@@ -3114,6 +3164,7 @@ Window {
             "target": { "showKey": EpisodeBrowser.seriesRootId(job.id || ""),
                         "streamUrl": job.url, "partPath": part, "id": job.id || "",
                         "title": job.title || "", "headers": job.headers || ({}),
+                        "playbackContext": job.playbackContext || ({}),
                         "art": job.art || "", "kind": job.kind || "", "position": pos }
         })
     }
@@ -3814,6 +3865,7 @@ Window {
             "appType": "theatre", "contentKind": "movie", "title": v.title || "Video",
             "target": { "showKey": EpisodeBrowser.seriesRootId(v.id || ""),
                         "localPath": v.path, "id": v.id || "", "title": v.title || "",
+                        "playbackContext": v.playbackContext || ({}),
                         "art": v.art || "", "kind": v.kind || "", "position": v.position || 0 }
         })
     }
@@ -4504,7 +4556,7 @@ Window {
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         y: topbar.y + topbar.height + 10
-        height: win.height - y
+        height: Math.max(0, win.height - y - win.browseBottomInset)
         contentWidth: width
         contentHeight: contentCol.implicitHeight + 40
         clip: true
@@ -4584,9 +4636,15 @@ Window {
                 spacing: page.width <= 740 ? 13 : 15
                 Glass {
                     id: hero
+                    readonly property bool keyboardFocusWithin: {
+                        for (var item = win.activeFocusItem; item; item = item.parent) {
+                            if (item === hero) return true
+                        }
+                        return false
+                    }
                     backdrop: wall
                     track: page.contentY
-                    width: parent.width; height: 360; radius: 20
+                    width: parent.width; height: presentationPolicy.homeHeroHeight; radius: 20
                     tint: 0.06
 
                     SwipeView {
@@ -4598,6 +4656,10 @@ Window {
                             delegate: Item {
                                 id: slide
                                 required property var modelData
+                                readonly property bool keyboardActionFocused: exKey.activeFocus
+                                // SwipeView clips its other pages but does not remove their
+                                // descendants from Tab navigation or accessibility.
+                                enabled: SwipeView.isCurrentItem
 
                                 // banner key-art full-bleed; a neutral plate stands in while it
                                 // loads, then the left-weighted scrim keeps the words legible
@@ -4631,11 +4693,16 @@ Window {
                                 // content over the scrim (chips row retired — ratified 2026-07-12)
                                 Column {
                                     anchors.left: parent.left; anchors.bottom: parent.bottom
-                                    anchors.margins: 44
+                                    anchors.margins: presentationPolicy.shortAndroid ? presentationPolicy.heroCopyInset : 44
                                     width: Math.min(620, parent.width - anchors.leftMargin * 2)
                                     spacing: 12
                                     Text { text: "TRIBUTE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
-                                    Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
+                                    Text {
+                                        text: slide.modelData.name; color: theme.ink; font.family: theme.display
+                                        font.pixelSize: presentationPolicy.heroTitleSize
+                                        width: presentationPolicy.shortAndroid ? parent.width : implicitWidth
+                                        wrapMode: presentationPolicy.shortAndroid ? Text.WordWrap : Text.NoWrap
+                                    }
                                     // (the blurb line went with the baked list — the roster carries
                                     // identity and art, no prose, and a faked one would be a lie)
                                     Row {
@@ -4677,15 +4744,6 @@ Window {
                                                 onClicked: win.openUniverse(slide.modelData.extensionId,
                                                                             slide.modelData.name)
                                             }
-                                            KeyboardAction {
-                                                anchors.fill: parent
-                                                pointerEnabled: false
-                                                focusEnabled: win.televisionMode && slide.visible
-                                                accessibleName: "Explore " + slide.modelData.name
-                                                focusRadius: 12
-                                                onTriggered: win.openUniverse(slide.modelData.extensionId,
-                                                                              slide.modelData.name)
-                                            }
                                         }
                                     }
                                 }
@@ -4693,12 +4751,22 @@ Window {
                         }
                     }
 
+                    FocusRing {
+                        objectName: "homeHeroFocusRing"
+                        anchors.fill: heroView
+                        radius: hero.radius
+                        shown: heroView.activeFocus
+                               && (!heroView.currentItem || !heroView.currentItem.keyboardActionFocused)
+                    }
+
                     // gentle auto-advance through the collection (not visualized — ratified)
                     Timer {
                         // Stands down while the player is up: this advances a carousel nobody can see
                         // behind the film, and every advance is an animation plus cover work on the
                         // GUI thread — the thread Qt Quick needs free to present video frames.
-                        interval: 6500; running: page.visible && !win.immersiveSurfaceOpen; repeat: true
+                        interval: 6500
+                        running: page.visible && !win.immersiveSurfaceOpen && !hero.keyboardFocusWithin
+                        repeat: true
                         // guarded: an empty roster would turn the modulo into NaN
                         onTriggered: if (heroView.count > 0)
                                          heroView.currentIndex = (heroView.currentIndex + 1) % heroView.count
@@ -4738,14 +4806,6 @@ Window {
                             id: hallMa; anchors.fill: parent
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: win.openWorld("Universes")
-                        }
-                        KeyboardAction {
-                            anchors.fill: parent
-                            pointerEnabled: false
-                            focusEnabled: win.televisionMode
-                            accessibleName: "Hall of Worlds"
-                            focusRadius: 8
-                            onTriggered: win.openUniverseHall()
                         }
                     }
                 }
@@ -4946,6 +5006,7 @@ Window {
             delegate: Loader {
                 id: worldLoader
                 required property string mode
+                objectName: "worldLoader_" + mode
                 anchors.fill: parent
                 visible: worldStack.current === mode && !win.immersiveSurfaceOpen
                 // Use the shell's Cold Ripple artwork while Universes is opening.
@@ -4986,12 +5047,17 @@ Window {
                         font.pixelSize: 14
                     }
                 }
-                // Android shows loading text in the other worlds.
+                // Android reports loading outside Universes. Vinyl also reports pending resume.
                 Text {
                     anchors.centerIn: parent
-                    visible: Qt.platform.os === "android" && worldLoader.mode !== "Universes"
-                             && worldLoader.status !== Loader.Ready
-                    text: qsTr("Loading %1…").arg(worldLoader.mode)
+                    visible: worldLoader.mode === "Vinyl"
+                        ? (worldLoader.status !== Loader.Ready || win.holdVinylResumePresentation(worldLoader.item))
+                        : (Qt.platform.os === "android" && worldLoader.mode !== "Universes"
+                            && worldLoader.status !== Loader.Ready)
+                    text: worldLoader.mode === "Vinyl" && win.hasPendingVinylResume()
+                        && win.pendingVinylResume.entry && win.pendingVinylResume.entry.title
+                        ? qsTr("Opening %1…").arg(win.pendingVinylResume.entry.title)
+                        : qsTr("Loading %1…").arg(worldLoader.mode)
                     color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: 14
                 }
                 // Pass the initial activation state into the component before Component.onCompleted.
@@ -5010,6 +5076,19 @@ Window {
                     // Vinyl's local catalogue does not expose the WorldPage filter.
                     if (mode !== "Vinyl")
                         initialProperties.showExplicitContent = contentPreferences.showExplicit
+                    else {
+                        initialProperties.backdrop = wall
+                        initialProperties.homeLanding = true
+                        initialProperties.hostReady = Qt.binding(function() {
+                            return worldLoader.status === Loader.Ready
+                        })
+                        initialProperties.deferInitialRestore = Qt.binding(function() {
+                            return win.hasPendingVinylResume()
+                        })
+                        initialProperties.resumePresentationPending = Qt.binding(function() {
+                            return win.hasPendingVinylResume()
+                        })
+                    }
                     setSource(win.worldSourceFor(mode), initialProperties)
                     active = true
                 }
@@ -5043,8 +5122,8 @@ Window {
                             win.registerVinylSession()
                         })
                         item.homeLanding = true
-                        item.showHome()
-                        win.applyVinylResume()
+                        if (win.hasPendingVinylResume()) win.applyVinylResume()
+                        else {item.showHome();win.applyVinylResume()}
                         if (win.namedCollectionsOpening)
                             item.openNamedCollectionReference(win.namedCollectionsOpening)
                         return
@@ -5164,6 +5243,7 @@ Window {
     Loader {
         id: genreLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 45
         active: false
         visible: active
@@ -5188,6 +5268,7 @@ Window {
     Loader {
         id: genreIndexLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 44
         active: false
         visible: active
@@ -5209,6 +5290,7 @@ Window {
     Loader {
         id: biblioGenreIndexLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 46
         active: false
         visible: active
@@ -5228,6 +5310,7 @@ Window {
     Loader {
         id: biblioGenreLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 46
         active: false
         visible: active
@@ -5252,6 +5335,7 @@ Window {
     Loader {
         id: theatreGenreLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 48
         active: false
         visible: active
@@ -5278,6 +5362,7 @@ Window {
     Loader {
         id: theatreGenreIndexLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 47
         active: false
         visible: active
@@ -5302,6 +5387,7 @@ Window {
     Loader {
         id: seriesLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a manga opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
@@ -5380,6 +5466,7 @@ Window {
     Loader {
         id: westernLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a comic opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
@@ -5429,6 +5516,7 @@ Window {
     Loader {
         id: comicSeriesLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 50
         active: false
         visible: active
@@ -5478,6 +5566,7 @@ Window {
     Loader {
         id: continueSeeAllLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 49
         active: false
         visible: active
@@ -5568,6 +5657,7 @@ Window {
     Loader {
         id: theatreSeriesLayer
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a film/show opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
@@ -5693,6 +5783,7 @@ Window {
         id: bookLayer
         objectName: "biblioBookRouteState"
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 53
         active: false
         visible: active
@@ -5964,6 +6055,7 @@ Window {
         id: universeLayer
         objectName: "universeLayer"
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 52
         active: false
         visible: active
@@ -6453,6 +6545,7 @@ Window {
         z: 900
         onFeedbackClicked: win.openFeedback()
         visible: !win.immersiveSurfaceOpen
+            && !win.vinylSongPageOpen
             && !win.vinylVideoFullscreen
             && (!win.androidHost || win.desktopPresentation)
             && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)

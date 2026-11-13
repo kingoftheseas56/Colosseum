@@ -13,6 +13,12 @@ Item {
     property string primaryLabel: "Read"
     property string primaryIcon: ""
     property string secondaryLabel: "Details"
+    property bool shortAndroid: false
+    AdaptiveLayout {
+        id: adaptive
+        androidHost: Qt.platform.os === "android" || !!(slideRoot.Window.window && slideRoot.Window.window.androidHost === true)
+        viewportHeight: slideRoot.Window.window ? slideRoot.Window.window.height : 0
+    }
     signal primaryClicked()
     signal secondaryClicked()
 
@@ -77,6 +83,7 @@ Item {
         }
         // …with the crisp poster stood on the right
         Image {
+            id: insetArt
             objectName: slideRoot.slideIndex >= 0 ? "featuredInsetArt_" + slideRoot.slideIndex : ""
             visible: slideRoot.hasInsetArt && !slideRoot.narrowLayout
             property string readySource: ""
@@ -114,28 +121,38 @@ Item {
         }
         // copy
         Column {
+            id: copyColumn
             anchors.left: parent.left
             anchors.bottom: parent.bottom
-            anchors.leftMargin: slideRoot.televisionMode ? 52 : (slideRoot.narrowLayout ? 20 : 42)
-            anchors.bottomMargin: slideRoot.televisionMode ? 48 : (slideRoot.narrowLayout ? 22 : 42)
+            anchors.leftMargin: slideRoot.shortAndroid ? adaptive.heroCopyInset : (slideRoot.televisionMode ? 52 : (slideRoot.narrowLayout ? 20 : 42))
+            anchors.bottomMargin: slideRoot.shortAndroid ? adaptive.heroCopyInset : (slideRoot.televisionMode ? 48 : (slideRoot.narrowLayout ? 22 : 42))
             width: Math.min(slideRoot.televisionMode ? 680 : 560,
-                            parent.width - (slideRoot.televisionMode ? 104 : (slideRoot.narrowLayout ? 40 : 84)))
+                            slideRoot.shortAndroid && slideRoot.hasInsetArt && !slideRoot.narrowLayout
+                                ? Math.max(0, insetArt.x - anchors.leftMargin - adaptive.heroCoverCopyGap)
+                                : parent.width - (slideRoot.televisionMode ? 104 : (slideRoot.narrowLayout ? 40 : 84)))
             spacing: slideRoot.compactCopy ? 8 : (slideRoot.televisionMode ? 12 : 10)
-            Text { text: slideRoot.kicker.toUpperCase(); color: theme.gold
+            Text { id: kickerText; text: slideRoot.kicker.toUpperCase(); color: theme.gold
                 visible: text.length > 0
                 font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 13 : 11; font.letterSpacing: 3 }
-            Text { text: slideRoot.slide.title !== undefined ? slideRoot.slide.title : ""
+            Text { id: titleText; text: slideRoot.slide.title !== undefined ? slideRoot.slide.title : ""
+                height: slideRoot.shortAndroid ? Math.min(implicitHeight, Math.max(adaptive.heroMinimumTitleSize,
+                    slideRoot.height - adaptive.heroCopyTopInset - copyColumn.anchors.bottomMargin
+                    - (kickerText.visible ? kickerText.height : 0) - (blurbText.visible ? blurbText.height : 0)
+                    - heroActions.height - copyColumn.spacing * (1 + (kickerText.visible ? 1 : 0) + (blurbText.visible ? 1 : 0)))) : implicitHeight
+                fontSizeMode: slideRoot.shortAndroid ? Text.Fit : Text.FixedSize
+                minimumPixelSize: adaptive.heroMinimumTitleSize
                 color: theme.ink; font.family: theme.display
-                font.pixelSize: slideRoot.televisionMode ? 58 : (slideRoot.narrowLayout ? 34 : (slideRoot.compactCopy ? 42 : 50))
+                font.pixelSize: slideRoot.shortAndroid ? adaptive.heroTitleSize : (slideRoot.televisionMode ? 58 : (slideRoot.narrowLayout ? 34 : (slideRoot.compactCopy ? 42 : 50)))
                 lineHeight: 0.96; maximumLineCount: 2; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap }
-            Text { text: slideRoot.slide.blurb !== undefined ? slideRoot.slide.blurb : ""
+            Text { id: blurbText; text: slideRoot.slide.blurb !== undefined ? slideRoot.slide.blurb : ""
                 visible: text.length > 0
                 color: theme.inkDim; font.family: theme.ui
                 font.pixelSize: slideRoot.compactCopy ? 13 : (slideRoot.televisionMode ? 16 : 14)
                 maximumLineCount: slideRoot.compactCopy ? 2 : 3; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.25 }
             Row {
+                id: heroActions
                 spacing: 10; topPadding: 6
                 Rectangle {
                     radius: slideRoot.televisionMode ? 13 : 11
@@ -157,12 +174,21 @@ Item {
                         ink: "#1a1408"
                         Accessible.ignored: true
                     }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    MouseArea { anchors.fill: parent;
+                        anchors.leftMargin: -adaptive.targetInset(parent.width)
+                        anchors.rightMargin: -adaptive.targetInset(parent.width)
+                        anchors.topMargin: -adaptive.targetInset(parent.height)
+                        anchors.bottomMargin: -adaptive.targetInset(parent.height)
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: slideRoot.primaryClicked() }
                     KeyboardAction {
                         id: primaryKeyboard
                         objectName: slideRoot.slideIndex >= 0 ? "featuredPrimaryAction_" + slideRoot.slideIndex : ""
                         anchors.fill: parent
+                        anchors.leftMargin: -adaptive.targetInset(parent.width)
+                        anchors.rightMargin: -adaptive.targetInset(parent.width)
+                        anchors.topMargin: -adaptive.targetInset(parent.height)
+                        anchors.bottomMargin: -adaptive.targetInset(parent.height)
                         pointerEnabled: false
                         focusRadius: 11
                         focusPrimary: true
@@ -178,12 +204,21 @@ Item {
                     color: Qt.rgba(1, 1, 1, 0.10); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.18)
                     Text { id: sl; anchors.centerIn: parent; text: slideRoot.secondaryLabel; color: theme.ink
                         font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 16 : 14; font.weight: Font.Medium }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    MouseArea { anchors.fill: parent;
+                        anchors.leftMargin: -adaptive.targetInset(parent.width)
+                        anchors.rightMargin: -adaptive.targetInset(parent.width)
+                        anchors.topMargin: -adaptive.targetInset(parent.height)
+                        anchors.bottomMargin: -adaptive.targetInset(parent.height)
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: slideRoot.secondaryClicked() }
                     KeyboardAction {
                         id: secondaryKeyboard
                         objectName: slideRoot.slideIndex >= 0 ? "featuredSecondaryAction_" + slideRoot.slideIndex : ""
                         anchors.fill: parent
+                        anchors.leftMargin: -adaptive.targetInset(parent.width)
+                        anchors.rightMargin: -adaptive.targetInset(parent.width)
+                        anchors.topMargin: -adaptive.targetInset(parent.height)
+                        anchors.bottomMargin: -adaptive.targetInset(parent.height)
                         pointerEnabled: false
                         focusRadius: 11
                         focusEnabled: slideRoot.secondaryLabel.length > 0

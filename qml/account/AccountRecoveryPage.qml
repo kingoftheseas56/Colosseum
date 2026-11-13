@@ -10,6 +10,7 @@ Item {
     id: root
     objectName: "accountRecoveryPage"
 
+    property var inputMethod: Qt.inputMethod
     property var controller: null
     property var presenter: null
     property bool active: false
@@ -24,6 +25,13 @@ Item {
     readonly property bool compact: scroller.width < 820
 
     Theme { id: theme }
+
+    AccountKeyboardViewport {
+        id: keyboardViewport
+        container: root
+        flick: scroller
+        inputMethod: root.inputMethod
+    }
 
     KeyboardScrollController {
         id: keyboardScroll
@@ -181,9 +189,10 @@ Item {
         id: scroller
         objectName: "accountRecoveryScrollRegion"
         anchors.fill: parent
+        anchors.bottomMargin: keyboardViewport.keyboardOverlap
         clip: true
         contentWidth: width
-        contentHeight: pageColumn.height + 58
+        contentHeight: Math.max(pageColumn.height + 58, keyboardViewport.focusedScrollExtent)
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
 

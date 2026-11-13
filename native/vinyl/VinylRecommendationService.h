@@ -140,5 +140,10 @@ private:
     void selectHomeCarousel(bool refresh=false);
     void pumpHome();
     bool acceptHome(const QString&,int,const QVariant&,const QString&);
+    void cancelSongCandidates(bool clear);
+    void queueSongCandidates();
+    void pumpSongCandidates();
+    bool acceptSongCandidates(const QString&,int,const QVariant&,const QString&);
+    void queueListeningRebuild();
     bool storeExposure(const QString &snapshot);
 };

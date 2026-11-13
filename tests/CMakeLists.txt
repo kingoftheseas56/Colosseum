@@ -1798,6 +1798,11 @@ set_tests_properties(colosseum.qml.vault_offline_restore PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 120)
 colosseum_add_tracker_sync_center_sources(colosseum_qml_tests)
+target_sources(colosseum_qml_tests PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/stream/SmartPlayBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stream/SmartPlayBridge.h")
+target_link_libraries(colosseum_qml_tests PRIVATE colosseum_stream_picker)
+target_compile_definitions(colosseum_qml_tests PRIVATE SMART_PLAY_PLAYER_SOURCE="${COLOSSEUM_NATIVE_DIR}/../qml/PlayerPage.qml")
 target_include_directories(colosseum_qml_tests PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(colosseum_qml_tests
@@ -1873,8 +1878,6 @@ foreach(vinyl_suite IN ITEMS
     vinyl_artist_repair
     vinyl_artist_scrollbars
     vinyl_artist_shared_picker
-    vinyl_discover_page
-    vinyl_home_page
     vinyl_home_mix_page
     vinyl_live_world_state
     vinyl_local_controls
@@ -1890,7 +1893,6 @@ foreach(vinyl_suite IN ITEMS
     vinyl_notes_column
     vinyl_world_journeys
     vinyl_world_lists
-    vinyl_world_navigation
     vinyl_world_visual
     discover_picker
     discover_sidebar
@@ -1898,17 +1900,54 @@ foreach(vinyl_suite IN ITEMS
     add_test(NAME "colosseum.qml.${vinyl_suite}"
         COMMAND colosseum_qml_tests -input
             "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_${vinyl_suite}.qml")
-    set_tests_properties("colosseum.qml.${vinyl_suite}" PROPERTIES
-        LABELS "qml;vinyl;regression"
-        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
-        TIMEOUT 120)
+    if(vinyl_suite MATCHES "^vinyl_" AND NOT vinyl_suite STREQUAL "vinyl_world_visual")
+        set_tests_properties("colosseum.qml.${vinyl_suite}" PROPERTIES
+            LABELS "unit;qml;vinyl;regression"
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+            TIMEOUT 120)
+    else()
+        set_tests_properties("colosseum.qml.${vinyl_suite}" PROPERTIES
+            LABELS "qml;vinyl;regression"
+            ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+            TIMEOUT 120)
+    endif()
 endforeach()
 
 # These discovery regressions cover components shared across worlds.
 set_tests_properties(colosseum.qml.discover_picker colosseum.qml.discover_sidebar PROPERTIES
     LABELS "qml;regression")
 
+# Fixture-only Vinyl UI regressions share the normal runner with a headless backend.
+foreach(vinyl_unit_suite IN ITEMS
+    vinyl_carousel_actions
+    vinyl_discover_page
+    vinyl_home_page
+    vinyl_picker_widgets
+    vinyl_queue_panel
+    vinyl_recommendation_page
+    vinyl_search_presentation
+    vinyl_shell_tabs
+    vinyl_song_attribution
+    vinyl_source_attribution
+    vinyl_square_faces
+    vinyl_widget_integration
+    vinyl_world_navigation
+)
+    add_test(NAME "colosseum.qml.${vinyl_unit_suite}"
+        COMMAND colosseum_qml_tests -input
+            "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_${vinyl_unit_suite}.qml")
+    set_tests_properties("colosseum.qml.${vinyl_unit_suite}" PROPERTIES
+        LABELS "unit;qml;vinyl;regression" TIMEOUT 120
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+endforeach()
 set_tests_properties(colosseum.qml.vinyl_world_navigation PROPERTIES TIMEOUT 240)
+
+add_test(NAME colosseum.qml.vinyl_catalogue_browse
+    COMMAND colosseum_qml_tests -input
+        "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_vinyl_catalogue_browse.qml")
+set_tests_properties(colosseum.qml.vinyl_catalogue_browse PROPERTIES
+    LABELS "unit;qml;vinyl;catalogue;regression" TIMEOUT 120
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 
 add_test(NAME colosseum.qml.account_flyout_local_privacy
     COMMAND colosseum_qml_tests -input
@@ -4286,7 +4325,7 @@ target_link_libraries(vinyl_taste_selections_test PRIVATE Qt6::Core Qt6::Test)
 set_target_properties(vinyl_taste_selections_test PROPERTIES AUTOMOC ON)
 add_test(NAME colosseum.qttest.vinyl_taste_selections COMMAND vinyl_taste_selections_test)
 set_tests_properties(colosseum.qttest.vinyl_taste_selections PROPERTIES
-    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" TIMEOUT 120 LABELS "vinyl;preferences")
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" TIMEOUT 120 LABELS "unit;vinyl;preferences")
 
 add_executable(tst_vinyl_feedback_snapshot
     auto/account/tst_vinyl_feedback_snapshot.cpp
@@ -5435,7 +5474,7 @@ if(MSVC)
     target_compile_options(vinyl_catalogue_source_test PRIVATE /utf-8)
 endif()
 add_test(NAME colosseum.vinyl_catalogue_source COMMAND vinyl_catalogue_source_test)
-set_tests_properties(colosseum.vinyl_catalogue_source PROPERTIES TIMEOUT 60 LABELS "vinyl;catalogue;native-adapter")
+set_tests_properties(colosseum.vinyl_catalogue_source PROPERTIES TIMEOUT 60 LABELS "unit;vinyl;catalogue;native-adapter")
 if(NOT VINYL_TEST_FFMPEG)
     find_program(_vinyl_test_ffmpeg NAMES ffmpeg ffmpeg.exe)
     if(_vinyl_test_ffmpeg)
@@ -5486,9 +5525,22 @@ set_tests_properties(colosseum.qml.vinyl_native_session_bridge PROPERTIES
     LABELS "qml;vinyl;local;native-adapter"
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
     TIMEOUT 60)
+add_test(NAME colosseum.qml.vinyl_continue_restore_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-session-bridge/tst_continue_restore.qml"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+set_tests_properties(colosseum.qml.vinyl_continue_restore_native PROPERTIES
+    LABELS "unit;qml;vinyl;local;native-adapter" TIMEOUT 120
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 add_test(NAME colosseum.qml.vinyl_live_world_native
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_live_world.qml")
+add_test(NAME colosseum.qml.vinyl_house_runtime_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_house_shell.qml")
+set_tests_properties(colosseum.qml.vinyl_house_runtime_native PROPERTIES
+    LABELS "unit;qml;vinyl;native-adapter" TIMEOUT 60
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 add_test(NAME colosseum.qml.vinyl_personal_library_native
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_personal_library.qml")
@@ -5499,14 +5551,14 @@ add_test(NAME colosseum.qml.vinyl_personalized_home_native
     COMMAND vinyl_native_session_bridge
          -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_personalized_home.qml")
 set_tests_properties(colosseum.qml.vinyl_personalized_home_native PROPERTIES
-    LABELS "qml;vinyl;recommendations;native-adapter" TIMEOUT 90
+    LABELS "unit;qml;vinyl;recommendations;native-adapter" TIMEOUT 90
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 foreach(onboarding_case IN ITEMS artist_onboarding artist_onboarding_service)
     add_test(NAME colosseum.qml.vinyl_${onboarding_case}_native COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_${onboarding_case}.qml")
     set_tests_properties(colosseum.qml.vinyl_${onboarding_case}_native PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
-        TIMEOUT 120 LABELS "vinyl;qml;onboarding")
+        TIMEOUT 120 LABELS "unit;vinyl;qml;onboarding")
 endforeach()
 add_test(NAME colosseum.qml.vinyl_discovery_native
     COMMAND vinyl_native_session_bridge
@@ -5514,29 +5566,72 @@ add_test(NAME colosseum.qml.vinyl_discovery_native
 add_test(NAME colosseum.qml.vinyl_catalogue_pages_native
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_catalogue_pages.qml")
+add_test(NAME colosseum.qml.vinyl_youtube_browse_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-session-bridge/tst_youtube_browse.qml"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+set_tests_properties(colosseum.qml.vinyl_youtube_browse_native PROPERTIES
+    LABELS "unit;qml;vinyl;catalogue;native-adapter" TIMEOUT 120
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+add_test(NAME colosseum.qml.vinyl_music_discover_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-session-bridge/tst_music_discover.qml"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+set_tests_properties(colosseum.qml.vinyl_music_discover_native PROPERTIES
+    LABELS "unit;qml;vinyl;catalogue;native-adapter" TIMEOUT 120
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 foreach(vinyl_playback_case IN ITEMS player_seek playback_queue playback_actions)
     add_test(NAME colosseum.qml.vinyl_${vinyl_playback_case}_native
         COMMAND vinyl_native_session_bridge
             -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_${vinyl_playback_case}.qml")
     set_tests_properties(colosseum.qml.vinyl_${vinyl_playback_case}_native PROPERTIES
-        LABELS "qml;vinyl;playback;native-adapter" TIMEOUT 120
+        LABELS "unit;qml;vinyl;playback;native-adapter" TIMEOUT 120
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 endforeach()
 set_tests_properties(colosseum.qml.vinyl_catalogue_pages_native PROPERTIES
-    LABELS "qml;vinyl;catalogue;native-adapter" TIMEOUT 90
+    LABELS "unit;qml;vinyl;catalogue;native-adapter" TIMEOUT 90
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 set_tests_properties(colosseum.qml.vinyl_discovery_native PROPERTIES
-    LABELS "qml;vinyl;catalogue;native-adapter" TIMEOUT 60
+    LABELS "unit;qml;vinyl;catalogue;native-adapter" TIMEOUT 60
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 set_tests_properties(colosseum.qml.vinyl_home_native PROPERTIES
-    LABELS "qml;vinyl;local;native-adapter" TIMEOUT 60
+    LABELS "unit;qml;vinyl;local;native-adapter" TIMEOUT 60
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 set_tests_properties(colosseum.qml.vinyl_personal_library_native PROPERTIES
-    LABELS "qml;vinyl;local;native-adapter" TIMEOUT 60
+    LABELS "unit;qml;vinyl;local;native-adapter" TIMEOUT 60
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 set_tests_properties(colosseum.qml.vinyl_live_world_native PROPERTIES
-    LABELS "qml;vinyl;local;native-adapter" TIMEOUT 120
+    LABELS "unit;qml;vinyl;local;native-adapter" TIMEOUT 120
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+
+add_test(NAME colosseum.qml.vinyl_helper_warmup_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-session-bridge/tst_helper_warmup.qml"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+add_test(NAME colosseum.qml.vinyl_cached_recommendation_playback_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-session-bridge/tst_cached_recommendation_playback.qml"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+add_test(NAME colosseum.qml.vinyl_local_navigation_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_local_navigation.qml"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+add_test(NAME colosseum.qml.vinyl_session_storage_seams_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_session_storage_seams.qml"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+add_test(NAME colosseum.qml.vinyl_local_queue_panel_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_queue_panel.qml"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+set_tests_properties(
+    colosseum.qml.vinyl_helper_warmup_native
+    colosseum.qml.vinyl_cached_recommendation_playback_native
+    colosseum.qml.vinyl_local_navigation_native
+    colosseum.qml.vinyl_session_storage_seams_native
+    colosseum.qml.vinyl_local_queue_panel_native
+    PROPERTIES LABELS "unit;qml;vinyl;native-adapter" TIMEOUT 120
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 
 add_test(NAME colosseum.qml.vinyl_local_session
     COMMAND colosseum_qml_tests
@@ -5557,6 +5652,13 @@ if(COLOSSEUM_VINYL_TEST_NODE)
         COMMAND "${COLOSSEUM_VINYL_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_shell_back_test.mjs")
     set_tests_properties(colosseum.vinyl_shell_back PROPERTIES
         LABELS "unit;vinyl;shell" TIMEOUT 30)
+    foreach(vinyl_script IN ITEMS continue_opening direct_video_open shell_presentation video_presentation shell_lifecycle audiobook_handoff)
+        add_test(NAME colosseum.vinyl_${vinyl_script}
+            COMMAND "${COLOSSEUM_VINYL_TEST_NODE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_${vinyl_script}_test.mjs")
+        set_tests_properties(colosseum.vinyl_${vinyl_script} PROPERTIES
+            LABELS "unit;vinyl;shell" TIMEOUT 30)
+    endforeach()
 endif()
 
 # Shared search privacy scope contract; static Node assertions, no native UI claim.
@@ -5584,7 +5686,7 @@ foreach(variant development qualification shipping_disabled)
         endif()
     endif()
     add_test(NAME colosseum.vinyl_availability_${variant} COMMAND vinyl_availability_${variant})
-    set_tests_properties(colosseum.vinyl_availability_${variant} PROPERTIES LABELS "vinyl")
+    set_tests_properties(colosseum.vinyl_availability_${variant} PROPERTIES LABELS "unit;vinyl")
 endforeach()
 find_package(Qt6 REQUIRED COMPONENTS Test)
 foreach(owner runtime operations)
@@ -5639,6 +5741,8 @@ if(TARGET colosseum_vinyl_app)
             ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
             ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
     endforeach()
+    set_tests_properties(colosseum.qttest.vinyl_native_facade PROPERTIES
+        LABELS "unit;vinyl;qttest")
 endif()
 
 add_executable(vinyl_personal_library_contracts vinyl_personal_library_harness.cpp
@@ -5648,7 +5752,7 @@ set_target_properties(vinyl_personal_library_contracts PROPERTIES AUTOMOC ON)
 target_include_directories(vinyl_personal_library_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(vinyl_personal_library_contracts PRIVATE colosseum_vinyl_app vinyl_test_activity_owners Qt6::Test Qt6::Quick MpvQt::MpvQt)
 add_test(NAME colosseum.vinyl_personal_library COMMAND vinyl_personal_library_contracts)
-set_tests_properties(colosseum.vinyl_personal_library PROPERTIES LABELS "vinyl;personal;qttest" TIMEOUT 45
+set_tests_properties(colosseum.vinyl_personal_library PROPERTIES LABELS "unit;vinyl;personal;qttest" TIMEOUT 45
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1")
 
 # Recommendation backend contract mains remain standalone executables.
@@ -5679,6 +5783,8 @@ add_test(NAME colosseum.vinyl_be3_ranker COMMAND vinyl_be3_ranker_test)
 
 add_executable(vinyl_recommendation_contracts_test vinyl_recommendation_contracts.cpp)
 add_executable(vinyl_recommendation_service_test vinyl_recommendation_service_test.cpp)
+add_executable(vinyl_source_pool_test tst_vinyl_source_pool.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h")
 
 add_executable(vinyl_home_listening_test vinyl_home_listening_test.cpp
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylHomeListening.cpp")
@@ -5708,9 +5814,14 @@ set_target_properties(vinyl_recommendation_contracts_test PROPERTIES AUTOMOC ON)
 target_include_directories(vinyl_recommendation_contracts_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(vinyl_recommendation_contracts_test PRIVATE colosseum_vinyl_backend Qt6::Test)
 add_test(NAME colosseum.vinyl_recommendation_contracts COMMAND vinyl_recommendation_contracts_test)
+set_target_properties(vinyl_source_pool_test PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_source_pool_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_source_pool_test PRIVATE colosseum_vinyl_backend Qt6::Test)
+add_test(NAME colosseum.vinyl_source_pool COMMAND vinyl_source_pool_test)
 set_tests_properties(
     colosseum.vinyl_be1_contract colosseum.vinyl_be2_state colosseum.vinyl_be2_persistence
     colosseum.vinyl_derivation colosseum.vinyl_be3_ranker colosseum.vinyl_recommendation_contracts
+    colosseum.vinyl_source_pool
     PROPERTIES ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" LABELS "vinyl;recommendations;unit" TIMEOUT 60)
 
 if(MSVC)
@@ -5720,7 +5831,8 @@ if(MSVC)
             vinyl_be2_persistence_test
             vinyl_derivation_test
             vinyl_be3_ranker_test
-            vinyl_recommendation_contracts_test)
+            vinyl_recommendation_contracts_test
+            vinyl_source_pool_test)
         target_compile_options(${vinyl_recommendation_target} PRIVATE /utf-8)
     endforeach()
 endif()
@@ -5765,3 +5877,71 @@ if(TARGET colosseum_nuvio AND TARGET Qt6::Test)
     set_tests_properties(colosseum.nuvio_plugin_host_test PROPERTIES
         ENVIRONMENT "COLOSSEUM_NUVIO_TEST_WORKER=$<TARGET_FILE:colosseum-nuvio-host>")
 endif()
+
+# Deterministic subprocess reuse/preemption; no network or application profile.
+add_executable(vinyl_provider_lifecycle_test vinyl_provider_lifecycle_test.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h")
+set_target_properties(vinyl_provider_lifecycle_test PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_provider_lifecycle_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_provider_lifecycle_test PRIVATE colosseum_vinyl_backend Qt6::Core Qt6::Test)
+target_compile_definitions(vinyl_provider_lifecycle_test PRIVATE
+    VINYL_LIFECYCLE_HELPER="${CMAKE_CURRENT_SOURCE_DIR}/vinyl-provider-lifecycle/provider.py")
+find_package(Python3 QUIET COMPONENTS Interpreter)
+if(Python3_Interpreter_FOUND)
+    set_property(TEST colosseum.vinyl_source_pool APPEND PROPERTY ENVIRONMENT
+        "COLOSSEUM_VINYL_PYTHON=${Python3_EXECUTABLE}")
+    set_property(TEST colosseum.vinyl_catalogue_source APPEND PROPERTY ENVIRONMENT
+        "COLOSSEUM_VINYL_PYTHON=${Python3_EXECUTABLE}")
+    add_test(NAME colosseum.vinyl_provider_lifecycle COMMAND vinyl_provider_lifecycle_test)
+    set_tests_properties(colosseum.vinyl_provider_lifecycle PROPERTIES LABELS "vinyl;provider;unit" TIMEOUT 60
+        ENVIRONMENT "COLOSSEUM_VINYL_PYTHON=${Python3_EXECUTABLE}")
+    add_test(NAME colosseum.vinyl_music_discover_provider
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_music_discover_provider_test.py")
+    set_tests_properties(colosseum.vinyl_music_discover_provider PROPERTIES
+        LABELS "unit;vinyl;catalogue;provider" TIMEOUT 60)
+    add_test(NAME colosseum.vinyl_song_recommendations_provider
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_song_recommendations_provider_test.py")
+    set_tests_properties(colosseum.vinyl_song_recommendations_provider PROPERTIES
+        LABELS "unit;vinyl;recommendations;provider" TIMEOUT 60)
+    add_test(NAME colosseum.vinyl_recommendation_provider
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_recommendation_provider_test.py")
+    set_tests_properties(colosseum.vinyl_recommendation_provider PROPERTIES
+        LABELS "unit;vinyl;provider" TIMEOUT 60)
+    add_test(NAME colosseum.vinyl_source_pool_provider
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_source_pool_provider_test.py")
+    set_tests_properties(colosseum.vinyl_source_pool_provider PROPERTIES
+        LABELS "unit;vinyl;recommendations;provider" TIMEOUT 60)
+    add_test(NAME colosseum.vinyl_lyrics_provider
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_vinyl_lyrics_provider.py")
+    set_tests_properties(colosseum.vinyl_lyrics_provider PROPERTIES
+        LABELS "unit;vinyl;provider" TIMEOUT 60)
+else()
+    message(STATUS "Skipping Vinyl helper lifecycle CTest registration: Python3 interpreter not found")
+endif()
+
+# Mixed YouTube catalogue renderers use the installed ytmusicapi parsers, without
+# network access. Allow the bundled runtime to be selected independently of the
+# general-purpose Python interpreter used by the helper lifecycle fixture.
+set(_vinyl_catalogue_test_python "${Python3_EXECUTABLE}")
+if(DEFINED ENV{COLOSSEUM_VINYL_PYTHON} AND NOT "$ENV{COLOSSEUM_VINYL_PYTHON}" STREQUAL "")
+    set(_vinyl_catalogue_test_python "$ENV{COLOSSEUM_VINYL_PYTHON}")
+endif()
+set(VINYL_CATALOGUE_TEST_PYTHON "${_vinyl_catalogue_test_python}" CACHE FILEPATH
+    "Python interpreter with ytmusicapi installed for Vinyl catalogue provider tests")
+if(VINYL_CATALOGUE_TEST_PYTHON)
+    execute_process(COMMAND "${VINYL_CATALOGUE_TEST_PYTHON}" -c "import ytmusicapi"
+        RESULT_VARIABLE _vinyl_catalogue_parser_result
+        OUTPUT_QUIET ERROR_QUIET TIMEOUT 15)
+    if(_vinyl_catalogue_parser_result STREQUAL "0")
+        add_test(NAME colosseum.vinyl_youtube_browse_provider
+            COMMAND "${VINYL_CATALOGUE_TEST_PYTHON}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_youtube_browse_provider_test.py")
+        set_tests_properties(colosseum.vinyl_youtube_browse_provider PROPERTIES
+            LABELS "unit;vinyl;catalogue;provider" TIMEOUT 60)
+    else()
+        message(STATUS "Skipping Vinyl YouTube browse provider CTest: select VINYL_CATALOGUE_TEST_PYTHON with ytmusicapi installed")
+    endif()
+endif()
+
+# Pure Qt Core source metadata picker and offline fixture replay.
+add_subdirectory(stream)

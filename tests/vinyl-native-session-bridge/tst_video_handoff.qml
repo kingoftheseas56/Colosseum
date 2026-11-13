@@ -11,15 +11,16 @@ TestCase {
     property var session
     property var source
     property var videoRequest
+    property var audioHeaders: ({})
     property string audioUrl
     Component { id: sourceFactory; VideoTestSource {} }
     Component { id: generationSpyFactory; SignalSpy {} }
     function init() {
-        videoRequest=null;
+        videoRequest=null;audioHeaders=({});
         var imported=NativeSource.importFiles([ManifestPath]);compare(imported.errors.length,0);
         source=sourceFactory.createObject(test);
         source.requested.connect(function(lane,id,operation,value,options) {
-            if(lane==="play")Qt.callLater(function(){source.reply(lane,id,{trackId:value,url:audioUrl,provider:"local"},"");});
+            if(lane==="play")Qt.callLater(function(){source.reply(lane,id,{trackId:value,url:audioUrl,headers:audioHeaders,provider:"local"},"");});
             if(lane==="video-match")Qt.callLater(function(){source.reply(lane,id,{
                 version:1,status:"ready",trackId:value,sourceVideoId:"tqxRidAWER8",videoId:"YVkUvmDQ3HY"},"");});
             if(lane==="video-stream")videoRequest={lane:lane,id:id,trackId:value,operation:operation};
@@ -37,7 +38,7 @@ TestCase {
         tryCompare(session,"hasVideo",true);
         verify(!session.videoSwitchCancellable);
     }
-    function cleanup(){session.destroy();source.destroy();wait(0);}
+    function cleanup(){session.destroy();source.destroy();BridgeFixtures.stopProgressiveHttpFixture();wait(0);}
     function beginVideo(paused) {
         var oldPlayer=session.player,occurrence=session.queue[session.queueIndex].queueId;
         session.toggleVideo();verify(session.videoBusy);verify(videoRequest!==null);
@@ -97,6 +98,54 @@ TestCase {
         wait(50);compare(session.player,audio);verify(session.loaded);verify(!session.videoShown);
         compare(session.player.volume,37);compare(session.player.mute,true);compare(session.player.speed,1.25);
         compare(generationSpy.count,0,"A retired video must never open after audio is restored");
+        generationSpy.destroy();
+    }
+    function test_loading_video_error_resolves_expired_original_audio_data() {
+        return [{tag:"paused",paused:true},{tag:"playing",paused:false}];
+    }
+    function test_loading_video_error_resolves_expired_original_audio(data) {
+        var localAudio=audioUrl;
+        audioUrl=BridgeFixtures.startCompleteHttpAudioFixture()+"?expire=1";
+        audioHeaders={"X-Vinyl-Seek-Test":"required"};
+        session.playTrack(0);tryCompare(session,"loaded",true);session.paused=true;
+        tryCompare(session,"hasVideo",true);
+        session.player.volume=43;session.player.mute=true;session.player.speed=1.25;
+        tryCompare(session.player,"volume",43);tryCompare(session.player,"mute",true);tryCompare(session.player,"speed",1.25);
+        session.seek(12);tryCompare(session,"seekPending",false);
+        session.paused=data.paused;
+        var occurrence=session.queue[session.queueIndex].queueId;
+        beginVideo(data.paused);
+        var pending=videoRequest;
+        // Pause/seek changes made while resolution is pending are the handoff intent.
+        session.paused=!data.paused;
+        session.seek(14);tryCompare(session,"seekPending",false);
+        var at=session.position;
+        source.reply(pending.lane,pending.id,{version:1,trackId:pending.trackId,
+            videoId:"YVkUvmDQ3HY",url:"https://media.googlevideo.com/videoplayback",
+            headers:{},hasVideo:true,hasAudio:true},"");
+        tryCompare(session,"videoShown",true);verify(session.videoBusy);verify(!session.loaded);
+        var failed=session.player;
+        var generationSpy=generationSpyFactory.createObject(test,{target:failed,signalName:"playbackGenerationChanged"});
+        failed.playbackError("test-video-load","Controlled renderer load failure");
+        tryVerify(function(){return videoRequest.operation==="resolveFallback";},1000,
+            "Loading video failure must actively resolve expired original audio");
+        var recovery=videoRequest;
+        failed.playbackError("test-video-load","Repeated failure from retired renderer");
+        compare(videoRequest.id,recovery.id,"Only one audio recovery request may be active");
+        session.paused=data.paused;
+        // A queued renderer-ready callback and superseded resource must be fenced.
+        failed.ready();
+        source.reply(pending.lane,pending.id,{version:1,trackId:pending.trackId,
+            videoId:"YVkUvmDQ3HY",url:"https://media.googlevideo.com/videoplayback",
+            headers:{},hasVideo:true,hasAudio:true},"");
+        source.reply(recovery.lane,recovery.id,{trackId:recovery.trackId,url:localAudio,provider:"local"},"");
+        tryCompare(session,"loaded",true);tryCompare(session,"seekPending",false);
+        verify(!session.videoShown);verify(!session.videoBusy);compare(session.error,"");
+        compare(session.queue[session.queueIndex].queueId,occurrence);
+        compare(session.paused,data.paused);
+        verify(Math.abs(session.position-at)<(data.paused ? 0.2 : 1));
+        tryCompare(session.player,"volume",43);tryCompare(session.player,"mute",true);tryCompare(session.player,"speed",1.25);
+        wait(50);compare(generationSpy.count,0,"Failed video must not reopen while audio recovers");
         generationSpy.destroy();
     }
     function test_untrusted_video_resource_data() {
