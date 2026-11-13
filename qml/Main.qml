@@ -4412,7 +4412,7 @@ Window {
         backdrop: wall
         activeMedium: ""
         androidHost: win.androidHost
-        x: win.headerOuterMargin; y: 18
+        x: win.headerOuterMargin; y: presentationPolicy.stackedWorldChrome ? presentationPolicy.topInset : 18
         width: win.width - win.headerOuterMargin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")

@@ -40,6 +40,7 @@ Item {
         id: adaptive
         androidHost: car.androidHost
         viewportWidth: car.width
+        chromeAvailableWidth: car.width
         viewportHeight: car.Window.window ? car.Window.window.height : 0
         bottomInset: car.Window.window && car.Window.window.browseBottomInset !== undefined
             ? car.Window.window.browseBottomInset : 0

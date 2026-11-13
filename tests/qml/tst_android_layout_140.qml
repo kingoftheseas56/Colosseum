@@ -22,6 +22,7 @@ TestCase {
         property bool desktopPresentation: true
         property bool androidHost: true
         property real browseBottomInset: 80
+        FontLoader { source: "../../assets/fonts/Fraunces-Regular.ttf" }
         Item { id: wallpaper; anchors.fill: parent }
     }
     QtObject {
@@ -258,7 +259,8 @@ TestCase {
         id: insetHeroComponent
         App.CarouselSlide {
             width: host.width - 108
-            height: 259
+            height: heroMetrics.heroHeight
+            App.AdaptiveLayout { id: heroMetrics; androidHost: host.androidHost; viewportWidth: host.width; viewportHeight: host.height; bottomInset: host.browseBottomInset; presentationScale: host.width > 940 ? 0.830357 : 1.5 }
             shortAndroid: host.androidHost
             slideIndex: 0
         }
@@ -274,10 +276,11 @@ TestCase {
     function test_inset_hero_copy_clears_cover_data() {
         return [{tag: "t20-poster", width: 762, kind: "poster"},
                 {tag: "t20-square", width: 762, kind: "square"},
-                {tag: "phone-poster", width: 955, kind: "poster"}]
+                {tag: "phone-poster", width: 955, height: 427, kind: "poster"}]
     }
     function test_inset_hero_copy_clears_cover(data) {
         host.width = data.width
+        host.height = data.height || 457
         host.androidHost = true
         const title = "A Court of Thorns and Roses"
         const slide = createTemporaryObject(insetHeroComponent, host.contentItem,
@@ -348,6 +351,7 @@ TestCase {
         host.width = data.width
         const bar = createTemporaryObject(barComponent, host.contentItem)
         verify(bar)
+        findChild(bar, "topBarInputMetrics").presentationScale = data.width > 940 ? 0.830357 : 1.5
         bar.date = "Wednesday, September 30"
         wait(50)
         const clock = findChild(bar, "topBarClock")
@@ -355,8 +359,20 @@ TestCase {
         const systems = findChild(bar, "topBarSystemChrome")
         const left = findChild(bar, "topBarLeftChrome")
         verify(clock.visible, "Clock must remain visible")
-        verify(picker.x >= left.x + left.width + 8, "Pills must clear clock and Back")
-        verify(picker.x + picker.width + 8 <= systems.x, "Pills must clear Search")
+        verify(left.x + left.width + 8 <= systems.x, "Clock and Back must clear system controls")
+        verify(picker.y >= left.y + left.height && picker.y >= systems.y + systems.height,
+               "World tabs have their own row below clock and controls")
+        verify(picker.x >= 0 && picker.x + picker.width <= bar.width, "All six world tabs fit")
+        compare(picker.y + picker.height, bar.height)
+        for (const label of ["Tankoban", "Biblio", "Theatre", "Universes", "Feria", "Vinyl"]) {
+            const text = textDescendant(picker, label)
+            verify(text)
+            compare(text.font.pixelSize, 14, "World text retains desktop size")
+            const pill = text.parent.parent
+            compare(pill.width - text.parent.implicitWidth, 34, "World tabs retain desktop padding")
+            const action = findChild(bar, "modePillFocus_" + label)
+            verify(action.height >= 48)
+        }
         verify(systems.x + systems.width <= bar.width + 1)
     }
 }
