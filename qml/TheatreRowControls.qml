@@ -23,7 +23,7 @@ Item {
     property bool editing: false
     property Item editFocusReturn: null
 
-    implicitHeight: 34
+    implicitHeight: Qt.platform.os === "android" ? 40 : 34
     implicitWidth: bar.width
 
     Theme { id: theme }
@@ -86,20 +86,23 @@ Item {
 
     Row {
         id: bar
-        spacing: 6
+        spacing: Qt.platform.os === "android" ? (controls.editing ? 12 : 46) : 6
         anchors.verticalCenter: parent.verticalCenter
 
         GlyphButton {
+            visible: Qt.platform.os !== "android"
             glyph: "▲"                     // ▲ move up
             enabledLook: controls.canMoveUp
             onClicked: controls.moveUpRequested()
         }
         GlyphButton {
+            visible: Qt.platform.os !== "android"
             glyph: "▼"                     // ▼ move down
             enabledLook: controls.canMoveDown
             onClicked: controls.moveDownRequested()
         }
         GlyphButton {
+            visible: Qt.platform.os !== "android"
             glyph: controls.hidden ? "+" : "–"   // + show / – hide
             tip: controls.hidden ? "Show" : "Hide"
             onClicked: controls.toggleHiddenRequested()
@@ -141,10 +144,39 @@ Item {
         }
 
         GlyphButton {
+            visible: Qt.platform.os !== "android"
             glyph: "↺"                     // ↺ reset name
             tip: "Reset name"
             enabledLook: controls.renamed
             onClicked: controls.resetNameRequested()
+        }
+
+        // D-W2: existing shelf actions move into this named tap menu on Android.
+        // Rename stays inline; action availability and hidden/renamed state remain live.
+        ActionOverflowMenu {
+            visible: Qt.platform.os === "android"
+            anchors.verticalCenter: parent.verticalCenter
+            width: 40
+            height: 40
+            menuWidth: 170
+            showLabel: false
+            actions: [
+                { id: "up", label: qsTr("Move row up"), iconName: "up", enabled: controls.canMoveUp },
+                { id: "down", label: qsTr("Move row down"), iconName: "down", enabled: controls.canMoveDown },
+                { id: "visibility", label: controls.hidden ? qsTr("Show") : qsTr("Hide"),
+                  iconName: controls.hidden ? "plus" : "close", selected: controls.hidden },
+                { id: "reset", label: qsTr("Reset name"), iconName: "reset", enabled: controls.renamed }
+            ]
+            onActionTriggered: function(actionId) {
+                if (actionId === "up")
+                    controls.moveUpRequested()
+                else if (actionId === "down")
+                    controls.moveDownRequested()
+                else if (actionId === "visibility")
+                    controls.toggleHiddenRequested()
+                else if (actionId === "reset")
+                    controls.resetNameRequested()
+            }
         }
     }
 }
