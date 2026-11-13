@@ -74,6 +74,7 @@ struct TrustOptions {
     QStringList preferred_languages, preferred_audio_langs, expected_titles;
 };
 struct ScoreOptions {
+    Resolution target_resolution = Resolution::P1080;
     QStringList preferred_languages;
     QDate release_date;
     QDate today = QDate::currentDate();

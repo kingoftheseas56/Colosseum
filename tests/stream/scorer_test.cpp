@@ -724,6 +724,54 @@ int main(int argc, char **argv) {
         o.preferred_languages = {"en"};
         CHECK(!reason(scored(fr, o), "preferred-language"));
     });
+    run("4K target changes only resolution selection", [] {
+        auto hd = base(0), uhd = base(1), low = base(2);
+        uhd.resolution = Resolution::UHD;
+        low.resolution = Resolution::P720;
+        auto o = options();
+        CHECK(primary(SourceScorer::rankAndPick({scored(hd), scored(uhd), scored(low)}, o)) == 0);
+        o.target_resolution = Resolution::UHD;
+        CHECK(primary(SourceScorer::rankAndPick({scored(hd), scored(uhd), scored(low)}, o)) == 1);
+        CHECK(scored(uhd, o).score == scored(uhd).score);
+        CHECK(primary(SourceScorer::rankAndPick({scored(low), scored(hd)}, o)) == 0);
+        CHECK(primary(SourceScorer::rankAndPick({scored(low)}, o)) == 2);
+    });
+    run("4K target preserves size and DV guards", [] {
+        auto friendly = base(0), large = base(1), dv = base(2);
+        friendly.resolution = large.resolution = dv.resolution = Resolution::UHD;
+        friendly.size = 10000000000ULL;
+        large.size = 50000000000ULL;
+        dv.size = 9000000000ULL;
+        dv.hdr_format = HdrFormat::Dv;
+        auto o = options();
+        o.target_resolution = Resolution::UHD;
+        auto oversized = scored(large, o), incompatible = scored(dv, o);
+        oversized.score += 100;
+        incompatible.score += 100;
+        CHECK(primary(SourceScorer::rankAndPick({oversized, incompatible, scored(friendly, o)}, o)) == 0);
+    });
+    run("4K target preserves trust and primary safety", [] {
+        auto make = [](const QString &title, int index, int seeders) {
+            return stream_from_json({{"title", title}, {"infoHash", QString(40, 'a')},
+                                     {"size", 20000000000.0}, {"seeders", seeders}}, index);
+        };
+        auto o = options();
+        o.target_resolution = Resolution::UHD;
+        TrustOptions trust;
+        trust.kind = "movie";
+        trust.expected_title = "Fixture";
+        trust.expected_year = 2020;
+        trust.today = o.today;
+        const auto pick = SourceScorer::evaluate({
+            make("Fixture.2020.2160p.CAM.x265.mkv", 0, 1000),
+            make("Fixture.2020.2160p.WEB-DL.x265.mkv", 1, 0),
+            make("Fixture.2020.1080p.WEB-DL.x265.mkv", 2, 100),
+            make("Unrelated.2020.2160p.WEB-DL.x265.mkv", 3, 1000)}, trust, o);
+        CHECK(primary(pick) == 2);
+        CHECK(pick.rejected.size() == 1);
+        CHECK(pick.rejected[0].stream.stream.input_index == 3);
+        CHECK(pick.rejected[0].reason == "title-mismatch");
+    });
     run("Selection explanations", [] {
         auto r = SourceScorer::rankAndPick({}, options());
         CHECK(!r.selection_reasons.isEmpty());

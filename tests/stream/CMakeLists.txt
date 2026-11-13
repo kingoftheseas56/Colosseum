@@ -7,6 +7,7 @@ endforeach()
 
 add_executable(stream_fixture_test fixture_test.cpp)
 target_link_libraries(stream_fixture_test PRIVATE colosseum_stream_picker Qt6::Core)
-target_compile_definitions(stream_fixture_test PRIVATE STREAM_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
+set(STREAM_FIXTURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/fixtures" CACHE PATH "Directory for offline stream fixture replay")
+target_compile_definitions(stream_fixture_test PRIVATE STREAM_FIXTURE_DIR="${STREAM_FIXTURE_DIR}")
 add_test(NAME colosseum.stream_fixtures COMMAND stream_fixture_test)
 set_tests_properties(colosseum.stream_fixtures PROPERTIES LABELS "unit;stream;fixture" TIMEOUT 120)

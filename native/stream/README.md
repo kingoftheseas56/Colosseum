@@ -12,6 +12,14 @@ Set `TrustOptions` with movie/series identity, expected title/aliases, year, sea
 episode and release date. Set `ScoreOptions` with preferred language prefixes,
 runtime and any bandwidth constraint. `dolby_vision_supported` defaults to `false`;
 set it only when the receiving playback stack is known to support DV.
+`ScoreOptions::target_resolution` defaults to `P1080`; `UHD` selects 4K, then 1080p, then 720p, with every other guard unchanged.
+
+The application uses `SmartPlayBridge::pick(rows, quality, context)` to retain the input
+row index and return a short selection reason. Context carries the requested title,
+episode and year, available `metadata` (`released`, `runtime`, `aliases`, `sourceId`),
+and existing preferred audio-language codes. This adapter supplies the library's
+existing trust and scoring inputs; it owns no settings, network calls or playback.
+
 `SourceScorer::evaluate` returns:
 
 - `all`: retained rows sorted by descending score, with every scoring reason;

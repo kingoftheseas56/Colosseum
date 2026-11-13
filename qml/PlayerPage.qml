@@ -7,6 +7,7 @@ pragma ComponentBehavior: Bound
 import QtQuick 6
 import QtQuick.Window
 import QtCore
+import QtQuick.Controls.Basic
 import Colosseum.Player
 import Colosseum.Activity
 import "Subtitles.js" as Subtitles
@@ -114,6 +115,7 @@ Item {
         location: Qt.resolvedUrl("../player.ini")
         category: "transport"
         property int seekStepSeconds: 10
+        property string smartPlayQuality: "1080p"
         property bool showSkipButton: true
         property bool phoneGestureAdjustments: false
         property bool autoSkipIntro: false
@@ -305,6 +307,7 @@ Item {
     // Feature 8: the traveling episode queue (playbackContext.episodeQueue) retained so
     // the drawer's Episodes tab has an instant, fetch-free floor.
     property var playbackQueue: []
+    property var mediaMetadata: ({})
     property int playbackQueueIndex: -1
     // The ordering the current queue was built in ("absolute" | "seasons" | "").
     // A later AnimeOrder revision upgrades a non-absolute queue to absolute once
@@ -1417,6 +1420,7 @@ Item {
                 if (!ctx)
                     return
                 root.playbackQueue = ctx.episodeQueue
+                root.mediaMetadata = Object.assign({}, root.mediaMetadata, meta || ({}))
                 root.playbackQueueIndex = ctx.episodeIndex
                 root.adjacentEpisodes = root.resolveAdjacentContext(ctx)
                 root.playbackQueueOrderingMode =
@@ -1613,6 +1617,7 @@ Item {
         root.mediaTitle = title || ""
         root.mediaTransport = "Torrent stream"
         root.mediaYear = String((playbackContext || ({})).year || "")
+        root.mediaMetadata = (playbackContext || ({})).metadata || ({})
         root.mediaArt = posterUrl || ""
         // Stable id: series episodes use the exact stream id (tt:season:episode) so the
         // detail page can paint per-episode progress; movies keep the base Cinemeta id.
@@ -2083,10 +2088,31 @@ Item {
                 "year": (ep.context || ({})).year || root.mediaYear || "",
                 "kind": "episode",
                 "position": 0,
-                "playbackContext": ep.context || ({})
+                "playbackContext": root.episodePlaybackContext(ep)
             }
         }
         return null
+    }
+
+    function episodePlaybackContext(ep) {
+        return Object.assign({}, ep.context || ({}), {
+            metadata: Object.assign({}, root.mediaMetadata, (ep.context || ({})).metadata || ({}))
+        })
+    }
+
+    function pickEpisodeSource(list, current, ep) {
+        var first = EpisodeBrowser.pickContinuityRow(list, current.infoHash || "", current.fileIdx || 0)
+        var hash = String(current.infoHash || "").toLowerCase()
+        if (first !== list[0] || (hash.length && hash.indexOf("url:") !== 0
+                && String(first.infoHash || "").toLowerCase() === hash
+                && Number(first.fileIdx || 0) !== Number(current.fileIdx || 0))) return first
+        var context = Object.assign({}, root.episodePlaybackContext(ep), {
+            type: ep.type || "series", id: ep.id, season: ep.season, episode: ep.episode,
+            title: String(ep.title || root.mediaTitle).replace(/(?: - (?:S\d+E\d+|Episode \d+))+$/, ""),
+            preferredLanguages: TrackLanguage.parseLanguageList(playerSettings.preferredAudioLanguages, ["eng", "jpn"])
+        })
+        var pick = SmartPlay.pick(list, playerSettings.smartPlayQuality, context)
+        return pick.index >= 0 ? list[pick.index] : first
     }
 
     // Feature 8: the Next-Episode pipeline, generalized to ANY episode target
@@ -2125,10 +2151,10 @@ Item {
             // playing also carries the target episode (season pack), stay on it —
             // near-instant start, same quality. Otherwise rank-best, as ever.
             var cur = root.currentStreamCandidate()
-            var first = EpisodeBrowser.pickContinuityRow(list, cur.infoHash || "", cur.fileIdx || 0)
+            var first = root.pickEpisodeSource(list, cur, ep)
             root.playTorrent(first.infoHash, first.fileIdx || 0,
                              ep.title || root.mediaTitle, ep.backdrop || root.mediaArt,
-                             ep.type || "series", ep.id, list, ep.context || ({}))
+                             ep.type || "series", ep.id, list, root.episodePlaybackContext(ep))
         }
         // Same pipeline as the main picker: every installed extension, ranked the same
         // way. Torrentio stays as the fallback while it is installed AND enabled —
@@ -2782,6 +2808,7 @@ Item {
         root.playbackQueue = []
         root.playbackQueueIndex = -1
         root.mediaYear = ""
+        root.mediaMetadata = ({})
         root.streamCandidates = []
         root.currentStreamIndex = -1
         root.updateMediaSubtitle()
@@ -2817,6 +2844,7 @@ Item {
         var pos = Math.max(0, mpv.position - 2)   // small overlap so the cut lands on a frame he's seen
         root.playRemoteUrl({ "streamUrl": url, "id": root.mediaId, "title": root.mediaTitle,
                              "art": root.mediaArt, "headers": headers,
+                             "playbackContext": { "metadata": root.mediaMetadata },
                              "kind": root.subStreamType === "series" ? "episode" : "movie",
                              "position": pos })
         root.resumePromptConsumed = true   // mid-watch handover, not a fresh open — never prompt
@@ -2873,6 +2901,7 @@ Item {
         root.mediaTitle = t.title || ""
         root.mediaTransport = "Downloaded"
         root.mediaYear = String(t.year || "")
+        root.mediaMetadata = localCtx.metadata || ({})
         root.mediaArt = t.art || ""
         root.mediaLocalPath = String(t.localPath || "")
         root.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("local:" + root.mediaLocalPath)
@@ -2948,6 +2977,7 @@ Item {
         root.mediaTitle = t.title || ""
         root.mediaTransport = "Arriving"
         root.mediaYear = String(t.year || "")
+        root.mediaMetadata = (t.playbackContext || ({})).metadata || ({})
         root.mediaArt = t.art || ""
         root.mediaLocalPath = ""
         root.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("arriving:" + String(t.streamUrl || ""))
@@ -7166,7 +7196,7 @@ Item {
             // Two speed/sleep columns, then a full-width "Skip step" footer section below both.
             readonly property int columnsHeight: 46 + Math.max(root.speedChoices.length, root.sleepPresets.length + (root.sleepTimerActive ? 1 : 0)) * 38
             readonly property int skipStepTop: columnsHeight + 8
-            readonly property real bodyHeight: skipStepTop + 66
+            readonly property real bodyHeight: skipStepTop + 114
             height: Math.min(bodyHeight, Math.max(1, chrome.height - 20))
             function positionPopup() {
                 if (!visible) return
@@ -7475,6 +7505,24 @@ Item {
                         }
                     }
                 }
+            }
+            Text {
+                x: 18; y: parent.skipStepTop + 72
+                text: qsTr("Smart Play")
+                color: theme.inkDimmer; font.family: theme.hud; font.pixelSize: 12
+            }
+            ComboBox {
+                objectName: "smartPlayQualityChoice"
+                x: 150; y: parent.skipStepTop + 66; width: parent.width - 168; height: 32
+                readonly property var values: ["1080p", "4k", "off"]
+                model: [qsTr("1080p"), qsTr("4K"), qsTr("Off")]
+                currentIndex: values.indexOf(playerSettings.smartPlayQuality)
+                onActivated: {
+                    playerSettings.smartPlayQuality = values[currentIndex]
+                    playerSettings.setValue("smartPlayQuality", values[currentIndex]); playerSettings.sync()
+                }
+                onActiveFocusChanged: if (activeFocus) speedScroll.reveal(y, height)
+                Accessible.name: qsTr("Smart Play")
             }
                 }
             }

@@ -2,6 +2,7 @@
 // fingerprint emitted by the native build; explicit dev QML overrides remain opt-in.
 
 #include "feedback/FeedbackRequestService.h"
+#include "stream/SmartPlayBridge.h"
 
 #include <QDir>
 #include <QGuiApplication>
@@ -524,6 +525,7 @@ int main(int argc, char *argv[]) {
     // still exist. QML goes first so its destruction handlers can flush activity.
     QObject backendServices(&app);
     QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty(QStringLiteral("SmartPlay"), new SmartPlayBridge(&engine));
     engine.rootContext()->setContextProperty(QStringLiteral("FeedbackRequests"),
                                               new FeedbackRequestService(&engine));
 

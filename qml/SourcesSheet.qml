@@ -11,8 +11,10 @@
 // the seeded four installed this behaves exactly as the old Torrentio-only sheet.
 import QtQuick
 import QtQuick.Controls
+import QtCore
 import "AddonClient.js" as AddonClient
 import "Magnet.js" as Magnet
+import "TrackLanguage.js" as TrackLanguage
 
 Item {
     id: sheet
@@ -69,10 +71,42 @@ Item {
     property string subType: ""   // "movie" | "series" — carried to the player for online subtitle fetch
     property string subId: ""     // "tt..." (movie) or "tt...:s:e" (episode)
     property var playbackContext: ({})
+    property var mediaMetadata: ({})
     property bool open: false
     property bool loading: false
     property bool timedOut: false
     property var rows: []
+    Settings {
+        id: smartPlaySettings
+        objectName: "smartPlaySettings"
+        location: Qt.resolvedUrl("../player.ini")
+        category: "transport"
+    }
+    property string smartPlayQuality: "1080p"
+    readonly property bool smartPlayEnabled: sheet.mode === "play" && sheet.smartPlayQuality !== "off"
+    property bool smartPlayCancelled: false
+    property bool smartPlaySettled: false
+    property var smartPlayRow: null
+    readonly property int smartPlayVisibleIndex: sheet.visibleRows.indexOf(sheet.smartPlayRow)
+    readonly property string smartPlayStatus: !sheet.smartPlayEnabled || sheet.smartPlayCancelled ? ""
+        : !sheet.smartPlaySettled ? qsTr("Finding the best source…")
+        : !sheet.smartPlayRow ? qsTr("No source passed the quality check. Choose one below.") : ""
+    function finishSmartPlay(atTimeout) {
+        if (!sheet.open || !sheet.smartPlayEnabled || sheet.smartPlayCancelled || sheet.smartPlaySettled
+                || (!atTimeout && (sheet.loading || sheet.nuvioPending))) return
+        sheet.smartPlaySettled = true
+        timeout.stop()
+        var allRows = sheet.baseRows()
+        var pick = SmartPlay.pick(allRows, sheet.smartPlayQuality,
+            Object.assign({}, sheet.playbackContext, { type: sheet.subType, id: sheet.subId,
+                preferredLanguages: TrackLanguage.parseLanguageList(
+                    smartPlaySettings.value("preferredAudioLanguages", "eng,jpn"), ["eng", "jpn"]) }))
+        sheet.smartPlayRow = pick.index >= 0 ? allRows[pick.index] : null
+        sheet.warmTopRow()
+        if (pick.index >= 0) sheet.activateSource(pick.index, allRows)
+    }
+    onLoadingChanged: if (!sheet.loading) sheet.finishSmartPlay(false)
+    onNuvioPendingChanged: if (!sheet.nuvioPending) sheet.finishSmartPlay(false)
     property var extensionsService: typeof Extensions !== "undefined" ? Extensions : null
     property var loadStremioStreams: AddonClient.loadStreams
     property var nuvioSourceService: typeof NuvioSources !== "undefined" ? NuvioSources : null
@@ -128,9 +162,11 @@ Item {
     // offering a choice that can't be honored.
     property bool titleQueued: false
 
-    function activateSource(index) {
-        if (index < 0 || index >= sheet.visibleRows.length) return
-        var row=sheet.visibleRows[index]
+    function activateSource(index, sourceRows) {
+        var available = sourceRows || sheet.visibleRows
+        if (index < 0 || index >= available.length) return
+        sheet.smartPlayCancelled = true
+        var row=available[index]
         if (sheet.mode !== "play") { sheet.downloadRequested(row); sheet.hide() }
         else {
             var candidates = sheet.baseRows()
@@ -226,6 +262,11 @@ Item {
     }
 
     function show(type, id, lbl, context, pickMode) {
+        sheet.smartPlayCancelled = true;
+        sheet.smartPlayRow = null;
+        sheet.smartPlaySettled = false;
+        smartPlaySettings.sync();
+        sheet.smartPlayQuality = smartPlaySettings.value("smartPlayQuality", "1080p");
         sheet.cancelNuvio();
         sheet.closeSourceContext(false);
         var w=sheet.Window.window
@@ -238,7 +279,9 @@ Item {
         sheet.title = (context && context.title) ? context.title : sheet.label;
         sheet.metaLine = (context && context.metaLine) ? context.metaLine : "";
         sheet.backdropUrl = (context && context.backdrop) ? context.backdrop : "";
-        sheet.playbackContext = context || ({});
+        sheet.playbackContext = Object.assign({}, context || ({}), {
+            metadata: Object.assign({}, sheet.mediaMetadata, (context || ({})).metadata || ({}))
+        });
         sheet.rows = [];
         sheet.nuvioRows = [];
         sheet.nuvioAsked = false;
@@ -248,6 +291,7 @@ Item {
         sheet.timedOut = false;
         sheet.refreshTitleQueued();
         sheet.loading = true;
+        sheet.smartPlayCancelled = false;
         sheet.open = true;
         sheet.gen += 1;
         Qt.callLater(function(){ sourcesBack.forceActiveFocus(Qt.PopupFocusReason) });
@@ -273,7 +317,7 @@ Item {
                 if (myGen !== sheet.gen) return;
                 sheet.acceptStremioRows(allRows);
                 sheet.loading = false;
-                timeout.stop();
+                if (!sheet.smartPlayEnabled || !sheet.nuvioPending) timeout.stop();
                 sheet.warmTopRow();
                 seasonSettle();
             },
@@ -345,7 +389,7 @@ Item {
     property string warmedHash: ""
     function warmTopRow() {
         if (typeof Stream === "undefined" || sheet.mode === "download") return;
-        var rows = sheet.filteredRows();
+        var rows = sheet.smartPlayRow ? [sheet.smartPlayRow] : sheet.filteredRows();
         for (var i = 0; i < rows.length; ++i) {
             var row = rows[i];
             // Direct rows keep a synthetic url:<url> in infoHash only to ride the existing
@@ -516,10 +560,14 @@ Item {
 
     Timer {
         id: timeout
+        objectName: "sourcesTimeout"
         interval: 22000
         repeat: false
         // partial answers in hand at the bell = a result, not an error
-        onTriggered: if (sheet.loading) { sheet.loading = false; sheet.timedOut = sheet.rows.length === 0; sheet.seasonSettle() }
+        onTriggered: {
+            if (sheet.loading) { sheet.loading = false; sheet.timedOut = sheet.rows.length === 0; sheet.seasonSettle() }
+            sheet.finishSmartPlay(true)
+        }
     }
 
     // ===================== base: float over the wallpaper, not a flat void =====================
@@ -745,13 +793,14 @@ Item {
             Text {
                 anchors.left: parent.left; anchors.leftMargin: sheet.phoneLayout ? 14 : 26
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.verticalCenterOffset: sheet.phoneLayout ? -13 : 0
-                width: sheet.phoneLayout ? parent.width - 28 : implicitWidth
-                text: sheet.visibleRows.length + (sheet.visibleRows.length === 1 ? " source" : " sources")
+                anchors.verticalCenterOffset: sheet.phoneLayout && !sheet.smartPlayStatus.length ? -13 : 0
+                width: parent.width - (sheet.phoneLayout ? 28 : 52)
+                text: sheet.smartPlayStatus || sheet.visibleRows.length + (sheet.visibleRows.length === 1 ? " source" : " sources")
                       + (sheet.loading ? "  ·  still asking…" : "")
                       + (sheet.nuvioPending ? qsTr("  ·  asking Nuvio…") : "")
                 color: theme.ink; font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
-                elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
+                wrapMode: sheet.smartPlayStatus.length ? Text.WordWrap : Text.NoWrap
+                elide: sheet.phoneLayout && !sheet.smartPlayStatus.length ? Text.ElideRight : Text.ElideNone
             }
             Text {
                 anchors.right: parent.right; anchors.rightMargin: sheet.phoneLayout ? 14 : 26
@@ -760,7 +809,7 @@ Item {
                 width: sheet.phoneLayout ? parent.width - 28 : implicitWidth
                 horizontalAlignment: sheet.phoneLayout ? Text.AlignLeft : Text.AlignRight
                 elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
-                visible: sheet.askedNames.length > 0
+                visible: sheet.askedNames.length > 0 && !sheet.smartPlayStatus.length
                 text: sheet.askedNames.length > 2
                       ? "via " + sheet.askedNames.length + " extensions"
                       : "via " + sheet.askedNames.join(" · ")
@@ -779,14 +828,14 @@ Item {
             width: Math.max(0, table.width - 36)
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
-            text: sheet.loading ? "Finding sources…"
+            text: sheet.smartPlayStatus || (sheet.loading ? "Finding sources…"
                   : sheet.nuvioPending ? qsTr("Finding Nuvio sources…")
                   : (sheet.timedOut ? "Sources timed out. Try again."
                      : (sheet.askedCount === 0 && !sheet.nuvioAsked
                         ? (sheet.androidHost
                             ? "No stream extension carries this title — add one on the Extensions page."
                             : "No stream source is enabled for this title. Enable one in Extensions.")
-                        : "No sources found."))
+                        : "No sources found.")))
             color: sheet.timedOut ? "#e6a3a3" : theme.inkDim
             font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 15 : 16
         }
@@ -887,8 +936,15 @@ Item {
                 property string checkState: "confirmed"
                 // Slice 7 flips this when a series pre-picks the source that worked last episode.
                 property bool preselected: false
+                Text {
+                    objectName: "sourceBestMatch_" + row.index
+                    visible: row.index === sheet.smartPlayVisibleIndex
+                    x: row.width - width - (sheet.phoneLayout ? 14 : 30); y: 4
+                    text: qsTr("Best match")
+                    color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                }
                 width: ListView.view.width
-                height: sheet.phoneLayout ? Math.max(44, mobileContent.implicitHeight + 28)
+                height: sheet.phoneLayout ? Math.max(44, mobileContent.implicitHeight + 28 + (row.index === sheet.smartPlayVisibleIndex ? 20 : 0))
                         : row.modelData.nuvio ? Math.max(96, desktopContent.implicitHeight + 20)
                         : 150
 
@@ -1106,7 +1162,7 @@ Item {
                 Column {
                     id: mobileContent
                     visible: sheet.phoneLayout
-                    x: 14; y: 14
+                    x: 14; y: row.index === sheet.smartPlayVisibleIndex ? 34 : 14
                     width: Math.max(0, row.width - 28)
                     spacing: 8
 

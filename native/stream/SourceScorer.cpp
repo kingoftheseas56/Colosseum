@@ -807,8 +807,10 @@ RankedPicker SourceScorer::rankAndPick(QList<ScoredStream> streams, const ScoreO
                            std::any_of(out.all.begin(), out.all.end(), [&](const ScoredStream &s) {
                                return primaryEligible(s) && !batch(s.parsed, o);
                            });
-    for (const auto target :
-         {Resolution::P1080, Resolution::P720, Resolution::UHD, Resolution::P480, Resolution::SD}) {
+    const QList<Resolution> resolutionOrder = o.target_resolution == Resolution::UHD
+        ? QList<Resolution>{Resolution::UHD, Resolution::P1080, Resolution::P720, Resolution::P480, Resolution::SD}
+        : QList<Resolution>{Resolution::P1080, Resolution::P720, Resolution::UHD, Resolution::P480, Resolution::SD};
+    for (const auto target : resolutionOrder) {
         // Unsupported DV-only is a last resort within a resolution, even if its
         // file is smaller than an otherwise-eligible HDR10/SDR row.
         for (int dvPreference = 0; dvPreference < 2; ++dvPreference) {
@@ -839,8 +841,9 @@ RankedPicker SourceScorer::rankAndPick(QList<ScoredStream> streams, const ScoreO
                     const auto &s = *pool.front(); // Pool preserves descending numeric score.
                     out.primary = s;
                     out.selection_reasons.push_back(
-                        QString("primary-resolution-policy:%1 (1080p > 720p > 4K > SD)")
-                            .arg(resolutionLabel(target)));
+                        QString("primary-resolution-policy:%1 (%2)").arg(resolutionLabel(target),
+                            o.target_resolution == Resolution::UHD ? "4K > 1080p > 720p > SD"
+                                                                   : "1080p > 720p > 4K > SD"));
                     out.selection_reasons.push_back(
                         QString("quality-policy:french-led=%1,upscale=%2,healthy=%3,source-tier=%4")
                             .arg(frenchDeferred(s.parsed, o)).arg(!upscaleSignal(s.parsed, o).isEmpty())
