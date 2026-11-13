@@ -34,7 +34,7 @@ int main(int argc,char**argv){QCoreApplication app(argc,argv);try{
     }
     qunsetenv("HLS_DEBUG");qunsetenv("IS_IOS");
     QTemporaryDir dir;settings::SettingsStore settings({dir.path().toStdString(),"4.21.0"});
-    media::HardwareProfiler profiler(settings,{},nullptr,"android",{});auto*router=server1_http_router_create();check(http::installAncillaryRoutes(router,profiler,[]{return 11470;},argc==3?QString::fromLocal8Bit(argv[2]):QString()),"route install");
+    media::HardwareProfiler profiler(settings,{},nullptr,"android",{});auto*router=server1_http_router_create();check(http::installAncillaryRoutes(router,profiler,[]{return 11470;},argc==3?QString::fromLocal8Bit(argv[2]):QString(),http::SampleMode::ExternalPinnedOnly),"route install");
     for(auto v:fixtures["samples"].toArray()){auto row=v.toObject();auto*r=server1_http_router_dispatch(router,"GET",row["path"].toString().toUtf8(),"");QByteArray bytes(server1_http_response_body(r),server1_http_response_body_size(r));if(argc==2){check(server1_http_response_status(r)==404 && bytes.isEmpty(),"unconfigured samples must be unavailable");server1_http_response_destroy(r);++count;continue;}check(server1_http_response_status(r)==200,"sample status");check(QString::fromUtf8(server1_http_response_header(r,"content-type"))==row["mime"].toString(),"sample mime");check(bytes.size()==row["bytes"].toInt(),"sample length");check(QString::fromLatin1(QCryptographicHash::hash(bytes,QCryptographicHash::Sha256).toHex())==row["sha256"].toString(),"sample bytes");server1_http_response_destroy(r);++count;}
     for(auto path:{"/device-info","/hwaccel-profiler"}){auto*r=server1_http_router_dispatch(router,"GET",path,"");check(!server1_http_response_is_deferred(r),"profile not completed");if(QByteArray(path)=="/device-info"){check(server1_http_response_status(r)==200,"device status");check(QByteArray(server1_http_response_body(r))=="{\"availableHardwareAccelerations\":false}","device false response");check(QByteArray(server1_http_response_header(r,"cache-control"))=="no-store","device cache");}else{check(server1_http_response_status(r)==500,"profiler failure status");check(QByteArray(server1_http_response_body(r))=="No viable hardware acceleration profiles detected","profiler failure text");}server1_http_response_destroy(r);++count;}
     server1_http_router_destroy(router);
@@ -61,6 +61,47 @@ int main(int argc,char**argv){QCoreApplication app(argc,argv);try{
         bool called=false;profiler->run(11470,[&](auto){called=true;});profiler.reset();
         while(!pending.empty()){auto done=pending.front();pending.erase(pending.begin());done(true,true);}
         check(!called,"late callback after profiler destruction");server1_http_router_destroy(router);count+=2;
+    }
+    {
+        struct Expected {const char *name;const char *mime;qsizetype size;const char *sha256;};
+        const Expected generated[]={
+            {"hevc.mkv","video/x-matroska",1255,"48e8f624cb571967c0e32f8ee587bfdfa7545d14d6960a76c3ca302a0fd04409"},
+            {"ac3-2chan.wav","audio/x-wav",6744,"3c82bd754125d67943aa513000c96ee25bb885f3847f7431d1b95018956a65e6"},
+            {"aac-6chan.wav","audio/x-wav",314,"8a8a3a11ae4ef4cfbcf4c298a432083420bfdf26c056d51f5c4d843105ab4e64"}
+        };
+        QTemporaryDir generatedFiles;
+        router=server1_http_router_create();
+        check(http::installAncillaryRoutes(router,profiler,[]{return 11470;}),"generated default install");
+        for(const auto &sample:generated){
+            const auto path=QByteArray("/samples/")+sample.name;
+            auto *r=server1_http_router_dispatch(router,"GET",path.constData(),"");
+            const QByteArray bytes(server1_http_response_body(r),server1_http_response_body_size(r));
+            check(server1_http_response_status(r)==200,"generated default status");
+            check(QByteArray(server1_http_response_header(r,"content-type"))==sample.mime,"generated default MIME");
+            check(bytes.size()==sample.size && QCryptographicHash::hash(bytes,QCryptographicHash::Sha256).toHex()==sample.sha256,"generated default payload");
+            QFile output(generatedFiles.filePath(sample.name));check(output.open(QIODevice::WriteOnly),"generated copy open");
+            check(output.write(bytes)==bytes.size(),"generated copy write");
+            server1_http_response_destroy(r);++count;
+        }
+        for(const auto path:{"/samples/unknown.wav","/samples/", "/samples/../hevc.mkv"}){
+            auto *r=server1_http_router_dispatch(router,"GET",path,"");
+            check(server1_http_response_status(r)==404,"unexpected generated sample route");
+            server1_http_response_destroy(r);++count;
+        }
+        server1_http_router_destroy(router);
+        // A supplied directory must retain exact-oracle semantics, even when it
+        // contains the generated set. Do not fall back when an override fails.
+        for(const auto mode:{http::SampleMode::GeneratedDefault,http::SampleMode::ExternalPinnedOnly}){
+            router=server1_http_router_create();
+            check(http::installAncillaryRoutes(router,profiler,[]{return 11470;},generatedFiles.path(),mode),"generated override install");
+            for(const auto &sample:generated){
+                const auto path=QByteArray("/samples/")+sample.name;
+                auto *r=server1_http_router_dispatch(router,"GET",path.constData(),"");
+                check(server1_http_response_status(r)==404 && server1_http_response_body_size(r)==0,"generated file must not pass pinned override");
+                server1_http_response_destroy(r);++count;
+            }
+            server1_http_router_destroy(router);
+        }
     }
     {
         QTemporaryDir wrong;QFile file(wrong.filePath("hevc.mkv"));check(file.open(QIODevice::WriteOnly),"wrong sample open");file.write(QByteArray(3955,'x'));file.close();

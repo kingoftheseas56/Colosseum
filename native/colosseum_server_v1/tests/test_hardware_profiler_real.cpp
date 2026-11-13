@@ -17,7 +17,7 @@ int main(int argc,char **argv){QCoreApplication app(argc,argv);if(argc!=3 && arg
     server1::media::HardwareProfiler profiler(settings,sync);
     auto*router=server1_http_router_create();void*server=nullptr;
     auto port=[&]{return server1_http_server_port(server);};
-    if(!server1::http::installAncillaryRoutes(router,profiler,port,argc==4?QString::fromLocal8Bit(argv[3]):QString())||!server1::http::installHlsV2Routes(router,&hls,[&]{return QString("http://127.0.0.1:%1").arg(port());}))return 3;
+    if(!server1::http::installAncillaryRoutes(router,profiler,port,argc==4?QString::fromLocal8Bit(argv[3]):QString(),server1::http::SampleMode::ExternalPinnedOnly)||!server1::http::installHlsV2Routes(router,&hls,[&]{return QString("http://127.0.0.1:%1").arg(port());}))return 3;
     server=server1_http_server_create(router,1024*1024);if(!server1_http_server_listen(server,0))return 4;
     if(argc==4) {
     bool probeDone=false;QString probeError;QJsonObject probe;

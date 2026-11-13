@@ -1,6 +1,10 @@
 # Include after colosseum_server_v1 is defined, then call the registration function.
 target_sources(colosseum_server_v1 PRIVATE src/local/LocalAddon.cpp src/local/LocalMetadata.cpp)
 function(server1_register_local_addon_tests)
+  add_executable(server1_local_discovery_tests tests/test_local_discovery.cpp)
+  target_link_libraries(server1_local_discovery_tests PRIVATE colosseum_server_v1)
+  add_test(NAME LOCAL-discovery-scheduling COMMAND server1_local_discovery_tests)
+  set_tests_properties(LOCAL-discovery-scheduling PROPERTIES TIMEOUT 90)
   add_executable(server1_local_addon_tests tests/test_local_addon.cpp)
   target_link_libraries(server1_local_addon_tests PRIVATE colosseum_server_v1)
   add_test(NAME LOCAL-lifecycle COMMAND server1_local_addon_tests "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/local-addon.json")

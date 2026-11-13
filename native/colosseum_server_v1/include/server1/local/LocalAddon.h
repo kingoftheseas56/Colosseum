@@ -40,8 +40,9 @@ public:
     void cancelIndexing();
     qsizetype size() const { return qsizetype(entries_.size()); }
 private:
+    struct Discovery;
     struct Record { QString key; QJsonObject entry; };
-    Config config_;
+    std::shared_ptr<Config> config_;
     std::vector<Record> entries_;
     QJsonObject metas_;
     quint64 generation_ = 0;
@@ -51,6 +52,7 @@ private:
     std::map<quint64,std::function<void(QJsonObject)>> metaRequests_;
     quint64 nextRequest_ = 0;
     bool destroying_ = false;
+    void discover(std::shared_ptr<Discovery> discovery, quint64 generation, std::function<void()> finished);
     void step(std::shared_ptr<QStringList> files, quint64 generation, std::function<void()> finished);
 };
 // Routes hold a weak QObject pointer, never ownership. Owner may be destroyed first.

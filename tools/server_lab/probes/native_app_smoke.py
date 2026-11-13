@@ -25,6 +25,8 @@ def main():
     parser.add_argument('--work', required=True, type=Path)
     parser.add_argument('--ffmpeg', default='ffmpeg')
     parser.add_argument('--offscreen', action='store_true')
+    parser.add_argument('--expect-no-hardware', action='store_true',
+                        help='Require the tested no-acceleration result on a known CPU-only host')
     args = parser.parse_args()
     source = args.source.resolve()
     candidate = args.candidate.resolve()
@@ -71,20 +73,25 @@ def main():
             port = int(match.group(1))
             receipt['port'] = port
 
-            def get(path):
+            def get(path, expected_type=None):
                 connection = http.client.HTTPConnection('127.0.0.1', port, timeout=15)
                 try:
                     connection.request('GET', path)
                     response = connection.getresponse()
                     data = response.read()
                     assert response.status == 200, (path, response.status, data[:300])
+                    if expected_type:
+                        assert response.getheader('Content-Type') == expected_type, (
+                            path, response.getheader('Content-Type'))
                     return data
                 finally:
                     connection.close()
 
             assert json.loads(get('/heartbeat')) == {'success': True}
             assert json.loads(get('/casting')) == []
-            assert json.loads(get('/local-addon/manifest.json'))['id'] == 'org.stremio.local'
+            local_manifest = json.loads(get('/local-addon/manifest.json'))
+            assert local_manifest['id'] == 'org.stremio.local'
+            assert local_manifest['catalogs'] == [] and 'catalog' not in local_manifest['resources']
             assert json.loads(get('/local-addon/catalog/other/local.json')) == {'metas': []}
             deadline = time.monotonic() + 5
             while True:
@@ -106,11 +113,28 @@ def main():
             subprocess.run([args.ffmpeg, '-v', 'error', '-i', str(work / 'video.mp4'),
                             '-f', 'null', '-'], check=True, timeout=15)
             # First playback must work without waiting for device profiling to finish.
-            assert json.loads(get('/device-info')) == {'availableHardwareAccelerations': False}
+            device = json.loads(get('/device-info'))
+            assert set(device) == {'availableHardwareAccelerations'}, device
+            accelerations = device['availableHardwareAccelerations']
+            assert accelerations is False or (
+                isinstance(accelerations, list) and accelerations
+                and all(isinstance(item, str) for item in accelerations)), device
+            if args.expect_no_hardware:
+                assert accelerations is False, device
+            receipt['available_hardware_accelerations'] = accelerations
+            manifest = json.loads((source / 'tools/server_lab/profiler_samples/manifest.json').read_text())
+            sample_checks = []
+            for sample in manifest['samples']:
+                payload = get(sample['route'], sample['mime'])
+                digest = hashlib.sha256(payload).hexdigest()
+                assert len(payload) == sample['bytes'] and digest == sample['sha256'], sample['file']
+                sample_checks.append({'route': sample['route'], 'bytes': len(payload), 'sha256': digest})
+            receipt['generated_samples'] = sample_checks
             receipt.update(result='pass', checks=[
                 'full application starts native server in-process', 'heartbeat',
                 'passive casting and local addon routes without discovery',
-                'device info does not fabricate hardware support without samples',
+                'device info returns verified profiles or false',
+                'owned generated profiler samples served by default with exact hashes and MIME types',
                 'tuned settings persisted', 'local media HLS master/playlist/init/segment',
                 'FFmpeg decode'])
         except Exception as error:

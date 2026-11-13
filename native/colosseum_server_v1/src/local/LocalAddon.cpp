@@ -2,6 +2,7 @@
 #include "server1/http/HttpContract.h"
 #include <QDateTime>
 #include <QDirIterator>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -26,14 +27,14 @@ QJsonObject genericMeta(const QJsonObject &entry) {
     return result;
 }
 }
-LocalAddon::LocalAddon(Config config,QObject *parent):QObject(parent),config_(std::move(config)){}
+LocalAddon::LocalAddon(Config config,QObject *parent):QObject(parent),config_(std::make_shared<Config>(std::move(config))){}
 LocalAddon::~LocalAddon(){destroying_=true;cancelIndexing();cancelRequests();}
 QJsonObject LocalAddon::manifest() const {
     QJsonArray resources;
-    if(!config_.disableCatalogSupport)resources.append("catalog");
+    if(!config_->disableCatalogSupport)resources.append("catalog");
     resources.append(QJsonObject{{"name","meta"},{"types",QJsonArray{"other"}},{"idPrefixes",QJsonArray{"local:","bt:"}}});
     resources.append(QJsonObject{{"name","stream"},{"types",QJsonArray{"movie","series"}},{"idPrefixes",QJsonArray{"tt"}}});
-    return {{"id","org.stremio.local"},{"version","1.10.0"},{"description","Local add-on to find playable files: .torrent, .mp4, .mkv and .avi"},{"name",config_.disableCatalogSupport?"Local Files (without catalog support)":"Local Files"},{"resources",resources},{"types",QJsonArray{"movie","series","other"}},{"catalogs",config_.disableCatalogSupport?QJsonArray{}:QJsonArray{QJsonObject{{"type","other"},{"id","local"}}}}};
+    return {{"id","org.stremio.local"},{"version","1.10.0"},{"description","Local add-on to find playable files: .torrent, .mp4, .mkv and .avi"},{"name",config_->disableCatalogSupport?"Local Files (without catalog support)":"Local Files"},{"resources",resources},{"types",QJsonArray{"movie","series","other"}},{"catalogs",config_->disableCatalogSupport?QJsonArray{}:QJsonArray{QJsonObject{{"type","other"},{"id","local"}}}}};
 }
 bool LocalAddon::saveEntry(const QString &key,const QJsonObject &entry){for(const auto &r:entries_)if(r.key==key)return false;entries_.push_back({key,entry});return true;}
 void LocalAddon::saveMeta(const QString &id,const QJsonObject &meta){if(!metas_.contains(id))metas_[id]=meta;}
@@ -83,7 +84,7 @@ void LocalAddon::completeMeta(quint64 request,QJsonObject result){auto it=metaRe
 void LocalAddon::cancelRequests(){auto requests=std::move(metaRequests_);metaRequests_.clear();for(auto &request:requests)request.second({});}
 void LocalAddon::resolveMeta(QString id,qint64 nowMs,std::function<void(QJsonObject)> callback){
     auto cached=meta(id,nowMs);
-    if(destroying_||!cached.isEmpty()||!id.startsWith("bt:")||!config_.lookupTorrent||!config_.indexTorrentAsync){callback(cached);return;}
+    if(destroying_||!cached.isEmpty()||!id.startsWith("bt:")||!config_->lookupTorrent||!config_->indexTorrentAsync){callback(cached);return;}
     const auto request=++nextRequest_;metaRequests_[request]=std::move(callback);QPointer<LocalAddon> owner(this);
     auto project=[owner,request,nowMs](QJsonObject entry){
         if(!owner||!owner->metaRequests_.count(request))return;
@@ -91,35 +92,108 @@ void LocalAddon::resolveMeta(QString id,qint64 nowMs,std::function<void(QJsonObj
         auto finish=[owner,request,nowMs,entry](QJsonObject metadata){if(owner&&owner->metaRequests_.count(request))owner->completeMeta(request,owner->projectMeta(entry,nowMs,metadata));};
         auto id=entry.value("itemId").toString();
         try{
+            const auto config=owner->config_;
             if(owner->metas_.contains(id))finish(owner->metas_.value(id).toObject());
-            else if(owner->config_.enrichLookupMetaAsync)owner->config_.enrichLookupMetaAsync(entry,finish);
-            else if(owner->config_.enrichMetaAsync)owner->config_.enrichMetaAsync(entry,finish);
-            else finish(owner->config_.enrichMeta?owner->config_.enrichMeta(entry):genericMeta(entry));
+            else if(config->enrichLookupMetaAsync)config->enrichLookupMetaAsync(entry,finish);
+            else if(config->enrichMetaAsync)config->enrichMetaAsync(entry,finish);
+            else finish(config->enrichMeta?config->enrichMeta(entry):genericMeta(entry));
         }catch(...){if(owner)owner->completeMeta(request,{});}
     };
-    try{config_.lookupTorrent(id.mid(3),[owner,request,project](QJsonObject torrent){
+    const auto config=config_;
+    try{config->lookupTorrent(id.mid(3),[owner,request,project](QJsonObject torrent){
         if(!owner||!owner->metaRequests_.count(request))return;
         if(torrent.isEmpty()){owner->completeMeta(request,{});return;}
-        try{owner->config_.indexTorrentAsync(torrent,project);}catch(...){if(owner)owner->completeMeta(request,{});}
+        const auto config=owner->config_;
+        try{config->indexTorrentAsync(torrent,project);}catch(...){if(owner)owner->completeMeta(request,{});}
     });}catch(...){if(owner)owner->completeMeta(request,{});}
 }
 
 bool LocalAddon::load(const QString &database){QFile file(database);if(!file.open(QIODevice::ReadOnly))return false;while(!file.atEnd()){auto r=QJsonDocument::fromJson(file.readLine()).object();auto key=r["id"].toString();if(r["v"]!="1.10.0"||!QFileInfo(key).isReadable()||!r["entry"].isObject())continue;saveEntry(key,r["entry"].toObject());}return true;}
 bool LocalAddon::persist(const QString &database) const {QSaveFile file(database);if(!file.open(QIODevice::WriteOnly))return false;for(const auto &r:entries_){auto line=QJsonDocument(QJsonObject{{"id",r.key},{"entry",r.entry},{"v","1.10.0"}}).toJson(QJsonDocument::Compact)+'\n';if(file.write(line)!=line.size())return false;}return file.commit();}
+struct LocalAddon::Discovery {
+    struct ByName {
+        bool operator()(const QString &a,const QString &b) const {return a.compare(b,Qt::CaseInsensitive)<0;}
+    };
+    struct Directory {
+        std::unique_ptr<QDirIterator> iterator;
+        std::multimap<QString,QFileInfo,ByName> children;
+    };
+    QStringList roots;
+    qsizetype nextRoot = 0;
+    std::vector<Directory> directories;
+    std::shared_ptr<QStringList> files = std::make_shared<QStringList>();
+};
 void LocalAddon::cancelIndexing(){++generation_;}
 void LocalAddon::startIndexing(std::function<void()> finished){
-    cancelIndexing();auto files=std::make_shared<QStringList>();
-    // Explicit roots only. Symlinks (including root symlinks) are not traversed.
-    std::function<void(const QString &,int)> discover=[&](const QString &root,int depth){
-        if(depth>=7)return;
-        const auto children=QDir(root).entryInfoList(QDir::Files|QDir::Dirs|QDir::NoDotAndDotDot|QDir::NoSymLinks,QDir::NoSort);
-        for(const auto &fi:children){auto name=fi.fileName();if(name.startsWith('.')||QStringList{"node_modules","bin","src","build","dist"}.contains(name))continue;
-            if(fi.isDir())discover(fi.absoluteFilePath(),depth+1);
-            else if(fi.isFile()&&QStringList{"torrent","mp4","mkv","avi"}.contains(fi.suffix().toLower()))files->append(fi.absoluteFilePath());
+    cancelIndexing();
+    if(destroying_)return;
+    auto discovery=std::make_shared<Discovery>();
+    discovery->roots=config_->roots;
+    discover(std::move(discovery),generation_,std::move(finished));
+}
+void LocalAddon::discover(std::shared_ptr<Discovery> discovery,quint64 generation,std::function<void()> finished){
+    QTimer::singleShot(0,this,[this,discovery,generation,finished]{
+        if(generation!=generation_)return;
+        // Keep the existing root order, depth-first traversal, and the
+        // discovery-before-indexing boundary, but yield even for ignored files,
+        // empty directories, or invalid roots. Filtering inside QDirIterator
+        // could otherwise scan a whole directory during a single hasNext().
+        static const QStringList excluded{"node_modules","bin","src","build","dist"};
+        static const QStringList extensions{"torrent","mp4","mkv","avi"};
+        auto open=[&](const QString &path){
+            Discovery::Directory directory;
+            directory.iterator=std::make_unique<QDirIterator>(path,
+                QDir::AllEntries|QDir::Hidden|QDir::System|QDir::NoDotAndDotDot);
+            discovery->directories.push_back(std::move(directory));
+        };
+        QElapsedTimer elapsed;elapsed.start();
+        for(int work=0;work<128&&elapsed.elapsed()<4;++work){
+            if(discovery->directories.empty()){
+                if(discovery->nextRoot==discovery->roots.size()){
+                    step(discovery->files,generation,finished);
+                    return;
+                }
+                const QFileInfo root(discovery->roots.at(discovery->nextRoot++));
+                // Explicit roots only. Never traverse root or child symlinks.
+                if(!root.isSymLink()&&root.isDir())open(root.absoluteFilePath());
+                continue;
+            }
+            auto &directory=discovery->directories.back();
+            if(directory.iterator){
+                if(!directory.iterator->hasNext()){
+                    directory.iterator.reset();
+                    continue;
+                }
+                directory.iterator->next();
+                const auto file=directory.iterator->fileInfo();
+                const auto name=file.fileName();
+                if(file.isSymLink()||file.isHidden()||name.startsWith('.')||excluded.contains(name))continue;
+                // QDir::NoSort used the previous QDir's default Name|IgnoreCase
+                // sorting, not Unsorted. Incremental insertion preserves that
+                // comparator without a bulk sort. Equal-fold ties retain
+                // iterator order; QDir's former unstable tie order was unspecified.
+                if(file.isDir()||(file.isFile()&&extensions.contains(file.suffix().toLower())))
+                    directory.children.emplace(name,file);
+                continue;
+            }
+            if(directory.children.empty()){
+                discovery->directories.pop_back();
+                continue;
+            }
+            // Recheck after yielding: a queued directory may have been replaced
+            // with a symlink while its siblings were being enumerated.
+            const QFileInfo file(directory.children.begin()->second.absoluteFilePath());
+            directory.children.erase(directory.children.begin());
+            if(file.isSymLink()||file.isHidden())continue;
+            if(file.isDir()){
+                // Root children have depth one; files at depth seven remain eligible.
+                if(discovery->directories.size()<7)open(file.absoluteFilePath());
+            }else if(file.isFile()&&extensions.contains(file.suffix().toLower())){
+                discovery->files->append(file.absoluteFilePath());
+            }
         }
-    };
-    for(const auto &root:config_.roots){QFileInfo ri(root);if(!ri.isSymLink()&&ri.isDir())discover(ri.absoluteFilePath(),0);}
-    step(files,generation_,std::move(finished));
+        discover(discovery,generation,finished);
+    });
 }
 void LocalAddon::step(std::shared_ptr<QStringList> files,quint64 generation,std::function<void()> finished){
     QTimer::singleShot(0,this,[this,files,generation,finished]{
@@ -137,14 +211,19 @@ void LocalAddon::step(std::shared_ptr<QStringList> files,quint64 generation,std:
                 owner->saveEntry(path,entry);
                 if(!entry["itemId"].toString().isEmpty()&&!entry["files"].toArray().isEmpty()){
                     auto save=[owner,generation,id=entry["itemId"].toString()](QJsonObject meta){if(owner&&owner->generation_==generation&&!meta.isEmpty())owner->saveMeta(id,meta);};
-                    if(owner->config_.enrichMetaAsync)owner->config_.enrichMetaAsync(entry,save);
-                    else save(owner->config_.enrichMeta?owner->config_.enrichMeta(entry):genericMeta(entry));
+                    // Providers may synchronously cancel, restart, or delete the
+                    // owner. Retain the original callable (including mutable
+                    // state), not a fresh copy of it, until it returns.
+                    const auto config=owner->config_;
+                    if(config->enrichMetaAsync)config->enrichMetaAsync(entry,save);
+                    else save(config->enrichMeta?config->enrichMeta(entry):genericMeta(entry));
                 }
             }
             if(owner&&owner->generation_==generation)owner->step(files,generation,finished);
         };
-        if(config_.indexFileAsync)config_.indexFileAsync(path,complete);
-        else complete(config_.indexFile?config_.indexFile(path):QJsonObject{});
+        const auto config=config_;
+        if(config->indexFileAsync)config->indexFileAsync(path,complete);
+        else complete(config->indexFile?config->indexFile(path):QJsonObject{});
     });
 }
 

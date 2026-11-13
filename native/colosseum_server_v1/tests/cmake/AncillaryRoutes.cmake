@@ -19,6 +19,12 @@ function(server1_register_ancillary_tests)
     find_program(SERVER1_PROFILER_FFMPEG ffmpeg)
     find_program(SERVER1_PROFILER_FFPROBE ffprobe)
     if(SERVER1_PROFILER_FFMPEG AND SERVER1_PROFILER_FFPROBE)
+      add_executable(server1_generated_samples_tests tests/test_generated_samples.cpp)
+      target_link_libraries(server1_generated_samples_tests PRIVATE colosseum_server_v1)
+      add_test(NAME ROOT-generated-samples-live COMMAND server1_generated_samples_tests
+        "${SERVER1_PROFILER_FFMPEG}" "${SERVER1_PROFILER_FFPROBE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../tools/server_lab/profiler_samples/manifest.json")
+      set_tests_properties(ROOT-generated-samples-live PROPERTIES TIMEOUT 120)
       add_executable(server1_hardware_profiler_real_tests tests/test_hardware_profiler_real.cpp)
       target_link_libraries(server1_hardware_profiler_real_tests PRIVATE colosseum_server_v1)
       add_test(NAME ROOT-profiler-no-assets-live COMMAND server1_hardware_profiler_real_tests

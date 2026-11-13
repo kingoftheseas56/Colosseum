@@ -12,18 +12,39 @@
 #include <QTimer>
 #include <cstring>
 #include <map>
+#include <deque>
 namespace server1::http {
 namespace {
 using namespace server1::archive;
 struct Request;
-struct Registry {
+struct Preparation;
+// Share source coordinates and read-token ownership, never an entry reader or
+// inflater. ArchiveByteSource supports independent, cancellable random reads.
+struct Prepared {
+    enum class Kind { Zip, Tar, Gzip, GzipTar, Stored } kind=Kind::Zip;
+    std::shared_ptr<ArchiveByteSource> source;
+    ZipEntry zip;
+    TarEntry tar;
+    ArchiveStoredEntry stored;
+    bool failed=false;
+    QByteArray error;
+};
+struct Registry : QObject, std::enable_shared_from_this<Registry> {
     SourceFamily family;
     ArchiveKeys keys;
     explicit Registry(SourceFamily f):family(f),keys(f){}
-    QHash<QString,ArchiveStoredEntry> storedCached;
-    QHash<QString,TarEntry> tarCached;
-    QHash<QString,ZipEntry> cached;
+    QHash<QString,Prepared> cached;
+    QHash<QString,Prepared> storedCached;
     QHash<QString,QList<std::weak_ptr<Request>>> waiting;
+    QHash<QString,std::shared_ptr<Preparation>> active;
+    struct Queued {Request *identity;std::weak_ptr<Request> request;};
+    std::deque<Queued> queued;
+    bool scheduled=false;
+    void submit(const std::shared_ptr<Request>& request);
+    void detach(Request *request);
+    void schedule();
+    void pump();
+    void complete(const std::shared_ptr<Preparation>& preparation,Prepared result);
 };
 QByteArray mime(const QString& name) {
     static const std::map<std::string,std::string> types={
@@ -41,19 +62,19 @@ struct Request : std::enable_shared_from_this<Request> {
     std::shared_ptr<Registry> registry;
     QString key,method,range,origin,target;QJsonObject options;
     void* deferred=nullptr;void* wake=nullptr;
-    std::unique_ptr<ArchiveByteSource> source;
-    std::unique_ptr<ZipSource> zip;
+    std::shared_ptr<ArchiveByteSource> source;
+    std::weak_ptr<Preparation> preparation;
+    std::unique_ptr<ZipSource> localZip;
     std::unique_ptr<ZipEntryReader> reader;
     std::unique_ptr<GzipReader> gzip;
-    std::unique_ptr<TarSource> tar;
     std::unique_ptr<TarEntryReader> tarReader;
-    std::unique_ptr<RarSevenZipSource> storedArchive;
     std::unique_ptr<ArchiveStoredReader> storedReader;
     std::function<void(qint64,ZipEntryReader::Completion)> producer;
     qint64 remaining=-1;
-    bool selectionError=false;
     QByteArray buffer;qsizetype position=0;bool pending=false,eof=false,failed=false;
-    ~Request(){producer={};storedReader.reset();storedArchive.reset();tarReader.reset();tar.reset();gzip.reset();reader.reset();zip.reset();source.reset();server1_http_stream_wake_destroy(wake);server1_http_deferred_destroy(deferred);}
+    ~Request();
+    void prepared(const Prepared& result);
+    void start(){registry->submit(shared_from_this());}
     void finish(int status,const QByteArray&bytes={}) {
         auto response=server1_http_deferred_response(deferred);if(!response)return;
         body(response,status,bytes);server1_http_deferred_complete(deferred);
@@ -110,13 +131,6 @@ struct Request : std::enable_shared_from_this<Request> {
         wake=server1_http_response_stream_wake_handle(response);
         server1_http_deferred_complete(deferred);
     }
-    bool matches(const QString&name,int index) {
-        QStringList patterns;for(auto value:options["fileMustInclude"].toArray())patterns.append(value.toString());
-        if(patterns.isEmpty()&&!options.contains("fileIdx"))patterns.append("/.mkv$|.mp4$|.avi$|.ts$/i");
-        if(patterns.isEmpty())return !options.contains("fileIdx")||(options["fileIdx"].isDouble()&&options["fileIdx"].toDouble()==index);
-        for(const auto&pattern:patterns){auto result=matchFilePattern(name,pattern);if(!result.valid){selectionError=true;return true;}if(result.matches.value_or(false))return true;}
-        return false;
-    }
     void gzipHeaders(QString name,qint64 length) {
         auto response=server1_http_deferred_response(deferred);if(!response)return;
         if(!range.isEmpty()&&range!="bytes=0-"&&(length<=0||range!="bytes=0-"+QString::number(length-1))){finish(405);return;}
@@ -127,62 +141,14 @@ struct Request : std::enable_shared_from_this<Request> {
         if(method=="HEAD"){server1_http_deferred_complete(deferred);return;}
         stream(length>0?length:-1);
     }
-    void tarSelected(TarEntry entry,QString error) {
-        if(selectionError||!error.isEmpty()){finish(500);return;}
-        if(registry->family==SourceFamily::Tar){
-            registry->tarCached[key]=entry;
-            ZipEntry stored;stored.name=entry.name;stored.dataOffset=entry.dataOffset;stored.size=stored.compressedSize=entry.size;
-            serve(stored);return;
-        }
+    void tarSelected(TarEntry entry) {
         tarReader=std::make_unique<TarEntryReader>(entry,
             [this](qint64 offset,qint64 count,auto callback){return gzip->readForward(offset,count,std::move(callback));},
             [this](quint64 token){gzip->cancel(token);});
         producer=[this](qint64 count,auto callback){tarReader->pull(count,std::move(callback));};
         gzipHeaders(entry.name,entry.size);
     }
-    void startTar(bool compressed) {
-        ZipSource::Read read;ZipSource::Cancel cancel;
-        if(compressed){
-            gzip=std::make_unique<GzipReader>(source->size(),
-                [this](qint64 offset,qint64 count,auto cb){return source->read(offset,count,std::move(cb));},
-                [this](quint64 token){source->cancel(token);});
-            auto urls=*registry->keys.get(key);auto first=urls.first();auto url=(first.isObject()?first.toObject()["url"].toString():first.toString()).section('?',0,0).toLower();
-            if(!url.contains(".tar.gz")&&!url.contains(".tgz")){
-                producer=[this](qint64 count,auto callback){gzip->pull(count,std::move(callback));};
-                gzipHeaders({},-1);return;
-            }
-            read=[this](qint64 offset,qint64 count,auto callback){return gzip->readForward(offset,count,std::move(callback));};
-            cancel=[this](quint64 token){gzip->cancel(token);};
-        }else{
-            auto cached=registry->tarCached.constFind(key);if(cached!=registry->tarCached.cend()){tarSelected(*cached,{});return;}
-            read=[this](qint64 offset,qint64 count,auto callback){return source->read(offset,count,std::move(callback));};
-            cancel=[this](quint64 token){source->cancel(token);};
-        }
-        tar=std::make_unique<TarSource>(compressed?-1:source->size(),std::move(read),std::move(cancel),nullptr,compressed);
-        std::weak_ptr<Request> weak=shared_from_this();auto index=std::make_shared<int>(-1);
-        tar->find([weak,index](const TarEntry&entry){if(entry.type!="file")return false;auto self=weak.lock();return self&&self->matches(entry.name,++*index);},
-            [weak](TarEntry entry,QString error){if(auto self=weak.lock())self->tarSelected(std::move(entry),error);});
-    }
-    void directory(ZipDirectory directory) {
-        if(!directory.error.isEmpty()){finish(500,"There was an error with the zip parser.");return;}
-        QStringList patterns;for(auto value:options["fileMustInclude"].toArray())patterns.append(value.toString());
-        if(patterns.isEmpty()&&!options.contains("fileIdx"))patterns.append("/.mkv$|.mp4$|.avi$|.ts$/i");
-        std::optional<ZipEntry> selected;
-        for(int index=0;index<directory.entries.size();++index){
-            auto entry=directory.entries[index];bool matches=patterns.isEmpty()&&(!options.contains("fileIdx")||(options["fileIdx"].isDouble()&&options["fileIdx"].toDouble()==index));
-            for(const auto&pattern:patterns){auto result=matchFilePattern(entry.name,pattern);if(!result.valid){finish(500);return;}if(result.matches.value_or(false)){matches=true;break;}}
-            if(matches){selected=entry;break;}
-        }
-        if(!selected){finish(500,"There was an error with the zip parser.");return;}
-        std::weak_ptr<Request> weak=shared_from_this();
-        zip->localEntry(*selected,[weak](ZipEntry entry,QString error){auto self=weak.lock();if(!self)return;if(!error.isEmpty()){self->finish(500,error.toUtf8());return;}if(!entry.method)self->registry->cached[self->key]=entry;self->serve(entry);});
-    }
-    QByteArray storedError() const {
-        return registry->family==SourceFamily::Rar?"There was an error with the rar parser.":"There was an error with the 7zip parser.";
-    }
-    void storedSelected(ArchiveStoredEntry entry,QString error) {
-        if(selectionError||!error.isEmpty()){finish(500,storedError());return;}
-        registry->storedCached[target]=entry;
+    void storedSelected(ArchiveStoredEntry entry) {
         auto response=server1_http_deferred_response(deferred);if(!response)return;
         qint64 start=0,end=entry.length-1;int status=method=="HEAD"?204:200;
         if(method!="HEAD"&&!range.isEmpty()){
@@ -208,34 +174,206 @@ struct Request : std::enable_shared_from_this<Request> {
         producer=[this](qint64 count,auto callback){storedReader->pull(count,std::move(callback));};
         stream(count);
     }
-    void startStored() {
-        auto cached=registry->storedCached.constFind(target);if(cached!=registry->storedCached.cend()){storedSelected(*cached,{});return;}
-        storedArchive=std::make_unique<RarSevenZipSource>(registry->family,source->size(),
-            [this](qint64 offset,qint64 count,auto cb){return source->read(offset,count,std::move(cb));},
-            [this](quint64 token){source->cancel(token);});
-        storedArchive->setVolumeLengths(source->partLengths());std::weak_ptr<Request> weak=shared_from_this();
-        storedArchive->find([weak](const QString&name,int index){auto self=weak.lock();return self&&self->matches(name,index);},
-            [weak](ArchiveStoredEntry entry,QString error){if(auto self=weak.lock())self->storedSelected(std::move(entry),error);});
+};
+
+struct Preparation : std::enable_shared_from_this<Preparation> {
+    std::weak_ptr<Registry> registry;
+    SourceFamily family;
+    QString key,target;
+    QJsonObject options;
+    QJsonArray urls;
+    QList<std::weak_ptr<Request>> subscribers;
+    Prepared result;
+    std::unique_ptr<ZipSource> zip;
+    std::unique_ptr<GzipReader> gzip;
+    std::unique_ptr<TarSource> tar;
+    std::unique_ptr<RarSevenZipSource> storedArchive;
+    bool selectionError=false,completed=false;
+    ~Preparation(){storedArchive.reset();tar.reset();gzip.reset();zip.reset();}
+    QByteArray parserError() const {
+        switch(family){
+        case SourceFamily::Zip:return "There was an error with the zip parser.";
+        case SourceFamily::Tar:return "There was an error with the tar parser.";
+        case SourceFamily::Gzip:return "There was an error with the gzip parser.";
+        case SourceFamily::Rar:return "There was an error with the rar parser.";
+        case SourceFamily::SevenZip:return "There was an error with the 7zip parser.";
+        }
+        return {};
+    }
+    void finish(bool failed=false,QByteArray error={}) {
+        if(completed)return;
+        completed=true;result.failed=failed;result.error=std::move(error);
+        if(auto owner=registry.lock())owner->complete(shared_from_this(),result);
+    }
+    bool matches(const QString& name,int index) {
+        QStringList patterns;for(auto value:options["fileMustInclude"].toArray())patterns.append(value.toString());
+        if(patterns.isEmpty()&&!options.contains("fileIdx"))patterns.append("/.mkv$|.mp4$|.avi$|.ts$/i");
+        if(patterns.isEmpty())return !options.contains("fileIdx")||(options["fileIdx"].isDouble()&&options["fileIdx"].toDouble()==index);
+        for(const auto& pattern:patterns){auto match=matchFilePattern(name,pattern);if(!match.valid){selectionError=true;return true;}if(match.matches.value_or(false))return true;}
+        return false;
+    }
+    void directory(ZipDirectory directory) {
+        if(!directory.error.isEmpty()){finish(true,parserError());return;}
+        std::optional<ZipEntry> selected;
+        for(int index=0;index<directory.entries.size();++index)if(matches(directory.entries[index].name,index)){selected=directory.entries[index];break;}
+        if(selectionError){finish(true);return;}
+        if(!selected){finish(true,parserError());return;}
+        // M546 completes at directory selection. The route resolves each local
+        // header afterwards, outside the ten active preparation slots.
+        result.kind=Prepared::Kind::Zip;result.zip=*selected;finish();
+    }
+
+    void startTar() {
+        auto source=result.source;
+        ZipSource::Read read=[source](qint64 offset,qint64 count,auto cb){return source->read(offset,count,std::move(cb));};
+        ZipSource::Cancel cancel=[source](quint64 token){source->cancel(token);};
+        const bool compressed=family==SourceFamily::Gzip;
+        if(compressed){
+            auto first=urls.first();auto url=(first.isObject()?first.toObject()["url"].toString():first.toString()).section('?',0,0).toLower();
+            if(!url.contains(".tar.gz")&&!url.contains(".tgz")){result.kind=Prepared::Kind::Gzip;finish();return;}
+            gzip=std::make_unique<GzipReader>(source->size(),read,cancel);
+            read=[this](qint64 offset,qint64 count,auto cb){return gzip->readForward(offset,count,std::move(cb));};
+            cancel=[this](quint64 token){gzip->cancel(token);};
+        }
+        tar=std::make_unique<TarSource>(compressed?-1:source->size(),std::move(read),std::move(cancel),nullptr,compressed);
+        std::weak_ptr<Preparation> weak=shared_from_this();auto index=std::make_shared<int>(-1);
+        tar->find([weak,index](const TarEntry& entry){if(entry.type!="file")return false;auto self=weak.lock();return self&&self->matches(entry.name,++*index);},
+            [weak,compressed](TarEntry entry,QString error){if(auto self=weak.lock()){
+                self->result.kind=compressed?Prepared::Kind::GzipTar:Prepared::Kind::Tar;self->result.tar=std::move(entry);
+                self->finish(self->selectionError||!error.isEmpty());
+            }});
+    }
+    void opened(QString error) {
+        if(!error.isEmpty()){finish(true,parserError());return;}
+        auto source=result.source;std::weak_ptr<Preparation> weak=shared_from_this();
+        auto read=[source](qint64 offset,qint64 count,auto cb){return source->read(offset,count,std::move(cb));};
+        auto cancel=[source](quint64 token){source->cancel(token);};
+        if(family==SourceFamily::Rar||family==SourceFamily::SevenZip){
+            storedArchive=std::make_unique<RarSevenZipSource>(family,source->size(),read,cancel);
+            storedArchive->setVolumeLengths(source->partLengths());
+            storedArchive->find([weak](const QString& name,int index){auto self=weak.lock();return self&&self->matches(name,index);},
+                [weak](ArchiveStoredEntry entry,QString error){if(auto self=weak.lock()){
+                    self->result.kind=Prepared::Kind::Stored;self->result.stored=std::move(entry);
+                    self->finish(self->selectionError||!error.isEmpty(),self->parserError());
+                }});
+        }else if(family==SourceFamily::Zip){
+            zip=std::make_unique<ZipSource>(source->size(),read,cancel);
+            zip->setVolumeLengths(source->partLengths());
+            zip->open([weak](ZipDirectory directory){if(auto self=weak.lock())self->directory(std::move(directory));});
+        }else startTar();
     }
     void start() {
-        auto urls=registry->keys.get(key);if(!urls)return;
-        source=std::make_unique<ArchiveByteSource>();std::weak_ptr<Request> weak=shared_from_this();
-        if(registry->family==SourceFamily::Rar||registry->family==SourceFamily::SevenZip)*urls=orderArchiveStoredUrls(registry->family,*urls);
-        source->open(registry->family,*urls,[weak](QString error){
-            auto self=weak.lock();if(!self)return;
-            if(!error.isEmpty()){auto family=self->registry->family;if(family==SourceFamily::Rar||family==SourceFamily::SevenZip){self->finish(500,self->storedError());return;}self->finish(500,family==SourceFamily::Zip?"There was an error with the zip parser.":family==SourceFamily::Tar?"There was an error with the tar parser.":"There was an error with the gzip parser.");return;}
-            if(self->registry->family==SourceFamily::Rar||self->registry->family==SourceFamily::SevenZip){self->startStored();return;}
-            if(self->registry->family!=SourceFamily::Zip){self->startTar(self->registry->family==SourceFamily::Gzip);return;}
-            auto cached=self->registry->cached.constFind(self->key);
-            if(cached!=self->registry->cached.cend()){self->serve(*cached);return;}
-            self->zip=std::make_unique<ZipSource>(self->source->size(),
-                [weak](qint64 offset,qint64 count,auto cb){auto current=weak.lock();return current?current->source->read(offset,count,std::move(cb)):quint64(0);},
-                [weak](quint64 token){if(auto current=weak.lock())current->source->cancel(token);});
-            self->zip->setVolumeLengths(self->source->partLengths());
-            self->zip->open([weak](ZipDirectory result){if(auto current=weak.lock())current->directory(std::move(result));});
-        });
+        if(family==SourceFamily::Rar||family==SourceFamily::SevenZip){
+            if(auto owner=registry.lock()){
+                auto found=owner->storedCached.constFind(target);
+                if(found!=owner->storedCached.cend()){result=*found;finish();return;}
+            }
+            urls=orderArchiveStoredUrls(family,urls);
+        }
+        result.source=std::make_shared<ArchiveByteSource>();std::weak_ptr<Preparation> weak=shared_from_this();
+        result.source->open(family,urls,[weak](QString error){if(auto self=weak.lock())self->opened(error);});
     }
 };
+
+Request::~Request(){
+    registry->detach(this);
+    producer={};storedReader.reset();tarReader.reset();gzip.reset();reader.reset();localZip.reset();source.reset();
+    server1_http_stream_wake_destroy(wake);server1_http_deferred_destroy(deferred);
+}
+void Request::prepared(const Prepared& result){
+    preparation.reset();
+    if(!server1_http_deferred_response(deferred))return;
+    if(result.failed){finish(500,result.error);return;}
+    source=result.source;
+    switch(result.kind){
+    case Prepared::Kind::Zip:
+        // M1234 answers compressed HEAD/rejected ranges using central-directory
+        // metadata. Only a GET body needs the local header and inflater cursor.
+        if(result.zip.method&&(method=="HEAD"||(!range.isEmpty()&&range!="bytes=0-"&&range!="bytes=0-"+QString::number(result.zip.size-1)))){
+            auto entry=result.zip;entry.dataOffset=0;serve(entry);break;
+        }
+        if(result.zip.dataOffset>=0){serve(result.zip);break;}
+        localZip=std::make_unique<ZipSource>(source->size(),
+            [this](qint64 offset,qint64 count,auto cb){return source->read(offset,count,std::move(cb));},
+            [this](quint64 token){source->cancel(token);});
+        {
+            std::weak_ptr<Request> weak=shared_from_this();
+            localZip->localEntry(result.zip,[weak,result=Prepared(result)](ZipEntry entry,QString error)mutable{
+                auto self=weak.lock();if(!self)return;
+                if(!error.isEmpty()){self->finish(500,error.toUtf8());return;}
+                if(!entry.method){result.zip=entry;self->registry->cached.insert(self->key,result);}
+                self->serve(entry);
+            });
+        }
+        break;
+    case Prepared::Kind::Stored:storedSelected(result.stored);break;
+    case Prepared::Kind::Tar:{
+        ZipEntry entry;entry.name=result.tar.name;entry.dataOffset=result.tar.dataOffset;entry.size=entry.compressedSize=result.tar.size;
+        serve(entry);break;
+    }
+    case Prepared::Kind::Gzip:
+    case Prepared::Kind::GzipTar:
+        // Source M563 returns one mutable stream to concurrent callbacks. Replay
+        // independently so cancellation/backpressure cannot damage another client.
+        gzip=std::make_unique<GzipReader>(source->size(),
+            [this](qint64 offset,qint64 count,auto cb){return source->read(offset,count,std::move(cb));},
+            [this](quint64 token){source->cancel(token);});
+        if(result.kind==Prepared::Kind::GzipTar)tarSelected(result.tar);
+        else {producer=[this](qint64 count,auto cb){gzip->pull(count,std::move(cb));};gzipHeaders({},-1);}
+        break;
+    }
+}
+void Registry::schedule(){
+    if(scheduled)return;
+    scheduled=true;
+    QTimer::singleShot(0,this,[this](){auto keepAlive=shared_from_this();scheduled=false;pump();});
+}
+void Registry::submit(const std::shared_ptr<Request>& request){
+    // M1234/M1295 bypass namedQueue once the seekable entry is cached by key.
+    auto found=cached.constFind(request->key);
+    if(found!=cached.cend()){auto result=*found;request->prepared(result);return;}
+    auto current=active.value(request->key);
+    if(current){current->subscribers.append(request);request->preparation=current;return;}
+    queued.push_back({request.get(),request});schedule();
+}
+void Registry::pump(){
+    // Match M72: only active tasks coalesce. An unadmitted duplicate remains FIFO
+    // work if its earlier task completes before a slot lets it reach the front.
+    while(!queued.empty()&&active.size()<10){
+        auto request=queued.front().request.lock();queued.pop_front();if(!request)continue;
+        auto current=active.value(request->key);
+        if(current){current->subscribers.append(request);request->preparation=current;continue;}
+        auto urls=keys.get(request->key);if(!urls){waiting[request->key].append(request);continue;}
+        auto task=std::make_shared<Preparation>();task->registry=shared_from_this();task->family=family;
+        task->key=request->key;task->target=request->target;task->options=request->options;task->urls=*urls;
+        task->subscribers.append(request);request->preparation=task;active.insert(task->key,task);task->start();
+    }
+}
+void Registry::detach(Request *request){
+    for(auto it=queued.begin();it!=queued.end();)if(it->identity==request||it->request.expired())it=queued.erase(it);else ++it;
+    auto waitingIt=waiting.find(request->key);
+    if(waitingIt!=waiting.end()){
+        auto& list=*waitingIt;for(auto it=list.begin();it!=list.end();)if(it->expired())it=list.erase(it);else ++it;
+        if(list.isEmpty())waiting.erase(waitingIt);
+    }
+    auto task=request->preparation.lock();if(!task)return;
+    for(auto it=task->subscribers.begin();it!=task->subscribers.end();)if(it->expired())it=task->subscribers.erase(it);else ++it;
+    if(task->subscribers.isEmpty()&&active.value(task->key)==task){
+        task->completed=true;active.remove(task->key);schedule();
+    }
+}
+void Registry::complete(const std::shared_ptr<Preparation>& task,Prepared result){
+    if(active.value(task->key)!=task)return;
+    if(!result.failed){
+        if(result.kind==Prepared::Kind::Tar)cached.insert(task->key,result);
+        // Only the owning task's URL is cached, not the URLs of coalesced callers.
+        else if(result.kind==Prepared::Kind::Stored)storedCached.insert(task->target,result);
+    }
+    // Retire before callbacks: a reentrant dispatch must not subscribe to a
+    // callback list already being delivered (M72 otherwise loses that callback).
+    active.remove(task->key);auto subscribers=std::move(task->subscribers);schedule();
+    for(auto weak:subscribers)if(auto request=weak.lock())request->prepared(result);
+}
 struct Context {std::shared_ptr<Registry> registry;bool create;};
 int handle(const void*request,void*response,server1_http_next_fn,void*,void*opaque) {
     auto& context=*static_cast<Context*>(opaque);auto registry=context.registry;

@@ -20,7 +20,7 @@ struct ServerRuntimeConfig final {
     std::vector<std::string> localRoots;
     std::string localDatabasePath;
     bool localMetadataEnabled=false;
-    // Externally supplied pinned samples; empty means samples return 404.
+    // Externally supplied pinned samples; empty uses generated Colosseum samples.
     std::string sampleDirectory;
 };
 class ServerComposition final {

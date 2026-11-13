@@ -114,10 +114,12 @@ struct ServerComposition::Impl final {
         }
         if(hls)settings::applyMediaSettings(*settings,*hls,QThread::idealThreadCount());
         youtube=std::make_unique<youtube::YouTubeResolver>(&lane);
-        // Desktop manifest support does not authorize discovery of user files.
-        // Explicit roots and recognition remain required before indexing.
+        // M564 snapshots catalog advertisement from the startup setting. A
+        // settings POST takes effect after restart, as in the pinned source.
+        // Advertisement never authorizes discovery: roots/providers stay explicit.
         local::LocalAddonRuntime::Config addonConfig;
-        addonConfig.disableCatalogSupport=false;
+        const auto *localAddonEnabled=settings->find("localAddonEnabled");
+        addonConfig.disableCatalogSupport=!localAddonEnabled || !policy::jsTruthy(*localAddonEnabled);
         for(const auto &root:runtimeConfig.localRoots)
             addonConfig.roots.append(QString::fromStdString(root));
         addonConfig.indexing.metadata=local::LocalMetadata::Config::sourceEndpoints();

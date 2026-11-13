@@ -8,6 +8,10 @@ function(server1_register_local_indexing_tests)
   add_executable(server1_local_indexing_tests tests/test_local_indexing.cpp)
   target_link_libraries(server1_local_indexing_tests PRIVATE colosseum_server_v1)
   add_test(NAME LOCAL-indexing-fixtures COMMAND server1_local_indexing_tests "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/local-indexing.json")
+  add_test(NAME LOCAL-startup-catalog-setting COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_local_startup_setting.py"
+    --host "$<TARGET_FILE:server1_host>" --work "${CMAKE_CURRENT_BINARY_DIR}")
+  set_tests_properties(LOCAL-startup-catalog-setting PROPERTIES TIMEOUT 60)
   if(SERVER1_K12_ORACLE AND SERVER1_NODE_EXECUTABLE)
     foreach(component filename indexing)
       add_test(NAME LOCAL-${component}-differential COMMAND "${SERVER1_NODE_EXECUTABLE}"

@@ -9,7 +9,7 @@ target_sources(colosseum_server_v1 PRIVATE
 target_link_libraries(colosseum_server_v1 PRIVATE ZLIB::ZLIB)
 
 if(BUILD_TESTING)
-  foreach(name download_manager archive_sources archive_remote zip zip_stream zip_lifecycle archive_routes tar_gzip)
+  foreach(name download_manager archive_sources archive_remote zip zip_stream zip_lifecycle archive_routes archive_scheduling tar_gzip)
     add_executable(server1_${name}_tests tests/test_${name}.cpp)
     target_link_libraries(server1_${name}_tests PRIVATE colosseum_server_v1)
   endforeach()
@@ -19,6 +19,11 @@ if(BUILD_TESTING)
   set_tests_properties(N07-download-lifecycle A00-remote-byte-source A02-zip-lifecycle
     PROPERTIES TIMEOUT 30)
   if(SERVER1_K12_ORACLE AND SERVER1_NODE_EXECUTABLE)
+    add_test(NAME A06-archive-preparation-scheduling COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_archive_scheduling_tests.py"
+      --candidate "$<TARGET_FILE:server1_archive_scheduling_tests>"
+      --oracle "${SERVER1_K12_ORACLE}" --node "${SERVER1_NODE_EXECUTABLE}")
+    set_tests_properties(A06-archive-preparation-scheduling PROPERTIES TIMEOUT 180)
     add_test(NAME A04-tar-gzip-differential COMMAND "${Python3_EXECUTABLE}"
       "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_tar_gzip_tests.py"
       --candidate "$<TARGET_FILE:server1_tar_gzip_tests>"

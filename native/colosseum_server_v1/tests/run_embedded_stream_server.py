@@ -40,7 +40,9 @@ try:
 
     assert json.loads(request('/heartbeat')) == {'success': True}
     assert json.loads(request('/casting')) == []
-    assert json.loads(request('/local-addon/manifest.json'))['id'] == 'org.stremio.local'
+    local_manifest = json.loads(request('/local-addon/manifest.json'))
+    assert local_manifest['id'] == 'org.stremio.local'
+    assert local_manifest['catalogs'] == [] and 'catalog' not in local_manifest['resources']
     assert json.loads(request('/local-addon/catalog/other/local.json')) == {'metas': []}
     settings = json.loads(request('/settings'))
     assert settings['values']['btMaxConnections'] == 200, settings
