@@ -7,6 +7,10 @@ import QtQuick.Controls
 
 Item {
     id: bar
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(bar.Window.window && bar.Window.window.androidHost === true)
+    }
     objectName: "colosseumTaskbar"
     anchors.fill: parent
 
@@ -156,9 +160,6 @@ Item {
                 Layout.preferredWidth: 48
                 Layout.preferredHeight: 48
                 Layout.alignment: Qt.AlignVCenter
-                activeFocusOnTab: true
-                Accessible.role: Accessible.Button
-                Accessible.name: bar.open ? "Close taskbar" : "Open taskbar"
 
                 Rectangle {
                     anchors.fill: parent
@@ -180,7 +181,15 @@ Item {
 
                 KeyboardAction {
                     id: startInput
+                    objectName: "taskbarToggleAction"
+                    spaceActivates: true
+                    // Pointer toggles should not leave the keyboard-focus glow behind.
+                    focusOnPointer: false
                     anchors.fill: parent
+                    anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                    anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                     accessibleName: bar.open ? "Close Colosseum taskbar" : "Open Colosseum taskbar"
                     tooltipText: accessibleName
                     focusRadius: bar.open ? 14 : 24
@@ -189,9 +198,6 @@ Item {
                         bar.autoRevealed = false
                     }
                 }
-                Keys.onReturnPressed: { bar.open = !bar.open; bar.autoRevealed = false }
-                Keys.onEnterPressed: { bar.open = !bar.open; bar.autoRevealed = false }
-                Keys.onSpacePressed: { bar.open = !bar.open; bar.autoRevealed = false }
             }
 
             // ---- Vault: the permanent folder door — opens the "On this machine" full page (Slice 10).
@@ -237,6 +243,10 @@ Item {
                     id: collectionsInput
                     objectName: "taskbarCollectionsAction"
                     anchors.fill: parent
+                    anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                    anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                     accessibleName: "Your Collections"
                     accessibleDescription: "Open your named collections"
                     tooltipText: accessibleName

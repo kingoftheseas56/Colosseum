@@ -150,6 +150,9 @@ Item {
     property var extensionsService: typeof Extensions !== "undefined" ? Extensions : null
     property var loadStremioStreams: AddonClient.loadStreams
     property var nuvioSourceService: typeof NuvioSources !== "undefined" ? NuvioSources : null
+    property var homeServerSourceService: typeof HomeServers !== "undefined" ? HomeServers : null
+    property var homeServerRows: []
+    property var homeServerProfileGeneration: -1
     property int nuvioRequestId: 0
     readonly property bool nuvioPending: nuvioRequestId !== 0
     property bool nuvioAsked: false
@@ -207,7 +210,7 @@ Item {
         if (index < 0 || index >= available.length) return
         sheet.smartPlayCancelled = true
         var row=available[index]
-        if (sheet.mode !== "play") { sheet.downloadRequested(row); sheet.hide() }
+        if (sheet.mode !== "play") { if (row.homeServer) return; sheet.downloadRequested(row); sheet.hide() }
         else {
             var candidates = sheet.baseRows()
             if (row.nuvio) {
@@ -226,6 +229,7 @@ Item {
     }
     function copySource(index) {
         if (index < 0 || index >= sheet.visibleRows.length) return
+        if (sheet.visibleRows[index].homeServer || String(sheet.visibleRows[index].infoHash || "").indexOf("home-server:") === 0) return
         var link=Magnet.linkFor(sheet.visibleRows[index]); if(!link.length) return
         Clipboard.copy(link)
         if (list.itemAtIndex) { var item=list.itemAtIndex(index); if(item && item.markCopied) item.markCopied() }
@@ -233,6 +237,7 @@ Item {
     }
     function downloadSource(index) {
         if (sheet.mode !== "play" || sheet.titleQueued || index < 0 || index >= sheet.visibleRows.length) return
+        if (sheet.visibleRows[index].homeServer || String(sheet.visibleRows[index].infoHash || "").indexOf("home-server:") === 0) return
         sheet.downloadRequested(sheet.visibleRows[index]); sheet.titleQueued=true
         sheet.showSourceFeedback(qsTr("Download queued"))
     }
@@ -289,6 +294,7 @@ Item {
         sheet.closeExtMenu(true)
     }
     function sourceContextOptions() {
+        if (sheet.sourceContextRow && sheet.sourceContextRow.homeServer) return [qsTr("Play")]
         var out=[sheet.mode === "play" ? "Play" : "Choose source", "Copy link"]
         if (sheet.mode === "play" && typeof Download !== "undefined") out.push("Download")
         return out
@@ -304,6 +310,8 @@ Item {
     }
 
     function show(type, id, lbl, context, pickMode) {
+        sheet.homeServerProfileGeneration = -1;
+        sheet.homeServerRows = [];
         sheet.smartPlayCancelled = true;
         sheet.smartPlayRow = null;
         sheet.smartPlaySettled = false;
@@ -335,6 +343,8 @@ Item {
         sheet.smartPlayCancelled = false;
         sheet.open = true;
         sheet.gen += 1;
+        sheet.homeServerProfileGeneration = sheet.homeServerSourceService ? sheet.homeServerSourceService.profileGeneration : -1;
+        sheet.refreshHomeServerRows();
         Qt.callLater(function(){ sourcesBack.forceActiveFocus(Qt.PopupFocusReason) });
         var myGen = sheet.gen;
         timeout.restart();
@@ -416,7 +426,40 @@ Item {
         }
     }
 
-    onOpenChanged: if (!sheet.open) sheet.cancelNuvio()
+    function refreshHomeServerRows() {
+        if (!sheet.open || sheet.mode !== "play" || !sheet.homeServerSourceService
+                || sheet.homeServerProfileGeneration !== sheet.homeServerSourceService.profileGeneration) {
+            sheet.homeServerRows = [];
+            return;
+        }
+        var identity = Object.assign({}, sheet.playbackContext || ({}));
+        identity.type = sheet.subType;
+        identity.id = sheet.subId;
+        sheet.homeServerRows = sheet.homeServerSourceService.sources(identity) || [];
+        if (sheet.extFilter.indexOf("home-server:") === 0
+                && !sheet.homeServerRows.some(row => sheet.providerKey(row) === sheet.extFilter))
+            sheet.extFilter = "all";
+    }
+    onHomeServerSourceServiceChanged: { sheet.homeServerRows = []; sheet.homeServerProfileGeneration = -1 }
+    onSubTypeChanged: sheet.refreshHomeServerRows()
+    onSubIdChanged: sheet.refreshHomeServerRows()
+    onPlaybackContextChanged: sheet.refreshHomeServerRows()
+    onModeChanged: sheet.refreshHomeServerRows()
+    Connections {
+        target: sheet.homeServerSourceService
+        function onChanged() { sheet.refreshHomeServerRows() }
+        function onProfileChanged() {
+            sheet.homeServerProfileGeneration = -1;
+            sheet.homeServerRows = [];
+            if (sheet.extFilter.indexOf("home-server:") === 0) sheet.extFilter = "all";
+            sheet.closeSourceContext(false);
+        }
+    }
+    onOpenChanged: if (!sheet.open) {
+        sheet.cancelNuvio();
+        sheet.homeServerRows = [];
+        sheet.homeServerProfileGeneration = -1;
+    }
     Component.onDestruction: sheet.cancelNuvio()
 
     // Torrent warm-up (2026-07-31). The 2026-07-30 server warm-up starts the ENGINE
@@ -483,7 +526,10 @@ Item {
     // the mode's row universe: season mode sees only full-season torrents,
     // everything else sees the raw answer. Quality pills filter on top of this.
     function baseRows() {
-        if (sheet.mode !== "season") return sheet.nuvioRows.length ? sheet.rows.concat(sheet.nuvioRows) : sheet.rows;
+        if (sheet.mode !== "season") {
+            var providers = sheet.nuvioRows.length ? sheet.rows.concat(sheet.nuvioRows) : sheet.rows;
+            return sheet.mode === "play" && sheet.homeServerRows.length ? sheet.homeServerRows.concat(providers) : providers;
+        }
         var out = [];
         for (var i = 0; i < sheet.rows.length; ++i)
             if (AddonClient.isSeasonPack(sheet.rows[i], sheet.pickSeason)) out.push(sheet.rows[i]);
@@ -501,6 +547,7 @@ Item {
     }
 
     function providerKey(row) {
+        if (row.homeServer) return "home-server:" + row.connectionId;
         return row.nuvio ? "nuvio" : "stremio:" + (row.addonName || "?");
     }
 
@@ -511,19 +558,21 @@ Item {
         var nuvio = { key: "nuvio", label: qsTr("Nuvio"), count: 0 };
         var byKey = ({ nuvio: nuvio });
         var stremio = [];
+        var homeServers = [];
         for (var i = 0; i < base.length; ++i) {
             var row = base[i];
             var key = providerKey(row);
             if (!byKey[key]) {
                 var option = { key: key, label: row.addonName || "?", count: 0 };
                 byKey[key] = option;
-                stremio.push(option);
+                if (row.homeServer) homeServers.push(option);
+                else stremio.push(option);
             }
             ++byKey[key].count;
         }
         if (nuvio.count && byKey["stremio:Nuvio"])
             byKey["stremio:Nuvio"].label = qsTr("Nuvio (Stremio)");
-        return (nuvio.count ? [all, nuvio] : [all]).concat(stremio);
+        return [all].concat(homeServers, nuvio.count ? [nuvio] : [], stremio);
     }
 
     function filteredRows() {
@@ -750,6 +799,7 @@ Item {
             width: sheet.phoneLayout ? Math.max(0, topBar.width - x - 48) : implicitWidth
             elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
             text: sheet.providerOptions.find(option => option.key === sheet.extFilter)?.label ?? qsTr("All")
+            textFormat: sheet.extFilter.indexOf("home-server:") === 0 ? Text.PlainText : Text.AutoText
             color: sheet.extFilter === "all" ? theme.ink : theme.gold
             font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 18 : 22
         }
@@ -1043,7 +1093,7 @@ Item {
                     id: desktopContent
                     visible: !sheet.phoneLayout
                     anchors.left: logo.right; anchors.leftMargin: 24
-                    anchors.right: dlBtn.visible ? dlBtn.left : copyBtn.left
+                    anchors.right: dlBtn.visible ? dlBtn.left : copyBtn.visible ? copyBtn.left : play.left
                     anchors.rightMargin: 20
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: row.modelData.nuvio ? 5 : 7
@@ -1052,6 +1102,8 @@ Item {
                         visible: !row.modelData.nuvio
                         spacing: 12
                         Text { text: row.modelData.addonName; color: theme.ink
+                            objectName: "sourceProviderWide_" + row.index
+                            textFormat: row.modelData.homeServer ? Text.PlainText : Text.AutoText
                             font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter }
                         Text { text: row.modelData.qualityLine || row.modelData.quality
@@ -1070,6 +1122,8 @@ Item {
                     Text {
                         width: parent.width
                         text: row.modelData.release
+                        objectName: "sourceReleaseWide_" + row.index
+                        textFormat: row.modelData.homeServer ? Text.PlainText : Text.AutoText
                         color: theme.ink; font.family: theme.ui; font.pixelSize: 14; elide: Text.ElideRight
                     }
                     Text {
@@ -1087,7 +1141,7 @@ Item {
                     Row {
                         spacing: 8
                         visible: row.modelData.audio !== undefined
-                        Text { text: row.modelData.audio; color: theme.ink
+                        Text { text: row.modelData.audio || ""; color: theme.ink
                             font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter }
                         Repeater {
@@ -1174,7 +1228,8 @@ Item {
                 // it stacks ABOVE it — copy clicks never fall through into playback.
                 Rectangle {
                     id: copyBtn
-                    visible: !sheet.phoneLayout
+                    objectName: "sourceCopyWide_" + row.index
+                    visible: !sheet.phoneLayout && !row.modelData.homeServer
                     anchors.right: play.left; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
                     width: Qt.platform.os === "android" ? 142 : 40; height: 40; radius: 20
@@ -1220,7 +1275,8 @@ Item {
                 // the sheet; the tick is per-TITLE, not per-row — see titleQueued above.
                 Rectangle {
                     id: dlBtn
-                    visible: !sheet.phoneLayout && sheet.mode === "play" && typeof Download !== "undefined"
+                    objectName: "sourceDownloadWide_" + row.index
+                    visible: !sheet.phoneLayout && !row.modelData.homeServer && sheet.mode === "play" && typeof Download !== "undefined"
                     anchors.right: copyBtn.left; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
                     width: Qt.platform.os === "android" ? 148 : 40; height: 40; radius: 20
@@ -1298,6 +1354,8 @@ Item {
                             Text {
                                 width: parent.width
                                 text: row.modelData.addonName || ""
+                                objectName: "sourceProviderPhone_" + row.index
+                                textFormat: row.modelData.homeServer ? Text.PlainText : Text.AutoText
                                 color: theme.ink; font.family: theme.ui
                                 font.pixelSize: 15; font.weight: Font.DemiBold
                                 wrapMode: Text.WrapAnywhere
@@ -1324,6 +1382,8 @@ Item {
                     Text {
                         width: parent.width
                         text: row.modelData.release || ""
+                        objectName: "sourceReleasePhone_" + row.index
+                        textFormat: row.modelData.homeServer ? Text.PlainText : Text.AutoText
                         color: theme.ink; font.family: theme.ui; font.pixelSize: 14
                         wrapMode: Text.WrapAnywhere
                         maximumLineCount: 2; elide: Text.ElideRight
@@ -1425,7 +1485,10 @@ Item {
                             }
                         }
                         Rectangle {
-                            width: 136; height: 76; radius: 24
+                            visible: !row.modelData.homeServer
+                            width: Qt.platform.os === "android" ? 136 : 48
+                            height: Qt.platform.os === "android" ? 76 : 48
+                            radius: 24
                             color: Qt.rgba(1, 1, 1, 0.05)
                             border.width: 1; border.color: theme.edge
                             Text {
@@ -1460,8 +1523,10 @@ Item {
                             }
                         }
                         Rectangle {
-                            visible: sheet.mode === "play" && typeof Download !== "undefined"
-                            width: 136; height: 76; radius: 24
+                            visible: !row.modelData.homeServer && sheet.mode === "play" && typeof Download !== "undefined"
+                            width: Qt.platform.os === "android" ? 136 : 48
+                            height: Qt.platform.os === "android" ? 76 : 48
+                            radius: 24
                             color: Qt.rgba(1, 1, 1, 0.05)
                             border.width: 1; border.color: theme.edge
                             Text {
@@ -1628,6 +1693,8 @@ Item {
                             anchors.left: parent.left; anchors.leftMargin: 28
                             anchors.verticalCenter: parent.verticalCenter
                             text: extOpt.modelData.label
+                            objectName: "extPickLabel_" + extOpt.index
+                            textFormat: extOpt.modelData.key.indexOf("home-server:") === 0 ? Text.PlainText : Text.AutoText
                             color: extOpt.on ? theme.gold : theme.ink
                             font.family: theme.ui; font.pixelSize: 16
                             font.weight: extOpt.on ? Font.DemiBold : Font.Normal

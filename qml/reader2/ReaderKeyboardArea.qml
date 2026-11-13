@@ -15,6 +15,9 @@ MouseArea {
     property var keyboardHome: null
     property var keyboardEnd: null
     property var keyboardFocused: null
+    // True while this area holds focus because of a pointer press. Reader chrome
+    // pins itself awake only for keyboard focus, so a click still lets it idle away.
+    property bool pointerFocused: false
 
     // Tooltip is opt-in; existing click, keyboard and hover handlers stay the owners.
     hoverEnabled: tooltipText.length > 0
@@ -31,7 +34,10 @@ MouseArea {
     Accessible.focusable: activeFocusOnTab
     Accessible.focused: activeFocus
 
-    function focusKeyboard() { area.forceActiveFocus(Qt.OtherFocusReason) }
+    function focusKeyboard() {
+        area.pointerFocused = false
+        area.forceActiveFocus(Qt.OtherFocusReason)
+    }
 
     function activateFromKeyboard() {
         if (keyboardActivate)
@@ -66,11 +72,15 @@ MouseArea {
     Connections {
         target: area
         function onPressed(mouse) {
-            if (area.keyboardTabStop)
+            if (area.keyboardTabStop) {
+                area.pointerFocused = true
                 area.forceActiveFocus(Qt.MouseFocusReason)
+            }
         }
     }
     onActiveFocusChanged: {
+        if (!activeFocus)
+            pointerFocused = false
         if (activeFocus && keyboardFocused)
             keyboardFocused()
     }

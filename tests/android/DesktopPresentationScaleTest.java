@@ -23,6 +23,14 @@ public final class DesktopPresentationScaleTest {
         if (DesktopPresentationScale.forBounds(0, 1080, 3) != 1
                 || DesktopPresentationScale.forBounds(2400, -1, 3) != 1)
             throw new AssertionError("Invalid bounds must use safe fallback");
+        float tablet = DesktopPresentationScale.forBounds(2000, 1200, 1.75f);
+        float phone = DesktopPresentationScale.forBounds(2376, 1062, 3f);
+        if (DesktopPresentationScale.defaultVisualZoom(tablet) != 1f
+                || DesktopPresentationScale.defaultVisualZoom(1f) != 1f)
+            throw new AssertionError("A canvas that fits must retain desktop size");
+        if (DesktopPresentationScale.defaultVisualZoom(phone) != 1.5f
+                || Math.abs(phone * DesktopPresentationScale.defaultVisualZoom(phone) - 0.8296875) > 0.000001)
+            throw new AssertionError("Fitted phone composition must remain unchanged");
         System.out.println("DESKTOP_PRESENTATION_SCALE_OK");
     }
 }

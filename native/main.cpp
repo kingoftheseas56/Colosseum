@@ -52,6 +52,7 @@
 #include "ClipboardHelper.h"
 #include "MangaEngine.h"
 #include "ProgressStore.h"
+#include "homeserver/HomeServerProgressOwner.h"
 #include "CollectionStore.h"
 #include "SearchHistoryStore.h"
 #include "SessionStore.h"
@@ -61,6 +62,7 @@
 #include "account/RatingsReviewsController.h"
 #include "account/RatingsReviewsDelivery.h"
 #include "account/ProfilePreferencesStore.h"
+#include "homeserver/HomeServerService.h"
 #if !defined(Q_OS_ANDROID)
 #include "update/UpdateCache.h"
 #include "update/UpdateDownload.h"
@@ -2066,6 +2068,42 @@ int main(int argc, char *argv[]) {
     accountRuntime->setDownloadSource(localDownloads);
     accountRuntime->setExtensionsStore(extensions);
     accountRuntime->prepareForQml(&engine);
+
+    HomeServerServiceOptions homeServerOptions;
+#ifdef Q_OS_ANDROID
+    homeServerOptions.android = true;
+    homeServerOptions.videoDecodeCapabilities = platformRuntime->videoDecodeCapabilities();
+#endif
+    auto *homeServers = new HomeServerService(homeServerOptions, &backendServices);
+    engine.rootContext()->setContextProperty(QStringLiteral("HomeServers"), homeServers);
+    auto bindHomeServerProfile = [accountRuntime, homeServers] {
+        const auto &profile = accountRuntime->profileStores()->activeProfile();
+        if (profile.kind() == ProfilePaths::Kind::Sealed) {
+            homeServers->deactivate();
+            return;
+        }
+        const QString root = profile.kind() == ProfilePaths::Kind::LegacyLocal
+            ? accountRuntime->profileStores()->legacyStorage().devicePrivateProfileRoot()
+            : profile.profileRoot();
+        auto *progress = accountRuntime->profileStores()->progressStore();
+        homeServers->activate(profile.profileId(), root, homeServerProgressBridge(progress));
+        if (progress) {
+            const auto generation = homeServers->profileGeneration();
+            QObject::connect(progress, &ProgressStore::syncedEntryApplied, homeServers,
+                [homeServers, generation](const QString &kind, const QString &id) {
+                    if (generation == homeServers->profileGeneration()) homeServers->progressEntryApplied(kind, id);
+                });
+            QObject::connect(progress, &ProgressStore::videoProgressRecorded, homeServers,
+                [homeServers](const QString &id) { homeServers->syncProgress(id); });
+            QObject::connect(progress, &ProgressStore::watchStateChanged, homeServers,
+                [homeServers] { homeServers->syncProgress(); });
+        }
+    };
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
+                     homeServers, &HomeServerService::deactivate);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     homeServers, bindHomeServerProfile);
+    bindHomeServerProfile();
 
     auto *ratingsReviewsIdentity = new ColosseumTitleIdentityRegistry(QString(), &backendServices);
     // Persist learned provider-id pivots (kitsu:/mal:… → tt…) under the tagged

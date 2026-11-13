@@ -5,6 +5,10 @@ import ".."
 
 Rectangle {
     id: root
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost === true)
+    }
     objectName: "addToCollectionsButton"
     property var reference: ({})
     property string labelText: qsTr("Add to Collections")
@@ -56,6 +60,10 @@ Rectangle {
         id: action
         objectName: root.objectName + "Action"
         anchors.fill: parent
+        anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+        anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+        anchors.topMargin: -touchMetrics.targetInset(parent.height)
+        anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
         enabled: root.available
         focusEnabled: root.visible && root.enabled && root.available
         accessibleName: root.labelText

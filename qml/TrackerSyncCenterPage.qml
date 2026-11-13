@@ -15,6 +15,7 @@ Item {
     property Item backdrop: null
     property var stremioState: null
     property var nuvioAccount: typeof NuvioAccounts !== "undefined" ? NuvioAccounts : null
+    property var homeServers: typeof HomeServers !== "undefined" ? HomeServers : null
     property var trackerModel: (typeof TrackerSyncCenter !== "undefined")
                                ? TrackerSyncCenter : null
     property var trackerConnector: (typeof TrackerConnection !== "undefined")
@@ -2188,6 +2189,10 @@ Item {
                             }
                         }
                     }
+                }
+                HomeServerSyncCard {
+                    Layout.fillWidth: true
+                    service: root.homeServers
                 }
             }
 

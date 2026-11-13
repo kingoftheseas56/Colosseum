@@ -12,10 +12,15 @@
 // LibraryPage — same fixed-viewport-height + self-scrolling GridView pattern both ship.
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Window
 import "TankobanLibraryApi.js" as Api
 
 Item {
     id: root
+    AdaptiveLayout {
+        id: adaptive
+        androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost === true)
+    }
     property bool touchInput: Qt.platform.os === "android"
 
     // The retained Library tab keeps its filter state, but hidden worlds must not scan all three
@@ -175,14 +180,17 @@ Item {
     Item {
         id: toolbar
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: 44
+        readonly property bool wrapped: adaptive.androidHost
+            && width < searchField.width + filterRow.implicitWidth + sortRow.implicitWidth + 2 * adaptive.libraryToolsGap
+        height: wrapped ? searchField.height + sortRow.implicitHeight + adaptive.libraryToolsGap : 44
         anchors.leftMargin: Math.max(48, theme.margin); anchors.rightMargin: Math.max(38, theme.margin - 10)
         anchors.topMargin: 8
 
         // search field (mirrors LibraryPage.qml's searchField shape)
         TextField {
             id: searchField
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.left
+            y: toolbar.wrapped ? 0 : (toolbar.height - height) / 2
             width: 220; height: 38; leftPadding: 16; rightPadding: 16
             placeholderText: "Search your library"; placeholderTextColor: theme.inkDimmer
             color: theme.ink; selectionColor: theme.gold; selectedTextColor: "#111111"
@@ -198,7 +206,9 @@ Item {
         // 3 filter pills: All / In Progress / Downloaded
         Row {
             id: filterRow
-            anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter
+            x: toolbar.wrapped ? searchField.x + searchField.width + adaptive.libraryToolsGap
+                               : (toolbar.width - width) / 2
+            anchors.verticalCenter: toolbar.wrapped ? searchField.verticalCenter : parent.verticalCenter
             spacing: 8
             Repeater {
                 model: [
@@ -217,7 +227,9 @@ Item {
         // 3 sort pills: Last Read / Recently Added / A-Z
         Row {
             id: sortRow
-            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+            anchors.right: parent.right
+            y: toolbar.wrapped ? searchField.y + searchField.height + adaptive.libraryToolsGap
+                               : (toolbar.height - height) / 2
             spacing: 8
             Repeater {
                 model: [

@@ -180,6 +180,13 @@ bool Runtime::android() const {
     return m_kind == Kind::Android;
 }
 
+qreal Runtime::androidPresentationScale() const {
+    if (!android()) return 1;
+    bool valid = false;
+    const qreal scale = qEnvironmentVariable("QT_SCALE_FACTOR").toDouble(&valid);
+    return valid && std::isfinite(scale) && scale > 0 ? scale : 1;
+}
+
 bool Runtime::androidTelevision() const {
     return m_androidTelevision;
 }

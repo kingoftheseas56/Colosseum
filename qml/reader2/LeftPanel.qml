@@ -23,6 +23,8 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: open
+    // Sliding offscreen does not remove descendants from Qt's tab chain.
+    enabled: open
     nativeWindow: false
     id: panel
 

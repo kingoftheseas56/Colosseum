@@ -1,0 +1,16 @@
+add_library(colosseum_home_servers STATIC HomeServerTransport.cpp HomeServerTransport.h HomeServerDeviceIdentity.cpp HomeServerDeviceIdentity.h HomeServerClient.cpp HomeServerClient.h)
+target_include_directories(colosseum_home_servers PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(colosseum_home_servers PUBLIC Qt6::Core Qt6::Network)
+target_compile_features(colosseum_home_servers PUBLIC cxx_std_17)
+set_target_properties(colosseum_home_servers PROPERTIES AUTOMOC ON)
+
+set_target_properties(colosseum_home_servers PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_sources(colosseum_home_servers PRIVATE
+    HomeServerStore.cpp HomeServerStore.h HomeServerService.cpp HomeServerService.h)
+target_link_libraries(colosseum_home_servers PUBLIC colosseum_account_credentials)
+target_sources(colosseum_home_servers PRIVATE HomeServerCatalog.cpp HomeServerCatalog.h)
+target_sources(colosseum_home_servers PRIVATE HomeServerPlayback.cpp HomeServerPlayback.h)
+target_sources(colosseum_home_servers PRIVATE HomeServerProgressClient.cpp HomeServerProgressClient.h)
+target_sources(colosseum_home_servers PRIVATE HomeServerProgressOwner.cpp HomeServerProgressOwner.h)
+target_sources(colosseum_home_servers PRIVATE HomeServerProgressBridge.cpp)
+target_sources(colosseum_home_servers PRIVATE HomeServerShelves.cpp)

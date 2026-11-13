@@ -162,7 +162,7 @@ Item {
     }
     readonly property real pageMargin: adaptive.pageMargin
     readonly property real outerPageMargin: adaptive.outerPageMargin
-    readonly property real headerOuterMargin: adaptive.pageMargin
+    readonly property real headerOuterMargin: adaptive.headerMargin
     // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.
     property real contentBottomInset: 0
     property bool prominentScrollBar: false

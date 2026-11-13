@@ -34,6 +34,8 @@ fi
 PKG="${PKG:-org.qtproject.example}"
 ACTIVITY="${ACTIVITY:-org.qtproject.qt.android.bindings.QtActivity}"
 log "package=$PKG activity=$ACTIVITY"
+printf '%s\n' "$PKG" > "$ART/package.txt"
+printf '%s/%s\n' "$PKG" "$ACTIVITY" > "$ART/component.txt"
 
 adb_cmd wait-for-device
 # google_apis emulator images are debuggable; root makes /data/tombstones readable.

@@ -12,6 +12,10 @@ import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: page
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(page.Window.window && page.Window.window.androidHost === true)
+    }
     // The phone host uses the same width gate as the shared world tab bar.
     readonly property bool phoneNarrow: !!(page.Window.window && page.Window.window.androidHost && page.Window.window.desktopPresentation !== true
                                             && page.Window.window.width < 840)
@@ -21,6 +25,15 @@ Item {
     objectName: "theatreSeriesPage"
     property Item backdrop
     property var itemData: ({})
+    function homeServerMetadataFallback(meta, type, id) {
+        if (meta) return meta
+        if (typeof HomeServers === "undefined" || !HomeServers.titleMetadata) return null
+        var identity = { "id": id, "type": type }
+        if (itemData && Number(itemData.tmdbId) > 0) identity.tmdbId = Number(itemData.tmdbId)
+        if (itemData && Number(itemData.tvdbId) > 0) identity.tvdbId = Number(itemData.tvdbId)
+        var fallback = HomeServers.titleMetadata(identity)
+        return fallback && fallback.id ? fallback : null
+    }
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -900,6 +913,7 @@ Item {
         var expectedCanonicalId = String((itemData && itemData.canonicalSourceId) || "")
         // PF-06: the exact catalogue record is a movie-only fallback after provider misses.
         TheatreApi.loadMeta(mediaType, id, function(meta) {
+            meta = page.homeServerMetadataFallback(meta, mediaType, id)
             if (!meta) {
                 errorMsg = "Couldn't load details.";
                 loading = false;
@@ -1350,6 +1364,8 @@ Item {
                             }
                             MouseArea {
                                 anchors.fill: parent
+                                anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                                anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onEntered: parent.opacity = 0.92
@@ -1357,7 +1373,12 @@ Item {
                                 onClicked: page.openHeroForPlay()
                             }
                             KeyboardAction {
-                                id: heroWatchKeyboard; anchors.fill: parent; pointerEnabled: false
+                                id: heroWatchKeyboard; anchors.fill: parent
+                                anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+                                anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+                                anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                                anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
+                                pointerEnabled: false
                                 accessibleName: "Watch " + page.title; focusRadius: parent.radius
                                 onTriggered: page.openHeroForPlay()
                             }

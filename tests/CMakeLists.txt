@@ -14,6 +14,8 @@
 # live-network probes, seeders, or destructive gates as ordinary tests.
 
 
+add_subdirectory(home_servers)
+
 if(WIN32)
     add_subdirectory(feria_host_probe)
 endif()

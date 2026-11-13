@@ -1,0 +1,1 @@
+Representative sanitized catalog protocol samples derived from the pinned MIT Harbor adapter structure and the documented provider JSON contracts. IDs, titles, tokens, paths and URLs are invented test data. These are local HTTP replay fixtures, not live server captures.

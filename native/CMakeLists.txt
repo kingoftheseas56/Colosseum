@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon. Windows-only: enabled below via
 # enable_language(RC) once WIN32 is known, instead of unconditionally in the base project()
 # declaration (arc-17 Linux port, first configure pass).
-project(colosseum VERSION 1.3.0 LANGUAGES C CXX)
+project(colosseum VERSION 1.4.0 LANGUAGES C CXX)
 if(WIN32)
     enable_language(RC)
 endif()
@@ -176,6 +176,7 @@ endif()
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebSockets Concurrent)
 add_subdirectory(stream)
 add_subdirectory(account/credentials)
+add_subdirectory(homeserver)
 if(NOT ANDROID)
     # Desktop Reader 2 still uses Foliate/Qt WebEngine; Android deliberately has no WebEngine product path.
     find_package(Qt6 REQUIRED COMPONENTS WebEngineQuick WebChannel)
@@ -1208,7 +1209,7 @@ if(COLOSSEUM_ACCOUNT_SERVICE_URL)
         COLOSSEUM_ACCOUNT_SERVICE_URL="${COLOSSEUM_ACCOUNT_SERVICE_URL}")
     message(STATUS "Account service baked in: ${COLOSSEUM_ACCOUNT_SERVICE_URL}")
 endif()
-target_link_libraries(colosseum PRIVATE colosseum_account_credentials
+target_link_libraries(colosseum PRIVATE colosseum_home_servers colosseum_account_credentials
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent
     Qt6::WebSockets colosseum_libtorrent
 )

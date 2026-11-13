@@ -8,6 +8,7 @@ import QtQuick.Window
 
 Item {
     id: car
+    property bool androidHost: Qt.platform.os === "android"
     property var slides: []
     readonly property bool televisionMode: {
         const w = car.Window.window
@@ -37,8 +38,12 @@ Item {
     width: parent ? parent.width : 800
     AdaptiveLayout {
         id: adaptive
+        androidHost: car.androidHost
         viewportWidth: car.width
-        desktopPresentation: Qt.platform.os === "android"
+        viewportHeight: car.Window.window ? car.Window.window.height : 0
+        bottomInset: car.Window.window && car.Window.window.browseBottomInset !== undefined
+            ? car.Window.window.browseBottomInset : 0
+        desktopPresentation: car.androidHost
             && (!car.Window.window || car.Window.window.desktopPresentation !== false)
     }
     implicitHeight: car.televisionMode ? 380 : adaptive.heroHeight
@@ -123,6 +128,7 @@ Item {
                 required property int index
                 slide: modelData
                 slideIndex: index
+                shortAndroid: adaptive.shortAndroid
                 kicker: car.kicker
                 primaryLabel: modelData.cta !== undefined ? modelData.cta : car.primaryLabel
                 primaryIcon: modelData.primaryIcon !== undefined ? String(modelData.primaryIcon) : ""
