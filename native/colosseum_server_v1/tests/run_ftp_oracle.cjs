@@ -1,0 +1,10 @@
+'use strict';
+// Exercise M1308 itself with a controlled transport; no public FTP traffic.
+const fs=require('fs'),vm=require('vm'),crypto=require('crypto'),{EventEmitter}=require('events');
+const {extractModules}=require('../../../tools/server_lab/oracle/module_loader.cjs');
+const bundle=extractModules(process.argv[2]);if(bundle.sha256!=='405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f')throw Error('oracle identity');
+async function run(seek,range){const handlers={};const router={post:(p,h)=>handlers['POST '+p]=h,all:(p,h)=>handlers['ALL '+p]=h,get:(p,h)=>handlers['GET '+p]=h};class Client{async access(){}async lastMod(){return new Date('2026-01-01')}async size(){return 100}async features(){return new Map(seek?[['REST','STREAM']]:[])}close(){}}
+ const module={exports:{}};vm.runInNewContext('('+bundle.modules[1308].source+')',{console,Buffer,process,URL})(module,module.exports,id=>({1309:{Client},3:require('stream'),5:require('path'),1310:()=> 'video/mp4',50:{},241:()=>router,4:EventEmitter,78:{},7:crypto,1311:{URL}}[id]));module.exports.router();
+ function response(){return{headers:{},statusCode:200,setHeader(k,v){this.headers[k.toLowerCase()]=v},writeHead(s,h){this.statusCode=s;for(const[k,v]of Object.entries(h))this.setHeader(k,v)},end(){},status(s){this.statusCode=s;return this},send(){}}}
+ await handlers['POST /create/:createKey']({method:'POST',body:{ftpUrl:'ftp://127.0.0.1/movie.mp4'},params:{createKey:'test'},query:{}},response());const res=response();await handlers['GET /stream/:key/:fileName']({method:'HEAD',params:{key:'test'},headers:{range}},res);return{seek,range:range||'',status:res.statusCode,length:Number(res.headers['content-length']||0),contentRange:res.headers['content-range']||''};}
+(async()=>{const rows=[];for(const seek of[true,false])for(const range of['','bytes=0-','bytes=0-0','bytes=0-99','bytes=1-4','bytes=-5','bytes=90-'])rows.push(await run(seek,range));fs.writeFileSync(process.argv[3],JSON.stringify(rows));console.log('14 pinned M1308 range cases');})();

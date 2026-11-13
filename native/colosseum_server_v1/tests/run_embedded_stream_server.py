@@ -39,6 +39,9 @@ try:
         return data
 
     assert json.loads(request('/heartbeat')) == {'success': True}
+    assert json.loads(request('/casting')) == []
+    assert json.loads(request('/local-addon/manifest.json'))['id'] == 'org.stremio.local'
+    assert json.loads(request('/local-addon/catalog/other/local.json')) == {'metas': []}
     settings = json.loads(request('/settings'))
     assert settings['values']['btMaxConnections'] == 200, settings
     assert settings['values']['btDownloadSpeedSoftLimit'] == 20971520, settings

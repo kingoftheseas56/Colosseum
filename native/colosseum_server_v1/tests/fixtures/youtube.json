@@ -1,0 +1,1061 @@
+[
+  {
+    "name": "progressive-highest",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":18,\"url\":\"https://media.example.test/video?x=1\"},{\"itag\":22,\"url\":\"https://media.example.test/high?x=2\"}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"H.264, aac\"",
+        "qualityLabel": "720p",
+        "bitrate": 2000000,
+        "audioBitrate": 192,
+        "itag": 22,
+        "url": "https://media.example.test/high?x=2&ratebypass=yes",
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "H.264, aac",
+        "videoCodec": "H.264",
+        "audioCodec": "aac",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"H.264, aac\\\"\",\"qualityLabel\":\"720p\",\"bitrate\":2000000,\"audioBitrate\":192,\"itag\":22,\"url\":\"https://media.example.test/high?x=2&ratebypass=yes\",\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"H.264, aac\",\"videoCodec\":\"H.264\",\"audioCodec\":\"aac\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/high?x=2&ratebypass=yes"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "audio-only-excluded",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"adaptiveFormats\":[{\"itag\":140,\"url\":\"https://media.example.test/audio\"}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {},
+      "error": "No such format found: highest"
+    },
+    "routes": {
+      "json": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"err\":\"No such format found: highest\"}"
+      },
+      "redirect": {
+        "status": 403,
+        "headers": {},
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "video-only-excluded",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"adaptiveFormats\":[{\"itag\":137,\"url\":\"https://media.example.test/video\"}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {},
+      "error": "No such format found: highest"
+    },
+    "routes": {
+      "json": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"err\":\"No such format found: highest\"}"
+      },
+      "redirect": {
+        "status": 403,
+        "headers": {},
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "content-length-priority",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":18,\"url\":\"https://media.example.test/low\",\"contentLength\":\"42\"},{\"itag\":22,\"url\":\"https://media.example.test/high\"}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"H.264, aac\"",
+        "qualityLabel": "360p",
+        "bitrate": 500000,
+        "audioBitrate": 96,
+        "itag": 18,
+        "url": "https://media.example.test/low?ratebypass=yes",
+        "contentLength": "42",
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "H.264, aac",
+        "videoCodec": "H.264",
+        "audioCodec": "aac",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"H.264, aac\\\"\",\"qualityLabel\":\"360p\",\"bitrate\":500000,\"audioBitrate\":96,\"itag\":18,\"url\":\"https://media.example.test/low?ratebypass=yes\",\"contentLength\":\"42\",\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"H.264, aac\",\"videoCodec\":\"H.264\",\"audioCodec\":\"aac\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/low?ratebypass=yes"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "cipher-decipher",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":22,\"signatureCipher\":\"url=https%3A%2F%2Fmedia.example.test%2Fclip%3Ffoo%3Dbar&s=abcdef&sp=sig\"}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"H.264, aac\"",
+        "qualityLabel": "720p",
+        "bitrate": 2000000,
+        "audioBitrate": 192,
+        "itag": 22,
+        "url": "https://media.example.test/clip?foo=bar&ratebypass=yes&sig=dabc",
+        "s": "abcdef",
+        "sp": "sig",
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "H.264, aac",
+        "videoCodec": "H.264",
+        "audioCodec": "aac",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"H.264, aac\\\"\",\"qualityLabel\":\"720p\",\"bitrate\":2000000,\"audioBitrate\":192,\"itag\":22,\"url\":\"https://media.example.test/clip?foo=bar&ratebypass=yes&sig=dabc\",\"s\":\"abcdef\",\"sp\":\"sig\",\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"H.264, aac\",\"videoCodec\":\"H.264\",\"audioCodec\":\"aac\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/clip?foo=bar&ratebypass=yes&sig=dabc"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "old-cipher-default-signature",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":18,\"cipher\":\"url=https%3A%2F%2Fmedia.example.test%2Fclip&s=abcdef\"}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"H.264, aac\"",
+        "qualityLabel": "360p",
+        "bitrate": 500000,
+        "audioBitrate": 96,
+        "itag": 18,
+        "url": "https://media.example.test/clip?ratebypass=yes&signature=dabc",
+        "s": "abcdef",
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "H.264, aac",
+        "videoCodec": "H.264",
+        "audioCodec": "aac",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"H.264, aac\\\"\",\"qualityLabel\":\"360p\",\"bitrate\":500000,\"audioBitrate\":96,\"itag\":18,\"url\":\"https://media.example.test/clip?ratebypass=yes&signature=dabc\",\"s\":\"abcdef\",\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"H.264, aac\",\"videoCodec\":\"H.264\",\"audioCodec\":\"aac\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/clip?ratebypass=yes&signature=dabc"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "format-overrides",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":18,\"url\":\"https://media.example.test/one\",\"mimeType\":\"video/webm; codecs=\\\"vp9, opus\\\"\",\"audioBitrate\":128,\"qualityLabel\":\"1080p\",\"height\":1080}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/webm; codecs=\"vp9, opus\"",
+        "qualityLabel": "1080p",
+        "bitrate": 500000,
+        "audioBitrate": 128,
+        "itag": 18,
+        "url": "https://media.example.test/one?ratebypass=yes",
+        "height": 1080,
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "webm",
+        "codecs": "vp9, opus",
+        "videoCodec": "vp9",
+        "audioCodec": "opus",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/webm; codecs=\\\"vp9, opus\\\"\",\"qualityLabel\":\"1080p\",\"bitrate\":500000,\"audioBitrate\":128,\"itag\":18,\"url\":\"https://media.example.test/one?ratebypass=yes\",\"height\":1080,\"hasVideo\":true,\"hasAudio\":true,\"container\":\"webm\",\"codecs\":\"vp9, opus\",\"videoCodec\":\"vp9\",\"audioCodec\":\"opus\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/one?ratebypass=yes"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "unknown-format",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":9999,\"url\":\"https://media.example.test/u\",\"mimeType\":\"video/test; codecs=\\\"x, y\\\"\",\"qualityLabel\":\"480p\",\"audioBitrate\":50}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "itag": 9999,
+        "url": "https://media.example.test/u?ratebypass=yes",
+        "mimeType": "video/test; codecs=\"x, y\"",
+        "qualityLabel": "480p",
+        "audioBitrate": 50,
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "test",
+        "codecs": "x, y",
+        "videoCodec": "x",
+        "audioCodec": "y",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"itag\":9999,\"url\":\"https://media.example.test/u?ratebypass=yes\",\"mimeType\":\"video/test; codecs=\\\"x, y\\\"\",\"qualityLabel\":\"480p\",\"audioBitrate\":50,\"hasVideo\":true,\"hasAudio\":true,\"container\":\"test\",\"codecs\":\"x, y\",\"videoCodec\":\"x\",\"audioCodec\":\"y\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/u?ratebypass=yes"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "duplicate-url-last-wins",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":18,\"url\":\"https://media.example.test/same\"},{\"itag\":22,\"url\":\"https://media.example.test/same\"}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"H.264, aac\"",
+        "qualityLabel": "720p",
+        "bitrate": 2000000,
+        "audioBitrate": 192,
+        "itag": 22,
+        "url": "https://media.example.test/same?ratebypass=yes",
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "H.264, aac",
+        "videoCodec": "H.264",
+        "audioCodec": "aac",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"H.264, aac\\\"\",\"qualityLabel\":\"720p\",\"bitrate\":2000000,\"audioBitrate\":192,\"itag\":22,\"url\":\"https://media.example.test/same?ratebypass=yes\",\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"H.264, aac\",\"videoCodec\":\"H.264\",\"audioCodec\":\"aac\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/same?ratebypass=yes"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "url-form-encoding",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":18,\"url\":\"https://media.example.test/clip?x=hello%2520world&tilde=~&ratebypass=no&ratebypass=maybe\"}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"H.264, aac\"",
+        "qualityLabel": "360p",
+        "bitrate": 500000,
+        "audioBitrate": 96,
+        "itag": 18,
+        "url": "https://media.example.test/clip?x=hello+world&tilde=%7E&ratebypass=yes",
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "H.264, aac",
+        "videoCodec": "H.264",
+        "audioCodec": "aac",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"H.264, aac\\\"\",\"qualityLabel\":\"360p\",\"bitrate\":500000,\"audioBitrate\":96,\"itag\":18,\"url\":\"https://media.example.test/clip?x=hello+world&tilde=%7E&ratebypass=yes\",\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"H.264, aac\",\"videoCodec\":\"H.264\",\"audioCodec\":\"aac\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/clip?x=hello+world&tilde=%7E&ratebypass=yes"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "empty-formats",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {},
+      "error": "No such format found: highest"
+    },
+    "routes": {
+      "json": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"err\":\"No such format found: highest\"}"
+      },
+      "redirect": {
+        "status": 403,
+        "headers": {},
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "bad-player-script",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":18,\"url\":\"https://media.example.test/clip\"}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "// changed player has no old actions"
+    },
+    "expected": {
+      "format": {},
+      "error": "Could not extract signature deciphering actions"
+    },
+    "routes": {
+      "json": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"err\":\"Could not extract signature deciphering actions\"}"
+      },
+      "redirect": {
+        "status": 403,
+        "headers": {},
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "private-video",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"playabilityStatus\":{\"status\":\"LOGIN_REQUIRED\",\"reason\":\"Private video\",\"messages\":[\"This is a private video\"]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {},
+      "error": "Private video"
+    },
+    "routes": {
+      "json": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"err\":\"Private video\"}"
+      },
+      "redirect": {
+        "status": 403,
+        "headers": {},
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "removed-video",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"playabilityStatus\":{\"status\":\"ERROR\",\"reason\":\"Video unavailable\"}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {},
+      "error": "Video unavailable"
+    },
+    "routes": {
+      "json": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"err\":\"Video unavailable\"}"
+      },
+      "redirect": {
+        "status": 403,
+        "headers": {},
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "invalid-id",
+    "id": "bad",
+    "pages": {},
+    "expected": {
+      "format": {},
+      "error": "Video id (bad) does not match expected format (/^[a-zA-Z0-9-_]{11}$/)"
+    },
+    "routes": {
+      "json": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"err\":\"Video id (bad) does not match expected format (/^[a-zA-Z0-9-_]{11}$/)\"}"
+      },
+      "redirect": {
+        "status": 403,
+        "headers": {},
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "empty-id",
+    "id": "",
+    "pages": {},
+    "expected": {
+      "format": {},
+      "error": "No video id found: http://www.youtube.com/watch?v="
+    },
+    "routes": {
+      "json": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"err\":\"No video id found: http://www.youtube.com/watch?v=\"}"
+      },
+      "redirect": {
+        "status": 403,
+        "headers": {},
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "long-id-truncates",
+    "id": "abcdefghijklmnop",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":18,\"url\":\"https://media.example.test/clip\"}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"H.264, aac\"",
+        "qualityLabel": "360p",
+        "bitrate": 500000,
+        "audioBitrate": 96,
+        "itag": 18,
+        "url": "https://media.example.test/clip?ratebypass=yes",
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "H.264, aac",
+        "videoCodec": "H.264",
+        "audioCodec": "aac",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"H.264, aac\\\"\",\"qualityLabel\":\"360p\",\"bitrate\":500000,\"audioBitrate\":96,\"itag\":18,\"url\":\"https://media.example.test/clip?ratebypass=yes\",\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"H.264, aac\",\"videoCodec\":\"H.264\",\"audioCodec\":\"aac\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/clip?ratebypass=yes"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "hls-manifest",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"hlsManifestUrl\":\"https://www.youtube.com/manifest/hls_variant/test\"}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+      "https://www.youtube.com/manifest/hls_variant/test": "#EXTM3U\nhttps://media.example.test/manifest/hls_playlist/itag/18/low\nhttps://media.example.test/manifest/hls_playlist/itag/22/high\n"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"H.264, aac\"",
+        "qualityLabel": "720p",
+        "bitrate": 2000000,
+        "audioBitrate": 192,
+        "itag": 22,
+        "url": "https://media.example.test/manifest/hls_playlist/itag/22/high",
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "H.264, aac",
+        "videoCodec": "H.264",
+        "audioCodec": "aac",
+        "isLive": false,
+        "isHLS": true,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"H.264, aac\\\"\",\"qualityLabel\":\"720p\",\"bitrate\":2000000,\"audioBitrate\":192,\"itag\":22,\"url\":\"https://media.example.test/manifest/hls_playlist/itag/22/high\",\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"H.264, aac\",\"videoCodec\":\"H.264\",\"audioCodec\":\"aac\",\"isLive\":false,\"isHLS\":true,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/manifest/hls_playlist/itag/22/high"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "dash-last-representation",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"dashManifestUrl\":\"https://www.youtube.com/manifest/dash/test\"}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+      "https://www.youtube.com/manifest/dash/test": "<MPD><Period><AdaptationSet mimeType=\"video/mp4\"><Representation id=\"18\" bandwidth=\"100\" codecs=\"avc1, mp4a\" width=\"640\" height=\"360\" frameRate=\"30\"/><Representation id=\"22\" bandwidth=\"200\" codecs=\"avc1, mp4a\" width=\"1280\" height=\"720\" frameRate=\"30\"/></AdaptationSet></Period></MPD>"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"avc1, mp4a\"",
+        "qualityLabel": "720p",
+        "bitrate": 200,
+        "audioBitrate": 192,
+        "itag": 22,
+        "url": "https://www.youtube.com/manifest/dash/test",
+        "width": 1280,
+        "height": 720,
+        "fps": 30,
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "avc1, mp4a",
+        "videoCodec": "avc1",
+        "audioCodec": "mp4a",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": true
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"avc1, mp4a\\\"\",\"qualityLabel\":\"720p\",\"bitrate\":200,\"audioBitrate\":192,\"itag\":22,\"url\":\"https://www.youtube.com/manifest/dash/test\",\"width\":1280,\"height\":720,\"fps\":30,\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"avc1, mp4a\",\"videoCodec\":\"avc1\",\"audioCodec\":\"mp4a\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":true}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://www.youtube.com/manifest/dash/test"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "hls-over-live-progressive",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":22,\"url\":\"https://media.example.test/source/yt_live_broadcast/a\"},{\"itag\":18,\"url\":\"https://media.example.test/manifest/hls_playlist/low\"}]}};</script><script>var ytInitialData = {};</script><script src=\"/s/player/test/base.js\" name=\"player_ias/base\"></script>",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"H.264, aac\"",
+        "qualityLabel": "360p",
+        "bitrate": 500000,
+        "audioBitrate": 96,
+        "itag": 18,
+        "url": "https://media.example.test/manifest/hls_playlist/low?ratebypass=yes",
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "H.264, aac",
+        "videoCodec": "H.264",
+        "audioCodec": "aac",
+        "isLive": false,
+        "isHLS": true,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"H.264, aac\\\"\",\"qualityLabel\":\"360p\",\"bitrate\":500000,\"audioBitrate\":96,\"itag\":18,\"url\":\"https://media.example.test/manifest/hls_playlist/low?ratebypass=yes\",\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"H.264, aac\",\"videoCodec\":\"H.264\",\"audioCodec\":\"aac\",\"isLive\":false,\"isHLS\":true,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/manifest/hls_playlist/low?ratebypass=yes"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "watch-json-fallback",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<html>No legacy player here</html>",
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en&pbj=1": "[{\"playerResponse\":{\"videoDetails\":{\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":18,\"url\":\"https://media.example.test/fallback\"}]}}},{\"player\":{\"assets\":{\"js\":\"/s/player/test/base.js\"}}}]",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"H.264, aac\"",
+        "qualityLabel": "360p",
+        "bitrate": 500000,
+        "audioBitrate": 96,
+        "itag": 18,
+        "url": "https://media.example.test/fallback?ratebypass=yes",
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "H.264, aac",
+        "videoCodec": "H.264",
+        "audioCodec": "aac",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"H.264, aac\\\"\",\"qualityLabel\":\"360p\",\"bitrate\":500000,\"audioBitrate\":96,\"itag\":18,\"url\":\"https://media.example.test/fallback?ratebypass=yes\",\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"H.264, aac\",\"videoCodec\":\"H.264\",\"audioCodec\":\"aac\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/fallback?ratebypass=yes"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "embed-player-fallback",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<script>var ytInitialPlayerResponse = {\"videoDetails\":{\"videoId\":\"abcdefghijk\",\"title\":\"synthetic fixture\",\"thumbnail\":{\"thumbnails\":[]}},\"streamingData\":{\"formats\":[{\"itag\":18,\"url\":\"https://media.example.test/embed\"}]}};</script><script>var ytInitialData = {};</script>",
+      "https://www.youtube.com/embed/abcdefghijk?hl=en": "{\"jsUrl\":\"/s/player/test/base.js\"}",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"H.264, aac\"",
+        "qualityLabel": "360p",
+        "bitrate": 500000,
+        "audioBitrate": 96,
+        "itag": 18,
+        "url": "https://media.example.test/embed?ratebypass=yes",
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "H.264, aac",
+        "videoCodec": "H.264",
+        "audioCodec": "aac",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"H.264, aac\\\"\",\"qualityLabel\":\"360p\",\"bitrate\":500000,\"audioBitrate\":96,\"itag\":18,\"url\":\"https://media.example.test/embed?ratebypass=yes\",\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"H.264, aac\",\"videoCodec\":\"H.264\",\"audioCodec\":\"aac\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/embed?ratebypass=yes"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  },
+  {
+    "name": "get-video-info-fallback",
+    "id": "abcdefghijk",
+    "pages": {
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en": "<html>{\"jsUrl\":\"/s/player/test/base.js\"}</html>",
+      "https://www.youtube.com/watch?v=abcdefghijk&hl=en&pbj=1": "{}",
+      "https://www.youtube.com/get_video_info?video_id=abcdefghijk&c=TVHTML5&cver=7&eurl=https%3A%2F%2Fyoutube.googleapis.com%2Fv%2Fabcdefghijk&ps=default&gl=US&hl=en&html5=1": "player_response=%7B%22videoDetails%22%3A%7B%22thumbnail%22%3A%7B%22thumbnails%22%3A%5B%5D%7D%7D%2C%22streamingData%22%3A%7B%22formats%22%3A%5B%7B%22itag%22%3A18%2C%22url%22%3A%22https%3A%2F%2Fmedia.example.test%2Flegacy-info%22%7D%5D%7D%7D",
+      "https://www.youtube.com/s/player/test/base.js": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}"
+    },
+    "expected": {
+      "format": {
+        "mimeType": "video/mp4; codecs=\"H.264, aac\"",
+        "qualityLabel": "360p",
+        "bitrate": 500000,
+        "audioBitrate": 96,
+        "itag": 18,
+        "url": "https://media.example.test/legacy-info?ratebypass=yes",
+        "hasVideo": true,
+        "hasAudio": true,
+        "container": "mp4",
+        "codecs": "H.264, aac",
+        "videoCodec": "H.264",
+        "audioCodec": "aac",
+        "isLive": false,
+        "isHLS": false,
+        "isDashMPD": false
+      },
+      "error": ""
+    },
+    "routes": {
+      "json": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"mimeType\":\"video/mp4; codecs=\\\"H.264, aac\\\"\",\"qualityLabel\":\"360p\",\"bitrate\":500000,\"audioBitrate\":96,\"itag\":18,\"url\":\"https://media.example.test/legacy-info?ratebypass=yes\",\"hasVideo\":true,\"hasAudio\":true,\"container\":\"mp4\",\"codecs\":\"H.264, aac\",\"videoCodec\":\"H.264\",\"audioCodec\":\"aac\",\"isLive\":false,\"isHLS\":false,\"isDashMPD\":false}"
+      },
+      "redirect": {
+        "status": 301,
+        "headers": {
+          "Location": "https://media.example.test/legacy-info?ratebypass=yes"
+        },
+        "body": ""
+      }
+    },
+    "tokenScript": "var Z={rv:function(a){a.reverse()},sl:function(a,b){return a.slice(b)},sp:function(a,b){a.splice(0,b)},sw:function(a,b){var c=a[0];a[0]=a[b%a.length];a[b]=c}};function D(a){a=a.split(\"\");Z.sw(a,2);Z.rv(a,0);Z.sp(a,1);a=Z.sl(a,1);return a.join(\"\")}",
+    "actions": [
+      "w2",
+      "r",
+      "p1",
+      "s1"
+    ],
+    "deciphered": "dabc"
+  }
+]

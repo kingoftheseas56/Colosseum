@@ -361,6 +361,21 @@ if(BUILD_TESTING)
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/N07A02.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/AFTP.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/RarSevenZip.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/Nzb.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/YouTube.cmake")
+server1_add_youtube_sources()
+target_sources(colosseum_server_v1 PRIVATE
+  src/casting/CastingService.cpp src/casting/CastingRoutes.cpp
+  src/casting/CastingProtocol.cpp)
+include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/Casting.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/LocalAddon.cmake")
+if(BUILD_TESTING)
+  server1_register_youtube_tests()
+  server1_register_casting_tests()
+  server1_register_local_addon_tests()
+endif()
 target_sources(colosseum_server_v1 PRIVATE src/http/RootRoutes.cpp
   src/settings/RuntimeSettings.cpp src/settings/MediaSettings.cpp)
 target_link_libraries(colosseum_server_v1 PUBLIC server1_k13_settings_cache)

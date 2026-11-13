@@ -25,8 +25,11 @@ struct RemoteByteSource::State : std::enable_shared_from_this<State> {
   auto *reply=manager->get(request);reply->setReadBufferSize(64*1024);job->reply=reply;auto self=shared_from_this();
   auto headers=[self,job](){if(job->finished||!job->reply)return;auto *reply=job->reply.data();int status=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();if(status>=300&&status<400)return;job->result.status=status;if(!status)return;
    if(job->metadata){bool ok=false;auto n=reply->rawHeader("Content-Length").toLongLong(&ok);if(ok&&n>=0){job->result.totalLength=n;self->finish(job);}else self->finish(job,"Could not retrieve content-length from ranged request");return;}
-   if(status!=206){self->finish(job,status==200?"Remote source ignored Range":"Unexpected remote range status");return;}
+   if(status!=206&&status!=200){self->finish(job,"Unexpected remote range status");return;}
    auto match=QRegularExpression("^bytes (\\d+)-(\\d+)/(\\d+|\\*)$").match(QString::fromLatin1(reply->rawHeader("Content-Range")));bool ok1=false,ok2=false;auto first=match.captured(1).toLongLong(&ok1),last=match.captured(2).toLongLong(&ok2);if(!match.hasMatch()||!ok1||!ok2||first!=job->offset||last!=job->offset+job->count-1){self->finish(job,"Mismatched remote Content-Range");return;}bool totalOk=false;auto total=match.captured(3).toLongLong(&totalOk);if(totalOk){if(total<=last){self->finish(job,"Invalid remote total length");return;}job->result.totalLength=total;}
+   // M1088 returns 200 for successful bounded NZB ranges. Never accept a
+   // generic full-body 200: exact range, known total and byte length are required.
+   if(status==200){bool lengthOk=false;auto length=reply->rawHeader("Content-Length").toLongLong(&lengthOk);if(!totalOk||!lengthOk||length!=job->count){self->finish(job,"Invalid bounded 200 range length");return;}}
   };
   QObject::connect(reply,&QNetworkReply::metaDataChanged,manager,headers);
   QObject::connect(reply,&QIODevice::readyRead,manager,[self,job,headers](){headers();if(job->finished||!job->reply)return;auto remain=job->count-job->result.bytes.size();auto chunk=job->reply->read(remain+1);if(chunk.size()>remain){self->finish(job,"Remote range body exceeds requested length");return;}job->result.bytes+=chunk;});

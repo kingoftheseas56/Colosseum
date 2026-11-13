@@ -10,6 +10,12 @@
 #include "server1/http/RootRoutes.h"
 #include "server1/http/DownloadRoutes.h"
 #include "server1/http/ArchiveRoutes.h"
+#include "server1/http/FtpRoutes.h"
+#include "server1/http/NzbRoutes.h"
+#include "server1/http/YouTubeRoutes.h"
+#include "server1/youtube/YouTubeResolver.h"
+#include "server1/casting/CastingService.h"
+#include "server1/local/LocalAddon.h"
 #include "server1/downloads/DownloadManager.h"
 #include "server1/settings/RuntimeSettings.h"
 #include "server1/settings/MediaSettings.h"
@@ -35,6 +41,9 @@ struct ServerComposition::Impl final {
     std::unique_ptr<policy::EngineRegistry> registry;
     std::unique_ptr<media::HlsV2Service> hls;
     std::unique_ptr<media::LegacyHlsService> legacyHls;
+    std::unique_ptr<youtube::YouTubeResolver> youtube;
+    std::unique_ptr<casting::CastingService> casting;
+    std::unique_ptr<local::LocalAddon> localAddon;
     void *router=nullptr;
     void *server=nullptr;
     std::string failure;
@@ -90,8 +99,15 @@ struct ServerComposition::Impl final {
             if(mediaConfig.hlsV2Enabled && qgetenv("HLS_V2_DISABLED").isEmpty())
                 hls=std::make_unique<media::HlsV2Service>(executables.ffmpeg,executables.ffprobe,&lane);
             legacyHls=std::make_unique<media::LegacyHlsService>(executables,&lane);
+            casting=std::make_unique<casting::CastingService>(executables.ffmpeg,&lane);
         }
         if(hls)settings::applyMediaSettings(*settings,*hls,QThread::idealThreadCount());
+        youtube=std::make_unique<youtube::YouTubeResolver>(&lane);
+        // Desktop manifest support does not authorize discovery of user files.
+        // Explicit roots and recognition remain required before indexing.
+        local::LocalAddon::Config addonConfig;
+        addonConfig.disableCatalogSupport=false;
+        localAddon=std::make_unique<local::LocalAddon>(std::move(addonConfig),&lane);
         auto localBase=[this]{return QString("http://127.0.0.1:%1").arg(server1_http_server_port(server));};
         cleanupTimer.setSingleShot(true);
         cleanupTimer.setInterval(10000);
@@ -106,11 +122,13 @@ struct ServerComposition::Impl final {
         rootRoutes.webUILocation=runtimeConfig.webUiLocation.empty()
             ? qEnvironmentVariable("WEBUI_LOCATION","https://app.strem.io/shell-v4.4/").toStdString()
             : runtimeConfig.webUiLocation;
-        if(!http::installExternalCors(router) || (hls && !http::installHlsV2Routes(router,hls.get(),localBase)) || !http::installLegacyMediaRoutes(router,legacyHls.get(),localBase) || !http::installRootRoutes(router,std::move(rootRoutes)) || !network::registerProxyRoutes(router) || !media::installSubtitleRoutes(router,&lane)){server1_http_router_destroy(router);router=nullptr;throw std::runtime_error("server route installation failed");}
+        if(!http::installExternalCors(router) || (hls && !http::installHlsV2Routes(router,hls.get(),localBase)) || !http::installLegacyMediaRoutes(router,legacyHls.get(),localBase) || !http::installRootRoutes(router,std::move(rootRoutes)) || !http::installYouTubeRoutes(router,*youtube) || !casting::installCastingRoutes(router,*casting) || !local::installLocalAddonRoutes(router,*localAddon) || !network::registerProxyRoutes(router) || !media::installSubtitleRoutes(router,&lane)){server1_http_router_destroy(router);router=nullptr;throw std::runtime_error("server route installation failed");}
         const auto ipcKey=runtimeConfig.ipcDownloadKey.empty()
             ? qEnvironmentVariable("SERVER_IPC_KEY") : QString::fromStdString(runtimeConfig.ipcDownloadKey);
         http::mountDownloadRoutes(router,downloads.get(),ipcKey);
         http::mountArchiveRoutes(router);
+        http::mountFtpRoutes(router);
+        http::mountNzbRoutes(router,[this]{return server1_http_server_port(server);});
         if(!http::installTorrentRoutes(router,*registry)){server1_http_router_destroy(router);router=nullptr;throw std::runtime_error("torrent route installation failed");}
         server=server1_http_server_create(router,1024*1024);
         QObject::connect(&poll,&QTimer::timeout,&lane,[this]{registry->poll();registry->dispatch();});
@@ -122,6 +140,9 @@ struct ServerComposition::Impl final {
         cleanupTimer.stop();
         server1_http_server_destroy(server);
         server1_http_router_destroy(router);
+        localAddon.reset();
+        casting.reset();
+        youtube.reset();
         hls.reset();
         legacyHls.reset();
         registry.reset();

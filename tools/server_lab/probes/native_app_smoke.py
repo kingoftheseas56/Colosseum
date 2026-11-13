@@ -83,6 +83,9 @@ def main():
                     connection.close()
 
             assert json.loads(get('/heartbeat')) == {'success': True}
+            assert json.loads(get('/casting')) == []
+            assert json.loads(get('/local-addon/manifest.json'))['id'] == 'org.stremio.local'
+            assert json.loads(get('/local-addon/catalog/other/local.json')) == {'metas': []}
             deadline = time.monotonic() + 5
             while True:
                 settings = json.loads(get('/settings'))['values']
@@ -104,6 +107,7 @@ def main():
                             '-f', 'null', '-'], check=True, timeout=15)
             receipt.update(result='pass', checks=[
                 'full application starts native server in-process', 'heartbeat',
+                'passive casting and local addon routes without discovery',
                 'tuned settings persisted', 'local media HLS master/playlist/init/segment',
                 'FFmpeg decode'])
         except Exception as error:

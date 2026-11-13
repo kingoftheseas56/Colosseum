@@ -1,0 +1,1433 @@
+[
+  {
+    "kind": "info",
+    "input": "Input #0, matroska, from file:\n  Duration: 00:01:12.34, start: 0, bitrate: 500 kb/s\n  Stream #0:0(eng): Video: h264 (High), yuv420p(progressive), 320x240, 25 fps (default)\n  Stream #0:1(eng): Audio: aac (LC), 48000 Hz, stereo, fltp (default)\n",
+    "expected": {
+      "duration": 72.34,
+      "streams": [
+        {
+          "id": "0:0",
+          "lang": "eng",
+          "type": "Video",
+          "codec": "h264",
+          "default": true,
+          "misc": "25 fps",
+          "pixfmt": "yuv420p(progressive)",
+          "vidfmt": "320x240"
+        },
+        {
+          "id": "0:1",
+          "lang": "eng",
+          "type": "Audio",
+          "codec": "aac",
+          "default": true,
+          "misc": "fltp",
+          "frequency": "48000 Hz",
+          "channels": "stereo"
+        }
+      ]
+    }
+  },
+  {
+    "kind": "hms",
+    "input": "01:02:03.04",
+    "expected": 3723.04
+  },
+  {
+    "kind": "hms",
+    "input": "00:00:01.123",
+    "expected": 2.23
+  },
+  {
+    "kind": "hms",
+    "input": "nonsense",
+    "expected": -1
+  },
+  {
+    "kind": "hms",
+    "input": "prefix 2:3:4x5 suffix",
+    "expected": 7384.05
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "file:///tmp/demo%20movie.mkv"
+    },
+    "info": {
+      "duration": 72.34,
+      "streams": [
+        {
+          "id": "0:0",
+          "lang": "eng",
+          "type": "Video",
+          "codec": "h264",
+          "default": true,
+          "misc": "25 fps",
+          "pixfmt": "yuv420p(progressive)",
+          "vidfmt": "320x240"
+        },
+        {
+          "id": "0:1",
+          "lang": "eng",
+          "type": "Audio",
+          "codec": "aac",
+          "default": true,
+          "misc": "fltp",
+          "frequency": "48000 Hz",
+          "channels": "stereo"
+        }
+      ]
+    },
+    "subtitleFile": "",
+    "expected": [
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "/tmp/demo movie.mkv",
+      "-t",
+      "72.34",
+      "-map",
+      "0:0",
+      "-map",
+      "0:1",
+      "-c",
+      "copy",
+      "-f",
+      "matroska",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "http://127.0.0.1/a",
+      "time": "12tail",
+      "fmp4": "0",
+      "flagRe": "1",
+      "audioTrack": "0:1"
+    },
+    "info": {
+      "duration": 72.34,
+      "streams": [
+        {
+          "id": "0:0",
+          "lang": "eng",
+          "type": "Video",
+          "codec": "h264",
+          "default": true,
+          "misc": "25 fps",
+          "pixfmt": "yuv420p(progressive)",
+          "vidfmt": "320x240"
+        },
+        {
+          "id": "0:1",
+          "lang": "eng",
+          "type": "Audio",
+          "codec": "aac",
+          "default": true,
+          "misc": "fltp",
+          "frequency": "48000 Hz",
+          "channels": "stereo"
+        }
+      ]
+    },
+    "subtitleFile": "",
+    "expected": [
+      "-re",
+      "-copyts",
+      "-ss",
+      "12",
+      "-i",
+      "http://127.0.0.1/a",
+      "-t",
+      "72.34",
+      "-map",
+      "0:0",
+      "-map",
+      "0:1",
+      "-c",
+      "copy",
+      "-movflags",
+      "frag_keyframe+empty_moov",
+      "-f",
+      "mp4",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "file:///tmp/test",
+      "time": "99",
+      "audioTrack": "missing"
+    },
+    "info": {
+      "duration": 72.34,
+      "streams": [
+        {
+          "id": "0:0",
+          "lang": "eng",
+          "type": "Video",
+          "codec": "h264",
+          "default": true,
+          "misc": "25 fps",
+          "pixfmt": "yuv420p(progressive)",
+          "vidfmt": "320x240"
+        },
+        {
+          "id": "0:1",
+          "lang": "eng",
+          "type": "Audio",
+          "codec": "aac",
+          "default": true,
+          "misc": "fltp",
+          "frequency": "48000 Hz",
+          "channels": "stereo"
+        }
+      ]
+    },
+    "subtitleFile": "",
+    "expected": [
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "/tmp/test",
+      "-map",
+      "0:0",
+      "-map",
+      "0:1",
+      "-c:v",
+      "copy",
+      "-strict",
+      "-2",
+      "-c:a",
+      "aac",
+      "-ac",
+      "2",
+      "-f",
+      "matroska",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "file:///tmp/test",
+      "subtitles": "http://127.0.0.1/subs.srt"
+    },
+    "info": {
+      "duration": 72.34,
+      "streams": [
+        {
+          "id": "0:0",
+          "lang": "eng",
+          "type": "Video",
+          "codec": "h264",
+          "default": true,
+          "misc": "25 fps",
+          "pixfmt": "yuv420p(progressive)",
+          "vidfmt": "320x240"
+        },
+        {
+          "id": "0:1",
+          "lang": "eng",
+          "type": "Audio",
+          "codec": "aac",
+          "default": true,
+          "misc": "fltp",
+          "frequency": "48000 Hz",
+          "channels": "stereo"
+        }
+      ]
+    },
+    "subtitleFile": "/tmp/subs.srt",
+    "expected": [
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "/tmp/test",
+      "-t",
+      "72.34",
+      "-map",
+      "0:0",
+      "-map",
+      "0:1",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-tune",
+      "zerolatency",
+      "-pix_fmt",
+      "yuv420p",
+      "-vf",
+      "subtitles=/tmp/subs.srt",
+      "-c:a",
+      "copy",
+      "-f",
+      "matroska",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "file:///tmp/demo%20movie.mkv"
+    },
+    "info": {
+      "duration": 0,
+      "streams": [
+        {
+          "id": "0:0",
+          "lang": "eng",
+          "type": "Video",
+          "codec": "h264",
+          "default": true,
+          "misc": "25 fps",
+          "pixfmt": "yuv420p(progressive)",
+          "vidfmt": "320x240"
+        },
+        {
+          "id": "0:1",
+          "lang": "eng",
+          "type": "Audio",
+          "codec": "aac",
+          "default": true,
+          "misc": "fltp",
+          "frequency": "48000 Hz",
+          "channels": "stereo"
+        }
+      ]
+    },
+    "subtitleFile": "",
+    "expected": [
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "/tmp/demo movie.mkv",
+      "-map",
+      "0:0",
+      "-map",
+      "0:1",
+      "-c:v",
+      "copy",
+      "-strict",
+      "-2",
+      "-c:a",
+      "aac",
+      "-ac",
+      "2",
+      "-f",
+      "matroska",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "http://127.0.0.1/a",
+      "time": "12tail",
+      "fmp4": "0",
+      "flagRe": "1",
+      "audioTrack": "0:1"
+    },
+    "info": {
+      "duration": 0,
+      "streams": [
+        {
+          "id": "0:0",
+          "lang": "eng",
+          "type": "Video",
+          "codec": "h264",
+          "default": true,
+          "misc": "25 fps",
+          "pixfmt": "yuv420p(progressive)",
+          "vidfmt": "320x240"
+        },
+        {
+          "id": "0:1",
+          "lang": "eng",
+          "type": "Audio",
+          "codec": "aac",
+          "default": true,
+          "misc": "fltp",
+          "frequency": "48000 Hz",
+          "channels": "stereo"
+        }
+      ]
+    },
+    "subtitleFile": "",
+    "expected": [
+      "-re",
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "http://127.0.0.1/a",
+      "-map",
+      "0:0",
+      "-map",
+      "0:1",
+      "-c:v",
+      "copy",
+      "-strict",
+      "-2",
+      "-c:a",
+      "aac",
+      "-ac",
+      "2",
+      "-movflags",
+      "frag_keyframe+empty_moov",
+      "-f",
+      "mp4",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "file:///tmp/test",
+      "time": "99",
+      "audioTrack": "missing"
+    },
+    "info": {
+      "duration": 0,
+      "streams": [
+        {
+          "id": "0:0",
+          "lang": "eng",
+          "type": "Video",
+          "codec": "h264",
+          "default": true,
+          "misc": "25 fps",
+          "pixfmt": "yuv420p(progressive)",
+          "vidfmt": "320x240"
+        },
+        {
+          "id": "0:1",
+          "lang": "eng",
+          "type": "Audio",
+          "codec": "aac",
+          "default": true,
+          "misc": "fltp",
+          "frequency": "48000 Hz",
+          "channels": "stereo"
+        }
+      ]
+    },
+    "subtitleFile": "",
+    "expected": [
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "/tmp/test",
+      "-map",
+      "0:0",
+      "-map",
+      "0:1",
+      "-c:v",
+      "copy",
+      "-strict",
+      "-2",
+      "-c:a",
+      "aac",
+      "-ac",
+      "2",
+      "-f",
+      "matroska",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "file:///tmp/test",
+      "subtitles": "http://127.0.0.1/subs.srt"
+    },
+    "info": {
+      "duration": 0,
+      "streams": [
+        {
+          "id": "0:0",
+          "lang": "eng",
+          "type": "Video",
+          "codec": "h264",
+          "default": true,
+          "misc": "25 fps",
+          "pixfmt": "yuv420p(progressive)",
+          "vidfmt": "320x240"
+        },
+        {
+          "id": "0:1",
+          "lang": "eng",
+          "type": "Audio",
+          "codec": "aac",
+          "default": true,
+          "misc": "fltp",
+          "frequency": "48000 Hz",
+          "channels": "stereo"
+        }
+      ]
+    },
+    "subtitleFile": "/tmp/subs.srt",
+    "expected": [
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "/tmp/test",
+      "-map",
+      "0:0",
+      "-map",
+      "0:1",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-tune",
+      "zerolatency",
+      "-pix_fmt",
+      "yuv420p",
+      "-vf",
+      "subtitles=/tmp/subs.srt",
+      "-strict",
+      "-2",
+      "-c:a",
+      "aac",
+      "-ac",
+      "2",
+      "-f",
+      "matroska",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "file:///tmp/demo%20movie.mkv"
+    },
+    "info": {
+      "duration": 40,
+      "streams": [
+        {
+          "id": "0:0",
+          "type": "Video",
+          "codec": "hevc"
+        },
+        {
+          "id": "0:1",
+          "type": "Audio",
+          "codec": "ac3",
+          "channels": "5.1",
+          "default": true
+        }
+      ]
+    },
+    "subtitleFile": "",
+    "expected": [
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "/tmp/demo movie.mkv",
+      "-t",
+      "40",
+      "-map",
+      "0:0",
+      "-map",
+      "0:1",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-tune",
+      "zerolatency",
+      "-pix_fmt",
+      "yuv420p",
+      "-strict",
+      "-2",
+      "-c:a",
+      "aac",
+      "-ac",
+      "2",
+      "-f",
+      "matroska",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "http://127.0.0.1/a",
+      "time": "12tail",
+      "fmp4": "0",
+      "flagRe": "1",
+      "audioTrack": "0:1"
+    },
+    "info": {
+      "duration": 40,
+      "streams": [
+        {
+          "id": "0:0",
+          "type": "Video",
+          "codec": "hevc"
+        },
+        {
+          "id": "0:1",
+          "type": "Audio",
+          "codec": "ac3",
+          "channels": "5.1",
+          "default": true
+        }
+      ]
+    },
+    "subtitleFile": "",
+    "expected": [
+      "-re",
+      "-copyts",
+      "-ss",
+      "12",
+      "-i",
+      "http://127.0.0.1/a",
+      "-t",
+      "40",
+      "-map",
+      "0:0",
+      "-map",
+      "0:1",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-tune",
+      "zerolatency",
+      "-pix_fmt",
+      "yuv420p",
+      "-strict",
+      "-2",
+      "-c:a",
+      "aac",
+      "-ac",
+      "2",
+      "-movflags",
+      "frag_keyframe+empty_moov",
+      "-f",
+      "mp4",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "file:///tmp/test",
+      "time": "99",
+      "audioTrack": "missing"
+    },
+    "info": {
+      "duration": 40,
+      "streams": [
+        {
+          "id": "0:0",
+          "type": "Video",
+          "codec": "hevc"
+        },
+        {
+          "id": "0:1",
+          "type": "Audio",
+          "codec": "ac3",
+          "channels": "5.1",
+          "default": true
+        }
+      ]
+    },
+    "subtitleFile": "",
+    "expected": [
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "/tmp/test",
+      "-map",
+      "0:0",
+      "-map",
+      "0:1",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-tune",
+      "zerolatency",
+      "-pix_fmt",
+      "yuv420p",
+      "-strict",
+      "-2",
+      "-c:a",
+      "aac",
+      "-ac",
+      "2",
+      "-f",
+      "matroska",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "file:///tmp/test",
+      "subtitles": "http://127.0.0.1/subs.srt"
+    },
+    "info": {
+      "duration": 40,
+      "streams": [
+        {
+          "id": "0:0",
+          "type": "Video",
+          "codec": "hevc"
+        },
+        {
+          "id": "0:1",
+          "type": "Audio",
+          "codec": "ac3",
+          "channels": "5.1",
+          "default": true
+        }
+      ]
+    },
+    "subtitleFile": "/tmp/subs.srt",
+    "expected": [
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "/tmp/test",
+      "-t",
+      "40",
+      "-map",
+      "0:0",
+      "-map",
+      "0:1",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-tune",
+      "zerolatency",
+      "-pix_fmt",
+      "yuv420p",
+      "-vf",
+      "subtitles=/tmp/subs.srt",
+      "-strict",
+      "-2",
+      "-c:a",
+      "aac",
+      "-ac",
+      "2",
+      "-f",
+      "matroska",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "file:///tmp/demo%20movie.mkv"
+    },
+    "info": {
+      "duration": 15,
+      "streams": [
+        {
+          "id": "0:2",
+          "type": "Audio",
+          "codec": "aac",
+          "channels": "stereo",
+          "default": true
+        }
+      ]
+    },
+    "subtitleFile": "",
+    "expected": [
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "/tmp/demo movie.mkv",
+      "-t",
+      "15",
+      "-map",
+      "0:2",
+      "-c:a",
+      "copy",
+      "-f",
+      "matroska",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "http://127.0.0.1/a",
+      "time": "12tail",
+      "fmp4": "0",
+      "flagRe": "1",
+      "audioTrack": "0:1"
+    },
+    "info": {
+      "duration": 15,
+      "streams": [
+        {
+          "id": "0:2",
+          "type": "Audio",
+          "codec": "aac",
+          "channels": "stereo",
+          "default": true
+        }
+      ]
+    },
+    "subtitleFile": "",
+    "expected": [
+      "-re",
+      "-copyts",
+      "-ss",
+      "12",
+      "-i",
+      "http://127.0.0.1/a",
+      "-t",
+      "15",
+      "-map",
+      "0:2",
+      "-strict",
+      "-2",
+      "-c:a",
+      "aac",
+      "-ac",
+      "2",
+      "-movflags",
+      "frag_keyframe+empty_moov",
+      "-f",
+      "mp4",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "file:///tmp/test",
+      "time": "99",
+      "audioTrack": "missing"
+    },
+    "info": {
+      "duration": 15,
+      "streams": [
+        {
+          "id": "0:2",
+          "type": "Audio",
+          "codec": "aac",
+          "channels": "stereo",
+          "default": true
+        }
+      ]
+    },
+    "subtitleFile": "",
+    "expected": [
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "/tmp/test",
+      "-map",
+      "0:2",
+      "-strict",
+      "-2",
+      "-c:a",
+      "aac",
+      "-ac",
+      "2",
+      "-f",
+      "matroska",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "args",
+    "query": {
+      "video": "file:///tmp/test",
+      "subtitles": "http://127.0.0.1/subs.srt"
+    },
+    "info": {
+      "duration": 15,
+      "streams": [
+        {
+          "id": "0:2",
+          "type": "Audio",
+          "codec": "aac",
+          "channels": "stereo",
+          "default": true
+        }
+      ]
+    },
+    "subtitleFile": "/tmp/subs.srt",
+    "expected": [
+      "-copyts",
+      "-ss",
+      "0",
+      "-i",
+      "/tmp/test",
+      "-t",
+      "15",
+      "-map",
+      "0:2",
+      "-c:a",
+      "copy",
+      "-f",
+      "matroska",
+      "-threads",
+      "0",
+      "pipe:1"
+    ]
+  },
+  {
+    "kind": "mdns",
+    "input": {
+      "answers": [
+        {
+          "name": "_googlecast._tcp.local",
+          "type": "PTR",
+          "data": "Living Room._googlecast._tcp.local"
+        }
+      ],
+      "additionals": [
+        {
+          "type": "SRV",
+          "data": {
+            "target": "fixture.local",
+            "port": 8009
+          }
+        },
+        {
+          "type": "TXT",
+          "data": [
+            "fn=Fixture TV"
+          ]
+        },
+        {
+          "type": "A",
+          "data": "127.0.0.1"
+        }
+      ]
+    },
+    "expected": {
+      "facility": "MDNS",
+      "id": "fixture",
+      "name": "Fixture TV",
+      "host": "127.0.0.1",
+      "location": "127.0.0.1",
+      "type": "chromecast",
+      "icon": "chromecast",
+      "playerUIRoles": [
+        "playpause",
+        "seek",
+        "dub",
+        "subtitles",
+        "volume"
+      ],
+      "usePlayerUI": true,
+      "onlyHtml5Formats": false
+    }
+  },
+  {
+    "kind": "ssdp",
+    "location": "http://127.0.0.1:1234/description.xml",
+    "xml": "<root><device><deviceType>urn:schemas-upnp-org:device:MediaRenderer:1</deviceType><UDN>uuid:fixture-id</UDN><friendlyName>Fixture &amp; TV</friendlyName></device></root>",
+    "expected": {
+      "facility": "SSDP",
+      "id": "fixture-id",
+      "name": "Fixture & TV",
+      "host": "127.0.0.1",
+      "location": "http://127.0.0.1:1234/description.xml",
+      "type": "tv",
+      "icon": "tv",
+      "playerUIRoles": [
+        "playpause",
+        "seek",
+        "dub",
+        "subtitles",
+        "volume"
+      ],
+      "usePlayerUI": true,
+      "onlyHtml5Formats": false
+    }
+  },
+  {
+    "kind": "ssdp",
+    "location": "http://127.0.0.1:1234/description.xml",
+    "xml": "<root><device><deviceType>urn:dial-multiscreen-org:device:dial:1</deviceType><UDN>uuid:fixture-id</UDN><friendlyName>Fixture &amp; TV</friendlyName></device></root>",
+    "expected": {
+      "facility": "SSDP",
+      "id": "fixture-id",
+      "name": "Fixture & TV",
+      "host": "127.0.0.1",
+      "location": "http://127.0.0.1:1234/description.xml",
+      "type": "chromecast",
+      "icon": "chromecast",
+      "playerUIRoles": [
+        "playpause",
+        "seek",
+        "dub",
+        "subtitles",
+        "volume"
+      ],
+      "usePlayerUI": true,
+      "onlyHtml5Formats": false
+    }
+  },
+  {
+    "kind": "ssdp",
+    "location": "http://127.0.0.1:1234/description.xml",
+    "xml": "<root><device><deviceType>unsupported</deviceType><UDN>uuid:fixture-id</UDN><friendlyName>Fixture &amp; TV</friendlyName></device></root>",
+    "expected": {}
+  },
+  {
+    "kind": "player",
+    "query": {},
+    "expected": {
+      "method": "status",
+      "arguments": [
+        null
+      ],
+      "status": {
+        "audio": [],
+        "audioTrack": null,
+        "volume": 100,
+        "time": 0,
+        "paused": false,
+        "state": 5,
+        "length": 0,
+        "source": null,
+        "subtitlesSrc": null,
+        "subtitlesDelay": 0,
+        "subtitlesSize": 2
+      }
+    }
+  },
+  {
+    "kind": "player",
+    "query": {
+      "paused": "false",
+      "stop": "1",
+      "source": "x"
+    },
+    "expected": {
+      "method": "resume",
+      "arguments": [
+        null
+      ],
+      "status": {
+        "audio": [],
+        "audioTrack": null,
+        "volume": 100,
+        "time": 0,
+        "paused": "false",
+        "state": 5,
+        "length": 0,
+        "source": "x",
+        "subtitlesSrc": null,
+        "subtitlesDelay": 0,
+        "subtitlesSize": 2,
+        "stop": "1"
+      }
+    }
+  },
+  {
+    "kind": "player",
+    "query": {
+      "paused": "true",
+      "time": "99"
+    },
+    "expected": {
+      "method": "pause",
+      "arguments": [
+        null
+      ],
+      "status": {
+        "audio": [],
+        "audioTrack": null,
+        "volume": 100,
+        "time": "99",
+        "paused": "true",
+        "state": 5,
+        "length": 0,
+        "source": null,
+        "subtitlesSrc": null,
+        "subtitlesDelay": 0,
+        "subtitlesSize": 2
+      }
+    }
+  },
+  {
+    "kind": "player",
+    "query": {
+      "source": ""
+    },
+    "expected": {
+      "method": "close",
+      "arguments": [
+        null
+      ],
+      "status": {
+        "audio": [],
+        "audioTrack": null,
+        "volume": 100,
+        "time": 0,
+        "paused": false,
+        "state": 5,
+        "length": 0,
+        "source": "",
+        "subtitlesSrc": null,
+        "subtitlesDelay": 0,
+        "subtitlesSize": 2
+      }
+    }
+  },
+  {
+    "kind": "player",
+    "query": {
+      "subtitlesDelay": "2",
+      "subtitlesSize": "3"
+    },
+    "expected": {
+      "method": "subtitles",
+      "arguments": [
+        null,
+        "2",
+        {
+          "fontSize": "4vw"
+        }
+      ],
+      "status": {
+        "audio": [],
+        "audioTrack": null,
+        "volume": 100,
+        "time": 0,
+        "paused": false,
+        "state": 5,
+        "length": 0,
+        "source": null,
+        "subtitlesSrc": null,
+        "subtitlesDelay": "2",
+        "subtitlesSize": "3"
+      }
+    }
+  },
+  {
+    "kind": "player",
+    "query": {
+      "volume": "0.2",
+      "audioTrack": "0:1"
+    },
+    "expected": {
+      "method": "volume",
+      "arguments": [
+        "0.2"
+      ],
+      "status": {
+        "audio": [],
+        "audioTrack": "0:1",
+        "volume": "0.2",
+        "time": 0,
+        "paused": false,
+        "state": 5,
+        "length": 0,
+        "source": null,
+        "subtitlesSrc": null,
+        "subtitlesDelay": 0,
+        "subtitlesSize": 2
+      }
+    }
+  },
+  {
+    "kind": "player",
+    "query": {
+      "formats": "1"
+    },
+    "expected": {
+      "method": "protocolsGet",
+      "arguments": [
+        null
+      ],
+      "status": {
+        "audio": [],
+        "audioTrack": null,
+        "volume": 100,
+        "time": 0,
+        "paused": false,
+        "state": 5,
+        "length": 0,
+        "source": null,
+        "subtitlesSrc": null,
+        "subtitlesDelay": 0,
+        "subtitlesSize": 2,
+        "formats": "1"
+      }
+    }
+  },
+  {
+    "kind": "player",
+    "query": {
+      "time": "12"
+    },
+    "expected": {
+      "method": "seek",
+      "arguments": [
+        "12"
+      ],
+      "status": {
+        "audio": [],
+        "audioTrack": null,
+        "volume": 100,
+        "time": "12",
+        "paused": false,
+        "state": 5,
+        "length": 0,
+        "source": null,
+        "subtitlesSrc": null,
+        "subtitlesDelay": 0,
+        "subtitlesSize": 2
+      }
+    }
+  },
+  {
+    "kind": "player",
+    "query": {
+      "volume": [
+        "0.2",
+        "0.3"
+      ]
+    },
+    "expected": {
+      "method": "volume",
+      "arguments": [
+        "0.2",
+        "0.3"
+      ],
+      "status": {
+        "audio": [],
+        "audioTrack": null,
+        "volume": [
+          "0.2",
+          "0.3"
+        ],
+        "time": 0,
+        "paused": false,
+        "state": 5,
+        "length": 0,
+        "source": null,
+        "subtitlesSrc": null,
+        "subtitlesDelay": 0,
+        "subtitlesSize": 2
+      }
+    }
+  },
+  {
+    "kind": "dlna",
+    "input": {
+      "TransportState": "PLAYING",
+      "CurrentTrackPosition": "12.3",
+      "CurrentVolume": "25"
+    },
+    "expected": {
+      "audio": [],
+      "audioTrack": null,
+      "volume": 0.25,
+      "time": 12000,
+      "paused": false,
+      "state": 3,
+      "length": 0,
+      "source": null,
+      "subtitlesSrc": null,
+      "subtitlesDelay": 0,
+      "subtitlesSize": 2,
+      "realStatus": "PLAYING"
+    }
+  },
+  {
+    "kind": "dlna",
+    "input": {
+      "TransportState": "NO_MEDIA_PRESENT",
+      "CurrentTrackPosition": "0",
+      "CurrentVolume": 0
+    },
+    "expected": {
+      "audio": [],
+      "audioTrack": null,
+      "volume": 0,
+      "time": 0,
+      "paused": false,
+      "state": 5,
+      "length": 0,
+      "source": null,
+      "subtitlesSrc": null,
+      "subtitlesDelay": 0,
+      "subtitlesSize": 2,
+      "realStatus": "NO_MEDIA_PRESENT"
+    }
+  },
+  {
+    "kind": "dlna",
+    "input": {
+      "TransportState": "PAUSED_PLAYBACK"
+    },
+    "expected": {
+      "audio": [],
+      "audioTrack": null,
+      "volume": 100,
+      "time": 0,
+      "paused": true,
+      "state": 4,
+      "length": 0,
+      "source": null,
+      "subtitlesSrc": null,
+      "subtitlesDelay": 0,
+      "subtitlesSize": 2,
+      "realStatus": "PAUSED_PLAYBACK"
+    }
+  },
+  {
+    "kind": "dlna",
+    "input": {
+      "TransportState": "UNKNOWN"
+    },
+    "expected": {
+      "audio": [],
+      "audioTrack": null,
+      "volume": 100,
+      "time": 0,
+      "paused": false,
+      "length": 0,
+      "source": null,
+      "subtitlesSrc": null,
+      "subtitlesDelay": 0,
+      "subtitlesSize": 2,
+      "realStatus": "UNKNOWN"
+    }
+  },
+  {
+    "kind": "chromecast",
+    "input": {
+      "playerState": "PLAYING",
+      "currentTime": 12
+    },
+    "expected": {
+      "audio": [],
+      "audioTrack": null,
+      "volume": 100,
+      "time": 12000,
+      "paused": false,
+      "state": 3,
+      "length": 0,
+      "source": null,
+      "subtitlesSrc": null,
+      "subtitlesDelay": 0,
+      "subtitlesSize": 2
+    }
+  },
+  {
+    "kind": "chromecast",
+    "input": {
+      "playerState": "NO_MEDIA_PRESENT",
+      "currentTime": 0
+    },
+    "expected": {
+      "audio": [],
+      "audioTrack": null,
+      "volume": 100,
+      "time": 0,
+      "paused": false,
+      "state": 5,
+      "length": 0,
+      "source": null,
+      "subtitlesSrc": null,
+      "subtitlesDelay": 0,
+      "subtitlesSize": 2
+    }
+  },
+  {
+    "kind": "chromecast",
+    "input": {
+      "playerState": "PAUSED",
+      "volume": {
+        "level": 0.3
+      }
+    },
+    "expected": {
+      "audio": [],
+      "audioTrack": null,
+      "volume": 100,
+      "time": 0,
+      "paused": true,
+      "state": 4,
+      "length": 0,
+      "source": null,
+      "subtitlesSrc": null,
+      "subtitlesDelay": 0,
+      "subtitlesSize": 2
+    }
+  },
+  {
+    "kind": "chromecast",
+    "input": {
+      "applications": [
+        {
+          "statusText": "Ready To Cast"
+        }
+      ]
+    },
+    "expected": {
+      "audio": [],
+      "audioTrack": null,
+      "volume": 100,
+      "time": 0,
+      "paused": false,
+      "state": 5,
+      "length": 0,
+      "source": null,
+      "subtitlesSrc": null,
+      "subtitlesDelay": 0,
+      "subtitlesSize": 2
+    }
+  }
+]

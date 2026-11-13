@@ -1,0 +1,1975 @@
+[
+  {
+    "action": "manifest",
+    "disabled": false,
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {
+      "id": "org.stremio.local",
+      "version": "1.10.0",
+      "description": "Local add-on to find playable files: .torrent, .mp4, .mkv and .avi",
+      "name": "Local Files",
+      "resources": [
+        "catalog",
+        {
+          "name": "meta",
+          "types": [
+            "other"
+          ],
+          "idPrefixes": [
+            "local:",
+            "bt:"
+          ]
+        },
+        {
+          "name": "stream",
+          "types": [
+            "movie",
+            "series"
+          ],
+          "idPrefixes": [
+            "tt"
+          ]
+        }
+      ],
+      "types": [
+        "movie",
+        "series",
+        "other"
+      ],
+      "catalogs": [
+        {
+          "type": "other",
+          "id": "local"
+        }
+      ]
+    }
+  },
+  {
+    "action": "manifest",
+    "disabled": true,
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {
+      "id": "org.stremio.local",
+      "version": "1.10.0",
+      "description": "Local add-on to find playable files: .torrent, .mp4, .mkv and .avi",
+      "name": "Local Files (without catalog support)",
+      "resources": [
+        {
+          "name": "meta",
+          "types": [
+            "other"
+          ],
+          "idPrefixes": [
+            "local:",
+            "bt:"
+          ]
+        },
+        {
+          "name": "stream",
+          "types": [
+            "movie",
+            "series"
+          ],
+          "idPrefixes": [
+            "tt"
+          ]
+        }
+      ],
+      "types": [
+        "movie",
+        "series",
+        "other"
+      ],
+      "catalogs": []
+    }
+  },
+  {
+    "action": "catalog",
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {
+      "metas": [
+        {
+          "id": "local:tt123",
+          "type": "other",
+          "name": "Alpha",
+          "poster": "https://images.metahub.space/poster/medium/tt123/img"
+        },
+        {
+          "id": "local:tt456",
+          "type": "other",
+          "name": "Show",
+          "poster": "https://images.metahub.space/poster/medium/tt456/img"
+        },
+        {
+          "id": "bt:abc",
+          "type": "other",
+          "name": "Alpha",
+          "poster": "https://images.metahub.space/poster/medium/tt123/img"
+        }
+      ]
+    }
+  },
+  {
+    "action": "stream",
+    "type": "movie",
+    "id": "tt123",
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {
+      "streams": [
+        {
+          "id": "file:///fixture/Alpha.mp4",
+          "url": "file:///fixture/Alpha.mp4",
+          "subtitle": "ADDON_STREAM_LOCALFILE",
+          "title": "Alpha.mp4"
+        },
+        {
+          "id": "file:///fixture/Other.mp4",
+          "url": "file:///fixture/Other.mp4",
+          "subtitle": "ADDON_STREAM_LOCALFILE",
+          "title": "Other.mp4"
+        },
+        {
+          "title": "Alpha.mp4",
+          "infoHash": "abc",
+          "fileIdx": 0,
+          "id": "abc/0",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "action": "stream",
+    "type": "series",
+    "id": "tt456:1:2",
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {
+      "streams": [
+        {
+          "id": "file:///fixture/Show.S01E02.mkv",
+          "url": "file:///fixture/Show.S01E02.mkv",
+          "subtitle": "ADDON_STREAM_LOCALFILE",
+          "title": "Show.S01E02.mkv"
+        },
+        {
+          "title": "Show.S01E02.mkv",
+          "infoHash": "abc",
+          "fileIdx": 1,
+          "id": "abc/1",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "action": "stream",
+    "type": "series",
+    "id": "tt456:1:3",
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {
+      "streams": []
+    }
+  },
+  {
+    "action": "stream",
+    "type": "movie",
+    "id": "tt456:1:2",
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {
+      "streams": []
+    }
+  },
+  {
+    "action": "stream",
+    "type": "other",
+    "id": "tt123",
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {
+      "streams": []
+    }
+  },
+  {
+    "action": "stream",
+    "type": "movie",
+    "id": "unknown",
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {
+      "streams": []
+    }
+  },
+  {
+    "action": "meta",
+    "id": "local:tt123",
+    "now": 1700000000000,
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {
+      "meta": {
+        "id": "local:tt123",
+        "type": "other",
+        "name": "Alpha",
+        "showAsVideos": true,
+        "poster": "https://images.metahub.space/poster/medium/tt123/img",
+        "background": "https://images.metahub.space/background/medium/tt123/img",
+        "logo": "https://images.metahub.space/logo/medium/tt123/img",
+        "videos": [
+          {
+            "id": "tt123",
+            "title": "Alpha.mp4",
+            "publishedAt": "2023-01-01T00:00:00.000Z",
+            "released": "2023-11-14T22:13:20.000Z",
+            "stream": {
+              "title": "/fixture/Alpha.mp4",
+              "url": "file:///fixture/Alpha.mp4",
+              "subtitle": "ADDON_STREAM_LOCALFILE"
+            },
+            "thumbnail": "https://images.metahub.space/background/medium/tt123/img"
+          },
+          {
+            "id": "tt123",
+            "title": "Alpha.mp4",
+            "publishedAt": "2023-01-01T00:00:00.000Z",
+            "released": "2023-11-14T22:12:20.000Z",
+            "stream": {
+              "title": "/fixture/Other.mp4",
+              "url": "file:///fixture/Other.mp4",
+              "subtitle": "ADDON_STREAM_LOCALFILE"
+            },
+            "thumbnail": "https://images.metahub.space/background/medium/tt123/img"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "action": "meta",
+    "id": "local:tt456",
+    "now": 1700000000000,
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {
+      "meta": {
+        "id": "local:tt456",
+        "type": "other",
+        "name": "Show",
+        "showAsVideos": true,
+        "poster": "https://images.metahub.space/poster/medium/tt456/img",
+        "background": "https://images.metahub.space/background/medium/tt456/img",
+        "logo": "https://images.metahub.space/logo/medium/tt456/img",
+        "videos": [
+          {
+            "id": "tt456:1:2",
+            "title": "Show.S01E02.mkv",
+            "publishedAt": "2023-11-14T22:13:20.000Z",
+            "released": "2023-11-14T22:13:20.000Z",
+            "stream": {
+              "title": "/fixture/Show.S01E02.mkv",
+              "url": "file:///fixture/Show.S01E02.mkv",
+              "subtitle": "ADDON_STREAM_LOCALFILE"
+            },
+            "season": 1,
+            "episode": 2,
+            "thumbnail": "https://episodes.metahub.space/tt456/1/2/w780.jpg"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "action": "meta",
+    "id": "bt:abc",
+    "now": 1700000000000,
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {
+      "meta": {
+        "id": "bt:abc",
+        "type": "other",
+        "name": "Show",
+        "showAsVideos": true,
+        "poster": "https://images.metahub.space/poster/medium/tt123/img",
+        "background": "https://images.metahub.space/background/medium/tt123/img",
+        "logo": "https://images.metahub.space/logo/medium/tt123/img",
+        "videos": [
+          {
+            "id": "tt123",
+            "title": "Alpha.mp4",
+            "publishedAt": "2023-11-14T22:13:20.000Z",
+            "released": "2023-11-14T22:13:20.000Z",
+            "stream": {
+              "infoHash": "abc",
+              "fileIdx": 8,
+              "title": "abc/8",
+              "sources": [
+                "dht:abc",
+                "tracker:https://tracker.example.test"
+              ]
+            },
+            "thumbnail": "https://images.metahub.space/background/medium/tt123/img"
+          },
+          {
+            "id": "tt456:1:2",
+            "title": "Show.S01E02.mkv",
+            "publishedAt": "2023-11-14T22:13:20.000Z",
+            "released": "2023-11-14T22:12:20.000Z",
+            "stream": {
+              "infoHash": "abc",
+              "fileIdx": 4,
+              "title": "abc/4",
+              "sources": [
+                "dht:abc",
+                "tracker:https://tracker.example.test"
+              ]
+            },
+            "season": 1,
+            "episode": 2,
+            "thumbnail": "https://episodes.metahub.space/tt456/1/2/w780.jpg"
+          },
+          {
+            "id": "abc/9",
+            "title": "unknown.mkv",
+            "publishedAt": "2023-11-14T22:13:20.000Z",
+            "released": "2023-11-14T22:11:20.000Z",
+            "stream": {
+              "infoHash": "abc",
+              "fileIdx": 9,
+              "title": "abc/9",
+              "sources": [
+                "dht:abc",
+                "tracker:https://tracker.example.test"
+              ]
+            },
+            "thumbnail": null
+          }
+        ]
+      }
+    }
+  },
+  {
+    "action": "meta",
+    "id": "local:missing",
+    "now": 1700000000000,
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "expected": {}
+  },
+  {
+    "action": "catalog",
+    "entries": [
+      {
+        "key": "one",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "Alpha.mp4",
+          "dateModified": "2023-01-01T00:00:00.000Z",
+          "files": [
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "two",
+        "entry": {
+          "itemId": "local:tt123",
+          "name": "duplicate",
+          "files": [
+            {
+              "path": "/fixture/Other.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie"
+            }
+          ]
+        }
+      },
+      {
+        "key": "episode",
+        "entry": {
+          "itemId": "local:tt456",
+          "name": "Show",
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            }
+          ]
+        }
+      },
+      {
+        "key": "torrent",
+        "entry": {
+          "itemId": "bt:abc",
+          "ih": "abc",
+          "name": "Bundle",
+          "sources": [
+            "dht:abc",
+            "tracker:https://tracker.example.test"
+          ],
+          "files": [
+            {
+              "path": "/fixture/Show.S01E02.mkv",
+              "name": "Show.S01E02.mkv",
+              "length": 60,
+              "parsedName": "Show",
+              "imdb_id": "tt456",
+              "type": "series",
+              "season": 1,
+              "episode": 2,
+              "idx": 4
+            },
+            {
+              "path": "/fixture/Alpha.mp4",
+              "name": "Alpha.mp4",
+              "length": 30,
+              "parsedName": "Alpha",
+              "imdb_id": "tt123",
+              "type": "movie",
+              "idx": 8
+            },
+            {
+              "path": "/fixture/unknown.mkv",
+              "name": "unknown.mkv",
+              "length": 1,
+              "idx": 9
+            }
+          ]
+        }
+      },
+      {
+        "key": "empty",
+        "entry": {
+          "files": []
+        }
+      }
+    ],
+    "metas": {
+      "local:tt123": {
+        "id": "local:tt123",
+        "type": "other",
+        "name": "Enriched"
+      }
+    },
+    "expected": {
+      "metas": [
+        {
+          "id": "local:tt123",
+          "type": "other",
+          "name": "Enriched"
+        },
+        {
+          "id": "local:tt456",
+          "type": "other",
+          "name": "Show",
+          "poster": "https://images.metahub.space/poster/medium/tt456/img"
+        },
+        {
+          "id": "bt:abc",
+          "type": "other",
+          "name": "Show",
+          "poster": "https://images.metahub.space/poster/medium/tt456/img"
+        }
+      ]
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "The Alpha & Omega (film)",
+        "type": "movie",
+        "year": "2021-2022",
+        "imdb_id": "tt1234567"
+      },
+      {
+        "name": "Example Show",
+        "type": "series",
+        "year": 1999,
+        "imdb_id": "tt7654321"
+      }
+    ],
+    "query": {
+      "name": "The Alpha and Omega",
+      "type": "movie",
+      "year": 2020
+    },
+    "expected": {
+      "id": "tt1234567",
+      "name": "The Alpha & Omega (film)",
+      "year": 2021,
+      "type": "movie"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "The Alpha & Omega (film)",
+        "type": "movie",
+        "year": "2021-2022",
+        "imdb_id": "tt1234567"
+      },
+      {
+        "name": "Example Show",
+        "type": "series",
+        "year": 1999,
+        "imdb_id": "tt7654321"
+      }
+    ],
+    "query": {
+      "name": "The Alpha and Omega",
+      "type": "movie",
+      "year": 2018
+    },
+    "expected": {}
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "The Alpha & Omega (film)",
+        "type": "movie",
+        "year": "2021-2022",
+        "imdb_id": "tt1234567"
+      },
+      {
+        "name": "Example Show",
+        "type": "series",
+        "year": 1999,
+        "imdb_id": "tt7654321"
+      }
+    ],
+    "query": {
+      "name": "Example Show",
+      "type": "series",
+      "year": 2025
+    },
+    "expected": {
+      "id": "tt7654321",
+      "name": "Example Show",
+      "year": 1999,
+      "type": "series"
+    }
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "The Alpha & Omega (film)",
+        "type": "movie",
+        "year": "2021-2022",
+        "imdb_id": "tt1234567"
+      },
+      {
+        "name": "Example Show",
+        "type": "series",
+        "year": 1999,
+        "imdb_id": "tt7654321"
+      }
+    ],
+    "query": {
+      "name": "Wrong",
+      "type": "movie"
+    },
+    "expected": {}
+  },
+  {
+    "action": "recognize",
+    "records": [
+      {
+        "name": "The Alpha & Omega (film)",
+        "type": "movie",
+        "year": "2021-2022",
+        "imdb_id": "tt1234567"
+      },
+      {
+        "name": "Example Show",
+        "type": "series",
+        "year": 1999,
+        "imdb_id": "tt7654321"
+      }
+    ],
+    "query": {
+      "name": "",
+      "type": "movie"
+    },
+    "expected": {}
+  },
+  {
+    "action": "enrich",
+    "entry": {
+      "itemId": "local:tt123",
+      "name": "Alpha.mp4",
+      "dateModified": "2023-01-01T00:00:00.000Z",
+      "files": [
+        {
+          "path": "/fixture/Alpha.mp4",
+          "name": "Alpha.mp4",
+          "length": 30,
+          "parsedName": "Alpha",
+          "imdb_id": "tt123",
+          "type": "movie"
+        }
+      ]
+    },
+    "remote": {
+      "meta": {
+        "name": "Enriched",
+        "description": "Fixture",
+        "imdbRating": "8",
+        "id": "local:tt123",
+        "type": "other"
+      }
+    },
+    "expected": {
+      "name": "Enriched",
+      "description": "Fixture",
+      "imdbRating": "8",
+      "id": "local:tt123",
+      "type": "other"
+    }
+  }
+]
