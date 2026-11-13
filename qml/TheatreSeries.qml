@@ -1362,6 +1362,11 @@ Item {
                                 onTriggered: page.openHeroForPlay()
                             }
                         }
+                        SmartPickToggle {
+                            visible: page.mediaType !== "series"
+                            sourcePicker: sources
+                            width: Math.min(implicitWidth, parent.width)
+                        }
                         LibraryButton {
                             world: "theatre"
                             entry: page.collectionEntry()
@@ -2183,16 +2188,22 @@ Item {
                     id: episodeLedgerHeader
                     x: page.bodyInset
                     width: parent.width - 2 * page.bodyInset
-                    height: page.phoneNarrow ? 150 : 86
+                    readonly property bool stacked: page.phoneNarrow
+                        || width < episodeHeading.naturalWidth + episodeHeaderActions.singleRowWidth + 24
+                    height: stacked ? episodeHeading.height + episodeHeaderActions.implicitHeight + 36
+                                    : Math.max(86, episodeHeaderActions.implicitHeight + 24)
 
                     Column {
+                        id: episodeHeading
+                        readonly property real naturalWidth: Math.max(seasonHeading.implicitWidth, episodeSummary.implicitWidth)
                         anchors.left: parent.left
-                        anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
-                        anchors.top: page.phoneNarrow ? parent.top : undefined
-                        anchors.topMargin: page.phoneNarrow ? 12 : 0
-                        width: page.phoneNarrow ? parent.width : implicitWidth
+                        anchors.verticalCenter: episodeLedgerHeader.stacked ? undefined : parent.verticalCenter
+                        anchors.top: episodeLedgerHeader.stacked ? parent.top : undefined
+                        anchors.topMargin: episodeLedgerHeader.stacked ? 12 : 0
+                        width: episodeLedgerHeader.stacked ? parent.width : naturalWidth
                         spacing: 7
                         Text {
+                            id: seasonHeading
                             text: page.seasonLabel()
                             color: theme.ink
                             font.family: theme.display
@@ -2200,6 +2211,7 @@ Item {
                             font.weight: Font.DemiBold
                         }
                         Text {
+                            id: episodeSummary
                             text: {
                                 var watchedCount = 0
                                 var progressCount = 0
@@ -2219,100 +2231,112 @@ Item {
                             font.family: theme.ui
                             font.pixelSize: 12
                             font.letterSpacing: 0.3
-                            width: page.phoneNarrow ? parent.width : implicitWidth
-                            wrapMode: page.phoneNarrow ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
+                            width: episodeLedgerHeader.stacked ? parent.width : implicitWidth
+                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         }
                     }
 
-                    // Season checkout: queue every not-yet-downloaded episode of the
-                    // ACTIVE season. Each job resolves its stream lazily when promoted.
-                    // Hidden in Absolute view — there "episodes" is the whole run, so a
-                    // "Download <season>" button would flood the queue under a wrong label.
-                    Rectangle {
-                        id: seasonDownloadAction
-                        border.color: theme.edge
-                        // the ACTION wears the glass tablet...
-                        visible: typeof Download !== "undefined" && page.episodes.length > 0
-                                 && page.effectiveEpisodeOrder !== "absolute"
-                        anchors.right: jumpHost.visible ? jumpHost.left : parent.right
-                        anchors.rightMargin: jumpHost.visible ? 10 : 0
-                        anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
-                        y: page.phoneNarrow ? 96 : 0
-                        width: 176
-                        height: 40
-                        radius: 9
-                        color: dlSeasonMa.containsMouse && !page.seasonQueued[page.activeSeason]
-                               ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.06)
-                        border.width: 1
-                        Row {
-                            anchors.centerIn: parent
-                            spacing: 9
-                            PlayerIcon {
-                                width: 16
-                                height: 16
-                                kind: page.seasonQueued[page.activeSeason] ? "check" : "download"
-                                ink: page.seasonQueued[page.activeSeason] ? page.watchedInk : theme.inkDim
+                    Flow {
+                        id: episodeHeaderActions
+                        readonly property real singleRowWidth: {
+                            var total = 0
+                            for (const control of children) {
+                                if (control.visible) total += control.width + spacing
                             }
-                            Text {
-                                id: dlSeasonT
-                                text: page.seasonQueued[page.activeSeason]
-                                      ? "Season queued"
-                                      : "Download season"
-                                color: page.seasonQueued[page.activeSeason] ? theme.inkDim
-                                     : (dlSeasonMa.containsMouse ? theme.ink : theme.inkDim)
-                                font.family: theme.ui
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                            }
+                            return Math.max(0, total - spacing)
                         }
-                        MouseArea {
-                            id: dlSeasonMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            enabled: !page.seasonQueued[page.activeSeason]
-                            onClicked: page.openSeasonPicker()
+                        x: episodeLedgerHeader.stacked ? 0 : parent.width - width
+                        y: episodeLedgerHeader.stacked ? episodeHeading.y + episodeHeading.height + 12
+                                                      : (parent.height - implicitHeight) / 2
+                        width: Math.min(episodeLedgerHeader.width, singleRowWidth)
+                        spacing: 10
+                        SmartPickToggle {
+                            sourcePicker: sources
+                            width: Math.min(implicitWidth, episodeLedgerHeader.width)
                         }
-                        KeyboardAction {
-                            id: seasonDownloadKeyboard; anchors.fill: parent; pointerEnabled: false
-                            focusEnabled: seasonDownloadAction.visible && !page.seasonQueued[page.activeSeason]
-                            accessibleName: "Download season"; focusRadius: parent.radius
-                            onTriggered: page.openSeasonPicker()
-                        }
-                    }
-
-                    Item {
-                        id: jumpHost
-                        width: 102
-                        height: 40
-                        anchors.right: parent.right
-                        anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
-                        y: page.phoneNarrow ? 96 : 0
-                        visible: page.episodes.length >= 12
+                        // Season checkout: queue every not-yet-downloaded episode of the
+                        // ACTIVE season. Each job resolves its stream lazily when promoted.
+                        // Hidden in Absolute view — there "episodes" is the whole run, so a
+                        // "Download <season>" button would flood the queue under a wrong label.
                         Rectangle {
-                            anchors.fill: parent
-                            radius: 8
-                            color: page.episodeJumpOpen ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.06)
+                            id: seasonDownloadAction
+                            border.color: theme.edge
+                            // the ACTION wears the glass tablet...
+                            visible: typeof Download !== "undefined" && page.episodes.length > 0
+                                     && page.effectiveEpisodeOrder !== "absolute"
+                            width: 176
+                            height: 40
+                            radius: 9
+                            color: dlSeasonMa.containsMouse && !page.seasonQueued[page.activeSeason]
+                                   ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.06)
                             border.width: 1
-                            border.color: page.episodeJumpOpen ? theme.gold : theme.edge
-                            Text {
+                            Row {
                                 anchors.centerIn: parent
-                                text: "Go to episode"
-                                color: page.episodeJumpOpen ? theme.gold : theme.inkDim
-                                font.family: theme.ui
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
+                                spacing: 9
+                                PlayerIcon {
+                                    width: 16
+                                    height: 16
+                                    kind: page.seasonQueued[page.activeSeason] ? "check" : "download"
+                                    ink: page.seasonQueued[page.activeSeason] ? page.watchedInk : theme.inkDim
+                                }
+                                Text {
+                                    id: dlSeasonT
+                                    text: page.seasonQueued[page.activeSeason]
+                                          ? "Season queued"
+                                          : "Download season"
+                                    color: page.seasonQueued[page.activeSeason] ? theme.inkDim
+                                         : (dlSeasonMa.containsMouse ? theme.ink : theme.inkDim)
+                                    font.family: theme.ui
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                }
                             }
                             MouseArea {
+                                id: dlSeasonMa
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: page.toggleEpisodeJump(jumpToggleKeyboard)
+                                enabled: !page.seasonQueued[page.activeSeason]
+                                onClicked: page.openSeasonPicker()
                             }
                             KeyboardAction {
-                                id: jumpToggleKeyboard; anchors.fill: parent; pointerEnabled: false
-                                accessibleName: "Go to episode"; focusRadius: parent.radius
-                                onTriggered: page.toggleEpisodeJump(jumpToggleKeyboard)
+                                id: seasonDownloadKeyboard; anchors.fill: parent; pointerEnabled: false
+                                focusEnabled: seasonDownloadAction.visible && !page.seasonQueued[page.activeSeason]
+                                accessibleName: "Download season"; focusRadius: parent.radius
+                                onTriggered: page.openSeasonPicker()
+                            }
+                        }
+
+                        Item {
+                            id: jumpHost
+                            width: 102
+                            height: 40
+                            visible: page.episodes.length >= 12
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: 8
+                                color: page.episodeJumpOpen ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.06)
+                                border.width: 1
+                                border.color: page.episodeJumpOpen ? theme.gold : theme.edge
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "Go to episode"
+                                    color: page.episodeJumpOpen ? theme.gold : theme.inkDim
+                                    font.family: theme.ui
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: page.toggleEpisodeJump(jumpToggleKeyboard)
+                                }
+                                KeyboardAction {
+                                    id: jumpToggleKeyboard; anchors.fill: parent; pointerEnabled: false
+                                    accessibleName: "Go to episode"; focusRadius: parent.radius
+                                    onTriggered: page.toggleEpisodeJump(jumpToggleKeyboard)
+                                }
                             }
                         }
                     }

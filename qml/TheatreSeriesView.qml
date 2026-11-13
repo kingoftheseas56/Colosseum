@@ -1348,6 +1348,11 @@ Item {
                                 }
                             }
                         }
+                        SmartPickToggle {
+                            visible: page.mediaType !== "series"
+                            sourcePicker: sources
+                            width: Math.min(implicitWidth, parent.width)
+                        }
                         LibraryButton {
                             world: "theatre"
                             entry: page.collectionEntry()
@@ -2057,6 +2062,10 @@ Item {
             width: Math.min(ledgerBarFloat.controlsWidth, singleRowWidth)
             spacing: 10
 
+            SmartPickToggle {
+                sourcePicker: sources
+                width: Math.min(implicitWidth, ledgerBarFloat.controlsWidth)
+            }
             // Download the active season (hidden in Absolute order: "episodes" is the whole run).
             Rectangle {
                 id: seasonDownloadAction

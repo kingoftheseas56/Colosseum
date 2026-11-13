@@ -16,6 +16,7 @@ import "AddonClient.js" as AddonClient
 import "DirectSourcePolicy.js" as DirectSourcePolicy
 import "SkipSegments.js" as SkipSegments
 import "TrackLanguage.js" as TrackLanguage
+import "SmartPlayPreferences.js" as SmartPlayPreferences
 import "PlayerTrackPrefs.js" as PlayerTrackPrefs
 import "PlayerHotkeys.js" as PlayerHotkeys
 import "EpisodeBrowser.js" as EpisodeBrowser
@@ -115,7 +116,6 @@ Item {
         location: Qt.resolvedUrl("../player.ini")
         category: "transport"
         property int seekStepSeconds: 10
-        property string smartPlayQuality: "1080p"
         property bool showSkipButton: true
         property bool phoneGestureAdjustments: false
         property bool autoSkipIntro: false
@@ -140,6 +140,12 @@ Item {
     property var skipSegments: []
     property string skipDiagnostics: ""
     property real skipSafetyOffsetSec: 0.75
+    // Read this generic key explicitly: a retained Settings object must not write
+    // a stale typed property back over the title-page toggle.
+    property string smartPlayQuality: "1080p"
+    function refreshSmartPlayQuality() {
+        root.smartPlayQuality = SmartPlayPreferences.read(playerSettings)
+    }
     property bool showSkipButton: playerSettings.showSkipButton
     property bool autoSkipIntro: playerSettings.autoSkipIntro
     property bool autoSkipRecap: playerSettings.autoSkipRecap
@@ -2111,7 +2117,7 @@ Item {
             title: String(ep.title || root.mediaTitle).replace(/(?: - (?:S\d+E\d+|Episode \d+))+$/, ""),
             preferredLanguages: TrackLanguage.parseLanguageList(playerSettings.preferredAudioLanguages, ["eng", "jpn"])
         })
-        var pick = SmartPlay.pick(list, playerSettings.smartPlayQuality, context)
+        var pick = SmartPlay.pick(list, SmartPlayPreferences.read(playerSettings), context)
         return pick.index >= 0 ? list[pick.index] : first
     }
 
@@ -3904,6 +3910,7 @@ Item {
         if (typeof Power !== "undefined") Power.release()
     }
     onVisibleChanged: {
+        if (visible) root.refreshSmartPlayQuality()
         if (!visible) root.cancelTouchInteraction()
         if (PlatformRuntime.android) {
             PlatformRuntime.setPlayerLandscape(visible)
@@ -7205,7 +7212,7 @@ Item {
                 x = root.clamp(p.x + sm.width / 2 - width / 2, 10, chrome.width - width - 10)
                 y = root.clamp(p.y - height - 12, 10, chrome.height - height - 10)
             }
-            onVisibleChanged: if (visible) { speedScroll.contentY = 0; positionPopup() }
+            onVisibleChanged: if (visible) { root.refreshSmartPlayQuality(); speedScroll.contentY = 0; positionPopup() }
             onWidthChanged: positionPopup()
             onHeightChanged: positionPopup()
             Connections {
@@ -7508,7 +7515,7 @@ Item {
             }
             Text {
                 x: 18; y: parent.skipStepTop + 72
-                text: qsTr("Smart Play")
+                text: qsTr("Smart Pick")
                 color: theme.inkDimmer; font.family: theme.hud; font.pixelSize: 12
             }
             ComboBox {
@@ -7516,13 +7523,12 @@ Item {
                 x: 150; y: parent.skipStepTop + 66; width: parent.width - 168; height: 32
                 readonly property var values: ["1080p", "4k", "off"]
                 model: [qsTr("1080p"), qsTr("4K"), qsTr("Off")]
-                currentIndex: values.indexOf(playerSettings.smartPlayQuality)
+                currentIndex: values.indexOf(root.smartPlayQuality)
                 onActivated: {
-                    playerSettings.smartPlayQuality = values[currentIndex]
-                    playerSettings.setValue("smartPlayQuality", values[currentIndex]); playerSettings.sync()
+                    root.smartPlayQuality = SmartPlayPreferences.write(playerSettings, values[currentIndex])
                 }
                 onActiveFocusChanged: if (activeFocus) speedScroll.reveal(y, height)
-                Accessible.name: qsTr("Smart Play")
+                Accessible.name: qsTr("Smart Pick quality")
             }
                 }
             }

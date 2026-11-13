@@ -15,6 +15,7 @@ import QtCore
 import "AddonClient.js" as AddonClient
 import "Magnet.js" as Magnet
 import "TrackLanguage.js" as TrackLanguage
+import "SmartPlayPreferences.js" as SmartPlayPreferences
 
 Item {
     id: sheet
@@ -83,6 +84,23 @@ Item {
         category: "transport"
     }
     property string smartPlayQuality: "1080p"
+    function refreshSmartPlayQuality() {
+        sheet.smartPlayQuality = SmartPlayPreferences.read(smartPlaySettings)
+    }
+    function setSmartPickEnabled(enabled) {
+        sheet.smartPlayQuality = SmartPlayPreferences.setEnabled(smartPlaySettings, enabled)
+    }
+    Component.onCompleted: sheet.refreshSmartPlayQuality()
+    Connections {
+        id: smartPlayWindow
+        target: sheet.Window.window
+        ignoreUnknownSignals: true
+        function onPlayerOpenChanged() { if (!sheet.open) sheet.refreshSmartPlayQuality() }
+        function onActiveChanged() {
+            if (sheet.Window.window && sheet.Window.window.active && !sheet.open)
+                sheet.refreshSmartPlayQuality()
+        }
+    }
     readonly property bool smartPlayEnabled: sheet.mode === "play" && sheet.smartPlayQuality !== "off"
     property bool smartPlayCancelled: false
     property bool smartPlaySettled: false
@@ -265,8 +283,7 @@ Item {
         sheet.smartPlayCancelled = true;
         sheet.smartPlayRow = null;
         sheet.smartPlaySettled = false;
-        smartPlaySettings.sync();
-        sheet.smartPlayQuality = smartPlaySettings.value("smartPlayQuality", "1080p");
+        sheet.refreshSmartPlayQuality();
         sheet.cancelNuvio();
         sheet.closeSourceContext(false);
         var w=sheet.Window.window

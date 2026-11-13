@@ -6,6 +6,7 @@ import "../../qml/AddonClient.js" as AddonClient
 import "../../qml/EpisodeBrowser.js" as EpisodeBrowser
 
 Item {
+    id: fixture
     width: 1280; height: 900
     Settings {
         id: prefs
@@ -30,6 +31,8 @@ Item {
         function cancel() {}
     }
     SourcesSheet { id: sheet; extensionsService: stremio; loadStremioStreams: stremio.load; nuvioSourceService: nuvio }
+    SmartPickToggle { id: frontToggle; sourcePicker: sheet; y: 750 }
+    SmartPickToggle { id: mirroredToggle; sourcePicker: sheet; x: 300; y: 750 }
     SignalSpy { id: playSpy; target: sheet; signalName: "playRequested" }
     SignalSpy { id: downloadSpy; target: sheet; signalName: "downloadRequested" }
     SignalSpy { id: seasonSpy; target: sheet; signalName: "seasonNoPacks" }
@@ -40,15 +43,20 @@ Item {
         property var selectionHarness: null
         function init() {
             prefs.setValue("smartPlayQuality", "1080p"); prefs.sync()
+            prefs.setValue("smartPlayLastQuality", "1080p"); prefs.sync()
             prefs.setValue("preferredAudioLanguages", "eng,jpn"); prefs.sync()
             sheet.mediaMetadata = ({})
             var settings = findChild(sheet, "smartPlaySettings")
             if (settings) settings.location = prefs.location
+            sheet.refreshSmartPlayQuality()
             stremio.requests = []; stremio.enabled = true
             playSpy.clear(); downloadSpy.clear(); seasonSpy.clear()
         }
         function cleanup() {
             sheet.hide()
+            fixture.Window.window.width = 1280
+            findChild(frontToggle, "smartPickExplanation").close()
+            findChild(frontToggle, "smartPickInfo").focus = false
             if (selectionHarness) { selectionHarness.destroy(); selectionHarness = null }
         }
         function row(index, quality, source, episode) {
@@ -102,6 +110,138 @@ Item {
             show(); stremio.requests[2].done(rows); nuvio.finished(nuvio.lastId); wait(0)
             compare(playSpy.count, 2); compare(sheet.smartPlayEnabled, false)
         }
+        function test_frontToggle_savesOff_andRestores4k() {
+            prefs.setValue("smartPlayQuality", "4k"); prefs.sync()
+            sheet.refreshSmartPlayQuality()
+            sheet.setSmartPickEnabled(false)
+            compare(sheet.smartPlayQuality, "off")
+            prefs.sync(); compare(prefs.value("smartPlayQuality"), "off")
+            show(); finish([row(0, "1080p")]); wait(0)
+            compare(playSpy.count, 0); compare(sheet.open, true)
+            sheet.hide()
+            sheet.setSmartPickEnabled(true)
+            compare(sheet.smartPlayQuality, "4k")
+            prefs.sync(); compare(prefs.value("smartPlayQuality"), "4k")
+            var uhd = row(1, "2160p"); uhd.size = "10 GB"
+            show(); stremio.requests[1].done([row(0, "1080p"), uhd]); nuvio.finished(nuvio.lastId)
+            tryCompare(playSpy, "count", 1)
+            compare(playSpy.signalArguments[0][0], "2".repeat(40))
+        }
+        function test_control_pointerAndSpace_persistAndMirror() {
+            prefs.setValue("smartPlayQuality", "4k"); prefs.sync()
+            sheet.refreshSmartPlayQuality()
+            var action = findChild(frontToggle, "smartPickSwitch")
+            mouseClick(action, 40, 22)
+            compare(frontToggle.checked, false)
+            compare(mirroredToggle.checked, false)
+            prefs.sync(); compare(prefs.value("smartPlayQuality"), "off")
+            show(); finish([row(0, "1080p")]); wait(0)
+            compare(playSpy.count, 0); compare(sheet.open, true)
+            sheet.hide()
+            action.forceActiveFocus()
+            keyClick(Qt.Key_Space)
+            compare(frontToggle.checked, true)
+            compare(mirroredToggle.checked, true)
+            prefs.sync(); compare(prefs.value("smartPlayQuality"), "4k")
+        }
+        function test_control_info_isSeparateAndBounded() {
+            var info = findChild(frontToggle, "smartPickInfo")
+            var explanation = findChild(frontToggle, "smartPickExplanation")
+            fixture.Window.window.width = 320
+            frontToggle.width = 240
+            wait(0)
+            findChild(frontToggle, "smartPickSwitch").forceActiveFocus()
+            mouseMove(info, 22, 22)
+            var tooltip = findChild(frontToggle, "smartPickHoverExplanation")
+            verify(tooltip !== null)
+            tryCompare(tooltip, "visible", true)
+            verify(tooltip.width <= 296)
+            verify(tooltip.x >= 0)
+            verify(tooltip.x + tooltip.width <= tooltip.parent.width)
+            for (var i = 0; i < 5; ++i) {
+                compare(info.hovered, true)
+                compare(tooltip.visible, true)
+                wait(100)
+            }
+            mouseClick(info, 22, 22)
+            tryCompare(explanation, "visible", true)
+            compare(frontToggle.checked, true)
+            prefs.sync(); compare(prefs.value("smartPlayQuality"), "1080p")
+            verify(info.x + info.width <= frontToggle.width)
+            verify(explanation.width <= explanation.parent.width - 24)
+            verify(explanation.width <= 296)
+            verify(explanation.x >= 0)
+            verify(explanation.x + explanation.width <= explanation.parent.width)
+            explanation.close()
+            findChild(frontToggle, "smartPickSwitch").forceActiveFocus()
+            info.forceActiveFocus()
+            keyClick(Qt.Key_Space)
+            tryCompare(explanation, "visible", true)
+            keyClick(Qt.Key_Escape)
+            tryCompare(explanation, "visible", false)
+            frontToggle.width = frontToggle.implicitWidth
+        }
+        function test_control_hover_staysStable_andLeavesPopoverClosed() {
+            var info = findChild(frontToggle, "smartPickInfo")
+            var popover = findChild(frontToggle, "smartPickExplanation")
+            findChild(frontToggle, "smartPickSwitch").forceActiveFocus()
+            mouseMove(info, 22, 22)
+            tryCompare(info, "hovered", true)
+            wait(450)
+            compare(popover.visible, false, "Hover must not open the interactive popover")
+            var tooltip = findChild(frontToggle, "smartPickHoverExplanation")
+            verify(tooltip !== null)
+            for (var i = 0; i < 10; ++i) {
+                compare(info.hovered, true)
+                compare(tooltip.visible, true)
+                compare(popover.visible, false)
+                wait(100)
+            }
+            mouseMove(fixture, 10, 650)
+            tryCompare(tooltip, "visible", false)
+        }
+        function test_control_clickedExplanation_survivesPointerLeaving() {
+            var info = findChild(frontToggle, "smartPickInfo")
+            var popover = findChild(frontToggle, "smartPickExplanation")
+            mouseClick(info, 22, 22)
+            tryCompare(popover, "visible", true)
+            mouseMove(fixture, 10, 650)
+            wait(500)
+            compare(popover.visible, true)
+            compare(frontToggle.checked, true)
+            mouseClick(fixture, 10, 650)
+            tryCompare(popover, "visible", false)
+        }
+        function test_control_keyboardExplanation_staysSeparateFromHover() {
+            var info = findChild(frontToggle, "smartPickInfo")
+            var popover = findChild(frontToggle, "smartPickExplanation")
+            var tooltip = findChild(frontToggle, "smartPickHoverExplanation")
+            mouseMove(fixture, 10, 650)
+            info.forceActiveFocus()
+            wait(450)
+            compare(info.hovered, false)
+            compare(tooltip.visible, false)
+            keyClick(Qt.Key_Return)
+            tryCompare(popover, "visible", true)
+            keyClick(Qt.Key_Escape)
+            tryCompare(popover, "visible", false)
+            wait(450)
+            compare(tooltip.visible, false)
+            keyClick(Qt.Key_Return)
+            tryCompare(popover, "visible", true)
+            mouseClick(fixture, 10, 650)
+            tryCompare(popover, "visible", false)
+            wait(450)
+            compare(tooltip.visible, false)
+        }
+        function test_titlePages_compileWithControl() {
+            for (var name of ["TheatreSeries.qml", "TheatreSeriesView.qml"]) {
+                var component = Qt.createComponent(Qt.resolvedUrl("../../qml/" + name))
+                tryVerify(() => component.status !== Component.Loading)
+                compare(component.status, Component.Ready, component.errorString())
+                component.destroy()
+            }
+        }
         function test_download_and_season_unchanged() {
             show("download"); stremio.requests[0].done([row(0, "720p"), row(1, "1080p")]); wait(0)
             compare(playSpy.count, 0); compare(downloadSpy.count, 0)
@@ -150,11 +290,23 @@ Item {
             verify(SmartPlayTestPlayerPickFunction.length > 0)
             selectionHarness = Qt.createQmlObject('import QtQuick\nimport "'
                 + Qt.resolvedUrl("../../qml/EpisodeBrowser.js") + '" as EpisodeBrowser\nimport "'
-                + Qt.resolvedUrl("../../qml/TrackLanguage.js") + '" as TrackLanguage\nQtObject {\n'
+                + Qt.resolvedUrl("../../qml/TrackLanguage.js") + '" as TrackLanguage\nimport "'
+                + Qt.resolvedUrl("../../qml/SmartPlayPreferences.js") + '" as SmartPlayPreferences\nQtObject {\n'
                 + 'id: root; property string mediaTitle: "Fixture"; property var mediaMetadata: ({})\n'
-                + 'property QtObject playerSettings: QtObject { property string smartPlayQuality: "1080p"; property string preferredAudioLanguages: "eng,jpn" }\n'
+                + 'property var persistedStore: null\n'
+                + 'property QtObject playerSettings: QtObject { property string smartPlayQuality: "1080p"; property string preferredAudioLanguages: "eng,jpn"; function sync() { if (root.persistedStore) root.persistedStore.sync() } function value(key, fallback) { return root.persistedStore ? root.persistedStore.value(key, fallback) : key === "smartPlayQuality" ? smartPlayQuality : fallback } }\n'
                 + SmartPlayTestPlayerPickFunction + '\n}', this)
             return selectionHarness
+        }
+        function test_nextEpisode_readsPersistedOff_despiteStaleCache() {
+            var player = selectionPlayer()
+            player.persistedStore = prefs
+            var rows = [row(0, "720p", "WEB-DL", "S01E02."), row(1, "1080p", "WEB-DL", "S01E02.")]
+            var context = { title: "Fixture", type: "series", season: 1, episode: 2 }
+            compare(player.pickEpisodeSource(rows, {}, context).infoHash, "2".repeat(40))
+            sheet.setSmartPickEnabled(false)
+            compare(player.playerSettings.smartPlayQuality, "1080p")
+            compare(player.pickEpisodeSource(rows, {}, context).infoHash, "1".repeat(40))
         }
         function test_nextEpisode_continuity_thenPicker_thenOldFallback() {
             var player = selectionPlayer()
