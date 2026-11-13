@@ -301,7 +301,7 @@ void HomeServerPlaybackJob::cancel() {
   m_connection = {};
   m_item = {};
   m_version = {};
-  m_origin = {};
+  m_origin = QUrl();
   m_session.clear();
   m_options = {};
 }

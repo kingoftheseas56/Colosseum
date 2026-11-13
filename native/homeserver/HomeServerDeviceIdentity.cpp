@@ -13,7 +13,7 @@
 QString HomeServerDeviceIdentity::defaultDirectory() {
 #ifdef Q_OS_ANDROID
     QJniEnvironment env;
-    const auto context = QNativeInterface::QAndroidApplication::context();
+    const QJniObject context = QNativeInterface::QAndroidApplication::context();
     if (!context.isValid() || env->ExceptionCheck()) { env->ExceptionClear(); return {}; }
     const auto files = context.callObjectMethod("getNoBackupFilesDir", "()Ljava/io/File;");
     if (!files.isValid() || env->ExceptionCheck()) { env->ExceptionClear(); return {}; }
