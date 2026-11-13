@@ -1238,7 +1238,10 @@ Item {
                 id: browseRail
                 anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
                 roots: root.browseRootsDetail
-                expanded: !adaptive.phone && browseSettings.railExpanded
+                // Let phone users expand the existing rail; paint it above the grid while
+                // expanded so the content column keeps a usable touch width.
+                expanded: browseSettings.railExpanded
+                z: adaptive.phone && expanded ? 6 : 0
                 selectedRootPath: root.crumbStack.length ? root.crumbStack[0].key : ""
                 hiddenActive: root.hiddenViewActive
                 hiddenCount: root.hiddenSeriesRows.length
@@ -1269,12 +1272,18 @@ Item {
                         if (root.browseRootsDetail[i].path === path) { name = root.browseRootsDetail[i].name; break }
                     }
                     root.selectRoot(path, name)
+                    // Show the selected storage name and health until the user collapses.
+                    if (adaptive.phone) browseSettings.railExpanded = true
                 }
-                onHiddenRequested: root.openHidden()
-                onAddRequested: root.addFolderRequested()
-                onToggleRequested: {
-                    if (!adaptive.phone) browseSettings.railExpanded = !browseSettings.railExpanded
+                onHiddenRequested: {
+                    root.openHidden()
+                    if (adaptive.phone) browseSettings.railExpanded = false
                 }
+                onAddRequested: {
+                    root.addFolderRequested()
+                    if (adaptive.phone) browseSettings.railExpanded = false
+                }
+                onToggleRequested: browseSettings.railExpanded = !browseSettings.railExpanded
                 // Slice 9 (design §4.9): Tab from the grid reaches the rail; Shift+Tab returns.
                 // `grid` is declared further down in this same file — QML resolves ids
                 // document-wide, so the forward reference is valid.
@@ -1287,14 +1296,17 @@ Item {
 
             Item {
                 id: mainArea
-                anchors.left: browseRail.right; anchors.leftMargin: adaptive.phone ? 12 : 24
+                anchors.left: adaptive.phone ? parent.left : browseRail.right
+                anchors.leftMargin: adaptive.phone ? browseRail.collapsedWidth + 12 : 24
                 anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
 
                 VaultBrowseCrumb {
                     id: browseCrumb
                     anchors.top: parent.top; anchors.left: parent.left
+                    anchors.topMargin: root.androidHost && !browseRail.expanded ? 32 : 0
                     // S12/S13: the sort + filter controls own the row's right edge now.
-                    anchors.right: browseFilterControl.left; anchors.rightMargin: 14
+                    anchors.right: adaptive.phone ? parent.right : browseFilterControl.left
+                    anchors.rightMargin: adaptive.phone ? 0 : 14
                     visible: !root.searchViewActive
                     stack: root.displayedCrumbStack
                     onSegmentClicked: (index) => root.goToCrumb(index)
@@ -1313,7 +1325,9 @@ Item {
                     objectName: "vaultBrowseSearchField"
                     visible: root.searchViewActive
                     anchors.top: parent.top; anchors.left: parent.left
-                    anchors.right: browseFilterControl.left; anchors.rightMargin: 14
+                    anchors.topMargin: root.androidHost && !browseRail.expanded ? 32 : 0
+                    anchors.right: adaptive.phone ? parent.right : browseFilterControl.left
+                    anchors.rightMargin: adaptive.phone ? 0 : 14
                     height: browseCrumb.height
 
                     Rectangle {
@@ -1370,7 +1384,8 @@ Item {
                     id: browseSearchOpenBtn
                     objectName: "vaultBrowseSearchOpen"
                     visible: !root.hiddenViewActive && !root.searchViewActive
-                    anchors.top: parent.top
+                    anchors.top: adaptive.phone ? browseCrumb.bottom : parent.top
+                    anchors.topMargin: adaptive.phone ? 8 : 0
                     anchors.right: browseFilterControl.left; anchors.rightMargin: 16
                     width: searchOpenGlyph.implicitWidth + 6
                     height: browseCrumb.height
@@ -1393,6 +1408,7 @@ Item {
                         pointerEnabled: false
                         accessibleName: "Search the Vault"
                         tooltipText: accessibleName
+                        androidTooltipPolicy: "drop"
                         tooltipHovered: searchOpenMa.containsMouse
                         onTriggered: root.openSearch()
                     }
@@ -1406,7 +1422,8 @@ Item {
                     id: browseFilterControl
                     objectName: "vaultBrowseFilterControl"
                     visible: !root.hiddenViewActive && !root.searchViewActive
-                    anchors.top: parent.top
+                    anchors.top: adaptive.phone ? browseCrumb.bottom : parent.top
+                    anchors.topMargin: adaptive.phone ? 8 : 0
                     anchors.right: browseSortControl.left; anchors.rightMargin: 18
                     width: filterFaceRow.implicitWidth + 6
                     height: browseCrumb.height
@@ -1422,7 +1439,8 @@ Item {
                         }
                         Text {
                             objectName: "vaultBrowseFilterLabel"
-                            visible: !adaptive.phone
+                            // The active predicate count must remain readable on touch.
+                            visible: true
                             text: root.activeFilterCount > 0
                                   ? ("Filter · " + root.activeFilterCount) : "Filter"
                             color: root.filterMenuOpen || filterFaceMa.containsMouse ? theme.ink : theme.inkDim
@@ -1441,7 +1459,8 @@ Item {
                         anchors.fill: parent
                         pointerEnabled: false
                         accessibleName: "Filter Vault items"
-                        tooltipText: adaptive.phone ? accessibleName : ""
+                        tooltipText: accessibleName
+                        androidTooltipPolicy: "drop"
                         tooltipHovered: filterFaceMa.containsMouse
                         onTriggered: root.toggleFilterMenu(true)
                     }
@@ -1455,7 +1474,9 @@ Item {
                     id: browseSortControl
                     objectName: "vaultBrowseSortControl"
                     visible: !root.hiddenViewActive && !root.searchViewActive
-                    anchors.top: parent.top; anchors.right: parent.right
+                    anchors.top: adaptive.phone ? browseCrumb.bottom : parent.top
+                    anchors.topMargin: adaptive.phone ? 8 : 0
+                    anchors.right: parent.right
                     width: sortFaceRow.implicitWidth + 6
                     height: browseCrumb.height
 
@@ -1470,8 +1491,8 @@ Item {
                         }
                         Text {
                             objectName: "vaultBrowseSortLabel"
-                            visible: !adaptive.phone
-                            text: root.sortLabelOf(root.sortMode)
+                            visible: true
+                            text: adaptive.phone ? qsTr("Sort") : root.sortLabelOf(root.sortMode)
                             color: root.sortMenuOpen || sortFaceMa.containsMouse ? theme.ink : theme.inkDim
                             font.family: theme.ui; font.pixelSize: 12
                         }
@@ -1488,7 +1509,8 @@ Item {
                         anchors.fill: parent
                         pointerEnabled: false
                         accessibleName: "Sort Vault items"
-                        tooltipText: adaptive.phone ? accessibleName : ""
+                        tooltipText: accessibleName
+                        androidTooltipPolicy: "drop"
                         tooltipHovered: sortFaceMa.containsMouse
                         onTriggered: root.toggleSortMenu(true)
                     }
@@ -1502,7 +1524,9 @@ Item {
                     id: showNextUp
                     objectName: "vaultShowNextUp"
                     visible: root.showPageActive && root.showNextUpRows.length > 0
-                    anchors.top: browseCrumb.bottom; anchors.topMargin: 16
+                    anchors.top: adaptive.phone && browseSortControl.visible
+                        ? browseSortControl.bottom : browseCrumb.bottom
+                    anchors.topMargin: 16
                     anchors.left: parent.left; anchors.right: parent.right
                     height: visible ? 158 : 0
 
@@ -1581,7 +1605,8 @@ Item {
                 GridView {
                     id: grid
                     objectName: "vaultBrowseGrid"
-                    anchors.top: browseCrumb.bottom
+                    anchors.top: adaptive.phone && browseSortControl.visible
+                        ? browseSortControl.bottom : browseCrumb.bottom
                     anchors.topMargin: showNextUp.visible ? (16 + showNextUp.height) : 16
                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                     clip: true
