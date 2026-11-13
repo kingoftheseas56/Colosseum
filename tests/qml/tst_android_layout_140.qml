@@ -176,6 +176,40 @@ TestCase {
     }
     Component { id: libraryComponent; App.LibraryPage { active: false } }
     Component { id: tankobanLibraryComponent; App.TankobanLibraryTab {} }
+    Component {
+        id: flowingTankobanLibraryComponent
+        Flickable {
+            id: viewport
+            width: 847; height: 251
+            contentWidth: width
+            contentHeight: library.flowHeight
+            App.TankobanLibraryTab {
+                id: library
+                objectName: "populatedLibraryFixture"
+                width: viewport.width; height: flowHeight
+                pageFlick: viewport
+                active: false
+                allRows: [{entry: {id: "fixture", title: "A saved manga", cover: ""}, state: "new"}]
+            }
+        }
+    }
+    function test_populated_tankoban_library_starts_below_tools() {
+        const viewport = createTemporaryObject(flowingTankobanLibraryComponent, host.contentItem,
+            {width: 1172})
+        verify(viewport)
+        wait(50)
+        viewport.width = 847
+        wait(50)
+        const library = findChild(viewport, "populatedLibraryFixture")
+        const grid = findChild(library, "tankobanLibraryWall")
+        compare(grid.count, 1)
+        const gridTop = grid.mapToItem(library, 0, 0).y
+        for (const label of ["All", "In Progress", "Downloaded", "Last Read", "Recently Added", "A-Z"]) {
+            const pill = textDescendant(library, label).parent
+            verify(gridTop >= pill.mapToItem(library, 0, pill.height).y,
+                   "Saved covers start below " + label)
+        }
+    }
     function test_tankoban_library_tools_do_not_overlap_data() {
         return [{tag: "t20", width: 654}, {tag: "oneplus", width: 847}]
     }

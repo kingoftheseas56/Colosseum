@@ -181,8 +181,8 @@ Item {
         id: toolbar
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
         readonly property bool wrapped: adaptive.androidHost
-            && width < searchField.width + filterRow.width + sortRow.width + 2 * adaptive.libraryToolsGap
-        height: wrapped ? searchField.height + sortRow.height + adaptive.libraryToolsGap : 44
+            && width < searchField.width + filterRow.implicitWidth + sortRow.implicitWidth + 2 * adaptive.libraryToolsGap
+        height: wrapped ? searchField.height + sortRow.implicitHeight + adaptive.libraryToolsGap : 44
         anchors.leftMargin: Math.max(48, theme.margin); anchors.rightMargin: Math.max(38, theme.margin - 10)
         anchors.topMargin: 8
 
@@ -190,8 +190,7 @@ Item {
         TextField {
             id: searchField
             anchors.left: parent.left
-            anchors.verticalCenter: toolbar.wrapped ? undefined : parent.verticalCenter
-            anchors.top: toolbar.wrapped ? parent.top : undefined
+            y: toolbar.wrapped ? 0 : (toolbar.height - height) / 2
             width: 220; height: 38; leftPadding: 16; rightPadding: 16
             placeholderText: "Search your library"; placeholderTextColor: theme.inkDimmer
             color: theme.ink; selectionColor: theme.gold; selectedTextColor: "#111111"
@@ -207,9 +206,8 @@ Item {
         // 3 filter pills: All / In Progress / Downloaded
         Row {
             id: filterRow
-            anchors.horizontalCenter: toolbar.wrapped ? undefined : parent.horizontalCenter
-            anchors.left: toolbar.wrapped ? searchField.right : undefined
-            anchors.leftMargin: toolbar.wrapped ? adaptive.libraryToolsGap : 0
+            x: toolbar.wrapped ? searchField.x + searchField.width + adaptive.libraryToolsGap
+                               : (toolbar.width - width) / 2
             anchors.verticalCenter: toolbar.wrapped ? searchField.verticalCenter : parent.verticalCenter
             spacing: 8
             Repeater {
@@ -230,9 +228,8 @@ Item {
         Row {
             id: sortRow
             anchors.right: parent.right
-            anchors.verticalCenter: toolbar.wrapped ? undefined : parent.verticalCenter
-            anchors.top: toolbar.wrapped ? searchField.bottom : undefined
-            anchors.topMargin: toolbar.wrapped ? adaptive.libraryToolsGap : 0
+            y: toolbar.wrapped ? searchField.y + searchField.height + adaptive.libraryToolsGap
+                               : (toolbar.height - height) / 2
             spacing: 8
             Repeater {
                 model: [
