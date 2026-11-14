@@ -381,6 +381,8 @@ private slots:
     void real_drama_scan_read_only_when_requested();
     void real_art_scan_read_only_when_requested();
     void library_metadata_reuses_catalogue_type_and_public_art();
+    void catalogue_readiness_identifies_existing_rows_data();
+    void catalogue_readiness_identifies_existing_rows();
     void explicit_extras_filing_survives_republish_without_moving_files();
 };
 
@@ -1488,6 +1490,65 @@ void tst_vault_forensics::real_art_scan_read_only_when_requested()
     }
     QVERIFY(seen.contains(QStringLiteral("imdb:tt0062622")));
     QVERIFY(seen.contains(QStringLiteral("imdb:tt0072684")));
+}
+
+void tst_vault_forensics::catalogue_readiness_identifies_existing_rows_data()
+{
+    QTest::addColumn<bool>("delayed");
+    QTest::newRow("catalogue-arrives-after-index") << true;
+    QTest::newRow("existing-unmatched-profile-at-startup") << false;
+}
+
+void tst_vault_forensics::catalogue_readiness_identifies_existing_rows()
+{
+    QFETCH(bool, delayed);
+    auto fx = buildFlatFixture(0);
+    const QString dbPath = fx->tmp.filePath("imdb.sqlite");
+    const QString connection = QStringLiteral("vault_readiness_fixture");
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+        db.setDatabaseName(dbPath); QVERIFY(db.open());
+        QSqlQuery q(db);
+        QVERIFY(q.exec(QStringLiteral("CREATE TABLE title(tt TEXT, type TEXT, title TEXT, year INTEGER, "
+            "endYear INTEGER, runtimeMin INTEGER, genres TEXT, rating REAL, votes INTEGER, "
+            "episodes INTEGER, origLang TEXT, isAnime INTEGER, norm_title TEXT)")));
+        QVERIFY(q.exec(QStringLiteral("INSERT INTO title VALUES"
+            "('tt0454876','movie','Life of Pi',2012,0,127,'[]',7.9,1000,0,'en',0,'life of pi'),"
+            "('tt100','movie','Shared',2000,0,90,'[]',7,1000,0,'en',0,'shared'),"
+            "('tt101','movie','Shared',2001,0,90,'[]',7,1000,0,'en',0,'shared')")));
+        db.close();
+    }
+    QSqlDatabase::removeDatabase(connection);
+    auto row = makeFilmRow(fx->rootPath, fx->rootPath + "/pi", fx->rootPath + "/pi/main.mkv", "vault:pi", 1000);
+    row.groupTitle = "Life of Pi"; row.parsedYear = 2012;
+    auto manual = row;
+    manual.id = "vault:manual"; manual.groupKey += "-manual";
+    manual.identityId = "imdb:tt-manual"; manual.identityTitle = "User choice"; manual.identityState = "manual";
+    auto suppressed = row;
+    suppressed.id = "vault:suppressed"; suppressed.groupKey += "-suppressed"; suppressed.identitySuppressed = true;
+    auto ambiguous = row;
+    ambiguous.id = "vault:ambiguous"; ambiguous.groupKey += "-ambiguous";
+    ambiguous.groupTitle = "Shared"; ambiguous.parsedYear = 0;
+    QVERIFY(fx->index->publish({row, manual, suppressed, ambiguous}));
+    ImdbCatalog catalog(delayed ? QString() : dbPath);
+    fx->library->setImdbCatalog(&catalog);
+    VaultIdentifier identifier(fx->index.get(), nullptr, nullptr, &catalog);
+    fx->library->setIdentifier(&identifier);
+    if (delayed) {
+        QTest::qWait(30); // Allow the initial pass to finish while the catalogue is unavailable.
+        QVERIFY(fx->index->rowsForGroup(row.groupKey).first().identityId.isEmpty());
+        QVERIFY(catalog.reopen(dbPath)); // No index mutation or explicit Identify follows this.
+    }
+    QTRY_COMPARE_WITH_TIMEOUT(fx->index->rowsForGroup(row.groupKey).first().identityId,
+                             QStringLiteral("imdb:tt0454876"), 1000);
+    const auto matched = fx->index->rowsForGroup(row.groupKey).first();
+    QCOMPARE(matched.identityTitle, QStringLiteral("Life of Pi"));
+    QCOMPARE(matched.identityType, QStringLiteral("movie"));
+    QCOMPARE(fx->index->rowsForGroup(manual.groupKey).first().identityTitle, QStringLiteral("User choice"));
+    QVERIFY(fx->index->rowsForGroup(suppressed.groupKey).first().identitySuppressed);
+    QVERIFY(fx->index->rowsForGroup(suppressed.groupKey).first().identityId.isEmpty());
+    QTRY_COMPARE(fx->index->rowsForGroup(ambiguous.groupKey).first().identityCandidateCount, 2);
+    QVERIFY(fx->index->rowsForGroup(ambiguous.groupKey).first().identityId.isEmpty());
 }
 
 void tst_vault_forensics::library_metadata_reuses_catalogue_type_and_public_art()

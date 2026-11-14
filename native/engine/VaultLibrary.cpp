@@ -343,7 +343,12 @@ void VaultLibrary::setImdbCatalog(ImdbCatalog* catalog)
     m_imdbCatalog = catalog;
     if (catalog) {
         auto refresh = [this]() { ++m_revision; emit changed(); };
-        connect(catalog, &ImdbCatalog::readyChanged, this, refresh);
+        connect(catalog, &ImdbCatalog::readyChanged, this, [this, catalog, refresh]() {
+            refresh();
+            // A first download can finish after the index/enrichment pass. Revisit
+            // eligible groups through the same sliced pass used for index changes.
+            if (catalog->available()) scheduleAutoIdentify();
+        });
         connect(catalog, &ImdbCatalog::revisionChanged, this, refresh);
     }
     ++m_revision;

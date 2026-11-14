@@ -14,6 +14,7 @@
 // parity; the card renders what is present and stays honest when they are absent.
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls.Basic
 
 Item {
     id: card
@@ -49,6 +50,10 @@ Item {
     function kindOf(row, i) {
         var ov = card.kindOverrides[row.subtreePath]
         return ov ? ov : row.kind
+    }
+    function chipActionAt(index, fallback) {
+        const row = index >= 0 && index < sliceRep.count ? sliceRep.itemAt(index) : null
+        return row && row.chipAction ? row.chipAction : fallback
     }
     function leafName(p) { return ("" + p).split(/[\\/]/).pop() }
 
@@ -87,9 +92,9 @@ Item {
     Rectangle {
         id: sheet
         width: Math.min(760, parent.width - 80)
-        height: Math.min(bodyCol.implicitHeight + 72, parent.height - 120)
+        height: Math.min(bodyCol.implicitHeight + footer.implicitHeight + 48, parent.height - 80)
         anchors.horizontalCenter: parent.horizontalCenter
-        y: Math.max(40, parent.height * 0.09)
+        y: Math.max(0, (parent.height - height) / 2)
         radius: 20
         color: theme.panel
         border.width: 1
@@ -97,16 +102,30 @@ Item {
 
         Flickable {
             id: flick
-            anchors.fill: parent
-            anchors.margins: 4
+            objectName: "vaultCardScroll"
+            anchors { left: parent.left; right: parent.right; top: parent.top; bottom: footer.top; margins: 4; bottomMargin: 16 }
             activeFocusOnTab: true
             Keys.onPressed: (event) => flickKeys.handle(event)
             Keys.onReleased: (event) => flickKeys.handleRelease(event)
             contentWidth: width
-            contentHeight: bodyCol.implicitHeight + 68
+            contentHeight: bodyCol.implicitHeight + 24
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            onContentYChanged: card.openChipRow = -1
             KeyboardScrollController { id: flickKeys; flick: flick }
+            ScrollBar.vertical: ScrollBar {
+                id: scrollBar
+                objectName: "vaultCardScrollBar"
+                policy: ScrollBar.AlwaysOn
+                visible: flick.contentHeight > flick.height
+                minimumSize: 0.08
+                contentItem: Rectangle {
+                    implicitWidth: 6
+                    radius: 3
+                    color: theme.gold
+                    opacity: scrollBar.pressed ? 0.9 : 0.5
+                }
+            }
 
             Column {
                 id: bodyCol
@@ -153,6 +172,15 @@ Item {
                         Text { text: card.humanSize(card.totalBytes); color: theme.ink
                                font.family: theme.display; font.pixelSize: 22 }
                     }
+                }
+
+                Text {
+                    width: parent.width
+                    bottomPadding: 16
+                    wrapMode: Text.WordWrap
+                    text: "Formats detected automatically. Change a type only if needed."
+                    color: theme.inkDim
+                    font.family: theme.ui; font.pixelSize: 12
                 }
 
                 // ── one slice per discovered subtree ──
@@ -253,10 +281,8 @@ Item {
                                     anchors.fill: parent
                                     pointerEnabled: false
                                     accessibleName: "Change " + (sliceRow.modelData.groupTitle || card.leafName(sliceRow.modelData.subtreePath)) + " kind"
-                                    KeyNavigation.tab: sliceRow.index + 1 < sliceRep.count
-                                        ? sliceRep.itemAt(sliceRow.index + 1).chipAction : shelveKey
-                                    KeyNavigation.backtab: sliceRow.index > 0
-                                        ? sliceRep.itemAt(sliceRow.index - 1).chipAction : notNowKey
+                                    KeyNavigation.tab: card.chipActionAt(sliceRow.index + 1, shelveKey)
+                                    KeyNavigation.backtab: card.chipActionAt(sliceRow.index - 1, notNowKey)
                                     onTriggered: {
                                         const opening = card.openChipRow !== sliceRow.index
                                         card.openChipRow = opening ? sliceRow.index : -1
@@ -269,6 +295,7 @@ Item {
 
                                 // kind picker (Comics / Books / Video)
                                 Rectangle {
+                                    parent: card
                                     visible: card.openChipRow === sliceRow.index
                                     z: 50
                                     Keys.onEscapePressed: (event) => {
@@ -276,8 +303,14 @@ Item {
                                         chipKey.forceActiveFocus(Qt.BacktabFocusReason)
                                         event.accepted = true
                                     }
-                                    anchors.top: parent.bottom; anchors.topMargin: 6
-                                    anchors.right: parent.right
+                                    x: card.openChipRow === sliceRow.index
+                                       ? kindChip.mapToItem(card, kindChip.width, 0).x - width : 0
+                                    y: {
+                                        if (card.openChipRow !== sliceRow.index) return 0
+                                        const top = kindChip.mapToItem(card, 0, 0).y
+                                        return top + kindChip.height + height + 6 <= card.height
+                                            ? top + kindChip.height + 6 : Math.max(0, top - height - 6)
+                                    }
                                     width: 140
                                     height: pickCol.implicitHeight + 10
                                     radius: 12
@@ -325,8 +358,14 @@ Item {
                                                     anchors.fill: parent
                                                     pointerEnabled: false
                                                     accessibleName: "Use " + modelData.label
-                                                    KeyNavigation.tab: pickRep.itemAt((index + 1) % pickRep.count).pickAction
-                                                    KeyNavigation.backtab: pickRep.itemAt((index + pickRep.count - 1) % pickRep.count).pickAction
+                                                    KeyNavigation.tab: {
+                                                        const next = pickRep.itemAt((index + 1) % pickRep.count)
+                                                        return next ? next.pickAction : chipKey
+                                                    }
+                                                    KeyNavigation.backtab: {
+                                                        const previous = pickRep.itemAt((index + pickRep.count - 1) % pickRep.count)
+                                                        return previous ? previous.pickAction : chipKey
+                                                    }
                                                     onTriggered: {
                                                         var ov = Object.assign({}, card.kindOverrides)
                                                         ov[sliceRow.modelData.subtreePath] = modelData.k
@@ -356,59 +395,57 @@ Item {
                     font.family: theme.ui; font.pixelSize: 12
                 }
 
-                // ── consent ──
-                Row {
-                    topPadding: 26
-                    width: parent.width
-                    layoutDirection: Qt.RightToLeft
-                    spacing: 12
-
-                    Rectangle {
-                        objectName: "vaultCardShelveAll"
-                        width: shelveT.implicitWidth + 56; height: 46; radius: 12
-                        color: shelveMa.containsMouse ? Qt.rgba(0.98, 0.82, 0.36, 1) : theme.gold
-                        Text { id: shelveT; anchors.centerIn: parent; text: "Shelve it all"
-                               color: "#151310"; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
-                        MouseArea {
-                            id: shelveMa
-                            anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: card.shelveRequested(card.kindOverrides)
-                        }
-                        KeyboardAction {
-                            id: shelveKey
-                            anchors.fill: parent
-                            pointerEnabled: false
-                            accessibleName: "Shelve all detected Vault media"
-                            KeyNavigation.tab: notNowKey
-                            KeyNavigation.backtab: sliceRep.count > 0 ? sliceRep.itemAt(sliceRep.count - 1).chipAction : notNowKey
-                            onTriggered: card.shelveRequested(card.kindOverrides)
-                        }
-                    }
-                    Rectangle {
-                        objectName: "vaultCardNotNow"
-                        width: notNowT.implicitWidth + 44; height: 46; radius: 12
-                        color: notNowMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
-                        border.width: 1; border.color: theme.edge
-                        Text { id: notNowT; anchors.centerIn: parent; text: "Not now"
-                               color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
-                        MouseArea {
-                            id: notNowMa
-                            anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: card.dismissRequested()
-                        }
-                        KeyboardAction {
-                            id: notNowKey
-                            anchors.fill: parent
-                            pointerEnabled: false
-                            accessibleName: "Dismiss Vault shelving confirmation"
-                            KeyNavigation.tab: sliceRep.count > 0 ? sliceRep.itemAt(0).chipAction : shelveKey
-                            KeyNavigation.backtab: shelveKey
-                            onTriggered: card.dismissRequested()
-                        }
-                    }
-                }
-
                 Item { width: 1; height: 8 }
+            }
+        }
+        Row {
+            id: footer
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 40; rightMargin: 40; bottomMargin: 24 }
+            layoutDirection: Qt.RightToLeft
+            spacing: 12
+
+            Rectangle {
+                objectName: "vaultCardShelveAll"
+                width: shelveT.implicitWidth + 56; height: 46; radius: 12
+                color: shelveMa.containsMouse ? Qt.rgba(0.98, 0.82, 0.36, 1) : theme.gold
+                Text { id: shelveT; anchors.centerIn: parent; text: "Shelve it all"
+                       color: "#151310"; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                MouseArea {
+                    id: shelveMa
+                    anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: card.shelveRequested(card.kindOverrides)
+                }
+                KeyboardAction {
+                    id: shelveKey
+                    anchors.fill: parent
+                    pointerEnabled: false
+                    accessibleName: "Shelve all detected Vault media"
+                    KeyNavigation.tab: notNowKey
+                    KeyNavigation.backtab: card.chipActionAt(sliceRep.count - 1, notNowKey)
+                    onTriggered: card.shelveRequested(card.kindOverrides)
+                }
+            }
+            Rectangle {
+                objectName: "vaultCardNotNow"
+                width: notNowT.implicitWidth + 44; height: 46; radius: 12
+                color: notNowMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                border.width: 1; border.color: theme.edge
+                Text { id: notNowT; anchors.centerIn: parent; text: "Not now"
+                       color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                MouseArea {
+                    id: notNowMa
+                    anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: card.dismissRequested()
+                }
+                KeyboardAction {
+                    id: notNowKey
+                    anchors.fill: parent
+                    pointerEnabled: false
+                    accessibleName: "Dismiss Vault shelving confirmation"
+                    KeyNavigation.tab: card.chipActionAt(0, shelveKey)
+                    KeyNavigation.backtab: shelveKey
+                    onTriggered: card.dismissRequested()
+                }
             }
         }
     }
