@@ -76,6 +76,16 @@ All these wildly different mediums, their rich catalogues, sources, readers, and
   </tr>
 </table>
 
+## Future plans
+
+Colosseum is still growing. **Vinyl** is a planned world for music, with songs, albums, artists, and discovery. **Feria** is our plan to bring the websites people already use into the same media environment.
+
+**Feria Mode comes first.** Streaming, music, and reading websites will open as Feria sessions, but the goal isn't to pin ordinary websites and call them apps. We're planning purpose-built sidebars, extensions, and improvements around each service's pain points, with an app-style launcher in the Colosseum taskbar. YouTube, Netflix, Prime Video, Disney+, Crunchyroll, and other services are among the experiences we want to explore.
+
+**A full Feria Browser comes later.** That's a different standard: it needs to hold its own as an everyday browser against established options like Chrome, not ship as a novelty just because we can embed web pages.
+
+**Help shape Feria:** What frustrates you about the website versions of your favorite services? Which extensions help, and what problems remain unsolved? [Join the conversation on GitHub Discussions](https://github.com/kingoftheseas56/Colosseum/discussions).
+
 ## Get Colosseum 1.3.0
 
 | Platform | Download |
