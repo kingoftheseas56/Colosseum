@@ -184,6 +184,8 @@ QString cleanMediaFolderTitle(const QString& rawName)
 
 int parsedTitleYear(const QString& rawName)
 {
+    const auto release = MediaTitleNormalization::qualifiedReleaseSuffix(rawName);
+    if (release.year > 0) return release.year;
     // Bracketed release facts outrank numeric words in the title itself.
     static const QRegularExpression bracketYear(QStringLiteral(
         "\\(((?:19|20)\\d{2})\\)|\\[((?:19|20)\\d{2})\\]|\\{((?:19|20)\\d{2})\\}"));

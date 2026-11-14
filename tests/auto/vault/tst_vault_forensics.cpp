@@ -383,6 +383,7 @@ private slots:
     void library_metadata_reuses_catalogue_type_and_public_art();
     void catalogue_readiness_identifies_existing_rows_data();
     void catalogue_readiness_identifies_existing_rows();
+    void persisted_art_titles_recover_with_existing_catalogue();
     void explicit_extras_filing_survives_republish_without_moving_files();
 };
 
@@ -1549,6 +1550,61 @@ void tst_vault_forensics::catalogue_readiness_identifies_existing_rows()
     QVERIFY(fx->index->rowsForGroup(suppressed.groupKey).first().identityId.isEmpty());
     QTRY_COMPARE(fx->index->rowsForGroup(ambiguous.groupKey).first().identityCandidateCount, 2);
     QVERIFY(fx->index->rowsForGroup(ambiguous.groupKey).first().identityId.isEmpty());
+}
+
+void tst_vault_forensics::persisted_art_titles_recover_with_existing_catalogue()
+{
+    const QString db = qEnvironmentVariable("COLOSSEUM_VAULT_REAL_IMDB_DB");
+    if (db.isEmpty()) QSKIP("Optional read-only catalogue check needs an explicit IMDb path");
+    struct Film { const char* folder; const char* file; const char* stale; int year; const char* id; };
+    const Film films[] = {
+        {"2001 A Space Odyssey (1968)", "2001.A.Space.Odyssey.1968.720p.BrRip.x264.YIFY.mp4", "2001 A Space Odyssey", 1968, "imdb:tt0062622"},
+        {"Barry Lyndon (1975) 1080p BluRay 5.1Ch x265 HEVC SUJAIDR", "Barry Lyndon (1975) 1080p BluRay 5.1Ch x265 HEVC SUJAIDR.mkv", "Barry Lyndon", 1975, "imdb:tt0072684"},
+        {"Dunkirk.2017.720p.BluRay.H264.AAC-RARBG", "Dunkirk.2017.720p.BluRay.H264.AAC-RARBG.mp4", "Dunkirk", 2017, "imdb:tt5013056"},
+        {"Eyes Wide Shut (1999)", "Eyes.Wide.Shut.1999.720p.BluRay.x264.YIFY.mp4", "Eyes Wide Shut", 1999, "imdb:tt0120663"},
+        {"Life of Pi (2012)", "Life.of.Pi.2012.720p.BRrip.x264.GAZ.YIFY.mp4", "Life of Pi", 2012, "imdb:tt0454876"},
+        {"Lolita 1962 720p BRrip_scOrp_sujaidr", "Lolita 1962 720p BRrip_scOrp_sujaidr.mkv", "Lolita 1962 BRrip scOrp sujaidr", 1962, "imdb:tt0056193"},
+        {"Scott Pilgrim vs the World (2010)", "Scott.Pilgrim.vs.the.World.2010.Bluray.720p.x264.YIFY.mp4", "Scott Pilgrim vs the World", 2010, "imdb:tt0446029"},
+        {"The Killing (1956 - Stanley Kubrick).DVDRip.XviD", "The Killing (1956 - Stanley Kubrick).DVDRip.XviD.avi", "The Killing 1956 - Stanley Kubrick XviD", 1956, "imdb:tt0049406"},
+        {"What.We.Do.In.The.Shadows.2014.HDRip.x264-COX", "What.We.Do.In.The.Shadows.2014.HDRip.x264-COX.mkv", "What We Do In The Shadows 2014 HDRip", 2014, "imdb:tt3416742"}
+    };
+    const QStringList expectedTitles{"2001: A Space Odyssey", "Barry Lyndon", "Dunkirk", "Eyes Wide Shut",
+        "Life of Pi", "Lolita", "Scott Pilgrim vs. the World", "The Killing", "What We Do in the Shadows"};
+    auto fx = buildFlatFixture(0);
+    QList<VaultIndex::FileRow> rows;
+    for (const auto& film : films) {
+        const QString folder = fx->rootPath + "/" + QString::fromUtf8(film.folder);
+        auto row = makeFilmRow(fx->rootPath, folder, folder + "/" + film.file,
+                               QString::fromUtf8(film.id) + ":file", 1000);
+        row.groupTitle = QString::fromUtf8(film.stale);
+        row.realName = QString::fromUtf8(film.file);
+        row.parsedYear = 0; // Older persisted facts must recover without another census.
+        rows.append(row);
+    }
+    auto sample = rows[5]; sample.id += ":sample";
+    sample.realName = "Lolita 1962 720p BRrip_scOrp_sujaidr_sample.mkv";
+    sample.path = sample.groupKey + "/" + sample.realName;
+    rows.append(sample);
+    auto episode = rows[4]; episode.id = "vault:unrelated-episode";
+    episode.groupKey = episode.subtreePath = fx->rootPath + "/Life.of.Pi.2012.720p";
+    episode.groupTitle = "An unrelated series"; episode.realName = "Unrelated.S01E01.mkv";
+    rows.append(episode);
+    QVERIFY(fx->index->publish(rows));
+    ImdbCatalog catalog(db); QVERIFY(catalog.ready());
+    fx->library->setImdbCatalog(&catalog);
+    VaultIdentifier identifier(fx->index.get(), nullptr, nullptr, &catalog);
+    fx->library->setIdentifier(&identifier);
+    for (int i = 0; i < 9; ++i) {
+        const auto& film = films[i];
+        QTRY_COMPARE_WITH_TIMEOUT(fx->index->rowsForGroup(rows[i].groupKey).first().identityId,
+                                 QString::fromUtf8(film.id), 1500);
+        const auto adopted = fx->index->rowsForGroup(rows[i].groupKey).first();
+        QCOMPARE(adopted.identityYear, film.year);
+        QCOMPARE(adopted.identityTitle, expectedTitles[i]);
+        qInfo().noquote() << "persisted_art" << adopted.identityTitle << adopted.identityYear << adopted.identityId;
+    }
+    QCOMPARE(fx->index->rowsForGroup(sample.groupKey).size(), 2);
+    QVERIFY(fx->index->rowsForGroup(episode.groupKey).first().identityId.isEmpty());
 }
 
 void tst_vault_forensics::library_metadata_reuses_catalogue_type_and_public_art()

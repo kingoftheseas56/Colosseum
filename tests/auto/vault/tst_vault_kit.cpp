@@ -197,6 +197,12 @@ void tst_vault_kit::title_cleaner_data()
     QTest::addColumn<QString>("raw");
     QTest::addColumn<QString>("expected");
     QTest::newRow("plain_unchanged")     << "Berserk"                          << "Berserk";
+    QTest::newRow("unbracketed_release_suffix") << "Lolita 1962 720p BRrip_scOrp_sujaidr" << "Lolita";
+    QTest::newRow("hdrip_release_suffix") << "What.We.Do.In.The.Shadows.2014.HDRip.x264-COX" << "What We Do In The Shadows";
+    QTest::newRow("bracketed_release_credit") << "The Killing (1956 - Stanley Kubrick).DVDRip.XviD" << "The Killing";
+    QTest::newRow("other_release_credit") << "Another Film (1996 - A Director).DVDRip.XviD" << "Another Film";
+    QTest::newRow("numeric_title_1917_technical_release") << "1917.2019.1080p.BluRay.x264" << "1917";
+    QTest::newRow("ordinary_words_before_technical_facts") << "A Film 1984 Aftermath 1080p" << "A Film 1984 Aftermath";
     QTest::newRow("quality_stripped")    << "One.Piece.1080p"                  << "One Piece";
     QTest::newRow("season_preserved")    << "Attack on Titan Season 3"         << "Attack on Titan Season 3";
     QTest::newRow("stray_num_scrubbed")  << "The Sopranos -6 Season 1 1080p"   << "The Sopranos Season 1";
@@ -260,6 +266,9 @@ void tst_vault_kit::parsed_year_data()
 {
     QTest::addColumn<QString>("raw");
     QTest::addColumn<int>("year");
+    QTest::newRow("hdrip_release_year") << QStringLiteral("What.We.Do.In.The.Shadows.2014.HDRip.x264-COX") << 2014;
+    QTest::newRow("release_credit_year") << QStringLiteral("The Killing (1956 - Stanley Kubrick).DVDRip.XviD") << 1956;
+    QTest::newRow("unqualified_year_credit") << QStringLiteral("A Film (1984 - Aftermath)") << 0;
 
     // Vault ux uplift S16 — the cleaner's own find, captured for the identifier.
     QTest::newRow("trailing_bracket_year")  << QStringLiteral("Dune (2021)")     << 2021;

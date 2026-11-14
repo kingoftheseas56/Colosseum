@@ -7,6 +7,7 @@
 #include "VaultKit.h"
 
 #include <QVariantList>
+#include <QFileInfo>
 #include <QTimer>
 #include <QVariantMap>
 #include <QRegularExpression>
@@ -142,6 +143,16 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
     // the lookup over the cleaned title (whose year the cleaner already removed), so a
     // remade title matches the catalogue's year filter instead of reading ambiguous.
     LookupTitle lookup = lookupTitle(title);
+    // Persisted groups can contain an older lossy cleaned title. Recover a
+    // qualified release title/year from the existing raw group path; do not
+    // turn an individual episode's filename into its parent show's identity.
+    if (row.kind == QLatin1String("video") && row.groupKey == row.subtreePath
+        && !row.groupKey.contains(QLatin1String("::"))
+        && !VaultKit::isEpisodeVideo(row.realName)) {
+        const QString rawGroup = QFileInfo(row.groupKey).fileName();
+        const auto rawLookup = lookupTitle(rawGroup);
+        if (rawLookup.year > 0) lookup = rawLookup;
+    }
     applyLookupYear(lookup, row);
     const QString normalizedTitle = lookup.normalized;
     if (title.isEmpty() || normalizedTitle.isEmpty())

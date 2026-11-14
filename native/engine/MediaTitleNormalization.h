@@ -117,6 +117,33 @@ inline QString stripNoiseBracketChunks(const QString& text)
     return result;
 }
 
+struct ReleaseSuffix {
+    int titleEnd = -1;
+    int year = 0;
+};
+
+// A release year followed by technical encoding/source facts is a boundary,
+// including a bracketed year with a credit. Ordinary title words after a year
+// are not evidence of a release suffix; a leading numeric title is not a year.
+inline ReleaseSuffix qualifiedReleaseSuffix(const QString& raw)
+{
+    static const QRegularExpression suffix(QStringLiteral(
+        "(?i)(?:\\(((?:19|20)\\d{2})(?:\\s*-\\s*[^()]+)?\\)|"
+        "\\[((?:19|20)\\d{2})\\]|\\{((?:19|20)\\d{2})\\}|\\b((?:19|20)\\d{2})\\b)"
+        "[\\s._-]+(?=(?:2160p|1080p|720p|480p|blu[ ._-]?ray|b[dr]rip|"
+        "dvdrip|hdrip|web[ ._-]?dl|webrip|hdtv|remux|xvid|x26[45]|h[._]?26[45])\\b)"));
+    static const QRegularExpression titleText(QStringLiteral("[\\p{L}\\p{N}]"));
+    auto matches = suffix.globalMatch(raw);
+    while (matches.hasNext()) {
+        const auto match = matches.next();
+        if (!titleText.match(raw.left(match.capturedStart())).hasMatch()) continue;
+        for (int group = 1; group <= 4; ++group)
+            if (!match.captured(group).isEmpty())
+                return {int(match.capturedStart()), match.captured(group).toInt()};
+    }
+    return {};
+}
+
 inline QString cleanMediaFolderTitle(const QString& rawName)
 {
     QString raw = rawName.trimmed();
@@ -125,14 +152,8 @@ inline QString cleanMediaFolderTitle(const QString& rawName)
 
     const QList<int> seasonNumbers = extractSeasonNumbers(raw);
 
-    // An explicit release year followed immediately by technical release facts
-    // starts a release suffix (including an unhyphenated group credit). Ordinary
-    // words after a year remain title text; no release-group names are hardcoded.
-    static const QRegularExpression technicalTailAfterYear(QStringLiteral(
-        "(?i)\\((?:19|20)\\d{2}\\)[\\s._-]+(?=(?:2160p|1080p|720p|480p|"
-        "blu[ .-]?ray|b[dr]rip|dvdrip|web[ .-]?dl|webrip|hdtv|remux)\\b)"));
-    const auto tail = technicalTailAfterYear.match(raw);
-    if (tail.hasMatch()) raw.truncate(tail.capturedStart() + 6);
+    const auto release = qualifiedReleaseSuffix(raw);
+    if (release.titleEnd >= 0) raw.truncate(release.titleEnd);
 
     // Strip bracket/paren/brace noise chunks FIRST, while dots/underscores are still intact —
     // an audio-channel tag ("[5.1]") or a release-site domain tag ("[YTS.MX]") is recognizable
