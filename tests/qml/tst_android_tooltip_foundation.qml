@@ -769,7 +769,7 @@ TestCase {
         return null
     }
 
-    function test_reader_chrome_appearance_tooltip_reveals_without_activation() {
+    function test_reader_chrome_hover_has_no_tooltip_and_click_opens_appearance() {
         const area = findTooltipArea(readerChrome, "Appearance")
         verify(area !== null)
         const topBar = findReaderTopBar(area)
@@ -813,13 +813,9 @@ TestCase {
         mouseMove(testWindow.contentItem, center.x, center.y)
         tryCompare(revealHandler, "hovered", true)
         tryCompare(area, "containsMouse", true)
-        tryVerify(function() { return tip.visible && tip.text === "Appearance" })
+        wait(450)
+        compare(tip.visible, false)
         compare(readerChrome.appearanceOpen, false)
-        verify(tip.background !== null)
-        const panelOrigin = tip.background.mapToItem(testWindow.contentItem, 0, 0)
-        verify(panelOrigin.x >= 0 && panelOrigin.y >= 0
-               && panelOrigin.x + tip.width <= testWindow.width
-               && panelOrigin.y + tip.height <= testWindow.height)
         verify(readerChrome.revealState.frozen)
 
         mouseClick(area, area.width / 2, area.height / 2)

@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import "../" as App
 
 MouseArea {
     id: area
@@ -20,17 +19,7 @@ MouseArea {
     // pins itself awake only for keyboard focus, so a click still lets it idle away.
     property bool pointerFocused: false
 
-    // Tooltip is opt-in; existing click, keyboard and hover handlers stay the owners.
-    App.TouchTooltip {
-        id: touchTooltip
-        target: area
-        longPressTooltipEnabled: Qt.platform.os === "android" && area.tooltipText.length > 0
-    }
     hoverEnabled: tooltipText.length > 0
-    ToolTip.text: area.tooltipText
-    ToolTip.delay: touchTooltip.longPressTooltipEnabled ? 0 : 350
-    ToolTip.visible: area.tooltipText.length > 0 && area.visible && area.enabled
-        && ((!touchTooltip.longPressTooltipEnabled && area.containsMouse) || touchTooltip.active)
 
     // Qt focus traversal already skips disabled/effectively-hidden items; keep eligibility stable
     // while a focused popup is closing so activeFocusOnTab never flips underneath active focus.

@@ -222,7 +222,7 @@ Item {
                                font.family: "Segoe UI"; font.pixelSize: 13; font.weight: Font.DemiBold }
                         MouseArea { id: da; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor; onClicked: parent.tapped() }
-                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: glyph; tooltipText: parent.tooltip; tooltipHovered: da.containsMouse; onTriggered: parent.tapped() }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: glyph; onTriggered: parent.tapped() }
                     }
                     DelayButton { glyph: "−"; tooltip: qsTr("Decrease sync by 0.1 seconds"); onTapped: menu.syncChanged(menu.syncValue - 0.1) }
                     Text {

@@ -7040,8 +7040,6 @@ Item {
             anchors.fill: parent
             pointerEnabled: false
             accessibleName: rb.tooltip.length ? rb.tooltip : rb.icon
-            tooltipText: rb.icon === "minimizeToBar" ? qsTr("Minimize") : (rb.tooltip.length ? rb.tooltip : rb.icon)
-            tooltipHovered: press.containsMouse
             focusRadius: rb.width / 2
             onTriggered: {
                 root.wakeChrome()

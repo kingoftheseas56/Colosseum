@@ -404,8 +404,6 @@ Item {
             anchors.fill: parent
             pointerEnabled: false
             accessibleName: menu.title.length ? menu.title : "Subtitles"
-            tooltipText: qsTr("Subtitles")
-            tooltipHovered: launchMouse.containsMouse
             onTriggered: menu.toggleRequested(menu.panelOpen)
         }
     }
@@ -1199,8 +1197,6 @@ Item {
             anchors.fill: parent
             pointerEnabled: false
             accessibleName: button.accessibleName
-            tooltipText: accessibleName
-            tooltipHovered: mouse.containsMouse
             onTriggered: button.clicked()
         }
     }
@@ -1436,9 +1432,6 @@ Item {
                     height: 28
                     radius: 8
                     color: modelData
-                    Controls.ToolTip.text: swatches.label + " " + dot.modelData
-                    Controls.ToolTip.visible: ((!touchTooltipSubtitleSwatch.longPressTooltipEnabled && swatchHover.hovered) || touchTooltipSubtitleSwatch.active)
-                    Controls.ToolTip.delay: touchTooltipSubtitleSwatch.longPressTooltipEnabled ? 0 : 350
                     border.width: (swatches.activeFocus && swatches.keyboardIndex === dot.index)
                                   || swatches.selected.toLowerCase() === modelData.toLowerCase() ? 2 : 1
                     border.color: (swatches.activeFocus && swatches.keyboardIndex === dot.index)
@@ -1450,7 +1443,6 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: swatches.picked(dot.modelData)
-                        App.TouchTooltip { id: touchTooltipSubtitleSwatch; target: parent }
                     }
                 }
             }
@@ -1666,8 +1658,6 @@ Item {
                             anchors.fill: parent
                             pointerEnabled: false
                             accessibleName: "Reset subtitle sync"
-                            tooltipText: accessibleName
-                            tooltipHovered: delayValueMouse.containsMouse
                             onTriggered: delayControl.reset()
                         }
                     }
@@ -1712,8 +1702,6 @@ Item {
             anchors.fill: parent
             pointerEnabled: false
             accessibleName: button.accessibleName
-            tooltipText: accessibleName
-            tooltipHovered: compactMouse.containsMouse
             onTriggered: button.clicked()
         }
     }
