@@ -92,16 +92,19 @@ Item {
     ToolTip {
         id: hoverExplanation
         objectName: "smartPickHoverExplanation"
-        parent: Overlay.overlay
+        parent: infoAction
         visible: control.visible && infoAction.hovered && !explanation.visible
         delay: 350
         text: control.explanationText
-        width: Math.min(340, Math.max(0, parent ? parent.width - 24 : 340))
-        x: Math.max(12, Math.min(parent ? parent.width - width - 12 : 12,
-                               infoAction.mapToItem(parent, 0, 0).x + 44 - width))
-        y: Math.max(12, Math.min(parent ? parent.height - height - 12 : 12,
-                               infoAction.mapToItem(parent, 0, 44).y + 8))
+        width: Math.min(280, Math.max(0, Overlay.overlay ? Overlay.overlay.width - 24 : 280))
+        x: (infoAction.width - width) / 2
+        y: infoAction.height + 8
+        margins: 12
         padding: 14
+        Component.onCompleted: {
+            if (typeof tooltipStyle !== "undefined" && tooltipStyle)
+                tooltipStyle.applyTo(hoverExplanation)
+        }
         background: Rectangle {
             radius: 11
             color: "#171a22"

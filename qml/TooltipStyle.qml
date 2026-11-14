@@ -185,6 +185,7 @@ Item {
             readonly property real notchX: Math.max(panel.radius + 7,
                                                     Math.min(panel.width - panel.radius - 7, panel.anchorCentre.x))
             Item {
+                objectName: "tooltipPointerNotch"
                 visible: panel.anchorItem !== null
                 width: 16; height: 8
                 x: panel.notchX - width / 2
