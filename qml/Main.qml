@@ -4300,6 +4300,8 @@ Window {
 
     // ---- design tokens (the skin: glass is the constant; gold is sparing) ----
     Theme { id: theme }
+    // One app-wide tooltip look (glass, gold edge, Cinzel); restyles Qt's shared ToolTip.
+    TooltipStyle { id: tooltipStyle; backdrop: win.contentItem }
 
     // ---- bundled editorial serif (the theme's target display face: theme.display = "Fraunces") ----
     FontLoader { source: "../assets/fonts/Fraunces-Regular.ttf" }
