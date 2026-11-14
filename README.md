@@ -84,7 +84,7 @@ Colosseum is still growing. **Vinyl** is a planned world for music, with songs, 
 
 **A full Feria Browser comes later.** That's a different standard: it needs to hold its own as an everyday browser against established options like Chrome, not ship as a novelty just because we can embed web pages.
 
-**Help shape Feria:** What frustrates you about the website versions of your favorite services? Which extensions help, and what problems remain unsolved? [Browse the Feria website discussions](https://github.com/kingoftheseas56/Colosseum/discussions/35).
+**Help shape Feria:** What frustrates you about the website versions of your favorite services? Which extensions help, and what problems remain unsolved? [Share Netflix website feedback](https://github.com/kingoftheseas56/Colosseum/discussions/37) · [Follow Feria development](https://github.com/kingoftheseas56/Colosseum/discussions/36).
 
 ## Get Colosseum 1.3.0
 
