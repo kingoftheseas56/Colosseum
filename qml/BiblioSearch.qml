@@ -7,6 +7,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import "BiblioApi.js" as BiblioApi
+import "." as App
 
 Item {
     id: search
@@ -356,12 +357,14 @@ Item {
                                 anchors.right: parent.right; anchors.rightMargin: 3; anchors.verticalCenter: parent.verticalCenter
                                 color: removeRecentMa.containsMouse ? Qt.rgba(1,1,1,0.14) : "transparent"
                                 ToolTip.text: qsTr("Remove recent search")
-                                ToolTip.visible: removeRecentMa.containsMouse
-                                ToolTip.delay: 350
+                                ToolTip.visible: ((!touchTooltipRemoveRecentMa.longPressTooltipEnabled && removeRecentMa.containsMouse) || touchTooltipRemoveRecentMa.active)
+                                ToolTip.delay: touchTooltipRemoveRecentMa.longPressTooltipEnabled ? 0 : 350
                                 Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 11 }
                                 MouseArea { id: removeRecentMa; anchors.fill: parent; hoverEnabled: true
                                     objectName: "biblioRecentRemove"; cursorShape: Qt.PointingHandCursor
-                                    onClicked: search.removeRecent(modelData) } }
+                                    onClicked: search.removeRecent(modelData)
+                                    App.TouchTooltip { id: touchTooltipRemoveRecentMa; target: removeRecentMa }
+                                } }
                         }
                     }
                 }

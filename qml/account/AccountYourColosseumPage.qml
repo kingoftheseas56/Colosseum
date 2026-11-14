@@ -126,9 +126,11 @@ Item {
 
                     Button {
                         id: previousMonthButton
-                        ToolTip.visible: previousMonthButton.hovered
-                        ToolTip.delay: 350
+                        ToolTip.visible: touchTooltipPreviousMonth.longPressTooltipEnabled
+                            ? touchTooltipPreviousMonth.active : previousMonthButton.hovered
+                        ToolTip.delay: touchTooltipPreviousMonth.longPressTooltipEnabled ? 0 : 350
                         ToolTip.text: qsTr("Previous month")
+                        TouchTooltip { id: touchTooltipPreviousMonth; buttonTarget: previousMonthButton }
                         objectName: "yourColosseumPreviousMonth"
                         width: 30
                         height: 30
@@ -180,9 +182,11 @@ Item {
 
                     Button {
                         id: nextMonthButton
-                        ToolTip.visible: nextMonthButton.hovered
-                        ToolTip.delay: 350
+                        ToolTip.visible: touchTooltipNextMonth.longPressTooltipEnabled
+                            ? touchTooltipNextMonth.active : nextMonthButton.hovered
+                        ToolTip.delay: touchTooltipNextMonth.longPressTooltipEnabled ? 0 : 350
                         ToolTip.text: qsTr("Next month")
+                        TouchTooltip { id: touchTooltipNextMonth; buttonTarget: nextMonthButton }
                         objectName: "yourColosseumNextMonth"
                         width: 30
                         height: 30

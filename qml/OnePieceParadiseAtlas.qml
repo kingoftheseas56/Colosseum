@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls.Basic
+import "." as App
 import "OnePieceParadiseData.js" as Story
 import "OnePieceParadiseAdapter.js" as ParadiseAdapter
 import "OnePieceParadiseAtlasData.js" as Atlas
@@ -378,19 +379,22 @@ FocusScope {
         spacing: 4
         z: 20
         ParadiseInkButton { objectName: "paradiseZoomOut"; text: "−"; width: 44; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Zoom out";
-            ToolTip.visible: hovered
+            ToolTip.visible: touchTooltipZoomOut.longPressTooltipEnabled ? touchTooltipZoomOut.active : hovered
             ToolTip.text: qsTr("Zoom out")
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipZoomOut.longPressTooltipEnabled ? 0 : 350
+            App.TouchTooltip { id: touchTooltipZoomOut; buttonTarget: parent }
             onClicked: root.setZoom(root.zoom - 0.25) }
         ParadiseInkButton { objectName: "paradiseZoomReset"; text: Math.round(root.zoom * 100) + "%"; width: 62; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Reset zoom to show the whole chart";
-            ToolTip.visible: hovered
+            ToolTip.visible: touchTooltipZoomReset.longPressTooltipEnabled ? touchTooltipZoomReset.active : hovered
             ToolTip.text: qsTr("Reset zoom")
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipZoomReset.longPressTooltipEnabled ? 0 : 350
+            App.TouchTooltip { id: touchTooltipZoomReset; buttonTarget: parent }
             onClicked: root.setZoom(1) }
         ParadiseInkButton { objectName: "paradiseZoomIn"; text: "+"; width: 44; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Zoom in";
-            ToolTip.visible: hovered
+            ToolTip.visible: touchTooltipZoomIn.longPressTooltipEnabled ? touchTooltipZoomIn.active : hovered
             ToolTip.text: qsTr("Zoom in")
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipZoomIn.longPressTooltipEnabled ? 0 : 350
+            App.TouchTooltip { id: touchTooltipZoomIn; buttonTarget: parent }
             onClicked: root.setZoom(root.zoom + 0.25) }
     }
     ParadiseInkButton {

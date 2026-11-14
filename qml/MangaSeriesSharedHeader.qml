@@ -4,6 +4,7 @@ import QtQuick.Effects
 import QtQuick.Window
 import "collections" as CollectionsUi
 import "CollectionsReferences.js" as CollectionsReferences
+import "." as App
 
 Item {
     id: root
@@ -98,10 +99,12 @@ Item {
                 width: 36; height: 36; activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Minimize window"
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/minimize.svg"; opacity: minMa.containsMouse ? 1 : .72 }
-                ToolTip.visible: minMa.containsMouse
+                ToolTip.visible: ((!touchTooltipMinMa.longPressTooltipEnabled && minMa.containsMouse) || touchTooltipMinMa.active)
                 ToolTip.text: qsTr('Minimize window')
-                ToolTip.delay: 350
-                MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
+                ToolTip.delay: touchTooltipMinMa.longPressTooltipEnabled ? 0 : 350
+                MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested()
+                    App.TouchTooltip { id: touchTooltipMinMa; target: minMa }
+                }
                 Keys.onReturnPressed: root.minimizeRequested(); Keys.onEnterPressed: root.minimizeRequested()
             }
             Item {
@@ -113,20 +116,24 @@ Item {
                         ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
                     opacity: fullMa.containsMouse ? 1 : .72
                 }
-                ToolTip.visible: fullMa.containsMouse
+                ToolTip.visible: ((!touchTooltipFullMa.longPressTooltipEnabled && fullMa.containsMouse) || touchTooltipFullMa.active)
                 ToolTip.text: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                ToolTip.delay: 350
-                MouseArea { id: fullMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
+                ToolTip.delay: touchTooltipFullMa.longPressTooltipEnabled ? 0 : 350
+                MouseArea { id: fullMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested()
+                    App.TouchTooltip { id: touchTooltipFullMa; target: fullMa }
+                }
                 Keys.onReturnPressed: root.fullscreenRequested(); Keys.onEnterPressed: root.fullscreenRequested()
             }
             Item {
                 width: 36; height: 36; activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Close series view"
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/power.svg"; opacity: closeMa.containsMouse ? 1 : .72 }
-                ToolTip.visible: closeMa.containsMouse
+                ToolTip.visible: ((!touchTooltipCloseMa.longPressTooltipEnabled && closeMa.containsMouse) || touchTooltipCloseMa.active)
                 ToolTip.text: qsTr('Close series view')
-                ToolTip.delay: 350
-                MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+                ToolTip.delay: touchTooltipCloseMa.longPressTooltipEnabled ? 0 : 350
+                MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested()
+                    App.TouchTooltip { id: touchTooltipCloseMa; target: closeMa }
+                }
                 Keys.onReturnPressed: root.closeRequested(); Keys.onEnterPressed: root.closeRequested()
             }
         }
@@ -220,9 +227,9 @@ Item {
                     activeFocusOnTab: visible
                     Accessible.role: Accessible.Button
                     Accessible.name: root.librarySaved ? "Remove from Library" : "Add to Library"
-                    ToolTip.visible: libraryMa.containsMouse
+                    ToolTip.visible: ((!touchTooltipLibraryMa.longPressTooltipEnabled && libraryMa.containsMouse) || touchTooltipLibraryMa.active)
                     ToolTip.text: root.librarySaved ? "Remove from Library" : "Add to Library"
-                    ToolTip.delay: 350
+                    ToolTip.delay: touchTooltipLibraryMa.longPressTooltipEnabled ? 0 : 350
                     y: Math.round((titleRow.height - height) / 2)
                     Rectangle {
                         anchors.fill: parent; radius: 9
@@ -238,7 +245,9 @@ Item {
                         fillMode: Image.PreserveAspectFit; smooth: true; cache: true; visible: false
                     }
                     MultiEffect { anchors.fill: libraryGlyph; source: libraryGlyph; colorization: 1.0; colorizationColor: root.librarySaved ? theme.gold : theme.ink }
-                    MouseArea { id: libraryMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggleLibrary() }
+                    MouseArea { id: libraryMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggleLibrary()
+                        App.TouchTooltip { id: touchTooltipLibraryMa; target: libraryMa }
+                    }
                     Keys.onPressed: function(event) {
                         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.toggleLibrary(); event.accepted = true }
                     }
@@ -353,10 +362,11 @@ Item {
                 id: lockedLanguageMa; anchors.fill: parent; z: 4
                 enabled: root.tankobanMode; hoverEnabled: true
                 cursorShape: Qt.ForbiddenCursor
+                App.TouchTooltip { id: touchTooltipLockedLanguageMa; target: lockedLanguageMa }
             }
-            ToolTip.visible: root.tankobanMode && lockedLanguageMa.containsMouse
+            ToolTip.visible: root.tankobanMode && ((!touchTooltipLockedLanguageMa.longPressTooltipEnabled && lockedLanguageMa.containsMouse) || touchTooltipLockedLanguageMa.active)
             ToolTip.text: "Available in Chapter Mode"
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipLockedLanguageMa.longPressTooltipEnabled ? 0 : 350
         }
 
         Button {

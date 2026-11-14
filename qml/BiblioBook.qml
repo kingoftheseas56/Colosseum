@@ -14,6 +14,7 @@ import "BiblioApi.js" as BiblioApi
 import "AbbApi.js" as Abb
 import "collections" as CollectionsUi
 import "CollectionsReferences.js" as CollectionsReferences
+import "." as App
 
 Item {
     id: detail
@@ -1104,8 +1105,8 @@ Item {
                                         : torRow.dlState === "downloading" ? qsTr("Downloading torrent")
                                         : torRow.dlState === "resolving" ? qsTr("Resolving torrent")
                                         : torRow.dlState === "failed" ? qsTr("Retry torrent download") : qsTr("Download torrent")
-                                    ToolTip.visible: torrentStatusHover.hovered
-                                    ToolTip.delay: 350
+                                    ToolTip.visible: ((!touchTooltipTorrentStatus.longPressTooltipEnabled && torrentStatusHover.hovered) || touchTooltipTorrentStatus.active)
+                                    ToolTip.delay: touchTooltipTorrentStatus.longPressTooltipEnabled ? 0 : 350
                                     HoverHandler { id: torrentStatusHover }
                                 }
                                 MouseArea { id: torMa; anchors.fill: parent; hoverEnabled: true
@@ -1115,6 +1116,7 @@ Item {
                                         torrentList.forceActiveFocus(Qt.MouseFocusReason)
                                         detail.activateTorrentRow(torRow.modelData)
                                     }
+                                    App.TouchTooltip { id: touchTooltipTorrentStatus; target: torMa }
                                 }
                             }
                         }
@@ -1244,8 +1246,8 @@ Item {
                                         : edRow.dlState === "resolving" ? qsTr("Resolving edition")
                                         : edRow.dlState === "failed" ? qsTr("Retry edition download")
                                         : edRow.modelData.md5 ? qsTr("Download edition") : qsTr("Open external edition")
-                                    ToolTip.visible: editionStatusHover.hovered
-                                    ToolTip.delay: 350
+                                    ToolTip.visible: ((!touchTooltipEditionStatus.longPressTooltipEnabled && editionStatusHover.hovered) || touchTooltipEditionStatus.active)
+                                    ToolTip.delay: touchTooltipEditionStatus.longPressTooltipEnabled ? 0 : 350
                                     HoverHandler { id: editionStatusHover }
                                 }
                                 MouseArea { id: edMa; anchors.fill: parent; hoverEnabled: true
@@ -1255,6 +1257,7 @@ Item {
                                         editionList.forceActiveFocus(Qt.MouseFocusReason)
                                         detail.activateEditionRow(edRow.modelData)
                                     }
+                                    App.TouchTooltip { id: touchTooltipEditionStatus; target: edMa }
                                 }
                             }
                         }
@@ -1376,8 +1379,8 @@ Item {
                                         : abRow.rowState === "downloading" ? qsTr("Downloading audiobook")
                                         : detail.audiobookBusy(abRow.rowState) ? qsTr("Preparing audiobook download")
                                         : abRow.rowState === "failed" ? qsTr("Retry audiobook download") : qsTr("Download audiobook")
-                                    ToolTip.visible: audiobookStatusHover.hovered
-                                    ToolTip.delay: 350
+                                    ToolTip.visible: ((!touchTooltipAudiobookStatus.longPressTooltipEnabled && audiobookStatusHover.hovered) || touchTooltipAudiobookStatus.active)
+                                    ToolTip.delay: touchTooltipAudiobookStatus.longPressTooltipEnabled ? 0 : 350
                                     HoverHandler { id: audiobookStatusHover }
                                 }
                                 MouseArea { id: abRowMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -1386,6 +1389,7 @@ Item {
                                         audiobookList.forceActiveFocus(Qt.MouseFocusReason)
                                         detail.activateAudiobookRow(abRow.modelData)
                                     }
+                                    App.TouchTooltip { id: touchTooltipAudiobookStatus; target: abRowMa }
                                 }
                             }
                         }

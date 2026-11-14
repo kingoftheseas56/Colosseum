@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import "SystemFocusContainment.js" as SystemFocusContainment
+import "." as App
 
 Item {
     id: party
@@ -275,9 +276,9 @@ Item {
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
         Accessible.name: "Watch Party"
-        ToolTip.visible: faceMouse.containsMouse
+        ToolTip.visible: ((!touchTooltipFaceMouse.longPressTooltipEnabled && faceMouse.containsMouse) || touchTooltipFaceMouse.active)
         ToolTip.text: party.panelOpen ? qsTr("Close Watch Party") : qsTr("Open Watch Party")
-        ToolTip.delay: 350
+        ToolTip.delay: touchTooltipFaceMouse.longPressTooltipEnabled ? 0 : 350
         Accessible.description: party.inRoom
                                 ? "Open active Watch Party"
                                 : "Open Watch Party"
@@ -346,6 +347,7 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: party.toggleRequested(party.panelOpen)
+            App.TouchTooltip { id: touchTooltipFaceMouse; target: faceMouse }
         }
 
         Keys.onReturnPressed: party.toggleRequested(party.panelOpen)
@@ -510,9 +512,9 @@ Item {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Close Watch Party panel"
-                ToolTip.visible: closeMouse.containsMouse
+                ToolTip.visible: ((!touchTooltipCloseMouse.longPressTooltipEnabled && closeMouse.containsMouse) || touchTooltipCloseMouse.active)
                 ToolTip.text: qsTr("Close Watch Party panel")
-                ToolTip.delay: 350
+                ToolTip.delay: touchTooltipCloseMouse.longPressTooltipEnabled ? 0 : 350
 
                 Rectangle {
                     anchors.fill: parent
@@ -536,6 +538,7 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: party.closeFromPanel()
+                    App.TouchTooltip { id: touchTooltipCloseMouse; target: closeMouse }
                 }
                 Keys.onReturnPressed: party.closeFromPanel()
                 Keys.onEnterPressed: party.closeFromPanel()

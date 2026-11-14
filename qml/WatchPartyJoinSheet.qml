@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Shapes
 import "SystemFocusContainment.js" as SystemFocusContainment
+import "." as App
 
 Popup {
     id: sheet
@@ -223,9 +224,9 @@ Popup {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Close Join Watch Party"
-                ToolTip.visible: closeMouse.containsMouse
+                ToolTip.visible: ((!touchTooltipCloseMouse.longPressTooltipEnabled && closeMouse.containsMouse) || touchTooltipCloseMouse.active)
                 ToolTip.text: qsTr("Close Join Watch Party")
-                ToolTip.delay: 350
+                ToolTip.delay: touchTooltipCloseMouse.longPressTooltipEnabled ? 0 : 350
 
                 Rectangle {
                     anchors.fill: parent
@@ -253,6 +254,7 @@ Popup {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: sheet.close()
+                    App.TouchTooltip { id: touchTooltipCloseMouse; target: closeMouse }
                 }
                 Keys.onReturnPressed: sheet.close()
                 Keys.onEnterPressed: sheet.close()

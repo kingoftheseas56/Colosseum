@@ -6,6 +6,7 @@ import QtQuick
 import QtQuick.Controls
 import "collections" as CollectionsUi
 import "MangaVolumes.js" as Vol
+import "." as App
 
 Item {
     id: root
@@ -106,10 +107,12 @@ Item {
                 Accessible.role: Accessible.Button; Accessible.name: "Minimize window"
                 Keys.onReturnPressed: root.minimizeRequested(); Keys.onEnterPressed: root.minimizeRequested()
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/minimize.svg"; opacity: minMouse.containsMouse ? 1 : 0.72 }
-                ToolTip.visible: minMouse.containsMouse
+                ToolTip.visible: ((!touchTooltipMinMouse.longPressTooltipEnabled && minMouse.containsMouse) || touchTooltipMinMouse.active)
                 ToolTip.text: qsTr('Minimize window')
-                ToolTip.delay: 350
-                MouseArea { id: minMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
+                ToolTip.delay: touchTooltipMinMouse.longPressTooltipEnabled ? 0 : 350
+                MouseArea { id: minMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested()
+                    App.TouchTooltip { id: touchTooltipMinMouse; target: minMouse }
+                }
             }
             Item {
                 width: 36; height: 36; activeFocusOnTab: true
@@ -121,20 +124,24 @@ Item {
                         ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
                     opacity: fullscreenMouse.containsMouse ? 1 : 0.72
                 }
-                ToolTip.visible: fullscreenMouse.containsMouse
+                ToolTip.visible: ((!touchTooltipFullscreenMouse.longPressTooltipEnabled && fullscreenMouse.containsMouse) || touchTooltipFullscreenMouse.active)
                 ToolTip.text: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                ToolTip.delay: 350
-                MouseArea { id: fullscreenMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
+                ToolTip.delay: touchTooltipFullscreenMouse.longPressTooltipEnabled ? 0 : 350
+                MouseArea { id: fullscreenMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested()
+                    App.TouchTooltip { id: touchTooltipFullscreenMouse; target: fullscreenMouse }
+                }
             }
             Item {
                 width: 36; height: 36; activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Close series view"
                 Keys.onReturnPressed: root.closeRequested(); Keys.onEnterPressed: root.closeRequested()
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/power.svg"; opacity: closeMouse.containsMouse ? 1 : 0.72 }
-                ToolTip.visible: closeMouse.containsMouse
+                ToolTip.visible: ((!touchTooltipCloseMouse.longPressTooltipEnabled && closeMouse.containsMouse) || touchTooltipCloseMouse.active)
                 ToolTip.text: qsTr('Close series view')
-                ToolTip.delay: 350
-                MouseArea { id: closeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+                ToolTip.delay: touchTooltipCloseMouse.longPressTooltipEnabled ? 0 : 350
+                MouseArea { id: closeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested()
+                    App.TouchTooltip { id: touchTooltipCloseMouse; target: closeMouse }
+                }
             }
         }
     }

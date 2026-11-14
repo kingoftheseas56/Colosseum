@@ -4,6 +4,7 @@ import QtQuick.Controls
 import "UniverseContentApi.js" as UniverseContent
 import "UniverseExtApi.js" as UniverseApi
 import "DCAUUniverseData.js" as DCAU
+import "." as App
 
 Item {
     id: root
@@ -232,28 +233,31 @@ Item {
             width: 22; height: 22
             Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"; sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit; opacity: minMa.containsMouse ? 1 : .72 }
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested()
-                ToolTip.visible: containsMouse
+                ToolTip.visible: ((!touchTooltipMinMa.longPressTooltipEnabled && containsMouse) || touchTooltipMinMa.active)
                 ToolTip.text: qsTr("Minimize")
-                ToolTip.delay: 350
+                ToolTip.delay: touchTooltipMinMa.longPressTooltipEnabled ? 0 : 350
+                App.TouchTooltip { id: touchTooltipMinMa; target: minMa }
             }
         }
         Item {
             width: 22; height: 22
             Image { anchors.fill: parent; source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit; opacity: fsMa.containsMouse ? 1 : .72 }
             MouseArea { id: fsMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested()
-                ToolTip.visible: containsMouse
+                ToolTip.visible: ((!touchTooltipFsMa.longPressTooltipEnabled && containsMouse) || touchTooltipFsMa.active)
                 ToolTip.text: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
                               ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                ToolTip.delay: 350
+                ToolTip.delay: touchTooltipFsMa.longPressTooltipEnabled ? 0 : 350
+                App.TouchTooltip { id: touchTooltipFsMa; target: fsMa }
             }
         }
         Item {
             width: 22; height: 22
             Image { anchors.fill: parent; source: "../assets/icons/power.svg"; sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit; opacity: closeMa.containsMouse ? 1 : .72 }
             MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested()
-                ToolTip.visible: containsMouse
+                ToolTip.visible: ((!touchTooltipCloseMa.longPressTooltipEnabled && containsMouse) || touchTooltipCloseMa.active)
                 ToolTip.text: qsTr("Close Colosseum")
-                ToolTip.delay: 350
+                ToolTip.delay: touchTooltipCloseMa.longPressTooltipEnabled ? 0 : 350
+                App.TouchTooltip { id: touchTooltipCloseMa; target: closeMa }
             }
         }
     }

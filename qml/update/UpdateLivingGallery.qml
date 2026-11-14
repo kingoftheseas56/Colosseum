@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Effects
 import QtQuick.Window
 import "../"
+import ".." as App
 
 // The release chronicle is deliberately one stage: artwork, a monochrome wash,
 // directional scrims, and editorial copy. State actions live in the persistent taskbar.
@@ -346,8 +347,8 @@ Item {
                     Accessible.role: Accessible.Button
                     Accessible.name: "Chapter %1: %2".arg(index + 1).arg(String(modelData.title || "Chapter"))
                     Accessible.description: index === root.currentIndex ? "Selected" : ""
-                    ToolTip.visible: chapterTipHover.hovered
-                    ToolTip.delay: 350
+                    ToolTip.visible: ((!touchTooltipChapterTip.longPressTooltipEnabled && chapterTipHover.hovered) || touchTooltipChapterTip.active)
+                    ToolTip.delay: touchTooltipChapterTip.longPressTooltipEnabled ? 0 : 350
                     ToolTip.text: qsTr("Chapter %1: %2").arg(index + 1).arg(String(modelData.title || qsTr("Chapter")))
                     Keys.onPressed: function(event) {
                         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
@@ -388,6 +389,7 @@ Item {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.selectChapter(index)
+                        App.TouchTooltip { id: touchTooltipChapterTip; target: parent }
                     }
                 }
             }

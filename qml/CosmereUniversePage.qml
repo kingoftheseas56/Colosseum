@@ -6,6 +6,7 @@ import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls
 import "CosmereApi.js" as Cosmere
 import "Universes.js" as UDB
+import "." as App
 
 Item {
     id: root
@@ -372,9 +373,10 @@ Item {
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested()
-                ToolTip.visible: containsMouse
+                ToolTip.visible: ((!touchTooltipMinMa.longPressTooltipEnabled && containsMouse) || touchTooltipMinMa.active)
                 ToolTip.text: qsTr("Minimize")
-                ToolTip.delay: 350
+                ToolTip.delay: touchTooltipMinMa.longPressTooltipEnabled ? 0 : 350
+                App.TouchTooltip { id: touchTooltipMinMa; target: minMa }
             }
         }
         Item {
@@ -413,9 +415,10 @@ Item {
                 opacity: powerMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: powerMa; anchors.fill: parent; hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested()
-                ToolTip.visible: containsMouse
+                ToolTip.visible: ((!touchTooltipPowerMa.longPressTooltipEnabled && containsMouse) || touchTooltipPowerMa.active)
                 ToolTip.text: qsTr("Close Colosseum")
-                ToolTip.delay: 350
+                ToolTip.delay: touchTooltipPowerMa.longPressTooltipEnabled ? 0 : 350
+                App.TouchTooltip { id: touchTooltipPowerMa; target: powerMa }
             }
         }
     }

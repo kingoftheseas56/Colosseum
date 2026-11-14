@@ -16,6 +16,7 @@ import "AddonClient.js" as AddonClient
 import "Magnet.js" as Magnet
 import "TrackLanguage.js" as TrackLanguage
 import "SmartPlayPreferences.js" as SmartPlayPreferences
+import "." as App
 
 Item {
     id: sheet
@@ -1174,8 +1175,8 @@ Item {
                 MouseArea {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
                     ToolTip.text: sheet.mode === "play" ? qsTr("Play source") : qsTr("Download source")
-                    ToolTip.visible: containsMouse && mouseX >= play.x && mouseX < play.x + play.width && mouseY >= play.y && mouseY < play.y + play.height
-                    ToolTip.delay: 350
+                    ToolTip.visible: ((!touchTooltipRowMa.longPressTooltipEnabled && containsMouse) || touchTooltipRowMa.active) && mouseX >= play.x && mouseX < play.x + play.width && mouseY >= play.y && mouseY < play.y + play.height
+                    ToolTip.delay: touchTooltipRowMa.longPressTooltipEnabled ? 0 : 350
                     visible: !sheet.phoneLayout
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
@@ -1183,6 +1184,7 @@ Item {
                         list.forceActiveFocus(Qt.MouseFocusReason)
                         sheet.activateSource(row.index)
                     }
+                    App.TouchTooltip { id: touchTooltipRowMa; target: rowMa }
                 }
 
                 // copy link — the row's second verb (spec 2026-07-08). Torrents copy a
@@ -1207,14 +1209,15 @@ Item {
                     MouseArea {
                         id: copyMa; anchors.fill: parent; hoverEnabled: true
                         ToolTip.text: row.copiedTick ? qsTr("Source link copied") : qsTr("Copy source link")
-                        ToolTip.visible: containsMouse
-                        ToolTip.delay: 350
+                        ToolTip.visible: ((!touchTooltipCopyMa.longPressTooltipEnabled && containsMouse) || touchTooltipCopyMa.active)
+                        ToolTip.delay: touchTooltipCopyMa.longPressTooltipEnabled ? 0 : 350
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             list.currentIndex = row.index
                             list.forceActiveFocus(Qt.MouseFocusReason)
                             sheet.copySource(row.index)
                         }
+                        App.TouchTooltip { id: touchTooltipCopyMa; target: copyMa }
                     }
                 }
                 Timer { id: copyTickTimer; interval: 1200; onTriggered: row.copiedTick = false }
@@ -1241,14 +1244,15 @@ Item {
                     MouseArea {
                         id: dlMa; anchors.fill: parent; hoverEnabled: true
                         ToolTip.text: sheet.titleQueued ? qsTr("Download queued") : qsTr("Download source")
-                        ToolTip.visible: containsMouse
-                        ToolTip.delay: 350
+                        ToolTip.visible: ((!touchTooltipDlMa.longPressTooltipEnabled && containsMouse) || touchTooltipDlMa.active)
+                        ToolTip.delay: touchTooltipDlMa.longPressTooltipEnabled ? 0 : 350
                         cursorShape: sheet.titleQueued ? Qt.ArrowCursor : Qt.PointingHandCursor
                         onClicked: {
                             list.currentIndex = row.index
                             list.forceActiveFocus(Qt.MouseFocusReason)
                             sheet.downloadSource(row.index)
                         }
+                        App.TouchTooltip { id: touchTooltipDlMa; target: dlMa }
                     }
                 }
 
@@ -1399,14 +1403,15 @@ Item {
                                 objectName: "sourcePlay_" + row.index
                                 anchors.fill: parent
                                 ToolTip.text: sheet.mode === "play" ? qsTr("Play source") : qsTr("Download source")
-                                ToolTip.visible: mobilePlayHover.hovered
-                                ToolTip.delay: 350
+                                ToolTip.visible: ((!touchTooltipMobilePlay.longPressTooltipEnabled && mobilePlayHover.hovered) || touchTooltipMobilePlay.active)
+                                ToolTip.delay: touchTooltipMobilePlay.longPressTooltipEnabled ? 0 : 350
                                 HoverHandler { id: mobilePlayHover }
                                 onClicked: {
                                     list.currentIndex = row.index
                                     list.forceActiveFocus(Qt.MouseFocusReason)
                                     sheet.activateSource(row.index)
                                 }
+                                App.TouchTooltip { id: touchTooltipMobilePlay; target: parent }
                             }
                         }
                         Rectangle {
@@ -1424,14 +1429,15 @@ Item {
                                 objectName: "sourceCopy_" + row.index
                                 anchors.fill: parent
                                 ToolTip.text: row.copiedTick ? qsTr("Source link copied") : qsTr("Copy source link")
-                                ToolTip.visible: mobileCopyHover.hovered
-                                ToolTip.delay: 350
+                                ToolTip.visible: ((!touchTooltipMobileCopy.longPressTooltipEnabled && mobileCopyHover.hovered) || touchTooltipMobileCopy.active)
+                                ToolTip.delay: touchTooltipMobileCopy.longPressTooltipEnabled ? 0 : 350
                                 HoverHandler { id: mobileCopyHover }
                                 onClicked: {
                                     list.currentIndex = row.index
                                     list.forceActiveFocus(Qt.MouseFocusReason)
                                     sheet.copySource(row.index)
                                 }
+                                App.TouchTooltip { id: touchTooltipMobileCopy; target: parent }
                             }
                         }
                         Rectangle {
@@ -1449,14 +1455,15 @@ Item {
                                 objectName: "sourceDownload_" + row.index
                                 anchors.fill: parent
                                 ToolTip.text: sheet.titleQueued ? qsTr("Download queued") : qsTr("Download source")
-                                ToolTip.visible: mobileDownloadHover.hovered
-                                ToolTip.delay: 350
+                                ToolTip.visible: ((!touchTooltipMobileDownload.longPressTooltipEnabled && mobileDownloadHover.hovered) || touchTooltipMobileDownload.active)
+                                ToolTip.delay: touchTooltipMobileDownload.longPressTooltipEnabled ? 0 : 350
                                 HoverHandler { id: mobileDownloadHover }
                                 onClicked: {
                                     list.currentIndex = row.index
                                     list.forceActiveFocus(Qt.MouseFocusReason)
                                     sheet.downloadSource(row.index)
                                 }
+                                App.TouchTooltip { id: touchTooltipMobileDownload; target: parent }
                             }
                         }
                     }

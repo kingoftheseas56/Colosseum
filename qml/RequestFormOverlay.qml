@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Effects
 import QtQuick.Layouts
+import "." as App
 import "ViewportAvoidance.js" as Viewport
 import "SystemFocusContainment.js" as FocusContainment
 
@@ -317,9 +318,11 @@ FocusScope {
                     Layout.preferredWidth: root.keyboardVisible ? implicitWidth : 40
                     text: root.keyboardVisible ? qsTr("Close") : "×"
                     Accessible.name: qsTr("Close")
-                    ToolTip.visible: closeButton.hovered && !root.keyboardVisible
-                    ToolTip.delay: 350
+                    ToolTip.visible: !root.keyboardVisible && (touchTooltipClose.longPressTooltipEnabled
+                        ? touchTooltipClose.active : closeButton.hovered)
+                    ToolTip.delay: touchTooltipClose.longPressTooltipEnabled ? 0 : 350
                     ToolTip.text: qsTr("Close")
+                    App.TouchTooltip { id: touchTooltipClose; buttonTarget: closeButton }
                     enabled: !root.sending
                     onClicked: root.closeRequested()
                     background: Rectangle {

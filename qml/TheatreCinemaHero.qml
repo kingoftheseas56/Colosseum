@@ -2,6 +2,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import "." as App
 
 pragma ComponentBehavior: Bound
 
@@ -222,9 +223,9 @@ Item {
                 color: dot.index === view.currentIndex ? theme.ink : Qt.rgba(1, 1, 1, 0.48)
                 border.width: dotRow.activeFocus && dot.index === dotRow.currentIndex ? 2 : 0
                 border.color: theme.gold
-                ToolTip.visible: dotHover.hovered
+                ToolTip.visible: ((!touchTooltipCinemaDot.longPressTooltipEnabled && dotHover.hovered) || touchTooltipCinemaDot.active)
                 ToolTip.text: qsTr("Show slide %1").arg(dot.index + 1)
-                ToolTip.delay: 350
+                ToolTip.delay: touchTooltipCinemaDot.longPressTooltipEnabled ? 0 : 350
                 HoverHandler { id: dotHover }
                 Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                 MouseArea {
@@ -232,6 +233,7 @@ Item {
                     anchors.margins: -5
                     cursorShape: Qt.PointingHandCursor
                     onClicked: view.currentIndex = dot.index
+                    App.TouchTooltip { id: touchTooltipCinemaDot; target: parent }
                 }
             }
         }

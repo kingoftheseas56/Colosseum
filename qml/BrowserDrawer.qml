@@ -9,6 +9,7 @@ import "EpisodeBrowser.js" as EpisodeBrowser
 import "TheatreApi.js" as TheatreApi
 import "Magnet.js" as Magnet
 import "PlayerFocusContainment.js" as FocusContainment
+import "." as App
 
 Item {
     id: drawer
@@ -477,8 +478,8 @@ Item {
                     color: copySrcMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                     border.width: 1; border.color: theme.edge
                     ToolTip.text: srcRow.copiedTick ? qsTr("Link copied") : qsTr("Copy source link")
-                    ToolTip.delay: 350
-                    ToolTip.visible: copySrcMa.containsMouse
+                    ToolTip.delay: touchTooltipCopySrcMa.longPressTooltipEnabled ? 0 : 350
+                    ToolTip.visible: ((!touchTooltipCopySrcMa.longPressTooltipEnabled && copySrcMa.containsMouse) || touchTooltipCopySrcMa.active)
                     Text {
                         anchors.centerIn: parent
                         text: srcRow.copiedTick ? "✓" : "⧉"
@@ -493,6 +494,7 @@ Item {
                             if (!drawer.copySource(srcRow.index)) return
                             srcRow.showCopied()
                         }
+                        App.TouchTooltip { id: touchTooltipCopySrcMa; target: copySrcMa }
                     }
                 }
                 Timer { id: srcTickTimer; interval: 1200; onTriggered: srcRow.copiedTick = false }

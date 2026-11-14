@@ -323,6 +323,7 @@ Item {
 
     // ── shared: ✓ watched face ──
     Rectangle {
+        id: watchedBadge
         visible: tile.watched
         anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 8
         height: 20; radius: 10
@@ -337,8 +338,20 @@ Item {
         }
         HoverHandler { id: watchedBadgeHover; enabled: !tile.isHome && tile.watched }
         ToolTip.text: qsTr("Watched")
-        ToolTip.delay: 350
-        ToolTip.visible: watchedBadgeHover.hovered
+        ToolTip.delay: watchedTooltip.longPressTooltipEnabled ? 0 : 350
+        ToolTip.visible: watchedTooltip.longPressTooltipEnabled
+            ? watchedTooltip.active : watchedBadgeHover.hovered
+        MouseArea {
+            id: watchedBadgeInput
+            anchors.fill: parent
+            enabled: watchedTooltip.longPressTooltipEnabled && !tile.isHome
+            onClicked: tile.activatePrimary()
+        }
+        TouchTooltip {
+            id: watchedTooltip
+            objectName: "continueWatchedTooltip"
+            target: watchedBadgeInput
+        }
     }
 
     // ── shared: 46px resume circle — centered on the art ──

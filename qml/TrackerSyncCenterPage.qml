@@ -6,6 +6,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "." as App
 import QtQuick.Window
 
 Item {
@@ -2652,9 +2653,11 @@ Item {
                         objectName: "trackerDossierClose"
                         activeFocusOnTab: true
                         Accessible.name: "Close tracker details"
-                        ToolTip.visible: dossierCloseButton.hovered
-                        ToolTip.delay: 350
+                        ToolTip.visible: touchTooltipDossierClose.longPressTooltipEnabled
+                            ? touchTooltipDossierClose.active : dossierCloseButton.hovered
+                        ToolTip.delay: touchTooltipDossierClose.longPressTooltipEnabled ? 0 : 350
                         ToolTip.text: qsTr("Close tracker details")
+                        App.TouchTooltip { id: touchTooltipDossierClose; buttonTarget: dossierCloseButton }
                         onClicked: root.closeDossier()
                         contentItem: Text {
                             text: "×"
@@ -3375,9 +3378,11 @@ Item {
                             text: "×"
                             activeFocusOnTab: true
                             Accessible.name: "Close send review"
-                            ToolTip.visible: exportReviewCloseButton.hovered
-                            ToolTip.delay: 350
+                            ToolTip.visible: touchTooltipExportClose.longPressTooltipEnabled
+                                ? touchTooltipExportClose.active : exportReviewCloseButton.hovered
+                            ToolTip.delay: touchTooltipExportClose.longPressTooltipEnabled ? 0 : 350
                             ToolTip.text: qsTr("Close send review")
+                            App.TouchTooltip { id: touchTooltipExportClose; buttonTarget: exportReviewCloseButton }
                             KeyNavigation.tab: exportReviewList
                             onClicked: root.closeExportReview()
                             contentItem: Text {
@@ -3621,9 +3626,11 @@ Item {
                                 objectName: "trackerImportReviewClose"
                                 activeFocusOnTab: true
                                 Accessible.name: "Close import review"
-                                ToolTip.visible: importReviewCloseButton.hovered
-                                ToolTip.delay: 350
+                                ToolTip.visible: touchTooltipImportClose.longPressTooltipEnabled
+                                    ? touchTooltipImportClose.active : importReviewCloseButton.hovered
+                                ToolTip.delay: touchTooltipImportClose.longPressTooltipEnabled ? 0 : 350
                                 ToolTip.text: qsTr("Close import review")
+                                App.TouchTooltip { id: touchTooltipImportClose; buttonTarget: importReviewCloseButton }
                                 text: "×"
                                 KeyNavigation.backtab: cancelImportReviewButton
                                 Keys.priority: Keys.BeforeItem
@@ -4034,9 +4041,11 @@ Item {
                             activeFocusOnTab: true
                             text: "×"
                             Accessible.name: "Close title search"
-                            ToolTip.visible: titleMatchCloseButton.hovered
-                            ToolTip.delay: 350
+                            ToolTip.visible: touchTooltipTitleMatchClose.longPressTooltipEnabled
+                                ? touchTooltipTitleMatchClose.active : titleMatchCloseButton.hovered
+                            ToolTip.delay: touchTooltipTitleMatchClose.longPressTooltipEnabled ? 0 : 350
                             ToolTip.text: qsTr("Close title search")
+                            App.TouchTooltip { id: touchTooltipTitleMatchClose; buttonTarget: titleMatchCloseButton }
                             onClicked: root.closeTitleMatchFinder()
                             contentItem: Text {
                                 text: titleMatchCloseButton.text

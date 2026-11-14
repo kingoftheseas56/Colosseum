@@ -27,9 +27,11 @@ Button {
 
     Accessible.name: control.accessibleName
         + (control.authoritativeChecked ? qsTr(", on") : qsTr(", off"))
-    ToolTip.visible: control.hovered
-    ToolTip.delay: 350
+    ToolTip.visible: touchTooltipControl.longPressTooltipEnabled
+        ? touchTooltipControl.active : control.hovered
+    ToolTip.delay: touchTooltipControl.longPressTooltipEnabled ? 0 : 350
     ToolTip.text: (control.authoritativeChecked ? qsTr("Disable ") : qsTr("Enable ")) + control.accessibleName
+    TouchTooltip { id: touchTooltipControl; buttonTarget: control }
 
     onClicked: control.changeRequested(!control.authoritativeChecked)
 

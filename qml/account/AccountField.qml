@@ -97,9 +97,11 @@ Item {
         flat: true
         focusPolicy: Qt.StrongFocus
         Accessible.name: root.reveal ? "Hide password" : "Show password"
-        ToolTip.visible: revealButton.hovered
-        ToolTip.delay: 350
+        ToolTip.visible: touchTooltipReveal.longPressTooltipEnabled
+            ? touchTooltipReveal.active : revealButton.hovered
+        ToolTip.delay: touchTooltipReveal.longPressTooltipEnabled ? 0 : 350
         ToolTip.text: root.reveal ? qsTr("Hide password") : qsTr("Show password")
+        TouchTooltip { id: touchTooltipReveal; buttonTarget: revealButton }
 
         contentItem: Text {
             text: root.reveal ? "○" : "◉"

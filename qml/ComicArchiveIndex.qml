@@ -11,6 +11,7 @@
 import QtQuick
 import QtQuick.Controls
 import "ComicsApi.js" as Api
+import "." as App
 
 Item {
     id: page
@@ -90,11 +91,13 @@ Item {
             Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
-            ToolTip.visible: minMa.containsMouse
+            ToolTip.visible: ((!touchTooltipMinMa.longPressTooltipEnabled && minMa.containsMouse) || touchTooltipMinMa.active)
             ToolTip.text: qsTr('Minimize window')
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipMinMa.longPressTooltipEnabled ? 0 : 350
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: page.minimizeRequested() }
+                onClicked: page.minimizeRequested()
+                App.TouchTooltip { id: touchTooltipMinMa; target: minMa }
+            }
         }
         Item {
             width: 22
@@ -109,15 +112,16 @@ Item {
                 fillMode: Image.PreserveAspectFit
                 opacity: fsMa.containsMouse ? 1.0 : 0.72
             }
-            ToolTip.visible: fsMa.containsMouse
+            ToolTip.visible: ((!touchTooltipFsMa.longPressTooltipEnabled && fsMa.containsMouse) || touchTooltipFsMa.active)
             ToolTip.text: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipFsMa.longPressTooltipEnabled ? 0 : 350
             MouseArea {
                 id: fsMa
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: page.fullscreenRequested()
+                App.TouchTooltip { id: touchTooltipFsMa; target: fsMa }
             }
         }
         Item {
@@ -125,11 +129,13 @@ Item {
             Image { anchors.fill: parent; source: "../assets/icons/power.svg"
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: clMa.containsMouse ? 1.0 : 0.72 }
-            ToolTip.visible: clMa.containsMouse
+            ToolTip.visible: ((!touchTooltipClMa.longPressTooltipEnabled && clMa.containsMouse) || touchTooltipClMa.active)
             ToolTip.text: qsTr('Close archives')
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipClMa.longPressTooltipEnabled ? 0 : 350
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: page.closeRequested() }
+                onClicked: page.closeRequested()
+                App.TouchTooltip { id: touchTooltipClMa; target: clMa }
+            }
         }
     }
 

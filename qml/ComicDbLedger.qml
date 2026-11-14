@@ -14,6 +14,7 @@ import QtQuick.Controls
 import "ComicResolve.js" as Resolve
 import "collections" as CollectionsUi
 import "CollectionsReferences.js" as CollectionsReferences
+import "." as App
 
 Item {
     id: ledger
@@ -457,9 +458,10 @@ Item {
                                 id: altMa; anchors.fill: parent; enabled: ed.canAlternate
                                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: ledger.alternateSourcesRequested(ed.modelData, ed.chId)
-                                ToolTip.visible: containsMouse
+                                ToolTip.visible: ((!touchTooltipAltMa.longPressTooltipEnabled && containsMouse) || touchTooltipAltMa.active)
                                 ToolTip.text: "Find alternate sources"
-                                ToolTip.delay: 350
+                                ToolTip.delay: touchTooltipAltMa.longPressTooltipEnabled ? 0 : 350
+                                App.TouchTooltip { id: touchTooltipAltMa; target: altMa }
                             }
                             KeyboardAction {
                                 id: alternateSourcesKeyboard

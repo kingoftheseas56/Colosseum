@@ -8,6 +8,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import "." as App
 
 Item {
     id: root
@@ -1091,9 +1092,11 @@ Item {
                                                 text: "✓"; color: theme.inkDim
                                                 font.family: theme.ui; font.pixelSize: 13
                                                 HoverHandler { id: completeMarkHover }
-                                                ToolTip.visible: completeMarkHover.hovered
+                                                ToolTip.visible: touchTooltipCompleteMark.longPressTooltipEnabled
+                                                    ? touchTooltipCompleteMark.active : completeMarkHover.hovered
                                                 ToolTip.text: qsTr("Download complete")
-                                                ToolTip.delay: 350
+                                                ToolTip.delay: touchTooltipCompleteMark.longPressTooltipEnabled ? 0 : 350
+                                                App.TouchTooltip { id: touchTooltipCompleteMark; owner: parent; tapOwner: true }
                                             }
                                             Text {
                                                 // Android touch host: glyph unchanged, hit host >= 48 (desktop: implicit size).
@@ -1702,9 +1705,11 @@ Item {
                                 Text {
                                     id: abMark
                                     HoverHandler { id: audiobookMarkHover }
-                                    ToolTip.visible: audiobookMarkHover.hovered
+                                    ToolTip.visible: touchTooltipAudiobookMark.longPressTooltipEnabled
+                                        ? touchTooltipAudiobookMark.active : audiobookMarkHover.hovered
                                     ToolTip.text: abDoneRow.modelData.missing ? qsTr("File missing") : qsTr("Saved on this device")
-                                    ToolTip.delay: 350
+                                    ToolTip.delay: touchTooltipAudiobookMark.longPressTooltipEnabled ? 0 : 350
+                                    App.TouchTooltip { id: touchTooltipAudiobookMark; owner: abMark; tapOwner: true }
                                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                                     width: 22
                                     text: abDoneRow.modelData.missing ? "✕" : "✓"
@@ -1951,9 +1956,11 @@ Item {
         Text {
             id: markT
             HoverHandler { id: ledgerMarkHover }
-            ToolTip.visible: ledgerMarkHover.hovered
+            ToolTip.visible: touchTooltipLedgerMark.longPressTooltipEnabled
+                ? touchTooltipLedgerMark.active : ledgerMarkHover.hovered
             ToolTip.text: row.rowData.missing ? qsTr("File missing") : qsTr("Saved on this device")
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipLedgerMark.longPressTooltipEnabled ? 0 : 350
+            App.TouchTooltip { id: touchTooltipLedgerMark; owner: markT; tapOwner: true }
             x: row.indent
             anchors.verticalCenter: parent.verticalCenter
             width: 22

@@ -21,9 +21,11 @@ Button {
     bottomPadding: 8
     focusPolicy: Qt.StrongFocus
     hoverEnabled: true
-    ToolTip.visible: root.hovered && root.tooltipText.length > 0
+    ToolTip.visible: root.tooltipText.length > 0 && (touchTooltipAction.longPressTooltipEnabled
+        ? touchTooltipAction.active : root.hovered)
     ToolTip.text: root.tooltipText
-    ToolTip.delay: 350
+    ToolTip.delay: touchTooltipAction.longPressTooltipEnabled ? 0 : 350
+    TouchTooltip { id: touchTooltipAction; buttonTarget: root }
     font.family: theme.ui
     font.pixelSize: 14
     font.weight: Font.DemiBold

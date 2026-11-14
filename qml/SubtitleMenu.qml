@@ -7,6 +7,7 @@ import QtQuick.Controls as Controls
 import "Subtitles.js" as Subtitles
 import "SubtitleGroups.js" as SubtitleGroups
 import "PlayerFocusContainment.js" as FocusContainment
+import "." as App
 
 Item {
     id: menu
@@ -1436,8 +1437,8 @@ Item {
                     radius: 8
                     color: modelData
                     Controls.ToolTip.text: swatches.label + " " + dot.modelData
-                    Controls.ToolTip.visible: swatchHover.hovered
-                    Controls.ToolTip.delay: 350
+                    Controls.ToolTip.visible: ((!touchTooltipSubtitleSwatch.longPressTooltipEnabled && swatchHover.hovered) || touchTooltipSubtitleSwatch.active)
+                    Controls.ToolTip.delay: touchTooltipSubtitleSwatch.longPressTooltipEnabled ? 0 : 350
                     border.width: (swatches.activeFocus && swatches.keyboardIndex === dot.index)
                                   || swatches.selected.toLowerCase() === modelData.toLowerCase() ? 2 : 1
                     border.color: (swatches.activeFocus && swatches.keyboardIndex === dot.index)
@@ -1449,6 +1450,7 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: swatches.picked(dot.modelData)
+                        App.TouchTooltip { id: touchTooltipSubtitleSwatch; target: parent }
                     }
                 }
             }

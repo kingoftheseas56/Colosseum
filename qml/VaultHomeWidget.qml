@@ -7,6 +7,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import "." as App
 
 Glass {
     id: vault
@@ -387,6 +388,7 @@ Glass {
         hoverEnabled: true
         cursorShape: vault.available ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: if (vault.available) vault.clicked()
+        App.TouchTooltip { id: touchTooltipHit; target: hit }
     }
     KeyboardAction {
         id: keyboardAction
@@ -398,8 +400,8 @@ Glass {
         accessibleDescription: vault.available ? "" : qsTr("Vault is unavailable on Android.")
         onTriggered: vault.clicked()
     }
-    ToolTip.visible: !vault.available && hit.containsMouse
+    ToolTip.visible: !vault.available && ((!touchTooltipHit.longPressTooltipEnabled && hit.containsMouse) || touchTooltipHit.active)
     ToolTip.text: qsTr("Vault is unavailable on Android.")
-    ToolTip.delay: 350
+    ToolTip.delay: touchTooltipHit.longPressTooltipEnabled ? 0 : 350
 
 }

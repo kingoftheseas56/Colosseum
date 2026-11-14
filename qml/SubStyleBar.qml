@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls as Controls
 import QtCore
 import "PlayerFocusContainment.js" as FocusContainment
+import "." as App
 
 Item {
     id: bar
@@ -302,8 +303,8 @@ Item {
                     radius: 9
                     color: modelData
                     Controls.ToolTip.text: swatches.label + " " + dot.modelData
-                    Controls.ToolTip.visible: swatchHover.hovered
-                    Controls.ToolTip.delay: 350
+                    Controls.ToolTip.visible: ((!touchTooltipSubStyleSwatch.longPressTooltipEnabled && swatchHover.hovered) || touchTooltipSubStyleSwatch.active)
+                    Controls.ToolTip.delay: touchTooltipSubStyleSwatch.longPressTooltipEnabled ? 0 : 350
                     border.width: (swatches.activeFocus && swatches.keyboardIndex === dot.index) || swatches.selected.toLowerCase() === modelData.toLowerCase() ? 2 : 1
                     border.color: (swatches.activeFocus && swatches.keyboardIndex === dot.index) || swatches.selected.toLowerCase() === modelData.toLowerCase() ? theme.gold : Qt.rgba(0, 0, 0, 0.45)
                     HoverHandler { id: swatchHover }
@@ -312,6 +313,7 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: swatches.picked(dot.modelData)
+                        App.TouchTooltip { id: touchTooltipSubStyleSwatch; target: parent }
                     }
                 }
             }

@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import "MangaChapterGrouping.js" as Grouping
+import "." as App
 
 Item {
     id: root
@@ -443,9 +444,9 @@ Item {
                                     }
                                     MouseArea {
                                         id: trailingMouse
-                                        ToolTip.visible: containsMouse
+                                        ToolTip.visible: ((!touchTooltipTrailingMouse.longPressTooltipEnabled && containsMouse) || touchTooltipTrailingMouse.active)
                                         ToolTip.text: row.dlState === 'done' ? qsTr('Delete chapter download') : row.inFlight ? qsTr('Cancel chapter download') : row.dlState === 'error' ? qsTr('Retry chapter download') : qsTr('Download chapter')
-                                        ToolTip.delay: 350
+                                        ToolTip.delay: touchTooltipTrailingMouse.longPressTooltipEnabled ? 0 : 350
                                         objectName: "mangaChapterDownload_" + row.chapterId
                                         anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; z: 3
                                         onClicked: {
@@ -454,6 +455,7 @@ Item {
                                             else if (row.inFlight) root.downloader.cancelDownload(row.chapterId)
                                             else row.download()
                                         }
+                                        App.TouchTooltip { id: touchTooltipTrailingMouse; target: trailingMouse }
                                     }
                                 }
                                 Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Qt.rgba(1,1,1,.05) }

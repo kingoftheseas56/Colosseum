@@ -118,9 +118,11 @@ Button {
             textFormat: Text.PlainText
         }
     }
-    ToolTip.visible: card.hovered && collectionTitle.truncated
+    ToolTip.visible: collectionTitle.truncated && (touchTooltipCard.longPressTooltipEnabled
+        ? touchTooltipCard.active : card.hovered)
     ToolTip.text: card.collection.name
-    ToolTip.delay: 500
+    ToolTip.delay: touchTooltipCard.longPressTooltipEnabled ? 0 : 500
+    TouchTooltip { id: touchTooltipCard; buttonTarget: card }
     HoverHandler { cursorShape: Qt.PointingHandCursor }
     Keys.onReturnPressed: card.clicked()
     Keys.onEnterPressed: card.clicked()

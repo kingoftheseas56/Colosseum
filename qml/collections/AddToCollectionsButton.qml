@@ -23,6 +23,8 @@ Rectangle {
         NamedCollections.revision
         return NamedCollections.memberships(root.resolution.reference.key).length
     }
+    readonly property string tooltipText: !root.available ? root.resolution.error
+        : root.membershipCount > 0 ? qsTr("In %1 collections").arg(root.membershipCount) : qsTr("Keep this title in your collections")
     implicitWidth: root.iconOnly ? 34 : label.implicitWidth + 62
     implicitHeight: root.iconOnly ? 34 : 42
     radius: 11
@@ -52,10 +54,16 @@ Rectangle {
         textFormat: Text.PlainText
     }
     HoverHandler { id: hintHover; cursorShape: root.available ? Qt.PointingHandCursor : Qt.ArrowCursor }
-    ToolTip.visible: root.hoverDescriptionEnabled && hintHover.hovered
-    ToolTip.delay: 350
-    ToolTip.text: !root.available ? root.resolution.error
-        : root.membershipCount > 0 ? qsTr("In %1 collections").arg(root.membershipCount) : qsTr("Keep this title in your collections")
+    TouchTooltip {
+        id: unavailableTooltip
+        owner: root
+        tapOwner: root.hoverDescriptionEnabled && !root.available
+    }
+    ToolTip.visible: root.hoverDescriptionEnabled && (action.longPressTooltipEnabled
+        ? (root.available ? action._longPressTooltip : unavailableTooltip.active)
+        : hintHover.hovered)
+    ToolTip.delay: action.longPressTooltipEnabled ? 0 : 350
+    ToolTip.text: root.tooltipText
     KeyboardAction {
         id: action
         objectName: root.objectName + "Action"
@@ -69,6 +77,9 @@ Rectangle {
         accessibleName: root.labelText
         accessibleDescription: !root.available ? root.resolution.error
             : root.membershipCount ? qsTr("In %1 collections").arg(root.membershipCount) : ""
+        tooltipText: root.hoverDescriptionEnabled && root.available ? root.tooltipText : ""
+        tooltipHovered: hintHover.hovered
+        ToolTip.visible: false
         focusRadius: root.radius
         onTriggered: {
             const window = root.Window.window

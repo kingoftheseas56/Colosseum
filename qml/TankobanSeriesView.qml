@@ -1367,13 +1367,17 @@ Item {
                         sourceSize.width: 40; sourceSize.height: 40
                         opacity: 0.92
                     }
-                    ToolTip.visible: libraryAction.hovered
-                    ToolTip.text: page.librarySaved ? "In your Library · remove" : "Add to Library"
-                    ToolTip.delay: 350
+                    ToolTip.visible: libraryAction.longPressTooltipEnabled
+                        ? libraryAction._longPressTooltip : libraryAction.hovered
+                    ToolTip.text: libraryAction.tooltipText
+                    ToolTip.delay: libraryAction.longPressTooltipEnabled ? 0 : 350
                     KeyboardAction {
                         id: libraryAction
                         anchors.fill: parent
                         accessibleName: page.librarySaved ? "Remove from Library" : "Add to Library"
+                        tooltipText: page.librarySaved ? "In your Library · remove" : "Add to Library"
+                        tooltipHovered: libraryAction.hovered
+                        ToolTip.visible: false
                         focusRadius: 10
                         focusColor: page.focusGold
                         onTriggered: page.toggleLibrary()

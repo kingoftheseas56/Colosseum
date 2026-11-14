@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls.Basic
+import "." as App
 import "OnePieceFinalSeaData.js" as Story
 import "OnePieceFinalSeaAdapter.js" as Adapter
 import "OnePieceFinalSeaAtlasData.js" as Atlas
@@ -442,9 +443,10 @@ FocusScope {
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Zoom out"
-            ToolTip.visible: hovered
+            ToolTip.visible: touchTooltipZoomOut.longPressTooltipEnabled ? touchTooltipZoomOut.active : hovered
             ToolTip.text: qsTr("Zoom out")
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipZoomOut.longPressTooltipEnabled ? 0 : 350
+            App.TouchTooltip { id: touchTooltipZoomOut; buttonTarget: parent }
             onClicked: root.setZoom(root.zoom - 0.25)
         }
         FinalSeaInkButton {
@@ -456,9 +458,10 @@ FocusScope {
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Reset zoom to show the whole chart"
-            ToolTip.visible: hovered
+            ToolTip.visible: touchTooltipZoomReset.longPressTooltipEnabled ? touchTooltipZoomReset.active : hovered
             ToolTip.text: qsTr("Reset zoom")
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipZoomReset.longPressTooltipEnabled ? 0 : 350
+            App.TouchTooltip { id: touchTooltipZoomReset; buttonTarget: parent }
             onClicked: root.setZoom(1)
         }
         FinalSeaInkButton {
@@ -470,9 +473,10 @@ FocusScope {
             fontFamily: root.bodyFamily
             reducedMotion: root.reducedMotion
             Accessible.name: "Zoom in"
-            ToolTip.visible: hovered
+            ToolTip.visible: touchTooltipZoomIn.longPressTooltipEnabled ? touchTooltipZoomIn.active : hovered
             ToolTip.text: qsTr("Zoom in")
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipZoomIn.longPressTooltipEnabled ? 0 : 350
+            App.TouchTooltip { id: touchTooltipZoomIn; buttonTarget: parent }
             onClicked: root.setZoom(root.zoom + 0.25)
         }
     }

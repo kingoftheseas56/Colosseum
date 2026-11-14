@@ -14,6 +14,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Window
 import "TankobanLibraryApi.js" as Api
+import "." as App
 
 Item {
     id: root
@@ -377,9 +378,9 @@ Item {
                 border.color: root.menuRowId === String(modelData.entry.id || "") ? theme.gold : theme.edge
                 visible: card.effectiveHovered || root.menuRowId === String(modelData.entry.id || "")
                 HoverHandler { id: dotsTipHover }
-                ToolTip.visible: dotsTipHover.hovered
+                ToolTip.visible: ((!touchTooltipLibraryDots.longPressTooltipEnabled && dotsTipHover.hovered) || touchTooltipLibraryDots.active)
                 ToolTip.text: qsTr('Library options')
-                ToolTip.delay: 350
+                ToolTip.delay: touchTooltipLibraryDots.longPressTooltipEnabled ? 0 : 350
                 Text { anchors.centerIn: parent; text: "⋮"; color: theme.ink; font.pixelSize: 15 }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -389,6 +390,7 @@ Item {
                         var pt = dots.mapToItem(root, dots.width, dots.height)
                         root.openMenu(host.modelData, pt.x, pt.y, wall)
                     }
+                    App.TouchTooltip { id: touchTooltipLibraryDots; target: parent }
                 }
             }
         }

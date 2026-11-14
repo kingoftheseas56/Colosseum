@@ -10,6 +10,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "GenreApi.js" as Api
+import "." as App
 
 Item {
     id: root
@@ -395,9 +396,10 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         ToolTip.text: qsTr("Search")
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
+                        ToolTip.delay: touchTooltipOwnerAt399.longPressTooltipEnabled ? 0 : 350
+                        ToolTip.visible: ((!touchTooltipOwnerAt399.longPressTooltipEnabled && containsMouse) || touchTooltipOwnerAt399.active)
                         onClicked: root.searchClicked()
+                        App.TouchTooltip { id: touchTooltipOwnerAt399; target: parent }
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; onTriggered: root.searchClicked() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
@@ -406,9 +408,10 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         ToolTip.text: qsTr("Minimize")
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
+                        ToolTip.delay: touchTooltipOwnerAt410.longPressTooltipEnabled ? 0 : 350
+                        ToolTip.visible: ((!touchTooltipOwnerAt410.longPressTooltipEnabled && containsMouse) || touchTooltipOwnerAt410.active)
                         onClicked: root.minimizeRequested()
+                        App.TouchTooltip { id: touchTooltipOwnerAt410; target: parent }
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; onTriggered: root.minimizeRequested() } }
             Image { visible: Qt.platform.os !== "android"; source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
@@ -418,9 +421,10 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         ToolTip.text: typeof WindowMode !== "undefined" && WindowMode.shellWindowed
                                       ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
+                        ToolTip.delay: touchTooltipOwnerAt422.longPressTooltipEnabled ? 0 : 350
+                        ToolTip.visible: ((!touchTooltipOwnerAt422.longPressTooltipEnabled && containsMouse) || touchTooltipOwnerAt422.active)
                         onClicked: root.fullscreenRequested()
+                        App.TouchTooltip { id: touchTooltipOwnerAt422; target: parent }
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
@@ -429,9 +433,10 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         ToolTip.text: qsTr("Close Colosseum")
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
+                        ToolTip.delay: touchTooltipOwnerAt433.longPressTooltipEnabled ? 0 : 350
+                        ToolTip.visible: ((!touchTooltipOwnerAt433.longPressTooltipEnabled && containsMouse) || touchTooltipOwnerAt433.active)
                         onClicked: root.closeRequested()
+                        App.TouchTooltip { id: touchTooltipOwnerAt433; target: parent }
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"; onTriggered: root.closeRequested() } }
         }

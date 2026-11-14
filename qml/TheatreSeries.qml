@@ -9,6 +9,7 @@ import "AnimeEpisodePresentation.js" as AnimeEpisodePresentation
 import "TheatreFacts.js" as TheatreFacts
 import "collections" as CollectionsUi
 import "CollectionsReferences.js" as CollectionsReferences
+import "." as App
 
 Item {
     id: page
@@ -1747,9 +1748,9 @@ Item {
                                 // Automation identity (Lanista): keyed by the episode's own stream id.
                                 // The identity stays stable while the bounded virtual window is recreated.
                                 objectName: "theatreEpisodePlay_" + String(page.episodeStreamId(ep.modelData))
-                                ToolTip.visible: playMa.containsMouse
+                                ToolTip.visible: ((!touchTooltipPlayMa.longPressTooltipEnabled && playMa.containsMouse) || touchTooltipPlayMa.active)
                                 ToolTip.text: qsTr("Play episode")
-                                ToolTip.delay: 350
+                                ToolTip.delay: touchTooltipPlayMa.longPressTooltipEnabled ? 0 : 350
                                 x: rowActions.x
                                 y: rowActions.y
                                 width: 38
@@ -1775,6 +1776,7 @@ Item {
                                         episodeVirtualSpace.forceActiveFocus(Qt.MouseFocusReason)
                                         ep.openForPlay()
                                     }
+                                    App.TouchTooltip { id: touchTooltipPlayMa; target: playMa }
                                 }
                             }
                             // Per-episode download (parity spec F4). Declared AFTER epMa so it
@@ -1782,10 +1784,10 @@ Item {
                             // (inert check), queued (inert download dim), ready to queue.
                             Rectangle {
                                 id: epDl
-                                ToolTip.visible: epDlMa.containsMouse
+                                ToolTip.visible: ((!touchTooltipEpDlMa.longPressTooltipEnabled && epDlMa.containsMouse) || touchTooltipEpDlMa.active)
                                 ToolTip.text: epDl.onDisk ? qsTr("Downloaded")
                                               : epDl.inQueue ? qsTr("Download queued") : qsTr("Download episode")
-                                ToolTip.delay: 350
+                                ToolTip.delay: touchTooltipEpDlMa.longPressTooltipEnabled ? 0 : 350
                                 property string sid: page.episodeStreamId(ep.modelData)
                                 property bool onDisk: (typeof Download !== "undefined")
                                     ? (Download.queueRevision, Download.hasVideo(sid)) : false
@@ -1822,6 +1824,7 @@ Item {
                                         episodeVirtualSpace.forceActiveFocus(Qt.MouseFocusReason)
                                         page.openEpisodeDownload(ep.modelData)
                                     }
+                                    App.TouchTooltip { id: touchTooltipEpDlMa; target: epDlMa }
                                 }
                             }
                             }

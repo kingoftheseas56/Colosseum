@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import "update" as UpdateUi
+import "." as App
 
 Item {
     id: root
@@ -315,8 +316,8 @@ Item {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Minimize Colosseum"
-                ToolTip.visible: minMa.containsMouse
-                ToolTip.delay: 350
+                ToolTip.visible: ((!touchTooltipMinMa.longPressTooltipEnabled && minMa.containsMouse) || touchTooltipMinMa.active)
+                ToolTip.delay: touchTooltipMinMa.longPressTooltipEnabled ? 0 : 350
                 ToolTip.text: qsTr("Minimize Colosseum")
                 Keys.onReturnPressed: root.minimizeRequested()
                 Keys.onEnterPressed: root.minimizeRequested()
@@ -328,6 +329,7 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.minimizeRequested()
+                    App.TouchTooltip { id: touchTooltipMinMa; target: minMa }
                 }
             }
 
@@ -341,8 +343,8 @@ Item {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Toggle Colosseum fullscreen"
-                ToolTip.visible: fullMa.containsMouse
-                ToolTip.delay: 350
+                ToolTip.visible: ((!touchTooltipFullMa.longPressTooltipEnabled && fullMa.containsMouse) || touchTooltipFullMa.active)
+                ToolTip.delay: touchTooltipFullMa.longPressTooltipEnabled ? 0 : 350
                 ToolTip.text: qsTr("Toggle fullscreen")
                 Keys.onReturnPressed: root.fullscreenRequested()
                 Keys.onEnterPressed: root.fullscreenRequested()
@@ -354,6 +356,7 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.fullscreenRequested()
+                    App.TouchTooltip { id: touchTooltipFullMa; target: fullMa }
                 }
             }
 
@@ -367,8 +370,8 @@ Item {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Close Colosseum"
-                ToolTip.visible: powerMa.containsMouse
-                ToolTip.delay: 350
+                ToolTip.visible: ((!touchTooltipPowerMa.longPressTooltipEnabled && powerMa.containsMouse) || touchTooltipPowerMa.active)
+                ToolTip.delay: touchTooltipPowerMa.longPressTooltipEnabled ? 0 : 350
                 ToolTip.text: qsTr("Close Colosseum")
                 Keys.onReturnPressed: root.closeRequested()
                 Keys.onEnterPressed: root.closeRequested()
@@ -380,6 +383,7 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.closeRequested()
+                    App.TouchTooltip { id: touchTooltipPowerMa; target: powerMa }
                 }
             }
         }

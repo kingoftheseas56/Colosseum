@@ -2,6 +2,7 @@
 // Same shape and keyboard contract as ContinueRow (KeyboardCollectionController over a Flickable).
 import QtQuick
 import QtQuick.Controls.Basic
+import "." as App
 
 Column {
     id: rail
@@ -84,9 +85,11 @@ Column {
                 padding: 0
                 text: "←"
                 Accessible.name: qsTr("Previous add-ons in %1").arg(rail.title)
-                ToolTip.visible: hovered
-                ToolTip.delay: 350
+                ToolTip.visible: touchTooltipPrevious.longPressTooltipEnabled
+                    ? touchTooltipPrevious.active : hovered
+                ToolTip.delay: touchTooltipPrevious.longPressTooltipEnabled ? 0 : 350
                 ToolTip.text: qsTr("Previous add-ons in %1").arg(rail.title)
+                App.TouchTooltip { id: touchTooltipPrevious; buttonTarget: parent }
                 onClicked: rail.scrollByPage(-1)
             }
             ShelfButton {
@@ -97,9 +100,11 @@ Column {
                 padding: 0
                 text: "→"
                 Accessible.name: qsTr("Next add-ons in %1").arg(rail.title)
-                ToolTip.visible: hovered
-                ToolTip.delay: 350
+                ToolTip.visible: touchTooltipNext.longPressTooltipEnabled
+                    ? touchTooltipNext.active : hovered
+                ToolTip.delay: touchTooltipNext.longPressTooltipEnabled ? 0 : 350
                 ToolTip.text: qsTr("Next add-ons in %1").arg(rail.title)
+                App.TouchTooltip { id: touchTooltipNext; buttonTarget: parent }
                 onClicked: rail.scrollByPage(1)
             }
             ShelfButton {

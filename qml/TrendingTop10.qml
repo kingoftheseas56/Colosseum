@@ -8,6 +8,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import "." as App
 
 Column {
     id: top10
@@ -66,9 +67,10 @@ Column {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             ToolTip.text: chevronKeyboard.accessibleName
-            ToolTip.delay: 350
-            ToolTip.visible: containsMouse
+            ToolTip.delay: touchTooltipChevMa.longPressTooltipEnabled ? 0 : 350
+            ToolTip.visible: ((!touchTooltipChevMa.longPressTooltipEnabled && containsMouse) || touchTooltipChevMa.active)
             onClicked: chev.tapped()
+            App.TouchTooltip { id: touchTooltipChevMa; target: chevMa }
         }
         KeyboardAction {
             id: chevronKeyboard

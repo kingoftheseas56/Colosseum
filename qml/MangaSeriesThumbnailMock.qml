@@ -16,6 +16,7 @@ import QtQuick.Controls
 import "MangaVolumes.js" as Vol
 import "collections" as CollectionsUi
 import "CollectionsReferences.js" as CollectionsReferences
+import "." as App
 
 Item {
     id: page
@@ -539,11 +540,13 @@ Item {
             Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
-            ToolTip.visible: minMa.containsMouse
+            ToolTip.visible: ((!touchTooltipMinMa.longPressTooltipEnabled && minMa.containsMouse) || touchTooltipMinMa.active)
             ToolTip.text: qsTr('Minimize window')
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipMinMa.longPressTooltipEnabled ? 0 : 350
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: page.minimizeRequested() }
+                onClicked: page.minimizeRequested()
+                App.TouchTooltip { id: touchTooltipMinMa; target: minMa }
+            }
         }
         Item {
             width: 22
@@ -558,15 +561,16 @@ Item {
                 fillMode: Image.PreserveAspectFit
                 opacity: fsMa.containsMouse ? 1.0 : 0.72
             }
-            ToolTip.visible: fsMa.containsMouse
+            ToolTip.visible: ((!touchTooltipFsMa.longPressTooltipEnabled && fsMa.containsMouse) || touchTooltipFsMa.active)
             ToolTip.text: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipFsMa.longPressTooltipEnabled ? 0 : 350
             MouseArea {
                 id: fsMa
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: page.fullscreenRequested()
+                App.TouchTooltip { id: touchTooltipFsMa; target: fsMa }
             }
         }
         Item {
@@ -574,11 +578,13 @@ Item {
             Image { anchors.fill: parent; source: "../assets/icons/power.svg"
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: clMa.containsMouse ? 1.0 : 0.72 }
-            ToolTip.visible: clMa.containsMouse
+            ToolTip.visible: ((!touchTooltipClMa.longPressTooltipEnabled && clMa.containsMouse) || touchTooltipClMa.active)
             ToolTip.text: qsTr('Close series view')
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipClMa.longPressTooltipEnabled ? 0 : 350
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: page.closeRequested() }
+                onClicked: page.closeRequested()
+                App.TouchTooltip { id: touchTooltipClMa; target: clMa }
+            }
         }
     }
 
@@ -1032,9 +1038,9 @@ Item {
                                     }
                                     MouseArea {
                                         id: trMa; anchors.fill: parent; hoverEnabled: true; z: 5
-                                        ToolTip.visible: containsMouse
+                                        ToolTip.visible: ((!touchTooltipTrMa.longPressTooltipEnabled && containsMouse) || touchTooltipTrMa.active)
                                         ToolTip.text: row.dlState === 'done' ? qsTr('Delete chapter download') : row.inFlight ? qsTr('Cancel chapter download') : row.dlState === 'error' ? qsTr('Retry chapter download') : qsTr('Download chapter')
-                                        ToolTip.delay: 350
+                                        ToolTip.delay: touchTooltipTrMa.longPressTooltipEnabled ? 0 : 350
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
                                             if (typeof Downloads === "undefined") return
@@ -1042,6 +1048,7 @@ Item {
                                             else if (row.inFlight) Downloads.cancelDownload(row.chId)
                                             else row.startDownload()
                                         }
+                                        App.TouchTooltip { id: touchTooltipTrMa; target: trMa }
                                     }
                                 }
 

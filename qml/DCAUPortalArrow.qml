@@ -5,9 +5,16 @@ FocusScope {
     id: root
     property string glyph: "›"
     property string tooltipText: ""
-    ToolTip.visible: root.tooltipText.length > 0 && hover.hovered
+    property bool longPressTooltipEnabled: Qt.platform.os === "android"
+    TouchTooltip {
+        id: tooltipState
+        owner: root
+        longPressTooltipEnabled: root.longPressTooltipEnabled
+    }
+    ToolTip.visible: root.tooltipText.length > 0
+        && (root.longPressTooltipEnabled ? tooltipState.active : hover.hovered)
     ToolTip.text: root.tooltipText
-    ToolTip.delay: 350
+    ToolTip.delay: root.longPressTooltipEnabled ? 0 : 350
     signal triggered()
 
     width: 44
@@ -37,6 +44,17 @@ FocusScope {
 
     HoverHandler { id: hover }
     TapHandler {
+        id: pointerTap
+        longPressThreshold: root.longPressTooltipEnabled
+            ? tooltipState.holdThreshold : undefined
+        onPressedChanged: {
+            if (pressed)
+                tooltipState.pressStarted()
+            else
+                tooltipState.pressReleased()
+        }
+        onLongPressed: tooltipState.longPressRecognized()
+        onCanceled: tooltipState.pressCanceled()
         onTapped: {
             root.forceActiveFocus()
             root.triggered()

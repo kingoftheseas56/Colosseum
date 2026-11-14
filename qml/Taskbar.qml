@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "." as App
 
 Item {
     id: bar
@@ -320,9 +321,11 @@ Item {
                     }
                 }
                 HoverHandler { id: localMediaHover; enabled: !bar.localMediaAvailable; cursorShape: Qt.ArrowCursor }
-                ToolTip.visible: !bar.localMediaAvailable && localMediaHover.hovered
+                ToolTip.visible: !bar.localMediaAvailable && (touchTooltipLocalMedia.longPressTooltipEnabled
+                    ? touchTooltipLocalMedia.active : localMediaHover.hovered)
                 ToolTip.text: bar.localMediaUnavailableReason
-                ToolTip.delay: 350
+                ToolTip.delay: touchTooltipLocalMedia.longPressTooltipEnabled ? 0 : 350
+                App.TouchTooltip { id: touchTooltipLocalMedia; owner: parent; tapOwner: !bar.localMediaAvailable }
             }
 
             // ---- Watch Party: Room ID join lives outside immersive Player 1 so
@@ -656,9 +659,10 @@ Item {
                                 enabled: tileClose.visible && tileInput.interactionActive
                                 cursorShape: Qt.PointingHandCursor
                                 ToolTip.text: qsTr("Close session")
-                                ToolTip.delay: 350
-                                ToolTip.visible: enabled && containsMouse
+                                ToolTip.delay: touchTooltipTileCloseMa.longPressTooltipEnabled ? 0 : 350
+                                ToolTip.visible: enabled && ((!touchTooltipTileCloseMa.longPressTooltipEnabled && containsMouse) || touchTooltipTileCloseMa.active)
                                 onClicked: bar.closeRequested(tile.modelData.sessions[0].id)
+                                App.TouchTooltip { id: touchTooltipTileCloseMa; target: tileCloseMa }
                             }
                         }
                     }
@@ -780,12 +784,13 @@ Item {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             ToolTip.text: qsTr("Close session")
-                            ToolTip.delay: 350
-                            ToolTip.visible: containsMouse
+                            ToolTip.delay: touchTooltipCloseMa.longPressTooltipEnabled ? 0 : 350
+                            ToolTip.visible: ((!touchTooltipCloseMa.longPressTooltipEnabled && containsMouse) || touchTooltipCloseMa.active)
                             onClicked: {
                                 bar.closeRequested(modelData.id)
                                 fan.closeAndRestore()
                             }
+                            App.TouchTooltip { id: touchTooltipCloseMa; target: closeMa }
                         }
                     }
 

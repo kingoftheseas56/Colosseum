@@ -14,6 +14,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import "BiblioLibraryApi.js" as Api
+import "." as App
 
 Item {
     id: root
@@ -529,8 +530,8 @@ Item {
                 Behavior on opacity { NumberAnimation { duration: 150 } }
                 Text { anchors.centerIn: parent; text: "⋮"; color: theme.ink; font.pixelSize: 15 }
                 ToolTip.text: qsTr("Book actions")
-                ToolTip.visible: bookMenuHover.hovered
-                ToolTip.delay: 350
+                ToolTip.visible: ((!touchTooltipBookMenu.longPressTooltipEnabled && bookMenuHover.hovered) || touchTooltipBookMenu.active)
+                ToolTip.delay: touchTooltipBookMenu.longPressTooltipEnabled ? 0 : 350
                 HoverHandler { id: bookMenuHover }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -540,6 +541,7 @@ Item {
                         var pt = dots.mapToItem(root, dots.width, dots.height)
                         root.openMenu(card.modelData, pt.x, pt.y, wall)
                     }
+                    App.TouchTooltip { id: touchTooltipBookMenu; target: parent }
                 }
             }
 

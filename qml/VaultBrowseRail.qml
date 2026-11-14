@@ -15,6 +15,7 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
+import "." as App
 
 Item {
     id: rail
@@ -311,12 +312,12 @@ Item {
                                                           || rootRow.watcherDegraded
                 width: col.width
                 height: 52
-                ToolTip.visible: rowMa.containsMouse && !overflowMa.containsMouse
+                ToolTip.visible: ((!touchTooltipRowMa.longPressTooltipEnabled && rowMa.containsMouse) || touchTooltipRowMa.active) && !overflowMa.containsMouse
                     && !removeMa.containsMouse && (!rail.expanded || rootRow.hasNeedsAttention)
                 ToolTip.text: (rootRow.modelData.name || qsTr("Storage"))
                     + (rootRow.available ? qsTr(" · Available") : qsTr(" · Drive disconnected"))
                     + (rootRow.hasNeedsAttention ? qsTr(" · Needs attention") : "")
-                ToolTip.delay: 350
+                ToolTip.delay: touchTooltipRowMa.longPressTooltipEnabled ? 0 : 350
 
                 Rectangle {
                     anchors.fill: parent
@@ -419,6 +420,7 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: rail.rootSelected(rootRow.rootPath)
+                    App.TouchTooltip { id: touchTooltipRowMa; target: rowMa }
                 }
 
                 // S10 — the row overflow menu's handle (⋮), above the row hit area like
@@ -426,9 +428,9 @@ Item {
                 // overlap; opens the shared menu anchored at this row.
                 Item {
                     id: rowOverflow
-                    ToolTip.visible: overflowMa.containsMouse
+                    ToolTip.visible: ((!touchTooltipOverflowMa.longPressTooltipEnabled && overflowMa.containsMouse) || touchTooltipOverflowMa.active)
                     ToolTip.text: qsTr("Storage actions")
-                    ToolTip.delay: 350
+                    ToolTip.delay: touchTooltipOverflowMa.longPressTooltipEnabled ? 0 : 350
                     objectName: "vaultBrowseRailRowOverflow"
                     visible: rail.expanded
                              && (rowMa.containsMouse || overflowMa.containsMouse
@@ -449,6 +451,7 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: rail.openRowMenu(rootRow)
+                        App.TouchTooltip { id: touchTooltipOverflowMa; target: overflowMa }
                     }
                 }
 
@@ -459,9 +462,9 @@ Item {
                 // (hide + republish — the files on the Downloads lane are never touched).
                 Item {
                     id: downloadsRemove
-                    ToolTip.visible: removeMa.containsMouse
+                    ToolTip.visible: ((!touchTooltipRemoveMa.longPressTooltipEnabled && removeMa.containsMouse) || touchTooltipRemoveMa.active)
                     ToolTip.text: qsTr("Remove Downloads from Vault")
-                    ToolTip.delay: 350
+                    ToolTip.delay: touchTooltipRemoveMa.longPressTooltipEnabled ? 0 : 350
                     objectName: "vaultBrowseRailDownloadsRemove"
                     visible: rail.expanded && rootRow.isDownloads
                              && (rowMa.containsMouse || removeMa.containsMouse || rootRow.activeFocus)
@@ -480,6 +483,7 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: rail.removeDownloadsRequested()
+                        App.TouchTooltip { id: touchTooltipRemoveMa; target: removeMa }
                     }
                 }
             }

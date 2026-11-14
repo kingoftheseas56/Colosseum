@@ -5,6 +5,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Window
+import "." as App
 
 Item {
     id: car
@@ -171,9 +172,10 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         ToolTip.text: qsTr("Show slide %1").arg(index + 1)
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
+                        ToolTip.delay: touchTooltipOwnerAt175.longPressTooltipEnabled ? 0 : 350
+                        ToolTip.visible: ((!touchTooltipOwnerAt175.longPressTooltipEnabled && containsMouse) || touchTooltipOwnerAt175.active)
                         onClicked: view.currentIndex = index
+                        App.TouchTooltip { id: touchTooltipOwnerAt175; target: parent }
                     }
                 }
             }

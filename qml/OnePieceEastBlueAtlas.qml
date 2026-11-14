@@ -3,6 +3,7 @@ import QtQuick
 import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls
 import QtQuick.Controls.Basic
+import "." as App
 import "OnePieceEastBlueAtlasData.js" as AtlasData
 import "OnePieceEastBlueData.js" as EastBlue
 
@@ -526,9 +527,10 @@ FocusScope {
             text: "−"; width: 44; height: 44
             Accessible.name: "Zoom out"
             hoverEnabled: true
-            ToolTip.visible: hovered
+            ToolTip.visible: touchTooltipZoomOut.longPressTooltipEnabled ? touchTooltipZoomOut.active : hovered
             ToolTip.text: qsTr("Zoom out")
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipZoomOut.longPressTooltipEnabled ? 0 : 350
+            App.TouchTooltip { id: touchTooltipZoomOut; buttonTarget: parent }
             font.family: atlasBodyFont.name
             contentItem: Text { text: zoomOutButton.text; font.family: atlasBodyFont.name; font.pixelSize: 14; color: zoomOutButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             onClicked: root.zoom = Math.max(1.0, root.zoom - 0.25)
@@ -538,9 +540,10 @@ FocusScope {
             objectName: "eastBlueZoomReset"
             text: "100%"; width: 58; height: 44
             hoverEnabled: true
-            ToolTip.visible: hovered
+            ToolTip.visible: touchTooltipZoomReset.longPressTooltipEnabled ? touchTooltipZoomReset.active : hovered
             ToolTip.text: qsTr("Reset zoom")
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipZoomReset.longPressTooltipEnabled ? 0 : 350
+            App.TouchTooltip { id: touchTooltipZoomReset; buttonTarget: parent }
             font.family: atlasBodyFont.name
             contentItem: Text { text: zoomResetButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; color: zoomResetButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             onClicked: root.zoom = 1.0
@@ -551,9 +554,10 @@ FocusScope {
             text: "+"; width: 44; height: 44
             Accessible.name: "Zoom in"
             hoverEnabled: true
-            ToolTip.visible: hovered
+            ToolTip.visible: touchTooltipZoomIn.longPressTooltipEnabled ? touchTooltipZoomIn.active : hovered
             ToolTip.text: qsTr("Zoom in")
-            ToolTip.delay: 350
+            ToolTip.delay: touchTooltipZoomIn.longPressTooltipEnabled ? 0 : 350
+            App.TouchTooltip { id: touchTooltipZoomIn; buttonTarget: parent }
             font.family: atlasBodyFont.name
             contentItem: Text { text: zoomInButton.text; font.family: atlasBodyFont.name; font.pixelSize: 14; color: zoomInButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             onClicked: root.zoom = Math.min(2.0, root.zoom + 0.25)

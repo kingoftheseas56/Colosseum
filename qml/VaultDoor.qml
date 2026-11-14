@@ -10,6 +10,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import "." as App
 
 Item {
     id: door
@@ -94,6 +95,7 @@ Item {
         hoverEnabled: true
         cursorShape: door.available ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: if (door.available) door.clicked()
+        App.TouchTooltip { id: touchTooltipDoorMa; target: doorMa }
     }
     KeyboardAction {
         id: doorKey
@@ -113,8 +115,8 @@ Item {
         accessibleDescription: door.available ? "" : qsTr("Vault is unavailable on Android.")
         onTriggered: door.clicked()
     }
-    ToolTip.visible: !door.available && doorMa.containsMouse
+    ToolTip.visible: !door.available && ((!touchTooltipDoorMa.longPressTooltipEnabled && doorMa.containsMouse) || touchTooltipDoorMa.active)
     ToolTip.text: qsTr("Vault is unavailable on Android.")
-    ToolTip.delay: 350
+    ToolTip.delay: touchTooltipDoorMa.longPressTooltipEnabled ? 0 : 350
 
 }
