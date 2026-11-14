@@ -13,7 +13,7 @@ Item {
     property int currentAudioIndex: -1
     property int currentSubtitleIndex: -1
     readonly property bool anyMenuOpen: audioMenu.open || subtitleMenu.open || fillMenu.open
-                                        || speedMenu.open || androidMore.opened
+                                        || speedMenu.open
     property bool hasPrevEpisode: false
     property bool hasNextEpisode: false
     // Host-fed, because the shell owns orchestration and this bar only paints. Production gates the
@@ -29,7 +29,6 @@ Item {
     property bool canDownload: false
     property string downloadKind: "idle"   // idle | queued | downloading | done | failed
     property string downloadTooltip: "Download video"
-    property real downloadProgress: 0
     property bool windowed: true   // host-fed window state; drives the fullscreen/exit icon (parity)
     // Playback-speed presets (parity with the current player's speedChoices).
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -44,42 +43,12 @@ Item {
     signal downloadRequested()
     signal prevEpisodeRequested()
     signal nextEpisodeRequested()
-    signal overflowActionRequested(string actionId)
-
-    function downloadMoreLabel() {
-        if (downloadKind === "queued" || downloadKind === "downloading") return "Cancel download"
-        if (downloadKind === "done") return "Saved"
-        if (downloadKind === "failed") return "Failed"
-        return "Download video"
-    }
-    function moreActions() {
-        var rows = []
-        if (canSwitchSource) rows.push({ id: "stream", label: "Pick another stream", iconName: "reset" })
-        if (canDownload) {
-            rows.push({ id: "download", label: downloadMoreLabel(), iconName: "down",
-                        selected: downloadKind === "downloading" || downloadKind === "queued",
-                        danger: downloadKind === "failed" })
-            if (downloadKind === "queued") rows.push({ id: "downloadStatus", label: "Preparing download", iconName: "note", enabled: false })
-            else if (downloadKind === "downloading") rows.push({ id: "downloadStatus", label: "Downloading " + Math.round(downloadProgress * 100) + "%", iconName: "note", enabled: false })
-        }
-        rows.push({ id: "browser", label: "Episodes & sources", iconName: "series" },
-                  { id: "audio", label: "Audio track", iconName: "song" },
-                  { id: "subtitles", label: "Subtitles", iconName: "note" },
-                  { id: "speed", label: "Speed", iconName: "up", selected: Math.abs(currentSpeed - 1) > 0.001 },
-                  { id: "aspect", label: "Aspect ratio", iconName: "film", selected: fillIndex !== 0 },
-                  { id: "stats", label: "Playback stats", iconName: "list" },
-                  { id: "loudness", label: "Loudness", iconName: "song" },
-                  { id: "pip", label: "Picture-in-picture", iconName: "film" },
-                  { id: "shortcuts", label: "Keyboard shortcuts", iconName: "note" })
-        return rows
-    }
 
     function closeMenus() {
         audioMenu.open = false
         subtitleMenu.open = false
         fillMenu.open = false
         speedMenu.open = false
-        androidMore.close()
     }
 
     // Aspect / fill modes — a first-class bottom-bar control (parity: the current player keeps this as a
@@ -111,7 +80,7 @@ Item {
         function onSubtitleTrackChanged(generation, streamIndex) { root.currentSubtitleIndex = streamIndex }
     }
 
-    implicitHeight: Qt.platform.os === "android" ? 194 : 126
+    implicitHeight: 126
 
     readonly property int seekStepSeconds: 10
     readonly property bool playing: session && session.state === 3 // Player2State::Playing
@@ -147,17 +116,13 @@ Item {
         property bool active: false
         property real size: 40
         property string tooltip: ""
-        property string androidCaption: ""
-        readonly property bool androidLabelled: Qt.platform.os === "android" && androidCaption.length > 0
         signal tapped()
-        implicitWidth: androidLabelled ? Math.max(size, androidCaption.length * 7 + 12) : size
-        implicitHeight: androidLabelled ? size + 24 : size
+        implicitWidth: size
+        implicitHeight: size
         scale: tap.pressed ? 0.95 : (tap.containsMouse ? 1.04 : 1.0)
         Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
         Rectangle {
-            anchors.top: parent.top
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: rb.size; height: rb.size
+            anchors.fill: parent
             radius: width / 2
             color: rb.hero ? Qt.rgba(1, 1, 1, 0.92)
                  : rb.active ? Qt.rgba(1, 1, 1, 0.16)
@@ -165,9 +130,7 @@ Item {
                  : "transparent"
         }
         Player2Icon {
-            anchors.top: parent.top
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: rb.size; height: rb.size
+            anchors.fill: parent
             kind: rb.icon
             ink: rb.hero ? "#101014" : (rb.active && root.theme ? root.theme.gold
                                         : (root.theme ? root.theme.ink : "#f7f7f5"))
@@ -175,9 +138,7 @@ Item {
         }
         Text {
             visible: rb.seconds !== ""
-            anchors.top: parent.top
-            anchors.topMargin: (rb.size - height) / 2
-            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.centerIn: parent
             text: rb.seconds
             color: root.theme ? root.theme.ink : "#f7f7f5"
             font.family: "Segoe UI"
@@ -193,15 +154,11 @@ Item {
             onClicked: rb.tapped()
         }
         KeyboardAction {
-            anchors.top: parent.top
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: rb.width; height: rb.size
+            anchors.fill: parent
             pointerEnabled: false
             accessibleName: rb.tooltip
             tooltipText: rb.tooltip
             tooltipHovered: tap.containsMouse
-            androidTooltipPolicy: rb.androidCaption.length ? "caption" : "drop"
-            androidCaptionText: rb.androidCaption
             focusRadius: rb.size / 2
             onTriggered: rb.tapped()
         }
@@ -377,14 +334,14 @@ Item {
         anchors.leftMargin: 54
         anchors.rightMargin: 54
         anchors.topMargin: 4
-        height: Qt.platform.os === "android" ? 124 : 56
+        height: 56
 
         // LEFT cluster: volume, then aspect/fill — fill's home is the LEFT side per the current
         // player's approved placement ("Main HUD icon (Hemanth 2026-07-18), LEFT cluster").
         Row {
             id: leftCluster
             anchors.left: parent.left
-            y: Qt.platform.os === "android" ? parent.height - height : (parent.height - height) / 2
+            anchors.verticalCenter: parent.verticalCenter
             spacing: 6
             VolumeControl {
                 anchors.verticalCenter: parent.verticalCenter
@@ -401,7 +358,7 @@ Item {
                 icon: "stream"
                 tooltip: "Pick another stream"
                 anchors.verticalCenter: parent.verticalCenter
-                visible: Qt.platform.os !== "android" && root.canSwitchSource
+                visible: root.canSwitchSource
                 onTapped: root.switchSourceRequested()
             }
             RoundButton {
@@ -415,7 +372,7 @@ Item {
                 active: root.downloadKind !== "idle"
                 tooltip: root.downloadTooltip
                 anchors.verticalCenter: parent.verticalCenter
-                visible: Qt.platform.os !== "android" && root.canDownload
+                visible: root.canDownload
                 onTapped: root.downloadRequested()
             }
             RoundButton {
@@ -423,7 +380,6 @@ Item {
                 size: 40; icon: "fit"
                 active: fillMenu.open || root.fillIndex !== 0
                 tooltip: "Aspect ratio"
-                visible: Qt.platform.os !== "android"
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: {
                     audioMenu.open = false; subtitleMenu.open = false; speedMenu.open = false
@@ -434,20 +390,17 @@ Item {
 
         Row {
             id: centreCluster
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: Qt.platform.os === "android" ? 0 : (parent.height - height) / 2
-            spacing: Qt.platform.os === "android" ? 4 : 8
+            anchors.centerIn: parent
+            spacing: 8
             RoundButton {
                 visible: root.hasPrevEpisode
                 size: 40; icon: "prevEpisode"; tooltip: "Previous episode"
-                androidCaption: "Previous episode"
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: root.prevEpisodeRequested()
             }
             RoundButton {
                 size: 40; icon: "seekBack"; seconds: String(root.seekStepSeconds)
                 tooltip: "Skip back"
-                androidCaption: "Back " + root.seekStepSeconds + "s"
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: if (root.session) root.session.seekRelative(-root.seekStepSeconds)
             }
@@ -461,14 +414,12 @@ Item {
             RoundButton {
                 size: 40; icon: "seekForward"; seconds: String(root.seekStepSeconds)
                 tooltip: "Skip forward"
-                androidCaption: "Forward " + root.seekStepSeconds + "s"
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: if (root.session) root.session.seekRelative(root.seekStepSeconds)
             }
             RoundButton {
                 visible: root.hasNextEpisode
                 size: 40; icon: "nextEpisode"; tooltip: "Next episode"
-                androidCaption: "Next episode"
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: root.nextEpisodeRequested()
             }
@@ -477,28 +428,24 @@ Item {
         Row {
             id: rightCluster
             anchors.right: parent.right
-            y: Qt.platform.os === "android" ? parent.height - height : (parent.height - height) / 2
+            anchors.verticalCenter: parent.verticalCenter
             spacing: 6
             RoundButton {
                 size: 40; icon: "episodes"; tooltip: "Episodes & sources (E)"
-                visible: Qt.platform.os !== "android"
                 onTapped: { root.closeMenus(); root.browseRequested() }
             }
             RoundButton {
                 size: 40; icon: "audio"; active: audioMenu.open; tooltip: "Audio track"
-                visible: Qt.platform.os !== "android"
                 onTapped: { subtitleMenu.open = false; audioMenu.open = !audioMenu.open }
             }
             RoundButton {
                 size: 40; icon: "subtitle"; active: subtitleMenu.open; tooltip: "Subtitles"
-                visible: Qt.platform.os !== "android"
                 onTapped: { audioMenu.open = false; subtitleMenu.open = !subtitleMenu.open }
             }
             // Playback speed — icon button with a small gold badge showing the rate when non-default,
             // exactly like the current player's SpeedMenuButton (speed portion; sleep/skip not ported).
             Item {
                 id: speedButton
-                visible: Qt.platform.os !== "android"
                 width: 40; height: 40
                 anchors.verticalCenter: parent.verticalCenter
                 readonly property bool nonDefault: Math.abs(root.currentSpeed - 1) > 0.001
@@ -526,23 +473,6 @@ Item {
                         font.family: "Segoe UI"; font.features: ({ "tnum": 1 })
                         font.pixelSize: 8; font.weight: Font.DemiBold
                     }
-                }
-            }
-            ActionOverflowMenu {
-                id: androidMore
-                visible: Qt.platform.os === "android"
-                anchors.verticalCenter: parent.verticalCenter
-                menuWidth: 310
-                actions: root.moreActions()
-                onActionTriggered: function(actionId) {
-                    if (actionId === "stream") root.switchSourceRequested()
-                    else if (actionId === "download") root.downloadRequested()
-                    else if (actionId === "browser") { root.closeMenus(); root.browseRequested() }
-                    else if (actionId === "audio") { root.closeMenus(); audioMenu.open = true }
-                    else if (actionId === "subtitles") { root.closeMenus(); subtitleMenu.open = true }
-                    else if (actionId === "speed") { root.closeMenus(); speedMenu.open = true }
-                    else if (actionId === "aspect") { root.closeMenus(); fillMenu.open = true }
-                    else if (actionId !== "downloadStatus") root.overflowActionRequested(actionId)
                 }
             }
             RoundButton {

@@ -167,7 +167,6 @@ Item {
                     color: index === view.currentIndex ? theme.gold : Qt.rgba(1, 1, 1, 0.5)
                     Behavior on width { NumberAnimation { duration: 150 } }
                     MouseArea {
-                        visible: !car.androidHost
                         anchors.fill: parent; anchors.margins: -4
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
@@ -175,16 +174,6 @@ Item {
                         ToolTip.delay: 350
                         ToolTip.visible: containsMouse
                         onClicked: view.currentIndex = index
-                    }
-                    KeyboardAction {
-                        visible: car.androidHost
-                        anchors.fill: parent; anchors.margins: -4
-                        accessibleName: qsTr("Show slide %1").arg(index + 1)
-                        tooltipText: accessibleName
-                        androidPresentationEnabled: car.androidHost
-                        androidTooltipPolicy: "longPress"
-                        focusRadius: 4
-                        onTriggered: view.currentIndex = index
                     }
                 }
             }

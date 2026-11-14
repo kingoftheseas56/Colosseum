@@ -7,8 +7,7 @@ import "SystemFocusContainment.js" as SystemFocusContainment
 Item {
     id: party
 
-    // Reserve space for Slice 0's shared Android action caption beside the face.
-    width: Qt.platform.os === "android" ? 126 : 40
+    width: 40
     height: 40
 
     property var controller: null
@@ -126,12 +125,11 @@ Item {
 
     function controlCenterInOverlay() {
         if (!overlayParent)
-            return Qt.point(faceChip.x + faceChip.width / 2, faceChip.y + faceChip.height / 2)
-        // The caption extends the host width on Android; anchor the arrow to the actual face.
+            return Qt.point(party.width / 2, party.height / 2)
+        // Explicit geometry reads keep this binding/reposition seam reactive as Player 1 resizes.
         var geometryTick = party.x + party.y + party.width + party.height
                          + overlayParent.width + overlayParent.height
-        return party.mapToItem(overlayParent, faceChip.x + faceChip.width / 2,
-                               faceChip.y + faceChip.height / 2)
+        return party.mapToItem(overlayParent, party.width / 2, party.height / 2)
     }
 
     function controlTopInOverlay() {
@@ -154,7 +152,7 @@ Item {
                 party.panelEdgeMargin,
                 controlTopInOverlay() - watchPartyPopover.height - party.panelControlGap)
         } else {
-            watchPartyPopover.x = faceChip.width - watchPartyPopover.width
+            watchPartyPopover.x = party.width - watchPartyPopover.width
             watchPartyPopover.y = -watchPartyPopover.height - party.panelControlGap
         }
         positionPanelChrome()
@@ -180,10 +178,7 @@ Item {
 
     function closeFromPanel() {
         party.panelOpen = false
-        if (Qt.platform.os === "android")
-            faceTouch.forceActiveFocus()
-        else
-            faceChip.forceActiveFocus()
+        faceChip.forceActiveFocus()
     }
 
     function lifecycleMessage() {
@@ -276,14 +271,11 @@ Item {
     Item {
         id: faceChip
         objectName: "watchPartyPlayerControl"
-        width: 40
-        height: 40
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        activeFocusOnTab: Qt.platform.os !== "android"
-        Accessible.role: Qt.platform.os === "android" ? Accessible.NoRole : Accessible.Button
-        Accessible.name: party.panelOpen ? qsTr("Close Watch Party") : qsTr("Open Watch Party")
-        ToolTip.visible: Qt.platform.os !== "android" && faceMouse.containsMouse
+        anchors.fill: parent
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: "Watch Party"
+        ToolTip.visible: faceMouse.containsMouse
         ToolTip.text: party.panelOpen ? qsTr("Close Watch Party") : qsTr("Open Watch Party")
         ToolTip.delay: 350
         Accessible.description: party.inRoom
@@ -295,7 +287,7 @@ Item {
             radius: width / 2
             color: party.panelOpen
                    ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.16)
-                   : (faceMouse.containsMouse || faceTouch.interactionActive)
+                   : faceMouse.containsMouse
                      ? Qt.rgba(1, 1, 1, 0.12)
                      : "transparent"
             border.width: (party.panelOpen || party.inRoom) ? 1 : 0
@@ -351,23 +343,9 @@ Item {
         MouseArea {
             id: faceMouse
             anchors.fill: parent
-            visible: Qt.platform.os !== "android"
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: party.toggleRequested(party.panelOpen)
-        }
-        KeyboardAction {
-            id: faceTouch
-            anchors.fill: parent
-            visible: Qt.platform.os === "android"
-            accessibleName: party.panelOpen ? qsTr("Close Watch Party") : qsTr("Open Watch Party")
-            accessibleDescription: party.inRoom ? qsTr("Active Watch Party") : ""
-            androidTooltipPolicy: "caption"
-            androidCaptionText: qsTr("Watch Party")
-            androidCaptionPlacement: "right"
-            spaceActivates: true
-            focusRadius: 20
-            onTriggered: party.toggleRequested(party.panelOpen)
         }
 
         Keys.onReturnPressed: party.toggleRequested(party.panelOpen)
@@ -532,7 +510,7 @@ Item {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Close Watch Party panel"
-                ToolTip.visible: Qt.platform.os !== "android" && closeMouse.containsMouse
+                ToolTip.visible: closeMouse.containsMouse
                 ToolTip.text: qsTr("Close Watch Party panel")
                 ToolTip.delay: 350
 

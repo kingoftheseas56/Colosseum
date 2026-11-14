@@ -147,7 +147,6 @@ Item {
                             id: continueBackKeyboard; anchors.fill: parent; anchors.margins: -10; pointerEnabled: false
                             accessibleName: "Back"
                             tooltipText: accessibleName
-                            androidTooltipPolicy: "drop"
                             tooltipHovered: backMa.containsMouse
                             onTriggered: root.backRequested()
                         }

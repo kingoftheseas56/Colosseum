@@ -202,11 +202,7 @@ Item {
         id: resume
         objectName: "vinylLyricsResume"
         tooltipText: qsTr("Resume following")
-        androidTooltipPolicy: "caption"
-        androidCaptionText: qsTr("Resume following")
-        androidCaptionPlacement: "right"
         anchors.right: parent.right
-        anchors.rightMargin: Qt.platform.os === "android" ? 118 : 0
         anchors.bottom: parent.bottom
         width: 34;height: 34
         visible: root.pageData.timedLyrics && !root.following

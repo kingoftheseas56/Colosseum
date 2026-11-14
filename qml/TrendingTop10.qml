@@ -64,7 +64,6 @@ Column {
             id: chevMa
             anchors.fill: parent
             hoverEnabled: true
-            enabled: Qt.platform.os !== "android"
             cursorShape: Qt.PointingHandCursor
             ToolTip.text: chevronKeyboard.accessibleName
             ToolTip.delay: 350
@@ -74,15 +73,12 @@ Column {
         KeyboardAction {
             id: chevronKeyboard
             anchors.fill: parent
-            pointerEnabled: Qt.platform.os === "android"
+            pointerEnabled: false
             // Not a keyboard stop (world-feel, like the mock's rail edges): Left/Right move through
             // the rail's cards, and as a stop the chevron sat between rows and caught Up/Down.
-            enabled: Qt.platform.os === "android"
+            enabled: false
             focusEnabled: false
-            focusPolicy: Qt.NoFocus
             accessibleName: chev.atRight ? qsTr("Show later items") : qsTr("Show earlier items")
-            tooltipText: accessibleName
-            androidTooltipPolicy: "longPress"
             onTriggered: chev.tapped()
         }
     }

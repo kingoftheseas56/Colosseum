@@ -142,7 +142,6 @@ Item {
             Flickable {
                 id: portalFlick
                 anchors.fill: parent
-                anchors.bottomMargin: Qt.platform.os === "android" ? 78 : 0
                 clip: true
                 contentWidth: Math.max(width, portalRow.x + portalRow.width + portalStage.width * 0.07)
                 contentHeight: height
@@ -181,24 +180,20 @@ Item {
 
             DCAUPortalArrow {
                 z: 10
-                visible: Qt.platform.os === "android" || portalStage.width > 900
-                anchors.left: Qt.platform.os === "android" ? undefined : parent.left
-                anchors.leftMargin: Qt.platform.os === "android" ? 0 : 18
-                anchors.verticalCenter: Qt.platform.os === "android" ? undefined : parent.verticalCenter
-                anchors.bottom: Qt.platform.os === "android" ? parent.bottom : undefined
-                x: Qt.platform.os === "android" ? Math.max(0, (portalStage.width - width * 2 - 16) / 2) : undefined
+                visible: portalStage.width > 900
+                anchors.left: parent.left
+                anchors.leftMargin: 18
+                anchors.verticalCenter: parent.verticalCenter
                 glyph: "\u2039"
                 tooltipText: qsTr("Previous portal")
                 onTriggered: landing.selectPortal(landing.selectedIndex - 1, true)
             }
             DCAUPortalArrow {
                 z: 10
-                visible: Qt.platform.os === "android" || portalStage.width > 900
-                anchors.right: Qt.platform.os === "android" ? undefined : parent.right
-                anchors.rightMargin: Qt.platform.os === "android" ? 0 : 18
-                anchors.verticalCenter: Qt.platform.os === "android" ? undefined : parent.verticalCenter
-                anchors.bottom: Qt.platform.os === "android" ? parent.bottom : undefined
-                x: Qt.platform.os === "android" ? Math.max(0, (portalStage.width - width * 2 - 16) / 2) + width + 16 : undefined
+                visible: portalStage.width > 900
+                anchors.right: parent.right
+                anchors.rightMargin: 18
+                anchors.verticalCenter: parent.verticalCenter
                 glyph: "\u203a"
                 tooltipText: qsTr("Next portal")
                 onTriggered: landing.selectPortal(landing.selectedIndex + 1, true)

@@ -1336,14 +1336,12 @@ Item {
                 font.family: theme.ui; font.pixelSize: 11
                 font.letterSpacing: 3; font.capitalization: Font.AllUppercase
             }
-            Flow {
+            Row {
                 spacing: 12
                 width: parent.width
                 Text {
                     id: titleText
-                    // Phone: title occupies its own line and the labelled library action follows.
-                    width: Qt.platform.os === "android" && page.width < 600
-                        ? parent.width : Math.min(implicitWidth, parent.width - libraryButton.width - 12)
+                    width: Math.min(implicitWidth, parent.width - libraryButton.width - 12)
                     text: page.seriesTitle
                     color: theme.ink
                     font.family: theme.display; font.pixelSize: 40; font.weight: Font.DemiBold
@@ -1353,48 +1351,32 @@ Item {
                     id: libraryButton
                     objectName: "mangaSeriesLibraryButton"
                     visible: page.libraryAvailable
-                    width: Qt.platform.os === "android" ? 184 : 40
-                    height: 40
+                    width: 40; height: 40
+                    anchors.verticalCenter: titleText.verticalCenter
                     Rectangle {
                         anchors.fill: parent; radius: 10
-                        color: (libraryAction.interactionActive || libraryMobileTap.pressed) ? Qt.rgba(1, 1, 1, 0.12)
+                        color: libraryAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12)
                              : (page.librarySaved ? Qt.rgba(0.94, 0.77, 0.29, 0.12) : Qt.rgba(1, 1, 1, 0.05))
                         border.width: 1
                         border.color: page.librarySaved ? Qt.rgba(0.94, 0.77, 0.29, 0.45) : theme.edge
                     }
                     Image {
-                        anchors.verticalCenter: parent.verticalCenter
-                        x: Qt.platform.os === "android" ? 10 : (parent.width - width) / 2
+                        anchors.centerIn: parent
                         width: 20; height: 20
                         source: page.librarySaved ? "../assets/icons/lucide/bookmark-check.svg" : "../assets/icons/lucide/bookmark-plus.svg"
                         sourceSize.width: 40; sourceSize.height: 40
                         opacity: 0.92
                     }
-                    ToolTip.visible: Qt.platform.os !== "android" && libraryAction.hovered
+                    ToolTip.visible: libraryAction.hovered
                     ToolTip.text: page.librarySaved ? "In your Library · remove" : "Add to Library"
                     ToolTip.delay: 350
                     KeyboardAction {
                         id: libraryAction
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: Qt.platform.os === "android" ? 40 : parent.width
-                        height: parent.height
-                        pointerEnabled: Qt.platform.os !== "android"
+                        anchors.fill: parent
                         accessibleName: page.librarySaved ? "Remove from Library" : "Add to Library"
-                        androidTooltipPolicy: "caption"
-                        androidCaptionText: accessibleName
-                        androidCaptionPlacement: "right"
                         focusRadius: 10
                         focusColor: page.focusGold
                         onTriggered: page.toggleLibrary()
-                    }
-                    MouseArea {
-                        id: libraryMobileTap
-                        visible: Qt.platform.os === "android"
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: page.toggleLibrary()
                     }
                 }
             }

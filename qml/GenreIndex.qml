@@ -254,7 +254,7 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         ToolTip.text: qsTr("Search")
                         ToolTip.delay: 350
-                        ToolTip.visible: Qt.platform.os !== "android" && containsMouse
+                        ToolTip.visible: containsMouse
                         onClicked: root.searchClicked()
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; focusRadius: 4; onTriggered: root.searchClicked() } }

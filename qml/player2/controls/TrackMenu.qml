@@ -55,7 +55,7 @@ Item {
         return menu.tracks.length ? 0 : -1
     }
 
-    implicitWidth: Qt.platform.os === "android" ? 430 : 320
+    implicitWidth: 320
     implicitHeight: panel.implicitHeight
     visible: open
     focusPolicy: open ? Qt.TabFocus : Qt.NoFocus
@@ -202,7 +202,7 @@ Item {
             Rectangle { width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
             Item {
                 width: parent.width
-                height: Qt.platform.os === "android" ? 64 : 44
+                height: 44
                 Text {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                     text: menu.syncLabel
@@ -215,19 +215,16 @@ Item {
                     component DelayButton: Rectangle {
                         property string glyph: ""
                         property string tooltip: ""
-                        property string androidCaption: ""
                         signal tapped()
-                        width: Qt.platform.os === "android" ? Math.max(30, androidCaption.length * 7 + 10) : 30
-                        height: Qt.platform.os === "android" ? 52 : 26
-                        radius: 6
+                        width: 30; height: 26; radius: 6
                         color: da.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
-                        Text { anchors.top: parent.top; anchors.topMargin: (26 - height) / 2; anchors.horizontalCenter: parent.horizontalCenter; text: glyph; color: menu.ink
+                        Text { anchors.centerIn: parent; text: glyph; color: menu.ink
                                font.family: "Segoe UI"; font.pixelSize: 13; font.weight: Font.DemiBold }
                         MouseArea { id: da; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor; onClicked: parent.tapped() }
-                        KeyboardAction { width: parent.width; height: 26; pointerEnabled: false; accessibleName: parent.tooltip; tooltipText: parent.tooltip; tooltipHovered: da.containsMouse; androidTooltipPolicy: "caption"; androidCaptionText: parent.androidCaption; onTriggered: parent.tapped() }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: glyph; tooltipText: parent.tooltip; tooltipHovered: da.containsMouse; onTriggered: parent.tapped() }
                     }
-                    DelayButton { glyph: "−"; tooltip: qsTr("Decrease sync by 0.1 seconds"); androidCaption: qsTr("Decrease sync"); onTapped: menu.syncChanged(menu.syncValue - 0.1) }
+                    DelayButton { glyph: "−"; tooltip: qsTr("Decrease sync by 0.1 seconds"); onTapped: menu.syncChanged(menu.syncValue - 0.1) }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 64; horizontalAlignment: Text.AlignHCenter
@@ -235,8 +232,8 @@ Item {
                         color: menu.ink; font.family: "Segoe UI"; font.pixelSize: 12
                         font.features: ({ "tnum": 1 })
                     }
-                    DelayButton { glyph: "+"; tooltip: qsTr("Increase sync by 0.1 seconds"); androidCaption: qsTr("Increase sync"); onTapped: menu.syncChanged(menu.syncValue + 0.1) }
-                    DelayButton { glyph: "0"; tooltip: qsTr("Reset sync"); androidCaption: qsTr("Reset sync"); onTapped: menu.syncChanged(0) }
+                    DelayButton { glyph: "+"; tooltip: qsTr("Increase sync by 0.1 seconds"); onTapped: menu.syncChanged(menu.syncValue + 0.1) }
+                    DelayButton { glyph: "0"; tooltip: qsTr("Reset sync"); onTapped: menu.syncChanged(0) }
                 }
             }
         }

@@ -271,7 +271,6 @@ Item {
                     onClicked: { queryInput.text = ""; queryInput.forceActiveFocus() } }
                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Clear search"; focusRadius: 13
                     tooltipText: accessibleName; tooltipHovered: clearMa.containsMouse
-                    androidTooltipPolicy: "drop"
                     onTriggered: { queryInput.text = ""; queryInput.forceActiveFocus() } }
             }
             Rectangle {                              // Esc hint
@@ -355,17 +354,14 @@ Item {
                                 onClicked: search.fillAndSearch(modelData) }
                             Rectangle { id: removeRecentButton; width: search.phoneNarrow ? 44 : 28; height: parent.height; radius: height / 2
                                 anchors.right: parent.right; anchors.rightMargin: 3; anchors.verticalCenter: parent.verticalCenter
-                                color: removeRecentMa.hovered ? Qt.rgba(1,1,1,0.14) : "transparent"
+                                color: removeRecentMa.containsMouse ? Qt.rgba(1,1,1,0.14) : "transparent"
+                                ToolTip.text: qsTr("Remove recent search")
+                                ToolTip.visible: removeRecentMa.containsMouse
+                                ToolTip.delay: 350
                                 Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 11 }
-                                KeyboardAction {
-                                    id: removeRecentMa; anchors.fill: parent
-                                    objectName: "biblioRecentRemove"
-                                    accessibleName: qsTr("Remove recent search")
-                                    tooltipText: accessibleName
-                                    androidTooltipPolicy: "longPress"
-                                    focusRadius: height / 2
-                                    onTriggered: search.removeRecent(modelData)
-                                } }
+                                MouseArea { id: removeRecentMa; anchors.fill: parent; hoverEnabled: true
+                                    objectName: "biblioRecentRemove"; cursorShape: Qt.PointingHandCursor
+                                    onClicked: search.removeRecent(modelData) } }
                         }
                     }
                 }

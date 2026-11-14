@@ -24,7 +24,6 @@
 // [Agent 2 (Claude), biblio]
 import QtQuick
 import QtQuick.Window
-import ".." as Shared
 import "Reader2Logic.js" as L
 
 ReaderOverlay {
@@ -187,21 +186,20 @@ ReaderOverlay {
                         height: 18
                         radius: 9
                         color: dot.modelData.display
-                        border.width: dotMa.hovered ? 2 : 0
+                        border.width: dotMa.containsMouse ? 2 : 0
                         border.color: Theme.ink
                         antialiasing: true
                     }
-                    Shared.KeyboardAction {
+                    ReaderKeyboardArea {
                         id: dotMa
                         objectName: dot.index === 0 ? "reader2SelectionFirstColor" : ""
                         anchors.fill: parent
-                        accessibleName: dot.index === 0 ? qsTr("Gold highlight")
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        keyboardLabel: "Highlight color"
+                        tooltipText: dot.index === 0 ? qsTr("Gold highlight")
                             : (dot.index === 1 ? qsTr("Slate highlight") : qsTr("Moss highlight"))
-                        tooltipText: accessibleName
-                        androidTooltipPolicy: "longPress"
-                        spaceActivates: true
-                        focusRadius: height / 2
-                        onTriggered: menu.colorPicked(String(dot.modelData.value))
+                        onClicked: menu.colorPicked(String(dot.modelData.value))
                     }
                 }
             }

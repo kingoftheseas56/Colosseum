@@ -144,7 +144,6 @@ Item {
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.backRequested() }
                         KeyboardAction { id: backKey; anchors.fill: parent; anchors.margins: -10; pointerEnabled: false
                             tooltipText: qsTr("Back")
-                            androidTooltipPolicy: "drop"
                             tooltipHovered: backMa.containsMouse
                             accessibleName: "Back from Calendar"; onTriggered: root.backRequested() }
                     }
@@ -279,7 +278,6 @@ Item {
                             MouseArea { id: prevMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.prevMonth() }
                             KeyboardAction { id: prevKey; anchors.fill: parent; pointerEnabled: false; accessibleName: "Previous month"
                                 tooltipText: accessibleName
-                                androidTooltipPolicy: "drop"
                                 tooltipHovered: prevMa.containsMouse
                                 onTriggered: root.prevMonth() } }
                         Rectangle { width: 34; height: 34; radius: 10; color: nextMa.containsMouse || nextKey.activeFocus ? Qt.rgba(1,1,1,0.12) : Qt.rgba(1,1,1,0.05)
@@ -288,7 +286,6 @@ Item {
                             MouseArea { id: nextMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.nextMonth() }
                             KeyboardAction { id: nextKey; anchors.fill: parent; pointerEnabled: false; accessibleName: "Next month"
                                 tooltipText: accessibleName
-                                androidTooltipPolicy: "drop"
                                 tooltipHovered: nextMa.containsMouse
                                 onTriggered: root.nextMonth() } }
                     }
@@ -445,63 +442,28 @@ Item {
 
     // ── minimize · power cluster (every layer carries it) ──
     Row {
-        visible: Qt.platform.os !== "android" || root.width >= 600
         anchors.right: parent.right; anchors.top: parent.top
         anchors.rightMargin: 25; anchors.topMargin: 18
         spacing: 18
         Item {
-            width: Qt.platform.os === "android" ? 104 : 17
-            height: Qt.platform.os === "android" ? 34 : 17
-            Image { width: 17; height: 17; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                source: "../assets/icons/minimize.svg"; opacity: minMa.hovered || minKey.activeFocus ? 1 : 0.7 }
-            Text { visible: Qt.platform.os === "android"; text: qsTr("Minimize")
-                anchors.left: parent.left; anchors.leftMargin: 25; anchors.verticalCenter: parent.verticalCenter
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 12 }
+            width: 17; height: 17
+            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"; opacity: minMa.hovered || minKey.activeFocus ? 1 : 0.7 }
             HoverHandler { id: minMa }
             MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
             KeyboardAction { id: minKey; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
                 tooltipText: accessibleName
                 tooltipHovered: minMa.hovered
-                androidTooltipPolicy: "drop"
                 accessibleName: "Minimize"; onTriggered: root.minimizeRequested() }
         }
         Item {
-            width: Qt.platform.os === "android" ? 159 : 17
-            height: Qt.platform.os === "android" ? 34 : 17
-            Image { width: 17; height: 17; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                source: "../assets/icons/power.svg"; opacity: powMa.hovered || closeKey.activeFocus ? 1 : 0.7 }
-            Text { visible: Qt.platform.os === "android"; text: qsTr("Close Colosseum")
-                anchors.left: parent.left; anchors.leftMargin: 25; anchors.verticalCenter: parent.verticalCenter
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 12 }
+            width: 17; height: 17
+            Image { anchors.fill: parent; source: "../assets/icons/power.svg"; opacity: powMa.hovered || closeKey.activeFocus ? 1 : 0.7 }
             HoverHandler { id: powMa }
             MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
             KeyboardAction { id: closeKey; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
                 tooltipText: accessibleName
                 tooltipHovered: powMa.hovered
-                androidTooltipPolicy: "drop"
                 accessibleName: "Close Colosseum"; onTriggered: root.closeRequested() }
-        }
-    }
-
-    // Phone-only O1: keep the two existing window signals in the shared tap-visible menu.
-    // Tablets retain their labelled inline controls; desktop retains its original icons/hover.
-    ActionOverflowMenu {
-        visible: Qt.platform.os === "android" && root.width < 600
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.topMargin: 12
-        anchors.rightMargin: 25
-        z: 40
-        label: qsTr("More")
-        actions: [
-            { id: "minimize", label: qsTr("Minimize"), iconSource: Qt.resolvedUrl("../assets/icons/minimize.svg") },
-            { id: "close", label: qsTr("Close Colosseum"), iconSource: Qt.resolvedUrl("../assets/icons/power.svg") }
-        ]
-        onActionTriggered: function(actionId) {
-            if (actionId === "minimize")
-                root.minimizeRequested()
-            else if (actionId === "close")
-                root.closeRequested()
         }
     }
 }

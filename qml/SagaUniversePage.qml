@@ -1267,7 +1267,6 @@ Item {
             focusPolicy: Qt.NoFocus; focusEnabled: false
             accessibleName: chevron.atRight ? "Show later stories" : "Show earlier stories"
             tooltipText: accessibleName
-            androidTooltipPolicy: "longPress"
             onTriggered: chevron.triggered()
         }
     }
@@ -1277,7 +1276,6 @@ Item {
         id: tile
         property var item: null
         property string form: "tile"       // tile | center | banner
-        property bool hasExternalTitle: false
         property bool ring: false          // the keyboard is here
         readonly property bool banner: tile.form === "banner"
         readonly property bool current: root.keyOf(root.shown) === root.keyOf(tile.item)
@@ -1369,34 +1367,6 @@ Item {
             onEntered: { root.select(tile.item); tile.hoveredIn() }
             onClicked: root.openWork(tile.item)
         }
-        // Touch selects the existing description with the title; the existing
-        // state-aware Read/Watch action in sagaDetail still opens the work.
-        Rectangle {
-            visible: root.touchInput && !tile.hasExternalTitle
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: Math.min(62, tile.height * 0.3)
-            color: Qt.rgba(0.035, 0.047, 0.075, 0.88)
-            Text {
-                anchors.fill: parent
-                anchors.margins: 8
-                text: tile.item ? tile.item.title : ""
-                textFormat: Text.PlainText
-                color: root.paper
-                font.family: root.uiFace
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
-                maximumLineCount: 2
-                elide: Text.ElideRight
-                verticalAlignment: Text.AlignVCenter
-            }
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.select(tile.item)
-            }
-        }
     }
 
     // ---- a labelled run of works with captions: branches and Upcoming. The tiles WRAP
@@ -1434,23 +1404,14 @@ Item {
                         width: root.tileW
                         SagaTile {
                             item: entry.modelData
-                            hasExternalTitle: true
                             width: root.tileW; height: root.tileH
                             ring: shelfFocus.activeFocus && shelfFocus.index === entry.index
                             onHoveredIn: shelfFocus.index = entry.index
                         }
-                        Text {
-                            topPadding: 10; width: parent.width; text: entry.modelData.title
-                            color: root.paper; font.family: root.uiFace; font.pixelSize: 12
-                            lineHeight: 1.1; wrapMode: Text.WordWrap
-                            maximumLineCount: 2; elide: Text.ElideRight
-                            MouseArea {
-                                anchors.fill: parent
-                                enabled: root.touchInput
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.select(entry.modelData)
-                            }
-                        }
+                        Text { topPadding: 10; width: parent.width; text: entry.modelData.title
+                               color: root.paper; font.family: root.uiFace; font.pixelSize: 12
+                               lineHeight: 1.1; wrapMode: Text.WordWrap
+                               maximumLineCount: 2; elide: Text.ElideRight }
                         Text { topPadding: 3; width: parent.width
                                text: entry.modelData.resolved === false ? "Details pending"
                                      : (entry.modelData.medium === "manga" ? ""

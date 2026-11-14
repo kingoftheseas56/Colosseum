@@ -26,7 +26,6 @@ Item {
     signal activated()
 
     readonly property bool lit: banner.hot || banner.keyboardSelected
-    readonly property bool androidCompact: Qt.platform.os === "android" && banner.width < 600
     readonly property string holds: (banner.entry.chips || []).map(function(c) { return c.t }).join("  ·  ")
     // the mark's box inside the 80x74 rail slot: wide wordmarks, tall emblems, square badges
     readonly property string shape: banner.entry.logoShape || "square"
@@ -35,7 +34,7 @@ Item {
     readonly property bool hasMark: String(banner.entry.logo || "").length > 0
 
     width: parent ? parent.width : 0
-    height: banner.androidCompact ? 224 : 178
+    height: 178
 
     Theme { id: theme }
 
@@ -120,11 +119,8 @@ Item {
         id: copy
         objectName: "universeBannerCopy"
         x: 30 + (banner.hasMark ? 98 + 26 : 0)
-        width: Math.max(120, Math.min(670, banner.androidCompact
-                            ? banner.width - x - 24
-                            : banner.width - x - enter.width - 28 - 26))
-        anchors.verticalCenter: banner.androidCompact ? undefined : parent.verticalCenter
-        y: banner.androidCompact ? 18 : undefined
+        width: Math.max(120, Math.min(670, banner.width - x - enter.width - 28 - 26))
+        anchors.verticalCenter: parent.verticalCenter
         spacing: 7
         Text {
             width: parent.width
@@ -159,14 +155,12 @@ Item {
     Rectangle {
         id: enter
         objectName: "universeBannerExplore"
-        anchors.verticalCenter: banner.androidCompact ? undefined : parent.verticalCenter
-        x: banner.androidCompact ? copy.x : banner.width - 28 - width
-                                          + (Qt.platform.os === "android" || banner.lit ? 0 : 8)
-        y: banner.androidCompact ? copy.y + copy.height + 10 : undefined
+        anchors.verticalCenter: parent.verticalCenter
+        x: banner.width - 28 - width + (banner.lit ? 0 : 8)
         width: enterRow.implicitWidth + 28; height: 38; radius: 11
         color: Qt.rgba(0, 0, 0, 0.34)
         border.width: 1; border.color: theme.edge
-        opacity: Qt.platform.os === "android" || banner.lit ? 1 : 0
+        opacity: banner.lit ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 180 } }
         Behavior on x { NumberAnimation { duration: 180 } }
         Row {

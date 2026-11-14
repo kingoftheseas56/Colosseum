@@ -18,7 +18,6 @@
 // [Agent 2 (Claude), biblio]
 import QtQuick
 import QtQuick.Window
-import ".." as Shared
 import "Reader2Logic.js" as L
 
 ReaderOverlay {
@@ -385,7 +384,7 @@ ReaderOverlay {
                         required property int index
                         readonly property var r: L.bookmarkRow(bmRow.modelData)
                         width: bmList.width - 12
-                        height: bmCol.implicitHeight + (panel.touchInput ? 42 : 24)
+                        height: bmCol.implicitHeight + 24
 
                         Rectangle {
                             anchors.fill: parent
@@ -399,7 +398,7 @@ ReaderOverlay {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.leftMargin: 12
-                            anchors.rightMargin: panel.touchInput ? panel.touchDeleteGutter + 6 : 12
+                            anchors.rightMargin: 12
                             spacing: 6
                             Text {
                                 width: parent.width
@@ -438,7 +437,7 @@ ReaderOverlay {
                             objectName: "reader2BookmarkDelete_" + bmRow.index
                             anchors.right: parent.right
                             anchors.top: parent.top
-                            anchors.rightMargin: 10
+                            anchors.rightMargin: panel.touchInput ? (panel.touchDeleteGutter - width) / 2 : 10
                             anchors.topMargin: panel.touchInput ? (parent.height - height) / 2 : 10
                             visible: panel.touchInput || bmMa.containsMouse || bmDelMa.containsMouse
                             text: "×"
@@ -446,29 +445,10 @@ ReaderOverlay {
                             font.pixelSize: 15
                             color: bmDelMa.containsMouse ? Theme.ink : Theme.inkFaint
                         }
-                        Text {
-                            visible: panel.touchInput
-                            anchors.right: bmDelGlyph.left
-                            anchors.rightMargin: 5
-                            anchors.bottom: parent.bottom
-                            anchors.bottomMargin: 5
-                            text: qsTr("Delete bookmark")
-                            color: Theme.inkFaint
-                            font.family: Theme.ui
-                            font.pixelSize: 11
-                            Shared.KeyboardAction {
-                                anchors.fill: parent
-                                accessibleName: qsTr("Delete bookmark")
-                                androidTooltipPolicy: "drop"
-                                spaceActivates: true
-                                onTriggered: panel.bookmarkDeleted(bmRow.r.id)
-                            }
-                        }
                         // Desktop: the glyph plus a 6 px margin. Touch: the reserved gutter
                         // across the full row height, disjoint from the jump area.
                         ReaderKeyboardArea {
                             id: bmDelMa
-                            keyboardLabel: qsTr("Delete bookmark")
                             tooltipText: qsTr("Delete bookmark")
                             objectName: "reader2BookmarkDeleteTouch_" + bmRow.index
                             visible: bmDelGlyph.visible
@@ -1286,7 +1266,7 @@ ReaderOverlay {
         property bool tabEnabled: true
         property string tip: ""
         signal picked()
-        height: panel.touchInput ? 68 : 36
+        height: 36
         function focusKeyboard() { tabMa.forceActiveFocus(Qt.OtherFocusReason) }
 
         Image {
@@ -1308,20 +1288,14 @@ ReaderOverlay {
             color: Theme.gold
             visible: tab.active
         }
-        Shared.KeyboardAction {
+        ReaderKeyboardArea {
             id: tabMa
-            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: panel.touchInput ? 48 : parent.height
-            accessibleName: tab.tip
+            anchors.fill: parent
+            keyboardLabel: tab.tip
             tooltipText: tab.tip
-            androidTooltipPolicy: "caption"
-            androidCaptionText: tab.tip
-            spaceActivates: true
-            enabled: tab.tabEnabled
-            focusEnabled: tab.tabEnabled
+            hoverEnabled: true
             cursorShape: tab.tabEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-            focusRadius: 5
-            onTriggered: tab.picked()
+            onClicked: if (tab.tabEnabled) tab.picked()
         }
     }
 }

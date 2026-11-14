@@ -79,16 +79,8 @@ Item {
     readonly property real popupViewportHeight: root.Window.window
         ? root.Window.window.height : (root.popupHost ? root.popupHost.height : root.height)
 
-    readonly property int attributionCount:
-        (validatedLyricsSourceUrl.length > 0 ? 1 : 0)
-        + (validatedAnnotationSourceUrl.length > 0 ? 1 : 0)
-        + (sourceEntries.length > 0 ? 1 : 0)
-        + (displayedContributors.length > 0 ? 1 : 0)
-    // SongPage already reserves space below this 32px host for the wrapped touch row.
-    implicitWidth: Qt.platform.os === "android"
-        ? (parent ? Math.min(parent.width, 540) : 540)
-        : attributionCount > 0 ? attributionCount * 32 + (attributionCount - 1) * 4 : 0
-    implicitHeight: 32
+    implicitWidth: actions.implicitWidth
+    implicitHeight: actions.implicitHeight
 
     function hasForbiddenUrlCharacters(value) {
         if (typeof value !== "string" || value.length === 0
@@ -247,8 +239,6 @@ Item {
 
     component AttributionAction: KeyboardAction {
         tooltipText: accessibleName
-        androidTooltipPolicy: "caption"
-        androidCaptionPlacement: "right"
         id: action
         property url iconSource: ""
         property string symbol: ""
@@ -285,69 +275,49 @@ Item {
         }
     }
 
-    Flow {
+    Row {
         id: actions
         objectName: "vinylSourceAttributionActions"
         anchors.fill: parent
         spacing: 4
 
-        Item {
+        AttributionAction {
+            id: lyricsAction
+            objectName: "vinylSourceAttributionLrclibAction"
             visible: root.validatedLyricsSourceUrl.length > 0
-            width: Qt.platform.os === "android" ? 82 : 32
-            height: 32
-            AttributionAction {
-                id: lyricsAction
-                objectName: "vinylSourceAttributionLrclibAction"
-                accessibleName: "Open lyrics source on LRCLIB"
-                androidCaptionText: qsTr("LRCLIB")
-                isLink: true
-                iconSource: "../../assets/icons/providers/lrclib.ico"
-                onTriggered: root.requestLyricsSource(root.lyricsSourceUrl)
-            }
+            accessibleName: "Open lyrics source on LRCLIB"
+            isLink: true
+            iconSource: "../../assets/icons/providers/lrclib.ico"
+            onTriggered: root.requestLyricsSource(root.lyricsSourceUrl)
         }
 
-        Item {
+        AttributionAction {
+            id: geniusAction
+            objectName: "vinylSourceAttributionGeniusAction"
             visible: root.validatedAnnotationSourceUrl.length > 0
-            width: Qt.platform.os === "android" ? 82 : 32
-            height: 32
-            AttributionAction {
-                id: geniusAction
-                objectName: "vinylSourceAttributionGeniusAction"
-                accessibleName: "Open annotation source on Genius"
-                androidCaptionText: qsTr("Genius")
-                isLink: true
-                iconSource: "../../assets/icons/providers/genius.png"
-                onTriggered: root.requestAnnotationSource(root.annotationSourceUrl)
-            }
+            accessibleName: "Open annotation source on Genius"
+            isLink: true
+            iconSource: "../../assets/icons/providers/genius.png"
+            onTriggered: root.requestAnnotationSource(root.annotationSourceUrl)
         }
 
-        Item {
+        AttributionAction {
+            id: sourcesAction
+            objectName: "vinylSourceAttributionSourcesAction"
             visible: root.sourceEntries.length > 0
-            width: Qt.platform.os === "android" ? 120 : 32
-            height: 32
-            AttributionAction {
-                id: sourcesAction
-                objectName: "vinylSourceAttributionSourcesAction"
-                accessibleName: "Show music sources"
-                androidCaptionText: qsTr("Music sources")
-                iconSource: "../../assets/icons/lucide/info.svg"
-                onTriggered: root.openPopup(sourcesPopup, sourcesAction)
-            }
+            accessibleName: "Show music sources"
+            iconSource: "../../assets/icons/lucide/info.svg"
+            onTriggered: root.openPopup(sourcesPopup, sourcesAction)
         }
 
-        Item {
+        AttributionAction {
+            id: contributorsAction
+            objectName: "vinylSourceAttributionContributorsAction"
             visible: root.displayedContributors.length > 0
-            width: Qt.platform.os === "android" ? 178 : 32
-            height: 32
-            AttributionAction {
-                id: contributorsAction
-                objectName: "vinylSourceAttributionContributorsAction"
-                accessibleName: "Show annotation contributors"
-                androidCaptionText: qsTr("Annotation contributors")
-                onTriggered: root.openPopup(contributorsPopup, contributorsAction)
-                symbol: "credits"
-                symbolColor: theme.inkDim
-            }
+            accessibleName: "Show annotation contributors"
+            onTriggered: root.openPopup(contributorsPopup, contributorsAction)
+            symbol: "credits"
+            symbolColor: theme.inkDim
         }
     }
 

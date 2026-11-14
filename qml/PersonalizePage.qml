@@ -165,9 +165,7 @@ Window {
                 Layout.topMargin: -6
             }
             Text {
-                text: Qt.platform.os === "android"
-                      ? qsTr("Tap a wallpaper to preview it. Apply when it feels like home.")
-                      : "Choose this world's wallpaper. Hover to try it on live - apply when it feels like home."
+                text: "Choose this world's wallpaper. Hover to try it on live - apply when it feels like home."
                 color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                 lineHeight: 1.35; wrapMode: Text.WordWrap; Layout.fillWidth: true
             }
@@ -259,7 +257,6 @@ Window {
                 }
 
                 delegate: Item {
-                    id: wallpaperTile
                     required property int index
                     required property var modelData
                     width: grid.cellWidth; height: grid.cellHeight
@@ -316,7 +313,6 @@ Window {
                             id: tileMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onEntered: root.current = index
-                            onClicked: if (Qt.platform.os === "android") root.current = wallpaperTile.index
                         }
                     }
                 }

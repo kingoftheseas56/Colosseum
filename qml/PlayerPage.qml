@@ -481,17 +481,6 @@ Item {
         root.handleWindowMinimize()
         root.syncWatchPartyPlayerObservation()
     }
-    property string lastDownloadSnackbarKind: "idle"
-    property bool downloadSnackbarOpen: false
-    property bool downloadSnackbarFailed: false
-    property string downloadSnackbarText: ""
-    function showDownloadSnackbar(message, failed) {
-        if (Qt.platform.os !== "android") return
-        root.downloadSnackbarText = message
-        root.downloadSnackbarFailed = failed
-        root.downloadSnackbarOpen = true
-        downloadSnackbarTimer.restart()
-    }
     property bool frameGrabToastOpen: false
     property string frameGrabToastText: ""
     property string frameGrabPath: ""
@@ -1167,7 +1156,7 @@ Item {
     // fullscreen 150%-DPI window and hid change-stream + download for no layout reason.
     readonly property bool barSnug: utilitySpace < 360
     readonly property bool barTiny: utilitySpace < 260
-    readonly property bool anyMenuOpen: watchPartyMenu.panelOpen || audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.liveGuideOpen || root.dvrPanelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen || root.touchOptionsOpen || androidPlayerMore.opened
+    readonly property bool anyMenuOpen: watchPartyMenu.panelOpen || audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.liveGuideOpen || root.dvrPanelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen || root.touchOptionsOpen
     readonly property bool abLoopActive: root.abLoopA >= 0 && root.abLoopB > root.abLoopA
     readonly property bool sleepTimerActive: root.sleepTimerMode !== "off"
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -2542,19 +2531,6 @@ Item {
         mpv.refreshAudioOutput()
     }
 
-    Connections {
-        target: typeof Download !== "undefined" ? Download : null
-        function onChanged() {
-            if (typeof Download === "undefined") return
-            var s = Download.status || ({ "kind": "idle" })
-            var kind = String(s.kind || "idle")
-            if (kind === root.lastDownloadSnackbarKind) return
-            root.lastDownloadSnackbarKind = kind
-            if (kind === "done") root.showDownloadSnackbar("Saved to " + (s.path || Download.defaultDownloadDir || "Downloads"), false)
-            else if (kind === "error") root.showDownloadSnackbar("Failed: " + (s.message || "Download failed"), true)
-        }
-    }
-
     function downloadTooltip() {
         if (typeof Download === "undefined")
             return "Download"
@@ -2570,33 +2546,6 @@ Item {
         if (s.kind === "error")
             return "Failed: " + (s.message || "Download failed")
         return "Download video"
-    }
-
-    function androidPlayerActions() {
-        var rows = []
-        if (root.streamCandidates.length > 1) rows.push({id:"stream",label:"Pick another stream",iconName:"reset"})
-        if (root.currentCastUrl().length > 0) {
-            var s = typeof Download !== "undefined" ? Download.status || ({}) : ({})
-            var k = String(s.kind || "idle")
-            var busy = k === "preparing" || k === "downloading"
-            rows.push({id:"download",label:busy ? "Cancel download" : k === "done" ? "Saved" : k === "error" ? "Failed" : "Download video",iconName:"down",selected:busy,danger:k === "error"})
-            if (k === "preparing") rows.push({id:"downloadStatus",label:"Preparing download",iconName:"note",enabled:false})
-            else if (k === "downloading") rows.push({id:"downloadStatus",label:"Downloading " + Math.round((s.ratio || 0) * 100) + "%",iconName:"note",enabled:false})
-        }
-        if (root.mediaId.indexOf("iptv:") !== 0) rows.push({id:"browser",label:"Episodes & sources",iconName:"series"})
-        rows.push({id:"audio",label:"Audio tracks",iconName:"song",enabled:mpv.audioTracks.length > 1},
-                  {id:"subtitles",label:"Subtitles",iconName:"note"},
-                  {id:"speed",label:"Speed & sleep",iconName:"up"})
-        if (root.supportsPlayerCapability("videoTransform")) rows.push({id:"fill",label:"Aspect ratio",iconName:"film"})
-        rows.push({id:"touch",label:"Touch controls",iconName:"grid"})
-        if (root.supportsPlayerCapability("frameCapture")) rows.push({id:"screenshot",label:"Screenshot",iconName:"film"})
-        if (root.supportsPlayerCapability("gifCapture")) rows.push({id:"gif",label:root.gifState === "recording" ? "Stop GIF" : "Record GIF",iconName:"film"})
-        if (root.supportsPlayerCapability("playbackStats")) rows.push({id:"stats",label:"Playback stats",iconName:"list",selected:root.statsOverlayOpen})
-        if (root.supportsPlayerCapability("loudnessNormalization")) rows.push({id:"loudness",label:"Loudness · " + root.loudnessLabel(),iconName:"song"})
-        if (typeof Live !== "undefined" && Live.isLive) rows.push({id:"liveGuide",label:"Live guide",iconName:"list"}, {id:"dvr",label:"DVR record",iconName:"film"}, {id:"liveEdge",label:"Jump to live edge",iconName:"up"})
-        if (root.supportsPlayerCapability("pictureInPicture")) rows.push({id:"pip",label:root.pipMode ? "Exit picture-in-picture" : "Picture-in-picture",iconName:"grid"})
-        rows.push({id:"shortcuts",label:"Keyboard shortcuts",iconName:"note"})
-        return rows
     }
 
     function downloadIcon() {
@@ -3946,7 +3895,6 @@ Item {
         root.closeConfirmOpen = false
         root.shortcutsOpen = false
         root.browserOpen = false
-        androidPlayerMore.close()
     }
     // One Escape contract for both the player's focused key handler and Main.qml's
     // application Shortcut: temporary controls close first, otherwise Back minimizes
@@ -4105,7 +4053,6 @@ Item {
             return
         }
         if (kind === "audio") audioMenu.panelOpen = true
-        else if (kind === "subtitles") subMenu.panelOpen = true
         else if (kind === "speed") speedMenu.panelOpen = true
         else if (kind === "fill") fillMenu.panelOpen = true
         else if (kind === "browser") root.browserOpen = true
@@ -4153,8 +4100,6 @@ Item {
     }
 
     Component.onCompleted: {
-        if (typeof Download !== "undefined")
-            root.lastDownloadSnackbarKind = String((Download.status || ({ "kind": "idle" })).kind || "idle")
         if (PlatformRuntime.android) {
             PlatformRuntime.setPlayerLandscape(root.visible)
             if (root.visible) PlatformRuntime.beginPlaybackBrightness()
@@ -5883,8 +5828,6 @@ Item {
                     size: 26
                     icon: "cancel"
                     tooltip: "Clear A-B loop"
-                    androidCaption: qsTr("Clear A-B loop")
-                    androidCaptionPlacement: "right"
                     onClicked: root.clearAbLoop()
                 }
             }
@@ -5954,32 +5897,6 @@ Item {
                         }
                     }
                 }
-            }
-        }
-
-        Timer { id: downloadSnackbarTimer; interval: 2800; onTriggered: root.downloadSnackbarOpen = false }
-        Rectangle {
-            visible: root.downloadSnackbarOpen
-            z: 20
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            anchors.topMargin: 144
-            width: Math.min(parent.width - 40, downloadSnackbarLabel.implicitWidth + 32)
-            height: 42; radius: 21
-            color: root.downloadSnackbarFailed ? Qt.rgba(0.48, 0.10, 0.12, 0.88) : Qt.rgba(0.04, 0.05, 0.07, 0.90)
-            border.width: 1
-            border.color: root.downloadSnackbarFailed ? Qt.rgba(1, 0.35, 0.35, 0.40) : Qt.rgba(1, 1, 1, 0.18)
-            Text {
-                id: downloadSnackbarLabel
-                anchors.centerIn: parent
-                text: root.downloadSnackbarText
-                width: Math.min(implicitWidth, parent.width - 24)
-                elide: Text.ElideMiddle
-                horizontalAlignment: Text.AlignHCenter
-                color: theme.ink
-                font.family: theme.hud
-                font.pixelSize: 12
-                font.weight: Font.DemiBold
             }
         }
 
@@ -6428,7 +6345,7 @@ Item {
             anchors.leftMargin: 0
             anchors.rightMargin: 0
             anchors.bottomMargin: 0
-            height: Qt.platform.os === "android" ? 182 : (tight ? 116 : 126)
+            height: tight ? 116 : 126
             radius: 0
             color: "transparent"
             border.width: 0
@@ -6590,9 +6507,9 @@ Item {
                         readonly property bool hasThumb: root.hoverThumbUrl !== ""
                         readonly property string chapterTitle: root.chapterHoverLabel(root.seekPreview)
                         readonly property bool hasChapter: chapterTitle !== ""
-                        visible: (seekBar.hovered || root.seeking) && mpv.duration > 0
-                        x: root.clamp((root.seeking ? seekBar.width * root.clamp(root.seekPreview / Math.max(1, mpv.duration), 0, 1) : seekHover.mouseX) - width / 2, 0, parent.width - width)
-                        y: -(height + 10)
+                        visible: seekBar.hovered && !root.seeking && mpv.duration > 0
+                        x: root.clamp(seekHover.mouseX - width / 2, 0, parent.width - width)
+                        y: -(height + 2)
                         width: hasThumb ? 216
                                         : Math.min(240, Math.max(previewText.implicitWidth, chapterText.implicitWidth) + 16)
                         height: (hasThumb ? previewThumb.height + 36 : 28) + (hasChapter ? 17 : 0)
@@ -6661,7 +6578,6 @@ Item {
                         onPressed: {
                             root.seeking = true
                             root.seekPreview = root.previewAt(mouseX, width)
-                            root.requestSeekThumb()
                             root.wakeChrome()
                         }
                         onReleased: {
@@ -6750,7 +6666,7 @@ Item {
                 anchors.leftMargin: tight ? 14 : 18
                 anchors.rightMargin: tight ? 14 : 18
                 anchors.bottomMargin: 8
-                height: Qt.platform.os === "android" ? 116 : (tight ? 56 : 64)
+                height: tight ? 56 : 64
 
                 // Utility icons live LEFT of the playback arrows, chips live right — the
                 // two sides stay apart and nothing may crowd the transport (Hemanth
@@ -6760,7 +6676,7 @@ Item {
                 Row {
                     id: leftUtilityRow
                     anchors.left: parent.left
-                    y: Qt.platform.os === "android" ? parent.height - height : (parent.height - height) / 2
+                    anchors.verticalCenter: parent.verticalCenter
                     spacing: 6
 
                     VolumeControl {
@@ -6775,13 +6691,12 @@ Item {
                         size: 48
                         icon: "retry"
                         tooltip: "Retry stream"
-                        androidCaption: qsTr("Retry stream")
                         onClicked: root.retryCurrentStream()
                     }
 
                     RoundButton {
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: Qt.platform.os !== "android" && root.streamCandidates.length > 1 && !root.barSnug
+                        visible: root.streamCandidates.length > 1 && !root.barSnug
                         size: 48
                         icon: "stream"
                         tooltip: "Pick another stream"
@@ -6790,7 +6705,7 @@ Item {
 
                     RoundButton {
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: Qt.platform.os !== "android" && root.currentCastUrl().length > 0 && !root.barSnug
+                        visible: root.currentCastUrl().length > 0 && !root.barSnug
                         size: 48
                         icon: root.downloadIcon()
                         active: typeof Download !== "undefined" && Download.status.kind !== "idle"
@@ -6810,21 +6725,19 @@ Item {
                         // stream/download beside it. (Harbor ships this control hidden by
                         // default in bottom-right — no precedent worth colliding for.)
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: Qt.platform.os === "android" ? fillMenu.panelOpen : (!root.barSnug || fillMenu.panelOpen)
+                        visible: !root.barSnug || fillMenu.panelOpen
                     }
                 }
 
                 Row {
                     id: transportRow
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: Qt.platform.os === "android" ? 0 : (parent.height - height) / 2
-                    spacing: Qt.platform.os === "android" ? 4 : 8
+                    anchors.centerIn: parent
+                    spacing: 8
                     RoundButton {
                         visible: root.hasAdjacentEpisode("prev")
                         size: tight ? 38 : 40
                         icon: "prevEpisode"
                         tooltip: "Previous episode"
-                        androidCaption: qsTr("Previous episode")
                         onClicked: root.goToAdjacentEpisode("prev")
                     }
                     RoundButton {
@@ -6832,7 +6745,6 @@ Item {
                         icon: "seekBack"
                         label: root.seekBackSeconds
                         tooltip: "Back " + root.seekBackSeconds + "s"
-                        androidCaption: "Back " + root.seekBackSeconds + "s"
                         onClicked: root.requestUserSeekStep(-root.seekBackSeconds)
                     }
                     RoundButton {
@@ -6848,7 +6760,6 @@ Item {
                         icon: "seekForward"
                         label: root.seekForwardSeconds
                         tooltip: "Forward " + root.seekForwardSeconds + "s"
-                        androidCaption: "Forward " + root.seekForwardSeconds + "s"
                         onClicked: root.requestUserSeekStep(root.seekForwardSeconds)
                     }
                     RoundButton {
@@ -6856,7 +6767,6 @@ Item {
                         size: tight ? 38 : 40
                         icon: "nextEpisode"
                         tooltip: "Next episode"
-                        androidCaption: qsTr("Next episode")
                         onClicked: root.goToAdjacentEpisode("next")
                     }
                 }
@@ -6865,14 +6775,14 @@ Item {
                     id: playerRightControlCluster
                     objectName: "playerRightControlCluster"
                     anchors.right: parent.right
-                    y: Qt.platform.os === "android" ? parent.height - height : (parent.height - height) / 2
+                    anchors.verticalCenter: parent.verticalCenter
                     spacing: 6
 
                     // retry/stream/download moved to leftUtilityRow (2026-07-08) — the
                     // right side is the chip cluster's alone.
 
                     RoundButton {
-                        visible: Qt.platform.os !== "android" && root.mediaId.indexOf("iptv:") !== 0 && !root.barTiny
+                        visible: root.mediaId.indexOf("iptv:") !== 0 && !root.barTiny
                         anchors.verticalCenter: parent.verticalCenter
                         size: 40
                         icon: "episodes"
@@ -6910,7 +6820,7 @@ Item {
                         id: audioMenu
                         anchors.verticalCenter: parent.verticalCenter
                         overlayParent: chrome
-                        visible: Qt.platform.os === "android" ? audioMenu.panelOpen : (!root.barTiny || audioMenu.panelOpen)
+                        visible: !root.barTiny || audioMenu.panelOpen
                         onToggleRequested: function(wasOpen) {
                             root.closeMenus()
                             audioMenu.panelOpen = !wasOpen
@@ -6935,7 +6845,6 @@ Item {
                         id: subMenu
                         anchors.verticalCenter: parent.verticalCenter
                         overlayParent: chrome
-                        visible: Qt.platform.os === "android" ? subMenu.panelOpen : true
                         player: mpv
                         onToggleRequested: function(wasOpen) {
                             root.closeMenus()
@@ -6973,7 +6882,7 @@ Item {
                     SpeedMenuButton {
                         id: speedMenu
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: Qt.platform.os === "android" ? speedMenu.panelOpen : (!root.barTiny || speedMenu.panelOpen)
+                        visible: !root.barTiny || speedMenu.panelOpen
                     }
 
                     // Fullscreen — relocated here from the top window group so it exists ONCE,
@@ -6986,18 +6895,6 @@ Item {
                         icon: root.shellWindowed ? "fullscreen" : "fullscreenExit"
                         tooltip: root.shellWindowed ? "Enter fullscreen (F11)" : "Exit fullscreen (F11)"
                         onClicked: root.fullscreenRequested()
-                    }
-
-                    ActionOverflowMenu {
-                        id: androidPlayerMore
-                        visible: Qt.platform.os === "android"
-                        anchors.verticalCenter: parent.verticalCenter
-                        menuWidth: 312
-                        actions: root.androidPlayerActions()
-                        onActionTriggered: function(actionId) {
-                            if (actionId !== "downloadStatus")
-                                root.activateOverflowKind(actionId)
-                        }
                     }
 
                     // More-controls (and the narrow-bar folds) live on the video's
@@ -7097,20 +6994,15 @@ Item {
         property string icon: ""
         property string label: ""
         property string tooltip: ""
-        property string androidCaption: ""
-        property string androidCaptionPlacement: "below"
         property bool hero: false
         property bool active: false
         signal clicked()
-        width: Qt.platform.os === "android" && androidCaption.length
-               ? (androidCaptionPlacement === "right" ? size + androidCaption.length * 7 + 12 : Math.max(size, androidCaption.length * 7 + 12)) : size
-        height: Qt.platform.os === "android" && androidCaption.length && androidCaptionPlacement === "below" ? size + 24 : size
+        width: size
+        height: size
         scale: press.pressed ? 0.95 : (press.containsMouse ? 1.04 : 1)
         Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
         Rectangle {
-            anchors.top: parent.top
-            x: Qt.platform.os === "android" && rb.androidCaptionPlacement === "right" ? 0 : (rb.width - rb.size) / 2
-            width: rb.size; height: rb.size
+            anchors.fill: parent
             radius: width / 2
             // hero (play/pause) = solid white circle with a dark glyph, per the approved mock;
             // everything else stays a translucent white hover chip. Gold is timeline/focus only.
@@ -7122,18 +7014,14 @@ Item {
         }
         // Lucide glyphs: seek kinds get the composed rotate+numeral, everything else one SVG glyph.
         PlayerIcon {
-            anchors.top: parent.top
-            x: Qt.platform.os === "android" && rb.androidCaptionPlacement === "right" ? 0 : (rb.width - rb.size) / 2
-            width: rb.size; height: rb.size
+            anchors.fill: parent
             visible: rb.icon !== "seekBack" && rb.icon !== "seekForward"
             kind: rb.icon
             ink: rb.hero ? "#101014" : (rb.active ? theme.gold : theme.ink)
             accessibleName: rb.tooltip
         }
         PlayerSeekIcon {
-            anchors.top: parent.top
-            x: Qt.platform.os === "android" && rb.androidCaptionPlacement === "right" ? 0 : (rb.width - rb.size) / 2
-            width: rb.size; height: rb.size
+            anchors.fill: parent
             visible: rb.icon === "seekBack" || rb.icon === "seekForward"
             forward: rb.icon === "seekForward"
             seconds: (rb.label && rb.label.length) ? parseInt(rb.label) : 10
@@ -7149,18 +7037,12 @@ Item {
             onClicked: rb.clicked()
         }
         KeyboardAction {
-            anchors.top: parent.top
-            x: Qt.platform.os === "android" && rb.androidCaptionPlacement === "right" ? 0 : (rb.width - rb.size) / 2
-            width: rb.androidCaptionPlacement === "right" ? rb.size : rb.width
-            height: rb.size
+            anchors.fill: parent
             pointerEnabled: false
             accessibleName: rb.tooltip.length ? rb.tooltip : rb.icon
             tooltipText: rb.icon === "minimizeToBar" ? qsTr("Minimize") : (rb.tooltip.length ? rb.tooltip : rb.icon)
             tooltipHovered: press.containsMouse
-            androidTooltipPolicy: rb.androidCaption.length ? "caption" : "drop"
-            androidCaptionText: rb.androidCaption
-            androidCaptionPlacement: rb.androidCaptionPlacement
-            focusRadius: rb.size / 2
+            focusRadius: rb.width / 2
             onTriggered: {
                 root.wakeChrome()
                 rb.clicked()

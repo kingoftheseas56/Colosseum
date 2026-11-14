@@ -27,7 +27,7 @@ Button {
 
     Accessible.name: control.accessibleName
         + (control.authoritativeChecked ? qsTr(", on") : qsTr(", off"))
-    ToolTip.visible: control.hovered && Qt.platform.os !== "android"
+    ToolTip.visible: control.hovered
     ToolTip.delay: 350
     ToolTip.text: (control.authoritativeChecked ? qsTr("Disable ") : qsTr("Enable ")) + control.accessibleName
 

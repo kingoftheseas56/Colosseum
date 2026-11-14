@@ -19,8 +19,6 @@ Item {
     property string genreName: "Sci-Fi & Fantasy"
     property string sortMode: "readers"          // Apple chart order = popularity/readers
     property bool compact: false                  // view toggle: false = detailed cards, true = covers
-    readonly property bool androidTouch: Qt.platform.os === "android"
-    readonly property bool phoneLayout: androidTouch && width < 600
     // Task 9: global Explicit Content preference (Main.qml binds it on this standalone layer).
     // Apple Books RSS is a commercial storefront (store policy excludes sexually-explicit
     // material), so this is defense-in-depth; mainstream adult fiction stays visible.
@@ -244,31 +242,19 @@ Item {
 
                 // ---- listing controls ----
                 Item {
-                    width: parent.width; height: root.phoneLayout ? 106 : (root.androidTouch ? 68 : 40); y: 0
+                    width: parent.width; height: 40; y: 0
                     Item { height: 26 }
                     Text {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: root.phoneLayout ? undefined : parent.verticalCenter
-                        anchors.top: root.phoneLayout ? parent.top : undefined
-                        anchors.topMargin: root.phoneLayout ? 10 : 0
+                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                         text: "MOST READ"
                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                         font.weight: Font.DemiBold; font.letterSpacing: 1.6
                     }
-                    Item {
-                        id: listingActions
-                        anchors.right: parent.right
-                        anchors.top: root.phoneLayout ? parent.top : undefined
-                        anchors.verticalCenter: root.phoneLayout ? undefined : parent.verticalCenter
-                        width: root.phoneLayout ? parent.width : (sortBox.width + 12 + viewSelector.width)
-                        height: root.phoneLayout ? 102 : (root.androidTouch ? 64 : 36)
+                    Row {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        spacing: 12
                         // sort: fixed to Apple's bestseller chart (real popularity order)
                         Rectangle {
-                            id: sortBox
-                            anchors.right: root.phoneLayout ? parent.right : viewSelector.left
-                            anchors.rightMargin: root.phoneLayout ? 0 : 12
-                            anchors.top: root.phoneLayout ? parent.top : undefined
-                            anchors.verticalCenter: root.phoneLayout ? undefined : parent.verticalCenter
                             height: 36; radius: 10; width: srt.implicitWidth + 28
                             color: srtMa.containsMouse ? theme.glassHi : theme.glassTint
                             border.width: 1; border.color: theme.edge
@@ -290,33 +276,23 @@ Item {
                         }
                         // view: detailed ⇄ covers
                         Row {
-                            id: viewSelector
-                            anchors.right: parent.right
-                            anchors.bottom: root.phoneLayout ? parent.bottom : undefined
-                            anchors.verticalCenter: root.phoneLayout ? undefined : parent.verticalCenter
-                            spacing: root.androidTouch ? 8 : 0
                             Repeater {
                                 model: [ { c: false, g: "▤" }, { c: true, g: "▦" } ]
                                 delegate: Rectangle {
                                     required property var modelData
-                                    width: root.androidTouch ? (modelData.c ? 118 : 142) : 38
-                                    height: root.androidTouch ? 60 : 36
+                                    width: 38; height: 36
                                     color: (root.compact === modelData.c) ? theme.glassHi : theme.glassTint
                                     border.width: 1; border.color: theme.edge
-                                    Text { anchors.horizontalCenter: parent.horizontalCenter
-                                           y: root.androidTouch ? 7 : (parent.height - implicitHeight) / 2
-                                           text: modelData.g
+                                    Text { anchors.centerIn: parent; text: modelData.g
                                            color: (root.compact === modelData.c) ? theme.ink : theme.inkDimmer
                                            font.pixelSize: 15 }
                                     HoverHandler { id: genreViewHover }
                                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                                 onClicked: root.compact = modelData.c }
                                     KeyboardAction {
-                                        x: 0; y: 0; width: parent.width; height: 36; pointerEnabled: false
+                                        anchors.fill: parent; pointerEnabled: false
                                         accessibleName: modelData.c ? "Cover grid view" : "Detailed grid view"
                                         tooltipText: accessibleName
-                                        androidTooltipPolicy: "caption"
-                                        androidCaptionText: accessibleName
                                         tooltipHovered: genreViewHover.hovered
                                         focusRadius: 4; onTriggered: root.compact = modelData.c
                                     }
@@ -412,7 +388,7 @@ Item {
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
                     HoverHandler { id: genrePageSearchHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; tooltipText: accessibleName; androidTooltipPolicy: "drop"; tooltipHovered: genrePageSearchHover.hovered; onTriggered: root.searchClicked() } }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; tooltipText: accessibleName; tooltipHovered: genrePageSearchHover.hovered; onTriggered: root.searchClicked() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
                     HoverHandler { id: genrePageMinHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }

@@ -12,7 +12,6 @@ Item {
     property int currentIndex: 0
     property string selectedId: ""
     property bool addingSongs: false
-    readonly property bool androidVinylActions: Qt.platform.os === "android"
 
     readonly property string section: String(libraryData.section || "albums")
     readonly property string selectedPlaylistId: String(libraryData.selectedPlaylistId || "")
@@ -155,25 +154,21 @@ Item {
         Item {
             id: albumsContent
             width: parent.width
-            height: albumHeading.height + (root.androidVinylActions ? 62 : 20)
-                + Math.max(albumGrid.height, root.albums.length ? 0 : 48)
+            height: albumHeading.height + 20 + Math.max(albumGrid.height, root.albums.length ? 0 : 48)
             visible: !root.hasDetail && root.section === "albums"
-            Text { id: albumHeading; width: Math.max(0, parent.width - (root.androidVinylActions ? 0 : 50)); text: "Albums"; color: theme.ink; font.family: theme.display; font.pixelSize: 29 }
+            Text { id: albumHeading; width: Math.max(0, parent.width - 50); text: "Albums"; color: theme.ink; font.family: theme.display; font.pixelSize: 29 }
             VinylWorldButton {
                 objectName: "vinylLibraryImportFolder"
-                x: root.androidVinylActions ? 0 : parent.width - 38
-                y: root.androidVinylActions ? albumHeading.height + 8 : -2
-                width: root.androidVinylActions ? 180 : 38; height: 38
+                x: parent.width - 38; y: -2; width: 38; height: 38
                 backdrop: root.backdrop
                 label: "Add music folder"
                 symbol: "musicFolder"
                 onTriggered: root.libraryData.importFolderRequested()
             }
-            Text { y: albumHeading.height + (root.androidVinylActions ? 60 : 18); width: parent.width; visible: root.albums.length === 0; text: "Albums from your library will appear here."; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; wrapMode: Text.WordWrap }
+            Text { y: albumHeading.height + 18; width: parent.width; visible: root.albums.length === 0; text: "Albums from your library will appear here."; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; wrapMode: Text.WordWrap }
             Grid {
                 id: albumGrid
-                y: albumHeading.height + (root.androidVinylActions ? 62 : 20)
-                width: parent.width; height: implicitHeight
+                y: albumHeading.height + 20; width: parent.width; height: implicitHeight
                 columns: Math.max(1, Math.min(6, Math.floor((width + 24) / 188)))
                 columnSpacing: 24; rowSpacing: 28
                 Repeater {
@@ -227,10 +222,10 @@ Item {
                         accessibleName: root.displayTitle(modelData)
                         onActiveFocusChanged: if (activeFocus) { root.currentIndex=index; root.selectedId=String(modelData.artistId || modelData.id || ""); }
                         onTriggered: root.libraryData.activateArtist(modelData)
-                        VinylArtistWidget { id: artistArt; width: artistCard.width; height: implicitHeight; title: root.displayTitle(artistCard.modelData); artworkSource: root.artwork(artistCard.modelData.cover); displayFont: theme.display }
+                        VinylArtistWidget { id: art; width: artistCard.width; height: implicitHeight; title: root.displayTitle(artistCard.modelData); artworkSource: root.artwork(artistCard.modelData.cover); displayFont: theme.display }
                         Text {
                             id: artistName
-                            y: artistArt.height + 11; width: parent.width; height: 20
+                            y: art.height + 11; width: parent.width; height: 20
                             text: root.displayTitle(artistCard.modelData)
                             textFormat: Text.PlainText
                             color: theme.ink
@@ -247,33 +242,27 @@ Item {
         Item {
             id: songsContent
             width: parent.width
-            height: songHeading.height + (root.androidVinylActions ? 62 : 20)
-                + Math.max(savedSongList.height, root.savedSongs.length ? 0 : 48)
+            height: songHeading.height + 20 + Math.max(savedSongList.height, root.savedSongs.length ? 0 : 48)
             visible: !root.hasDetail && root.section === "songs"
-            Text { id: songHeading; width: parent.width - (root.androidVinylActions ? 0 : 94); text: "Saved songs"; color: theme.ink; font.family: theme.display; font.pixelSize: 29 }
+            Text { id: songHeading; width: parent.width - 94; text: "Saved songs"; color: theme.ink; font.family: theme.display; font.pixelSize: 29 }
             VinylWorldButton {
                 objectName: "vinylLibraryPlaySavedSongs"
-                x: root.androidVinylActions ? 0 : parent.width - 82
-                y: root.androidVinylActions ? songHeading.height + 8 : -2
-                width: 38; height: 38
+                x: parent.width - 82; y: -2; width: 38; height: 38
                 backdrop: root.backdrop; label: "Play saved songs"; symbol: "play"
                 enabled: root.savedSongs.length > 0
                 onTriggered: root.libraryData.playSavedSongs(false)
             }
             VinylWorldButton {
                 objectName: "vinylLibraryShuffleSavedSongs"
-                x: root.androidVinylActions ? 50 : parent.width - 40
-                y: root.androidVinylActions ? songHeading.height + 8 : -2
-                width: root.androidVinylActions ? 208 : 38; height: 38
+                x: parent.width - 40; y: -2; width: 38; height: 38
                 backdrop: root.backdrop; label: "Shuffle saved songs"; symbol: "shuffle"
                 enabled: root.savedSongs.length > 0
                 onTriggered: root.libraryData.playSavedSongs(true)
             }
-            Text { y: songHeading.height + (root.androidVinylActions ? 60 : 18); width: parent.width; visible: root.savedSongs.length === 0; text: "Songs you save will appear here."; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; wrapMode: Text.WordWrap }
+            Text { y: songHeading.height + 18; width: parent.width; visible: root.savedSongs.length === 0; text: "Songs you save will appear here."; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; wrapMode: Text.WordWrap }
             Column {
                 id: savedSongList
-                y: songHeading.height + (root.androidVinylActions ? 62 : 20)
-                width: parent.width
+                y: songHeading.height + 20; width: parent.width
                 height: savedSongRows.count * (root.contentWidth < 360 ? 102 : 68)
                 spacing: 2
                 Repeater {
@@ -301,8 +290,7 @@ Item {
                             objectName: "vinylLibrarySavedSongPlay_" + savedRow.index
                             x:66
                             width: root.contentWidth < 360 ? Math.max(0, parent.width - 72)
-                                : Math.max(0, parent.width - (root.androidVinylActions ? 116
-                                    : (root.savedSongQueueAvailable ? 240 : 160)))
+                                : Math.max(0, parent.width - (root.savedSongQueueAvailable ? 240 : 160))
                             y: 0
                             height: root.contentWidth < 360 ? 58 : parent.height
                             focusOnPointer: false; showFocusFrame: false
@@ -319,8 +307,7 @@ Item {
                         KeyboardAction {
                             objectName: "vinylLibrarySavedSongNext_" + savedRow.index
                             tooltipText: qsTr("Play next")
-                            visible: !root.androidVinylActions && !!root.libraryData
-                                && typeof root.libraryData.enqueueSavedSong === "function"
+                            visible: !!root.libraryData && typeof root.libraryData.enqueueSavedSong === "function"
                             x: root.contentWidth < 360
                                 ? Math.max(4, (parent.width - (root.savedSongQueueAvailable ? 162 : 78)) / 2)
                                 : parent.width - 168
@@ -336,8 +323,7 @@ Item {
                         KeyboardAction {
                             objectName: "vinylLibrarySavedSongQueue_" + savedRow.index
                             tooltipText: qsTr("Add to queue")
-                            visible: !root.androidVinylActions && !!root.libraryData
-                                && typeof root.libraryData.enqueueSavedSong === "function"
+                            visible: !!root.libraryData && typeof root.libraryData.enqueueSavedSong === "function"
                             x: root.contentWidth < 360
                                 ? Math.max(4, (parent.width - (root.savedSongQueueAvailable ? 162 : 78)) / 2) + 42
                                 : parent.width - 126
@@ -353,7 +339,6 @@ Item {
                         KeyboardAction {
                             objectName: "vinylLibrarySavedSongAdd_" + savedRow.index
                             tooltipText: qsTr("Add to playlist")
-                            visible: !root.androidVinylActions
                             x: root.contentWidth < 360
                                 ? Math.max(4, (parent.width - (root.savedSongQueueAvailable ? 162 : 78)) / 2)
                                     + (root.savedSongQueueAvailable ? 126 : 42)
@@ -369,7 +354,6 @@ Item {
                         KeyboardAction {
                             objectName: "vinylLibrarySavedSongRemove_" + savedRow.index
                             tooltipText: qsTr("Remove saved song")
-                            visible: !root.androidVinylActions
                             x: root.contentWidth < 360
                                 ? Math.max(4, (parent.width - (root.savedSongQueueAvailable ? 162 : 78)) / 2)
                                     + (root.savedSongQueueAvailable ? 84 : 0)
@@ -382,31 +366,6 @@ Item {
                             Rectangle { anchors.fill: parent; radius: 9; color: parent.interactionActive ? theme.glassTint : "transparent" }
                             VinylControlIcon { anchors.centerIn: parent; symbol: "saved"; color: theme.inkDim }
                         }
-                        ActionOverflowMenu {
-                            objectName: "vinylSavedSongMore_" + savedRow.index
-                            visible: root.androidVinylActions
-                            x: parent.width - width - 6
-                            y: root.contentWidth < 360 ? 62 : (parent.height - height) / 2
-                            width: 40; height: 36
-                            showLabel: false
-                            label: qsTr("Saved song actions")
-                            actions: {
-                                var items = [];
-                                if (root.savedSongQueueAvailable) {
-                                    items.push({id:"next", label:qsTr("Play next"), iconName:"up", enabled:!savedRow.unavailable});
-                                    items.push({id:"queue", label:qsTr("Add to queue"), iconName:"list", enabled:!savedRow.unavailable});
-                                }
-                                items.push({id:"playlist", label:qsTr("Add to playlist"), iconName:"collections"});
-                                items.push({id:"remove", label:qsTr("Remove saved song"), iconName:"trash", danger:true});
-                                return items;
-                            }
-                            onActionTriggered: function(actionId) {
-                                if (actionId === "next") root.libraryData.enqueueSavedSong(savedRow.modelData.id, true);
-                                else if (actionId === "queue") root.libraryData.enqueueSavedSong(savedRow.modelData.id, false);
-                                else if (actionId === "playlist") root.openSongPicker(savedRow.modelData);
-                                else if (actionId === "remove") root.libraryData.toggleSong(savedRow.modelData);
-                            }
-                        }
                     }
                 }
             }
@@ -415,16 +374,13 @@ Item {
         Item {
             id: playlistsContent
             width: parent.width
-            height: playlistHeading.height + (root.androidVinylActions ? 62 : 20)
-                + Math.max(playlistList.height, root.playlists.length ? 0 : 48)
+            height: playlistHeading.height + 20 + Math.max(playlistList.height, root.playlists.length ? 0 : 48)
             visible: !root.hasDetail && root.section === "playlists"
-            Text { id: playlistHeading; width: parent.width - (root.androidVinylActions ? 0 : 52); text: "Your playlists"; color: theme.ink; font.family: theme.display; font.pixelSize: 29; elide: Text.ElideRight }
+            Text { id: playlistHeading; width: parent.width - 52; text: "Your playlists"; color: theme.ink; font.family: theme.display; font.pixelSize: 29; elide: Text.ElideRight }
             VinylWorldButton {
                 id: createPlaylist
                 objectName: "vinylLibraryCreatePlaylist"
-                x: root.androidVinylActions ? 0 : parent.width - 40
-                y: root.androidVinylActions ? playlistHeading.height + 8 : -2
-                width: root.androidVinylActions ? 180 : 38; height: 38
+                x: parent.width - 40; y: -2; width: 38; height: 38
                 backdrop: root.backdrop
                 label: "Create playlist"
                 symbol: "plus"
@@ -433,11 +389,10 @@ Item {
                     playlistDialog.title = "Create playlist"; playlistDialog.open();
                 }
             }
-            Text { y: playlistHeading.height + (root.androidVinylActions ? 60 : 18); width: parent.width; visible: root.playlists.length === 0; text: "Create a playlist to keep songs together for later."; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; wrapMode: Text.WordWrap }
+            Text { y: playlistHeading.height + 18; width: parent.width; visible: root.playlists.length === 0; text: "Create a playlist to keep songs together for later."; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; wrapMode: Text.WordWrap }
             Column {
                 id: playlistList
-                y: playlistHeading.height + (root.androidVinylActions ? 62 : 20)
-                width: parent.width
+                y: playlistHeading.height + 20; width: parent.width
                 height: playlistRows.count * 66
                 spacing: 4
                 Repeater {
@@ -489,7 +444,6 @@ Item {
             KeyboardAction {
                 objectName: "vinylPlaylistBack"
                 tooltipText: accessibleName
-                androidTooltipPolicy: "drop"
                 width: 38; height: 38
                 focusOnPointer: false
                 accessibleName: "Back to playlists"
@@ -506,7 +460,6 @@ Item {
                     id: playlistPlay
                     objectName: "vinylPlaylistPlay"
                     tooltipText: accessibleName
-                    androidTooltipPolicy: "drop"
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: "Play playlist"
@@ -515,15 +468,9 @@ Item {
                     Rectangle { anchors.fill: parent; radius: 9; color: parent.interactionActive ? theme.glassTint : "transparent" }
                     VinylControlIcon { anchors.centerIn: parent; symbol: "play"; color: theme.ink }
                 }
-                Item {
-                    width: root.androidVinylActions ? 160 : 38
-                    height: 36
                 KeyboardAction {
                     objectName: "vinylPlaylistShuffle"
                     tooltipText: accessibleName
-                    androidTooltipPolicy: "caption"
-                    androidCaptionText: qsTr("Shuffle playlist")
-                    androidCaptionPlacement: "right"
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: "Shuffle playlist"
@@ -532,11 +479,9 @@ Item {
                     Rectangle { anchors.fill: parent; radius: 9; color: parent.interactionActive ? theme.glassTint : "transparent" }
                     VinylControlIcon { anchors.centerIn: parent; symbol: "shuffle"; color: theme.ink }
                 }
-                }
                 KeyboardAction {
                     objectName: "vinylPlaylistQueue"
                     tooltipText: accessibleName
-                    visible: !root.androidVinylActions
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: "Queue playlist"
@@ -549,8 +494,7 @@ Item {
                 KeyboardAction {
                     objectName: "vinylPlaylistNext"
                     tooltipText: accessibleName
-                    visible: !root.androidVinylActions && !!root.libraryData
-                        && typeof root.libraryData.enqueuePlaylist === "function"
+                    visible: !!root.libraryData && typeof root.libraryData.enqueuePlaylist === "function"
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: "Play playlist next"
@@ -559,16 +503,10 @@ Item {
                     Rectangle { anchors.fill: parent; radius: 9; color: parent.interactionActive ? theme.glassTint : "transparent" }
                     VinylControlIcon { anchors.centerIn: parent; symbol: "playNext"; color: theme.ink }
                 }
-                Item {
-                    width: root.androidVinylActions ? 154 : 38
-                    height: 36
                 KeyboardAction {
                     id: playlistAdd
                     objectName: "vinylPlaylistAdd"
                     tooltipText: accessibleName
-                    androidTooltipPolicy: "caption"
-                    androidCaptionText: root.addingSongs ? qsTr("Close add songs") : qsTr("Add songs")
-                    androidCaptionPlacement: "right"
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: root.addingSongs ? "Close add songs" : "Add songs to playlist"
@@ -576,11 +514,9 @@ Item {
                     Rectangle { anchors.fill: parent; radius: 9; color: parent.interactionActive ? theme.glassTint : "transparent" }
                     VinylControlIcon { anchors.centerIn: parent; symbol: root.addingSongs ? "cancel" : "plus"; color: theme.ink }
                 }
-                }
                 KeyboardAction {
                     objectName: "vinylPlaylistRename"
                     tooltipText: accessibleName
-                    visible: !root.androidVinylActions
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: "Rename playlist"
@@ -594,7 +530,6 @@ Item {
                 KeyboardAction {
                     objectName: "vinylPlaylistDelete"
                     tooltipText: accessibleName
-                    visible: !root.androidVinylActions
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: "Delete playlist"
@@ -604,37 +539,6 @@ Item {
                     }
                     Rectangle { anchors.fill: parent; radius: 9; color: parent.interactionActive ? theme.glassTint : "transparent" }
                     VinylControlIcon { anchors.centerIn: parent; symbol: "trash"; color: theme.inkDim }
-                }
-                ActionOverflowMenu {
-                    objectName: "vinylPlaylistMore"
-                    visible: root.androidVinylActions
-                    width: 84; height: 36
-                    actions: {
-                        var items = [];
-                        var hasItems = (root.selectedPlaylist.items || []).length > 0;
-                        if (root.libraryData && typeof root.libraryData.enqueuePlaylist === "function") {
-                            items.push({id:"queue", label:qsTr("Queue playlist"), iconName:"list",
-                                enabled:hasItems});
-                            items.push({id:"next", label:qsTr("Play playlist next"), iconName:"up",
-                                enabled:hasItems});
-                        }
-                        items.push({id:"rename", label:qsTr("Rename playlist"), iconName:"edit"});
-                        items.push({id:"delete", label:qsTr("Delete playlist"), iconName:"trash", danger:true});
-                        return items;
-                    }
-                    onActionTriggered: function(actionId) {
-                        var id = root.selectedPlaylist.id || root.selectedPlaylistId;
-                        if (actionId === "queue") root.libraryData.enqueuePlaylist(id, false);
-                        else if (actionId === "next") root.libraryData.enqueuePlaylist(id, true);
-                        else if (actionId === "rename") {
-                            nameField.text = root.playlistName(root.selectedPlaylist);
-                            dialogMode = "rename";
-                            playlistDialog.title = "Rename playlist";
-                            playlistDialog.open();
-                        } else if (actionId === "delete") {
-                            if (root.libraryData.deletePlaylist(id)) root.showPlaylistList();
-                        }
-                    }
                 }
             }
             Text {
@@ -706,8 +610,7 @@ Item {
                             objectName: "vinylPlaylistItemPlay_" + playlistItemRow.index
                             enabled: !playlistItemRow.modelData.unavailable
                             width: root.contentWidth < 430 ? parent.width
-                                : Math.max(0, parent.width - (root.androidVinylActions ? 56
-                                    : (root.playlistItemQueueAvailable ? 230 : 138)))
+                                : Math.max(0, parent.width - (root.playlistItemQueueAvailable ? 230 : 138))
                             height: root.contentWidth < 430 ? 58 : parent.height
                             focusOnPointer: false; showFocusFrame: false
                             accessibleName: "Play " + root.displayTitle(playlistItemRow.modelData) + (playlistItemRow.modelData.unavailable ? ", unavailable" : "")
@@ -727,8 +630,7 @@ Item {
                         KeyboardAction {
                             objectName: "vinylPlaylistItemNext_" + playlistItemRow.index
                             tooltipText: qsTr("Play next")
-                            visible: !root.androidVinylActions && !!root.libraryData
-                                && typeof root.libraryData.enqueuePlaylistItem === "function"
+                            visible: !!root.libraryData && typeof root.libraryData.enqueuePlaylistItem === "function"
                             x: root.contentWidth < 430
                                 ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2)
                                 : parent.width - 224
@@ -747,8 +649,7 @@ Item {
                         KeyboardAction {
                             objectName: "vinylPlaylistItemQueue_" + playlistItemRow.index
                             tooltipText: qsTr("Add to queue")
-                            visible: !root.androidVinylActions && !!root.libraryData
-                                && typeof root.libraryData.enqueuePlaylistItem === "function"
+                            visible: !!root.libraryData && typeof root.libraryData.enqueuePlaylistItem === "function"
                             x: root.contentWidth < 430
                                 ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2) + 35
                                 : parent.width - 180
@@ -767,7 +668,6 @@ Item {
                         KeyboardAction {
                             objectName: "vinylPlaylistMoveUp_" + playlistItemRow.index
                             tooltipText: qsTr("Move up")
-                            visible: !root.androidVinylActions
                             x: root.contentWidth < 430
                                 ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2)
                                     + (root.playlistItemQueueAvailable ? 70 : 0)
@@ -783,7 +683,6 @@ Item {
                         KeyboardAction {
                             objectName: "vinylPlaylistMoveDown_" + playlistItemRow.index
                             tooltipText: qsTr("Move down")
-                            visible: !root.androidVinylActions
                             x: root.contentWidth < 430
                                 ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2)
                                     + (root.playlistItemQueueAvailable ? 105 : 35)
@@ -799,7 +698,6 @@ Item {
                         KeyboardAction {
                             objectName: "vinylPlaylistRemove_" + playlistItemRow.index
                             tooltipText: qsTr("Remove from playlist")
-                            visible: !root.androidVinylActions
                             x: root.contentWidth < 430
                                 ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2)
                                     + (root.playlistItemQueueAvailable ? 140 : 70)
@@ -810,43 +708,6 @@ Item {
                             onTriggered: root.libraryData.removePlaylistItem(root.selectedPlaylist.id || root.selectedPlaylistId, playlistItemRow.itemId)
                             Rectangle { anchors.fill: parent; radius: 8; color: parent.interactionActive ? theme.glassTint : "transparent" }
                             VinylControlIcon { anchors.centerIn: parent; symbol: "cancel"; color: theme.inkDim }
-                        }
-                        ActionOverflowMenu {
-                            objectName: "vinylPlaylistItemMore_" + playlistItemRow.index
-                            visible: root.androidVinylActions
-                            x: parent.width - width - 6
-                            y: root.contentWidth < 430 ? 62 : (parent.height - height) / 2
-                            width: 40; height: 36
-                            showLabel: false
-                            label: qsTr("Playlist item actions")
-                            actions: {
-                                var items = [];
-                                var count = (root.selectedPlaylist.items || []).length;
-                                var playable = !playlistItemRow.modelData.unavailable;
-                                if (root.playlistItemQueueAvailable) {
-                                    items.push({id:"next", label:qsTr("Play next"), iconName:"up", enabled:playable});
-                                    items.push({id:"queue", label:qsTr("Add to queue"), iconName:"list", enabled:playable});
-                                }
-                                items.push({id:"up", label:qsTr("Move up"), iconName:"up",
-                                    enabled:playlistItemRow.index > 0});
-                                items.push({id:"down", label:qsTr("Move down"), iconName:"down",
-                                    enabled:playlistItemRow.index < count - 1});
-                                items.push({id:"remove", label:qsTr("Remove from playlist"), iconName:"trash",
-                                    danger:true});
-                                return items;
-                            }
-                            onActionTriggered: function(actionId) {
-                                var id = root.selectedPlaylist.id || root.selectedPlaylistId;
-                                var itemId = playlistItemRow.itemId;
-                                if (actionId === "next" || actionId === "queue")
-                                    root.libraryData.enqueuePlaylistItem(id, itemId, actionId === "next");
-                                else if (actionId === "up")
-                                    root.libraryData.movePlaylistItem(id, itemId, playlistItemRow.index - 1);
-                                else if (actionId === "down")
-                                    root.libraryData.movePlaylistItem(id, itemId, playlistItemRow.index + 1);
-                                else if (actionId === "remove")
-                                    root.libraryData.removePlaylistItem(id, itemId);
-                            }
                         }
                     }
                 }
@@ -932,8 +793,7 @@ Item {
             layoutDirection: Qt.RightToLeft
             VinylWorldButton {
                 objectName: "vinylLibraryPlaylistConfirm"
-                width: root.androidVinylActions ? 194 : 38
-                height: 38
+                width: 38; height: 38
                 backdrop: root.backdrop
                 label: root.dialogMode === "create" ? "Create playlist" : "Save playlist name"
                 symbol: "check"

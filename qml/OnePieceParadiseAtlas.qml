@@ -386,30 +386,7 @@ FocusScope {
             ToolTip.visible: hovered
             ToolTip.text: qsTr("Reset zoom")
             ToolTip.delay: 350
-            onClicked: root.setZoom(1)
-            // Reuse Slice 0's caption policy; retain the live percentage and tap action.
-            Rectangle {
-                visible: Qt.platform.os === "android"
-                x: (parent.width - width) / 2
-                y: parent.height + 4
-                width: 96; height: 18; radius: 4
-                color: "#523a25"
-            }
-            KeyboardAction {
-                x: (parent.width - width) / 2
-                width: 96
-                height: parent.height
-                pointerEnabled: false
-                focusEnabled: false
-                focusPolicy: Qt.NoFocus
-                showFocusFrame: false
-                accessibleName: qsTr("Reset zoom")
-                tooltipText: accessibleName
-                androidTooltipPolicy: "caption"
-                androidCaptionText: qsTr("Reset zoom")
-                onTriggered: root.setZoom(1)
-            }
-        }
+            onClicked: root.setZoom(1) }
         ParadiseInkButton { objectName: "paradiseZoomIn"; text: "+"; width: 44; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Zoom in";
             ToolTip.visible: hovered
             ToolTip.text: qsTr("Zoom in")

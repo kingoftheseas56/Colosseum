@@ -252,7 +252,7 @@ Item {
                     HoverHandler { id: indexSearchHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; focusRadius: 4
-                                     tooltipText: accessibleName; androidTooltipPolicy: "drop"; tooltipHovered: indexSearchHover.hovered
+                                     tooltipText: accessibleName; tooltipHovered: indexSearchHover.hovered
                                      onTriggered: root.searchClicked() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
                     HoverHandler { id: indexMinimizeHover }

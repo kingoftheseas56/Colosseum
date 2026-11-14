@@ -55,24 +55,18 @@ Item {
         property string icon: ""
         property string tooltip: ""
         property real size: 38
-        property string androidCaption: ""
-        readonly property bool androidLabelled: Qt.platform.os === "android" && androidCaption.length > 0
         signal tapped()
-        implicitWidth: androidLabelled ? Math.max(size, androidCaption.length * 7 + 12) : size
-        implicitHeight: androidLabelled ? size + 24 : size
+        implicitWidth: size
+        implicitHeight: size
         scale: tap.pressed ? 0.95 : (tap.containsMouse ? 1.04 : 1.0)
         Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
         Rectangle {
-            anchors.top: parent.top
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: rb.size; height: rb.size
+            anchors.fill: parent
             radius: width / 2
             color: tap.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
         }
         Player2Icon {
-            anchors.top: parent.top
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: rb.size; height: rb.size
+            anchors.fill: parent
             kind: rb.icon
             ink: bar.theme ? bar.theme.ink : "#f7f7f5"
             accessibleName: rb.tooltip
@@ -85,15 +79,11 @@ Item {
             onClicked: rb.tapped()
         }
         KeyboardAction {
-            anchors.top: parent.top
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: rb.width; height: rb.size
+            anchors.fill: parent
             pointerEnabled: false
             accessibleName: rb.tooltip
             tooltipText: rb.icon === "minimizeToBar" ? qsTr("Minimize") : rb.tooltip
             tooltipHovered: tap.containsMouse
-            androidTooltipPolicy: rb.androidCaption.length ? "caption" : "drop"
-            androidCaptionText: rb.androidCaption
             focusRadius: rb.size / 2
             onTriggered: rb.tapped()
         }
@@ -174,7 +164,6 @@ Item {
         BarButton {
             icon: "minimizeToBar"
             tooltip: "Minimize — paused in the taskbar, resumes with no reload"
-            androidCaption: qsTr("Minimize")
             onTapped: bar.minimizeRequested()
         }
         BarButton {

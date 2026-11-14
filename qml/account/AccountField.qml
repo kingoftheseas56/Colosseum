@@ -9,12 +9,6 @@ Item {
 
     property string label: ""
     property string hint: ""
-    // Android keeps hint/validation help beneath the field. Optional override for
-    // Android-only helper copy; desktop retains the original above-field hint.
-    property string helperText: ""
-    property bool androidPresentationEnabled: Qt.platform.os === "android"
-    readonly property string _effectiveHint: androidPresentationEnabled && helperText.length > 0
-        ? helperText : hint
     property string placeholderText: ""
     property bool password: false
     property bool reveal: false
@@ -25,10 +19,10 @@ Item {
 
     signal accepted()
 
-    implicitHeight: labelText.implicitHeight + 10 + field.height
-        + (root.androidPresentationEnabled
-            ? (helperTextItem.visible ? helperTextItem.implicitHeight + 6 : 0)
-            : (hintText.visible ? hintText.implicitHeight + 4 : 0))
+    implicitHeight: labelText.implicitHeight
+        + (root.hint.length > 0 ? hintText.implicitHeight + 4 : 0)
+        + 10
+        + field.height
     implicitWidth: 400
 
     Theme { id: theme }
@@ -46,28 +40,12 @@ Item {
 
     Text {
         id: hintText
-        objectName: "accountFieldDesktopHintText"
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: labelText.bottom
         anchors.topMargin: 4
-        visible: !root.androidPresentationEnabled && root.hint.length > 0
+        visible: root.hint.length > 0
         text: root.hint
-        color: theme.inkDimmer
-        font.family: theme.ui
-        font.pixelSize: theme.fontSize(11)
-        wrapMode: Text.WordWrap
-    }
-
-    Text {
-        id: helperTextItem
-        objectName: "accountFieldHelperText"
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: field.bottom
-        anchors.topMargin: 6
-        visible: root.androidPresentationEnabled && root._effectiveHint.length > 0
-        text: root._effectiveHint
         color: theme.inkDimmer
         font.family: theme.ui
         font.pixelSize: theme.fontSize(11)
@@ -79,12 +57,12 @@ Item {
         objectName: root.controlObjectName
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: hintText.visible ? hintText.bottom : labelText.bottom
+        anchors.top: root.hint.length > 0 ? hintText.bottom : labelText.bottom
         anchors.topMargin: 10
         // Content-driven on Android large text; 46 at the default scale (desktop unchanged).
         height: Math.max(46, Math.ceil(theme.fontSize(13) * 1.5) + 22)
         leftPadding: 14
-        rightPadding: root.password ? (root.androidPresentationEnabled ? 128 : 60) : 14
+        rightPadding: root.password ? 60 : 14
         color: theme.ink
         placeholderTextColor: theme.inkDimmer
         placeholderText: root.placeholderText
@@ -114,33 +92,22 @@ Item {
         anchors.right: field.right
         anchors.rightMargin: 8
         anchors.verticalCenter: field.verticalCenter
-        width: root.androidPresentationEnabled ? 120 : 44
+        width: 44
         height: 44
         flat: true
         focusPolicy: Qt.StrongFocus
         Accessible.name: root.reveal ? "Hide password" : "Show password"
-        ToolTip.visible: revealButton.hovered && !root.androidPresentationEnabled
+        ToolTip.visible: revealButton.hovered
         ToolTip.delay: 350
         ToolTip.text: root.reveal ? qsTr("Hide password") : qsTr("Show password")
 
-        contentItem: Item {
-            Row {
-                anchors.centerIn: parent
-                spacing: 6
-                Text {
-                    text: root.reveal ? "○" : "◉"
-                    color: revealButton.hovered ? theme.ink : theme.inkDimmer
-                    font.family: theme.ui
-                    font.pixelSize: theme.fontSize(15)
-                }
-                Text {
-                    visible: root.androidPresentationEnabled
-                    text: root.reveal ? qsTr("Hide password") : qsTr("Show password")
-                    color: revealButton.hovered ? theme.ink : theme.inkDimmer
-                    font.family: theme.ui
-                    font.pixelSize: theme.fontSize(12)
-                }
-            }
+        contentItem: Text {
+            text: root.reveal ? "○" : "◉"
+            color: revealButton.hovered ? theme.ink : theme.inkDimmer
+            font.family: theme.ui
+            font.pixelSize: theme.fontSize(15)
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
         }
 
         background: Rectangle {

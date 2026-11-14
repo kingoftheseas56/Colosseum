@@ -58,22 +58,6 @@ Item {
         return h > 0 ? h + ":" + mm + ":" + ss : m + ":" + ss
     }
 
-    // Preserve the session's chapter metadata in the touch seek preview.
-    function chapterAt(seconds) {
-        var chapters = root.session && root.session.chapters ? root.session.chapters : []
-        var bestStart = -1
-        var label = ""
-        for (var i = 0; i < chapters.length; ++i) {
-            var chapter = chapters[i] || ({})
-            var start = Number(chapter.start)
-            if (isFinite(start) && start <= seconds && start >= bestStart) {
-                bestStart = start
-                label = String(chapter.title || chapter.name || "")
-            }
-        }
-        return label
-    }
-
     // The thin visual bar, vertically centered inside the taller grab area.
     Item {
         id: barVisual
@@ -157,19 +141,14 @@ Item {
         color: Qt.rgba(0, 0, 0, 0.86)
         radius: 7
         height: 26
-        width: Math.min(Math.max(90, tipText.implicitWidth + 20), Math.max(90, root.width))
-        y: -(height + 10)
+        width: tipText.implicitWidth + 20
+        y: -(height + 4)
         x: Math.max(0, Math.min(root.width - width,
                     (root.seeking ? barVisual.width * root.frac : hover.mouseX) - width / 2))
         Text {
             id: tipText
             anchors.centerIn: parent
-            readonly property real previewTime: root.seeking ? root.previewSeconds : root.previewAt(hover.mouseX)
-            readonly property string chapterTitle: root.chapterAt(previewTime)
-            text: root.fmtTime(previewTime) + (chapterTitle.length ? " / " + chapterTitle : "")
-            width: Math.max(1, parent.width - 16)
-            elide: Text.ElideRight
-            horizontalAlignment: Text.AlignHCenter
+            text: root.fmtTime(root.seeking ? root.previewSeconds : root.previewAt(hover.mouseX))
             color: root.theme ? root.theme.ink : "#f7f7f5"
             font.family: "Segoe UI"
             font.pixelSize: 12

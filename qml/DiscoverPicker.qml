@@ -209,7 +209,6 @@ Item {
             pointerEnabled: false
             accessibleName: "Clear " + picker.label
             tooltipText: accessibleName
-            androidTooltipPolicy: "drop"
             tooltipHovered: clearMa.containsMouse
             focusRadius: pill.radius
             onTriggered: picker.clearSelection()

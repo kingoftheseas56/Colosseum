@@ -70,17 +70,13 @@ Item {
     property bool attentionArmed: false
     property real menuRowY: 0
     property Item menuFocusReturn: null
-    function openRowMenu(row, section) {
-        rail.forgetArmed = section === "forget"
-        rail.attentionArmed = section === "attention"
+    function openRowMenu(row) {
+        rail.forgetArmed = false
+        rail.attentionArmed = false
         rail.menuFocusReturn = row
         rail.menuRow = row
         rail.menuRowY = row.mapToItem(rail, 0, 0).y
-        Qt.callLater(function() {
-            const target = rail.forgetArmed ? confirmKey
-                         : rail.attentionArmed ? attentionBackKey : rescanKey
-            target.forceActiveFocus(Qt.TabFocusReason)
-        })
+        Qt.callLater(function() { rescanKey.forceActiveFocus(Qt.TabFocusReason) })
     }
     function openRowMenuFromKeyboard(row) {
         if (!rail.expanded) {
@@ -98,14 +94,13 @@ Item {
     }
     // S11 — the per-root count line's label. Error facts first (the list has real reasons),
     // then the watcher-only degradation. The … marks the line's nature: it OPENS the list.
-    function attentionLabelFor(row) {
-        if (!row) return ""
-        const n = row.errorCount || 0
+    readonly property string attentionLabel: {
+        if (!rail.menuRow) return ""
+        const n = rail.menuRow.errorCount || 0
         if (n > 0)
             return n + (n === 1 ? " file needs attention…" : " files need attention…")
         return "Watcher needs attention…"
     }
-    readonly property string attentionLabel: rail.attentionLabelFor(rail.menuRow)
 
     // S9 — the display order: user roots in rootsDetail() order, the synthetic downloads
     // root ALWAYS last (design decision 4: "the downloads root last and visually quiet …
@@ -130,9 +125,7 @@ Item {
     // bottom (an explicit height that wins over this), but implicitHeight makes the component
     // self-sufficient for any other consumer (e.g. a Quick Test harness) that only sets `y`.
     implicitHeight: col.implicitHeight
-    // Let the shared caption render beside the collapsed toggle on touch screens.
-    // Desktop keeps the original clipped 62px rail and hover-only behavior.
-    clip: Qt.platform.os !== "android"
+    clip: true
 
     VaultTheme { id: theme }
 
@@ -145,11 +138,10 @@ Item {
         // ---- header: "Storage" label (expanded only) + the toggle ----
         Item {
             width: col.width
-            height: Qt.platform.os === "android" && rail.expanded ? 54 : 26
+            height: 26
             Text {
                 visible: rail.expanded
-                anchors.verticalCenter: Qt.platform.os === "android" ? undefined : parent.verticalCenter
-                anchors.bottom: Qt.platform.os === "android" ? parent.bottom : undefined
+                anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
                 text: "STORAGE"
                 color: theme.inkDimmer
@@ -161,10 +153,8 @@ Item {
             Text {
                 objectName: "vaultBrowseRailFolderCount"
                 visible: rail.expanded && rail.rootFolderCount > 0
-                anchors.verticalCenter: Qt.platform.os === "android" ? undefined : parent.verticalCenter
-                anchors.bottom: Qt.platform.os === "android" ? parent.bottom : undefined
-                anchors.right: Qt.platform.os === "android" ? parent.right : toggleBtn.left
-                anchors.rightMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.right: toggleBtn.left; anchors.rightMargin: 8
                 text: "· " + rail.rootFolderCount + (rail.rootFolderCount === 1 ? " folder" : " folders")
                 color: theme.inkDimmer
                 font.family: theme.ui; font.pixelSize: 11
@@ -172,10 +162,9 @@ Item {
             Rectangle {
                 id: toggleBtn
                 objectName: "vaultBrowseRailToggle"
-                anchors.verticalCenter: Qt.platform.os === "android" ? undefined : parent.verticalCenter
-                anchors.top: Qt.platform.os === "android" ? parent.top : undefined
-                x: Qt.platform.os === "android" ? 0
-                   : (rail.expanded ? parent.width - width : (parent.width - width) / 2)
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.right: rail.expanded ? parent.right : undefined
+                anchors.horizontalCenter: rail.expanded ? undefined : parent.horizontalCenter
                 width: 26; height: 26; radius: 7
                 color: toggleMa.containsMouse ? theme.glassHi : "transparent"
                 Text {
@@ -196,9 +185,6 @@ Item {
                     pointerEnabled: false
                     accessibleName: rail.expanded ? "Collapse storage rail" : "Expand storage rail"
                     tooltipText: accessibleName
-                    androidTooltipPolicy: "caption"
-                    androidCaptionText: accessibleName
-                    androidCaptionPlacement: "right"
                     tooltipHovered: toggleMa.containsMouse
                     onTriggered: rail.toggleRequested()
                 }
@@ -324,9 +310,8 @@ Item {
                 readonly property bool hasNeedsAttention: rootRow.errorCount > 0
                                                           || rootRow.watcherDegraded
                 width: col.width
-                height: Qt.platform.os === "android" && rail.expanded ? 94 : 52
-                ToolTip.visible: Qt.platform.os !== "android"
-                    && rowMa.containsMouse && !overflowMa.containsMouse
+                height: 52
+                ToolTip.visible: rowMa.containsMouse && !overflowMa.containsMouse
                     && !removeMa.containsMouse && (!rail.expanded || rootRow.hasNeedsAttention)
                 ToolTip.text: (rootRow.modelData.name || qsTr("Storage"))
                     + (rootRow.available ? qsTr(" · Available") : qsTr(" · Drive disconnected"))
@@ -359,12 +344,8 @@ Item {
                     anchors.left: parent.left; anchors.leftMargin: rail.expanded ? 12 : 0
                     anchors.right: parent.right
                     anchors.rightMargin: rail.expanded ? (rootRow.isDownloads ? 54 : 26) : 0
-                    anchors.verticalCenter: Qt.platform.os === "android" && rail.expanded
-                        ? undefined : parent.verticalCenter
-                    anchors.top: Qt.platform.os === "android" && rail.expanded
-                        ? parent.top : undefined
-                    anchors.topMargin: Qt.platform.os === "android" && rail.expanded ? 7 : 0
-                    height: Qt.platform.os === "android" && rail.expanded ? 44 : 26
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 26
 
                     Item {
                         id: rootIcon
@@ -423,20 +404,9 @@ Item {
                             font.family: theme.ui; font.pixelSize: 13
                         }
                         Text {
-                            objectName: "vaultBrowseRailRootHealth"
                             width: parent.width
                             elide: Text.ElideRight
-                            wrapMode: Qt.platform.os === "android" ? Text.WordWrap : Text.NoWrap
-                            maximumLineCount: Qt.platform.os === "android" ? 3 : 1
-                            // The existing metadata line is the persistent Android helper;
-                            // item/file counts and the unavailable/attention facts survive.
-                            text: Qt.platform.os === "android"
-                                ? ((rootRow.available ? "Available" : "Drive disconnected")
-                                    + (rootRow.hasNeedsAttention ? " · Needs attention" : "")
-                                    + (rootRow.available ? " · " + (rootRow.modelData.itemCount || 0)
-                                        + " items · " + (rootRow.modelData.fileCount || 0) + " files" : ""))
-                                : (rootRow.available ? ((rootRow.modelData.itemCount || 0) + " items · "
-                                    + (rootRow.modelData.fileCount || 0) + " files") : "Drive disconnected")
+                            text: rootRow.available ? ((rootRow.modelData.itemCount || 0) + " items · " + (rootRow.modelData.fileCount || 0) + " files") : "Drive disconnected"
                             color: theme.inkDimmer
                             font.family: theme.ui; font.pixelSize: 10
                         }
@@ -460,7 +430,7 @@ Item {
                     ToolTip.text: qsTr("Storage actions")
                     ToolTip.delay: 350
                     objectName: "vaultBrowseRailRowOverflow"
-                    visible: Qt.platform.os !== "android" && rail.expanded
+                    visible: rail.expanded
                              && (rowMa.containsMouse || overflowMa.containsMouse
                                  || rootRow.activeFocus || rail.menuRow === rootRow)
                     anchors.right: parent.right
@@ -493,7 +463,7 @@ Item {
                     ToolTip.text: qsTr("Remove Downloads from Vault")
                     ToolTip.delay: 350
                     objectName: "vaultBrowseRailDownloadsRemove"
-                    visible: Qt.platform.os !== "android" && rail.expanded && rootRow.isDownloads
+                    visible: rail.expanded && rootRow.isDownloads
                              && (rowMa.containsMouse || removeMa.containsMouse || rootRow.activeFocus)
                     anchors.right: parent.right; anchors.rightMargin: 4
                     anchors.verticalCenter: parent.verticalCenter
@@ -512,54 +482,6 @@ Item {
                         onClicked: rail.removeDownloadsRequested()
                     }
                 }
-
-                // D-W3: one shared, tap-visible Android menu. Desktop keeps its original
-                // hover-revealed controls and confirmation/attention menu unchanged.
-                ActionOverflowMenu {
-                    id: touchStorageMenu
-                    objectName: "vaultBrowseRailTouchActions"
-                    visible: Qt.platform.os === "android" && rail.expanded
-                    anchors.right: parent.right
-                    anchors.rightMargin: 4
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 4
-                    width: 146
-                    height: 36
-                    menuWidth: 200
-                    label: qsTr("Storage actions")
-                    showLabel: true
-                    actions: {
-                        const rows = [
-                            { id: "rescan", label: qsTr("Rescan"), iconName: "reset" },
-                            { id: "forget", label: qsTr("Forget this storage…"),
-                              iconName: "trash", danger: true },
-                            { id: "path", label: rootRow.rootPath,
-                              iconName: "folder", enabled: false }
-                        ]
-                        if (rootRow.hasNeedsAttention)
-                            rows.push({ id: "attention", label: rail.attentionLabelFor(rootRow),
-                                        iconName: "note" })
-                        if (rootRow.isDownloads) {
-                            rows.push({ id: "removeDownloads", label: qsTr("Remove Downloads"),
-                                        iconName: "trash", danger: true })
-                            rows.push({ id: "removeScope",
-                                        label: qsTr("Removes from Vault only"),
-                                        iconName: "note", enabled: false })
-                        }
-                        return rows
-                    }
-                    onActionTriggered: function(actionId) {
-                        if (actionId === "rescan") {
-                            rail.rescanRequested(rootRow.rootPath)
-                        } else if (actionId === "forget") {
-                            rail.openRowMenu(rootRow, "forget")
-                        } else if (actionId === "attention") {
-                            rail.openRowMenu(rootRow, "attention")
-                        } else if (actionId === "removeDownloads") {
-                            rail.removeDownloadsRequested()
-                        }
-                    }
-                }
             }
         }
 
@@ -568,7 +490,7 @@ Item {
             id: hiddenRow
             objectName: "vaultBrowseRailHidden"
             width: col.width
-            height: Qt.platform.os === "android" && !rail.expanded ? 70 : 52
+            height: 52
 
             Rectangle {
                 anchors.fill: parent
@@ -579,11 +501,8 @@ Item {
                 id: hiddenRowContent
                 anchors.left: parent.left; anchors.leftMargin: rail.expanded ? 12 : 0
                 anchors.right: parent.right; anchors.rightMargin: rail.expanded ? 12 : 0
-                anchors.verticalCenter: Qt.platform.os === "android" && !rail.expanded
-                    ? undefined : parent.verticalCenter
-                anchors.top: Qt.platform.os === "android" && !rail.expanded ? parent.top : undefined
-                anchors.topMargin: Qt.platform.os === "android" && !rail.expanded ? 5 : 0
-                height: Qt.platform.os === "android" && !rail.expanded ? 60 : 26
+                anchors.verticalCenter: parent.verticalCenter
+                height: 26
                 Item {
                     id: hiddenIcon
                     width: 26; height: 26
@@ -609,19 +528,12 @@ Item {
                     }
                 }
                 Text {
-                    visible: rail.expanded || Qt.platform.os === "android"
-                    anchors.left: rail.expanded ? hiddenIcon.right : parent.left
-                    anchors.leftMargin: rail.expanded ? 11 : 0
-                    anchors.verticalCenter: rail.expanded ? parent.verticalCenter : undefined
-                    anchors.top: !rail.expanded && Qt.platform.os === "android"
-                        ? hiddenIcon.bottom : undefined
-                    anchors.topMargin: !rail.expanded && Qt.platform.os === "android" ? 2 : 0
-                    width: rail.expanded ? implicitWidth : parent.width
-                    horizontalAlignment: rail.expanded ? Text.AlignLeft : Text.AlignHCenter
-                    text: rail.expanded ? "Hidden" + (rail.hiddenCount > 0 ? " · " + rail.hiddenCount : "")
-                        : "Hidden" + (rail.hiddenCount > 0 ? "\n" + rail.hiddenCount : "")
+                    visible: rail.expanded
+                    anchors.left: hiddenIcon.right; anchors.leftMargin: 11
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Hidden" + (rail.hiddenCount > 0 ? " · " + rail.hiddenCount : "")
                     color: theme.ink
-                    font.family: theme.ui; font.pixelSize: rail.expanded ? 13 : 10
+                    font.family: theme.ui; font.pixelSize: 13
                 }
             }
             MouseArea {
@@ -636,7 +548,6 @@ Item {
                 pointerEnabled: false
                 accessibleName: "Open hidden Vault items"
                 tooltipText: rail.expanded ? "" : accessibleName
-                androidTooltipPolicy: "drop"
                 tooltipHovered: hiddenMa.containsMouse
                 onTriggered: rail.hiddenRequested()
             }
@@ -649,7 +560,7 @@ Item {
             id: addRow
             objectName: "vaultBrowseRailAdd"
             width: col.width
-            height: Qt.platform.os === "android" && !rail.expanded ? 70 : 52
+            height: 52
 
             Rectangle {
                 anchors.fill: parent
@@ -662,11 +573,8 @@ Item {
                 id: addRowContent
                 anchors.left: parent.left; anchors.leftMargin: rail.expanded ? 12 : 0
                 anchors.right: parent.right; anchors.rightMargin: rail.expanded ? 12 : 0
-                anchors.verticalCenter: Qt.platform.os === "android" && !rail.expanded
-                    ? undefined : parent.verticalCenter
-                anchors.top: Qt.platform.os === "android" && !rail.expanded ? parent.top : undefined
-                anchors.topMargin: Qt.platform.os === "android" && !rail.expanded ? 5 : 0
-                height: Qt.platform.os === "android" && !rail.expanded ? 60 : 26
+                anchors.verticalCenter: parent.verticalCenter
+                height: 26
                 Item {
                     id: addIcon
                     width: 26; height: 26
@@ -675,19 +583,12 @@ Item {
                     Rectangle { anchors.centerIn: parent; width: 1.6; height: 12; color: theme.inkDimmer }
                 }
                 Text {
-                    visible: rail.expanded || Qt.platform.os === "android"
-                    anchors.left: rail.expanded ? addIcon.right : parent.left
-                    anchors.leftMargin: rail.expanded ? 11 : 0
-                    anchors.verticalCenter: rail.expanded ? parent.verticalCenter : undefined
-                    anchors.top: !rail.expanded && Qt.platform.os === "android"
-                        ? addIcon.bottom : undefined
-                    anchors.topMargin: !rail.expanded && Qt.platform.os === "android" ? 2 : 0
-                    width: rail.expanded ? implicitWidth : parent.width
-                    horizontalAlignment: rail.expanded ? Text.AlignLeft : Text.AlignHCenter
-                    wrapMode: rail.expanded ? Text.NoWrap : Text.WordWrap
+                    visible: rail.expanded
+                    anchors.left: addIcon.right; anchors.leftMargin: 11
+                    anchors.verticalCenter: parent.verticalCenter
                     text: "Add storage"
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: rail.expanded ? 13 : 10
+                    font.family: theme.ui; font.pixelSize: 13
                 }
             }
             MouseArea {
@@ -702,7 +603,6 @@ Item {
                 pointerEnabled: false
                 accessibleName: "Add Vault storage"
                 tooltipText: rail.expanded ? "" : accessibleName
-                androidTooltipPolicy: "drop"
                 tooltipHovered: addMa.containsMouse
                 onTriggered: rail.addRequested()
             }

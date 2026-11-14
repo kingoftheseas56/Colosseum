@@ -305,9 +305,9 @@ Item {
         property string verbName: ""
         property bool enabledArrow: true
         signal tapped()
-        implicitWidth: Qt.platform.os === "android" ? 116 : 30
+        implicitWidth: 30
         implicitHeight: 30
-        opacity: ra.enabledArrow ? (raMa.hovered ? 1.0 : 0.82) : 0.28
+        opacity: ra.enabledArrow ? (raMa.containsMouse ? 1.0 : 0.82) : 0.28
         Behavior on opacity { NumberAnimation { duration: 90 } }
         ComicReaderIcon {
             id: raGlyph
@@ -317,16 +317,15 @@ Item {
             width: 19; height: 19
             ink: hud.cRailInk
         }
-        KeyboardAction {
+        ComicReaderKeyboardArea {
             id: raMa
             anchors.fill: parent
+            hoverEnabled: true
             enabled: ra.enabledArrow
-            accessibleName: ra.verbName
+            cursorShape: Qt.PointingHandCursor
+            keyboardLabel: ra.verbName
             tooltipText: ra.verbName
-            androidTooltipPolicy: "caption"
-            androidCaptionText: ra.verbName
-            androidCaptionPlacement: "below"
-            onTriggered: ra.tapped()
+            onClicked: ra.tapped()
         }
     }
 
@@ -608,8 +607,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            // Android adds a labelled chapter-action line below the counters and scrubber.
-            height: Qt.platform.os === "android" ? 96 : 54
+            height: 54
             color: hud.cRailGold
 
             // click-swallower (floating-panel/click-swallower house law): a click on the rail's
@@ -625,18 +623,15 @@ Item {
                 enabledArrow: hud.prevEnabled
                 anchors.left: parent.left
                 anchors.leftMargin: 16
-                anchors.verticalCenter: Qt.platform.os === "android" ? undefined : parent.verticalCenter
-                y: Qt.platform.os === "android" ? 45 : 0
+                anchors.verticalCenter: parent.verticalCenter
                 onTapped: hud.pressPrev()
             }
             Text {
                 id: railCurrent
                 objectName: "railCurrent"
-                anchors.left: Qt.platform.os === "android" ? parent.left : icPrev.right
-                anchors.leftMargin: Qt.platform.os === "android" ? 16 : 14
-                anchors.verticalCenter: Qt.platform.os === "android" ? undefined : parent.verticalCenter
-                anchors.top: Qt.platform.os === "android" ? parent.top : undefined
-                anchors.topMargin: Qt.platform.os === "android" ? 10 : 0
+                anchors.left: icPrev.right
+                anchors.leftMargin: 14
+                anchors.verticalCenter: parent.verticalCenter
                 text: hud.counterCurrentText()
                 color: hud.cRailInk
                 font.family: theme.hud
@@ -651,18 +646,15 @@ Item {
                 enabledArrow: hud.nextEnabled
                 anchors.right: parent.right
                 anchors.rightMargin: 16
-                anchors.verticalCenter: Qt.platform.os === "android" ? undefined : parent.verticalCenter
-                y: Qt.platform.os === "android" ? 45 : 0
+                anchors.verticalCenter: parent.verticalCenter
                 onTapped: hud.pressNext()
             }
             Text {
                 id: railTotal
                 objectName: "railTotal"
-                anchors.right: Qt.platform.os === "android" ? parent.right : icNext.left
-                anchors.rightMargin: Qt.platform.os === "android" ? 16 : 14
-                anchors.verticalCenter: Qt.platform.os === "android" ? undefined : parent.verticalCenter
-                anchors.top: Qt.platform.os === "android" ? parent.top : undefined
-                anchors.topMargin: Qt.platform.os === "android" ? 10 : 0
+                anchors.right: icNext.left
+                anchors.rightMargin: 14
+                anchors.verticalCenter: parent.verticalCenter
                 text: hud.counterTotalText()
                 color: hud.cRailInk
                 font.family: theme.hud
@@ -680,9 +672,7 @@ Item {
                 anchors.right: railTotal.left
                 anchors.leftMargin: 20
                 anchors.rightMargin: 20
-                anchors.verticalCenter: Qt.platform.os === "android" ? undefined : parent.verticalCenter
-                anchors.top: Qt.platform.os === "android" ? parent.top : undefined
-                anchors.topMargin: Qt.platform.os === "android" ? 14 : 0
+                anchors.verticalCenter: parent.verticalCenter
                 height: 14
 
                 Rectangle {

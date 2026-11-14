@@ -20,7 +20,6 @@ Item {
     property string genreName: "Adventure"
     property string sortMode: "readers"          // "readers" (MAL members) | "score"
     property bool compact: false                  // view toggle: false = detailed cards, true = covers
-    readonly property bool androidTooltipPhone: Qt.platform.os === "android" && width < 600
     // Task 9: global Explicit Content preference (Main.qml binds it on this standalone layer).
     // Sexually-explicit ONLY — Berserk (R+), Ecchi, horror, violent work stay visible; only
     // Policy's EXPLICIT_TAGS (Hentai/Erotica/pornography) gate when the preference is off.
@@ -247,30 +246,19 @@ Item {
 
                 // ---- listing controls ----
                 Item {
-                    id: listingControls
-                    width: parent.width
-                    // Keep both named choices visible even when the phone's side gutters are wide.
-                    height: root.androidTooltipPhone ? (width >= 320 ? 124 : 168) : 40
-                    y: 0
+                    width: parent.width; height: 40; y: 0
                     Item { height: 26 }
                     Text {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: root.androidTooltipPhone ? undefined : parent.verticalCenter
-                        anchors.top: root.androidTooltipPhone ? parent.top : undefined
-                        anchors.topMargin: root.androidTooltipPhone ? 4 : 0
+                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                         text: root.sortMode === "score" ? "TOP RATED" : "MOST READ"
                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                         font.weight: Font.DemiBold; font.letterSpacing: 1.6
                     }
-                    Flow {
-                        anchors.right: root.androidTooltipPhone ? undefined : parent.right
-                        anchors.left: root.androidTooltipPhone ? parent.left : undefined
-                        anchors.bottom: parent.bottom
-                        width: root.androidTooltipPhone ? parent.width : sortControl.width + 12 + gridModeRow.width
+                    Row {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         spacing: 12
                         // sort: readers ⇄ score (real — reloads)
                         Rectangle {
-                            id: sortControl
                             height: 36; radius: 10; width: srt.implicitWidth + 28
                             color: srtMa.containsMouse ? theme.glassHi : theme.glassTint
                             border.width: 1; border.color: theme.edge
@@ -292,39 +280,24 @@ Item {
                             }
                         }
                         // view: detailed ⇄ covers
-                        Flow {
-                            id: gridModeRow
-                            width: root.androidTooltipPhone ? listingControls.width
-                                : 2 * (Qt.platform.os === "android" ? 156 : 38) + spacing
-                            spacing: Qt.platform.os === "android" ? 4 : 0
+                        Row {
                             Repeater {
                                 model: [ { c: false, g: "▤" }, { c: true, g: "▦" } ]
                                 delegate: Rectangle {
                                     required property var modelData
-                                    width: Qt.platform.os === "android" ? 156 : 38
-                                    height: 36
+                                    width: 38; height: 36
                                     color: (root.compact === modelData.c) ? theme.glassHi : theme.glassTint
                                     border.width: 1; border.color: theme.edge
-                                    Text {
-                                        text: modelData.g
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        x: Qt.platform.os === "android" ? 10 : (parent.width - width) / 2
-                                        color: (root.compact === modelData.c) ? theme.ink : theme.inkDimmer
-                                        font.pixelSize: 15
-                                    }
+                                    Text { anchors.centerIn: parent; text: modelData.g
+                                           color: (root.compact === modelData.c) ? theme.ink : theme.inkDimmer
+                                           font.pixelSize: 15 }
                                     MouseArea { id: gridModeHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                                 onClicked: root.compact = modelData.c }
                                     KeyboardAction {
-                                        anchors.left: parent.left
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        width: Qt.platform.os === "android" ? 36 : parent.width
-                                        height: parent.height
-                                        pointerEnabled: false
+                                        anchors.fill: parent; pointerEnabled: false
                                         accessibleName: modelData.c ? "Cover grid view" : "Detailed grid view"
                                         tooltipText: accessibleName
                                         tooltipHovered: gridModeHover.containsMouse
-                                        androidTooltipPolicy: "caption"
-                                        androidCaptionPlacement: "right"
                                         focusRadius: 4; onTriggered: root.compact = modelData.c
                                     }
                                 }
@@ -423,7 +396,7 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         ToolTip.text: qsTr("Search")
                         ToolTip.delay: 350
-                        ToolTip.visible: Qt.platform.os !== "android" && containsMouse
+                        ToolTip.visible: containsMouse
                         onClicked: root.searchClicked()
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; onTriggered: root.searchClicked() } }

@@ -101,11 +101,8 @@ Item {
         return "pending"
     }
     function focusTrackersButton() {
-        if (bar.androidHost && bar.trackersEnabled) {
-            androidSystemMenu.open()
-        } else if (trackersButton.visible) {
+        if (trackersButton.visible)
             trackersInput.forceActiveFocus(Qt.TabFocusReason)
-        }
     }
 
     // DLNA sharing door ("Share on your Wi-Fi"). `dlnaSharing` is a context property that
@@ -122,37 +119,6 @@ Item {
     property bool updateAvailable: false
     property bool updateUnseen: false
     property bool reducedMotion: false
-    // Android keeps Search and the entire world/clock header; secondary shell
-    // actions are named, tappable rows in the shared Slice 0 overflow.
-    readonly property var androidSystemActions: {
-        var actions = []
-        if (bar.activeMedium === "")
-            actions.push({ id: "updates", label: bar.updateAvailable ? qsTr("Update available") : qsTr("Updates"),
-                           iconSource: "../assets/icons/update.svg", selected: bar.updateAvailable })
-        if (bar.trackersEnabled && bar.lifecycleActive)
-            actions.push({ id: "trackers", label: bar.trackersDotState === "error"
-                               ? qsTr("Trackers, attention required") : qsTr("Trackers"),
-                           iconSource: "../assets/icons/trackers.svg", selected: bar.trackersActive })
-        if (bar.accountEntryAvailable)
-            actions.push({ id: "account", label: bar.accountPresent
-                               ? qsTr("Device / Account: ") + String(bar.accountController.username || "")
-                               : bar.localDevice ? qsTr("Device / Account: Device") : qsTr("Device / Account"),
-                           iconName: "artist" })
-        if (bar.dlnaVisible)
-            actions.push({ id: "dlna", label: qsTr("Share on Wi-Fi"),
-                           iconSource: bar.dlnaRunning ? "../assets/icons/access-point-gold.svg"
-                                                       : "../assets/icons/access-point.svg",
-                           selected: bar.dlnaRunning })
-        if (bar.wallpaperEnabled)
-            actions.push({ id: "wallpaper", label: qsTr("Wallpaper"),
-                           iconSource: "../assets/icons/settings.svg" })
-        return actions
-    }
-    function androidSystemActionIndex(actionId) {
-        for (var i = 0; i < bar.androidSystemActions.length; ++i)
-            if (bar.androidSystemActions[i].id === actionId) return i
-        return -1
-    }
 
     // Glyph state only — the toggle ACTION stays with the host (Main.qml drives
     // WindowMode.toggleShellMode, the same authority as A5's F11 door). Reading
@@ -222,7 +188,6 @@ Item {
             anchors.rightMargin: -bar.touchHorizontalInset
             accessibleName: sysRoot.accessibleName
             tooltipText: sysRoot.showLabel ? "" : accessibleName
-            androidTooltipPolicy: bar.androidHost ? "drop" : "legacy"
             focusRadius: 6
             onTriggered: sysRoot.clicked()
         }
@@ -414,7 +379,7 @@ Item {
         Item {
             y: bar.androidHost ? (parent.height - height) / 2 : 0
             width: 22; height: 22
-            visible: !bar.androidHost && bar.activeMedium === ""
+            visible: bar.activeMedium === ""
             opacity: updateInput.interactionActive ? 1.0 : 0.92
             objectName: "colosseumTopbarUpdateButton"
             Image {
@@ -459,7 +424,7 @@ Item {
                         : bar.activeMedium === "" ? "topBarTrackersButton"
                         : "topBarTrackersButton_" + bar.activeMedium
             width: 22; height: 22
-            visible: !bar.androidHost && bar.trackersEnabled && bar.lifecycleActive
+            visible: bar.trackersEnabled && bar.lifecycleActive
             opacity: trackersInput.interactionActive || bar.trackersActive ? 1.0 : 0.92
             Image {
                 anchors.fill: parent
@@ -496,7 +461,7 @@ Item {
             width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22
             height: 22
             objectName: "colosseumTopbarAccountButton"
-            visible: !bar.androidHost && bar.accountEntryAvailable
+            visible: bar.accountEntryAvailable
             opacity: accountInput.interactionActive ? 1.0 : 0.92
             Rectangle {
                 anchors.fill: parent
@@ -576,7 +541,7 @@ Item {
             objectName: !bar.lifecycleActive ? ""
                         : bar.activeMedium === "" ? "topBarDlnaButton"
                         : "topBarDlnaButton_" + bar.activeMedium
-            visible: !bar.androidHost && bar.dlnaVisible
+            visible: bar.dlnaVisible
             lit: bar.dlnaRunning
             source: bar.dlnaRunning ? "../assets/icons/access-point-gold.svg"
                                     : "../assets/icons/access-point.svg"
@@ -591,60 +556,10 @@ Item {
         // the top bar with a harness-only presentation.
         SysIcon {
             objectName: "topBarWallpaperButton"
-            visible: !bar.androidHost && bar.wallpaperEnabled
+            visible: bar.wallpaperEnabled
             source: "../assets/icons/settings.svg"
             accessibleName: "Wallpaper"
             onClicked: bar.wallpaperClicked()
-        }
-        ActionOverflowMenu {
-            id: androidSystemMenu
-            objectName: "topBarAndroidMore"
-            visible: bar.androidHost && !bar.backOnly && bar.androidSystemActions.length > 0
-            y: bar.androidHost ? (parent.height - height) / 2 : 0
-            width: bar.touchTargetSize
-            height: bar.touchTargetSize
-            showLabel: false
-            label: qsTr("More")
-            menuWidth: 285
-            actions: bar.androidSystemActions
-            onActionTriggered: function(actionId) {
-                if (actionId === "updates") bar.updateClicked()
-                else if (actionId === "trackers") bar.trackersClicked()
-                else if (actionId === "account") {
-                    const anchor = androidSystemMenu.mapToItem(null, androidSystemMenu.width, androidSystemMenu.height)
-                    bar.accountClicked(anchor.x, anchor.y)
-                } else if (actionId === "dlna") {
-                    const anchor = androidSystemMenu.mapToItem(null, androidSystemMenu.width, androidSystemMenu.height)
-                    bar.dlnaClicked(anchor.x, anchor.y)
-                } else if (actionId === "wallpaper") bar.wallpaperClicked()
-            }
-            // Retain the existing silver release badge and tracker-status colour
-            // inside their named rows; the shared menu owns their input and layout.
-            Rectangle {
-                parent: androidSystemMenu.opened && bar.updateAvailable
-                    ? androidSystemMenu.rowAt(bar.androidSystemActionIndex("updates")) : null
-                visible: parent !== null
-                x: 28; y: 7; width: 9; height: 9; radius: 4.5
-                color: "#f2f2ef"
-                border.width: 1; border.color: "#15151a"
-                SequentialAnimation on scale {
-                    running: bar.updateUnseen && bar.updateAvailable && !bar.reducedMotion
-                    loops: Animation.Infinite
-                    alwaysRunToEnd: true
-                    NumberAnimation { to: 1.22; duration: 700; easing.type: Easing.InOutQuad }
-                    NumberAnimation { to: 1.0; duration: 700; easing.type: Easing.InOutQuad }
-                    PauseAnimation { duration: 900 }
-                }
-            }
-            Rectangle {
-                parent: androidSystemMenu.opened && bar.trackersDotState !== ""
-                    ? androidSystemMenu.rowAt(bar.androidSystemActionIndex("trackers")) : null
-                visible: parent !== null
-                x: 29; y: 24; width: 8; height: 8; radius: 4
-                color: bar.trackersDotState === "ok" ? "#5fd18b"
-                     : bar.trackersDotState === "error" ? "#ef6a5a" : theme.gold
-                border.width: 1; border.color: "#15151a"
-            }
         }
         SysIcon { visible: !bar.androidHost; source: "../assets/icons/minimize.svg"; accessibleName: "Minimize"; onClicked: bar.minimizeClicked() }
         // Fullscreen toggle (Hemanth 2026-07-16, supersedes the old never-☐ topbar

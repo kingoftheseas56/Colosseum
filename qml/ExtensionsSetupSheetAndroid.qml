@@ -137,7 +137,6 @@ Item {
                             anchors.fill: parent
                             accessibleName: "Close setup"
                             tooltipText: accessibleName
-                            androidTooltipPolicy: "drop"
                             focusRadius: 17
                             onTriggered: sheet.closeRequested()
                         }

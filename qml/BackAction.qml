@@ -133,7 +133,6 @@ Item {
         accessibleName: root.tip.length > 0 ? root.tip : root.label
         tooltipText: root.tip.length > 0 || root.iconOnly || root.label.length === 0
                      ? (accessibleName || qsTr("Back")) : ""
-        androidTooltipPolicy: "drop"
         focusRadius: root.variant === "capsule" ? root.height / 2 : 7
         onTriggered: root.triggered()
     }

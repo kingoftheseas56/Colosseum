@@ -6,13 +6,10 @@ Item {
     property string glyph: "«"
     property string sub: "30"
     signal tapped()
-    width: Qt.platform.os === "android" ? 124 : 44
-    height: Qt.platform.os === "android" ? 70 : 44
+    width: 44; height: 44
     Theme { id: theme }
     Rectangle {
-        width: 44; height: 44; radius: 22
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
+        anchors.fill: parent; radius: 22
         color: input.interactionActive ? Qt.rgba(1,1,1,0.10) : "transparent"
         Column {
             anchors.centerIn: parent; spacing: -2
@@ -23,12 +20,9 @@ Item {
         }
         KeyboardAction {
             id: input
-            width: root.width; height: Qt.platform.os === "android" ? 48 : 44
-            x: (parent.width - width) / 2; y: 0
+            anchors.fill: parent
             accessibleName: root.glyph + " " + root.sub
             tooltipText: (root.glyph === "«" ? qsTr("Skip back ") : qsTr("Skip forward ")) + root.sub + qsTr(" seconds")
-            androidTooltipPolicy: "caption"
-            androidCaptionText: (root.glyph === "«" ? qsTr("Back ") : qsTr("Forward ")) + root.sub + qsTr(" seconds")
             focusRadius: 22
             onTriggered: root.tapped()
         }

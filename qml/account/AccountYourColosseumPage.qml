@@ -126,7 +126,7 @@ Item {
 
                     Button {
                         id: previousMonthButton
-                        ToolTip.visible: Qt.platform.os !== "android" && previousMonthButton.hovered
+                        ToolTip.visible: previousMonthButton.hovered
                         ToolTip.delay: 350
                         ToolTip.text: qsTr("Previous month")
                         objectName: "yourColosseumPreviousMonth"
@@ -180,7 +180,7 @@ Item {
 
                     Button {
                         id: nextMonthButton
-                        ToolTip.visible: Qt.platform.os !== "android" && nextMonthButton.hovered
+                        ToolTip.visible: nextMonthButton.hovered
                         ToolTip.delay: 350
                         ToolTip.text: qsTr("Next month")
                         objectName: "yourColosseumNextMonth"

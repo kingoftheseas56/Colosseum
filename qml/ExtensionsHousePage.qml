@@ -343,7 +343,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: root.width < 1250 ? 28 : 42
         width: Math.min(1490, root.width * 0.94)
-        height: Qt.platform.os === "android" ? 256 : root.width < 1250 ? 190 : 214
+        height: root.width < 1250 ? 190 : 214
         radius: 34
         color: "transparent"
 
@@ -410,7 +410,7 @@ Item {
             id: tileRow
             anchors.centerIn: parent
             width: root.width < 1250 ? 1053 : 1276
-            height: Qt.platform.os === "android" ? 230 : root.width < 1250 ? 148 : 166
+            height: root.width < 1250 ? 148 : 166
             spacing: root.width < 1250 ? 11 : 20
             transformOrigin: Item.Center
             scale: Math.min(1, (tray.width - 48) / width)
@@ -426,7 +426,7 @@ Item {
                     required property bool downloadable
 
                     width: root.width < 1250 ? 122 : 142
-                    height: Qt.platform.os === "android" ? 230 : root.width < 1250 ? 148 : 166
+                    height: root.width < 1250 ? 148 : 166
 
                     Rectangle {
                         id: appTile
@@ -507,13 +507,11 @@ Item {
                         Keys.onSpacePressed: if (tileItem.tileKind === "universes") root.universesRequested()
                     }
 
-                    Grid {
+                    Row {
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.bottom: parent.bottom
-                        height: Qt.platform.os === "android" ? implicitHeight : 34
-                        columns: Qt.platform.os === "android" ? 1 : 2
-                        columnSpacing: 7
-                        rowSpacing: Qt.platform.os === "android" ? 8 : 0
+                        height: 34
+                        spacing: 7
 
                         Rectangle {
                             width: Math.min(root.width < 1250 ? 88 : 104, Math.max(66, nameText.implicitWidth + 20))
@@ -537,12 +535,9 @@ Item {
                             id: downloadButton
                             visible: tileItem.downloadable
                             readonly property bool installedState: root.isInstalled(tileItem.extensionId)
-                            width: Qt.platform.os === "android" ? 100 : root.width < 1250 ? 28 : 30
-                            height: Qt.platform.os === "android" ? 44 : width
-                            transform: Translate {
-                                y: downloadMouse.containsMouse || downloadButton.activeFocus ? -2 : 0
-                                Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-                            }
+                            width: root.width < 1250 ? 28 : 30
+                            height: width
+                            y: downloadMouse.containsMouse || activeFocus ? -2 : 0
                             radius: 10
                             color: installedState
                                    ? Qt.rgba(87/255,207/255,145/255,0.34)
@@ -553,13 +548,14 @@ Item {
                                           : Qt.rgba(1,1,1,0.25)
                             enabled: root.extensionPresent(tileItem.extensionId)
                             opacity: enabled ? 1.0 : 0.60
-                            activeFocusOnTab: visible && enabled && Qt.platform.os !== "android"
+                            activeFocusOnTab: visible && enabled
                             Accessible.role: Accessible.Button
-                            Accessible.ignored: Qt.platform.os === "android"
                             Accessible.name: (installedState ? "Installed " : "Download ") + tileItem.tileName
-                            ToolTip.visible: Qt.platform.os !== "android" && downloadMouse.containsMouse && downloadButton.enabled
+                            ToolTip.visible: downloadMouse.containsMouse && downloadButton.enabled
                             ToolTip.delay: 350
                             ToolTip.text: (installedState ? qsTr("Turn off ") : qsTr("Download ")) + tileItem.tileName
+
+                            Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
                             Rectangle {
                                 anchors.left: parent.left
@@ -575,10 +571,7 @@ Item {
 
                             Image {
                                 visible: !downloadButton.installedState
-                                anchors.centerIn: Qt.platform.os === "android" ? undefined : parent
-                                anchors.left: Qt.platform.os === "android" ? parent.left : undefined
-                                anchors.leftMargin: Qt.platform.os === "android" ? 10 : 0
-                                anchors.verticalCenter: Qt.platform.os === "android" ? parent.verticalCenter : undefined
+                                anchors.centerIn: parent
                                 width: 15
                                 height: 15
                                 source: "../assets/icons/download.svg"
@@ -588,10 +581,7 @@ Item {
                             }
                             Text {
                                 visible: downloadButton.installedState
-                                anchors.centerIn: Qt.platform.os === "android" ? undefined : parent
-                                anchors.left: Qt.platform.os === "android" ? parent.left : undefined
-                                anchors.leftMargin: Qt.platform.os === "android" ? 10 : 0
-                                anchors.verticalCenter: Qt.platform.os === "android" ? parent.verticalCenter : undefined
+                                anchors.centerIn: parent
                                 text: "✓"
                                 color: "#ffffff"
                                 font.family: root.uiFamily
@@ -599,22 +589,6 @@ Item {
                                 font.weight: Font.DemiBold
                             }
 
-                            KeyboardAction {
-                                anchors.left: parent.left
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 34
-                                height: parent.height
-                                enabled: Qt.platform.os === "android" && downloadButton.enabled
-                                pointerEnabled: false  // Keep the existing full-size MouseArea touch target.
-                                focusEnabled: enabled
-                                accessibleName: (downloadButton.installedState ? qsTr("Turn off ") : qsTr("Download ")) + tileItem.tileName
-                                tooltipText: accessibleName
-                                androidTooltipPolicy: "caption"
-                                androidCaptionText: downloadButton.installedState ? qsTr("Turn off") : qsTr("Download")
-                                androidCaptionPlacement: "right"
-                                focusRadius: 10
-                                onTriggered: root.toggleInstall(tileItem.extensionId)
-                            }
                             MouseArea {
                                 id: downloadMouse
                                 anchors.fill: parent

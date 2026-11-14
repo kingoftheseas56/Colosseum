@@ -18,9 +18,7 @@ Item {
     property string page: "album"
     property bool queueEnabled: true
     property bool trackNavigationEnabled: true
-    readonly property bool androidBar: Qt.platform.os === "android"
-    readonly property real transportCenter: androidBar ? width / 2
-        : narrow ? width - 18 - transport.width / 2 : width / 2
+    readonly property real transportCenter: narrow ? width - 18 - transport.width / 2 : width / 2
     readonly property bool busy: pageData.sourceState === "finding" || pageData.sourceState === "retrying" || pageData.sourceState === "resolving"
     readonly property bool narrow: width < 900
     readonly property bool torrentBusy: pageData.torrentBusy === true
@@ -33,26 +31,8 @@ Item {
     readonly property bool sourceReady: pageData.sourceState === "playing" && pageData.loaded !== false && !videoShown && !videoBusy
     readonly property bool sourceSelectionEnabled: hasPlayingSong && !localSong && !videoShown && !videoBusy && (sourceReady || torrentBusy)
     readonly property bool showDismiss: allowDismiss && page !== "song" && hasPlayingSong
-    readonly property real toolsLeft: androidBar ? 18 : width - 281 - (showDismiss ? 32 : 0)
-    readonly property real toolsTop: androidBar ? 129 : narrow ? 74 : 14
-    readonly property string androidSourceStatus: {
-        if (!root.hasPlayingSong) return "";
-        var error = String(pageData.torrentError || pageData.videoError || "");
-        if (error) return error;
-        if (videoBusy) return qsTr("Switching playback mode");
-        if (pageData.sourceState === "finding") return qsTr("Finding a source");
-        if (pageData.sourceState === "retrying") return qsTr("Trying another source");
-        if (pageData.sourceState === "resolving") return qsTr("Resolving audio");
-        if (busy || pageData.loaded === false) return qsTr("Waiting for source");
-        if (showSongPlay) return qsTr("Play viewed song");
-        if (localSong) return qsTr("Local file");
-        var source = String(pageData.sourceKind || "");
-        var quality = String(pageData.qualityLabel || "");
-        if (source === "torrent") return qsTr("Torrent") + (quality ? " · " + quality : "");
-        if (source === "youtube") return qsTr("YouTube") + (quality ? " · " + quality : "");
-        if (root.defaultYouTubeChoice) return qsTr("YouTube (default, unconfirmed)");
-        return qsTr("Audio source");
-    }
+    readonly property real toolsLeft: width - 281 - (showDismiss ? 32 : 0)
+    readonly property real toolsTop: narrow ? 74 : 14
     property bool scrubbing: false
     property real previewPosition: 0
     property string scrubTrackKey: ""
@@ -76,7 +56,7 @@ Item {
     Theme {
         id: theme
     }
-    height: androidBar ? 236 : narrow ? 164 : 104
+    height: narrow ? 164 : 104
     Glass {
         anchors.fill: parent
         backdrop: root.backdrop
@@ -146,7 +126,6 @@ Item {
     }
     component Tool: KeyboardAction {
         tooltipText: accessibleName
-        androidTooltipPolicy: "longPress"
         id: control
         property string glyph
         property string symbol: ""
@@ -202,11 +181,9 @@ Item {
         Accessible.role: Accessible.StaticText
         Accessible.name: accessibleName
         x: 74
-        y: root.androidBar ? 9 : 13
-        width: root.androidBar
-            ? Math.max(0, root.width - x - (root.showDismiss ? 55 : 18))
-            : Math.max(0, root.transportCenter - transport.width / 2 - 16 - x)
-        height: root.androidBar ? 54 : 44
+        y: 13
+        width: Math.max(0, root.transportCenter - transport.width / 2 - 16 - x)
+        height: 44
         Column {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width
@@ -228,36 +205,21 @@ Item {
                 font.pixelSize: 10
                 elide: Text.ElideRight
             }
-            Text {
-                objectName: "vinylBarSourceStatus"
-                visible: root.androidBar && text.length > 0
-                width: parent.width
-                text: root.androidSourceStatus
-                textFormat: Text.PlainText
-                color: theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: 10
-                maximumLineCount: 2
-                wrapMode: Text.WordWrap
-                elide: Text.ElideRight
-            }
         }
     }
     Row {
         id: transport
         objectName: "vinylBarTransport"
         x: root.transportCenter - width / 2
-        y: root.androidBar ? 64 : 15.5
+        y: 15.5
         spacing: 12
         KeyboardAction {
             objectName: "vinylBarPrev"
             tooltipText: accessibleName
-            androidTooltipPolicy: "caption"
-            androidCaptionText: qsTr("Previous track")
             focusOnPointer: false
             enabled: root.trackNavigationEnabled && (root.pageData.canPrevious === undefined || root.pageData.canPrevious)
             opacity: enabled ? 1 : 0.35
-            width: root.androidBar ? 96 : 32
+            width: 32
             height: 39
             accessibleName: "Previous track"
             onTriggered: root.pageData.next(-1)
@@ -266,7 +228,6 @@ Item {
         KeyboardAction {
             objectName: "vinylBarPlay"
             tooltipText: root.showSongPlay ? qsTr("Play viewed song") : root.busy ? qsTr("Waiting for source") : root.pageData.paused ? qsTr("Play") : qsTr("Pause")
-            androidTooltipPolicy: "drop"
             focusOnPointer: false
             focusRadius: 18
             focusPrimary: true
@@ -298,12 +259,10 @@ Item {
         KeyboardAction {
             objectName: "vinylBarNext"
             tooltipText: accessibleName
-            androidTooltipPolicy: "caption"
-            androidCaptionText: qsTr("Next track")
             focusOnPointer: false
             enabled: root.trackNavigationEnabled && (root.pageData.canNext === undefined || root.pageData.canNext)
             opacity: enabled ? 1 : 0.35
-            width: root.androidBar ? 96 : 32
+            width: 32
             height: 39
             accessibleName: "Next track"
             onTriggered: root.pageData.next(1)
@@ -337,7 +296,7 @@ Item {
         }
         FocusRing { anchors.fill: parent; shown: seek.activeFocus; radius: 5 }
         x: 18 + Math.max(26, elapsedLabel.implicitWidth) + 11
-        y: root.androidBar ? 205 : root.narrow ? 128 : 69
+        y: root.narrow ? 128 : 69
         width: Math.max(0, root.width - x - 18 - Math.max(26, totalTimeLabel.implicitWidth) - 11)
         height: 22
         Rectangle {
@@ -419,9 +378,6 @@ Item {
         objectName: "vinylBarQueue"
         x: root.toolsLeft + 45
         y: root.toolsTop
-        width: root.androidBar ? 100 : 40
-        androidTooltipPolicy: "caption"
-        androidCaptionText: qsTr("Open queue")
         enabled: root.queueEnabled
         symbol: "queueOpen"
         accessibleName: qsTr("Open queue")
@@ -430,7 +386,7 @@ Item {
     Item {
         id: sourcePill
         objectName: "vinylBarSources"
-        x: root.androidBar ? Math.max(0, root.width - 168 - 18) : root.toolsLeft + 95
+        x: root.toolsLeft + 95
         y: root.toolsTop + 3
         width: 168
         height: 34
@@ -457,7 +413,6 @@ Item {
                 ? !root.torrentBusy && root.pageData.torrentAvailable === true && typeof root.pageData.findTorrent === "function"
                 : typeof root.pageData.selectYouTube === "function")
             accessibleName: kind === "torrent" ? qsTr("Use Tankorent audio") : qsTr("Use YouTube audio")
-            androidTooltipPolicy: "longPress"
             accessibleDescription: root.localSong ? qsTr("Local audio is playing")
                 : root.videoShown || root.videoBusy ? qsTr("Audio source selection is unavailable during video")
                 : root.defaultYouTubeChoice && kind === "youtube" ? qsTr("YouTube is the default choice; current playback source is not confirmed")
@@ -524,8 +479,7 @@ Item {
         objectName: "vinylBarClose"
         visible: root.showDismiss
         x: root.width - width - 8
-        y: root.androidBar ? 13 : root.toolsTop
-        androidTooltipPolicy: "drop"
+        y: root.toolsTop
         width: 36
         symbol: "cancel"
         accessibleName: qsTr("Close player and stop playback")
@@ -533,7 +487,6 @@ Item {
     }
     Text {
         objectName: "vinylBarSourceError"
-        visible: !root.androidBar
         x: root.toolsLeft
         y: root.toolsTop + 42
         width: 263; height: 12

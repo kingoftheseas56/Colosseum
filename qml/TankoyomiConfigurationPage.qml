@@ -336,7 +336,7 @@ Item {
                             MouseArea { anchors.fill: parent; onClicked: root.setMasterEnabled(!root.tankoyomiEnabled) }
                             HoverHandler { id: masterTipHover }
                             KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: true
-                                focusRadius: 12; accessibleName: root.tankoyomiEnabled ? "Disable Tankoyomi" : "Enable Tankoyomi"; tooltipText: accessibleName; androidTooltipPolicy: "drop"; tooltipHovered: masterTipHover.hovered
+                                focusRadius: 12; accessibleName: root.tankoyomiEnabled ? "Disable Tankoyomi" : "Enable Tankoyomi"; tooltipText: accessibleName; tooltipHovered: masterTipHover.hovered
                                 onTriggered: root.setMasterEnabled(!root.tankoyomiEnabled) }
                         }
                     }
@@ -585,8 +585,6 @@ Item {
                                     property string providerId: String(modelData.id || "")
                                     property bool providerEnabled: modelData.enabled === true
                                     property bool compact: detailPanel.width < 600
-                                    readonly property bool androidReorderMenu: Qt.platform.os === "android" && compact
-                                    readonly property bool androidInlineLabels: Qt.platform.os === "android" && !compact
                                     property bool canMoveUp: index > 0
                                     property bool canMoveDown: index < root.providerRows.length - 1
                                     objectName: "tankoyomiProvider_" + providerId
@@ -604,7 +602,7 @@ Item {
                                                color: theme.gold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; font.family: theme.display; font.pixelSize: 24
                                                Rectangle { anchors.fill: parent; radius: 11; color: Qt.rgba(1,1,1,0.055); border.width: 1; border.color: theme.edge; z: -1 } }
                                         Column { id: providerInfo; objectName: "tankoyomiProviderInfo_" + providerRow.providerId
-                                            width: Math.max(0, parent.width - (providerRow.compact ? 24 : 38) - (providerRow.compact ? 32 : 42) - (providerRow.androidInlineLabels ? 262 : providerRow.androidReorderMenu ? 80 : providerRow.compact ? 92 : 120) - 3 * parent.spacing); anchors.verticalCenter: parent.verticalCenter; spacing: 5
+                                            width: Math.max(0, parent.width - (providerRow.compact ? 24 : 38) - (providerRow.compact ? 32 : 42) - (providerRow.compact ? 92 : 120) - 3 * parent.spacing); anchors.verticalCenter: parent.verticalCenter; spacing: 5
                                             Row { width: parent.width; spacing: 8
                                                 TextMetrics { id: providerNameMetrics
                                                               text: providerRow.modelData.name || providerRow.providerId
@@ -622,102 +620,26 @@ Item {
                                              Text { width: parent.width; elide: Text.ElideRight
                                                     text: "Rank " + (providerRow.index + 1) + " · " + providerRow.providerId; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
                                         }
-                                        Row { width: providerRow.androidInlineLabels ? 262 : providerRow.androidReorderMenu ? 80 : providerRow.compact ? 92 : 120; anchors.verticalCenter: parent.verticalCenter; spacing: providerRow.compact ? 2 : 5
+                                        Row { width: providerRow.compact ? 92 : 120; anchors.verticalCenter: parent.verticalCenter; spacing: providerRow.compact ? 2 : 5
                                              Item { id: providerToggle; objectName: "tankoyomiProviderToggle_" + providerRow.providerId; width: providerRow.compact ? 34 : 40; height: 22
-                                                 anchors.verticalCenter: providerRow.androidReorderMenu ? parent.verticalCenter : undefined
                                                  Rectangle { anchors.fill: parent; radius: 11; color: providerRow.providerEnabled ? theme.gold : Qt.rgba(1,1,1,0.14); border.width: 1; border.color: providerRow.providerEnabled ? theme.gold : theme.edge }
                                                  Rectangle { width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; x: providerRow.providerEnabled ? parent.width - width - 3 : 3; color: providerRow.providerEnabled ? "#1a1306" : theme.inkDim }
                                                  MouseArea { anchors.fill: parent; onClicked: root.toggleProvider(root.selectedLanguage, providerRow.providerId, !providerRow.providerEnabled) }
                                                  HoverHandler { id: providerTipHover }
-                                                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: true; accessibleName: (providerRow.providerEnabled ? "Disable " : "Enable ") + (providerRow.modelData.name || providerRow.providerId); tooltipText: accessibleName; androidTooltipPolicy: "drop"; tooltipHovered: providerTipHover.hovered
+                                                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: true; accessibleName: (providerRow.providerEnabled ? "Disable " : "Enable ") + (providerRow.modelData.name || providerRow.providerId); tooltipText: accessibleName; tooltipHovered: providerTipHover.hovered
                                                      onTriggered: root.toggleProvider(root.selectedLanguage, providerRow.providerId, !providerRow.providerEnabled) } }
-                                             Item {
-                                                 id: upControl
-                                                 visible: !providerRow.androidReorderMenu
-                                                 width: providerRow.androidReorderMenu ? 0
-                                                        : providerRow.androidInlineLabels ? 104 : providerRow.compact ? 24 : 28
-                                                 height: 28
-                                                 Text {
-                                                     anchors.centerIn: providerRow.androidInlineLabels ? undefined : parent
-                                                     anchors.left: providerRow.androidInlineLabels ? parent.left : undefined
-                                                     anchors.verticalCenter: providerRow.androidInlineLabels ? parent.verticalCenter : undefined
-                                                     text: "↑"
-                                                     color: providerRow.canMoveUp ? theme.inkDim : theme.inkDimmer
-                                                     font.pixelSize: 16
-                                                 }
+                                             Item { id: upControl; width: providerRow.compact ? 24 : 28; height: 28
+                                                 Text { anchors.centerIn: parent; text: "↑"; color: providerRow.canMoveUp ? theme.inkDim : theme.inkDimmer; font.pixelSize: 16 }
                                                  MouseArea { anchors.fill: parent; enabled: providerRow.canMoveUp; onClicked: root.moveProviderUp(root.selectedLanguage, providerRow.providerId) }
                                                  HoverHandler { id: providerUpTipHover }
-                                                 KeyboardAction {
-                                                     anchors.left: parent.left
-                                                     anchors.top: parent.top
-                                                     width: providerRow.androidInlineLabels ? 28 : parent.width
-                                                     height: parent.height
-                                                     pointerEnabled: false
-                                                     focusEnabled: providerRow.canMoveUp
-                                                     enabled: providerRow.canMoveUp
-                                                     accessibleName: "Move " + (providerRow.modelData.name || providerRow.providerId) + " up"
-                                                     tooltipText: accessibleName
-                                                     androidTooltipPolicy: providerRow.androidInlineLabels ? "caption" : "drop"
-                                                     androidCaptionText: qsTr("Move up")
-                                                     androidCaptionPlacement: "right"
-                                                     tooltipHovered: providerUpTipHover.hovered
-                                                     onTriggered: root.moveProviderUp(root.selectedLanguage, providerRow.providerId)
-                                                 }
-                                             }
-                                             Item {
-                                                 id: downControl
-                                                 visible: !providerRow.androidReorderMenu
-                                                 width: providerRow.androidReorderMenu ? 0
-                                                        : providerRow.androidInlineLabels ? 104 : providerRow.compact ? 24 : 28
-                                                 height: 28
-                                                 Text {
-                                                     anchors.centerIn: providerRow.androidInlineLabels ? undefined : parent
-                                                     anchors.left: providerRow.androidInlineLabels ? parent.left : undefined
-                                                     anchors.verticalCenter: providerRow.androidInlineLabels ? parent.verticalCenter : undefined
-                                                     text: "↓"
-                                                     color: providerRow.canMoveDown ? theme.inkDim : theme.inkDimmer
-                                                     font.pixelSize: 16
-                                                 }
+                                                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: providerRow.canMoveUp; enabled: providerRow.canMoveUp; accessibleName: "Move " + (providerRow.modelData.name || providerRow.providerId) + " up"; tooltipText: accessibleName; tooltipHovered: providerUpTipHover.hovered
+                                                     onTriggered: root.moveProviderUp(root.selectedLanguage, providerRow.providerId) } }
+                                             Item { id: downControl; width: providerRow.compact ? 24 : 28; height: 28
+                                                 Text { anchors.centerIn: parent; text: "↓"; color: providerRow.canMoveDown ? theme.inkDim : theme.inkDimmer; font.pixelSize: 16 }
                                                  MouseArea { anchors.fill: parent; enabled: providerRow.canMoveDown; onClicked: root.moveProviderDown(root.selectedLanguage, providerRow.providerId) }
                                                  HoverHandler { id: providerDownTipHover }
-                                                 KeyboardAction {
-                                                     anchors.left: parent.left
-                                                     anchors.top: parent.top
-                                                     width: providerRow.androidInlineLabels ? 28 : parent.width
-                                                     height: parent.height
-                                                     pointerEnabled: false
-                                                     focusEnabled: providerRow.canMoveDown
-                                                     enabled: providerRow.canMoveDown
-                                                     accessibleName: "Move " + (providerRow.modelData.name || providerRow.providerId) + " down"
-                                                     tooltipText: accessibleName
-                                                     androidTooltipPolicy: providerRow.androidInlineLabels ? "caption" : "drop"
-                                                     androidCaptionText: qsTr("Move down")
-                                                     androidCaptionPlacement: "right"
-                                                     tooltipHovered: providerDownTipHover.hovered
-                                                     onTriggered: root.moveProviderDown(root.selectedLanguage, providerRow.providerId)
-                                                 }
-                                             }
-                                             Item {
-                                                 visible: providerRow.androidReorderMenu
-                                                 width: visible ? 40 : 0
-                                                 height: 40
-                                                 ActionOverflowMenu {
-                                                     objectName: "tankoyomiProviderMore_" + providerRow.providerId
-                                                     anchors.fill: parent
-                                                     showLabel: false
-                                                     label: qsTr("More actions for %1").arg(providerRow.modelData.name || providerRow.providerId)
-                                                     actions: [
-                                                         { id: "up", label: qsTr("Move up"), iconName: "up", enabled: providerRow.canMoveUp },
-                                                         { id: "down", label: qsTr("Move down"), iconName: "down", enabled: providerRow.canMoveDown }
-                                                     ]
-                                                     onActionTriggered: function(actionId) {
-                                                         if (actionId === "up")
-                                                             root.moveProviderUp(root.selectedLanguage, providerRow.providerId)
-                                                         else if (actionId === "down")
-                                                             root.moveProviderDown(root.selectedLanguage, providerRow.providerId)
-                                                     }
-                                                 }
-                                             }
+                                                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: providerRow.canMoveDown; enabled: providerRow.canMoveDown; accessibleName: "Move " + (providerRow.modelData.name || providerRow.providerId) + " down"; tooltipText: accessibleName; tooltipHovered: providerDownTipHover.hovered
+                                                     onTriggered: root.moveProviderDown(root.selectedLanguage, providerRow.providerId) } }
                                         }
                                     }
                                 }
@@ -759,7 +681,7 @@ Item {
         anchors.top: parent.top; anchors.right: parent.right; anchors.topMargin: 24; anchors.rightMargin: theme.margin
         spacing: 22
         Text { text: "⌕"; color: searchInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
-               KeyboardAction { id: searchInput; anchors.fill: parent; accessibleName: "Search"; tooltipText: accessibleName; androidTooltipPolicy: "drop"; focusRadius: 5; onTriggered: root.searchClicked() } }
+               KeyboardAction { id: searchInput; anchors.fill: parent; accessibleName: "Search"; tooltipText: accessibleName; focusRadius: 5; onTriggered: root.searchClicked() } }
         Text { visible: Qt.platform.os !== "android"; text: "—"; color: minInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
                KeyboardAction { id: minInput; anchors.fill: parent; accessibleName: "Minimize"; tooltipText: accessibleName; focusRadius: 5; onTriggered: root.minimizeRequested() } }
         Text { visible: Qt.platform.os !== "android"; text: "⛶"; color: fullInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17

@@ -20,8 +20,7 @@ MouseArea {
     hoverEnabled: tooltipText.length > 0
     ToolTip.text: area.tooltipText
     ToolTip.delay: 350
-    ToolTip.visible: Qt.platform.os !== "android" && area.tooltipText.length > 0
-        && area.containsMouse && area.visible && area.enabled
+    ToolTip.visible: area.tooltipText.length > 0 && area.containsMouse && area.visible && area.enabled
 
     // Qt focus traversal already skips disabled/effectively-hidden items; keep eligibility stable
     // while a focused popup is closing so activeFocusOnTab never flips underneath active focus.

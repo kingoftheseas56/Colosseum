@@ -457,32 +457,6 @@ FocusScope {
                         }
                     }
 
-                    // Existing Android tap preview remains the action owner.
-                    // Slice 0's non-interactive caption makes each arc identifiable at rest.
-                    Rectangle {
-                        visible: root.touchInput
-                        width: Math.max(112, root.badgeDiameter * 1.55)
-                        height: 18
-                        x: (marker.width - width) / 2
-                        y: (marker.height + root.badgeDiameter) / 2 + 4
-                        radius: 4
-                        color: "#523a25"
-                    }
-                    KeyboardAction {
-                        x: (marker.width - width) / 2
-                        y: (marker.height - height) / 2
-                        width: Math.max(112, root.badgeDiameter * 1.55)
-                        height: root.badgeDiameter
-                        pointerEnabled: false
-                        focusEnabled: false
-                        focusPolicy: Qt.NoFocus
-                        showFocusFrame: false
-                        accessibleName: marker.markerArc ? marker.markerArc.title : marker.markerId
-                        tooltipText: accessibleName
-                        androidTooltipPolicy: "caption"
-                        onTriggered: root.openPreview(marker.markerId)
-                    }
-
                     Rectangle {
                         anchors.fill: parent
                         anchors.margins: -3
@@ -569,25 +543,6 @@ FocusScope {
             ToolTip.delay: 350
             font.family: atlasBodyFont.name
             contentItem: Text { text: zoomResetButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; color: zoomResetButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-            Rectangle {
-                visible: root.touchInput
-                x: (parent.width - width) / 2
-                y: parent.height + 4
-                width: 96; height: 18; radius: 4
-                color: "#523a25"
-            }
-            KeyboardAction {
-                x: (parent.width - width) / 2
-                width: 96; height: parent.height
-                pointerEnabled: false
-                focusEnabled: false
-                focusPolicy: Qt.NoFocus
-                showFocusFrame: false
-                tooltipText: qsTr("Reset zoom")
-                androidTooltipPolicy: "caption"
-                androidCaptionText: qsTr("Reset zoom")
-                onTriggered: root.zoom = 1.0
-            }
             onClicked: root.zoom = 1.0
         }
         Button {

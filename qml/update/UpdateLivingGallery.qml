@@ -300,24 +300,13 @@ Item {
         anchors.rightMargin: 54
         anchors.bottom: parent.bottom
         anchors.bottomMargin: root.taskbarSafeBottomLane
-        height: Qt.platform.os === "android" ? 72 : 44
+        height: 44
 
-        // Keep every chapter title readable by touch without shrinking or hiding selectors.
-        Flickable {
-            id: chapterScroller
-            anchors.fill: parent
-            contentWidth: chapterNavigator.implicitWidth
-            contentHeight: chapterNavigator.implicitHeight
-            boundsBehavior: Flickable.StopAtBounds
-            flickableDirection: Flickable.HorizontalFlick
-            interactive: Qt.platform.os === "android" && contentWidth > width
-            clip: Qt.platform.os === "android"
-
-            Row {
-                id: chapterNavigator
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 10
+        Row {
+            id: chapterNavigator
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 10
 
             Text {
                 objectName: "colosseumUpdateChapterCount"
@@ -349,17 +338,15 @@ Item {
                     required property var modelData
                     required property int index
                     objectName: "colosseumUpdateChapter_%1".arg(String(index + 1).padStart(2, "0"))
-                    width: Qt.platform.os === "android"
-                           ? Math.max(180, 88 + String(modelData.title || qsTr("Chapter")).length * 6)
-                           : 44
-                    height: Qt.platform.os === "android" ? 64 : 44
+                    width: 44
+                    height: 44
                     visible: root.chapterCount > 1
                     focus: false
-                    activeFocusOnTab: Qt.platform.os !== "android" && root.chapterCount > 1
-                    Accessible.role: Qt.platform.os === "android" ? Accessible.NoRole : Accessible.Button
+                    activeFocusOnTab: root.chapterCount > 1
+                    Accessible.role: Accessible.Button
                     Accessible.name: "Chapter %1: %2".arg(index + 1).arg(String(modelData.title || "Chapter"))
                     Accessible.description: index === root.currentIndex ? "Selected" : ""
-                    ToolTip.visible: Qt.platform.os !== "android" && chapterTipHover.hovered
+                    ToolTip.visible: chapterTipHover.hovered
                     ToolTip.delay: 350
                     ToolTip.text: qsTr("Chapter %1: %2").arg(index + 1).arg(String(modelData.title || qsTr("Chapter")))
                     Keys.onPressed: function(event) {
@@ -370,15 +357,15 @@ Item {
                         }
                     }
                     Rectangle {
-                        anchors.fill: Qt.platform.os === "android" ? chapterTap : parent
+                        anchors.fill: parent
                         radius: 22
-                        visible: (root.activeFocus || chapterTap.activeFocus) && index === root.currentIndex
+                        visible: root.activeFocus && index === root.currentIndex
                         color: "transparent"
                         border.width: 1
                         border.color: Qt.rgba(1, 1, 1, 0.82)
                     }
                     Text {
-                        anchors.centerIn: Qt.platform.os === "android" ? chapterTap : parent
+                        anchors.centerIn: parent
                         text: String(index + 1).padStart(2, "0")
                         color: Qt.rgba(1, 1, 1, index === root.currentIndex ? 0.98 : 0.56)
                         font.family: "Inter"
@@ -386,10 +373,8 @@ Item {
                         font.weight: Font.DemiBold
                     }
                     Rectangle {
-                        anchors.horizontalCenter: Qt.platform.os === "android"
-                            ? chapterTap.horizontalCenter : parent.horizontalCenter
-                        anchors.bottom: Qt.platform.os === "android"
-                            ? chapterTap.bottom : parent.bottom
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: parent.bottom
                         width: index === root.currentIndex ? 16 : 0
                         height: 1
                         color: Qt.rgba(1, 1, 1, 0.92)
@@ -401,47 +386,6 @@ Item {
                     HoverHandler { id: chapterTipHover }
                     MouseArea {
                         anchors.fill: parent
-                        enabled: Qt.platform.os !== "android"
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.selectChapter(index)
-                    }
-                    KeyboardAction {
-                        id: chapterTap
-                        visible: Qt.platform.os === "android" && root.chapterCount > 1
-                        anchors.left: parent.left
-                        anchors.top: parent.top
-                        width: 76
-                        height: 44
-                        accessibleName: qsTr("Chapter %1: %2").arg(index + 1).arg(String(modelData.title || qsTr("Chapter")))
-                        androidTooltipPolicy: "caption"
-                        androidCaptionText: qsTr("Chapter %1").arg(index + 1)
-                        androidCaptionPlacement: "below"
-                        spaceActivates: true
-                        focusRadius: 22
-                        onTriggered: root.selectChapter(index)
-                    }
-                    // The release title remains complete content next to the numbered action.
-                    Text {
-                        visible: Qt.platform.os === "android"
-                        anchors.left: chapterTap.right
-                        anchors.leftMargin: 10
-                        anchors.right: parent.right
-                        anchors.rightMargin: 2
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: String(modelData.title || qsTr("Chapter"))
-                        textFormat: Text.PlainText
-                        color: index === root.currentIndex ? Qt.rgba(1, 1, 1, 0.94)
-                                                           : Qt.rgba(1, 1, 1, 0.68)
-                        font.family: "Inter"
-                        font.pixelSize: 11
-                        wrapMode: Text.WordWrap
-                    }
-                    MouseArea {
-                        visible: Qt.platform.os === "android"
-                        anchors.left: chapterTap.right
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.selectChapter(index)
                     }
@@ -484,7 +428,6 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.nextChapter()
                 }
-            }
             }
         }
     }

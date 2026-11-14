@@ -97,7 +97,7 @@ Item {
         anchors.topMargin: 68
         anchors.horizontalCenter: parent.horizontalCenter
         width: Math.min(parent.width - 56, 760)
-        height: Qt.platform.os === "android" ? styleControls.implicitHeight + 20 : 56
+        height: 56
         radius: 14
         color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
         border.width: 1
@@ -108,11 +108,8 @@ Item {
         // Absorb background clicks so the bar body never dismisses itself (parity spec F2).
         MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: {} }
 
-        Flow {
-            id: styleControls
+        Row {
             anchors.centerIn: parent
-            width: parent.width - 20
-            height: implicitHeight
             spacing: 8
 
             Cluster {
@@ -280,13 +277,11 @@ Item {
             else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { swatches.picked(String(colors[keyboardIndex])); event.accepted = true }
         }
         width: 126
-        height: Qt.platform.os === "android" ? 70 : 44
+        height: 44
         radius: 10
         color: Qt.rgba(1, 1, 1, 0.07)
         Row {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            anchors.topMargin: Qt.platform.os === "android" ? 12 : 13
+            anchors.centerIn: parent
             spacing: 7
             Text {
                 anchors.verticalCenter: parent.verticalCenter
@@ -307,7 +302,7 @@ Item {
                     radius: 9
                     color: modelData
                     Controls.ToolTip.text: swatches.label + " " + dot.modelData
-                    Controls.ToolTip.visible: Qt.platform.os !== "android" && swatchHover.hovered
+                    Controls.ToolTip.visible: swatchHover.hovered
                     Controls.ToolTip.delay: 350
                     border.width: (swatches.activeFocus && swatches.keyboardIndex === dot.index) || swatches.selected.toLowerCase() === modelData.toLowerCase() ? 2 : 1
                     border.color: (swatches.activeFocus && swatches.keyboardIndex === dot.index) || swatches.selected.toLowerCase() === modelData.toLowerCase() ? theme.gold : Qt.rgba(0, 0, 0, 0.45)
@@ -320,16 +315,6 @@ Item {
                     }
                 }
             }
-        }
-        Text {
-            visible: Qt.platform.os === "android"
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 8
-            text: (swatches.label === "TEXT" ? qsTr("Text: ") : qsTr("Edge: ")) + swatches.selected
-            color: theme.inkDimmer
-            font.family: theme.hud
-            font.pixelSize: 11
         }
     }
 
@@ -357,6 +342,6 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: button.clicked()
         }
-        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.tooltip; tooltipText: button.tooltip; androidTooltipPolicy: "drop"; tooltipHovered: miniMouse.containsMouse; onTriggered: button.clicked() }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.text; tooltipText: button.tooltip; tooltipHovered: miniMouse.containsMouse; onTriggered: button.clicked() }
     }
 }

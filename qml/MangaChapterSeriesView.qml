@@ -436,40 +436,19 @@ Item {
                                     Rectangle { anchors.fill: parent; radius: 19; color: trailingMouse.containsMouse ? theme.glassHi : "transparent" }
                                     Text {
                                         anchors.centerIn: parent
-                                        text: row.dlState === "done" ? ((Qt.platform.os === "android" || trailingMouse.containsMouse) ? "✕" : "✓")
+                                        text: row.dlState === "done" ? (trailingMouse.containsMouse ? "✕" : "✓")
                                             : row.inFlight ? "✕" : row.dlState === "error" ? "↻" : "↓"
                                         color: row.dlState === "done" ? theme.gold : (trailingMouse.containsMouse ? theme.gold : theme.inkDim)
                                         font.pixelSize: 16
                                     }
                                     MouseArea {
                                         id: trailingMouse
-                                        ToolTip.visible: Qt.platform.os !== "android" && containsMouse
+                                        ToolTip.visible: containsMouse
                                         ToolTip.text: row.dlState === 'done' ? qsTr('Delete chapter download') : row.inFlight ? qsTr('Cancel chapter download') : row.dlState === 'error' ? qsTr('Retry chapter download') : qsTr('Download chapter')
                                         ToolTip.delay: 350
                                         objectName: "mangaChapterDownload_" + row.chapterId
                                         anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; z: 3
                                         onClicked: {
-                                            if (!root.downloader) return
-                                            if (row.dlState === "done") root.downloader.deleteChapter(row.chapterId)
-                                            else if (row.inFlight) root.downloader.cancelDownload(row.chapterId)
-                                            else row.download()
-                                        }
-                                    }
-                                    KeyboardAction {
-                                        id: chapterDownloadCaption
-                                        anchors.right: parent.right
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        width: Qt.platform.os === "android" ? 174 : parent.width
-                                        height: parent.height
-                                        pointerEnabled: false
-                                        tooltipText: row.dlState === "done" ? qsTr("Delete chapter download")
-                                            : row.inFlight ? qsTr("Cancel chapter download")
-                                            : row.dlState === "error" ? qsTr("Retry chapter download")
-                                            : qsTr("Download chapter")
-                                        androidTooltipPolicy: "caption"
-                                        androidCaptionPlacement: "below"
-                                        accessibleName: tooltipText
-                                        onTriggered: {
                                             if (!root.downloader) return
                                             if (row.dlState === "done") root.downloader.deleteChapter(row.chapterId)
                                             else if (row.inFlight) root.downloader.cancelDownload(row.chapterId)

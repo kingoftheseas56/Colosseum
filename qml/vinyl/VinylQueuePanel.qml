@@ -65,7 +65,6 @@ Popup {
 
     component Action: KeyboardAction {
         tooltipText: action.iconOnly || action.symbol.length > 0 || action.icon.toString().length > 0 ? action.accessibleName : ""
-        androidTooltipPolicy: "longPress"
         id: action
         property string label: ""
         property url icon: ""
@@ -110,7 +109,7 @@ Popup {
                 y:34;text:root.pageData.queue.length+(root.pageData.queue.length===1 ? " track" : " tracks")
                 color:theme.inkDimmer;font.family:theme.ui;font.pixelSize:11
             }
-            Action {objectName:"vinylQueueClose";anchors.right:parent.right;label:"Close queue";icon:"../../assets/icons/reader2/close.svg";androidTooltipPolicy:"drop";onTriggered:root.close()}
+            Action {objectName:"vinylQueueClose";anchors.right:parent.right;label:"Close queue";icon:"../../assets/icons/reader2/close.svg";onTriggered:root.close()}
         }
         Column {
             id: songActions
@@ -146,33 +145,15 @@ Popup {
         Flow {
             id: controls
             y:songActions.y+songActions.height+8;width:parent.width;spacing:6
-            Item {
-                width: Qt.platform.os === "android" ? 146 : 34; height: 34
-                Action {objectName:"vinylQueuePrevious";label:"Previous track";icon:"../../assets/icons/lucide/skip-back.svg";androidTooltipPolicy:"caption";androidCaptionText:qsTr("Previous track");androidCaptionPlacement:"right";enabled:root.pageData.canPrevious;onTriggered:root.pageData.next(-1)}
-            }
-            Item {
-                width: Qt.platform.os === "android" ? 118 : 34; height: 34
-                Action {objectName:"vinylQueueNext";label:"Next track";icon:"../../assets/icons/lucide/skip-forward.svg";androidTooltipPolicy:"caption";androidCaptionText:qsTr("Next track");androidCaptionPlacement:"right";enabled:root.pageData.canNext;onTriggered:root.pageData.next(1)}
-            }
-            Item {
-                width: Qt.platform.os === "android" ? 112 : 34; height: 34
-                Action {objectName:"vinylQueueShuffle";symbol:"shuffle";label:"Shuffle";androidTooltipPolicy:"caption";androidCaptionText:qsTr("Shuffle");androidCaptionPlacement:"right";selected:root.pageData.shuffleEnabled;enabled:root.pageData.queue.length>1||selected;accessibleName:selected ? "Turn shuffle off" : "Turn shuffle on";onTriggered:root.pageData.setShuffle(!root.pageData.shuffleEnabled)}
-            }
-            Item {
-                width: Qt.platform.os === "android" ? 176 : 34; height: 34
+            Action {objectName:"vinylQueuePrevious";label:"Previous track";icon:"../../assets/icons/lucide/skip-back.svg";enabled:root.pageData.canPrevious;onTriggered:root.pageData.next(-1)}
+            Action {objectName:"vinylQueueNext";label:"Next track";icon:"../../assets/icons/lucide/skip-forward.svg";enabled:root.pageData.canNext;onTriggered:root.pageData.next(1)}
+            Action {objectName:"vinylQueueShuffle";symbol:"shuffle";label:"Shuffle";selected:root.pageData.shuffleEnabled;enabled:root.pageData.queue.length>1||selected;accessibleName:selected ? "Turn shuffle off" : "Turn shuffle on";onTriggered:root.pageData.setShuffle(!root.pageData.shuffleEnabled)}
             Action {
                 objectName:"vinylQueueRepeat";symbol:"repeat";label:"Repeat: "+root.pageData.repeatMode
-                androidTooltipPolicy:"caption"
-                androidCaptionText:qsTr("Repeat: %1").arg(root.pageData.repeatMode)
-                androidCaptionPlacement:"right"
                 selected:root.pageData.repeatMode!=="off";onTriggered:root.pageData.cycleRepeat()
                 Text {anchors.centerIn:parent;visible:root.pageData.repeatMode==="one";text:"1";font.family:theme.ui;font.pixelSize:9;font.bold:true;color:theme.gold}
             }
-            }
-            Item {
-                width: Qt.platform.os === "android" ? 132 : 34; height: 34
-                Action {objectName:"vinylQueueClear";symbol:"clear";label:"Clear queue";androidTooltipPolicy:"caption";androidCaptionText:qsTr("Clear queue");androidCaptionPlacement:"right";enabled:root.pageData.queue.length>0;onTriggered:root.pageData.clearQueue()}
-            }
+            Action {objectName:"vinylQueueClear";symbol:"clear";label:"Clear queue";enabled:root.pageData.queue.length>0;onTriggered:root.pageData.clearQueue()}
         }
         Rectangle {id:rule;y:controls.y+controls.height+12;width:parent.width;height:1;color:theme.edge;opacity:0.45}
         ListView {
@@ -213,7 +194,7 @@ Popup {
                 KeyboardAction {
                     id:playAction
                     objectName:"vinylQueuePlay_"+row.index
-                    width:Math.max(0,parent.width-(Qt.platform.os === "android" ? 46 : 110));height:parent.height
+                    width:Math.max(0,parent.width-110);height:parent.height
                     focusOnPointer:false;showFocusFrame:false
                     accessibleName:"Play "+row.modelData.title+(row.playing ? ", now playing" : "")
                     onActiveFocusChanged:if(activeFocus)list.currentIndex=row.index
@@ -228,33 +209,12 @@ Popup {
                     Text {anchors.right:parent.right;anchors.rightMargin:10;anchors.verticalCenter:parent.verticalCenter;text:row.modelData.seconds>0 ? root.pageData.formatTime(row.modelData.seconds) : "";color:theme.inkDimmer;font.family:theme.ui;font.pixelSize:11}
                 }
                 Row {
-                    visible: Qt.platform.os !== "android"
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
                     Action { objectName: "vinylQueueUp_" + row.index; symbol: "up"; label: qsTr("Move %1 up").arg(row.modelData.title); enabled: row.index > 0; onTriggered: root.pageData.moveQueue(row.index, row.index - 1) }
                     Action { objectName: "vinylQueueDown_" + row.index; symbol: "down"; label: qsTr("Move %1 down").arg(row.modelData.title); enabled: row.index < list.count - 1; onTriggered: root.pageData.moveQueue(row.index, row.index + 1) }
                     Action { objectName: "vinylQueueRemove_" + row.index; symbol: "clear"; label: qsTr("Remove %1 from queue").arg(row.modelData.title); onTriggered: root.pageData.removeQueue(row.index) }
-                }
-                ActionOverflowMenu {
-                    objectName: "vinylQueueTrackMore_" + row.index
-                    visible: Qt.platform.os === "android"
-                    x: parent.width - width - 4
-                    y: (parent.height - height) / 2
-                    width: 40; height: 36
-                    showLabel: false
-                    label: qsTr("Track actions for %1").arg(row.modelData.title)
-                    actions: [
-                        {id:"up", label:qsTr("Move up"), iconName:"up", enabled:row.index > 0},
-                        {id:"down", label:qsTr("Move down"), iconName:"down",
-                            enabled:row.index < list.count - 1},
-                        {id:"remove", label:qsTr("Remove from queue"), iconName:"trash", danger:true}
-                    ]
-                    onActionTriggered: function(actionId) {
-                        if (actionId === "up") root.pageData.moveQueue(row.index, row.index - 1);
-                        else if (actionId === "down") root.pageData.moveQueue(row.index, row.index + 1);
-                        else if (actionId === "remove") root.pageData.removeQueue(row.index);
-                    }
                 }
             }
         }

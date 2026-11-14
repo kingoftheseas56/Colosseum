@@ -264,92 +264,61 @@ Item {
 
                 // ---- listing controls ----
                 Item {
-                    id: viewToolbar
-                    width: parent.width
-                    readonly property bool stackedViewActions: Qt.platform.os === "android" && width < 620
-                    height: stackedViewActions ? 98 : (Qt.platform.os === "android" ? 44 : 40)
+                    width: parent.width; height: 40; y: 0
+                    Item { height: 26 }
                     Text {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: viewToolbar.stackedViewActions ? undefined : parent.verticalCenter
-                        anchors.top: viewToolbar.stackedViewActions ? parent.top : undefined
-                        anchors.topMargin: viewToolbar.stackedViewActions ? 12 : 0
+                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                         text: root.sortMode === "score" ? "TOP RATED" : "MOST WATCHED"
                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                         font.weight: Font.DemiBold; font.letterSpacing: 1.6
                     }
-                    // The sort control stays above the view choices on narrow Android screens.
-                    Rectangle {
-                        visible: root.mediaKind === "anime"
-                        height: 36; radius: 10; width: srt.implicitWidth + 28
-                        anchors.right: viewToolbar.stackedViewActions ? parent.right : viewChoices.left
-                        anchors.rightMargin: viewToolbar.stackedViewActions ? 0 : 12
-                        anchors.top: viewToolbar.stackedViewActions ? parent.top : undefined
-                        anchors.verticalCenter: viewToolbar.stackedViewActions ? undefined : parent.verticalCenter
-                        color: srtMa.containsMouse ? theme.glassHi : theme.glassTint
-                        border.width: 1; border.color: theme.edge
-                        Text {
-                            id: srt; anchors.centerIn: parent
-                            textFormat: Text.StyledText
-                            font.family: theme.ui; font.pixelSize: 13
-                            text: "<font color='#c9c8d0'>Sorted by </font><b><font color='#f7f7f5'>"
-                                  + (root.sortMode === "score" ? "Score" : "Watchers") + "</font></b> ⇅"
-                        }
-                        MouseArea {
-                            id: srtMa; anchors.fill: parent; hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.sortMode = (root.sortMode === "score") ? "readers" : "score"
-                        }
-                        KeyboardAction {
-                            anchors.fill: parent; pointerEnabled: false; accessibleName: "Change sort order"
-                            focusRadius: 10; onTriggered: root.sortMode = (root.sortMode === "score") ? "readers" : "score"
-                        }
-                    }
-                    // T038: two named choices on a second line on phones; inline on wider displays.
                     Row {
-                        id: viewChoices
-                        anchors.right: parent.right
-                        anchors.top: viewToolbar.stackedViewActions ? parent.top : undefined
-                        anchors.topMargin: viewToolbar.stackedViewActions ? 50 : 0
-                        anchors.verticalCenter: viewToolbar.stackedViewActions ? undefined : parent.verticalCenter
-                        Repeater {
-                            model: [ { c: false, g: "▤" }, { c: true, g: "▦" } ]
-                            delegate: Rectangle {
-                                required property var modelData
-                                width: Qt.platform.os === "android" ? Math.floor(Math.min(310, viewToolbar.width) / 2) : 38
-                                height: Qt.platform.os === "android" ? 44 : 36
-                                color: (root.compact === modelData.c) ? theme.glassHi : theme.glassTint
-                                border.width: 1; border.color: theme.edge
-                                Text {
-                                    id: viewGlyph
-                                    anchors.centerIn: Qt.platform.os === "android" ? undefined : parent
-                                    anchors.left: Qt.platform.os === "android" ? parent.left : undefined
-                                    anchors.leftMargin: Qt.platform.os === "android" ? 8 : 0
-                                    anchors.verticalCenter: Qt.platform.os === "android" ? parent.verticalCenter : undefined
-                                    text: modelData.g
-                                    color: (root.compact === modelData.c) ? theme.ink : theme.inkDimmer
-                                    font.pixelSize: 15
-                                }
-                                Text {
-                                    visible: Qt.platform.os === "android"
-                                    anchors.left: viewGlyph.right; anchors.leftMargin: 6
-                                    anchors.right: parent.right; anchors.rightMargin: 6
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: modelData.c ? qsTr("Cover grid view") : qsTr("Detailed grid view")
-                                    color: (root.compact === modelData.c) ? theme.ink : theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 12
-                                    wrapMode: Text.WordWrap
-                                    maximumLineCount: 2
-                                }
-                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.compact = modelData.c }
-                                HoverHandler { id: viewChoiceHover }
-                                KeyboardAction {
-                                    anchors.fill: parent; pointerEnabled: false
-                                    accessibleName: modelData.c ? "Cover grid view" : "Detailed grid view"
-                                    tooltipText: accessibleName
-                                    androidTooltipPolicy: "drop"
-                                    tooltipHovered: viewChoiceHover.hovered
-                                    focusRadius: 4; onTriggered: root.compact = modelData.c
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        spacing: 12
+                        // sort: readers ⇄ score (real — reloads)
+                        Rectangle {
+                            visible: root.mediaKind === "anime"
+                            height: 36; radius: 10; width: srt.implicitWidth + 28
+                            color: srtMa.containsMouse ? theme.glassHi : theme.glassTint
+                            border.width: 1; border.color: theme.edge
+                            Text {
+                                id: srt; anchors.centerIn: parent
+                                textFormat: Text.StyledText
+                                font.family: theme.ui; font.pixelSize: 13
+                                text: "<font color='#c9c8d0'>Sorted by </font><b><font color='#f7f7f5'>"
+                                      + (root.sortMode === "score" ? "Score" : "Watchers") + "</font></b> ⇅"
+                            }
+                            MouseArea {
+                                id: srtMa; anchors.fill: parent; hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.sortMode = (root.sortMode === "score") ? "readers" : "score"
+                            }
+                            KeyboardAction {
+                                anchors.fill: parent; pointerEnabled: false; accessibleName: "Change sort order"
+                                focusRadius: 10; onTriggered: root.sortMode = (root.sortMode === "score") ? "readers" : "score"
+                            }
+                        }
+                        // view: detailed ⇄ covers
+                        Row {
+                            Repeater {
+                                model: [ { c: false, g: "▤" }, { c: true, g: "▦" } ]
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    width: 38; height: 36
+                                    color: (root.compact === modelData.c) ? theme.glassHi : theme.glassTint
+                                    border.width: 1; border.color: theme.edge
+                                    Text { anchors.centerIn: parent; text: modelData.g
+                                           color: (root.compact === modelData.c) ? theme.ink : theme.inkDimmer
+                                           font.pixelSize: 15 }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.compact = modelData.c }
+                                    HoverHandler { id: viewChoiceHover }
+                                    KeyboardAction {
+                                        anchors.fill: parent; pointerEnabled: false
+                                        accessibleName: modelData.c ? "Cover grid view" : "Detailed grid view"
+                                        tooltipText: accessibleName; tooltipHovered: viewChoiceHover.hovered
+                                        focusRadius: 4; onTriggered: root.compact = modelData.c
+                                    }
                                 }
                             }
                         }
@@ -443,7 +412,7 @@ Item {
                     HoverHandler { id: genreSearchHover }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"
-                                     tooltipText: accessibleName; androidTooltipPolicy: "drop"; tooltipHovered: genreSearchHover.hovered
+                                     tooltipText: accessibleName; tooltipHovered: genreSearchHover.hovered
                                      onTriggered: root.searchClicked() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
                     HoverHandler { id: genreMinimizeHover }

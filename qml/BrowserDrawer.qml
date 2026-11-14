@@ -27,7 +27,6 @@ Item {
     property string subType: "series"
     property var candidates: []           // root.streamCandidates (normalized)
     property int currentStreamIndex: -1
-    property bool sourceCopyNoticeOpen: false
     property var isDead: function(i) { return false }   // root.isStreamDead
 
     signal episodePicked(var target)
@@ -52,10 +51,6 @@ Item {
         if (!link.length) return false
         Clipboard.copy(link)
         if (sourceList.currentItem && sourceList.currentItem.showCopied) sourceList.currentItem.showCopied()
-        if (Qt.platform.os === "android") {
-            drawer.sourceCopyNoticeOpen = true
-            sourceCopyNoticeTimer.restart()
-        }
         return true
     }
     Keys.onPressed: function(event) {
@@ -67,18 +62,6 @@ Item {
     Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(drawer.Window.window, panel, false) }
 
     Theme { id: theme }
-    Timer { id: sourceCopyNoticeTimer; interval: 2000; onTriggered: drawer.sourceCopyNoticeOpen = false }
-    Rectangle {
-        visible: drawer.sourceCopyNoticeOpen
-        z: 100
-        anchors.top: parent.top
-        anchors.topMargin: 85
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: 174; height: 40; radius: 20
-        color: Qt.rgba(0.04, 0.05, 0.07, 0.96)
-        border.width: 1; border.color: theme.edge
-        Text { anchors.centerIn: parent; text: qsTr("Link copied"); color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
-    }
 
     readonly property bool hasEpisodes: subType === "series" && (queue.length > 0 || nowId.split(":").length >= 3)
     property string tab: "episodes"
@@ -490,30 +473,17 @@ Item {
                     id: copySrc
                     anchors.right: parent.right; anchors.rightMargin: 12
                     anchors.verticalCenter: parent.verticalCenter
-                    width: Qt.platform.os === "android" ? 172 : 32
-                    height: 32; radius: 16
+                    width: 32; height: 32; radius: 16
                     color: copySrcMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                     border.width: 1; border.color: theme.edge
                     ToolTip.text: srcRow.copiedTick ? qsTr("Link copied") : qsTr("Copy source link")
                     ToolTip.delay: 350
-                    ToolTip.visible: Qt.platform.os !== "android" && copySrcMa.containsMouse
+                    ToolTip.visible: copySrcMa.containsMouse
                     Text {
-                        anchors.left: parent.left
-                        anchors.leftMargin: Qt.platform.os === "android" ? 10 : 8
-                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.centerIn: parent
                         text: srcRow.copiedTick ? "✓" : "⧉"
                         color: srcRow.copiedTick ? theme.gold : theme.inkDim
                         font.family: theme.ui; font.pixelSize: 13
-                    }
-                    KeyboardAction {
-                        width: 32; height: 32
-                        pointerEnabled: false
-                        accessibleName: qsTr("Copy source link")
-                        tooltipText: accessibleName
-                        androidTooltipPolicy: "caption"
-                        androidCaptionText: qsTr("Copy source link")
-                        androidCaptionPlacement: "right"
-                        onTriggered: drawer.copySource(srcRow.index)
                     }
                     MouseArea {
                         id: copySrcMa

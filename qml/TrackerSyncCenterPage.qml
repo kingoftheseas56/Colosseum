@@ -2652,7 +2652,7 @@ Item {
                         objectName: "trackerDossierClose"
                         activeFocusOnTab: true
                         Accessible.name: "Close tracker details"
-                        ToolTip.visible: Qt.platform.os !== "android" && dossierCloseButton.hovered
+                        ToolTip.visible: dossierCloseButton.hovered
                         ToolTip.delay: 350
                         ToolTip.text: qsTr("Close tracker details")
                         onClicked: root.closeDossier()
@@ -3375,7 +3375,7 @@ Item {
                             text: "×"
                             activeFocusOnTab: true
                             Accessible.name: "Close send review"
-                            ToolTip.visible: Qt.platform.os !== "android" && exportReviewCloseButton.hovered
+                            ToolTip.visible: exportReviewCloseButton.hovered
                             ToolTip.delay: 350
                             ToolTip.text: qsTr("Close send review")
                             KeyNavigation.tab: exportReviewList
@@ -3621,7 +3621,7 @@ Item {
                                 objectName: "trackerImportReviewClose"
                                 activeFocusOnTab: true
                                 Accessible.name: "Close import review"
-                                ToolTip.visible: Qt.platform.os !== "android" && importReviewCloseButton.hovered
+                                ToolTip.visible: importReviewCloseButton.hovered
                                 ToolTip.delay: 350
                                 ToolTip.text: qsTr("Close import review")
                                 text: "×"
@@ -4034,7 +4034,7 @@ Item {
                             activeFocusOnTab: true
                             text: "×"
                             Accessible.name: "Close title search"
-                            ToolTip.visible: Qt.platform.os !== "android" && titleMatchCloseButton.hovered
+                            ToolTip.visible: titleMatchCloseButton.hovered
                             ToolTip.delay: 350
                             ToolTip.text: qsTr("Close title search")
                             onClicked: root.closeTitleMatchFinder()

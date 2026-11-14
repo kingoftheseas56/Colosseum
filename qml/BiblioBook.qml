@@ -1093,24 +1093,18 @@ Item {
                                     id: torInd
                                     anchors.right: parent.right; anchors.rightMargin: 18
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: detail.androidHost
-                                        ? (torRow.dlState === "done" ? qsTr("Downloaded")
-                                          : torRow.dlState === "downloading" ? qsTr("Downloading %1%").arg(Math.round(torRow.dlPct * 100))
-                                          : torRow.dlState === "resolving" ? qsTr("Resolving")
-                                          : torRow.dlState === "failed" ? qsTr("Retry torrent") : qsTr("Download torrent"))
-                                        : torRow.dlState === "done" ? "✓"
+                                    text: torRow.dlState === "done" ? "✓"
                                         : torRow.dlState === "downloading" ? (Math.round(torRow.dlPct * 100) + "%")
                                         : torRow.dlState === "resolving" ? "…"
                                         : torRow.dlState === "failed" ? "retry" : "↓"
                                     color: torRow.dlState === "done" ? theme.gold : (torMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui
-                                    font.pixelSize: detail.androidHost ? 12
-                                        : (torRow.dlState === "downloading" || torRow.dlState === "failed") ? 12 : 16
+                                    font.pixelSize: (torRow.dlState === "downloading" || torRow.dlState === "failed") ? 12 : 16
                                     ToolTip.text: torRow.dlState === "done" ? qsTr("Torrent downloaded")
                                         : torRow.dlState === "downloading" ? qsTr("Downloading torrent")
                                         : torRow.dlState === "resolving" ? qsTr("Resolving torrent")
                                         : torRow.dlState === "failed" ? qsTr("Retry torrent download") : qsTr("Download torrent")
-                                    ToolTip.visible: !detail.androidHost && torrentStatusHover.hovered
+                                    ToolTip.visible: torrentStatusHover.hovered
                                     ToolTip.delay: 350
                                     HoverHandler { id: torrentStatusHover }
                                 }
@@ -1235,14 +1229,7 @@ Item {
                                 Text {
                                     anchors.right: parent.right; anchors.rightMargin: 18
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: detail.androidHost
-                                        ? (edRow.dlState === "done" ? qsTr("Downloaded")
-                                           : edRow.dlState === "downloading" ? qsTr("Downloading %1%").arg(Math.round(edRow.dlPct * 100))
-                                           : edRow.dlState === "queued" ? qsTr("Queued")
-                                           : edRow.dlState === "resolving" ? qsTr("Resolving")
-                                           : edRow.dlState === "failed" ? qsTr("Retry edition")
-                                           : edRow.modelData.md5 ? qsTr("Download edition") : qsTr("Open external"))
-                                        : edRow.dlState === "done" ? "✓"
+                                    text: edRow.dlState === "done" ? "✓"
                                         : edRow.dlState === "downloading" ? (Math.round(edRow.dlPct * 100) + "%")
                                         : edRow.dlState === "queued" ? "queued"
                                         : edRow.dlState === "resolving" ? "…"
@@ -1250,15 +1237,14 @@ Item {
                                         : (edRow.modelData.md5 ? "↓" : "↗")
                                     color: edRow.dlState === "done" ? theme.gold : (edMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui
-                                    font.pixelSize: detail.androidHost ? 12
-                                        : (edRow.dlState === "downloading" || edRow.dlState === "failed" || edRow.dlState === "queued") ? 12 : 16
+                                    font.pixelSize: (edRow.dlState === "downloading" || edRow.dlState === "failed" || edRow.dlState === "queued") ? 12 : 16
                                     ToolTip.text: edRow.dlState === "done" ? qsTr("Edition downloaded")
                                         : edRow.dlState === "downloading" ? qsTr("Downloading edition")
                                         : edRow.dlState === "queued" ? qsTr("Edition download queued")
                                         : edRow.dlState === "resolving" ? qsTr("Resolving edition")
                                         : edRow.dlState === "failed" ? qsTr("Retry edition download")
                                         : edRow.modelData.md5 ? qsTr("Download edition") : qsTr("Open external edition")
-                                    ToolTip.visible: !detail.androidHost && editionStatusHover.hovered
+                                    ToolTip.visible: editionStatusHover.hovered
                                     ToolTip.delay: 350
                                     HoverHandler { id: editionStatusHover }
                                 }
@@ -1380,23 +1366,17 @@ Item {
                                 }
                                 Text {
                                     anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter
-                                    text: detail.androidHost
-                                        ? (abRow.rowState === "done" ? qsTr("Downloaded")
-                                           : abRow.rowState === "downloading" ? qsTr("Downloading %1%").arg(Math.round(abCol.abPct * 100))
-                                           : detail.audiobookBusy(abRow.rowState) ? qsTr("Preparing")
-                                           : abRow.rowState === "failed" ? qsTr("Retry audiobook") : qsTr("Download audiobook"))
-                                        : abRow.rowState === "done" ? "✓"
+                                    text: abRow.rowState === "done" ? "✓"
                                         : abRow.rowState === "downloading" ? (Math.round(abCol.abPct*100) + "%")
                                         : detail.audiobookBusy(abRow.rowState) ? "…"
                                         : abRow.rowState === "failed" ? "retry" : "↓"
                                     color: abRow.rowState === "done" ? theme.gold : (abRowMa.containsMouse ? theme.gold : theme.inkDimmer)
-                                    font.family: theme.ui
-                                    font.pixelSize: detail.androidHost ? 12 : (abRow.rowState === "downloading" || abRow.rowState === "failed") ? 12 : 16
+                                    font.family: theme.ui; font.pixelSize: (abRow.rowState === "downloading" || abRow.rowState === "failed") ? 12 : 16
                                     ToolTip.text: abRow.rowState === "done" ? qsTr("Audiobook downloaded")
                                         : abRow.rowState === "downloading" ? qsTr("Downloading audiobook")
                                         : detail.audiobookBusy(abRow.rowState) ? qsTr("Preparing audiobook download")
                                         : abRow.rowState === "failed" ? qsTr("Retry audiobook download") : qsTr("Download audiobook")
-                                    ToolTip.visible: !detail.androidHost && audiobookStatusHover.hovered
+                                    ToolTip.visible: audiobookStatusHover.hovered
                                     ToolTip.delay: 350
                                     HoverHandler { id: audiobookStatusHover }
                                 }

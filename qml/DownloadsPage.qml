@@ -1056,14 +1056,6 @@ Item {
                                                 font.family: theme.ui; font.pixelSize: 11
                                                 elide: Text.ElideRight
                                             }
-                                            Text {
-                                                visible: root.onAndroid && epRow.modelData.state === "done"
-                                                width: parent.width
-                                                text: qsTr("Download complete")
-                                                color: theme.inkDim
-                                                font.family: theme.ui; font.pixelSize: 11
-                                                elide: Text.ElideRight
-                                            }
                                         }
                                         Text {
                                             id: epNums
@@ -1099,7 +1091,7 @@ Item {
                                                 text: "✓"; color: theme.inkDim
                                                 font.family: theme.ui; font.pixelSize: 13
                                                 HoverHandler { id: completeMarkHover }
-                                                ToolTip.visible: completeMarkHover.hovered && !root.onAndroid
+                                                ToolTip.visible: completeMarkHover.hovered
                                                 ToolTip.text: qsTr("Download complete")
                                                 ToolTip.delay: 350
                                             }
@@ -1710,7 +1702,7 @@ Item {
                                 Text {
                                     id: abMark
                                     HoverHandler { id: audiobookMarkHover }
-                                    ToolTip.visible: audiobookMarkHover.hovered && !root.onAndroid
+                                    ToolTip.visible: audiobookMarkHover.hovered
                                     ToolTip.text: abDoneRow.modelData.missing ? qsTr("File missing") : qsTr("Saved on this device")
                                     ToolTip.delay: 350
                                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
@@ -1729,14 +1721,6 @@ Item {
                                         text: abDoneRow.modelData.title || root.abTitleOf(abDoneRow.modelData.id)
                                         color: abDoneRow.modelData.missing ? theme.inkDim : theme.ink
                                         font.family: theme.ui; font.pixelSize: 15; font.weight: Font.Medium
-                                        elide: Text.ElideRight
-                                    }
-                                    Text {
-                                        visible: root.onAndroid
-                                        width: parent.width
-                                        text: abDoneRow.modelData.missing ? qsTr("File missing") : qsTr("Saved on this device")
-                                        color: abDoneRow.modelData.missing ? "#c98b8b" : theme.inkDim
-                                        font.family: theme.ui; font.pixelSize: 11
                                         elide: Text.ElideRight
                                     }
                                     Text {
@@ -1931,7 +1915,6 @@ Item {
                 anchors.fill: parent
                 accessibleName: "Back"
                 tooltipText: accessibleName
-                androidTooltipPolicy: "drop"
                 focusRadius: 17
                 onTriggered: root.backRequested()
             }
@@ -1940,8 +1923,7 @@ Item {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.rightMargin: 26
             spacing: 20
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
-                    KeyboardAction { anchors.fill: parent; accessibleName: "Search"; tooltipText: accessibleName
-                        androidTooltipPolicy: "drop"; focusRadius: 5
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Search"; tooltipText: accessibleName; focusRadius: 5
                         onTriggered: root.searchClicked() } }
             Image { visible: !root.onAndroid; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
                     KeyboardAction { anchors.fill: parent; accessibleName: "Minimize"; tooltipText: accessibleName; focusRadius: 5
@@ -1969,7 +1951,7 @@ Item {
         Text {
             id: markT
             HoverHandler { id: ledgerMarkHover }
-            ToolTip.visible: ledgerMarkHover.hovered && !root.onAndroid
+            ToolTip.visible: ledgerMarkHover.hovered
             ToolTip.text: row.rowData.missing ? qsTr("File missing") : qsTr("Saved on this device")
             ToolTip.delay: 350
             x: row.indent
@@ -1989,14 +1971,6 @@ Item {
                 text: row.rowData.title || "Untitled"
                 color: row.rowData.missing ? theme.inkDim : theme.ink
                 font.family: theme.ui; font.pixelSize: 15; font.weight: Font.Medium
-                elide: Text.ElideRight
-            }
-            Text {
-                visible: root.onAndroid
-                width: parent.width
-                text: row.rowData.missing ? qsTr("File missing") : qsTr("Saved on this device")
-                color: row.rowData.missing ? "#c98b8b" : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 11
                 elide: Text.ElideRight
             }
             Text {

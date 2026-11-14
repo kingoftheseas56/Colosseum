@@ -42,7 +42,7 @@ Item {
 
     Theme { id: theme }
 
-    property bool collapsed: Qt.platform.os !== "android"
+    property bool collapsed: true
     readonly property int openWidth: 240
     readonly property int closedWidth: 52
     readonly property real contentLeft: width + 28
@@ -303,7 +303,6 @@ Item {
                         anchors.fill: parent
                         accessibleName: "Row " + String(rowItem.modelData.title || "row")
                         tooltipText: rail.collapsed ? String(rowItem.modelData.title || "") : ""
-                        androidTooltipPolicy: touchMetrics.androidHost ? "drop" : "legacy"
                         tooltipHovered: interactionActive
                         focusRadius: 12
                         focusOnPointer: false
@@ -323,9 +322,9 @@ Item {
     Item {
         id: toggle
         objectName: rail.automationPrefix + "Collapse"
-        x: touchMetrics.androidHost ? rail.width - width : rail.width - 14
+        x: rail.width - 14
         y: 18
-        width: touchMetrics.androidHost ? (rail.collapsed ? 52 : 120) : 28
+        width: 28
         height: 28
         opacity: toggleAction.interactionActive ? 1 : 0.74
 
@@ -374,9 +373,6 @@ Item {
             anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
             accessibleName: rail.collapsed ? "Expand row index" : "Retract row index"
             tooltipText: accessibleName
-            androidTooltipPolicy: touchMetrics.androidHost ? "caption" : "legacy"
-            androidCaptionText: rail.collapsed ? qsTr("Expand") : qsTr("Retract row index")
-            androidCaptionPlacement: "below"
             focusRadius: 14
             focusOnPointer: false
             onTriggered: rail.collapsed = !rail.collapsed

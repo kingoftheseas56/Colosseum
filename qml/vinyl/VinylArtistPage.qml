@@ -805,7 +805,6 @@ Flickable {
             id: searchButton
             objectName: "vinylArtistSearchButton"
             tooltipText: qsTr("Search catalogue")
-            androidTooltipPolicy: "drop"
             anchors.right: parent.right
             anchors.rightMargin: root.gutter
             anchors.verticalCenter: parent.verticalCenter
@@ -919,7 +918,6 @@ Flickable {
                 id: moreButton
                 objectName: "vinylArtistMoreButton"
                 tooltipText: accessibleName
-                androidTooltipPolicy: "longPress"
                 width: 40
                 height: 40
                 focusRadius: 20
@@ -1050,7 +1048,7 @@ Flickable {
         x: root.gutter
         y: root.contentY + root.height - height - 18
         width: root.bodyWidth
-        height: Qt.platform.os === "android" ? 126 : 72
+        height: 72
         radius: 18
         color: Qt.rgba(0.047, 0.055, 0.082, 0.92)
         border.width: 1
@@ -1059,8 +1057,7 @@ Flickable {
 
         Row {
             x: 14
-            anchors.verticalCenter: Qt.platform.os === "android" ? undefined : parent.verticalCenter
-            y: Qt.platform.os === "android" ? 8 : 0
+            anchors.verticalCenter: parent.verticalCenter
             spacing: 12
             width: parent.width * 0.36
 
@@ -1114,9 +1111,7 @@ Flickable {
         }
 
         Column {
-            anchors.centerIn: Qt.platform.os === "android" ? undefined : parent
-            x: Qt.platform.os === "android" ? (parent.width - width) / 2 : 0
-            y: Qt.platform.os === "android" ? 9 : 0
+            anchors.centerIn: parent
             width: Math.min(320, parent.width * 0.32)
             spacing: 6
             visible: root.width >= 760
@@ -1146,18 +1141,14 @@ Flickable {
         Row {
             anchors.right: parent.right
             anchors.rightMargin: 16
-            anchors.verticalCenter: Qt.platform.os === "android" ? undefined : parent.verticalCenter
-            y: Qt.platform.os === "android" ? 63 : 0
+            anchors.verticalCenter: parent.verticalCenter
             spacing: 8
 
             KeyboardAction {
                 focusOnPointer: false
                 objectName: "vinylArtistHudPrev"
                 tooltipText: accessibleName
-                androidTooltipPolicy: "caption"
-                androidCaptionText: qsTr("Previous track")
-                width: Qt.platform.os === "android" ? 100 : 38
-                height: 38; focusRadius: 19; spaceActivates: true
+                width: 38; height: 38; focusRadius: 19; spaceActivates: true
                 accessibleName: "Previous track"
                 onTriggered: root.artistData.stepDemoSong(-1)
                 Rectangle {
@@ -1170,7 +1161,6 @@ Flickable {
                 focusOnPointer: false
                 objectName: "vinylArtistHudPlay"
                 tooltipText: accessibleName
-                androidTooltipPolicy: "drop"
                 width: 42; height: 42; focusRadius: 21; focusPrimary: true; spaceActivates: true
                 accessibleName: root.artistData.demoPlaying ? "Pause visual demo" : "Play visual demo"
                 onTriggered: root.artistData.toggleDemoPlayback()
@@ -1190,10 +1180,7 @@ Flickable {
                 focusOnPointer: false
                 objectName: "vinylArtistHudNext"
                 tooltipText: accessibleName
-                androidTooltipPolicy: "caption"
-                androidCaptionText: qsTr("Next track")
-                width: Qt.platform.os === "android" ? 100 : 38
-                height: 38; focusRadius: 19; spaceActivates: true
+                width: 38; height: 38; focusRadius: 19; spaceActivates: true
                 accessibleName: "Next track"
                 onTriggered: root.artistData.stepDemoSong(1)
                 Rectangle {

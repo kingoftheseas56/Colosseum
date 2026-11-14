@@ -525,7 +525,7 @@ Item {
                 width: 26; height: 26; radius: 8; color: Qt.rgba(0.04, 0.04, 0.075, 0.82)
                 border.width: 1
                 border.color: root.menuRowId === card.modelData.entry.id ? theme.gold : theme.edge
-                opacity: root.touchInput || card.hovered ? 1 : 0
+                opacity: card.hovered ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 150 } }
                 Text { anchors.centerIn: parent; text: "⋮"; color: theme.ink; font.pixelSize: 15 }
                 ToolTip.text: qsTr("Book actions")

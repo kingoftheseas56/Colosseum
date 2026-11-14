@@ -183,14 +183,14 @@ Item {
         anchors.top: parent.top
         anchors.leftMargin: 28
         anchors.topMargin: 24
-        width: Qt.platform.os === "android" ? 178 : 40
+        width: 40
         height: 40
         Rectangle {
-            width: 40; height: 40
+            anchors.fill: parent
             radius: width / 2
             color: cancelHover.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.06)
         }
-        PlayerIcon { width: 40; height: 40; kind: "back"; ink: "#f7f7f5" }
+        PlayerIcon { anchors.fill: parent; kind: "back"; ink: "#f7f7f5" }
         MouseArea {
             id: cancelHover
             anchors.fill: parent
@@ -200,15 +200,12 @@ Item {
         }
         KeyboardAction {
             id: cancelKeyboard
-            width: 40; height: 40
+            anchors.fill: parent
             pointerEnabled: false
             focusEnabled: root.active
             accessibleName: qsTr("Cancel loading")
             tooltipText: accessibleName
             tooltipHovered: cancelHover.containsMouse
-            androidTooltipPolicy: "caption"
-            androidCaptionText: qsTr("Cancel loading")
-            androidCaptionPlacement: "right"
             focusRadius: width / 2
             onTriggered: root.cancelRequested()
         }

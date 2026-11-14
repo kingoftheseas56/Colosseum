@@ -20,7 +20,6 @@ Item {
     property var draftNotes: ({})
     property var removedItem: null
     readonly property bool narrow: width < 700
-    readonly property bool androidPhone: Qt.platform.os === "android" && width < 600
     readonly property int sideMargin: narrow ? 22 : 54
     readonly property var collection: { page.store.revision; return page.store.getCollection(page.collectionId) }
     readonly property var visibleItems: {
@@ -377,7 +376,7 @@ Item {
                     CollectionActionButton {
                         id: deleteButton
                         objectName: "deleteCollectionButton"
-                        visible: !page.editing && !!page.collection && !page.androidPhone
+                        visible: !page.editing && !!page.collection
                         enabled: page.store.healthy
                         compact: true
                         iconName: "trash"
@@ -385,24 +384,6 @@ Item {
                         Accessible.name: qsTr("Delete collection")
                         tooltipText: qsTr("Delete collection")
                         onClicked: page.deleteRequested(deleteButton)
-                    }
-                    ActionOverflowMenu {
-                        id: collectionMore
-                        objectName: "collectionPageMore"
-                        visible: !page.editing && !!page.collection && page.androidPhone
-                        enabled: page.store.healthy
-                        showLabel: false
-                        Layout.preferredWidth: 40
-                        Layout.preferredHeight: 40
-                        actions: [
-                            { id: "delete", label: qsTr("Delete collection"), iconName: "trash",
-                              enabled: page.store.healthy, danger: true }
-                        ]
-                        onActionTriggered: function(actionId) {
-                            if (actionId === "delete") page.deleteRequested(collectionMore)
-                        }
-                        Keys.onReturnPressed: collectionMore.open()
-                        Keys.onEnterPressed: collectionMore.open()
                     }
                     CollectionActionButton {
                         objectName: "cancelCollectionEdit"

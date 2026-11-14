@@ -222,29 +222,16 @@ Item {
                 color: dot.index === view.currentIndex ? theme.ink : Qt.rgba(1, 1, 1, 0.48)
                 border.width: dotRow.activeFocus && dot.index === dotRow.currentIndex ? 2 : 0
                 border.color: theme.gold
-                ToolTip.visible: Qt.platform.os !== "android" && dotHover.hovered
+                ToolTip.visible: dotHover.hovered
                 ToolTip.text: qsTr("Show slide %1").arg(dot.index + 1)
                 ToolTip.delay: 350
                 HoverHandler { id: dotHover }
                 Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                 MouseArea {
-                    enabled: Qt.platform.os !== "android"
                     anchors.fill: parent
                     anchors.margins: -5
                     cursorShape: Qt.PointingHandCursor
                     onClicked: view.currentIndex = dot.index
-                }
-                KeyboardAction {
-                    visible: Qt.platform.os === "android"
-                    anchors.fill: parent
-                    anchors.margins: -5
-                    accessibleName: qsTr("Show slide %1").arg(dot.index + 1)
-                    tooltipText: accessibleName
-                    androidTooltipPolicy: "longPress"
-                    focusEnabled: false
-                    focusPolicy: Qt.NoFocus
-                    showFocusFrame: false
-                    onTriggered: view.currentIndex = dot.index
                 }
             }
         }

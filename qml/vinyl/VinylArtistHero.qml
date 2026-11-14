@@ -501,7 +501,6 @@ Item {
                 id: playAction
                 objectName: "vinylArtistPlay"
                 tooltipText: accessibleName
-                androidTooltipPolicy: "drop"
                 width: 46
                 height: 46
                 focusRadius: 9
@@ -529,18 +528,11 @@ Item {
                 }
             }
 
-            // The outer slot reserves room for KeyboardAction's right-side Android caption.
-            Item {
-                width: Qt.platform.os === "android" ? 184 : 46
-                height: 46
             KeyboardAction {
                 focusOnPointer: false
                 id: shuffleAction
                 objectName: "vinylArtistShuffle"
                 tooltipText: accessibleName
-                androidTooltipPolicy: "caption"
-                androidCaptionText: qsTr("Shuffle artist tracks")
-                androidCaptionPlacement: "right"
                 width: 46
                 height: 46
                 focusRadius: 9
@@ -568,20 +560,12 @@ Item {
                     color: theme.ink
                 }
             }
-            }
 
-            // Save state has its own short, stateful Android label.
-            Item {
-                width: Qt.platform.os === "android" ? 146 : 46
-                height: 46
             KeyboardAction {
                 focusOnPointer: false
                 id: save
                 objectName: "vinylArtistSave"
                 tooltipText: accessibleName
-                androidTooltipPolicy: "caption"
-                androidCaptionText: root.artistData.saved ? qsTr("Unsave artist") : qsTr("Save artist")
-                androidCaptionPlacement: "right"
                 width: 46
                 height: 46
                 focusRadius: 9
@@ -607,7 +591,6 @@ Item {
                     symbol: root.artistData.saved ? "saved" : "save"
                     color: root.artistData.saved ? theme.gold : theme.ink
                 }
-            }
             }
 
             KeyboardAction {

@@ -35,26 +35,11 @@ Item {
     Theme { id: theme }
 
     // ── open / closed ──
-    property bool collapsed: Qt.platform.os !== "android"
+    property bool collapsed: true
     // 240 open (the concept's 184, widened by Hemanth 2026-09-30 so addon names fit)
     readonly property int openWidth: 240
     readonly property int closedWidth: 52
-    readonly property bool compactAndroidSources: touchMetrics.androidHost && !!rail.Window.window
-        && rail.Window.window.width < 600
-    // Keep selected source discoverable next to the catalogue while the page
-    // More menu holds the individual source rows on narrow Android.
-    readonly property var sourceOverflowActions: {
-        var actions = []
-        var sources = rail.host.sources || []
-        for (var i = 0; i < sources.length; ++i) {
-            var src = sources[i]
-            actions.push({ id: String(i), label: String(src.name || ""),
-                           iconSource: src.logo || "", iconName: "folder",
-                           selected: src.name === rail.host.currentSource })
-        }
-        return actions
-    }
-    width: compactAndroidSources ? 176 : (collapsed ? closedWidth : openWidth)
+    width: collapsed ? closedWidth : openWidth
     Behavior on width { NumberAnimation { duration: 240; easing.type: Easing.Bezier; easing.bezierCurve: [0.2, 0.7, 0.2, 1, 1, 1] } }
     // the shell's right padding (16 open, 4 closed); the list's own right padding (16 / 0)
     readonly property int _shellPadRight: collapsed ? 4 : 16
@@ -121,9 +106,9 @@ Item {
         x: 12
         y: 22
         width: rail.openWidth - 16 - 12 - 16
-        height: rail.compactAndroidSources || rail.collapsed ? 38 : brandColumn.implicitHeight + 2 + 18
+        height: rail.collapsed ? 38 : brandColumn.implicitHeight + 2 + 18
         clip: true
-        opacity: rail.compactAndroidSources || rail.collapsed ? 0 : 1
+        opacity: rail.collapsed ? 0 : 1
         Behavior on opacity { NumberAnimation { duration: 150 } }
         Column {
             id: brandColumn
@@ -144,7 +129,6 @@ Item {
 
     Flickable {
         id: list
-        visible: !rail.compactAndroidSources
         x: 0
         y: brand.y + brand.height
         width: rail.width - rail._shellPadRight
@@ -230,7 +214,6 @@ Item {
                         anchors.fill: parent
                         accessibleName: "Source " + src.modelData.name + (src.current ? ", selected" : "")
                         tooltipText: rail._labelsShown ? "" : String(src.modelData.name || "")
-                        androidTooltipPolicy: touchMetrics.androidHost ? "drop" : "legacy"
                         focusRadius: 12
                         focusOnPointer: false   // the gold bar marks the choice; no ring on a click
                         onTriggered: rail.host.selectSource(src.modelData.name)
@@ -240,47 +223,13 @@ Item {
         }
     }
 
-    // The settled D-W1 source chooser is a tap-open list with original names.
-    // On tablets the expanded named rail remains as before, with no duplicate.
-    ActionOverflowMenu {
-        id: sourceOverflow
-        objectName: rail.host.automationPrefix + "DiscoverSourcesMore"
-        visible: rail.compactAndroidSources && rail.host.sources.length > 0
-        x: 8; y: 56
-        width: 86; height: 40
-        label: qsTr("More")
-        showLabel: true
-        menuWidth: 265
-        actions: rail.sourceOverflowActions
-        onActionTriggered: function(actionId) {
-            var index = Number(actionId)
-            var sources = rail.host.sources || []
-            if (index >= 0 && index < sources.length)
-                rail.host.selectSource(sources[index].name)
-        }
-    }
-    Text {
-        visible: rail.compactAndroidSources
-        objectName: rail.host.automationPrefix + "CurrentSource"
-        x: 8; y: sourceOverflow.y + 48
-        width: rail.width - 16
-        text: String(rail.host.currentSource || "")
-        color: theme.inkDim
-        font.family: theme.ui
-        font.pixelSize: 12
-        textFormat: Text.PlainText
-        elide: Text.ElideRight
-    }
-
     // ── the edge toggle (.worldnav-toggle): 28 px round, right:-14, top:18, blurred dark plate ──
     Item {
         id: toggle
         objectName: rail.host.automationPrefix.length ? rail.host.automationPrefix + "DiscoverSidebarCollapse" : ""
-        visible: !rail.compactAndroidSources
-        x: touchMetrics.androidHost ? rail.width - width : rail.width - 14
+        x: rail.width - 14
         y: 18
-        width: touchMetrics.androidHost ? (rail.collapsed ? 52 : 112) : 28
-        height: 28
+        width: 28; height: 28
         opacity: toggleAction.interactionActive ? 1 : 0.74
         Glass {
             anchors.fill: parent
@@ -312,9 +261,6 @@ Item {
             anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
             accessibleName: rail.collapsed ? "Expand sidebar" : "Retract sidebar"
             tooltipText: accessibleName
-            androidTooltipPolicy: touchMetrics.androidHost ? "caption" : "legacy"
-            androidCaptionText: rail.collapsed ? qsTr("Expand") : qsTr("Retract sidebar")
-            androidCaptionPlacement: "below"
             focusRadius: 14
             focusOnPointer: false
             onTriggered: rail.collapsed = !rail.collapsed

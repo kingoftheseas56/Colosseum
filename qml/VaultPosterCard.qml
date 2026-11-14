@@ -176,9 +176,7 @@ Item {
                 width: 44; height: 44; radius: 22
                 color: Qt.rgba(0, 0, 0, 0.5)
                 border.width: 1; border.color: theme.edge
-                // Android has no hover: keep the universal play affordance discoverable
-                // without changing desktop reveal behavior or the card's open signal.
-                opacity: Qt.platform.os === "android" && !card.away ? 1 : hoverScrim.opacity
+                opacity: hoverScrim.opacity
                 Image {
                     anchors.centerIn: parent
                     width: 14; height: 14

@@ -215,49 +215,30 @@ Item {
                 Item {
                     id: libraryIconButton
                     objectName: "mangaSeriesLibraryButton"
-                    width: adaptive.androidHost ? 122 : 36
-                    height: adaptive.androidHost ? 57 : 36
+                    width: 36; height: 36
                     visible: root.libraryAvailable
                     activeFocusOnTab: visible
                     Accessible.role: Accessible.Button
                     Accessible.name: root.librarySaved ? "Remove from Library" : "Add to Library"
-                    ToolTip.visible: !adaptive.androidHost && libraryMa.containsMouse
+                    ToolTip.visible: libraryMa.containsMouse
                     ToolTip.text: root.librarySaved ? "Remove from Library" : "Add to Library"
                     ToolTip.delay: 350
                     y: Math.round((titleRow.height - height) / 2)
                     Rectangle {
-                        anchors.top: parent.top
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: 36; height: 36; radius: 9
+                        anchors.fill: parent; radius: 9
                         color: libraryMa.containsMouse ? Qt.rgba(1,1,1,.10) : (root.librarySaved ? Qt.rgba(0.78,.62,.22,.10) : "transparent")
                         border.width: root.librarySaved ? 1 : 0
                         border.color: Qt.rgba(0.78,.62,.22,.28)
                     }
                     Image {
                         id: libraryGlyph
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        y: 8; width: 20; height: 20
+                        anchors.centerIn: parent; width: 20; height: 20
                         source: root.librarySaved ? "../assets/icons/lucide/bookmark-check.svg" : "../assets/icons/lucide/bookmark-plus.svg"
                         sourceSize.width: 40; sourceSize.height: 40
                         fillMode: Image.PreserveAspectFit; smooth: true; cache: true; visible: false
                     }
                     MultiEffect { anchors.fill: libraryGlyph; source: libraryGlyph; colorization: 1.0; colorizationColor: root.librarySaved ? theme.gold : theme.ink }
                     MouseArea { id: libraryMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggleLibrary() }
-                    KeyboardAction {
-                        objectName: "mangaSeriesLibraryCaption"
-                        anchors.top: parent.top
-                        width: parent.width
-                        height: 36
-                        pointerEnabled: false
-                        accessibleName: root.librarySaved ? qsTr("Remove from Library") : qsTr("Add to Library")
-                        tooltipText: accessibleName
-                        androidPresentationEnabled: adaptive.androidHost
-                        androidTooltipPolicy: adaptive.androidHost ? "caption" : "drop"
-                        androidCaptionText: accessibleName
-                        androidCaptionPlacement: "below"
-                        focusRadius: 9
-                        focusEnabled: false
-                    }
                     Keys.onPressed: function(event) {
                         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.toggleLibrary(); event.accepted = true }
                     }
@@ -373,24 +354,9 @@ Item {
                 enabled: root.tankobanMode; hoverEnabled: true
                 cursorShape: Qt.ForbiddenCursor
             }
-            ToolTip.visible: !adaptive.androidHost && root.tankobanMode && lockedLanguageMa.containsMouse
+            ToolTip.visible: root.tankobanMode && lockedLanguageMa.containsMouse
             ToolTip.text: "Available in Chapter Mode"
             ToolTip.delay: 350
-        }
-
-        Text {
-            visible: adaptive.androidHost && root.tankobanMode
-            objectName: "mangaLanguageModeHelper"
-            anchors.top: languageSelector.bottom
-            anchors.topMargin: 4
-            anchors.right: languageSelector.right
-            width: languageSelector.width
-            text: qsTr("Available in Chapter Mode")
-            textFormat: Text.PlainText
-            color: theme.inkDim
-            font.family: theme.ui
-            font.pixelSize: 11
-            horizontalAlignment: Text.AlignRight
         }
 
         Button {
