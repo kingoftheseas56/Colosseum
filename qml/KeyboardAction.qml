@@ -40,7 +40,8 @@ Item {
     readonly property bool pressed: primaryTap.pressed
     readonly property bool interactionActive: hovered || pressed || activeFocus
 
-    ToolTip.delay: 350
+    // Desktop waits 350 ms on hover; a held finger already waited for the long-press.
+    ToolTip.delay: action.longPressTooltipEnabled ? 0 : 350
     ToolTip.text: action.tooltipText
     readonly property bool tooltipRequested: action.visible && action.enabled && action.tooltipText.length > 0
         && (action.longPressTooltipEnabled ? action._longPressTooltip : action.tooltipHovered)
@@ -103,11 +104,18 @@ Item {
         acceptedButtons: Qt.LeftButton
         gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: action.activate(Qt.MouseFocusReason)
+        // Android norm: the hint appears ~0.4 s into the hold, while the finger is still down,
+        // and stays until 1.5 s after release.
+        Component.onCompleted: if (action.longPressTooltipEnabled) longPressThreshold = 0.4
         onLongPressed: {
             if (action.longPressTooltipEnabled && action.tooltipText.length > 0) {
+                longPressTooltipTimeout.stop()
                 action._longPressTooltip = true
-                longPressTooltipTimeout.restart()
             }
+        }
+        onPressedChanged: {
+            if (!pressed && action._longPressTooltip)
+                longPressTooltipTimeout.restart()
         }
     }
     TapHandler {
@@ -121,7 +129,7 @@ Item {
     // Colosseum's one focus look (world-feel R1): a solid gold ring outside the control.
     Timer {
         id: longPressTooltipTimeout
-        interval: 2000
+        interval: 1500
         onTriggered: action._longPressTooltip = false
     }
 

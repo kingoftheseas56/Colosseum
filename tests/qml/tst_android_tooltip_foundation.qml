@@ -40,12 +40,16 @@ TestCase {
         const p = action.mapToItem(testWindow.contentItem, 70, 20)
         const sequence = touchEvent(testWindow.contentItem)
         sequence.press(0, testWindow.contentItem, p.x, p.y).commit()
-        wait(1100)
-        verify(action._longPressTooltip, "press-and-hold should request the tooltip")
+        wait(600)
+        verify(action._longPressTooltip, "the hint should appear ~0.4 s into the hold, finger still down")
         compare(action.tooltipRequested, true)
+        compare(action.ToolTip.delay, 0)
         sequence.release(0, testWindow.contentItem, p.x, p.y).commit()
         wait(30)
         compare(actionTriggers.count, 0)
+        compare(action.tooltipRequested, true)   // stays up after release, hides ~1.5 s later
+        wait(1700)
+        compare(action.tooltipRequested, false)
     }
     function test_android_short_tap_still_activates() {
         wait(700)
