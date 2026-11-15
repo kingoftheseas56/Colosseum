@@ -61,17 +61,28 @@ Item {
     // Third-party trackers (the Sync Center) live in the TopBar's right cluster, not here.
 
     onOpenChanged: if (!open) fan.visible = false
+    property bool pendingAutoReveal: false
+    onVisibleChanged: {
+        if (!visible) open = false
+        else if (pendingAutoReveal) reveal()
+    }
 
     // ---- auto-reveal (2026-07-04): a minimize extends the bar out of the icon so you SEE the
     //      session arrive, then it pulls back after 15s without taskbar interaction. A bar the
     //      user opened by clicking the icon is sticky — only auto-revealed bars pull back. ----
     property bool autoRevealed: false
     function reveal() {
+        if (!bar.visible) {
+            pendingAutoReveal = true
+            return
+        }
+        pendingAutoReveal = false
         open = true
         autoRevealed = true
         idleTimer.restart()
     }
     function focusHistoryStatsAction() {
+        if (!bar.visible) return
         bar.autoRevealed = false
         idleTimer.stop()
         if (!bar.open)

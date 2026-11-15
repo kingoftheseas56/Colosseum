@@ -6547,8 +6547,9 @@ Window {
             && !win.vinylVideoFullscreen
             && (!win.androidHost || win.desktopPresentation)
             && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
+            && !(universeLayer.active
+                && universeLayer.bespokeId === "com.colosseum.universe.onepiece")
         enabled: visible
-        onVisibleChanged: if (!visible) open = false
         onSwitchRequested: (id) => {
             if (!win.guardNamedCollectionsNavigation(function() { Sessions.switchTo(id) })) Sessions.switchTo(id)
         }
