@@ -708,11 +708,15 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // OPEN, awaiting his ruling: the `audiobook` type below is a dead claim — the federated
     // search is only ever asked for "books" and "comics", never audiobooks. Left in place
     // rather than silently changed, because dropping it changes Biblio's roster.
-    add("colosseum.well.indexers", "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json", false,
-        manifest("colosseum.well.indexers", "Tankorent", "",
-                 { QStringLiteral("stream") },
-                 { QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("audiobook") },
-                 {}, true));
+    // Tankorent requires an explicit installation. Refresh an existing row
+    // without changing its switch, but never seed or resurrect it. No version
+    // bump: existing installations and their choices need no migration.
+    if (indexOfId(QStringLiteral("colosseum.well.indexers")) >= 0)
+        add("colosseum.well.indexers", "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json", false,
+            manifest("colosseum.well.indexers", "Tankorent", "",
+                     { QStringLiteral("stream") },
+                     { QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("audiobook") },
+                     {}, true));
     add("colosseum.well.audiobookbay", "colosseum://well/audiobookbay", false,
         manifest("colosseum.well.audiobookbay", "AudioBookBay", "",
                  { QStringLiteral("stream") }, { QStringLiteral("audiobook") }, {}, false));

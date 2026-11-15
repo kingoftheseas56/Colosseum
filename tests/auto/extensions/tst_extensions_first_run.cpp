@@ -219,6 +219,56 @@ private slots:
     void init() { wipeIndex(); }
     void cleanup() { wipeIndex(); }
 
+    void tankorent_requires_explicit_installation()
+    {
+        ExtensionsStore store(nullptr);
+        QVERIFY(!store.isInstalled(QStringLiteral("colosseum.well.indexers")));
+        ExtensionsStore reopened(nullptr);
+        QVERIFY(!reopened.isInstalled(QStringLiteral("colosseum.well.indexers")));
+    }
+
+    void defaults_upgrade_does_not_reinstall_tankorent()
+    {
+        const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+            + QStringLiteral("/extensions/installed.json");
+        { ExtensionsStore seeded(nullptr); seeded.remove(QStringLiteral("colosseum.well.indexers")); }
+        QFile input(path);
+        QVERIFY(input.open(QIODevice::ReadOnly));
+        QJsonObject root = QJsonDocument::fromJson(input.readAll()).object();
+        input.close();
+        root.insert(QStringLiteral("defaultsVersion"), 1);
+        QFile output(path);
+        QVERIFY(output.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        output.write(QJsonDocument(root).toJson());
+        output.close();
+        ExtensionsStore migrated(nullptr);
+        QVERIFY(!migrated.isInstalled(QStringLiteral("colosseum.well.indexers")));
+    }
+
+    void explicit_tankorent_install_survives_restart()
+    {
+        ManifestFixture fixture;
+        QVERIFY(fixture.listen());
+        fixture.setBody(QByteArrayLiteral(
+            "{\"id\":\"colosseum.well.indexers\",\"name\":\"Tankorent\","
+            "\"resources\":[\"stream\"],\"types\":[\"comic\",\"book\",\"audiobook\"]}"));
+        QNetworkAccessManager nam;
+        const QString url = fixture.configuredUrl(QStringLiteral("/manifest.json"));
+        {
+            ExtensionsStore store(&nam);
+            QVERIFY(!store.isInstalled(QStringLiteral("colosseum.well.indexers")));
+            QSignalSpy installed(&store, &ExtensionsStore::installFinished);
+            store.install(url);
+            QTRY_COMPARE(installed.count(), 1);
+            QVERIFY(findById(store.installed(), QStringLiteral("colosseum.well.indexers"))
+                        .value(QStringLiteral("enabled")).toBool());
+        }
+        ExtensionsStore reopened(nullptr);
+        const auto row = findById(reopened.installed(), QStringLiteral("colosseum.well.indexers"));
+        QCOMPARE(row.value(QStringLiteral("transportUrl")).toString(), url);
+        QVERIFY(row.value(QStringLiteral("enabled")).toBool());
+    }
+
     // A fresh profile seeds core catalogues enabled, but every removable acquisition/playback well disabled.
     void fresh_profile_requires_consent_for_removable_wells()
     {
@@ -628,15 +678,16 @@ private slots:
         QJsonObject root = QJsonDocument::fromJson(input.readAll()).object();
         input.close();
         QJsonArray rows = root.value(QStringLiteral("extensions")).toArray();
-        int at = -1;
-        for (int i = 0; i < rows.size(); ++i)
-            if (rows.at(i).toObject().value(QStringLiteral("id")) == QLatin1String("colosseum.well.indexers")) at = i;
-        QVERIFY(at >= 0);
-        QJsonObject row = rows.at(at).toObject();
+        // Model the old installed row independently of today's opt-in defaults.
+        QJsonObject row{
+            {QStringLiteral("id"), QStringLiteral("colosseum.well.indexers")},
+            {QStringLiteral("core"), false},
+            {QStringLiteral("manifest"), QJsonObject{
+                {QStringLiteral("id"), QStringLiteral("colosseum.well.indexers")},
+                {QStringLiteral("name"), QStringLiteral("Tankorent")}}}};
         row.insert(QStringLiteral("transportUrl"), oldUrl);
         row.insert(QStringLiteral("enabled"), enabled);
         row.insert(QStringLiteral("installedAt"), qint64(1700000016));
-        rows.removeAt(at);
         rows.insert(1, row);
         root.insert(QStringLiteral("extensions"), rows);
         root.insert(QStringLiteral("defaultsVersion"), 15);

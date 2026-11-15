@@ -58,6 +58,15 @@ Item {
     }
     property var booksRef: (typeof Books !== "undefined") ? Books : null
     property var bookTorrentsRef: (typeof BookTorrents !== "undefined") ? BookTorrents : null
+    readonly property bool tankorentEnabled: {
+        var owner = detail.extensionsRef
+        if (!owner || !owner.installed) return false
+        var rows = (owner.revision, owner.installed()) || []
+        for (var i = 0; i < rows.length; ++i)
+            if (rows[i].id === "colosseum.well.indexers") return rows[i].enabled === true
+        return false
+    }
+    onTankorentEnabledChanged: detail.loadTorrents()
     property var collectionRef: (typeof Collection !== "undefined") ? Collection : null
     property var progressRef: (typeof Progress !== "undefined") ? Progress : null
 
@@ -189,7 +198,7 @@ Item {
         var service = detail.bookTorrentsRef
         detail.torrents = []
         detail.torExpanded = false       // a new book collapses the shelf back to the top matches
-        if (!service || !detail.book || !detail.book.title) {
+        if (!detail.tankorentEnabled || !service || !detail.book || !detail.book.title) {
             detail.torLoading = false
             detail._resolvePendingLookup(detail.pendingReadGeneration)
             return
@@ -201,6 +210,7 @@ Item {
         target: detail.bookTorrentsRef
         ignoreUnknownSignals: true
         function onResultsReady(rows) {
+            if (!detail.tankorentEnabled) return
             detail.torrents = rows || []
             detail.torLoading = false
             detail.refreshLocal()
@@ -432,6 +442,12 @@ Item {
             detail.readError = "LibGen is disabled in Extensions"
             return false
         }
+        if (transport === "torrent" && stateName !== "done" && !detail._inFlight(stateName)
+                && !detail.tankorentEnabled) {
+            detail._invalidateReadIntent()
+            detail.readError = "Tankorent is disabled in Extensions"
+            return false
+        }
         detail.pendingReadTransport = transport
         detail.pendingReadAcquisitionId = id
         detail.pendingReadState = stateName
@@ -598,6 +614,10 @@ Item {
     }
     function downloadTorrent(row) {
         if (!row || !row.infoHash || !detail.bookTorrentsRef) return
+        if (!detail.tankorentEnabled) {
+            detail.readError = "Tankorent is disabled in Extensions"
+            return
+        }
         detail.explicitEditionMd5 = ""
         detail._invalidateReadIntent()
         detail.readError = ""
@@ -1000,18 +1020,18 @@ Item {
                 }
 
                 // ── Torrents — live federated indexer search; ranked best-match × seeders ──
-                Item { width: 1; height: 40; visible: typeof BookTorrents !== 'undefined' }
+                Item { width: 1; height: 40; visible: detail.tankorentEnabled }
                 Text {
-                    visible: typeof BookTorrents !== 'undefined'
+                    visible: detail.tankorentEnabled
                     text: "TORRENTS" + (detail.torLoading ? "  ·  SEARCHING…"
                           : (detail.torrents.length > 0 ? "  ·  " + detail.torrents.length : "  ·  NONE"))
                     color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                     font.weight: Font.DemiBold; font.letterSpacing: 1.6
                 }
-                Item { width: 1; height: 12; visible: typeof BookTorrents !== 'undefined' }
+                Item { width: 1; height: 12; visible: detail.tankorentEnabled }
                 Glass {
                     id: torrentList
-                    visible: typeof BookTorrents !== 'undefined'
+                    visible: detail.tankorentEnabled
                     backdrop: detail.backdrop
                     width: Math.min(parent.width, 640); radius: 14
                     height: torCol.implicitHeight

@@ -18,6 +18,7 @@ Item {
     signal searchRequested()
     // Keep the shared store's handler valid without changing Android controls.
     signal installUrlRequested()
+    signal installRequested(string url)
     signal configureRequested(string extensionId)
 
     readonly property bool compact: width < 1250
@@ -52,8 +53,13 @@ Item {
     }
     function isInstalled(id) { hero.revision; var r = hero.rowFor(id); return !!r && r.enabled !== false }
     function isPresent(id) { hero.revision; return hero.rowFor(id) !== null }
+    function canToggle(id) {
+        return hero.isPresent(id) || (typeof Extensions !== "undefined" && id === "colosseum.well.indexers")
+    }
     function toggle(id) {
         if (hero.isPresent(id)) Extensions.setEnabled(id, !hero.isInstalled(id))
+        else if (id === "colosseum.well.indexers" && typeof Extensions !== "undefined")
+            hero.installRequested("https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json")
     }
 
     Timer {
@@ -222,7 +228,7 @@ Item {
                             anchors.centerIn: parent
                             width: 42; height: 28; radius: 14
                             color: mobileRow.installed ? "#328d67" : "#454953"
-                            opacity: hero.isPresent(mobileRow.modelData.id) ? 1 : 0.5
+                            opacity: hero.canToggle(mobileRow.modelData.id) ? 1 : 0.5
                             Rectangle {
                                 x: mobileRow.installed ? parent.width - width - 4 : 4
                                 anchors.verticalCenter: parent.verticalCenter
@@ -235,7 +241,7 @@ Item {
                             accessibleName: (mobileRow.installed ? "Turn off " : "Turn on ")
                                             + mobileRow.modelData.name
                             tooltipText: accessibleName
-                            enabled: hero.isPresent(mobileRow.modelData.id)
+                            enabled: hero.canToggle(mobileRow.modelData.id)
                             focusRadius: 14
                             onTriggered: hero.toggle(mobileRow.modelData.id)
                         }
@@ -356,7 +362,7 @@ Item {
                             color: tile.installed ? Qt.rgba(40 / 255, 120 / 255, 82 / 255, 0.82) : Qt.rgba(18 / 255, 19 / 255, 24 / 255, 0.72)
                             border.width: 1
                             border.color: tile.installed ? Qt.rgba(159 / 255, 1, 210 / 255, 0.55) : Qt.rgba(1, 1, 1, 0.34)
-                            opacity: hero.isPresent(tile.modelData.id) ? 1 : 0.5
+                            opacity: hero.canToggle(tile.modelData.id) ? 1 : 0.5
                             Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                             Text {
                                 anchors.centerIn: parent
@@ -374,7 +380,7 @@ Item {
                                         ? Math.max(parent.height, hero.sourceToggleMinimumTouchTarget / Math.max(0.01, appsRow.scale))
                                         : parent.height
                                 focusInset: Qt.platform.os === "android" ? (width - parent.width) / 2 - 2 : -2
-                                enabled: hero.isPresent(tile.modelData.id)
+                                enabled: hero.canToggle(tile.modelData.id)
                                 accessibleName: (tile.installed ? "Turn off " : "Add ") + tile.modelData.name
                                 tooltipText: accessibleName
                                 focusRadius: 14

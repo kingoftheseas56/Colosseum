@@ -39,15 +39,18 @@ TestCase {
     QtObject {
         id: torrents
         property int searches: 0
+        property int downloads: 0
+        property string state: "none"
         signal resultsReady(var rows)
         signal searchFinished()
+        signal finished(string infoHash, string path)
         function search(title, author) { searches++ }
-        function download(id, title, author) {}
-        function statusOf(id) { return { state: "none" } }
+        function download(id, title, author) { downloads++ }
+        function statusOf(id) { return { state: state } }
         function downloadedBooks() { return [] }
         function downloadedFiles() { return [] }
-        function isDownloaded(id) { return false }
-        function localFile(id) { return "" }
+        function isDownloaded(id) { return state === "done" }
+        function localFile(id) { return state === "done" ? "/fixture/torrent.epub" : "" }
     }
     SignalSpy { id: reads; signalName: "readRequested" }
     function page(owner) {
@@ -63,7 +66,8 @@ TestCase {
     }
     function edition() { return { md5: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", format: "epub", best: true } }
     function enable(value) {
-        extensions.setRows([{ id: "colosseum.well.libgen", enabled: value }])
+        extensions.setRows([{ id: "colosseum.well.libgen", enabled: value },
+                            { id: "colosseum.well.indexers", enabled: true }])
     }
     function initTestCase() {
         originalSearch = BiblioApi.searchLibgen
@@ -85,7 +89,60 @@ TestCase {
         extensions.setRows([])
         searches = 0; callbacks = []; audioCallbacks = []; audioSearches = 0
         books.downloads = 0; books.deletions = 0; books.state = "none"
-        torrents.searches = 0
+        torrents.searches = 0; torrents.downloads = 0; torrents.state = "none"
+    }
+    function test_tankorent_missing_or_disabled_does_not_search() {
+        const item = page(extensions)
+        compare(torrents.searches, 0)
+        extensions.setRows([{ id: "colosseum.well.indexers", enabled: false }])
+        item.loadTorrents()
+        compare(torrents.searches, 0)
+        compare(item.torLoading, false)
+    }
+    function test_tankorent_toggle_discards_late_results_and_reenable_searches() {
+        extensions.setRows([{ id: "colosseum.well.indexers", enabled: true }])
+        const item = page(extensions)
+        compare(torrents.searches, 1)
+        extensions.setRows([])
+        torrents.resultsReady([{ infoHash: "late", title: "Late result" }])
+        compare(item.torrents.length, 0)
+        compare(item.torLoading, false)
+        extensions.setRows([{ id: "colosseum.well.indexers", enabled: true }])
+        compare(torrents.searches, 2)
+        torrents.resultsReady([{ infoHash: "current", title: "Current result" }])
+        compare(item.torrents.length, 1)
+    }
+    function test_tankorent_missing_blocks_stale_new_downloads() {
+        const item = page(extensions)
+        const row = { infoHash: "fixture", title: "Fixture" }
+        item.downloadTorrent(row)
+        compare(torrents.downloads, 0)
+        const gen = item._beginReadIntent()
+        item._targetReadCandidate(item._candidate("torrent", row.infoHash, "EPUB", "", row), gen)
+        compare(torrents.downloads, 0)
+        verify(!item.pendingReadActive)
+        compare(books.deletions, 0)
+    }
+    function test_tankorent_enabled_starts_acquisition() {
+        extensions.setRows([{ id: "colosseum.well.indexers", enabled: true }])
+        const item = page(extensions)
+        item.downloadTorrent({ infoHash: "fixture", title: "Fixture" })
+        compare(torrents.downloads, 1)
+    }
+    function test_tankorent_disable_keeps_existing_foreground_download() {
+        extensions.setRows([{ id: "colosseum.well.indexers", enabled: true }])
+        const item = page(extensions)
+        const row = { infoHash: "fixture", title: "Fixture" }
+        torrents.state = "downloading"
+        const gen = item._beginReadIntent()
+        verify(item._targetReadCandidate(item._candidate("torrent", row.infoHash, "EPUB", "", row), gen))
+        extensions.setRows([])
+        compare(item.pendingReadTransport, "torrent")
+        torrents.state = "done"
+        torrents.finished("fixture", "/fixture/torrent.epub")
+        compare(reads.count, 1)
+        compare(reads.signalArguments[0][0], "/fixture/torrent.epub")
+        compare(torrents.downloads, 0)
     }
     function test_missing_extension_does_not_search() {
         const item = page(null)
