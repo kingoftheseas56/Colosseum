@@ -227,6 +227,43 @@ private slots:
         QVERIFY(!reopened.isInstalled(QStringLiteral("colosseum.well.indexers")));
     }
 
+    void native_download_sources_require_explicit_install_data()
+    {
+        QTest::addColumn<QString>("id");
+        QTest::addColumn<QString>("url");
+        QTest::newRow("getcomics") << QStringLiteral("colosseum.well.getcomics.issues")
+            << QStringLiteral("colosseum://well/getcomics.issues");
+        QTest::newRow("audiobookbay") << QStringLiteral("colosseum.well.audiobookbay")
+            << QStringLiteral("colosseum://well/audiobookbay");
+    }
+
+    void native_download_sources_require_explicit_install()
+    {
+        QFETCH(QString, id);
+        QFETCH(QString, url);
+        {
+            ExtensionsStore store(nullptr);
+            QVERIFY(!store.isInstalled(id));
+            QSignalSpy previews(&store, &ExtensionsStore::previewReady);
+            store.preview(url);
+            QCOMPARE(previews.count(), 1);
+            QVERIFY(!store.isInstalled(id));
+            QSignalSpy installed(&store, &ExtensionsStore::installFinished);
+            store.install(url);
+            QCOMPARE(installed.count(), 1);
+            QVERIFY(findById(store.installed(), id).value(QStringLiteral("enabled")).toBool());
+            store.setEnabled(id, false);
+        }
+        {
+            ExtensionsStore reopened(nullptr);
+            QVERIFY(reopened.isInstalled(id));
+            QVERIFY(!findById(reopened.installed(), id).value(QStringLiteral("enabled")).toBool());
+            reopened.remove(id);
+        }
+        ExtensionsStore removed(nullptr);
+        QVERIFY(!removed.isInstalled(id));
+    }
+
     void defaults_upgrade_does_not_reinstall_tankorent()
     {
         const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)

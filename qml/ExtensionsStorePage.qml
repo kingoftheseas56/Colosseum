@@ -559,8 +559,8 @@ Item {
             onUniversesRequested: root.universeHallRequested()
             onSearchRequested: root.searching = true
             onInstallUrlRequested: root.openUrlInstaller()
-            onInstallRequested: (url) => root.activate({
-                id: "colosseum.well.indexers", slug: "house-tankorent", manifestUrl: url
+            onInstallRequested: (id, url) => root.activate({
+                id: id, slug: id, manifestUrl: url
             })
             onConfigureRequested: (id) => root.openConfiguration(id)
         }

@@ -1777,6 +1777,21 @@ int main(int argc, char *argv[]) {
     // Shares the plain uncached NAM — manifests are small JSON, never cache-served.
     auto *extensions = new ExtensionsStore(dlNam, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Extensions"), extensions);
+    const auto sourceEnabled = [extensions](const QString &id) {
+        for (const auto &item : extensions->installed()) {
+            const auto row = item.toMap();
+            if (row.value(QStringLiteral("id")).toString() == id
+                && row.value(QStringLiteral("enabled")).toBool())
+                return true;
+        }
+        return false;
+    };
+    comics->setSourceEnabledCheck([sourceEnabled] {
+        return sourceEnabled(QStringLiteral("colosseum.well.getcomics.issues"));
+    });
+    audiobooks->setSourceEnabledCheck([sourceEnabled] {
+        return sourceEnabled(QStringLiteral("colosseum.well.audiobookbay"));
+    });
 #ifdef COLOSSEUM_NUVIO_PLUGINS
     const QString nuvioDirectory = instanceAppData + QStringLiteral("/extensions/nuvio");
     auto *nuvioRepos = new NuvioRepositoryStore(nuvioDirectory, NuvioNetwork::getRepositoryAsset,

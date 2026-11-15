@@ -53,6 +53,7 @@
 #include <QVariantMap>
 
 #include <functional>
+#include <utility>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -69,6 +70,10 @@ public:
     ComicDownloader(QNetworkAccessManager* nam, QNetworkAccessManager* searchNam,
                     TorrentEngine* torrentEngine, QObject* parent = nullptr);
     ~ComicDownloader() override;
+
+    // Application wiring reads the existing extension registry at acquisition
+    // time. Standalone transport/ingest fixtures do not own that registry.
+    void setSourceEnabledCheck(std::function<bool()> check) { m_sourceEnabledCheck = std::move(check); }
 
     // ---- QML entry points ----
 
@@ -225,6 +230,7 @@ signals:
     void torrentIncompleteIssueSetDetected(const QString& issueId, const QStringList& missingIssues);
 
 private:
+    std::function<bool()> m_sourceEnabledCheck;
     struct Entry {
         QString seriesId;
         QString seriesTitle;

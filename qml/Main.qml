@@ -1939,13 +1939,6 @@ Window {
         if (!slide || !String(slide.title || "").length) return
         var title = String(slide.title)
         if (slide.ghost === "C") {
-            var installed = (typeof Extensions !== "undefined" && Extensions
-                            && typeof Extensions.installed === "function") ? (Extensions.installed() || []) : []
-            var getComicsEnabled = false
-            for (var i = 0; i < installed.length; ++i)
-                if (installed[i] && installed[i].id === "colosseum.well.getcomics.issues"
-                        && installed[i].enabled === true) { getComicsEnabled = true; break }
-            if (!getComicsEnabled) { win.openExtensionsPage("tankoban"); return }
             win.openWestern({ title: title })
             return
         }
@@ -5479,6 +5472,7 @@ Window {
         property var    baked: null           // catalogue run {gcdId,releases,cover} OR pack {packSeriesId,releases,cover} OR universe {gcdId:0,releases,cover}
         source: "ComicSeries.qml"
         onLoaded: {
+            item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
             item.backdrop = wall
             item.seriesTitle = westernLayer.title
             item.tagId = westernLayer.tagId
@@ -5528,6 +5522,7 @@ Window {
         property var locgMeta: ({})          // {publisher, rating, startYear…} enriches the hero
         source: "ComicSeriesPage.qml"
         onLoaded: {
+            item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
             item.backdrop = wall
             item.seriesTitle = comicSeriesLayer.title
             item.cover = comicSeriesLayer.cover
@@ -5792,6 +5787,7 @@ Window {
         property var book: ({})
         source: "BiblioBook.qml"
         onLoaded: {
+            item.openExtensionsRequested.connect(function() { win.openExtensionsPage("biblio") })
             item.backdrop = wall
             item.book = bookLayer.book
             item.backRequested.connect(win.closeBook)

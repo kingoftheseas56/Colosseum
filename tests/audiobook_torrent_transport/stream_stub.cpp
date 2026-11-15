@@ -5,11 +5,15 @@ StreamServer::~StreamServer()=default;
 void StreamServer::prefetch(const QString& hash,int idx) { emit fetchReady(stubStreamUrl,hash,idx); }
 QString StreamServer::streamUrl(const QString&,int) const { return stubStreamUrl; }
 void StreamServer::play(const QString&,int) {}
+#ifdef Q_OS_ANDROID
 void StreamServer::warmSource(const QString&,int) {}
+#endif
 void StreamServer::warmUp() {}
 void StreamServer::watchStats(const QString&,int) {}
 void StreamServer::unwatchStats() {}
+#ifdef Q_OS_ANDROID
 void StreamServer::stopDemand() {}
+#endif
 void StreamServer::requestManifest(const QString&,const QString&) {}
 void StreamServer::requestMagnetManifest(const QString&,const QString&,const QString&) {}
 void StreamServer::requestFile(const QString&,const QString&,int) {}

@@ -12,6 +12,7 @@ import QtQuick.Effects
 import QtQuick.Window
 import "BiblioApi.js" as BiblioApi
 import "AbbApi.js" as Abb
+import "ExtensionsCatalog.js" as ExtensionCatalog
 import "collections" as CollectionsUi
 import "CollectionsReferences.js" as CollectionsReferences
 
@@ -58,6 +59,12 @@ Item {
     }
     property var booksRef: (typeof Books !== "undefined") ? Books : null
     property var bookTorrentsRef: (typeof BookTorrents !== "undefined") ? BookTorrents : null
+    property var audiobooksRef: (typeof Audiobooks !== "undefined") ? Audiobooks : null
+    property var streamRef: (typeof Stream !== "undefined") ? Stream : null
+    readonly property bool audiobookBayEnabled:
+        ExtensionCatalog.sourceEnabled(detail.extensionsRef, "colosseum.well.audiobookbay")
+    property int audiobookGeneration: 0
+    onAudiobookBayEnabledChanged: detail.loadAudiobookSources()
     readonly property bool tankorentEnabled: {
         var owner = detail.extensionsRef
         if (!owner || !owner.installed) return false
@@ -86,7 +93,6 @@ Item {
     property var readChoiceRows: []
     property int readChoiceIndex: 0
     property Item readChoiceReturn: null
-    property int sourceGeneration: 0
     readonly property bool pendingReadActive: detail.pendingReadTransport.length > 0
 
     signal backRequested()
@@ -94,6 +100,7 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
     signal readRequested(string path, var book)   // a downloaded edition is on disk, ready for the reader
+    signal openExtensionsRequested()
     // (listenRequested retired 2026-07-18 — the reader is the one audiobook surface)
 
     // ── audiobook pairing lane: the same title's audiobook, from AudioBookBay ──
@@ -144,38 +151,48 @@ Item {
         detail.loadEditions()
     }
     function loadEditions() {
-        var gen = ++detail.sourceGeneration
         detail.abInfoHash = ""
         abCol.abActiveSlug = ""
         abCol.abState = "idle"
         if (!detail.book || !detail.book.title) return
-        var key = detail.pairKey
         abCol.syncStatus()
         detail.loadLibgenEditions()
-        // audiobook lane: is one already downloaded? then find one to download.
-        detail.audioLocal = (typeof Audiobooks !== 'undefined') && Audiobooks.isDownloaded(detail.pairKey)
-        detail.abLoading = true; detail.abRows = []
+        detail.loadAudiobookSources()
+        detail.loadTorrents()
+        detail.refreshLocal()
+    }
+
+    function loadAudiobookSources() {
+        var gen = ++detail.audiobookGeneration
+        detail.abInfoHash = ""
+        detail.abRows = []
+        detail.abLoading = false
+        if (!detail.book || !detail.book.title) return
+        var key = detail.book.pairKey || BiblioApi.pairKey(detail.book.title, detail.book.author || "")
+        abCol.syncStatus(key)
+        if (!detail.audiobookBusy(abCol.abState) && abCol.abState !== "done")
+            abCol.abActiveSlug = ""
+        detail.audioLocal = !!detail.audiobooksRef && detail.audiobooksRef.isDownloaded(key)
+        if (!detail.audiobookBayEnabled) return
+        detail.abLoading = true
         Abb.resolveAudiobook(detail.book.title, detail.book.author, function(res) {
-            if (gen !== detail.sourceGeneration || key !== detail.pairKey) return
+            if (!detail.audiobookBayEnabled || gen !== detail.audiobookGeneration || key !== detail.pairKey) return
             detail.abRows = (res && res.rows) ? res.rows : []
             detail.abLoading = false
-            // Discover the hash for both platforms; desktop also prefetches playback.
             if (!detail.audioLocal && detail.abRows.length > 0) {
                 var slug = detail.abRows[0].slug
                 Abb.fetchInfoHash(slug, function(d) {
-                    if (gen !== detail.sourceGeneration || key !== detail.pairKey
+                    if (!detail.audiobookBayEnabled || gen !== detail.audiobookGeneration || key !== detail.pairKey
                             || detail.abRows.length === 0 || detail.abRows[0].slug !== slug
                             || (abCol.abActiveSlug !== "" && abCol.abActiveSlug !== slug)) return
                     if (d && d.infoHash) {
                         detail.abInfoHash = d.infoHash
-                        if (Qt.platform.os !== "android" && typeof Stream !== 'undefined')
-                            Stream.prefetch(d.infoHash, 0)
+                        if (Qt.platform.os !== "android" && detail.streamRef)
+                            detail.streamRef.prefetch(d.infoHash, 0)
                     }
                 })
             }
         })
-        detail.loadTorrents()
-        detail.refreshLocal()
     }
 
     function loadLibgenEditions() {
@@ -658,17 +675,18 @@ Item {
         if (detail.audiobookBusy(abCol.abState)) return
         abCol.syncStatus()
         if (detail.audiobookBusy(abCol.abState)) return
-        if (typeof Audiobooks === 'undefined') return
+        if (!detail.audiobookBayEnabled || !detail.audiobooksRef) return
         abCol.abActiveSlug = row.slug; abCol.abState = "resolving"
-        var gen = detail.sourceGeneration
+        var gen = detail.audiobookGeneration
         var key = detail.pairKey
         var slug = row.slug
         Abb.fetchInfoHash(slug, function(d) {
-            if (gen !== detail.sourceGeneration || key !== detail.pairKey || slug !== abCol.abActiveSlug) return
+            if (!detail.audiobookBayEnabled || gen !== detail.audiobookGeneration
+                    || key !== detail.pairKey || slug !== abCol.abActiveSlug) return
             if (!d || !d.infoHash) { abCol.abState = "failed"; return }
             detail.abInfoHash = d.infoHash
             var bookId = (detail.localPath && typeof Reader2Bridge !== 'undefined') ? Reader2Bridge.bookKey(detail.localPath) : ""
-            Audiobooks.downloadAudiobook(detail.pairKey, d.infoHash, detail.book.title || "", detail.book.author || "", bookId, detail.localPath || "")
+            detail.audiobooksRef.downloadAudiobook(detail.pairKey, d.infoHash, detail.book.title || "", detail.book.author || "", bookId, detail.localPath || "")
             if (detail.collectionRef) detail.collectionRef.add("biblio", detail.collectionEntry())
         })
     }
@@ -1282,16 +1300,27 @@ Item {
                 }
 
                 // ── Audiobook — paired from AudioBookBay; acquisition remains orthogonal to ebook Read ──
+
                 Item { width: 1; height: 30 }
                 Text {
-                    text: "AUDIOBOOK" + (detail.abLoading ? "  ·  SEARCHING…"
+                    text: "AUDIOBOOK" + (!detail.audiobookBayEnabled ? "" : detail.abLoading ? "  ·  SEARCHING…"
                           : (detail.abRows.length > 0 ? "  ·  " + detail.abRows.length : "  ·  NONE"))
                     color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                     font.weight: Font.DemiBold; font.letterSpacing: 1.6
                 }
                 Item { width: 1; height: 12 }
+                SourceExtensionPrompt {
+                    width: Math.min(parent.width, 640)
+                    visible: !detail.audiobookBayEnabled
+                    namePrefix: "audiobookSource"
+                    message: qsTr("No audiobook download source is enabled for this title. Enable one in Extensions.")
+                    androidHost: detail.androidHost
+                    phoneLayout: detail.androidHost && detail.width < 840
+                    onOpenExtensionsRequested: detail.openExtensionsRequested()
+                }
                 Glass {
                     id: audiobookList
+                    visible: detail.audiobookBayEnabled
                     backdrop: detail.backdrop
                     width: Math.min(parent.width, 640); radius: 14
                     height: abCol.implicitHeight
@@ -1313,7 +1342,7 @@ Item {
                         property string abActiveSlug: ""     // the row being downloaded
                         property real abPct: 0
                         Connections {
-                            target: (typeof Audiobooks !== 'undefined') ? Audiobooks : null
+                            target: detail.audiobooksRef
                             function onResolving(key) { if (key === detail.pairKey) abCol.syncStatus() }
                             function onProgress(key, rcv, tot) { if (key === detail.pairKey) { abCol.abState = "downloading"; abCol.abPct = tot > 0 ? rcv / tot : 0 } }
                             function onFinished(key, path) { if (key === detail.pairKey) { abCol.abState = "done"; abCol.abPct = 1; detail.audioLocal = true } }
@@ -1321,7 +1350,7 @@ Item {
                             function onRemoved(key) {
                                 if (key !== detail.pairKey) return
                                 abCol.syncStatus()
-                                detail.audioLocal = Audiobooks.isDownloaded(key)
+                                detail.audioLocal = detail.audiobooksRef.isDownloaded(key)
                             }
                         }
                         // REHYDRATE on page (re)entry: the download runs in C++ and survives leaving
@@ -1329,9 +1358,10 @@ Item {
                         // running download read as "stopped" (the 2026-07-18 report). Which ROW was
                         // picked (abActiveSlug) is unrecoverable by design; the banner below carries
                         // slug-less background progress instead.
-                        function syncStatus() {
-                            if (typeof Audiobooks === 'undefined' || !detail.pairKey) return
-                            var st = Audiobooks.statusOf(detail.pairKey)
+                        function syncStatus(key) {
+                            var identity = key || detail.pairKey
+                            var st = detail.audiobooksRef && identity
+                                ? detail.audiobooksRef.statusOf(identity) : null
                             abCol.abState = st && st.state && st.state !== "none" ? st.state : "idle"
                             abCol.abPct = st && st.total > 0 ? st.received / st.total : 0
                         }

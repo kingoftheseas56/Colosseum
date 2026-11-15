@@ -13,6 +13,7 @@ import QtQuick
 import QtQuick.Controls
 import "ComicsApi.js" as Api
 import "ComicResolve.js" as Resolve
+import "ExtensionsCatalog.js" as ExtensionCatalog
 import "collections" as CollectionsUi
 import "CollectionsReferences.js" as CollectionsReferences
 
@@ -42,6 +43,10 @@ Item {
     // Arc 19: injectable service seams preserve production defaults while letting the
     // consume-vs-acquire contract run deterministically in an offscreen harness.
     property var comicsRef: (typeof Comics !== "undefined") ? Comics : null
+    property var extensionsRef: (typeof Extensions !== "undefined") ? Extensions : null
+    readonly property bool getComicsEnabled:
+        ExtensionCatalog.sourceEnabled(page.extensionsRef, "colosseum.well.getcomics.issues")
+    signal openExtensionsRequested()
     property var progressRef: (typeof Progress !== "undefined") ? Progress : null
     signal backRequested()
     signal minimizeRequested()
@@ -342,6 +347,10 @@ Item {
         var snap = page._releaseSnapshot(release)
         var service = page.comicsRef
         if (!snap || !snap.id.length || !service || !service.downloadIssue) return false
+        if (!page.getComicsEnabled) {
+            page.openExtensionsRequested()
+            return false
+        }
         service.downloadIssue(snap.id, snap.url, page.seriesId, page.seriesTitle, snap.name,
                               snap.sizeMB * 1024 * 1024)
         if (typeof Collection !== "undefined")
@@ -651,6 +660,14 @@ Item {
             }
 
             // ── SHELF CONTROLS — filter + sort; view-only, the reader is untouched ──
+            SourceExtensionPrompt {
+                x: theme.margin
+                width: Math.max(0, parent.width - 2 * theme.margin)
+                visible: !page.getComicsEnabled
+                namePrefix: "comicSource"
+                message: qsTr("No comic download source is enabled for this title. Enable one in Extensions.")
+                onOpenExtensionsRequested: page.openExtensionsRequested()
+            }
             Item {
                 width: parent.width; height: 64
                 visible: page.releases.length > 0

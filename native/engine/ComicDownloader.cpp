@@ -1061,6 +1061,13 @@ void ComicDownloader::downloadIssue(const QString& issueIdIn, const QString& pos
         }
     }
 
+    // Local adoption and existing jobs above remain available with the source
+    // disabled. Every new GetComics transfer, including reader retries, gates here.
+    if (m_sourceEnabledCheck && !m_sourceEnabledCheck()) {
+        emit failed(id, QStringLiteral("Enable GetComics in Extensions to download this comic."));
+        return;
+    }
+
     // Resolve the FULL signed DOWNLOAD NOW href from the release post.
     QNetworkRequest req{QUrl(postUrl)};
     req.setRawHeader("User-Agent", kUserAgent);

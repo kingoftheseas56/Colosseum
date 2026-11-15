@@ -6,6 +6,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "ExtensionsCatalog.js" as ExtensionCatalog
 import QtQuick.Effects
 
 Item {
@@ -15,7 +16,7 @@ Item {
     signal universesRequested()
     signal searchRequested()
     signal installUrlRequested()
-    signal installRequested(string url)
+    signal installRequested(string extensionId, string url)
     signal configureRequested(string extensionId)
 
     readonly property bool compact: width < 1250
@@ -36,12 +37,12 @@ Item {
     function isInstalled(id) { hero.revision; var r = hero.rowFor(id); return !!r && r.enabled !== false }
     function isPresent(id) { hero.revision; return hero.rowFor(id) !== null }
     function canToggle(id) {
-        return hero.isPresent(id) || (typeof Extensions !== "undefined" && id === "colosseum.well.indexers")
+        return hero.isPresent(id) || (typeof Extensions !== "undefined" && ExtensionCatalog.houseInstallUrl(id).length > 0)
     }
     function toggle(id) {
         if (hero.isPresent(id)) Extensions.setEnabled(id, !hero.isInstalled(id))
-        else if (id === "colosseum.well.indexers" && typeof Extensions !== "undefined")
-            hero.installRequested("https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json")
+        else if (ExtensionCatalog.houseInstallUrl(id).length > 0 && typeof Extensions !== "undefined")
+            hero.installRequested(id, ExtensionCatalog.houseInstallUrl(id))
     }
 
     Timer {
