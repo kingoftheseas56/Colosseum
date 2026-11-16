@@ -233,6 +233,12 @@ TestCase {
                     provider:"youtube-music",providerId:id,name:"Fixture artist " + letter};
             })
             signal vinylTasteChanged()
+            function setVinylTasteSelections(answered, artists) {
+                vinylTasteAnswered = answered;
+                vinylTasteArtists = artists;
+                vinylTasteChanged();
+                return true;
+            }
         }
     }
 

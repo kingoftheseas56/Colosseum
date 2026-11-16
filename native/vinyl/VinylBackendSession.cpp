@@ -1313,8 +1313,17 @@ bool VinylBackendSession::setSavedAlbum(const QVariantMap &input,bool saved) {
     if(entry.value("id").toString().isEmpty()||entry.value("id")!=album.value("id"))return false;
     // Saving changes membership, never deletes the local catalogue/source record.
     payload["saved"]=saved;entry["payload"]=payload;
-    const auto index=m_collection->metaObject()->indexOfMethod("add(QString,QVariantMap)");
-    if(index<0)return false;
+    auto index=m_collection->metaObject()->indexOfMethod("add(QString,QVariantMap)");
+    if(index<0) {
+        // Match the QVariant Collection port accepted by personal mutations.
+        index=m_collection->metaObject()->indexOfMethod("add(QVariant,QVariant)");
+        if(index<0)return false;
+        QVariant value;
+        const bool invoked=m_collection->metaObject()->method(index).invoke(
+            m_collection,Qt::DirectConnection,Q_RETURN_ARG(QVariant,value),
+            Q_ARG(QVariant,QVariant(QStringLiteral("Vinyl"))),Q_ARG(QVariant,QVariant(entry)));
+        return invoked && value.toBool();
+    }
     auto method=m_collection->metaObject()->method(index);
     bool result=false;
     if(method.returnMetaType().id()==QMetaType::QVariant){

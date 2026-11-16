@@ -506,6 +506,9 @@ Item {
         return Array.isArray(value) ? value.filter(l=>l && typeof l.text==="string").map(l=>{var line={text:l.text};var time=typeof l.time==="number" ? l.time : l.at;if(typeof time==="number" && isFinite(time) && time>=0) line.time=time;return line;}) : [];
     }
     function noteGroups(value) {
+        // Native queue rows expose QVariant containers, including sequence wrappers.
+        // Normalize only this small notes payload before testing JS object/array shape.
+        value=plainData(value);
         var input=typeof value==="string" ? {0:value} : value, result={};
         if(!input || typeof input!=="object" || Array.isArray(input)) return result;
         Object.keys(input).forEach(key=>{
@@ -593,7 +596,13 @@ Item {
     property int importProfileGeneration: -1
     property var importPaths: []
     property var importSource: null
-    onSourceChanged: {if(importSource && importSource!==source) cancelImport();clearDiscovery();clearCatalogue();}
+    onSourceChanged: {
+        if(importSource && importSource!==source) cancelImport();
+        clearDiscovery();clearCatalogue();
+        // Collection may have initialized before this source was assigned. A clean
+        // library snapshot still needs registering with a new source owner.
+        Qt.callLater(root.refreshSource);
+    }
     function cancelImport() {
         var owner=importSource;
         importRequest=-1;importing=false;importPaths=[];importSource=null;

@@ -11,6 +11,8 @@ TestCase {
     Component {
         id:storeFactory
         QtObject {
+            signal changed()
+            onEntriesChanged: changed()
             property var entries:[]
             property bool fail:false
             property int batches:0
@@ -51,8 +53,8 @@ TestCase {
             signal shuttingDown()
             function setAlbums(entries) {records=entries;}
             function importFiles(paths) {return importResult;}
-            function request(lane,operation,value) {if(operation==="resolve") resolvedTrack=projectedTrack(value);return ++serial;}
-            function cancel(lane) {}
+            function request(lane: string,operation: string,value: string): int {if(operation==="resolve") resolvedTrack=projectedTrack(value);return ++serial;}
+            function cancel(lane: string): void {}
         }
     }
     function album(id,title) {return {id:id,title:title || id,artists:["Artist"],origin:"local",manifestPath:"/album.vinyl.json",tracks:[{id:id+"1",title:"Track",seconds:60}]};}
@@ -72,7 +74,7 @@ TestCase {
         session.destroy();wait(0);collection.destroy();source.destroy();wait(0);
         collection=storeFactory.createObject(test);collection.entries=durable;source=sourceFactory.createObject(test);
         var c=Qt.createComponent("../../qml/vinyl/VinylLiveSession.qml");session=c.createObject(test,{source:source,collectionStore:collection,progressStore:progress});
-        compare(session.library.length,1);verify(source.projectedAlbum("old")!==null);
+        compare(session.library.length,1);tryVerify(()=>source.projectedAlbum("old")!==null);
         session.openAlbum("old");source.completed("browse",session.browseRequest,source.projectedAlbum("old"),"");
         compare(session.shownAlbumId,"old");verify(!session.saved);compare(session.tracks.length,1);
         session.toggleSaved();verify(session.saved);compare(collection.entries.length,1);
@@ -106,7 +108,7 @@ TestCase {
         session.shownEdition=session.normalize(old);session.playTrack(0);
         var fresh=album("old","Fresh title");collection.entries=[entry(fresh)];session.refreshLibrary();
         session.next(1);
-        compare(session.playingTrack.id,"removed");verify(source.resolvedTrack!==null,"Queued valid source must survive refreshed album omission");
+        compare(session.playingTrack.id,"removed");tryVerify(()=>source.resolvedTrack!==null,1500,"Queued valid source must survive refreshed album omission");
         compare(source.resolvedTrack.localPath,"/valid/removed.wav");compare(source.projectedAlbum("old").title,"Fresh title");
         compare(source.projectedAlbum("old").tracks.length,1);compare(collection.entries[0].payload.album.tracks.length,1);
     }
@@ -114,7 +116,7 @@ TestCase {
         var old=album("old","Original");old.editions=[{id:"standard",tracks:old.tracks},{id:"deluxe",tracks:[{id:"bonus",title:"Bonus",seconds:60,localPath:"/valid/bonus.wav"}]}];
         session.shownEdition=session.normalize(old);session.selectEdition("deluxe");session.enqueueTrack(0);
         var fresh=album("old","Fresh title");fresh.tracks[0].localPath="/current/source.wav";collection.entries=[entry(fresh)];session.refreshLibrary();
-        session.playQueue(0);verify(source.resolvedTrack!==null,"Removed edition's queued track must remain resolvable");compare(source.resolvedTrack.id,"bonus");
+        session.playQueue(0);tryVerify(()=>source.resolvedTrack!==null,1500,"Removed edition's queued track must remain resolvable");compare(source.resolvedTrack.id,"bonus");
         compare(source.projectedAlbum("old").title,"Fresh title");compare(source.projectedAlbum("old").editions,undefined);
         compare(source.projectedTrack("old1").localPath,"/current/source.wav");
     }
@@ -126,15 +128,15 @@ TestCase {
     function test_mixedQueueVersionTwoRoundTripNoAutoplay() {
         session.shownEdition=session.normalize(album("old"));session.playTrack(0);
         session.shownEdition=session.normalize(album("second"));session.enqueueTrack(0);session.playQueue(1);session.snapshot();
-        var saved=progress.recorded;compare(saved.resume.version,2);session.clearQueue();session.restore(saved);
+        var saved=progress.recorded;compare(saved.resume.version,3);session.clearQueue();session.restore(saved);
         compare(session.queue.length,2);compare(session.playingTrack.id,"second1");compare(session.queueIndex,1);verify(session.paused);compare(session.player,null);
         session.setShuffle(true);session.setShuffle(false);compare(session.queue[session.queueIndex].trackId,"second1");
     }
     function test_snapshotStoresEditionOnceForLargeQueue() {
         var a=album("large");a.tracks=[];for(var i=0;i<1000;++i) a.tracks.push({id:"track:"+i,title:"Track "+i,seconds:60});
         session.playSongs(a.tracks.map((t,i)=>({album:a,track:t,index:i})),false);session.snapshot();
-        var resume=progress.recorded.resume;compare(resume.queue.length,1000);compare(resume.editionTable.length,1);
-        verify(resume.queue.every(row=>row.edition===undefined && row.track===undefined));
+        var resume=progress.recorded.resume;compare(resume.rows.length,1000);compare(resume.editionTable.length,1);
+        verify(resume.rows.every(row=>row.edition===undefined && row.track===undefined));
         verify(JSON.stringify(resume).length<1000000);
     }
     function test_invalidResumeDoesNotMutateLiveSelection() {
@@ -145,6 +147,15 @@ TestCase {
     function test_suppliedTimestampAndMapNotesNormalized() {
         var a=album("old");a.notes={0:"Release note"};a.tracks[0].lyrics=[{text:"Hello",at:12},{text:"World",at:20}];a.tracks[0].notes={0:"Supplied note",1:[{text:"Second note"}],bad:42};
         session.shownEdition=session.normalize(a);session.playTrack(0);
-        verify(session.timedLyrics);compare(session.lyrics[0].time,12);compare(session.notes[0][0].text,"Supplied note");compare(session.notes[1][0].text,"Second note");compare(session.shownEdition.about,"");
+        tryCompare(session,"lyricsStatus","line_synced");
+        // The source is deliberately unresolved: synchronized text is available,
+        // but following/seeking requires the native player's measured clock offset.
+        verify(!session.timedLyrics);
+        compare(session.lyrics[0].time,undefined,"No seek target exists before clock alignment");
+        var lyricsService=findChild(session,"vinylLyricsService");
+        verify(lyricsService!==null);
+        lyricsService.recordingTimeOffsetMs=0;
+        verify(session.timedLyrics);
+        compare(session.lyrics[0].time,12);compare(session.notes[0][0].text,"Supplied note");compare(session.notes[1][0].text,"Second note");compare(session.shownEdition.about,"");
     }
 }

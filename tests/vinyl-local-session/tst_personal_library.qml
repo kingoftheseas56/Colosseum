@@ -62,6 +62,18 @@ TestCase {
         }
     }
 
+    Component {
+        id: preferencesFactory
+        QtObject {
+            property bool vinylTasteAnswered: true
+            property var vinylTasteArtists: ["a","b","c","d","e"].map(letter => ({id:"ytm:artist:UC"+letter.repeat(22),title:letter}))
+            signal vinylTasteChanged()
+            function setVinylTasteSelections(answered, artists) {
+                vinylTasteAnswered=answered;vinylTasteArtists=artists;vinylTasteChanged();return true;
+            }
+        }
+    }
+
     function albumFor(path) {
         return {
             id: "personal-test-album",
@@ -105,6 +117,9 @@ TestCase {
         compare(component.status, Component.Ready, component.errorString());
         world = component.createObject(host.contentItem, {width:960, height:720});
         verify(world !== null);
+        world.worldData.preferencesStore = createTemporaryObject(preferencesFactory,test);
+        tryCompare(world,"canEnterVinyl",true);
+        world.showLibrary();
         world.session.source = NativeSource;
         world.session.collectionStore = collection;
         world.session.refreshLibrary();
@@ -136,7 +151,7 @@ TestCase {
     function test_savedSongCanBeSavedAndUnsavedThroughLibraryAdapter() {
         var row = rowAt(0);
         verify(world.personalLibrary.toggleSong({row:row}));
-        compare(world.personalLibrary.savedSongs.length, 1);
+        tryVerify(()=>world.personalLibrary.savedSongs.length===1);
         verify(world.session.songSaved(row));
 
         var saved = world.personalLibrary.savedSongs[0];
@@ -146,7 +161,7 @@ TestCase {
         compare(saved.ref.discIndex, row.discIndex);
         compare(saved.ref.trackIndex, row.trackIndex);
         verify(world.personalLibrary.toggleSong(saved));
-        compare(world.personalLibrary.savedSongs.length, 0);
+        tryVerify(()=>world.personalLibrary.savedSongs.length===0);
         verify(!world.session.songSaved(row));
         compare(collection.entries.filter(function(entry) { return entry.type === "song"; }).length, 0);
     }
@@ -155,6 +170,7 @@ TestCase {
         var first = rowAt(0), second = rowAt(1);
         var playlistId = world.personalLibrary.createPlaylist("Repeated tracks", [first, second, first]);
         verify(playlistId.length > 0);
+        wait(0);
         verify(world.personalLibrary.openPlaylist(playlistId));
         var items = world.personalLibrary.selectedPlaylist.items;
         compare(items.length, 3);
@@ -168,10 +184,12 @@ TestCase {
         var originalIds = items.map(function(item) { return item.itemId; });
         var movedId = items[0].itemId;
         verify(world.personalLibrary.movePlaylistItem(playlistId, movedId, 2));
+        wait(0);
         items = world.personalLibrary.selectedPlaylist.items;
         compare(JSON.stringify(items.map(function(item) { return item.ref.trackId; })),
             JSON.stringify([second.trackId, first.trackId, first.trackId]));
         verify(world.personalLibrary.removePlaylistItem(playlistId, movedId));
+        wait(0);
         items = world.personalLibrary.selectedPlaylist.items;
         compare(JSON.stringify(items.map(function(item) { return item.ref.trackId; })),
             JSON.stringify([second.trackId, first.trackId]));
@@ -192,7 +210,7 @@ TestCase {
     function test_unavailableSavedSongCanBeRemovedWhileAlbumMetadataRemains() {
         var row = rowAt(1);
         verify(world.personalLibrary.toggleSong({row:row}));
-        compare(world.personalLibrary.savedSongs.length, 1);
+        tryVerify(()=>world.personalLibrary.savedSongs.length===1);
 
         var retained = JSON.parse(JSON.stringify(collection.entries.find(function(entry) {
             return entry.id === rawAlbum.id;
@@ -206,7 +224,7 @@ TestCase {
         compare(unavailable.unavailable, true);
         compare(unavailable.row, null);
         verify(world.personalLibrary.toggleSong(unavailable), "Unavailable saved songs must still be removable.");
-        compare(world.personalLibrary.savedSongs.length, 0);
+        tryVerify(()=>world.personalLibrary.savedSongs.length===0);
         verify(collection.entries.some(function(entry) { return entry.id === rawAlbum.id && entry.type === "album"; }),
             "Removing a saved song must retain its source album record.");
     }
@@ -216,6 +234,7 @@ TestCase {
         verify(world.personalLibrary.toggleSong({row:row}));
         var playlistId = world.personalLibrary.createPlaylist("Profile-only playlist", [row]);
         verify(playlistId.length > 0);
+        wait(0);
         compare(world.personalLibrary.savedSongs.length, 1);
         compare(world.personalLibrary.playlists.length, 1);
 
@@ -245,6 +264,7 @@ TestCase {
         verify(world.personalLibrary.toggleSong({row:row}));
         var playlistId = world.personalLibrary.createPlaylist("Back target", [row]);
         verify(playlistId.length > 0);
+        wait(0);
         verify(world.personalLibrary.openPlaylist(playlistId));
         compare(world.personalLibrary.captureViewState().selectedPlaylistId, playlistId);
 
@@ -277,6 +297,7 @@ TestCase {
         var exact = world.session.rowFor(edition, 0, 0);
         compare(exact.trackId, "disc-one-track");
         verify(world.personalLibrary.toggleSong({row:exact}));
+        wait(0);
         var saved = world.personalLibrary.savedSongs.find(function(song) {
             return song.ref.albumId === interleaved.id;
         });
