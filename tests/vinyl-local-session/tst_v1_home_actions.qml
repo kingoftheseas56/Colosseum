@@ -135,6 +135,36 @@ TestCase {
         var resolves=requests("resolve","play");
         compare(resolves[resolves.length-1].value,record.tracks[index].id);
     }
+    function test_homeVisibilityStopsDeferredRebuildsOnEveryDetour(){
+        var owner=world.recommendationService;
+        var timer=findChild(owner,"homeInputsTimer");
+        verify(timer!==null);
+        var serial=0;
+        function dirty(){
+            verify(world.worldData.homePageVisible);
+            owner.homeCollections={visibilityTest:++serial};
+            verify(timer.active);
+        }
+        dirty();
+        world.worldView.setTab("library");
+        verify(!world.worldData.homePageVisible);verify(!timer.active);
+        world.showHome();
+        dirty();
+        world.worldView.showList("albums",true);
+        verify(!world.worldData.homePageVisible);verify(!timer.active);
+        world.worldView.backFromList();
+        dirty();
+        world.page="song";
+        verify(!world.worldData.homePageVisible);verify(!timer.active);
+        world.showHome();
+        dirty();
+        world.visible=false;
+        verify(!world.worldData.homePageVisible);verify(!timer.active);
+        world.visible=true;
+        dirty();
+        world.lifecycleActive=false;
+        verify(!world.worldData.homePageVisible);verify(!timer.active);
+    }
     function test_homeMetadataWrapperSendsOnlyOriginalCatalogueItem(){
         var original={id:"apple-music:albums:home-fixture",kind:"albums",catalogueCard:true,source:"apple-music",
             title:"External album",artist:"Fixture artist",cover:"",sourceIds:{id:"12345"},hints:{artists:["Fixture artist"]}};

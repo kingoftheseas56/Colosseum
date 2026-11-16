@@ -345,6 +345,17 @@ struct HomeFixture {
     }
 };
 
+// Deliver the single-shot input window deterministically; no wall-clock sleep.
+void expireHomeInputs(VinylRecommendationService &service)
+{
+    auto timer = service.findChild<QTimer *>("homeInputsTimer");
+    QVERIFY(timer);
+    if (!timer->isActive())
+        return;
+    timer->stop();
+    QVERIFY(QMetaObject::invokeMethod(timer, "timeout", Qt::DirectConnection));
+}
+
 QVariantMap sectionById(const QVariantList &sections, const QString &id)
 {
     for (const QVariant &value : sections) {
@@ -499,6 +510,110 @@ QStringList runTwoSeedOrder(bool reverseCompletion)
 class VinylRecommendationServiceTest final : public QObject {
     Q_OBJECT
 private slots:
+    void activityChangesCoalesceWhileHomeIsVisible() {
+        qint64 now = kFixedNowMs;
+        VinylRecommendationService service(nullptr, [&now] { return now; });
+        ActivityStore activity;
+        service.setActivityStore(&activity);
+        service.beginHomeVisit();
+        QSignalSpy rebuilt(&service, &VinylRecommendationService::homeChanged);
+        for (int i = 0; i < 20; ++i) {
+            now += 50;
+            emit activity.changed();
+        }
+        QCOMPARE(rebuilt.size(), 0);
+        auto timer = service.findChild<QTimer *>("homeInputsTimer");
+        QVERIFY(timer);
+        QVERIFY(timer->isSingleShot());
+        QCOMPARE(timer->interval(), 2000);
+        QVERIFY(timer->isActive());
+        now = kFixedNowMs + 2000;
+        timer->stop();
+        QVERIFY(QMetaObject::invokeMethod(timer, "timeout", Qt::DirectConnection));
+        QCOMPARE(rebuilt.size(), 1);
+        QCOMPARE(service.homeSnapshot().value("evaluatedAtMs").toLongLong(), now);
+        QVERIFY(!timer->isActive());
+        emit activity.changed();
+        QCOMPARE(rebuilt.size(), 1);
+        QVERIFY(timer->isActive()); // The next burst gets another window.
+    }
+    void collectionChangesShareTheDeferredVisibilityWindow() {
+        HomeFixture fixture({}, kFixedNowMs, false, false);
+        fixture.service.beginHomeVisit();
+        QSignalSpy rebuilt(&fixture.service, &VinylRecommendationService::homeChanged);
+        for (int i = 0; i < 20; ++i)
+            fixture.service.setHomeCollections({{"revision", i}});
+        QCOMPARE(rebuilt.size(), 0);
+        expireHomeInputs(fixture.service);
+        QCOMPARE(rebuilt.size(), 1);
+        QVERIFY(QMetaObject::invokeMethod(&fixture.service, "leaveHome", Qt::DirectConnection));
+        fixture.service.setHomeCollections({{"revision", 21}});
+        expireHomeInputs(fixture.service);
+        QCOMPARE(rebuilt.size(), 1);
+        fixture.service.beginHomeVisit();
+        QCOMPARE(rebuilt.size(), 2);
+    }
+    void activityChangesWaitUntilHomeIsVisitedAgain() {
+        HomeFixture fixture({}, kFixedNowMs, false, false);
+        ActivityStore activity;
+        fixture.service.setActivityStore(&activity);
+        fixture.service.beginHomeVisit();
+        emit activity.changed(); // Leaving must cancel a pending visible window too.
+        QVERIFY(QMetaObject::invokeMethod(&fixture.service, "leaveHome", Qt::DirectConnection));
+        QSignalSpy rebuilt(&fixture.service, &VinylRecommendationService::homeChanged);
+        for (int i = 0; i < 20; ++i)
+            emit activity.changed();
+        QCOMPARE(rebuilt.size(), 0);
+        auto timer = fixture.service.findChild<QTimer *>("homeInputsTimer");
+        QVERIFY(timer);
+        QVERIFY(!timer->isActive());
+        fixture.service.beginHomeVisit();
+        QCOMPARE(rebuilt.size(), 1);
+    }
+    void historyResetClearsPrivateStateBeforeDeferredRebuild() {
+        HomeFixture fixture({}, kFixedNowMs, false, false);
+        ActivityStore activity;
+        fixture.service.setActivityStore(&activity);
+        fixture.service.beginHomeVisit();
+        fixture.preferences.exposure = "private exposure";
+        fixture.preferences.selection = "private selection";
+        QSignalSpy rebuilt(&fixture.service, &VinylRecommendationService::homeChanged);
+        fixture.service.setKeepHistory(false);
+        QVERIFY(fixture.preferences.exposure.isEmpty());
+        QVERIFY(fixture.preferences.selection.isEmpty());
+        QVERIFY(fixture.service.historySnapshot().isEmpty());
+        QVERIFY(fixture.service.homeCarouselItems().isEmpty());
+        QVERIFY(fixture.service.homeSnapshot().isEmpty()); // Clear, not a new projection.
+        auto timer = fixture.service.findChild<QTimer *>("homeInputsTimer");
+        QVERIFY(timer);
+        QVERIFY(timer->isActive());
+        expireHomeInputs(fixture.service);
+        fixture.service.setKeepHistory(true);
+        QVERIFY(QMetaObject::invokeMethod(&fixture.service, "leaveHome", Qt::DirectConnection));
+        fixture.preferences.exposure = "post-reset exposure";
+        fixture.preferences.selection = "post-reset selection";
+        QVERIFY(activity.clearAll());
+        QVERIFY(fixture.preferences.exposure.isEmpty());
+        QVERIFY(fixture.preferences.selection.isEmpty());
+        QVERIFY(fixture.service.historySnapshot().isEmpty());
+        QVERIFY(fixture.service.homeSnapshot().isEmpty());
+        QVERIFY(!timer->isActive());
+    }
+    void feedbackStillRebuildsImmediatelyWithPendingActivity() {
+        HomeFixture fixture({}, kFixedNowMs, false, false);
+        ActivityStore activity;
+        fixture.service.setActivityStore(&activity);
+        fixture.service.beginHomeVisit();
+        emit activity.changed();
+        QSignalSpy rebuilt(&fixture.service, &VinylRecommendationService::homeChanged);
+        const QVariantMap ref{{"identity","provider"},{"kind","artist"},
+            {"providerId","youtube-music"},{"itemId",artistSeed(1).value("providerId")}};
+        QVERIFY(fixture.service.setFeedback(ref, "like", fixture.service.profileGeneration()));
+        QCOMPARE(rebuilt.size(), 1);
+        auto timer = fixture.service.findChild<QTimer *>("homeInputsTimer");
+        QVERIFY(timer);
+        QVERIFY(!timer->isActive());
+    }
     void multiSongRadioFeedsTheExistingRanker() {
         QVariantList tastes;
         for (int i=1;i<=5;++i) tastes.append(artistSeed(i));
@@ -691,6 +806,7 @@ private slots:
         QCOMPARE(listeningChanged.count(), 0);
         // Diagnostics remain a snapshot of composition until another real rebuild.
         fixture.service.setHomeCollections({{"songs", QVariantList()}});
+        expireHomeInputs(fixture.service);
         QCOMPARE(fixture.service.homeSnapshot().value("exposureCount").toInt(), 1);
     }
 
@@ -761,12 +877,14 @@ private slots:
         listen("frequent",0,kFixedNowMs-2LL*86400000);
         listen("frequent",1,kFixedNowMs-86400000);
         listen("unknown",0,kFixedNowMs-30000,false);
+        expireHomeInputs(fixture.service);
         auto rediscover=sectionItems(fixture.service,"rediscover-library");QCOMPARE(rediscover.size(),1);
         QCOMPARE(providerItemId(rediscover.first().toMap()),QString("frequent")); // Leave the lower-count alternative to its own row.
         auto less=sectionItems(fixture.service,"less-played");QCOMPARE(less.size(),1);
         QCOMPARE(providerItemId(less.first().toMap()),QString("older"));
         QVERIFY(!fixture.service.homeSnapshot().value("historyComplete").toBool());
         listen("frequent",2,kFixedNowMs-60000,true,"album-continuation");
+        expireHomeInputs(fixture.service);
         const auto crate=fixture.service.homeSourcePool().value("crate").toList();
         auto frequentAlbum=std::find_if(crate.cbegin(),crate.cend(),[](const QVariant &value){return value.toMap().value("kind")=="albums"&&value.toMap().value("id")=="frequent";});
         auto frequentArtist=std::find_if(crate.cbegin(),crate.cend(),[](const QVariant &value){return value.toMap().value("kind")=="artists";});
@@ -799,6 +917,7 @@ private slots:
             QVERIFY(activity.recordMusicAction(start));fact.insert("startAtMs",kFixedNowMs-20000);fact.insert("endAtMs",kFixedNowMs-8000);fact.insert("activeMs",12000);fact.insert("rateMilli",1000);
             QVERIFY(activity.recordPlaybackDelta(fact));
         }
+        expireHomeInputs(fixture.service);
         QCOMPARE(sectionItems(fixture.service,"rediscover-library").size(),2);
         QVERIFY(sectionItems(fixture.service,"less-played").isEmpty());
     }
@@ -814,6 +933,7 @@ private slots:
         start.insert("entityRef",QVariantMap{{"identity","provider"},{"kind","recording"},{"providerId","local"},{"itemId","owned-track"}});
         QVERIFY(activity.recordMusicAction(start));fact.insert("startAtMs",kFixedNowMs-20000);fact.insert("endAtMs",kFixedNowMs-8000);fact.insert("activeMs",12000);fact.insert("rateMilli",1000);
         QVERIFY(activity.recordPlaybackDelta(fact));
+        expireHomeInputs(fixture.service);
         const auto items=sectionItems(fixture.service,"rediscover-library");QCOMPARE(items.size(),1);
         const auto card=items.first().toMap();QCOMPARE(card.value("kind").toString(),QString("saved-song"));
         QCOMPARE(card.value("ref").toMap().value("itemId").toString(),QString("owned-track"));
@@ -839,6 +959,7 @@ private slots:
         const auto record=envelope.value("records").toArray().first().toObject();
         auto restore=[&](const QJsonObject &value) {
             fixture.preferences.setVinylRecommendationExposureSnapshot(QString::fromUtf8(QJsonDocument(value).toJson(QJsonDocument::Compact)));
+            expireHomeInputs(fixture.service);
             return fixture.service.homeSnapshot().value("exposureCount").toInt();
         };
         auto invalid=envelope;invalid["profileId"]="other-profile";QCOMPARE(restore(invalid),0);
@@ -862,6 +983,7 @@ private slots:
             {"artistIds",QStringList{"ytm:artist:"+a.value("providerId").toString(),"ytm:artist:"+b.value("providerId").toString()}},
             {"artists",QStringList{"A","B"}},{"tracks",QVariantList()}};
         fixture.service.setHomeCollections({{"albums",QVariantList{QVariantMap{{"album",album}}}}});
+        expireHomeInputs(fixture.service);
         QVERIFY(sectionHasProviderId(fixture.service,"from-your-artists","MPRE_collaboration"));
         const QVariantMap artist{{"identity","provider"},{"kind","artist"},{"providerId","youtube-music"},{"itemId",b.value("providerId")}};
         QVERIFY(fixture.service.setFeedback(artist,"exclude-artist",0));
@@ -895,10 +1017,12 @@ private slots:
         start.insert("releaseRef",card.value("ref"));QVERIFY(activity.recordMusicAction(start));
         fact.insert("startAtMs",kFixedNowMs-20000);fact.insert("endAtMs",kFixedNowMs-8000);fact.insert("activeMs",12000);fact.insert("rateMilli",1000);
         QVERIFY(activity.recordPlaybackDelta(fact));
+        expireHomeInputs(fixture.service);
         QCOMPARE(fixture.service.homeSnapshot().value("qualifiedManualSessions").toInt(),1);
         QCOMPARE(sectionItems(fixture.service,"from-your-artists").first().toMap().value("score").toLongLong(),card.value("score").toLongLong()+45);
         QVERIFY(fixture.service.setFeedback(card.value("ref").toMap(),"like",0));
-        QVERIFY(activity.clearAll());QCOMPARE(fixture.service.homeSnapshot().value("qualifiedManualSessions").toInt(),0);
+        QVERIFY(activity.clearAll());expireHomeInputs(fixture.service);
+        QCOMPARE(fixture.service.homeSnapshot().value("qualifiedManualSessions").toInt(),0);
         QCOMPARE(sectionItems(fixture.service,"from-your-artists").first().toMap().value("score").toLongLong(),card.value("score").toLongLong()+1000);
         QVERIFY(!fixture.preferences.feedback.isEmpty());
     }
@@ -918,19 +1042,24 @@ private slots:
         for(int i=0;i<30;++i)record(i);
         fixture.service.setActivityStore(&activity);QCOMPARE(fixture.service.homeSnapshot().value("seedMultiplier").toDouble(),1.0);
         fixture.service.setActivityStore(nullptr);record(30);fixture.service.setActivityStore(&activity);
+        expireHomeInputs(fixture.service);
         QCOMPARE(fixture.service.homeSnapshot().value("seedMultiplier").toDouble(),0.75);
         fixture.service.setActivityStore(nullptr);for(int i=31;i<100;++i)record(i);fixture.service.setActivityStore(&activity);
+        expireHomeInputs(fixture.service);
         QCOMPARE(fixture.service.homeSnapshot().value("seedMultiplier").toDouble(),0.75);
         fixture.service.setActivityStore(nullptr);record(100);fixture.service.setActivityStore(&activity);
+        expireHomeInputs(fixture.service);
         QCOMPARE(fixture.service.homeSnapshot().value("qualifiedManualSessions").toInt(),101);
         QCOMPARE(fixture.service.homeSnapshot().value("seedMultiplier").toDouble(),0.5);
         fixture.service.setHomeCollections({{"artists",QVariantList{savedArtistRecord(artistSeed(1))}}});
+        expireHomeInputs(fixture.service);
         pumpSuccessfulReplies(fixture.source);
         const auto reasons=sectionItems(fixture.service,"from-your-artists").first().toMap().value("reasons").toList();
         bool fullSavedAffinity=false;for(const auto &value:reasons)if(value.toMap().value("kind")=="seed_affinity")
             fullSavedAffinity=value.toMap().value("scoreDelta").toInt()==300;
         QVERIFY(fullSavedAffinity);
-        fixture.service.setKeepHistory(false);QCOMPARE(fixture.service.homeSnapshot().value("seedMultiplier").toDouble(),1.0);
+        fixture.service.setKeepHistory(false);expireHomeInputs(fixture.service);
+        QCOMPARE(fixture.service.homeSnapshot().value("seedMultiplier").toDouble(),1.0);
         QCOMPARE(fixture.service.homeSnapshot().value("qualifiedManualSessions").toInt(),0);
     }
     void feedbackChangesRankingAndSuppressionWithoutStaleProfileWrites() {
@@ -1123,7 +1252,9 @@ private slots:
             for(const auto &call:pending){const auto seed=call.options.value("seed").toMap();const auto suffix=seed.value("providerId").toString().right(2);
                 if(call.operation=="artistCandidates"||call.operation=="songCandidates"){
                     auto reply=fixture.source.defaultReply(call);QVariantList items;
-                    if(call.operation=="artistCandidates"&&(seed.value("providerId")==seeds[3].toMap().value("providerId")||seed.value("providerId")==seeds[4].toMap().value("providerId"))){reply["items"]=items;fixture.source.complete(call,reply);continue;}
+                    // Four supplied artists can fill 16 under the four-per-artist cap;
+                    // three supplied artists plus two artist-only cards can supply at most 14.
+                    if(call.operation=="artistCandidates"&&seed.value("providerId")==seeds[4].toMap().value("providerId")){reply["items"]=items;fixture.source.complete(call,reply);continue;}
                     if(call.operation=="artistCandidates")for(int i=0;i<6;++i){
                         const auto album=albumCandidate(seed,"MPRE_crate_"+suffix+"_"+QString::number(i),"Album "+suffix+QString::number(i));
                         items.append(album);items.append(album); // Duplicate evidence is not a second album tile.
@@ -1562,6 +1693,7 @@ private slots:
 
         now += 24LL * 60 * 60 * 1000;
         restored.setHomeCollections({{QStringLiteral("songs"), QVariantList()}});
+        expireHomeInputs(restored);
         const QStringList nextDay = carouselKeys(restored);
         QCOMPARE(nextDay.size(), 5);
         QVERIFY(nextDay != refreshed);

@@ -97,6 +97,7 @@ public:
     Q_INVOKABLE void stopHomeRadio();
     Q_INVOKABLE void restoreHomeRadio(const QVariantMap &context, const QStringList &queuedTracks);
     Q_INVOKABLE void refreshHome(bool force=false);
+    Q_INVOKABLE void leaveHome();
     QObject *activityStore() const{return m_activityStore;}
     QObject *historyStore() const{return m_historyStore;}
     bool keepHistory() const{return m_keepHistory;}
@@ -138,9 +139,11 @@ private:
     void initializeHome(std::function<qint64()>);
     void cancelHome(bool clear);
     void clearHomeProfile();
-    void homeSeedsChanged();
+    void homeSeedsChanged(bool refresh=true);
+    void markHomeDirty();
+    void flushHomeInputs();
     void visitHome();
-    void rebuildHome();
+    void rebuildHome(bool immediate=false);
     void selectHomeCarousel(bool refresh=false);
     void pumpHome(bool publishNow=false);
     void queueHomeEnrichment();

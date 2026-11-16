@@ -319,9 +319,13 @@ Item {
     function showHome() {
         if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
         var alreadyOnHome=world.currentTab==="home";
+        var homeWasVisible=worldData.homePageVisible;
         searchOpen=false;artistSearchOpen=false;
         session.cancelBrowse();pendingAlbumRoute=null;routeStack=[];world.listKey="";world.setTab("home");
-        if(alreadyOnHome) {worldData.selectTab("home");worldData.refreshHome();}
+        if(alreadyOnHome) {
+            if(homeWasVisible)worldData.selectTab("home");
+            worldData.refreshHome();
+        }
         page="home";
         world.parkPage(0);Qt.callLater(root.parkFocus);
         Qt.callLater(root.openArtistOnboarding);
@@ -818,7 +822,11 @@ Item {
         }
         onImportingChanged: {if(!session.importing && root.importStatus==="Opening local music…") root.importStatus="Import cancelled. Your library was kept.";}
     }
-    VinylLiveWorldData {id:worldData;session:session;personalLibrary:personalData;recommendationService:recommendations;onItemRequested: item => root.activateItem(item);onResumeRequested:root.activateItem({kind:"resume",resumeCurrent:true});onHomeDestinationRequested:(tab,section,id)=>root.openHomeDestination(tab,section,id);onRecommendationActionsRequested:request=>root.showRecommendationActions(request)}
+    VinylLiveWorldData {id:worldData;session:session;personalLibrary:personalData;recommendationService:recommendations;
+        homePageVisible: root.componentReady && root.visible && root.lifecycleActive && root.canEnterVinyl
+            && root.page === "home" && root.world && root.world.currentTab === "home" && !root.world.listKey
+            && !root.searchOpen && !root.artistSearchOpen && !worldData.tastePickerOpen
+        onItemRequested: item => root.activateItem(item);onResumeRequested:root.activateItem({kind:"resume",resumeCurrent:true});onHomeDestinationRequested:(tab,section,id)=>root.openHomeDestination(tab,section,id);onRecommendationActionsRequested:request=>root.showRecommendationActions(request)}
     Connections {
         target:recommendations
         function onStateChanged() {

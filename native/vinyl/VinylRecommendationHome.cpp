@@ -201,6 +201,8 @@ struct VinylRecommendationService::HomeState {
     std::function<qint64()> clock;
     QTimer *deadline=nullptr;
     QTimer *publishTimer=nullptr;
+    QTimer *inputsTimer=nullptr;
+    bool dirty=true,collectionsDirty=false;
     qint64 evaluatedAt=0;
     quint64 epoch=0;
     int revision=0,cursor=0,nextCursor=0;
@@ -257,6 +259,13 @@ void VinylRecommendationService::historyInputsChanged() {
         || activityReset!=m_home->activityReset || historyReset!=m_home->historyReset){
         storeExposure({});
         m_home->selectionKey.clear();m_home->selectionKeys.clear();m_home->previousKeys.clear();m_home->carousel.clear();
+        // Do not retain a published history-derived model during the deferred window.
+        m_home->history.clear();m_home->sections.clear();m_home->pool.clear();m_home->snapshot.clear();
+        const bool hadQuickPicks=!m_home->quickPicks.isEmpty();
+        m_home->quickPicks.clear();
+        ++m_home->revision;
+        emit homeChanged();
+        if(hadQuickPicks)emit listeningChanged();
         if(m_preferences && !m_preferences->property("vinylHomeSelectionSnapshot").toString().isEmpty()
             &&m_preferences->metaObject()->indexOfMethod("setVinylHomeSelectionSnapshot(QString)")>=0){
             bool saved=false;QScopedValueRollback<bool> guard(m_home->persisting,true);
@@ -265,7 +274,7 @@ void VinylRecommendationService::historyInputsChanged() {
         }
     }
     m_home->activityReset=activityReset;m_home->historyReset=historyReset;
-    if(m_home->visited) {m_home->evaluatedAt=m_home->clock();rebuildHome();}
+    markHomeDirty();
 }
 bool VinylRecommendationService::setFeedback(const QVariantMap &raw,const QString &action,int generation) {
     if(!m_active || m_scope.isEmpty() || !m_preferences || generation!=m_generation)return false;
@@ -289,7 +298,7 @@ bool VinylRecommendationService::setFeedback(const QVariantMap &raw,const QStrin
         QScopedValueRollback<bool> guard(m_home->persisting,true);
         QMetaObject::invokeMethod(m_preferences,"setVinylFeedbackSnapshot",Qt::DirectConnection,Q_RETURN_ARG(bool,saved),Q_ARG(QString,QString::fromUtf8(*captured.value)));
     }
-    if(saved){m_home->evaluatedAt=now;rebuildHome();}return saved;
+    if(saved){m_home->evaluatedAt=now;rebuildHome(true);}return saved;
 }
 bool VinylRecommendationService::isCratePinned(const QVariantMap &item,int generation) const {
     if(!m_active||generation!=m_generation||!m_preferences)return false;
@@ -337,7 +346,7 @@ bool VinylRecommendationService::setCratePin(const QVariantMap &item,bool pinned
         QMetaObject::invokeMethod(m_preferences,"setVinylCratePins",Qt::DirectConnection,
             Q_RETURN_ARG(bool,saved),Q_ARG(QVariantList,pins));
     }
-    if(saved)rebuildHome();return saved;
+    if(saved)rebuildHome(true);return saved;
 }
 bool VinylRecommendationService::recordVisibleItems(const QString &shelf,const QString &snapshot,const QVariantList &refs,int generation) {
     if(!m_active || generation!=m_generation || !m_keepHistory || !m_home->visited || refs.isEmpty() || refs.size()>12
@@ -376,6 +385,12 @@ void VinylRecommendationService::initializeHome(std::function<qint64()> clock){
     m_home->deadline=new QTimer(this);m_home->deadline->setSingleShot(true);
     m_home->publishTimer=new QTimer(this);m_home->publishTimer->setSingleShot(true);
     m_home->publishTimer->setInterval(100);
+    // Input invalidations have a separate window from catalogue publication.
+    m_home->inputsTimer=new QTimer(this);
+    m_home->inputsTimer->setObjectName("homeInputsTimer");
+    m_home->inputsTimer->setSingleShot(true);
+    m_home->inputsTimer->setInterval(2000);
+    connect(m_home->inputsTimer,&QTimer::timeout,this,&VinylRecommendationService::flushHomeInputs);
     connect(m_home->publishTimer,&QTimer::timeout,this,[this]{if(m_active&&m_home->visited)rebuildHome();});
     m_home->songDeadline=new QTimer(this);m_home->songDeadline->setSingleShot(true);
     connect(m_home->songDeadline,&QTimer::timeout,this,[this]{
@@ -430,16 +445,19 @@ void VinylRecommendationService::refreshHomeSelection(){
 }
 void VinylRecommendationService::setHomeCollections(const QVariantMap &value){
     if(value==m_home->collections)return;m_home->collections=value;
-    homeSeedsChanged();if(m_home->visited)rebuildHome();emit homeChanged();
+    m_home->collectionsDirty=true;
+    markHomeDirty();
 }
 void VinylRecommendationService::cancelHome(bool clear){
     if(!m_home)return;++m_home->epoch;m_home->deadline->stop();m_home->publishTimer->stop();
+    m_home->inputsTimer->stop();
+    if(clear)m_home->dirty=true;
     if(clear){cancelSongCandidates(true);m_home->crateCandidates.clear();m_home->quickPicks.clear();m_home->listeningHash.clear();m_home->listening->clear();m_home->carousel.clear();m_home->selectionKey.clear();m_home->selectionKeys.clear();m_home->previousKeys.clear();m_home->selectionSerial=0;}
     const auto lanes=m_home->active.keys();m_home->active.clear();m_home->waiting.clear();for(const auto &lane:lanes)cancelLane(m_source,lane);
     if(clear){m_home->evidence.clear();m_home->identities.clear();m_home->population.clear();m_home->charts.clear();m_home->similarity.clear();m_home->discography.clear();m_home->neighbors.clear();m_home->parents.clear();m_home->metadataAttempted.clear();m_home->pool.clear();m_home->failed.clear();m_home->optionalUnavailable.clear();m_home->sections.clear();m_home->snapshot.clear();m_home->seeds.clear();m_home->seedHash.clear();m_home->excludedArtistProviderIds.clear();m_home->status="idle";m_home->error.clear();m_home->visited=false;m_home->refreshed=false;m_home->cursor=0;m_home->nextCursor=0;++m_home->revision;emit homeChanged();}
 }
 void VinylRecommendationService::clearHomeProfile(){m_home->collections.clear();m_home->history.clear();m_home->visitId.clear();cancelHome(true);}
-void VinylRecommendationService::homeSeedsChanged(){
+void VinylRecommendationService::homeSeedsChanged(bool refresh){
     QVariantList input=m_saved;
     for(const auto &entry:m_home->collections.value("artists").toList()){
         auto row=entry.toMap();row["id"]=row.value("artistId",row.value("id"));input.append(row);
@@ -448,12 +466,38 @@ void VinylRecommendationService::homeSeedsChanged(){
     std::sort(seeds.begin(),seeds.end(),[](const QVariant &a,const QVariant &b){return a.toMap().value("key").toString()<b.toMap().value("key").toString();});
     const auto hash=digest(seeds);if(hash==m_home->seedHash)return;
     const bool visited=m_home->visited;cancelHome(true);m_home->visited=visited;m_home->seeds=seeds;m_home->seedHash=hash;
-    if(visited)QTimer::singleShot(0,this,[this]{refreshHome(false);});
+    if(visited&&refresh)QTimer::singleShot(0,this,[this]{if(m_home->visited)refreshHome(false);});
 }
-void VinylRecommendationService::visitHome(){m_home->visited=true;m_home->visitId=QUuid::createUuid().toString(QUuid::WithoutBraces);refreshHome(false);}
+void VinylRecommendationService::markHomeDirty() {
+    m_home->dirty=true;
+    if(m_active&&m_home->visited&&!m_home->inputsTimer->isActive())
+        m_home->inputsTimer->start();
+}
+void VinylRecommendationService::flushHomeInputs() {
+    if(!m_active||!m_home->visited||!m_home->dirty)return;
+    m_home->inputsTimer->stop();
+    if(m_home->collectionsDirty){
+        m_home->collectionsDirty=false;
+        homeSeedsChanged(false);
+    }
+    m_home->evaluatedAt=m_home->clock();
+    if(!m_home->refreshed)refreshHome(false);
+    else rebuildHome();
+}
+void VinylRecommendationService::leaveHome() {
+    m_home->visited=false;
+    m_home->inputsTimer->stop();
+    m_home->publishTimer->stop();
+}
+void VinylRecommendationService::visitHome(){
+    m_home->visited=true;
+    m_home->visitId=QUuid::createUuid().toString(QUuid::WithoutBraces);
+    if(m_home->dirty)flushHomeInputs();
+    else refreshHome(false);
+}
 void VinylRecommendationService::refreshHome(bool force){
     if(!m_active||m_scope.isEmpty())return;
-    m_home->visited=true;
+    if(!m_home->visited&&!force){markHomeDirty();return;}
     if(!force&&(!m_home->active.isEmpty()||!m_home->waiting.isEmpty())){rebuildHome();return;}
     cancelHome(false);m_home->failed.clear();m_home->optionalUnavailable.clear();m_home->error.clear();m_home->evaluatedAt=m_home->clock();
     m_home->metadataAttempted.clear();m_home->forceMetadata=force;m_home->neighborsPrepared=false;
@@ -478,7 +522,7 @@ void VinylRecommendationService::refreshHome(bool force){
         if(!cached.isEmpty()){cached["_stale"]=true;m_home->evidence[key]=cached;}
         m_home->waiting.append({"artistCandidates",seed.value("providerId").toString(),key,seed,force});++count;m_home->nextCursor=(at+1)%size;
     }
-    queueHomeEnrichment();rebuildHome();pumpHome();
+    queueHomeEnrichment();pumpHome(true);
     // UI publication is synchronous; give requests their response window afterwards.
     if(m_home->corePending())m_home->deadline->start(8000);
 }
@@ -724,8 +768,20 @@ bool VinylRecommendationService::acceptSongCandidates(const QString &lane,int id
     pumpHome();return true;
 }
 
-void VinylRecommendationService::rebuildHome(){
+void VinylRecommendationService::rebuildHome(bool immediate){
     if(!m_active)return;
+    // Late catalogue/listening replies may finish off-screen. Keep their evidence,
+    // but never project history or rank it until Home is visible again.
+    // Explicit feedback/pin mutations retain their synchronous publication path.
+    if(!m_home->visited&&!immediate){markHomeDirty();return;}
+    if(immediate&&m_home->collectionsDirty){
+        m_home->collectionsDirty=false;
+        homeSeedsChanged();
+    }
+    if(!m_home->collectionsDirty){
+        m_home->dirty=false;
+        m_home->inputsTimer->stop();
+    }
     const auto previousQuickPicks=m_home->quickPicks;m_home->quickPicks.clear();
     auto profile=ProfileScopeId::parse(m_scope);if(!profile.ok())return;
     const auto now=m_home->evaluatedAt>0?m_home->evaluatedAt:m_home->clock();

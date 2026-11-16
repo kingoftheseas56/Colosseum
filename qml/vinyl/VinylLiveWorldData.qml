@@ -240,6 +240,15 @@ Item {
     // Transient presentation state only: the three destinations do not share
     // filters or search results. Collection and the session still own the data.
     property var catalogueBrowse: null
+    // Runtime supplies actual shell visibility, including list/detail detours.
+    property bool homePageVisible: activeTab === "home"
+    onHomePageVisibleChanged: {
+        if(!usesRecommendationService)return;
+        if(homePageVisible && typeof recommendationService.beginHomeVisit==="function")
+            recommendationService.beginHomeVisit();
+        else if(!homePageVisible && typeof recommendationService.leaveHome==="function")
+            recommendationService.leaveHome();
+    }
     property string activeTab: "library"
     property var browseStates: initialBrowseStates()
     property bool changingTab: false
@@ -251,7 +260,7 @@ Item {
     property real homeNowMs: Date.now()
     property string homeSelectionDay: ""
     Timer {
-        interval:60000;repeat:true;running:root.activeTab==="home" && root.canEnterVinyl
+        interval:60000;repeat:true;running:root.homePageVisible && root.canEnterVinyl
         onTriggered:root.refreshHome()
     }
     readonly property var homeListeningCards: usesRecommendationService
@@ -509,9 +518,14 @@ Item {
         if(["home","songs","albums","artists","discover","library"].indexOf(tab)<0) return;
         if(tab==="home" && !usesRecommendationService && !fallbackPickerAnswered)
             fallbackTastePickerOpen=true;
-        if(tab==="home" && usesRecommendationService && typeof recommendationService.beginHomeVisit==="function")
-            recommendationService.beginHomeVisit();
-        if(tab===activeTab) return;
+        if(tab===activeTab) {
+            // Explicit Home navigation still refreshes an already-visible Home.
+            // Returning from a detail/list/hidden surface is handled by visibility.
+            if(tab==="home" && homePageVisible && usesRecommendationService
+                && typeof recommendationService.beginHomeVisit==="function")
+                recommendationService.beginHomeVisit();
+            return;
+        }
         saveBrowseState();
         if(session.browsing && ["search","catalogueSearch"].indexOf(session.browseOperation)>=0) session.cancelBrowse();
         changingTab=true;activeTab=tab;
