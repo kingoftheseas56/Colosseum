@@ -15,7 +15,11 @@ class VinylProviderLifecycle final : public QObject {
     QString cache() const{return root.path()+"/"+QUuid::createUuid().toString(QUuid::WithoutBraces);}
 private slots:
     void initTestCase(){QVERIFY(root.isValid());QVERIFY(!qEnvironmentVariable("COLOSSEUM_VINYL_PYTHON").isEmpty());}
-    void init(){qunsetenv("COLOSSEUM_VINYL_REUSE_HELPERS");qunsetenv("VINYL_FAKE_WARM_SECONDS");}
+    void init(){
+        qunsetenv("COLOSSEUM_VINYL_REUSE_HELPERS");
+        qunsetenv("VINYL_FAKE_WARM_SECONDS");
+        qunsetenv("VINYL_FAKE_START_LOG");
+    }
     void cleanup(){QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);}
     void reusesAcrossDistinctSelectionsAndSeparatesCatalogue(){
         VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());
@@ -73,14 +77,168 @@ private slots:
         QCOMPARE(provider.requestPayload("prepare-next","album","x",{{"source","youtube"}}),-1);
         QCOMPARE(provider.requestPayload("prepare-next","resolve","x",{{"source","torrent"}}),-1);
     }
-    void errorsAndExplicitRetryRetireClients(){
+    void cleanErrorsReuseAndExplicitRetryRetiresClients(){
         VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());QSignalSpy replies(&provider,&VinylProvider::completed);
         provider.request("play","resolve","a");QTRY_COMPARE(replies.size(),1);const auto first=data(replies).value("pid");
         provider.request("play","resolve","error");QTRY_COMPARE(replies.size(),2);QVERIFY(!error(replies).isEmpty());
-        provider.request("play","resolve","b");QTRY_COMPARE(replies.size(),3);QVERIFY(data(replies).value("pid")!=first);
-        QCOMPARE(data(replies).value("sequence").toInt(),1);const auto second=data(replies).value("pid");
+        provider.request("play","resolve","b");QTRY_COMPARE(replies.size(),3);QCOMPARE(data(replies).value("pid"),first);
+        QCOMPARE(data(replies).value("sequence").toInt(),3);const auto second=data(replies).value("pid");
         provider.invalidatePlaybackTransport();provider.request("play","resolve","c");QTRY_COMPARE(replies.size(),4);
         QVERIFY(data(replies).value("pid")!=second);QCOMPARE(data(replies).value("sequence").toInt(),1);
+    }
+    void cancelPrespawnsReusableMediaWorker(){
+        VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());
+        QSignalSpy replies(&provider,&VinylProvider::completed);
+        provider.request("play","resolve","a");
+        QTRY_COMPARE(replies.size(),1);
+        const auto cancelled=data(replies).value("pid");
+        provider.request("play","resolve","delay");
+        QTest::qWait(80);
+        provider.cancel("play");
+        QTRY_COMPARE(replies.size(),2);
+        QCOMPARE(replies[1][0].toString(),QString("media-warmup"));
+        const auto replacement=data(replies).value("pid");
+        QVERIFY(replacement!=cancelled);
+        provider.request("play","resolve","after-cancel");
+        QTRY_COMPARE(replies.size(),3);
+        QCOMPARE(data(replies).value("pid"),replacement);
+        QCOMPARE(data(replies).value("sequence").toInt(),2);
+        QTest::qWait(600);
+        QCOMPARE(replies.size(),3);
+    }
+    void noRespawnAfterTeardown_data(){
+        QTest::addColumn<QString>("action");
+        QTest::newRow("cancelAll")<<QString("cancelAll");
+        QTest::newRow("shuttingDown")<<QString("shuttingDown");
+        QTest::newRow("profileLeaving")<<QString("profileLeaving");
+        QTest::newRow("invalidate")<<QString("invalidate");
+    }
+    void noRespawnAfterTeardown(){
+        QFETCH(QString,action);
+        const auto log=root.path()+"/"+QUuid::createUuid().toString(QUuid::WithoutBraces);
+        qputenv("VINYL_FAKE_START_LOG",log.toUtf8());
+        VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());
+        QSignalSpy replies(&provider,&VinylProvider::completed);
+        provider.request("play","resolve","initial");
+        QTRY_COMPARE(replies.size(),1);
+        provider.request("play","resolve","delay");
+        QTest::qWait(80);
+        provider.cancel("play");
+        QTRY_COMPARE(replies.size(),2);
+        QCOMPARE(replies[1][0].toString(),QString("media-warmup"));
+        QFile starts(log);
+        QVERIFY(starts.open(QIODevice::ReadOnly));
+        const auto before=starts.readAll();
+        starts.close();
+        QCOMPARE(before.count('\n'),2);
+        provider.request("play","resolve","delay");
+        QTest::qWait(80);
+        provider.cancel("play");
+        if(action=="cancelAll")provider.cancelAll();
+        else if(action=="shuttingDown")emit provider.shuttingDown();
+        else if(action=="profileLeaving")emit provider.profileLeaving();
+        else provider.invalidatePlaybackTransport();
+        QTest::qWait(800);
+        QCOMPARE(replies.size(),2);
+        QVERIFY(starts.open(QIODevice::ReadOnly));
+        QCOMPARE(starts.readAll(),before);
+        qunsetenv("VINYL_FAKE_START_LOG");
+    }
+    void foregroundSearchReusesWorker(){
+        VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());
+        QSignalSpy replies(&provider,&VinylProvider::completed);
+        provider.request("search-albums","search","first");
+        QTRY_COMPARE(replies.size(),1);
+        const auto first=data(replies).value("pid");
+        provider.request("search-albums","search","second");
+        QTRY_COMPARE(replies.size(),2);
+        QCOMPARE(data(replies).value("pid"),first);
+        QCOMPARE(data(replies).value("sequence").toInt(),2);
+    }
+    void overlappingSearchUsesOneShot(){
+        VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());
+        QSignalSpy replies(&provider,&VinylProvider::completed);
+        provider.request("search-albums","search","slow-search");
+        QTest::qWait(100);
+        provider.request("search-artists","search","overlap");
+        QTRY_COMPARE_WITH_TIMEOUT(replies.size(),1,1500);
+        QCOMPARE(replies[0][0].toString(),QString("search-artists"));
+        QCOMPARE(data(replies).value("sequence").toInt(),1);
+        const auto oneShot=data(replies).value("pid");
+        QTRY_COMPARE(replies.size(),2);
+        const auto warm=data(replies).value("pid");
+        QVERIFY(warm!=oneShot);
+        provider.request("search-albums","search","after-overlap");
+        QTRY_COMPARE(replies.size(),3);
+        QCOMPARE(data(replies).value("pid"),warm);
+        QCOMPARE(data(replies).value("sequence").toInt(),2);
+    }
+    void transportFailurePrespawnsReplacement_data(){
+        QTest::addColumn<QString>("value");
+        QTest::newRow("crash")<<QString("exit");
+        QTest::newRow("malformed")<<QString("malformed");
+    }
+    void transportFailurePrespawnsReplacement(){
+        QFETCH(QString,value);
+        VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());
+        QSignalSpy replies(&provider,&VinylProvider::completed);
+        provider.request("play","resolve",value);
+        QTRY_COMPARE(replies.size(),2);
+        QVERIFY(!error(replies,0).isEmpty());
+        QCOMPARE(replies[1][0].toString(),QString("media-warmup"));
+        const auto replacement=data(replies).value("pid");
+        provider.request("play","resolve","after-failure");
+        QTRY_COMPARE(replies.size(),3);
+        QCOMPARE(data(replies).value("pid"),replacement);
+        QCOMPARE(data(replies).value("sequence").toInt(),2);
+    }
+    void catalogueAndBrowseCancelPrespawnIdleWorker_data(){
+        QTest::addColumn<QString>("operation");
+        QTest::newRow("catalogue")<<QString("album");
+        QTest::newRow("browse")<<QString("search");
+    }
+    void catalogueAndBrowseCancelPrespawnIdleWorker(){
+        QFETCH(QString,operation);
+        const auto log=root.path()+"/"+QUuid::createUuid().toString(QUuid::WithoutBraces);
+        qputenv("VINYL_FAKE_START_LOG",log.toUtf8());
+        VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());
+        QSignalSpy replies(&provider,&VinylProvider::completed);
+        provider.request("browse",operation,"initial");
+        QTRY_COMPARE(replies.size(),1);
+        const auto first=data(replies).value("pid");
+        provider.request("browse",operation,"delay");
+        QTest::qWait(80);
+        provider.cancel("browse");
+        const auto starts=[&log]{
+            QFile file(log);
+            if(!file.open(QIODevice::ReadOnly))return QByteArray();
+            return file.readAll();
+        };
+        QTRY_COMPARE(starts().count('\n'),2);
+        const auto replacement=starts().trimmed().split('\n').last().toLongLong();
+        provider.request("browse",operation,"after-cancel");
+        QTRY_COMPARE(replies.size(),2);
+        QCOMPARE(data(replies).value("pid").toLongLong(),replacement);
+        QVERIFY(data(replies).value("pid")!=first);
+        provider.request("browse",operation,"reuse");
+        QTRY_COMPARE(replies.size(),3);
+        QCOMPARE(data(replies).value("pid").toLongLong(),replacement);
+        QCOMPARE(data(replies).value("sequence").toInt(),2);
+    }
+    void browseOperationsShareOneWorker(){
+        VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());
+        QSignalSpy replies(&provider,&VinylProvider::completed);
+        QVariant pid;
+        int sequence=0;
+        for(const auto &operation:QStringList{"search","catalogueSearch","artist","artistReleases","artistVideos","artistArtwork"}){
+            provider.request("browse",operation,"distinct-"+operation);
+            ++sequence;
+            QTRY_COMPARE(replies.size(),sequence);
+            QVERIFY(error(replies).isEmpty());
+            if(sequence==1)pid=data(replies).value("pid");
+            QCOMPARE(data(replies).value("pid"),pid);
+            QCOMPARE(data(replies).value("sequence").toInt(),sequence);
+        }
     }
     void crashedWorkerAndFailedStartupRecover(){
         VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());QSignalSpy replies(&provider,&VinylProvider::completed);

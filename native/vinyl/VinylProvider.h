@@ -157,11 +157,14 @@ public:
         requestPayload("media-warmup","mediaWarmup",{},{});
     }
     Q_INVOKABLE void invalidatePlaybackTransport(){
+        m_suppressReplacement=true;
+        ++m_mediaWarm.idleGeneration;
         for(const auto &lane:m_active.keys())if(m_active.value(lane)==m_mediaWarm.process)cancel(lane);
         if(auto *process=m_mediaWarm.process.data()){
             m_mediaWarm.process=nullptr;m_mediaWarm.busy=false;++m_mediaWarm.idleGeneration;
             retireProcess(process);
         }
+        m_suppressReplacement=false;
     }
     Q_INVOKABLE int request(const QString &lane,const QString &operation,const QString &value){return requestPayload(lane,operation,value,{});}
     Q_INVOKABLE QVariantMap cachedRecommendation(const QString &operation,const QString &value,const QVariantMap &payload) const {
@@ -235,13 +238,19 @@ public:
         QJsonObject input=QJsonObject::fromVariantMap(payload);input["operation"]=operation;input["value"]=value;
         const auto requestBytes=QJsonDocument(input).toJson(QJsonDocument::Compact);if(requestBytes.size()>(home?256*1024:1024*1024))return -1;
         // Only accepted foreground work may preempt optional startup preparation.
-        if(!warming&&(operation=="resolve"||operation=="resolveVideo"))cancel("media-warmup");
+        if(!warming&&(operation=="resolve"||operation=="resolveVideo")){
+            m_suppressReplacement=true;
+            cancel("media-warmup");
+            m_suppressReplacement=false;
+        }
         auto cacheInput=input;cacheInput.remove("refresh");if(home)cacheInput["cacheSchema"]=2;
         const auto key=QString::fromLatin1(QCryptographicHash::hash(QJsonDocument(cacheInput).toJson(QJsonDocument::Compact),QCryptographicHash::Sha256).toHex());
         const auto path=m_cacheRoot+"/"+key+".json";
         WarmSlot *warm=nullptr;
         if(warming||operation=="resolve"||operation=="resolveVideo")warm=&m_mediaWarm;
-        else if(QStringList{"browseCategories","browseCatalogue","resolveCatalogueItem","cataloguePage","catalogueSearch","album","relatedVideo"}.contains(operation))
+        else if(!home&&!lane.startsWith("home-")&&QStringList{"search","catalogueSearch","artist","artistReleases","artistVideos","artistArtwork"}.contains(operation))
+            warm=&m_browseWarm;
+        else if(QStringList{"browseCategories","browseCatalogue","resolveCatalogueItem","cataloguePage","album","relatedVideo"}.contains(operation))
             warm=&m_catalogueWarm;
         // Only one worker per group can be reused. Overlapping ordinary
         // search/play requests still launch directly; Home's existing cap is
@@ -273,7 +282,7 @@ public:
             qInfo().noquote()<<"[vinyl-provider]"<<QJsonDocument(QJsonObject{{"phase",phase},{"operation",operation},
                 {"lane",lane},{"requestId",id},{"reused",reused}}).toJson(QJsonDocument::Compact);
         };
-        auto finish=[guard=QPointer<VinylProvider>(this),this,process,lane,id,home,cacheable,path,key,operation,value,payload,elapsed,warm,server,deadline,reused](QVariant data,QString error){
+        auto finish=[guard=QPointer<VinylProvider>(this),this,process,lane,id,home,cacheable,path,key,operation,value,payload,elapsed,warm,server,deadline,reused,warming](QVariant data,QString error,bool cleanReply=false){
             if(!guard||m_active.value(lane)!=process)return;
             const bool ran=m_running.contains(process);
             releaseMusicBrainz(process);
@@ -281,22 +290,12 @@ public:
             m_active.remove(lane);m_running.remove(process);process->disconnect(this);
             if(server){
                 warm->busy=false;++warm->idleGeneration;
-                if(error.isEmpty()&&process->state()==QProcess::Running){
-                    const auto idleGeneration=warm->idleGeneration;
-                    connect(process,qOverload<int,QProcess::ExitStatus>(&QProcess::finished),this,
-                        [this,warm,process](int,QProcess::ExitStatus){
-                            if(warm->process==process&&!warm->busy){
-                                warm->process=nullptr;++warm->idleGeneration;process->deleteLater();
-                            }
-                        });
-                    QTimer::singleShot(warm==&m_mediaWarm?m_mediaIdleMs:m_catalogueIdleMs,this,[this,warm,process,idleGeneration]{
-                        if(warm->process!=process||warm->busy||warm->idleGeneration!=idleGeneration)return;
-                        warm->process=nullptr;++warm->idleGeneration;
-                        retireProcess(process);
-                    });
+                if((cleanReply||error.isEmpty())&&process->state()==QProcess::Running){
+                    idleWorker(warm,process);
                 }else{
                     if(warm->process==process)warm->process=nullptr;
                     retireProcess(process);
+                    if(!warming&&(!error.isEmpty()||cleanReply))replaceWorker(warm);
                 }
             }else{
                 retireProcess(process);
@@ -356,13 +355,14 @@ public:
             QJsonParseError parse;
             const auto doc=QJsonDocument::fromJson(bytes,&parse);
             const auto object=doc.object();
-            if(parse.error!=QJsonParseError::NoError||!object.value("ok").isBool())
+            if(parse.error!=QJsonParseError::NoError||!object.value("ok").isBool()
+                ||(object.value("ok").toBool()?!object.contains("data"):!object.value("error").isString()))
                 finish({},"The music catalogue helper failed.");
             else if(!object.value("ok").toBool()){
                 if(operation=="lyrics"&&object.value("errorCode")=="rate_limited")
                     m_deferred["lrclib"]=m_clock()+qint64(qBound(1,object.value("retryAfterSeconds").toInt(60),3600))*1000;
-                finish({},object.value("error").toString("The music catalogue is unavailable."));
-            }else finish(object.value("data").toVariant(),{});
+                finish({},object.value("error").toString("The music catalogue is unavailable."),true);
+            }else finish(object.value("data").toVariant(),{},true);
         };
         connect(process,&QProcess::readyReadStandardOutput,this,[process,output,finish,parseReply,server]{
             output->append(process->readAllStandardOutput());
@@ -435,18 +435,25 @@ public:
     }
     Q_INVOKABLE void cancel(const QString &lane){
         auto *process=m_active.take(lane);if(!process)return;m_running.remove(process);releaseMusicBrainz(process);
-        for(auto *slot:{&m_mediaWarm,&m_catalogueWarm}){
-            if(slot->process==process){slot->process=nullptr;slot->busy=false;++slot->idleGeneration;}
+        for(auto *slot:{&m_mediaWarm,&m_catalogueWarm,&m_browseWarm}){
+            if(slot->process==process){
+                slot->process=nullptr;
+                slot->busy=false;
+                ++slot->idleGeneration;
+                replaceWorker(slot);
+            }
         }
         retireProcess(process);QTimer::singleShot(0,this,[this]{startWaiting();});
     }
     Q_INVOKABLE void cancelAll(){
+        m_suppressReplacement=true;
         m_waiting.clear();m_waitingWake->stop();for(const auto &lane:m_active.keys())cancel(lane);
-        for(auto *slot:{&m_mediaWarm,&m_catalogueWarm}){
+        for(auto *slot:{&m_mediaWarm,&m_catalogueWarm,&m_browseWarm}){
             auto *process=slot->process.data();
             slot->process=nullptr;slot->busy=false;++slot->idleGeneration;
             if(process)retireProcess(process);
         }
+        m_suppressReplacement=false;
     }
 signals:
     void completed(const QString &lane,int requestId,const QVariant &data,const QString &error);
@@ -472,6 +479,53 @@ private:
         bool busy=false;
         quint64 idleGeneration=0;
     };
+    void idleWorker(WarmSlot *slot,QProcess *process,bool replaceOnExit=true){
+        const auto generation=slot->idleGeneration;
+        connect(process,qOverload<int,QProcess::ExitStatus>(&QProcess::finished),this,
+            [this,slot,process,replaceOnExit](int,QProcess::ExitStatus){
+                if(slot->process!=process||slot->busy)return;
+                slot->process=nullptr;
+                ++slot->idleGeneration;
+                process->deleteLater();
+                if(replaceOnExit)replaceWorker(slot);
+            });
+        QTimer::singleShot(slot==&m_mediaWarm?m_mediaIdleMs:m_catalogueIdleMs,this,[this,slot,process,generation]{
+            if(slot->process!=process||slot->busy||slot->idleGeneration!=generation)return;
+            slot->process=nullptr;
+            ++slot->idleGeneration;
+            retireProcess(process);
+        });
+    }
+    void replaceWorker(WarmSlot *slot){
+        if(m_suppressReplacement||!reuseHelpers())return;
+        const auto generation=slot->idleGeneration;
+        QTimer::singleShot(0,this,[this,slot,generation]{
+            if(slot->idleGeneration!=generation||slot->process||m_suppressReplacement||!reuseHelpers())return;
+            if(slot==&m_mediaWarm){
+                warmPlayback();
+                return;
+            }
+            auto *process=new QProcess(this);
+            slot->process=process;
+            auto environment=QProcessEnvironment::systemEnvironment();
+            environment.insert("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR",QDir(m_cacheRoot).filePath("discover-v1"));
+            process->setProcessEnvironment(environment);
+            connect(process,&QProcess::errorOccurred,this,[this,slot,process](QProcess::ProcessError){
+                if(slot->process!=process||slot->busy)return;
+                slot->process=nullptr;
+                ++slot->idleGeneration;
+                retireProcess(process);
+            });
+            connect(process,&QProcess::readyReadStandardError,this,[process]{process->readAllStandardError();});
+            idleWorker(slot,process,false);
+#ifdef Q_OS_WIN
+            const auto bundled=QFileInfo(m_helper).absolutePath()+"/runtime/python.exe";
+#else
+            const auto bundled=QFileInfo(m_helper).absolutePath()+"/runtime/bin/python3";
+#endif
+            process->start(qEnvironmentVariable("COLOSSEUM_VINYL_PYTHON",bundled),{"-I",m_helper,"--serve"});
+        });
+    }
     static QString service(const QString &op,const QString &value,const QVariantMap &payload){
         return VinylSourcePool::metadataOperation(op)?VinylSourcePool::metadataSource(op,value,payload)
             :op=="recommendationIdentity"?"musicbrainz":op=="populationCandidates"?"listenbrainz":"youtube-music";
@@ -539,6 +593,7 @@ private:
     qint64 m_cacheBudget;std::function<qint64()> m_clock;QString m_cacheRoot;
     QSet<QProcess*> m_running;QQueue<QueuedWork> m_waiting;QHash<QString,qint64> m_deferred;
     QTimer *m_waitingWake=nullptr;
-    WarmSlot m_mediaWarm,m_catalogueWarm;
+    WarmSlot m_mediaWarm,m_catalogueWarm,m_browseWarm;
+    bool m_suppressReplacement=false;
     const int m_mediaIdleMs,m_catalogueIdleMs;
 };

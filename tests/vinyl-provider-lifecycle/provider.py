@@ -5,6 +5,9 @@ import sys
 import time
 
 sequence = 0
+if os.environ.get("VINYL_FAKE_START_LOG"):
+    with open(os.environ["VINYL_FAKE_START_LOG"], "a", encoding="utf-8") as starts:
+        starts.write(str(os.getpid()) + "\n")
 
 def answer(raw):
     global sequence
@@ -16,10 +19,14 @@ def answer(raw):
         time.sleep(float(os.environ.get("VINYL_FAKE_WARM_SECONDS", "0")))
     if value == "delay":
         time.sleep(0.55)
+    if value == "slow-search":
+        time.sleep(2)
     if value == "error":
         return {"ok": False, "error": "Synthetic failure"}
     if value == "exit":
         sys.exit(7)
+    if value == "malformed":
+        return {"invalid": True}
     return {"ok": True, "data": {"pid": os.getpid(), "sequence": sequence,
                                     "operation": operation, "value": value}}
 
