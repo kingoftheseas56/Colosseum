@@ -58,6 +58,23 @@ class FacadeTest : public QObject {
         emit source.completed("play",source.requests.value("play"),QVariantMap{},error);
     }
 private slots:
+    void positionTicksDoNotPublishUnrelatedState() {
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");session.setSource(&source);
+        QVERIFY(session.replaceRows({row("vault:a")},0,false));
+        session.setPaused(true);
+        resolveAudio(source,session,"vault:a");
+        QTest::qWait(100);
+        QSignalSpy state(&session,&VinylBackendSession::stateChanged);
+        const auto property=session.metaObject()->property(session.metaObject()->indexOfProperty("position"));
+        QSignalSpy position(&session,property.notifySignal());
+        auto *item=qobject_cast<MpvItem *>(session.player());
+        QVERIFY(item);
+        emit item->positionChanged();
+        QCOMPARE(position.count(),1);
+        QCOMPARE(state.count(),0);
+    }
     void unavailableMiddleTrackAdvancesWithoutCompletingListen() {
         DeferredSource source;
         VinylBackendSession session;

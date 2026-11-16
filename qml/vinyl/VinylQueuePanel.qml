@@ -161,7 +161,9 @@ Popup {
             objectName: "vinylQueueList"
             y:rule.y+12;width:parent.width;height:Math.max(0,parent.height-y)
             clip:true;spacing:0
-            model:root.pageData.queue
+            // An integer model retains delegates on active-row and reorder changes.
+            // Each delegate observes its current queue slot instead of a reset array.
+            model:root.pageData.queue.length
             currentIndex:root.pageData.queueIndex
             activeFocusOnTab:true
             Accessible.role:Accessible.List
@@ -183,8 +185,8 @@ Popup {
             ScrollBar.vertical:ScrollBar {policy:ScrollBar.AlwaysOff}
             delegate:Item {
                 id:row
-                required property var modelData
                 required property int index
+                readonly property var modelData: root.pageData.queue[index] || ({title:"",artist:"",seconds:0,edition:{cover:"",name:"",discs:[]}})
                 readonly property bool playing:index===root.pageData.queueIndex
                 readonly property bool selected:(list.activeFocus && root.keyboardSelection && list.currentIndex===index)||playAction.activeFocus
                 width:list.width;height:54

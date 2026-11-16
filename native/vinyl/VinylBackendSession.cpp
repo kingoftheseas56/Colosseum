@@ -151,6 +151,8 @@ VinylBackendSession::VinylBackendSession(QObject *parent)
 VinylBackendSession::~VinylBackendSession() { m_shutdown=true;cancelResolution();invalidatePlaybackTransport();retirePlayer(); }
 void VinylBackendSession::publishState() {
     emit stateChanged();
+    emit positionChanged();
+    emit durationChanged();
     // QML aliases observe every native NOTIFY emission, even for equal values.
     // Clock updates must never look like pause transitions to Activity/history.
     if(m_publishedPaused!=m_paused){m_publishedPaused=m_paused;emit pausedChanged();}
@@ -854,11 +856,13 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
         if(!m_paused&&m_backend->preparationPosition>=0&&at>m_backend->preparationPosition+0.05)
             m_backend->preparationProgressed=true;
         m_backend->preparationPosition=at;
-        m_backend->callbacks.positionObserved(token,at);publishState();
+        m_backend->callbacks.positionObserved(token,at);
+        emit positionChanged();
     });
     connect(item,&MpvItem::durationChanged,this,[this,item,token,generation,serial] {
         if(m_player!=item||serial!=m_loadSerial||generation!=m_epoch||!m_loaded||item->duration()<=0)return;
-        m_duration=item->duration();m_backend->callbacks.durationObserved(token,m_duration);publishState();
+        m_duration=item->duration();m_backend->callbacks.durationObserved(token,m_duration);
+        emit durationChanged();
     });
     connect(item,&MpvItem::pauseChanged,this,[this,item,token,generation,serial] {
         if(m_player!=item||serial!=m_loadSerial||generation!=m_epoch||!m_loaded||m_state!="playing")return;

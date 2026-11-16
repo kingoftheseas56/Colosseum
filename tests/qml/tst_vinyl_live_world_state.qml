@@ -19,6 +19,7 @@ TestCase {
         property bool searchComplete: false
         property string searchQuery: ""
         property var results: []
+        property var activeQueueRow: null
         property int playingIndex: -1
         property var playingTrack: ({})
         property var playingEdition: ({})
@@ -111,6 +112,15 @@ TestCase {
     }
     function album(id, title, origin) {
         return {id:id,title:title,origin:origin || "local",artists:["Artist"],artistIds:["artist"],year:2000,genre:"Jazz",tracks:[{id:id+"-song",title:"Song",artists:["Artist"],disc:1,number:1}]};
+    }
+    function test_positionTickKeepsHomeRowsStable() {
+        // The array identity detects the expensive projection, not just equal output.
+        fakeSession.activeQueueRow={queueId:"q",editionId:"e",title:"Song"};
+        fakeSession.duration=120;
+        var before=viewData.homeRows;
+        fakeSession.position=1;
+        verify(viewData.homeRows===before);
+        fakeSession.activeQueueRow=null;
     }
     function fixtureArtists() {
         return ["one","two","three","four","five"].map(function(id) {

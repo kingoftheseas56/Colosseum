@@ -38,12 +38,13 @@ TestCase {
         id: transport
         QtObject {
             property int serial: 0
+            property int registeredAlbumCount: 0
             signal completed(string lane, int requestId, var data, string error)
             signal profileLeaving()
             signal profileEntered()
             function request(lane, operation, value, options) { return ++serial; }
             function cancel(lane: string): void {}
-            function setAlbums(entries) {}
+            function setAlbums(entries) { registeredAlbumCount=entries.length; }
         }
     }
     Component {
@@ -81,6 +82,137 @@ TestCase {
         session.suspendPlayback("test-selection");session.snapshot();wait(0);
         compare(session.playingTrack.id,id+"-track");verify(session.paused);
         return JSON.parse(JSON.stringify(progress.get("music-session","vinyl")));
+    }
+    Component {
+        id: collectionFactory
+        QtObject {
+            property int revision: 0
+            property int reads: 0
+            signal changed()
+            function items(world) { reads++;return []; }
+        }
+    }
+    function test_navigationDoesNotReloadUnchangedCollection() {
+        var collection=collectionFactory.createObject(test);
+        session.collectionStore=collection;
+        session.refreshLibrary();
+        var component=Qt.createComponent("../../qml/vinyl/VinylPersonalLibraryData.qml");
+        compare(component.status,Component.Ready,component.errorString());
+        var personal=component.createObject(test,{session:session});
+        var rebuilds=0;
+        personal._albumRecordsChanged.connect(function(){rebuilds++;});
+        var reads=collection.reads;
+        session.shownEdition=session.normalize({id:"browse",title:"Browse",tracks:[]});
+        session.refreshLibrary(); // album open
+        session.refreshLibrary(); // Back/route restore
+        compare(collection.reads,reads);
+        collection.revision++;collection.changed();
+        // The native personal-records projection also reads items on revision.
+        verify(collection.reads>reads);
+        wait(0); // Coalesced rebuild follows both Collection projections.
+        compare(rebuilds,1,"Personal models refresh once for the Collection change");
+        reads=collection.reads;
+        session.refreshLibrary();
+        compare(collection.reads,reads);
+        personal.destroy();
+        collection.destroy();
+    }
+    Component {
+        id: personalCollectionFactory
+        QtObject {
+            property var entries: []
+            property int revision: 0
+            property bool snapshotFirst: false
+            signal changed()
+            function items(world) { return entries; }
+            function has(world, id) { return entries.some(entry => entry.id === id); }
+            function replaceItems(world, removeIds, replacements) {
+                var next = entries.filter(entry => removeIds.indexOf(entry.id) < 0
+                    && !replacements.some(write => write.id === entry.id)).concat(replacements);
+                // Match native storage: items() itself must not expose a QML
+                // entriesChanged dependency that masks the revision ordering.
+                entries.splice.apply(entries, [0, entries.length].concat(next));
+                // CollectionStore uses changed as revision's NOTIFY signal. Exercise
+                // both observer orders rather than relying on QML connection order.
+                if (snapshotFirst) { changed(); revision++; }
+                else { revision++; changed(); }
+                return true;
+            }
+        }
+    }
+    function test_personalMutationsRefreshModels_data() {
+        return [{tag:"records-first", snapshotFirst:false},
+                {tag:"snapshot-first", snapshotFirst:true}];
+    }
+    function test_personalMutationsRefreshModels(data) {
+        var path = BridgeFixtures.createIdentityAudio();
+        var album = {id:"personal-refresh", title:"Personal refresh", origin:"local",
+            artists:["Test Artist"], tracks:[{id:"personal-track", title:"Test song",
+                seconds:41, disc:1, number:1, available:true, localPath:path}]};
+        var collection = personalCollectionFactory.createObject(test, {
+            snapshotFirst:data.snapshotFirst,
+            entries:[{id:album.id, type:"album", title:album.title,
+                payload:{version:1, album:album, saved:true}}]
+        });
+        session.collectionStore = collection;
+        var component = Qt.createComponent("../../qml/vinyl/VinylPersonalLibraryData.qml");
+        compare(component.status, Component.Ready, component.errorString());
+        var personal = component.createObject(test, {session:session});
+        try {
+            verify(session.personalEnabled);
+            var row = session.rowFor(session.normalize(album), 0, 0);
+            verify(session.personalRowAvailable(row));
+            var rebuilds = 0;
+            personal._albumRecordsChanged.connect(function() { rebuilds++; });
+
+            verify(session.toggleSongSaved(row));
+            // Drain only this mutation's queued work; never manually refresh or
+            // issue another Collection change to make the models catch up.
+            wait(0);
+            compare(personal.savedSongs.length, 1, "Save appears without another collection change");
+            compare(personal.savedSongs[0].ref.trackId, row.trackId);
+            compare(rebuilds, 1);
+
+            rebuilds = 0;
+            verify(session.toggleSongSaved(row));
+            wait(0);
+            compare(personal.savedSongs.length, 0, "Unsave appears without another collection change");
+            compare(rebuilds, 1);
+
+            var result = session.personalCommand("createPlaylist", {name:"Refresh guard", rows:[]});
+            verify(result.ok);
+            wait(0);
+            verify(personal.openPlaylist(result.id));
+            compare(personal.selectedPlaylist.items.length, 0);
+            rebuilds = 0;
+            verify(session.personalCommand("addPlaylistRows", {id:result.id, rows:[row]}).ok);
+            wait(0);
+            compare(personal.playlists[0].count, 1);
+            compare(personal.selectedPlaylist.items.length, 1, "Playlist addition appears immediately");
+            compare(personal.selectedPlaylist.items[0].ref.trackId, row.trackId);
+            compare(rebuilds, 1);
+        } finally {
+            personal.destroy();
+            session.collectionStore = null;
+            collection.destroy();
+        }
+    }
+    function test_sourceRegistersOneSnapshotPerAlbumNotPerQueueRow() {
+        var album={id:"many",title:"Many",origin:"youtube-music",tracks:[]};
+        for(var i=0;i<50;i++)album.tracks.push({id:"song-"+i,title:"Song "+i,videoId:"abcdefghijk",seconds:120,available:true});
+        session.playAlbum(album,0);
+        session.refreshSource();
+        compare(session.queue.length,50);
+        compare(source.registeredAlbumCount,1);
+    }
+    function test_pausedSessionHasNoPeriodicCheckpoint() {
+        select("paused");
+        var timer=findChild(session,"vinylProgressTimer");
+        verify(timer!==null);
+        // Exercise the periodic callback independently of whether a core is parked.
+        var before=progress.clock;
+        timer.triggered();
+        compare(progress.clock,before);
     }
     function test_coldTileRestoreNeverWritesBeforeSuccess_data() { return [{tag:"success",valid:true},{tag:"failure",valid:false}]; }
     function test_coldTileRestoreNeverWritesBeforeSuccess(data) {

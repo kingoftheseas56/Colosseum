@@ -823,6 +823,7 @@ Item {
         onImportingChanged: {if(!session.importing && root.importStatus==="Opening local music…") root.importStatus="Import cancelled. Your library was kept.";}
     }
     VinylLiveWorldData {id:worldData;session:session;personalLibrary:personalData;recommendationService:recommendations;
+        legacyCarouselEnabled: false
         homePageVisible: root.componentReady && root.visible && root.lifecycleActive && root.canEnterVinyl
             && root.page === "home" && root.world && root.world.currentTab === "home" && !root.world.listKey
             && !root.searchOpen && !root.artistSearchOpen && !worldData.tastePickerOpen

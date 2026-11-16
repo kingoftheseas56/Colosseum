@@ -80,6 +80,7 @@ Item {
 
     function sourceEntries() {
         if (!session || !session.profileActive || session.shuttingDown) return [];
+        if (session.collectionEntries !== undefined) return session.collectionEntries;
         if (collectionStore && typeof collectionStore.items === "function")
             return session.plainData(collectionStore.items("Vinyl")) || [];
         return session && Array.isArray(session.library) ? session.library : [];
@@ -734,7 +735,17 @@ Item {
         return value || "";
     }
 
-    onCollectionRevisionChanged: refreshModels()
+    // Collection entries and personal records are separate projections of the
+    // same change; either notification may arrive first. Rebuild after both
+    // settle. callLater coalesces repeated calls with this same function, so a
+    // Collection change still produces only one model rebuild.
+    function requestModelsRefresh() {
+        if (hasCollectionSnapshot) Qt.callLater(refreshModels);
+        else refreshModels();
+    }
+
+    readonly property bool hasCollectionSnapshot: !!session && session.collectionEntries !== undefined
+    onCollectionRevisionChanged: { if(!hasCollectionSnapshot)refreshModels(); }
     onSelectedPlaylistIdChanged: refreshSelectedPlaylist()
     onSessionChanged: {
         resetProfileState();
@@ -743,8 +754,9 @@ Item {
     Connections {
         target: root.session
         ignoreUnknownSignals: true
-        function onLibraryChanged() { root.refreshModels(); }
-        function onPersonalRecordsChanged() { root.refreshModels(); }
+        function onCollectionEntriesChanged() { root.requestModelsRefresh(); }
+        function onLibraryChanged() { if(!root.hasCollectionSnapshot)root.refreshModels(); }
+        function onPersonalRecordsChanged() { root.requestModelsRefresh(); }
         function onCollectionStoreChanged() { root.resetProfileState(); }
         function onProfileGenerationChanged() { root.resetProfileState(); }
     }
@@ -752,7 +764,7 @@ Item {
     Connections {
         target: root.collectionStore
         ignoreUnknownSignals: true
-        function onChanged() { root.refreshModels(); }
+        function onChanged() { if(!root.hasCollectionSnapshot)root.refreshModels(); }
     }
 
     Component.onCompleted: refreshModels()

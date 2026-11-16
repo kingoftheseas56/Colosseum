@@ -28,7 +28,7 @@ Item {
     readonly property int playingIndex: activeQueueRow ? activeQueueRow.trackIndex : -1
     readonly property var tracks: shownEdition.discs[shownDisc] || []
     readonly property var playingTrack: (playingEdition.discs[playingDisc] || [])[playingIndex] || ({title:"", seconds:0})
-    readonly property var queue: plainData(backend.rows) || []
+    readonly property var queue: backend.rows
     readonly property int queueIndex: backend.activeIndex
     readonly property bool canPrevious: queueIndex>0 || (queueIndex>=0 && repeatMode==="all")
     readonly property bool canNext: (queueIndex>=0 && queueIndex+1<queue.length) || (queueIndex>=0 && repeatMode==="all")
@@ -390,6 +390,16 @@ Item {
         ? (progressStore.persistenceError || "Music progress could not be saved.") : ""
     property bool saved: false
     property var library: []
+    property var collectionEntries: []
+    property bool libraryDirty: true
+    onCollectionStoreChanged: { libraryDirty=true;refreshLibrary(); }
+    onProfileActiveChanged: libraryDirty=true
+    onShownAlbumIdChanged: updateShownSaved()
+    Connections {
+        target: root.collectionStore
+        ignoreUnknownSignals: true
+        function onChanged() { root.libraryDirty=true;root.refreshLibrary(); }
+    }
     readonly property bool hasLyrics: lyrics.length > 0
     readonly property bool hasNotes: Object.keys(notes).length > 0
     readonly property bool hasVideo: backend.hasVideo
@@ -680,7 +690,13 @@ Item {
         // FIRST, then current Collection records LAST: omitted queued recordings
         // remain resolvable without replacing fresh browse metadata or paths.
         var records=[], seen=new Set();
-        function retain(album) {if(album && !seen.has(album)) {records.push(album);seen.add(album);}}
+        function retain(album) {
+            if(!album)return;
+            // QVariant rows expose separate JS wrappers for equal album snapshots.
+            // Content identity preserves old queued recordings with the same album ID.
+            var key=JSON.stringify(album);
+            if(!seen.has(key)) {records.push(album);seen.add(key);}
+        }
         retain(shownEdition.sourceAlbum);retain(playingEdition.sourceAlbum);
         queue.forEach(r=>retain(r.edition.sourceAlbum));
         // Cached recommendation cards can reach the queue before their
@@ -739,12 +755,18 @@ Item {
         refreshSource();browseError=""; browsing=true; browseOperation="album";browseValue=browseId;
         browseRequest=source.request("browse","album",browseId);
     }
-    function refreshLibrary() {
-        if (!collectionStore) {library=[];saved=false;return;}
-        library=(plainData(collectionStore.items("Vinyl")) || []).filter(e => e.payload && e.payload.album);
-        refreshSource();
+    function updateShownSaved() {
         var selected=library.find(entry=>entry.id===shownAlbumId);
         saved=!!selected && selected.payload.saved!==false;
+    }
+    function refreshLibrary() {
+        if(!libraryDirty) {updateShownSaved();return;}
+        libraryDirty=false;
+        collectionEntries=collectionStore && profileActive && !shuttingDown
+            ? plainData(collectionStore.items("Vinyl")) || [] : [];
+        library=collectionEntries.filter(e => e.payload && e.payload.album);
+        refreshSource();
+        updateShownSaved();
     }
     function toggleSaved() {
         if (!shownEditionId || !collectionStore || shuttingDown || !profileActive) return;
@@ -1076,7 +1098,7 @@ Item {
     function clearProfile() {
         if(shuttingDown) return;
         profileGeneration++;cancelImport();cancelImportIdentity();snapshot();activityEnd(false);
-        resetting=true;profileActive=false;backend.clearProfile();cancelBrowse();cancelQueueRequest();clearDiscovery();clearCatalogue();
+        resetting=true;profileActive=false;libraryDirty=true;collectionEntries=[];backend.clearProfile();cancelBrowse();cancelQueueRequest();clearDiscovery();clearCatalogue();
         shownDisc=0;manualNoteLine=-1;lyricsShown=false;autoNotes=false;
         shownEdition=emptyEdition;results=[];onlineArtists=[];onlineAlbums=[];searchingOnline=false;catalogueNotice="";library=[];saved=false;browsing=false;browseError="";personalError="";
         resetting=false;
@@ -1143,7 +1165,15 @@ Item {
         function onCheckpointRequested() { root.snapshot(); }
         function onShuttingDown() { root.shutdown(); }
     }
-    Timer {objectName:"vinylProgressTimer";interval:5000;repeat:true;running:!root.shuttingDown && !root.resetting && root.loaded;onTriggered:{root.activitySample();root.snapshot();}}
+    Timer {
+        objectName:"vinylProgressTimer"
+        interval:5000;repeat:true
+        running:!root.shuttingDown && !root.resetting && root.loaded && !root.paused
+        onTriggered: {
+            if(root.paused)return;
+            root.activitySample();root.snapshot();
+        }
+    }
     Component.onCompleted: {if(!deferInitialRestore)restore();refreshLibrary();}
     Component.onDestruction: { cancelImport();cancelDiscovery();cancelCatalogueRequests();cancelPlaylistPage();if(source) source.cancel("browse");backend.shutdown(); }
 }

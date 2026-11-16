@@ -45,8 +45,8 @@ class VinylBackendSession : public QObject {
     Q_PROPERTY(bool loaded READ loaded NOTIFY stateChanged)
     Q_PROPERTY(bool seekPending READ seekPending NOTIFY stateChanged)
     Q_PROPERTY(bool shuffled READ shuffled NOTIFY stateChanged)
-    Q_PROPERTY(double position READ position NOTIFY stateChanged)
-    Q_PROPERTY(double duration READ duration NOTIFY stateChanged)
+    Q_PROPERTY(double position READ position NOTIFY positionChanged)
+    Q_PROPERTY(double duration READ duration NOTIFY durationChanged)
     Q_PROPERTY(QString sourceState READ sourceState NOTIFY stateChanged)
     Q_PROPERTY(QString error READ error NOTIFY stateChanged)
     Q_PROPERTY(QString skippedNotice READ skippedNotice NOTIFY skippedNoticeChanged)
@@ -149,6 +149,8 @@ signals:
     void skippedNoticeChanged();
     void preparationChanged();
     void stateChanged();
+    void positionChanged();
+    void durationChanged();
     void pausedChanged();
     void queueChanged();
     void sourceChanged();

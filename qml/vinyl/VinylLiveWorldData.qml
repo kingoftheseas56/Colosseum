@@ -630,6 +630,10 @@ Item {
         if(state.onlineMode && !state.query.trim())return [];
         return [{key:"local-"+state.lens.kind,title:(state.onlineMode ? "Catalogue " : "Local ")+state.lens.kind,icon:"threads",kind:state.lens.kind,items:project(discoverAlbums,state.lens.kind,state.onlineMode)}];
     }
+    // Only this cheap boolean observes the clock. Shelf projection changes at
+    // the same unfinished boundary, rather than rebuilding at every position tick.
+    readonly property bool playbackUnfinished: session.sourceState!=="ended"
+        && (!(session.duration>0) || session.position<session.duration-0.5)
     readonly property var homeRows: {
         if(session.profileActive===false || session.shuttingDown || !canEnterVinyl)return [];
         var nativeSections=recommendationHomeSections;
@@ -644,7 +648,7 @@ Item {
         if(mixes.length)result.push({key:"mixes",title:"Mixes",kind:"mixes",items:mixes});
         if(radio.length)result.push({key:"radio",title:"Radio",kind:"radio",items:radio});
         var continuing=[],active=session.activeQueueRow;
-        if(active && session.sourceState!=="ended" && (!(session.duration>0) || session.position<session.duration-0.5))continuing.push({id:"resume:"+active.queueId,kind:"resume",resumeCurrent:true,
+        if(active && playbackUnfinished)continuing.push({id:"resume:"+active.queueId,kind:"resume",resumeCurrent:true,
             editionId:active.editionId,title:active.title,artist:active.artist,subtitle:active.artist,cover:active.cover || "",
             unavailable:typeof session.personalRowAvailable==="function" && !session.personalRowAvailable(active)});
         continuing=continuing.concat(recentContinue.filter(item=>!active || item.editionId!==active.editionId));
@@ -675,13 +679,14 @@ Item {
     }
     readonly property var coldShelves: []
     readonly property var shelfKeys: shelves.map(function(r){return r.key})
+    // VinylWorld is a legacy consumer; the production HouseShell uses heroSlides.
+    property bool legacyCarouselEnabled: true
     readonly property var carouselSlides: {
-        if(!canEnterVinyl || tastePickerOpen)return [];
+        if(!legacyCarouselEnabled || !canEnterVinyl || tastePickerOpen)return [];
         var result=[];
         var now=Math.max(homeNowMs,Date.now());
         var last=Number(session.lastPlaybackAtMs)||0;
-        var unfinished=session.playingIndex>=0 && session.sourceState!=="ended"
-            && (!(session.duration>0) || session.position<session.duration-0.5);
+        var unfinished=session.playingIndex>=0 && playbackUnfinished;
         if(unfinished && last>0 && now>=last && now-last<=72*3600000)
             result.push({key:"resume",id:"resume:"+session.playingEditionId,title:session.playingTrack.title,
                 blurb:session.playingEdition.artist,art:session.playingEdition.cover || "",artKind:"square",

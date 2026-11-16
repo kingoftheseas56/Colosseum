@@ -67,10 +67,14 @@ function project(personalLibrary,feedbackState,historySnapshot,downloadedMusic) 
     if(!personalLibrary || personalLibrary.personalEnabled===false) return [];
     var owned=personalLibrary.homeCollections || {};
     var songs=values(personalLibrary.availableSongs).concat(values(owned.songs));
-    var positive=positiveRecordings(feedbackState), seen={}, liked=[];
+    var positive=new Set(positiveRecordings(feedbackState)), seen={}, liked=[];
+    var songsByOccurrence=new Map();
     songs.forEach(function(song) {
+        var id=occurrence(song);
+        // Match Array.find's first occurrence when saved/available rows overlap.
+        if(!songsByOccurrence.has(id))songsByOccurrence.set(id,song);
         var key=providerRecording(song);
-        if(key && positive.indexOf(key)>=0 && !seen[key]) {
+        if(key && positive.has(key) && !seen[key]) {
             seen[key]=true;liked.push(card(song,"songs","openSong"));
         }
     });
@@ -78,7 +82,7 @@ function project(personalLibrary,feedbackState,historySnapshot,downloadedMusic) 
     if(historySnapshot && historySnapshot.ok===true && historySnapshot.enabled===true) {
         values(historySnapshot.chronology).forEach(function(entry) {
             if(entry.kind!=="music") return;
-            var song=songs.find(function(item) { return occurrence(item)===entry.id; });
+            var song=songsByOccurrence.get(entry.id);
             if(song) recent.push(card(song,"songs","openSong",{historyRecord:entry}));
         });
     }
