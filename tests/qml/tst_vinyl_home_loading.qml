@@ -89,7 +89,8 @@ TestCase {
         }
     }
     function initTestCase(){
-        gateData=dataFactory.createObject(test,{crateItems:[{id:"ready-album",kind:"albums",title:"Ready album",artist:"Artist",cover:""}]});
+        // Start before Home has ever presented content, with the picker owning the screen.
+        gateData=dataFactory.createObject(test,{homeStatus:"loading",tastePickerOpen:true});
         view=shellFactory.createObject(test,{worldData:gateData,runtimeReady:true,hostReady:true});
         verify(view!==null); verify(waitForRendering(view));
     }
@@ -105,7 +106,8 @@ TestCase {
         verify(!findChild(view,"vinylSpin").visible);
         verify(!findChild(view,"vinylFlowTabs").visible);
         verify(!findChild(view,"vinylHome").visible,"An empty Home must not appear underneath the loading view");
-        gateData.homeStatus="ready"; gateData.homeSourcePool={pendingCount:3};
+        gateData.crateItems=[{id:"ready-album",kind:"albums",title:"Ready album",artist:"Artist",cover:""}];
+        gateData.homeSourcePool={pendingCount:3}; gateData.homeStatus="ready";
         verify(loading.visible,"Optional Home rows must finish too");
         gateData.homeSourcePool={pendingCount:0}; tryCompare(loading,"visible",false);
         verify(findChild(view,"vinylCrate").visible);
@@ -117,5 +119,63 @@ TestCase {
         gateData.homeStatus="loading"; view.setTab("library"); verify(!loading.visible);
         view.setTab("home"); verify(loading.visible);
         gateData.crateItems=[{id:"ready-album",kind:"albums",title:"Ready album",artist:"Artist",cover:""}]; gateData.homeStatus="ready";
+    }
+    function test_01_refreshKeepsContent() {
+        var loading=findChild(view,"vinylHomeLoading");
+        var album={id:"ready-album",kind:"albums",title:"Ready album",artist:"Artist",cover:""};
+        gateData.homeStatus="ready"; gateData.homeSourcePool={pendingCount:0};
+        gateData.crateItems=[album];
+        gateData.heroSlides=[{kind:"topAlbum",item:album,sideItems:[]}];
+        gateData.v1HomeRows=[{key:"v1:albums-for-you",homeKey:"albums-for-you",title:"For you",items:[album]}];
+        verify(waitForRendering(view));
+        verify(!loading.visible);
+        view.pageFlickable.contentY=100;
+        var scrollY=view.pageFlickable.contentY;
+        verify(scrollY>0);
+        function verifyContent() {
+            verify(!loading.visible,"Refresh must not replace existing content with loading or failure");
+            for(var name of ["vinylHero","vinylCrate","vinylSpin","vinylFlowTabs","vinylHome","vinylHomeRow_albums-for-you"])
+                verify(findChild(view,name).visible,name+" must stay visible during refresh");
+            compare(view.pageFlickable.contentY,scrollY,"Refresh must preserve Home scroll position");
+        }
+        gateData.homeStatus="loading";
+        verifyContent();
+        gateData.homeStatus="idle";
+        verifyContent();
+        gateData.homeStatus="ready"; gateData.homeSourcePool={pendingCount:2};
+        verifyContent();
+        gateData.homeSourcePool={pendingCount:0}; gateData.homeStatus="error";
+        verifyContent();
+        // Opening the picker is not a latch reset.
+        gateData.tastePickerOpen=true; gateData.homeStatus="loading";
+        gateData.tastePickerOpen=false;
+        verifyContent();
+        // Each source independently counts as content; empty rows do not.
+        gateData.crateItems=[]; gateData.heroSlides=[];
+        verify(!loading.visible,"A populated Home row keeps the content latch");
+        gateData.v1HomeRows=[{key:"v1:albums-for-you",homeKey:"albums-for-you",title:"For you",items:[]}];
+        gateData.homeStatus="loading";
+        tryCompare(loading,"visible",true);
+        gateData.crateItems=[album];
+        verify(loading.visible,"After emptying, partial content must wait for first-load work again");
+        gateData.homeStatus="ready"; gateData.homeSourcePool={pendingCount:0};
+        tryCompare(loading,"visible",false);
+        verify(waitForRendering(view));
+        // A populated but still-loading replacement must not inherit the previous world's latch.
+        var replacement=dataFactory.createObject(test,{homeStatus:"loading",crateItems:[album]});
+        try {
+            view.worldData=replacement;
+            tryCompare(loading,"visible",true);
+            replacement.homeStatus="ready";
+            tryCompare(loading,"visible",false);
+            replacement.homeStatus="loading";
+            verify(!loading.visible,"The replacement world can establish its own latch");
+        } finally {
+            view.worldData=gateData;
+            replacement.destroy();
+        }
+        gateData.heroSlides=[]; gateData.v1HomeRows=[];
+        gateData.homeStatus="ready"; gateData.homeSourcePool={pendingCount:0};
+        view.pageFlickable.contentY=0;
     }
 }

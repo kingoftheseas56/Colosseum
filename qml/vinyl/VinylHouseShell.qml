@@ -170,14 +170,32 @@ WorldPage {
         Column {
             id: homeLoading
             objectName: "vinylHomeLoading"
+            readonly property bool hasContent: (root.worldData.heroSlides || []).length > 0
+                || (root.worldData.crateItems || []).length > 0
+                || (root.worldData.v1HomeRows || []).some(row=>(row.items || []).length)
+            property bool contentShown: false
+            readonly property bool canPresentContent: hasContent && !loadingBar.indeterminate
+                && root.contentVisible && !root.gated && !root.worldData.tastePickerOpen
+                && root.worldData.pickerAnswered === true && root.currentTab === "home" && !root.listKey
+            // Latch only after the first-load wait has let content through, not as rows arrive.
+            function rememberContent() { if (canPresentContent) contentShown = true; }
+            onCanPresentContentChanged: rememberContent()
+            onHasContentChanged: if (!hasContent) contentShown = false
+            Component.onCompleted: rememberContent()
+            Connections {
+                target: root
+                function onWorldDataChanged() {
+                    homeLoading.contentShown = false;
+                    homeLoading.rememberContent();
+                }
+            }
             width: Math.min(420,parent.width)
             x: (parent.width-width)/2
             topPadding: Math.max(0,root.pageFlickable.height*0.4)
             spacing: 8
             visible: !root.gated && !root.worldData.tastePickerOpen && root.worldData.pickerAnswered === true
                 && root.currentTab === "home" && !root.listKey
-                && (loadingBar.indeterminate || !(root.worldData.heroSlides || []).length && !(root.worldData.crateItems || []).length
-                    && !(root.worldData.v1HomeRows || []).some(row=>(row.items || []).length))
+                && !contentShown && (loadingBar.indeterminate || !hasContent)
             Text {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
