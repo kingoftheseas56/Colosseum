@@ -58,7 +58,11 @@ Item {
             +" loaded="+root.loaded+" paused="+root.paused+" atMs="+Date.now());
     }
     onSourceStateChanged: root.tracePlaybackPhase("source-state")
-    onPlayingTrackChanged: root.tracePlaybackPhase("active-song")
+    onPlayingTrackChanged: {
+        root.tracePlaybackPhase("active-song");
+        // Native queue/state notifications settle before capturing the new occurrence.
+        Qt.callLater(root.snapshot);
+    }
     readonly property real lastPlaybackAtMs: Number(backend.lastPlaybackAtMs)||0
     readonly property var radioContext: plainData(backend.radioContext) || ({})
     signal manualPlaybackStarted()
@@ -943,9 +947,12 @@ Item {
         if(!skipSnapshot) snapshot();
         backend.playQueue(index);snapshot();
     }
-    function removeQueue(index) {snapshot();backend.removeQueue(index);snapshot();}
+    function removeQueue(index) {
+        if(!Number.isInteger(index) || index<0 || index>=queue.length) return;
+        snapshot();backend.removeQueue(index);snapshot(queue.length===0);
+    }
     function moveQueue(from,to) {backend.moveQueue(from,to);snapshot();}
-    function clearQueue() {manualPlaybackStarted();snapshot();cancelQueueRequest();backend.clearQueue();snapshot();}
+    function clearQueue() {manualPlaybackStarted();snapshot();cancelQueueRequest();backend.clearQueue();snapshot(true);}
     function setShuffle(enabled) {backend.setShuffle(enabled);snapshot();}
     function cycleRepeat() {backend.cycleRepeat();snapshot();}
     function checkpointSummary(checkpoint) {
@@ -956,7 +963,9 @@ Item {
         var checkpoint=entry && entry.resume;
         if(!checkpointSummary(checkpoint).row){browseError="This listening session is no longer available.";return false;}
         snapshot();
-        if(!backend.restoreCheckpoint(plainData(checkpoint))){browseError="This listening session could not be restored.";return false;}
+        var resume=Object.assign({},plainData(checkpoint));
+        if(resume.completed || (resume.duration>0 && resume.position>=resume.duration)) resume.position=0;
+        if(!backend.restoreCheckpoint(resume)){browseError="This listening session could not be restored.";return false;}
         refreshSource();browseError="";paused=false;snapshot();return true;
     }
     function next(delta) {snapshot();backend.next(delta);snapshot();}
@@ -972,13 +981,35 @@ Item {
         }
         snapshot();
     }
-    function snapshot() {
+    property var continueCheckpointStore: null
+    property string continueCheckpointKey: ""
+    function snapshot(allowEmpty) {
         if(resetting || shuttingDown || !profileActive || !progressStore) return;
+        // Startup, deferred/failed restore and lifecycle callbacks do not own an empty
+        // checkpoint. Only explicit queue removal may replace the durable session with one.
+        if(!queue.length && allowEmpty!==true) return;
         var resume=backend.checkpoint();
         if(!resume.backendState) return;
-        if(playingEditionId && playingIndex>=0) progressStore.recordSilent({kind:"music",id:playingEditionId,title:playingTrack.title,
-            caption:playingEdition.name,sub:playingTrack.artist,cover:playingEdition.cover,
-            progress:duration>0 ? position/duration : 0,resume:resume});
+        if(sourceState==="ended") {resume.completed=true;resume.position=0;}
+        if(playingEditionId && playingIndex>=0) {
+            // Leave room BEFORE adding another full-queue checkpoint to the shared store.
+            // recent(kind, 0) is the store's uncapped, newest-first listing.
+            if(typeof progressStore.forget==="function" && typeof progressStore.recent==="function") {
+                var albums=plainData(progressStore.recent("music",0)) || [];
+                var older=albums.filter(entry=>entry.kind==="music" && entry.id!==playingEditionId);
+                older.slice(19).forEach(entry=>progressStore.forget("music",entry.id));
+            }
+            var entry={kind:"music",id:playingEditionId,title:playingTrack.title,
+                caption:playingEdition.name,sub:playingTrack.artist,cover:playingEdition.cover,
+                progress:duration>0 ? position/duration : 0,resume:resume};
+            var key=JSON.stringify([activeQueueRow.queueId,paused,sourceState==="ended"]);
+            // Publish only meaningful transitions; the five-second clock remains silent.
+            if((continueCheckpointStore!==progressStore || continueCheckpointKey!==key)
+                    && typeof progressStore.record==="function")
+                progressStore.record(entry);
+            else progressStore.recordSilent(entry);
+            continueCheckpointStore=progressStore;continueCheckpointKey=key;
+        } else continueCheckpointKey="";
         progressStore.recordSilent({kind:"music-session",id:"vinyl",resume:resume});
     }
     function restore(entry) {
@@ -995,7 +1026,11 @@ Item {
         var r=recent[0].resume;
         if(r && r.version===3) {
             if(entry && !backend.checkpointSummary(r).row) return rejected();
-            if(backend.restoreCheckpoint(r)) {
+            // Finished video/audiobook resume restarts at zero. Also repair older v3
+            // EOF checkpoints, which saved duration as position without a completed flag.
+            var checkpoint=Object.assign({},r);
+            if(checkpoint.completed || (checkpoint.duration>0 && checkpoint.position>=checkpoint.duration)) checkpoint.position=0;
+            if(backend.restoreCheckpoint(checkpoint)) {
                 if(queueIndex>=0) {shownEdition=playingEdition;shownDisc=playingDisc;}
                 else if(queue.length) shownEdition=queue[0].edition;
                 refreshLibrary();editionSelected();

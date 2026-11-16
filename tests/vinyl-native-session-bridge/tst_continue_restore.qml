@@ -50,9 +50,22 @@ TestCase {
         id: store
         QtObject {
             property var entries: ({})
-            function recordSilent(entry) { entries[entry.kind+"/"+entry.id]=JSON.parse(JSON.stringify(entry)); }
+            property int revision: 0
+            property int clock: 0
+            property var removals: []
+            function recordSilent(entry) {
+                var copy=JSON.parse(JSON.stringify(entry));
+                copy.updatedAt=++clock;
+                entries[entry.kind+"/"+entry.id]=copy;
+            }
+            function record(entry) { recordSilent(entry);revision++; }
+            function forget(kind,id) { delete entries[kind+"/"+id];removals.push(kind+"/"+id);revision++; }
             function get(kind,id) { return entries[kind+"/"+id] || {}; }
-            function recent(kind,count) { return []; }
+            function recent(kind,count) {
+                var rows=Object.keys(entries).map(k=>entries[k]).filter(e=>e.kind===kind)
+                    .sort((a,b)=>b.updatedAt-a.updatedAt);
+                return count>0 ? rows.slice(0,count) : rows;
+            }
         }
     }
     function createSession(defer) {
@@ -65,9 +78,69 @@ TestCase {
     function cleanup() { if(startupLoader){startupLoader.destroy();startupLoader=null;}else session.destroy();wait(0);source.destroy();progress.destroy();wait(0);explicitPending=false; }
     function select(id) {
         session.playAlbum({id:id,title:id,origin:"youtube-music",tracks:[{id:id+"-track",title:id,videoId:"abcdefghijk",seconds:120,available:true}]},0);
-        session.suspendPlayback("test-selection");session.snapshot();
+        session.suspendPlayback("test-selection");session.snapshot();wait(0);
         compare(session.playingTrack.id,id+"-track");verify(session.paused);
         return JSON.parse(JSON.stringify(progress.get("music-session","vinyl")));
+    }
+    function test_coldTileRestoreNeverWritesBeforeSuccess_data() { return [{tag:"success",valid:true},{tag:"failure",valid:false}]; }
+    function test_coldTileRestoreNeverWritesBeforeSuccess(data) {
+        var saved=select("saved"), before=JSON.stringify(progress.entries);
+        session.destroy();wait(0);createSession(true);
+        compare(session.queue.length,0);
+        // Reproduce the former cold Continue route at the real session boundary.
+        // Even an incidental lifecycle snapshot before tile restore must be harmless.
+        session.snapshot();
+        compare(session.restore(data.valid ? saved : {resume:{version:3,backendState:"corrupt"}}),data.valid);
+        compare(JSON.stringify(progress.entries),before,"Tile restore must not replace the durable singleton");
+    }
+    function test_emptyUnrestoredSnapshotPreservesSingleton() {
+        select("saved");var before=JSON.stringify(progress.entries);
+        session.destroy();wait(0);createSession(true);session.snapshot();
+        compare(JSON.stringify(progress.entries),before);
+        verify(!session.restore({resume:{version:3,backendState:"corrupt"}}));session.snapshot();
+        compare(JSON.stringify(progress.entries),before);
+    }
+    function test_albumCheckpointsCappedAndOtherKindsUntouched() {
+        ["video","book","manga"].forEach(kind=>progress.recordSilent({kind:kind,id:"sentinel",resume:{position:17}}));
+        var sentinels=JSON.stringify(progress.recent("video",0).concat(progress.recent("book",0),progress.recent("manga",0)));
+        for(var i=0;i<25;i++)select("album-"+i);
+        compare(progress.recent("music",0).length,20);
+        verify(!progress.get("music","album-0").resume);
+        verify(progress.get("music","album-24").resume);
+        compare(progress.removals.length,5);
+        verify(progress.removals.every(key=>key.indexOf("music/")===0));
+        compare(JSON.stringify(progress.recent("video",0).concat(progress.recent("book",0),progress.recent("manga",0))),sentinels);
+        select("album-5");select("album-25");
+        verify(progress.get("music","album-5").resume,"Replayed editions remain recent");
+        verify(!progress.get("music","album-6").resume);
+    }
+    function test_continueRevisionChangesOnTrackButNotPeriodicSnapshots() {
+        session.playAlbum({id:"two-tracks",title:"Two",tracks:[{id:"one",title:"One",seconds:60},{id:"two",title:"Two",seconds:60}]},0);
+        wait(0);verify(progress.revision>0,"Continue appears on first selection");
+        var revision=progress.revision;
+        session.snapshot();session.snapshot();compare(progress.revision,revision);
+        session.next(1);wait(0);
+        verify(progress.revision>revision,"Continue refreshes on track change within an edition");
+        compare(progress.get("music",session.playingEditionId).title,"Two");
+        session.suspendPlayback("leaving");revision=progress.revision;
+        session.snapshot();session.snapshot();compare(progress.revision,revision);
+    }
+    function test_finishedCheckpointRestartsLastTrack_data() {return [{tag:"singleton",tile:false},{tag:"tile",tile:true},{tag:"saved-queue",savedQueue:true}];}
+    function test_finishedCheckpointRestartsLastTrack(data) {
+        var entry=select("finished");
+        // Reproduce an existing v3 EOF checkpoint: native naturalEnd saves duration as position.
+        entry.resume.position=120;entry.resume.duration=120;
+        progress.recordSilent(entry);
+        session.destroy();wait(0);createSession(true);
+        verify(data.savedQueue ? session.resumeSavedCheckpoint(entry) : session.restore(data.tile ? entry : undefined));
+        compare(session.playingTrack.id,"finished-track");
+        compare(session.position,0,"Finished media restarts from the top, like videoTargetFor");
+    }
+    function test_explicitClearStillPersistsEmptyQueueAndPolicy() {
+        select("saved");session.cycleRepeat();session.setShuffle(true);session.clearQueue();
+        var shuffle=session.shuffleEnabled;
+        session.destroy();wait(0);createSession(false);
+        compare(session.queue.length,0);compare(session.repeatMode,"all");compare(session.shuffleEnabled,shuffle);
     }
     function test_rejectedRestoreRetainsPausedOldSelection() {
         select("old");var queue=JSON.stringify(session.queue);

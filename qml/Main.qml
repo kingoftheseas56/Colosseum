@@ -215,7 +215,6 @@ Window {
         if (!vinylProfileActive || pending.generation !== vinylShellGeneration) {pendingVinylResume=null;return}
         if (!vinylWorld.canEnterVinyl) {vinylWorld.enforceTasteGate();return}
         win.traceVinylResume("restore", pending)
-        vinylWorld.session.snapshot()
         var restored = !!pending.entry && vinylWorld.session.restore(pending.entry) === true
         if (pending !== pendingVinylResume || !vinylProfileActive
                 || pending.generation !== vinylShellGeneration) return false
