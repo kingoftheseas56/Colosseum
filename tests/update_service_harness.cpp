@@ -846,5 +846,46 @@ int main()
                 "corrected seq-3 republication of the same version is offered again");
     }
 
+    // Upgrade must not reuse a signed, already-installed older release as the
+    // "latest" feed or inherit its ETag/check throttle after the binary changes.
+    {
+        QTemporaryDir cache;
+        require(cache.isValid(), "upgrade cache temp root");
+        ReleaseCheckResult feed = signedLanistaResult();
+        QString etagSeen;
+        int fetches = 0;
+        UpdateServiceHooks restartHooks;
+        restartHooks.nowMs = [&clock] { return clock; };
+        restartHooks.checkLatest = [&feed, &etagSeen, &fetches](
+                                       const QString& etag,
+                                       UpdateReleaseClient::Callback done) {
+            ++fetches;
+            etagSeen = etag;
+            done(feed);
+        };
+
+        UpdateService original(version("1.1.1"), cache.path(), restartHooks);
+        original.checkNow();
+        require(original.state() == UpdateService::UpToDate
+                    && original.latestVersion() == QStringLiteral("1.1.1"),
+                "signed old release cached as UpToDate");
+        UpdateService unchanged(version("1.1.1"), cache.path(), restartHooks);
+        require(unchanged.state() == UpdateService::UpToDate
+                    && unchanged.latestVersion() == QStringLiteral("1.1.1"),
+                "same-version persisted feed still restores");
+
+        feed = validResult(manifestFor("1.3.0"));
+        UpdateService upgraded(version("1.3.0"), cache.path(), restartHooks);
+        require(upgraded.state() == UpdateService::Idle
+                    && upgraded.latestVersion().isEmpty(),
+                "upgraded binary must discard stale signed latest and state");
+        upgraded.startAutomaticChecks();
+        require(fetches == 2 && etagSeen.isEmpty(),
+                "upgraded binary must fetch without stale ETag or check throttle");
+        require(upgraded.state() == UpdateService::UpToDate
+                    && upgraded.latestVersion() == QStringLiteral("1.3.0"),
+                "fresh check resolves to installed version");
+    }
+
     std::cout << "UPDATE_SERVICE_OK\n";
 }

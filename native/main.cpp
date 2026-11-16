@@ -64,6 +64,7 @@
 #include "account/ProfilePreferencesStore.h"
 #include "homeserver/HomeServerService.h"
 #if !defined(Q_OS_ANDROID)
+#include "update/InstalledChronicle.h"
 #include "update/UpdateCache.h"
 #include "update/UpdateDownload.h"
 #include "update/UpdateInstallBridge.h"
@@ -671,26 +672,11 @@ int main(int argc, char *argv[]) {
             QDir(updateCache->rootPath()).filePath(QStringLiteral("installed-chronicle"));
         const QString artworkCacheDir = QDir(chronicleCacheDir).filePath(QStringLiteral("artwork"));
         QDir().mkpath(artworkCacheDir);
-        const auto extract = [&chronicleCacheDir, &artworkCacheDir](const QString& qrcPath,
-                                                                    const QString& destName,
-                                                                    const QString& destDir) {
-            QFile src(QStringLiteral(":/installed-chronicle/") + qrcPath);
-            if (!src.exists())
-                return false;
-            const QString dest = QDir(destDir).filePath(destName);
-            // Skip if already extracted with identical bytes (idempotent across launches).
-            if (QFile::exists(dest)) {
-                QFile existing(dest);
-                if (existing.open(QIODevice::ReadOnly) && src.open(QIODevice::ReadOnly)
-                    && existing.readAll() == src.readAll())
-                    return true;
-            }
-            if (!src.open(QIODevice::ReadOnly))
-                return false;
-            QFile out(dest);
-            if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate))
-                return false;
-            return out.write(src.readAll()) == src.size();
+        const auto extract = [](const QString& qrcPath, const QString& destName,
+                                const QString& destDir) {
+            return Colosseum::Update::InstalledChronicle::materializeAsset(
+                QStringLiteral(":/installed-chronicle/") + qrcPath,
+                QDir(destDir).filePath(destName));
         };
         if (extract(QStringLiteral("installed-manifest.json"), QStringLiteral("installed-manifest.json"), chronicleCacheDir)
             && extract(QStringLiteral("installed-manifest.json.sig"), QStringLiteral("installed-manifest.json.sig"), chronicleCacheDir)) {

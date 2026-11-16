@@ -245,6 +245,14 @@ void UpdateService::loadPersisted()
         return;
     }
 
+    // A signed but older cached feed is not the latest release once a newer
+    // binary is installed. Do not restore its misleading UpToDate state, old
+    // ETag, or six-hour check throttle; let the bundled chronicle represent the
+    // installed release while the next automatic check fetches current data.
+    const auto persistedManifest = parseManifest(manifestBytes, &error);
+    if (persistedManifest && persistedManifest->version.compare(m_installedVersion) < 0)
+        return;
+
     // Only an authenticated persisted manifest may restore the metadata that can
     // suppress or mark a future offer. This matters across signing-key rotation:
     // state written by the retired trust root must fail closed without poisoning

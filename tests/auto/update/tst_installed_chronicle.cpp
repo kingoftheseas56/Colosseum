@@ -39,6 +39,7 @@ private slots:
     void mutatedSignatureIsRejected();
     void versionMismatchIsRejected();
     void missingArtworkDoesNotFailLoad();
+    void cachedAssetRefreshesAfterUpgrade();
 };
 
 void tst_installed_chronicle::validBundleLoadsAndExposesFiveHighlights()
@@ -180,6 +181,35 @@ void tst_installed_chronicle::missingArtworkDoesNotFailLoad()
 
     QVERIFY2(loaded.has_value(), qPrintable(QStringLiteral("missing artwork dir must not fail load: ") + error));
     QCOMPARE(loaded->manifest.highlights.size(), 5);
+}
+
+void tst_installed_chronicle::cachedAssetRefreshesAfterUpgrade()
+{
+    QTemporaryDir temp;
+    QVERIFY2(temp.isValid(), "temporary cache created");
+    const QString sourcePath = QDir(temp.path()).filePath(QStringLiteral("bundled.json"));
+    const QString cachePath = QDir(temp.path()).filePath(QStringLiteral("installed.json"));
+    QVERIFY(writeFile(sourcePath, QByteArray("signed-chronicle-1.3")));
+    QVERIFY(writeFile(cachePath, QByteArray("signed-chronicle-1.1")));
+
+    QVERIFY2(InstalledChronicle::materializeAsset(sourcePath, cachePath),
+             "an older installed cache must be replaced");
+    QFile refreshed(cachePath);
+    QVERIFY(refreshed.open(QIODevice::ReadOnly));
+    QCOMPARE(refreshed.readAll(), QByteArray("signed-chronicle-1.3"));
+    refreshed.close();
+
+    QVERIFY(InstalledChronicle::materializeAsset(sourcePath, cachePath));
+    QVERIFY(writeFile(sourcePath, QByteArray("signed-chronicle-1.4")));
+    QVERIFY(InstalledChronicle::materializeAsset(sourcePath, cachePath));
+    QVERIFY(refreshed.open(QIODevice::ReadOnly));
+    QCOMPARE(refreshed.readAll(), QByteArray("signed-chronicle-1.4"));
+    refreshed.close();
+
+    QVERIFY(!InstalledChronicle::materializeAsset(
+        QDir(temp.path()).filePath(QStringLiteral("missing")), cachePath));
+    QVERIFY(refreshed.open(QIODevice::ReadOnly));
+    QCOMPARE(refreshed.readAll(), QByteArray("signed-chronicle-1.4"));
 }
 
 QTEST_GUILESS_MAIN(tst_installed_chronicle)
