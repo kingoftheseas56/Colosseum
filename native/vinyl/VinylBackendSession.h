@@ -170,7 +170,9 @@ private:
     void stop(const vinyl::PlaybackWorkToken &);
     void beginActive(double seconds=0,bool play=true,bool fallback=false);
     bool tryFallback(const QString &reason,std::optional<double> resume=std::nullopt);
-    void retirePlayer();
+    // park keeps an idle audio core for the next track; otherwise the core is destroyed.
+    void retirePlayer(bool park=false);
+    void destroyParkedPlayer();
     void cancelResolution(const QString &retainPreparedOccurrence={});
     void discardPreparation(const QString &retainReadyOccurrence={});
     void updatePreparation();
@@ -218,6 +220,10 @@ private:
     double m_playerSpeed=1;
     QPointer<QObject> m_collection,m_preferences;
     QPointer<MpvItem> m_player;
+    // An audio-only core kept between tracks so a track change does not rebuild mpv.
+    QPointer<MpvItem> m_parkedPlayer;
+    bool m_playerVideo=false;
+    quint64 m_loadSerial=0,m_parkSerial=0;
     QString m_profile,m_repeat="off",m_state="idle",m_error,m_quality="Local audio";
     QString m_sourceKind,m_fallbackReason;
     QString m_endingReason="stop",m_listeningOrigin="manual";

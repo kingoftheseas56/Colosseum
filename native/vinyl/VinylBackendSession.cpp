@@ -528,7 +528,7 @@ bool VinylBackendSession::retryPreparedAudio() {
     const auto at=position();const bool play=!m_paused;
     cancelResolution();
     if(!m_backend->coordinator.stop().ok)return false;
-    retirePlayer();beginActive(at,play);return true;
+    retirePlayer(true);beginActive(at,play);return true;
 }
 void VinylBackendSession::setNextPreparationEnabled(bool enabled) {
     if(m_preparationEnabled==enabled)return;
@@ -710,31 +710,61 @@ bool VinylBackendSession::commitVideoMode(bool video,const QVariantMap &resource
     if(!result.ok){m_videoBusy=false;fail("The source could not be switched.");return false;}
     emit discontinuity(m_resume);publishState();return true;
 }
-void VinylBackendSession::retirePlayer() {
+void VinylBackendSession::destroyParkedPlayer() {
+    ++m_parkSerial;
+    auto *parked=m_parkedPlayer.data();
+    m_parkedPlayer=nullptr;
+    if(parked)parked->deleteLater();
+}
+void VinylBackendSession::retirePlayer(bool park) {
     const bool wasLoaded=m_loaded;
     m_loaded=false;m_backend->entries.clear();m_backend->seeks.clear();m_backend->physicalSeek.reset();m_backend->earlySeekRestart.reset();m_seekAccepted=false;
     m_backend->listenRecorder.reset();m_backend->listens.reset();
+    // Every timer and callback of the retired load is fenced by this serial,
+    // because a parked core keeps the same object identity across loads.
+    ++m_loadSerial;
     auto *old=m_player.data();m_player=nullptr;
+    // Video cores own a render surface and are never reused.
+    const bool keep=park&&!m_shutdown&&m_profileActive&&!m_playerVideo&&!m_videoActive;
+    if(!keep)destroyParkedPlayer();
     if(old){
         // A new core still reports constructor defaults until its observers run.
         if(wasLoaded){m_playerVolume=old->volume();m_playerMute=old->mute();m_playerSpeed=old->speed();}
-        disconnect(old,nullptr,this,nullptr);old->setPause(true);old->stopPlayback();old->deleteLater();}
+        disconnect(old,nullptr,this,nullptr);old->setPause(true);old->stopPlayback();
+        if(keep){
+            destroyParkedPlayer();
+            m_parkedPlayer=old;
+            // A parked core that is never reused must not linger.
+            const auto serial=m_parkSerial;
+            QTimer::singleShot(120000,this,[this,serial]{
+                if(serial==m_parkSerial)destroyParkedPlayer();
+            });
+        }else old->deleteLater();
+    }
+    m_playerVideo=false;
 }
 void VinylBackendSession::loadFile(const PlaybackWorkToken &token,const QString &resource,const QString &options) {
     loadFileWithHeaders(token,resource,{},options);
 }
 void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,const QString &resource,
     const QVector<PlaybackRequestHeader> &headers,const QString &options) {
-    retirePlayer();
-    auto *item=new MpvItem(qobject_cast<QQuickItem *>(m_surface.data()));
-    if(!item->parent())item->setParent(this);
-    item->setObjectName("vinylMpvPlayer");item->setSize({1,1});item->setVisible(false);m_player=item;
+    retirePlayer(true);
+    if(m_videoActive)destroyParkedPlayer();
+    auto *item=m_parkedPlayer.data();
+    m_parkedPlayer=nullptr;++m_parkSerial;
+    if(!item){
+        item=new MpvItem(qobject_cast<QQuickItem *>(m_surface.data()));
+        if(!item->parent())item->setParent(this);
+        item->setObjectName("vinylMpvPlayer");item->setSize({1,1});item->setVisible(false);
+    }
+    m_player=item;m_playerVideo=m_videoActive;
     attachVideoSurface();
     m_backend->seeks.bindWork(token);
     const auto generation=m_epoch;
-    connect(item,&MpvItem::nativePlaybackEvent,this,[this,item,token,generation](
+    const auto serial=m_loadSerial;
+    connect(item,&MpvItem::nativePlaybackEvent,this,[this,item,token,generation,serial](
         const QString &kind,qint64 entry,double position,double duration,quint64 load,qint64 observedMs,quint64 observationSerial) {
-        if(m_shutdown||!m_profileActive||m_player!=item||generation!=m_epoch||load!=item->playbackGeneration())return;
+        if(m_shutdown||!m_profileActive||m_player!=item||serial!=m_loadSerial||generation!=m_epoch||load!=item->playbackGeneration())return;
         if(kind=="loaded") {
             if(!m_backend->entries.bind(entry,token)){fail("The playback identity could not be confirmed.");return;}
             if(m_sourceKind=="torrent") {
@@ -750,8 +780,8 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
                     ||(!album.isEmpty()&&musicIdentity(album)!=musicIdentity(edition.value("name").toString()))||artistMismatch
                     ||(duration>0&&row.value("seconds").toDouble()>0&&std::abs(duration-row.value("seconds").toDouble())>2.0);
                 if(mismatch){
-                    QTimer::singleShot(0,this,[this,item,generation]{
-                        if(m_player==item&&generation==m_epoch&&!tryFallback("Torrent audio metadata did not match the requested recording."))
+                    QTimer::singleShot(0,this,[this,item,generation,serial]{
+                        if(m_player==item&&serial==m_loadSerial&&generation==m_epoch&&!tryFallback("Torrent audio metadata did not match the requested recording."))
                             fail("The audio did not match this recording.");
                     });return;
                 }
@@ -783,9 +813,9 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
             else if(kind=="ended-error"&&!retryPreparedAudio()&&!tryFallback("Torrent audio could not be decoded or played."))fail("The audio could not be decoded or played. Retry this track.");
         }
     });
-    connect(item,&MpvItem::trackedSeekReply,this,[this,item,token](quint64 serial,bool success,quint64 load,quint64 observationFence) {
-        if(m_player!=item||load!=item->playbackGeneration()||!m_backend->physicalSeek
-            ||m_backend->physicalSeek->sequence()!=serial||m_backend->physicalSeek->workToken()!=token)return;
+    connect(item,&MpvItem::trackedSeekReply,this,[this,item,token,serial](quint64 seekSerial,bool success,quint64 load,quint64 observationFence) {
+        if(m_player!=item||serial!=m_loadSerial||load!=item->playbackGeneration()||!m_backend->physicalSeek
+            ||m_backend->physicalSeek->sequence()!=seekSerial||m_backend->physicalSeek->workToken()!=token)return;
         if(success){
             m_seekAccepted=true;
             m_backend->seekObservationFence=observationFence;
@@ -802,27 +832,27 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
             if(!tryFallback("Torrent audio seek failed.",target))fail("The seek failed. Retry this track.");
         }
     });
-    connect(item,&MpvItem::positionChanged,this,[this,item,token,generation] {
-        if(m_player!=item||generation!=m_epoch||!m_loaded)return;
+    connect(item,&MpvItem::positionChanged,this,[this,item,token,generation,serial] {
+        if(m_player!=item||serial!=m_loadSerial||generation!=m_epoch||!m_loaded)return;
         const auto at=item->position();
         if(!m_paused&&m_backend->preparationPosition>=0&&at>m_backend->preparationPosition+0.05)
             m_backend->preparationProgressed=true;
         m_backend->preparationPosition=at;
         m_backend->callbacks.positionObserved(token,at);publishState();
     });
-    connect(item,&MpvItem::durationChanged,this,[this,item,token,generation] {
-        if(m_player!=item||generation!=m_epoch||!m_loaded||item->duration()<=0)return;
+    connect(item,&MpvItem::durationChanged,this,[this,item,token,generation,serial] {
+        if(m_player!=item||serial!=m_loadSerial||generation!=m_epoch||!m_loaded||item->duration()<=0)return;
         m_duration=item->duration();m_backend->callbacks.durationObserved(token,m_duration);publishState();
     });
-    connect(item,&MpvItem::pauseChanged,this,[this,item,token,generation] {
-        if(m_player!=item||generation!=m_epoch||!m_loaded||m_state!="playing")return;
+    connect(item,&MpvItem::pauseChanged,this,[this,item,token,generation,serial] {
+        if(m_player!=item||serial!=m_loadSerial||generation!=m_epoch||!m_loaded||m_state!="playing")return;
         if(m_backend->callbacks.pauseObserved(token,item->pause()).ok) {
             listeningPauseTransition(item->pause());
             m_paused=item->pause();publishState();
         }
     });
-    connect(item,&MpvItem::playbackError,this,[this,item,generation](const QString &,const QString &) {
-        if(m_player==item&&generation==m_epoch&&!retryPreparedAudio()&&!tryFallback("Torrent audio could not be decoded or played."))fail("The audio could not be decoded or played. Retry this track.");
+    connect(item,&MpvItem::playbackError,this,[this,item,generation,serial](const QString &,const QString &) {
+        if(m_player==item&&serial==m_loadSerial&&generation==m_epoch&&!retryPreparedAudio()&&!tryFallback("Torrent audio could not be decoded or played."))fail("The audio could not be decoded or played. Retry this track.");
     });
     QVariantMap fields;for(const auto &header:headers)fields.insert(header.name,header.value);
     // This first host adapter admits whole local files. Never silently discard a
@@ -832,12 +862,15 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
     // shared 32 MiB video setting can therefore read most of a song instead of
     // requesting its target range, and block on missing torrent pieces. Use
     // mpv's ordinary 128 KiB stream buffer in Vinyl's private audio core.
+    // A reused core keeps the last value, so set it for every load.
     if(QUrl(resource).scheme().startsWith("http"))
         item->setProperty(QStringLiteral("stream-buffer-size"),128*1024);
+    else
+        item->setProperty(QStringLiteral("stream-buffer-size"),QStringLiteral("32MiB"));
     item->setProperty(QStringLiteral("audio-files"),m_videoActive&&!m_videoAudioUrl.isEmpty()?QStringList{m_videoAudioUrl}:QStringList{});
     item->setVolume(m_playerVolume);item->setMute(m_playerMute);item->setSpeed(m_playerSpeed);
-    const auto load=[this,item,generation,resource,fields] {
-        if(m_player!=item||generation!=m_epoch||m_shutdown)return;
+    const auto load=[this,item,generation,serial,resource,fields] {
+        if(m_player!=item||serial!=m_loadSerial||generation!=m_epoch||m_shutdown)return;
         item->loadFileWithHeaders(resource,fields);item->setPause(m_paused);
     };
     // libmpv's video output needs the FBO/render context. An invisible audio
@@ -847,8 +880,8 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
             Qt::ConnectionType(Qt::QueuedConnection|Qt::SingleShotConnection));
         item->update();
     }else load();
-    QTimer::singleShot(15000,this,[this,item,generation] {
-        if(m_player==item&&generation==m_epoch&&!m_loaded&&!tryFallback("Torrent audio did not start in time."))fail("The audio did not start in time. Retry this track.");
+    QTimer::singleShot(15000,this,[this,item,generation,serial] {
+        if(m_player==item&&serial==m_loadSerial&&generation==m_epoch&&!m_loaded&&!tryFallback("Torrent audio did not start in time."))fail("The audio did not start in time. Retry this track.");
     });
     publishState();
 }
@@ -881,7 +914,7 @@ bool VinylBackendSession::tryFallback(const QString &reason,std::optional<double
     const auto at=resume.value_or(position());const bool play=!m_paused;
     endPlayback("stop");cancelResolution();
     if(!m_backend->coordinator.stop().ok)return false;
-    retirePlayer();m_fallbackAttempted=true;m_fallbackReason=reason;m_sourceKind="youtube";
+    retirePlayer(true);m_fallbackAttempted=true;m_fallbackReason=reason;m_sourceKind="youtube";
     beginActive(at,play,true);return true;
 }
 void VinylBackendSession::seekExact(const PlaybackSeekCommand &command,double) {
@@ -907,7 +940,7 @@ void VinylBackendSession::observeSeekRestart(const PlaybackWorkToken &token,qint
     if(advance->nextPhysical)dispatchSeek(*advance->nextPhysical);
     publishState();
 }
-void VinylBackendSession::stop(const PlaybackWorkToken &) { retirePlayer(); }
+void VinylBackendSession::stop(const PlaybackWorkToken &) { retirePlayer(true); }
 void VinylBackendSession::setPaused(bool paused) {
     if(m_shutdown||!m_profileActive||activeIndex()<0)return;
     if(!paused&&!m_loaded&&m_state!="finding"){beginActive(m_state=="ended"?0:position());return;}

@@ -2,6 +2,7 @@
 #include <QQuickItem>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include "player/mpvitem.h"
 #include "vinyl/VinylBackendSession.h"
 #include "VinylSessionPersistence.h"
 #include "FeedbackTastePersistence.h"
@@ -10,7 +11,11 @@ class DeferredSource : public QObject {
     Q_OBJECT
 public:
     int serial=0;
-    Q_INVOKABLE int request(const QString &,const QString &,const QString &) { return ++serial; }
+    QHash<QString,int> requests;
+    Q_INVOKABLE int request(const QString &lane,const QString &,const QString &) {
+        requests[lane]=++serial;
+        return serial;
+    }
     Q_INVOKABLE void cancel(const QString &) {}
 signals:
     void completed(const QString &,int,const QVariant &,const QString &);
@@ -35,7 +40,145 @@ class FacadeTest : public QObject {
             {"albumId","album"},{"editionId","edition"},{"discIndex",0},{"trackIndex",0},
             {"track",track},{"edition",edition}};
     }
+    void resolveAudio(DeferredSource &source, VinylBackendSession &session, const QString &id) {
+        const int previous=source.requests.value("play");
+        QTRY_VERIFY(source.requests.value("play")>previous);
+        emit source.completed("play",source.requests.value("play"),QVariantMap{
+            {"trackId",id},{"url",QUrl::fromLocalFile(QStringLiteral(VAULT_FIXTURES_DIR)
+                +"/media/tiny-audio.m4a").toString()}},{});
+        QTRY_VERIFY(session.player());
+        auto *item=qobject_cast<MpvItem *>(session.player());
+        QVERIFY(item);
+        item->setProperty("ao","null");
+        QTRY_VERIFY(session.loaded());
+    }
 private slots:
+    void consecutiveAudioLoadsReuseCoreAndRejectRetiredEvents() {
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");
+        session.setSource(&source);
+        QVERIFY(session.replaceRows({row("vault:a"),row("vault:b")},0,false));
+        session.setPaused(true);
+        resolveAudio(source,session,"vault:a");
+        QVERIFY(session.loaded());
+        QPointer<MpvItem> first=qobject_cast<MpvItem *>(session.player());
+        const auto firstGeneration=first->playbackGeneration();
+        first->setVolume(37);
+        first->setMute(true);
+        first->setSpeed(1.25);
+        QTRY_COMPARE(first->volume(),37);
+        QTRY_VERIFY(first->mute());
+        QTRY_COMPARE(first->speed(),1.25);
+
+        session.playQueue(1);
+        session.setPaused(true);
+        resolveAudio(source,session,"vault:b");
+        QVERIFY(first);
+        QCOMPARE(session.player(),first.data());
+        QCOMPARE(session.findChildren<QObject *>("vinylMpvPlayer").size(),1);
+        QVERIFY(first->playbackGeneration()>firstGeneration);
+        QCOMPARE(first->volume(),37);
+        QVERIFY(first->mute());
+        QCOMPARE(first->speed(),1.25);
+        const auto state=session.sourceState();
+        const auto index=session.activeIndex();
+        emit first->nativePlaybackEvent("ended-eof",1,0,1,firstGeneration,1,1);
+        emit first->nativePlaybackEvent("ended-error",1,0,1,firstGeneration,1,2);
+        emit first->trackedSeekReply(1,false,firstGeneration,1);
+        QCOMPARE(session.sourceState(),state);
+        QCOMPARE(session.activeIndex(),index);
+        QVERIFY(session.loaded());
+    }
+    void consecutivePlayingLoadsDoNotInheritRetirementPause() {
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");
+        session.setSource(&source);
+        QVERIFY(session.replaceRows({row("vault:a"),row("vault:b")},0,false));
+        session.setPaused(true);
+        resolveAudio(source,session,"vault:a");
+        QVERIFY(session.loaded());
+        auto *first=qobject_cast<MpvItem *>(session.player());
+        session.setPaused(false);
+        QTRY_VERIFY(!first->pause());
+        QVERIFY(!session.paused());
+        session.playQueue(1);
+        resolveAudio(source,session,"vault:b");
+        QVERIFY(session.loaded());
+        auto *second=qobject_cast<MpvItem *>(session.player());
+        // Do not trust the old cached pause value immediately after loading:
+        // require actual progress from the replacement file as well.
+        QTRY_VERIFY(second->position()>0.1);
+        QVERIFY(!second->pause());
+        QVERIFY(!session.paused());
+    }
+    void lifecycleDestroysActiveAndParkedCores_data() {
+        QTest::addColumn<QString>("action");
+        QTest::addColumn<bool>("parked");
+        for(const auto &action:{QString("suspend"),QString("shutdown"),QString("profile")}) {
+            QTest::newRow(qPrintable(action+"-active")) << action << false;
+            QTest::newRow(qPrintable(action+"-parked")) << action << true;
+        }
+    }
+    void lifecycleDestroysActiveAndParkedCores() {
+        QFETCH(QString,action);
+        QFETCH(bool,parked);
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");
+        session.setSource(&source);
+        QVERIFY(session.replaceRows({row("vault:a"),row("vault:b")},0,false));
+        session.setPaused(true);
+        resolveAudio(source,session,"vault:a");
+        QPointer<QObject> core=session.player();
+        QVERIFY(core);
+        if(parked) {
+            session.playQueue(1); // Leave resolution pending, with the audio core idle.
+            QVERIFY(!session.player());
+        }
+        if(action=="suspend")session.suspend();
+        else if(action=="shutdown")session.shutdown();
+        else session.setProfileScope("profile-b");
+        QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
+        QVERIFY(core.isNull());
+        QVERIFY(!session.player());
+        QVERIFY(session.findChildren<QObject *>("vinylMpvPlayer").isEmpty());
+    }
+    void videoNeverReusesAudioCore() {
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");
+        session.setSource(&source);
+        auto videoRow=row("vault:a");
+        auto track=videoRow["track"].toMap();
+        track["videoId"]="abcdefghijk";
+        videoRow["track"]=track;
+        QVERIFY(session.replaceRows({videoRow},0,false));
+        session.setPaused(true);
+        resolveAudio(source,session,"vault:a");
+        QPointer<QObject> audio=session.player();
+        QTRY_VERIFY(source.requests.value("video-match")>0);
+        emit source.completed("video-match",source.requests.value("video-match"),QVariantMap{
+            {"version",1},{"status","ready"},{"trackId","vault:a"},
+            {"sourceVideoId","abcdefghijk"},{"videoId","abcdefghijk"}},{});
+        QTRY_VERIFY(session.hasVideo());
+        session.toggleVideo();
+        QVERIFY(source.requests.value("video-stream")>0);
+        // No render surface/window: the video load waits for frameSwapped, so
+        // this synthetic approved URL is never fetched.
+        emit source.completed("video-stream",source.requests.value("video-stream"),QVariantMap{
+            {"version",1},{"trackId","vault:a"},{"videoId","abcdefghijk"},
+            {"hasVideo",true},{"hasAudio",true},{"url","https://test.googlevideo.com/video"}},{});
+        QTRY_VERIFY(session.videoActive());
+        QVERIFY(session.player());
+        QVERIFY(session.player()!=audio.data());
+        QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
+        QVERIFY(audio.isNull());
+        session.suspend();
+        QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
+        QVERIFY(session.findChildren<QObject *>("vinylMpvPlayer").isEmpty());
+    }
     void unrelatedStateDoesNotNotifyPaused() {
         DeferredSource source;VinylBackendSession session;
         session.setProfileScope("profile-a");session.setSource(&source);
@@ -300,5 +443,5 @@ private slots:
         QTRY_VERIFY(source.serial>replaced);
     }
 };
-QTEST_GUILESS_MAIN(FacadeTest)
+QTEST_MAIN(FacadeTest)
 #include "test_facade.moc"
