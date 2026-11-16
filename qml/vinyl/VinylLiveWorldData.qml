@@ -31,7 +31,11 @@ Item {
     readonly property int savedArtistCount: usesRecommendationService
         ? (recommendationService.selectedArtists || []).length : (fallbackPicks || []).length
     // Locked = an active profile with fewer than five saved taste artists.
-    readonly property bool tasteGateLocked: (usesRecommendationService
+    // Reading native service bindings during construction can initialize the
+    // service and synchronously re-notify this gate through Runtime visibility.
+    // Stay locked until this component's inputs have completed construction.
+    property bool tasteStateReady: false
+    readonly property bool tasteGateLocked: !tasteStateReady || (usesRecommendationService
             ? recommendationService.profileActive === true && String(recommendationService.profileScope || "") !== ""
             : session.profileActive!==false && !session.shuttingDown)
         && savedArtistCount < minimumArtistCount
@@ -234,7 +238,7 @@ Item {
     onOnboardingStateChanged: Qt.callLater(ensureGateDraft)
     onActiveTabChanged: Qt.callLater(ensureGateDraft)
     onPreferencesStoreChanged: loadTaste()
-    Component.onCompleted: {loadTaste();Qt.callLater(ensureGateDraft);}
+    Component.onCompleted: {loadTaste();tasteStateReady=true;Qt.callLater(ensureGateDraft);}
     Connections { target: root.preferencesStore; ignoreUnknownSignals:true; function onVinylTasteChanged() { root.loadTaste(); } }
 
     // Transient presentation state only: the three destinations do not share

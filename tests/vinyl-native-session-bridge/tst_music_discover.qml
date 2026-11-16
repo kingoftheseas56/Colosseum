@@ -55,6 +55,7 @@ TestCase {
         }
     }
     function init() {
+        failOnWarning(/.*Binding loop detected for property "tasteGateLocked".*/);
         calls=[];cancelled=[];
         var picks=[];
         ["UCaaaaaaaaaaaaaaaaaaaaaa","UCbbbbbbbbbbbbbbbbbbbbbb","UCcccccccccccccccccccccc","UCdddddddddddddddddddddd","UCeeeeeeeeeeeeeeeeeeeeee"].forEach(function(id,index){
