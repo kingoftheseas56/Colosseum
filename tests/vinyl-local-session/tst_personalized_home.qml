@@ -97,10 +97,16 @@ TestCase {
             property bool canEnterVinyl: true
             property string onboardingState: "answered"
             property var selectedArtists: [{key:"local:native-artist",provider:"local",
-                providerId:"native-artist",localId:"native-artist",name:"Native Artist"}]
+                providerId:"native-artist",localId:"native-artist",name:"Native Artist"}].concat(
+                    ["b","c","d","e"].map(function(letter) {
+                        return {provider:"local",providerId:"gate-"+letter,name:"Gate artist "+letter};
+                    }))
             property var draftArtists: []
             property var artistResults: ({query:"",items:[],hasMore:false,nextCursor:{},error:""})
             property var homeSections: []
+            property var homeSourcePool: ({rows:[]})
+            property bool profileActive: true
+            property string profileScope: "local"
             property var homeSnapshot: ({exposureSnapshotId:"visit-0"})
             property string homeStatus: "empty"
             property string homeError: ""
@@ -130,6 +136,12 @@ TestCase {
             }
             function setHome(sections, status, error, suppressedItems) {
                 homeSections = sections || [];
+                // 411919a5c: production renders seven source-pool slots, not legacy sections.
+                var slots = ["albums-for-you","new-from-your-artists","because-you-played",
+                    "deep-cuts","rediscover","artists-like-yours","mixes-radio"];
+                homeSourcePool = {rows:homeSections.map(function(row,index) {
+                    return Object.assign({},row,{key:slots[index],items:row.items || []});
+                })};
                 homeStatus = status || "ready";
                 homeError = error || "";
                 homeRevision++;
@@ -173,7 +185,7 @@ TestCase {
     }
 
     function revealCardVertically(cardItem) {
-        var flick=world.worldView.pageFlick;
+        var flick=world.worldScroll;
         var contentTop=cardItem.mapToItem(flick.contentItem,0,0).y;
         flick.contentY=Math.max(0,contentTop-80);
         wait(180);
@@ -200,7 +212,7 @@ TestCase {
         rawAlbum = albumFor(audioPath);
         collection.seed([albumEntry(rawAlbum),artistEntry()]);
 
-        var component = Qt.createComponent("../../qml/vinyl/VinylLiveWorld.qml");
+        var component = Qt.createComponent("../../qml/vinyl/VinylAppWorld.qml");
         compare(component.status,Component.Ready,component.errorString());
         world = component.createObject(host.contentItem,{width:960,height:720});
         verify(world !== null);
@@ -234,21 +246,34 @@ TestCase {
         world.worldData.recentContinue = [{id:"resume:one",kind:"resume",title:"Resume",cover:""}];
         var rows = world.worldData.homeRows;
         compare(rows.map(function(row) { return row.key; }),
-            ["continue-listening","personalized:for-you","taste-artists","saved-albums","saved-artists"]);
+            ["continue-listening","personalized:for-you","taste-artists"]);
         compare(rows[1].kind,"recommendations");
         compare(rows[1].items[0].destination.id,"release");
     }
     function test_nativeQVariantSectionsReachRenderedHome() {
         var nativeService=world.recommendationService;
         world.worldData.recommendationService=nativeService;
-        nativeService.homeCollections={artists:[{kind:"artist",provider:"local",providerId:"native-artist",name:"Native Artist"}],
-            albums:[{album:rawAlbum}]};
+        // 05acbc07a / v1 spec §7 hide source-pool shelves with fewer than eight cards.
+        var artists=recommendations.selectedArtists;
+        var albums=[];
+        artists.forEach(function(artist,index) {
+            for(var i=0;i<3;i++) albums.push({album:Object.assign({},rawAlbum,{
+                id:index===0 && i===0 ? "release" : "native-release-"+index+"-"+i,
+                title:index===0 && i===0 ? "Native Release" : "Native Release "+index+"-"+i,
+                artistIds:[artist.providerId],artists:[artist.name]})});
+        });
+        nativeService.homeCollections={artists:artists,albums:albums};
         nativeService.beginHomeVisit();
         tryVerify(function(){return nativeService.homeSections.length>0;});
         tryVerify(function(){return world.worldData.homeRows.some(function(row){return row.recommendation;});});
         var row=world.worldData.homeRows.find(function(row){return row.recommendation;});
-        compare(row.items[0].title,"Native Release");
-        tryVerify(function(){return findChild(world,"vinylHomeRow_"+row.key)!==null;});
+        verify(row.items.every(function(item){return item.title.indexOf("Native Release")===0;}));
+        tryVerify(function(){return world.worldData.v1HomeRows.length>0;});
+        var visibleRow=world.worldData.v1HomeRows[0];
+        tryVerify(function(){
+            var shelf=findChild(world,"vinylHomeRow_"+visibleRow.homeKey);
+            return shelf!==null && shelf.visible && shelf.row.items.length>0;
+        });
     }
 
     function test_homeVisitBeginsOneNativeRefresh() {
@@ -279,9 +304,13 @@ TestCase {
     function test_personalizedSeeAllKeepsItsSnapshotAcrossAlbumBack() {
         recommendations.setHome([section([card("rec-album","Suggested release","albums",
             {kind:"album",provider:"local",providerId:"release",id:"release",playable:false})])]);
-        var key = "personalized:for-you";
-        world.worldData.openList(key,true);
+        var key = "v1:albums-for-you";
+        var more=findChild(world,"vinylHomeSeeAll_"+key);
+        verify(more!==null && more.visible);
+        verify(more.activate(Qt.MouseFocusReason));
         compare(world.worldView.listKey,key);
+        verify(world.worldData.row(key,true).items.length>0,
+            "Production See all must snapshot the visible source-pool shelf.");
         recommendations.setHome([section([card("new-album","Replacement","albums",
             {kind:"album",provider:"local",providerId:"other",id:"other",playable:false})])]);
         compare(world.worldData.row(key,true).items[0].id,"rec-album");
@@ -349,7 +378,9 @@ TestCase {
         var rows = world.worldData.homeRows;
         verify(rows.some(function(row) { return row.key === "personalized:for-you"; }));
         verify(!rows.some(function(row) { return row.key === "personalized:empty-lane"; }));
-        verify(rows.some(function(row) { return row.key === "saved-albums"; }));
+        // e9875c366 and v1 spec §8 move saved collections to Library.
+        tryVerify(function(){return world.personalLibrary.homeCollections.albums.length===1;});
+        verify(!rows.some(function(row) { return row.key === "saved-albums"; }));
     }
 
     function test_unqualifiedSongCandidateIsHiddenButAlbumAndArtistRemain() {
@@ -378,22 +409,25 @@ TestCase {
         verify(world.worldData.homeError.indexOf("failed") >= 0);
         verify(world.worldData.homeRows.some(function(row) { return row.key === "personalized:for-you"; }));
         verify(world.worldData.homeRows.some(function(row) { return row.key === "taste-artists"; }));
-        verify(world.worldData.homeRows.some(function(row) { return row.key === "saved-albums"; }));
+        tryVerify(function(){return world.personalLibrary.homeCollections.albums.length===1;});
+        verify(!world.worldData.homeRows.some(function(row) { return row.key === "saved-albums"; }));
     }
 
     function test_loadingAndRetryUseTheExistingCompactHomeControls() {
         recommendations.setHome([],"loading","");
-        var status=findChild(world,"vinylHomeRecommendationsStatus");
-        var retry=findChild(world,"vinylHomeRecommendationsRetry");
-        verify(status !== null && status.visible,
-            "A populated factual Home may keep its compact global recommendation status.");
-        verify(retry !== null && !retry.visible);
+        // 411919a5c replaces the legacy compact banner with the house loading/retry state.
+        var status=findChild(world,"vinylHomeLoading");
+        var progress=findChild(world,"vinylHomeLoadingBar");
+        verify(status!==null && status.visible);
+        verify(progress!==null && progress.indeterminate);
+        var retry=status.children.find(function(child){return child.label==="Retry";});
+        verify(retry!==undefined && !retry.visible);
 
         recommendations.setHome([],"error","The request failed.");
         tryCompare(retry,"visible",true);
-        var statusCopy=findChild(world,"vinylHomeRecommendationsStatusText");
+        var statusCopy=findChild(world,"vinylHomeLoadingMessage");
         verify(statusCopy!==null);
-        compare(statusCopy.text,"Some recommendations could not be loaded.");
+        compare(statusCopy.text,"The request failed.");
         verify(retry.activate(Qt.MouseFocusReason));
         compare(recommendations.homeRefreshes,1);
         compare(recommendations.lastRefreshForced,true);
@@ -424,36 +458,27 @@ TestCase {
         compare(failedRow.status,"error");
         verify(!rows.some(function(row){return row.key==="personalized:empty-lane";}),
             "An empty lane without a pending or failed state must stay hidden.");
-        verify(rows.some(function(row){return row.key==="saved-albums"; }),
-            "Factual shelves must remain available during a partial recommendation failure.");
-        var factual=rows.find(function(row){return row.key==="saved-albums";});
+        tryVerify(function(){return world.worldData.libraryRows.some(function(row){return row.items.length>0;});});
+        var factual=world.worldData.libraryRows.find(function(row){return row.items.length>0;});
         verify(factual.status===undefined,"Factual shelves must not inherit recommendation status.");
 
-        var staleStatus=findChild(world,"vinylShelfStatus_personalized:stale-lane");
-        var loadingStatus=findChild(world,"vinylShelfStatus_personalized:loading-lane");
-        var failedStatus=findChild(world,"vinylShelfStatus_personalized:failed-lane");
+        var staleStatus=findChild(world,"vinylShelfStatus_v1:albums-for-you");
+        var loadingStatus=findChild(world,"vinylShelfStatus_v1:new-from-your-artists");
+        var failedStatus=findChild(world,"vinylShelfStatus_v1:because-you-played");
         verify(staleStatus!==null && !staleStatus.visible,
             "Usable music must stay visible without an internal cache-status banner.");
         compare(staleStatus.parent.height,0);
-        verify(loadingStatus!==null && loadingStatus.visible);
-        verify(loadingStatus.text.toLowerCase().indexOf("loading")>=0);
-        verify(failedStatus!==null && failedStatus.visible);
-        compare(failedStatus.text,"Could not load this shelf.");
-        verify(!findChild(world,"vinylHomeSeeAll_personalized:loading-lane").visible,
-            "A pending empty shelf must not offer an empty See-all destination");
-        verify(!findChild(world,"vinylHomeSeeAll_personalized:failed-lane").visible);
-        var globalStatus=findChild(world,"vinylHomeRecommendationsStatus");
+        // v1 spec §7 / 411919a5c: empty slots (including pending/failed ones) stay hidden.
+        verify(loadingStatus!==null && !loadingStatus.visible);
+        verify(failedStatus!==null && !failedStatus.visible);
+        verify(!findChild(world,"vinylHomeSeeAll_v1:new-from-your-artists").visible);
+        verify(!findChild(world,"vinylHomeSeeAll_v1:because-you-played").visible);
+        verify(findChild(world,"vinylHomeRow_albums-for-you").visible);
+        verify(!findChild(world,"vinylHomeRow_new-from-your-artists").visible);
+        verify(!findChild(world,"vinylHomeRow_because-you-played").visible);
+        var globalStatus=findChild(world,"vinylHomeLoading");
         verify(globalStatus!==null && !globalStatus.visible,
-            "A row-local failure must not be repeated as a page-wide status.");
-
-        var retry=findChild(world,"vinylShelfRetry_personalized:failed-lane");
-        verify(retry!==null && retry.visible);
-        verify(!retry.focusOnPointer,"Shelf retry must not focus from pointer entry.");
-        var previousRefreshes=recommendations.homeRefreshes;
-        verify(retry.activate(Qt.MouseFocusReason));
-        verify(!retry.activeFocus,"Pointer activation must leave keyboard focus unchanged.");
-        compare(recommendations.homeRefreshes,previousRefreshes+1);
-        compare(recommendations.lastRefreshForced,true);
+            "Cached cards must remain usable during a partial recommendation failure.");
     }
 
     function test_emptySkippedHomeOffersLoadingAndAvailableDestinations() {
@@ -468,60 +493,22 @@ TestCase {
         world.session.discoverySections={};
         world.session.discoveryRequests={"new-releases":1};
 
-        var page=findChild(world,"vinylHomePage");
-        var message=findChild(world,"vinylHomeEmptyMessage");
-        var discover=findChild(world,"vinylHomeDiscover");
-        var library=findChild(world,"vinylHomeLibrary");
-        verify(page!==null && !page.hasHomeItems);
-        verify(!world.worldData.homeRows.some(function(row){return row.recommendation===true;}),
-            "Cold public discovery must not be mixed into personalized recommendation rows.");
-        compare(world.worldData.homeStatus,"loading");
-        verify(message!==null && message.visible);
-        verify(message.text.indexOf("Loading")>=0);
-        var loadingShelf=findChild(world,"vinylShelfStatus_home-discover-new-releases");
-        verify(loadingShelf===null,
-            "A no-cache Home should not render empty per-shelf placeholders.");
-        var homeStatus=findChild(world,"vinylHomeRecommendationsStatus");
-        verify(homeStatus!==null && !homeStatus.visible,
-            "The central empty state owns loading copy when no shelf has cards.");
-        verify(discover!==null && discover.visible);
-        verify(library!==null && library.visible);
-        var retry=findChild(world,"vinylHomeRetry");
-        verify(retry!==null && !retry.visible);
-        verify(discover.activate(Qt.MouseFocusReason));
-        compare(world.worldView.currentTab,"discover");
-
-        world.showHome();
+        // e9875c366 retires skipped/public Home; fewer than five artists now gates all routes.
+        tryCompare(world.worldData,"canEnterVinyl",false);
+        world.worldView.setTab("discover");
+        compare(world.worldView.currentTab,"home");
+        world.worldView.setTab("library");
+        compare(world.worldView.currentTab,"home");
+        verify(findChild(world,"vinylTastePicker").visible);
+        verify(!world.worldData.homePublicDiscovery);
+        compare(world.worldData.homeRows.length,0);
+        verify(findChild(world,"vinylHomeDiscover")===null);
+        verify(findChild(world,"vinylHomeLibrary")===null);
         world.session.discoveryRequests={};
         world.session.discoverySections={"new-releases":{title:"New releases",items:[],
             error:"The catalogue could not be reached. Retry when it is available."}};
-        message=findChild(world,"vinylHomeEmptyMessage");
-        verify(message!==null && message.visible);
-        compare(world.worldData.homeStatus,"error");
-        compare(message.text,"Catalogue unavailable.");
-        var failedShelf=findChild(world,"vinylShelfStatus_home-discover-new-releases");
-        verify(failedShelf===null,
-            "An empty failed public shelf should be represented by the central empty state.");
-        discover=findChild(world,"vinylHomeDiscover");
-        library=findChild(world,"vinylHomeLibrary");
-        verify(discover!==null && discover.visible && library!==null && library.visible);
-        retry=findChild(world,"vinylHomeRetry");
-        verify(retry!==null && retry.visible,
-            "An empty failed Home should offer one central retry action.");
-        verify(!homeStatus.visible,"The central error state must not be repeated in a banner.");
-        var visibleRetryCount=0;
-        ["vinylHomeRetry","vinylHomeRecommendationsRetry",
-            "vinylShelfRetry_home-discover-new-releases"].forEach(function(name) {
-            var candidate=findChild(world,name);
-            if(candidate!==null && candidate.visible)visibleRetryCount++;
-        });
-        compare(visibleRetryCount,1);
-        var callsBeforeRetry=source.requestCalls.length;
-        verify(retry.activate(Qt.MouseFocusReason));
-        verify(source.requestCalls.slice(callsBeforeRetry).some(function(call){return call.operation==="discover"; }),
-            "The central retry should refresh the failed public discovery catalogue.");
-        verify(library.activate(Qt.MouseFocusReason));
-        compare(world.worldView.currentTab,"library");
+        compare(world.worldData.homeRows.length,0);
+        compare(world.worldView.currentTab,"home");
         compare(world.session.queue.length,0);
         world.session.source=NativeSource;
         source.destroy();
@@ -532,18 +519,16 @@ TestCase {
             card("bound-a","Release A","albums",{kind:"album",provider:"local",providerId:"a",id:"a"}),
             card("bound-b","Release B","albums",{kind:"album",provider:"local",providerId:"b",id:"b"})
         ])]);
-        var page=findChild(world,"vinylHomePage");
-        verify(page!==null);
-        compare(page.cardColumns,5);
-        verify(page.cardSize>=120 && page.cardSize<=page.width);
-        var first=findChild(world,"vinylCard_personalized:for-you_0");
+        var page=findChild(world,"vinylHomeRow_albums-for-you");
+        verify(page!==null && page.visible);
+        var first=findChild(world,"vinylCard_v1:albums-for-you_0");
         verify(first!==null);
         compare(first.width,page.cardSize);
+        compare(page.cardSize,132); // 411919a5c: fixed house-card footprint.
         verify(!first.focusOnPointer,"Home cards must not acquire a focus frame on pointer entry.");
 
         world.width=460;
-        tryVerify(function(){return page.width>300 && page.width<world.width;});
-        tryVerify(function(){return page.cardColumns>=1 && page.cardColumns<=2;});
+        tryVerify(function(){return page.width>0 && page.width<=world.width;});
         verify(page.cardSize>=120 && page.cardSize<=page.width);
         compare(first.width,page.cardSize);
     }
@@ -573,8 +558,10 @@ TestCase {
     function test_profileClearDropsRecommendationListSnapshot() {
         recommendations.setHome([section([card("rec-album","Suggested release","albums",
             {kind:"album",provider:"local",providerId:"release",id:"release",playable:false})])]);
-        var key = "personalized:for-you";
+        var key = "v1:albums-for-you";
         world.worldData.openList(key,true);
+        verify(world.worldData.row(key,true).items.length>0,
+            "Production See all must snapshot the visible source-pool shelf before profile clearing.");
         compare(world.worldData.row(key,true).items[0].id,"rec-album");
         recommendations.setHome([],"empty","");
         world.session.clearProfile();
@@ -584,7 +571,7 @@ TestCase {
     function test_personalizedCardFeedbackUsesTypedRefAndDoesNotNavigateOrPlay() {
         recommendations.setHome([section([card("feedback-target","Suggested release","albums",
             {kind:"album",provider:"youtube-music",providerId:"MPRE_feedback",id:"ytm:album:MPRE_feedback"})])]);
-        var cardItem=findChild(world,"vinylCard_personalized:for-you_0");
+        var cardItem=findChild(world,"vinylCard_v1:albums-for-you_0");
         verify(cardItem!==null);revealCardVertically(cardItem);
         var like=findChild(cardItem,"vinylRecommendationLike_feedback-target");
         var hide=findChild(cardItem,"vinylRecommendationHide_feedback-target");
@@ -617,7 +604,8 @@ TestCase {
     function test_homeTasteEditControlStartsEditingAndRefreshRemains() {
         var edit=findChild(world,"vinylTasteEdit");
         var refresh=findChild(world,"vinylHomeRefresh");
-        verify(edit!==null && edit.visible,"Home keeps the taste editing control");
+        // NEEDS-DECISION: no explicit removal of taste editing or Refresh was found.
+        verify(edit!==null && edit.visible,"Home keeps the taste editing control (vinylTasteEdit)");
         verify(refresh!==null && refresh.visible,"Home keeps Refresh");
         compare(findChild(world,"vinylRecommendationPreferences"),null,
             "Home does not expose recommendation preferences");
@@ -628,7 +616,7 @@ TestCase {
     function test_tasteArtistCanRestoreRecommendationsWithoutAVisibleRecommendationCard() {
         recommendations.setHome([]);
         var artistCard=findChild(world,"vinylCard_taste-artists_0");
-        verify(artistCard!==null);
+        verify(artistCard!==null,"Picked-artist feedback recovery needs a visible artist control after recommendations disappear.");
         revealCardVertically(artistCard);
         compare(recommendations.homeSections.length,0);
         verify(artistCard.feedbackAvailable);
@@ -661,7 +649,7 @@ TestCase {
             itemId:"UCcollaboratorabcdefghijkl"};
         recommendations.setHome([section([card("departed-release","Departed release","albums",
             {kind:"album",provider:"youtube-music",providerId:"MPRE_departed",id:"ytm:album:MPRE_departed"})])]);
-        var recommendationCard=findChild(world,"vinylCard_personalized:for-you_0");
+        var recommendationCard=findChild(world,"vinylCard_v1:albums-for-you_0");
         verify(recommendationCard!==null);
 
         recommendations.setHome([],"ready","",[
@@ -681,7 +669,7 @@ TestCase {
                 title:"Unrelated release",artistRefs:[{provider:"local",providerId:"other-artist"}],
                 seedArtistRef:null,hidden:true,snoozed:false,excluded:false}
         ]);
-        compare(findChild(world,"vinylCard_personalized:for-you_0"),null);
+        compare(findChild(world,"vinylCard_v1:albums-for-you_0"),null);
         var artistCard=findChild(world,"vinylCard_taste-artists_0");
         verify(artistCard!==null);
         revealCardVertically(artistCard);
@@ -736,21 +724,22 @@ TestCase {
     }
 
     function test_savedArtistRecoversHiddenRecommendationWithoutTasteSelection() {
-        recommendations.selectedArtists=[];
+        // Keep five unrelated taste selections: recovery must not require selecting this saved artist.
+        recommendations.selectedArtists=gatePreferences.vinylTasteArtists;
         var hiddenRef={identity:"provider",kind:"release_group",providerId:"youtube-music",
             itemId:"saved-artist-hidden-release"};
         recommendations.setHome([section([card("saved-artist-departed","Departed recommendation","albums",
             {kind:"album",provider:"youtube-music",providerId:"MPRE_saved_artist_departed",
                 id:"ytm:album:MPRE_saved_artist_departed"})])]);
         compare(world.personalLibrary.homeCollections.artists.length,1);
-        verify(!world.worldData.homeRows.some(function(row){return row.key==="taste-artists";}));
+        verify(!world.worldData.picks.some(function(artist){return artist.providerId==="native-artist";}));
 
         recommendations.setHome([],"ready","",[
             {ref:hiddenRef,title:"Hidden local artist release",
                 artistRefs:[{provider:"local",providerId:"native-artist",name:"Native Artist"}],
                 seedArtistRef:null,hidden:true,snoozed:false,excluded:false}
         ]);
-        compare(findChild(world,"vinylCard_personalized:for-you_0"),null);
+        compare(findChild(world,"vinylCard_v1:albums-for-you_0"),null);
         var savedArtist=world.personalLibrary.homeCollections.artists[0];
         var savedItem=Object.assign({},savedArtist,{kind:"artists",
             ref:world.worldData.recommendationArtistRef(savedArtist)});
@@ -785,7 +774,7 @@ TestCase {
     function test_staleFeedbackGenerationIsRejectedBeforeServiceCall() {
         recommendations.setHome([section([card("stale-feedback","Suggested release","albums",
             {kind:"album",provider:"youtube-music",providerId:"MPRE_stale",id:"ytm:album:MPRE_stale"})])]);
-        var cardItem = findChild(world,"vinylCard_personalized:for-you_0");
+        var cardItem = findChild(world,"vinylCard_v1:albums-for-you_0");
         verify(cardItem !== null);
         revealCardVertically(cardItem);
         verify(cardItem !== null && openRecommendationActions(cardItem));
@@ -821,7 +810,7 @@ TestCase {
                     title:row===5 ? "Below fold" : "Recommendation row "+row}));
         }
         recommendations.setHome(sections);
-        var firstCard=findChild(world,"vinylCard_personalized:for-you_0");
+        var firstCard=findChild(world,"vinylCard_v1:albums-for-you_0");
         verify(firstCard !== null);
         revealCardVertically(firstCard);
         tryVerify(function(){return recommendations.exposureCalls.length>0;});
@@ -839,7 +828,7 @@ TestCase {
     function test_hiddenHomeDoesNotRecordCardExposure() {
         recommendations.setHome([section([card("hidden-card","Suggested release","albums",
             {kind:"album",provider:"youtube-music",providerId:"MPRE_hidden",id:"ytm:album:MPRE_hidden"})])]);
-        var firstCard=findChild(world,"vinylCard_personalized:for-you_0");
+        var firstCard=findChild(world,"vinylCard_v1:albums-for-you_0");
         verify(firstCard !== null);
         revealCardVertically(firstCard);
         tryVerify(function(){return recommendations.exposureCalls.length>0;});
