@@ -56,6 +56,11 @@ VaultAndroidStorageBridge::decodeSnapshotJson(const QByteArray& payload)
             continue;
         source.available = sourceObject.value(QStringLiteral("available")).toBool(true);
 
+        source.displayName = sourceObject.value(QStringLiteral("displayName")).toString();
+        source.permissionLost = sourceObject.value(QStringLiteral("permissionLost")).toBool(false);
+        if (source.permissionLost)
+            source.available = false;
+
         const QJsonArray entries = sourceObject.value(QStringLiteral("entries")).toArray();
         for (const QJsonValue& entryValue : entries) {
             if (!entryValue.isObject())

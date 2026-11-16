@@ -1168,6 +1168,10 @@ Item {
                 onRescanRequested: (path) => {
                     if (typeof VaultLibrary !== "undefined" && path) VaultLibrary.rescanRoot(path)
                 }
+                onGrantRequested: (path) => {
+                    if (Qt.platform.os === "android" && typeof VaultLibrary !== "undefined")
+                        VaultLibrary.pickDocumentFolder(path)
+                }
                 onForgetConfirmed: (path) => {
                     if (typeof VaultLibrary !== "undefined" && path) VaultLibrary.forgetRoot(path)
                 }
@@ -1524,7 +1528,7 @@ Item {
         height: stackedSearch ? 104 : 56
         z: 60
         readonly property bool stackedSearch: width < 600
-        readonly property real sideWidth: Math.max(headerLeading.width, headerWindowControls.width) + 32
+        readonly property real sideWidth: Math.max(headerLeading.width, headerWindowControls.visible ? headerWindowControls.width : 0) + 32
 
         Glass {
             objectName: "vaultHeaderGlass"
@@ -1569,6 +1573,7 @@ Item {
 
             Row {
                 id: headerWindowControls
+                visible: Qt.platform.os !== "android"
                 objectName: "vaultHeaderWindowControls"
                 anchors.right: parent.right; anchors.rightMargin: 12
                 anchors.verticalCenter: parent.verticalCenter

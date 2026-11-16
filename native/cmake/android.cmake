@@ -14,6 +14,9 @@ target_sources(colosseum PRIVATE
     platform/AndroidWindowModeAdapter.h
     platform/android/AndroidBootstrap.cpp
     platform/android/AndroidBootstrap.h
+    engine/VaultLibrary_android.cpp
+    engine/VaultAndroidStorageBridge.cpp
+    engine/VaultAndroidIndexAdapter.cpp
     reader2/AndroidEbookRenderer.cpp
     reader2/AndroidEbookRenderer.h
     player/androidmedia3state.cpp
@@ -75,9 +78,6 @@ file(GLOB_RECURSE COLOSSEUM_ANDROID_PACKAGE_FILES CONFIGURE_DEPENDS
     LIST_DIRECTORIES false RELATIVE "${COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT}"
     "${COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT}/*")
 list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^AndroidBootstrap[.](cpp|h)$")
-# Admission probing has a neutral Media3 owner; the desktop local-library
-# Java bridge is not part of Android's compiled/package source graph.
-list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^src/org/colosseum/vault/")
 if(NOT COLOSSEUM_NUVIO_ANDROID)
     list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^src/org/colosseum/nuvio/")
 endif()
@@ -102,12 +102,9 @@ file(GLOB_RECURSE COLOSSEUM_ANDROID_QML_FILES CONFIGURE_DEPENDS
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^reader2/Paper[.]qml$")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2host/")
-# Desktop browser/player and local-library worlds are not APK runtime code.
+# Desktop browser/player worlds are not APK runtime code.
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^feria/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^vinyl/")
-list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "(^|/)Vault[^/]*[.](qml|js)$")
-# These are pure presentation components, not the unavailable Vault world/backend.
-list(APPEND COLOSSEUM_ANDROID_QML_FILES VaultDoor.qml VaultHomeWidget.qml)
 set(_android_desktop_chrome TopBar.qml Taskbar.qml ExtensionsHouseHero.qml)
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^[+]android/(TopBar|Taskbar|ExtensionsHouseHero)[.]qml$")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^(TrackerApprovalWebView|ExtensionsSetupSheet)[.]qml$")

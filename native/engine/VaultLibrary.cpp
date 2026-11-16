@@ -209,6 +209,8 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
     connect(m_watcher, &VaultWatcher::rootAvailabilityChanged, this,
             &VaultLibrary::onRootAvailabilityChanged);
     m_watcher->refresh();
+#else
+    installDocumentPicker();
 #endif
 }
 
@@ -569,8 +571,36 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
 {
     QVariantList out;
     const QVariantList roots = m_config ? m_config->roots() : QVariantList();
-    if (VaultLocation::isContentUri(rootOrPath))
-        return VaultBrowseAway::indexedBrowseAt(m_index, roots, rootOrPath, sort, filter);
+    if (VaultLocation::isContentUri(rootOrPath)) {
+        auto nodes = VaultBrowseAway::indexedBrowseAt(m_index, roots, rootOrPath, sort, filter,
+            [this](const QString& id) { return m_config && m_config->isHidden(id); });
+        for (QVariant& value : nodes) {
+            auto node = value.toMap();
+            const QString key = node.value(QStringLiteral("key")).toString();
+            const QString path = node.value(QStringLiteral("path")).toString();
+            const QString kind = node.value(QStringLiteral("kind")).toString();
+            if (path.isEmpty() || node.value(QStringLiteral("away")).toBool())
+                continue;
+            auto rows = m_index->rowsForPath(path);
+            if (rows.isEmpty())
+                rows = m_index->rowsForGroup(key);
+            if (rows.isEmpty())
+                continue;
+            const auto& row = rows.first();
+            QString cover;
+            if (kind == QLatin1String("video"))
+                cover = resolveVideoLeafCoverRef(rows, m_artworkResolver, key);
+            else if (!row.coverRef.isEmpty()) {
+                const auto provider = kind == QLatin1String("book")
+                    ? QStringLiteral("vaultbookcover") : QStringLiteral("comiccover");
+                cover = QStringLiteral("image://") + provider + QLatin1Char('/')
+                    + Colosseum::buildComicCoverId(row.path, row.coverRef);
+            }
+            node.insert(QStringLiteral("coverRef"), cover);
+            value = node;
+        }
+        return nodes;
+    }
 
     const QStringList scanIgnore = m_config ? m_config->scanIgnore() : QStringList();
     QList<VaultKit::BrowseNode> nodes;
@@ -928,14 +958,24 @@ QVariantList VaultLibrary::rootsDetail() const
         const QString path = m.value(QStringLiteral("path")).toString();
         QVariantMap row;
         row.insert(QStringLiteral("path"), path);
-        const QString name = VaultLocation::isContentUri(path)
-            ? QString() : QFileInfo(path).fileName();
+        QString name = m.value(QStringLiteral("displayName")).toString();
+        if (name.isEmpty() && VaultLocation::isContentUri(path))
+            name = QUrl::fromPercentEncoding(path.section(QLatin1Char('/'), -1).toUtf8())
+                .section(QLatin1Char('/'), -1).section(QLatin1Char(':'), -1);
+        if (name.isEmpty() && !VaultLocation::isContentUri(path))
+            name = QFileInfo(path).fileName();
         row.insert(QStringLiteral("name"), name.isEmpty() ? path : name);
         const QList<VaultIndex::FileRow> rootRows
             = m_index ? m_index->rowsForRoot(path) : QList<VaultIndex::FileRow>();
-        const bool available = m.value(QStringLiteral("synthetic")).toBool() || (VaultLocation::isContentUri(path)
+        bool available = m.value(QStringLiteral("synthetic")).toBool() || (VaultLocation::isContentUri(path)
             ? (rootRows.isEmpty() || !rootRows.first().away)
             : QDir(path).exists());
+#ifdef Q_OS_ANDROID
+        if (VaultLocation::isContentUri(path)) {
+            available = m_documentRootAvailable.value(path, available);
+            row.insert(QStringLiteral("permissionLost"), m_documentPermissionLost.contains(path));
+        }
+#endif
         row.insert(QStringLiteral("available"), available);
         row.insert(QStringLiteral("fileCount"), rootRows.size());
         row.insert(QStringLiteral("itemCount"), browseAt(path).size());
@@ -1261,8 +1301,12 @@ QString VaultLibrary::browseEmptyCause(const QString& rootOrPath,
     // alone is not enough. Scoped to THIS method only — VaultBrowseAway::ownerRootAway itself is
     // untouched so Slice 6's own pinned tests/behavior stay exactly as they are.
     const QString ownerRoot = VaultBrowseAway::ownerRootPath(roots, rootOrPath);
-    const bool ownerDirExists = ownerRoot.isEmpty() || (m_config && m_config->isSyntheticRoot(ownerRoot))
+    bool ownerDirExists = ownerRoot.isEmpty() || (m_config && m_config->isSyntheticRoot(ownerRoot))
         || QDir(ownerRoot).exists();
+#ifdef Q_OS_ANDROID
+    if (VaultLocation::isContentUri(ownerRoot))
+        ownerDirExists = m_documentRootAvailable.value(ownerRoot, true);
+#endif
     const bool levelAway = VaultBrowseEmpty::isLevelAway(
         VaultBrowseAway::ownerRootAway(m_index, roots, rootOrPath),
         !ownerRoot.isEmpty(), ownerDirExists);
@@ -1419,6 +1463,11 @@ void VaultLibrary::setScanning(bool scanning)
 
 void VaultLibrary::addFolder(const QString& pathOrUrl)
 {
+#ifdef Q_OS_ANDROID
+    if (m_config)
+        addDocumentRoot(pathOrUrl);
+    return;
+#endif
     if (!m_scanner || !m_config)
         return;
     QString path = pathOrUrl;
@@ -1503,6 +1552,10 @@ void VaultLibrary::republishAtBoot()
     if (m_bootRepublishDone)
         return;
     m_bootRepublishDone = true;
+#ifdef Q_OS_ANDROID
+    refreshDownloads();
+    return;
+#endif
     if (!m_scanner || !m_config)
         return;
 
@@ -1523,6 +1576,11 @@ void VaultLibrary::republishAtBoot()
 
 void VaultLibrary::publishAllConfirmed()
 {
+#ifdef Q_OS_ANDROID
+    publishAndroidDownloads();
+    refreshDocuments();
+    return;
+#endif
     if (!m_scanner || !m_config)
         return;
 
@@ -1614,7 +1672,11 @@ void VaultLibrary::refreshDownloads()
         if (!m_downloadsRoot->hasContainerDownloads()) return;
         m_config->addSyntheticRoot(m_downloadsRootPath);
     }
+#ifdef Q_OS_ANDROID
+    publishAndroidDownloads();
+#else
     publishAllConfirmed();
+#endif
 }
 
 bool VaultLibrary::immersive() const
@@ -1686,6 +1748,10 @@ void VaultLibrary::maybePublishPendingRevives()
 
 void VaultLibrary::rescanDegradedRoots()
 {
+#ifdef Q_OS_ANDROID
+    refreshDocuments();
+    return;
+#endif
     if (!m_scanner || !m_config || !m_watcher)
         return;
     if (m_scanning || cardVisible())
@@ -1756,6 +1822,12 @@ void VaultLibrary::forgetRoot(const QString& path)
         removeDownloadsRoot();
         return;
     }
+#ifdef Q_OS_ANDROID
+    if (VaultLocation::isContentUri(n)) {
+        forgetDocumentRoot(n);
+        return;
+    }
+#endif
     // A user root: true delete of the CONFIG row (VaultConfig::removeRootCompletely,
     // exposed by VaultConfig.h for exactly this affordance), then the union republish —
     // the forgotten root's census is no longer in the confirmed list, so its rows drop,
@@ -1793,6 +1865,12 @@ void VaultLibrary::dismissCard()
 
 void VaultLibrary::cancelScan()
 {
+#ifdef Q_OS_ANDROID
+    m_documentScanCancelled = true;
+    m_documentScanPending = false;
+    setScanning(false);
+    return;
+#endif
     if (m_scanner)
         m_scanner->cancel();
 }

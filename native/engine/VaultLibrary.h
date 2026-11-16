@@ -14,6 +14,7 @@
 // dismissCard, cancelScan.
 
 #include <QObject>
+#include <QHash>
 #include <QSet>
 #include <QString>
 #include <QStringList>
@@ -230,6 +231,9 @@ public:
     // ── commands (C++ owns the multi-step sequences) ──
     // Add a folder as an UNCONFIRMED root and census it off-thread; scanFinished raises the card.
     Q_INVOKABLE void addFolder(const QString& pathOrUrl);
+#ifdef Q_OS_ANDROID
+    Q_INVOKABLE void pickDocumentFolder(const QString& previous = QString());
+#endif
     // Called when the Vault opens: if a root was added but never confirmed (a picked-then-
     // abandoned folder, or a crash mid-ceremony), resume its founding card — but only ONCE
     // per app run, so dismissing it and reopening the Vault the same session does not nag.
@@ -282,6 +286,9 @@ public:
     void onRootAvailabilityChanged(const QString& root, bool available);
 
 signals:
+#ifdef Q_OS_ANDROID
+    void documentScanPublished();
+#endif
     void changed();
     void scanningChanged();
     void scanProgressChanged();
@@ -305,6 +312,19 @@ signals:
     void browseArtResolved(const QString& rowKey);
 
 private:
+#ifdef Q_OS_ANDROID
+    void installDocumentPicker();
+    void addDocumentRoot(const QString& path);
+    void forgetDocumentRoot(const QString& path);
+    void refreshDocuments();
+    void publishAndroidDownloads();
+
+    QHash<QString, bool> m_documentRootAvailable;
+    QSet<QString> m_documentPermissionLost;
+    bool m_documentScanInFlight = false;
+    bool m_documentScanPending = false;
+    bool m_documentScanCancelled = false;
+#endif
     void setScanning(bool scanning);
     // Kick off an off-thread census of an already-added root and clear any stale candidate
     // (shared by addFolder and offerUnconfirmedRoots).

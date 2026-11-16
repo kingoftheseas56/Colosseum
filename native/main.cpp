@@ -106,10 +106,10 @@
 #endif
 #endif
 #include "engine/MangaTankobanService.h"
-#if !defined(Q_OS_ANDROID)
 #include "engine/LocalLaunch.h"
 #include "engine/VaultPageStore.h"
 #include "engine/VaultIndex.h"
+#include "engine/VaultLocation.h"
 #include "engine/VaultConfig.h"
 #include "engine/VaultIdentity.h"
 #include "engine/VaultScanner.h"
@@ -117,16 +117,15 @@
 #include "engine/VaultIdentifier.h"
 #include "engine/VaultDownloadsRoot.h"
 #include "engine/VaultEnricher.h"
-#include "engine/VaultForensics.h"
 #include "engine/VaultThumbnailer.h"
+#if !defined(Q_OS_ANDROID)
+#include "engine/VaultForensics.h"
 #if defined(COLOSSEUM_HAVE_DLNA)
 #include "dlna/DlnaLibrary.h"
 #include "dlna/DlnaServer.h"
 #endif
 #endif
-#if !defined(Q_OS_ANDROID)
 #include "player/MediaAdmissionProbe.h"
-#endif
 #include "net/LoopbackPinProxy.h"
 #include "net/Ipv4PinStore.h"
 #include "net/PinProxyFactory.h"
@@ -147,9 +146,7 @@
 #include "comicreader/ComicReaderCore.h"
 #include "comicreader/ComicReaderProvider.h"
 #include "engine/ComicCoverProvider.h"
-#if !defined(Q_OS_ANDROID)
 #include "engine/VaultBookCoverProvider.h"
-#endif
 #include "player/caststore.h"
 #include "player/downloadstore.h"
 #include "player/livestore.h"
@@ -940,7 +937,6 @@ int main(int argc, char *argv[]) {
     // have no loose page file for the library grid to point at. Engine takes
     // ownership via addImageProvider, same as the comicreader provider above.
     engine.addImageProvider(QStringLiteral("comiccover"), new Colosseum::ComicCoverProvider());
-#if !defined(Q_OS_ANDROID)
     // image://vaultbookcover/ (Vault Slice 17 foundation): stateless bounded EPUB cover decode.
     engine.addImageProvider(QStringLiteral("vaultbookcover"),
                             new Colosseum::VaultBookCoverProvider());
@@ -1077,7 +1073,11 @@ int main(int argc, char *argv[]) {
     vaultCoverRetry->setInterval(250);
     bool vaultCoverInFlight = false;
     bool vaultCoverRerun = false;
-    auto runVaultCoverEnrichment = [vaultIndex, vaultConfig, runVaultVideoEnrichment,
+    const auto rootReadable = [vaultConfig](const VaultIndex::FileRow& row) {
+        return !row.away && (VaultLocation::isContentUri(row.rootPath)
+            || vaultConfig->isSyntheticRoot(row.rootPath) || QDir(row.rootPath).exists());
+    };
+    auto runVaultCoverEnrichment = [vaultIndex, rootReadable, runVaultVideoEnrichment,
                                     vaultCoverRetry, &vaultCoverInFlight, &vaultCoverRerun]() {
         if (vaultCoverInFlight) {
             vaultCoverRerun = true;
@@ -1092,20 +1092,18 @@ int main(int argc, char *argv[]) {
         // enriched library does no redundant CBZ reads (this returns nothing after the first pass).
         QList<VaultIndex::FileRow> todo;
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("comic"))) {
-            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
+            if (rootReadable(r) && QFileInfo::exists(r.path)
                 && r.errorState.isEmpty() && r.coverRef.isEmpty())
                 todo.append(r);
         }
-#if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
-            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
+            if (rootReadable(r) && QFileInfo::exists(r.path)
                 && r.errorState != QLatin1String("rejected")
                 && r.admissionVerdict.isEmpty())
                 todo.append(r);
         }
-#endif
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("book"))) {
-            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
+            if (rootReadable(r) && QFileInfo::exists(r.path)
                 && QFileInfo(r.path).suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) == 0
                 && r.errorState.isEmpty() && r.metadataSource.isEmpty())
                 todo.append(r);
@@ -1150,7 +1148,6 @@ int main(int argc, char *argv[]) {
                         r.errorDetail = cf.errorDetail;
                     }
                 }
-#if !defined(Q_OS_ANDROID)
                 else if (r.kind == QLatin1String("video")) {
                     const MediaAdmissionProbe::Result admission =
                         MediaAdmissionProbe::probe(r.path);
@@ -1177,7 +1174,6 @@ int main(int argc, char *argv[]) {
                         r.errorDetail = admission.detail;
                     }
                 }
-#endif
                 else if (r.kind == QLatin1String("book")) {
                     r.format = QFileInfo(r.path).suffix().toLower();
                     const VaultEnricher::BookFacts book = VaultEnricher::readBookFacts(r.path);
@@ -1202,13 +1198,16 @@ int main(int argc, char *argv[]) {
     };
     QObject::connect(vaultScanner, &VaultScanner::indexPublished, vaultLibrary,
                      [runVaultCoverEnrichment]() { runVaultCoverEnrichment(); });
+#ifdef Q_OS_ANDROID
+    QObject::connect(vaultLibrary, &VaultLibrary::documentScanPublished, vaultCoverRetry,
+                     [vaultCoverRetry]() { vaultCoverRetry->start(); });
+#endif
     QObject::connect(vaultCoverRetry, &QTimer::timeout, vaultLibrary, runVaultCoverEnrichment);
     QObject::connect(vaultLibrary, &VaultLibrary::liveArrival, vaultCoverRetry,
                      [vaultCoverRetry]() { vaultCoverRetry->start(); });
     // Enrich an already-indexed library once at boot too, so covers appear on a relaunch
     // without re-adding the folder (a fresh index published this run enriches via the signal).
     runVaultCoverEnrichment();
-#endif
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.
@@ -1445,11 +1444,9 @@ int main(int argc, char *argv[]) {
     contentRefreshTimer->start();
 
 
-#if !defined(Q_OS_ANDROID)
     auto *vaultIdentifier = new VaultIdentifier(vaultIndex, comicsCatalog, malCatalog,
                                                  imdbCatalog, &backendServices);
     vaultLibrary->setIdentifier(vaultIdentifier);
-#endif
 
     // CatalogVaultClient (Slice 1) only manages the names that did NOT resolve via a
     // dev-machine override above. On Hemanth's dev machine, all four data/*.db files are
@@ -1678,7 +1675,6 @@ int main(int argc, char *argv[]) {
     syncVideoForeground();
 #endif
 
-#if !defined(Q_OS_ANDROID)
     // Slice 18 — the synthetic downloads root: derives VaultIndex::FileRows from
     // Colosseum's own download backbones (videos + CBZ comics + CBZ tankoban
     // volumes + epub/pdf books) so the Vault shelves them as ONE quiet, pre-
@@ -1692,7 +1688,6 @@ int main(int argc, char *argv[]) {
     vaultLibrary->setDownloadsRoot(vaultDownloadsRoot, vaultDownloadsRootPath);
     // Heal stale derived Vault rows once per process after every download backbone is wired.
     QTimer::singleShot(0, vaultLibrary, [vaultLibrary]() { vaultLibrary->republishAtBoot(); });
-#endif
 
     // Extension registry (Stremio-protocol addons) exposed to QML as `Extensions`.
     // Spec: Brotherhood docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.

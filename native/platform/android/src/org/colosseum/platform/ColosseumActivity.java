@@ -5,9 +5,35 @@ import android.os.Bundle;
 import android.os.Build;
 import android.content.res.Configuration;
 import org.qtproject.qt.android.bindings.QtActivity;
+import org.colosseum.vault.VaultDocumentTree;
 
 public final class ColosseumActivity extends QtActivity {
     private final PlayerOrientationRequest playerOrientation = new PlayerOrientationRequest();
+    private String vaultTreeToRestore;
+    private static native void nativeVaultTreePicked(String uri);
+
+    public void pickVaultTree(String previous) {
+        if (vaultTreeToRestore != null)
+            return;
+        vaultTreeToRestore = previous;
+        if (!VaultDocumentTree.pick(this, previous))
+            vaultTreeToRestore = null;
+    }
+
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode != VaultDocumentTree.PICK_TREE) {
+            super.onActivityResult(requestCode, resultCode, data);
+            return;
+        }
+        String previous = vaultTreeToRestore;
+        vaultTreeToRestore = null;
+        if (resultCode == RESULT_OK && previous != null) {
+            String uri = VaultDocumentTree.takeGrant(this, data, previous);
+            if (!uri.isEmpty())
+                nativeVaultTreePicked(uri);
+        }
+    }
+
     private long backBridgeHandle;
     private Object backCallback;
     private boolean playbackBrightnessOwned;

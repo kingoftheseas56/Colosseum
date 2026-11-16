@@ -63,6 +63,8 @@ QVariantList VaultConfig::roots() const
         const QJsonObject o = v.toObject();
         QVariantMap m;
         m[QStringLiteral("path")] = o.value(QStringLiteral("path")).toString();
+        if (o.contains(QStringLiteral("displayName")))
+            m[QStringLiteral("displayName")] = o.value(QStringLiteral("displayName")).toString();
         m[QStringLiteral("confirmed")] = o.value(QStringLiteral("confirmed")).toBool();
         m[QStringLiteral("addedAtMs")] =
             o.value(QStringLiteral("addedAtMs")).toVariant().toLongLong();
@@ -108,6 +110,22 @@ void VaultConfig::addRoot(const QString& path, qint64 addedAtMs)
     roots.append(o);
     m_doc.insert(QStringLiteral("roots"), roots);
     persist();
+}
+
+bool VaultConfig::setRootDisplayName(const QString& path, const QString& name)
+{
+    const int i = rootIndex(norm(path));
+    if (i < 0)
+        return false;
+    QJsonArray roots = m_doc.value(QStringLiteral("roots")).toArray();
+    QJsonObject root = roots.at(i).toObject();
+    if (root.value(QStringLiteral("displayName")).toString() == name)
+        return false;
+    root.insert(QStringLiteral("displayName"), name);
+    roots.replace(i, root);
+    m_doc.insert(QStringLiteral("roots"), roots);
+    persist();
+    return true;
 }
 
 void VaultConfig::confirmRoot(const QString& path)

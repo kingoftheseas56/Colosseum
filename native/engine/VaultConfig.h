@@ -40,6 +40,7 @@ public:
     Q_INVOKABLE bool hasRoot(const QString& path) const;
     Q_INVOKABLE bool isRootConfirmed(const QString& path) const;
     Q_INVOKABLE void addRoot(const QString& path, qint64 addedAtMs = 0);
+    bool setRootDisplayName(const QString& path, const QString& name);
     Q_INVOKABLE void confirmRoot(const QString& path);
     // For a synthetic root this HIDES it (sets hidden=true); for a user root it
     // truly deletes. The synthetic root carries real files owned by the Downloads

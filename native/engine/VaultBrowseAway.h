@@ -14,6 +14,7 @@
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
+#include <functional>
 
 class VaultIndex;
 
@@ -34,7 +35,8 @@ bool ownerRootAway(VaultIndex* index, const QVariantList& roots, const QString& 
 // Uses durable row.rootPath/subtreePath/subfolder facts only; never touches QDir.
 QVariantList indexedBrowseAt(VaultIndex* index, const QVariantList& roots,
                              const QString& levelPath, const QString& sort = QString(),
-                             const QVariantMap& filter = QVariantMap());
+                             const QVariantMap& filter = QVariantMap(),
+                             const std::function<bool(const QString&)>& isHidden = {});
 
 // browseAt()'s fallback when VaultKit::planBrowseLevel can't walk `levelPath` (the owning root's
 // directory is gone) but the durable index still remembers what was there. One row per direct

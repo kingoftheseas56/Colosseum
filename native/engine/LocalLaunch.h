@@ -47,6 +47,9 @@ public:
         Reject reject = Reject::Unsupported;
         QString vaultId; // "vault:<sha1>" — the session/progress key (accepted only)
         QString detail;
+        QString sourceName;
+        qint64 size = 0;
+        qint64 modifiedMs = 0;
     };
 
     static Family classify(const QString& path); // by extension (VaultKit)

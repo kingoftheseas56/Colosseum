@@ -268,11 +268,13 @@ QVariantMap indexedNode(const QString& key, const QString& nodeType,
 
     bool away = false;
     bool identified = false;
+    bool ambiguous = false;
     qint64 newestMs = 0;
     qint64 sizeBytes = 0;
     for (const VaultIndex::FileRow& row : rows) {
         away = away || row.away;
         identified = identified || (!row.identityId.isEmpty() && !row.identitySuppressed);
+        ambiguous = ambiguous || row.identityState == QLatin1String("ambiguous");
         newestMs = qMax(newestMs, row.mtimeMs);
         sizeBytes += row.size;
     }
@@ -280,7 +282,8 @@ QVariantMap indexedNode(const QString& key, const QString& nodeType,
     node.insert(QStringLiteral("_sortSizeBytes"), sizeBytes);
     node.insert(QStringLiteral("away"), away);
     node.insert(QStringLiteral("state"), identified || nodeType != QLatin1String("film")
-                    ? QStringLiteral("identified") : QStringLiteral("resolving"));
+                    ? QStringLiteral("identified")
+                    : ambiguous ? QStringLiteral("uncertain") : QStringLiteral("resolving"));
     node.insert(QStringLiteral("coverRef"), rows.size() == 1 ? rows.first().coverRef : QString());
     node.insert(QStringLiteral("physicalFact"),
                 rows.size() > 1 ? QStringLiteral("%1 items").arg(rows.size()) : QString());
@@ -293,10 +296,11 @@ QVariantMap indexedLeaf(const VaultIndex::FileRow& row)
 {
     const bool episode = looksLikeEpisodeName(row.realName);
     QString nodeType = QStringLiteral("film");
-    if (row.kind == QLatin1String("video"))
+    if (row.kind == QLatin1String("video") && row.subtreePath != row.rootPath)
         nodeType = episode ? QStringLiteral("episode") : QStringLiteral("clip");
 
-    QVariantMap node = indexedNode(row.path, nodeType, row.displayTitle,
+    const QString title = row.identityTitle.isEmpty() ? row.displayTitle : row.identityTitle;
+    QVariantMap node = indexedNode(row.path, nodeType, title,
                                    row.path, QList<VaultIndex::FileRow>{row});
     node.insert(QStringLiteral("physicalFact"),
                 QString());
@@ -355,7 +359,8 @@ namespace VaultBrowseAway {
 
 QVariantList indexedBrowseAt(VaultIndex* index, const QVariantList& roots,
                              const QString& levelPath, const QString& sort,
-                             const QVariantMap& filter)
+                             const QVariantMap& filter,
+                             const std::function<bool(const QString&)>& isHidden)
 {
     QVariantList out;
     if (!index)
@@ -369,9 +374,14 @@ QVariantList indexedBrowseAt(VaultIndex* index, const QVariantList& roots,
     QMap<QString, QList<VaultIndex::FileRow>> folders;
     QList<VaultIndex::FileRow> leaves;
     for (const VaultIndex::FileRow& row : rootRows) {
-        const QString groupRelative = relativeToRoot(root, row.subtreePath);
-        if (groupRelative.isEmpty())
+        if (isHidden && isHidden(row.id))
             continue;
+        const QString groupRelative = relativeToRoot(root, row.subtreePath);
+        if (groupRelative.isEmpty()) {
+            if (levelRelative.isEmpty() && row.subtreePath == root)
+                leaves.append(row);
+            continue;
+        }
         QString folderRelative = groupRelative;
         if (!row.subfolder.isEmpty())
             folderRelative += QLatin1Char('/') + row.subfolder;
@@ -416,6 +426,8 @@ QVariantList indexedBrowseAt(VaultIndex* index, const QVariantList& roots,
         QString title = segment;
         if (levelRelative.isEmpty() && !rows.first().groupTitle.isEmpty())
             title = rows.first().groupTitle;
+        if (!rows.first().identityTitle.isEmpty() && nodeType == QLatin1String("film"))
+            title = rows.first().identityTitle;
         const QString openPath = nodeType == QLatin1String("film")
             ? rows.first().path : childPath;
         out.append(indexedNode(childPath, nodeType, title, openPath, rows));

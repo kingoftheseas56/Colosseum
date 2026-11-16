@@ -27,6 +27,8 @@ public:
         QString rootUri;
         bool available = true; // false means permission/provider unavailable, not empty
         QList<MediaEntry> entries;
+        QString displayName;
+        bool permissionLost = false;
     };
 
     struct ApplyResult {

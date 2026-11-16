@@ -51,6 +51,7 @@ Item {
     // rescanRoot(path) / forgetRoot(path); scanIgnoreSaved carries the editor's parsed
     // needle list to setScanIgnore().
     signal rescanRequested(string path)
+    signal grantRequested(string path)
     signal forgetConfirmed(string path)
     signal scanIgnoreSaved(var needles)
 
@@ -78,6 +79,12 @@ Item {
             rail.toggleRequested()
             Qt.callLater(function() { rail.openRowMenu(row) })
         } else rail.openRowMenu(row)
+    }
+    function refreshOrGrant(row) {
+        if (!row) return
+        if (row.permissionLost) rail.grantRequested(row.rootPath)
+        else rail.rescanRequested(row.rootPath)
+        rail.closeRowMenu()
     }
     function closeRowMenu() {
         const restore = rail.menuFocusReturn
@@ -203,9 +210,9 @@ Item {
                 // S15 (vault ux uplift): a focused row activates on Return/Enter/Space — the
                 // mouse path's twin — and the focus ring paints only under keyboard focus.
                 activeFocusOnTab: true
-                Keys.onReturnPressed: (event) => { if (rootRow.rootPath) rail.rootSelected(rootRow.rootPath); event.accepted = true }
-                Keys.onEnterPressed: (event) => { if (rootRow.rootPath) rail.rootSelected(rootRow.rootPath); event.accepted = true }
-                Keys.onSpacePressed: (event) => { if (rootRow.rootPath) rail.rootSelected(rootRow.rootPath); event.accepted = true }
+                Keys.onReturnPressed: (event) => { if (rootRow.rootPath) rootRow.permissionLost ? rail.grantRequested(rootRow.rootPath) : rail.rootSelected(rootRow.rootPath); event.accepted = true }
+                Keys.onEnterPressed: (event) => { if (rootRow.rootPath) rootRow.permissionLost ? rail.grantRequested(rootRow.rootPath) : rail.rootSelected(rootRow.rootPath); event.accepted = true }
+                Keys.onSpacePressed: (event) => { if (rootRow.rootPath) rootRow.permissionLost ? rail.grantRequested(rootRow.rootPath) : rail.rootSelected(rootRow.rootPath); event.accepted = true }
                 Keys.onPressed: (event) => {
                     const contextKey = event.key === Qt.Key_Menu
                         || (event.key === Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier))
@@ -219,6 +226,7 @@ Item {
                 // {path, reason} list the attention panel shows, and the watcher-degraded flag
                 // (registration failure OR the 512-dir recursive-registration cap — only ONE
                 // consequence sentence, whichever class is true).
+                readonly property bool permissionLost: !!rootRow.modelData.permissionLost
                 readonly property int errorCount: rootRow.modelData.errorCount || 0
                 readonly property var errorItems: rootRow.modelData.errorItems || []
                 readonly property bool watcherDegraded: !!rootRow.modelData.watcherDegraded
@@ -315,7 +323,7 @@ Item {
                         Text {
                             width: parent.width
                             elide: Text.ElideRight
-                            text: rootRow.available ? ((rootRow.modelData.itemCount || 0) + " items · " + (rootRow.modelData.fileCount || 0) + " files") : "Drive disconnected"
+                            text: rootRow.available ? ((rootRow.modelData.itemCount || 0) + " items · " + (rootRow.modelData.fileCount || 0) + " files") : rootRow.permissionLost ? qsTr("Allow access again") : qsTr("Drive disconnected")
                             color: theme.inkDimmer
                             font.family: theme.ui; font.pixelSize: 10
                         }
@@ -327,7 +335,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: rail.rootSelected(rootRow.rootPath)
+                    onClicked: rootRow.permissionLost ? rail.grantRequested(rootRow.rootPath) : rail.rootSelected(rootRow.rootPath)
                 }
 
                 // S10 — the row overflow menu's handle (⋮), above the row hit area like
@@ -337,7 +345,7 @@ Item {
                     id: rowOverflow
                     objectName: "vaultBrowseRailRowOverflow"
                     visible: rail.expanded
-                             && (rowMa.containsMouse || overflowMa.containsMouse
+                             && (Qt.platform.os === "android" || rowMa.containsMouse || overflowMa.containsMouse
                                  || rootRow.activeFocus || rail.menuRow === rootRow)
                     anchors.right: parent.right
                     anchors.rightMargin: rootRow.isDownloads ? 28 : 4
@@ -586,7 +594,7 @@ Item {
                     Text {
                         anchors.left: parent.left; anchors.leftMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Rescan"
+                        text: rail.menuRow && rail.menuRow.permissionLost ? qsTr("Allow access again") : qsTr("Rescan")
                         color: rescanMa.containsMouse ? theme.ink : theme.inkDim
                         font.family: theme.ui; font.pixelSize: 13
                     }
@@ -596,20 +604,18 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            rail.rescanRequested(rail.menuRow ? rail.menuRow.rootPath : "")
-                            rail.closeRowMenu()
+                            rail.refreshOrGrant(rail.menuRow)
                         }
                     }
                     KeyboardAction {
                         id: rescanKey
                         anchors.fill: parent
                         pointerEnabled: false
-                        accessibleName: "Rescan this Vault storage"
+                        accessibleName: rail.menuRow && rail.menuRow.permissionLost ? qsTr("Allow access again") : qsTr("Rescan this Vault storage")
                         KeyNavigation.tab: forgetKey
                         KeyNavigation.backtab: attKey.enabled ? attKey : forgetKey
                         onTriggered: {
-                            rail.rescanRequested(rail.menuRow ? rail.menuRow.rootPath : "")
-                            rail.closeRowMenu()
+                            rail.refreshOrGrant(rail.menuRow)
                         }
                     }
                 }

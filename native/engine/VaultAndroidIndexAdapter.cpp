@@ -8,6 +8,7 @@
 #include <QHash>
 #include <QSet>
 #include <QStringList>
+#include <algorithm>
 
 VaultAndroidIndexAdapter::VaultAndroidIndexAdapter(VaultIndex* index, VaultIdentity* identity)
     : m_index(index), m_identity(identity)
@@ -61,7 +62,8 @@ VaultIndex::FileRow VaultAndroidIndexAdapter::rowForEntry(
     VaultIndex::FileRow row;
     const QString root = VaultLocation::normalize(rootUri);
     const QString kind = mediaKind(entry);
-    if (root.isEmpty() || entry.uri.isEmpty() || entry.displayName.isEmpty() || kind.isEmpty())
+    if (!VaultLocation::isContentUri(root) || !VaultLocation::isContentUri(entry.uri)
+        || entry.displayName.isEmpty() || kind.isEmpty())
         return row;
 
     const QString relative = cleanRelativePath(entry.relativePath);
@@ -75,7 +77,7 @@ VaultIndex::FileRow VaultAndroidIndexAdapter::rowForEntry(
 
     row.rootPath = root;
     row.subtreePath = subtree;
-    row.groupKey = subtree;
+    row.groupKey = parts.isEmpty() ? entry.uri : subtree;
     row.groupTitle = groupTitle.isEmpty() ? groupRaw : groupTitle;
     row.parsedYear = VaultKit::parsedTitleYear(groupRaw);
     row.kind = kind;
@@ -96,7 +98,7 @@ VaultAndroidIndexAdapter::ApplyResult VaultAndroidIndexAdapter::applySnapshot(
     const SourceSnapshot& snapshot)
 {
     ApplyResult result;
-    if (!m_index || !m_identity || snapshot.rootUri.isEmpty())
+    if (!m_index || !m_identity || !VaultLocation::isContentUri(snapshot.rootUri))
         return result;
 
     const QString root = VaultLocation::normalize(snapshot.rootUri);
@@ -109,19 +111,6 @@ VaultAndroidIndexAdapter::ApplyResult VaultAndroidIndexAdapter::applySnapshot(
     }
 
     const QList<VaultIndex::FileRow> oldRootRows = m_index->rowsForRoot(root);
-    QSet<QString> oldIds;
-    for (const VaultIndex::FileRow& row : oldRootRows)
-        oldIds.insert(row.id);
-
-    QList<VaultIndex::FileRow> keptRows;
-    for (const QString& kind : {QStringLiteral("comic"), QStringLiteral("book"),
-                                QStringLiteral("video")}) {
-        for (const VaultIndex::FileRow& row : m_index->rowsForKind(kind)) {
-            if (VaultLocation::normalize(row.rootPath) != root)
-                keptRows.append(row);
-        }
-    }
-
     QSet<QString> seenUris;
     QList<VaultIndex::FileRow> mappedRows;
     for (const MediaEntry& entry : snapshot.entries) {
@@ -131,6 +120,33 @@ VaultAndroidIndexAdapter::ApplyResult VaultAndroidIndexAdapter::applySnapshot(
         const VaultIndex::FileRow row = rowForEntry(root, entry);
         if (!row.path.isEmpty() && !row.kind.isEmpty())
             mappedRows.append(row);
+    }
+
+    QHash<QString, VaultIndex::FileRow> oldByPath;
+    for (const auto& old : oldRootRows)
+        oldByPath.insert(old.path, old);
+    const auto matches = [&oldByPath](const VaultIndex::FileRow& row) {
+        const auto old = oldByPath.constFind(row.path);
+        return old != oldByPath.cend() && !old->away
+            && old->kind == row.kind && old->groupKey == row.groupKey
+            && old->subfolder == row.subfolder && old->realName == row.realName
+            && old->size == row.size && old->mtimeMs == row.mtimeMs
+            && (row.durationSec < 0 || old->durationSec == row.durationSec);
+    };
+    if (mappedRows.size() == oldRootRows.size()
+        && std::all_of(mappedRows.cbegin(), mappedRows.cend(), matches)) {
+        result.ok = true;
+        result.indexedCount = mappedRows.size();
+        return result;
+    }
+
+    QList<VaultIndex::FileRow> keptRows;
+    for (const QString& kind : {QStringLiteral("comic"), QStringLiteral("book"),
+                                QStringLiteral("video")}) {
+        for (const VaultIndex::FileRow& row : m_index->rowsForKind(kind)) {
+            if (VaultLocation::normalize(row.rootPath) != root)
+                keptRows.append(row);
+        }
     }
 
     QList<VaultIdentity::FileFacts> facts;
@@ -154,7 +170,11 @@ VaultAndroidIndexAdapter::ApplyResult VaultAndroidIndexAdapter::applySnapshot(
     arrivals.reserve(mappedRows.size());
     for (VaultIndex::FileRow row : mappedRows) {
         row.id = m_identity->idForFile(row.path, row.size, row.mtimeMs);
+        if (row.id.isEmpty())
+            continue;
         currentIds.insert(row.id);
+        if (matches(row) && oldByPath.value(row.path).id == row.id)
+            continue;
 
         const auto old = oldById.constFind(row.id);
         if (old != oldById.cend()) {
@@ -165,7 +185,8 @@ VaultAndroidIndexAdapter::ApplyResult VaultAndroidIndexAdapter::applySnapshot(
             merged.groupTitle = row.groupTitle;
             merged.kind = row.kind;
             merged.path = row.path;
-            merged.displayTitle = row.displayTitle;
+            if (merged.metadataSource.isEmpty())
+                merged.displayTitle = row.displayTitle;
             merged.realName = row.realName;
             merged.subfolder = row.subfolder;
             merged.sortKey.clear();
@@ -173,6 +194,14 @@ VaultAndroidIndexAdapter::ApplyResult VaultAndroidIndexAdapter::applySnapshot(
             merged.mtimeMs = row.mtimeMs;
             merged.format = row.format;
             merged.parsedYear = row.parsedYear;
+            if (merged.size != old->size || merged.mtimeMs != old->mtimeMs) {
+                merged.coverRef.clear();
+                merged.admissionVerdict.clear();
+                merged.admissionDetail.clear();
+                merged.errorState.clear();
+                merged.errorDetail.clear();
+                merged.durationSec = -1;
+            }
             if (row.durationSec >= 0)
                 merged.durationSec = row.durationSec;
             merged.away = false;

@@ -13,6 +13,8 @@
 #ifdef Q_OS_ANDROID
 #include <QCoreApplication>
 #include <QJniObject>
+#include <QJsonDocument>
+#include <QJsonObject>
 #endif
 
 namespace {
@@ -31,17 +33,23 @@ QString sourceFileName(const QString& path)
 #endif
     return QFileInfo(path).fileName();
 }
-}
 
-LocalLaunch::Family LocalLaunch::classify(const QString& path)
+LocalLaunch::Family classifyName(const QString& name)
 {
-    switch (VaultKit::kindForFile(sourceFileName(path))) {
+    using Family = LocalLaunch::Family;
+    switch (VaultKit::kindForFile(name)) {
     case VaultKit::MediaKind::Comic: return Family::Comic;
     case VaultKit::MediaKind::Book:  return Family::Book;
     case VaultKit::MediaKind::Video: return Family::Video;
     case VaultKit::MediaKind::Unknown: break;
     }
     return Family::Unknown;
+}
+}
+
+LocalLaunch::Family LocalLaunch::classify(const QString& path)
+{
+    return classifyName(sourceFileName(path));
 }
 
 QString LocalLaunch::familyName(Family f)
@@ -127,13 +135,40 @@ LocalLaunch::Route LocalLaunch::route(const QString& path)
 {
     Route r;
     const QFileInfo fi(path);
-    if (!fi.exists()) {
+    r.sourceName = fi.fileName();
+    r.size = fi.size();
+    r.modifiedMs = fi.lastModified().toMSecsSinceEpoch();
+    bool exists = fi.exists();
+    QString mime;
+#ifdef Q_OS_ANDROID
+    if (path.startsWith(QLatin1String("content://"))) {
+        const auto context = QNativeInterface::QAndroidApplication::context();
+        const auto source = QJniObject::fromString(path);
+        const auto data = QJniObject::callStaticObjectMethod(
+            "org/colosseum/vault/DocumentMetadata", "facts",
+            "(Landroid/content/Context;Ljava/lang/String;)Ljava/lang/String;",
+            context.object<jobject>(), source.object<jstring>());
+        const auto facts = QJsonDocument::fromJson(data.toString().toUtf8()).object();
+        if (!facts.isEmpty()) {
+            r.sourceName = facts.value(QStringLiteral("name")).toString();
+            r.size = facts.value(QStringLiteral("size")).toInteger();
+            r.modifiedMs = facts.value(QStringLiteral("modified")).toInteger();
+            mime = facts.value(QStringLiteral("mime")).toString();
+            exists = true;
+        } else {
+            r.sourceName = sourceFileName(path);
+        }
+    }
+#endif
+    if (!exists) {
         r.reject = Reject::NotFound;
         r.detail = QStringLiteral("file not found");
         return r;
     }
 
-    r.family = classify(path);
+    r.family = classifyName(r.sourceName);
+    if (r.family == Family::Unknown && mime.startsWith(QLatin1String("video/")))
+        r.family = Family::Video;
     switch (r.family) {
     case Family::Comic: {
         const QString ext = QFileInfo(sourceFileName(path)).suffix().toLower();
@@ -174,7 +209,7 @@ LocalLaunch::Route LocalLaunch::route(const QString& path)
 
     if (r.accepted) {
         r.vaultId = VaultIdentity::computeId(
-            path, fi.size(), fi.lastModified().toMSecsSinceEpoch());
+            path, r.size, r.modifiedMs);
     }
     return r;
 }
@@ -187,9 +222,8 @@ QString toLocalPath(const QString& s)
 
 // The taskbar tile / reader title show a cleaned name, not a raw filename
 // (Preflight §8). Strip the extension, turn separators into spaces, collapse.
-QString cleanFileTitle(const QString& path)
+QString cleanFileTitle(const QString& name)
 {
-    const QString name = sourceFileName(path);
     QString t = QFileInfo(name).completeBaseName();
     t.replace(QLatin1Char('_'), QLatin1Char(' '));
     t.replace(QLatin1Char('.'), QLatin1Char(' '));
@@ -219,14 +253,12 @@ QVariantMap LocalLaunch::routeMap(const QString& path, const Route& r) const
     m[QStringLiteral("reject")]   = rejectName(r.reject);
     m[QStringLiteral("vaultId")]  = r.vaultId;
     m[QStringLiteral("detail")]   = r.detail;
-    m[QStringLiteral("title")]    = cleanFileTitle(path);
+    m[QStringLiteral("title")]    = cleanFileTitle(r.sourceName);
     // Identity is a GUI-owned state machine: observeFile() may create aliases,
     // remember a ceremony, and persist identity.json. Keep this small stateful
     // step on the owner thread; only backend admission runs in the worker.
     if (m_identity && r.accepted) {
-        const QFileInfo fi(path);
-        const QVariantMap identity = m_identity->observeFile(
-            path, fi.size(), fi.lastModified().toMSecsSinceEpoch());
+        const QVariantMap identity = m_identity->observeFile(path, r.size, r.modifiedMs);
         m[QStringLiteral("vaultId")] = identity.value(QStringLiteral("id"));
         for (const QString& key : {QStringLiteral("prompt"), QStringLiteral("type"),
                                    QStringLiteral("relationship"), QStringLiteral("oldId"),

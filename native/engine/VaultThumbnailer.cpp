@@ -11,6 +11,12 @@
 
 #include <algorithm>
 
+#ifdef Q_OS_ANDROID
+#include <QFutureWatcher>
+#include <QJniObject>
+#include <QtConcurrentRun>
+#endif
+
 namespace {
 constexpr int kStallMs = 10000;          // same bound as SeekThumbnailer — never leave a zombie ffmpeg
 constexpr int kMaxInFlight = 3;          // small bounded concurrency, not "one big batch of forks"
@@ -105,9 +111,13 @@ QString VaultThumbnailer::requestThumb(const QString& path, qint64 size, qint64 
     if (m_activeKeys.contains(key))
         return QString(); // already grabbing (running or queued) — caller waits on thumbReady
 
+#ifdef Q_OS_ANDROID
+    const double offset = knownDurationSec > 0 ? offsetSecondsForDuration(knownDurationSec) : 0;
+#else
     const double offset = offsetSecondsForDuration(knownDurationSec);
+#endif
     m_activeKeys.insert(key);
-    if (m_jobs.size() >= kMaxInFlight) {
+    if (inFlightCount() >= kMaxInFlight) {
         m_pending.enqueue({key, path, offset});
         return QString();
     }
@@ -117,6 +127,34 @@ QString VaultThumbnailer::requestThumb(const QString& path, qint64 size, qint64 
 
 void VaultThumbnailer::startJob(const QString& key, const QString& sourcePath, double offsetSec)
 {
+#ifdef Q_OS_ANDROID
+    const QString out = outputPathForKey(key);
+    const QString tmp = out + QStringLiteral(".tmp");
+    ++m_asyncInFlight;
+    auto* watcher = new QFutureWatcher<bool>(this);
+    connect(watcher, &QFutureWatcher<bool>::finished, this, [this, watcher, key, out, tmp]() {
+        const bool decoded = watcher->result();
+        watcher->deleteLater();
+        --m_asyncInFlight;
+        m_activeKeys.remove(key);
+        if (decoded && QFile::rename(tmp, out))
+            emit thumbReady(key, out);
+        else
+            QFile::remove(tmp);
+        pumpQueue();
+    });
+    watcher->setFuture(QtConcurrent::run([sourcePath, tmp, offsetSec]() {
+        const auto context = QNativeInterface::QAndroidApplication::context();
+        const auto path = QJniObject::fromString(sourcePath);
+        const auto output = QJniObject::fromString(tmp);
+        QFile::remove(tmp);
+        return QJniObject::callStaticMethod<jboolean>(
+            "org/colosseum/vault/VaultMediaProbe", "writeThumbnail",
+            "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;J)Z",
+            context.object<jobject>(), path.object<jstring>(), output.object<jstring>(),
+            static_cast<jlong>(offsetSec * 1000000.0)) != JNI_FALSE;
+    }));
+#else
     const QString ffmpeg = findFfmpeg();
     if (ffmpeg.isEmpty()) {
         m_activeKeys.remove(key); // silent fallback: no thumb, same contract as SeekThumbnailer
@@ -155,6 +193,7 @@ void VaultThumbnailer::startJob(const QString& key, const QString& sourcePath, d
     };
     proc->start(ffmpeg, args);
     stallTimer->start();
+#endif
 }
 
 void VaultThumbnailer::killJob(QProcess* proc)
@@ -200,7 +239,7 @@ void VaultThumbnailer::finishJob(QProcess* proc, int exitCode, QProcess::ExitSta
 
 void VaultThumbnailer::pumpQueue()
 {
-    while (!m_pending.isEmpty() && m_jobs.size() < kMaxInFlight) {
+    while (!m_pending.isEmpty() && inFlightCount() < kMaxInFlight) {
         const PendingRequest req = m_pending.dequeue();
         // A same-key request may have completed elsewhere while this one waited in queue.
         const QString out = outputPathForKey(req.key);

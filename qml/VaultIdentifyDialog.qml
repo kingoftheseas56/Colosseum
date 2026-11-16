@@ -10,7 +10,7 @@ Popup {
     objectName: "vaultIdentifyDialog"
     modal: true
     focus: true
-    width: 590
+    width: Math.min(590, parent ? parent.width - 24 : 590)
     height: 520
     property string groupKey: ""
     property string titleText: ""

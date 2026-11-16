@@ -13,7 +13,7 @@ import QtQuick.Controls
 
 Item {
     id: door
-    property bool available: Qt.platform.os !== "android"
+    property bool available: typeof VaultLibrary !== "undefined"
     objectName: "taskbarVaultDoor"
 
     // ── inputs (wired by Taskbar from VaultLibrary; seeded by tests) ──
