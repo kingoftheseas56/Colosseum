@@ -8,6 +8,17 @@ TestCase {
     property var host
     property var world
     property var transport
+    Component {
+        id: preferencesFactory
+        QtObject {
+            property bool vinylTasteAnswered: true
+            property var vinylTasteArtists: ["a","b","c","d","e"].map(letter => ({id:"ytm:artist:UC"+letter.repeat(22),title:letter}))
+            signal vinylTasteChanged()
+            function setVinylTasteSelections(answered, artists) {
+                vinylTasteAnswered=answered;vinylTasteArtists=artists;vinylTasteChanged();return true;
+            }
+        }
+    }
     Component { id: hostFactory; Window { width: 1280; height: 720; visible: true } }
     Component {
         id: sourceFactory
@@ -20,10 +31,19 @@ TestCase {
             signal profileEntered()
             signal checkpointRequested()
             signal shuttingDown()
-            function request(lane, operation, value) { return ++serial; }
+            function request(lane, operation, value, options) { return ++serial; }
             function cancel(lane) { cancellations = cancellations.concat([lane]); }
             function setAlbums(entries) {}
-            function importFiles(paths) { importCalls++; return {albums: [], errors: []}; }
+            property int pendingImport: -1
+            signal importCompleted(int id, var result)
+            function startImport(paths) { pendingImport=++serial; return pendingImport; }
+            function cancelImport() { pendingImport=-1; }
+            function finishImport() {
+                var id=pendingImport;
+                if(id<0)return;
+                pendingImport=-1;importCalls++;
+                importCompleted(id,{albums:[],errors:[]});
+            }
         }
     }
     function init() {
@@ -34,6 +54,9 @@ TestCase {
         world = component.createObject(host.contentItem, {width: 1280, height: 720});
         verify(world !== null);
         world.session.source = transport;
+        world.worldData.preferencesStore = createTemporaryObject(preferencesFactory, test);
+        tryCompare(world, "canEnterVinyl", true);
+        world.showLibrary();
         wait(0);
     }
     function cleanup() {
@@ -44,6 +67,13 @@ TestCase {
     }
     function album(id) {
         return {id: id, browseId: id, origin: "local", title: id, artists: [], tracks: []};
+    }
+    // Native queue/checkpoint commands own playback identity and measured time.
+    function selectPaused(record, duration) {
+        var edition=world.session.normalize(record);
+        var rows=[world.session.rowFor(edition,0,0)];
+        rows[0].queueId="navigation-occurrence";
+        verify(findChild(world.session,"vinylBackendSession").restoreLegacy(rows,0,false,[],"off",0,duration || 0));
     }
     function test_suppliedEditionLabelsAreActuallyDisplayed() {
         var record=album("same-album");record.title="Synthetic Disc Ordering";
@@ -76,8 +106,10 @@ TestCase {
         compare(world.session.shownEditionId, "");
     }
     function test_backWhileOpeningCancelsInsteadOfLeavingWorld() {
-        world.session.openAlbum("late");
+        world.openAlbum("late");
         var request = world.session.browseRequest;
+        verify(world.session.browsing);
+        verify(world.pendingAlbumRoute !== null);
         verify(world.goBack());
         verify(!world.session.browsing);
         transport.completed("browse", request, album("late"), "");
@@ -86,8 +118,9 @@ TestCase {
     }
     function test_songNavigationCancelsPendingBrowseAndPreservesIdentity() {
         world.session.shownEdition = world.session.normalize(album("browsed"));
-        world.session.playingEdition = world.session.normalize(album("playing"));
-        world.session.playingIndex = 0;
+        var playing=album("playing");
+        playing.tracks=[{id:"playing-track",title:"Playing",seconds:1}];
+        selectPaused(playing,1);
         world.page = "album";
         world.session.openAlbum("late");
         var request = world.session.browseRequest;
@@ -104,13 +137,19 @@ TestCase {
     function test_profileChangeRejectsDeferredImport() {
         world.importLocalFiles(["file:///test/local.wav"]);
         verify(world.importing);
+        var request=transport.pendingImport;
         transport.profileLeaving();
         tryCompare(world, "importing", false);
+        transport.finishImport();
+        transport.importCompleted(request,{albums:[album("late-import")],errors:[]});
         compare(transport.importCalls, 0);
-        verify(world.importStatus.indexOf("profile changed") >= 0);
+        compare(world.session.library.length,0);
+        compare(world.importStatus, "");
     }
     function test_sameProfileRunsDeferredImport() {
         world.importLocalFiles(["file:///test/local.wav"]);
+        verify(world.importing);
+        transport.finishImport();
         tryCompare(world, "importing", false);
         compare(transport.importCalls, 1);
         compare(world.page, "library");
@@ -125,24 +164,32 @@ TestCase {
         world.width = data.width; world.height = data.height;
         wait(0);
         var top = findChild(world, "vinylTopBar");
-        var nav = findChild(world, "vinylNavigation");
-        var header = findChild(world, "vinylLibraryHeader");
-        verify(nav.y >= top.y + top.height + 20, "Local navigation clears shared clock/date chrome");
-        verify(header.y >= nav.y + nav.height + 20, "Library starts below navigation");
-        verify(findChild(world, "vinylSearchGlass") !== null, "Filter uses the shared glass surface");
+        var nav = findChild(world, "vinylFlowTabs");
+        var library = findChild(world, "vinylPersonalLibraryPage");
+        verify(top !== null);verify(nav !== null);verify(library !== null);
+        verify(nav.mapToItem(world,0,0).y >= top.mapToItem(world,0,top.height).y + 20,
+               "Shared navigation clears clock/date chrome");
+        verify(library.mapToItem(world,0,0).y >= nav.mapToItem(world,0,nav.height).y,
+               "Library starts below shared navigation");
+        world.enterDiscoverSearch(false,false);
+        tryVerify(function(){return world.searchPage !== null;});
+        verify(findChild(world,"worldSearchField") !== null, "Search uses the shared search surface");
+        world.closeSearch();
         world.page = "album";
         var back = findChild(world, "vinylAlbumBack");
         var albumPage = findChild(world, "vinylAlbumPage");
-        verify(back.y >= nav.y + nav.height + 16);
+        top = findChild(world,"vinylTopBar");
+        verify(back.y >= top.y + top.height + 16);
         verify(albumPage.y >= back.y + back.height);
         verify(!albumPage.scrollbarVisible);
+        wait(0); // Let closeSearch's deferred focus parking finish first.
         albumPage.forceActiveFocus();
         keyClick(Qt.Key_PageDown);
         verify(albumPage.contentY > 0, "Keyboard scrolling remains available without a scrollbar");
         keyClick(Qt.Key_Home);
-        compare(albumPage.contentY, 0);
+        tryCompare(albumPage, "contentY", 0);
         world.page = "song";
-        verify(findChild(world, "vinylSongPage").y >= nav.y + nav.height + 16);
+        verify(findChild(world, "vinylSongPage").y >= top.y + top.height + 16);
     }
     function test_unknownTrackDurationUsesMeasuredPlayerDurationOnlyWhenPlaying() {
         var record = album("untagged");
@@ -154,9 +201,7 @@ TestCase {
         verify(row !== null);
         var duration = findChild(row, "vinylTrackDuration_0");
         compare(duration.text, "—");
-        world.session.playingEdition = world.session.shownEdition;
-        world.session.playingIndex = 0;
-        world.session.measuredDuration = 90;
+        selectPaused(record,90);
         compare(duration.text, "1:30");
         world.session.shownEdition = world.session.normalize({id: "different", origin: "local", title: "Other", tracks: record.tracks});
         compare(duration.text, "—", "Another playing album cannot lend duration to a browsed file");
@@ -173,7 +218,8 @@ TestCase {
         var playerBar = findChild(world, "vinylPlayerBar");
         verify(status.x > dock.leftEdge + dock.closedWidth, "Library status clears the shell's permanent buttons");
         verify(world.contentBottom <= world.height - dock.bottomGap - dock.closedSize, "Library rows end above the dock");
-        world.session.playingIndex = 0;
+        var record=album("footer");record.tracks=[{id:"footer-track",title:"Footer",seconds:1}];
+        selectPaused(record,1);
         verify(playerBar.visible);
         verify(playerBar.x > dock.leftEdge + dock.closedWidth, "Player cover and title clear the collapsed dock");
         verify(playerBar.x + playerBar.width <= world.width);
@@ -195,8 +241,7 @@ TestCase {
         record.title = "Local acceptance audio";
         record.tracks = [{id: "local-track", title: record.title, seconds: 0, artists: []}];
         world.session.shownEdition = world.session.normalize(record);
-        world.session.playingEdition = world.session.shownEdition;
-        world.session.playingIndex = 0;
+        selectPaused(record,0);
         world.page = "album";
         wait(0);
         var albumPage = findChild(world, "vinylAlbumPage");
@@ -213,9 +258,13 @@ TestCase {
         for (var i = 0; i < names.length; ++i) {
             var action = visualItem(albumPage, names[i]);
             verify(action !== null);
-            var point = action.mapToItem(albumPage, 0, 0);
-            verify(point.y >= 0 && point.y + action.height <= albumPage.height,
-                   names[i] + " must be fully visible without scrolling: bottom=" + (point.y + action.height) + ", height=" + albumPage.height);
+            // Large artwork is intentional (1f083080b): compact viewports scroll
+            // to the actions rather than shrinking the album cover.
+            var point = action.mapToItem(albumPage.contentItem, 0, 0);
+            albumPage.contentY=Math.min(Math.max(0,point.y-24),albumPage.contentHeight-albumPage.height);
+            var visiblePoint=action.mapToItem(albumPage,0,0);
+            verify(visiblePoint.y >= 0 && visiblePoint.y + action.height <= albumPage.height,
+                   names[i] + " must be fully reachable by scrolling");
         }
     }
 }

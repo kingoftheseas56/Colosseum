@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QGuiApplication>
+#include <QFileInfo>
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QSignalSpy>
@@ -26,6 +27,10 @@ struct WindowedPlayer final {
         item = new MpvItem(window.contentItem());
         item->setWidth(320);
         item->setHeight(240);
+        // This is an audio-event contract, not an offscreen OpenGL/video-output
+        // qualification. Do not depend on a physical audio device either.
+        item->setProperty(QStringLiteral("ao"), QStringLiteral("null"));
+        item->setProperty(QStringLiteral("vid"), QStringLiteral("no"));
         item->setVolume(0);
         window.resize(320, 240);
         window.show();
@@ -78,8 +83,10 @@ void tst_mpvitem_native_events::nativeEntryAndSeekEventsCarryTheLoadGeneration()
     QVERIFY(nativeEvents.isValid());
     QVERIFY(seekReplies.isValid());
 
+    const QString media = fixturePath(QStringLiteral("tiny-audio.m4a"));
+    QVERIFY2(QFileInfo::exists(media), qPrintable(media));
     const quint64 beforeLoad = player.item->playbackGeneration();
-    player.item->loadFile(fixturePath(QStringLiteral("tiny.mp4")));
+    player.item->loadFile(media);
     const quint64 generation = player.item->playbackGeneration();
     QVERIFY(generation > beforeLoad);
 

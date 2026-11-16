@@ -5642,6 +5642,10 @@ set_tests_properties(
     PROPERTIES LABELS "unit;qml;vinyl;native-adapter" TIMEOUT 120
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 
+# Each navigation case tears down native services; the full data-driven suite
+# takes about 175 seconds on the offscreen Windows runner.
+set_tests_properties(colosseum.qml.vinyl_local_navigation_native PROPERTIES TIMEOUT 240)
+
 add_test(NAME colosseum.qml.vinyl_v1_home_actions_native
     COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_v1_home_actions.qml"
@@ -5658,8 +5662,10 @@ foreach(vinyl_v1_component IN ITEMS hero crate_spin library_projection library_t
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 endforeach()
 
+# These contracts now instantiate the native Vinyl facade and services.
+# Reuse the Vinyl runner's production registrations and isolated local fixtures.
 add_test(NAME colosseum.qml.vinyl_local_session
-    COMMAND colosseum_qml_tests
+    COMMAND vinyl_native_session_bridge
         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session"
         -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
 set_tests_properties(colosseum.qml.vinyl_local_session PROPERTIES
@@ -5768,6 +5774,8 @@ if(TARGET colosseum_vinyl_app)
     endforeach()
     set_tests_properties(colosseum.qttest.vinyl_native_facade PROPERTIES
         LABELS "unit;vinyl;qttest")
+    set_tests_properties(colosseum.qttest.vinyl_native_mpv_events PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1")
 endif()
 
 add_executable(vinyl_personal_library_contracts vinyl_personal_library_harness.cpp
