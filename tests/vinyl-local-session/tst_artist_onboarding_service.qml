@@ -13,8 +13,10 @@ TestCase {
             property bool vinylTasteAnswered: false
             property var vinylTasteArtists: []
             property bool failWrites: false
+            property int writeCalls: 0
             signal vinylTasteChanged()
             function setVinylTasteSelections(answered, artists) {
+                writeCalls++;
                 if(failWrites)return false;
                 vinylTasteAnswered=answered;vinylTasteArtists=artists;vinylTasteChanged();return true;
             }
@@ -25,8 +27,12 @@ TestCase {
         QtObject {
             property int serial: 0
             property var calls: []
+            readonly property var tasteCalls: calls.filter(function(call){return call.lane==="taste-artists";})
             signal completed(string lane,int id,var data,string error)
-            function request(lane,operation,value,options){calls=calls.concat([{lane:lane,operation:operation,query:value,options:options}]);return ++serial;}
+            function request(lane,operation,value,options){
+                var id=++serial;
+                calls=calls.concat([{id:id,lane:lane,operation:operation,query:value,options:options}]);return id;
+            }
             function cancel(lane) {}
         }
     }
@@ -39,54 +45,95 @@ TestCase {
         service=c.createObject(test,{preferences:prefs,source:source,profileActive:true,profileScope:"local"});verify(service!==null);
     }
     function cleanup(){if(service)service.destroy();prefs.destroy();source.destroy();wait(0);}
-    function test_firstHomeAndCancelEdit() {
-        compare(service.onboardingState,"unanswered");service.beginHomeVisit();compare(service.onboardingState,"draft");
-        service.toggleDraftArtist(makeArtist("UCaaaaaaaaaaaaaaaaaaaaaa"));compare(service.draftArtists.length,1);
-        verify(service.commitTaste(false));compare(service.onboardingState,"answered");compare(prefs.vinylTasteArtists.length,1);
-        service.beginHomeVisit();compare(service.onboardingState,"answered");
-        service.beginTasteEdit();service.toggleDraftArtist(makeArtist("UCbbbbbbbbbbbbbbbbbbbbbb"));compare(service.draftArtists.length,2);
-        service.cancelTasteEdit();compare(service.selectedArtists.length,1);compare(service.onboardingState,"answered");
+    function pickDraft(count) {
+        for(var i=0;i<count;++i)service.toggleDraftArtist(makeArtist("UC"+String.fromCharCode(97+i).repeat(22)));
     }
-    function test_skipWithoutNetworkAndFailedCommit() {
-        service.beginHomeVisit();prefs.failWrites=true;verify(!service.commitTaste(false));compare(service.onboardingState,"draft");
-        prefs.failWrites=false;verify(service.commitTaste(true));verify(prefs.vinylTasteAnswered);compare(service.selectedArtists.length,0);
+    function test_firstHomeNeedsFiveArtistsAndEditCancelKeepsSavedChoices() {
+        // Changed by Hemanth 2026-11-13: the minimum is five and the first pick is a gate, not an option.
+        compare(service.minimumArtists,5);compare(service.minimumArtistCount,5);
+        compare(service.onboardingState,"unanswered");
+        service.beginHomeVisit();compare(service.onboardingState,"unanswered");
+        compare(service.draftArtists.length,0);compare(prefs.writeCalls,0);
+        tryVerify(()=>source.calls.some(function(call){return call.operation==="chartCandidates";}));
+        service.beginTasteEdit();compare(service.onboardingState,"editing");
+        pickDraft(4);compare(service.draftArtists.length,4);
+        verify(!service.commitTaste(false),"Four artists cannot unlock Vinyl.");compare(prefs.writeCalls,0);
+        compare(service.onboardingState,"editing");
+        service.toggleDraftArtist(makeArtist("UC"+"e".repeat(22)));
+        verify(service.commitTaste(false));compare(service.onboardingState,"answered");compare(prefs.vinylTasteArtists.length,5);
+        compare(prefs.writeCalls,1);
+        service.beginHomeVisit();compare(service.onboardingState,"answered");compare(prefs.writeCalls,1);
+        service.beginTasteEdit();service.toggleDraftArtist(makeArtist("UCffffffffffffffffffffff"));compare(service.draftArtists.length,6);
+        service.cancelTasteEdit();compare(service.selectedArtists.length,5);compare(service.onboardingState,"answered");
+        compare(prefs.vinylTasteArtists.length,5);compare(prefs.writeCalls,1);
+        // Cancelling an edit of an answered profile preserves saved choices without another write.
+        service.beginTasteEdit();service.toggleDraftArtist(makeArtist("UC"+"a".repeat(22)));
+        service.cancelTasteEdit();compare(service.onboardingState,"answered");
+        compare(service.selectedArtists.length,5);compare(prefs.writeCalls,1);
     }
+
+    function test_unansweredTasteRequiresFiveAndFailedWriteCanBeRetried() {
+        service.beginHomeVisit();service.beginTasteEdit();
+        pickDraft(4);compare(service.draftArtists.length,4);
+        verify(!service.commitTaste(false),"Four artists cannot unlock Vinyl.");
+        compare(service.onboardingState,"editing");compare(prefs.writeCalls,0);
+        service.toggleDraftArtist(makeArtist("UC"+"e".repeat(22)));
+        compare(service.draftArtists.length,5);
+        prefs.failWrites=true;verify(!service.commitTaste(false));compare(service.onboardingState,"editing");
+        compare(prefs.writeCalls,1);verify(!prefs.vinylTasteAnswered);compare(prefs.vinylTasteArtists.length,0);
+        prefs.failWrites=false;
+        verify(service.commitTaste(false));compare(service.onboardingState,"answered");
+        compare(service.selectedArtists.length,5);compare(prefs.vinylTasteArtists.length,5);
+        compare(prefs.writeCalls,2);
+    }
+
     function test_realPageContractAndPagingKeepDraft() {
-        service.beginHomeVisit();service.searchArtists("Nas",{});tryCompare(source,"serial",1);
-        compare(source.calls[0].operation,"cataloguePage");compare(source.calls[0].options.kind,"artists");
-        source.completed("taste-artists",1,page("Nas",[makeArtist("UCaaaaaaaaaaaaaaaaaaaaaa")],{token:"next",offset:1}),"");
+        service.beginHomeVisit();service.beginTasteEdit();service.searchArtists("Nas",{});tryVerify(()=>source.tasteCalls.length===1);
+        compare(source.tasteCalls[0].operation,"cataloguePage");compare(source.tasteCalls[0].options.kind,"artists");
+        source.completed("taste-artists",source.tasteCalls[0].id,page("Nas",[makeArtist("UCaaaaaaaaaaaaaaaaaaaaaa")],{token:"next",offset:1}),"");
         tryCompare(service,"artistResults",service.artistResults);tryVerify(()=>service.artistResults.items.length===1);
         service.toggleDraftArtist(service.artistResults.items[0]);
-        service.searchArtists("Nas",service.artistResults.nextCursor);tryCompare(source,"serial",2);
-        source.completed("taste-artists",2,page("Nas",[makeArtist("UCbbbbbbbbbbbbbbbbbbbbbb")],null,1),"");
+        service.searchArtists("Nas",service.artistResults.nextCursor);tryVerify(()=>source.tasteCalls.length===2);
+        source.completed("taste-artists",source.tasteCalls[1].id,page("Nas",[makeArtist("UCbbbbbbbbbbbbbbbbbbbbbb")],null,1),"");
         tryVerify(()=>service.artistResults.items.length===2);compare(service.draftArtists.length,1);
-        service.searchArtists("Other",{});tryCompare(source,"serial",3);compare(service.draftArtists.length,1);
+        service.searchArtists("Other",{});tryVerify(()=>source.tasteCalls.length===3);compare(service.draftArtists.length,1);
     }
     function test_lateProfileAndQueryRepliesAreFenced() {
-        service.beginHomeVisit();service.searchArtists("Old",{});tryCompare(source,"serial",1);
-        service.searchArtists("New",{});source.completed("taste-artists",1,page("Old",[makeArtist("UCaaaaaaaaaaaaaaaaaaaaaa")]),"");
+        service.beginHomeVisit();service.beginTasteEdit();service.searchArtists("Old",{});tryVerify(()=>source.tasteCalls.length===1);
+        service.searchArtists("New",{});source.completed("taste-artists",source.tasteCalls[0].id,page("Old",[makeArtist("UCaaaaaaaaaaaaaaaaaaaaaa")]),"");
         wait(20);compare(service.artistResults.items.length,0);
-        tryCompare(source,"serial",2);service.profileGeneration++;
-        source.completed("taste-artists",2,page("New",[makeArtist("UCbbbbbbbbbbbbbbbbbbbbbb")]),"");
+        tryVerify(()=>source.tasteCalls.length===2);service.profileGeneration++;
+        source.completed("taste-artists",source.tasteCalls[1].id,page("New",[makeArtist("UCbbbbbbbbbbbbbbbbbbbbbb")]),"");
         wait(20);compare(service.artistResults.items.length,0);compare(service.draftArtists.length,0);
     }
     function test_invalidPaginationIsNotAcceptedAsEmptySuccess() {
-        service.beginHomeVisit();service.searchArtists("Nas",{});tryCompare(source,"serial",1);
+        service.beginHomeVisit();service.beginTasteEdit();service.searchArtists("Nas",{});tryVerify(()=>source.tasteCalls.length===1);
         var bad=page("Nas",[]);bad.complete=false;
-        source.completed("taste-artists",1,bad,"");
+        source.completed("taste-artists",source.tasteCalls[0].id,bad,"");
         tryVerify(()=>service.artistResults.status!=="loading");compare(service.artistResults.status,"error");
     }
     function test_cursorMustAdvanceWithNumericOffsets() {
-        service.beginHomeVisit();service.searchArtists("Nas",{});tryCompare(source,"serial",1);
+        service.beginHomeVisit();service.beginTasteEdit();service.searchArtists("Nas",{});tryVerify(()=>source.tasteCalls.length===1);
         var bad=page("Nas",[],{token:"page-2",offset:0});
-        source.completed("taste-artists",1,bad,"");
+        source.completed("taste-artists",source.tasteCalls[0].id,bad,"");
         tryVerify(()=>service.artistResults.status!=="loading");compare(service.artistResults.status,"error");
-        service.searchArtists("Nas",{});tryCompare(source,"serial",2);
+        service.searchArtists("Nas",{});tryVerify(()=>source.tasteCalls.length===2);
         bad=page("Nas",[]);bad.offset="0";
-        source.completed("taste-artists",2,bad,"");
+        source.completed("taste-artists",source.tasteCalls[1].id,bad,"");
         tryVerify(()=>service.artistResults.status!=="loading");compare(service.artistResults.status,"error");
     }
+    function test_serviceProfileAvailabilityDoesNotReplaceTheWorldTasteGate() {
+        // This service property checks active profile scope. VinylLiveWorldData owns the five-artist gate.
+        verify(service.canEnterVinyl);compare(service.onboardingState,"unanswered");
+        service.profileActive=false;verify(!service.canEnterVinyl);
+        service.beginTasteEdit();compare(service.onboardingState,"unanswered");
+        service.profileActive=true;verify(service.canEnterVinyl);
+        service.profileScope="";verify(!service.canEnterVinyl);
+        service.profileScope="local";verify(service.canEnterVinyl);
+        compare(prefs.writeCalls,0);verify(!prefs.vinylTasteAnswered);
+    }
     function test_storedMappingStatusSurvivesServiceRead() {
+        // A one-artist saved record is a valid legacy profile input; the QML gate still locks it until five.
         var artist={key:JSON.stringify(["youtube-music","artist","UCaaaaaaaaaaaaaaaaaaaaaa"]),kind:"artist",provider:"youtube-music",providerId:"UCaaaaaaaaaaaaaaaaaaaaaa",name:"Ambiguous artist",image:"",mappingStatus:"ambiguous"};
         prefs.vinylTasteArtists=[artist];prefs.vinylTasteAnswered=true;prefs.vinylTasteChanged();
         compare(service.selectedArtists.length,1);compare(service.selectedArtists[0].mappingStatus,"ambiguous");

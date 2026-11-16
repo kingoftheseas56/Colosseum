@@ -163,6 +163,7 @@ Item {
     readonly property real pageMargin: adaptive.pageMargin
     readonly property real outerPageMargin: adaptive.outerPageMargin
     readonly property real headerOuterMargin: adaptive.pageMargin
+    property real headerTopInset: adaptive.topInset
     // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.
     property real contentBottomInset: 0
     property bool prominentScrollBar: false
@@ -255,7 +256,7 @@ Item {
         pageSubtitle: world.topBarSubtitle
         lifecycleActive: world.lifecycleActive
         androidHost: world.androidHost
-        x: world.headerOuterMargin; y: adaptive.topInset
+        x: world.headerOuterMargin; y: world.headerTopInset
         width: world.width - world.headerOuterMargin * 2
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
@@ -284,7 +285,7 @@ Item {
     // The one vertical scroller itself, for content that must scroll WITH the page rather than
     // inside its own box (the Discover walls, world-feel Slice 7).
     readonly property Flickable pageFlickable: page
-    readonly property real boardTopPadding: board.topPadding
+    property real boardTopPadding: 12
     readonly property real boardSectionSpacing: board.spacing
 
     // ---- the widget board (scrolls vertically) ----
@@ -327,7 +328,7 @@ Item {
             id: board
             x: world.outerPageMargin
             width: world.width - world.outerPageMargin * 2
-            topPadding: 12; bottomPadding: 24
+            topPadding: world.boardTopPadding; bottomPadding: 24
             spacing: adaptive.sectionSpacing
         }
     }

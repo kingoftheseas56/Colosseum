@@ -25,6 +25,15 @@ TestCase {
         }
     }
 
+    function clickArtistTab(key) {
+        var tab = findChild(host.contentItem, "vinylArtistTab_" + key);
+        verify(tab !== null);
+        verify(tab.visible);
+        verify(waitForRendering(tab));
+        mouseClick(tab);
+        tryCompare(host.artistData, "activeTab", key);
+    }
+
     function assertNoVisibleScrollbars(node) {
         if (!node || !node.visible) return;
         if (node instanceof ScrollBar)
@@ -48,11 +57,11 @@ TestCase {
     function test_tabAndPopupScrollbarsRemainHidden() {
         var tabs = ["albums", "singles", "videos", "live"];
         for (var i = 0; i < tabs.length; ++i) {
-            findChild(host.contentItem, "vinylArtistTab_" + tabs[i]).activate();
+            clickArtistTab(tabs[i]);
             wait(0);
             assertNoVisibleScrollbars(host.contentItem);
         }
-        findChild(host.contentItem, "vinylArtistTab_albums").activate();
+        clickArtistTab("albums");
         findChild(host.contentItem, "vinylArtistReleasePickerAction").activate();
         wait(0);
         var menu = findChild(host, "vinylArtistReleasePickerPopup");

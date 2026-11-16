@@ -143,6 +143,31 @@ private slots:
         forged=card;forged["playable"]=true;
         QVERIFY(VinylSourcePool::catalogueCandidate(forged).isEmpty());
     }
+    void songChartMetadataRetainsDisplayArtistWithoutInventingArtistIdentity()
+    {
+        const auto displayArtist = QString::fromUtf8("竹内まりや · Mariya Takeuchi");
+        const QVariantMap card{{"catalogueCard",true},{"source","lastfm"},
+            {"id","lastfm:songs:0123456789abcdef01234567"},{"kind","songs"},
+            {"title","Fixture Song"},{"artist",displayArtist},{"subtitle",displayArtist},
+            {"sourceIds",QVariantMap{{"id","https://www.last.fm/music/Fixture/_/Song"}}},
+            {"hints",QVariantMap{{"artists",QStringList{displayArtist}}}}};
+        const auto candidate = VinylSourcePool::catalogueCandidate(card);
+        QVERIFY(!candidate.isEmpty());
+        QCOMPARE(candidate.value("artist").toString(),displayArtist);
+        QCOMPARE(candidate.value("catalogueItem").toMap(),card);
+        QVERIFY(candidate.value("artistRefs").toList().isEmpty());
+        auto source = feed("lastfm:tracks","",{card});
+        source["source"] = "lastfm"; source["kind"] = "songs";
+        const auto merged = VinylSourcePool::mergeCharts({source},"songs");
+        QCOMPARE(merged.size(),1);
+        const auto song = merged.first().toMap();
+        QCOMPARE(song.value("artist").toString(),displayArtist);
+        QCOMPARE(song.value("catalogueItem").toMap(),card);
+        QVERIFY(song.value("artistRefs").toList().isEmpty());
+        QVERIFY(!song.contains("artistId"));
+        QVERIFY(!song.contains("canonicalMbid"));
+        QVERIFY(!song.contains("albumTitle"));
+    }
     void chartsMergeByRankWithOneVotePerStorefront()
     {
         const auto a=item("apple-music","100","Album A"),b=item("apple-music","200","Album B"),c=item("apple-music","300","Album C");

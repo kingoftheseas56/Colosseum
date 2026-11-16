@@ -12,6 +12,7 @@ Item {
     property int currentIndex: 0
     property string selectedId: ""
     property bool addingSongs: false
+    property bool detailOnly: false
 
     readonly property string section: String(libraryData.section || "albums")
     readonly property string selectedPlaylistId: String(libraryData.selectedPlaylistId || "")
@@ -129,6 +130,7 @@ Item {
     WorldTabBar {
         id: sectionTabs
         objectName: "vinylLibrarySections"
+        visible: !root.detailOnly
         x: root.sideInset; y: 0; width: root.contentWidth
         backdrop: root.backdrop
         tabPrefix: "vinylLibrarySection"
@@ -144,7 +146,7 @@ Item {
     Item {
         id: content
         x: root.sideInset
-        y: sectionTabs.y + sectionTabs.height + 24
+        y: root.detailOnly ? 0 : sectionTabs.y + sectionTabs.height + 24
         width: root.contentWidth
         height: root.hasDetail ? detailContent.height
             : root.section === "albums" ? albumsContent.height

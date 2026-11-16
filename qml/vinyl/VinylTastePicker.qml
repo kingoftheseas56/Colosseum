@@ -10,14 +10,15 @@ Item {
     required property Flickable pageFlick
     readonly property string query: worldData.pickerQuery
     readonly property var selected: worldData.pickerDraft
-    readonly property int minimumArtistCount: Number(worldData.minimumArtistCount) || 5
+    readonly property int minimumArtistCount: Math.max(5, Number(worldData.minimumArtistCount) || 1)
     readonly property var offered: worldData.artistOptions(query)
     readonly property bool editing: worldData.onboardingState === "editing"
-    readonly property int minimumArtists: worldData.recommendationService
-        ? Number(worldData.recommendationService.minimumArtists) || 5 : 5
+    readonly property int minimumArtists: Math.max(5, worldData.recommendationService
+        ? Number(worldData.recommendationService.minimumArtists) || 1 : 1)
+    readonly property bool gated: worldData.tasteGateLocked === true
     readonly property int selectedArtistCount: worldData.usesRecommendationService
         ? Number(worldData.recommendationService.draftArtistCount) || 0 : selected.length
-    implicitHeight: pageFlick ? pageFlick.height : header.height + 30 + grid.implicitHeight
+    implicitHeight: header.height + 30 + grid.implicitHeight
     Theme { id: theme }
     property int currentIndex: 0
     Keys.onPressed: event => { if (!artistSearch.activeFocus) nav.handle(event) }
@@ -31,8 +32,15 @@ Item {
         positionIndexFn: function(index) {
             var card = artistCards.itemAt(index);
             if (!card) return;
-            artistScroll.contentY = Math.max(0, Math.min(
-                Math.max(0, artistScroll.contentHeight - artistScroll.height), card.y));
+            if (root.pageFlick) {
+                var at = card.mapToItem(root.pageFlick.contentItem, 0, 0);
+                var top = root.pageFlick.contentY;
+                var nextY = at.y < top + 12 ? at.y - 12
+                    : at.y + card.height > top + root.pageFlick.height
+                        ? at.y + card.height - root.pageFlick.height : top;
+                root.pageFlick.contentY = Math.max(0, Math.min(
+                    root.pageFlick.contentHeight - root.pageFlick.height, nextY));
+            }
             Qt.callLater(function() {
                 var next = artistCards.itemAt(index);
                 if (next) next.forceActiveFocus();
@@ -66,7 +74,7 @@ Item {
 
         Text {
             objectName: "vinylPickerQuestion"
-            text: "Choose at least " + root.minimumArtistCount + " artists"
+            text: qsTr("Pick a few artists you love")
             width: Math.max(0, parent.width - actions.width - 24)
             elide: Text.ElideRight
             fontSizeMode: Text.Fit
@@ -125,7 +133,7 @@ Item {
 
             VinylWorldButton {
                 objectName: "vinylPickerCancel"
-                visible: root.editing
+                visible: root.editing && !root.gated
                 enabled: visible
                 label: "Cancel taste editing"
                 accessibleName: label
@@ -200,6 +208,7 @@ Item {
         height: Math.max(0, parent.height - y)
         contentWidth: width
         contentHeight: grid.implicitHeight
+        interactive: false
         clip: true
         boundsBehavior: Flickable.StopAtBounds
 

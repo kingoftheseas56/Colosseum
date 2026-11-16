@@ -5,6 +5,7 @@
 #include <QPointer>
 #include <QRect>
 #include <QSettings>
+#include <QString>
 #include <QTimer>
 #include <QWindow>
 
@@ -28,6 +29,12 @@ public:
     bool shellWindowed() const { return m_shellWindowed; }
     QRect savedNormalGeometry() const { return m_normalGeometry; }
     bool savedMaximized() const { return m_windowedMaximized; }
+
+    // C++ startup only: the caller must authorize a disposable fixture first.
+    // Empty is a no-op. Parsing and configuration never write settings.
+    static bool startupViewportGeometry(const QString &request, const QRect &screenGeometry,
+                                        QRect *geometry);
+    bool configureStartupViewport(const QString &request, const QRect &screenGeometry);
 
     Q_INVOKABLE void enterPip(QQuickWindow *window);
     Q_INVOKABLE void exitPip(QQuickWindow *window);
@@ -54,6 +61,7 @@ private:
     void applyBorderlessGeometry(QQuickWindow *window, const QRect &geometry,
                                  const QSize &minimumSize);
     QRect activeFullScreenGeometry(QQuickWindow *window) const;
+    QRect validatedNormalGeometryFor(QQuickWindow *window) const;
     void reassertBaseModeAfterRestore(QWindow::Visibility visibility);
     void scheduleStableCapture();
     void captureStableWindowState();
@@ -71,4 +79,5 @@ private:
     bool m_windowedMaximized = false;
     bool m_transitioning = false;
     bool m_restorePending = false;
+    bool m_startupViewportOverride = false;
 };

@@ -1,6 +1,7 @@
 #include "downloadstore.h"
 #include "engine/DownloadFileOps.h"
 
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
@@ -59,6 +60,11 @@ bool contentRangeStartsAt(const QByteArray &header, qint64 expectedStart) {
     bool totalOk = false;
     const qint64 total = match.captured(3).toLongLong(&totalOk);
     return totalOk && total > end;
+}
+
+QString musicJobId(const QString &scope, const QString &videoId) {
+    return QStringLiteral("music-") + QString::fromLatin1(QCryptographicHash::hash(
+        scope.toUtf8() + '\0' + videoId.toUtf8(), QCryptographicHash::Sha256).toHex());
 }
 
 } // namespace
@@ -126,22 +132,116 @@ void DownloadStore::touch() {
 }
 
 void DownloadStore::enqueue(const QVariantMap &request) {
+    if (request.value(QStringLiteral("kind")) == QStringLiteral("music")) {
+        if (!validMusicRequest(request)
+            || request.value(QStringLiteral("profileScope")).toString() != m_musicProfileScope)
+            return;
+        const auto output = request.value(QStringLiteral("outputPath")).toString();
+        if (!output.isEmpty() && !musicPathContained(output, m_musicProfileScope)) return;
+    }
     QString id = request.value(QStringLiteral("id")).toString();
     if (id.isEmpty())
         id = QStringLiteral("video-%1").arg(QDateTime::currentMSecsSinceEpoch());
-    if (jobIndex(id) >= 0 || m_index.contains(id))
+    if (jobIndex(id) >= 0 || (m_index.contains(id)
+        && (request.value(QStringLiteral("kind")) != QStringLiteral("music")
+            || !musicResource(m_musicProfileScope, request.value("music").toMap().value("videoId").toString()).isEmpty())))
         return;   // already queued or already on disk — idempotent
     Job j;
     j.request = request;
     j.request.insert(QStringLiteral("id"), id);
     j.request.insert(QStringLiteral("groupKey"), groupKeyFor(j.request));
     j.id = id;
-    j.url = request.value(QStringLiteral("url")).toString();
+    j.url = request.value(QStringLiteral("kind")) == QStringLiteral("music")
+        ? QString() : request.value(QStringLiteral("url")).toString();
     j.state = QStringLiteral("queued");
     m_jobs.append(j);
     saveQueue();
     touch();
     pump();
+}
+
+bool DownloadStore::validMusicRequest(const QVariantMap &request) const {
+    const auto scope = request.value("profileScope").toString();
+    const auto music = request.value("music").toMap();
+    const auto album = music.value("album").toMap();
+    const auto tracks = album.value("tracks").toList();
+    bool indexOk = false;
+    const int index = music.value("trackIndex").toInt(&indexOk);
+    const auto videoId = music.value("videoId").toString();
+    static const QRegularExpression video(QStringLiteral("\\A[A-Za-z0-9_-]{11}\\z"));
+    if (scope.trimmed().isEmpty() || scope.size() > 512 || album.value("origin") != "youtube-music"
+        || album.value("id").toString().isEmpty() || !indexOk || index < 0 || index >= tracks.size()
+        || !video.match(videoId).hasMatch()
+        || request.value("id").toString() != musicJobId(scope, videoId)
+        || QJsonDocument::fromVariant(album).toJson(QJsonDocument::Compact).size() > 512 * 1024)
+        return false;
+    const auto track = tracks.at(index).toMap();
+    return !track.value("id").toString().isEmpty() && track.value("videoId") == videoId
+        && track.value("available", true).toBool();
+}
+
+QString DownloadStore::enqueueMusic(const QVariantMap &album, int trackIndex, const QString &profileScope) {
+    const auto track = album.value("tracks").toList().value(trackIndex).toMap();
+    const auto videoId = track.value("videoId").toString();
+    const auto id = musicJobId(profileScope, videoId);
+    QVariantMap request{{"id", id}, {"kind", "music"}, {"profileScope", profileScope},
+        {"title", track.value("title")}, {"subtitle", album.value("artists")}, {"art", album.value("cover")},
+        {"music", QVariantMap{{"album", album}, {"trackIndex", trackIndex}, {"videoId", videoId}}}};
+    if (profileScope != m_musicProfileScope || !validMusicRequest(request)) return {};
+    enqueue(request);
+    return id;
+}
+
+void DownloadStore::setMusicProfileScope(const QString &profileScope) {
+    if (m_musicProfileScope == profileScope) return;
+    m_musicProfileScope = profileScope;
+    for (auto &job : m_jobs) {
+        if (job.request.value("kind") != "music") continue;
+        if (job.state == "resolving" || job.state == "downloading") {
+            cleanupJob(job);
+            job.state = "queued";
+        }
+        job.url.clear();
+        job.request.remove("headers");
+        job.resumeFromPart = false;
+    }
+    saveQueue();
+    touch();
+    emit libraryChanged();
+    pump();
+}
+
+QVariantMap DownloadStore::musicRequest(const QString &id) const {
+    const int i = jobIndex(id);
+    if (i < 0 || m_jobs.at(i).state != "resolving") return {};
+    const auto request = m_jobs.at(i).request;
+    return request.value("kind") == "music" && request.value("profileScope").toString() == m_musicProfileScope
+        ? request : QVariantMap{};
+}
+
+void DownloadStore::feedMusicSource(const QString &id, const QVariantMap &resource) {
+    const auto request = musicRequest(id);
+    if (request.isEmpty()) return;
+    if (resource.value("videoId") != request.value("music").toMap().value("videoId")
+        || resource.value("audioOnly").metaType().id() != QMetaType::Bool || !resource.value("audioOnly").toBool()
+        || resource.value("url").toString().isEmpty()) {
+        failJob(id, QStringLiteral("An audio-only download is unavailable."));
+        return;
+    }
+    auto prepared = request;
+    prepared["extension"] = resource.value("extension");
+    const auto path = buildOutputPath(prepared);
+    if (path.isEmpty()) {
+        failJob(id, QStringLiteral("The music download format or destination is invalid."));
+        return;
+    }
+    Job &job = m_jobs[jobIndex(id)];
+    job.request = prepared;
+    job.request["headers"] = resource.value("headers").toMap();
+    job.url = resource.value("url").toString();
+    job.outputPath = path;
+    job.partPath = path + QStringLiteral(".part");
+    startHttp(job);
 }
 
 void DownloadStore::enqueueBatch(const QVariantList &requests) {
@@ -257,13 +357,19 @@ void DownloadStore::pump() {
         Job &j = m_jobs[i];
         if (j.state != QStringLiteral("queued"))
             continue;
+        const bool music = j.request.value("kind") == "music";
+        if (music && (m_musicProfileScope.isEmpty() || j.request.value("profileScope").toString() != m_musicProfileScope))
+            continue;
         if (j.url.isEmpty()) {
             j.state = QStringLiteral("resolving");
             touch();
-            const QString mediaType =
+            const QString mediaType = music ? QStringLiteral("music") :
                 j.request.value(QStringLiteral("kind")).toString() == QStringLiteral("movie")
                     ? QStringLiteral("movie") : QStringLiteral("series");
-            emit needResolve(j.id, j.id, mediaType);
+            emit needResolve(j.id, music
+                ? j.request.value("music").toMap().value("album").toMap().value("tracks").toList()
+                    .value(j.request.value("music").toMap().value("trackIndex").toInt()).toMap().value("id").toString()
+                : j.id, mediaType);
         } else {
             startHttp(j);
         }
@@ -276,6 +382,8 @@ void DownloadStore::feedUrl(const QString &id, const QString &url) {
 }
 
 void DownloadStore::feedSource(const QString &id, const QString &url, const QVariantMap &headers) {
+    const int musicIndex = jobIndex(id);
+    if (musicIndex >= 0 && m_jobs.at(musicIndex).request.value("kind") == "music") return;
     if (!pinnedRecovery()) {
         const int i = jobIndex(id);
         if (i < 0 || url.isEmpty()) return;
@@ -362,11 +470,22 @@ void DownloadStore::pruneGroupIfSettled(const QString &groupKey) {
 }
 
 void DownloadStore::startHttp(Job &job) {
-    job.state = QStringLiteral("downloading");
+    if (job.request.value("kind") == "music"
+        && (job.request.value("profileScope").toString() != m_musicProfileScope
+            || buildOutputPath(job.request).isEmpty()
+            || (!job.outputPath.isEmpty() && !musicPathContained(job.outputPath, m_musicProfileScope)))) {
+        failJob(job.id, QStringLiteral("The music download destination is invalid."));
+        return;
+    }
     if (job.outputPath.isEmpty()) {
         job.outputPath = buildOutputPath(job.request);
         job.partPath = job.outputPath + QStringLiteral(".part");
     }
+    if (job.outputPath.isEmpty()) {
+        failJob(job.id, QStringLiteral("The download destination is unavailable."));
+        return;
+    }
+    job.state = QStringLiteral("downloading");
     QDir().mkpath(QFileInfo(job.outputPath).absolutePath());
 
     job.baseOffset = 0;
@@ -574,10 +693,8 @@ void DownloadStore::resetDownload() {
     emit changed();
 }
 
-QVariantList DownloadStore::jobs() const {
-    QVariantList out;
-    for (const Job &j : m_jobs) {
-        out.append(QVariantMap{
+QVariantMap DownloadStore::jobSnapshot(const Job &j) const {
+    return QVariantMap{
             {QStringLiteral("id"), j.id},
             {QStringLiteral("kind"), j.request.value(QStringLiteral("kind"))},
             {QStringLiteral("title"), j.request.value(QStringLiteral("title"))},
@@ -605,8 +722,22 @@ QVariantList DownloadStore::jobs() const {
             {QStringLiteral("total"), j.total},
             {QStringLiteral("speed"), j.speed},
             {QStringLiteral("etaSec"), j.etaSec}
-        });
-    }
+        };
+}
+
+QVariantList DownloadStore::jobs() const {
+    QVariantList out;
+    for (const Job &job : m_jobs)
+        if (job.request.value("kind") != "music") out.append(jobSnapshot(job));
+    return out;
+}
+
+QVariantList DownloadStore::musicJobs(const QString &profileScope) const {
+    QVariantList out;
+    if (profileScope.isEmpty() || profileScope != m_musicProfileScope) return out;
+    for (const Job &job : m_jobs)
+        if (job.request.value("kind") == "music" && job.request.value("profileScope").toString() == profileScope)
+            out.append(jobSnapshot(job));
     return out;
 }
 
@@ -629,7 +760,62 @@ QString DownloadStore::buildDefaultDownloadDir() const {
     return QDir::toNativeSeparators(dir);
 }
 
+QString DownloadStore::musicDownloadDir(const QString &profileScope) const {
+    if (profileScope.trimmed().isEmpty()) return {};
+    const QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (base.isEmpty() || !QDir::isAbsolutePath(base)) return {};
+    const auto hash = QCryptographicHash::hash(profileScope.toUtf8(), QCryptographicHash::Sha256).toHex();
+    return QDir::cleanPath(QDir(base).filePath(QStringLiteral("music/downloads/") + QString::fromLatin1(hash)));
+}
+
+bool DownloadStore::musicPathContained(const QString &path, const QString &profileScope) const {
+    const QString root = musicDownloadDir(profileScope);
+    const QString candidate = QDir::fromNativeSeparators(path);
+    // Reject traversal/outside paths lexically before inspecting any filesystem prefix.
+    if (root.isEmpty() || !QDir::isAbsolutePath(candidate)
+        || QDir::cleanPath(candidate) != candidate) return false;
+#ifdef Q_OS_WIN
+    constexpr auto sensitivity = Qt::CaseInsensitive;
+#else
+    constexpr auto sensitivity = Qt::CaseSensitive;
+#endif
+    if (!candidate.startsWith(root + QLatin1Char('/'), sensitivity)) return false;
+    QStringList prefixes;
+    QString prefix = candidate;
+    while (true) {
+        prefixes.prepend(prefix);
+        const QString parent = QFileInfo(prefix).absolutePath();
+        if (parent == prefix) break;
+        prefix = parent;
+    }
+    for (const auto &part : prefixes) {
+        const QFileInfo info(part);
+        // Check link status before exists/canonical lookup (including broken links).
+        if (info.isSymLink() || info.isJunction()) return false;
+        if (!info.exists()) return true;
+        if (part != candidate && !info.isDir()) return false;
+        if (part == candidate && !info.isFile()) return false;
+        if (QString::compare(QDir::cleanPath(info.canonicalFilePath()), part, sensitivity) != 0) return false;
+    }
+    return true;
+}
+
 QString DownloadStore::buildOutputPath(const QVariantMap &request) const {
+    if (request.value(QStringLiteral("kind")) == QStringLiteral("music")) {
+        const QString scope = request.value(QStringLiteral("profileScope")).toString();
+        const QString video = request.value(QStringLiteral("music")).toMap().value(QStringLiteral("videoId")).toString();
+        const QString extension = request.value(QStringLiteral("extension")).toString();
+        static const QRegularExpression videoId(QStringLiteral("\\A[A-Za-z0-9_-]{11}\\z"));
+        static const QStringList extensions{QStringLiteral("m4a"), QStringLiteral("webm"), QStringLiteral("mp4"),
+            QStringLiteral("opus"), QStringLiteral("ogg"), QStringLiteral("mp3"), QStringLiteral("aac"),
+            QStringLiteral("flac"), QStringLiteral("wav")};
+        if (scope.trimmed().isEmpty() || !videoId.match(video).hasMatch() || !extensions.contains(extension)) return {};
+        const QString requested = request.value(QStringLiteral("outputPath")).toString();
+        const QString path = requested.isEmpty()
+            ? QDir(musicDownloadDir(scope)).filePath(video + QLatin1Char('.') + extension) : requested;
+        if (!musicPathContained(path, scope) || QFileInfo(path).suffix() != extension) return {};
+        return QDir::toNativeSeparators(path);
+    }
     const QString requested = request.value(QStringLiteral("outputPath")).toString();
     if (!requested.isEmpty())
         return QDir::toNativeSeparators(requested);
@@ -680,6 +866,11 @@ void DownloadStore::loadIndex() {
         Entry e;
         e.id = it.key();
         e.kind = o.value(QStringLiteral("kind")).toString();
+        if (e.kind == QStringLiteral("music")) {
+            e.profileScope = o.value(QStringLiteral("profileScope")).toString();
+            e.extension = o.value(QStringLiteral("extension")).toString();
+            e.music = o.value(QStringLiteral("music")).toObject().toVariantMap();
+        }
         e.title = o.value(QStringLiteral("title")).toString();
         e.subtitle = o.value(QStringLiteral("subtitle")).toString();
         e.seriesTitle = o.value(QStringLiteral("seriesTitle")).toString();
@@ -699,7 +890,7 @@ void DownloadStore::saveIndex() const {
     QJsonObject rootObj;
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
         const Entry &e = it.value();
-        rootObj.insert(it.key(), QJsonObject{
+        QJsonObject entry{
             {QStringLiteral("kind"), e.kind},
             {QStringLiteral("title"), e.title},
             {QStringLiteral("subtitle"), e.subtitle},
@@ -710,7 +901,13 @@ void DownloadStore::saveIndex() const {
             {QStringLiteral("art"), e.art},
             {QStringLiteral("bytes"), double(e.bytes)},
             {QStringLiteral("addedAt"), double(e.addedAt)}
-        });
+        };
+        if (e.kind == QStringLiteral("music")) {
+            entry.insert(QStringLiteral("profileScope"), e.profileScope);
+            entry.insert(QStringLiteral("extension"), e.extension);
+            entry.insert(QStringLiteral("music"), QJsonObject::fromVariantMap(e.music));
+        }
+        rootObj.insert(it.key(), entry);
     }
     QSaveFile f(baseDir() + QStringLiteral("/index.json"));
     if (!f.open(QIODevice::WriteOnly))
@@ -731,6 +928,7 @@ void DownloadStore::loadQueue() {
         j.id = j.request.value(QStringLiteral("id")).toString();
         if (j.id.isEmpty())
             continue;
+        if (j.request.value("kind") == "music" && !validMusicRequest(j.request)) continue;
         if (j.request.value(QStringLiteral("groupKey")).toString().isEmpty())
             j.request.insert(QStringLiteral("groupKey"), groupKeyFor(j.request));
         const QString state = o.value(QStringLiteral("state")).toString();
@@ -739,6 +937,8 @@ void DownloadStore::loadQueue() {
         j.state = (state == QStringLiteral("failed") || state == QStringLiteral("paused"))
                       ? state : QStringLiteral("queued");
         j.outputPath = o.value(QStringLiteral("outputPath")).toString();
+        if (j.request.value("kind") == "music"
+            && !j.outputPath.isEmpty() && !musicPathContained(j.outputPath, j.request.value("profileScope").toString())) continue;
         if (!j.outputPath.isEmpty())
             j.partPath = j.outputPath + QStringLiteral(".part");
         j.error = o.value(QStringLiteral("error")).toString();
@@ -770,8 +970,13 @@ void DownloadStore::saveQueue() const {
     for (const Job &j : m_jobs) {
         if (j.state == QStringLiteral("done"))
             continue;   // display-only lingering; a restart starts the zone fresh
+        auto durable = j.request;
+        if (durable.value("kind") == "music") {
+            durable.remove("url");
+            durable.remove("headers");
+        }
         QJsonObject entry{
-            {QStringLiteral("request"), QJsonObject::fromVariantMap(j.request)},
+            {QStringLiteral("request"), QJsonObject::fromVariantMap(durable)},
             {QStringLiteral("state"), j.state},
             {QStringLiteral("error"), j.error},
             {QStringLiteral("outputPath"), j.outputPath}
@@ -793,6 +998,11 @@ void DownloadStore::recordFinished(const Job &job, qint64 bytes) {
     Entry e;
     e.id = job.id;
     e.kind = job.request.value(QStringLiteral("kind")).toString();
+    if (e.kind == QStringLiteral("music")) {
+        e.profileScope = job.request.value(QStringLiteral("profileScope")).toString();
+        e.extension = job.request.value(QStringLiteral("extension")).toString();
+        e.music = job.request.value(QStringLiteral("music")).toMap();
+    }
     e.season = job.request.value(QStringLiteral("season")).toInt();
     e.episode = job.request.value(QStringLiteral("episode")).toInt();
     if (e.kind.isEmpty())
@@ -815,6 +1025,7 @@ QVariantList DownloadStore::downloadedVideos() const {
     QVariantList out;
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
         const Entry &e = it.value();
+        if (e.kind == QStringLiteral("music")) continue;
         out.append(QVariantMap{
             {QStringLiteral("id"), e.id},
             {QStringLiteral("kind"), e.kind},
@@ -831,6 +1042,35 @@ QVariantList DownloadStore::downloadedVideos() const {
         });
     }
     return out;
+}
+
+QVariantList DownloadStore::downloadedMusic(const QString &profileScope) const {
+    QVariantList out;
+    if (profileScope.trimmed().isEmpty() || profileScope != m_musicProfileScope) return out;
+    for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
+        const Entry &e = it.value();
+        if (e.kind != QStringLiteral("music") || e.profileScope != profileScope
+            || !validMusicRequest({{"id", e.id}, {"profileScope", e.profileScope}, {"music", e.music}})
+            || !musicPathContained(e.path, profileScope) || !QFileInfo(e.path).isFile()) continue;
+        out.append(QVariantMap{{QStringLiteral("id"), e.id}, {QStringLiteral("kind"), QStringLiteral("music")},
+            {QStringLiteral("path"), e.path}, {QStringLiteral("bytes"), e.bytes},
+            {QStringLiteral("addedAt"), e.addedAt}, {QStringLiteral("music"), e.music},
+            {QStringLiteral("available"), true}});
+    }
+    return out;
+}
+
+QVariantMap DownloadStore::musicResource(const QString &profileScope, const QString &videoId) const {
+    static const QRegularExpression validId(QStringLiteral("\\A[A-Za-z0-9_-]{11}\\z"));
+    if (!validId.match(videoId).hasMatch()) return {};
+    for (const auto &value : downloadedMusic(profileScope)) {
+        const auto entry = value.toMap();
+        if (entry.value(QStringLiteral("music")).toMap().value(QStringLiteral("videoId")) != videoId) continue;
+        return {{QStringLiteral("url"), QUrl::fromLocalFile(entry.value(QStringLiteral("path")).toString()).toString()},
+            {QStringLiteral("headers"), QVariantMap{}}, {QStringLiteral("videoId"), videoId},
+            {QStringLiteral("qualityLabel"), QStringLiteral("Downloaded")}};
+    }
+    return {};
 }
 
 QVariantMap DownloadStore::removeVideo(const QString &id) {

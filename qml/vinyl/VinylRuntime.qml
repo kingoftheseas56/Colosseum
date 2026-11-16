@@ -40,11 +40,11 @@ Item {
     readonly property bool canEnterVinyl: componentReady && session.profileActive && !session.shuttingDown
         && recommendations.profileActive && recommendations.profileScope === session.profileScope
         && recommendations.profileGeneration === session.profileGeneration
-        && recommendations.canEnterVinyl === true
+        && recommendations.canEnterVinyl === true && !worldData.tasteGateLocked
     readonly property bool resumeRequiresArtistSelection: componentReady && session.profileActive && !session.shuttingDown
         && recommendations.profileActive && recommendations.profileScope === session.profileScope
         && recommendations.profileGeneration === session.profileGeneration && !!recommendations.preferences
-        && recommendations.canEnterVinyl !== true
+        && (recommendations.canEnterVinyl !== true || worldData.tasteGateLocked === true)
     property string importStatus: ""
     readonly property bool importing: session.importing
     readonly property string importProgressText: {
@@ -70,6 +70,7 @@ Item {
     property bool searchOpen: false
     property bool artistSearchOpen: false
     property string homeListeningError: ""
+    property var pendingMixPlay: null
     readonly property string homeRadioStatus: !canEnterVinyl || !recommendations.homeRadioActive ? ""
         : recommendations.homeRadioState==="loading" ? "Loading radio…"
         : recommendations.homeRadioState==="error" ? "Radio could not load more music."
@@ -252,7 +253,7 @@ Item {
     }
     Connections {
         target: root
-        function onPageChanged(){root.cancelPendingVideoOpen(true);if(root.page!=="song")root.exitVideoFullscreen();}
+        function onPageChanged(){root.pendingMixPlay=null;root.cancelPendingVideoOpen(true);if(root.page!=="song")root.exitVideoFullscreen();}
         function onSearchOpenChanged(){if(root.searchOpen){root.cancelPendingVideoOpen(true);root.exitVideoFullscreen();}else if(root.videoDisplayed)root.revealVideoHud();}
         function onArtistSearchOpenChanged(){if(root.artistSearchOpen)root.cancelPendingVideoOpen(true);}
         function onVisibleChanged(){if(!root.visible)root.cancelPendingVideoOpen(true);}
@@ -343,9 +344,9 @@ Item {
         if(typeof worldData.selectTab==="function") worldData.selectTab("library");
         page="library";world.parkPage(Math.max(0,world.contentTop-world.dockedInset));focusLibrary();
     }
-    function openAlbum(id) {
+    function openAlbum(id,action,item) {
         if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
-        pendingAlbumRoute=captureRoute();session.openAlbum(id);
+        pendingAlbumRoute=Object.assign(captureRoute(),{homeAction:action || "",homeItem:item || {}});session.openAlbum(id);
     }
     // A separate catalogue read lane keeps collection browsing independent of
     // the player, queue, Library, and the session's ordinary browse request.
@@ -481,7 +482,10 @@ Item {
     property string discoverStatus: ""
     readonly property bool discoverActivationAllowed: page==="discover" && canEnterVinyl
         && visible && lifecycleActive && !searchOpen && !artistSearchOpen
-    onDiscoverActivationAllowedChanged: if(!discoverActivationAllowed) root.cancelDiscoverItem()
+    readonly property bool homeActivationAllowed: worldVisible && canEnterVinyl
+        && visible && lifecycleActive && !searchOpen && !artistSearchOpen
+    onDiscoverActivationAllowedChanged: if(!discoverActivationAllowed && pendingDiscoverItem && !pendingDiscoverItem.fromHome) root.cancelDiscoverItem()
+    onHomeActivationAllowedChanged: if(!homeActivationAllowed && pendingDiscoverItem && pendingDiscoverItem.fromHome) root.cancelDiscoverItem()
     Component.onDestruction: root.cancelDiscoverItem()
 
     function cancelDiscoverItem() {
@@ -491,8 +495,8 @@ Item {
         if(pending) pending.source.cancel("catalogue-item");
     }
 
-    function resolveDiscoverItem(item) {
-        if(!discoverActivationAllowed || pendingDiscoverItem) return;
+    function resolveDiscoverItem(item,action,fromHome) {
+        if(!(fromHome ? homeActivationAllowed : discoverActivationAllowed) || pendingDiscoverItem) return;
         var source=session.source;
         session.browseError="";
         var id=source ? source.request("catalogue-item","resolveCatalogueItem",item.id,{item:item}) : -1;
@@ -500,7 +504,7 @@ Item {
             discoverStatus=qsTr("Couldn't look up “%1”. Select it again to retry.").arg(item.title);
             return;
         }
-        pendingDiscoverItem={id:id,item:item,source:source,generation:session.profileGeneration};
+        pendingDiscoverItem={id:id,item:item,source:source,generation:session.profileGeneration,action:action || "open",fromHome:fromHome===true};
         discoverStatus=qsTr("Looking up “%1” on YouTube Music…").arg(item.title);
     }
 
@@ -509,7 +513,7 @@ Item {
         if(!pending || pending.id!==id) return;
         pendingDiscoverItem=null;
         discoverStatus="";
-        if(!discoverActivationAllowed || session.source!==pending.source
+        if(!(pending.fromHome ? homeActivationAllowed : discoverActivationAllowed) || session.source!==pending.source
             || session.profileGeneration!==pending.generation) return;
         var item=pending.item;
         if(error || !data || data.version!==1 || data.id!==item.id || data.kind!==item.kind
@@ -519,6 +523,14 @@ Item {
         }
         if(!data.matched) {
             discoverStatus=qsTr("Couldn't find “%1” on YouTube Music.").arg(item.title);
+            return;
+        }
+        if(pending.fromHome && pending.action!=="open") {
+            if(item.kind==="albums" && pending.action==="save" && data.albumId)openAlbum(data.albumId,"save",{});
+            else if(item.kind==="artists" && pending.action==="radio" && data.artistId)
+                recommendations.startHomeRadio({provider:"youtube-music",providerId:String(data.artistId).replace(/^ytm:artist:/,""),name:item.title});
+            else if(data.record) performHomeRecordAction(data.record,{},pending.action);
+            else discoverStatus=qsTr("This pick is unavailable. Try another one.");
             return;
         }
         if(item.kind==="songs" && data.record && data.record.tracks && data.record.tracks.length) {
@@ -551,8 +563,8 @@ Item {
 
     function activateItem(item) {
         if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
-        if(item.catalogueCard===true) {
-            root.resolveDiscoverItem(item);
+        if(item.catalogueCard===true || (item.requiresResolution && item.catalogueItem)) {
+            root.resolveDiscoverItem(item.catalogueItem || item,"open",page!=="discover");
             return;
         }
         if(item.kind==="mixes") {
@@ -609,6 +621,60 @@ Item {
             : worldData.catalogue.albums.find(function(a){return a.id===albumId});
         if(item.kind==="songs" && record) showBrowseSong(record,item.trackIndex);
         else openAlbum(albumId);
+    }
+    function performHomeRecordAction(record,item,action) {
+        if(!record || !session.profileActive || session.shuttingDown)return;
+        if(action==="radio") {
+            var ids=record.artistIds || ((record.tracks || [])[0] || {}).artistIds || [];
+            var id=ids.find(function(value){return String(value).indexOf("ytm:artist:")===0;});
+            if(id)recommendations.startHomeRadio({provider:"youtube-music",providerId:id.slice(11),name:(record.artists || [])[0] || ""});
+            else session.browseError=qsTr("Artist radio is unavailable for this pick.");
+            return;
+        }
+        var index=Number.isInteger(item.resumeTrack) ? item.resumeTrack-1 : Number(item.trackIndex) || 0;
+        if(index>=0 && index<(record.tracks || []).length)session.playAlbum(record,index);
+    }
+    function activateHomeItem(item,action) {
+        if(!item || !homeActivationAllowed || item.available===false || item.unavailable===true)return;
+        if(["open","play","save","radio"].indexOf(action)<0)return;
+        if(item.libraryItem && action==="open") {
+            if(item.libraryAction==="openPlaylist")root.openHomeDestination("library","playlists",item.libraryItem.id);
+            else if(item.libraryAction==="openDownloadedSong")showBrowseSong(item.libraryItem.album,item.libraryItem.index);
+            else if(["activateAlbum","activateArtist","openSong"].indexOf(item.libraryAction)>=0)personalData[item.libraryAction](item.libraryItem);
+            return;
+        }
+        if(item.requiresResolution && item.catalogueItem || item.catalogueCard===true) {
+            resolveDiscoverItem(item.catalogueItem || item,action,true);return;
+        }
+        var kind=String(item.kind || "");
+        if(action==="open"){activateItem(item);return;}
+        if(action==="play" && kind==="albums" && item.resumeEntry){session.resumeSavedCheckpoint(item.resumeEntry);return;}
+        if(action==="play" && item.row && item.album){
+            session.playSongs([{album:item.album,track:item.row.track,index:item.index,editionId:item.editionId}],false);return;
+        }
+        if(action==="radio" || kind==="artists" || kind==="radio") {
+            if(kind==="songs"){performHomeRecordAction(item.record || {},item,"radio");return;}
+            var seed=item.seedArtist || item;
+            if(seed.provider==="local"){
+                var localSongs=personalData.availableSongs.filter(function(song){
+                    var row=song.row || {};
+                    var ids=(row.track || {}).artistIds || (row.edition || {}).artistIds || (song.album || {}).artistIds || [];
+                    return ids.indexOf(seed.providerId || seed.id || seed.artistId)>=0;
+                });
+                if(localSongs.length)session.playSongs(localSongs,true);
+                else session.browseError=qsTr("No local songs are available for this artist.");
+                return;
+            }
+            recommendations.startHomeRadio(item.seedArtist || item);return;
+        }
+        if(kind==="mixes") {
+            pendingMixPlay={id:item.mixId || "personal",generation:session.profileGeneration};
+            recommendations.openHomeMix(pendingMixPlay.id);return;
+        }
+        var record=item.record || item.album || (item.libraryItem || {}).album || worldData.findAlbum(item.albumId || item.id);
+        if(action==="save") {openAlbum((item.destination || {}).providerId || item.albumId || item.id,"save",item);return;}
+        if(record){performHomeRecordAction(record,item,action);return;}
+        if(kind==="albums")openAlbum((item.destination || {}).providerId || item.albumId || item.id,"play",item);
     }
     function queuedAudioIds() {
         return session.queue.map(row=>String((row.track || {}).videoId || row.trackId || (row.track || {}).id || "")).filter(id=>!!id);
@@ -723,6 +789,13 @@ Item {
         onImportFinished: outcome => root.updateImportStatus(outcome)
         onAlbumOpened: {
             if(!root.canEnterVinyl){session.cancelBrowse();root.pendingAlbumRoute=null;root.enforceTasteGate();return;}
+            var pending=root.pendingAlbumRoute;
+            if(pending && pending.homeAction) {
+                root.pendingAlbumRoute=null;
+                if(pending.homeAction==="save"){if(!session.saved)session.toggleSaved();}
+                else root.performHomeRecordAction(session.shownEdition.sourceAlbum,pending.homeItem,pending.homeAction);
+                return;
+            }
             if(!root.restoringRoute)root.routeStack=root.routeStack.concat([root.pendingAlbumRoute || root.captureRoute()]);
             root.pendingAlbumRoute=null;root.searchSnapshot=null;root.searchOriginCatalogue=null;root.searchOpen=false;root.artistSearchOpen=false;root.page="album";Qt.callLater(root.parkFocus);
         }
@@ -732,6 +805,7 @@ Item {
         onProfileGenerationChanged: {
             root.cancelNamedCollectionOpen();root.namedCollectionReturn=null;root.importStatus="";
             root.feedbackRequest=null;root.feedbackError="";
+            root.pendingMixPlay=null;
             pendingAlbumRoute=null;root.searchSnapshot=null;root.searchOriginCatalogue=null;root.searchOpen=false;root.artistSearchOpen=false;
             artistData.open({id:"",name:""});root.routeStack=[];root.page="home";
             if(world)world.resetRouteState("home");
@@ -763,6 +837,10 @@ Item {
             if(!append)root.showSong();
         }
         function onListeningChanged() {
+            var pending=root.pendingMixPlay,view=session.plainData(recommendations.homeMixView);
+            if(pending && pending.generation===session.profileGeneration && view.id===pending.id && view.songs && view.songs.length) {
+                root.pendingMixPlay=null;session.playHomeSongs(view.songs,0,false,{});
+            }
             if(recommendations.homeRadioActive && recommendations.homeRadioState==="error")session.browseError="Radio could not load more music. Open the station again to retry.";
             Qt.callLater(root.refillHomeRadio);
         }
@@ -770,7 +848,7 @@ Item {
     }
     Connections {
         target:session
-        function onManualPlaybackStarted() {root.homeListeningError="";recommendations.stopHomeRadio();}
+        function onManualPlaybackStarted() {root.pendingMixPlay=null;root.homeListeningError="";recommendations.stopHomeRadio();}
         function onRadioContextChanged() {Qt.callLater(root.restoreHomeRadio);}
         function onQueueIndexChanged() {Qt.callLater(root.refillHomeRadio);}
         function onPausedChanged() {Qt.callLater(root.refillHomeRadio);}
@@ -788,7 +866,7 @@ Item {
             return recommendations.profileActive
                 && boundProfileScope===session.profileScope
                 && boundProfileGeneration===session.profileGeneration
-                ? personalData.homeCollections : ({});
+                ? Object.assign({},personalData.homeCollections,{catalogueAlbums:worldData.libraryAlbums,catalogueSongs:personalData.availableSongs}) : ({});
         }
         suggestions:worldData.project(worldData.libraryAlbums,"artists")
             .concat((personalData.homeCollections && personalData.homeCollections.artists) || [])
@@ -799,6 +877,7 @@ Item {
     }
     Connections {
         target:worldData
+        function onHomeActionRequested(item,action){root.activateHomeItem(item,action);}
         function onTastePickerOpenChanged() {
             if(worldData.tastePickerOpen) Qt.callLater(root.openArtistOnboarding);
             if(!worldData.tastePickerOpen && root.artistSearchOpen) {
@@ -964,7 +1043,7 @@ Item {
                     return session.browseError || (session.browsing ? "Searching local music…" : "");
                 return "";
             }
-            text:session.persistenceError || session.personalError || personalData.error || artistData.persistenceError || worldData.persistenceError || (root.importing ? root.importProgressText : (root.page==="discover" ? root.discoverStatus || session.browseError || session.error : session.error || session.browseError) || root.homeListeningError || root.homeRadioStatus || (root.page==="artist" ? artistData.catalogueStatus : contextualBrowseStatus || root.importStatus))
+            text:session.persistenceError || session.personalError || personalData.error || artistData.persistenceError || worldData.persistenceError || (root.importing ? root.importProgressText : root.discoverStatus || session.error || session.browseError || root.homeListeningError || root.homeRadioStatus || (root.page==="artist" ? artistData.catalogueStatus : contextualBrowseStatus || session.downloadNotice || root.importStatus))
             color:!root.importing && (session.error || contextualBrowseStatus) ? theme.gold : theme.inkDim
             font.family:theme.ui;font.pixelSize:12;wrapMode:Text.WordWrap
         }

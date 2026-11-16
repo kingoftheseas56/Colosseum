@@ -98,8 +98,10 @@ Main {
             }
             if(root.stage==="world"&&root.ticks>5) {
                 w.showHome();
+                if(!root.check(r.onboardingState==="answered"&&r.selectedArtists.length>=5
+                    &&!d.tasteGateLocked&&d.canEnterVinyl,
+                    "Five saved artists required on this ProfileTag; first complete the Home provider picker with the same ProfileTag"))return;
                 if(root.phase==="learn") {
-                    if(r.onboardingState==="draft")d.skipPicker();
                     w.importLocalFiles([Qt.application.arguments[2]+"/01-Manual listening.wav",
                         Qt.application.arguments[2]+"/02-Natural ending.wav",Qt.application.arguments[2]+"/03-Album continuation.wav"]);
                     root.next("import");return;

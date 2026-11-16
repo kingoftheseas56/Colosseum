@@ -192,9 +192,10 @@ public:
         static const QStringList operations{"browseCategories","browseCatalogue","resolveCatalogueItem","resolveCatalogueArt","mediaWarmup","search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","resolveVideo","relatedVideo","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","songCandidates","recommendationIdentity","recommendationDiscography","chartCandidates","similarArtists","recordingMatch","populationCandidates","lyrics"};
         static const QStringList lanes{"catalogue-categories","catalogue-songs","catalogue-albums","catalogue-artists","catalogue-item","catalogue-art","media-warmup","browse","queue","play","playFallback","prepare-next","video-match","video-stream","playlist-page","search-albums","search-artists","search-songs","search-playlists","taste-artists","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork","home-seed-0","home-seed-1","home-identity","home-population","home-listening-0","home-listening-1","named-collections","lyrics"};
         const bool songLane=lane=="home-song-0"||lane=="home-song-1";
+        const bool downloadLane=lane=="download"&&operation=="resolve"&&payload.value("source")=="youtube";
         const bool metadataLane=lane=="home-metadata-0"||lane=="home-metadata-1";
         const bool metadata=VinylSourcePool::metadataOperation(operation);
-        if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane&&!metadataLane)||value.size()>300)return -1;
+        if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane&&!metadataLane&&!downloadLane)||value.size()>300)return -1;
         // Reject malformed enrichment before it can cancel an accepted request.
         if(metadata!=metadataLane||(metadata&&!VinylSourcePool::validMetadataRequest(operation,value,payload)))return -1;
         if(operation=="browseCategories"){

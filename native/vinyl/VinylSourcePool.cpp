@@ -262,6 +262,7 @@ QVariantMap VinylSourcePool::catalogueCandidate(const QVariantMap &card) {
     QVariantMap item{{"id",card.value("id")},{"provider",source},{"providerId",id},
         {"kind",kind == "songs" ? "song" : kind == "albums" ? "album" : "artist"},
         {"title",card.value("title")},{"name",card.value("title")},{"cover",cover},
+        {"artist",card.value("artist")},
         {"subtitle",card.value("subtitle",card.value("artist"))},{"catalogueItem",card},{"requiresResolution",true}};
     for (const auto &field : {"rank","chartKind","storefront","similarity"})
         if (card.contains(field)) item[field] = card.value(field);

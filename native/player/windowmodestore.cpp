@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QQuickWindow>
+#include <QRegularExpression>
 #include <QScreen>
 
 namespace {
@@ -45,6 +46,61 @@ WindowModeStore::WindowModeStore(QObject *parent)
         captureStableWindowState();
         persistStableState();
     });
+}
+
+bool WindowModeStore::startupViewportGeometry(const QString &request,
+                                             const QRect &screenGeometry,
+                                             QRect *geometry) {
+    if (!geometry)
+        return false;
+    if (request.isEmpty()) {
+        *geometry = QRect();
+        return true;
+    }
+    // Integers only, with no whitespace, signs, leading zeroes or suffixes.
+    // This also excludes non-finite/fractional input before conversion.
+    static const QRegularExpression pattern(
+        QStringLiteral("\\A([1-9][0-9]{0,4})x([1-9][0-9]{0,4})\\z"));
+    const auto match = pattern.match(request);
+    if (!match.hasMatch())
+        return false;
+    const QSize requested(match.captured(1).toInt(), match.captured(2).toInt());
+    constexpr int maximumDimension = 16384;
+    if (requested.width() < WindowStatePolicy::minimumSize().width()
+        || requested.height() < WindowStatePolicy::minimumSize().height()
+        || requested.width() > maximumDimension || requested.height() > maximumDimension
+        || !screenGeometry.isValid()
+        || requested.width() > screenGeometry.width()
+        || requested.height() > screenGeometry.height())
+        return false;
+    const QRect candidate(screenGeometry.x() + (screenGeometry.width() - requested.width()) / 2,
+                          screenGeometry.y() + (screenGeometry.height() - requested.height()) / 2,
+                          requested.width(), requested.height());
+    const QRect validated = WindowStatePolicy::validatedNormalGeometry(
+        candidate, {screenGeometry}, screenGeometry);
+    if (validated != candidate)
+        return false;
+    *geometry = validated;
+    return true;
+}
+
+bool WindowModeStore::configureStartupViewport(const QString &request,
+                                              const QRect &screenGeometry) {
+    if (m_window)
+        return false; // Never a live window-control API.
+    QRect geometry;
+    if (!startupViewportGeometry(request, screenGeometry, &geometry))
+        return false;
+    if (request.isEmpty())
+        return true;
+    m_startupViewportOverride = true;
+    m_shellWindowed = true;
+    m_normalGeometry = geometry;
+    // Equivalent to a custom normal rectangle under fill policy 2, in memory
+    // only. The ordinary stable-state persistence still owns its existing keys.
+    m_windowedMaximized = false;
+    emit changed();
+    return true;
 }
 
 // ---- PiP (Harbor parity) — now restores onto the persistent base shell mode ----
@@ -118,8 +174,7 @@ void WindowModeStore::initializeShell(QQuickWindow *window) {
     // Validate any restored windowed rectangle against the screens present now, so a
     // saved rectangle from a removed monitor / changed resolution never strands the
     // window off-screen.
-    m_normalGeometry = WindowStatePolicy::validatedNormalGeometry(
-        m_normalGeometry, availableScreenGeometries(), primaryAvailableGeometry());
+    m_normalGeometry = validatedNormalGeometryFor(window);
 
     connect(window, &QWindow::xChanged, this, &WindowModeStore::scheduleStableCapture);
     connect(window, &QWindow::yChanged, this, &WindowModeStore::scheduleStableCapture);
@@ -199,9 +254,7 @@ QRect WindowModeStore::activeFullScreenGeometry(QQuickWindow *window) const {
 }
 
 void WindowModeStore::applyWindowed(QQuickWindow *window) {
-    const QRect restored = WindowStatePolicy::validatedNormalGeometry(
-        m_normalGeometry, availableScreenGeometries(),
-        primaryAvailableGeometry());
+    const QRect restored = validatedNormalGeometryFor(window);
     m_normalGeometry = restored;
     // ONE visibility change, then ONE geometry apply. The old sequence
     // (showNormal -> flags -> geometry -> showNormal again) left fullscreen at
@@ -216,7 +269,22 @@ void WindowModeStore::applyWindowed(QQuickWindow *window) {
     // then misreads as native FullScreen (2026-09-29).
     applyBorderlessGeometry(window,
                             m_windowedMaximized ? activeAvailableGeometry(window) : restored,
-                            WindowStatePolicy::minimumSize());
+                            m_startupViewportOverride
+                                ? WindowStatePolicy::minimumSize().boundedTo(activeFullScreenGeometry(window).size())
+                                : WindowStatePolicy::minimumSize());
+}
+
+QRect WindowModeStore::validatedNormalGeometryFor(QQuickWindow *window) const {
+    if (m_startupViewportOverride) {
+        // Only the explicit disposable-fixture override can extend below a
+        // reserved taskbar edge. Revalidate against the current full screen;
+        // if it shrank after startup, report the real clamped geometry.
+        const QRect fullScreen = activeFullScreenGeometry(window);
+        return WindowStatePolicy::validatedNormalGeometry(
+            m_normalGeometry, {fullScreen}, fullScreen);
+    }
+    return WindowStatePolicy::validatedNormalGeometry(
+        m_normalGeometry, availableScreenGeometries(), primaryAvailableGeometry());
 }
 
 void WindowModeStore::toggleMaximized(QQuickWindow *window) {

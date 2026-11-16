@@ -39,6 +39,8 @@ TestCase {
     QtObject {
         id: fakeRecommendationService
         property int minimumArtists: 5
+        property bool profileActive: true
+        property string profileScope: "local"
         property var selectedArtists: []
         property var draftArtists: []
         property int beginTasteEditCalls: 0
@@ -242,6 +244,28 @@ TestCase {
         compare(viewData.carouselSlides.length,0);
         fakeRecommendationService.selectedArtists=fixtureArtists();
         verify(viewData.canEnterVinyl);
+    }
+    function test_fewerThanFiveSavedArtistsLockVinylToThePicker() {
+        viewData.selectTab("home");
+        verify(!viewData.tasteGateLocked);verify(viewData.canEnterVinyl);
+        compare(viewData.minimumArtistCount,5);
+        fakeRecommendationService.selectedArtists=fixtureArtists().slice(0,1);
+        verify(viewData.tasteGateLocked,"one saved artist is a locked profile");
+        verify(!viewData.canEnterVinyl);verify(viewData.tastePickerOpen);
+        tryCompare(fakeRecommendationService,"onboardingState","editing");
+        compare(fakeRecommendationService.beginTasteEditCalls,1);
+        fakeRecommendationService.onboardingState="answered";
+        compare(viewData.cancelTasteEdit(),false,"the first-time gate cannot be cancelled");
+        fakeRecommendationService.selectedArtists=fixtureArtists().slice(0,4);
+        verify(viewData.tasteGateLocked);
+        fakeRecommendationService.selectedArtists=fixtureArtists();
+        verify(!viewData.tasteGateLocked);verify(viewData.canEnterVinyl);
+        fakeRecommendationService.onboardingState="answered";verify(!viewData.tastePickerOpen);
+    }
+    function test_fiveSavedArtistsAreNeverGatedAndEditingStaysCancellable() {
+        viewData.selectTab("home");verify(!viewData.tasteGateLocked);
+        viewData.beginTasteEdit();compare(fakeRecommendationService.onboardingState,"editing");
+        verify(viewData.tastePickerOpen);verify(!viewData.tasteGateLocked);
     }
     function test_yourArtistsSeeAllOpensTasteEditorAndPreservesPicks() {
         viewData.selectTab("home");

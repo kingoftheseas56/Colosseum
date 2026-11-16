@@ -22,6 +22,14 @@ TestCase {
         return visibleItem(host.contentItem, name)
             || findChild(host.contentItem, name) || findChild(host, name);
     }
+    function clickArtistTab(key) {
+        var tab = item("vinylArtistTab_" + key);
+        verify(tab !== null);
+        verify(tab.visible);
+        verify(waitForRendering(tab));
+        mouseClick(tab);
+        tryCompare(host.artistData, "activeTab", key);
+    }
     function init() {
         var component = Qt.createComponent("../../qml/vinyl/ArtistPreview.qml");
         verify(component.status === Component.Ready, component.errorString());
@@ -115,7 +123,7 @@ TestCase {
     }
     function test_songSelectionAndSongPageReturn() {
         var expected = host.artistData.singlesRows[0].song;
-        item("vinylArtistTab_singles").activate();
+        clickArtistTab("singles");
         // This artist has no provider-ranked songs; its visible song surface is
         // the native compact Singles list, not the hidden popular-song instance.
         item("vinylArtistSinglesRow_0").activate();
@@ -212,7 +220,7 @@ TestCase {
         compare(host.artistData.playlists[0].songs.length, 5);
         verify(item("vinylArtistPlaylist_0") === null);
         var playing = host.pageData.playingEditionId;
-        item("vinylArtistTab_singles").activate();
+        clickArtistTab("singles");
         compare(host.artistData.activeTab, "singles");
         compare(host.artistData.singlesRows.length, 43);
         var row = host.artistData.singlesRows.findIndex(function(r) { return r.album && r.album.tracks && r.album.tracks.length > 0; });
@@ -245,7 +253,7 @@ TestCase {
         verify(item("vinylArtistArtistPlaylistsSection") === null);
         verify(item("vinylArtistLibrarySection") === null);
         var playing = host.pageData.playingEditionId;
-        item("vinylArtistTab_videos").activate();
+        clickArtistTab("videos");
         item("vinylArtistVideoCard_0").activate();
         tryVerify(function() { return item("vinylArtistMediaSource") !== null; });
         compare(item("vinylArtistMediaSource").accessibleDescription, host.artistData.media.videos[0].sourceUrl);
@@ -292,11 +300,11 @@ TestCase {
         verify(!item("vinylArtistRowIndexSidebar").visible);
         compare(item("vinylArtistPanel_albums").width, host.artistScroll.bodyWidth);
         verify(item("vinylArtistDiscographyCard_0").width < host.artistScroll.bodyWidth);
-        item("vinylArtistTab_singles").activate();
+        clickArtistTab("singles");
         compare(host.artistData.activeTab, "singles");
         compare(item("vinylArtistSinglesRow_0").height, 62);
         verify(item("vinylArtistSinglesAlbum_0").width > 150);
-        item("vinylArtistTab_albums").activate();
+        clickArtistTab("albums");
         compare(host.artistData.activeTab, "albums");
     }
     function test_provenanceAndUnknownMetricsAreNotPromoted() {
@@ -331,7 +339,7 @@ TestCase {
         verify(host.artistScroll.contentY > 72);
         keyClick(Qt.Key_PageUp);
         fuzzyCompare(host.artistScroll.contentY, 72, 0.1);
-        item("vinylArtistTab_videos").activate();
+        clickArtistTab("videos");
         wait(0);
         var card = item("vinylArtistVideoCard_0");
         card.forceActiveFocus();
@@ -363,7 +371,7 @@ TestCase {
     function test_videoDetailReturnsToFocusedTab() {
         host.artistData.open("Eminem");
         var playing = host.pageData.playingEditionId;
-        item("vinylArtistTab_videos").activate();
+        clickArtistTab("videos");
         tryCompare(host.artistData, "activeTab", "videos");
         wait(0);
         var before = host.artistScroll.contentY;
@@ -387,7 +395,7 @@ TestCase {
                 host.artistData.popularSongs.filter(function(s) { return !!s.album && !!s.track; }).length);
         host.artistData.open("Joni Mitchell");
         compare(host.artistData.popularSongs.length, 0);
-        item("vinylArtistTab_singles").activate();
+        clickArtistTab("singles");
         var expected = host.artistData.singlesRows[0].song;
         verify(expected !== null);
         item("vinylArtistSinglesRow_0").activate();
@@ -403,7 +411,7 @@ TestCase {
         compare(tabs.y, page.contentY + title.height);
         verify(title.solid);
         verify(!item("vinylArtistRowIndexSidebar").visible);
-        item("vinylArtistTab_videos").activate();
+        clickArtistTab("videos");
         wait(0);
         compare(host.artistData.activeTab, "videos");
         verify(item("vinylArtistPanel_videos").visible);
@@ -413,7 +421,7 @@ TestCase {
         host.artistData.open("Eminem");
         var tabs = ["albums", "singles", "videos", "live"];
         for (var i = 0; i < tabs.length; ++i) {
-            item("vinylArtistTab_" + tabs[i]).activate();
+            clickArtistTab(tabs[i]);
             compare(host.artistData.activeTab, tabs[i]);
             for (var j = 0; j < tabs.length; ++j)
                 compare(item("vinylArtistPanel_" + tabs[j]).visible, i === j);
@@ -421,7 +429,7 @@ TestCase {
     }
     function test_relatedArtistBackRestoresOriginalTab() {
         host.artistData.open("Eminem");
-        item("vinylArtistTab_videos").activate();
+        clickArtistTab("videos");
         var original = host.artistData.record.name;
         var next = host.artistData.media.relatedArtists[0].title;
         host.openArtist(next);
@@ -434,7 +442,7 @@ TestCase {
     }
     function test_singlesUsesApprovedCompactRows() {
         host.artistData.open("Eminem");
-        item("vinylArtistTab_singles").activate();
+        clickArtistTab("singles");
         compare(host.artistData.activeTab, "singles");
         var row = item("vinylArtistSinglesRow_0");
         verify(row !== null, "Approved native Singles uses compact numbered artwork-backed rows");
@@ -446,7 +454,7 @@ TestCase {
     function test_headerBackFromTabReturnsWorld() {
         host.page = "world";
         host.openArtist("Eminem");
-        item("vinylArtistTab_videos").activate();
+        clickArtistTab("videos");
         var back = item("vinylArtistHeaderBack");
         mouseClick(back, back.width / 2, back.height / 2);
         compare(host.page, "world");
@@ -585,7 +593,7 @@ TestCase {
 
     function test_compactSinglesListKeyboardNavigationAndHudQueue() {
         host.artistData.open("Eminem");
-        item("vinylArtistTab_singles").activate();
+        clickArtistTab("singles");
         compare(host.artistData.activeTab, "singles");
         compare(item("vinylArtistPanel_singles").visible, true);
         var row0 = item("vinylArtistSinglesRow_0");

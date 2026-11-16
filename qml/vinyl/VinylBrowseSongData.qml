@@ -45,6 +45,11 @@ Item {
     function artwork(url){return url || "";}
     function play(){session.playAlbum(album,trackIndex,playingEditionId);}
     function enqueuePlayingSong(playNext){return session.enqueueSong(album,trackIndex,playingEditionId,!!playNext);}
+    readonly property var downloadAlbum: playingEdition.sourceAlbum || album
+    readonly property int downloadIndex: (downloadAlbum.tracks || []).findIndex(function(track){return track.id===rawTrack.id;})
+    readonly property bool canDownloadPlayingSong: !!session && typeof session.canDownloadSong==="function" && session.canDownloadSong(downloadAlbum,downloadIndex)
+    readonly property bool downloadedPlayingSong: !!session && typeof session.isSongDownloaded==="function" && session.isSongDownloaded(downloadAlbum,downloadIndex)
+    function downloadPlayingSong(){return canDownloadPlayingSong && session.downloadSong(downloadAlbum,downloadIndex);}
     function togglePlayingSongSaved(){if(personalEnabled && personalRow!==null && personalRow!==undefined && typeof session.toggleSongSaved==="function")return session.toggleSongSaved(personalRow);return false;}
     function addPlayingSongToPlaylist(){if(personalEnabled && personalRow!==null && personalRow!==undefined && typeof session.addRowsToPlaylist==="function")return session.addRowsToPlaylist([personalRow]);return false;}
     function seekToLine(index){if(isCurrent && timedLyrics && lyrics[index]) session.seek(Number(lyrics[index].time!==undefined ? lyrics[index].time : lyrics[index].seconds));}

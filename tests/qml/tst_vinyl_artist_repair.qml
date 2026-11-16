@@ -10,6 +10,14 @@ TestCase {
     // Popup and Timer objects belong to the Window QObject tree, not just its
     // visual contentItem descendants.
     function item(name) { return findChild(host.contentItem, name) || findChild(host, name); }
+    function clickArtistTab(key) {
+        var tab = item("vinylArtistTab_" + key);
+        verify(tab !== null);
+        verify(tab.visible);
+        verify(waitForRendering(tab));
+        mouseClick(tab);
+        tryCompare(host.artistData, "activeTab", key);
+    }
     function init() {
         var component = Qt.createComponent("../../qml/vinyl/ArtistPreview.qml");
         verify(component.status === Component.Ready, component.errorString());
@@ -33,7 +41,7 @@ TestCase {
         var hud = item("vinylArtistHudPlayer");
         compare(hud.visible, false);
         compare(item("vinylPlayerBar").visible, false, "Artist destination has no always-on legacy player");
-        item("vinylArtistTab_singles").activate();
+        clickArtistTab("singles");
         var first = item("vinylArtistSinglesRow_0");
         first.forceActiveFocus();
         keyClick(Qt.Key_Return);
@@ -100,7 +108,7 @@ TestCase {
         tryCompare(trigger, "activeFocus", true);
     }
     function test_focusedRowsClearStickyHeaderAndActiveHud() {
-        item("vinylArtistTab_singles").activate();
+        clickArtistTab("singles");
         wait(0);
         item("vinylArtistSinglesRow_0").activate();
         var hud = item("vinylArtistHudPlayer");
@@ -119,10 +127,13 @@ TestCase {
     }
     function test_tabsHomeEndAndArrows() {
         var keys = ["albums", "singles", "videos", "live"];
-        item("vinylArtistTab_albums").forceActiveFocus();
+        var tabBar = item("vinylArtistSharedTabs");
+        verify(tabBar !== null);
+        tabBar.forceActiveFocus();
         keyClick(Qt.Key_End);
         compare(host.artistData.activeTab, "live");
-        verify(item("vinylArtistTab_live").activeFocus);
+        compare(tabBar.keyboardIndex, keys.length - 1);
+        verify(item("vinylArtistTab_live").keyboardFocused);
         keyClick(Qt.Key_Left);
         compare(host.artistData.activeTab, "videos");
         keyClick(Qt.Key_Home);
@@ -163,7 +174,7 @@ TestCase {
     }
     function test_headerBackRestoresArtistTabAndFilter() {
         host.artistData.selectReleaseCategory("Studio");
-        item("vinylArtistTab_videos").activate();
+        clickArtistTab("videos");
         host.artistScroll.contentY = 120;
         host.openArtist("Ilaiyaraaja");
         var back = item("vinylArtistHeaderBack");
@@ -194,7 +205,7 @@ TestCase {
         compare(item("vinylArtistTitleBar").solid, false);
     }
     function test_singlesArrowsAndEndDoesNotQueue() {
-        item("vinylArtistTab_singles").activate();
+        clickArtistTab("singles");
         item("vinylArtistSinglesRow_0").forceActiveFocus();
         keyClick(Qt.Key_Down);
         tryCompare(item("vinylArtistSinglesRow_1"), "activeFocus", true);

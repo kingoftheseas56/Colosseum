@@ -54,12 +54,15 @@ private:
     QQueue<Job> m_waiting;
     QMap<QString, Active> m_active;
     QTimer m_deadline;
+    quint64 m_deadlineArmGeneration = 0;
+    bool m_deadlineArmPending = false;
     Job m_failedRadioJob;
     bool m_hasFailedRadioJob = false;
     Changed m_changed;
     Batch m_batch;
     void cancel(const QString &prefix = {});
     void pump();
+    void scheduleDeadline(bool progress = false);
     void enqueue(const Job &job);
     void prepareMix(const QString &kind);
     void addAlbumJobs(const QVariantList &cards, const QString &mix, int maximum);

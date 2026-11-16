@@ -3,6 +3,7 @@ import copy
 import importlib.util
 import io
 import json
+import os
 import pathlib
 import sys
 import time
@@ -261,6 +262,26 @@ def _fixture_artist_catalogue_page(request, value, mod):
 
 
 def handle_fake_request(request):
+    if os.environ.get("VINYL_TEST_V1_POOL") == "1":
+        spec = importlib.util.spec_from_file_location("vinyl_v1_pool_fixtures", HERE / "source_pool_fixtures.py")
+        fixtures = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fixtures)
+        result = fixtures.handle(request)
+        if result is not None:
+            return result
+        if request.get("operation") == "resolve" and os.environ.get("VINYL_TEST_DOWNLOAD_AUDIO") == "1":
+            video = request.get("value")
+            # Resolve only recordings represented by fixture songs or album tracks.
+            known = {fixtures._video(artist, index) for artist in fixtures.ARTISTS
+                     for index in [*range(8), *range(100, 100 + 12 * fixtures._album_count(artist))]}
+            if video in known:
+                audio = HERE.parents[0] / "fixtures/vault/media/tiny-audio.m4a"
+                if os.environ.get("VINYL_TEST_LONG_AUDIO") == "1":
+                    audio = HERE.parents[1] / "artifacts/vinyl-v1/runtime-fixtures/silent-45s.m4a"
+                if audio.is_file():
+                    return {"ok": True, "data": {"videoId": video, "url": audio.as_uri(), "headers": {},
+                            "extension": "m4a", "audioOnly": True, "qualityLabel": "Fixture audio"}}
+            return {"ok": False, "error": "Unknown fixture recording"}
     operation = request.get("operation")
     value = str(request.get("value", "")).strip()
     if value == "slow":
@@ -285,7 +306,11 @@ def handle_fake_request(request):
 
 
 def main():
-    request = json.load(sys.stdin)
+    if "--serve" in sys.argv[1:]:
+        for line in sys.stdin.buffer:
+            print(json.dumps(handle_fake_request(json.loads(line))), flush=True)
+        return
+    request = json.load(sys.stdin.buffer)
     result = handle_fake_request(request)
     print(json.dumps(result))
 

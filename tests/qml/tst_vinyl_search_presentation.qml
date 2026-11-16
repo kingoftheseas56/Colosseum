@@ -116,7 +116,11 @@ TestCase {
         var top=findChild(vinyl,"searchTopPresentation");
         tryCompare(top,"status",Loader.Ready);
         compare(top.item.presentationKind,"artists");
-        verify(top.item.includesTitle);
+        compare(top.item.captionTitle, "Artist");
+        var artistCaption = findChild(top.item, top.item.objectName + "_captionTitle");
+        verify(artistCaption !== null);
+        verify(artistCaption.visible);
+        compare(artistCaption.text, "Artist");
         var song=findChild(vinyl,"searchGroupedPresentation_song");
         verify(song !== null); tryCompare(song,"status",Loader.Ready);
         compare(song.item.presentationKind,"songs");

@@ -30,6 +30,7 @@ constexpr auto kVinylRecommendationExposureSnapshotKey =
     "vinyl/recommendationExposureSnapshot";
 constexpr auto kVinylHomeSelectionSnapshotKey =
     "vinyl/homeSelectionSnapshot";
+constexpr auto kVinylCratePinsKey = "vinyl/cratePins";
 constexpr int kVinylTasteVersion = 1;
 constexpr qsizetype kMaximumVinylTasteBytes = 4 * 1024 * 1024;
 constexpr int kMaximumVinylTasteArtists = 512;
@@ -117,6 +118,32 @@ bool isValidVinylHomeSelectionKeys(
             || seen.contains(key)) {
             return false;
         }
+        seen.insert(key);
+    }
+    return true;
+}
+
+bool isValidVinylCratePins(const QVariantList &pins) {
+    if(pins.size()>256 || QJsonDocument::fromVariant(pins).toJson(QJsonDocument::Compact).size()>512*1024)return false;
+    const QSet<QString> textFields{"key","id","kind","title","artist","albumTitle","subtitle","cover","provider","providerId",
+        "albumId","artistId","mixId","playlistId","editionId","trackId"};
+    const QSet<QString> mapFields{"ref","seedArtist","catalogueItem"};
+    QSet<QString> seen;
+    for(const auto &value:pins) {
+        if(value.metaType().id()!=QMetaType::QVariantMap)return false;
+        const auto pin=value.toMap();
+        for(auto it=pin.cbegin();it!=pin.cend();++it) {
+            if(textFields.contains(it.key())) {
+                if(it->metaType().id()!=QMetaType::QString || it->toString().contains(QChar::Null)
+                    || it->toString().toUtf8().size()>8192)return false;
+            }else if(mapFields.contains(it.key())) {if(it->metaType().id()!=QMetaType::QVariantMap)return false;}
+            else if(it.key()=="trackIndex") {if(it->toInt()<0 || it->toInt()>100000)return false;}
+            else return false;
+        }
+        const auto key=pin.value("key").toString();
+        if(key.isEmpty() || seen.contains(key) || pin.value("id").toString().isEmpty()
+            ||pin.value("title").toString().isEmpty()
+            ||!QStringList{"songs","saved-song","albums","artists","mixes","radio"}.contains(pin.value("kind").toString()))return false;
         seen.insert(key);
     }
     return true;
@@ -938,6 +965,24 @@ void ProfilePreferencesStore::setRememberSearchHistory(bool enabled) {
     emit changed();
 }
 
+bool ProfilePreferencesStore::setVinylCratePins(const QVariantList &pins) {
+    if(!isValidVinylCratePins(pins)) {
+        m_vinylPersistenceError=QStringLiteral("Crate pins are malformed or exceed their limit.");
+        emit vinylPersistenceErrorChanged();return false;
+    }
+    if(pins==m_vinylCratePins)return true;
+    const auto key=QString::fromLatin1(kVinylCratePinsKey);
+    const bool existed=m_settings->contains(key);const auto previous=m_settings->value(key);
+    m_settings->setValue(key,QVariantMap{{"version",1},{"items",pins}});m_settings->sync();
+    if(m_settings->status()!=QSettings::NoError) {
+        if(existed)m_settings->setValue(key,previous);else m_settings->remove(key);
+        m_vinylPersistenceError=QStringLiteral("Crate pins could not be saved.");
+        emit vinylPersistenceErrorChanged();return false;
+    }
+    m_vinylCratePins=pins;m_vinylPersistenceError.clear();++m_revision;
+    emit vinylCratePinsChanged();emit vinylPersistenceErrorChanged();emit changed();return true;
+}
+
 void ProfilePreferencesStore::setKeepActivityHistory(bool enabled) {
     if (m_keepActivityHistory == enabled)
         return;
@@ -1194,6 +1239,15 @@ void ProfilePreferencesStore::load() {
             m_vinylPersistenceError = QStringLiteral(
                 "Saved home selection snapshot is malformed and could not be loaded.");
         }
+    }
+
+    const auto crateKey=QString::fromLatin1(kVinylCratePinsKey);
+    if(m_settings->contains(crateKey)) {
+        const auto payload=m_settings->value(crateKey).toMap();
+        const auto items=payload.value("items");
+        if(payload.size()==2 && payload.value("version").toInt()==1
+            && items.metaType().id()==QMetaType::QVariantList && isValidVinylCratePins(items.toList()))m_vinylCratePins=items.toList();
+        else m_vinylPersistenceError=QStringLiteral("Saved Crate pins are malformed and could not be loaded.");
     }
 
     m_hasShowExplicitValue =

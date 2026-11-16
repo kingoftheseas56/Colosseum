@@ -26,6 +26,12 @@ TestCase {
                 {id:"ytm:artist:UCeeeeeeeeeeeeeeeeeeeeee",title:"E"}
             ]
             signal vinylTasteChanged()
+            function setVinylTasteSelections(answered, artists) {
+                vinylTasteAnswered=answered;
+                vinylTasteArtists=JSON.parse(JSON.stringify(artists));
+                vinylTasteChanged();
+                return true;
+            }
         }
     }
     Component {
@@ -35,7 +41,7 @@ TestCase {
             signal completed(string lane, int requestId, var data, string error)
             signal profileLeaving()
             signal profileEntered()
-            function request(lane: string, operation: string, value: string): int { return ++serial; }
+            function request(lane, operation, value, options) { return ++serial; }
             function cancel(lane: string): void {}
             function setAlbums(entries) {}
         }
@@ -122,8 +128,12 @@ TestCase {
             world.resumePresentationPending=true;
             prefs.vinylTasteAnswered=false;prefs.vinylTasteArtists=[];prefs.vinylTasteChanged();
             recommendations.beginHomeVisit();world.enforceTasteGate();
-            tryVerify(()=>world.resumeRequiresArtistSelection);verify(world.visible,"The real artist picker must remain visible");
-            verify(world.worldData.tastePickerOpen);
+            tryVerify(()=>recommendations.canEnterVinyl);
+            verify(!world.canEnterVinyl,"An active profile still needs five artists at the UI gate");
+            verify(world.resumeRequiresArtistSelection);
+            verify(world.worldData.tastePickerOpen,"An unanswered listener must see the mandatory picker");
+            verify(world.visible,"The artist gate must be visible even while a restore route is pending");
+            world.resumePresentationPending=false;verify(world.visible);
         } finally {world.destroy();wait(0);prefs.destroy();wait(0);}
     }
 }

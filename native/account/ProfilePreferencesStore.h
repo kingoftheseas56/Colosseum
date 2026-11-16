@@ -47,6 +47,7 @@ class ProfilePreferencesStore final : public QObject {
         READ vinylHomeSelectionSnapshot
         NOTIFY vinylHomeSelectionChanged)
     Q_PROPERTY(QString vinylPersistenceError READ vinylPersistenceError NOTIFY vinylPersistenceErrorChanged)
+    Q_PROPERTY(QVariantList vinylCratePins READ vinylCratePins NOTIFY vinylCratePinsChanged)
 public:
     bool vinylTasteAnswered() const { return m_vinylTasteAnswered; }
     QStringList vinylTasteArtistIds() const { return m_vinylTasteArtistIds; }
@@ -61,6 +62,8 @@ public:
         return m_vinylHomeSelectionSnapshot;
     }
     QString vinylPersistenceError() const { return m_vinylPersistenceError; }
+    QVariantList vinylCratePins() const { return m_vinylCratePins; }
+    Q_INVOKABLE bool setVinylCratePins(const QVariantList &pins);
     Q_INVOKABLE bool setVinylTaste(bool answered, const QStringList &artistIds);
     Q_INVOKABLE bool setVinylTasteSelections(bool answered, const QVariantList &artists);
     Q_INVOKABLE bool setVinylFeedbackSnapshot(const QString &snapshot);
@@ -137,6 +140,7 @@ signals:
     void vinylFeedbackChanged();
     void vinylRecommendationExposureChanged();
     void vinylHomeSelectionChanged();
+    void vinylCratePinsChanged();
     void vinylPersistenceErrorChanged();
     void mangaLanguagesChanged();
     void showExplicitChanged();
@@ -209,6 +213,7 @@ private:
     QString m_vinylFeedbackSnapshot;
     QString m_vinylRecommendationExposureSnapshot;
     QString m_vinylHomeSelectionSnapshot;
+    QVariantList m_vinylCratePins;
     QString m_vinylPersistenceError;
     int m_revision = 0;
 };

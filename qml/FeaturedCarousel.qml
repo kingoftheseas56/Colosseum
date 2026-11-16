@@ -17,6 +17,11 @@ Item {
     property string primaryLabel: "Read"
     property string secondaryLabel: "Details"
     property string automationId: ""
+    property Component slideDelegate: null
+    property string dotAutomationPrefix: ""
+    property real dotsBottomMargin: adaptive.phone ? 16 : 26
+    property real dotsRightMargin: adaptive.phone ? 16 : 26
+    property real dotsLeftMargin: -1   // >= 0 pins the dots to the left edge instead of the right
     signal primaryClicked(int index)
     signal secondaryClicked(int index)
     function _findKeyboardSectionCoordinator() {
@@ -118,6 +123,12 @@ Item {
         }
         Repeater {
             model: car.slides
+            delegate: car.slideDelegate || houseSlide
+        }
+    }
+
+    Component {
+        id: houseSlide
             CarouselSlide {
                 required property var modelData
                 required property int index
@@ -130,7 +141,6 @@ Item {
                 onPrimaryClicked: car.primaryClicked(index)
                 onSecondaryClicked: car.secondaryClicked(index)
             }
-        }
     }
 
     KeyboardCollectionController {
@@ -145,8 +155,12 @@ Item {
     // color-agnostic dots: GOLD active on a dark backing strip → reads over any cover
     Rectangle {
         visible: car.slides.length > 1
-        anchors.right: parent.right; anchors.bottom: parent.bottom
-        anchors.margins: adaptive.phone ? 16 : 26
+        // The carousel can start unallocated, then switch from narrow to desktop.
+        // One position binding avoids retaining geometry from the opposite anchor.
+        x: car.dotsLeftMargin >= 0 ? car.dotsLeftMargin
+            : parent.width - width - car.dotsRightMargin
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: car.dotsBottomMargin
         radius: 999; height: 22; width: dotsRow.implicitWidth + 22
         color: Qt.rgba(0, 0, 0, 0.42)
         Row {
@@ -156,6 +170,7 @@ Item {
                 model: car.slides.length
                 delegate: Rectangle {
                     required property int index
+                    objectName: car.dotAutomationPrefix.length ? car.dotAutomationPrefix + "_" + index : ""
                     width: index === view.currentIndex ? 22 : 7
                     height: 7; radius: 4
                     color: index === view.currentIndex ? theme.gold : Qt.rgba(1, 1, 1, 0.5)

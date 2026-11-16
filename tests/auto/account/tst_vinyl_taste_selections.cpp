@@ -108,6 +108,7 @@ private slots:
     void mappingStatusRequiresConsistentCanonicalIdentity();
     void unansweredSelectionsAreRejected();
     void failedSyncRetainsPreviousTasteValues();
+    void cratePinsPersistAcrossRestartAndStayProfileScoped();
 };
 
 void tst_vinyl_taste_selections::emptyDoneAndSkipPersistAcrossReload() {
@@ -565,6 +566,35 @@ void tst_vinyl_taste_selections::failedSyncRetainsPreviousTasteValues() {
     QCOMPARE(artistsValue(&reloaded).size(), 1);
     QCOMPARE(artistsValue(&reloaded).first().toMap().value(QStringLiteral("providerId")).toString(),
              QStringLiteral("original"));
+}
+
+void tst_vinyl_taste_selections::cratePinsPersistAcrossRestartAndStayProfileScoped() {
+    QTemporaryDir temporary;QVERIFY(temporary.isValid());
+    const auto path=temporary.filePath("profile-a.ini");
+    const QVariantList pins{QVariantMap{{"key","fixture-artist"},{"id","ytm:artist:UC0000000000000000000001"},
+        {"kind","artists"},{"title","Pinned artist"},{"cover",""}},
+        QVariantMap{{"key","fixture-song"},{"id","owned-song"},{"kind","saved-song"},{"title","Pinned song"},
+            {"artist",QString::fromUtf8("竹内まりや")},{"albumTitle","Known album"}}};
+    auto write=[](QObject *store,const QVariantList &items,bool *accepted){
+        return QMetaObject::invokeMethod(store,"setVinylCratePins",Qt::DirectConnection,
+            Q_RETURN_ARG(bool,*accepted),Q_ARG(QVariantList,items));
+    };
+    {
+        ProfilePreferencesStore store(path);bool accepted=false;
+        QVERIFY(write(&store,pins,&accepted));QVERIFY(accepted);
+        QCOMPARE(store.property("vinylCratePins").toList(),pins);
+    }
+    ProfilePreferencesStore restored(path),other(temporary.filePath("profile-b.ini"));
+    QCOMPARE(restored.property("vinylCratePins").toList(),pins);
+    QVERIFY(other.property("vinylCratePins").toList().isEmpty());
+    const auto song=restored.property("vinylCratePins").toList().at(1).toMap();
+    QCOMPARE(song.value("artist").toString(),QString::fromUtf8("竹内まりや"));
+    QCOMPARE(song.value("albumTitle").toString(),QString("Known album"));
+    bool accepted=true;
+    QVERIFY(write(&restored,QVariantList{pins.first(),pins.first()},&accepted));QVERIFY(!accepted);
+    QCOMPARE(restored.property("vinylCratePins").toList(),pins);
+    QVERIFY(write(&restored,{},&accepted));QVERIFY(accepted);
+    ProfilePreferencesStore unpinned(path);QVERIFY(unpinned.property("vinylCratePins").toList().isEmpty());
 }
 
 QTEST_GUILESS_MAIN(tst_vinyl_taste_selections)

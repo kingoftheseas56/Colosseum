@@ -136,7 +136,7 @@ SearchSurface {
             anchors.verticalCenter: parent.verticalCenter; spacing: 12
             VinylWorldButton {
                 objectName: "vinylSearchPickerCancel"
-                visible: page.worldData.onboardingState==="editing"
+                visible: page.worldData.onboardingState==="editing" && page.worldData.tasteGateLocked!==true
                 label: "Cancel artist selection"; symbol: "cancel"; backdrop: page.backdrop
                 onTriggered: page.worldData.cancelTasteEdit()
             }

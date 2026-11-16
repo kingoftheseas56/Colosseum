@@ -55,9 +55,11 @@ TestCase {
             property var vinylTasteArtists: []
             property string vinylPersistenceError: ""
             property bool failWrites: false
+            property int writeCalls: 0
             signal vinylTasteChanged()
 
             function setVinylTasteSelections(answered, artists) {
+                writeCalls++;
                 if (failWrites) {
                     vinylPersistenceError = "Synthetic preference write failure.";
                     return false;
@@ -88,6 +90,15 @@ TestCase {
     }
 
     function picker() { return findChild(world, "vinylTastePicker"); }
+    function pickArtists(count) {
+        var rows = [];
+        for (var i = 0; i < count; ++i) {
+            var ref = artist("UC" + String.fromCharCode(97 + i).repeat(22), "Native Artist " + i);
+            rows.push(ref);
+            service.toggleDraftArtist(ref);
+        }
+        return rows;
+    }
     function artistKeys(values) { return values.map(function(value) { return value.key; }).sort(); }
     function typeText(value) {
         for (var i = 0; i < value.length; ++i) {
@@ -144,45 +155,102 @@ TestCase {
         service = null;
     }
 
-    function test_allRoutesRequireArtistSetup() {
-        tryCompare(service, "onboardingState", "draft");
-        verify(picker() !== null && picker().visible);
-        verify(!world.canEnterVinyl);
-        compare(world.page, "home", "Library cannot bypass artist setup.");
-
+    function test_newProfileSeesOnlyThePickerUntilFiveArtistsAreSaved() {
+        // Changed by Hemanth 2026-11-13: five artists are required before Vinyl unlocks.
+        world.showHome();
+        tryCompare(world.worldData, "tasteGateLocked", true);
+        compare(world.canEnterVinyl, false);
+        compare(world.resumeRequiresArtistSelection, true);
+        tryCompare(service, "onboardingState", "editing");
+        tryVerify(function(){return picker().visible;});
+        compare(findChild(world, "vinylHero").visible, false);
+        compare(findChild(world, "vinylCrate").visible, false);
+        compare(findChild(world, "vinylSpin").visible, false);
+        compare(findChild(world, "vinylFlowTabs").visible, false);
+        compare(findChild(world, "vinylCrateTasteCard"), null);
+        var cancel = findChild(world, "vinylPickerCancel");
+        verify(cancel === null || !cancel.visible, "The first-time gate has no cancel.");
+        var done = findChild(world, "vinylPickerDone");
+        verify(!done.enabled);
         world.worldView.setTab("discover");
-        wait(0);
-        compare(service.onboardingState, "draft");
-        compare(world.worldView.currentTab, "home");
-        verify(picker().visible, "Discover cannot bypass artist setup.");
-
-        world.worldView.setTab("home");
-        wait(0);
-        compare(service.onboardingState, "draft");
-        verify(picker() !== null && picker().visible,
-            "Artist setup remains visible until five artists are saved.");
+        compare(world.worldView.currentTab, "home", "Tabs cannot leave the gate.");
+        var chosen = pickArtists(4);
+        verify(!done.enabled, "Four artists are not enough.");
+        compare(preferences.vinylTasteAnswered, false);
+        service.toggleDraftArtist(artist("UC" + "e".repeat(22), "Native Artist 4"));
+        tryCompare(done, "enabled", true);
+        done.activate(Qt.MouseFocusReason);
+        compare(preferences.writeCalls, 1);
+        compare(service.selectedArtists.length, 5);
+        tryCompare(world.worldData, "tasteGateLocked", false);
+        tryCompare(world, "canEnterVinyl", true);
+        tryVerify(function(){return !picker().visible;});
+        compare(findChild(world, "vinylHero").visible, true);
     }
 
-    function test_blockedNavigationKeepsDraft() {
+    function test_legacyProfilesWithOneToFourSavedArtistsStayPrefilledAndGated() {
+        var legacyArtists = [];
+        for (var i = 0; i < 4; ++i)
+            legacyArtists.push(artist("UC" + String.fromCharCode(97 + i).repeat(22), "Legacy Artist " + i));
+
+        preferences.vinylTasteAnswered = true;
+        for (var count = 1; count <= 4; ++count) {
+            var saved = legacyArtists.slice(0, count);
+            preferences.vinylTasteArtists = saved;
+            preferences.vinylTasteArtistIds = saved.map(function(value) { return value.providerId; });
+            preferences.vinylTasteChanged();
+            world.showHome();
+
+            tryCompare(world.worldData, "tasteGateLocked", true);
+            tryCompare(service, "onboardingState", "editing");
+            tryCompare(service, "draftArtistCount", count);
+            tryVerify(function() { return picker().visible; });
+            compare(artistKeys(service.draftArtists), artistKeys(saved),
+                "Legacy selections remain prefilled while the five-artist gate is locked.");
+            compare(picker().selectedArtistCount, count);
+            verify(!findChild(world, "vinylPickerDone").enabled);
+            var cancel = findChild(world, "vinylPickerCancel");
+            verify(cancel === null || !cancel.visible, "A legacy under-five profile cannot cancel the gate.");
+            compare(findChild(world, "vinylPickerSkip"), null);
+            verify(!world.canEnterVinyl);
+        }
+    }
+
+    function test_profileWithFiveSavedArtistsIsNeverGated() {
+        world.worldData.beginTasteEdit();
+        tryCompare(service, "onboardingState", "editing");
+        pickArtists(5);
+        verify(service.commitTaste(false));
         world.showHome();
-        tryCompare(service, "onboardingState", "draft");
+        compare(world.worldData.tasteGateLocked, false);
+        verify(world.canEnterVinyl);
+        verify(!picker().visible);
+        world.worldView.setTab("discover");
+        tryCompare(world.worldView, "currentTab", "discover");
+        compare(world.resumeRequiresArtistSelection, false);
+    }
+
+    function test_gatedDraftSurvivesNavigationAttemptsAndWritesNothing() {
+        world.showHome();
+        tryCompare(service, "onboardingState", "editing");
         var selected = artist("UCaaaaaaaaaaaaaaaaaaaaaa", "Native Artist");
         service.toggleDraftArtist(selected);
         compare(artistKeys(service.draftArtists), [selected.key]);
-
         world.worldView.setTab("discover");
-        wait(0);
         compare(world.worldView.currentTab, "home");
         verify(picker().visible);
-        world.worldView.setTab("home");
-        wait(0);
-        verify(picker().visible);
         compare(artistKeys(service.draftArtists), [selected.key]);
+        world.worldData.cancelTasteEdit();
+        compare(service.onboardingState, "editing", "The gate cannot be cancelled.");
+        compare(preferences.writeCalls, 0);
+        compare(preferences.vinylTasteAnswered, false);
+        verify(!world.canEnterVinyl);
     }
 
     function test_searchPagesKeepSelection() {
         world.showHome();
-        tryCompare(service, "onboardingState", "draft");
+        world.worldData.beginTasteEdit();
+        tryCompare(service, "onboardingState", "editing");
         var selected = artist("UCaaaaaaaaaaaaaaaaaaaaaa", "Native Artist");
         service.toggleDraftArtist(selected);
 
@@ -222,8 +290,8 @@ TestCase {
     }
 
     function test_closingCatalogueBeforeArtistEditKeepsSearchFocus() {
-        for(var i=0;i<5;i++)
-            service.toggleDraftArtist(artist("UC"+String.fromCharCode(97+i).repeat(22), "Native Artist "+i));
+        world.worldData.beginTasteEdit();
+        pickArtists(5);
         verify(service.commitTaste(false));
         world.showHome();
         world.enterDiscoverSearch(true, false);
@@ -239,17 +307,14 @@ TestCase {
         tryCompare(field, "activeFocus", true);
         verify(!world.searchOpen, "A queued catalogue-close focus must not steal artist-search focus.");
         compare(service.draftArtistCount, 5);
+        compare(preferences.writeCalls, 1);
     }
 
     function test_editCancelDoesNotEraseTaste() {
         world.showHome();
-        tryCompare(service, "onboardingState", "draft");
-        var saved = [];
-        for(var i=0;i<5;i++) {
-            var ref=artist("UC"+String.fromCharCode(97+i).repeat(22), "Native Artist "+i);
-            saved.push(ref);
-            service.toggleDraftArtist(ref);
-        }
+        world.worldData.beginTasteEdit();
+        tryCompare(service, "onboardingState", "editing");
+        var saved = pickArtists(5);
         verify(service.commitTaste(false));
         compare(service.onboardingState, "answered");
         compare(artistKeys(service.selectedArtists), artistKeys(saved));
@@ -263,7 +328,8 @@ TestCase {
         compare(service.onboardingState, "editing");
         service.toggleDraftArtist(saved[1]);
         compare(service.draftArtistCount, 4);
-        verify(!service.commitTaste(false), "An edit cannot save fewer than five artists.");
+        verify(!findChild(world, "vinylPickerDone").enabled, "Four artists are not enough to save.");
+        var writesBeforeCancel = preferences.writeCalls;
         var cancel = findChild(world, "vinylPickerCancel");
         verify(cancel !== null && cancel.visible);
         cancel.activate(Qt.MouseFocusReason);
@@ -271,28 +337,31 @@ TestCase {
         compare(service.onboardingState, "answered");
         compare(artistKeys(service.selectedArtists), artistKeys(saved));
         compare(artistKeys(preferences.vinylTasteArtists), artistKeys(saved));
+        compare(preferences.writeCalls, writesBeforeCancel);
     }
 
-    function test_emptySuggestionsDoNotAllowSkip() {
+    function test_emptySuggestionsStillGateWithoutAnswerOrWrites() {
         service.suggestions = [];
         world.showHome();
-        tryCompare(service, "onboardingState", "draft");
+        tryCompare(service, "onboardingState", "editing");
         verify(picker().visible);
-
-        var skip = findChild(world, "vinylPickerSkip");
-        compare(skip, null);
-        verify(!service.commitTaste(true));
-        compare(service.onboardingState, "draft");
-        verify(!world.canEnterVinyl);
         verify(!findChild(world, "vinylPickerDone").enabled);
+        verify(!service.commitTaste(false), "An empty draft cannot be saved as artist choices.");
+        compare(preferences.writeCalls, 0);
+        world.worldData.skipPicker();
+        compare(service.onboardingState, "editing", "There is no skip while fewer than five artists are saved.");
+        verify(picker().visible);
+        verify(!world.canEnterVinyl);
         compare(service.selectedArtists.length, 0);
         compare(preferences.vinylTasteAnswered, false);
         compare(preferences.vinylTasteArtists.length, 0);
+        compare(preferences.writeCalls, 0);
     }
 
     function test_lateSearchCannotChangeAnotherProfile() {
         world.showHome();
-        tryCompare(service, "onboardingState", "draft");
+        world.worldData.beginTasteEdit();
+        tryCompare(service, "onboardingState", "editing");
         var selected = artist("UCaaaaaaaaaaaaaaaaaaaaaa", "Native Artist");
         service.toggleDraftArtist(selected);
         service.searchArtists("old profile", {});

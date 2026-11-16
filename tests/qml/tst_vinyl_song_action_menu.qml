@@ -62,6 +62,11 @@ Item {
         property int queueCalls: 0
         property bool lastPlayNext: false
 
+        property bool canDownloadPlayingSong: false
+        property bool downloadedPlayingSong: false
+        property int downloadCalls: 0
+        function downloadPlayingSong() { downloadCalls += 1 }
+
         function songIsSaved() { return saved }
         function togglePlayingSongSaved() {
             toggles += 1
@@ -149,6 +154,7 @@ Item {
             control.songData=viewedSong;control.showPlay=true;control.showLyricsTools=true;control.showReaderTools=true;
             control.collectionHost=null;control.personalHost=null;control.playlistHost=null;control.videoFullscreen=false;
             viewedTrack.available=true;viewedSong.saved=false;viewedSong.toggles=0;viewedSong.playlists=0;
+            viewedSong.canDownloadPlayingSong=false;viewedSong.downloadedPlayingSong=false;viewedSong.downloadCalls=0;
             viewedSong.personalEnabled=true;viewedSong.lyricsShown=false;viewedSong.autoNotes=false;viewedSong.manualNoteLine=-1;
             viewedSong.videoShown=false;otherSong.toggles=0;otherSong.playlists=0;
             playSpy.clear();fullscreenSpy.clear();
@@ -208,6 +214,28 @@ Item {
             playlistAction.activate();compare(viewedSong.playlists,1);
             control.collectionHost=null;control.personalHost=null;control.playlistHost=null;
             collection.destroy();personal.destroy();playlist.destroy();
+        }
+        function test_downloadUsesCurrentSongAndExistingPersonalHost() {
+            const button=action("vinylSongDownload");
+            verify(!button.visible);
+            viewedSong.canDownloadPlayingSong=true;
+            verify(button.visible);verify(button.enabled);compare(button.label,"Download");
+            compare(button.accessibleName,"Download");verify(button.iconSource.toString().endsWith("download.svg"));
+            compare(button.parent,action("vinylSongSave").parent);
+            waitForRendering(scene);mouseClick(button,button.width/2,button.height/2);
+            compare(viewedSong.downloadCalls,1);compare(playingSong.toggles,0);
+            control.songData=unsupportedSong;verify(!button.visible);
+            control.songData=viewedSong;viewedTrack.available=false;
+            verify(!button.visible);verify(!button.enabled);button.activate();compare(viewedSong.downloadCalls,1);
+        }
+        function test_alreadyDownloadedIsLabeledAndCannotDispatchAgain() {
+            viewedSong.canDownloadPlayingSong=true;viewedSong.downloadedPlayingSong=true;
+            const button=action("vinylSongDownload");
+            verify(button.visible);verify(!button.enabled);
+            compare(button.label,"Downloaded");compare(button.accessibleName,"Downloaded");
+            button.activate();compare(viewedSong.downloadCalls,0);
+            viewedSong.downloadedPlayingSong=false;
+            button.forceActiveFocus();keyClick(Qt.Key_Return);compare(viewedSong.downloadCalls,1);
         }
         function test_keyboardActivatesPlaylist() {
             const button=action("vinylSongPlaylist");button.forceActiveFocus();keyClick(Qt.Key_Return);compare(viewedSong.playlists,1);

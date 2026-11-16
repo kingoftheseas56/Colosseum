@@ -1,6 +1,6 @@
 #pragma once
 
-// DownloadStore — the Theatre lane's video download engine.
+// DownloadStore — the shared video/music download queue.
 // v2 (2026-07-04): bounded job QUEUE with lazy per-job stream resolution — TB2's
 // proven gap-episode flow at Harbor's simplicity. A job's durable payload is the
 // episode's stream id (tt…:s:e), which never expires: resolution to a concrete
@@ -45,6 +45,11 @@ public:
     // ── queue (season checkout et al.) ──
     Q_INVOKABLE void enqueue(const QVariantMap &request);       // url optional
     Q_INVOKABLE void enqueueBatch(const QVariantList &requests);
+    Q_INVOKABLE QString enqueueMusic(const QVariantMap &album, int trackIndex, const QString &profileScope);
+    Q_INVOKABLE QVariantList musicJobs(const QString &profileScope) const;
+    void setMusicProfileScope(const QString &profileScope);
+    QVariantMap musicRequest(const QString &id) const;
+    void feedMusicSource(const QString &id, const QVariantMap &resource);
     Q_INVOKABLE void cancelJob(const QString &id);   // drops the job entirely
     Q_INVOKABLE void retryJob(const QString &id);    // failed → queued (re-resolve)
     Q_INVOKABLE void pauseJob(const QString &id);    // keeps the .part; frees the cap slot
@@ -63,6 +68,9 @@ public:
 
     // ── downloaded-videos library ──
     Q_INVOKABLE QVariantList downloadedVideos() const;
+    Q_INVOKABLE QVariantList downloadedMusic(const QString &profileScope) const;
+    Q_INVOKABLE QVariantMap musicResource(const QString &profileScope, const QString &videoId) const;
+    QString musicDownloadDir(const QString &profileScope) const;
     Q_INVOKABLE QVariantMap removeVideo(const QString &id);
 
     // dev harness: COLOSSEUM_VIDEOQ_SELFTEST="exactrow" (later: "group"|"speed"|"pause")
@@ -105,10 +113,15 @@ private:
 
     struct Entry {
         QString id, kind, title, subtitle, seriesTitle, path, art;
+        QString profileScope, extension;
+        QVariantMap music;
         int season = 0, episode = 0;
         qint64 bytes = 0, addedAt = 0;
     };
 
+    bool musicPathContained(const QString &path, const QString &profileScope) const;
+    bool validMusicRequest(const QVariantMap &request) const;
+    QVariantMap jobSnapshot(const Job &job) const;
     QString buildDefaultDownloadDir() const;
     QString buildOutputPath(const QVariantMap &request) const;
     QString sanitizeFilePart(const QString &value) const;
@@ -141,6 +154,7 @@ private:
     QNetworkAccessManager m_network;
     QString m_defaultDownloadDir;
     QString m_lastDonePath;
+    QString m_musicProfileScope;
     QList<Job> m_jobs;
     QHash<QString, Entry> m_index;
     int m_queueRevision = 0;

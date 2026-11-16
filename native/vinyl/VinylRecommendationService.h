@@ -31,6 +31,7 @@ class VinylRecommendationService : public QObject {
     Q_PROPERTY(QString homeError READ homeError NOTIFY homeChanged)
     Q_PROPERTY(int homeRevision READ homeRevision NOTIFY homeChanged)
     Q_PROPERTY(QVariantMap homeSnapshot READ homeSnapshot NOTIFY homeChanged)
+    Q_PROPERTY(QVariantMap homeSourcePool READ homeSourcePool NOTIFY homeChanged)
     Q_PROPERTY(QVariantList homeCarouselItems READ homeCarouselItems NOTIFY homeChanged)
     Q_PROPERTY(QVariantList homeListeningCards READ homeListeningCards NOTIFY listeningChanged)
     Q_PROPERTY(QVariantList homeQuickPicks READ homeQuickPicks NOTIFY listeningChanged)
@@ -81,6 +82,7 @@ public:
     QString homeError() const;
     int homeRevision() const;
     QVariantMap homeSnapshot() const;
+    QVariantMap homeSourcePool() const;
     QVariantList homeCarouselItems() const;
     QVariantList homeListeningCards() const;
     QVariantList homeQuickPicks() const;
@@ -103,6 +105,8 @@ public:
     void setKeepHistory(bool);
     QVariantMap historySnapshot() const;
     Q_INVOKABLE bool setFeedback(const QVariantMap &ref,const QString &action,int expectedGeneration);
+    Q_INVOKABLE bool setCratePin(const QVariantMap &item,bool pinned,int expectedGeneration);
+    Q_INVOKABLE bool isCratePinned(const QVariantMap &item,int expectedGeneration) const;
     Q_INVOKABLE bool recordVisibleItems(const QString &shelf,const QString &snapshot,const QVariantList &refs,int expectedGeneration);
 signals:
     void stateChanged();
@@ -138,7 +142,8 @@ private:
     void visitHome();
     void rebuildHome();
     void selectHomeCarousel(bool refresh=false);
-    void pumpHome();
+    void pumpHome(bool publishNow=false);
+    void queueHomeEnrichment();
     bool acceptHome(const QString&,int,const QVariant&,const QString&);
     void cancelSongCandidates(bool clear);
     void queueSongCandidates();

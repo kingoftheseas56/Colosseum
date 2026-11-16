@@ -754,6 +754,17 @@ Item {
         if (!ok) browseError="The album could not be saved. Try again.";
         refreshLibrary();
     }
+    function cacheCrateRecord(item) {
+        if(shuttingDown || !profileActive)return false;
+        var record=item && (item.record || item.album || (item.libraryItem || {}).album);
+        if(!record || record.origin!=="youtube-music")return true;
+        if(!validAlbum(record) || !collectionStore)return false;
+        if(library.some(function(entry){return entry.id===record.id;}))return true;
+        var ok=backend.setSavedAlbum({id:record.id,type:"album",title:record.title,cover:record.cover || "",
+            browseId:record.browseId || "",artist:(record.artists || []).join(" · "),payload:{version:1,album:record}},false);
+        if(!ok)browseError="This pick could not be kept. Try again.";
+        refreshLibrary();return ok;
+    }
     function showPlayingAlbum() { shownEdition=playingEdition;shownDisc=playingDisc;refreshLibrary();editionSelected(); }
     function rowFor(e,d,i) {
         // Queue occurrence IDs are assigned by the native queue on insertion.
@@ -784,6 +795,31 @@ Item {
         if(!activeQueueRow){browseError="No song is selected.";return false;}
         return appendRows([activeQueueRow],!!playNext);
     }
+    property var downloadStore: typeof Download!=="undefined" ? Download : null
+    readonly property int downloadRevision: downloadStore ? Number(downloadStore.queueRevision) || 0 : 0
+    property string downloadNotice: ""
+    function canDownloadSong(album,index) {
+        var track=(album && album.tracks || [])[index];
+        return profileActive && !shuttingDown && !!profileScope && !!downloadStore
+            && typeof downloadStore.enqueueMusic==="function" && album.origin==="youtube-music"
+            && !!track && track.available!==false && /^[A-Za-z0-9_-]{11}$/.test(String(track.videoId || ""));
+    }
+    function isSongDownloaded(album,index) {
+        var revision=downloadRevision;
+        return canDownloadSong(album,index) && typeof downloadStore.musicResource==="function"
+            && !!downloadStore.musicResource(profileScope,String(album.tracks[index].videoId)).url;
+    }
+    function downloadSong(album,index) {
+        if(!canDownloadSong(album,index))return false;
+        var id=downloadStore.enqueueMusic(album,index,profileScope);
+        downloadNotice=id ? qsTr("Added to Downloads") : qsTr("This song could not be downloaded.");
+        return !!id;
+    }
+    readonly property var playingDownloadAlbum: playingEdition.sourceAlbum || ({})
+    readonly property int playingDownloadIndex: (playingDownloadAlbum.tracks || []).findIndex(function(track){return track.id===playingTrack.id;})
+    readonly property bool canDownloadPlayingSong: canDownloadSong(playingDownloadAlbum,playingDownloadIndex)
+    readonly property bool downloadedPlayingSong: isSongDownloaded(playingDownloadAlbum,playingDownloadIndex)
+    function downloadPlayingSong(){return downloadSong(playingDownloadAlbum,playingDownloadIndex);}
     function cancelQueueRequest() {queueRequest=-1;pendingCataloguePlay=null;pendingEnqueues=[];if(source) source.cancel("queue");}
     function playCatalogueAlbum(id,shuffleOrder,index,trackId) {
         if(shuttingDown || !profileActive || !source) return;

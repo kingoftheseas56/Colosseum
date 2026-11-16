@@ -25,7 +25,83 @@ using namespace vinyl::recommendation;
 namespace {
 QByteArray wire(const QVariant &value){return QJsonDocument::fromVariant(value).toJson(QJsonDocument::Compact);}
 QString digest(const QVariant &value){return QString::fromLatin1(QCryptographicHash::hash(wire(value),QCryptographicHash::Sha256).toHex());}
+QString crateKind(QString kind){if(kind=="saved-song")return "songs";return kind;}
+QString crateAlias(const QString &kind,const QString &id){return "item/"+crateKind(kind)+"/"+id;}
+// Automatic choices fill unused day-one slots; pins and qualified-history order stay first.
+QVariantList fillCrate(QVariantList retained, const QVariantList &listeningCards,
+                       const QVariantList &albums, const QVariantList &songs, const QVariantList &picked) {
+    auto identityKey=[](const QVariantMap &card) {
+        const auto ref=vinyl::RecommendationEntityRef::fromJson(QJsonObject::fromVariantMap(card.value("ref").toMap()));
+        if(ref.ok())return ref.value->stableKey();
+        return card.value("key",card.value("id")).toString();
+    };
+    auto present=[](QVariantMap card){const auto seed=card.value("seedArtist").toMap();
+        if(card.value("kind")=="radio"&&seed.value("kind")=="artist"&&!seed.value("name").toString().isEmpty()){
+            card["kind"]="artists";card["title"]=seed.value("name");card["artistId"]="ytm:artist:"+seed.value("providerId").toString();
+        }return card;};
+    QSet<QString> pickedIds;for(const auto &v:picked)pickedIds.insert(v.toMap().value("providerId").toString());
+    auto artists=[&](const QVariantMap &card){QSet<QString> ids;auto refs=card.value("artistRefs").toList();refs.append(card.value("seedArtist"));
+        for(const auto &v:refs){const auto ref=v.toMap();if(ref.value("provider")=="youtube-music"&&pickedIds.contains(ref.value("providerId").toString()))ids.insert(ref.value("providerId").toString());}
+        auto names=card.value("record").toMap().value("artistIds").toStringList();names.append(card.value("artistId").toString());
+        for(auto id:names)if(id.startsWith("ytm:artist:")&&pickedIds.contains(id.mid(11)))ids.insert(id.mid(11));return ids;};
+    auto releases=[](const QVariantMap &card){QSet<QString> ids;const bool album=crateKind(card.value("kind").toString())=="albums";
+        const auto ref=card.value("albumRef").toMap(),record=card.value("record").toMap();
+        for(const auto &v:{ref.value("providerId"),ref.value("mbid"),card.value("releaseGroupMbid")})if(!v.toString().isEmpty())ids.insert(v.toString());
+        if(album)for(const auto &v:{card.value("id"),card.value("albumId"),card.value("providerId")})if(!v.toString().isEmpty())ids.insert(v.toString());
+        if(record.value("type")!="Song")for(const auto &v:{record.value("id"),record.value("browseId"),record.value("providerIds").toMap().value("youtube-music")})if(!v.toString().isEmpty())ids.insert(v.toString());
+        auto aliases=ids;for(const auto &id:aliases)if(id.startsWith("ytm:album:"))ids.insert(id.mid(10));return ids;};
+    QSet<QString> used,albumIds;QMap<QString,int> counts;
+    auto remember=[&](const QVariantMap &card){used.insert(identityKey(card));for(const auto &id:artists(card))++counts[id];
+        if(crateKind(card.value("kind").toString())=="albums")albumIds.unite(releases(card));};
+    for(auto &entry:retained){entry=present(entry.toMap());remember(entry.toMap());}
+    QMap<QString,QVariantList> groups{{"albums",albums},{"songs",songs}};
+    for(const auto &v:listeningCards){const auto card=present(v.toMap());groups[card.value("kind").toString()].append(card);}
+    QSet<QString> unplacedArtists;for(const auto &v:groups["artists"])unplacedArtists.unite(artists(v.toMap()));
+    const QStringList order{"albums","artists","songs","albums","mixes","artists","albums","songs",
+        "artists","albums","songs","artists","mixes","albums","artists","songs"};
+    while(retained.size()<16){
+        const auto last=retained.isEmpty()?QVariantMap():retained.last().toMap();const auto lastKind=crateKind(last.value("kind").toString());
+        const bool repeat=retained.size()>1&&lastKind==crateKind(retained[retained.size()-2].toMap().value("kind").toString());
+        QStringList choices{order[retained.size()%16],"albums","artists","songs","mixes"};choices.removeDuplicates();bool added=false;
+        if(lastKind=="artists"&&choices.first()==lastKind){choices.removeAll(lastKind);choices.append(lastKind);}
+        for(const auto &kind:choices){if(repeat&&kind==lastKind)continue;auto &group=groups[kind];int best=-1,bestCount=5;
+            for(int index=0;index<group.size();++index){const auto card=group[index].toMap();const auto key=identityKey(card);const auto credits=artists(card);auto ids=releases(card);
+                if(crateKind(card.value("kind").toString())!=kind||key.isEmpty()||used.contains(key)||card.value("id").toString().isEmpty()||card.value("title").toString().isEmpty()
+                    ||card.value("unavailable").toBool()||(card.contains("available")&&!card.value("available").toBool())
+                    ||QStringList{"loading","error","unavailable"}.contains(card.value("status").toString()))continue;
+                if(kind!="mixes"&&credits.isEmpty())continue;if(kind=="albums"&&ids.intersects(albumIds))continue;
+                if(((kind=="songs"&&lastKind=="albums")||(kind=="albums"&&lastKind=="songs"))&&ids.intersects(releases(last)))continue;
+                int count=0;for(const auto &id:credits)count=qMax(count,counts.value(id));if(count>=4)continue;
+                if(kind!="artists"&&std::any_of(credits.cbegin(),credits.cend(),[&](const QString &id){return counts.value(id)>=3&&unplacedArtists.contains(id);}))continue;
+                bool unrepresented=false;for(const auto &id:pickedIds)unrepresented|=counts.value(id)==0;if(count>=3&&unrepresented)continue;
+                if(count<bestCount){best=index;bestCount=count;}
+            }
+            if(best<0)continue;auto card=group.takeAt(best).toMap();const auto key=identityKey(card);
+            if(card.value("key").toString().isEmpty())card["key"]=key;card["pinned"]=false;remember(card);retained.append(card);if(kind=="artists")unplacedArtists.subtract(artists(card));added=true;break;
+        }if(!added)break;
+    }
+    return retained;
+}
 QVariant plainHome(const QVariant &value){return value.metaType().id()==qMetaTypeId<QJSValue>()?value.value<QJSValue>().toVariant():value;}
+QVariantMap datedRelease(QVariantMap row,const QVariantMap &identity,const QVariantMap &discography){
+    if(row.value("kind")!="album"||identity.value("status")!="verified"
+        ||discography.value("artist").toMap().value("id")!=identity.value("mbid"))return row;
+    const auto title=row.value("title").toString().trimmed().toCaseFolded();
+    QVariantMap matched;
+    for(const auto &entry:discography.value("artist").toMap().value("releaseGroups").toList()){
+        const auto group=entry.toMap();
+        if(group.value("title").toString().trimmed().toCaseFolded()!=title)continue;
+        if(!matched.isEmpty())return row; // Ambiguous titles do not supply a date.
+        matched=group;
+    }
+    const auto date=matched.value("first-release-date").toString();
+    if(!QRegularExpression("^[0-9]{4}-[0-9]{2}-[0-9]{2}$").match(date).hasMatch()||!QDate::fromString(date,Qt::ISODate).isValid())return row;
+    const auto year=row.value("year").toString();if(!year.isEmpty()&&year!=date.left(4))return row;
+    row["releaseDate"]=date;row["dateSource"]="musicbrainz";
+    row["dateEvidence"]=QVariantMap{{"artistMbid",identity.value("mbid")},{"releaseGroupMbid",matched.value("id")}};
+    // Date evidence does not promote a title match to canonical album identity.
+    return row;
+}
 void cancelLane(QObject *source,const QString &lane){
     if(!source)return;
     if(source->metaObject()->indexOfMethod("cancel(QString)")>=0)QMetaObject::invokeMethod(source,"cancel",Qt::DirectConnection,Q_ARG(QString,lane));
@@ -75,14 +151,33 @@ bool readExposure(const QString &scope,const QString &snapshot,qint64 now,quint6
 }
 
 struct VinylRecommendationService::HomeState {
-    struct Job {QString operation,value,key;QVariantMap seed;bool force=false;};
+    struct Job {QString operation,value,key;QVariantMap seed;bool force=false;QVariantMap options;bool enrichment=false;};
     struct Active {int id;Job job;};
     QVariantMap collections,snapshot,history;
     QVariantList sections,seeds;
     QStringList excludedArtistProviderIds;
     QMap<QString,QVariantMap> evidence,identities,population;
+    QMap<QString,QVariantMap> charts,similarity,discography,neighbors,parents;
+    QSet<QString> metadataAttempted;
+    QVariantMap pool;
+    QMap<QString,QVariantMap> crateCandidates;
+    QString crateKey(const QVariantMap &item) const {
+        const auto key=item.value("key").toString();
+        if(crateCandidates.contains(key))return crateCandidates.value(key).value("key").toString();
+        const auto original=item.value("libraryItem",item).toMap();
+        const auto id=original.value("id").toString(),kind=crateKind(item.value("kind").toString());
+        const auto candidate=crateCandidates.value(crateAlias(kind,id));
+        return candidate.value("key").toString();
+    }
+    bool forceMetadata=false;
+    bool neighborsPrepared=false;
     QMap<QString,Active> active;
     QList<Job> waiting;
+    static bool core(const Job &job){return job.operation=="artistCandidates"&&!job.enrichment;}
+    bool corePending() const {
+        return std::any_of(waiting.cbegin(),waiting.cend(),core)
+            ||std::any_of(active.cbegin(),active.cend(),[](const Active &work){return core(work.job);});
+    }
     struct SongJob {QString key,video;QVariantMap seed,recording;};
     struct SongActive {int id;SongJob job;};
     QList<SongJob> songWaiting;
@@ -105,6 +200,7 @@ struct VinylRecommendationService::HomeState {
     QString seedHash,status="idle",error,visitId;
     std::function<qint64()> clock;
     QTimer *deadline=nullptr;
+    QTimer *publishTimer=nullptr;
     qint64 evaluatedAt=0;
     quint64 epoch=0;
     int revision=0,cursor=0,nextCursor=0;
@@ -169,7 +265,7 @@ void VinylRecommendationService::historyInputsChanged() {
         }
     }
     m_home->activityReset=activityReset;m_home->historyReset=historyReset;
-    if(m_home->visited && m_state=="answered") {m_home->evaluatedAt=m_home->clock();rebuildHome();}
+    if(m_home->visited) {m_home->evaluatedAt=m_home->clock();rebuildHome();}
 }
 bool VinylRecommendationService::setFeedback(const QVariantMap &raw,const QString &action,int generation) {
     if(!m_active || m_scope.isEmpty() || !m_preferences || generation!=m_generation)return false;
@@ -194,6 +290,54 @@ bool VinylRecommendationService::setFeedback(const QVariantMap &raw,const QStrin
         QMetaObject::invokeMethod(m_preferences,"setVinylFeedbackSnapshot",Qt::DirectConnection,Q_RETURN_ARG(bool,saved),Q_ARG(QString,QString::fromUtf8(*captured.value)));
     }
     if(saved){m_home->evaluatedAt=now;rebuildHome();}return saved;
+}
+bool VinylRecommendationService::isCratePinned(const QVariantMap &item,int generation) const {
+    if(!m_active||generation!=m_generation||!m_preferences)return false;
+    auto key=m_home->crateKey(item);if(key.isEmpty())key=item.value("key").toString();
+    for(const auto &pin:m_preferences->property("vinylCratePins").toList())if(pin.toMap().value("key")==key)return true;
+    return false;
+}
+bool VinylRecommendationService::setCratePin(const QVariantMap &item,bool pinned,int generation) {
+    if(!m_active||m_scope.isEmpty()||generation!=m_generation||!m_preferences)return false;
+    auto key=m_home->crateKey(item);if(key.isEmpty()&&!pinned)key=item.value("key").toString();
+    if(key.isEmpty())return false;
+    auto pins=m_preferences->property("vinylCratePins").toList();
+    pins.removeIf([&](const QVariant &value){return value.toMap().value("key")==key;});
+    if(pinned){
+        auto card=m_home->crateCandidates.value(crateAlias(item.value("kind").toString(),item.value("libraryItem",item).toMap().value("id").toString()));
+        if(card.isEmpty())card=m_home->crateCandidates.value(key);
+        if(card.isEmpty()||card.value("unavailable").toBool())return false;
+        QVariantMap snapshot;
+        for(const auto &field:{"key","id","kind","title","artist","albumTitle","subtitle","cover","provider","providerId","albumId","artistId","mixId","playlistId","editionId","trackId","trackIndex","ref","seedArtist","catalogueItem"})
+            if(card.contains(field))snapshot[field]=card.value(field);
+        // Keep the same known display artist after live record/credit metadata disappears.
+        // Store text only; these names do not attest an artist identity.
+        if(snapshot.value("artist").toString().isEmpty()) {
+            const auto displayNames=[](const QVariant &values) {
+                QStringList names;
+                for(const auto &value:values.toList()) {
+                    const auto row=value.toMap();
+                    const auto name=(value.metaType().id()==QMetaType::QString?value.toString():row.value("name",row.value("title")).toString()).trimmed();
+                    if(!name.isEmpty())names.append(name);
+                }
+                return names.join(QStringLiteral(" · "));
+            };
+            const auto record=card.value("record").toMap();
+            const auto track=record.value("tracks").toList().value(card.value("trackIndex").toInt()).toMap();
+            auto artist=displayNames(track.value("artists"));
+            if(artist.isEmpty())artist=displayNames(card.value("artistRefs"));
+            if(artist.isEmpty())artist=displayNames(record.value("artists"));
+            if(artist.isEmpty())artist=card.value("row").toMap().value("artist").toString();
+            if(!artist.isEmpty())snapshot["artist"]=artist;
+        }
+        pins.append(snapshot);
+    }
+    bool saved=false;{
+        QScopedValueRollback<bool> guard(m_home->persisting,true);
+        QMetaObject::invokeMethod(m_preferences,"setVinylCratePins",Qt::DirectConnection,
+            Q_RETURN_ARG(bool,saved),Q_ARG(QVariantList,pins));
+    }
+    if(saved)rebuildHome();return saved;
 }
 bool VinylRecommendationService::recordVisibleItems(const QString &shelf,const QString &snapshot,const QVariantList &refs,int generation) {
     if(!m_active || generation!=m_generation || !m_keepHistory || !m_home->visited || refs.isEmpty() || refs.size()>12
@@ -230,6 +374,9 @@ bool VinylRecommendationService::recordVisibleItems(const QString &shelf,const Q
 void VinylRecommendationService::initializeHome(std::function<qint64()> clock){
     m_home=std::make_shared<HomeState>();m_home->clock=clock?std::move(clock):std::function<qint64()>([]{return QDateTime::currentMSecsSinceEpoch();});
     m_home->deadline=new QTimer(this);m_home->deadline->setSingleShot(true);
+    m_home->publishTimer=new QTimer(this);m_home->publishTimer->setSingleShot(true);
+    m_home->publishTimer->setInterval(100);
+    connect(m_home->publishTimer,&QTimer::timeout,this,[this]{if(m_active&&m_home->visited)rebuildHome();});
     m_home->songDeadline=new QTimer(this);m_home->songDeadline->setSingleShot(true);
     connect(m_home->songDeadline,&QTimer::timeout,this,[this]{
         for(const auto &work:m_home->songActive)m_home->songFailed.insert(work.job.key);
@@ -240,10 +387,14 @@ void VinylRecommendationService::initializeHome(std::function<qint64()> clock){
         [this]{emit listeningChanged();queueListeningRebuild();},
         [this](const QVariantList &songs,bool append){emit homeRadioBatchReady(songs,append);});
     connect(m_home->deadline,&QTimer::timeout,this,[this]{
-        auto incomplete=[this](const HomeState::Job &job){if(job.operation=="artistCandidates")m_home->failed.insert(job.key);else m_home->optionalUnavailable.insert(job.operation+":"+job.key);};
-        for(const auto &active:m_home->active)incomplete(active.job);
-        for(const auto &job:m_home->waiting)incomplete(job);
-        cancelHome(false);if(!m_home->failed.isEmpty())m_home->error="Some catalogue enrichment did not finish.";rebuildHome();
+        QStringList lanes;
+        for(auto it=m_home->active.begin();it!=m_home->active.end();) {
+            if(HomeState::core(it->job)){m_home->failed.insert(it->job.key);lanes.append(it.key());it=m_home->active.erase(it);}else ++it;
+        }
+        m_home->waiting.removeIf([this](const HomeState::Job &job){if(!HomeState::core(job))return false;m_home->failed.insert(job.key);return true;});
+        for(const auto &lane:lanes)cancelLane(m_source,lane);
+        if(!m_home->failed.isEmpty())m_home->error="Some catalogue enrichment did not finish.";
+        queueHomeEnrichment();pumpHome();
     });
 }
 VinylRecommendationService::~VinylRecommendationService(){cancelSongCandidates(false);cancelHome(false);}
@@ -259,6 +410,7 @@ QString VinylRecommendationService::homeStatus() const{return m_home->status;}
 QString VinylRecommendationService::homeError() const{return m_home->error;}
 int VinylRecommendationService::homeRevision() const{return m_home->revision;}
 QVariantMap VinylRecommendationService::homeSnapshot() const{return m_home->snapshot;}
+QVariantMap VinylRecommendationService::homeSourcePool() const{return m_home->pool;}
 QVariantList VinylRecommendationService::homeCarouselItems() const{return m_home->carousel;}
 QVariantList VinylRecommendationService::homeListeningCards() const{return m_home->listening->cards();}
 QVariantList VinylRecommendationService::homeQuickPicks() const{return m_home->quickPicks;}
@@ -278,13 +430,13 @@ void VinylRecommendationService::refreshHomeSelection(){
 }
 void VinylRecommendationService::setHomeCollections(const QVariantMap &value){
     if(value==m_home->collections)return;m_home->collections=value;
-    homeSeedsChanged();if(m_home->visited&&m_state=="answered")rebuildHome();emit homeChanged();
+    homeSeedsChanged();if(m_home->visited)rebuildHome();emit homeChanged();
 }
 void VinylRecommendationService::cancelHome(bool clear){
-    if(!m_home)return;++m_home->epoch;m_home->deadline->stop();
-    if(clear){cancelSongCandidates(true);m_home->quickPicks.clear();m_home->listeningHash.clear();m_home->listening->clear();m_home->carousel.clear();m_home->selectionKey.clear();m_home->selectionKeys.clear();m_home->previousKeys.clear();m_home->selectionSerial=0;}
+    if(!m_home)return;++m_home->epoch;m_home->deadline->stop();m_home->publishTimer->stop();
+    if(clear){cancelSongCandidates(true);m_home->crateCandidates.clear();m_home->quickPicks.clear();m_home->listeningHash.clear();m_home->listening->clear();m_home->carousel.clear();m_home->selectionKey.clear();m_home->selectionKeys.clear();m_home->previousKeys.clear();m_home->selectionSerial=0;}
     const auto lanes=m_home->active.keys();m_home->active.clear();m_home->waiting.clear();for(const auto &lane:lanes)cancelLane(m_source,lane);
-    if(clear){m_home->evidence.clear();m_home->identities.clear();m_home->population.clear();m_home->failed.clear();m_home->optionalUnavailable.clear();m_home->sections.clear();m_home->snapshot.clear();m_home->seeds.clear();m_home->seedHash.clear();m_home->excludedArtistProviderIds.clear();m_home->status="idle";m_home->error.clear();m_home->visited=false;m_home->refreshed=false;m_home->cursor=0;m_home->nextCursor=0;++m_home->revision;emit homeChanged();}
+    if(clear){m_home->evidence.clear();m_home->identities.clear();m_home->population.clear();m_home->charts.clear();m_home->similarity.clear();m_home->discography.clear();m_home->neighbors.clear();m_home->parents.clear();m_home->metadataAttempted.clear();m_home->pool.clear();m_home->failed.clear();m_home->optionalUnavailable.clear();m_home->sections.clear();m_home->snapshot.clear();m_home->seeds.clear();m_home->seedHash.clear();m_home->excludedArtistProviderIds.clear();m_home->status="idle";m_home->error.clear();m_home->visited=false;m_home->refreshed=false;m_home->cursor=0;m_home->nextCursor=0;++m_home->revision;emit homeChanged();}
 }
 void VinylRecommendationService::clearHomeProfile(){m_home->collections.clear();m_home->history.clear();m_home->visitId.clear();cancelHome(true);}
 void VinylRecommendationService::homeSeedsChanged(){
@@ -296,14 +448,15 @@ void VinylRecommendationService::homeSeedsChanged(){
     std::sort(seeds.begin(),seeds.end(),[](const QVariant &a,const QVariant &b){return a.toMap().value("key").toString()<b.toMap().value("key").toString();});
     const auto hash=digest(seeds);if(hash==m_home->seedHash)return;
     const bool visited=m_home->visited;cancelHome(true);m_home->visited=visited;m_home->seeds=seeds;m_home->seedHash=hash;
-    if(visited&&m_state=="answered")QTimer::singleShot(0,this,[this]{refreshHome(false);});
+    if(visited)QTimer::singleShot(0,this,[this]{refreshHome(false);});
 }
 void VinylRecommendationService::visitHome(){m_home->visited=true;m_home->visitId=QUuid::createUuid().toString(QUuid::WithoutBraces);refreshHome(false);}
 void VinylRecommendationService::refreshHome(bool force){
-    if(!m_active||m_scope.isEmpty()||m_state!="answered")return;
+    if(!m_active||m_scope.isEmpty())return;
     m_home->visited=true;
     if(!force&&(!m_home->active.isEmpty()||!m_home->waiting.isEmpty())){rebuildHome();return;}
     cancelHome(false);m_home->failed.clear();m_home->optionalUnavailable.clear();m_home->error.clear();m_home->evaluatedAt=m_home->clock();
+    m_home->metadataAttempted.clear();m_home->forceMetadata=force;m_home->neighborsPrepared=false;
     if(force){const auto retained=m_home->retainedSongEvidence();cancelSongCandidates(true);m_home->previousSongEvidence=retained;}
     if(force&&m_home->refreshed)m_home->cursor=m_home->nextCursor;
     m_home->refreshed=true;
@@ -325,24 +478,110 @@ void VinylRecommendationService::refreshHome(bool force){
         if(!cached.isEmpty()){cached["_stale"]=true;m_home->evidence[key]=cached;}
         m_home->waiting.append({"artistCandidates",seed.value("providerId").toString(),key,seed,force});++count;m_home->nextCursor=(at+1)%size;
     }
-    if(!m_home->waiting.isEmpty())m_home->deadline->start(8000);
-    rebuildHome();pumpHome();
+    queueHomeEnrichment();rebuildHome();pumpHome();
+    // UI publication is synchronous; give requests their response window afterwards.
+    if(m_home->corePending())m_home->deadline->start(8000);
 }
-void VinylRecommendationService::pumpHome(){
+void VinylRecommendationService::queueHomeEnrichment(){
+    const auto today=QDateTime::fromMSecsSinceEpoch(m_home->evaluatedAt,Qt::UTC).date();
+    auto enqueue=[&](const QString &op,const QString &value,const QString &key,const QVariantMap &seed,QVariantMap options=QVariantMap()) {
+        options["seed"]=seed;
+        const auto token=digest(QVariantList{op,value,options});
+        if(m_home->metadataAttempted.contains(token))return;
+        m_home->metadataAttempted.insert(token);
+        QVariantMap checked;
+        const auto cached=cachedHome(m_source,op,value,options);
+        const bool valid=!cached.isEmpty()&&VinylProvider::normalizeHome(op,value,options,cached,&checked);
+        auto retain=[&](const QVariantMap &data){
+            if(op=="recommendationIdentity")m_home->identities[key]=data;
+            else if(op=="recommendationDiscography")m_home->discography[key]=data;
+            else if(op=="similarArtists")m_home->similarity[token]=data;
+            else if(op=="chartCandidates")m_home->charts[key]=data;
+            else if(op=="artistCandidates")m_home->evidence[key]=data;
+        };
+        if(valid)retain(checked);
+        const auto fetched=QDateTime::fromString(checked.value("fetchedAt").toString(),Qt::ISODateWithMs);
+        const auto age=fetched.isValid()?fetched.msecsTo(QDateTime::fromMSecsSinceEpoch(m_home->evaluatedAt,Qt::UTC)):-1;
+        const bool completeIdentity=op!="recommendationIdentity"||checked.value("status")!="verified"
+            ||!VinylSourcePool::artistNames(checked).isEmpty();
+        if(valid&&completeIdentity&&!m_home->forceMetadata&&!checked.value("_stale").toBool()&&age>=0&&age<86400000)return;
+        m_home->waiting.append({op,value,key,seed,m_home->forceMetadata,options,true});
+    };
+    for(const auto &value:m_home->seeds){const auto seed=value.toMap();if(seed.value("provider")!="youtube-music")continue;
+        const auto key=seed.value("key").toString();
+        // Identity and aliases do not depend on an optional discography request.
+        enqueue("recommendationIdentity",seed.value("providerId").toString(),key,seed);
+    }
+    for(const QString &country:{"us","gb","jp","kr","in","br","ng","de","fr","mx"})
+        for(const QString &kind:{"albums","songs"}){const auto feed="apple:"+country+":"+kind;enqueue("chartCandidates",feed,feed,{});}
+    for(const QString &feed:{"lastfm:tracks","lastfm:artists"})enqueue("chartCandidates",feed,feed,{});
+    auto artistMetadata=[&](const QVariantMap &seed,bool selected){
+        const auto key=seed.value("key").toString(),id=seed.value("providerId").toString();
+        const auto identity=m_home->identities.value(key);
+        if(identity.value("status")!="verified")return;
+        const auto mbid=identity.value("mbid").toString();
+        const QVariantMap canonical{{"identity","canonical"},{"kind","artist"},{"mbid",mbid}};
+        enqueue("recommendationDiscography",mbid,key,canonical,{{"since",today.addMonths(-12).toString(Qt::ISODate)},{"until",today.toString(Qt::ISODate)}});
+        if(!selected)return;
+        for(const auto &name:VinylSourcePool::artistNames(identity))
+            enqueue("similarArtists",mbid,key,canonical,{{"source","lastfm"},{"artistName",name}});
+        enqueue("similarArtists",mbid,key,canonical,{{"source","listenbrainz"}});
+        enqueue("populationCandidates",mbid,key,canonical);
+    };
+    bool ownComplete=!m_home->corePending();int recent=0;
+    QVariantMap bySeed;
+    for(const auto &value:m_home->seeds){const auto seed=value.toMap();const auto key=seed.value("key").toString();artistMetadata(seed,true);
+        const auto identity=m_home->identities.value(key);
+        const bool identityPending=identity.isEmpty()&&!m_home->optionalUnavailable.contains("recommendationIdentity:"+key);
+        ownComplete&=!identityPending&&(identity.value("status")!="verified"||m_home->discography.contains(key)
+            ||m_home->optionalUnavailable.contains("recommendationDiscography:"+key));
+        for(const auto &group:m_home->discography.value(key).value("artist").toMap().value("releaseGroups").toList())
+            if(VinylSourcePool::isNewRelease(group.toMap().value("first-release-date").toString(),today))++recent;
+        QVariantList related;
+        for(const auto &entry:m_home->evidence.value(key).value("items").toList())
+            if(entry.toMap().value("relation")=="related-artist")related.append(entry);
+        bySeed[key]=related;
+    }
+    if(ownComplete&&!m_home->neighborsPrepared){
+      m_home->neighborsPrepared=true;m_home->neighbors.clear();m_home->parents.clear();
+      for(const auto &entry:VinylSourcePool::newReleaseNeighbors(m_home->seeds,bySeed,recent)){
+        const auto row=entry.toMap();
+        const auto seed=artist({{"provider",row.value("provider")},{"providerId",row.value("providerId")},
+            {"id",row.value("id")},{"name",row.value("title",row.value("name"))},{"image",row.value("cover")}});
+        const auto key=seed.value("key").toString();if(seed.isEmpty())continue;
+        m_home->neighbors[key]=seed;
+        if(!m_home->parents.contains(key))for(const auto &picked:m_home->seeds){
+            bool found=false;for(const auto &candidate:bySeed.value(picked.toMap().value("key").toString()).toList())
+                if(candidate.toMap().value("providerId")==seed.value("providerId")){m_home->parents[key]=picked.toMap();found=true;break;}
+            if(found)break;
+        }
+        enqueue("artistCandidates",seed.value("providerId").toString(),key,seed);
+        enqueue("recommendationIdentity",seed.value("providerId").toString(),key,seed);
+      }
+    }
+    for(const auto &seed:m_home->neighbors)artistMetadata(seed,false);
+}
+void VinylRecommendationService::pumpHome(bool publishNow){
+    if(!m_home->corePending())pumpSongCandidates();
     while(m_active&&m_home->active.size()+m_home->songActive.size()<2&&!m_home->waiting.isEmpty()){
         int at=-1;QString lane;
         for(int i=0;i<m_home->waiting.size();++i){const auto &job=m_home->waiting[i];
             if(job.operation=="artistCandidates")lane=!m_home->active.contains("home-seed-0")?"home-seed-0":"home-seed-1";
+            else if(VinylSourcePool::metadataOperation(job.operation))lane=!m_home->active.contains("home-metadata-0")?"home-metadata-0":"home-metadata-1";
             else lane=job.operation=="recommendationIdentity"?"home-identity":"home-population";
             if(!m_home->active.contains(lane)){at=i;break;}
         }
         if(at<0)break;const auto job=m_home->waiting.takeAt(at);
-        const int id=requestHome(m_source,lane,job.operation,job.value,{{"seed",job.seed},{"refresh",job.force}});
-        if(id<0){if(job.operation=="artistCandidates")m_home->failed.insert(job.key);else m_home->optionalUnavailable.insert(job.operation+":"+job.key);continue;}
+        auto options=job.options;options["seed"]=job.seed;options["refresh"]=job.force;
+        const int id=requestHome(m_source,lane,job.operation,job.value,options);
+        if(id<0){if(HomeState::core(job))m_home->failed.insert(job.key);else m_home->optionalUnavailable.insert(job.operation+":"+job.key);continue;}
         m_home->active.insert(lane,{id,job});
     }
-    if(m_home->active.isEmpty()&&m_home->waiting.isEmpty())m_home->deadline->stop();
-    rebuildHome();
+    if(!m_home->corePending())m_home->deadline->stop();
+    // Several optional replies can arrive together. Publish one ranked model
+    // for the batch instead of rebuilding every shelf for each metadata packet.
+    if(publishNow||m_home->corePending()){m_home->publishTimer->stop();rebuildHome();}
+    else if(!m_home->publishTimer->isActive())m_home->publishTimer->start();
     pumpSongCandidates();
 }
 bool VinylRecommendationService::acceptHome(const QString &lane,int id,const QVariant &raw,const QString &error){
@@ -354,25 +593,27 @@ bool VinylRecommendationService::acceptHome(const QString &lane,int id,const QVa
     if(!lane.startsWith("home-"))return false;
     if(!m_active||sender()!=m_source||!m_home->active.contains(lane)||m_home->active.value(lane).id!=id)return true;
     const auto job=m_home->active.take(lane).job;QVariantMap data;QString failure=error;
-    if(failure.isEmpty()&&!VinylProvider::normalizeHome(job.operation,job.value,{{"seed",job.seed}},plainHome(raw),&data))failure="The recommendation response is invalid.";
+    auto options=job.options;options["seed"]=job.seed;
+    if(failure.isEmpty()&&!VinylProvider::normalizeHome(job.operation,job.value,options,plainHome(raw),&data))failure="The recommendation response is invalid.";
     if(data.value("status")=="unavailable")failure=data.value("error","The catalogue is unavailable.").toString();
     if(!failure.isEmpty()){
-        if(job.operation=="artistCandidates"){m_home->failed.insert(job.key);m_home->error="Some catalogue enrichment is unavailable.";}
+        if(HomeState::core(job)){m_home->failed.insert(job.key);m_home->error="Some catalogue enrichment is unavailable.";}
         else m_home->optionalUnavailable.insert(job.operation+":"+job.key);
     }
-    else if(job.operation=="artistCandidates"){
-        m_home->evidence[job.key]=data;
-        auto cached=cachedHome(m_source,"recommendationIdentity",job.value,{{"seed",job.seed}});QVariantMap checked;
-        if(!cached.isEmpty()&&VinylProvider::normalizeHome("recommendationIdentity",job.value,{{"seed",job.seed}},cached,&checked))m_home->identities[job.key]=checked;
-        else m_home->waiting.append({"recommendationIdentity",job.value,job.key,job.seed,false});
-    }else if(job.operation=="recommendationIdentity"){
-        m_home->identities[job.key]=data;
-        if(data.value("status")=="verified"){
-            const QVariantMap seed{{"identity","canonical"},{"kind","artist"},{"mbid",data.value("mbid")}};
-            m_home->waiting.append({"populationCandidates",data.value("mbid").toString(),job.key,seed,false});
-        }
+    else if(job.operation=="artistCandidates")m_home->evidence[job.key]=data;
+    else if(job.operation=="recommendationIdentity")m_home->identities[job.key]=data;
+    else if(job.operation=="recommendationDiscography")m_home->discography[job.key]=data;
+    else if(job.operation=="similarArtists")m_home->similarity[digest(QVariantList{job.operation,job.value,options})]=data;
+    else if(job.operation=="chartCandidates"){
+        // The provider already preserves last-good charts across failed refreshes.
+        m_home->charts[job.key]=data;
     }else m_home->population[job.key]=data;
-    pumpHome();return true;
+    if(HomeState::core(job)||job.operation=="recommendationIdentity"
+        ||(job.operation=="recommendationDiscography"&&!m_home->neighbors.contains(job.key)))queueHomeEnrichment();
+    pumpHome(HomeState::core(job)
+        ||(job.operation=="recommendationIdentity"&&!m_home->neighbors.contains(job.key)));
+    if(HomeState::core(job)&&m_home->corePending())m_home->deadline->start(8000);
+    return true;
 }
 
 void VinylRecommendationService::queueListeningRebuild() {
@@ -484,7 +725,7 @@ bool VinylRecommendationService::acceptSongCandidates(const QString &lane,int id
 }
 
 void VinylRecommendationService::rebuildHome(){
-    if(!m_active||m_state!="answered")return;
+    if(!m_active)return;
     const auto previousQuickPicks=m_home->quickPicks;m_home->quickPicks.clear();
     auto profile=ProfileScopeId::parse(m_scope);if(!profile.ok())return;
     const auto now=m_home->evaluatedAt>0?m_home->evaluatedAt:m_home->clock();
@@ -523,8 +764,9 @@ void VinylRecommendationService::rebuildHome(){
     m_home->excludedArtistProviderIds.clear();
     for(const auto &id:excludedArtistProviderIds)m_home->excludedArtistProviderIds.append(id);
     std::sort(m_home->excludedArtistProviderIds.begin(),m_home->excludedArtistProviderIds.end());
+    const auto historyCatalogue=m_home->collections.value("catalogueAlbums").toList()+m_home->collections.value("albums").toList();
     m_home->history=m_keepHistory?VinylRecommendationHistory::project(qobject_cast<ActivityStore*>(m_activityStore.data()),
-        qobject_cast<HistoryStore*>(m_historyStore.data()),m_home->collections.value("albums").toList(),now):QVariantMap();
+        qobject_cast<HistoryStore*>(m_historyStore.data()),historyCatalogue,now):QVariantMap();
     const auto derived=VinylRecommendationHistory::derive(m_scope,m_home->history,now);
     if(!derived.ok())return;
     const auto manualSessions=m_home->history.value("qualifiedManualSessions").toInt();
@@ -590,7 +832,7 @@ void VinylRecommendationService::rebuildHome(){
         auto credits=raw.value("artistRefs").toList();
         // An own-release shelf establishes its owner even when the provider
         // omits credits. A related artist's seed is only its discovery source.
-        if(raw.value("relation")=="own-release")credits.append(seed);
+        if(raw.value("relation")=="own-release")credits.append(raw.value("seedArtistRef",seed));
         for(const auto &value:credits)if(const auto artist=typed(value.toMap()))
             node.artistContexts.insert(artist->stableKey(),value.toMap());
         QVariantList mergedCredits;for(const auto &credit:node.artistContexts)mergedCredits.append(credit);
@@ -604,7 +846,7 @@ void VinylRecommendationService::rebuildHome(){
         }
         node.sections.insert(section);
         const auto today=QDateTime::fromMSecsSinceEpoch(now,Qt::UTC).date();
-        if(section=="from-your-artists"&&destination.value("kind")=="album"&&VinylSourcePool::isNewRelease(raw.value("releaseDate").toString(),today))node.sections.insert("new-from-your-artists");
+        if((section=="from-your-artists"||section=="new-from-your-artists")&&destination.value("kind")=="album"&&VinylSourcePool::isNewRelease(raw.value("releaseDate").toString(),today))node.sections.insert("new-from-your-artists");
         RecommendationCanonicalContext context;
         auto primary=raw.value("artistRefs").toList();auto artistRef=primary.isEmpty()?seedRef:typed(primary.first().toMap());
         if(!primary.isEmpty()&&primary.first().toMap().value("provider")==seed.value("provider")
@@ -628,8 +870,26 @@ void VinylRecommendationService::rebuildHome(){
     };
     // Round-robin admission prevents the first returned artist consuming a generator budget.
     for(int index=0;index<60;++index)for(const auto &value:m_home->seeds){const auto seed=value.toMap();const auto data=m_home->evidence.value(seed.value("key").toString());
-        const auto items=data.value("items").toList();if(index>=items.size())continue;const auto item=items[index].toMap();const auto relation=item.value("relation").toString();
+        const auto items=data.value("items").toList();if(index>=items.size())continue;
+        const auto key=seed.value("key").toString();
+        const auto item=datedRelease(items[index].toMap(),m_home->identities.value(key),m_home->discography.value(key));const auto relation=item.value("relation").toString();
         add(item,seed,relation=="related-artist"?"youtube-related-artists":relation=="top-recording"?"youtube-top-recordings":"youtube-own-releases",relation=="related-artist"?"related-discoveries":"from-your-artists",false);
+    }
+    for(int index=0;index<8;++index)for(auto it=m_home->neighbors.cbegin();it!=m_home->neighbors.cend();++it){
+        const auto items=m_home->evidence.value(it.key()).value("items").toList();if(index>=items.size())continue;
+        const auto item=datedRelease(items[index].toMap(),m_home->identities.value(it.key()),m_home->discography.value(it.key()));
+        if(item.value("kind")=="album"&&item.value("dateSource")=="musicbrainz"
+            &&VinylSourcePool::isNewRelease(item.value("releaseDate").toString(),QDateTime::fromMSecsSinceEpoch(now,Qt::UTC).date()))
+            add(item,m_home->parents.value(it.key()),"nearby-recent-releases","new-from-your-artists",false);
+    }
+    for(const auto &data:m_home->similarity){
+        const auto mbid=data.value("seed").toMap().value("mbid").toString();QVariantMap seed;
+        for(const auto &picked:m_home->seeds)if(m_home->identities.value(picked.toMap().value("key").toString()).value("mbid")==mbid){seed=picked.toMap();break;}
+        if(seed.isEmpty())continue;
+        for(const auto &entry:data.value("items").toList()){
+            auto item=VinylSourcePool::catalogueCandidate(entry.toMap());item["relation"]="similar-artist";
+            add(item,seed,"metadata-similar-artists","related-discoveries",false);
+        }
     }
     // Admit each song-seed stream round-robin before applying the shared ranker.
     const bool hasCurrentSongs=std::any_of(m_home->songEvidence.cbegin(),m_home->songEvidence.cend(),[](const QVariantMap &data){return !data.value("items").toList().isEmpty();});
@@ -644,7 +904,10 @@ void VinylRecommendationService::rebuildHome(){
     }
     const auto baselineQuickPicks=m_home->listening->quickPicks();
     const bool hasSongCandidates=!quickNodes.isEmpty();
-    if(!hasSongCandidates)for(const auto &value:baselineQuickPicks) {
+    QSet<QString> topRecordings;
+    for(const auto &data:m_home->evidence)for(const auto &entry:data.value("items").toList())
+        if(entry.toMap().value("relation")=="top-recording")topRecordings.insert(entry.toMap().value("providerId").toString());
+    for(const auto &value:baselineQuickPicks) {
         const auto card=value.toMap(),record=card.value("record").toMap();const int index=card.value("trackIndex").toInt();
         const auto track=record.value("tracks").toList().value(index).toMap();const auto video=track.value("videoId").toString();
         if(!QRegularExpression("^[A-Za-z0-9_-]{11}$").match(video).hasMatch())continue;
@@ -659,7 +922,15 @@ void VinylRecommendationService::rebuildHome(){
         auto album=record.value("providerIds").toMap().value("youtube-music",record.value("browseId")).toString();
         if(album.startsWith("ytm:album:"))album=album.mid(10);
         if(!album.isEmpty()&&record.value("type")!="Song")row["albumRef"]=QVariantMap{{"kind","album"},{"provider","youtube-music"},{"providerId",album}};
-        add(row,m_home->seeds.first().toMap(),"legacy-album-mix","quick-picks",false);
+        QVariantMap matchingSeed;
+        for(const auto &picked:m_home->seeds)for(const auto &credit:credits)
+            if(picked.toMap().value("providerId")==credit.toMap().value("providerId")){matchingSeed=picked.toMap();break;}
+        if(matchingSeed.isEmpty())continue;
+        if(!hasSongCandidates)add(row,matchingSeed,"legacy-album-mix","quick-picks",false);
+        if(!topRecordings.contains(video)){
+            add(row,matchingSeed,"album-deep-cuts","quick-picks",false);
+            if(const auto ref=typed(row);ref&&quickNodes.contains(ref->stableKey()))quickNodes[ref->stableKey()].sections.insert("deep-cuts");
+        }
     }
     for(const auto &seedValue:m_home->seeds){const auto seed=seedValue.toMap();sourceSnapshot.append(m_home->evidence.value(seed.value("key").toString()));
         for(const auto &value:m_home->collections.value("albums").toList()){const auto saved=value.toMap(),album=saved.value("album").toMap();const auto ids=album.value("artistIds").toStringList();
@@ -716,12 +987,13 @@ void VinylRecommendationService::rebuildHome(){
         }
     }
     for(const auto &node:quickNodes)appendSuppressed(node.card);
-    const bool loading=!m_home->active.isEmpty()||!m_home->waiting.isEmpty();QVariantList sections;QSet<QString> prior,distinctSeeds;
+    const bool loading=m_home->corePending();QVariantList sections;QSet<QString> prior,distinctSeeds;
     for(const auto &seed:m_home->seeds)if(const auto ref=seedIdentity(seed.toMap()))distinctSeeds.insert(ref->stableKey());
-    const QStringList sectionIds{"from-your-artists","related-discoveries","new-from-your-artists","quick-picks"};
-    const QStringList titles{"From your artists","Related discoveries","New from your artists","Quick picks"};
+    const QStringList sectionIds{"from-your-artists","related-discoveries","new-from-your-artists","quick-picks","deep-cuts"};
+    const QStringList titles{"From your artists","Related discoveries","New from your artists","Quick picks","Deep cuts from your artists"};
+    QVariantList crateAlbums,crateSongs;
     for(int sectionIndex=0;sectionIndex<sectionIds.size();++sectionIndex){const auto section=sectionIds[sectionIndex];QVector<RecommendationCandidate> pool;RankerFeatureContext features;
-        const auto &sectionNodes=section=="quick-picks"?quickNodes:nodes;
+        const auto &sectionNodes=(section=="quick-picks"||section=="deep-cuts")?quickNodes:nodes;
         for(auto it=sectionNodes.cbegin();it!=sectionNodes.cend();++it)if(it->sections.contains(section)){
             bool suppressed=false;
             // Every credited artist is checked, including collaborators. The
@@ -742,6 +1014,7 @@ void VinylRecommendationService::rebuildHome(){
             for(const auto &entry:features.seedAffinities)support[entry.entity.stableKey()].insert(entry.seed.stableKey());
             for(auto &entry:features.seedAffinities)entry.multiplier/=std::max(1,int(support.value(entry.entity.stableKey()).size()));
         }
+        if(section=="deep-cuts"){config.maxPerArtist=4;config.maxRecordingsPerReleaseGroup=3;}
         const auto ranked=rankDeterministically(RecommendationCandidateSet::normalize(pool),taste,
             *derived.value,priorVisitExposure,features,config);
         if(!ranked.ok())continue;QVariantList preferred,repeated;
@@ -750,7 +1023,8 @@ void VinylRecommendationService::rebuildHome(){
             card["score"]=entry.score();card["reasons"]=reasons;card["evidence"]=reasons;card["configVersion"]=config.version;
             if(prior.contains(entry.entity().stableKey()))repeated.append(card);else preferred.append(card);
         }
-        preferred.append(repeated);if(preferred.size()>12)preferred=preferred.mid(0,12);if(preferred.isEmpty())continue;
+        preferred.append(repeated);if(section=="from-your-artists")crateAlbums=preferred;else if(section=="quick-picks")crateSongs=preferred;
+        if(preferred.size()>12)preferred=preferred.mid(0,12);if(preferred.isEmpty())continue;
         if(section=="quick-picks"){m_home->quickPicks=preferred;continue;}
         prior.clear();for(const auto &card:preferred)prior.insert(card.toMap().value("key").toString());
         bool stale=false;QString fetched;
@@ -759,12 +1033,16 @@ void VinylRecommendationService::rebuildHome(){
             {"status",stale||!m_home->failed.isEmpty()?"stale":loading?"loading":"ready"},{"loading",loading},{"error",m_home->error},{"fetchedAt",fetched},
             {"canRetry",!loading},{"configVersion",config.version},{"evaluatedAtMs",now}});
     }
+    for(const auto &node:nodes)if(!appendSuppressed(node.card)) {
+        const auto kind=crateKind(node.card.value("kind").toString());
+        if(kind=="albums")crateAlbums.append(node.card);else if(kind=="songs")crateSongs.append(node.card);
+    }
+    for(const auto &node:quickNodes)if(!appendSuppressed(node.card))crateSongs.append(node.card);
     // An actual failed/pending artist lane is actionable even without cached
     // cards. Unsupported related/new lanes never become empty placeholders.
     if(!m_home->failed.isEmpty() && m_home->error.isEmpty())m_home->error="The music catalogue is unavailable.";
     const bool hasOwn=std::any_of(sections.begin(),sections.end(),[](const auto &s){return s.toMap().value("id")=="from-your-artists";});
-    const bool pendingArtists=std::any_of(m_home->waiting.begin(),m_home->waiting.end(),[](const auto &j){return j.operation=="artistCandidates";})
-        || std::any_of(m_home->active.begin(),m_home->active.end(),[](const auto &a){return a.job.operation=="artistCandidates";});
+    const bool pendingArtists=m_home->corePending();
     if(!hasOwn && (pendingArtists || !m_home->failed.isEmpty()))sections.prepend(QVariantMap{
         {"id","from-your-artists"},{"key","from-your-artists"},{"title","From your artists"},{"kind","recommendations"},
         {"items",QVariantList()},{"status",pendingArtists?"loading":"error"},{"loading",pendingArtists},
@@ -850,7 +1128,14 @@ void VinylRecommendationService::rebuildHome(){
     m_home->status=loading?"loading":!hasCards?m_home->failed.isEmpty()?"empty":"error":m_home->failed.isEmpty()?"ready":"stale";
     QVariantMap mappings;for(auto it=m_home->identities.cbegin();it!=m_home->identities.cend();++it)mappings[it.key()]=it.value();
     QVariantMap songEvidence;for(auto it=candidateSongEvidence.cbegin();it!=candidateSongEvidence.cend();++it)songEvidence[it.key()]=it.value();
-    const QVariantMap inputs{{"catalogue",sourceSnapshot},{"songCandidates",songEvidence},{"identities",mappings},{"library",m_home->collections.value("albums")},{"feedback",feedback},{"seeds",m_home->seeds},{"history",m_home->history}};
+    QVariantMap metadata;
+    for(const auto &source:{QStringLiteral("discography"),QStringLiteral("similarity"),QStringLiteral("neighbors")}){
+        const auto &values=source=="discography"?m_home->discography:source=="similarity"?m_home->similarity:m_home->evidence;
+        QVariantMap captured;for(auto it=values.cbegin();it!=values.cend();++it)
+            if(source!="neighbors"||m_home->neighbors.contains(it.key()))captured[it.key()]=it.value();
+        metadata[source]=captured;
+    }
+    const QVariantMap inputs{{"catalogue",sourceSnapshot},{"songCandidates",songEvidence},{"identities",mappings},{"metadata",metadata},{"library",m_home->collections.value("albums")},{"feedback",feedback},{"seeds",m_home->seeds},{"history",m_home->history}};
     auto configPolicy=policy();configPolicy["seedDecay"]=QVariantList{30,100,1.0,0.75,0.5};configPolicy["historyVersion"]=1;
     configPolicy["maxHomeCandidates"]=300;configPolicy["maxSongCandidates"]=120;configPolicy["maxCandidates"]=420;
     configPolicy["songRecommendations"]=QVariantMap{{"version","vinyl-song-radio-related-v1"},{"songsPerArtist",2},{"maxArtists",6},{"maxPerArtist",2},{"maxPerAlbum",1},{"deadlineMs",90000}};
@@ -870,11 +1155,145 @@ void VinylRecommendationService::rebuildHome(){
         {"baselineQuickPicks",baselineQuickPicks}};
     if(sections!=m_home->sections||snapshot!=m_home->snapshot){m_home->sections=sections;m_home->snapshot=snapshot;++m_home->revision;}
     selectHomeCarousel();
-    const bool selectionReady=m_home->active.isEmpty()&&m_home->waiting.isEmpty();
+    const bool selectionReady=!m_home->corePending();
     m_home->listening->setInputs(m_source,m_scope,m_generation,m_saved,selectionReady?m_home->sections:QVariantList(),
         m_home->selectionKey+QString::number(m_home->selectionSerial)+digest(feedback)+QString::number(m_keepHistory),
         m_home->excludedArtistProviderIds);
     queueSongCandidates();
+    QVariantMap buckets,charts;
+    for(const auto &entry:sections){const auto section=entry.toMap();const auto id=section.value("id").toString();auto items=section.value("items").toList();
+        if(id=="from-your-artists"){buckets["albums-for-you"]=items;buckets["because-you-played"]=items;}
+        else if(id=="new-from-your-artists"){
+            items.removeIf([](const QVariant &value){return value.toMap().value("dateSource")!="musicbrainz";});
+            std::stable_sort(items.begin(),items.end(),[](const QVariant &a,const QVariant &b){return a.toMap().value("releaseDate").toString()>b.toMap().value("releaseDate").toString();});
+            buckets[id]=items;
+        }else if(id=="related-discoveries")buckets["artists-like-yours"]=items;
+        else if(id=="deep-cuts")buckets[id]=items;
+        else if(id=="rediscover-library")buckets["rediscover"]=items;
+    }
+    const auto listeningCards=m_home->listening->cards();
+    auto stations=listeningCards;
+    for(const auto &entry:buckets.value("artists-like-yours").toList()){
+        auto item=entry.toMap();if(item.value("provider")!="youtube-music"||item.value("requiresResolution").toBool())continue;
+        item["kind"]="radio";item["seedArtist"]=item;item["id"]="home-radio:"+item.value("providerId").toString();stations.append(item);
+        if(stations.size()>=12)break;
+    }
+    buckets["mixes-radio"]=stations;
+    QVariantList feeds;
+    for(auto it=m_home->charts.cbegin();it!=m_home->charts.cend();++it){auto feed=it.value();const auto parts=it.key().split(':');
+        feed["key"]=it.key();feed["source"]=feed.value("provenance").toMap().value("source");
+        feed["kind"]=it.key()=="lastfm:tracks"?"songs":it.key()=="lastfm:artists"?"artists":parts.value(2);
+        feed["storefront"]=parts.value(1);feeds.append(feed);
+    }
+    QVariantMap chartWeeks;
+    for(const QString &kind:{"albums","songs","artists"}){
+        auto items=VinylSourcePool::mergeCharts(feeds,kind);
+        for(auto &entry:items){auto item=entry.toMap();item["kind"]=kind;item["typedKey"]=item.value("ref");entry=item;}
+        charts[kind]=items;
+        QDate oldest;
+        for(const auto &entry:feeds){const auto feed=entry.toMap();if(feed.value("kind")!=kind||feed.value("items").toList().isEmpty())continue;
+            const auto date=QDateTime::fromString(feed.value("fetchedAt").toString(),Qt::ISODateWithMs).date();
+            if(date.isValid()&&(!oldest.isValid()||date<oldest))oldest=date;
+        }
+        if(oldest.isValid()){int year=0;const auto week=oldest.weekNumber(&year);chartWeeks[kind]=QString("%1-W%2").arg(year).arg(week,2,10,QChar('0'));}
+    }
+    // Crate frequency is derived from the existing qualified activity facts.
+    // Each explicit album/artist start counts once; automatic following tracks
+    // contribute to songs without turning one album visit into twelve visits.
+    QMap<QString,int> crateCounts;QMap<QString,qint64> crateLast;
+    auto countCrate=[&](const QVariantMap &raw,qint64 at){
+        const auto ref=RecommendationEntityRef::fromJson(QJsonObject::fromVariantMap(raw));if(!ref.ok())return;
+        const auto key=ref.value->stableKey();++crateCounts[key];crateLast[key]=qMax(crateLast.value(key),at);
+    };
+    for(const auto &value:m_home->history.value("sessions").toList()){
+        const auto session=value.toMap();const auto origin=session.value("origin").toString();
+        if(session.value("qualifiedMs").toLongLong()<10000||origin=="unknown")continue;
+        const auto at=session.value("atMs").toLongLong();countCrate(session.value("recording").toMap(),at);
+        if(origin=="manual")for(const auto &entity:session.value("entities").toList())countCrate(entity.toMap(),at);
+    }
+    m_home->crateCandidates.clear();
+    auto rememberCrate=[&](QVariantMap card){
+        if(card.value("id").toString().isEmpty()||card.value("title").toString().isEmpty())return;
+        auto key=card.value("key").toString();if(key.isEmpty())key=card.value("id").toString();card["key"]=key;
+        if(!m_home->crateCandidates.contains(key))m_home->crateCandidates[key]=card;
+        m_home->crateCandidates[crateAlias(card.value("kind").toString(),card.value("id").toString())]=card;
+    };
+    for(const auto &node:nodes)rememberCrate(node.card);
+    for(const auto &node:quickNodes)rememberCrate(node.card);
+    for(const auto &value:stations)rememberCrate(value.toMap());
+    for(const auto &value:charts)for(const auto &card:value.toList())rememberCrate(card.toMap());
+    for(const auto &value:historyCatalogue){
+        const auto entry=value.toMap(),album=entry.value("album",entry).toMap();if(album.isEmpty())continue;
+        const bool yt=album.value("origin")=="youtube-music";
+        auto raw=album;raw["kind"]="album";raw["provider"]=yt?"youtube-music":"local";
+        raw["providerId"]=yt?album.value("providerIds").toMap().value("youtube-music",album.value("browseId")):album.value("id");
+        if(yt)raw["id"]="ytm:album:"+raw.value("providerId").toString();
+        const auto converted=VinylRecommendationIdentity::fromCatalogue(raw);if(!converted.value("ok").toBool())continue;
+        QVariantMap card{{"id",album.value("id")},{"albumId",album.value("id")},{"kind","albums"},
+            {"key",converted.value("key")},{"ref",converted.value("ref")},{"typedKey",converted.value("ref")},
+            {"destination",converted.value("destination")},{"title",album.value("title")},{"cover",album.value("cover")},
+            {"provider",raw.value("provider")},{"providerId",raw.value("providerId")},
+            {"subtitle",album.value("artists").toStringList().join(QStringLiteral(" · "))},{"record",album}};
+        rememberCrate(card);
+        const auto ids=album.value("artistIds").toStringList(),names=album.value("artists").toStringList();
+        for(int index=0;index<ids.size();++index){
+            const bool remote=ids[index].startsWith("ytm:artist:");
+            const QVariantMap artist{{"kind","artist"},{"provider",remote?"youtube-music":"local"},
+                {"providerId",remote?ids[index].mid(11):ids[index]},{"id",ids[index]}};
+            const auto identity=VinylRecommendationIdentity::fromCatalogue(artist);if(!identity.value("ok").toBool())continue;
+            rememberCrate({{"id",ids[index]},{"artistId",ids[index]},{"kind","artists"},{"title",names.value(index)},
+                {"provider",artist.value("provider")},{"providerId",artist.value("providerId")},
+                {"key",identity.value("key")},{"ref",identity.value("ref")},{"destination",identity.value("destination")},{"cover",album.value("cover")}});
+        }
+    }
+    for(const auto &value:m_home->collections.value("catalogueSongs",m_home->collections.value("songs")).toList()){
+        auto card=value.toMap();const auto row=card.value("row").toMap(),track=row.value("track").toMap();if(row.isEmpty())continue;
+        const auto edition=row.value("edition").toMap(),album=edition.value("sourceAlbum").toMap();
+        const bool yt=edition.value("origin")=="youtube-music"||album.value("origin")=="youtube-music";
+        const auto identity=VinylRecommendationIdentity::fromCatalogue({{"kind","song"},{"provider",yt?"youtube-music":"local"},
+            {"providerId",yt?track.value("videoId"):row.value("trackId")}});
+        if(!identity.value("ok").toBool())continue;
+        card["kind"]="saved-song";card["key"]=identity.value("key");card["ref"]=identity.value("ref");
+        card["destination"]=QVariantMap{{"kind","saved-song"},{"id",card.value("id")}};
+        card["provider"]=yt?"youtube-music":"local";card["providerId"]=yt?track.value("videoId"):row.value("trackId");
+        card["albumId"]=album.value("providerIds").toMap().value("youtube-music",row.value("albumId"));
+        rememberCrate(card);
+    }
+    QVariantList crate;QSet<QString> used;
+    for(const auto &value:(m_preferences?m_preferences->property("vinylCratePins").toList():QVariantList())){
+        const auto pin=value.toMap();auto card=m_home->crateCandidates.value(crateAlias(pin.value("kind").toString(),pin.value("id").toString()));
+        if(card.isEmpty()&&pin.value("provider")=="youtube-music")card=m_home->crateCandidates.value(pin.value("key").toString());
+        if(card.isEmpty()){
+            card=pin;card["unavailable"]=true;
+            if(pin.value("provider")!="local" && !pin.value("catalogueItem").toMap().isEmpty()){
+                card["unavailable"]=false;card["requiresResolution"]=true;
+            }
+            if(pin.value("provider")=="youtube-music"&&pin.value("kind")=="artists")card["unavailable"]=false;
+        }
+        const auto key=pin.value("key").toString();if(used.contains(key))continue;used.insert(key);
+        card["key"]=key;card["pinned"]=true;crate.append(card);
+    }
+    QMap<QString,QVariantList> frequent;
+    for(const auto &card:m_home->crateCandidates){const auto key=card.value("key").toString();
+        if(used.contains(key)||crateCounts.value(key)<=0||card.value("unavailable").toBool())continue;
+        used.insert(key);auto ranked=card;ranked["playCount"]=crateCounts.value(key);ranked["lastPlayedAtMs"]=crateLast.value(key);
+        frequent[crateKind(card.value("kind").toString())].append(ranked);
+    }
+    for(auto &items:frequent)std::sort(items.begin(),items.end(),[](const QVariant &a,const QVariant &b){
+        const auto x=a.toMap(),y=b.toMap();if(x.value("playCount")!=y.value("playCount"))return x.value("playCount").toInt()>y.value("playCount").toInt();
+        if(x.value("lastPlayedAtMs")!=y.value("lastPlayedAtMs"))return x.value("lastPlayedAtMs").toLongLong()>y.value("lastPlayedAtMs").toLongLong();
+        return x.value("key").toString()<y.value("key").toString();
+    });
+    for(int index=0;index<256;++index){bool added=false;
+        for(const QString &kind:{"albums","artists","songs","mixes","radio"}){
+            const auto &items=frequent[kind];if(index<items.size()){crate.append(items[index]);added=true;}
+        }if(!added)break;
+    }
+    crate=fillCrate(crate,m_source?listeningCards:QVariantList(),m_source?crateAlbums:QVariantList(),m_source?crateSongs:QVariantList(),m_saved);
+    const QVariantMap pool{{"rows",VinylSourcePool::homeRows(buckets,manualSessions>0)},{"charts",charts},{"chartWeeks",chartWeeks},{"crate",crate},
+        {"forYou",m_home->carousel},{"songs",m_home->quickPicks},{"albums",buckets.value("albums-for-you")},{"artists",buckets.value("artists-like-yours")},
+        {"pendingCount",m_home->waiting.size()+m_home->active.size()+m_home->songWaiting.size()+m_home->songActive.size()}};
+    if(pool!=m_home->pool){m_home->pool=pool;++m_home->revision;}
     if(previousQuickPicks!=m_home->quickPicks)emit listeningChanged();
     emit homeChanged();
 }
@@ -916,7 +1335,7 @@ void VinylRecommendationService::selectHomeCarousel(bool refresh) {
     QStringList keys;
     for(const auto &key:m_home->selectionKeys)if(pool.contains(key)&&!keys.contains(key))keys.append(key);
     const bool restoringPending=!refresh&&!m_home->selectionKeys.isEmpty()
-        &&(!m_home->active.isEmpty()||!m_home->waiting.isEmpty());
+        &&m_home->corePending();
     QStringList candidates=pool.keys();
     const auto salt=selectionKey+"/"+QString::number(m_home->selectionSerial);
     std::stable_sort(candidates.begin(),candidates.end(),[&](const QString &a,const QString &b){
@@ -936,10 +1355,10 @@ void VinylRecommendationService::selectHomeCarousel(bool refresh) {
         keys.append(key);++artistCounts[artist];
     }
     m_home->previousKeys.removeDuplicates();
-    if(!restoringPending&&(refresh||(m_home->active.isEmpty()&&m_home->waiting.isEmpty())))m_home->selectionKeys=keys;
+    if(!restoringPending&&(refresh||!m_home->corePending()))m_home->selectionKeys=keys;
     m_home->carousel.clear();
     for(const auto &key:keys)m_home->carousel.append(pool.value(key));
-    if(!keys.isEmpty()&&m_home->active.isEmpty()&&m_home->waiting.isEmpty()&&m_preferences
+    if(!keys.isEmpty()&&!m_home->corePending()&&m_preferences
         &&m_preferences->metaObject()->indexOfMethod("setVinylHomeSelectionSnapshot(QString)")>=0){
         const auto snapshot=QString::fromUtf8(wire(QVariantMap{{"version",1},{"profileId",m_scope},{"day",day},
             {"seedHash",m_home->seedHash},{"refreshSerial",m_home->selectionSerial},{"keys",keys},{"previousKeys",m_home->previousKeys.mid(0,10)}}));

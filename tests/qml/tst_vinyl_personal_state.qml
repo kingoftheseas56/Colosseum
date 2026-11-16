@@ -4,6 +4,7 @@ import "../../qml/vinyl"
 TestCase {
  name:"VinylPersonalState"; when:windowShown
  width:1280;height:720;visible:true
+ readonly property var tasteArtists:["artist:a","artist:b","artist:c","artist:d","artist:e"]
  QtObject {
   id: store
   property int revision:0
@@ -30,7 +31,7 @@ TestCase {
  Rectangle{id:backdrop;anchors.fill:parent;color:"#101015"}
  VinylArtistPage{id:page;anchors.fill:parent;artistData:artist;worldData:world;backdrop:backdrop}
  VinylLiveWorldData{id:world;session:session;preferencesStore:prefs;searchHistoryStore:null}
- function init(){store.entries=[];store.revision++;store.fail=false;store.persistenceError="";prefs.fail=false;prefs.vinylPersistenceError="";prefs.setVinylTaste(false,[]);world.preferencesStore=prefs;artist.personalError="";session.library=[{id:"album:a",title:"Synthetic album",artists:["Synthetic artist"],artistIds:["artist:a"],artist:{id:"artist:a",name:"Synthetic artist"},tracks:[{id:"same",title:"First",disc:1},{id:"same",title:"Second",disc:1}],origin:"local"}];artist.open({id:"artist:a",name:"Synthetic artist"});}
+ function init(){store.entries=[];store.revision++;store.fail=false;store.persistenceError="";prefs.fail=false;prefs.vinylPersistenceError="";prefs.setVinylTaste(true,tasteArtists.slice());world.preferencesStore=prefs;artist.personalError="";session.library=[{id:"album:a",title:"Synthetic album",artists:["Synthetic artist"],artistIds:["artist:a"],artist:{id:"artist:a",name:"Synthetic artist"},tracks:[{id:"same",title:"First",disc:1},{id:"same",title:"Second",disc:1}],origin:"local"}];for(var i=1;i<tasteArtists.length;++i)session.library=session.library.concat([{id:"album:gate-"+i,title:"Synthetic option "+i,artists:["Synthetic artist "+i],artistIds:[tasteArtists[i]],tracks:[],origin:"local"}]);artist.open({id:"artist:a",name:"Synthetic artist"});}
  function test_createAndReopenThroughControls(){
   var more=findChild(page,"vinylArtistMoreButton");verify(more);more.forceActiveFocus();keyClick(Qt.Key_Space);
   var create=findChild(page,"vinylArtistCreatePlaylistMenu");verify(create.visible);create.forceActiveFocus();keyClick(Qt.Key_Space);wait(0);
@@ -54,5 +55,20 @@ TestCase {
   keyClick(Qt.Key_Escape);wait(0);
  }
  function test_orderedPlaylistAndMissingSource(){verify(artist.createPlaylist("Ordered"));compare(artist.playlists.length,1);compare(artist.playlists[0].songs[1].track.title,"Second");compare(artist.playlists[0].songs[1].trackIndex,1);session.library=[];compare(artist.playlists[0].songs.length,2);verify(artist.playlists[0].songs[0].unavailable);}
- function test_tasteFailureAndProfileReplacement(){verify(world.answerPicker(["artist:a"]));compare(world.picks[0],"artist:a");prefs.fail=true;verify(!world.resetPicker());compare(world.picks[0],"artist:a");world.preferencesStore=null;compare(world.picks.length,0);verify(!world.pickerAnswered);}
+ function test_tasteFailureAndProfileReplacement(){
+  prefs.setVinylTaste(false,[]);
+  verify(world.tasteGateLocked);verify(!world.canEnterVinyl);
+  verify(world.beginTasteEdit());
+  for(var i=0;i<4;++i)world.togglePickerArtist(tasteArtists[i]);
+  compare(world.pickerDraft.length,4);verify(!world.answerPicker());
+  verify(world.tasteGateLocked);verify(!world.canEnterVinyl);compare(prefs.vinylTasteArtistIds.length,0);
+  world.togglePickerArtist(tasteArtists[4]);
+  verify(world.answerPicker());compare(world.picks,tasteArtists);
+  verify(!world.tasteGateLocked);verify(world.canEnterVinyl);
+  prefs.fail=true;verify(world.beginTasteEdit());verify(!world.answerPicker());
+  compare(world.picks,tasteArtists);compare(prefs.vinylTasteArtistIds,tasteArtists);
+  verify(!world.tasteGateLocked);verify(world.canEnterVinyl);
+  world.preferencesStore=null;compare(world.picks.length,0);verify(!world.pickerAnswered);
+  verify(world.tasteGateLocked);verify(!world.canEnterVinyl);
+ }
 }

@@ -109,16 +109,15 @@ Item {
         visible: root.hasCards
         Row {
             id: cards
-            spacing: 24
+            spacing: root.home ? 18 : 24
             Repeater {
                 id: cardRepeater
-                model: root.row.items.slice(0,root.previewCount)
+                model: Math.min(root.previewCount,(root.row.items || []).length)
                 delegate: VinylItemCard {
-                    required property var modelData
                     required property int index
                     objectName: "vinylCard_" + (root.cold ? "cold-" : "") + root.row.key + "_" + index
                     worldData: root.worldData
-                    item: modelData
+                    item: root.row.items[index]
                     recommendationRow: root.home ? root.row : null
                     pageFlick: root.pageFlick
                     exposureRail: rail
@@ -127,14 +126,16 @@ Item {
                     exposureRevision: root.exposureRevision
                     onActiveFocusChanged: if(activeFocus){root.currentIndex=index;root.reveal(index)}
                     Keys.onPressed: event => {if([Qt.Key_Left,Qt.Key_Right,Qt.Key_Home,Qt.Key_End].indexOf(event.key)>=0)nav.handle(event)}
-                    width: modelData.kind === "mixes"
-                        ? Math.min(rail.width, root.cardSize * 1.5)
-                        : modelData.kind === "radio"
-                            ? Math.min(rail.width, root.cardSize * 1.25) : root.cardSize
+                    width: root.cardSize
                     height: implicitHeight
                 }
             }
         }
+    }
+    Rectangle {
+        visible:root.home && root.hasCards
+        x:root.width*0.92; y:rail.y; width:root.width*0.08; height:rail.height
+        gradient:Gradient { orientation:Gradient.Horizontal; GradientStop { position:0; color:"transparent" } GradientStop { position:1; color:"#06070b" } }
     }
     Connections {
         target: root.pageFlick

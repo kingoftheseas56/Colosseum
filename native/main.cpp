@@ -31,6 +31,7 @@
 #include <QTcpSocket>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QScreen>
 #include <qqml.h>
 #include <QStandardPaths>
 #include <QString>
@@ -405,6 +406,8 @@ int main(int argc, char *argv[]) {
     const QString instanceAppData =
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QString vinylV1FixtureHelper;
+    QString vinylV1FixtureViewport;
+    QRect vinylV1FixtureScreen;
 #if defined(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
     // Check both fixture routes before opening any personal stores or the app log.
     if (vinylV1OfflineBoot) {
@@ -432,6 +435,20 @@ int main(int argc, char *argv[]) {
         }
         vinylV1FixtureHelper = helper.canonicalFilePath();
         qputenv("COLOSSEUM_VINYL_PYTHON", python.canonicalFilePath().toUtf8());
+        // Consume this optional request only after the full fixture identity and
+        // containment checks. Reject malformed/unsupported dimensions before any
+        // settings, store or rolling log is opened.
+        vinylV1FixtureViewport = qEnvironmentVariable("COLOSSEUM_VINYL_FIXTURE_VIEWPORT");
+        if (!vinylV1FixtureViewport.isEmpty()) {
+            QScreen *screen = QGuiApplication::primaryScreen();
+            vinylV1FixtureScreen = screen ? screen->geometry() : QRect();
+            QRect viewport;
+            if (!WindowModeStore::startupViewportGeometry(
+                    vinylV1FixtureViewport, vinylV1FixtureScreen, &viewport)) {
+                qCritical("Vinyl V1 fixture viewport requires a strict WxH request, at least 1024x640, at most 16384 per dimension, fitting the full screen.");
+                return 2;
+            }
+        }
     } else if (qEnvironmentVariable("COLOSSEUM_VINYL_TEST_FIXTURES") == QLatin1String("1")
                && !VinylTestProfileController(instanceAppData, {}, {}).enabled()) {
         qCritical("Vinyl synthetic fixture launch containment check failed.");
@@ -1925,6 +1942,11 @@ int main(int argc, char *argv[]) {
 
 #if !defined(Q_OS_ANDROID)
     auto *windowMode = new WindowModeStore(&app);
+    if (vinylV1OfflineBoot && !vinylV1FixtureViewport.isEmpty()
+        && !windowMode->configureStartupViewport(vinylV1FixtureViewport, vinylV1FixtureScreen)) {
+        qCritical("Vinyl V1 fixture viewport could not be configured before shell initialization.");
+        return 2;
+    }
     engine.rootContext()->setContextProperty(QStringLiteral("WindowMode"), windowMode);
 #endif
 
@@ -2222,10 +2244,44 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("VinylCatalogueSource"), vinylCatalogueSource);
     vinylCatalogueSource->setArtworkNetworkManager(engine.networkAccessManager());
     vinylCatalogueSource->setTorrentProvider(new VinylTorrentProvider(engine.networkAccessManager(),stream,&backendServices));
-    const auto bindVinylScope = [&engine, accountRuntime] {
+    vinylCatalogueSource->setDownloadedMusicResolver([download, accountRuntime](const QString &videoId) {
+        return download->musicResource(accountRuntime->profileStores()->activeProfile().profileId(), videoId);
+    });
+    const auto bindVinylScope = [&engine, accountRuntime, download] {
+        const auto scope = accountRuntime->profileStores()->activeProfile().profileId();
         engine.rootContext()->setContextProperty(QStringLiteral("VinylProfileScope"),
-            accountRuntime->profileStores()->activeProfile().profileId());
+            scope);
+        download->setMusicProfileScope(scope);
     };
+    struct MusicDownloadResolution { QString jobId; int requestId=-1; };
+    const auto musicDownload = std::make_shared<MusicDownloadResolution>();
+    QObject::connect(download, &DownloadStore::needResolve, vinylCatalogueSource,
+        [download, vinylCatalogueSource, musicDownload](const QString &id, const QString &trackId, const QString &kind) {
+            if (kind != QStringLiteral("music")) return;
+            const auto request = download->musicRequest(id);
+            if (request.isEmpty()) return;
+            vinylCatalogueSource->registerRemoteAlbum(request.value("music").toMap().value("album").toMap());
+            musicDownload->jobId=id;
+            musicDownload->requestId=vinylCatalogueSource->request("download", "resolve", trackId, {{"source", "youtube"}});
+            if (musicDownload->requestId < 0) {
+                musicDownload->jobId.clear();
+                download->failJob(id, QStringLiteral("The music download source is unavailable."));
+            }
+        });
+    QObject::connect(vinylCatalogueSource, &VinylCatalogueSource::completed, download,
+        [download, musicDownload](const QString &lane, int requestId, const QVariant &data, const QString &error) {
+            if (lane != "download" || musicDownload->requestId != requestId || musicDownload->jobId.isEmpty()) return;
+            const auto id=musicDownload->jobId;musicDownload->jobId.clear();musicDownload->requestId=-1;
+            if (!error.isEmpty()) download->failJob(id, error);
+            else download->feedMusicSource(id, data.toMap());
+        });
+    QObject::connect(download, &DownloadStore::changed, vinylCatalogueSource,
+        [download, vinylCatalogueSource, musicDownload] {
+            if (musicDownload->jobId.isEmpty() || !download->musicRequest(musicDownload->jobId).isEmpty()) return;
+            vinylCatalogueSource->cancel("download");musicDownload->jobId.clear();musicDownload->requestId=-1;
+        });
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
+                     download, [download] { download->setMusicProfileScope({}); });
     bindVinylScope();
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
                      &engine, bindVinylScope);

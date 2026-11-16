@@ -12,9 +12,10 @@ Main {
     readonly property bool inspection: phase.indexOf("inspect")===0
     property string stage: "profile"
     property int ticks: 0
-    property var wanted: phase.indexOf("john")>=0 ? ["John Williams","John Williams"]
-        : phase.indexOf("cross")>=0 ? ["Nas","Ilaiyaraaja","S. P. Balasubrahmanyam"]
-        : phase.indexOf("nas")>=0 ? ["Nas"] : ["Ilaiyaraaja", "S. P. Balasubrahmanyam"]
+    property var wanted: phase.indexOf("john")>=0 ? ["John Williams","John Williams","Mariya Takeuchi","Björk","SZA"]
+        : phase.indexOf("cross")>=0 ? ["Nas","Ilaiyaraaja","S. P. Balasubrahmanyam","Björk","Daft Punk"]
+        : phase.indexOf("nas")>=0 ? ["Nas","Mariya Takeuchi","Björk","Ilaiyaraaja","SZA"]
+        : ["Mariya Takeuchi","Björk","Ilaiyaraaja","Daft Punk","SZA"]
     property int pickIndex: 0
     property var queueBefore: []
     property string openedAlbum: ""
@@ -61,13 +62,18 @@ Main {
                 w.showHome();root.started=Date.now();
                 if(root.phase==="skip-restore") {root.next("skip-check");return;}
                 if(root.restoring||root.inspection) {
-                    if(!root.check(r.onboardingState==="answered"&&r.selectedArtists.length===root.wanted.length,"Saved tastes missing"))return;
+                    if(!root.check(r.onboardingState==="answered"&&r.selectedArtists.length===root.wanted.length
+                        &&!d.tasteGateLocked&&d.canEnterVinyl,"Five saved tastes missing on this ProfileTag"))return;
                     if(root.qualification&&!root.check(s.queue.length>=2&&s.queueIndex===1,"Saved playback occurrence missing"))return;
                     if(root.restoring)root.metric("restored-playback",Date.now()-root.worldReadyAt,{queue:s.queue.map(row=>row.queueId),index:s.queueIndex,paused:s.paused,position:s.position});
                     root.next("rows");return;
                 }
-                if(!root.check(r.onboardingState==="draft","Fresh Home picker missing"))return;
-                if(root.phase==="skip") {root.activate("vinylPickerSkip");root.next("skip-check");return;}
+                if(!root.check(d.tasteGateLocked&&d.tastePickerOpen&&!d.canEnterVinyl
+                    &&r.selectedArtists.length===0&&(r.onboardingState==="editing"||r.onboardingState==="draft"),"Fresh five-artist gate missing"))return;
+                if(root.phase==="skip") {
+                    if(!root.check(!root.find(contentItem,"vinylPickerSkip"),"Gate exposes an obsolete Skip control"))return;
+                    d.skipPicker();root.next("skip-check");return;
+                }
                 if(root.phase.indexOf("history-off")>=0)ProfilePreferences.keepActivityHistory=false;
                 var search=root.find(contentItem,"topBarSearch_Vinyl");
                 if(!root.check(search&&search.visible,"Shared top search icon missing"))return;
@@ -80,11 +86,13 @@ Main {
                 var rows=r.artistResults.items||[],at=rows.findIndex(a=>a.name===root.wanted[root.pickIndex]&&chosen.indexOf(a.providerId)<0);
                 if(at<0)return;
                 if(!root.check(rows[at].provider==="youtube-music"&&/^UC[A-Za-z0-9_-]{22}$/.test(rows[at].providerId),"Artist is not a real provider identity"))return;
-                if(root.phase.indexOf("john")>=0&&!root.check(["UCfv8TEQ44ej9uPGF-SNsDBA","UCZH8NkgXeliBVbpaYY2PoNQ"].indexOf(rows[at].providerId)>=0,"Same-name source identity changed; inspect actual result"))return;
+                if(root.phase.indexOf("john")>=0&&root.wanted[root.pickIndex]==="John Williams"&&!root.check(["UCfv8TEQ44ej9uPGF-SNsDBA","UCZH8NkgXeliBVbpaYY2PoNQ"].indexOf(rows[at].providerId)>=0,"Same-name source identity changed; inspect actual result"))return;
                 root.activate("vinylPickerArtist_"+at);root.pickIndex++;
                 if(root.pickIndex<root.wanted.length){w.setQuery(root.wanted[root.pickIndex]);root.ticks=0;return;}
-                root.started=Date.now();root.activate("vinylPickerDone");
-                if(!root.check(r.onboardingState==="answered"&&r.selectedArtists.length===root.wanted.length,"Done did not commit"))return;
+                if(!root.check(r.draftArtistCount===5,"Five distinct artists required before Save; inspect provider identity aliases"))return;
+                root.started=Date.now();if(!root.activate("vinylPickerDone"))return;
+                if(!root.check(r.onboardingState==="answered"&&r.selectedArtists.length===5
+                    &&!d.tasteGateLocked&&d.canEnterVinyl,"Five choices did not commit/unlock"))return;
                 root.next(root.phase.indexOf("retire")>=0?"retire":"rows");return;
             }
             if(root.stage==="retire") {
@@ -218,7 +226,13 @@ Main {
                 root.metric("final-identity-state",0,{artists:r.selectedArtists.map(a=>({name:a.name,id:a.providerId,mapping:a.mappingStatus})),queue:s.queue.map(row=>row.queueId),index:s.queueIndex});
                 root.next("pass");return;
             }
-            if(root.stage==="skip-check") {if(!root.check(r.onboardingState==="answered"&&r.selectedArtists.length===0&&r.homeSections.length===0,"Skip fabricated recommendations"))return;root.next("pass");return;}
+            if(root.stage==="skip-check") {
+                if(!root.check(d.tasteGateLocked&&d.tastePickerOpen&&!d.canEnterVinyl
+                    &&!d.pickerAnswered&&r.selectedArtists.length===0
+                    &&ProfilePreferences.vinylTasteAnswered===false&&ProfilePreferences.vinylTasteArtists.length===0,
+                    "Skip attempt or restart unlocked the gate or saved an answer"))return;
+                root.next("pass");return;
+            }
             if(root.stage==="inspect-ready"&&root.ticks>60) {root.showMaximized();root.next("inspect-wide");return;}
             if(root.stage==="inspect-wide"&&root.ticks>8) {
                 var scroll=root.find(contentItem,"vinylWorldScroll"),row=root.find(contentItem,"vinylHomeRow_personalized:from-your-artists");

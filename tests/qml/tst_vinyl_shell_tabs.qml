@@ -217,7 +217,9 @@ TestCase {
         view.contentVisible = false;
         verify(view.visible);
         tryCompare(view.flowTabs, "visible", false);
-        verify(!findChild(view, "vinylHomePlaceholder").visible);
+        var homeContent = findChild(view, "vinylHome");
+        verify(homeContent !== null);
+        verify(!homeContent.visible);
         compare(view.tabBarSource, null);
         verify(!view.dockedTabBar.visible);
         view.contentVisible = true;

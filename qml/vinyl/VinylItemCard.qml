@@ -15,6 +15,11 @@ KeyboardAction {
     property bool homePageVisible: false
     property int exposureRevision: 0
     property string feedbackError: ""
+    property bool compactCaption: false
+    readonly property bool pinAvailable: worldData && typeof worldData.pinCrateItem==="function"
+        && typeof worldData.isCratePinned==="function" && !!item.id
+        && ["songs","saved-song","albums","artists","mixes","radio"].indexOf(presentationKind)>=0
+    readonly property bool pinned: pinAvailable && worldData.isCratePinned(item)
     readonly property bool feedbackAvailable: !!recommendationRow
         && (recommendationRow.recommendation === true
             || ((recommendationRow.key === "taste-artists" || recommendationRow.key === "saved-artists")
@@ -39,22 +44,22 @@ KeyboardAction {
         var name = String(item.albumTitle || record.title || "");
         return name === String(item.title || "") ? "" : name;
     }
-    readonly property string captionTitle: presentationKind === "songs"
-        ? artistText + (albumText ? qsTr(" · from %1").arg(albumText) : "") : String(item.title || "")
+    readonly property string captionTitle: String(item.title || "")
     readonly property string captionDetail: item.unavailable ? qsTr("Unavailable")
-        : reason || (presentationKind === "artists" ? qsTr("Artist radio")
-            : presentationKind === "mixes" ? String(item.subtitle || qsTr("Made for you"))
-            : presentationKind === "radio" ? String(item.subtitle || qsTr("Station"))
+        : compactCaption && item.resumeTrack>0 && item.totalTracks>=item.resumeTrack ? reason
+        : (presentationKind === "artists" ? qsTr("Artist radio")
+            : presentationKind === "mixes" ? qsTr("Made for you")
+            : presentationKind === "radio" ? qsTr("Station")
             : presentationKind === "albums" ? artistText || String(item.subtitle || "")
-            : String(item.subtitle && item.subtitle !== artistText ? item.subtitle : ""))
+            : artistText + (albumText ? qsTr(" · from %1").arg(albumText) : ""))
     readonly property real captionTop: copy.y
     readonly property url artworkSource: worldData && item ? worldData.artwork(item.cover) : ""
     readonly property var mixArtworkSources: (item.artworkCovers || []).slice(0, 3).map(function(cover) {
         return root.worldData ? root.worldData.artwork(cover) : "";
     })
-    implicitHeight: art.height + (copy.height > 0 ? 14 + copy.height : 0) + 8
+    implicitHeight: art.height + (copy.height > 0 ? (compactCaption ? 7 : 14) + copy.height : 0) + (compactCaption ? 0 : 8)
     accessibleName: item.title + (item.unavailable ? ", unavailable" : "")
-        + (reason ? ". " + reason : "")
+        + (captionDetail ? ". " + captionDetail : "")
     onTriggered: if(worldData) worldData.activate(item)
 
     function scheduleExposureCheck() { exposureTimer.restart(); }
@@ -134,13 +139,13 @@ KeyboardAction {
     Column {
         id: copy
         objectName: root.objectName + "_caption"
-        y: art.height + 14
+        y: art.height + (root.compactCaption ? 7 : 14)
         width: parent.width
-        spacing: 4
+        spacing: root.compactCaption ? 0 : 4
         Text {
             objectName: root.objectName + "_captionTitle"
             width: parent.width
-            height: 20
+            height: root.compactCaption ? 18 : 20
             text: root.captionTitle
             textFormat: Text.PlainText
             color: theme.ink
@@ -153,10 +158,10 @@ KeyboardAction {
         Text {
             objectName: root.objectName + "_captionDetail"
             width: parent.width
-            height: 18
+            height: root.compactCaption ? 16 : 18
             text: root.captionDetail
             textFormat: Text.PlainText
-            color: root.reason ? theme.gold : theme.inkDim
+            color: root.compactCaption && root.item.resumeTrack>0 && root.item.totalTracks>=root.item.resumeTrack ? theme.gold : theme.inkDimmer
             font.family: theme.ui
             font.pixelSize: 12
             maximumLineCount: 1
@@ -185,6 +190,18 @@ KeyboardAction {
         symbol: "check"
         accessibleName: qsTr("More like %1").arg(root.item.title)
         onTriggered: root.submitFeedback("like")
+    }
+
+    VinylFeedbackBadge {
+        id: pinBadge
+        objectName: "vinylPin_"+String(root.item.id || "item")
+        x: art.width-width-9; y: art.height-height-9; z: 2
+        visible: root.pinAvailable
+        enabled: visible && (root.enabled || root.pinned)
+        revealed: root.hovered || root.activeFocus || hovered || activeFocus || root.pinned
+        symbol: root.pinned ? "check" : "playlistAdd"
+        accessibleName: (root.pinned ? qsTr("Unpin %1") : qsTr("Pin %1")).arg(root.item.title)
+        onTriggered: root.worldData.pinCrateItem(root.item,!root.pinned)
     }
     VinylFeedbackBadge {
         id: hideBadge

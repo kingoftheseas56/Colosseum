@@ -93,6 +93,9 @@ void VinylCatalogueSource::setAlbums(const QVariantList &entries){
     m_local->setAlbums(entries);
     for(const auto &entry:entries){auto album=entry.toMap().value("payload").toMap().value("album").toMap();if(album.isEmpty())album=entry.toMap();if(!album.isEmpty())remember(album);}
 }
+void VinylCatalogueSource::registerRemoteAlbum(const QVariantMap &album){
+    if(album.value("origin")=="youtube-music")remember(album);
+}
 QVariantMap VinylCatalogueSource::remember(QVariantMap album){
     const auto id=album.value("id").toString();if(id.isEmpty())return album;
     auto prior=m_albums.value(id);
@@ -145,6 +148,18 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
     // A summary need not have been opened (and registered) before navigation.
     if(operation=="album"&&!local&&remoteValue.startsWith("ytm:album:"))remoteValue=remoteValue.mid(10);
     if((operation=="resolve"||operation=="resolveFallback"||operation=="relatedVideo")&&!local){remoteValue=m_videos.value(value);}
+    if(resolving&&!local&&lane!="download"&&m_downloadedMusicResolver) {
+        auto downloaded=m_downloadedMusicResolver(remoteValue);
+        if(!downloaded.isEmpty()) {
+            downloaded["trackId"]=value;downloaded["provider"]="local";
+            m_pending.insert(lane,{id,-1,false,operation,value});
+            QTimer::singleShot(0,this,[this,lane,id,downloaded] {
+                if(!m_pending.contains(lane)||m_pending.value(lane).id!=id)return;
+                m_pending.remove(lane);emit completed(lane,id,downloaded,{});
+            });
+            return id;
+        }
+    }
     if(operation=="resolveVideo") {
         local=false;remoteValue=options.value("videoId").toString();
         if(!QRegularExpression("^[A-Za-z0-9_-]{11}$").match(remoteValue).hasMatch())return -1;

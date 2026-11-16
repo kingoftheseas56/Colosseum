@@ -40,7 +40,9 @@ Main {
             var w=root.vinylWorld;if(!w)return;var s=w.session,r=w.recommendationService,d=w.worldData;
             if(root.stage==="world"&&root.ticks>5) {
                 w.showHome();
-                if(r.onboardingState==="draft")d.skipPicker();
+                if(!root.check(r.onboardingState==="answered"&&r.selectedArtists.length>=5
+                    &&!d.tasteGateLocked&&d.canEnterVinyl,
+                    "Five saved artists required on this ProfileTag; first complete the Home provider picker with the same ProfileTag"))return;
                 if(root.phase==="unavailable-empty"){root.next("empty");return;}
                 if(root.phase==="unavailable-cache"){r.refreshHome(true);root.next("cached");return;}
                 if(root.phase==="public"){root.capture("loading","public");return;}

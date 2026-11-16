@@ -47,12 +47,14 @@ public:
     Q_INVOKABLE void cancelImport(){m_local->cancelImport();}
     Q_INVOKABLE bool decideImportIdentity(const QString &relationship,const QString &choice){return m_local->decideImportIdentity(relationship,choice);}
     Q_INVOKABLE void setAlbums(const QVariantList &);
+    void registerRemoteAlbum(const QVariantMap &album);
     Q_INVOKABLE void setCollectionStore(QObject *);
     Q_INVOKABLE void openArtist(const QVariantMap &);
     Q_INVOKABLE void leaveArtist();
     Q_INVOKABLE void retryArtist();
     void setArtworkNetworkManager(QNetworkAccessManager *manager){m_artworkNam=manager;}
     void setTorrentProvider(QObject *provider);
+    void setDownloadedMusicResolver(std::function<QVariantMap(const QString &)> resolver) { m_downloadedMusicResolver=std::move(resolver); }
     QVariantMap artistArtwork() const{return m_artwork;}
     QVariantMap artist() const{return m_artist;}
     QVariantList artistAlbums() const{return m_artistAlbums;}
@@ -83,6 +85,7 @@ private:
     int m_serial=0;QHash<QString,Pending> m_pending;
     QHash<QString,QVariantMap> m_albums;QHash<QString,QString> m_videos;
     QHash<QString,QVariantMap> m_remoteTracks;
+    std::function<QVariantMap(const QString &)> m_downloadedMusicResolver;
     QPointer<QObject> m_torrent;
     QVariantMap m_artist,m_artistMedia,m_identity,m_artistIntent;
     QVariantList m_artistAlbums,m_artistSingles;

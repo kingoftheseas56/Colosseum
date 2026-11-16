@@ -1,0 +1,915 @@
+{
+  "name": "vinyl-v1-home-cold",
+  "comment": "Run only through a disposable tagged Lanista session --drive with the validated Windows fixture build/helper, source-root qml/Main.qml, COLOSSEUM_VINYL_TEST_FIXTURES=1, VINYL_TEST_V1_POOL=1 and validated COLOSSEUM_VINYL_FIXTURE_VIEWPORT=1280x700. Root supplies C-only Python, unique tag and pipe. Capture dimensions are export-only. The runner gracefully WM_CLOSEs its owned child after final ping. Prepared only; no runtime qualification is claimed. Fresh tag, no --seed. This first scenario proves the mandatory 0/5 gate, no skip action, and the genuine search/select-five/save flow. The next scenario restarts the same tag to prove persisted choices keep Vinyl unlocked.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "Isolated Lanista pipe responds",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Boot splash has finished",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Local profile action is ready",
+      "payload": {
+        "object": "accountWelcomeContinueLocal",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Choose the local profile containing the Vinyl fixture",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "accountWelcomeContinueLocal"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Account welcome has closed",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Home is visible",
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl is available in this build",
+      "payload": {
+        "object": "modePill_Vinyl",
+        "prop": "qualificationEnabled",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Enter Vinyl",
+      "payload": {
+        "target": "modePill_Vinyl"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "modePill_Vinyl"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl Loader reaches Ready",
+      "payload": {
+        "object": "worldLoader_Vinyl",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl world reports ready",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "ready",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl starts on Home before any tab selection",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "activeTab",
+        "value": "Home",
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl world is visible",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Fresh profile is held on Home until taste is saved",
+      "payload": {
+        "object": "vinylWorld",
+        "props": [
+          "ready",
+          "navigationEnabled",
+          "activeTab"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.ready",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.navigationEnabled",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "props.activeTab",
+          "op": "==",
+          "value": "Home"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fresh local profile enters the mandatory taste gate",
+      "payload": {
+        "object": "vinylLiveWorldData",
+        "prop": "tasteGateLocked",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Fresh profile has exactly zero of five saved artists",
+      "payload": {
+        "object": "vinylLiveWorldData",
+        "props": [
+          "savedArtistCount",
+          "minimumArtistCount",
+          "tasteGateLocked",
+          "canEnterVinyl",
+          "tastePickerOpen"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.savedArtistCount",
+          "op": "==",
+          "value": 0
+        },
+        {
+          "path": "props.minimumArtistCount",
+          "op": "==",
+          "value": 5
+        },
+        {
+          "path": "props.tasteGateLocked",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.canEnterVinyl",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "props.tastePickerOpen",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Mandatory picker is visible",
+      "payload": {
+        "object": "vinylTastePicker",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Picker begins gated at zero of five",
+      "payload": {
+        "object": "vinylTastePicker",
+        "props": [
+          "visible",
+          "gated",
+          "selectedArtistCount",
+          "minimumArtistCount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.gated",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.selectedArtistCount",
+          "op": "==",
+          "value": 0
+        },
+        {
+          "path": "props.minimumArtistCount",
+          "op": "==",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "First-run picker focuses artist search",
+      "payload": {
+        "object": "vinylPickerArtistSearch",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "First-run gate offers no cancel action",
+      "payload": {
+        "object": "vinylPickerCancel",
+        "props": [
+          "visible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Save is disabled before five choices",
+      "payload": {
+        "object": "vinylPickerDone",
+        "props": [
+          "enabled"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Removed optional Crate taste card is absent",
+      "payload": {
+        "object": "vinylCrateTasteCard",
+        "props": [
+          "visible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "error"
+        },
+        {
+          "path": "code",
+          "op": "==",
+          "value": "NO_SUCH_ITEM"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "Read actual logical window geometry; capture export flags do not resize the app",
+      "expect": [
+        {
+          "path": "windows.0.width",
+          "op": "==",
+          "value": 1280
+        },
+        {
+          "path": "windows.0.height",
+          "op": "==",
+          "value": 700
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Capture the first-run gate on the tagged Home window",
+      "payload": {
+        "object": "vinylWorld",
+        "props": [
+          "activeTab",
+          "navigationEnabled"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeTab",
+          "op": "==",
+          "value": "Home"
+        },
+        {
+          "path": "props.navigationEnabled",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "grabPath",
+          "op": "exists",
+          "value": null
+        }
+      ]
+    },
+    {
+      "cmd": "ui-text-input",
+      "label": "Search the local five-artist fixture catalogue",
+      "payload": {
+        "target": "vinylPickerArtistSearch",
+        "text": "fixture"
+      },
+      "expect": [
+        {
+          "path": "typed",
+          "op": "==",
+          "value": "fixture"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture option 1 is Mariya Takeuchi",
+      "payload": {
+        "object": "vinylPickerArtistArtwork_0",
+        "prop": "title",
+        "value": "Mariya Takeuchi",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select Mariya Takeuchi",
+      "payload": {
+        "target": "vinylPickerArtist_0"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylPickerArtist_0"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Mariya Takeuchi is selected",
+      "payload": {
+        "object": "vinylPickerArtist_0",
+        "prop": "chosen",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture option 2 is Björk",
+      "payload": {
+        "object": "vinylPickerArtistArtwork_1",
+        "prop": "title",
+        "value": "Björk",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select Björk",
+      "payload": {
+        "target": "vinylPickerArtist_1"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylPickerArtist_1"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Björk is selected",
+      "payload": {
+        "object": "vinylPickerArtist_1",
+        "prop": "chosen",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture option 3 is Ilaiyaraaja",
+      "payload": {
+        "object": "vinylPickerArtistArtwork_2",
+        "prop": "title",
+        "value": "Ilaiyaraaja",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select Ilaiyaraaja",
+      "payload": {
+        "target": "vinylPickerArtist_2"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylPickerArtist_2"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Ilaiyaraaja is selected",
+      "payload": {
+        "object": "vinylPickerArtist_2",
+        "prop": "chosen",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture option 4 is Daft Punk",
+      "payload": {
+        "object": "vinylPickerArtistArtwork_3",
+        "prop": "title",
+        "value": "Daft Punk",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select Daft Punk",
+      "payload": {
+        "target": "vinylPickerArtist_3"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylPickerArtist_3"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Daft Punk is selected",
+      "payload": {
+        "object": "vinylPickerArtist_3",
+        "prop": "chosen",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Fixture option 5 is SZA",
+      "payload": {
+        "object": "vinylPickerArtistArtwork_4",
+        "prop": "title",
+        "value": "SZA",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Select SZA",
+      "payload": {
+        "target": "vinylPickerArtist_4"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylPickerArtist_4"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "SZA is selected",
+      "payload": {
+        "object": "vinylPickerArtist_4",
+        "prop": "chosen",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Exactly five intended fixture artists are selected",
+      "payload": {
+        "object": "vinylTastePicker",
+        "props": [
+          "selectedArtistCount",
+          "minimumArtistCount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.selectedArtistCount",
+          "op": "==",
+          "value": 5
+        },
+        {
+          "path": "props.minimumArtistCount",
+          "op": "==",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Save becomes available at five choices",
+      "payload": {
+        "object": "vinylPickerDone",
+        "prop": "enabled",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Save the five choices through the visible picker",
+      "payload": {
+        "target": "vinylPickerDone"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylPickerDone"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Saving closes the mandatory first-run picker",
+      "payload": {
+        "object": "vinylLiveWorldData",
+        "prop": "tastePickerOpen",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Saving five choices unlocks this profile",
+      "payload": {
+        "object": "vinylLiveWorldData",
+        "props": [
+          "savedArtistCount",
+          "minimumArtistCount",
+          "tasteGateLocked",
+          "canEnterVinyl",
+          "tastePickerOpen"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.savedArtistCount",
+          "op": "==",
+          "value": 5
+        },
+        {
+          "path": "props.minimumArtistCount",
+          "op": "==",
+          "value": 5
+        },
+        {
+          "path": "props.tasteGateLocked",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "props.canEnterVinyl",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.tastePickerOpen",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Unlocked profile remains on Home with navigation enabled",
+      "payload": {
+        "object": "vinylWorld",
+        "props": [
+          "ready",
+          "navigationEnabled",
+          "activeTab"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.ready",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.navigationEnabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.activeTab",
+          "op": "==",
+          "value": "Home"
+        }
+      ]
+    },
+    {
+      "cmd": "ping",
+      "label": "Lanista pipe remains responsive before graceful session close",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    }
+  ]
+}

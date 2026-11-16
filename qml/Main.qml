@@ -2647,6 +2647,7 @@ Window {
             win.pendingResolves = []
         }
         function onNeedResolve(id, streamId, mediaType) {
+            if (mediaType === "music") return; // The native Vinyl source answers its audio download lane.
             if (win.playerOpen) { win.pendingResolves.push({ id: id, sid: streamId, mt: mediaType }); return }
             win.resolveDownloadJob(id, streamId, mediaType)
         }

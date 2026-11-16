@@ -77,8 +77,12 @@ Item {
             return false
         }
     }
+    readonly property bool downloadSupported: root.songData
+        && root.songData.canDownloadPlayingSong === true && root.hasMethod("downloadPlayingSong")
+        && root.playingTrackAvailable
+    readonly property bool currentSongDownloaded: root.songData && root.songData.downloadedPlayingSong === true
     readonly property bool videoShown: songData && songData.videoShown === true
-    readonly property bool hasActions: root.showPlay || root.canToggleSaved
+    readonly property bool hasActions: root.showPlay || root.canToggleSaved || root.downloadSupported
                                                   || root.canAddToPlaylist
                                                   || root.showReaderTools || root.showLyricsTools
     readonly property bool playEnabled: root.showPlay && root.playingTrackAvailable
@@ -195,6 +199,15 @@ Item {
                 symbol: "playViewed"
                 accessibleName: qsTr("Play viewed song")
                 onTriggered: root.playRequested()
+            }
+            Action {
+                objectName: "vinylSongDownload"
+                visible: root.downloadSupported
+                enabled: root.downloadSupported && !root.currentSongDownloaded
+                iconSource: "../../assets/icons/download.svg"
+                label: root.currentSongDownloaded ? qsTr("Downloaded") : qsTr("Download")
+                accessibleName: label
+                onTriggered: root.invokeCurrentSong("downloadPlayingSong")
             }
             Action {
                 objectName: "vinylSongSave"

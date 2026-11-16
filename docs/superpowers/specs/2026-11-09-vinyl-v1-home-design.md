@@ -25,7 +25,7 @@ Vinyl moves onto the shared house shell (`qml/WorldPage.qml`, house shelves and 
 4. **Tab bar:** Home · Discover · Library (Home opens first)
 5. **Tab content**
 
-The player bar stays docked at the bottom. Target screen is 1280x720 (Laptop 1; the app gets about 1280x700). At that size the first screen shows the carousel and The Crate, and The Spin starts right below.
+The player bar stays docked at the bottom. Target screen is 1280x720 (Laptop 1; the app gets about 1280x700). At that size the first screen shows the full carousel at its tall size (about 300 px, large cover, as in the mock), The Crate's header and its first row of tiles. The second Crate row and The Spin are below the fold. (Corrected 2026-11-13: the earlier wording forced the hero down to a strip; the hero's impact wins.)
 
 ## 3. Hero carousel
 
@@ -118,11 +118,12 @@ One calm scroll of rows in the same house cards and widgets as Home, no sub-tabs
 
 ## 9. New listeners (cold start)
 
-Never a gate:
-- **The Crate:** shows one optional card, "Pick a few artists you love", which opens the existing taste picker. It fills in as you play and pin.
-- **The Spin:** shows global chart picks until Vinyl knows you.
-- **For you slide:** uses the picked artists, or falls back to a fifth chart pick (rising artist) until any taste exists.
-- **Home tab:** rows that need taste stay hidden until they can fill.
+A new listener must pick 5 artists before Vinyl unlocks. (Changed by Hemanth 2026-11-13; replaces the earlier optional card.)
+- **The gate:** a profile with fewer than 5 saved taste artists sees only the existing artist picker as the whole Vinyl page. The hero carousel, The Crate, The Spin and the tabs are hidden. The Save button stays disabled until 5 artists are selected ("N of 5 artists selected."), and there is no skip or cancel. The top bar and Back still let the person leave Vinyl. Once 5 are saved, Vinyl unlocks and stays unlocked on later launches. Anyone who already has 5 or more saved artists is never gated; editing artists later stays cancellable.
+- **The Crate:** has no taste card. It fills in as you play and pin.
+- **The Spin:** shows global chart picks until Vinyl knows your listening.
+- **For you slide:** uses the picked artists.
+- **Home tab:** rows that need history stay hidden until they can fill.
 
 ## 10. Sources and the recommendation pool
 
@@ -160,14 +161,14 @@ The existing ranker, feedback (like, dislike, hide, snooze, exclude artist), exp
 ## 12. Acceptance criteria
 
 1. Vinyl renders on `WorldPage` with the tab bar Home · Discover · Library; the old Vinyl shell is gone from the route.
-2. At 1280x700 the first screen shows the full carousel and The Crate. The Spin's header is visible without scrolling.
+2. At 1280x700 the first screen shows the full carousel, at least 260 px tall with its large cover, plus The Crate's header and first row of tiles. The second Crate row and The Spin may need scrolling. (Corrected 2026-11-13.)
 3. The carousel has exactly the four slides of §3, each with its side list; no resume slide.
 4. The Crate shows 16 square tiles in 2 rows; album tiles resume at the right track; artist tiles start radio; pin and unpin persist across restart.
 5. The Spin's switch changes the view between Songs, Albums and Artists without a page jump.
 6. All five widgets render at an identical square size; the captions line up across a row.
 7. With 5 picked artists and no history, Home shows 6 rows (Rediscover hidden), each at least a screen-width full. This includes a Japanese-script artist among the picks.
 8. Library shows its rows in one scroll; empty rows are hidden.
-9. A brand-new profile sees no gate; the taste card is optional.
+9. A brand-new profile sees only the artist picker until it has picked 5 artists; there is no taste card in The Crate. (Changed by Hemanth 2026-11-13; replaces the earlier optional card.)
 10. With the network off, Vinyl opens to cached content without errors.
 
 ## 13. Non-goals and deferred

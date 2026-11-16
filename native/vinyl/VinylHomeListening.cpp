@@ -42,7 +42,7 @@ void VinylHomeListening::cancel(const QString &prefix) {
     QQueue<Job> retained;
     while (!m_waiting.isEmpty()) { auto job = m_waiting.dequeue(); if (!prefix.isEmpty() && !job.role.startsWith(prefix)) retained.enqueue(job); }
     m_waiting = retained;
-    if (m_active.isEmpty() && m_waiting.isEmpty()) m_deadline.stop();
+    scheduleDeadline();
 }
 
 void VinylHomeListening::clear() {
@@ -70,8 +70,8 @@ void VinylHomeListening::setInputs(QObject *source, const QString &scope, int ge
     }
     m_selection = selection;
     m_seeds = seeds; m_sections = sections;
-    if (!m_source || m_scope.isEmpty() || seeds.size() < 5) return;
-    prepareMix("personal"); prepareMix("discovery"); updateView(); m_changed();
+    if (!m_source || m_scope.isEmpty() || seeds.isEmpty()) return;
+    prepareMix("personal"); prepareMix("discovery"); updateView(); m_changed(); scheduleDeadline();
 }
 
 bool VinylHomeListening::hasArtistIdentity(const QVariantMap &artists) const {
@@ -181,6 +181,24 @@ void VinylHomeListening::enqueue(const Job &job) {
     if(job.role.startsWith("radio-"))m_waiting.prepend(job);else m_waiting.enqueue(job);
 }
 
+void VinylHomeListening::scheduleDeadline(bool progress) {
+    if (m_active.isEmpty() && m_waiting.isEmpty()) {
+        m_deadline.stop(); m_deadlineArmPending = false; ++m_deadlineArmGeneration;
+        return;
+    }
+    if (progress) {
+        m_deadline.stop(); m_deadlineArmPending = false; ++m_deadlineArmGeneration;
+    }
+    if (m_deadline.isActive() || m_deadlineArmPending) return;
+    m_deadlineArmPending = true;
+    const auto generation = ++m_deadlineArmGeneration;
+    // The provider's response window starts after synchronous UI publication unwinds.
+    QTimer::singleShot(0, this, [this, generation] {
+        if (generation != m_deadlineArmGeneration) return;
+        m_deadlineArmPending = false;
+        if (!m_active.isEmpty() || !m_waiting.isEmpty()) m_deadline.start(15000);
+    });
+}
 void VinylHomeListening::pump() {
     while (m_source && m_active.size() < 2 && !m_waiting.isEmpty()) {
         const auto job = m_waiting.dequeue();
@@ -194,8 +212,6 @@ void VinylHomeListening::pump() {
         else if (!job.mix.isEmpty()) m_errors[job.mix] = QStringLiteral("Music is unavailable. Try again.");
         else {m_radioState = "error";m_failedRadioJob=job;m_hasFailedRadioJob=true;}
     }
-    if ((!m_active.isEmpty() || !m_waiting.isEmpty()) && !m_deadline.isActive()) m_deadline.start(15000);
-    if (m_active.isEmpty() && m_waiting.isEmpty()) m_deadline.stop();
 }
 
 bool VinylHomeListening::hasJobs(const QString &role, const QString &mix) const {
@@ -236,8 +252,8 @@ void VinylHomeListening::openMix(const QString &kind) {
         m_started.remove(kind);m_songs[kind].clear();m_errors.remove(kind);prepareMix(kind);
     }
     // Opening a mix is explicit user work; do not inherit a nearly expired prewarm budget.
-    if (hasJobs("mix-", kind)) m_deadline.start(15000);
     updateView(); m_changed();
+    scheduleDeadline(hasJobs("mix-", kind));
 }
 
 void VinylHomeListening::updateView() {
@@ -350,7 +366,7 @@ bool VinylHomeListening::accept(const QString &lane, int id, const QVariant &raw
     }
     pump(); finishMixes();
     if (m_radioActive && !hasJobs("radio-")) continueRadio();
-    m_changed(); return true;
+    m_changed(); scheduleDeadline(true); return true;
 }
 
 void VinylHomeListening::startRadio(const QVariantMap &artist) {
@@ -360,8 +376,7 @@ void VinylHomeListening::startRadio(const QVariantMap &artist) {
     m_radioActive = true; m_radioAppend = false; m_radioState = "loading";
     const auto id = m_radioSeed.value("providerId").toString(); m_radioArtistSeen.insert(id);
     enqueue({"radio-artist", {}, "artistCandidates", id, m_radioSeed}); pump();
-    if(hasJobs("radio-"))m_deadline.start(15000);
-    m_changed();
+    m_changed(); scheduleDeadline(true);
 }
 
 void VinylHomeListening::restoreRadio(const QVariantMap &context, const QStringList &queuedTracks) {
@@ -388,9 +403,9 @@ void VinylHomeListening::refillRadio(const QStringList &queuedTracks) {
     for (const auto &id : queuedTracks) if (!id.isEmpty()) m_radioSeen.insert(id);
     if (!m_radioActive || hasJobs("radio-") || m_radioState == "exhausted") return;
     if (m_radioState=="error" && m_hasFailedRadioJob) {
-        m_radioState="loading";m_hasFailedRadioJob=false;enqueue(m_failedRadioJob);pump();m_changed();return;
+        m_radioState="loading";m_hasFailedRadioJob=false;enqueue(m_failedRadioJob);pump();m_changed();scheduleDeadline();return;
     }
-    m_radioState = "loading"; continueRadio(); m_changed();
+    m_radioState = "loading"; continueRadio(); m_changed(); scheduleDeadline();
 }
 
 void VinylHomeListening::continueRadio() {

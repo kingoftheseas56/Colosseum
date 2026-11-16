@@ -15,6 +15,7 @@ TestCase {
         property string pickerQuery: ""
         property var pickerDraft: []
         property int minimumArtistCount: 5
+        property bool tasteGateLocked: false
         property var recommendationService: null
         property bool usesRecommendationService: false
         property string onboardingState: "unanswered"
@@ -46,9 +47,9 @@ TestCase {
         function answerPicker() { answers++; }
         function cancelTasteEdit() { cancels++; }
     }
-    Flickable { id: page; anchors.fill: parent; contentHeight: height }
+    Flickable { id: page; anchors.fill: parent; contentHeight: picker ? picker.height : height; clip: true }
     Component { id: factory; Vinyl.VinylTastePicker {
-        width: page.width; height: page.height; pageFlick: page; backdrop: page; worldData: worldStub
+        width: page.width; pageFlick: page; backdrop: page; worldData: worldStub
     } }
     function typeText(value) { for(var i=0;i<value.length;++i) keyClick(value.charAt(i)); }
     function labelCount(node, value) {
@@ -57,10 +58,35 @@ TestCase {
         return count;
     }
     function init() {
+        test.width=960; test.height=720; page.contentY=0;
         worldStub.pickerQuery=""; worldStub.pickerDraft=[]; worldStub.toggles=[]; worldStub.answers=0; worldStub.cancels=0;
-        worldStub.onboardingState="unanswered";
+        worldStub.onboardingState="unanswered"; worldStub.tasteGateLocked=false;
         picker=createTemporaryObject(factory,page.contentItem);
         verify(picker !== null); wait(30);
+    }
+    function test_lowerRowNamesUseThePageScroll() {
+        test.width=1172; test.height=480;
+        var original=worldStub.initial;
+        try {
+            var artists=[];
+            for(var i=0;i<10;++i)artists.push({key:"artist-"+i,title:"Artist "+i,cover:""});
+            worldStub.initial=artists;
+            var last=findChild(picker,"vinylPickerArtist_9");
+            verify(last!==null); verify(waitForRendering(picker));
+            verify(page.contentHeight>page.height,"The full picker must contribute to the page's scroll range");
+            findChild(picker,"vinylPickerArtist_0").forceActiveFocus(Qt.TabFocusReason); keyClick(Qt.Key_End);
+            tryVerify(function(){
+                var caption=findChild(picker,"vinylPickerArtistCaption_9");
+                var at=caption.mapToItem(page,0,0);
+                return at.y>=0 && at.y+caption.height<=page.height;
+            },1000,"Keyboard navigation must reveal the last artist name");
+            var inner=findChild(picker,"vinylPickerScroll");
+            compare(inner.contentHeight,inner.height,"There must be no second vertical scroll range");
+            page.contentY=page.contentHeight-page.height;
+            var label=findChild(picker,"vinylPickerArtistCaption_9");
+            var bottom=label.mapToItem(page,0,label.height).y;
+            verify(bottom<=page.height && bottom>=label.height,"The last caption must be readable at the page end");
+        } finally { worldStub.initial=original; }
     }
     function test_initialAndSearchedWidgetPointerAndKeyboard() {
         var first=findChild(picker,"vinylPickerArtist_0");
@@ -104,5 +130,17 @@ TestCase {
         worldStub.onboardingState="editing"; wait(30);
         var cancel=findChild(picker,"vinylPickerCancel"); verify(cancel.visible);
         mouseClick(cancel,cancel.width/2,cancel.height/2); compare(worldStub.cancels,1);
+    }
+    function test_lockedGateNeedsFiveAndCannotBeCancelled() {
+        worldStub.tasteGateLocked=true; worldStub.onboardingState="editing"; wait(30);
+        var done=findChild(picker,"vinylPickerDone"), cancel=findChild(picker,"vinylPickerCancel");
+        verify(!cancel.visible);
+        verify(!done.enabled);
+        for (var i=0;i<4;++i) worldStub.togglePickerArtist(worldStub.initial[i]);
+        wait(30); verify(!done.enabled);
+        compare(findChild(picker,"vinylPickerStatus").text,"4 of 5 artists selected.");
+        worldStub.togglePickerArtist(worldStub.initial[4]);
+        tryCompare(done,"enabled",true);
+        compare(findChild(picker,"vinylPickerStatus").text,"5 artists selected.");
     }
 }

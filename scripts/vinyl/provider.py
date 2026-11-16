@@ -738,6 +738,7 @@ def resolve(video):
     codec = data.get("acodec") or "Audio"
     bitrate = data.get("abr")
     return {"videoId": video, "url": url, "headers": data.get("http_headers") or {},
+            "extension": data.get("ext") or "", "audioOnly": data.get("vcodec") == "none",
             "qualityLabel": codec.upper() + (" · " + str(round(bitrate)) + " kbps" if bitrate else "")}
 
 

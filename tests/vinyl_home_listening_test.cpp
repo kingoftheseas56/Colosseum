@@ -44,6 +44,66 @@ void complete(VinylHomeListening &model, const ListeningSource::Request &request
 class HomeListeningTest final : public QObject {
     Q_OBJECT
 private slots:
+    void synchronousInitialPublicationDoesNotConsumeTheResponseWindow() {
+        ListeningSource source;
+        bool blockedPublication = false;
+        VinylHomeListening model(nullptr, [&] {
+            if (!blockedPublication && !source.requests.isEmpty()) {
+                blockedPublication = true;
+                // Exceed the real 15-second response limit without returning to the event loop.
+                QTest::qSleep(15500);
+            }
+        }, [](const QVariantList &, bool) {});
+        model.setInputs(&source, "profile", 1, seeds(), {personalSections().first()}, "day");
+        QVERIFY(blockedPublication);
+        QTest::qWait(10);
+        QVERIFY2(source.cancelled.isEmpty(), "Synchronous publication must not consume the provider response window");
+        for (int i = 0; i < source.requests.size(); ++i) {
+            const auto request = source.requests[i];
+            complete(model, request, album(request.value));
+        }
+        model.openMix("personal");
+        QCOMPARE(model.view().value("status").toString(), QStringLiteral("ready"));
+        QCOMPARE(model.view().value("songs").toList().size(), 12);
+    }
+    void queuedInitialPublicationPrecedesTheResponseWindow() {
+        ListeningSource source;
+        bool queuedPublication = false;
+        VinylHomeListening model(nullptr, [&] {
+            if (!queuedPublication && !source.requests.isEmpty()) {
+                queuedPublication = true;
+                QTimer::singleShot(0, &source, [] { QTest::qSleep(15500); });
+            }
+        }, [](const QVariantList &, bool) {});
+        model.setInputs(&source, "profile", 1, seeds(), {personalSections().first()}, "day");
+        QVERIFY(queuedPublication);
+        QTest::qWait(15600);
+        QVERIFY2(source.cancelled.isEmpty(), "Queued Home publication must precede the response window");
+        for (int i = 0; i < source.requests.size(); ++i) {
+            const auto request = source.requests[i];
+            complete(model, request, album(request.value));
+        }
+        model.openMix("personal");
+        QCOMPARE(model.view().value("songs").toList().size(), 12);
+    }
+    void matchingRepliesRenewTheWindowButRemainingStalledWorkIsCancelled() {
+        ListeningSource source;
+        VinylHomeListening model(nullptr, [] {}, [](const QVariantList &, bool) {});
+        model.setInputs(&source, "profile", 1, seeds(), {personalSections().first()}, "day");
+        QCOMPARE(source.requests.size(), 2);
+        QTest::qWait(8000);
+        const auto first = source.requests[0];
+        complete(model, first, album(first.value));
+        QCOMPARE(source.requests.size(), 3);
+        QTest::qWait(8000);
+        QVERIFY2(source.cancelled.isEmpty(), "Forward progress must renew the response window beyond the original batch deadline");
+        const auto second = source.requests[1];
+        complete(model, second, album(second.value));
+        model.openMix("personal");
+        QCOMPARE(model.view().value("songs").toList().size(), 8);
+        const auto stalled = source.requests[2];
+        QTRY_VERIFY_WITH_TIMEOUT(source.cancelled.contains(stalled.lane), 17000);
+    }
     void mixesRetainAlbumIdentityAndBoundTheirTracklists() {
         ListeningSource source;
         VinylHomeListening model(nullptr, [] {}, [](const QVariantList &, bool) {});

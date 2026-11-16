@@ -1,0 +1,1111 @@
+{
+  "name": "vinyl-v1-home-seeded",
+  "comment": "Run only through a disposable tagged Lanista session --drive with the validated Windows fixture build/helper, source-root qml/Main.qml, COLOSSEUM_VINYL_TEST_FIXTURES=1, VINYL_TEST_V1_POOL=1 and validated COLOSSEUM_VINYL_FIXTURE_VIEWPORT=1280x700. Root supplies C-only Python, unique tag and pipe. Capture dimensions are export-only. The runner gracefully WM_CLOSEs its owned child after final ping. Prepared only; no runtime qualification is claimed. Reopen the same tag after vinyl_v1_home_cold.json used the visible picker to save five artists; no --seed or helper taste shortcut. This boot proves the saved 5/5 state bypasses the gate and the six populated Home rows survive restart. Keep the accepted 300px Hero; capture actual Crate/Spin/viewport geometry, where the second Crate row and Spin may be below the fold. Spin switches are real pointer clicks after scrolling the outer page to expose their controls. The final scroll reaches the actual docked tabs, then opens Library.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "Restarted Lanista pipe responds",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Boot splash has finished",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Saved local profile opens without onboarding",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Home is visible",
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl is available in this build",
+      "payload": {
+        "object": "modePill_Vinyl",
+        "prop": "qualificationEnabled",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Reopen Vinyl from the saved profile",
+      "payload": {
+        "target": "modePill_Vinyl"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "modePill_Vinyl"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl Loader reaches Ready on restart",
+      "payload": {
+        "object": "worldLoader_Vinyl",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl world reports ready on restart",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "ready",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Vinyl world is visible after restart",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Restarted Vinyl opens on Home",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "activeTab",
+        "value": "Home",
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Five saved artists keep Vinyl unlocked after restart",
+      "payload": {
+        "object": "vinylWorld",
+        "props": [
+          "ready",
+          "navigationEnabled",
+          "activeTab"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.ready",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.navigationEnabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.activeTab",
+          "op": "==",
+          "value": "Home"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Saved five-choice profile has no pending taste edit",
+      "payload": {
+        "object": "vinylLiveWorldData",
+        "prop": "tastePickerOpen",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Restart retains exactly five saved artists and the unlocked state",
+      "payload": {
+        "object": "vinylLiveWorldData",
+        "props": [
+          "savedArtistCount",
+          "minimumArtistCount",
+          "tasteGateLocked",
+          "canEnterVinyl",
+          "tastePickerOpen"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.savedArtistCount",
+          "op": "==",
+          "value": 5
+        },
+        {
+          "path": "props.minimumArtistCount",
+          "op": "==",
+          "value": 5
+        },
+        {
+          "path": "props.tasteGateLocked",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "props.canEnterVinyl",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.tastePickerOpen",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Restarted picker is hidden and the saved choices remain selected",
+      "payload": {
+        "object": "vinylTastePicker",
+        "props": [
+          "visible",
+          "gated",
+          "selectedArtistCount",
+          "minimumArtistCount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "props.gated",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "props.selectedArtistCount",
+          "op": "==",
+          "value": 5
+        },
+        {
+          "path": "props.minimumArtistCount",
+          "op": "==",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Unlocked Home has all four source-pool fixture Hero groups",
+      "payload": {
+        "object": "vinylHero",
+        "prop": "slideCount",
+        "value": 4,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "All six supported personalized Home rows reach the actual owner model",
+      "payload": {
+        "object": "vinylHome",
+        "prop": "rowKeys",
+        "value": "mixes-radio,new-from-your-artists,albums-for-you,because-you-played,deep-cuts,artists-like-yours",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Home exports the six owner-provided row keys",
+      "payload": {
+        "object": "vinylHome",
+        "props": [
+          "rowKeys"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.rowKeys",
+          "op": "==",
+          "value": "mixes-radio,new-from-your-artists,albums-for-you,because-you-played,deep-cuts,artists-like-yours"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Verify mixes-radio uses its owner row snapshot",
+      "payload": {
+        "object": "vinylHomeRow_mixes-radio",
+        "props": [
+          "itemCount",
+          "rowSnapshot"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.itemCount",
+          "op": ">=",
+          "value": 8
+        },
+        {
+          "path": "props.rowSnapshot",
+          "op": "contains",
+          "value": "\"homeKey\":\"mixes-radio\""
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Verify new-from-your-artists uses its owner row snapshot",
+      "payload": {
+        "object": "vinylHomeRow_new-from-your-artists",
+        "props": [
+          "itemCount",
+          "rowSnapshot"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.itemCount",
+          "op": ">=",
+          "value": 8
+        },
+        {
+          "path": "props.rowSnapshot",
+          "op": "contains",
+          "value": "\"homeKey\":\"new-from-your-artists\""
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Verify albums-for-you uses its owner row snapshot",
+      "payload": {
+        "object": "vinylHomeRow_albums-for-you",
+        "props": [
+          "itemCount",
+          "rowSnapshot"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.itemCount",
+          "op": ">=",
+          "value": 8
+        },
+        {
+          "path": "props.rowSnapshot",
+          "op": "contains",
+          "value": "\"homeKey\":\"albums-for-you\""
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Verify because-you-played uses its owner row snapshot",
+      "payload": {
+        "object": "vinylHomeRow_because-you-played",
+        "props": [
+          "itemCount",
+          "rowSnapshot"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.itemCount",
+          "op": ">=",
+          "value": 8
+        },
+        {
+          "path": "props.rowSnapshot",
+          "op": "contains",
+          "value": "\"homeKey\":\"because-you-played\""
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Verify deep-cuts uses its owner row snapshot",
+      "payload": {
+        "object": "vinylHomeRow_deep-cuts",
+        "props": [
+          "itemCount",
+          "rowSnapshot"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.itemCount",
+          "op": ">=",
+          "value": 8
+        },
+        {
+          "path": "props.rowSnapshot",
+          "op": "contains",
+          "value": "\"homeKey\":\"deep-cuts\""
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Verify artists-like-yours uses its owner row snapshot",
+      "payload": {
+        "object": "vinylHomeRow_artists-like-yours",
+        "props": [
+          "itemCount",
+          "rowSnapshot"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.itemCount",
+          "op": ">=",
+          "value": 8
+        },
+        {
+          "path": "props.rowSnapshot",
+          "op": "contains",
+          "value": "\"homeKey\":\"artists-like-yours\""
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "Return the one outer page to its top for Home geometry and capture",
+      "payload": {
+        "target": "vinylWorldScroll",
+        "dy": 12000,
+        "xFraction": 0.005,
+        "yFraction": 0.5
+      },
+      "expect": [
+        {
+          "path": "scrolled",
+          "op": "==",
+          "value": "vinylWorldScroll"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Outer page has reached its actual top",
+      "payload": {
+        "object": "vinylWorldScroll",
+        "prop": "contentY",
+        "value": 0,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "Read actual logical window geometry; capture export flags do not resize the app",
+      "expect": [
+        {
+          "path": "windows.0.width",
+          "op": "==",
+          "value": 1280
+        },
+        {
+          "path": "windows.0.height",
+          "op": "==",
+          "value": 700
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Read the accepted 300px Hero model and height",
+      "payload": {
+        "object": "vinylHero",
+        "props": [
+          "slideCount",
+          "slideIndex",
+          "slideKind",
+          "itemId",
+          "height"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.height",
+          "op": "==",
+          "value": 300
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "Read actual Hero scene bounds and clip chain",
+      "payload": {
+        "object": "vinylHero"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Read source Crate pages and height; no first-screen all-items assumption",
+      "payload": {
+        "object": "vinylCrate",
+        "props": [
+          "count",
+          "columns",
+          "pageCount",
+          "currentPage",
+          "height"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "Read actual Crate scene bounds and clip chain",
+      "payload": {
+        "object": "vinylCrate"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Read source Spin data and geometry below the initial fold",
+      "payload": {
+        "object": "vinylSpin",
+        "props": [
+          "view",
+          "columns",
+          "pageSize",
+          "pageCount",
+          "songs",
+          "albums",
+          "artists",
+          "height"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "Read actual Spin scene bounds and clip chain",
+      "payload": {
+        "object": "vinylSpin"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "Read named Spin header switch bounds and parent handle",
+      "payload": {
+        "object": "vinylSpinSwitch"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "dump-ui",
+      "label": "Read unnamed Spin header geometry without a new production automation API",
+      "payload": {
+        "root": "vinylSpin",
+        "maxDepth": 1,
+        "maxItems": 16
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Read the actual single outer scroll viewport",
+      "payload": {
+        "object": "vinylWorldScroll",
+        "props": [
+          "contentY",
+          "contentHeight",
+          "height",
+          "width"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "Read outer viewport scene bounds and clip chain",
+      "payload": {
+        "object": "vinylWorldScroll"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "Scroll the actual outer page to expose below-fold Spin controls",
+      "payload": {
+        "target": "vinylWorldScroll",
+        "dy": -600,
+        "xFraction": 0.005,
+        "yFraction": 0.5
+      },
+      "expect": [
+        {
+          "path": "scrolled",
+          "op": "==",
+          "value": "vinylWorldScroll"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Outer page moved to reach Spin controls",
+      "payload": {
+        "object": "vinylWorldScroll",
+        "props": [
+          "contentY",
+          "height",
+          "contentHeight"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.contentY",
+          "op": ">",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Switch Spin to albums",
+      "payload": {
+        "target": "vinylSpinSwitch_albums"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylSpinSwitch_albums"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Spin owner reports albums",
+      "payload": {
+        "object": "vinylSpin",
+        "prop": "view",
+        "value": "albums",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Switch Spin to artists",
+      "payload": {
+        "target": "vinylSpinSwitch_artists"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylSpinSwitch_artists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Spin owner reports artists",
+      "payload": {
+        "object": "vinylSpin",
+        "prop": "view",
+        "value": "artists",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Switch Spin to songs",
+      "payload": {
+        "target": "vinylSpinSwitch_songs"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylSpinSwitch_songs"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Spin owner reports songs",
+      "payload": {
+        "object": "vinylSpin",
+        "prop": "view",
+        "value": "songs",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Read final source-provided Spin counts; no local invented rows",
+      "payload": {
+        "object": "vinylSpin",
+        "props": [
+          "view",
+          "columns",
+          "pageSize",
+          "pageCount",
+          "songs",
+          "albums",
+          "artists"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.view",
+          "op": "==",
+          "value": "songs"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "Return the one outer page to its top for Home geometry and capture",
+      "payload": {
+        "target": "vinylWorldScroll",
+        "dy": 12000,
+        "xFraction": 0.005,
+        "yFraction": 0.5
+      },
+      "expect": [
+        {
+          "path": "scrolled",
+          "op": "==",
+          "value": "vinylWorldScroll"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Outer page has reached its actual top",
+      "payload": {
+        "object": "vinylWorldScroll",
+        "prop": "contentY",
+        "value": 0,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Capture populated Home from the real top of the page",
+      "payload": {
+        "object": "vinylHome",
+        "props": [
+          "rowKeys"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.rowKeys",
+          "op": "==",
+          "value": "mixes-radio,new-from-your-artists,albums-for-you,because-you-played,deep-cuts,artists-like-yours"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists",
+          "value": null
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "Scroll the single outer page until the below-Spin tabs dock",
+      "payload": {
+        "target": "vinylWorldScroll",
+        "dy": -12000,
+        "xFraction": 0.005,
+        "yFraction": 0.5
+      },
+      "expect": [
+        {
+          "path": "scrolled",
+          "op": "==",
+          "value": "vinylWorldScroll"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "The actual flow tabs have docked",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "tabsDocked",
+        "value": true,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "Open Library through the real visible docked tab",
+      "payload": {
+        "target": "vinylTab_Library"
+      },
+      "expect": [
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vinylTab_Library"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Library tab is selected",
+      "payload": {
+        "object": "vinylWorld",
+        "prop": "activeTab",
+        "value": "Library",
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Read actual owner-projected Library rows",
+      "payload": {
+        "object": "vinylLibrary",
+        "props": [
+          "rowKeys"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Capture actual Library window",
+      "payload": {
+        "object": "vinylWorld",
+        "props": [
+          "activeTab"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeTab",
+          "op": "==",
+          "value": "Library"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists",
+          "value": null
+        }
+      ]
+    },
+    {
+      "cmd": "ping",
+      "label": "Lanista pipe remains responsive before graceful session close",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    }
+  ]
+}

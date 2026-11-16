@@ -68,7 +68,7 @@ TestCase {
         // rather than 255). Test presence, including in the negative control.
         return pixel.r>=0.96 && pixel.b>=0.96 && pixel.g<=0.02;
     }
-    function init(){host=windowFactory.createObject(test);source=sourceFactory.createObject(test);var c=Qt.createComponent("../../qml/vinyl/VinylLiveWorld.qml");compare(c.status,Component.Ready,c.errorString());world=c.createObject(host.contentItem,{width:1280,height:720});world.session.source=source;preferences.setVinylTaste(false,[]);world.worldData.preferencesStore=preferences;collection=storeFactory.createObject(test);world.session.collectionStore=collection;wait(0);}
+    function init(){host=windowFactory.createObject(test);source=sourceFactory.createObject(test);var c=Qt.createComponent("../../qml/vinyl/VinylLiveWorld.qml");compare(c.status,Component.Ready,c.errorString());world=c.createObject(host.contentItem,{width:1280,height:720});world.session.source=source;preferences.setVinylTaste(true,["artist:gate-a","artist:gate-b","artist:gate-c","artist:gate-d","artist:gate-e"]);world.worldData.preferencesStore=preferences;collection=storeFactory.createObject(test);world.session.collectionStore=collection;wait(0);}
     function cleanup(){
         // Detach/destroy the item tree while its Window and injected owners still
         // exist; do not overlap the next case with deferred Window teardown.
@@ -388,7 +388,7 @@ TestCase {
         verify(!item("colosseumTopbarAccountInput").visible);
     }
     function test_sharedSearchRecentListCanRemoveAndTracksProfileClosure(){
-        seed(2);world.worldData.skipPicker();world.worldView.setTab("library");wait(0);
+        seed(2);verify(world.worldData.canEnterVinyl);world.worldView.setTab("library");wait(0);
         history.recent=[];history.revision++;world.worldData.searchHistoryStore=history;
         item("vinylTopBar").searchClicked();tryVerify(function(){return world.searchOpen && world.searchPage!==null;});
         var page=world.searchPage,input=item("searchSurfaceInput");
@@ -450,7 +450,7 @@ TestCase {
         seed(1);wait(0);compare(discover.shelfCount,1);verify(!empty.visible);verify(item("vinylShelf_local-albums")!==null);
     }
     function test_pointerSeeAllThenKeyboardBack(){
-        seed(8);world.worldData.skipPicker();world.worldView.setTab("home");wait(0);
+        seed(8);verify(world.worldData.canEnterVinyl);world.worldView.setTab("home");wait(0);
         var more=item("vinylHomeSeeAll_saved-albums");verify(more!==null);verify(more.visible);
         more.forceActiveFocus(Qt.TabFocusReason);mouseClick(more);wait(0);compare(world.page,"library");
         var list=item("vinylPersonalLibraryPage");var focus=host.activeFocusItem;
@@ -472,13 +472,26 @@ TestCase {
         world.worldData.query="missing";compare(world.worldData.listItems("library").length,0);
     }
     function test_canonicalArtistsAndTaste(){
-        world.session.library=[record(0,"artist-one"),record(1,"artist-two")];wait(0);
-        var artists=world.worldData.artistOptions("");compare(artists.length,2);verify(artists[0].id!==artists[1].id);
-        world.worldData.answerPicker(["artist-two"]);compare(world.worldData.picks.length,1);compare(world.worldData.picks[0],"artist-two");
-        world.activateItem(artists[1]);compare(world.page,"artist");compare(world.artistData.artistId,"artist-two");
+        preferences.setVinylTaste(false,[]);
+        var ids=["artist-one","artist-two","artist-three","artist-four","artist-five"];
+        world.session.library=ids.map(function(id,index){return record(index,id);});wait(0);
+        var artists=world.worldData.artistOptions("");compare(artists.length,5);
+        compare(new Set(artists.map(function(artist){return artist.id;})).size,5);
+        var selectedArtist=artists.find(function(artist){return artist.id==="artist-two";});
+        world.worldData.togglePickerArtist(selectedArtist);
+        compare(world.worldData.pickerDraft.length,1);
+        verify(!world.worldData.answerPicker());
+        compare(world.worldData.picks.length,0);verify(!world.worldData.canEnterVinyl);
+        artists.filter(function(artist){return artist.id!=="artist-two";})
+            .forEach(function(artist){world.worldData.togglePickerArtist(artist);});
+        compare(world.worldData.pickerDraft.length,5);
+        verify(world.worldData.answerPicker());compare(world.worldData.picks.length,5);
+        verify(world.worldData.canEnterVinyl);
+        world.activateItem(artists.find(function(artist){return artist.id==="artist-two";}));
+        compare(world.page,"artist");compare(world.artistData.artistId,"artist-two");
     }
     function test_nestedBackRetainsLibraryAndArtist(){
-        seed(40);world.worldData.skipPicker();world.worldView.setTab("discover");world.worldData.setOnlineMode(false);world.worldData.setLens("genre","Jazz");world.worldData.openList("local-albums",false);wait(0);
+        seed(40);verify(world.worldData.canEnterVinyl);world.worldView.setTab("discover");world.worldData.setOnlineMode(false);world.worldData.setLens("genre","Jazz");world.worldData.openList("local-albums",false);wait(0);
         world.worldScroll.contentY=world.worldView.contentTop+100;var y=world.worldScroll.contentY;
         world.showArtist({name:"Local Artist",id:"artist-one"});world.artistData.activeTab="singles";
         world.openAlbum("album-2");source.completed("browse",world.session.browseRequest,record(2),"");compare(world.page,"album");
@@ -555,7 +568,7 @@ TestCase {
     }
 
     function test_homeDoesNotExposeAnInertLibraryFilter() {
-        seed(2);world.worldData.skipPicker();world.worldView.setTab("home");wait(0);
+        seed(2);verify(world.worldData.canEnterVinyl);world.worldView.setTab("home");wait(0);
         compare(item("vinylSearchInput"),null,"The prototype inline search input is removed.");
         var originalQuery=world.worldData.query;
         item("vinylTopBar").searchClicked();tryVerify(function(){return world.searchOpen && world.searchPage!==null;});
@@ -565,7 +578,7 @@ TestCase {
         compare(world.page,"home");compare(world.worldView.currentTab,"home");compare(world.worldData.query,originalQuery);
     }
     function test_searchOverlayPreservesSavedDiscoverView() {
-        seed(8);world.worldData.skipPicker();world.worldView.setTab("discover");world.worldData.setOnlineMode(false);
+        seed(8);verify(world.worldData.canEnterVinyl);world.worldView.setTab("discover");world.worldData.setOnlineMode(false);
         world.worldData.openList("local-albums",false);wait(0);
         var discoverQuery=world.worldData.query;
         world.worldView.setTab("library");
@@ -582,7 +595,7 @@ TestCase {
         verify(!world.worldData.onlineMode);
     }
     function test_libraryCarouselOpensCanonicalLibrary() {
-        seed(3);world.worldData.skipPicker();world.worldData.openList("library",false);wait(0);
+        seed(3);verify(world.worldData.canEnterVinyl);world.worldData.openList("library",false);wait(0);
         world.worldView.setTab("home");wait(0);
         var carousel=item("vinylCarousel");
         var index=carousel.slides.findIndex(function(slide){return slide.key==="library";});verify(index>=0);
@@ -590,7 +603,7 @@ TestCase {
         compare(world.page,"library");compare(world.worldView.listKey,"");
     }
     function test_tabsRetainIndependentListDetours() {
-        seed(8);world.worldData.skipPicker();
+        seed(8);verify(world.worldData.canEnterVinyl);
         world.worldView.setTab("home");world.worldData.openList("local-albums",true);wait(0);
         var homeY=world.worldScroll.contentY;
         world.worldView.setTab("discover");world.worldData.setOnlineMode(false);
@@ -605,7 +618,7 @@ TestCase {
         verify(world.goBack());compare(world.worldView.listKey,"");compare(world.page,"discover");
     }
     function test_topBarSearchDetourRestoresLibraryListRoute() {
-        seed(8);world.worldData.skipPicker();world.worldView.setTab("library");
+        seed(8);verify(world.worldData.canEnterVinyl);world.worldView.setTab("library");
         world.worldData.openList("library",false);wait(0);
         world.worldScroll.contentY=world.worldView.contentTop+90;wait(0);
         var list=item("vinylListPage");
@@ -632,7 +645,7 @@ TestCase {
     }
 
     function test_searchModeOpensSharedPageAndRestoresLibraryList() {
-        seed(8);world.worldData.skipPicker();world.worldView.setTab("library");
+        seed(8);verify(world.worldData.canEnterVinyl);world.worldView.setTab("library");
         world.worldData.openList("library",false);wait(0);
         world.worldScroll.contentY=world.worldView.contentTop+110;wait(0);
         var list=item("vinylListPage");

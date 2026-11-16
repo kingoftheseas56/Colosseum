@@ -83,6 +83,64 @@ signals:
 class CatalogueSourceTest : public QObject {
     Q_OBJECT
 private slots:
+    void downloadedRecordingResolvesOfflineThroughTheSameTrackIdentity(){
+        QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128LL*1024*1024,{},dir.filePath("cache"));
+        VinylCatalogueSource source(&local,&provider,nullptr);QSignalSpy done(&source,&VinylCatalogueSource::completed);
+        const QVariantMap track{{"id","owned-youtube-track"},{"videoId","abcdefghijk"},{"title","Owned song"}};
+        source.setAlbums({QVariantMap{{"id","owned-album"},{"origin","youtube-music"},{"tracks",QVariantList{track}}}});
+        QFile file(dir.filePath("owned.m4a"));QVERIFY(file.open(QIODevice::WriteOnly));file.write("fixture");file.close();
+        source.setDownloadedMusicResolver([&](const QString &videoId)->QVariantMap{
+            if(videoId!="abcdefghijk")return {};
+            return {{"url",QUrl::fromLocalFile(file.fileName()).toString()},{"videoId",videoId},
+                {"headers",QVariantMap{}},{"qualityLabel","Downloaded"}};
+        });
+        const auto prior=qgetenv("COLOSSEUM_VINYL_PYTHON");
+        const auto restore=qScopeGuard([prior]{qputenv("COLOSSEUM_VINYL_PYTHON",prior);});
+        qputenv("COLOSSEUM_VINYL_PYTHON","missing-offline-runtime.exe");
+        const int request=source.request("play","resolve","owned-youtube-track",{{"source","youtube"}});
+        QVERIFY(request>0);QTRY_COMPARE(done.size(),1);
+        QVERIFY(done.last()[3].toString().isEmpty());const auto resource=done.last()[2].toMap();
+        QCOMPARE(resource.value("trackId").toString(),QString("owned-youtube-track"));
+        QCOMPARE(resource.value("videoId").toString(),QString("abcdefghijk"));
+        QCOMPARE(resource.value("provider").toString(),QString("local"));
+        QCOMPARE(QUrl(resource.value("url").toString()).toLocalFile(),file.fileName());
+        source.request("play","resolve","owned-youtube-track");source.cancel("play");
+        QCoreApplication::processEvents();QCOMPARE(done.size(),1);
+    }
+    void remoteDownloadRegistrationPreservesExistingLocalRecording(){
+        QTemporaryDir dir;QVERIFY(dir.isValid());
+        VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        const auto path=dir.filePath("local-song.wav");QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));file.write("RIFFtestfixture");file.close();
+        const auto albums=local.importFiles({path}).value("albums").toList();QCOMPARE(albums.size(),1);
+        const auto localTrack=albums.first().toMap().value("tracks").toList().first().toMap().value("id").toString();
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128LL*1024*1024,{},dir.filePath("cache"));
+        VinylCatalogueSource source(&local,&provider,nullptr);source.setAlbums(albums);
+        QSignalSpy done(&source,&VinylCatalogueSource::completed),helper(&provider,&VinylProvider::completed);
+        const int baseline=source.request("play","resolve",localTrack);QVERIFY(baseline>0);
+        QTRY_COMPARE(done.size(),1);QVERIFY(done.last()[3].toString().isEmpty());
+        QCOMPARE(QUrl(done.last()[2].toMap().value("url").toString()).toLocalFile(),path);
+        done.clear();
+        const QVariantMap remote{{"id","remote-download-album"},{"browseId","MPRE_download"},
+            {"origin","youtube-music"},{"tracks",QVariantList{QVariantMap{
+                {"id","remote-download-track"},{"videoId","abcdefghijk"},{"title","Remote song"}}}}};
+        source.registerRemoteAlbum(remote);
+        const int retained=source.request("play","resolve",localTrack);QVERIFY(retained>0);
+        QTRY_COMPARE(done.size(),1);QVERIFY2(done.last()[3].toString().isEmpty(),qPrintable(done.last()[3].toString()));
+        QCOMPARE(done.last()[1].toInt(),retained);
+        QCOMPARE(done.last()[2].toMap().value("trackId").toString(),localTrack);
+        QCOMPARE(QUrl(done.last()[2].toMap().value("url").toString()).toLocalFile(),path);
+        QCOMPARE(helper.size(),0);
+        const int download=source.request("download","resolve","remote-download-track",{{"source","youtube"}});
+        QVERIFY(download>0);QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,10000);
+        QVERIFY2(done.last()[3].toString().isEmpty(),qPrintable(done.last()[3].toString()));
+        QCOMPARE(done.last()[0].toString(),QString("download"));QCOMPARE(done.last()[1].toInt(),download);
+        const auto resource=done.last()[2].toMap();
+        QCOMPARE(resource.value("trackId").toString(),QString("remote-download-track"));
+        QCOMPARE(resource.value("videoId").toString(),QString("abcdefghijk"));
+        QCOMPARE(resource.value("provider").toString(),QString("youtube"));
+    }
     void youtubeBrowseRegistersTracksAndUsesIndependentCachedLanes(){
         QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
         VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128LL*1024*1024,{},dir.filePath("cache"));

@@ -29,7 +29,7 @@ class VideoTestSource : public QObject {
     Q_OBJECT
 public:
     explicit VideoTestSource(QObject *parent=nullptr):QObject(parent){}
-    Q_INVOKABLE int request(const QString &lane,const QString &operation,const QString &value,const QVariantMap &options) {
+    Q_INVOKABLE int request(const QString &lane,const QString &operation,const QString &value,const QVariantMap &options={}) {
         const int id=++serial;emit requested(lane,id,operation,value,options);return id;
     }
     Q_INVOKABLE void cancel(const QString &lane){emit cancelled(lane);}
