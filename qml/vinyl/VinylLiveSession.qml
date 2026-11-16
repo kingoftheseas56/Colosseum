@@ -67,6 +67,7 @@ Item {
         ? (sourceState==="resolving" ? "Resolving audio…" : backend.qualityLabel==="Local audio" ? "Audio source" : backend.qualityLabel)
         : backend.qualityLabel
     readonly property string error: backend.error
+    readonly property string skippedNotice: backend.skippedNotice
     property string browseError: ""
     property bool browsing: false
     property var results: []

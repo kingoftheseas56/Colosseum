@@ -490,7 +490,7 @@ Item {
         x: root.toolsLeft
         y: root.toolsTop + 42
         width: 263; height: 12
-        text: root.pageData.torrentError || root.pageData.videoError || ""
+        text: root.pageData.torrentError || root.pageData.videoError || root.pageData.skippedNotice || ""
         color: theme.inkDim
         font.family: theme.ui
         font.pixelSize: 10

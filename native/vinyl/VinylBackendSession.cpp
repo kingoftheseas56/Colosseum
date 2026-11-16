@@ -259,6 +259,7 @@ bool VinylBackendSession::replaceRows(const QVariantList &input,int index,bool s
         auto item=occurrence(row);if(!item||!queue.append(*item).ok)return false;
         metadata.insert(item->occurrenceId().value(),row);
     }
+    m_consecutiveUnavailable=0;m_failureDirection=1;setSkippedNotice({});
     endPlayback("stop");m_listeningOrigin="manual";m_lastPlaybackAtMs=0;m_radioContext.clear();
     cancelResolution();m_backend->coordinator.clear();
     m_backend->queue=std::move(queue);m_rows=std::move(metadata);m_duration=0;m_resume=0;m_state="idle";
@@ -290,6 +291,7 @@ bool VinylBackendSession::appendRows(const QVariantList &input,bool playNext) {
 }
 void VinylBackendSession::playQueue(int index) {
     if(m_shutdown||!m_profileActive||index<0||index>=m_backend->queue.size())return;
+    m_failureDirection=m_navigationBack?-1:1;
     endPlayback(m_loaded && !m_paused && m_state=="playing" && !seekPending()
         && index!=activeIndex() && !m_naturalAdvancing && !m_navigationBack?"skip":"stop");
     m_listeningOrigin=m_naturalAdvancing
@@ -317,6 +319,7 @@ void VinylBackendSession::moveQueue(int from,int to) {
 }
 void VinylBackendSession::clearQueue() {
     if(m_shutdown||!m_profileActive)return;
+    m_consecutiveUnavailable=0;m_failureDirection=1;setSkippedNotice({});
     endPlayback("stop");cancelResolution();m_backend->coordinator.clear();m_rows.clear();
     m_listeningOrigin="manual";m_lastPlaybackAtMs=0;m_radioContext.clear();
     m_sourceKind.clear();m_fallbackReason.clear();m_forceFallback=false;m_fallbackAttempted=false;
@@ -375,7 +378,7 @@ std::optional<PlaybackLoadInput> VinylBackendSession::inputFor(const QueueOccurr
         if(m_shutdown||!m_profileActive||generation!=m_epoch||id!=m_resolvingId)return;
         if(!m_source){fail("Local audio is unavailable.");return;}
         const auto track=activeRow().value("trackId").toString();
-        if(activeRow().value("track").toMap().value("available",true)==false){fail("This track is unavailable.");return;}
+        if(activeRow().value("track").toMap().value("available",true)==false){failTrack("This track is unavailable.");return;}
         int result=-1;
         auto method=m_source->metaObject()->indexOfMethod("request(QString,QString,QString,QVariantMap)");
         const bool contextual=method>=0;
@@ -436,20 +439,32 @@ void VinylBackendSession::acceptAudioResource(const QVariantMap &result,const QS
     const auto *active=m_backend->queue.activeOccurrence();
     if(!active||active->occurrenceId().value()!=m_resolvingId)return;
     if(!error.isEmpty()||result.value("trackId")!=activeRow().value("trackId")) {
-        fail(error.isEmpty()?"The source did not match this track.":error);return;
+        // The provider interface carries text, not typed failure codes. Known
+        // infrastructure/transport failures are global; other resolve failures
+        // belong to this occurrence and are bounded by the consecutive limit.
+        static const QRegularExpression globalFailure(
+            "helper|runtime|transport|network|connection|connect to|timed? out|timeout|"
+            "did not respond|rate.limit|too many requests|HTTP (429|5[0-9][0-9])|"
+            "fallback source is unavailable|no module named|not installed|executable|"
+            "certificate|SSL|DNS|name resolution|proxy",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto message=error.isEmpty()?QString("The source did not match this track."):error;
+        if(globalFailure.match(error).hasMatch())fail(message);
+        else failTrack(message);
+        return;
     }
     QVector<PlaybackRequestHeader> headers;
     const auto fields=result.value("headers").toMap();
     for(auto it=fields.begin();it!=fields.end();++it)headers.append({it.key(),it.value().toString()});
     auto input=PlaybackLoadInput::create(result.value("url").toString(),headers);
-    if(!input.ok()){fail("The audio source is invalid.");return;}
+    if(!input.ok()){failTrack("The audio source is invalid.");return;}
     m_backend->input=*input.value;m_quality=result.value("qualityLabel","Local audio").toString();
     m_sourceKind=result.value("provider",QUrl(result.value("url").toString()).isLocalFile()?"local":"youtube").toString();
     m_audioResource=result;m_audioResource["provider"]=m_sourceKind;
     if(!result.value("fallbackReason").toString().isEmpty())m_fallbackReason=result.value("fallbackReason").toString();
     if(m_sourceKind=="youtube")m_fallbackAttempted=true;
     auto started=m_backend->coordinator.restartActive(active->occurrenceId(),*m_backend->input);
-    if(!started.ok)fail("The audio could not start.");
+    if(!started.ok)failTrack("The audio could not start.");
     publishState();
 }
 bool VinylBackendSession::torrentAvailable() const {
@@ -782,11 +797,12 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
                 if(mismatch){
                     QTimer::singleShot(0,this,[this,item,generation,serial]{
                         if(m_player==item&&serial==m_loadSerial&&generation==m_epoch&&!tryFallback("Torrent audio metadata did not match the requested recording."))
-                            fail("The audio did not match this recording.");
+                            failTrack("The audio did not match this recording.");
                     });return;
                 }
             }
             if(!m_backend->coordinator.engineLoaded(token).ok)return;
+            m_consecutiveUnavailable=0;
             m_loaded=true;m_state="playing";m_videoBusy=false;m_preparedAudioActive=false;
             m_lastProgress=0;m_lastProgressMs=monotonicMs();
             if(std::isfinite(duration)&&duration>0){m_duration=duration;m_backend->callbacks.durationObserved(token,duration);}
@@ -810,7 +826,7 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
         }else if(kind.startsWith("ended-")){
             auto work=m_backend->entries.tokenFor(entry);if(!work||*work!=token)return;
             if(kind=="ended-eof")naturalEnd(*work);
-            else if(kind=="ended-error"&&!retryPreparedAudio()&&!tryFallback("Torrent audio could not be decoded or played."))fail("The audio could not be decoded or played. Retry this track.");
+            else if(kind=="ended-error"&&!retryPreparedAudio()&&!tryFallback("Torrent audio could not be decoded or played."))failTrack("The audio could not be decoded or played. Retry this track.");
         }
     });
     connect(item,&MpvItem::trackedSeekReply,this,[this,item,token,serial](quint64 seekSerial,bool success,quint64 load,quint64 observationFence) {
@@ -852,7 +868,7 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
         }
     });
     connect(item,&MpvItem::playbackError,this,[this,item,generation,serial](const QString &,const QString &) {
-        if(m_player==item&&serial==m_loadSerial&&generation==m_epoch&&!retryPreparedAudio()&&!tryFallback("Torrent audio could not be decoded or played."))fail("The audio could not be decoded or played. Retry this track.");
+        if(m_player==item&&serial==m_loadSerial&&generation==m_epoch&&!retryPreparedAudio()&&!tryFallback("Torrent audio could not be decoded or played."))failTrack("The audio could not be decoded or played. Retry this track.");
     });
     QVariantMap fields;for(const auto &header:headers)fields.insert(header.name,header.value);
     // This first host adapter admits whole local files. Never silently discard a
@@ -881,7 +897,7 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
         item->update();
     }else load();
     QTimer::singleShot(15000,this,[this,item,generation,serial] {
-        if(m_player==item&&serial==m_loadSerial&&generation==m_epoch&&!m_loaded&&!tryFallback("Torrent audio did not start in time."))fail("The audio did not start in time. Retry this track.");
+        if(m_player==item&&serial==m_loadSerial&&generation==m_epoch&&!m_loaded&&!tryFallback("Torrent audio did not start in time."))failTrack("The audio did not start in time. Retry this track.");
     });
     publishState();
 }
@@ -979,15 +995,45 @@ void VinylBackendSession::naturalEnd(const PlaybackWorkToken &token) {
     if(activeIndex()+1<m_backend->queue.size()||m_repeat=="all"){next(1);return;}
     m_backend->callbacks.ended(token);m_resume=m_duration;m_loaded=false;m_paused=true;m_state="ended";publishState();
 }
+void VinylBackendSession::setSkippedNotice(const QString &notice) {
+    const auto serial=++m_noticeSerial;
+    m_skippedNotice=notice;
+    emit skippedNoticeChanged();
+    if(!notice.isEmpty())QTimer::singleShot(8000,this,[this,serial] {
+        if(serial==m_noticeSerial)setSkippedNotice({});
+    });
+}
+void VinylBackendSession::failTrack(const QString &message) {
+    if(m_shutdown||!m_profileActive||activeIndex()<0)return;
+    const int size=m_backend->queue.size();
+    int index=activeIndex()+m_failureDirection;
+    const bool canAdvance=size>1&&((index>=0&&index<size)||m_repeat=="all");
+    if(!canAdvance||++m_consecutiveUnavailable>=3){fail(message);return;}
+    index=(index+size)%size;
+    const bool play=!m_paused;
+    const auto title=activeRow().value("title",activeRow().value("track").toMap().value("title")).toString();
+    // Existing "failure" is truthful and understood by Activity's action
+    // contract. Never report a natural EOF or a user skip for unavailable audio.
+    endPlayback("failure");
+    cancelResolution();
+    if(!m_backend->coordinator.stop().ok){fail("The previous queue occurrence could not be retired.");return;}
+    m_backend->queue.activate(m_backend->queue.items()[index].occurrenceId());
+    m_listeningOrigin=m_radioContext.isEmpty()?"album-continuation":"radio";
+    setSkippedNotice(tr("Skipped %1: not available.").arg(title));
+    emit queueChanged();
+    beginActive(0,play);
+}
 void VinylBackendSession::fail(const QString &message) {
+    setSkippedNotice({});
     endPlayback("failure");m_error=message;m_state="error";m_paused=true;
     if(m_backend->session.activeWorkToken())m_backend->callbacks.failed(*m_backend->session.activeWorkToken(),"host_failure",message);
     if(m_player)m_player->setPause(true);publishState();
 }
-void VinylBackendSession::retry() { if(activeIndex()>=0){const auto at=position();cancelResolution();
+void VinylBackendSession::retry() { if(activeIndex()>=0){m_consecutiveUnavailable=0;const auto at=position();cancelResolution();
     if(m_state=="error"&&m_sourceKind=="youtube")invalidatePlaybackTransport();
     if(!m_backend->coordinator.stop().ok){fail("The previous queue occurrence could not be retired.");return;}beginActive(at);} }
 void VinylBackendSession::suspend() {
+    m_consecutiveUnavailable=0;m_failureDirection=1;setSkippedNotice({});
     const auto at=position();endPlayback("stop");cancelResolution();m_backend->coordinator.stop();retirePlayer();
     m_resume=at;m_paused=true;m_state=activeIndex()>=0?"paused":"idle";publishState();
 }

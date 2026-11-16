@@ -52,7 +52,144 @@ class FacadeTest : public QObject {
         item->setProperty("ao","null");
         QTRY_VERIFY(session.loaded());
     }
+    void rejectAudio(DeferredSource &source, const QString &error="This track is unavailable.") {
+        const int previous=source.requests.value("play");
+        QTRY_VERIFY(source.requests.value("play")>previous);
+        emit source.completed("play",source.requests.value("play"),QVariantMap{},error);
+    }
 private slots:
+    void unavailableMiddleTrackAdvancesWithoutCompletingListen() {
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");session.setSource(&source);
+        QVERIFY(session.replaceRows({row("vault:a"),row("vault:b"),row("vault:c")},1,false));
+        QSignalSpy endings(&session,&VinylBackendSession::playbackEnding);
+        rejectAudio(source);
+        QTRY_COMPARE(session.activeIndex(),2);
+        QCOMPARE(session.property("skippedNotice").toString(),QString("Skipped vault:b: not available."));
+        QVERIFY(!endings.isEmpty());
+        for(const auto &ending:endings)QVERIFY(!ending[0].toBool());
+        QCOMPARE(session.preparationState().value("listeningMs").toLongLong(),0);
+        session.setPaused(true);
+        resolveAudio(source,session,"vault:c");
+        QCOMPARE(session.sourceState(),QString("playing"));
+    }
+    void unavailableLastTrackStopsAndCanRetry() {
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");session.setSource(&source);
+        QVERIFY(session.replaceRows({row("vault:a"),row("vault:b")},1,false));
+        rejectAudio(source);
+        QTRY_COMPARE(session.sourceState(),QString("error"));
+        QCOMPARE(session.activeIndex(),1);
+        QVERIFY(session.property("skippedNotice").toString().isEmpty());
+        session.retry();session.setPaused(true);
+        resolveAudio(source,session,"vault:b");
+        QVERIFY(session.loaded());
+    }
+    void threeUnavailableTracksStopTheRun() {
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");session.setSource(&source);
+        QVERIFY(session.replaceRows({row("vault:a"),row("vault:b"),row("vault:c"),row("vault:d")},0,false));
+        rejectAudio(source);QTRY_COMPARE(session.activeIndex(),1);
+        rejectAudio(source);QTRY_COMPARE(session.activeIndex(),2);
+        rejectAudio(source);QTRY_COMPARE(session.sourceState(),QString("error"));
+        QCOMPARE(session.activeIndex(),2);
+        QVERIFY(session.paused());
+    }
+    void successfulLoadResetsUnavailableRun() {
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");session.setSource(&source);
+        QVERIFY(session.replaceRows({row("vault:a"),row("vault:b"),row("vault:c"),row("vault:d"),row("vault:e")},0,false));
+        rejectAudio(source);QTRY_COMPARE(session.activeIndex(),1);
+        rejectAudio(source);QTRY_COMPARE(session.activeIndex(),2);
+        session.setPaused(true);resolveAudio(source,session,"vault:c");
+        session.next(1);
+        rejectAudio(source);QTRY_COMPARE(session.activeIndex(),4);
+        QVERIFY(session.sourceState()!="error");
+    }
+    void unavailableNavigation_data() {
+        QTest::addColumn<bool>("backward");
+        QTest::newRow("backward") << true;
+        QTest::newRow("repeat-all-wrap") << false;
+    }
+    void unavailableNavigation() {
+        QFETCH(bool,backward);
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");session.setSource(&source);
+        QVERIFY(session.replaceRows({row("vault:a"),row("vault:b"),row("vault:c")},-1,false));
+        if(backward){session.playQueue(2);session.next(-1);}
+        else {session.cycleRepeat();session.playQueue(2);}
+        rejectAudio(source);
+        QTRY_COMPARE(session.activeIndex(),0);
+        QVERIFY(session.sourceState()!="error");
+    }
+    void decodeFailureEndsListeningWithoutCompletion() {
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");session.setSource(&source);
+        QVERIFY(session.replaceRows({row("vault:a"),row("vault:b")},0,false));
+        session.setPaused(true);resolveAudio(source,session,"vault:a");
+        session.beginListeningFacts();
+        QSignalSpy endings(&session,&VinylBackendSession::playbackEnding);
+        QStringList reasons;
+        connect(&session,&VinylBackendSession::playbackEnding,this,[&](bool) {
+            reasons.append(session.playbackEndingReason());
+        });
+        emit qobject_cast<MpvItem *>(session.player())->playbackError("decode","Invalid audio");
+        QCOMPARE(session.activeIndex(),1);
+        QCOMPARE(endings.size(),1);
+        QVERIFY(!endings[0][0].toBool());
+        QCOMPARE(reasons,QStringList{"failure"});
+        QVERIFY(!session.qualifyListeningSample(true));
+        QCOMPARE(session.preparationState().value("listenEvents").toInt(),0);
+    }
+    void singleTrackRepeatDoesNotSkip() {
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");session.setSource(&source);
+        session.cycleRepeat();
+        QVERIFY(session.replaceRows({row("vault:a")},0,false));
+        rejectAudio(source);
+        QTRY_COMPARE(session.sourceState(),QString("error"));
+        QCOMPARE(session.activeIndex(),0);
+        QVERIFY(session.skippedNotice().isEmpty());
+    }
+    void unavailableFlagAndRetiredResolution() {
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");session.setSource(&source);
+        auto unavailable=row("vault:a");
+        auto track=unavailable.value("track").toMap();track["available"]=false;unavailable["track"]=track;
+        QVERIFY(session.replaceRows({unavailable,row("vault:b")},0,false));
+        QTRY_COMPARE(session.activeIndex(),1);
+        QTRY_VERIFY(source.requests.value("play")>0);
+        const int request=source.requests.value("play");
+        session.suspend();
+        emit source.completed("play",request,QVariantMap{},"This track is unavailable.");
+        QCoreApplication::processEvents();
+        QCOMPARE(session.activeIndex(),1);
+        QCOMPARE(session.sourceState(),QString("paused"));
+        QVERIFY(session.skippedNotice().isEmpty());
+    }
+    void globalSourceFailureDoesNotSkip_data() {
+        QTest::addColumn<QString>("error");
+        QTest::newRow("helper") << QString("The music catalogue helper failed.");
+        QTest::newRow("transport") << QString("The music catalogue runtime is unavailable. Local music is still available.");
+    }
+    void globalSourceFailureDoesNotSkip() {
+        QFETCH(QString,error);
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");session.setSource(&source);
+        QVERIFY(session.replaceRows({row("vault:a"),row("vault:b")},0,false));
+        rejectAudio(source,error);
+        QTRY_COMPARE(session.sourceState(),QString("error"));
+        QCOMPARE(session.activeIndex(),0);
+    }
     void consecutiveAudioLoadsReuseCoreAndRejectRetiredEvents() {
         DeferredSource source;
         VinylBackendSession session;

@@ -49,6 +49,7 @@ class VinylBackendSession : public QObject {
     Q_PROPERTY(double duration READ duration NOTIFY stateChanged)
     Q_PROPERTY(QString sourceState READ sourceState NOTIFY stateChanged)
     Q_PROPERTY(QString error READ error NOTIFY stateChanged)
+    Q_PROPERTY(QString skippedNotice READ skippedNotice NOTIFY skippedNoticeChanged)
     Q_PROPERTY(QString qualityLabel READ qualityLabel NOTIFY stateChanged)
     Q_PROPERTY(QString sourceKind READ sourceKind NOTIFY stateChanged)
     Q_PROPERTY(QString fallbackReason READ fallbackReason NOTIFY stateChanged)
@@ -94,6 +95,7 @@ public:
     double duration() const { return m_duration; }
     QString sourceState() const { return m_state; }
     QString error() const { return m_error; }
+    QString skippedNotice() const { return m_skippedNotice; }
     QString qualityLabel() const { return m_quality; }
     QString sourceKind() const { return m_sourceKind; }
     QString fallbackReason() const { return m_fallbackReason; }
@@ -144,6 +146,7 @@ public:
     Q_INVOKABLE QString personalSongId(const QVariantMap &row) const;
     Q_INVOKABLE bool personalRowAvailable(const QVariantMap &row) const;
 signals:
+    void skippedNoticeChanged();
     void preparationChanged();
     void stateChanged();
     void pausedChanged();
@@ -198,6 +201,8 @@ private:
     bool commitVideoMode(bool video,const QVariantMap &resource);
     void attachVideoSurface();
     void fail(const QString &message);
+    void failTrack(const QString &message);
+    void setSkippedNotice(const QString &notice);
     void naturalEnd(const vinyl::PlaybackWorkToken &token);
     void dispatchSeek(const vinyl::PlaybackSeekCommand &command);
     void observeSeekRestart(const vinyl::PlaybackWorkToken &token,qint64 entry,double position,qint64 observedMs);
@@ -226,6 +231,9 @@ private:
     quint64 m_loadSerial=0,m_parkSerial=0;
     QString m_profile,m_repeat="off",m_state="idle",m_error,m_quality="Local audio";
     QString m_sourceKind,m_fallbackReason;
+    QString m_skippedNotice;
+    quint64 m_noticeSerial=0;
+    int m_consecutiveUnavailable=0,m_failureDirection=1;
     QString m_endingReason="stop",m_listeningOrigin="manual";
     QVariantMap m_radioContext;
     bool m_naturalAdvancing=false,m_navigationBack=false;
