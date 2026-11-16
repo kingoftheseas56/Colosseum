@@ -5603,8 +5603,9 @@ set_tests_properties(colosseum.qml.vinyl_catalogue_pages_native PROPERTIES
 set_tests_properties(colosseum.qml.vinyl_discovery_native PROPERTIES
     LABELS "unit;qml;vinyl;catalogue;native-adapter" TIMEOUT 60
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+# Complete offscreen run: 65.7 seconds; allow ~34 seconds of scheduling margin.
 set_tests_properties(colosseum.qml.vinyl_home_native PROPERTIES
-    LABELS "unit;qml;vinyl;local;native-adapter" TIMEOUT 60
+    LABELS "unit;qml;vinyl;local;native-adapter" TIMEOUT 100
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 set_tests_properties(colosseum.qml.vinyl_personal_library_native PROPERTIES
     LABELS "unit;qml;vinyl;local;native-adapter" TIMEOUT 180

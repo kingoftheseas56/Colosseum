@@ -90,6 +90,21 @@ TestCase {
         }
     }
 
+    Component {
+        id: preferencesFactory
+        QtObject {
+            property bool vinylTasteAnswered: true
+            property var vinylTasteArtists: ["a","b","c","d","e"].map(letter => ({id:"ytm:artist:UC"+letter.repeat(22),title:letter}))
+            signal vinylTasteChanged()
+            function setVinylTasteSelections(answered, artists) {
+                vinylTasteAnswered = answered;
+                vinylTasteArtists = artists;
+                vinylTasteChanged();
+                return true;
+            }
+        }
+    }
+
     function albumFor(path) {
         return {
             id: "release",
@@ -143,7 +158,7 @@ TestCase {
         rawAlbum = albumFor(audioPath);
         collection.seed([albumEntry(rawAlbum), artistEntry()]);
 
-        var component = Qt.createComponent("../../qml/vinyl/VinylLiveWorld.qml");
+        var component = Qt.createComponent("../../qml/vinyl/VinylAppWorld.qml");
         compare(component.status, Component.Ready, component.errorString());
         world = component.createObject(host.contentItem, {width:960, height:720});
         verify(world !== null);
@@ -152,8 +167,8 @@ TestCase {
         world.session.progressStore = progress;
         world.session.refreshLibrary();
         world.personalLibrary.refreshModels();
-        world.worldData.preferencesStore = null;
-        world.worldData.loadTaste();
+        world.worldData.preferencesStore = createTemporaryObject(preferencesFactory, test);
+        tryCompare(world, "canEnterVinyl", true);
         world.showHome();
         wait(0);
         verify(world.session.personalEnabled, "The real native session must accept the fake atomic Collection.");
@@ -185,6 +200,8 @@ TestCase {
     }
 
     function test_coldHomeNeedsNoTasteAnswerAndSearchOpensDiscover() {
+        world.worldData.preferencesStore.setVinylTasteSelections(false, []);
+        tryCompare(world, "canEnterVinyl", false);
         collection.seed([]);
         world.session.refreshLibrary();
         world.personalLibrary.refreshModels();
@@ -194,14 +211,21 @@ TestCase {
         compare(world.worldData.pickerAnswered, false);
         compare(world.page, "home");
         compare(world.worldView.currentTab, "home");
-        verify(findChild(world, "vinylHomeEmpty") !== null,
-            "An empty local library must still present Home's empty state.");
+        // e9875c366 requires five artists even with an empty local library.
+        verify(findChild(world, "vinylTastePicker").visible);
         verify(findChild(world, "vinylHomeSearch") === null,
             "Home uses the shared top-bar search entry.");
         findChild(world, "vinylTopBar").searchClicked();
-        compare(world.page, "discover");
-        compare(world.worldView.currentTab, "discover");
-        compare(world.worldData.browseStates.discover.onlineMode, true);
+        compare(world.page, "home");
+        compare(world.worldView.currentTab, "home");
+        verify(!world.searchOpen);
+        tryCompare(findChild(world, "vinylPickerArtistSearch"), "activeFocus", true);
+    }
+
+    SignalSpy {
+        id: importRequested
+        target: world ? world.personalLibrary : null
+        signalName: "importFolderRequested"
     }
 
     function test_coldHomeLibraryExposesFolderImport() {
@@ -210,13 +234,17 @@ TestCase {
         world.personalLibrary.refreshModels();
         world.showHome();
         wait(0);
-        findChild(world, "vinylHomeLibrary").activate(Qt.MouseFocusReason);
+        // 051a87f14 replaced the empty-Home button with the shared Library tab.
+        world.worldView.setTab("library");
         compare(world.page, "library");
         compare(world.personalLibrary.section, "albums");
         var importAction = findChild(world, "vinylLibraryImportFolder");
         verify(importAction !== null);
         verify(importAction.visible && importAction.enabled);
         verify(importAction.width >= 38 && importAction.height >= 38);
+        importRequested.clear();
+        importAction.triggered();
+        compare(importRequested.count, 1);
     }
 
     function test_homeCollectionsIgnoreLibraryQueryAndSort() {
@@ -227,25 +255,22 @@ TestCase {
         world.worldView.setTab("library");
         world.worldData.setQuery("no matching local record");
         world.worldData.sortOrder = "year";
-        compare(world.personalLibrary.albums.length, 0);
+        tryCompare(world.personalLibrary, "albums", []);
         world.worldView.setTab("home");
         world.worldData.refreshHome();
 
-        var songs = homeRow("saved-songs");
-        var albums = homeRow("saved-albums");
-        var artists = homeRow("saved-artists");
-        var playlists = homeRow("playlists");
-        verify(songs && albums && artists && playlists);
-        compare(songs.kind, "saved-song");
-        compare(albums.kind, "albums");
-        compare(artists.kind, "artists");
-        compare(playlists.kind, "playlists");
-        compare(songs.items[0].kind, "saved-song");
-        compare(albums.items[0].kind, "albums");
-        compare(artists.items[0].kind, "artists");
-        compare(playlists.items[0].kind, "playlists");
-        compare(playlists.items[0].id, playlistId);
-        compare(albums.items[0].id, rawAlbum.id);
+        // e9875c366 intentionally moved saved collections off Home. Their
+        // recommendation inputs must still ignore Library filtering/sorting.
+        tryVerify(function() { return world.personalLibrary.homeCollections.songs.length === 1
+            && world.personalLibrary.homeCollections.playlists.length === 1; });
+        var collections = world.personalLibrary.homeCollections;
+        compare(collections.songs.length, 1);
+        compare(collections.albums[0].id, rawAlbum.id);
+        compare(collections.artists[0].id, "native-artist");
+        compare(collections.playlists[0].id, playlistId);
+        ["saved-songs", "saved-albums", "saved-artists", "playlists"].forEach(function(key) {
+            compare(homeRow(key), null);
+        });
     }
 
     function test_savedSongCardBackRestoresHomeQueryAndScroll() {
@@ -257,13 +282,22 @@ TestCase {
         world.worldData.refreshHome();
         wait(0);
 
+        // Saved-song shelves were removed by e9875c366; exercise the same
+        // song/back route through the current recommendation shelf instead.
+        tryVerify(function() { return world.personalLibrary.homeCollections.songs.length === 1; });
+        var song = Object.assign({}, world.personalLibrary.homeCollections.songs[0], {kind:"saved-song"});
+        var service = useHomeSections([]);
+        service.homeSourcePool = {rows:["new-from-your-artists", "albums-for-you", "because-you-played",
+            "deep-cuts", "rediscover", "artists-like-yours"].map(function(key) {
+                return {key:key,title:key,items:[song]};
+            })};
+        tryVerify(function() { return world.worldScroll.contentHeight > world.worldScroll.height; });
         var maxScroll = Math.max(0, world.worldScroll.contentHeight - world.worldScroll.height);
         verify(maxScroll > 0, "Fixture Home shelves should be scrollable.");
         world.worldScroll.contentY = Math.min(180, maxScroll);
         wait(0);
         var savedScroll = world.worldScroll.contentY;
-        var song = homeRow("saved-songs").items[0];
-        world.worldData.activate(song);
+        world.worldData.activate(world.worldData.v1HomeRows[0].items[0]);
         compare(world.page, "song");
         verify(world.goBack());
         tryCompare(world, "page", "home", 2000);
@@ -277,10 +311,13 @@ TestCase {
         verify(playlistId.length > 0);
         world.showHome();
         world.worldData.refreshHome();
-        var playlist = homeRow("playlists").items.find(function(item) { return item.id === playlistId; });
+        // Saved playlists live in Library since e9875c366. Preserve the Home
+        // destination/back contract through its shared destination command.
+        tryVerify(function() { return world.personalLibrary.homeCollections.playlists.some(item => item.id === playlistId); });
+        var playlist = world.personalLibrary.homeCollections.playlists.find(function(item) { return item.id === playlistId; });
         verify(playlist !== undefined);
 
-        world.worldData.activate(playlist);
+        world.worldData.openHomeDestination("library", "playlists", playlist.id);
         compare(world.page, "library");
         compare(world.worldView.currentTab, "library");
         compare(world.personalLibrary.selectedPlaylistId, playlistId);
@@ -292,7 +329,10 @@ TestCase {
     function test_homeAlbumCardOpensTheNativeAlbumDestination() {
         world.showHome();
         world.worldData.refreshHome();
-        var album = homeRow("saved-albums").items.find(function(item) { return item.id === rawAlbum.id; });
+        var service = useHomeSections([]);
+        service.homeSourcePool = {rows:[{key:"albums-for-you",title:"Albums for you",items:[
+            Object.assign({}, world.personalLibrary.homeCollections.albums[0], {kind:"albums"})]}]};
+        var album = world.worldData.v1HomeRows[0].items.find(function(item) { return item.id === rawAlbum.id; });
         verify(album !== undefined);
         world.worldData.activate(album);
         tryCompare(world, "page", "album", 5000);
@@ -367,8 +407,10 @@ TestCase {
         verify(world.personalLibrary.toggleSong({row:rowAt(0)}));
         var playlistId = world.personalLibrary.createPlaylist("Scoped home playlist", [rowAt(0)]);
         verify(playlistId.length > 0);
-        verify(homeRow("saved-songs") !== null);
-        verify(homeRow("playlists") !== null);
+        tryVerify(function() { return world.personalLibrary.homeCollections.songs.length === 1
+            && world.personalLibrary.homeCollections.playlists.length === 1; });
+        compare(homeRow("saved-songs"), null);
+        compare(homeRow("playlists"), null);
 
         world.session.clearProfile();
         wait(0);
@@ -402,11 +444,34 @@ TestCase {
         compare(world.session.queue.length, 0);
     }
 
+    Component {
+        id: homeServiceFactory
+        QtObject {
+            readonly property bool profileActive: world.session.profileActive
+            readonly property string profileScope: world.session.profileScope
+            readonly property int profileGeneration: world.session.profileGeneration
+            readonly property bool canEnterVinyl: profileActive && selectedArtists.length >= 5
+            property string onboardingState: "answered"
+            property var selectedArtists: []
+            property var homeSections: []
+            property var homeSourcePool: ({})
+            property var homeSnapshot: ({})
+            property int homeRevision: 1
+            property string homeStatus: "ready"
+            property string homeError: ""
+            function beginHomeVisit() {}
+            function leaveHome() {}
+            function refreshHome(force) {}
+        }
+    }
+
     function useHomeSections(sections) {
-        var prefs=Qt.createQmlObject('import QtQuick; QtObject {property bool vinylTasteAnswered:true; signal vinylTasteChanged(); function setVinylTasteSelections(answered,artists){return true;}}',world);
-        var service=Qt.createQmlObject('import QtQuick; QtObject {property string onboardingState:"answered"; property var selectedArtists:[]; property var homeSections:[]; property var homeSnapshot:({}); property int homeRevision:1; property string homeStatus:"ready"; property string homeError:""; function beginHomeVisit(){} function refreshHome(force){}}',world);
-        service.homeSections=sections;
-        world.worldData.preferencesStore=prefs;world.worldData.recommendationService=service;
+        var service = createTemporaryObject(homeServiceFactory, world, {
+            selectedArtists: world.recommendationService.selectedArtists,
+            homeSections: sections
+        });
+        verify(service !== null);
+        world.worldData.recommendationService = service;
         return service;
     }
     function test_historyRowsFollowSavedCollectionsAndRetainSeeAllSnapshot() {
@@ -415,8 +480,10 @@ TestCase {
         var section=function(id){return {id:id,title:id,kind:"recommendations",items:[item],status:"ready"};};
         var service=useHomeSections([section("rediscover-library"),section("less-played"),section("from-your-artists")]);
         var keys=world.worldData.homeRows.map(row=>row.key);
-        verify(keys.indexOf("personalized:from-your-artists")<keys.indexOf("saved-albums"));
-        verify(keys.indexOf("saved-albums")<keys.indexOf("personalized:rediscover-library"));
+        // e9875c366 removed the saved-albums separator, not history ordering.
+        compare(keys.indexOf("saved-albums"), -1);
+        verify(keys.indexOf("personalized:from-your-artists") >= 0);
+        verify(keys.indexOf("personalized:from-your-artists")<keys.indexOf("personalized:rediscover-library"));
         verify(keys.indexOf("personalized:rediscover-library")<keys.indexOf("personalized:less-played"));
         world.worldData.openList("personalized:rediscover-library",true);
         service.homeSections=[];
@@ -430,12 +497,11 @@ TestCase {
         useHomeSections([]);
         world.session.discoverySections={trending:{key:"trending",title:"Trending",items:[{id:"public-album",kind:"albums",title:"Public release"}],records:[],cached:true}};
         world.showHome();wait(0);
-        verify(world.worldData.homePublicDiscovery===true);
-        var publicRow=homeRow("home-discover-trending");verify(publicRow!==null);
-        compare(publicRow.personal,false);compare(publicRow.recommendation,false);
-        compare(publicRow.items[0].id,"public-album");
+        // Public Home discovery was intentionally retired in e9875c366.
+        verify(!world.worldData.homePublicDiscovery);
+        compare(homeRow("home-discover-trending"), null);
         world.session.discoverySections={"new-releases":{error:"Synthetic source failure"}};
-        compare(homeRow("home-discover-new-releases").title,"Discover · New releases");
+        compare(homeRow("home-discover-new-releases"), null);
         collection.seed([albumEntry(rawAlbum)]);world.session.refreshLibrary();world.personalLibrary.refreshModels();wait(0);
         verify(!world.worldData.homePublicDiscovery);
         verify(homeRow("home-discover-trending")===null);
@@ -456,13 +522,14 @@ TestCase {
     }
     function test_publicSeeAllSnapshotSurvivesPlaybackAndHomeEligibilityChange() {
         collection.seed([]);progress.seed([]);world.session.refreshLibrary();world.personalLibrary.refreshModels();
-        useHomeSections([]);
-        world.session.discoverySections={trending:{key:"trending",title:"Trending",items:[{id:"public-album",kind:"albums",title:"Public release"}],records:[]}};
+        var service=useHomeSections([{id:"from-your-artists",title:"From your artists",kind:"recommendations",items:[{id:"public-album",kind:"albums",title:"Public release"}],status:"ready"}]);
+        // e9875c366 retired public Home. Keep the stable non-history See-all
+        // snapshot check on the admitted recommendation replacement.
         world.showHome();wait(0);
-        world.worldData.openList("home-discover-trending",true);
-        verify(world.worldData.homeListSnapshot!==null,"Public See-all must have the same stable-route contract");
-        world.session.discoverySections={};
+        world.worldData.openList("personalized:from-your-artists",true);
+        verify(world.worldData.homeListSnapshot!==null,"Non-history See-all must have the same stable-route contract");
+        service.homeSections=[];
         verify(world.session.playPersonalRows([rowAt(0)],false,0));
-        compare(world.worldData.row("home-discover-trending",true).items[0].id,"public-album");
+        compare(world.worldData.row("personalized:from-your-artists",true).items[0].id,"public-album");
     }
 }

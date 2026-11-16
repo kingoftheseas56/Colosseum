@@ -24,6 +24,7 @@ TestCase {
     Component {
         id: dataFactory
         QtObject {
+            property QtObject personalLibrary: QtObject { signal importFolderRequested() }
             property var session: null
             property string persistenceError: ""
             property int activationCalls: 0
@@ -39,6 +40,7 @@ TestCase {
             function recordVisibleRecommendation() { return false; }
         }
     }
+    SignalSpy { id: imported; target: test.ownerData ? test.ownerData.personalLibrary : null; signalName: "importFolderRequested" }
     SignalSpy { id: activated; target: test.library; signalName: "itemActivated" }
     SignalSpy { id: listed; target: test.library; signalName: "listRequested" }
     function item(kind, id) {
@@ -102,8 +104,40 @@ TestCase {
         compare(findChild(library,"vinylLibraryRow_downloads"),null);
         library.rows=[{key:"liked-songs",title:"Liked songs",items:[]}];
         tryCompare(library,"rowKeys","");
-        tryCompare(library,"implicitHeight",0);
+        verify(library.implicitHeight >= 38, "The empty Library retains its import header.");
         compare(findChild(library,"vinylLibraryRow_liked-songs"),null);
+    }
+    function test_importFolderStaysVisibleWithNoRows() {
+        library.rows = [];
+        tryCompare(library, "rowKeys", "");
+        var action = findChild(library, "vinylLibraryImportFolder");
+        verify(action !== null);
+        verify(action.visible && action.enabled);
+        compare(action.width, 38);
+        compare(action.height, 38);
+        compare(action.label, "Add music folder");
+        compare(action.symbol, "musicFolder");
+        compare(action.backdrop, wallpaper);
+        compare(action.mapToItem(library, 0, 0).x, library.width - 38);
+        compare(action.mapToItem(library, 0, 0).y, 0);
+        verify(hasVisibleText(library, "Albums from your library will appear here."));
+        imported.clear();
+        mouseClick(action);
+        compare(imported.count, 1);
+        ownerData.personalLibrary = null;
+        action.triggered();
+        compare(imported.count, 1);
+        library.worldData = null;
+        action.triggered();
+        compare(imported.count, 1);
+    }
+    function test_importFolderAlsoVisibleWithRows() {
+        var action = findChild(library, "vinylLibraryImportFolder");
+        verify(action !== null && action.visible);
+        verify(!hasVisibleText(library, "Albums from your library will appear here."));
+        imported.clear();
+        mouseClick(action);
+        compare(imported.count, 1);
     }
     function test_pointerActivationAndSeeAllAreOwnerSignalsOnly() {
         var card=findChild(library,"vinylCard_playlists_0");

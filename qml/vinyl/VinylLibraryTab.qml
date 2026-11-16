@@ -62,6 +62,34 @@ Item {
         id: content
         width: parent.width
         spacing: 30
+        Item {
+            width: parent.width
+            height: Math.max(38, emptyLibraryHint.implicitHeight)
+            Text {
+                id: emptyLibraryHint
+                width: Math.max(0, parent.width - 54)
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.presentRows.length === 0
+                text: "Albums from your library will appear here."
+                color: theme.inkDim
+                font.family: theme.ui
+                font.pixelSize: 14
+                wrapMode: Text.WordWrap
+            }
+            VinylWorldButton {
+                objectName: "vinylLibraryImportFolder"
+                anchors.right: parent.right
+                width: 38
+                height: 38
+                label: "Add music folder"
+                symbol: "musicFolder"
+                backdrop: root.backdrop
+                onTriggered: {
+                    if (root.worldData && root.worldData.personalLibrary)
+                        root.worldData.personalLibrary.importFolderRequested();
+                }
+            }
+        }
         Column {
             width: parent.width
             spacing: 8
