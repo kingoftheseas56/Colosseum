@@ -218,6 +218,7 @@ WorldPage {
         }
         VinylHero {
             id: hero
+            objectName: "vinylHero"
             width: parent.width
             height: narrow ? implicitHeight : 300
             visible: slideCount>0 && !root.gated && !homeLoading.visible
@@ -230,6 +231,7 @@ WorldPage {
         }
         VinylCrate {
             id: crate
+            objectName: "vinylCrate"
             visible: !root.gated && !homeLoading.visible
             width: parent.width; height: implicitHeight
             compact: true
@@ -241,6 +243,7 @@ WorldPage {
         }
         VinylSpin {
             id: spin
+            objectName: "vinylSpin"
             visible: !root.gated && !homeLoading.visible
             width: parent.width; height: implicitHeight
             songs: root.worldData.spinSongs || []

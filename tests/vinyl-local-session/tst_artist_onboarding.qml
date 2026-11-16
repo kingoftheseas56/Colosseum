@@ -118,7 +118,7 @@ TestCase {
         progress = progressFactory.createObject(test);
         preferences = preferencesFactory.createObject(test);
 
-        var component = Qt.createComponent("../../qml/vinyl/VinylLiveWorld.qml");
+        var component = Qt.createComponent("../../qml/vinyl/VinylAppWorld.qml");
         compare(component.status, Component.Ready, component.errorString());
         world = component.createObject(host.contentItem, {width:960, height:720});
         verify(world !== null);
@@ -185,7 +185,13 @@ TestCase {
         tryCompare(world.worldData, "tasteGateLocked", false);
         tryCompare(world, "canEnterVinyl", true);
         tryVerify(function(){return !picker().visible;});
-        compare(findChild(world, "vinylHero").visible, true);
+        // Admission unlocks Home; it does not fabricate recommendation slides or
+        // bypass the intentional first-load wait (411919a5c / 3a98111a9).
+        compare(world.worldView.gated, false);
+        var hero = findChild(world, "vinylHero");
+        var loading = findChild(world, "vinylHomeLoading");
+        compare(hero.visible, hero.slideCount > 0 && !loading.visible);
+        compare(findChild(world, "vinylCrate").visible, !loading.visible);
     }
 
     function test_legacyProfilesWithOneToFourSavedArtistsStayPrefilledAndGated() {
@@ -321,10 +327,10 @@ TestCase {
 
         world.showHome();
         wait(0);
-        var edit = findChild(world, "vinylTasteEdit");
-        verify(edit !== null && edit.visible,
-            "The answered Home should expose Edit tastes.");
-        edit.activate(Qt.MouseFocusReason);
+        // The house shell replaced the legacy Home toolbar (051a87f14).
+        // Exercise its shared taste-edit command, not the retired page's button.
+        world.worldData.beginTasteEdit();
+        tryVerify(function() { return picker().visible; });
         compare(service.onboardingState, "editing");
         service.toggleDraftArtist(saved[1]);
         compare(service.draftArtistCount, 4);
