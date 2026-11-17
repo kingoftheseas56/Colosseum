@@ -1,243 +1,255 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
+import "../collections"
 import "../vinyl"
+import "../CollectionsReferences.js" as CollectionsReferences
 import "AudiobookListenPageData.js" as Data
 
-// Vinyl’s song room hosts the audiobook controls and chapter list.
 Item {
     id: root
     objectName: "audiobookListenPage"
     required property var session
-    // title, authors[], narrators[], cover, description, seriesLine. Every field is optional.
     property var book: ({})
-    signal backRequested()
-
-    readonly property alias pageData: pd
+    property bool ebookAvailable: false
+    // Hosts can supply download state before opening the local files in the session.
+    property bool downloaded: !!session && session.ready
+    property bool saved: false
+    // Inset from the top of the viewport to the content below the shell's top bar.
+    property real contentTop: 138
     property bool chaptersOpen: false
-    readonly property bool chaptersBesideRoom: width >= 1120 && chaptersPanel.visible
-    readonly property int chapterIndex: session && session.ready && hasChapters ? session.chapterIndex : -1
+    signal backRequested()
+    signal readAlongRequested()
+    signal listenRequested()
+    signal downloadRequested()
+    signal saveToggled()
+
+    readonly property bool playbackReady: downloaded && !!session && session.ready
     readonly property var chapterList: session && session.chapterModel ? session.chapterModel : []
-    readonly property string bookTitle: Data.text(book && book.title)
-    readonly property string description: Data.text(book && book.description).trim()
-    readonly property string seriesLine: Data.text(book && book.seriesLine).trim()
-    readonly property string narratorLine: Data.list(book && book.narrators).join(" · ")
-    readonly property bool hasNotes: description.length > 0 || seriesLine.length > 0
     readonly property bool hasChapters: chapterList.length > 0
+    readonly property int chapterIndex: playbackReady && hasChapters ? session.chapterIndex : -1
+    readonly property string bookTitle: Data.text(book && book.title)
+    readonly property string authorLine: Data.list(book && (book.authors || book.author)).join(" · ")
+    readonly property string narratorLine: Data.list(book && book.narrators).join(" & ")
+    readonly property url coverSource: Data.coverUrl(book && book.cover)
+    readonly property real sideInset: Math.min(theme.margin, width * 0.075)
+    readonly property bool stackedActions: width < 600
+    readonly property real posterSize: Math.max(0, Math.min(290, width - 2 * sideInset,
+        bar.y - contentTop - (stackedActions ? 132 : 96)))
 
     onHasChaptersChanged: if (!hasChapters) chaptersOpen = false
 
     Theme { id: theme }
 
-    QtObject {
-        id: pd
-        readonly property var playingTrack: ({ title: root.bookTitle, artists: playingEdition.artists })
-        readonly property var playingEdition: Data.edition(root.book)
-        function artwork(file) { return Data.coverUrl(file) }
-
-        // Vinyl's instantiated song-room children still read these values.
-        readonly property bool lyricsShown: false
-        readonly property bool autoNotes: false
-        readonly property bool videoShown: false
-        readonly property bool hasLyrics: false
-        readonly property string lyricsSource: ""
-        readonly property string lyricsDocumentId: ""
-        readonly property string lyricsStatus: ""
-        readonly property bool timedLyrics: false
-        readonly property var lyrics: []
-        readonly property int currentLineIndex: -1
-        readonly property var notes: ({})
-        readonly property int activeNoteLine: -1
-        readonly property int manualNoteLine: -1
-        readonly property string annotationsStatus: ""
-        readonly property string readingContextKey: ""
+    component Glyph: Image {
+        property string path
+        property color ink: theme.inkDim
+        sourceSize: Qt.size(24, 24)
+        source: path ? "data:image/svg+xml," + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="'
+            + ink + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="'
+            + path + '"/></svg>') : ""
     }
 
-    VinylBackdrop {
-        anchors.fill: parent
-        source: Data.coverUrl(root.book && root.book.cover)
-    }
+    component PageAction: KeyboardAction {
+        id: action
+        property string label: ""
+        property string path: ""
+        property string symbol: ""
+        property bool selected: false
+        width: label.length ? caption.implicitWidth + 48 : 34
+        height: 34
+        opacity: enabled ? 1 : 0.34
+        focusOnPointer: false
+        spaceActivates: true
 
-    VinylSongPage {
-        id: songPage
-        objectName: "audiobookListenSong"
-        anchors { left: parent.left; right: parent.right; top: parent.top; bottom: bar.top
-                  topMargin: 8; bottomMargin: 12
-                  rightMargin: root.chaptersBesideRoom ? 110 + Math.max(0, 1280 - root.width) : 0 }
-        pageData: pd
-        readersEnabled: false
-        songActionsEnabled: false
-        albumLinkEnabled: false
-        onBackRequested: root.backRequested()
-    }
-
-    Item {
-        id: slots
-        x: songPage.x
-        y: songPage.y
-        width: songPage.width
-        height: songPage.height
-
-        // Narrator line, only when the book supplies narrators.
-        Text {
-            objectName: "audiobookNarrators"
-            visible: root.narratorLine.length > 0
-            text: qsTr("Narrated by %1").arg(root.narratorLine)
-            color: theme.inkDim
-            font.family: theme.ui
-            font.pixelSize: 13
-            horizontalAlignment: Text.AlignHCenter
-            elide: Text.ElideRight
-            width: Math.min(420, slots.width - 40)
-            x: (slots.width - width) / 2
-            y: songPage.artworkTop + songPage.cardHeight + 84
-        }
-
-        // Description and series: the notes column's place. Absent fields leave it hidden.
         Rectangle {
-            id: notesPanel
-            objectName: "audiobookNotes"
-            visible: root.hasNotes && !chaptersPanel.visible && songPage.readerWidth > 0
-            x: songPage.notesAreaX
-            y: songPage.artworkTop
-            width: Math.min(songPage.readerWidth, 311)
-            height: Math.max(0, slots.height - y - 8)
-            radius: 14
-            color: theme.glassTint
+            anchors.fill: parent
+            radius: 10
+            color: action.interactionActive || action.selected ? theme.glassHi : theme.glassTint
             border.color: theme.edge
-            clip: true
-            Flickable {
-                anchors.fill: parent
-                anchors.margins: 14
-                contentHeight: notesColumn.implicitHeight
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: ScrollBar { }
-                Column {
-                    id: notesColumn
-                    width: parent.width - 8
-                    spacing: 10
-                    Text {
-                        objectName: "audiobookSeriesLine"
-                        visible: root.seriesLine.length > 0
-                        width: parent.width
-                        text: root.seriesLine
-                        color: theme.gold
-                        font.family: theme.ui
-                        font.pixelSize: 13
-                        font.bold: true
-                        wrapMode: Text.WordWrap
-                    }
-                    Text {
-                        objectName: "audiobookDescription"
-                        visible: root.description.length > 0
-                        width: parent.width
-                        text: root.description
-                        color: theme.ink
-                        font.family: theme.ui
-                        font.pixelSize: 13
-                        lineHeight: 1.25
-                        wrapMode: Text.WordWrap
-                    }
-                }
+        }
+        Row {
+            anchors.centerIn: parent
+            spacing: 7
+            VinylControlIcon {
+                visible: action.symbol.length > 0
+                width: 17
+                height: 17
+                anchors.verticalCenter: parent.verticalCenter
+                symbol: action.symbol
+                color: action.selected ? theme.gold : theme.inkDim
+            }
+            Glyph {
+                visible: action.path.length > 0
+                width: 17
+                height: 17
+                anchors.verticalCenter: parent.verticalCenter
+                path: action.path
+            }
+            Text {
+                id: caption
+                visible: action.label.length > 0
+                anchors.verticalCenter: parent.verticalCenter
+                text: action.label
+                color: theme.inkDim
+                font.family: theme.ui
+                font.pixelSize: 12
             }
         }
     }
 
-    AudiobookControlBar {
-        id: bar
-        anchors.horizontalCenter: songPage.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: Math.min(126, Math.max(18, root.height - 510))
-        width: Math.min(root.chaptersBesideRoom ? 685 : implicitWidth, Math.max(0, root.width - 2 * theme.margin))
-        height: implicitHeight
-        session: root.session
-        compact: false
-        onChaptersRequested: if (root.hasChapters) root.chaptersOpen = !root.chaptersOpen
+    VinylBackdrop {
+        anchors.fill: parent
+        source: root.coverSource
+    }
+
+    BackAction {
+        objectName: "audiobookBack"
+        x: root.sideInset
+        y: root.contentTop + (root.stackedActions ? -46 : 1)
+        width: Math.max(92, implicitWidth)
+        height: 44
+        labelSize: 13
+        label: qsTr("Back")
+        focusOnPointer: false
+        onTriggered: root.backRequested()
+    }
+
+    AddToCollectionsButton {
+        objectName: "audiobookAddToCollections"
+        x: root.width - width - root.sideInset
+        y: root.contentTop + (root.stackedActions ? -41 : 5)
+        reference: CollectionsReferences.book(Object.assign({}, root.book,
+            { author: root.authorLine, isAudiobook: true }))
+        iconOnly: true
+        hoverDescriptionEnabled: false
+    }
+
+    RoundedPosterImage {
+        id: poster
+        objectName: "audiobookPoster"
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: root.contentTop
+        width: root.posterSize
+        height: width
+        radius: 18
+        sources: root.coverSource.toString() ? [root.coverSource] : []
+    }
+
+    PageAction {
+        id: chaptersButton
+        objectName: "audiobookChaptersButton"
+        x: root.stackedActions ? root.width / 2 - width - 4 : poster.x - width - 44
+        y: root.stackedActions ? identity.y + identity.height + 8 : poster.y
+        label: qsTr("Chapters")
+        path: "M9 6h11M9 12h11M9 18h11M4 6h.2M4 12h.2M4 18h.2"
+        accessibleName: label
+        accessibleDescription: root.chaptersOpen ? qsTr("Expanded") : qsTr("Collapsed")
+        enabled: root.hasChapters
+        selected: root.chaptersOpen
+        onTriggered: root.chaptersOpen = !root.chaptersOpen
+    }
+
+    PageAction {
+        objectName: "audiobookReadAlong"
+        x: root.stackedActions ? root.width / 2 + 4 : poster.x + poster.width + 44
+        y: chaptersButton.y
+        label: qsTr("Read along")
+        path: "M12 6c-2-2-5-2-9-2v15c4 0 7 0 9 2 2-2 5-2 9-2V4c-4 0-7 0-9 2ZM12 6v15"
+        accessibleName: label
+        enabled: root.ebookAvailable
+        onTriggered: root.readAlongRequested()
+    }
+
+    Row {
+        id: actions
+        x: poster.x
+        y: poster.y + poster.height + 12
+        spacing: 7
+
+        PageAction {
+            objectName: "audiobookPrimary"
+            label: root.downloaded ? qsTr("Listen") : qsTr("Download")
+            accessibleName: label
+            path: root.downloaded
+                ? "M3 14v-3a9 9 0 0 1 18 0v3M3 14a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Zm13 0a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2Z"
+                : "M12 4v10M7.5 10.5 12 15l4.5-4.5M5 19h14"
+            onTriggered: {
+                if (root.downloaded)
+                    root.listenRequested()
+                else
+                    root.downloadRequested()
+            }
+        }
+        PageAction {
+            objectName: "audiobookSave"
+            symbol: root.saved ? "saved" : "save"
+            selected: root.saved
+            accessibleName: root.saved ? qsTr("Remove saved audiobook") : qsTr("Save audiobook")
+            tooltipText: accessibleName
+            onTriggered: root.saveToggled()
+        }
+    }
+
+    Column {
+        id: identity
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: actions.y + actions.height + 8
+        width: Math.min(420, root.width - 2 * root.sideInset)
+
+        Text {
+            objectName: "audiobookIdentity"
+            width: parent.width
+            text: [root.authorLine, root.bookTitle].filter(value => value.length > 0).join(" · ")
+            color: theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: 13
+            textFormat: Text.PlainText
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+        }
+        Text {
+            objectName: "audiobookNarrators"
+            visible: root.narratorLine.length > 0
+            width: parent.width
+            text: qsTr("Narrated by %1").arg(root.narratorLine)
+            color: theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: 11
+            textFormat: Text.PlainText
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+        }
     }
 
     Rectangle {
         id: chaptersPanel
         objectName: "audiobookChapters"
         visible: root.chaptersOpen && root.hasChapters
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.topMargin: songPage.y + songPage.artworkTop + 3
-        anchors.rightMargin: 32
-        anchors.bottomMargin: 55
-        width: Math.min(311, root.width - 64)
-        radius: 19
-        color: "#f2141720"
-        border.color: "#36ffffff"
-        clip: true
-        Keys.onEscapePressed: root.chaptersOpen = false
+        x: Math.min(44, root.sideInset)
+        y: poster.y + (root.stackedActions ? 0 : 42)
+        width: root.stackedActions ? Math.min(250, root.width - 2 * x)
+            : Math.max(0, Math.min(250, poster.x - x - 8))
+        height: Math.max(0, (root.stackedActions ? chaptersButton.y - 8 : bar.y - 18) - y)
+        radius: 10
+        color: root.stackedActions ? "#f01a1b23" : "transparent"
+        Keys.onEscapePressed: {
+            root.chaptersOpen = false
+            chaptersButton.forceActiveFocus(Qt.ShortcutFocusReason)
+        }
         onVisibleChanged: {
-            if (visible && root.chapterIndex >= 0)
-                chapterView.positionViewAtIndex(root.chapterIndex, ListView.Center)
-        }
-
-        Column {
-            x: 22
-            y: 22
-            width: parent.width - 84
-            spacing: 5
-            Text {
-                width: parent.width
-                text: root.bookTitle.toUpperCase()
-                elide: Text.ElideRight
-                color: theme.gold
-                font.family: theme.ui
-                font.pixelSize: 10
-                font.letterSpacing: 1.2
+            if (visible && root.chapterIndex >= 0) {
+                const rowsAbove = Math.round(chapterView.height / (2 * chapterView.rowHeight))
+                chapterView.positionViewAtIndex(Math.max(0, root.chapterIndex - rowsAbove), ListView.Beginning)
             }
-            Text {
-                text: qsTr("Chapters")
-                color: theme.ink
-                font.family: theme.display
-                font.pixelSize: 26
-            }
-        }
-
-        KeyboardAction {
-            id: closeChapters
-            objectName: "audiobookCloseChapters"
-            x: parent.width - width - 17
-            y: 23
-            width: 32
-            height: 32
-            focusRadius: 12
-            accessibleName: qsTr("Close chapters")
-            tooltipText: accessibleName
-            onTriggered: root.chaptersOpen = false
-
-            Rectangle {
-                anchors.fill: parent
-                radius: 12
-                color: closeChapters.interactionActive ? theme.glassHi : theme.glassTint
-            }
-            Text {
-                anchors.centerIn: parent
-                text: "×"
-                color: theme.ink
-                font.pixelSize: 20
-            }
-        }
-
-        Rectangle {
-            x: 1
-            y: 92
-            width: parent.width - 2
-            height: 1
-            color: theme.edge
         }
 
         ListView {
             id: chapterView
+            readonly property int rowHeight: 34
             objectName: "audiobookChapterList"
-            x: 11; y: 105
-            width: parent.width - 22
-            height: Math.max(0, parent.height - y - 12)
+            anchors.fill: parent
             clip: true
             model: root.chapterList
             boundsBehavior: Flickable.StopAtBounds
@@ -254,13 +266,15 @@ Item {
                 required property int index
                 readonly property bool current: index === root.chapterIndex
                 objectName: "audiobookChapter_" + index
-                width: chapterView.width
-                height: 44
+                width: Math.max(0, chapterView.width - 8)
+                height: chapterView.rowHeight
                 focusOnPointer: false
                 focusRadius: 8
                 accessibleName: Data.text(modelData.label)
-                accessibleDescription: current ? qsTr("Playing now") : ""
-                enabled: root.session.ready
+                accessibleDescription: current ? qsTr("Playing now")
+                    : modelData.kind === "seek" && Number(modelData.time) > 0
+                      ? qsTr("Starts at %1").arg(Data.formatTime(modelData.time)) : ""
+                enabled: root.playbackReady
                 onTriggered: {
                     // Selecting the active file is a no-op unless playback has ended.
                     if (current && modelData.kind === "file" && !root.session.completed)
@@ -271,50 +285,60 @@ Item {
                 Rectangle {
                     objectName: "audiobookChapterHighlight_" + row.index
                     anchors.fill: parent
-                    anchors.margins: 1
-                    radius: 10
-                    color: row.current ? "#26f0c44a" : (row.interactionActive ? theme.glassTint : "transparent")
-
-                    Rectangle {
-                        visible: row.current
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 3
-                        height: parent.height - 12
-                        radius: 2
-                        color: theme.gold
-                    }
+                    radius: 8
+                    color: row.current || row.interactionActive ? "#18ffffff" : "transparent"
                 }
                 Text {
-                    x: 11
+                    x: 10
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.index + 1
+                    text: row.modelData.number || row.index + 1
                     color: row.current ? theme.gold : theme.inkDimmer
                     font.family: theme.ui
                     font.pixelSize: 11
-                    font.bold: row.current
                 }
                 Text {
-                    anchors { left: parent.left; leftMargin: 56; right: stamp.left; rightMargin: 8
-                              verticalCenter: parent.verticalCenter }
-                    text: Data.text(row.modelData.label)
-                    color: row.current ? theme.gold : theme.ink
+                    anchors.left: parent.left
+                    anchors.leftMargin: 44
+                    anchors.right: marker.left
+                    anchors.rightMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: row.accessibleName
+                    color: row.current ? theme.ink : theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 13
-                    font.bold: row.current
+                    font.pixelSize: 15
+                    font.weight: row.current ? Font.DemiBold : Font.Normal
+                    textFormat: Text.PlainText
                     elide: Text.ElideRight
                 }
-                Text {
-                    id: stamp
-                    objectName: "audiobookChapterTime_" + row.index
-                    visible: row.current || (row.modelData.kind === "seek" && Number(row.modelData.time) > 0)
-                    anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
-                    text: row.current ? qsTr("NOW") : Data.formatTime(row.modelData.time)
-                    color: row.current ? theme.gold : theme.inkDimmer
-                    font.family: theme.ui
-                    font.pixelSize: 11
+                Glyph {
+                    id: marker
+                    objectName: "audiobookChapterMarker_" + row.index
+                    anchors.right: parent.right
+                    anchors.rightMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: row.current
+                    width: 14
+                    height: 14
+                    ink: theme.gold
+                    path: "M5 10v4m5-8v12m5-10v8m5-6v4"
                 }
             }
         }
+    }
+
+    AudiobookControlBar {
+        id: bar
+        objectName: "audiobookListenBar"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: root.sideInset
+        anchors.rightMargin: root.sideInset
+        anchors.bottomMargin: 18
+        session: root.session
+        wide: true
+        playbackAvailable: root.playbackReady
+        bookTitle: root.bookTitle
+        coverSource: root.coverSource
     }
 }

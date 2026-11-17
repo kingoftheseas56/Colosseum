@@ -41,11 +41,11 @@ TestCase {
     SignalSpy { id: preview; signalName: "scrubPreviewed" }
     SignalSpy { id: commit; signalName: "scrubCommitted" }
     SignalSpy { id: chapters; signalName: "chaptersRequested" }
-    function make(compact) {
+    function make(compact, wide) {
         stub = createTemporaryObject(sessionComponent, tc)
         var c = Qt.createComponent("../../qml/audiobook/AudiobookControlBar.qml")
         compare(c.status, Component.Ready, c.errorString())
-        bar = createTemporaryObject(c, tc, {session:stub, compact:!!compact, width:compact ? 380 : 780, x:30, y:150})
+        bar = createTemporaryObject(c, tc, {session:stub, compact:!!compact, wide:!!wide, width:compact ? 380 : 780, x:30, y:150})
         verify(bar !== null)
         preview.target = bar; commit.target = bar; chapters.target = bar
         preview.clear(); commit.clear(); chapters.clear()
@@ -68,6 +68,45 @@ TestCase {
         ;["Back60", "Back10", "Play", "Fwd10", "Fwd60", "Undo", "PrevChapter", "NextChapter", "Speed", "Sleep", "Volume", "Mute", "Chapters", "Time", "ChapterLine", "BookLine", "EndsAt"].forEach(function(n) { verify(f(n).visible, n) })
         compare(bar.height, 126)
     }
+    function test_wideLayoutAndTimeMenu() {
+        make(false, true)
+        bar.bookTitle = "The Way of Kings"
+        compare(bar.height, 104)
+        verify(!f("Chapters").visible)
+        verify(f("Cover").visible)
+        compare(f("ChapterLabel").text, "Chapter 2 · Unity")
+        compare(f("BookTitle").text, "The Way of Kings")
+        var center = f("Play").mapToItem(bar, f("Play").width / 2, f("Play").height / 2)
+        compare(center.x, bar.width / 2)
+        verify(f("Speed").mapToItem(bar, 0, 0).x > center.x)
+        verify(f("ChapterLabel").mapToItem(bar, 0, 0).x < center.x)
+        verify(f("EndsAt").mapToItem(bar, 0, 0).y < 0)
+        var rail = f("ChapterLine")
+        verify(rail.width > bar.width * 0.8)
+        compare(f("BookLine").width, rail.width)
+        mouseClick(rail, rail.width * 0.25, rail.height / 2)
+        compare(names(), "markJumpOrigin,seekInChapter")
+        verify(Math.abs(stub.calls[1][1] - 0.25) < 0.01)
+        mouseClick(rail, rail.width / 2, rail.height / 2, Qt.RightButton)
+        tryCompare(f("Menu"), "opened", true)
+        mouseClick(f("Menu").itemAt(0))
+        compare(f("Time").text, "20:00")
+        f("TimeAction").forceActiveFocus()
+        keyClick(Qt.Key_Return)
+        tryCompare(f("Menu"), "opened", true)
+    }
+
+    function test_wideVolumeCanBeOpenedFromKeyboard() {
+        make(false, true)
+        f("Mute").forceActiveFocus(Qt.TabFocusReason)
+        tryCompare(f("VolumePopup"), "opened", true)
+        compare(f("VolumeSlider").orientation, Qt.Horizontal)
+        keyClick(Qt.Key_Up)
+        compare(f("VolumeSlider").activeFocus, true)
+        keyClick(Qt.Key_Home)
+        compare(stub.volume, 0)
+    }
+
     function test_skip60MarksFirst() { make(); mouseClick(f("Back60")); compare(names(), "markJumpOrigin,skipBook"); compare(stub.calls[1][1], -60) }
     function test_skip10DoesNotMark() { make(); mouseClick(f("Back10")); compare(names(), "skipBook"); compare(stub.calls[0][1], -10) }
     function test_forwardSkips() { make(); mouseClick(f("Fwd10")); mouseClick(f("Fwd60")); compare(names(), "skipBook,markJumpOrigin,skipBook"); compare(stub.calls[0][1], 10); compare(stub.calls[2][1], 60) }

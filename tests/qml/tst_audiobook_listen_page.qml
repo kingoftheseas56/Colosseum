@@ -90,16 +90,67 @@ TestCase {
 
     function test_titleAuthorAndNarratorShow() {
         makePage()
-        var song = find("vinylSongTitle")
-        verify(song !== null)
-        compare(song.text, "The Long Way")
-        var artist = find("vinylSongArtist")
-        verify(artist !== null)
-        verify(!visibleNamed("vinylSongAlbum"))
-        compare(artist.names.join(" "), "Becky Chambers")
-        var narrators = find("audiobookNarrators")
-        verify(narrators.visible)
-        compare(narrators.text, "Narrated by Rachel Dulude")
+        compare(find("audiobookIdentity").text, "Becky Chambers · The Long Way")
+        verify(find("audiobookNarrators").visible)
+        compare(find("audiobookNarrators").text, "Narrated by Rachel Dulude")
+    }
+
+    function test_backdropAndPoster() {
+        var cover = Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
+        makePage({id: "42", cover: String(cover)})
+        var backdrop = find("vinylBackdrop")
+        verify(backdrop.visible)
+        compare(String(backdrop.source), String(cover))
+        compare(backdrop.width, page.width)
+        compare(backdrop.height, page.height)
+        var poster = find("audiobookPoster")
+        verify(poster !== null)
+        compare(poster.width, 290)
+        compare(poster.height, 290)
+        compare(poster.x, 495)
+        compare(poster.y, 138)
+        var collections = find("audiobookAddToCollections")
+        verify(collections.visible)
+        compare(collections.reference.sourceId, "42")
+        compare(collections.reference.editionId, "audiobook")
+    }
+
+    function test_readAlongAvailabilityAndSignal() {
+        makePage()
+        var button = find("audiobookReadAlong")
+        verify(button !== null && button.visible)
+        verify(!button.enabled)
+        compare(button.opacity, 0.34)
+        var fired = 0
+        page.readAlongRequested.connect(function () { fired++ })
+        mouseClick(button)
+        compare(fired, 0)
+        page.ebookAvailable = true
+        verify(button.enabled)
+        compare(button.opacity, 1)
+        mouseClick(button)
+        compare(fired, 1)
+    }
+
+    function test_listenDownloadAndSaveSignals() {
+        makePage({}, {ready: false})
+        var button = find("audiobookPrimary")
+        verify(button !== null && button.visible)
+        compare(button.accessibleName, "Download")
+        var actions = []
+        page.downloadRequested.connect(function () { actions.push("download") })
+        page.listenRequested.connect(function () { actions.push("listen") })
+        page.saveToggled.connect(function () { actions.push("save") })
+        verify(!find("abBarPlay").enabled)
+        mouseClick(button)
+        page.downloaded = true
+        compare(button.accessibleName, "Listen")
+        verify(!find("abBarPlay").enabled)
+        mouseClick(button)
+        stub.ready = true
+        verify(find("abBarPlay").enabled)
+        mouseClick(find("audiobookSave"))
+        compare(actions.join(), "download,listen,save")
     }
 
     function test_noNarratorsMeansNoNarratorLine() {
@@ -109,14 +160,19 @@ TestCase {
 
     function test_bookTitleRemainsVisibleWithoutChapters() {
         makePage({}, { chapterModel: [] })
-        compare(find("vinylSongTitle").text, "The Long Way")
-        mouseClick(find("abBarChapters"))
+        compare(find("audiobookIdentity").text, "Becky Chambers · The Long Way")
+        mouseClick(find("audiobookChaptersButton"))
         verify(!visibleNamed("audiobookChapters"))
     }
 
-    function test_fullAudiobookBarReplacesVinylBar() {
+    function test_wideAudiobookBarHasNoChaptersButton() {
         makePage()
+        var bar = find("audiobookListenBar")
+        verify(bar !== null && bar.wide)
+        compare(bar.width, 1172)
+        compare(bar.height, 104)
         verify(visibleNamed("abBarSpeed"))
+        verify(!visibleNamed("abBarChapters"))
         compare(find("vinylPlayerBar"), null)
     }
 
@@ -128,14 +184,14 @@ TestCase {
     function test_chaptersButtonOpensChapterList() {
         makePage()
         verify(!visibleNamed("audiobookChapters"))
-        var button = find("abBarChapters")
+        var button = find("audiobookChaptersButton")
         verify(button !== null)
         mouseClick(button)
         verify(visibleNamed("audiobookChapterList"))
         var panel = find("audiobookChapters")
-        var poster = find("vinylSongPoster")
-        verify(panel.x > poster.mapToItem(page, poster.width, 0).x)
-        mouseClick(find("audiobookCloseChapters"))
+        var poster = find("audiobookPoster")
+        verify(panel.x + panel.width <= poster.x)
+        mouseClick(button)
         verify(!visibleNamed("audiobookChapters"))
     }
 
@@ -183,7 +239,7 @@ TestCase {
 
     function test_chapterTapJumpsAndCurrentIsHighlighted() {
         makePage()
-        mouseClick(find("abBarChapters"))
+        mouseClick(find("audiobookChaptersButton"))
         var current = find("audiobookChapterHighlight_0").color
         var other = find("audiobookChapterHighlight_2").color
         verify(current.a > 0, "current chapter row is highlighted")
@@ -204,15 +260,16 @@ TestCase {
                            { label: "Part 2", kind: "seek", index: 2, time: 400 }],
             position: 130
         })
-        mouseClick(find("abBarChapters"))
-        compare(find("vinylSongTitle").text, "The Long Way")
-        compare(find("abBarChapterLabel").text, "CHAPTER 2 · PART 1")
-        verify(!find("audiobookChapterTime_0").visible, "no start time shown when it is zero")
-        compare(find("audiobookChapterTime_1").text, "NOW")
-        compare(find("audiobookChapterTime_2").text, "6:40")
+        mouseClick(find("audiobookChaptersButton"))
+        compare(find("audiobookIdentity").text, "Becky Chambers · The Long Way")
+        compare(find("abBarChapterLabel").text, "Chapter 2 · Part 1")
+        verify(visibleNamed("audiobookChapterMarker_1"))
+        verify(!visibleNamed("audiobookChapterMarker_0"))
+        compare(find("audiobookChapter_2").accessibleDescription, "Starts at 6:40")
         stub.position = 410
-        tryCompare(find("abBarChapterLabel"), "text", "CHAPTER 3 · PART 2")
-        compare(find("audiobookChapterTime_1").text, "2:00")
+        tryCompare(find("abBarChapterLabel"), "text", "Chapter 3 · Part 2")
+        verify(visibleNamed("audiobookChapterMarker_2"))
+        verify(!visibleNamed("audiobookChapterMarker_1"))
     }
 
     function test_speedControlUsesSession() {
@@ -238,21 +295,9 @@ TestCase {
         compare(stub.sleepMinutes, 15)
     }
 
-    function test_noDescriptionOrSeriesHidesNotesColumn() {
-        makePage()
-        verify(!visibleNamed("audiobookNotes"))
-        makePage({ description: "A crew crosses the galaxy." })
-        verify(visibleNamed("audiobookNotes"))
-        compare(find("audiobookDescription").text, "A crew crosses the galaxy.")
-        verify(!find("audiobookSeriesLine").visible)
-        makePage({ seriesLine: "Wayfarers, book 1" })
-        verify(visibleNamed("audiobookNotes"))
-        compare(find("audiobookSeriesLine").text, "Wayfarers, book 1")
-        verify(!find("audiobookDescription").visible)
-    }
-
     function test_noVinylOnlyControlIsVisible() {
-        makePage({ description: "x" })
+        makePage({ description: "A crew crosses the galaxy.", seriesLine: "Wayfarers, book 1" })
+        verify(!visibleNamed("audiobookNotes"))
         verify(!visibleNamed("vinylBarVideo"), "video tool")
         verify(!visibleNamed("vinylBarQueue"), "queue tool")
         verify(!visibleNamed("vinylBarSources"), "source picker")
@@ -265,25 +310,25 @@ TestCase {
         verify(!visibleNamed("vinylLyricsColumn"))
         verify(!visibleNamed("vinylNotesColumn"))
         verify(!visibleNamed("vinylSongSources"))
-        verify(!find("vinylSongAlbum").enabled, "no album page to open")
+        verify(!visibleNamed("vinylSongAlbum"))
     }
 
     function test_backRequested() {
         makePage()
         var fired = 0
         page.backRequested.connect(function () { fired++ })
-        mouseClick(find("vinylSongBack"))
+        mouseClick(find("audiobookBack"))
         compare(fired, 1)
     }
 
     function test_bookMetadataAndChapterTimeMapping() {
         makePage({ title: "T", authors: ["A", "B"], narrators: ["N"] })
-        var edition = page.pageData.playingEdition
+        var edition = Data.edition(page.book)
         compare(edition.title, "T")
         compare(edition.artist, "A · B")
         compare(edition.narrators[0], "N")
-        compare(page.pageData.artwork("C:\\books\\t.jpg"), "file:///C:/books/t.jpg")
-        compare(page.pageData.artwork(""), "")
+        compare(Data.coverUrl("C:\\books\\t.jpg"), "file:///C:/books/t.jpg")
+        compare(Data.coverUrl(""), "")
         compare(Data.formatTime(3725), "1:02:05")
         compare(Data.formatTime(65), "1:05")
         compare(Data.edition({}).artist, "")

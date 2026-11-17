@@ -1,12 +1,21 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
+import "AudiobookListenPageData.js" as Data
 
 // One presentation surface for AudiobookSession. No playback, history or timer ownership here.
 Rectangle {
     id: root
     required property var session
     property bool compact: false
+    property bool wide: false
+    property bool playbackAvailable: true
+    property string bookTitle: ""
+    property url coverSource
+    readonly property bool wideLayout: wide && !compact
+    readonly property bool stackedWide: wideLayout && width < 620
+    readonly property int timelineY: wideLayout ? (stackedWide ? 116 : 70) : 39
+    readonly property int wideButtonSize: width < 340 ? 28 : 34
     property bool awake: true
     property bool showBookLine: !compact
     property bool showRemaining: true
@@ -15,12 +24,12 @@ Rectangle {
     signal scrubCommitted(real chapterFraction)
     signal chaptersRequested()
 
-    implicitWidth: compact ? 380 : 780
-    implicitHeight: compact ? 50 : 126
-    radius: compact ? 25 : 20
-    color: "#d911151e"
+    implicitWidth: compact ? 380 : wideLayout ? 1172 : 780
+    implicitHeight: compact ? 50 : wideLayout ? (stackedWide ? 150 : 104) : 126
+    radius: compact ? 25 : wideLayout ? 21 : 20
+    color: wideLayout ? "#19ffffff" : "#d911151e"
     border.width: 1
-    border.color: "#38ffffff"
+    border.color: wideLayout ? "#30ffffff" : "#38ffffff"
     opacity: !compact || awake ? 1 : 0
     visible: opacity > 0
     Behavior on opacity { NumberAnimation { duration: 160 } }
@@ -36,6 +45,8 @@ Rectangle {
         return chapter ? String(chapter.label || "") : ""
     }
     function fmt(seconds) {
+        if (wideLayout)
+            return Data.formatTime(seconds)
         var s = Math.max(0, Math.floor(Number(seconds) || 0))
         return Math.floor(s / 60) + ":" + (s % 60 < 10 ? "0" : "") + s % 60
     }
@@ -56,10 +67,12 @@ Rectangle {
     onCurrentChapterChanged: cancelScrub()
     onSessionChanged: cancelScrub()
     onCompactChanged: cancelScrub()
+    onWideChanged: cancelScrub()
+    onPlaybackAvailableChanged: if (!playbackAvailable) cancelScrub()
     onChapterDurationChanged: if (chapterDuration <= 0) cancelScrub()
     onVisibleChanged: if (!visible) cancelScrub()
     function beginScrub(x) {
-        if (compact || chapterDuration <= 0) return
+        if (compact || !playbackAvailable || chapterDuration <= 0) return
         scrubChapter = currentChapter
         scrubbing = true
         moveScrub(x)
@@ -105,13 +118,14 @@ Rectangle {
         property string badge: ""
         property bool hero: false
         property bool returnDot: false
-        property real size: root.compact ? 36 : 40
+        property real size: root.compact ? 36 : root.wideLayout ? root.wideButtonSize : 40
         property color ink: hero ? "#201a0d" : returnDot || badge !== "" ? "#f3d47b" : "#e3e2e8"
         width: size; height: size
         anchors.verticalCenter: parent.verticalCenter
         tooltipText: accessibleName
         spaceActivates: true
         focusRadius: hero ? size / 2 : 11
+        enabled: root.playbackAvailable
         contextEnabled: !root.compact
         onContextRequested: root.openMenu()
         readonly property var paths: ({
@@ -145,12 +159,17 @@ Rectangle {
         font.pixelSize: 12
         font.features: ({"tnum": 1})
     }
+    readonly property string wideChapterLabel: session.chapterIndex >= 0 && session.chapterIndex < session.chapterModel.length
+        ? qsTr("Chapter %1").arg(session.chapterIndex + 1) + (chapterName ? " · " + chapterName : "")
+        : qsTr("Audiobook")
+
     Item {
         id: status
         visible: !root.compact
         x: 18; y: 8; width: parent.width - 36; height: 24
         Text {
-            objectName: "abBarChapterLabel"
+            objectName: root.wideLayout ? "" : "abBarChapterLabel"
+            visible: !root.wideLayout
             anchors.left: parent.left; anchors.right: endsAt.left; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter
             text: "CHAPTER " + (root.session.chapterIndex + 1) + (root.chapterName ? " · " + root.chapterName.toUpperCase() : "")
             elide: Text.ElideRight
@@ -159,44 +178,75 @@ Rectangle {
         TimeLabel {
             id: endsAt
             objectName: "abBarEndsAt"
-            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-            visible: root.chapterDuration > 0
-            font.pixelSize: 11; font.letterSpacing: .6; color: theme.inkDimmer
+            anchors.right: parent.right
+            anchors.rightMargin: root.wideLayout ? -15 : 0
+            y: root.wideLayout ? -implicitHeight - 13 : (parent.height - height) / 2
+            visible: root.playbackAvailable && root.chapterDuration > 0
+            font.pixelSize: 11; font.letterSpacing: root.wideLayout ? 0 : .6; color: theme.inkDimmer
             text: "chapter ends " + Qt.formatTime(new Date(root.nowMs + root.remaining / Math.max(.01, root.session.speed) * 1000), "h:mm AP")
         }
     }
-    TimeLabel { visible: !root.compact; x: 18; y: 41; text: root.fmt(root.shownPosition) }
+    TimeLabel {
+        visible: !root.compact
+        x: 18
+        y: root.wideLayout ? root.timelineY + 3 : 41
+        width: root.wideLayout ? chapterLine.x - x - 10 : implicitWidth
+        horizontalAlignment: root.wideLayout ? Text.AlignRight : Text.AlignLeft
+        font.pixelSize: root.wideLayout ? 10 : 12
+        text: root.fmt(root.shownPosition)
+    }
     TimeLabel {
         id: time
         objectName: "abBarTime"
         visible: !root.compact
-        anchors.right: parent.right; anchors.rightMargin: 18; y: 41
+        anchors.right: parent.right; anchors.rightMargin: root.wideLayout ? 24 : 18
+        y: root.wideLayout ? root.timelineY + 3 : 41
+        font.pixelSize: root.wideLayout ? 10 : 12
         text: root.showRemaining ? "−" + root.fmt(root.chapterDuration - root.shownPosition) : root.fmt(root.chapterDuration)
         KeyboardAction {
             objectName: "abBarTimeAction"
             anchors.fill: parent
-            accessibleName: root.showRemaining ? "Show total duration" : "Show remaining time"
+            accessibleName: root.wideLayout ? qsTr("Time display options")
+                : root.showRemaining ? "Show total duration" : "Show remaining time"
             tooltipText: accessibleName
-            onTriggered: root.showRemaining = !root.showRemaining
+            contextEnabled: root.wideLayout
+            onContextRequested: moreMenu.popup(time, time.width - moreMenu.width, -moreMenu.height)
+            onTriggered: {
+                if (root.wideLayout)
+                    moreMenu.popup(time, time.width - moreMenu.width, -moreMenu.height)
+                else
+                    root.showRemaining = !root.showRemaining
+            }
         }
     }
     // In compact mode this same rail is strictly display-only and cannot take pointer/Tab input.
     Item {
         id: chapterLine
         objectName: "abBarChapterLine"
-        x: root.compact ? 22 : 70
-        y: root.compact ? 0 : 39
+        x: root.compact ? 22 : root.wideLayout ? 66 : 70
+        y: root.compact ? 0 : root.timelineY
         width: parent.width - (root.compact ? 44 : 140)
         height: root.compact ? 2 : 20
-        enabled: root.chapterDuration > 0
+        enabled: root.playbackAvailable && root.chapterDuration > 0
+        opacity: root.playbackAvailable ? 1 : 0.42
         focusPolicy: !root.compact && enabled ? Qt.TabFocus : Qt.NoFocus
         Accessible.role: root.compact ? Accessible.ProgressBar : Accessible.Slider
         Accessible.name: "Chapter progress"
         Rectangle {
-            x: 0; y: root.compact ? 0 : 10; width: parent.width; height: root.compact ? 2 : 3; radius: 2; color: "#35ffffff"
+            x: 0; y: root.compact ? 0 : root.wideLayout ? 7 : 10; width: parent.width; height: root.compact ? 2 : 3; radius: 2; color: "#35ffffff"
             Rectangle { width: parent.width * (root.scrubbing ? root.previewFraction : root.chapterFraction); height: parent.height; radius: 2; color: theme.gold }
         }
-        Rectangle { visible: !root.compact; x: chapterLine.width * (root.scrubbing ? root.previewFraction : root.chapterFraction) - 5.5; y: 6; width: 11; height: 11; radius: 5.5; color: theme.gold; border.width: 1; border.color: "#090a0f" }
+        Rectangle {
+            visible: !root.compact
+            x: chapterLine.width * (root.scrubbing ? root.previewFraction : root.chapterFraction) - width / 2
+            y: root.wideLayout ? 4.5 : 6
+            width: root.wideLayout ? 8 : 11
+            height: width
+            radius: width / 2
+            color: theme.gold
+            border.width: root.wideLayout ? 0 : 1
+            border.color: "#090a0f"
+        }
         MouseArea {
             anchors.fill: parent; enabled: !root.compact; cursorShape: Qt.PointingHandCursor
             onPressed: function(mouse) { chapterLine.forceActiveFocus(Qt.MouseFocusReason); root.beginScrub(mouse.x) }
@@ -220,7 +270,8 @@ Rectangle {
     Rectangle {
         objectName: "abBarBookLine"
         visible: root.showBookLine && !root.compact
-        x: chapterLine.x; y: 59; width: chapterLine.width; height: 2; radius: 2; color: "#1cffffff"
+        opacity: root.playbackAvailable ? 1 : 0.42
+        x: chapterLine.x; y: root.wideLayout ? root.timelineY + 14 : 59; width: chapterLine.width; height: 2; radius: 2; color: "#1cffffff"
         Rectangle { width: parent.width * root.clamp(root.session.bookFraction); height: 2; radius: 2; color: "#66f0c44a" }
         HoverHandler { id: bookHover }
         ToolTip.visible: bookHover.hovered
@@ -230,55 +281,131 @@ Rectangle {
 
     Item {
         id: transport
-        x: root.compact ? 10 : 18; y: root.compact ? 0 : 66
-        width: parent.width - (root.compact ? 20 : 36); height: root.compact ? 50 : 52
+        x: root.compact ? 10 : 18
+        y: root.compact ? 0 : root.wideLayout ? 12 : 66
+        width: parent.width - (root.compact ? 20 : 36)
+        height: root.compact ? 50 : root.wideLayout ? (root.stackedWide ? 96 : 44) : 52
+
+        Item {
+            visible: root.wideLayout
+            width: Math.max(0, root.stackedWide ? tools.x - 10 : controls.x - 10)
+            height: 44
+            RoundedPosterImage {
+                id: thumbnail
+                objectName: "abBarCover"
+                width: 44; height: 44; radius: 7
+                sources: parent.visible && root.coverSource.toString() ? [root.coverSource] : []
+            }
+            Column {
+                anchors.left: thumbnail.right
+                anchors.leftMargin: 12
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
+                TimeLabel {
+                    objectName: root.wideLayout ? "abBarChapterLabel" : ""
+                    width: parent.width
+                    text: root.wideChapterLabel
+                    textFormat: Text.PlainText
+                    elide: Text.ElideRight
+                    color: theme.ink
+                    font.weight: Font.DemiBold
+                }
+                TimeLabel {
+                    objectName: "abBarBookTitle"
+                    width: parent.width
+                    text: root.bookTitle
+                    textFormat: Text.PlainText
+                    elide: Text.ElideRight
+                    font.pixelSize: 10
+                }
+            }
+        }
+
         Row {
-            visible: !root.compact; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 6
+            id: speedTools
+            parent: root.wideLayout ? speedSlot : transport
+            visible: !root.compact
+            x: 0
+            height: root.wideLayout ? root.wideButtonSize : 40
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: root.wideLayout && root.width < 340 ? 2 : 6
             BarButton { objectName: "abBarSpeed"; label: root.session.speed + "×"; accessibleName: "Playback speed"; onTriggered: root.session.cycleSpeed() }
             BarButton { id: sleepButton; objectName: "abBarSleep"; icon: "moon"; badge: root.session.sleepMinutesLeft > 0 ? root.session.sleepMinutesLeft + "m" : ""; accessibleName: "Sleep timer"; onTriggered: sleepMenu.popup(sleepButton, 0, -sleepMenu.height) }
         }
         Row {
-            anchors.centerIn: parent
-            spacing: root.compact ? 2 : 6
-            height: root.compact ? 36 : 46
-            BarButton { objectName: "abBarPrevChapter"; visible: !root.compact; icon: "prev"; accessibleName: "Previous chapter"; enabled: root.session.chapterIndex > 0; onTriggered: root.chapter(-1) }
+            id: controls
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.alignWhenCentered: !root.wideLayout
+            anchors.verticalCenterOffset: root.stackedWide ? 26 : 0
+            spacing: root.compact || (root.wideLayout && root.width < 340) ? 2 : 6
+            height: root.compact ? 36 : root.wideLayout ? 44 : 46
+            BarButton { objectName: "abBarPrevChapter"; visible: !root.compact; icon: "prev"; accessibleName: "Previous chapter"; enabled: root.playbackAvailable && root.session.chapterIndex > 0; onTriggered: root.chapter(-1) }
             BarButton { objectName: "abBarBack60"; icon: "back"; seconds: "60"; accessibleName: "Back 1 minute"; onTriggered: root.skip(-60) }
             BarButton { objectName: "abBarBack10"; icon: "back"; seconds: "10"; accessibleName: "Back 10 seconds"; onTriggered: root.skip(-10) }
             Item {
-                width: root.compact ? 44 : 58; height: parent.height
-                BarButton { objectName: "abBarPlay"; x: root.compact ? 4 : 6; size: root.compact ? 36 : 46; hero: true; icon: root.session.paused ? "play" : "pause"; accessibleName: root.session.paused ? "Play audiobook" : "Pause audiobook"; onTriggered: root.session.togglePlay() }
+                width: root.compact ? 44 : root.wideLayout ? 51 : 58; height: parent.height
+                BarButton { objectName: "abBarPlay"; x: root.compact ? 4 : 6; size: root.compact ? 36 : root.wideLayout ? 39 : 46; hero: true; icon: root.session.paused ? "play" : "pause"; accessibleName: root.session.paused ? "Play audiobook" : "Pause audiobook"; onTriggered: root.session.togglePlay() }
             }
             BarButton { objectName: "abBarFwd10"; icon: "forward"; seconds: "10"; accessibleName: "Forward 10 seconds"; onTriggered: root.skip(10) }
             BarButton { objectName: "abBarFwd60"; icon: "forward"; seconds: "60"; accessibleName: "Forward 1 minute"; onTriggered: root.skip(60) }
-            BarButton { objectName: "abBarNextChapter"; visible: !root.compact; icon: "next"; accessibleName: "Next chapter"; enabled: root.session.chapterIndex + 1 < root.session.chapterModel.length; onTriggered: root.chapter(1) }
+            BarButton { objectName: "abBarNextChapter"; visible: !root.compact; icon: "next"; accessibleName: "Next chapter"; enabled: root.playbackAvailable && root.session.chapterIndex + 1 < root.session.chapterModel.length; onTriggered: root.chapter(1) }
         }
         Row {
-            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: 6
-            BarButton { objectName: "abBarUndo"; visible: root.session.canGoBack; icon: "undo"; returnDot: true; accessibleName: "Back to where I was"; onTriggered: root.session.backToPrevious() }
-            BarButton { objectName: "abBarChapters"; visible: !root.compact; icon: "list"; accessibleName: "Chapters"; onTriggered: root.chaptersRequested() }
+            id: tools
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: root.stackedWide ? -26 : 0
+            spacing: root.wideLayout && root.width < 340 ? 2 : 6
+            Item {
+                id: speedSlot
+                visible: root.wideLayout
+                width: speedTools.implicitWidth
+                height: speedTools.height
+            }
+            BarButton { objectName: "abBarUndo"; visible: root.playbackAvailable && root.session.canGoBack; icon: "undo"; returnDot: true; accessibleName: "Back to where I was"; onTriggered: root.session.backToPrevious() }
+            BarButton { objectName: "abBarChapters"; visible: !root.compact && !root.wideLayout; icon: "list"; accessibleName: "Chapters"; onTriggered: root.chaptersRequested() }
             Item {
                 id: volume
                 objectName: "abBarVolume"
-                visible: !root.compact; width: 40; height: 40; anchors.verticalCenter: parent.verticalCenter
+                visible: !root.compact; width: mute.size; height: mute.size; anchors.verticalCenter: parent.verticalCenter
+                enabled: root.playbackAvailable
+                onEnabledChanged: if (!enabled) volumePopup.close()
                 HoverHandler { id: volumeHover; onHoveredChanged: { if (hovered) { volumeClose.stop(); volumePopup.open() } else volumeClose.restart() } }
                 BarButton {
                     id: mute
                     objectName: "abBarMute"; icon: root.session.mute || root.session.volume <= 0 ? "mute" : "volume"
                     accessibleName: root.session.mute ? "Unmute" : "Mute"
+                    focusOnPointer: !root.wideLayout
                     onTriggered: root.session.mute = !root.session.mute
+                    onActiveFocusChanged: {
+                        if (!root.wideLayout)
+                            return
+                        if (activeFocus && enabled) {
+                            volumeClose.stop()
+                            volumePopup.open()
+                        } else {
+                            volumeClose.restart()
+                        }
+                    }
                     Keys.onUpPressed: { volumePopup.open(); volumeSlider.forceActiveFocus(Qt.TabFocusReason) }
                 }
                 Popup {
                     id: volumePopup
                     objectName: "abBarVolumePopup"
-                    x: 3; y: -108; width: 34; height: 104; padding: 8
+                    x: root.wideLayout ? volume.width - width + 4 : 3
+                    y: -height - 4
+                    width: root.wideLayout ? 117 : 34
+                    height: root.wideLayout ? 34 : 104
+                    padding: 8
                     background: Rectangle { radius: 12; color: "#f011151e"; border.width: 1; border.color: "#33ffffff" }
                     HoverHandler { id: popupHover; onHoveredChanged: { if (hovered) volumeClose.stop(); else volumeClose.restart() } }
                     Slider {
                         id: volumeSlider
                         objectName: "abBarVolumeSlider"
                         Accessible.name: "Volume"
-                        anchors.fill: parent; orientation: Qt.Vertical; from: 0; to: 100; stepSize: 5
+                        anchors.fill: parent; orientation: root.wideLayout ? Qt.Horizontal : Qt.Vertical; from: 0; to: 100; stepSize: 5
                         value: root.session.volume
                         onMoved: { root.session.volume = value; root.session.mute = false }
                         Keys.onPressed: function(event) {
@@ -288,11 +415,41 @@ Rectangle {
                                 event.accepted = true
                             }
                         }
-                        background: Rectangle { x: (volumeSlider.width - 3)/2; y: 4; width: 3; height: volumeSlider.height - 8; radius: 2; color: "#30ffffff"; Rectangle { anchors.bottom: parent.bottom; width: 3; height: parent.height * volumeSlider.position; color: "#d9d8de" } }
-                        handle: Rectangle { x: (volumeSlider.width - width)/2; y: volumeSlider.visualPosition * (volumeSlider.height - height); width: 9; height: 9; radius: 4.5; color: "#dfdfe3"; border.width: volumeSlider.activeFocus ? 2 : 0; border.color: theme.gold }
+                        background: Rectangle {
+                            x: root.wideLayout ? 4 : (volumeSlider.width - width) / 2
+                            y: root.wideLayout ? (volumeSlider.height - height) / 2 : 4
+                            width: root.wideLayout ? volumeSlider.width - 8 : 3
+                            height: root.wideLayout ? 3 : volumeSlider.height - 8
+                            radius: 2
+                            color: "#30ffffff"
+                            Rectangle {
+                                anchors.bottom: parent.bottom
+                                width: root.wideLayout ? parent.width * volumeSlider.position : 3
+                                height: root.wideLayout ? 3 : parent.height * volumeSlider.position
+                                color: root.wideLayout ? theme.gold : "#d9d8de"
+                            }
+                        }
+                        handle: Rectangle {
+                            x: root.wideLayout ? volumeSlider.visualPosition * (volumeSlider.width - width)
+                                               : (volumeSlider.width - width) / 2
+                            y: root.wideLayout ? (volumeSlider.height - height) / 2
+                                               : volumeSlider.visualPosition * (volumeSlider.height - height)
+                            width: 9; height: 9; radius: 4.5
+                            color: root.wideLayout ? theme.gold : "#dfdfe3"
+                            border.width: volumeSlider.activeFocus ? 2 : 0
+                            border.color: theme.gold
+                        }
                     }
                 }
-                Timer { id: volumeClose; interval: 180; onTriggered: if (!volumeHover.hovered && !popupHover.hovered && !volumeSlider.activeFocus) volumePopup.close() }
+                Timer {
+                    id: volumeClose
+                    interval: 180
+                    onTriggered: {
+                        if (!volumeHover.hovered && !popupHover.hovered && !volumeSlider.activeFocus
+                                && !(root.wideLayout && mute.activeFocus))
+                            volumePopup.close()
+                    }
+                }
             }
         }
     }
@@ -318,7 +475,11 @@ Rectangle {
     BarMenu {
         id: moreMenu
         objectName: "abBarMenu"
-        BarMenuItem { text: root.showRemaining ? "Show total duration" : "Show remaining time"; onTriggered: root.showRemaining = !root.showRemaining }
+        BarMenuItem {
+            text: !root.showRemaining ? qsTr("Show remaining time")
+                : root.wideLayout ? qsTr("Show total time") : qsTr("Show total duration")
+            onTriggered: root.showRemaining = !root.showRemaining
+        }
     }
     BarMenu {
         id: sleepMenu
