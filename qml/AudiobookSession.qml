@@ -34,6 +34,25 @@ Item {
     property bool completed: false
     readonly property bool multiFile: session.files.length > 1
     property var chapterModel: []
+    readonly property int chapterIndex: {
+        if (session.multiFile) return session.currentIndex
+        var index = 0
+        for (var i = 0; i < session.chapterModel.length; i++) {
+            if (Number(session.chapterModel[i].time) <= mpv.position) index = i
+        }
+        return index
+    }
+    readonly property real chapterStart: (!session.multiFile && session.chapterModel.length > 0) ? (Number(session.chapterModel[session.chapterIndex].time) || 0) : 0
+    readonly property real chapterEnd: (!session.multiFile && session.chapterIndex + 1 < session.chapterModel.length) ? (Number(session.chapterModel[session.chapterIndex + 1].time) || 0) : mpv.duration
+    readonly property real chapterPosition: Math.max(0, session.position - session.chapterStart)
+    readonly property real chapterDuration: Math.max(0, session.chapterEnd - session.chapterStart)
+    readonly property real bookFraction: session.multiFile ? session.overallProgress() : (session.duration > 0 ? session.position / session.duration : 0)
+
+    // Explicit user entry points mark origins; shared seeks and Follow never do.
+    property var jumpHistory: []
+    readonly property bool canGoBack: session.jumpHistory.length > 0
+    // Keep ReaderShell's shipped ladder and order; speed itself lives only in mpv.
+    property var speedLadder: [1.0, 1.25, 1.5, 1.75, 2.0, 0.75]
 
     // transport surface for the remotes (aliases ride mpv's own notify signals)
     property alias position: mpv.position
@@ -46,6 +65,7 @@ Item {
     // resume precision rides the load: a seek issued before the file is open NO-OPS
     // (PlayerPage's pendingSeekSec lesson) — park it here, apply in onFileLoaded.
     property real pendingResumeSec: -1
+    property real pendingResumeFromEndSec: -1
 
     // ── the engine (audio only; the mpv surface is never shown — cover art is the remotes' job) ──
     PlayerItem { id: mpv; objectName: "vinylHandoffAudiobookPlayer"; width: 1; height: 1; visible: false }
@@ -177,6 +197,8 @@ Item {
         var nextFiles = (typeof Audiobooks !== 'undefined') ? Audiobooks.localFiles(key) : []
         if (!nextFiles || nextFiles.length === 0) return
         if (session.ready) session.recordProgress()
+        if (session.activePairKey !== key) session.jumpHistory = []
+        session.pendingResumeFromEndSec = -1
         session.completed = false
         session.activePairKey = key
         session.book = b || ({})
@@ -209,6 +231,7 @@ Item {
         session.completed = false
         if (automatic !== true) session.requestAudioPlayback()
         session.activityBeginIfNeeded()
+        session.pendingResumeFromEndSec = -1
         session.pendingResumeSec = -1         // a deliberate jump cancels any in-flight resume seek
         session.currentIndex = i
         session.activityDiscontinuity(0)   // Activity (Lane E): file/chapter source switch
@@ -237,9 +260,51 @@ Item {
         session.activityDiscontinuity(target)   // Activity (Lane E): explicit seek
         mpv.seekExact(target)
     }
+    function seekInChapter(fraction: real) {
+        session.seekTo(session.chapterStart + Math.max(0, Math.min(1, fraction)) * session.chapterDuration)
+    }
+    function skipBook(deltaSec: real) {
+        // While a file is still loading mpv reports duration 0; a skip then must not read as
+        // "past the end" and jump a whole file. Ignore it until the length is known.
+        if (!(mpv.duration > 0) || session.pendingResumeSec >= 0 || session.pendingResumeFromEndSec >= 0) return
+        var target = mpv.position + deltaSec
+        if (session.multiFile && target < 0 && session.currentIndex > 0) {
+            session.playIndexKeepState(session.currentIndex - 1)
+            // The previous file's duration is unknown until it has loaded.
+            session.pendingResumeFromEndSec = -target
+        } else if (session.multiFile && target > mpv.duration && session.currentIndex + 1 < session.files.length) {
+            var overflow = target - mpv.duration
+            session.playIndexKeepState(session.currentIndex + 1)
+            session.pendingResumeSec = overflow
+        } else {
+            session.seekTo(Math.max(0, Math.min(mpv.duration, target)))
+        }
+    }
+    function markJumpOrigin() {
+        var history = session.jumpHistory.slice()
+        var last = history.length > 0 ? history[history.length - 1] : null
+        if (last && last.fileIndex === session.currentIndex && last.position === session.position) return
+        history.push({ fileIndex: session.currentIndex, position: session.position })
+        if (history.length > 10) history.shift()
+        session.jumpHistory = history
+    }
+    function backToPrevious() {
+        if (!session.canGoBack) return
+        var history = session.jumpHistory.slice()
+        var entry = history.pop()
+        session.jumpHistory = history
+        if (entry.fileIndex !== session.currentIndex) {
+            session.playIndexKeepState(entry.fileIndex)
+            session.pendingResumeSec = entry.position
+        } else {
+            // seekTo owns terminal reloads and replacement of an in-flight resume.
+            session.seekTo(entry.position)
+        }
+    }
     function seekTo(t) {
         var target = Math.max(0, t)
-        if (session.pendingResumeSec >= 0) {
+        if (session.pendingResumeSec >= 0 || session.pendingResumeFromEndSec >= 0) {
+            session.pendingResumeFromEndSec = -1
             // ReaderShell selects a chapter then seeks to a passage before load
             // completes. The latest request owns the eventual native seek.
             session.pendingResumeSec = target
@@ -275,6 +340,7 @@ Item {
         session.completed = false
         session.activityBeginIfNeeded()
         session.pendingResumeSec = -1
+        session.pendingResumeFromEndSec = -1
         session.currentIndex = i
         session.activityDiscontinuity(0)   // Activity (Lane E): file/chapter source switch
         mpv.loadSource(session.files[i])
@@ -289,6 +355,18 @@ Item {
             session.seekTo(Number(ch.time) || 0)   // a seek already preserves play state
         }
     }
+    function cycleSpeed() {
+        var ladder = session.speedLadder
+        if (ladder.length === 0) return
+        var next = ladder[0]
+        for (var i = 0; i < ladder.length; i++) {
+            if (Math.abs(ladder[i] - mpv.speed) < 0.01) {
+                next = ladder[(i + 1) % ladder.length]
+                break
+            }
+        }
+        mpv.speed = next
+    }
     function setRate(r) { mpv.speed = r }
     // a real close ends the stream for good (minimize never calls this — remotes just drop away)
     function stop() {
@@ -298,6 +376,8 @@ Item {
         session.activityEndSession()   // Activity (Lane E): real close ends the session
         mpv.stopPlayback()
         session.pendingResumeSec = -1
+        session.pendingResumeFromEndSec = -1
+        session.jumpHistory = []
         session.ready = false
         session.completed = false
         session.activePairKey = ""
@@ -318,6 +398,7 @@ Item {
                 session.activityNaturalEof()   // Activity (Lane E): final-file EOF completes once
                 session.completed = true
                 session.pendingResumeSec = -1
+                session.pendingResumeFromEndSec = -1
                 session.sleepMinutes = 0
                 mpv.pause = true
                 session.recordProgress()       // preserve completion after mpv unloads duration/position
@@ -326,6 +407,10 @@ Item {
         function onFileLoaded() {
             if (!session.ready) return
             if (session.audioHandoffPaused) mpv.pause = true
+            if (session.pendingResumeFromEndSec >= 0) {
+                session.pendingResumeSec = Math.max(0, mpv.duration - session.pendingResumeFromEndSec)
+                session.pendingResumeFromEndSec = -1
+            }
             if (session.pendingResumeSec >= 0) {
                 // apply the parked resume seek — and SKIP this heartbeat: mpv.position is
                 // still ~0 here (the seek lands async), so recording now would overwrite
@@ -374,7 +459,7 @@ Item {
         return (session.currentIndex + frac) / session.files.length
     }
     function recordProgress() {
-        if (session.pendingResumeSec >= 0) return   // resume not applied yet — the store's spot is still the truth
+        if (session.pendingResumeSec >= 0 || session.pendingResumeFromEndSec >= 0) return   // resume not applied yet — the store's spot is still the truth
         if (!session.ready || typeof Progress === 'undefined' || !session.activePairKey) return
         Progress.record({
             "kind": "audiobook", "id": session.activePairKey,
@@ -403,9 +488,22 @@ Item {
 
     // ── sleep timer (lives here so it survives the page being minimized) ──
     property int sleepMinutes: 0            // 0 = off
+    property real sleepEndsAtMs: 0
+    property real sleepNowMs: Date.now()
+    readonly property int sleepMinutesLeft: session.sleepMinutes > 0 ? Math.max(0, Math.ceil((session.sleepEndsAtMs - session.sleepNowMs) / 60000)) : 0
+    onSleepMinutesChanged: {
+        session.sleepNowMs = Date.now()
+        session.sleepEndsAtMs = session.sleepMinutes > 0 ? session.sleepNowMs + session.sleepMinutes * 60000 : 0
+    }
     Timer {
         interval: session.sleepMinutes * 60000
         running: session.sleepMinutes > 0
-        onTriggered: { mpv.pause = true; session.sleepMinutes = 0 }
+        onTriggered: { mpv.pause = true; session.recordProgress(); session.sleepMinutes = 0 }
+    }
+    Timer {
+        interval: 15000
+        running: session.sleepMinutes > 0
+        repeat: true
+        onTriggered: session.sleepNowMs = Date.now()
     }
 }

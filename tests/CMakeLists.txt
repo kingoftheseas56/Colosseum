@@ -58,6 +58,9 @@ if(COLOSSEUM_FERIA_TEST_NODE)
     add_test(NAME colosseum.audiobook_recording_session
         COMMAND "${COLOSSEUM_FERIA_TEST_NODE}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/audiobook_torrent_transport/session_recording_test.mjs")
+    add_test(NAME colosseum.audiobook_player_session
+        COMMAND "${COLOSSEUM_FERIA_TEST_NODE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/audiobook_torrent_transport/session_player_test.mjs")
     foreach(test_name feria_playback feria_resume feria_resume_repairs feria_connectors feria_youtube_music)
         add_test(NAME colosseum.${test_name}_test
             COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}_test.mjs")
