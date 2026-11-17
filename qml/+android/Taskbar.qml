@@ -8,6 +8,11 @@ Item {
     objectName: "colosseumTaskbar"
     anchors.fill: parent
     property bool open: false
+    property bool localMediaAvailable: false
+    property Item pickerScene
+    property var pickerPicks: ({})
+    property bool pickerReducedMotion: false
+    readonly property bool pickerShown: false
     property bool collectionsActive: false
     readonly property int leftEdge: 18
     readonly property int bottomGap: 16
@@ -25,6 +30,9 @@ Item {
     signal switchRequested(string id)
     signal closeRequested(string id)
     signal startClicked()
+    signal pickerPickRequested(string medium, var entry)
+    signal pickerWallpaperRequested()
+    signal pickerFilesDropped(var urls)
     signal openMediaClicked()
     signal openRecentRequested()
     signal watchPartyJoinClicked()

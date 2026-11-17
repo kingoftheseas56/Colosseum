@@ -1224,6 +1224,7 @@ Window {
     }
     CollectionsUi.CollectionsPanel {
         id: collectionsPanel
+        parent: dockScene
         anchors.fill: parent
         z: 58.6
         onMinimizeRequested: win.minimizeShell()
@@ -2859,6 +2860,7 @@ Window {
 
     Loader {
         id: yourFeriaLayer
+        parent: dockScene
         objectName: "yourFeriaLayer"
         anchors.fill: parent
         z: 58.5
@@ -3903,6 +3905,36 @@ Window {
         else if (r.family === "video") win.openLocalVideoSession(win.videoTargetFor(r.path, r.vaultId, r.title))
     }
     readonly property bool localMediaAvailable: typeof LocalLaunch !== "undefined" && LocalLaunch !== null
+    function openDockPick(medium, entry) {
+        if (!entry) return
+        const raw = entry.raw || entry
+        switch (medium) {
+        case "manga": win.openSeries(entry.title, entry.id); break
+        case "comics": win.openComicSeries({
+            id: raw.locgId || raw.locg_id || entry.id || "",
+            title: entry.title, cover: entry.cover, locgMeta: raw
+        }); break
+        case "books": win.openBook(raw); break
+        case "audiobooks": win.routeDownloadedAudiobook(raw); break
+        case "anime":
+        case "tv":
+        case "movies": win.openTheatreSeries(raw); break
+        case "tributes": win.openTribute(raw); break
+        }
+    }
+    function openDroppedMedia(urls) {
+        if (!win.localMediaAvailable || !urls || !urls.length) return false
+        var files = []
+        var anyFolder = false
+        for (var i = 0; i < urls.length; i++) {
+            var url = String(urls[i])
+            if (LocalLaunch.isDir(url)) anyFolder = true
+            else files.push(url)
+        }
+        if (files.length === 0 && anyFolder) win.showFolderDropExplain()
+        else win.openLocalMedia(files)
+        return true
+    }
     function openLocalMedia(paths) {
         if (!paths || !paths.length) return
         if (!win.localMediaAvailable) return
@@ -4325,8 +4357,15 @@ Window {
     // =====================================================================
     // BACKDROP — the persistent wallpaper everything composites over.
     // =====================================================================
+    // The launcher captures this scene once, below the taskbar and modal layers.
+    Item {
+        id: dockScene
+        anchors.fill: parent
+    }
+
     Item {
         id: wall
+        parent: dockScene
         anchors.fill: parent
         // Not painted while the player is up. The player layer is opaque (PlayerPage draws a
         // full-bleed black Rectangle at z:-1) and does not fade, so nothing below it is ever
@@ -4354,7 +4393,7 @@ Window {
             active: win.wallpaperIsNative && win.nativeWallpaperFile(win.wallpaperSource).length > 0
             source: active ? win.nativeWallpaperFile(win.wallpaperSource) : ""
             onLoaded: item.running = Qt.binding(function() {
-                return !win.immersiveSurfaceOpen && win.visibility !== Window.Minimized
+                return !win.immersiveSurfaceOpen && !taskbar.pickerShown && win.visibility !== Window.Minimized
             })
         }
         // Global vignette so chrome + text read against the wallpaper, bright or dark.
@@ -4405,6 +4444,7 @@ Window {
     TopBar {
         onAccountClicked: (anchorRight, anchorBottom) => accountFlyout.toggleAt(anchorRight, anchorBottom)
         id: topbar
+        parent: dockScene
         z: 20
         visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === ""
         backdrop: wall
@@ -4545,6 +4585,7 @@ Window {
     // ---- pinned top bar is above; everything below SCROLLS (vertical wheel/drag) ----
     Flickable {
         id: page
+        parent: dockScene
         objectName: "homePageFlickable"
         z: 0
         visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === "" && !collectionsPanel.showing
@@ -4991,6 +5032,7 @@ Window {
     ListModel { id: openModes }
     Item {
         id: worldStack
+        parent: dockScene
         visible: !collectionsPanel.showing
         anchors.fill: parent
         anchors.leftMargin: win.wideWorldNavigationLeftInset
@@ -5237,6 +5279,7 @@ Window {
 
     Loader {
         id: genreLayer
+        parent: dockScene
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
         z: 45
@@ -5262,6 +5305,7 @@ Window {
     //      its page over the index. ----
     Loader {
         id: genreIndexLayer
+        parent: dockScene
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
         z: 44
@@ -5284,6 +5328,7 @@ Window {
     // later-declared BiblioGenrePage paints over it when both are up.
     Loader {
         id: biblioGenreIndexLayer
+        parent: dockScene
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
         z: 46
@@ -5304,6 +5349,7 @@ Window {
 
     Loader {
         id: biblioGenreLayer
+        parent: dockScene
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
         z: 46
@@ -5329,6 +5375,7 @@ Window {
 
     Loader {
         id: theatreGenreLayer
+        parent: dockScene
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
         z: 48
@@ -5356,6 +5403,7 @@ Window {
 
     Loader {
         id: theatreGenreIndexLayer
+        parent: dockScene
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
         z: 47
@@ -5381,6 +5429,7 @@ Window {
     // ---- series detail layer: opened from a Top-10 title tile, sits OVER the world page ----
     Loader {
         id: seriesLayer
+        parent: dockScene
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a manga opened from a universe stacks on top, back returns to the universe
@@ -5460,6 +5509,7 @@ Window {
     // ---- western-comics detail layer: the GetComics shelf (ComicSeries), over the world ----
     Loader {
         id: westernLayer
+        parent: dockScene
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a comic opened from a universe stacks on top, back returns to the universe
@@ -5511,6 +5561,7 @@ Window {
     //      attached (peer of westernLayer) ----
     Loader {
         id: comicSeriesLayer
+        parent: dockScene
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
         z: 50
@@ -5550,6 +5601,7 @@ Window {
     // trial shows nothing but pages — no world chrome, no identity tells.
     Loader {
         id: bakeoffStripLayer
+        parent: dockScene
         anchors.fill: parent
         z: 200
         active: false
@@ -5562,6 +5614,7 @@ Window {
     //      opens its detail OVER the backlog and back returns here. ----
     Loader {
         id: continueSeeAllLayer
+        parent: dockScene
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
         z: 49
@@ -5587,6 +5640,7 @@ Window {
     //      (tile → LOCG series list via openComicSeries) ----
     Loader {
         id: locgPublisherLayer
+        parent: dockScene
         anchors.fill: parent
         z: 50
         active: false
@@ -5607,6 +5661,7 @@ Window {
     // ---- GetComics Archives board layer: the publisher/franchise taxonomy ----
     Loader {
         id: comicBoardLayer
+        parent: dockScene
         anchors.fill: parent
         z: 49
         active: false
@@ -5626,6 +5681,7 @@ Window {
     //      (below the series detail, so a picked series opens OVER it) ----
     Loader {
         id: comicIndexLayer
+        parent: dockScene
         anchors.fill: parent
         z: 49
         active: false
@@ -5653,6 +5709,7 @@ Window {
     // ---- Theatre detail layer: opened from a Theatre tile, sits OVER the world page ----
     Loader {
         id: theatreSeriesLayer
+        parent: dockScene
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a film/show opened from a universe stacks on top, back returns to the universe
@@ -5723,6 +5780,7 @@ Window {
     // ---- video player layer: above every detail/series layer (mpv under house glass) ----
     Loader {
         id: playerLayer
+        parent: dockScene
         objectName: "playerPageLoader"
         anchors.fill: parent
         z: 60
@@ -5778,6 +5836,7 @@ Window {
     // ---- book detail layer: Biblio's OWN dust-jacket page over the world (above series) ----
     Loader {
         id: bookLayer
+        parent: dockScene
         objectName: "biblioBookRouteState"
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
@@ -5829,6 +5888,7 @@ Window {
 
     Loader {
         id: bookReaderLayer
+        parent: dockScene
         anchors.fill: parent
         z: 58
         active: false
@@ -5859,6 +5919,7 @@ Window {
     // injected VaultPageStore — no series page behind it (execution plan Slice 8). ----
     Loader {
         id: vaultComicLayer
+        parent: dockScene
         anchors.fill: parent
         z: 57
         active: false
@@ -5887,6 +5948,7 @@ Window {
     // ---- generic world search layer: Tankoban + Theatre (SearchSurface + their own source) ----
     Loader {
         id: worldSearchLayer
+        parent: dockScene
         anchors.fill: parent
         z: 51
         active: false
@@ -5909,6 +5971,7 @@ Window {
     // ---- search layer: Biblio's search surface over the world (below the book detail) ----
     Loader {
         id: searchLayer
+        parent: dockScene
         anchors.fill: parent
         z: 51
         active: false
@@ -5957,6 +6020,7 @@ Window {
     // ---- Downloads page: unified local-media vault, entered from the taskbar ----
     Loader {
         id: downloadsLayer
+        parent: dockScene
         objectName: "downloadsLayer"
         anchors.fill: parent
         anchors.leftMargin: win.wideWorldNavigationLeftInset
@@ -5996,6 +6060,7 @@ Window {
     // picker; the folder-scan ingest lands in Slice 11.
     Loader {
         id: vaultLayer
+        parent: dockScene
         objectName: "vaultLayer"
         anchors.fill: parent
         z: 56
@@ -6051,6 +6116,7 @@ Window {
     // ---- Universes: extension-backed bespoke pages + generic fallback ----
     Loader {
         id: universeLayer
+        parent: dockScene
         objectName: "universeLayer"
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
@@ -6159,6 +6225,7 @@ Window {
 
     Loader {
         id: onePieceArcLayer
+        parent: dockScene
         anchors.fill: parent
         z: 52.5
         active: false
@@ -6187,6 +6254,7 @@ Window {
     // ---- Feria: its own native app, entered from the taskbar. ----
     Loader {
         id: feriaLayer
+        parent: dockScene
         objectName: "feriaLayer"
         anchors.fill: parent
         z: 58
@@ -6274,6 +6342,7 @@ Window {
     // parses FeriaSessionDeck.qml. Shell-side faces below stay null-safe while inactive.
     Loader {
         id: feriaSessionDeck
+        parent: dockScene
         objectName: "feriaSessionDeck"
         active: win.feriaAvailable && !win.feriaComingSoon && win.feriaRuntimeReady
         // Required properties must exist during construction; onLoaded is too late.
@@ -6337,6 +6406,7 @@ Window {
     // the embedded world's geometry and anchors remain its saved restore point.
     Item {
         id: feriaFullSizeSurface
+        parent: dockScene
         objectName: "feriaFullSizeSurface"
         anchors.fill: parent
         anchors.topMargin: feriaConsentSurface.height
@@ -6345,6 +6415,7 @@ Window {
     }
     Item {
         id: feriaConsentSurface
+        parent: dockScene
         objectName: "feriaConsentSurface"
         anchors { left: parent.left; right: parent.right; top: parent.top }
         height: !feriaSessionDeck.activeEntry || !feriaSessionDeck.activeEntry.hostWindow
@@ -6357,6 +6428,7 @@ Window {
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----
     Loader {
         id: extensionsLayer
+        parent: dockScene
         objectName: "extensionsLayer"
         anchors.fill: parent
         z: 58     // full-page cover
@@ -6387,6 +6459,7 @@ Window {
     // ---- Sync Center: the approved tracker catalogue and profile-owned controls ----
     Loader {
         id: syncCenterLayer
+        parent: dockScene
         objectName: "syncCenterLayer"
         anchors.fill: parent
         z: 58
@@ -6413,6 +6486,7 @@ Window {
 
     Loader {
         id: historyStatsLayer
+        parent: dockScene
         objectName: "historyStatsLayer"
         anchors.fill: parent
         z: 58
@@ -6446,6 +6520,7 @@ Window {
     // ---- Update page: the release chronicle, entered from the permanent taskbar item ----
     Loader {
         id: updateLayer
+        parent: dockScene
         objectName: "updateLayer"
         anchors.fill: parent
         z: 58
@@ -6537,8 +6612,25 @@ Window {
     // ---- the OS-shell taskbar: auto-hidden switcher over everything (under the boot splash) ----
     readonly property int theatreSourcesDockInset: taskbar.visible ? taskbar.closedSize + taskbar.bottomGap : 0
 
+    DockPickerCatalog {
+        id: dockCatalog
+        active: taskbar.pickerShown
+        installedAddons: win.installedExtensions
+        installedUniverses: win.installedUniverses
+        showExplicit: contentPreferences.showExplicit
+    }
+
     Taskbar {
         id: taskbar
+        pickerScene: dockScene
+        pickerPicks: dockCatalog.picks
+        pickerReducedMotion: win.reducedMotion
+        onPickerPickRequested: (medium, entry) => {
+            const open = () => win.openDockPick(medium, entry)
+            if (!win.guardNamedCollectionsNavigation(open)) open()
+        }
+        onPickerWallpaperRequested: win.openWallpaperSearch(win.currentSurface)
+        onPickerFilesDropped: urls => win.openDroppedMedia(urls)
         localMediaAvailable: win.localMediaAvailable
         z: 900
         onFeedbackClicked: win.openFeedback()
@@ -6572,11 +6664,23 @@ Window {
                                      ? WatchPartyUi.errorCategory : "unavailable"
         downloadsBadge: win.totalActiveDownloads
         downloadsActive: downloadsLayer.active
-        onDownloadsClicked: !downloadsLayer.active ? win.openDownloadsPage() : win.closeDownloadsPage()
+        onDownloadsClicked: {
+            if (taskbar.pickerShown) taskbar.open = false
+            if (!downloadsLayer.active) win.openDownloadsPage()
+            else win.closeDownloadsPage()
+        }
         collectionsActive: collectionsPanel.showing
-        onCollectionsClicked: collectionsPanel.showing ? win.closeNamedCollectionsPage() : win.openNamedCollectionsPage()
+        onCollectionsClicked: {
+            if (taskbar.pickerShown) taskbar.open = false
+            if (collectionsPanel.showing) win.closeNamedCollectionsPage()
+            else win.openNamedCollectionsPage()
+        }
         vaultActive: vaultLayer.active
-        onVaultClicked: !vaultLayer.active ? win.openVaultPage() : win.closeVaultPage()
+        onVaultClicked: {
+            if (taskbar.pickerShown) taskbar.open = false
+            if (!vaultLayer.active) win.openVaultPage()
+            else win.closeVaultPage()
+        }
         extensionsActive: extensionsLayer.active
         onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
         historyStatsActive: historyStatsLayer.active || yourFeriaLayer.active
@@ -6720,23 +6824,11 @@ Window {
     // media file here. A dropped FOLDER explains + offers the picker (the folder gesture is Slice 10).
     DropArea {
         id: appFileDrop
+        parent: dockScene
         anchors.fill: parent
         z: 5
         keys: ["text/uri-list"]
-        onDropped: (drop) => {
-            if (!win.localMediaAvailable) { drop.accepted = false; return }
-            if (!drop.hasUrls) { drop.accepted = false; return }
-            var files = []
-            var anyFolder = false
-            for (var i = 0; i < drop.urls.length; i++) {
-                var u = "" + drop.urls[i]
-                if (LocalLaunch.isDir(u)) anyFolder = true
-                else files.push(u)
-            }
-            drop.accepted = true
-            if (files.length === 0 && anyFolder) { win.showFolderDropExplain(); return }
-            win.openLocalMedia(files)
-        }
+        onDropped: drop => drop.accepted = drop.hasUrls && win.openDroppedMedia(drop.urls)
     }
 
     Shortcut {

@@ -23,19 +23,27 @@ Item {
     property var groups: (typeof Sessions !== "undefined") ? (Sessions.revision, Sessions.groups()) : []
     property string activeId: (typeof Sessions !== "undefined") ? Sessions.activeId : ""
     property bool open: false
+    property Item pickerScene
+    property var pickerPicks: ({})
+    property bool pickerReducedMotion: false
+    readonly property bool pickerShown: visible && open && !autoRevealed && !!pickerScene
+    readonly property real pickerWidth: Math.min(1040, Math.max(0, width - leftEdge * 2))
     property bool localMediaAvailable: typeof LocalLaunch !== "undefined" && LocalLaunch !== null
     readonly property string localMediaUnavailableReason: qsTr("Local file import is unavailable. Open downloaded media from Downloads.")
     readonly property int leftEdge: Math.max(18, Math.min(80, parent.width * 0.045))
     readonly property int bottomGap: 16
     readonly property int closedSize: 64
     readonly property real contentBottomInset: visible ? height - dock.y : 0
-    // Permanent buttons: Colosseum, Vault, and Your Collections.
-    readonly property int closedWidth: 190
+    // Permanent buttons: Colosseum, Vault, Collections, Downloads.
+    readonly property int closedWidth: pickerScene ? 250 : 190
     Keys.onPressed: (event) => spatialNav.handle(event)
 
     signal switchRequested(string id)
     signal closeRequested(string id)
     signal startClicked()
+    signal pickerPickRequested(string medium, var entry)
+    signal pickerWallpaperRequested()
+    signal pickerFilesDropped(var urls)
     signal openMediaClicked()             // Open Media… — hand the app a local file (Slice 8)
     signal watchPartyJoinClicked()        // Accountless/signed-in Room ID entry outside Player 1
     // Slice 6 Lanista scalars: bound by Main.qml to the outside-player Join sheet.
@@ -61,6 +69,7 @@ Item {
     // Third-party trackers (the Sync Center) live in the TopBar's right cluster, not here.
 
     onOpenChanged: if (!open) fan.visible = false
+    onPickerShownChanged: if (pickerShown) picker.forceActiveFocus(Qt.PopupFocusReason)
     property bool pendingAutoReveal: false
     onVisibleChanged: {
         if (!visible) open = false
@@ -77,6 +86,7 @@ Item {
             return
         }
         pendingAutoReveal = false
+        if (pickerShown) return
         open = true
         autoRevealed = true
         idleTimer.restart()
@@ -88,7 +98,9 @@ Item {
         if (!bar.open)
             bar.open = true
         Qt.callLater(function() {
-            if (historyStatsInput.visible && historyStatsInput.enabled)
+            if (bar.pickerShown)
+                picker.focusActivity()
+            else if (historyStatsInput.visible && historyStatsInput.enabled)
                 historyStatsInput.forceActiveFocus(Qt.TabFocusReason)
         })
     }
@@ -133,16 +145,65 @@ Item {
         return group.icon || ""
     }
 
+    Loader {
+        anchors.fill: parent
+        active: bar.pickerShown
+        sourceComponent: Component {
+            DockBackdrop {
+                scene: bar.pickerScene
+                onDismissed: {
+                    if (fan.visible) fan.visible = false
+                    else bar.open = false
+                }
+            }
+        }
+    }
+
+    DockPicker {
+        id: picker
+        z: 1
+        visible: bar.pickerShown
+        enabled: visible
+        x: bar.leftEdge
+        y: dock.y - height - 12
+        width: bar.pickerWidth
+        height: Math.max(0, Math.min(520, dock.y - 12 - 20))
+        picks: bar.pickerPicks
+        reducedMotion: bar.pickerReducedMotion
+        mediaAvailable: bar.localMediaAvailable
+        activityLabel: bar.activityLabel
+        onPickRequested: (medium, entry) => {
+            bar.open = false
+            bar.pickerPickRequested(medium, entry)
+        }
+        onWallpaperRequested: {
+            bar.open = false
+            bar.pickerWallpaperRequested()
+        }
+        onFilesDropped: urls => {
+            bar.open = false
+            bar.pickerFilesDropped(urls)
+        }
+        onChooseFilesRequested: { bar.open = false; bar.openMediaClicked() }
+        onRecentRequested: { bar.open = false; bar.openRecentRequested() }
+        onJoinRequested: { bar.open = false; bar.watchPartyJoinClicked() }
+        onExtensionsRequested: { bar.open = false; bar.extensionsClicked() }
+        onActivityRequested: { bar.open = false; bar.historyStatsClicked() }
+    }
+
     Rectangle {
         id: dock
+        z: 2
         objectName: "taskbarDock"
         x: bar.leftEdge
         y: parent.height - height - bar.bottomGap
-        width: bar.open ? Math.min(parent.width - (bar.leftEdge * 2), 1720) : bar.closedWidth
+        width: bar.pickerShown ? bar.pickerWidth
+             : bar.open ? Math.min(parent.width - (bar.leftEdge * 2), 1720) : bar.closedWidth
         height: bar.closedSize
         radius: bar.open ? 18 : bar.closedSize / 2
         clip: true
-        color: startInput.interactionActive || bar.open ? Qt.rgba(0.02, 0.02, 0.04, 0.94)
+        color: bar.pickerShown ? "#7210141c"
+             : startInput.interactionActive || bar.open ? Qt.rgba(0.02, 0.02, 0.04, 0.94)
                                                  : Qt.rgba(0.02, 0.02, 0.03, 0.72)
         border.width: 1
         border.color: startInput.interactionActive ? Qt.rgba(0.94, 0.76, 0.35, 0.56)
@@ -274,7 +335,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
+                visible: bar.open && !bar.pickerShown
                 Rectangle {
                     anchors.fill: parent
                     radius: 13
@@ -345,7 +406,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
+                visible: bar.open && !bar.pickerShown
                 readonly property bool atlasActive: bar.watchPartyJoinOpen
 
                 Rectangle {
@@ -398,7 +459,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
+                visible: bar.open || !!bar.pickerScene
                 activeFocusOnTab: visible
                 Accessible.role: Accessible.Button
                 Accessible.name: "Downloads"
@@ -453,7 +514,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
+                visible: bar.open && !bar.pickerShown
                 activeFocusOnTab: visible
                 Accessible.role: Accessible.Button
                 Accessible.name: "Extensions"
@@ -499,7 +560,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
+                visible: bar.open && !bar.pickerShown
                 Rectangle {
                     objectName: "taskbarHistoryStatsSurface"
                     anchors.fill: parent
@@ -681,6 +742,7 @@ Item {
 
     Rectangle {
         id: fan
+        z: 3
         property var sessions: []
         width: 292
         visible: false

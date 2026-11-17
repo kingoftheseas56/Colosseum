@@ -101,7 +101,7 @@ Item {
                 "    App.Taskbar { id: taskbar; visible: " + visibility + " }",
                 "}"
             ].join("\n")
-            sourceFixture = Qt.createQmlObject(fixtureSource, tests,
+            sourceFixture = Qt.createQmlObject(fixtureSource, host,
                                                Qt.resolvedUrl("OnePieceTaskbarFixture.qml"))
             verify(sourceFixture !== null, "The production visibility expression loads in isolation")
 
@@ -112,11 +112,11 @@ Item {
             route.active = true
             compare(route.bespokeId, "archive.shelves")
             compare(sourceFixture.dock.visible, true, "The structured One Piece page keeps the dock")
+            sourceFixture.dock.open = true
 
             route.extensionId = "com.colosseum.universe.onepiece"
             route.templatePage = ""
             compare(route.bespokeId, "com.colosseum.universe.onepiece")
-            sourceFixture.dock.open = true
             compare(sourceFixture.dock.visible, false, "The One Piece Tribute hides the dock")
             compare(sourceFixture.dock.open, false, "Hiding the Tribute dock collapses its open panel")
             sourceFixture.arcLayer.active = true
