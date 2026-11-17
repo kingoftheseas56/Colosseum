@@ -691,6 +691,8 @@ qt_add_executable(colosseum
     engine/MediaTitleNormalization.h
     engine/ImdbCatalog.cpp
     engine/ImdbCatalog.h
+    engine/AudiobookCatalog.cpp
+    engine/AudiobookCatalog.h
     engine/SourceContentStore.cpp
     engine/SourceContentStore.h
     engine/CatalogRemote.cpp
@@ -3301,6 +3303,16 @@ add_executable(catalog_remote_harness
 target_include_directories(catalog_remote_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(catalog_remote_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
 add_test(NAME colosseum.catalog_remote_harness COMMAND catalog_remote_harness)
+
+# Offline CC0 audiobook catalogue acceptance: no installed app or profile.
+add_executable(audiobook_catalogue_harness
+    ../tests/audiobook_catalogue_harness.cpp
+    engine/AudiobookCatalog.cpp engine/AudiobookCatalog.h
+    engine/CatalogRemote.cpp engine/CatalogRemote.h)
+target_include_directories(audiobook_catalogue_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(audiobook_catalogue_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
+add_test(NAME colosseum.audiobook_catalogue_harness COMMAND audiobook_catalogue_harness
+    "${CMAKE_CURRENT_SOURCE_DIR}/../server/content-api/tests/fixtures/audiobooks-cc0-fixture.sqlite")
 
 add_executable(static_catalogue_resolver_harness
     ../tests/static_catalogue_resolver_harness.cpp

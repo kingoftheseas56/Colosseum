@@ -137,7 +137,7 @@ export default {
       if (request.method === 'GET' && path === '/healthz') return json({ ok: true, environment: env.ENVIRONMENT });
       const semantic = path.match(/^\/v1\/tankoban\/series\/([1-9][0-9]*)$/);
       if (path.startsWith('/internal/')) return json({error:'NOT_FOUND'},404);
-      const catalogueRpc = path.match(/^\/v1\/catalogue\/(imdb|mal|comics)\/([A-Za-z][A-Za-z0-9]{0,63})$/);
+      const catalogueRpc = path.match(/^\/v1\/catalogue\/(imdb|mal|comics|audiobooks)\/([A-Za-z][A-Za-z0-9]{0,63})$/);
       const contentRpc = path === '/v1/catalogue/content/bundle' && request.method === 'POST';
       const contentGet = request.method === 'GET' && (path === '/v1/content/manifest' || /^\/v1\/content\/documents\/[a-z][a-z0-9-]{0,100}$/.test(path));
       if (request.method === 'POST' && path === '/v1/guest/session') {
