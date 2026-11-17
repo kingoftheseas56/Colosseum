@@ -178,6 +178,7 @@
 #include "vinyl/VinylTorrentProvider.h"
 #include "torrent/BookTorrentDownloader.h"
 #include "torrent/BookTorrents.h"
+#include "torrent/AudiobookTorrents.h"
 #include "torrent/engine/TorrentEngine.h"
 // NOT Player-2 stuff: the stall probe is the app's own QGuiApplication subclass, used
 // unconditionally in main(). It sat inside the COLOSSEUM_PLAYER2 block below for weeks and
@@ -1616,6 +1617,11 @@ int main(int argc, char *argv[]) {
 
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);
+
+    // Tankorent as a second audiobook SOURCE (search only; downloads go through
+    // Audiobooks.downloadAudiobook). Same pinned uncached searchNam as BookTorrents.
+    auto *audiobookTorrents = new AudiobookTorrents(searchNam, &backendServices);
+    engine.rootContext()->setContextProperty(QStringLiteral("AudiobookTorrents"), audiobookTorrents);
 
     // Tankoban "volume mode" façade exposed to QML as `TankobanVolumes` (Task 8).
     // ONE object composes the whole volume lifecycle: Nyaa search over the pinned

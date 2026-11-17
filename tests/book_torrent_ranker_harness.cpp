@@ -144,5 +144,45 @@ int main(){
     auto r19 = BookTorrentRanker::rank("Dune","",ex);
     require(r19.first().src.infoHash=="exact", "exact title beats higher-seed prefix superset");
 
+    // --- audiobook classification (slice A): the mirror of isReadableBook ---
+    // 20) audio-ish titles are audiobooks and not readable books
+    for (const char* t : {"Dune Unabridged", "Dune m4b", "Dune mp3 64 kbps", "Dune Audiobook"}) {
+        const TorrentResult x = mk(t, 5, "au");
+        require(BookTorrentRanker::isAudiobook(x), "audio title is an audiobook");
+        require(!BookTorrentRanker::isReadableBook(x), "audio title is not a readable book");
+    }
+    // 21) PirateBay category 102 alone makes it an audiobook
+    require(BookTorrentRanker::isAudiobook(mkc("Dune","piratebay","102","Audio")),
+            "category 102 alone is an audiobook");
+    require(BookTorrentRanker::isAudiobook(mkc("Dune","exttorrents","music","Music")),
+            "exttorrents music category is audio");
+    // 22) epub/pdf titles and e-book categories are not audiobooks
+    require(!BookTorrentRanker::isAudiobook(mk("Dune.epub",5,"e")), "epub title not an audiobook");
+    require(!BookTorrentRanker::isAudiobook(mk("Dune pdf",5,"p")), "pdf title not an audiobook");
+    require(!BookTorrentRanker::isAudiobook(mkc("Dune","piratebay","601","Other")),
+            "e-books category not an audiobook");
+    require(!BookTorrentRanker::isAudiobook(mk("Dune",5,"plain")), "plain uncategorized title not an audiobook");
+    // 23) a video release is never an audiobook
+    require(!BookTorrentRanker::isAudiobook(mk("Dune 2021 1080p BluRay x264",900,"v")), "video not audiobook");
+    require(!BookTorrentRanker::isAudiobook(mkc("Dune","piratebay","207","Video")), "video category not audiobook");
+    // 24) audio format from the title
+    require(BookTorrentRanker::guessAudioFormat("Dune [m4b] Unabridged")=="m4b", "m4b format");
+    require(BookTorrentRanker::guessAudioFormat("Dune MP3 128kbps")=="mp3", "mp3 format");
+    require(BookTorrentRanker::guessAudioFormat("Dune Audiobook").isEmpty(), "no format when title silent");
+    // 25) bundle detection
+    require(BookTorrentRanker::looksLikeBundle("Dune Series 1-4 Audiobook"), "Series 1-4 is a bundle");
+    require(BookTorrentRanker::looksLikeBundle("Harry Potter Books 1-3 MP3"), "Books 1-3 is a bundle");
+    require(BookTorrentRanker::looksLikeBundle("Dune Box Set Unabridged"), "Box Set is a bundle");
+    require(BookTorrentRanker::looksLikeBundle("Discworld Complete Collection mp3"), "Collection is a bundle");
+    require(!BookTorrentRanker::looksLikeBundle("Dune Unabridged Part 1 of 2"), "Part 1 of 2 is not a bundle");
+    require(!BookTorrentRanker::looksLikeBundle("Dune Book 1 Audiobook"), "single Book 1 is not a bundle");
+    require(!BookTorrentRanker::looksLikeBundle("Dune mp3 64-128 kbps"), "bitrate range is not a bundle");
+    // 26) ranking: exact title first among audio rows
+    {
+        QList<TorrentResult> ar{ mk("Dune Messiah Audiobook",900,"seq"), mk("Dune",4,"exact") };
+        auto rr = BookTorrentRanker::rank("Dune","Frank Herbert",ar);
+        require(rr.first().src.infoHash=="exact", "exact title first");
+    }
+
     std::cout<<"book_torrent_ranker_harness PASS\n"; return 0;
 }
