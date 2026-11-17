@@ -9,6 +9,11 @@ Item {
     property bool artistNavigationEnabled: false
     property string backLabel: "Back"
     property bool browseMode: false
+    // Options for hosts whose content has no lyrics/annotations, saved-song tools or album page
+    // (the audiobook listening page). Defaults keep the Vinyl song page exactly as it was.
+    property bool readersEnabled: true
+    property bool songActionsEnabled: true
+    property bool albumLinkEnabled: true
     property bool videoFullscreen: false
     property bool videoControlsVisible: true
     signal videoFullscreenRequested()
@@ -136,7 +141,7 @@ Item {
         y: root.videoShown ? backAction.y : (root.width < 560 ? 56 : 9)
         z: 20
         opacity: root.videoFullscreen && root.videoShown && !root.videoControlsVisible ? 0 : 1
-        visible: opacity > 0.01
+        visible: root.songActionsEnabled && opacity > 0.01
         enabled: visible
         Behavior on opacity { NumberAnimation { duration: 140 } }
         collectionHost: songCollectionHost
@@ -202,7 +207,7 @@ Item {
                 anchors.fill: parent
                 accessibleName: "Open album"
                 visible: !root.videoShown
-                enabled: !root.videoShown
+                enabled: !root.videoShown && root.albumLinkEnabled
                 onTriggered: root.albumRequested()
             }
             Item {
@@ -307,6 +312,7 @@ Item {
                                 Math.max(0, songMetadata.width - songArtists.width - 20))
                             height: 24
                             focusOnPointer: false
+                            enabled: root.albumLinkEnabled
                             accessibleName: qsTr("Open album %1").arg(albumLabel.text)
                             onTriggered: root.albumRequested()
                             Text {
@@ -365,7 +371,7 @@ Item {
             height: root.readingHeight
             pageData: root.pageData
             showSourceCredit: false
-            visible: root.lyricsShown && pageData.hasLyrics && !root.videoShown && width > 0
+            visible: root.readersEnabled && root.lyricsShown && pageData.hasLyrics && !root.videoShown && width > 0
         }
         VinylNotesColumn {
             id: notesColumn
@@ -375,7 +381,7 @@ Item {
             height: root.readingHeight
             pageData: root.pageData
             inlineAttribution: false
-            visible: root.lyricsShown && !root.videoShown
+            visible: root.readersEnabled && root.lyricsShown && !root.videoShown
                 && (pageData.activeNoteLine >= 0 || notesColumn.hasAutomaticNote) && width > 0
         }
     }

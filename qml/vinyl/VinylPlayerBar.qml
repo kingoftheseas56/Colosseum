@@ -18,6 +18,11 @@ Item {
     property string page: "album"
     property bool queueEnabled: true
     property bool trackNavigationEnabled: true
+    // Hosts with no video, queue or audio-source choice (the audiobook listening page) hide those
+    // tools. Defaults keep the Vinyl bar exactly as it was.
+    property bool videoToolVisible: true
+    property bool queueToolVisible: true
+    property bool sourcePickerVisible: true
     readonly property real transportCenter: narrow ? width - 18 - transport.width / 2 : width / 2
     readonly property bool busy: pageData.sourceState === "finding" || pageData.sourceState === "retrying" || pageData.sourceState === "resolving"
     readonly property bool narrow: width < 900
@@ -235,7 +240,11 @@ Item {
             height: 39
             accessibleName: root.busy ? "Waiting for source" : "Play or pause"
             enabled: !root.busy && root.hasPlayingSong
-            onTriggered: root.pageData.paused = !root.pageData.paused
+            onTriggered: {
+                // A host whose play state lives in an engine supplies togglePlay().
+                if (typeof root.pageData.togglePlay === "function") root.pageData.togglePlay()
+                else root.pageData.paused = !root.pageData.paused
+            }
             Rectangle {
                 anchors.fill: parent
                 radius: 19.5
@@ -356,6 +365,7 @@ Item {
     }
     Tool {
         objectName: "vinylBarVideo"
+        visible: root.videoToolVisible
         x: root.toolsLeft
         y: root.toolsTop
         enabled: !root.torrentBusy && (root.videoBusy ? root.pageData.videoSwitchCancellable === true
@@ -376,6 +386,7 @@ Item {
     }
     Tool {
         objectName: "vinylBarQueue"
+        visible: root.queueToolVisible
         x: root.toolsLeft + 45
         y: root.toolsTop
         enabled: root.queueEnabled
@@ -386,6 +397,7 @@ Item {
     Item {
         id: sourcePill
         objectName: "vinylBarSources"
+        visible: root.sourcePickerVisible
         x: root.toolsLeft + 95
         y: root.toolsTop + 3
         width: 168
@@ -487,6 +499,7 @@ Item {
     }
     Text {
         objectName: "vinylBarSourceError"
+        visible: root.sourcePickerVisible
         x: root.toolsLeft
         y: root.toolsTop + 42
         width: 263; height: 12
