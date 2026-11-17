@@ -3,6 +3,8 @@
 #include "VaultKit.h" // CancellationToken
 
 #include <QHash>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QSet>
 #include <QSqlError>
 #include <QSqlQuery>
@@ -73,6 +75,12 @@ struct DurableFacts
     QString identityWorld;
     int identityYear = 0;
     bool identitySuppressed = false;
+    QString identityState;
+    int identityCandidateCount = 0;
+    double identityRating = 0;
+    QString identityGenres;
+    int pages = -1;
+    double durationSec = -1;
 };
 
 bool loadDurableFacts(QSqlDatabase& db, QHash<QString, DurableFacts>* out)
@@ -83,11 +91,13 @@ bool loadDurableFacts(QSqlDatabase& db, QHash<QString, DurableFacts>* out)
             "SELECT id, size, mtimeMs, progressed, admissionVerdict, admissionDetail, "
             "       errorState, errorDetail, displayTitle, author, format, coverRef, "
             "       synopsis, metadataSource, identityId, identityTitle, identitySource, "
-            "       identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed, embeddedTitle, identityType "
+            "       identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed, embeddedTitle, identityType, "
+            "       identityState, identityCandidateCount, identityRating, identityGenres, pages, durationSec "
             "FROM files "
             "WHERE progressed <> 0 OR admissionVerdict <> '' OR errorState <> '' "
             "   OR coverRef <> '' OR author <> '' OR synopsis <> '' OR metadataSource <> '' "
-            "   OR identityId <> '' OR identityTitle <> '' OR identitySource <> '' OR identitySuppressed <> 0 OR embeddedTitle <> '' OR identityType <> ''")))
+            "   OR identityId <> '' OR identityTitle <> '' OR identitySource <> '' OR identitySuppressed <> 0 OR embeddedTitle <> '' OR identityType <> '' "
+            "   OR identityState <> '' OR identityCandidateCount <> 0 OR identityRating <> 0 OR identityGenres <> '' OR pages >= 0 OR durationSec >= 0")))
         return false;
 
     while (q.next()) {
@@ -115,10 +125,100 @@ bool loadDurableFacts(QSqlDatabase& db, QHash<QString, DurableFacts>* out)
         a.identitySuppressed = q.value(21).toBool();
         a.embeddedTitle = q.value(22).toString();
         a.identityType = q.value(23).toString();
+        a.identityState = q.value(24).toString();
+        a.identityCandidateCount = q.value(25).toInt();
+        a.identityRating = q.value(26).toDouble();
+        a.identityGenres = q.value(27).toString();
+        a.pages = q.value(28).toInt();
+        a.durationSec = q.value(29).toDouble();
         out->insert(q.value(0).toString(), a);
     }
     return true;
 }
+// A rejected admission verdict is not forever: the probe can fail because a drive was dropping out.
+// The first rescan of each app session lets a rejected row be probed again (its verdict is left
+// empty, which is what the enricher probes); later rescans in the same session carry the verdict, so
+// a genuinely corrupt file is probed once per session, not on every rescan.
+bool claimRejectedReprobe(const QString& id)
+{
+    static QMutex mutex;
+    static QSet<QString> claimed;
+    QMutexLocker lock(&mutex);
+    if (claimed.contains(id)) return false;
+    claimed.insert(id);
+    return true;
+}
+
+void carryUnchangedFacts(VaultIndex::FileRow& row, const QHash<QString, DurableFacts>& durable)
+{
+    const auto it = durable.constFind(row.id);
+    if (it == durable.constEnd() || it->size != row.size || it->mtimeMs != row.mtimeMs)
+        return;
+    const DurableFacts& prior = it.value();
+    if (row.pages < 0) row.pages = prior.pages;
+    if (row.durationSec < 0) row.durationSec = prior.durationSec;
+    if (!row.progressed) {
+        row.progressed = prior.progressed;
+    }
+    const bool reprobe = row.admissionVerdict.isEmpty() && prior.verdict.startsWith(QLatin1String("Rejected"))
+        && claimRejectedReprobe(row.id);
+    if (row.admissionVerdict.isEmpty() && !reprobe) {
+        row.admissionVerdict = prior.verdict;
+        row.admissionDetail = prior.detail;
+    }
+    if (row.errorState.isEmpty() && !(reprobe && prior.errorState == QLatin1String("rejected"))) {
+        row.errorState = prior.errorState;
+        row.errorDetail = prior.errorDetail;
+    }
+    if (row.coverRef.isEmpty() && row.metadataSource.isEmpty())
+        row.coverRef = prior.coverRef;
+    if (row.embeddedTitle.isEmpty() && row.metadataSource.isEmpty())
+        row.embeddedTitle = prior.embeddedTitle;
+    if (row.metadataSource.isEmpty() && !prior.metadataSource.isEmpty()) {
+        row.displayTitle = prior.displayTitle;
+        row.author = prior.author;
+        row.format = prior.format;
+        row.coverRef = prior.coverRef;
+        row.synopsis = prior.synopsis;
+        row.metadataSource = prior.metadataSource;
+    }
+    if (row.author.isEmpty() && row.metadataSource.isEmpty())
+        row.author = prior.author;
+    if (row.synopsis.isEmpty() && row.metadataSource.isEmpty())
+        row.synopsis = prior.synopsis;
+    if (!row.identitySuppressed && prior.identitySuppressed) {
+        row.identityId.clear();
+        row.identityTitle.clear();
+        row.identityType.clear();
+        row.identitySource.clear();
+        row.identitySynopsis.clear();
+        row.identityCoverUrl.clear();
+        row.identityWorld.clear();
+        row.identityYear = 0;
+        row.identityRating = 0;
+        row.identityGenres.clear();
+        row.identityState = prior.identityState;
+        row.identityCandidateCount = prior.identityCandidateCount;
+        row.identitySuppressed = true;
+    } else if (!row.identitySuppressed && row.identitySource.isEmpty()
+               && !prior.identitySuppressed && !prior.identitySource.isEmpty()) {
+        row.identityId = prior.identityId;
+        row.identityTitle = prior.identityTitle;
+        row.identityType = prior.identityType;
+        row.identitySource = prior.identitySource;
+        row.identitySynopsis = prior.identitySynopsis;
+        row.identityCoverUrl = prior.identityCoverUrl;
+        row.identityWorld = prior.identityWorld;
+        row.identityYear = prior.identityYear;
+        row.identityRating = prior.identityRating;
+        row.identityGenres = prior.identityGenres;
+    }
+    if (row.identityState.isEmpty() && row.identitySource == prior.identitySource) {
+        row.identityState = prior.identityState;
+        row.identityCandidateCount = prior.identityCandidateCount;
+    }
+}
+
 } // namespace
 
 VaultIndex::VaultIndex(const QString& dbPath, QObject* parent)
@@ -346,6 +446,10 @@ bool VaultIndex::ensureSchema()
             "CREATE INDEX IF NOT EXISTS idx_files_subtree ON files(subtreePath)")))
         return rollback();
 
+    if (!execSchemaSql(m_db, QStringLiteral(
+            "CREATE INDEX IF NOT EXISTS idx_files_group_sort ON files(groupKey, sortKey)")))
+        return rollback();
+
     QSqlQuery stamp(m_db);
     if (!stamp.exec(QStringLiteral("PRAGMA user_version = %1").arg(kVaultSchemaVersion)))
         return rollback();
@@ -478,68 +582,7 @@ bool VaultIndex::publish(const QList<FileRow>& rows,
 
         FileRow row = source;
 
-        // Carry prior verdicts/errors only when the caller supplied none AND the identity tuple is
-        // byte-for-byte unchanged. A changed size or mtime deliberately drops them so the file is
-        // re-probed; explicit fresh facts always win.
-        if (!row.progressed || row.admissionVerdict.isEmpty() || row.errorState.isEmpty()
-            || row.coverRef.isEmpty() || row.metadataSource.isEmpty()
-            || row.identitySource.isEmpty() || !row.identitySuppressed) {
-            const auto it = durable.constFind(row.id);
-            if (it != durable.constEnd()
-                && it->size == row.size
-                && it->mtimeMs == row.mtimeMs) {
-                if (!row.progressed) {
-                    row.progressed = it->progressed;
-                }
-                if (row.admissionVerdict.isEmpty()) {
-                    row.admissionVerdict = it->verdict;
-                    row.admissionDetail = it->detail;
-                }
-                if (row.errorState.isEmpty()) {
-                    row.errorState = it->errorState;
-                    row.errorDetail = it->errorDetail;
-                }
-                if (row.coverRef.isEmpty() && row.metadataSource.isEmpty())
-                    row.coverRef = it->coverRef;
-                if (row.embeddedTitle.isEmpty() && row.metadataSource.isEmpty())
-                    row.embeddedTitle = it->embeddedTitle;
-                if (row.metadataSource.isEmpty() && !it->metadataSource.isEmpty()) {
-                    row.displayTitle = it->displayTitle;
-                    row.author = it->author;
-                    row.format = it->format;
-                    row.coverRef = it->coverRef;
-                    row.synopsis = it->synopsis;
-                    row.metadataSource = it->metadataSource;
-                }
-                if (row.author.isEmpty() && row.metadataSource.isEmpty())
-                    row.author = it->author;
-                if (row.synopsis.isEmpty() && row.metadataSource.isEmpty())
-                    row.synopsis = it->synopsis;
-                if (!row.identitySuppressed && it->identitySuppressed) {
-                    row.identityId.clear();
-                    row.identityTitle.clear();
-                    row.identityType.clear();
-                    row.identitySource.clear();
-                    row.identitySynopsis.clear();
-                    row.identityCoverUrl.clear();
-                    row.identityWorld.clear();
-                    row.identityYear = 0;
-                    row.identitySuppressed = true;
-                } else if (!row.identitySuppressed && row.identitySource.isEmpty()
-                           && !it->identitySuppressed && !it->identitySource.isEmpty()) {
-                    row.identityId = it->identityId;
-                    row.identityTitle = it->identityTitle;
-                    row.identityType = it->identityType;
-                    row.identitySource = it->identitySource;
-                    row.identitySynopsis = it->identitySynopsis;
-                    row.identityCoverUrl = it->identityCoverUrl;
-                    row.identityWorld = it->identityWorld;
-                    row.identityYear = it->identityYear;
-                }
-            } else if (row.admissionVerdict.isEmpty()) {
-                row.admissionDetail.clear();
-            }
-        }
+        carryUnchangedFacts(row, durable);
 
         if (!insertRow(row))
             return rollback();
@@ -607,6 +650,10 @@ bool VaultIndex::reconcileRoot(const QString& rootPath, const QSet<QString>& cur
         return false;
     };
 
+    QHash<QString, DurableFacts> durable;
+    if (!loadDurableFacts(m_db, &durable))
+        return rollback();
+
     QSqlQuery existing(m_db);
     existing.prepare(QStringLiteral("SELECT id FROM files WHERE rootPath = ?"));
     existing.addBindValue(rootPath);
@@ -630,7 +677,8 @@ bool VaultIndex::reconcileRoot(const QString& rootPath, const QSet<QString>& cur
         remove.finish();
     }
 
-    for (const FileRow& row : arrivals) {
+    for (FileRow row : arrivals) {
+        carryUnchangedFacts(row, durable);
         if (!insertRow(row))
             return rollback();
     }
@@ -1157,7 +1205,17 @@ QVariantList VaultIndex::groupsForKind(const QString& kind) const
     return out;
 }
 
+QVariantList VaultIndex::filesForGroup(const QString& kind, const QString& groupKey) const
+{
+    return projectFiles(groupKey, kind, true);
+}
+
 QVariantList VaultIndex::filesInSubtree(const QString& subtreePath) const
+{
+    return projectFiles(subtreePath, {}, false);
+}
+
+QVariantList VaultIndex::projectFiles(const QString& key, const QString& kind, bool exactGroup) const
 {
     QVariantList out;
     QSqlQuery q(m_db);
@@ -1168,9 +1226,11 @@ QVariantList VaultIndex::filesInSubtree(const QString& subtreePath) const
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
         " identityState, identityCandidateCount, embeddedTitle, identityType"
-        " FROM files WHERE subtreePath = ?"
-        " ORDER BY subfolder COLLATE NOCASE, sortKey"));
-    q.addBindValue(subtreePath);
+        " FROM files WHERE %1"
+        " ORDER BY subfolder COLLATE NOCASE, sortKey").arg(exactGroup
+            ? QStringLiteral("groupKey = ? AND kind = ?") : QStringLiteral("subtreePath = ?")));
+    q.addBindValue(key);
+    if (exactGroup) q.addBindValue(kind);
     if (q.exec()) {
         while (q.next()) {
             QVariantMap m;

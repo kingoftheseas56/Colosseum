@@ -35,14 +35,21 @@ FocusScope {
         backdrop: root.backdrop; track: x; radius: 20; blurMax: 26
         Behavior on x { NumberAnimation { id: slide; duration: theme.vaultMotionDuration; easing.type: Easing.OutCubic } }
         MouseArea { anchors.fill: parent }
+        Rectangle {
+            objectName: "vaultSourcesReadabilitySurface"
+            anchors.fill: parent; anchors.margins: 1
+            radius: panel.radius - 1
+            color: Qt.rgba(theme.vaultSurface.r, theme.vaultSurface.g, theme.vaultSurface.b, 0.98)
+            z: -1
+        }
         ColumnLayout {
             anchors.fill: parent; anchors.margins: 20; spacing: 12
             RowLayout {
                 Layout.fillWidth: true
-                Text { Layout.fillWidth: true; text: root.editingIgnore ? "Ignore patterns" : "Sources"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultSectionTitle }
-                VaultLibraryButton { id: closeButton; text: "×"; accessibleName: "Close sources"; quiet: true; onClicked: root.close() }
+                Text { objectName: "vaultSourcesTitle"; Layout.fillWidth: true; text: root.editingIgnore ? "Ignore patterns" : "Sources"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultSectionTitle }
+                VaultLibraryButton { id: closeButton; objectName: "vaultSourcesClose"; text: "×"; accessibleName: "Close sources"; onClicked: root.close() }
             }
-            Text { Layout.fillWidth: true; text: root.editingIgnore ? "One pattern per line. Matching files stay outside your library." : "Where Vault finds your media."; wrapMode: Text.Wrap; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+            Text { objectName: "vaultSourcesSubtitle"; Layout.fillWidth: true; text: root.editingIgnore ? "One pattern per line. Matching files stay outside your library." : "Where Vault finds your media."; wrapMode: Text.Wrap; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
             Text { visible: !root.editingIgnore; text: "FOLDERS ON THIS PC"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultSmall; font.letterSpacing: 1 }
             ListView {
                 id: folders
@@ -56,12 +63,12 @@ FocusScope {
                     Column {
                         id: info; x: 12; y: 12; width: parent.width - 24; spacing: 6
                         Text { width: parent.width; text: modelData.name || "Folder"; elide: Text.ElideMiddle; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.vaultBody }
-                        Text { width: parent.width; text: modelData.path || ""; elide: Text.ElideMiddle; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultSmall }
-                        Text { width: parent.width; text: (modelData.subtitle || "") + " · " + (modelData.state || ""); elide: Text.ElideRight; color: modelData.offline ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultCaption }
+                        Text { objectName: "vaultSourcesPathText"; width: parent.width; text: modelData.path || ""; elide: Text.ElideMiddle; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.vaultSmall }
+                        Text { objectName: "vaultSourcesStatusText"; width: parent.width; text: (modelData.subtitle || "") + " · " + (modelData.state || ""); elide: Text.ElideRight; color: modelData.offline ? theme.gold : theme.inkDim; font.family: theme.ui; font.pixelSize: theme.vaultCaption }
                         Row {
                             spacing: 8
-                            VaultLibraryButton { text: "Rescan"; enabled: !root.adapter.busy; onClicked: root.adapter.rescan(modelData.path) }
-                            VaultLibraryButton { text: "Forget"; quiet: true; onClicked: { forgetDialog.path = modelData.path; forgetDialog.open() } }
+                            VaultLibraryButton { objectName: "vaultSourcesRescan"; text: "Rescan"; enabled: !root.adapter.busy; onClicked: root.adapter.rescan(modelData.path) }
+                            VaultLibraryButton { objectName: "vaultSourcesForget"; text: "Forget"; onClicked: { forgetDialog.path = modelData.path; forgetDialog.open() } }
                         }
                     }
                 }
@@ -73,12 +80,12 @@ FocusScope {
             }
             RowLayout {
                 visible: !root.editingIgnore; Layout.fillWidth: true; spacing: 8
-                VaultLibraryButton { Layout.fillWidth: true; text: "+ Add folder"; onClicked: root.addFolderRequested() }
-                VaultLibraryButton { Layout.fillWidth: true; text: "Connect a server ›"; onClicked: { root.close(); root.connectServerRequested() } }
+                VaultLibraryButton { objectName: "vaultSourcesAddFolder"; Layout.fillWidth: true; text: "+ Add folder"; onClicked: root.addFolderRequested() }
+                VaultLibraryButton { objectName: "vaultSourcesConnectServer"; Layout.fillWidth: true; text: "Connect a server ›"; onClicked: { root.close(); root.connectServerRequested() } }
             }
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: theme.edge }
-            VaultLibraryButton { objectName: "vaultEditIgnorePatterns"; Layout.fillWidth: true; text: root.editingIgnore ? "Save patterns" : "Ignore patterns ›"; quiet: !root.editingIgnore; primary: root.editingIgnore; onClicked: { if (root.editingIgnore) { root.adapter.setScanIgnore(ignoreInput.text.split(/\r?\n/).map(s => s.trim()).filter(s => s.length)); root.editingIgnore = false } else { ignoreInput.text = root.adapter.scanIgnore().join("\n"); root.editingIgnore = true } } }
-            VaultLibraryButton { objectName: "vaultCancelIgnorePatterns"; visible: root.editingIgnore; text: "Cancel"; quiet: true; onClicked: { ignoreInput.text = root.adapter.scanIgnore().join("\n"); root.editingIgnore = false } }
+            VaultLibraryButton { objectName: "vaultEditIgnorePatterns"; Layout.fillWidth: true; text: root.editingIgnore ? "Save patterns" : "Ignore patterns ›"; primary: root.editingIgnore; onClicked: { if (root.editingIgnore) { root.adapter.setScanIgnore(ignoreInput.text.split(/\r?\n/).map(s => s.trim()).filter(s => s.length)); root.editingIgnore = false } else { ignoreInput.text = root.adapter.scanIgnore().join("\n"); root.editingIgnore = true } } }
+            VaultLibraryButton { objectName: "vaultCancelIgnorePatterns"; visible: root.editingIgnore; text: "Cancel"; onClicked: { ignoreInput.text = root.adapter.scanIgnore().join("\n"); root.editingIgnore = false } }
         }
     }
     Dialog {

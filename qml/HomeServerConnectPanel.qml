@@ -9,12 +9,16 @@ Popup {
     id: root
     objectName: "homeServerConnectPanel"
     property var service: typeof HomeServers !== "undefined" ? HomeServers : null
-    readonly property string provider: providerChoice.currentIndex === 0 ? "jellyfin" : providerChoice.currentIndex === 1 ? "emby" : "plex"
-    readonly property string providerName: providerChoice.currentIndex === 0 ? qsTr("Jellyfin") : providerChoice.currentIndex === 1 ? qsTr("Emby") : qsTr("Plex")
+    property string initialProvider: "jellyfin"
+    property string openedProvider: "jellyfin"
+    property Item invoker: null
+    readonly property string provider: openedProvider
+    readonly property string providerName: provider === "jellyfin" ? qsTr("Jellyfin") : provider === "emby" ? qsTr("Emby") : qsTr("Plex")
     readonly property bool insecure: !!service && service.isInsecureAddress(addressField.text)
     property var openedGeneration: -1
     property var sessionService: null
     signal dismissed()
+    signal connected(string id)
     parent: Overlay.overlay
     width: Math.min(520, parent ? parent.width - 24 : 520)
     height: Math.min(implicitHeight, parent ? parent.height - 24 : implicitHeight)
@@ -65,13 +69,6 @@ Popup {
         }
     }
 
-    function chooseProvider(index) {
-        if (providerChoice.currentIndex === index) return
-        providerChoice.currentIndex = index
-        root.resetSecrets()
-        if (root.service) root.service.cancelSignIn()
-    }
-
     function resetSecrets() {
         if (passwordField) passwordField.clear()
         if (httpConsent) httpConsent.checked = false
@@ -84,10 +81,15 @@ Popup {
         passwordField.clear()
         service.connectServer(provider, addressField.text.trim(), userField.text.trim(), secret, httpConsent.checked)
     }
-    onOpened: {
+    onAboutToShow: {
+        openedProvider = ["jellyfin", "emby", "plex"].indexOf(initialProvider) >= 0 ? initialProvider : "jellyfin"
         sessionService = service
         openedGeneration = service ? service.profileGeneration : -1
-        providerChoice.forceActiveFocus()
+        if (!invoker && parent && parent.Window.window) invoker = parent.Window.window.activeFocusItem
+    }
+    onOpened: {
+        if (provider === "plex") plexBegin.forceActiveFocus(Qt.PopupFocusReason)
+        else addressField.forceInputFocus()
     }
     onServiceChanged: {
         resetSecrets()
@@ -97,7 +99,10 @@ Popup {
         resetSecrets()
         if (sessionService) sessionService.cancelSignIn()
         sessionService = null
+        const target = invoker
+        invoker = null
         dismissed()
+        if (target) Qt.callLater(function() { if (target && target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
     Component.onDestruction: if (visible && sessionService) sessionService.cancelSignIn()
     Connections {
@@ -109,7 +114,13 @@ Popup {
                 root.close()
             }
         }
-        function onConnectionAdded(id) { if (root.visible) root.close() }
+        function onConnectionAdded(id) {
+            if (root.visible && root.service === root.sessionService
+                    && root.service.profileGeneration === root.openedGeneration) {
+                root.connected(id)
+                root.close()
+            }
+        }
     }
 
     contentItem: ColumnLayout {
@@ -133,73 +144,27 @@ Popup {
             id: form
             width: scroll.availableWidth
             spacing: 12
-            Label { text: qsTr("Connect a home server"); color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(24); Layout.fillWidth: true; wrapMode: Text.Wrap }
             RowLayout {
-                id: providerChoice
-                objectName: "homeServerProvider"
                 Layout.fillWidth: true
-                property int currentIndex: 0
-                spacing: 10
-                Accessible.name: qsTr("Server provider")
-                Keys.onPressed: event => {
-                    var next = currentIndex
-                    if (event.key === Qt.Key_Right || event.key === Qt.Key_Down) next = Math.min(2, currentIndex + 1)
-                    else if (event.key === Qt.Key_Left || event.key === Qt.Key_Up) next = Math.max(0, currentIndex - 1)
-                    else return
-                    root.chooseProvider(next)
-                    providerTiles.itemAt(next).forceActiveFocus()
-                    event.accepted = true
+                spacing: 12
+                Image {
+                    objectName: "homeServerProviderLogo_" + root.provider
+                    Layout.preferredWidth: 38; Layout.preferredHeight: 38
+                    source: "../assets/icons/servers/" + root.provider + ".svg"
+                    sourceSize: Qt.size(76, 76); fillMode: Image.PreserveAspectFit
+                    Accessible.ignored: true
                 }
-                Repeater {
-                    id: providerTiles
-                    objectName: "homeServerProviderTiles"
-                    model: ["jellyfin", "emby", "plex"]
-                    delegate: Button {
-                        id: providerTile
-                        required property string modelData
-                        required property int index
-                        objectName: "homeServerProvider_" + modelData
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        implicitHeight: 54
-                        padding: root.width < 400 ? 6 : 8
-                        checkable: true
-                        autoExclusive: true
-                        checked: providerChoice.currentIndex === index
-                        Accessible.name: index === 0 ? qsTr("Jellyfin") : index === 1 ? qsTr("Emby") : qsTr("Plex")
-                        onClicked: root.chooseProvider(index)
-                        background: Rectangle {
-                            radius: 14
-                            color: providerTile.checked ? Qt.rgba(theme.gold.r, theme.gold.g, theme.gold.b, 0.07)
-                                : providerTile.hovered ? theme.glassHi : Qt.rgba(1, 1, 1, 0.035)
-                            border.color: providerTile.checked || providerTile.activeFocus ? theme.gold : theme.edge
-                            border.width: providerTile.activeFocus ? 2 : 1
-                        }
-                        contentItem: RowLayout {
-                            spacing: root.width < 400 ? 4 : 8
-                            Image {
-                                objectName: "homeServerProviderLogo_" + providerTile.modelData
-                                Layout.preferredWidth: root.width < 400 ? 20 : 24
-                                Layout.preferredHeight: root.width < 400 ? 20 : 24
-                                source: "../assets/icons/servers/" + providerTile.modelData + ".svg"
-                                sourceSize: Qt.size(48, 48)
-                                fillMode: Image.PreserveAspectFit
-                                Accessible.ignored: true
-                            }
-                            Label {
-                                Layout.fillWidth: true
-                                Layout.minimumWidth: 0
-                                text: providerTile.Accessible.name
-                                color: providerTile.checked ? theme.ink : theme.inkDim
-                                font.family: theme.ui
-                                font.pixelSize: theme.fontSize(12)
-                                font.weight: Font.DemiBold
-                                horizontalAlignment: Text.AlignHCenter
-                                elide: Text.ElideRight
-                            }
-                        }
-                    }
+                Label {
+                    objectName: "homeServerProviderTitle"
+                    text: qsTr("Connect %1").arg(root.providerName)
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(24)
+                    Layout.fillWidth: true; wrapMode: Text.Wrap
+                }
+                VaultLibraryButton {
+                    objectName: "providerConnectionClose"
+                    text: "×"; quiet: true; implicitWidth: 38
+                    accessibleName: qsTr("Close %1 connection").arg(root.providerName)
+                    onClicked: root.close()
                 }
             }
             ColumnLayout {
@@ -265,6 +230,7 @@ Popup {
                     color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); wrapMode: Text.Wrap
                 }
                 Account.AccountButton {
+                    id: plexBegin
                     objectName: "homeServerBeginPlex"
                     Layout.fillWidth: true
                     Layout.minimumHeight: 44

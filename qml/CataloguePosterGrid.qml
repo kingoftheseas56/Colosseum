@@ -17,6 +17,8 @@ GridView {
     property bool keyboardMode: false
     // "classic" (default; every un-cleared consumer stays pixel-identical) | "gallery" (approved polish).
     property string visualProfile: "classic"
+    // Extra space for an opted-in secondary metadata line.
+    property real metadataExtraHeight: 0
     readonly property bool _gallery: wall.visualProfile === "gallery"
     readonly property var _gm: Metrics.gallery
     signal requestMore()
@@ -37,8 +39,8 @@ GridView {
     cellWidth: Math.floor(width / columnCount)
     cellHeight: wall._gallery
         // poster (card width × ratio) + title top gap + two-line reserve + the delegate's 14px inset + margin
-        ? (Math.floor((cellWidth - 14) * wall._gm.posterRatio) + 10 + wall._gm.titleMinHeight + 14 + 6)
-        : (Math.floor(cellWidth * 1.62) + 34)
+        ? (Math.floor((cellWidth - 14) * wall._gm.posterRatio) + 10 + wall._gm.titleMinHeight + 14 + 6 + wall.metadataExtraHeight)
+        : (Math.floor(cellWidth * 1.62) + 34 + wall.metadataExtraHeight)
     cacheBuffer: cellHeight * 2
     // in-grid skeletons reserve EXACT cell space: fill the viewport on the first page, one
     // trailing row while paging.
@@ -62,6 +64,11 @@ GridView {
             wall.keyboardMode = true
             if (wall.currentIndex >= 0 && wall.currentIndex < wall.items.length)
                 wall.itemRequested(wall.items[wall.currentIndex])
+            event.accepted = true
+        } else if ((event.key === Qt.Key_Menu
+                    || (event.key === Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier)))
+                   && wall.currentItem && wall.currentItem.contextActionText) {
+            wall.currentItem.openContextMenu()
             event.accepted = true
         } else if (event.key === Qt.Key_PageUp) {
             gridGlide.pageUp(); event.accepted = true

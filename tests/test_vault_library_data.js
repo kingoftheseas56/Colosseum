@@ -9,8 +9,17 @@ function row(key, identity, kind = 'video', away = false) {
     return data.normalize({key, kind, identityId: identity, identityType: kind === 'video' ? 'movie' : '', title: identity ? 'Matched title' : 'raw.1080p.mkv'},
         [{id: 'vault:' + key, identityId: identity, identityTitle: identity ? 'Matched title' : '', kind, path: '/' + key, away}], {}, false);
 }
+assert.deepEqual(Array.from(data.videoGenres('Science Fiction · Sci-Fi · Reality TV · Talk Show · Game Show')),
+    ['Sci-Fi', 'Reality-TV', 'Talk-Show', 'Game-Show']);
+assert.deepEqual(Array.from(data.videoGenres(['Crime', 'Drama'])), ['Crime', 'Drama']);
+assert.deepEqual(Array.from(data.videoGenres(['Sci-Fi & Fantasy', 'Action & Adventure'])),
+    ['Sci-Fi', 'Fantasy', 'Action', 'Adventure']);
+const genreSeries = data.normalize({key:'genre-show',kind:'video',identityId:'imdb:tt10',identityType:'series'},
+    [{id:'episode',identityId:'imdb:tt10',identityTitle:'Show',identityGenres:'Crime · Drama'}], {}, false);
+assert.equal(genreSeries.genres,'Crime · Drama');
+assert.equal(genreSeries.kind,'show');
 assert.equal(row('a', '').identified, false);
-assert.equal(row('a', '').title, 'Needs a match');
+assert.equal(row('a', '').title, 'Unmatched');
 const merged = data.deduplicate([row('a', 'imdb:tt1', 'video', true), row('b', 'imdb:tt1')]);
 assert.equal(merged.length, 1);
 assert.equal(merged[0].copies.length, 2);
@@ -35,7 +44,7 @@ console.log('Vault library projection tests passed');
 // Native series.title is filename fallback, NEVER title provenance.
 const orphan = data.normalize({key:'bad',kind:'video',identityId:'imdb:tt8',title:'Raw.1080p.mkv'},
     [{id:'vault:bad',identityId:'imdb:tt8',identityTitle:'',displayTitle:'Raw.1080p.mkv'}],{},false);
-assert.equal(orphan.identified,false); assert.equal(orphan.title,'Needs a match');
+assert.equal(orphan.identified,false); assert.equal(orphan.title,'Unmatched');
 const suppressed = data.normalize({key:'bad',kind:'video',title:'Raw'},
     [{id:'vault:bad',identityId:'imdb:tt8',identityTitle:'Curated',identitySuppressed:true}],{},false);
 assert.equal(suppressed.identified,false);
@@ -134,6 +143,12 @@ assert.equal(data.deduplicate([epubCopy('fallback-a','Filename title','Author A'
     epubCopy('fallback-b','Filename title','Author A',{embeddedTitle:''})]).length,2);
 assert.equal(data.deduplicate([epubCopy('canonical-a','Shared title','',{identityId:'catalogue:1'}),
     epubCopy('canonical-b','Shared title','',{identityId:'catalogue:1'})]).length,1);
+
+const adoptedEpub = epubCopy('work-epub','Shared title','Author A',{identityId:'biblio:shared', identitySource:'BIBLIO'});
+const adoptedMobi = epubCopy('work-mobi','Shared title','Author A',{identityId:'biblio:shared', identitySource:'BIBLIO', format:'mobi', metadataSource:''});
+const mixedWork = data.deduplicate([adoptedEpub, adoptedMobi]);
+assert.equal(mixedWork.length,1);
+assert.equal(mixedWork[0].copies.length,2);
 
 function readerRecord(id, progress, updatedAt, finished, path = '/book.epub') {
     return {id,progress,updatedAt,finished,resume:{path,finished}};

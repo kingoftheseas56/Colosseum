@@ -105,7 +105,8 @@ public:
     // Shared with live arrivals: a container can hold different shows. Physical
     // file identity never changes when its derived title group is corrected.
     static bool hasMixedVideoTitles(const QStringList& files);
-    static void assignVideoGroup(VaultIndex::FileRow& row, bool loose, bool mixedTitles);
+    static void assignVideoGroup(VaultIndex::FileRow& row, bool loose, bool mixedTitles,
+                                 const QStringList& siblings = {});
     // Books are individual titles even when their physical folder is shared.
     static void assignBookGroup(VaultIndex::FileRow& row);
 

@@ -1,15 +1,21 @@
 // Desktop Vault library. Native services own scanning, identity and durable progress.
 import QtQuick
 import QtQuick.Controls
+import QtCore
 import "VaultLibraryData.js" as Data
 
 FocusScope {
     id: root
     objectName: "vaultPage"
     property Item backdrop: null
+    property real desktopDockInset: 0
     property var adapter: ownedAdapter
+    property var sidebarSettings: ownedSidebarSettings
     property string currentView: "home"
     property string currentServer: ""
+    property bool providerConnectionOpen: false
+    property string connectionProvider: "jellyfin"
+    property Item connectionInvoker: null
     property string notice: ""
     readonly property int itemCount: adapter.allItems.length
     readonly property string vaultState: adapter.busy ? "scanning" : adapter.empty ? "empty" : "populated"
@@ -17,7 +23,7 @@ FocusScope {
     readonly property bool sourcesOpen: sources.open
     readonly property bool searchViewActive: bar.query.trim().length > 0
     readonly property var searchRows: adapter.search(bar.query, "all", currentView === "server" ? currentServer : "")
-    readonly property var selectedServer: adapter.servers.find(s => s.id === currentServer) || ({})
+    readonly property var selectedServer: adapter.providers.find(s => s.id === currentServer) || ({})
     signal backRequested()
     signal addFolderRequested()
     signal openMediaRequested(string path)
@@ -27,17 +33,48 @@ FocusScope {
     signal fullscreenRequested()
     signal closeRequested()
     Theme { id: theme }
+    Settings {
+        id: ownedSidebarSettings
+        category: "vaultBrowseV1"
+        property bool railExpanded: true
+    }
     VaultLibraryAdapter { id: ownedAdapter }
     function showView(view, serverId) {
         currentView = ({ movie: "movies", show: "shows", book: "books", comic: "comics" })[view] || view
-        currentServer = serverId || ""
+        currentServer = view === "server" ? root.adapter.providerKey(serverId || "") : (serverId || "")
         bar.query = ""
         viewReveal.restart()
         Qt.callLater(function() { var page = content.item as Item; if (page) page.forceActiveFocus(Qt.OtherFocusReason) })
     }
+    function selectProvider(provider) {
+        const entry = root.adapter.providers.find(row => row.id === provider)
+        if (!entry) return
+        if (entry.connected) root.showView("server", provider)
+        else root.openProviderConnection(provider)
+    }
+    function openProviderConnection(provider) {
+        if (["jellyfin", "emby", "plex"].indexOf(provider) < 0) return
+        root.connectionInvoker = root.Window.window ? root.Window.window.activeFocusItem : null
+        root.connectionProvider = provider
+        root.providerConnectionOpen = true
+    }
+    function providerConnected(id) {
+        const service = root.adapter.homeServers
+        const connection = service ? (service.connections || []).find(row => row.id === id) : null
+        if (!connection) return
+        root.adapter.refresh()
+        root.showView("server", connection.provider)
+    }
+    Connections {
+        target: root.adapter
+        function onProvidersChanged() {
+            if (root.currentView === "server" && !root.selectedServer.connected) root.showView("home", "")
+        }
+    }
     function openSearch() { bar.focusSearch() }
     function leaveSearchView() { bar.query = "" }
     function handleBack() {
+        if (root.providerConnectionOpen && providerConnection.item) { providerConnection.item.close(); return }
         if (extrasDialog.opened) { extrasDialog.close(); return }
         if (admission.handleBack()) return
         if (identifyDialog.opened) { identifyDialog.close(); return }
@@ -112,6 +149,16 @@ FocusScope {
     function flash(text) { notice = text; noticeTimer.restart() }
     function fileExtras(row) { extrasDialog.sourceRow = row; extrasDialog.show = null; extrasDialog.open() }
     function showExtras(show) { extrasDialog.sourceRow = null; extrasDialog.show = show; extrasDialog.open() }
+    function showsWithSupplementalFiles() {
+        const result = []
+        const shows = root.adapter.shows || []
+        for (let i = 0; i < shows.length; ++i) {
+            const show = shows[i]
+            const count = Number(show.supplementalCount) || 0
+            if (count > 0) result.push({ show: show, count: count })
+        }
+        return result
+    }
     function activateExtras(item) {
         if (extrasDialog.sourceRow) {
             if (root.adapter.attachExtras(extrasDialog.sourceRow, item)) {
@@ -132,7 +179,7 @@ FocusScope {
     Loader {
         id: content
         objectName: "vaultLibraryContent"
-        x: theme.vaultContentLeft; y: theme.vaultSidebarTop
+        x: sidebar.x + sidebar.width + (theme.vaultContentLeft - theme.vaultSidebarInset - theme.vaultSidebarWidth); y: theme.vaultSidebarTop
         width: Math.max(240, root.width - x - theme.vaultContentRight)
         height: Math.max(100, root.height - y - 24)
         sourceComponent: root.searchViewActive ? searchComponent : root.adapter.empty ? emptyComponent : root.currentView === "home" ? homeComponent : root.currentView === "server" ? serverComponent : root.currentView === "match" || root.currentView === "hidden" ? listComponent : kindComponent
@@ -140,11 +187,15 @@ FocusScope {
     }
     VaultLibrarySidebar {
         id: sidebar
-        x: theme.vaultSidebarInset; y: theme.vaultSidebarTop; width: theme.vaultSidebarWidth; height: Math.max(280, root.height - y - theme.vaultDockClearance)
-        backdrop: root.backdrop; counts: root.adapter.counts; servers: root.adapter.servers; currentView: root.currentView; currentServer: root.currentServer
+        x: theme.vaultSidebarInset; y: bar.y + bar.height
+        height: Math.max(0, root.height - y - (root.desktopDockInset > 0 ? root.desktopDockInset + 8 : 4))
+        expanded: root.sidebarSettings.railExpanded
+        backdrop: root.backdrop; counts: root.adapter.counts; servers: root.adapter.providers; currentView: root.currentView; currentServer: root.currentServer
         unmatchedCount: root.adapter.unmatchedItems.length; status: root.adapter.status; busy: root.adapter.busy
-        onSelected: (view, serverId) => root.showView(view, serverId)
+        onSelected: (view, serverId) => view === "server" ? root.selectProvider(serverId) : root.showView(view, serverId)
         onSourcesRequested: sources.show(sidebar)
+        onAddFolderRequested: root.addFolderRequested()
+        onToggleRequested: root.sidebarSettings.railExpanded = !root.sidebarSettings.railExpanded
         onRescanRequested: { if (!root.adapter.rescan()) sources.show(sidebar) }
     }
     VaultLibraryBar {
@@ -163,6 +214,19 @@ FocusScope {
         id: sources; anchors.fill: parent; z: 20; backdrop: pageSurface; adapter: root.adapter
         onAddFolderRequested: { sources.close(); root.addFolderRequested() }
         onConnectServerRequested: root.connectServerRequested()
+    }
+    Loader {
+        id: providerConnection
+        objectName: "vaultProviderConnectionLoader"
+        active: root.providerConnectionOpen
+        sourceComponent: HomeServerConnectPanel {
+            service: root.adapter.homeServers
+            initialProvider: root.connectionProvider
+            invoker: root.connectionInvoker
+            onConnected: id => root.providerConnected(id)
+            onDismissed: root.providerConnectionOpen = false
+            Component.onCompleted: open()
+        }
     }
     VaultFolderAdmission { id: admission; anchors.fill: parent; z: 25; library: root.adapter.library || null }
     VaultIdentifyDialog {
@@ -218,7 +282,7 @@ FocusScope {
             footer: Component {
                 Column {
                     visible: root.adapter.unmatchedItems.length > 0; spacing: 12
-                    Text { text: "Needs a match"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultSectionTitle }
+                    Text { text: "Unmatched"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultSectionTitle }
                     Text { width: parent.width; text: "Files Vault couldn't name. Search once and they join the shelves."; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.Wrap }
                     VaultMatchList { width: parent.width; rows: root.adapter.unmatchedItems; compact: true; onMatchRequested: row => root.matchRow(row); onExtrasRequested: row => root.fileExtras(row) }
                     VaultLibraryButton { visible: root.adapter.unmatchedItems.length > 3; text: "See all unmatched files ›"; quiet: true; onClicked: root.showView("match", "") }
@@ -242,7 +306,14 @@ FocusScope {
     }
     Component {
         id: serverComponent
-        VaultServerView { server: root.selectedServer; rows: root.adapter.rowsForServer(root.currentServer); groups: root.adapter.groupsForServer(root.currentServer); onActivated: row => root.openRow(row); onReconnectRequested: root.connectServerRequested() }
+        VaultServerView {
+            server: root.selectedServer; rows: root.adapter.rowsForServer(root.currentServer); groups: root.adapter.groupsForServer(root.currentServer)
+            onActivated: row => root.openRow(row)
+            onReconnectRequested: {
+                if (root.selectedServer.state === "disabled") sources.show(sidebar)
+                else root.openProviderConnection(root.currentServer)
+            }
+        }
     }
     Component {
         id: listComponent
@@ -251,15 +322,18 @@ FocusScope {
             ScrollBar.vertical: HouseScrollBar { flick: listScroll }
             Column {
                 id: listBody; width: parent.width - 12; spacing: 18
-                Text { text: root.currentView === "hidden" ? "Hidden" : "Needs a match"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultPageTitle }
+                Text { text: root.currentView === "hidden" ? "Hidden" : "Unmatched"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultPageTitle }
                 Text { width: parent.width; text: root.currentView === "hidden" ? "Titles you have hidden. Restore one to return it to your library." : "Choose the title these files belong to. Unmatched files stay off the shelves."; wrapMode: Text.Wrap; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultBody }
                 VaultMatchList { width: parent.width; hiddenMode: root.currentView === "hidden"; rows: hiddenMode ? root.adapter.hiddenItems : root.adapter.unmatchedItems; onMatchRequested: row => root.matchRow(row); onRestoreRequested: row => root.adapter.restore(row); onExtrasRequested: row => root.fileExtras(row) }
                 Repeater {
-                    model: root.currentView === "match" ? root.adapter.shows : []
+                    model: root.currentView === "match" ? root.showsWithSupplementalFiles() : []
                     delegate: VaultLibraryButton {
                         required property var modelData
-                        text: "Supplemental files · " + modelData.title
-                        onClicked: root.showExtras(modelData)
+                        objectName: "vaultShowExtras_" + (modelData.show.id || modelData.show.seriesKey)
+                        text: qsTr("Supplemental files · %1").arg(modelData.show.title)
+                        accessibleName: qsTr("%1 supplemental file%2 for %3").arg(modelData.count)
+                            .arg(modelData.count === 1 ? "" : "s").arg(modelData.show.title)
+                        onClicked: root.showExtras(modelData.show)
                     }
                 }
             }

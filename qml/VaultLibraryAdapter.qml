@@ -20,10 +20,12 @@ QtObject {
     property var servers: []
     property var serverRows: ({})
     property var serverGroups: ({})
+    readonly property var providers: providerProjection()
     property var allItems: []
     property var counts: ({ movies: movies.length, shows: shows.length, books: books.length, comics: comics.length,
                               unmatched: unmatchedItems.length, hidden: hiddenItems.length })
-    readonly property bool busy: !!((library && library.scanning) || (homeServers && homeServers.busy))
+    readonly property bool busy: projectionBuild !== null || !!(metadataTimer && metadataTimer.running)
+        || !!((library && library.scanning) || (homeServers && homeServers.busy))
     readonly property bool empty: roots.length === 0 && servers.length === 0 && allItems.length === 0 && unmatchedItems.length === 0
     readonly property string status: {
         if (library && library.scanning) return "Scanning " + (library.scanningRoot || "folder")
@@ -37,31 +39,67 @@ QtObject {
     }
     property var gaps: []
     property string actionError: ""
+    property bool ready: false
+    property var pendingArtwork: ({})
+    property var artworkTargets: ({})
+    property var admission: ({})
+    property var projectionBuild: null
+    property int projectionGeneration: 0
+    property var metadataTimer: Timer { interval: 0; onTriggered: adapter.refreshLocal() }
+    property var buildTimer: Timer { interval: 0; onTriggered: adapter.buildNext() }
+    property var artworkTimer: Timer { interval: 0; onTriggered: adapter.flushArtwork() }
+    property var progressTimer: Timer { interval: 0; onTriggered: adapter.rejoinProgress() }
     property var libraryConnection: Connections {
         target: adapter.library
         ignoreUnknownSignals: true
-        function onChanged() { adapter.refresh() }
-        function onBrowseArtResolved() { adapter.refresh() }
+        function onChanged() { adapter.invalidateProjection() }
+        function onBrowseArtworkReady(rowKey, coverUrl) {
+            adapter.pendingArtwork[rowKey] = coverUrl
+            adapter.artworkTimer.start()
+        }
     }
     property var progressConnection: Connections {
         target: adapter.progressStore
         ignoreUnknownSignals: true
-        function onChanged() { adapter.refresh() }
+        function onChanged() { adapter.progressTimer.start() }
     }
     property var serverConnection: Connections {
         target: adapter.homeServers
         ignoreUnknownSignals: true
-        function onChanged() { adapter.refresh() }
-        function onProfileChanged() { adapter.refresh() }
+        function onChanged() { adapter.refreshServers() }
+        function onProfileChanged() { adapter.refreshServers() }
     }
-    Component.onCompleted: refresh()
+    onLibraryChanged: if (ready) refreshLocal()
+    onProgressStoreChanged: if (ready) progressTimer.start()
+    onHomeServersChanged: if (ready) refreshServers()
+    Component.onCompleted: { ready = true; refresh() }
     function call(name, args, fallback) {
         if (!library || typeof library[name] !== "function") return fallback
         return library[name].apply(library, args || [])
     }
-    function refresh() {
-        var local = [], unmatched = [], hidden = [], kinds = ["video", "book", "comic"]
-        roots = call("rootsDetail", [], []).map(function(r) {
+    function refresh() { refreshLocal(); refreshServers() }
+    function invalidateProjection() {
+        ++projectionGeneration
+        buildTimer.stop(); artworkTimer.stop()
+        projectionBuild = null; pendingArtwork = ({})
+        metadataTimer.start()
+    }
+    function sourceIsCurrent(source, revision, generation) {
+        return library === source && projectionGeneration === generation
+                && (!source || source.revision === revision)
+    }
+    function buildIsCurrent(build) {
+        return projectionBuild === build && sourceIsCurrent(build.source, build.revision, build.generation)
+    }
+    function rejectBuild(build) {
+        if (projectionBuild === build) { buildTimer.stop(); projectionBuild = null }
+        metadataTimer.start()
+    }
+    function refreshLocal() {
+        metadataTimer.stop(); buildTimer.stop(); artworkTimer.stop()
+        pendingArtwork = ({})
+        const source = library, revision = source ? source.revision : undefined, generation = ++projectionGeneration
+        var projectedRoots = call("rootsDetail", [], []).map(function(r) {
             var root = Data.copy(r)
             root.offline = r.available === false
             root.count = Number(r.itemCount) || 0
@@ -71,30 +109,118 @@ QtObject {
             root.subtitle = fileCount + (fileCount === 1 ? " file" : " files")
             return root
         })
-        for (var k = 0; k < kinds.length; ++k) {
-            var groups = call("series", [kinds[k]], [])
-            for (var i = 0; i < groups.length; ++i) {
-                var g = groups[i], files = call("items", [g.kind, g.key], [])
-                var structure = g.kind === "video" ? call("seasonFactsForShow", [g.key], {}) : {}
-                var detail = g.kind === "video" ? call("browseDetail", [g.key], {}) : {}
-                var row = Data.normalize(g, files, structure, false, detail)
-                if (row.identified && row.kind !== "unknown") local.push(row); else unmatched.push(row)
-            }
+        var projectedAdmission = call("admissionById", [], {})
+        var groups = []
+        ;["video", "book", "comic"].forEach(function(kind) { groups = groups.concat(call("series", [kind], [])) })
+        var hidden = call("hiddenSeries", [], [])
+        if (!sourceIsCurrent(source, revision, generation)) { metadataTimer.start(); return }
+        roots = projectedRoots; admission = projectedAdmission
+        projectionBuild = {source:source, revision:revision, generation:generation,
+            groups:groups, hidden:hidden, cursor:0, local:[], unmatched:[], hiddenRows:[]}
+        buildNext()
+    }
+    function buildNext() {
+        var build = projectionBuild
+        if (!build) return
+        if (!buildIsCurrent(build)) { rejectBuild(build); return }
+        var total = build.groups.length + build.hidden.length
+        var end = Math.min(total, build.cursor + 8)
+        for (; build.cursor < end; ++build.cursor) {
+            var hidden = build.cursor >= build.groups.length
+            var group = hidden ? build.hidden[build.cursor - build.groups.length] : build.groups[build.cursor]
+            var files = call("items", [group.kind, group.key], [])
+            if (!buildIsCurrent(build)) { rejectBuild(build); return }
+            var structure = group.kind === "video" ? call("seasonFactsForShow", [group.key], {}) : {}
+            if (!buildIsCurrent(build)) { rejectBuild(build); return }
+            var detail = group.kind === "video" ? call("presentationDetail", [group.key], {}) : {}
+            if (!buildIsCurrent(build)) { rejectBuild(build); return }
+            var row = Data.normalize(group, files, structure, hidden, detail)
+            row.supplementalCount = Number(group.supplementalCount) || 0
+            if (hidden) build.hiddenRows.push(row)
+            else if (row.identified && row.kind !== "unknown") build.local.push(row)
+            else build.unmatched.push(row)
         }
-        var hiddenGroups = call("hiddenSeries", [], [])
-        for (var h = 0; h < hiddenGroups.length; ++h) {
-            var hg = hiddenGroups[h]
-            hidden.push(Data.normalize(hg, call("items", [hg.kind, hg.key], []),
-                hg.kind === "video" ? call("seasonFactsForShow", [hg.key], {}) : {}, true))
-        }
-        var admission = call("admissionById", [], {})
-        local = Data.deduplicate(local).map(function(r) { return Data.joinProgress(r, progressStore, admission) })
-        allItems = local
-        movies = local.filter(function(r) { return r.kind === "movie" })
-        shows = local.filter(function(r) { return r.kind === "show" })
-        books = local.filter(function(r) { return r.kind === "book" })
-        comics = local.filter(function(r) { return r.kind === "comic" })
-        unmatchedItems = unmatched; hiddenItems = hidden
+        if (build.cursor < total) { buildTimer.start(); return }
+        const local = Data.deduplicate(build.local).map(joinProgress)
+        if (!buildIsCurrent(build)) { rejectBuild(build); return }
+        projectionBuild = null
+        unmatchedItems = build.unmatched; hiddenItems = build.hiddenRows
+        publishLocal(local)
+        indexArtwork()
+        if (Object.keys(pendingArtwork).length) artworkTimer.start()
+    }
+    function joinProgress(row) {
+        var clean = Object.assign({}, row, {progress:0, progressFraction:0, progressText:"", lastReadMs:0,
+            finished:false, completed:false, hasProgress:false, progressRecord:null, resumePath:"", resumeOffline:false})
+        return Data.joinProgress(clean, progressStore, admission)
+    }
+    function publishLocal(rows) {
+        allItems = rows
+        movies = rows.filter(function(r) { return r.kind === "movie" })
+        shows = rows.filter(function(r) { return r.kind === "show" })
+        books = rows.filter(function(r) { return r.kind === "book" })
+        comics = rows.filter(function(r) { return r.kind === "comic" })
+        updateHighlights()
+    }
+    function rejoinProgress() {
+        var mapped = {}, grouped = {}
+        Object.keys(serverRows).forEach(function(id) { mapped[id] = serverRows[id].map(joinProgress) })
+        Object.keys(serverGroups).forEach(function(id) {
+            grouped[id] = serverGroups[id].map(function(group) {
+                return Object.assign({}, group, {items:group.items.map(joinProgress)})
+            })
+        })
+        serverRows = mapped; serverGroups = grouped
+        publishLocal(allItems.map(joinProgress))
+    }
+    function indexArtwork() {
+        var targets = {}
+        ;[allItems, unmatchedItems, hiddenItems].forEach(function(rows, bucket) {
+            rows.forEach(function(row, index) {
+                var keys = [row.seriesKey]
+                ;(row.copies || []).forEach(function(copy) { keys.push(copy.key) })
+                ;(row.items || []).forEach(function(file) { keys.push(file.id); keys.push(file.path) })
+                keys.forEach(function(key) {
+                    if (!key) return
+                    var target = bucket + ":" + index
+                    if (!targets[key]) targets[key] = {}
+                    targets[key][target] = [bucket, index]
+                })
+            })
+        })
+        artworkTargets = targets
+    }
+    function patchArtwork(row, updates) {
+        var out = Data.copy(row)
+        function group(copy) { return updates[copy.key] ? Object.assign({}, copy, {coverUrl:updates[copy.key]}) : copy }
+        function file(item) { var cover = updates[item.id] || updates[item.path]; return cover ? Object.assign({}, item, {coverUrl:cover}) : item }
+        out.payload = group(row.payload || {})
+        out.copies = (row.copies || []).map(group)
+        out.items = (row.items || []).map(file)
+        out.progressItems = (row.progressItems || []).map(file)
+        var covered = out.copies.find(function(copy) { return !!copy.coverUrl })
+        var cover = out.payload.coverUrl || (covered ? covered.coverUrl : "") || (out.items[0] || {}).coverUrl || ""
+        out.cover = cover; out.poster = cover; out.coverUrl = cover
+        out.identity = Object.assign({}, row.identity, {coverUrl:cover})
+        return out
+    }
+    function flushArtwork() {
+        if (projectionBuild || metadataTimer.running) return
+        var updates = pendingArtwork, affected = {}, buckets = [allItems.slice(), unmatchedItems.slice(), hiddenItems.slice()]
+        pendingArtwork = ({})
+        Object.keys(updates).forEach(function(key) {
+            var targets = artworkTargets[key] || {}
+            Object.keys(targets).forEach(function(target) { affected[target] = targets[target] })
+        })
+        if (!Object.keys(affected).length) return
+        Object.keys(affected).forEach(function(target) {
+            var location = affected[target]
+            buckets[location[0]][location[1]] = patchArtwork(buckets[location[0]][location[1]], updates)
+        })
+        unmatchedItems = buckets[1]; hiddenItems = buckets[2]
+        publishLocal(buckets[0])
+    }
+    function refreshServers() {
         var connections = homeServers ? homeServers.serverTabs || [] : [], mapped = {}, grouped = {}, remote = [], tabs = []
         for (var s = 0; s < connections.length; ++s) {
             var connection = Data.copy(connections[s])
@@ -104,7 +230,7 @@ QtObject {
             connection.offline = connection.state === "unavailable"
             connection.stateLabel = ({cached:"Cached library", pending:"Waiting to refresh", refreshing:"Refreshing",
                 ready:"Library ready", unavailable:"Server unavailable", needsReconnect:"Reconnect in Sync Center", disabled:"Disabled in Sync Center"})[connection.state] || "Cached library"
-            var libraries = typeof homeServers.serverLibraries === "function" ? homeServers.serverLibraries(connection.id) : []
+            var libraries = !connection.disabled && typeof homeServers.serverLibraries === "function" ? homeServers.serverLibraries(connection.id) : []
             var projected = [], groups = [], seen = {}
             for (var l = 0; l < libraries.length; ++l) {
                 var manifest = libraries[l], items = [], titles = manifest.titles || []
@@ -122,8 +248,12 @@ QtObject {
             tabs.push(connection); mapped[connection.id] = projected; grouped[connection.id] = groups; remote = remote.concat(projected)
         }
         servers = tabs; serverRows = mapped; serverGroups = grouped
+        updateHighlights()
+    }
+    function updateHighlights() {
+        var local = allItems, remote = []
+        Object.keys(serverRows).forEach(function(id) { remote = remote.concat(serverRows[id]) })
         continueItems = Data.continuing(local.concat(remote))
-        // Continue leads; identified newcomers follow, without invented artwork or progress.
         var heroes = continueItems.slice(0, 5), seen = {}
         heroes.forEach(function(r) { seen[r.id] = true })
         var newest = local.slice().sort(function(a,b) { return b.addedAt - a.addedAt })
@@ -140,8 +270,68 @@ QtObject {
         if (kind === "unmatched" || kind === "needs-match") return unmatchedItems
         return allItems
     }
-    function rowsForServer(id) { return serverRows[id] || [] }
-    function groupsForServer(id) { return serverGroups[id] || [] }
+    function providerProjection() {
+        return ["jellyfin", "emby", "plex"].map(function(key) {
+            var connections = adapter.servers.filter(server => server.provider === key)
+            var enabled = connections.filter(server => server.enabled !== false && server.state !== "disabled")
+            var rows = [], groups = [], byId = {}
+            enabled.forEach(function(server) {
+                ;(adapter.serverRows[server.id] || []).forEach(function(row) {
+                    var existing = byId[row.id]
+                    if (existing) {
+                        var provenance = existing.sourceServerIds.concat([server.id])
+                        if ((existing.offline && !row.offline) || (existing.dimmed && !row.dimmed)) Object.assign(existing, row)
+                        existing.sourceServerIds = provenance
+                    } else {
+                        var projected = Object.assign({}, row, { sourceServerIds: [server.id] })
+                        byId[row.id] = projected
+                        rows.push(projected)
+                    }
+                })
+                ;(adapter.serverGroups[server.id] || []).forEach(function(group) {
+                    var label = (connections.length > 1 ? server.name + " · " : "") + (group.name || group.title || qsTr("Library"))
+                    groups.push(Object.assign({}, group, {
+                        id: server.id + ":" + group.id,
+                        sourceLibraryId: group.id,
+                        serverId: server.id,
+                        name: label, title: label
+                    }))
+                })
+            })
+            var unavailable = enabled.filter(server => server.offline || server.state === "unavailable")
+            var reconnect = enabled.filter(server => server.authRequired || server.needsReconnect || server.state === "needsReconnect")
+            var state = !connections.length ? "disconnected" : !enabled.length ? "disabled"
+                : enabled.some(server => server.state === "ready") ? "ready"
+                : enabled.some(server => server.state === "refreshing" || server.state === "pending") ? "refreshing"
+                : reconnect.length ? "needsReconnect" : unavailable.length ? "unavailable" : "cached"
+            var status = []
+            if (state === "disabled") status.push(qsTr("Connections disabled · Manage in Sources"))
+            else {
+                if (unavailable.length) status.push(unavailable.length === 1 ? qsTr("1 server unavailable") : qsTr("%1 servers unavailable").arg(unavailable.length))
+                if (reconnect.length) status.push(reconnect.length === 1 ? qsTr("1 server needs sign-in") : qsTr("%1 servers need sign-in").arg(reconnect.length))
+                if (!status.length && state === "cached") status.push(qsTr("Saved libraries · Refresh in Sync Center"))
+                if (state === "refreshing") status.push(qsTr("Updating libraries…"))
+            }
+            return { id: key, provider: key, name: key === "jellyfin" ? "Jellyfin" : key === "emby" ? "Emby" : "Plex",
+                connected: connections.length > 0, connectionCount: connections.length, enabled: enabled.length > 0,
+                state: state, offline: enabled.length > 0 && unavailable.length === enabled.length,
+                authRequired: enabled.length > 0 && reconnect.length === enabled.length,
+                dimmed: enabled.length > 0 && enabled.every(server => server.dimmed || server.offline || server.authRequired),
+                statusText: status.join(" · "), count: rows.length, rows: rows, groups: groups }
+        })
+    }
+    function providerKey(id) {
+        var server = servers.find(row => row.id === id)
+        return server ? server.provider : id
+    }
+    function rowsForServer(id) {
+        var provider = providers.find(row => row.id === id)
+        return provider ? provider.rows : serverRows[id] || []
+    }
+    function groupsForServer(id) {
+        var provider = providers.find(row => row.id === id)
+        return provider ? provider.groups : serverGroups[id] || []
+    }
     function attachExtras(row, show) {
         if (!row || !show || row.nativeKind !== "video" || show.kind !== "show") return false
         var ok = call("attachExtrasToShow", [row.seriesKey, show.seriesKey], false)

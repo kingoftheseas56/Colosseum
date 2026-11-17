@@ -3,7 +3,7 @@ import argparse,json,sqlite3
 from pathlib import Path
 from prepare import encode,quote,file_hash
 ROOT=Path(__file__).resolve().parents[1]
-FAMILIES={'imdb':['title'],'mal':['anime','manga'],'comics':['series','download','curated_series','curated_edition','curated_source','curated_series_coverage']}
+FAMILIES={'imdb':['title','title_alias'],'mal':['anime','manga'],'comics':['series','download','curated_series','curated_edition','curated_source','curated_series_coverage']}
 
 def build(artifact,output):
  if output.exists():raise ValueError('Output exists')
@@ -12,6 +12,7 @@ def build(artifact,output):
   specs=[]
   for dataset,families in FAMILIES.items():
    for family in families:
+    if 'lib_'+dataset+'_'+family not in tables:continue  # optional family (title_alias) absent from this source
     spec=tables.get('den_'+dataset+'_'+family,tables['lib_'+dataset+'_'+family]);records=[];prefix=[];cols=spec['columns']
     for block,payload in src.execute('SELECT id,payload FROM '+quote(spec['physical'])+' ORDER BY id'):
      for ordinal,row in enumerate(json.loads(payload)):
@@ -19,7 +20,7 @@ def build(artifact,output):
       if dataset in ('imdb','mal'):
        for name in ['norm_title']+(['norm_title_english']if dataset=='mal'else[]):
         value=row[cols.index(name)]
-        if value:prefix.append([value,row[0],block,ordinal,row[cols.index('norm_title')],row[cols.index('year')],row[cols.index('rating' if dataset=='imdb' else 'score')],row[cols.index('votes')]if dataset=='imdb'else 0])
+        if value:prefix.append([value,row[0],block,ordinal,row[cols.index('norm_title')],row[cols.index('year')]if 'year'in cols else 0,row[cols.index('rating' if dataset=='imdb' else 'score')]if('rating'if dataset=='imdb' else 'score')in cols else 0,row[cols.index('votes')]if dataset=='imdb'and 'votes'in cols else 0])
     specs.append((dataset+'_'+family,'key',records,isinstance(records[0][0],int)if records else False))
     if prefix:specs.append((dataset+'_'+family,'prefix',prefix,False))
   details=[]
@@ -34,6 +35,7 @@ def build(artifact,output):
    details.append({'table':name,'records':len(records),'packedRows':count,'kind':kind,'numeric':numeric});total+=count
   for dataset,families in FAMILIES.items():
    for family in families:
+    if 'lib_'+dataset+'_'+family not in tables:continue
     spec=tables.get('den_'+dataset+'_'+family,tables['lib_'+dataset+'_'+family]);name='hit_'+dataset+'_'+family
     original=next(s for s in report['schemaSql'] if s.startswith('CREATE VIEW '+quote(spec['view'])+' AS SELECT '))
     ddl=original.replace('CREATE VIEW '+quote(spec['view']), 'CREATE VIEW '+quote(name),1).replace(' AS SELECT ',' AS SELECT p.id AS __block,CAST(j.key AS INTEGER) AS __offset,',1)

@@ -1,6 +1,10 @@
 #include "BiblioCatalog.h"
 #include "BiblioRanking.h"
 #include "BiblioTaxonomy.h"
+#include "MediaTitleNormalization.h"
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QRegularExpression>
 
 #include <QDir>
 #include <QFileInfo>
@@ -20,6 +24,15 @@ namespace {
 // feeds included, which is a superset of the requirement and keeps the whole
 // pipeline's network footprint predictable).
 constexpr int kMaxConcurrent = 4;
+
+QString vaultTitleKey(QString text)
+{
+    text = text.toCaseFolded();
+    text.replace(QLatin1Char('&'), QStringLiteral(" and "));
+    static const QRegularExpression punctuation(QStringLiteral("[^\\p{L}\\p{N}]+"));
+    text.replace(punctuation, QStringLiteral(" "));
+    return text.simplified();
+}
 // Bounded retry/backoff for 429/transient failures. Linear backoff
 // (attempt * kRetryBaseDelayMs) keeps worst-case retry latency small and
 // deterministic for tests.
@@ -185,13 +198,16 @@ BiblioNetworkTransport::BiblioNetworkTransport(QObject *parent)
 BiblioTransportReply *BiblioNetworkTransport::get(const QUrl &url, const QVariantMap &headers)
 {
     QNetworkRequest req(url);
+    if (headers.value(QStringLiteral("_vaultNoRedirect")).toBool())
+        req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
     req.setHeader(QNetworkRequest::UserAgentHeader,
                   QStringLiteral("Colosseum/1.0 (+biblio-catalog; keyless)"));
     req.setTransferTimeout(6000);   // bound the wait so a slow/dead Apple or Open
                                     // Library can't wedge one of the 4 concurrency
                                     // slots forever (matches MangaSynopsisEnricher's norm).
     for (auto it = headers.constBegin(); it != headers.constEnd(); ++it)
-        req.setRawHeader(it.key().toUtf8(), it.value().toByteArray());
+        if (it.key() != QLatin1String("_vaultNoRedirect"))
+            req.setRawHeader(it.key().toUtf8(), it.value().toByteArray());
     QNetworkReply *reply = m_nam->get(req);
     return new NetworkBiblioTransportReply(reply);
 }
@@ -231,8 +247,196 @@ BiblioCatalog::BiblioCatalog(const QString &dbPath, IBiblioTransport *transport,
     recomputeStale();
 }
 
+BiblioIdentityLookup BiblioCatalog::onlineWorkMatches(const QString &title, const QString &author,
+                                                       const QString &filenameTitle)
+{
+    const QString key = vaultTitleKey(title) + QLatin1Char('|')
+        + MediaTitleNormalization::bookAuthorIdentityKey(author) + QLatin1Char('|') + vaultTitleKey(filenameTitle);
+    auto it = m_vaultLookups.find(key);
+    if (it != m_vaultLookups.end()) {
+        if (it->pending || it->result.status == BiblioIdentityLookup::Status::Available
+            || it->retryAfter > QDateTime::currentDateTimeUtc()) return it->result;
+    }
+    // Bound queued work as well as sockets. Refused work remains retriable.
+    if (m_vaultQueue.size() >= 256) return {};
+    VaultLookup job; job.title = title; job.author = author; job.filenameTitle = filenameTitle;
+    m_vaultLookups.insert(key, job);
+    m_vaultQueue.enqueue(key);
+    QTimer::singleShot(0, this, &BiblioCatalog::pumpVaultLookups);
+    return {};
+}
+
+bool BiblioCatalog::retainVaultWork(const BiblioIdentityCandidate &candidate)
+{
+    return m_store.retainVaultWork(candidate, m_vaultIsbns.value(candidate.canonicalId));
+}
+
+void BiblioCatalog::pumpVaultLookups()
+{
+    while (m_vaultActive < 4 && !m_vaultQueue.isEmpty())
+        issueVaultLookup(m_vaultQueue.dequeue());
+}
+
+void BiblioCatalog::issueVaultLookup(const QString &key)
+{
+    const auto job = m_vaultLookups.value(key);
+    const auto authorKey = MediaTitleNormalization::bookAuthorIdentityKey(job.author);
+    const bool fragment = !authorKey.contains(QLatin1Char(' ')) && authorKey.size() >= 5;
+    const QString queryAuthor = fragment ? QString() : job.author;
+    const QUrl url = job.stage == 0
+        ? BiblioProviders::appleSearchUrl((job.title + QLatin1Char(' ') + queryAuthor).trimmed(), QStringLiteral("ebook"), 50)
+        : BiblioProviders::openLibrarySearchUrl(job.title, queryAuthor, 50);
+    auto *reply = m_transport->get(url, {{QStringLiteral("_vaultNoRedirect"), true}});
+    ++m_vaultActive; m_vaultReplies.insert(reply);
+    connect(reply, &BiblioTransportReply::finished, this,
+        [this, key, reply](int status, const QByteArray &body, const QString &error) {
+        if (!m_vaultReplies.remove(reply)) return;
+        --m_vaultActive; reply->deleteLater();
+        auto &current = m_vaultLookups[key];
+        const auto json = QJsonDocument::fromJson(body);
+        const bool valid = json.isObject() && json.object().value(current.stage == 0
+            ? QStringLiteral("results") : QStringLiteral("docs")).isArray();
+        if (status != 200 || !error.isEmpty() || !valid) {
+            if ((status == 429 || status >= 500) && current.attempt++ < 2) {
+                const int delay = 250 * (1 << current.attempt);
+                QTimer::singleShot(delay, this, [this, key] {
+                    m_vaultQueue.enqueue(key); pumpVaultLookups();
+                });
+            } else {
+                // A completed Apple work can stand alone only under rule 3.
+                // Otherwise preserve transient failure as retriable, not negative.
+                finishVaultLookup(key, {}, false);
+                if (current.stage == 0 || current.result.candidates.isEmpty()) {
+                    current.pending = false;
+                    current.result = {};
+                    current.result.warning = QStringLiteral("catalogue-unavailable");
+                    current.retryAfter = QDateTime::currentDateTimeUtc().addSecs(1);
+                }
+                emit vaultLookupFinished();
+                // Later automatic retry uses Vault's existing unchanged-evidence guards.
+                QTimer::singleShot(15000, this, [this] { emit vaultLookupFinished(); });
+            }
+        } else if (current.stage == 0) {
+            current.apple = BiblioProviders::parseAppleSearch(body);
+            current.stage = 1; current.attempt = 0;
+            m_vaultQueue.enqueue(key);
+        } else {
+            finishVaultLookup(key, BiblioProviders::parseOpenLibrarySearch(body));
+            emit vaultLookupFinished();
+        }
+        pumpVaultLookups();
+    });
+}
+
+void BiblioCatalog::finishVaultLookup(const QString &key, const QList<BiblioSourceRecord> &ol,
+                                     bool libraryAvailable)
+{
+    auto &job = m_vaultLookups[key];
+    static const QRegularExpression qualified(QString::fromLatin1(kBiblioIdentityTitleQualifier));
+    const auto authorKey = MediaTitleNormalization::bookAuthorIdentityKey(job.author);
+    const bool fragment = !authorKey.contains(QLatin1Char(' ')) && authorKey.size() >= 5;
+    static const QRegularExpression uncertainAuthor(QStringLiteral(
+        "(?i)[()\\[\\]0-9]|\\b(?:unknown|anonymous|unspecified)\\b|\\.\\.\\."));
+    auto fitsAuthor = [&](const QString &author) {
+        if (uncertainAuthor.match(author).hasMatch()) return false;
+        const auto stored = MediaTitleNormalization::bookAuthorIdentityKey(author);
+        const auto parts = stored.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        return parts.size() >= 2 && parts.last().size() > 1
+            && (fragment ? parts.last().startsWith(authorKey) : stored == authorKey);
+    };
+    // Reject derivatives BEFORE splitting or folding away punctuation.
+    static const QRegularExpression derivative(QStringLiteral(
+        "(?i)\\b(?:graphic novel|summary|study guide|companion|analysis|workbook|illustrated edition|box set|boxed set|collection|omnibus|trilogy box|sampler|excerpt|free preview|abridged)\\b|\\b[0-9]+\\s*[-\\x{2013}\\x{2014}]\\s*[0-9]+\\b"));
+    static const QRegularExpression split(QStringLiteral("\\s+-\\s+|\\s+[\\x{2013}\\x{2014}]\\s+|[:()\\[\\]]"));
+    static const QRegularExpression numbering(QStringLiteral(
+        "(?i)\\b(?:book|vol\\.?|volume)\\s*[0-9]+\\b|#\\s*[0-9]+\\b|,\\s*[0-9]+\\s*$"));
+    static const QRegularExpression seriesWords(QStringLiteral(
+        "\\b(?:trilogy|saga|series|chronicles|cycle|legends|sequence|quartet|duology)\\b"));
+    static const QRegularExpression fraction(QStringLiteral("\\b[0-9]+\\s*/\\s*[0-9]+\\b"));
+    const auto hypothesis = vaultTitleKey(job.title);
+    QString context = vaultTitleKey(job.filenameTitle);
+    // Only the filename's remainder supplies arbitrary franchise/series words.
+    // It cannot lend words from the work title to a store subtitle.
+    const int pos = (QLatin1Char(' ') + context + QLatin1Char(' ')).indexOf(QLatin1Char(' ') + hypothesis + QLatin1Char(' '));
+    if (pos >= 0) {
+        context = (QLatin1Char(' ') + context + QLatin1Char(' ')).remove(pos, hypothesis.size() + 2).simplified();
+        if (context.endsWith(QStringLiteral(" the"))) context = QStringLiteral("the ") + context.chopped(4);
+    } else {
+        context.clear();
+    }
+    auto decoration = [&](const QString &text) {
+        // Preserve the fraction/list guard BEFORE folding away the slash,
+        // including when a number or series word would otherwise qualify it.
+        if (fraction.match(text).hasMatch()) return false;
+        const auto folded = vaultTitleKey(text);
+        return numbering.match(text).hasMatch() || seriesWords.match(folded).hasMatch()
+            || (!context.isEmpty() && folded == context);
+    };
+    auto titleFits = [&](const BiblioSourceRecord &r) {
+        if (r.sourceId.isEmpty() || qualified.match(job.title).hasMatch()
+            || derivative.match(r.title).hasMatch()) return false;
+        if (vaultTitleKey(r.title) == hypothesis
+            && BiblioProviders::foldTitleAuthor(r.title) == BiblioProviders::foldTitleAuthor(job.title)) return true;
+        bool matched = false;
+        for (const auto &segment : r.title.split(split, Qt::SkipEmptyParts)) {
+            if (segment.trimmed().isEmpty()) continue;
+            if (vaultTitleKey(segment) == hypothesis
+                && BiblioProviders::foldTitleAuthor(segment) == BiblioProviders::foldTitleAuthor(job.title)) matched = true;
+            else if (!decoration(segment)) return false;
+        }
+        return matched;
+    };
+    QList<BiblioSourceRecord> apple, library, contradictions;
+    for (const auto &r : job.apple) {
+        if (!titleFits(r)) continue;
+        if (!fitsAuthor(r.author)) { if (!fragment) contradictions.append(r); continue; }
+        // Apple track IDs describe editions; group by the adopted title + FULL author.
+        // Choose the numeric minimum, not a lexicographic or response-order minimum.
+        auto same = std::find_if(apple.begin(), apple.end(), [&](const BiblioSourceRecord &a) {
+            return MediaTitleNormalization::bookAuthorIdentityKey(a.author)
+                == MediaTitleNormalization::bookAuthorIdentityKey(r.author);
+        });
+        if (same == apple.end()) apple.append(r);
+        else if (r.sourceId.section(':',-1).toULongLong() < same->sourceId.section(':',-1).toULongLong()) *same = r;
+    }
+    QSet<QString> libraryIds;
+    for (const auto &r : ol) {
+        if (!titleFits(r)) continue;
+        if (!fitsAuthor(r.author)) { if (!fragment) contradictions.append(r); continue; }
+        if (!libraryIds.contains(r.sourceId)) { libraryIds.insert(r.sourceId); library.append(r); }
+    }
+    QList<BiblioSourceRecord> chosen;
+    if (apple.size() == 1) chosen = library.size() == 1
+        && MediaTitleNormalization::bookAuthorIdentityKey(library.first().author)
+            == MediaTitleNormalization::bookAuthorIdentityKey(apple.first().author) ? library : apple;
+    else if (apple.size() > 1) chosen = apple;
+    else if (libraryAvailable) chosen = library;
+    if (apple.size() == 1) for (const auto &r : library)
+        if (MediaTitleNormalization::bookAuthorIdentityKey(r.author)
+            != MediaTitleNormalization::bookAuthorIdentityKey(apple.first().author)) contradictions.append(r);
+    if (!chosen.isEmpty()) chosen.append(contradictions);
+    job.result = {};
+    job.result.status = BiblioIdentityLookup::Status::Available;
+    for (const auto &r : chosen) {
+        const QString id = QStringLiteral("user:") + r.source + QLatin1Char(':') + r.sourceId;
+        BiblioIdentityCandidate candidate{id, job.title, r.author, r.artworkUrl,
+            {{QStringLiteral("title"), r.source, r.sourceId, r.observedAt}}};
+        // rawTitle provenance entries carry the unmodified provider title. They
+        // are never used as identity fields, and survive restart/pruning.
+        for (const auto &records : {job.apple, ol}) for (const auto &raw : records)
+            if (titleFits(raw) && fitsAuthor(raw.author)) candidate.sources.append(
+                {QStringLiteral("rawTitle"), raw.source, raw.title, raw.observedAt});
+        job.result.candidates.append(candidate);
+        m_vaultIsbns.insert(id, r.isbns);
+    }
+    job.pending = false;
+}
+
 BiblioCatalog::~BiblioCatalog()
 {
+    for (auto *reply : m_vaultReplies) {
+        reply->disconnect(this); reply->cancel(); reply->deleteLater();
+    }
     cancelGeneration(m_generation);
     // The lazy path's replies are not generation machinery — cancelGeneration
     // never reaches them — so clean them up the same way here: a destructing
@@ -296,6 +500,11 @@ void BiblioCatalog::recomputeStale()
 }
 
 // --- read-only invokables: pure proxies onto the store --------------------
+
+BiblioIdentityLookup BiblioCatalog::exactWorkMatches(const QString &title, const QString &author) const
+{
+    return m_store.exactWorkMatches(title, author);
+}
 
 QVariantMap BiblioCatalog::discoverPage(const QString &catalogId, const QString &facetAxis,
                                         const QString &facetKey, bool includeExplicit,

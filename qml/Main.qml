@@ -335,28 +335,19 @@ Window {
         }
         return null
     }
-    function openStremioSyncPanel() {
-        stremioPanel.shown = true
+    function openStremioSyncPanel(nuvio) {
+        stremioPanel.openForProvider(nuvio === true ? "nuvio" : "stremio", win.activeFocusItem)
     }
     function openTheatreSyncFromAccount(invoker) {
-        stremioPanel.accountInvoker = invoker || win.activeFocusItem
-        win.openStremioSyncPanel()
+        win.externalServiceCardsPending = true
+        win.openSyncCenterPage()
+        if (syncCenterLayer.item && syncCenterLayer.item.openExternalServices) {
+            syncCenterLayer.item.openExternalServices()
+            win.externalServiceCardsPending = false
+        }
     }
     function closeStremioSyncPanel() {
         stremioPanel.shown = false
-        const invoker = stremioPanel.accountInvoker
-        stremioPanel.accountInvoker = null
-        if (invoker && invoker.visible && invoker.enabled) {
-            Qt.callLater(function() { invoker.forceActiveFocus() })
-            return
-        }
-        if (syncCenterLayer.active && syncCenterLayer.item) {
-            Qt.callLater(function() { syncCenterLayer.item.focusMainSyncButton() })
-            return
-        }
-        const theatreWorld = win.theatreWorldItem()
-        if (theatreWorld)
-            Qt.callLater(function() { theatreWorld.focusStremioButton() })
     }
     function requestTheatreRemoval(entry) {
         theatreRemoval.entry = entry
@@ -2730,6 +2721,7 @@ Window {
     // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
     function openSyncCenterPage() {
         if (win.guardNamedCollectionsNavigation(function() { win.openSyncCenterPage() })) return
+        const openingServices = win.vaultServerConnectionsPending || win.externalServiceCardsPending
 
         win.parkFeria(true)
         win.bookRouteGeneration += 1
@@ -2740,10 +2732,11 @@ Window {
         historyStatsLayer.active = false
         syncCenterLayer.active = true
         taskbar.open = false
-        if (syncCenterLayer.item && syncCenterLayer.item.takeKeyboardFocus)
+        if (!openingServices && syncCenterLayer.item && syncCenterLayer.item.takeKeyboardFocus)
             Qt.callLater(syncCenterLayer.item.takeKeyboardFocus)
     }
     property bool vaultServerConnectionsPending: false
+    property bool externalServiceCardsPending: false
     function openVaultServerConnections() {
         vaultServerConnectionsPending = true
         win.openSyncCenterPage()
@@ -5697,7 +5690,6 @@ Window {
     StremioSyncPanel {
         id: stremioPanel
         objectName: "stremioSyncOverlay"
-        property Item accountInvoker: null
         anchors.fill: parent
         z: 960
         syncState: typeof stremioSyncState !== "undefined" ? stremioSyncState : null
@@ -6005,6 +5997,7 @@ Window {
         source: win.androidHost ? "" : "VaultLibraryPage.qml"
         onLoaded: {
             item.backdrop = wall
+            item.desktopDockInset = Qt.binding(function() { return taskbar.contentBottomInset })
             item.backRequested.connect(win.closeVaultPage)
             win.finishNamedCollectionVaultOpen()
             item.addFolderRequested.connect(function() { vaultFolderDialog.open() })
@@ -6408,8 +6401,12 @@ Window {
             if (win.vaultServerConnectionsPending && item.openHomeServers) {
                 item.openHomeServers()
                 win.vaultServerConnectionsPending = false
+            } else if (win.externalServiceCardsPending && item.openExternalServices) {
+                item.openExternalServices()
+                win.externalServiceCardsPending = false
+            } else {
+                item.takeKeyboardFocus()
             }
-            item.takeKeyboardFocus()
         }
     }
 

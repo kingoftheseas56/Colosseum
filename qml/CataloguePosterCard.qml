@@ -10,6 +10,7 @@
 // never the hover reveal. Gallery has NO centered play ring and NO Unicode poster-control glyph.
 import QtQuick
 import QtQuick.Window
+import QtQuick.Controls
 import "PosterSourcePolicy.js" as PosterPolicy
 import "CatalogueVisualMetrics.js" as Metrics
 
@@ -35,6 +36,23 @@ Item {
     // Biblio hook: when true, render `item.author` PERSISTENTLY under the title (not gated
     // by hover/focus at all) — the author is always-on identity, not reveal-only metadata.
     property bool showAuthorAtRest: false
+    // Optional local-library decoration; all defaults leave catalogue cards unchanged.
+    property string subtitleText: ""
+    property string badgeText: ""
+    property bool completed: false
+    property real progressFraction: 0
+    property bool dimmed: false
+    property string contextActionText: ""
+    property bool _contextMenuRequested: false
+    signal contextRequested(var item)
+    signal contextActionTriggered(var item)
+    opacity: card.dimmed ? 0.48 : 1
+    function openContextMenu() {
+        if (card.skeleton || !card.contextActionText.length) return
+        card.contextRequested(card.item)
+        card._contextMenuRequested = true
+        if (contextMenu.status === Loader.Ready) contextMenu.item.popup()
+    }
     // Only cards actually revealed once retain the loaded details across hover exits.
     // Reset when the delegate becomes a skeleton so stale detail is never retained.
     property bool _revealWasBuilt: false
@@ -245,6 +263,37 @@ Item {
                 }
             }
         }
+        Rectangle {
+            objectName: "catalogueBadge"
+            visible: !card.skeleton && card.badgeText.length > 0
+            x: 8; y: 8; width: badgeLabel.implicitWidth + 12; height: 19; radius: 4
+            color: theme.gold
+            Text {
+                id: badgeLabel
+                anchors.centerIn: parent
+                text: card.badgeText; color: theme.vaultBackdrop
+                font.family: theme.ui; font.pixelSize: 9; font.bold: true
+            }
+        }
+        Rectangle {
+            objectName: "catalogueCompleted"
+            visible: !card.skeleton && card.completed
+            anchors { right: parent.right; top: parent.top; margins: 8 }
+            width: 22; height: 22; radius: 11; color: theme.vaultScrim
+            Text { anchors.centerIn: parent; text: "✓"; color: theme.ink; font.pixelSize: 13 }
+        }
+        // ContinueTile's inset gold progress treatment.
+        Rectangle {
+            objectName: "catalogueProgress"
+            visible: !card.skeleton && !card.completed && card.progressFraction > 0
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 8 }
+            height: 4; radius: 2; color: Qt.rgba(1, 1, 1, 0.2)
+            Rectangle {
+                objectName: "catalogueProgressFill"
+                width: parent.width * Math.max(0, Math.min(1, card.progressFraction))
+                height: parent.height; radius: 2; color: theme.gold
+            }
+        }
     }
 
     // title — classic: single line 12px; gallery: two reserved lines 13px DemiBold (35px minimum).
@@ -287,11 +336,40 @@ Item {
         maximumLineCount: 1
     }
 
+    Text {
+        objectName: "catalogueSubtitle"
+        visible: !card.skeleton && card.subtitleText.length > 0
+        anchors.left: parent.left; anchors.right: parent.right
+        anchors.top: authorLabel.visible ? authorLabel.bottom : titleText.top
+        anchors.topMargin: authorLabel.visible ? 3 : titleText.contentHeight + 3
+        text: card.subtitleText
+        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+        elide: Text.ElideRight; maximumLineCount: 1
+    }
+    Loader {
+        id: contextMenu
+        active: card._contextMenuRequested && card.contextActionText.length > 0 && !card.skeleton
+        sourceComponent: Component {
+            Menu {
+                objectName: "catalogueContextMenu"
+                MenuItem {
+                    objectName: "catalogueContextAction"
+                    text: card.contextActionText
+                    onTriggered: card.contextActionTriggered(card.item)
+                }
+            }
+        }
+    }
+
     HoverHandler { id: hov; enabled: !card.skeleton }
     MouseArea {
         anchors.fill: parent
         enabled: !card.skeleton
         cursorShape: Qt.PointingHandCursor
-        onClicked: card.activated(card.item)   // skeletons are disabled -> never activate
+        acceptedButtons: card.contextActionText.length ? Qt.LeftButton | Qt.RightButton : Qt.LeftButton
+        onClicked: mouse => {
+            if (mouse && mouse.button === Qt.RightButton) card.openContextMenu()
+            else card.activated(card.item)
+        }   // skeletons are disabled -> never activate
     }
 }

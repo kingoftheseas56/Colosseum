@@ -14,6 +14,8 @@
 // dismissCard, cancelScan.
 
 #include <QObject>
+#include <functional>
+#include <QHash>
 #include <QPointer>
 #include <QSet>
 #include <QString>
@@ -73,6 +75,10 @@ public:
     void republishAtBoot();
     // Reuse the catalogue's local/remote presentation truth; no second type cache.
     void setImdbCatalog(ImdbCatalog* catalog);
+    // Presentation-only lookup; never feeds catalogue facts back as embedded evidence.
+    void setBookIdentityDisplay(std::function<QVariantMap(const QString&, const QString&)> lookup) {
+        m_bookIdentityDisplay = std::move(lookup);
+    }
 
     int revision() const { return m_revision; }
     bool scanning() const { return m_scanning; }
@@ -107,7 +113,9 @@ public:
     Q_INVOKABLE QString downloadsRootPath() const { return m_downloadsRootPath; }
 
     // series(kind): normalization of VaultIndex::groupsForKind → { key, title, kind, count,
-    // subtreePath }. items(kind, seriesKey): VaultIndex::filesInSubtree, facts preserved.
+    // subtreePath }. items(kind, key) selects the exact indexed group and kind. A key that
+    // is not any indexed group may use the kind-filtered physical subtree route for legacy
+    // browse callers; an existing group of another kind never falls through to that route.
     Q_INVOKABLE QVariantList series(const QString& kind) const;
     Q_INVOKABLE QVariantList items(const QString& kind, const QString& seriesKey) const;
     Q_INVOKABLE bool attachExtrasToShow(const QString& groupKey, const QString& showGroupKey);
@@ -203,6 +211,7 @@ public:
     // key. See VaultBrowseDetail::detailFor for the returned shape; `{found: false}` on a stale
     // key. Never cast, synopsis, or related titles — the locked design's decision #11.
     Q_INVOKABLE QVariantMap browseDetail(const QString& key) const;
+    Q_INVOKABLE QVariantMap presentationDetail(const QString& key) const;
     // Slice 9 — the grid's empty-cause classification (design §4.5's four distinct causes minus
     // the formerly deferred "filtered" — VaultBrowseEmpty.qml always rendered its copy; S13's
     // filter surface is the production trigger: with an ACTIVE filter whose projection is empty
@@ -310,8 +319,11 @@ signals:
     // syncGridModel() (the same in-place ListModel diff identify-in-place already reuses), which is
     // the SAME re-projection path browseGridRows' own VaultLibrary.revision dependency drives.
     void browseArtResolved(const QString& rowKey);
+    // Ready-to-bind artwork for an already projected row; no catalogue reread is needed.
+    void browseArtworkReady(const QString& rowKey, const QString& coverUrl);
 
 private:
+    std::function<QVariantMap(const QString&, const QString&)> m_bookIdentityDisplay;
     void setScanning(bool scanning);
     // Kick off an off-thread census of an already-added root and clear any stale candidate
     // (shared by addFolder and offerUnconfirmedRoots).
@@ -330,6 +342,9 @@ private:
     void maybePublishPendingRevives();
     void scheduleAutoIdentify();
     void runAutoIdentifySlice();
+    // Files inside Extras/Bonus/Featurettes folders under an identified title are filed as that
+    // title's extras through VaultConfig (the same owner as the manual verb); runs after each pass.
+    void fileFolderExtras();
 
     VaultIndex* m_index = nullptr;
     QPointer<ImdbCatalog> m_imdbCatalog;
@@ -348,6 +363,10 @@ private:
     VaultArtworkResolver* m_artworkResolver = nullptr;
     QString m_downloadsRootPath;
     int m_revision = 0;
+    // Derived once from indexed video rows per library/config revision; never persisted.
+    mutable int m_supplementalRevision = -1;
+    mutable int m_supplementalConfigRevision = -1;
+    mutable QHash<QString, int> m_supplementalCounts;
     int m_arrivalTick = 0; // bumped on every live-shelf landing (the door's pulse clock)
     bool m_scanning = false;
     QString m_scanningRoot;

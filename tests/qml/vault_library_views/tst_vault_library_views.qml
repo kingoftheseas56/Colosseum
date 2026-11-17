@@ -200,6 +200,104 @@ TestCase {
         view.sortMode = "Year"
         compare(view.displayedRows[0].year, 2023)
     }
+    function test_kindGenres() {
+        const owned = [{title:"Zulu",genres:"Drama · Science Fiction",year:2020,progressFraction:0.3},
+            {title:"Alpha",genres:["Drama"],year:2024,completed:true},
+            {title:"Comedy",genres:"Comedy",year:2022}]
+        const view=createTemporaryObject(kindComponent,testCase,{rows:owned,kind:"movie"})
+        const picker=findChild(view,"vaultKindGenrePicker")
+        verify(picker !== null)
+        verify(picker.visible)
+        compare(picker.label,"Genre")
+        compare(view.genreOptions.map(x=>x.key).join(","),"All,Comedy,Drama,Sci-Fi")
+        picker.picked("Drama")
+        compare(view.displayedRows.length,2)
+        compare(findChild(view,"vaultKindGrid").count,2)
+        view.sortMode="Year"
+        compare(view.displayedRows[0].title,"Alpha")
+        view.filterMode="In progress"
+        compare(view.displayedRows.length,1)
+        compare(view.displayedRows[0],owned[0])
+        view.filterMode="Completed"
+        compare(view.displayedRows[0],owned[1])
+        picker.picked("All")
+        compare(view.displayedRows.length,1)
+        view.filterMode="All"
+        view.rows=[{title:"TV",genres:"Reality TV · Talk Show · Game Show"}]
+        view.kind="show"
+        compare(view.genreOptions.map(x=>x.key).join(","),"All,Reality-TV,Talk-Show,Game-Show")
+        for (const kind of ["book","comic"]) {
+            view.kind=kind
+            verify(!picker.visible)
+            compare(view.displayedRows.length,1)
+        }
+        view.kind="movie"; view.rows=[{title:"No genre"}]
+        verify(!picker.visible)
+    }
+    function test_kindHouseGridKeyboardAndOriginalRows() {
+        const view=createTemporaryObject(kindComponent,testCase,{rows:rows,kind:"book"})
+        view.rows=rows
+        const grid=findChild(view,"vaultKindGrid")
+        verify(grid !== null)
+        compare(grid.visualProfile,"gallery")
+        compare(grid.items[0],rows[0])
+        grid.forceActiveFocus()
+        grid.currentIndex=0
+        spy.target=view
+        let activatedRow=null, hiddenRow=null
+        view.activated.connect(row => activatedRow=row)
+        view.hideRequested.connect(row => hiddenRow=row)
+        keyClick(Qt.Key_Space)
+        compare(spy.count,1); verify(activatedRow === rows[0])
+        keyClick(Qt.Key_Right)
+        compare(grid.currentIndex,1)
+        keyClick(Qt.Key_Return)
+        compare(spy.count,2); verify(activatedRow === rows[1])
+        const card=findChild(view,"vaultKindPoster_1")
+        verify(card !== null)
+        compare(card.accessibleName,"B title")
+        compare(card.showAuthorAtRest,true)
+        compare(card.completed,true)
+        spy.signalName="hideRequested"; spy.clear()
+        keyClick(Qt.Key_F10,Qt.ShiftModifier)
+        const menu=findChild(card,"catalogueContextMenu")
+        tryCompare(menu,"opened",true)
+        const action=findChild(card,"catalogueContextAction")
+        compare(action.text,"Hide from Vault")
+        action.triggered()
+        compare(spy.count,1); verify(hiddenRow === rows[1])
+        menu.close()
+    }
+    function test_kindHouseCardStatesAndMetadata() {
+        const row={title:"Local book",kind:"book",author:"Writer",year:2020,isNew:true,
+            identified:false,progressFraction:1.5,offline:true,serverId:"home"}
+        const view=createTemporaryObject(kindComponent,testCase,{rows:[row],kind:"book"})
+        const card=findChild(view,"vaultKindPoster_0")
+        verify(card !== null)
+        compare(card.visualProfile,"gallery"); compare(card.authorText,"Writer")
+        compare(card.badgeText,"NEW"); compare(card.opacity,0.48)
+        compare(card.subtitleText,"Server unavailable")
+        const progress=findChild(card,"catalogueProgressFill")
+        compare(progress.width,progress.parent.width)
+        const subtitle=findChild(card,"catalogueSubtitle")
+        verify(subtitle.y >= card.height - 38)
+        view.rows=[{title:"Local film",kind:"movie",year:2021}]; view.kind="movie"
+        wait(30)
+        const film=findChild(view,"vaultKindPoster_0")
+        compare(film.showAuthorAtRest,false); compare(film.subtitleText,"2021")
+        compare(film.opacity,1); compare(film.badgeText,"")
+        spy.target=view; spy.signalName="hideRequested"
+        let hiddenRow=null
+        view.hideRequested.connect(row => hiddenRow=row)
+        mouseClick(film,20,20,Qt.RightButton)
+        const menu=findChild(film,"catalogueContextMenu")
+        tryCompare(menu,"opened",true)
+        findChild(film,"catalogueContextAction").triggered()
+        compare(spy.count,1); verify(hiddenRow === view.rows[0])
+        menu.close()
+        view.rows=[]; view.kind="comic"
+        compare(findChild(view,"vaultKindGrid").count,0)
+    }
     function test_serverPreservesGroups() {
         const view = createTemporaryObject(serverComponent, testCase, {rows: rows, groups: [{title: "Family books", items: rows}], server: {name: "Home", offline: true}})
         compare(view.libraries.length, 1)

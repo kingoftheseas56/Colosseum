@@ -389,10 +389,10 @@ void tst_vault_scanner::override_reassigns_mixed_leaf_to_present_kind()
     QCOMPARE(sm.value(QStringLiteral("kind")).toString(), QStringLiteral("book"));
     QCOMPARE(sm.value(QStringLiteral("count")).toInt(), 1);          // the one book shelves
     QCOMPARE(sm.value(QStringLiteral("leftoverCount")).toInt(), 2);  // the two comics leftover
-    QCOMPARE(r.rows.size(), 1);
-    QCOMPARE(r.rows.first().kind, QStringLiteral("book"));
-    // a289133 (2026-08-09) re-fixtured the Akira leftover notes.txt -> notes.epub
-    QVERIFY(r.rows.first().realName.endsWith(QStringLiteral(".epub")));
+    QCOMPARE(r.rows.size(), 3);
+    int books = 0, comics = 0;
+    for (const auto& row : r.rows) { books += row.kind == "book"; comics += row.kind == "comic"; }
+    QCOMPARE(books, 1); QCOMPARE(comics, 2);
 }
 
 void tst_vault_scanner::override_relabels_folder_to_absent_kind()
@@ -1137,7 +1137,9 @@ void tst_vault_scanner::watcher_override_law_raises_card_for_known_kind_arrival(
     writeMediaFile(subtree, QStringLiteral("Art 02.cbz"));
 
     const auto landing = w.processRoot(root.path(), {}, ov);
-    QCOMPARE(landing.landedCount, 1);
+    // The shared census also brings the old comic into the explicit book declaration.
+    QCOMPARE(landing.landedCount, 2);
+    QCOMPARE(idx.itemCountForKind(QStringLiteral("book")), 2);
     QCOMPARE(landing.newKindSlices.size(), 1);
     QCOMPARE(landing.newKindSlices.first().toMap().value(QStringLiteral("kind")).toString(),
              QStringLiteral("comic"));

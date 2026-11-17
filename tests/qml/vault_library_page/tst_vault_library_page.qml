@@ -26,12 +26,17 @@ TestCase {
             property int confirmed: 0
             property int dismissed: 0
             property var attached: []
+            property var supplementalByShow: null
             function offerUnconfirmedRoots() { offered++ }
             function rescanDegradedRoots() { degraded++ }
             function confirmRoot(path, overrides) { confirmed++; cardVisible=false }
             function dismissCard() { dismissed++; cardVisible=false }
             function attachExtrasToShow(from, to) { attached = [from, to]; return true }
-            function extrasForShow(key) { return [{id:"supplement",title:"Featurette",path:"/fixture/extra.mkv",supplemental:true,away:false}] }
+            function extrasForShow(key) {
+                return supplementalByShow
+                    ? (supplementalByShow[key] || [])
+                    : [{id:"supplement",title:"Featurette",path:"/fixture/extra.mkv",supplemental:true,away:false}]
+            }
         }
     }
     Component {
@@ -43,6 +48,47 @@ TestCase {
         }
     }
     Component { id: pageComponent; App.VaultLibraryPage { width:1280; height:700 } }
+    Component {
+        id: projectionLibraryComponent
+        QtObject {
+            signal changed()
+            signal browseArtworkReady(string rowKey, string coverUrl)
+            property int revision: 1
+            property bool cardVisible: false
+            property var identityCeremonies: []
+            property var reads: ({})
+            property var extrasReads: ({count:0})
+            property var counts: [0,1,2]
+            function count(name) { reads[name]=(reads[name] || 0)+1 }
+            function rootsDetail() { count("roots"); return [{path:"/fixture",available:true,fileCount:3,itemCount:3}] }
+            function series(kind) {
+                count("series")
+                return kind === "video" ? counts.map(function(n,i) {
+                    return {key:"show-"+i,kind:"video",identityId:"imdb:tt"+(1000+i),identityTitle:"Show "+i,
+                        identityType:"series",supplementalCount:n,coverUrl:"file:///show.jpg"}
+                }) : []
+            }
+            function items(kind,key) { count("items"); return [{id:key+"-file",kind:kind,path:"/fixture/"+key}] }
+            function hiddenSeries() { count("hidden"); return [] }
+            function admissionById() { count("admission"); return {} }
+            function seasonFactsForShow(key) { count("seasons"); return {} }
+            function presentationDetail(key) { count("presentation"); return {} }
+            function extrasForShow(key) {
+                extrasReads.count++
+                const n=counts[Number(key.split("-").pop())]
+                return Array.from({length:n},function(_,i) { return {id:key+"-extra-"+i,title:"Featurette "+i,path:"/fixture/extra-"+i+".mkv",supplemental:true} })
+            }
+        }
+    }
+    Component {
+        id: progressComponent
+        QtObject {
+            signal changed()
+            function get(kind,id) { return null }
+            function recent(kind,limit) { return [] }
+            function watchedMark(id) { return 0 }
+        }
+    }
     SignalSpy { id: playback; signalName:"openMediaRequested" }
     SignalSpy { id: world; signalName:"viewWorldRequested" }
     SignalSpy { id: addFolder; signalName:"addFolderRequested" }
@@ -70,11 +116,13 @@ TestCase {
     function test_navigationAllViewsAndEscape() {
         compare(page.currentView,"home")
         compare(content().heroRows[0].title,"Dunkirk")
-        const views = ["movies","shows","books","comics","match"]
+        const views = ["home","movies","shows","books","comics","match"]
         for (let i = 0; i < views.length; ++i) {
-            mouseClick(findChild(page,"vaultNav_"+views[i]))
+            const destination=findChild(page,"vaultNav_"+views[i])
+            verify(destination.visible)
+            mouseClick(destination)
             compare(page.currentView,views[i])
-            if (i < 4) { compare(content().rows.length,1); verify(content().rows[0].identified) }
+            if (i > 0 && i < 5) { compare(content().rows.length,1); verify(content().rows[0].identified) }
             page.forceActiveFocus(); keyClick(Qt.Key_Escape)
             compare(page.currentView,"home")
         }
@@ -105,7 +153,9 @@ TestCase {
         compare(world.count,0)
         page.openRow(book); compare(playback.count,1); compare(playback.signalArguments[0][0],"/fixture/dune.epub")
         page.openRow(film); compare(world.count,1)
-        content().reconnectRequested(); compare(connect.count,1)
+        content().reconnectRequested(); compare(page.providerConnectionOpen,true)
+        compare(page.connectionProvider,"jellyfin")
+        page.handleBack(); compare(page.providerConnectionOpen,false)
     }
     function test_emptyAndSourceBounds() {
         model.movies=[]; model.shows=[]; model.books=[]; model.comics=[]; model.allItems=[]
@@ -113,7 +163,7 @@ TestCase {
         tryCompare(page,"vaultState","empty")
         const sidebar=findChild(page,"vaultLibrarySidebar")
         const pane=findChild(page,"vaultLibraryContent")
-        compare(sidebar.y,84); compare(sidebar.y+sidebar.height,604)
+        compare(sidebar.y,68); compare(sidebar.y+sidebar.height,696)
         verify(sidebar.x+sidebar.width < pane.x)
         verify(pane.x+pane.width <= 1240)
         verify(pane.y+pane.height <= 676)
@@ -213,6 +263,68 @@ TestCase {
         mouseClick(findButton(dialog.contentItem,"Featurette"))
         compare(playback.count,1); compare(playback.signalArguments[0][0],"/fixture/extra.mkv")
         page.handleBack(); tryCompare(dialog,"opened",false)
+    }
+    function test_onlyShowsWithAttachedExtrasHaveAnExtrasEntry() {
+        const library=createTemporaryObject(admissionLibraryComponent,suite,{cardVisible:false})
+        library.supplementalByShow={
+            "show-empty":[],
+            "show-attached":[{id:"supplement",title:"Featurette",path:"/fixture/extra.mkv",supplemental:true,away:false}]
+        }
+        model.library=library
+        model.shows=[
+            {id:"empty",seriesKey:"show-empty",title:"Empty Show",kind:"show",supplementalCount:0},
+            {id:"attached",seriesKey:"show-attached",title:"The Wire",kind:"show",supplementalCount:1}
+        ]
+        page.showView("match","")
+        verify(findChild(page,"vaultShowExtras_empty") === null,"Empty shows have no supplemental-files entry")
+        const entry=findChild(page,"vaultShowExtras_attached")
+        verify(!!entry,"The show with attached extras remains reachable")
+        compare(entry.accessibleName,"1 supplemental file for The Wire")
+        mouseClick(entry)
+        const dialog=findChild(page,"vaultExtrasDialog")
+        tryCompare(dialog,"opened",true)
+        compare(dialog.supplemental.length,1)
+        mouseClick(findButton(dialog.contentItem,"Featurette"))
+        compare(playback.count,1)
+        compare(playback.signalArguments[0][0],"/fixture/extra.mkv")
+    }
+    function test_matchViewNarrowUpdatesUseProjectedExtrasCounts() {
+        const library=createTemporaryObject(projectionLibraryComponent,suite)
+        const progress=createTemporaryObject(progressComponent,suite)
+        model=createTemporaryObject(adapterComponent,suite,{library:library,progressStore:progress})
+        page.adapter=model
+        page.showView("match","")
+        tryVerify(function() { return !!findChild(page,"vaultShowExtras_imdb:tt1001") })
+        verify(findChild(page,"vaultShowExtras_imdb:tt1000") === null)
+        compare(findChild(page,"vaultShowExtras_imdb:tt1002").accessibleName,"2 supplemental files for Show 2")
+        library.reads=({});library.extrasReads.count=0
+        for(let i=0;i<20;++i) {
+            library.browseArtworkReady("show-1","file:///ready-"+i+".jpg")
+            progress.changed()
+        }
+        tryVerify(function() { return model.shows[1].cover === "file:///ready-19.jpg" })
+        compare(Object.keys(library.reads).length,0)
+        compare(library.extrasReads.count,0)
+        verify(!!findChild(page,"vaultShowExtras_imdb:tt1001"))
+        verify(findChild(page,"vaultShowExtras_imdb:tt1000") === null)
+
+        library.counts=[0,0,1];library.revision++;library.changed()
+        tryVerify(function() { return findChild(page,"vaultShowExtras_imdb:tt1001") === null })
+        compare(findChild(page,"vaultShowExtras_imdb:tt1002").accessibleName,"1 supplemental file for Show 2")
+        compare(library.extrasReads.count,0)
+        library.reads=({})
+        progress.changed();library.browseArtworkReady("show-2","file:///remaining.jpg")
+        tryVerify(function() { return model.shows[2].cover === "file:///remaining.jpg" })
+        compare(Object.keys(library.reads).length,0)
+        compare(library.extrasReads.count,0)
+        mouseClick(findChild(page,"vaultShowExtras_imdb:tt1002"))
+        const dialog=findChild(page,"vaultExtrasDialog")
+        tryCompare(dialog,"opened",true)
+        compare(library.extrasReads.count,1)
+        compare(dialog.supplemental.length,1)
+        mouseClick(findButton(dialog.contentItem,"Featurette 0"))
+        compare(playback.count,1)
+        compare(playback.signalArguments[0][0],"/fixture/extra-0.mkv")
     }
     function test_hoverFocusAndPress() {
         const nav=findChild(page,"vaultNav_books")

@@ -23,6 +23,24 @@ export function imdbRow(r: Row, identity = false): Row {
   if (identity) out.synopsis = '';
   return out;
 }
+// Canonical title rows whose title_alias.norm_title equals the query. Indexed lookup when the packed
+// alias directory exists, a plain table query otherwise, nothing when the alias table is absent.
+const missingTable = (e: unknown) => String(e).includes('no such table');
+const byTitleOrder = (a: Row, b: Row) => integer(b.year)-integer(a.year) || number(b.rating)-number(a.rating) || integer(b.votes)-integer(a.votes) || (text(a.tt)<text(b.tt)?-1:text(a.tt)>text(b.tt)?1:0);
+export async function aliasTitleRows(db: CatalogueDb, norm: string, year: number, have: Set<string>): Promise<Row[]> {
+  let ids: string[];
+  try {
+    const indexed = await indexedRows(db,'imdb','title_alias','norm',norm);
+    ids = (indexed ?? await query(db,'SELECT tt FROM lib_imdb_title_alias WHERE norm_title=?',[norm])).map(r => text(r.tt));
+  } catch (e) { if (missingTable(e)) return []; throw e; }
+  const out: Row[] = [];
+  for (const tt of new Set(ids)) {
+    if (!tt || have.has(tt)) continue;
+    const [row] = (await indexedRows(db,'imdb','title','key',tt)) ?? await query(db,'SELECT * FROM lib_imdb_title WHERE tt=?',[tt]);
+    if (row && (year === 0 || integer(row.year) === year)) out.push(row);
+  }
+  return out.sort(byTitleOrder);
+}
 export async function imdbMethod(db: CatalogueDb, method: string, args: any[]): Promise<any> {
   if (method === 'titleCatalog') {
     const q = args[0] && typeof args[0] === 'object' && !Array.isArray(args[0]) ? args[0] : {};
@@ -47,7 +65,11 @@ export async function imdbMethod(db: CatalogueDb, method: string, args: any[]): 
     const match = method === 'matchByTitle';
     const sql = match ? 'norm_title=? AND (?=0 OR year=?) ORDER BY year DESC,rating DESC,votes DESC,tt ASC' : 'norm_title LIKE ? ORDER BY CASE WHEN norm_title=? THEN 0 ELSE 1 END,year DESC,rating DESC,votes DESC,tt ASC LIMIT ?';
     const indexed=await indexedRows(db,'imdb','title',match?'norm':'prefix',norm,match?'AND (?=0 OR h.year=?) ORDER BY h.year DESC,h.rating DESC,h.votes DESC,h.tt ASC':'ORDER BY CASE WHEN h.norm_title=? THEN 0 ELSE 1 END,h.year DESC,h.rating DESC,h.votes DESC,h.tt ASC LIMIT ?',match?[integer(args[1]),integer(args[1])]:[norm,clamp(args[1],100)]);
-    return (indexed??await query(db,'SELECT * FROM lib_imdb_title WHERE '+sql,match?[norm,integer(args[1]),integer(args[1])]:[norm+'%',norm,clamp(args[1],100)])).map(r=>imdbRow(r,true));
+    const rows = indexed ?? await query(db,'SELECT * FROM lib_imdb_title WHERE '+sql,match?[norm,integer(args[1]),integer(args[1])]:[norm+'%',norm,clamp(args[1],100)]);
+    // matchByTitle also honours title_alias, like the local reader: alias hits are folded into
+    // canonical title rows (one row per tt) when the alias table was published; absent table = no change.
+    if (match) { const extra = await aliasTitleRows(db,norm,integer(args[1]),new Set(rows.map(r=>text(r.tt)))); if (extra.length) rows.push(...extra), rows.sort(byTitleOrder); }
+    return rows.map(r=>imdbRow(r,true));
   }
   if (method === 'titleFacts') {
     const ids = Array.isArray(args[0]) ? args[0].map(text) : [], out: Row = {};

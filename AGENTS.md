@@ -47,6 +47,7 @@ This file guides contributors and coding agents working in Colosseum. The instru
 - Test build graph: `tests/CMakeLists.txt`.
 - Preserve the current QML application UI direction; do not introduce a parallel web UI unless the task explicitly requires it.
 - Prefer C++ for durable backend/business machinery and QML for presentation and interaction, while respecting current ownership where migration has not occurred.
+- Reuse house QML for every new or reworked page (Hemanth, 2026-11-17: "always reuse, repurpose and rework established and existing QML"). Use the existing page shell, grid (`CataloguePosterGrid`), tile (`CataloguePosterCard`), filter/dropdown (`DiscoverPicker`) and scroll bar (`HouseScrollBar`) instead of hand-rolled equivalents. When one lacks something, add a small generic opt-in property whose default leaves every other world unchanged; never fork a parallel component.
 
 ## Read only when relevant
 - Windows build/setup: `docs/build/windows.md`.

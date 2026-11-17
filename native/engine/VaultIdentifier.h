@@ -4,6 +4,13 @@
 #include <QSet>
 #include <QString>
 #include <QVariantMap>
+#include <QPointer>
+#include <QHash>
+#include <QStringList>
+#include <functional>
+
+#include "BiblioCatalogTypes.h"
+#include "VaultIndex.h"
 
 class ComicsCatalog;
 class ImdbCatalog;
@@ -19,6 +26,7 @@ class VaultIdentifier final : public QObject
 public:
     struct Match {
         bool adopted = false;
+        bool manualChoice = false;
         QString source;
         QString sourceId;
         QString title;
@@ -38,16 +46,46 @@ public:
         // certainty gate correctly declined adoption for AMBIGUITY, not absence — the fact
         // recordAmbiguous() makes durable.
         int candidateCount = 0;
+        BiblioIdentityLookup::Status bookLookupStatus = BiblioIdentityLookup::Status::Unavailable;
+        QString bookLookupWarning;
+        bool bookLibraryMatch = false;
+        QString bookLookupReason;
+        QList<BiblioIdentitySource> bookProvenance;
+        BiblioIdentityCandidate bookWork;
+        // Only generated catalogue matches carry these guards. Manual choices
+        // keep their existing explicit-selection semantics.
+        QString bookEvidenceFingerprint;
+        quint64 bookLookupGeneration = 0;
+        quint64 bookCatalogRevision = 0;
     };
 
     explicit VaultIdentifier(VaultIndex* index, ComicsCatalog* comics,
                              MalCatalog* mal, ImdbCatalog* imdb,
                              QObject* parent = nullptr);
 
+    // Inject the existing Biblio service without giving Vault another database
+    // or any refresh/network authority. The owner guards the callable's lifetime.
+    void setBookCatalogLookup(QObject* owner,
+        std::function<BiblioIdentityLookup(const QString&, const QString&)> lookup,
+        std::function<BiblioIdentityLookup(const QString&, const QString&, const QString&)> online = {},
+        std::function<bool(const BiblioIdentityCandidate&)> retain = {});
+    void retryBookCatalog();
+
     Match matchGroup(const QString& groupKey) const;
     // Apply the same certainty gate to every existing group. The caller owns scheduling;
     // this method is a synchronous, testable pass over the current index snapshot.
     int autoIdentifyExisting();
+    // Genre-only repair, independent of the identity/adoption gate. One attempt per
+    // identity/session (including failures); successful facts persist in index-v1.
+    using VideoGenreReply = std::function<void(const QVariantMap&)>;
+    using VideoGenreLookup = std::function<void(const QString&, const QString&, VideoGenreReply)>;
+    void setVideoGenreLookup(VideoGenreLookup lookup) { m_videoGenreLookup = std::move(lookup); }
+    void backfillVideoGenres();
+    static QString videoGenres(const QVariant& genres);
+    static bool automaticPrivateEpub(const VaultIndex::FileRow& row);
+    bool shouldAutoIdentify(const QList<VaultIndex::FileRow>& rows);
+    // Empty means not junk; otherwise the size-and-shape reason for reversible filing.
+    static QString junkClipReason(const VaultIndex::FileRow& row);
     bool applyGroup(const QString& groupKey, const Match& match);
     // Explicit manual selection: bypasses the auto-certainty matcher but retains the
     // same decorate-only write, preserving every file id and progress field.
@@ -61,10 +99,34 @@ public:
     // — same shape as applyGroup/unidentifyGroup; no independent off-thread SQLite writes.
     bool recordAmbiguous(const QString& groupKey, int candidateCount);
 
+    // Files inside an Extras/Bonus/Featurettes/Behind-the-Scenes folder whose nearest ancestor
+    // folder holds exactly one identified title are that title's extras: returns {fileId ->
+    // parent identityId} for the unidentified video rows that qualify. Pure; the caller files them
+    // through the existing physical-extras owner (VaultConfig::setExtrasParent).
+    static QHash<QString, QString> physicalExtrasParents(const QList<VaultIndex::FileRow>& videoRows);
+
 private:
+    // A film whose own file name matched nothing, retried with its folder title (see matchGroup).
+    QVariantList folderTitleHits(const QList<VaultIndex::FileRow>& rows, const VaultIndex::FileRow& row) const;
     void retryPending();
+    void retryNextBookCatalog(quint64 generation);
+    bool automaticOnlineBook(const VaultIndex::FileRow& row) const;
+    bool snapshotBook(const VaultIndex::FileRow& row) const;
+    QHash<QString, QString> m_epubAttempts; // one automatic migration probe per evidence fingerprint/session
+    mutable QHash<QString, QString> m_pendingBookGroups; // group -> unchanged file evidence
+    QStringList m_bookRetryKeys;
+    bool m_bookRetryScheduled = false;
+    QPointer<QObject> m_bookLookupOwner;
+    std::function<BiblioIdentityLookup(const QString&, const QString&)> m_bookLookup;
+    std::function<BiblioIdentityLookup(const QString&, const QString&, const QString&)> m_bookOnlineLookup;
+    std::function<bool(const BiblioIdentityCandidate&)> m_bookRetain;
+    quint64 m_bookLookupGeneration = 0;
+    quint64 m_bookCatalogRevision = 0;
     mutable QSet<QString> m_pendingGroups;
     bool m_retryScheduled = false;
+    VideoGenreLookup m_videoGenreLookup;
+    QSet<QString> m_videoGenreAttempts;
+    QHash<QString, QString> m_videoGenreFacts;
     VaultIndex* m_index = nullptr;
     ComicsCatalog* m_comics = nullptr;
     MalCatalog* m_mal = nullptr;

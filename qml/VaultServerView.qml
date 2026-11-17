@@ -10,6 +10,7 @@ Flickable {
     property var groups: []
     readonly property bool dimmed: server.dimmed === true || server.offline === true || server.authRequired === true || server.enabled === false
     readonly property string statusText: {
+        if (server.statusText !== undefined) return String(server.statusText)
         switch (String(server.state || "")) {
         case "cached": return "Saved library · Refresh in Sync Center"
         case "pending":

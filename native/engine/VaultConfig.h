@@ -76,6 +76,11 @@ public:
     // parent identity. Files and their progress ids never move.
     QString extrasParent(const QString& fileId) const;
     bool setExtrasParent(const QStringList& fileIds, const QString& parentIdentityId);
+    // A deliberate "this is not an extra" decision (the user detached it). Removes any parent and
+    // records a declined marker, keyed by the same file id, so automatic filing never re-files it.
+    // A later setExtrasParent with a real parent clears the marker.
+    bool declineExtras(const QStringList& fileIds);
+    bool extrasDeclined(const QString& fileId) const;
 
 signals:
     void changed();

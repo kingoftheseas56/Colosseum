@@ -1618,6 +1618,26 @@ int main(int argc, char *argv[]) {
         + QStringLiteral("/catalog/biblio-v1.sqlite");
     auto *biblioCatalog = new BiblioCatalog(biblioCatalogPath, nullptr, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("BiblioCatalog"), biblioCatalog);
+#if !defined(Q_OS_ANDROID)
+    vaultIdentifier->setBookCatalogLookup(biblioCatalog,
+        [biblioCatalog](const QString &title, const QString &author) {
+            return biblioCatalog->exactWorkMatches(title, author);
+        }, [biblioCatalog](const QString &title, const QString &author, const QString &filenameTitle) {
+            return biblioCatalog->onlineWorkMatches(title, author, filenameTitle);
+        }, [biblioCatalog](const BiblioIdentityCandidate &candidate) {
+            return biblioCatalog->retainVaultWork(candidate);
+        });
+    vaultLibrary->setBookIdentityDisplay([biblioCatalog](const QString &id, const QString &title) {
+        for (const auto &work : biblioCatalog->exactWorkMatches(title, QString()).candidates)
+            if (QStringLiteral("biblio:") + work.canonicalId == id)
+                return QVariantMap{{QStringLiteral("author"), work.author}};
+        return QVariantMap{};
+    });
+    QObject::connect(biblioCatalog, &BiblioCatalog::vaultLookupFinished,
+                     vaultIdentifier, &VaultIdentifier::retryBookCatalog);
+    QObject::connect(biblioCatalog, &BiblioCatalog::revisionChanged,
+                     vaultIdentifier, &VaultIdentifier::retryBookCatalog);
+#endif
 
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);

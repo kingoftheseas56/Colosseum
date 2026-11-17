@@ -253,18 +253,16 @@ void VaultWatcher::onDirectoryChanged(const QString& path)
 {
     QString root = path;
     if (m_config) {
-        const QString eventNorm = normPath(path);
-        for (const QVariant& r : m_config->roots()) {
-            const QVariantMap m = r.toMap();
-            if (!m.value(QStringLiteral("confirmed")).toBool())
-                continue;
-            const QString candidate = m.value(QStringLiteral("path")).toString();
-            const QString candidateNorm = normPath(candidate);
-            if (eventNorm == candidateNorm || eventNorm.startsWith(candidateNorm + QLatin1Char('/'))) {
-                root = candidate;
-                break;
-            }
+        QStringList roots;
+        for (const QVariant& value : m_config->roots()) {
+            const auto configured = value.toMap();
+            if (configured.value(QStringLiteral("confirmed")).toBool()
+                && !configured.value(QStringLiteral("hidden")).toBool()
+                && !configured.value(QStringLiteral("synthetic")).toBool())
+                roots.append(configured.value(QStringLiteral("path")).toString());
         }
+        const QString owner = VaultKit::ownerRootForPath(roots, path);
+        if (!owner.isEmpty()) root = owner;
     }
 
     if (!QDir(root).exists()) {
@@ -365,93 +363,62 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
     if (!m_index || !m_identity || !QDir(root).exists())
         return landing; // an away root is availability state, never an empty destructive census
 
-    const QStringList needles = VaultKit::sanitizeIgnoreNeedles(scanIgnore);
-    const auto groups = VaultKit::groupByFirstLevelSubdir(
-        {root}, VaultKit::allMediaFilters(), nullptr, needles);
-
-    // The ids already shelved under this root — everything else on disk is an arrival.
-    // `currentIds` is built from the COMPLETE healthy-root census, including unchanged rows,
-    // so reconcileRoot can delete only physical rows that truly disappeared or were replaced.
-    QSet<QString> existing = m_index->fileIdsInRoot(root);
-    // A user folder can overlap Downloads. Keep the download owner's canonical
-    // grouping and admission facts instead of replacing that same file with a raw scan row.
+    QMap<QString, QString> overrides;
+    for (auto it = kindOverrides.constBegin(); it != kindOverrides.constEnd(); ++it)
+        overrides.insert(it.key(), it.value().toString());
+    // One census implementation owns grouping, actual-kind admission and overrides.
+    const auto scan = VaultScanner::buildScan(root, scanIgnore, 0, {}, overrides);
+    QStringList userRoots;
+    QSet<QString> syntheticIds;
+    QSet<QString> syntheticRoots;
     if (m_config) {
         for (const auto& value : m_config->roots()) {
             const auto configured = value.toMap();
+            if (configured.value(QStringLiteral("hidden")).toBool()
+                || !configured.value(QStringLiteral("confirmed")).toBool()) continue;
+            const QString configuredPath = configured.value(QStringLiteral("path")).toString();
             if (configured.value(QStringLiteral("synthetic")).toBool())
-                existing.unite(m_index->fileIdsInRoot(configured.value(QStringLiteral("path")).toString()));
+                syntheticRoots.insert(normPath(configuredPath));
+            else userRoots.append(configuredPath);
         }
     }
+    QHash<QString, VaultIndex::FileRow> previous;
+    for (const QString& kind : m_index->kinds()) {
+        for (const auto& row : m_index->rowsForKind(kind)) {
+            previous.insert(row.id, row);
+            if (syntheticRoots.contains(normPath(row.rootPath))) syntheticIds.insert(row.id);
+            if (!m_config && !userRoots.contains(row.rootPath)) userRoots.append(row.rootPath);
+        }
+    }
+    if (!userRoots.contains(root)) userRoots.append(root);
     QSet<QString> currentIds;
-
     QList<VaultIndex::FileRow> toUpsert;
-    // normSubtree -> { kind -> { count, sampleTitles } } for the new-kind card slices.
     QMap<QString, QMap<QString, QPair<int, QStringList>>> newKind;
-    // normSubtree -> real subtree path (for the card model).
     QMap<QString, QString> subtreeByNorm;
-    // normSubtree -> loose flag.
     QMap<QString, bool> looseByNorm;
-
-    for (auto it = groups.constBegin(); it != groups.constEnd(); ++it) {
-        const QString key = it.key();
-        const bool loose = key.endsWith(QStringLiteral("::LOOSE"));
-        const QString subtree = loose ? root : key;
-        const QString normSubtree = normPath(subtree);
+    for (VaultIndex::FileRow row : scan.rows) {
+        if (normPath(VaultKit::ownerRootForPath(userRoots, row.path)) != normPath(root)) continue;
+        row.id = m_identity->idForFile(row.path, row.size, row.mtimeMs);
+        currentIds.insert(row.id);
+        if (syntheticIds.contains(row.id)) continue;
+        const auto old = previous.constFind(row.id);
+        if (old != previous.constEnd() && normPath(old->rootPath) == normPath(root)
+            && old->groupKey == row.groupKey && old->kind == row.kind
+            && old->groupTitle == row.groupTitle && !old->away)
+            continue; // leave all unchanged durable facts byte-for-byte intact
+        toUpsert.append(row);
+        const QString relative = QDir(root).relativeFilePath(row.path);
+        const int slash = relative.indexOf(QLatin1Char('/'));
+        const QString subtree = slash < 0 ? root : QDir(root).filePath(relative.left(slash));
         const QString law = lawForSubtree(subtree, kindOverrides);
-
-        // S16 lockstep: the raw name's year rides the row exactly as buildScan stamps it
-        // (the rebuildable-index law — a watcher row must reproduce the scanner's).
-        const QString groupRaw = QFileInfo(subtree).fileName();
-        QString groupTitle = VaultKit::cleanMediaFolderTitle(groupRaw);
-        if (groupTitle.isEmpty())
-            groupTitle = groupRaw;
-        const bool mixedVideoTitles = VaultScanner::hasMixedVideoTitles(it.value());
-
-        for (const QString& f : it.value()) {
-            const VaultKit::MediaKind fk = VaultKit::kindForFile(f);
-            if (fk == VaultKit::MediaKind::Unknown)
-                continue; // not media — never an arrival
-
-            const QFileInfo fi(f);
-            const QString id = m_identity->idForFile(f, fi.size(),
-                                                     fi.lastModified().toMSecsSinceEpoch());
-            currentIds.insert(id);
-            if (existing.contains(id))
-                continue; // unchanged — keep the stored row and all durable enrichment facts
-
-            // Row construction mirrors VaultScanner::buildScan so a later full rescan
-            // reproduces the same rows (the index is a rebuildable product).
-            VaultIndex::FileRow row;
-            row.id = id;
-            row.rootPath = root;
-            row.subtreePath = subtree;
-            row.groupKey = subtree;
-            row.groupTitle = groupTitle;
-            row.parsedYear = VaultKit::parsedTitleYear(groupRaw); // S16
-            const QString kindName = VaultKit::kindName(fk);
-            row.kind = kindName;
-            row.path = f;
-            row.realName = fi.fileName();
-            QString disp = VaultKit::cleanMediaFolderTitle(fi.completeBaseName());
-            row.displayTitle = disp.isEmpty() ? fi.completeBaseName() : disp;
-            row.subfolder = VaultScanner::subfolderOf(subtree, f);
-            row.size = fi.size();
-            row.mtimeMs = fi.lastModified().toMSecsSinceEpoch();
-            row.format = fi.suffix().toLower();
-            VaultScanner::assignVideoGroup(row, loose, mixedVideoTitles);
-            VaultScanner::assignBookGroup(row);
-            toUpsert.append(row);
-
-            // New-kind arrival: the law exists (override or index truth) and disagrees.
-            if (!law.isEmpty() && law != kindName) {
-                QMap<QString, QPair<int, QStringList>>& kinds = newKind[normSubtree];
-                QPair<int, QStringList>& acc = kinds[kindName];
-                ++acc.first;
-                if (acc.second.size() < 3)
-                    acc.second.append(row.displayTitle);
-                subtreeByNorm[normSubtree] = subtree;
-                looseByNorm[normSubtree] = loose;
-            }
+        const QString normSubtree = normPath(subtree);
+        const QString actualKind = VaultKit::kindName(VaultKit::kindForFile(row.path));
+        if (old == previous.constEnd() && !law.isEmpty() && law != actualKind) {
+            auto& acc = newKind[normSubtree][actualKind];
+            ++acc.first;
+            if (acc.second.size() < 3) acc.second.append(row.displayTitle);
+            subtreeByNorm[normSubtree] = subtree;
+            looseByNorm[normSubtree] = slash < 0;
         }
     }
 

@@ -1290,20 +1290,23 @@ TestCase {
                 "Via your Stremio account")
     }
 
-    function test_connection_heading_and_summary_scope_third_party_trackers() {
+    function test_connection_heading_hides_redundant_empty_summary() {
         compare(findChild(page, "trackerSyncPageTitle").text, "Connections")
         page.stremioState = ({ linkedAccount: true })
         compare(page.stremioConnected, true)
-        compare(findChild(page, "trackerRelayStatus").text,
-                "No third-party trackers connected")
+        compare(page.aggregateSummary(), "")
+        compare(findChild(page, "trackerRelayStatus").visible, false)
+        compare(findChild(page, "trackerEmptyState").visible, true)
     }
 
     function test_native_and_stremio_cards_share_the_house_layout() {
         compare(findChild(page, "trackerExternalServicesTitle").text,
                 "External services")
-        compare(findChild(page, "trackerExternalServicesDescription").text,
-                "Manage connections to external libraries.")
+        compare(findChild(page, "trackerExternalServicesDescription"), null)
         compare(findChild(page, "trackerCatalogueTitle").text, "Available trackers")
+        page.stremioState = ({ linkedAccount: false, status: "notConnected" })
+        page.nuvioAccount = ({ available: true, needsReconnect: false, connected: false,
+                               primaryProvider: "nuvio", status: "" })
 
         var nativeCard = findChild(page, "trackerEmptyState")
         var stremioCard = findChild(page, "trackerStremioCard")
@@ -1319,25 +1322,41 @@ TestCase {
         tryCompare(stremioIcon, "status", Image.Ready, 1000)
         verify(stremioIcon.source.toString().indexOf("stremio-official.svg") >= 0)
 
-        var labels = ["Library", "Progress", "History"]
-        for (var i = 0; i < labels.length; ++i) {
-            var key = labels[i].toLowerCase()
-            var tag = findChild(page, "trackerStremioCapabilityTag_" + key)
-            var label = findChild(page, "trackerStremioCapabilityLabel_" + key)
-            verify(tag !== null)
-            verify(label !== null)
-            compare(label.text, labels[i])
-            compare(tag.implicitHeight, 21)
-            compare(tag.border.width, 0)
-        }
+        var stremioName = findChild(page, "trackerStremioName")
+        verify(!!stremioName, "Object exists")
+        compare(stremioName.text, "Stremio")
+        compare(findChild(page, "trackerStremioCapabilityTag_library"), null)
+        compare(findChild(page, "trackerStremioCapabilityTag_progress"), null)
+        compare(findChild(page, "trackerStremioCapabilityTag_history"), null)
 
         var status = findChild(page, "trackerStremioStatusBadge")
+        var statusGlyph = findChild(page, "trackerStremioStatusGlyph")
         var settings = findChild(page, "trackerMainSyncButton")
         verify(status !== null)
+        verify(statusGlyph !== null)
         verify(settings !== null)
+        tryCompare(statusGlyph, "status", Image.Ready)
+        compare(status.Accessible.name, "Stremio status: Not connected")
+        verify(statusGlyph.source.toString().indexOf("link.svg") >= 0)
+        const nuvioStatusGlyph = findChild(page, "trackerNuvioStatusGlyph")
+        verify(!!nuvioStatusGlyph, "Object exists")
+        tryCompare(nuvioStatusGlyph, "status", Image.Ready)
+        const nuvioName = findChild(page, "trackerNuvioName")
+        const nuvioStatus = findChild(page, "trackerNuvioStatusBadge")
+        verify(!!nuvioName, "Object exists")
+        verify(!!nuvioStatus, "Object exists")
+        compare(nuvioName.text, "Nuvio")
+        compare(nuvioStatus.Accessible.name, "Nuvio status: Not connected")
+        compare(page.stremioStatusKind(), "unlinked")
+        compare(page.nuvioStatusKind(), "unlinked")
         var statusRight = status.mapToItem(stremioCard, 0, 0).x + status.width
         var settingsRight = settings.mapToItem(stremioCard, 0, 0).x + settings.width
         compare(Math.round(statusRight), Math.round(settingsRight))
+        mouseMove(status)
+        compare(status.Accessible.name, "Stremio status: Not connected")
+        mouseMove(settings)
+        settings.forceActiveFocus(Qt.TabFocusReason)
+        tryCompare(settings, "activeFocus", true)
     }
 
     function test_connected_cards_precede_catalogue_and_keep_capability_truth() {
@@ -1350,10 +1369,21 @@ TestCase {
         var connectedIcon = findChild(page, "trackerConnectedIcon_trakt")
         verify(connectedIcon !== null)
         compare(connectedIcon.status, Image.Ready)
+        var connectedStatus = findChild(page, "trackerCardStatusBadge_trakt")
+        var connectedStatusGlyph = findChild(page, "trackerCardStatusGlyph_trakt")
+        var connectedCard = findChild(page, "trackerCard_trakt")
+        verify(!!connectedStatus, "Object exists")
+        verify(!!connectedStatusGlyph, "Object exists")
+        verify(!!connectedCard, "Object exists")
+        compare(connectedStatusGlyph.status, Image.Ready)
+        compare(connectedCard.statusKind, "attention")
+        compare(connectedCard.Accessible.name, "Trakt, Waiting")
+        mouseMove(connectedCard)
         verify(findChild(page, "trackerCatalogue_mal") !== null)
         compare(findChild(page, "trackerCatalogue_mal").enabled, true)
 
-        mouseClick(findChild(page, "trackerCard_trakt"))
+        revealScrollableItem(connectedCard)
+        mouseClick(connectedCard)
         wait(0)
         compare(page.dossierOpen, true)
         compare(findChild(page, "trackerDossierStatus").text, "Waiting")
@@ -2572,6 +2602,20 @@ TestCase {
         revealScrollableItem(findChild(page, "trackerMainSyncButton"))
         mouseClick(findChild(page, "trackerMainSyncButton"))
         compare(mainSyncSpy.count, 1)
+        compare(mainSyncSpy.signalArguments[0][0], false)
+
+        page.nuvioAccount = ({
+            available: true,
+            needsReconnect: false,
+            connected: false,
+            primaryProvider: "stremio"
+        })
+        var nuvioButton = findChild(page, "trackerNuvioSettingsButton")
+        verify(nuvioButton !== null)
+        revealScrollableItem(nuvioButton)
+        mouseClick(nuvioButton)
+        compare(mainSyncSpy.count, 2)
+        compare(mainSyncSpy.signalArguments[1][0], true)
         compare(TrackerSyncCenter.connectedTrackers.length, 0)
     }
 

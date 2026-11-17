@@ -1,12 +1,23 @@
 #include "VaultScanner.h"
 #include "VaultBookStateMigrator.h"
+#include "VaultLocation.h"
 
 #include <QDir>
 #include <QFileInfo>
 #include <QFutureWatcher>
 #include <QSet>
+#include <QRegularExpression>
 #include <QVariantMap>
 #include <QtConcurrent>
+
+namespace {
+bool genericFilmTitle(const QString& title)
+{
+    static const QRegularExpression generic(QStringLiteral(
+        "(?i)^(?:movie|video|feature|main|sample|clip|part[._\\s-]*\\d+|cd[._\\s-]*\\d+|disc[._\\s-]*\\d+)$"));
+    return generic.match(title).hasMatch();
+}
+}
 
 VaultScanner::VaultScanner(VaultIndex* index, VaultIdentity* identity, QObject* parent)
     : QObject(parent), m_index(index), m_identity(identity)
@@ -52,60 +63,56 @@ bool VaultScanner::hasMixedVideoTitles(const QStringList& files)
     QSet<QString> titles;
     for (const QString& file : files) {
         if (VaultKit::kindForFile(file) != VaultKit::MediaKind::Video) continue;
-        const QString title = VaultKit::episodeSeriesTitle(file);
-        if (!title.isEmpty()) titles.insert(VaultKit::normalizedTitle(title));
+        if (VaultKit::isSampleVideo(file)) continue;
+        const auto context = VaultKit::videoEpisodeContext(file, files);
+        QString title = context.title;
+        if (!context.number.matched)
+            title = VaultKit::standaloneVideoTitle(file);
+        if (!title.isEmpty() && !genericFilmTitle(title)) {
+            QString key = VaultKit::normalizedTitle(title);
+            if (!context.number.matched) key += QStringLiteral("::year::")
+                + QString::number(VaultKit::parsedTitleYear(QFileInfo(file).completeBaseName()));
+            titles.insert(key);
+        }
         if (titles.size() > 1) return true;
     }
     return false;
 }
 
-void VaultScanner::assignVideoGroup(VaultIndex::FileRow& row, bool loose, bool mixedTitles)
+void VaultScanner::assignVideoGroup(VaultIndex::FileRow& row, bool loose, bool mixedTitles,
+                                    const QStringList& siblings)
 {
     if (row.kind != QLatin1String("video")) return;
-    const QString title = VaultKit::episodeSeriesTitle(row.realName);
-    if (title.isEmpty()) {
-        if (mixedTitles) {
-            // There is no safe parent-show inference for an unlabelled file in
-            // a mixed container. Keep it matchable instead of adopting a neighbour.
-            const QString parent = QFileInfo(row.path).absolutePath();
-            const bool individual = parent == row.subtreePath;
-            row.groupKey = individual ? row.path : parent;
-            row.subtreePath = parent;
-            row.groupTitle = VaultKit::cleanMediaFolderTitle(
-                individual ? QFileInfo(row.path).completeBaseName() : QFileInfo(parent).fileName());
-            row.subfolder.clear();
-        }
+    if (VaultKit::isSampleVideo(row.path)) {
+        row.groupKey = row.subtreePath = row.path;
+        row.groupTitle = VaultKit::standaloneVideoTitle(row.realName);
+        row.parsedYear = VaultKit::parsedTitleYear(QFileInfo(row.realName).completeBaseName());
         return;
     }
-    if (loose) {
-        if (!VaultKit::isEpisodeVideo(row.realName)) return;
-        row.groupTitle = title;
-        row.groupKey = row.subtreePath = VaultKit::episodeShowKey(row.rootPath, title);
+    const auto context = VaultKit::videoEpisodeContext(row.path, siblings);
+    Q_UNUSED(loose);
+    if (context.number.matched) {
+        row.groupTitle = context.title;
+        const QString folder = VaultKit::normalizedTitle(QFileInfo(context.root).fileName());
+        const QString title = VaultKit::normalizedTitle(context.title);
+        row.groupKey = row.subtreePath = folder == title || folder.startsWith(title + QLatin1Char(' '))
+            ? context.root : VaultKit::episodeShowKey(context.root, context.title);
+        row.subfolder = subfolderOf(context.root, row.path);
+        row.parsedYear = VaultKit::parsedTitleYear(QFileInfo(context.root).fileName());
         return;
     }
-
-    const QString original = QDir::cleanPath(row.subtreePath);
-    const QString normalized = VaultKit::normalizedTitle(title);
-    QString candidate = QFileInfo(row.path).absolutePath(), showRoot;
-#ifdef Q_OS_WIN
-    constexpr auto pathCase = Qt::CaseInsensitive;
-#else
-    constexpr auto pathCase = Qt::CaseSensitive;
-#endif
-    while (candidate.compare(original, pathCase) == 0
-           || candidate.startsWith(original + QLatin1Char('/'), pathCase)) {
-        const QString folderTitle = VaultKit::normalizedTitle(QFileInfo(candidate).fileName());
-        if (folderTitle == normalized || folderTitle.startsWith(normalized + QLatin1Char(' ')))
-            showRoot = candidate;
-        if (candidate.compare(original, pathCase) == 0) break;
-        const QString parent = QFileInfo(candidate).absolutePath();
-        if (parent == candidate) break;
-        candidate = parent;
-    }
-    row.groupTitle = title;
-    row.groupKey = showRoot.isEmpty() ? VaultKit::episodeShowKey(original, title) : showRoot;
+    const QString parent = QFileInfo(row.path).absolutePath();
+    row.groupKey = mixedTitles ? row.path : parent;
     row.subtreePath = row.groupKey;
-    if (!showRoot.isEmpty()) row.subfolder = subfolderOf(showRoot, row.path);
+    QString filmTitle = VaultKit::standaloneVideoTitle(row.realName);
+    // An opaque release-credit clip is not its parent feature. Only explicit
+    // multipart/main labels are eligible to inherit a physical film folder.
+    if (filmTitle.isEmpty() || genericFilmTitle(filmTitle))
+        filmTitle = VaultKit::cleanMediaFolderTitle(QFileInfo(parent).fileName());
+    row.groupTitle = filmTitle;
+    const int fileYear = VaultKit::parsedTitleYear(QFileInfo(row.realName).completeBaseName());
+    row.parsedYear = fileYear > 0 ? fileYear : VaultKit::parsedTitleYear(QFileInfo(parent).fileName());
+    row.subfolder = subfolderOf(parent, row.path);
 }
 
 void VaultScanner::assignBookGroup(VaultIndex::FileRow& row)
@@ -128,7 +135,7 @@ VaultScanner::RawResult VaultScanner::buildScan(
 
     const VaultKit::CancellationToken* c = cancel.get();
     const QStringList needles = VaultKit::sanitizeIgnoreNeedles(scanIgnore);
-    const auto groups = VaultKit::groupByFirstLevelSubdir(
+    auto groups = VaultKit::groupByFirstLevelSubdir(
         {root}, VaultKit::allMediaFilters(), c, needles, onProgress);
     // groupByFirstLevelSubdir swallows cancellation and returns early-empty, so
     // check here too: a cancelled scan must report cancelled (NOT an empty
@@ -147,6 +154,29 @@ VaultScanner::RawResult VaultScanner::buildScan(
         return n;
     };
 
+    QMap<QString, QString> physicalOverrides, comicOverrides, originalScopes;
+    for (auto override = kindOverrides.constBegin(); override != kindOverrides.constEnd(); ++override) {
+        if (override.key().startsWith(QLatin1String("comic::")))
+            comicOverrides.insert(override.key().mid(7), override.value());
+        else physicalOverrides.insert(override.key(), override.value());
+    }
+    for (auto group = groups.constBegin(); group != groups.constEnd(); ++group)
+        for (const QString& file : group.value())
+            originalScopes.insert(file, group.key().endsWith(QLatin1String("::LOOSE")) ? root : group.key());
+
+    // An explicit nested override keeps its scope when an ancestor root is added
+    // or removed. Partition before classification so only that scope is relabelled.
+    if (!physicalOverrides.isEmpty()) {
+        QMap<QString, QStringList> scoped;
+        for (auto group = groups.constBegin(); group != groups.constEnd(); ++group) {
+            for (const QString& file : group.value()) {
+                const QString scope = VaultKit::ownerRootForPath(physicalOverrides.keys(), file);
+                scoped[scope.isEmpty() ? group.key() : file.left(scope.size())].append(file);
+            }
+        }
+        groups = scoped;
+    }
+
     for (auto it = groups.constBegin(); it != groups.constEnd(); ++it) {
         if (c && c->isCancelled()) {
             r.cancelled = true;
@@ -156,7 +186,14 @@ VaultScanner::RawResult VaultScanner::buildScan(
         const bool loose = key.endsWith(QStringLiteral("::LOOSE"));
         const QString subtree = loose ? root : key;
         const QStringList files = it.value();
-        const bool mixedVideoTitles = hasMixedVideoTitles(files);
+        QMap<QString, QStringList> videosByParent;
+        for (const QString& file : files) {
+            if (VaultKit::kindForFile(file) == VaultKit::MediaKind::Video)
+                videosByParent[QFileInfo(file).absolutePath()].append(file);
+        }
+        QMap<QString, bool> mixedByParent;
+        for (auto parent = videosByParent.constBegin(); parent != videosByParent.constEnd(); ++parent)
+            mixedByParent.insert(parent.key(), hasMixedVideoTitles(parent.value()));
 
         const VaultKit::LeafClassification cls = VaultKit::classifyLeaf(files);
         if (cls.dominant == VaultKit::MediaKind::Unknown)
@@ -170,7 +207,7 @@ VaultScanner::RawResult VaultScanner::buildScan(
         //    has declared the whole folder that kind, so its dominant-content files shelve
         //    re-labelled and the rest stay leftover.
         VaultKit::MediaKind effectiveKind = cls.dominant;
-        const QString ov = kindOverrides.value(normPath(subtree));
+        const QString ov = physicalOverrides.value(normPath(subtree));
         if (!ov.isEmpty()) {
             const VaultKit::MediaKind ovKind = VaultKit::kindFromName(ov);
             if (ovKind != VaultKit::MediaKind::Unknown)
@@ -205,13 +242,11 @@ VaultScanner::RawResult VaultScanner::buildScan(
             const VaultKit::MediaKind fk = VaultKit::kindForFile(f);
             if (fk == VaultKit::MediaKind::Unknown)
                 continue;
-            if (fk != shelveKind) {
-                ++leftoverCount; // other-kind file — named-but-unshelved (leftover line)
-                continue;
-            }
+            // Other supported media retain their own medium and remain indexed.
+            if (fk != shelveKind) ++leftoverCount;
 
             const QFileInfo fi(f);
-            ++shelvedCount;
+            if (fk == shelveKind) ++shelvedCount;
             sizeBytes += fi.size();
 
             const QString rel = subfolderOf(subtree, f);
@@ -249,16 +284,34 @@ VaultScanner::RawResult VaultScanner::buildScan(
             row.groupKey = subtree;
             row.groupTitle = groupTitle;
             row.parsedYear = VaultKit::parsedTitleYear(groupRaw); // S16
-            row.kind = effectiveKindName; // the user's chip choice wins the shelf
+            row.kind = fk == shelveKind ? effectiveKindName : VaultKit::kindName(fk);
+            const QString physicalScope = VaultKit::ownerRootForPath(physicalOverrides.keys(), f);
+            const QString comicScope = fk == VaultKit::MediaKind::Comic
+                ? VaultKit::ownerRootForPath(comicOverrides.keys(), f) : QString();
+            const bool fileOverride = !physicalScope.isEmpty() && normPath(physicalScope) == normPath(f);
+            if (!comicScope.isEmpty() && !fileOverride && comicScope.size() >= physicalScope.size()) {
+                const auto declared = VaultKit::kindFromName(comicOverrides.value(comicScope));
+                if (declared != VaultKit::MediaKind::Unknown) row.kind = VaultKit::kindName(declared);
+            }
+            if (row.kind == QLatin1String("comic")) {
+                // A return from a per-file book group restores the original comic series
+                // scope; the typed folder declaration still supplies that scope after a
+                // broader root is added. Non-comic files never inherit this selector.
+                if (fk == VaultKit::MediaKind::Comic && (!comicScope.isEmpty() || fileOverride))
+                    row.subtreePath = !comicScope.isEmpty() ? f.left(comicScope.size()) : originalScopes.value(f);
+                row.groupKey = QStringLiteral("comic::") + row.subtreePath;
+                row.groupTitle = VaultKit::cleanMediaFolderTitle(QFileInfo(row.subtreePath).fileName());
+            }
             row.path = f;
             row.realName = fi.fileName();
             QString disp = VaultKit::cleanMediaFolderTitle(fi.completeBaseName());
             row.displayTitle = disp.isEmpty() ? fi.completeBaseName() : disp;
-            row.subfolder = rel;
+            row.subfolder = row.kind == QLatin1String("comic")
+                ? subfolderOf(row.subtreePath, f) : rel;
             row.size = ff.size;
             row.mtimeMs = ff.mtimeMs;
             row.format = fi.suffix().toLower();
-            assignVideoGroup(row, loose, mixedVideoTitles);
+            assignVideoGroup(row, loose, mixedByParent.value(fi.absolutePath()), videosByParent.value(fi.absolutePath()));
             assignBookGroup(row);
             r.rows.append(row);
         }
@@ -340,22 +393,55 @@ void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generat
     // represented by its last indexed rows before reconciliation: it is present-but-away,
     // not an empty census. That prevents an unrelated available file with the same
     // size/mtime from borrowing an absent drive's canonical identity.
-    QList<VaultIdentity::FileFacts> allFacts;
-    QList<VaultIndex::FileRow> allRows;
-    for (const RawResult& r : results) {
-        if (QDir(r.root).exists()) {
-            allFacts.append(r.facts);
-            allRows.append(r.rows);
-            continue;
+    QStringList roots;
+    for (const RawResult& result : results) roots.append(result.root);
+    QMap<QString, VaultIndex::FileRow> selected;
+    QList<VaultIndex::FileRow> previous;
+    bool loadedPrevious = false;
+    for (const RawResult& result : results) {
+        QList<VaultIndex::FileRow> candidates = result.rows;
+        const bool available = QDir(result.root).exists();
+        if (!available) {
+            // Upgrade old overlapping indexes too: an absent child may previously have
+            // had its ownership overwritten by an ancestor. Recover its path membership.
+            if (!loadedPrevious) {
+                for (const QString& kind : m_index->kinds()) previous.append(m_index->rowsForKind(kind));
+                loadedPrevious = true;
+            }
+            candidates = previous;
         }
-
-        const QList<VaultIndex::FileRow> oldRows = m_index->rowsForRoot(r.root);
-        for (VaultIndex::FileRow row : oldRows) {
-            row.away = true;
-            allRows.append(row);
-            allFacts.append({row.path, row.size, row.mtimeMs});
+        QMap<QString, QStringList> videosByParent;
+        if (!available) {
+            for (const auto& row : candidates)
+                if (row.kind == QLatin1String("video"))
+                    videosByParent[QFileInfo(row.path).absolutePath()].append(row.path);
+        }
+        for (VaultIndex::FileRow row : candidates) {
+            if (VaultKit::ownerRootForPath(roots, row.path) != result.root) continue;
+            if (!available) {
+                assignVideoGroup(row, false,
+                    hasMixedVideoTitles(videosByParent.value(QFileInfo(row.path).absolutePath())),
+                    videosByParent.value(QFileInfo(row.path).absolutePath()));
+                assignBookGroup(row);
+            }
+            if (row.kind == QLatin1String("comic") && !row.groupKey.startsWith(QLatin1String("comic::")))
+                row.groupKey.prepend(QStringLiteral("comic::"));
+            row.rootPath = result.root;
+            row.away = !available;
+            selected.insert(VaultLocation::normalize(row.path), row);
         }
     }
+    // Synthetic rows deliberately win over physical imports. Include their unique
+    // facts BEFORE reconcile too, so downloaded identities participate in continuity.
+    for (VaultIndex::FileRow row : extraRows) {
+        if (row.kind == QLatin1String("comic") && !row.groupKey.startsWith(QLatin1String("comic::")))
+            row.groupKey.prepend(QStringLiteral("comic::"));
+        selected.insert(VaultLocation::normalize(row.path), row);
+    }
+    QList<VaultIdentity::FileFacts> allFacts;
+    QList<VaultIndex::FileRow> allRows = selected.values();
+    for (const VaultIndex::FileRow& row : allRows)
+        allFacts.append({row.path, row.size, row.mtimeMs});
     const VaultIdentity::ReconcileResult reconciliation = m_identity->reconcile(allFacts);
     for (VaultIndex::FileRow& row : allRows)
         row.id = m_identity->idForFile(row.path, row.size, row.mtimeMs);
@@ -373,16 +459,6 @@ void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generat
                 break;
             }
         }
-    }
-
-    // Slice 18: fold the synthetic downloads root's derived rows into the same
-    // UNION. Their ids are assigned here via idForFile (same path as scanned rows),
-    // so a file reachable via BOTH a user root and the downloads root dedupes
-    // automatically — the index's INSERT OR REPLACE on file id keeps ONE row.
-    for (VaultIndex::FileRow row : extraRows) {
-        if (row.id.isEmpty())
-            row.id = m_identity->idForFile(row.path, row.size, row.mtimeMs);
-        allRows.append(row);
     }
 
     // Emit indexPublished ONLY on a successful publish — a failed/rolled-back publish

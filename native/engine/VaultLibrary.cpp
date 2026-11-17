@@ -37,8 +37,8 @@ static QString normPath(const QString& p)
 
 // Browse-artwork execution plan, Slice 3 part 2: an Episode or Clip browse node's OWN `path` IS
 // the video file (VaultKit::planBrowseLevel's loose-video leaf grammar) — never a group's
-// folder-shaped groupKey/subtreePath the way a Film node's `n.path` is, so the Film branch's
-// `rowsForGroup(n.path)` lookup cannot answer "what does the index know about this ONE file."
+// logical group key used by a Film node, so a group lookup cannot answer what the index knows
+// about this exact file.
 // VaultIndex::rowsForPath (added for this) closes that gap with an exact-path query, bounded to
 // 0-or-1 rows in practice. Returns the resolver's answer, or "" when there's nothing yet (a miss
 // still kicks that producer's async fetch/grab inside resolve() itself).
@@ -154,11 +154,14 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
     m_artworkResolver = new VaultArtworkResolver(m_thumbnailer, m_posterFetcher, this);
     connect(m_artworkResolver, &VaultArtworkResolver::artResolved, this,
             &VaultLibrary::browseArtResolved);
+    connect(m_artworkResolver, &VaultArtworkResolver::artReady, this,
+            &VaultLibrary::browseArtworkReady);
 
     // revision tracks committed index truth. VaultIndex::changed() fires after a successful
     // publish()/upsert() only, so a bump always means new published truth to repaint from.
     if (m_index) {
         connect(m_index, &VaultIndex::changed, this, [this]() {
+            m_artworkResolver->clearPendingRows();
             ++m_revision;
             emit changed();
             if (m_identifier)
@@ -277,6 +280,8 @@ void VaultLibrary::runAutoIdentifySlice()
         m_autoIdentifyKeysReady = true;
     }
     if (m_autoIdentifyCursor >= m_autoIdentifyKeys.size()) {
+        m_identifier->backfillVideoGenres();
+        fileFolderExtras();
         const bool rerun = m_autoIdentifyDirty;
         m_autoIdentifyScheduled = false;
         m_autoIdentifyDirty = false;
@@ -289,17 +294,9 @@ void VaultLibrary::runAutoIdentifySlice()
 
     const QString groupKey = m_autoIdentifyKeys.at(m_autoIdentifyCursor++);
     const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(groupKey);
-    bool eligible = !rows.isEmpty();
-    for (const VaultIndex::FileRow& row : rows) {
-        if (!row.identityId.isEmpty() || row.identitySuppressed || row.away
-            || !row.errorState.isEmpty()) {
-            eligible = false;
-            break;
-        }
-    }
-    if (eligible) {
+    if (m_identifier->shouldAutoIdentify(rows)) {
         const VaultIdentifier::Match match = m_identifier->matchGroup(groupKey);
-        if (match.adopted)
+        if (match.adopted && !(match.source == QLatin1String("EPUB") && rows.first().identityId == match.sourceId))
             m_identifier->applyGroup(groupKey, match);
         else if (match.candidateCount > 1)
             // Ambiguous, not absent: record it durably so a tile can wear "Vault isn't sure"
@@ -309,6 +306,31 @@ void VaultLibrary::runAutoIdentifySlice()
     // One group per event-loop turn keeps the pass progressive and lets the immersive gate,
     // watcher, and normal QML input continue to breathe between identities.
     QTimer::singleShot(0, this, &VaultLibrary::runAutoIdentifySlice);
+}
+
+void VaultLibrary::fileFolderExtras()
+{
+    if (!m_index || !m_config) return;
+    const auto videos = m_index->rowsForKind(QStringLiteral("video"));
+    const QHash<QString, QString> parents = VaultIdentifier::physicalExtrasParents(videos);
+    QHash<QString, QStringList> byParent;
+    for (auto it = parents.cbegin(); it != parents.cend(); ++it)
+        if (m_config->extrasParent(it.key()).isEmpty() && !m_config->extrasDeclined(it.key()) && !m_config->isHidden(it.key()))
+            byParent[it.value()].append(it.key());
+    bool filed = false;
+    for (auto it = byParent.cbegin(); it != byParent.cend(); ++it)
+        filed = m_config->setExtrasParent(it.value(), it.key()) || filed;
+    for (const auto& row : videos)
+        if (!VaultIdentifier::junkClipReason(row).isEmpty() && !parents.contains(row.id)
+            && m_config->extrasParent(row.id).isEmpty() && !m_config->extrasDeclined(row.id)
+            && !m_config->isHidden(row.id)) {
+            m_config->setHidden(row.id, true);
+            filed = true;
+        }
+    if (filed) {
+        ++m_revision;
+        emit changed();
+    }
 }
 
 int VaultLibrary::itemCount() const
@@ -362,12 +384,29 @@ QVariantList VaultLibrary::series(const QString& kind) const
     // groupsForKind → [{groupKey, subtreePath, groupTitle, kind, count}]. Normalize to the
     // shelf's series shape { key, title, kind, count, subtreePath } (key == groupKey).
     const QVariantList groups = m_index->groupsForKind(kind);
+    const auto kindRows = m_index->rowsForKind(kind);
+    const int configRevision = m_config ? m_config->revision() : -1;
+    const bool countSupplemental = kind == QLatin1String("video")
+        && (m_supplementalRevision != m_revision || m_supplementalConfigRevision != configRevision);
+    if (countSupplemental) m_supplementalCounts.clear();
+    QHash<QString, QList<VaultIndex::FileRow>> rowsByGroup;
+    for (const auto& row : kindRows) {
+        rowsByGroup[row.groupKey].append(row);
+        if (countSupplemental && m_config && !m_config->isHidden(row.id)) {
+            const auto parent = m_config->extrasParent(row.id);
+            if (!parent.isEmpty()) ++m_supplementalCounts[parent];
+        }
+    }
+    if (countSupplemental) {
+        m_supplementalRevision = m_revision;
+        m_supplementalConfigRevision = configRevision;
+    }
     QVariantList out;
     out.reserve(groups.size());
     for (const QVariant& g : groups) {
         const QVariantMap m = g.toMap();
         const QString groupKey = m.value(QStringLiteral("groupKey")).toString();
-        const QList<VaultIndex::FileRow> groupRows = m_index->rowsForGroup(groupKey);
+        const QList<VaultIndex::FileRow> groupRows = rowsByGroup.value(groupKey);
         bool allHidden = !groupRows.isEmpty();
         if (m_config) {
             for (const VaultIndex::FileRow& row : groupRows) {
@@ -470,6 +509,9 @@ QVariantList VaultLibrary::series(const QString& kind) const
                 || row.identityType == QLatin1String("mini")) { identityType = row.identityType; break; }
         }
         s.insert(QStringLiteral("identityType"), identityType);
+        s.insert(QStringLiteral("supplementalCount"),
+                 kind == QLatin1String("video") && !groupRows.isEmpty() && !groupRows.first().identitySuppressed
+                     ? m_supplementalCounts.value(groupRows.first().identityId) : 0);
         static const QRegularExpression imdbId(QStringLiteral("^(?:imdb:)?(tt[0-9]+)$"));
         const auto imdbMatch = imdbId.match(identityId);
         if (kind == QLatin1String("video") && imdbMatch.hasMatch()) {
@@ -539,7 +581,8 @@ QVariantList VaultLibrary::extrasForShow(const QString& showGroupKey) const
 bool VaultLibrary::detachExtras(const QString& fileId)
 {
     if (!m_config || fileId.isEmpty() || m_config->extrasParent(fileId).isEmpty()) return false;
-    if (!m_config->setExtrasParent({fileId}, QString())) return false;
+    // Detaching is a decision: record it so the automatic folder filing never re-files this file.
+    if (!m_config->declineExtras({fileId})) return false;
     ++m_revision; emit changed();
     return true;
 }
@@ -551,7 +594,6 @@ QVariantMap VaultLibrary::admissionById() const
 
 QVariantList VaultLibrary::items(const QString& kind, const QString& seriesKey) const
 {
-    Q_UNUSED(kind);
     if (!m_index)
         return {};
     // Decorate each row with a ready-to-bind per-file cover URL, now through the SAME resolver
@@ -560,7 +602,14 @@ QVariantList VaultLibrary::items(const QString& kind, const QString& seriesKey) 
     // failing that, the resolver's canonical-poster/frame-grab rungs. A remote identityCoverUrl is
     // only ever the resolver's `posterUrl` INPUT now — it never lands in coverUrl directly (that
     // override is what this method STOPS doing here, mirroring the browseAt() fix).
-    QVariantList rows = m_index->filesInSubtree(seriesKey);
+    QVariantList rows = m_index->filesForGroup(kind, seriesKey);
+    if (rows.isEmpty() && m_index->rowsForGroup(seriesKey).isEmpty()) {
+        // Legacy physical browse keys are distinct from logical group keys. Never fall
+        // through just because an existing group belongs to a different medium.
+        for (const auto& value : m_index->filesInSubtree(seriesKey))
+            if (value.toMap().value(QStringLiteral("kind")).toString() == kind)
+                rows.append(value);
+    }
     for (QVariant& v : rows) {
         QVariantMap m = v.toMap();
         const QString coverRef = m.value(QStringLiteral("coverRef")).toString();
@@ -596,6 +645,10 @@ QVariantList VaultLibrary::items(const QString& kind, const QString& seriesKey) 
         }
         m.insert(QStringLiteral("coverUrl"), resolvedCover);
         const QString identityTitle = m.value(QStringLiteral("identityTitle")).toString();
+        if (kind == QLatin1String("book") && m_bookIdentityDisplay && !identityId.isEmpty()) {
+            const auto display = m_bookIdentityDisplay(identityId, identityTitle);
+            if (!display.isEmpty()) m.insert(QStringLiteral("author"), display.value(QStringLiteral("author")));
+        }
         m.insert(QStringLiteral("title"), identityTitle.isEmpty()
                  ? m.value(QStringLiteral("displayTitle")) : identityTitle);
         m.insert(QStringLiteral("identSource"), m.value(QStringLiteral("identitySource")));
@@ -621,10 +674,13 @@ QVariantList VaultLibrary::hiddenSeries() const
         return out;
     for (const QString& kind : {QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("video")}) {
         const QVariantList groups = m_index->groupsForKind(kind);
+        QHash<QString, QList<VaultIndex::FileRow>> rowsByGroup;
+        for (const auto& row : m_index->rowsForKind(kind))
+            rowsByGroup[row.groupKey].append(row);
         for (const QVariant& value : groups) {
             const QVariantMap group = value.toMap();
             const QString key = group.value(QStringLiteral("groupKey")).toString();
-            const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(key);
+            const QList<VaultIndex::FileRow> rows = rowsByGroup.value(key);
             if (rows.isEmpty())
                 continue;
             bool allHidden = true;
@@ -686,7 +742,8 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
         for (const auto& row : m_index->rowsForRoot(rootOrPath)) {
             if (!QFileInfo::exists(row.path) || m_config->isHidden(row.id)) continue;
             auto& node = groups[row.groupKey];
-            node.key = node.path = row.groupKey;
+            node.key = row.groupKey;
+            node.path = row.subtreePath;
             node.displayTitle = row.groupTitle;
             node.nodeType = row.kind == QLatin1String("video")
                     && row.groupKey.contains(QLatin1String("::show::"))
@@ -697,6 +754,34 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
     } else {
         nodes = VaultKit::planBrowseLevel(rootOrPath, scanIgnore);
     }
+    // Logical keys come from the index; filesystem browsing continues to use physical paths.
+    QHash<QString, QString> comicGroupsByPath;
+    if (m_index) {
+        for (const auto& value : m_index->groupsForKind(QStringLiteral("comic"))) {
+            const auto group = value.toMap();
+            comicGroupsByPath.insert(normPath(group.value(QStringLiteral("subtreePath")).toString()),
+                                     group.value(QStringLiteral("groupKey")).toString());
+        }
+    }
+    auto groupRowsForNode = [this, &comicGroupsByPath](const VaultKit::BrowseNode& node, QString& key) {
+        QList<VaultIndex::FileRow> rows;
+        if (!m_index) return rows;
+        rows = m_index->rowsForGroup(node.key);
+        if (rows.isEmpty() && node.key == node.path && normPath(node.path) != node.path) {
+            rows = m_index->rowsForGroup(normPath(node.path));
+            if (!rows.isEmpty()) key = rows.first().groupKey;
+        }
+        if (rows.isEmpty() && node.path != node.key)
+            rows = m_index->rowsForGroup(node.path);
+        if (rows.isEmpty()) {
+            const auto logicalKey = comicGroupsByPath.value(normPath(node.path));
+            if (!logicalKey.isEmpty()) {
+                rows = m_index->rowsForGroup(logicalKey);
+                if (!rows.isEmpty()) key = logicalKey;
+            }
+        }
+        return rows;
+    };
     const bool levelRootAway = VaultBrowseAway::ownerRootAway(m_index, roots, rootOrPath);
     if (nodes.isEmpty() && levelRootAway) {
         // The drive that holds this level is gone: VaultKit::planBrowseLevel cannot walk a
@@ -757,8 +842,7 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
         counts.insert(QStringLiteral("items"), n.mediaCount);
         m.insert(QStringLiteral("counts"), counts);
 
-        // Decoration from today's index: reliable only for a film node, whose path IS a
-        // group's subtreePath (one video file, one group — VaultScanner's own convention).
+        // Decoration uses the indexed logical group, which may differ from the physical path.
         // Deeper per-episode state and durable ambiguity are Slices 2/6's business; this slice
         // gives every other node an honest "resolving" default rather than inventing one.
         QString state = QStringLiteral("resolving");
@@ -817,15 +901,16 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
             // or played by a real click. Away nuance is Slice 6's explicit business, not invented
             // here.
             state = QStringLiteral("identified");
-            // A container that IS a group (a show folder whose node path equals the group key)
+            // A container that resolves to an indexed group
             // answers its own kind from the rows it holds. A pure ancestor folder — one whose
             // children are groups, not files — has no rows of its own here and honestly keeps ""
             // rather than inventing one from a child; identify is unreachable on a container tile
             // anyway (both cards only emit identifyRequested from the "uncertain" mark, and only a
             // Film node ever reaches that state), so "" costs the identify flow nothing. Fetched
             // once, above the resolver guard, because the artwork lookup below reads the SAME rows.
-            const QList<VaultIndex::FileRow> containerRows = (m_index && !n.path.isEmpty())
-                ? m_index->rowsForGroup(n.path) : QList<VaultIndex::FileRow>();
+            QString groupKey = n.key;
+            const auto containerRows = groupRowsForNode(n, groupKey);
+            m.insert(QStringLiteral("key"), groupKey);
             kind = dominantRowKind(containerRows);
             // S12: a group container's own rows carry its newest/size; a pure ancestor
             // folder (no rows of its own) takes the subtree-prefix aggregate instead —
@@ -843,7 +928,7 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
             // when the season is not itself a group is a later refinement, tracked separately.)
             if (m_artworkResolver) {
                 VaultArtworkResolver::RowFacts rowFacts;
-                rowFacts.rowKey = n.key;
+                rowFacts.rowKey = groupKey;
                 rowFacts.kind = VaultKit::browseNodeTypeName(n.nodeType);
                 rowFacts.path = n.path;
                 for (const VaultIndex::FileRow& row : containerRows) {
@@ -859,7 +944,9 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
                     m.insert(QStringLiteral("coverRef"), resolved);
             }
         } else if (n.nodeType == VaultKit::BrowseNodeType::Film && m_index) {
-            const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(n.path);
+            QString groupKey = n.key;
+            const auto rows = groupRowsForNode(n, groupKey);
+            m.insert(QStringLiteral("key"), groupKey);
             accumulate(nodeIdx, rows); // S12: the group's own rows carry its newest/size
             if (!rows.isEmpty()) {
                 // The one branch that matters most for identify routing: a Film node is the ONLY
@@ -927,7 +1014,7 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
                                    : QStringLiteral("resolving");
                 if (m_artworkResolver) {
                     VaultArtworkResolver::RowFacts rowFacts;
-                    rowFacts.rowKey = n.key;
+                    rowFacts.rowKey = groupKey;
                     rowFacts.kind = factKind;
                     rowFacts.path = factPath;
                     rowFacts.localRef = localRef;
@@ -1045,7 +1132,10 @@ QVariantList VaultLibrary::rootsDetail() const
             : QDir(path).exists());
         row.insert(QStringLiteral("available"), available);
         row.insert(QStringLiteral("fileCount"), rootRows.size());
-        row.insert(QStringLiteral("itemCount"), browseAt(path).size());
+        QSet<QString> groupKeys;
+        for (const auto& file : rootRows)
+            if (!m_config->isHidden(file.id)) groupKeys.insert(file.groupKey);
+        row.insert(QStringLiteral("itemCount"), groupKeys.size());
         // Vault ux uplift S11 — per-root error facts, the "needs attention" affordance's data.
         // One walk supplies both counts: `errorCount` is the total rows carrying any recorded
         // error state (corrupt/rejected — the store's admissionDetail/errorDetail rows); the
@@ -1257,6 +1347,8 @@ QVariantMap VaultLibrary::seasonFactsForShow(const QString& showFolderPath) cons
         QList<VaultIndex::FileRow> episodes; // natural order set at the end
     };
     QMap<QString, SeasonEntry> seasons;
+    QStringList siblingPaths;
+    for (const auto& row : rows) siblingPaths.append(row.path);
     for (const VaultIndex::FileRow& row : rows) {
         int ord = 0;
         QString entryKey;
@@ -1273,7 +1365,7 @@ QVariantMap VaultLibrary::seasonFactsForShow(const QString& showFolderPath) cons
             break;
         }
         if (entryKey.isEmpty()) {
-            const auto episode = VaultKit::parseEpisodeNumber(row.realName);
+            const auto episode = VaultKit::videoEpisodeContext(row.path, siblingPaths).number;
             const bool extra = std::any_of(relParts.cbegin(), relParts.cend(),
                 [](const QString& part) { return VaultKit::isExtrasDirName(part); });
             // Release-named season folders need not be bare "Season N". Use
@@ -1327,7 +1419,7 @@ QVariantMap VaultLibrary::seasonFactsForShow(const QString& showFolderPath) cons
             QVariantMap ep;
             ep.insert(QStringLiteral("path"), row.path);
             ep.insert(QStringLiteral("id"), row.id);
-            const VaultKit::SeasonEpisode parsed = VaultKit::parseEpisodeNumber(row.realName);
+            const VaultKit::SeasonEpisode parsed = VaultKit::videoEpisodeContext(row.path, siblingPaths).number;
             ep.insert(QStringLiteral("season"), parsed.season ? parsed.season : s.ordinal);
             ep.insert(QStringLiteral("episode"), parsed.episode);
             ep.insert(QStringLiteral("title"),
@@ -1352,6 +1444,11 @@ QVariantMap VaultLibrary::browseDetail(const QString& key) const
 {
     const QStringList scanIgnore = m_config ? m_config->scanIgnore() : QStringList();
     return VaultBrowseDetail::detailFor(m_index, key, scanIgnore);
+}
+
+QVariantMap VaultLibrary::presentationDetail(const QString& key) const
+{
+    return VaultBrowseDetail::presentationFor(m_index, key);
 }
 
 QString VaultLibrary::browseEmptyCause(const QString& rootOrPath,
@@ -1419,6 +1516,7 @@ bool VaultLibrary::identifyGroupWith(const QString& groupKey,
     match.coverUrl = chosenIdentity.value(QStringLiteral("coverUrl")).toString();
     match.world = chosenIdentity.value(QStringLiteral("world")).toString();
     match.year = chosenIdentity.value(QStringLiteral("year")).toInt();
+    match.genres = VaultIdentifier::videoGenres(chosenIdentity.value(QStringLiteral("genres")));
     return m_identifier->identifyGroupWith(groupKey, match);
 }
 
@@ -1431,10 +1529,18 @@ bool VaultLibrary::reshelveGroup(const QString& groupKey, const QString& kind)
 {
     if (!m_identifier || !m_index)
         return false;
+    const auto rows = m_index->rowsForGroup(groupKey);
+    QString selector = groupKey;
+    if (!rows.isEmpty() && rows.first().kind == QLatin1String("comic")
+        && rows.first().subtreePath != groupKey
+        && std::any_of(rows.cbegin(), rows.cend(), [](const auto& row) {
+            return VaultKit::kindForFile(row.path) != VaultKit::MediaKind::Comic;
+        }))
+        selector = rows.first().subtreePath;
     if (!m_identifier->reshelveGroup(groupKey, kind))
         return false;
     if (m_config)
-        m_config->setKind(groupKey, kind);
+        m_config->setKind(selector, kind);
     return true;
 }
 

@@ -2,6 +2,21 @@
 
 // Ephemeral presentation projection. VaultLibrary and Progress remain the owners.
 function copy(value) { var out = {}; for (var k in value) out[k] = value[k]; return out }
+// Match Theatre's Cinemeta spelling, including common provider aliases.
+function videoGenres(value) {
+    var values = Array.isArray(value) ? value : String(value || "").split(/[·,|]/)
+    var aliases = {"science fiction":"Sci-Fi", "sci fi":"Sci-Fi", "sci-fi":"Sci-Fi",
+        "reality tv":"Reality-TV", "reality-tv":"Reality-TV", "reality":"Reality-TV",
+        "talk show":"Talk-Show", "talk-show":"Talk-Show", "game show":"Game-Show", "game-show":"Game-Show"}
+    var out = []
+    values.forEach(function(v) {
+        var text = String(v).trim(), lower = text.toLowerCase()
+        var genres = lower === "sci-fi & fantasy" || lower === "science fiction & fantasy" ? ["Sci-Fi", "Fantasy"]
+            : lower === "action & adventure" ? ["Action", "Adventure"] : [aliases[lower] || text]
+        genres.forEach(function(genre) { if (genre && out.indexOf(genre) < 0) out.push(genre) })
+    })
+    return out
+}
 function fraction(value) { return Math.max(0, Math.min(1, Number(value) || 0)) }
 function normalize(group, items, structure, hidden, detail) {
     detail = detail || {}
@@ -31,7 +46,7 @@ function normalize(group, items, structure, hidden, detail) {
     var identityType = String(group.identityType || "")
     if (identityType) show = identityType === "series" || identityType === "mini"
     var kind = group.kind === "video" ? (show ? "show" : identityType === "movie" ? "movie" : "unknown") : group.kind
-    var title = identified ? adoptedTitle : "Needs a match"
+    var title = identified ? adoptedTitle : "Unmatched"
     var cover = group.coverUrl || first.coverUrl || ""
     var path = first.path || "", key = String(group.key || group.subtreePath || first.id || "")
     var offline = items.length > 0
@@ -51,7 +66,7 @@ function normalize(group, items, structure, hidden, detail) {
         year: group.identityYear || first.identityYear || detail.year || 0, subtitle: first.author || "",
         poster: cover, cover: cover, coverUrl: cover, backdrop: group.backdropUrl || "", logo: group.logoUrl || "", synopsis: identity.synopsis,
         blurb: identity.synopsis, runtimeText: detail.runtimeText || runtime(first.durationSec),
-        genres: detail.genresLine || "", imdbRating: /^IMDb ([0-9]+(?:\.[0-9]+)?)$/.test(detail.ratingText || "") ? Number(String(detail.ratingText).slice(5)) : 0,
+        genres: detail.genresLine || first.identityGenres || group.identityGenres || "", imdbRating: /^IMDb ([0-9]+(?:\.[0-9]+)?)$/.test(detail.ratingText || "") ? Number(String(detail.ratingText).slice(5)) : 0,
         progress: 0, progressFraction: 0, progressText: "", addedAt: addedAt, isNew: addedAt > 0 && Date.now() - addedAt >= 0 && Date.now() - addedAt < 7 * 86400000, completed: false, lastReadMs: 0, finished: false, hidden: !!hidden,
         offline: offline, identified: identified, payload: group, items: items, progressItems: progressItems, copies: [group],
         identity: identity, path: path, route: group.kind === "video" ? "theatre" : group.kind,

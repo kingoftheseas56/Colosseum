@@ -1,22 +1,56 @@
 #pragma once
 // Shared catalog title matching, independent of any product world.
 #include <QString>
+#include <QDate>
 #include <QList>
 #include <QSet>
 #include <QRegularExpression>
+#include <QStringList>
 
 namespace MediaTitleNormalization {
 
+// Author initials may be written separately ("R. R.") or packed ("RR").
+// Join only adjacent single-letter tokens; retain all other name components
+// and Unicode letters so unrelated authors never collapse to the same key.
+inline QString bookAuthorIdentityKey(QString author)
+{
+    author = author.toCaseFolded();
+    author.replace(QRegularExpression(QStringLiteral("[^\\p{L}\\p{N}]+")), QStringLiteral(" "));
+    const QStringList words = author.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    QStringList key;
+    for (int i = 0; i < words.size();) {
+        if (words.at(i).size() != 1) {
+            key.append(words.at(i++));
+            continue;
+        }
+        QString initials;
+        do { initials += words.at(i++); }
+        while (i < words.size() && words.at(i).size() == 1);
+        key.append(initials);
+    }
+    return key.join(QLatin1Char(' '));
+}
+
 // ── Title cleaner (port of TB2 ScannerUtils::cleanMediaFolderTitle) ────
-inline const QRegularExpression kShowTitleNoiseRe(
-    QStringLiteral(
-        "(?i)\\b("
-        "2160p|1080p|720p|480p|x264|x265|h\\.?264|h\\.?265|hevc|10bit|8bit|hdr|dv|"
-        "webrip|web[\\s.\\-]?dl|bluray|bdrip|dvdrip|hdtv|remux|aac|dts|ddp\\d?|"
-        "proper|repack|extended|unrated|multi|dual[\\s.\\-]?audio|dubbed|subbed|"
-        "subs?|nf|amzn|hulu|atvp|max|hbo|uhd|complete|batch|remastered|reenc|"
+// Technical release words that are noise wherever they appear.
+#define MTN_NOISE_CORE \
+        "2160p|1080p|720p|480p|x264|x265|h\\.?264|h\\.?265|hevc|10bit|8bit|hdr|dv|" \
+        "webrip|web[\\s.\\-]?dl|bluray|b[dr]rip|hdrip|dvdrip|hdtv|remux|xvid|e?ac3|aac|dts|ddp\\d?|" \
+        "repack|multi|dual[\\s.\\-]?audio|triple[\\s.\\-]?audio|dubbed|subbed|" \
+        "subs?|nf|amzn|hulu|atvp|hbo|uhd|complete|batch|reenc|" \
         "mini[\\s._\\-]?series|season[\\s._\\-]*\\d{1,2}|s\\d{1,2}"
-        ")\\b"));
+// Edition words. They are real title words ("The Extended Family"), so the cleaner strips them only
+// when the name carries release facts (a qualified year, a quality tag or a season token).
+#define MTN_EDITION_WORDS "extended|unrated|remastered|criterion|despecialized|uncensored|proper"
+
+inline const QRegularExpression kShowTitleNoiseRe(
+    QStringLiteral("(?i)\\b(" MTN_NOISE_CORE "|" MTN_EDITION_WORDS ")\\b"));
+
+inline const QRegularExpression kShowTitleNoiseNoEditionRe(
+    QStringLiteral("(?i)\\b(" MTN_NOISE_CORE ")\\b"));
+
+#undef MTN_NOISE_CORE
+#undef MTN_EDITION_WORDS
 
 inline const QRegularExpression kSeasonTokenRe(
     QStringLiteral("(?i)\\b(?:season[\\s._\\-]*|s)(\\d{1,2})\\b"));
@@ -45,7 +79,25 @@ inline const QRegularExpression kQualifiedAudioChannelRawRe(
 // as the audio-channel tag above: the dot is the only signal, and it survives only in the
 // pre-normalization form.
 inline const QRegularExpression kDomainTagRawRe(
-    QStringLiteral("^[A-Za-z0-9][A-Za-z0-9-]{1,30}\\.[A-Za-z]{2,6}$"));
+    QStringLiteral("^(?:www\\.)?[A-Za-z0-9][A-Za-z0-9-]{1,30}\\.[A-Za-z]{2,6}$"));
+
+// Site credit written in front of the title: "www.SANET.ST____Title", "www.SANET.ST  -  Title",
+// "Crazy4TV.com - Title". The plain "Site.com" form needs the dash so a title is never eaten.
+inline const QRegularExpression kSitePrefixRe(
+    QStringLiteral("(?i)^(?:www[ ._]+[a-z0-9-]{2,30}[ ._]+(?:com|net|org|info|to|st|ag|ws|me|tv|cc|io|se|eu|cx|biz|ru|co|nu|am|is|vc|ch|pw|xyz)"
+                   "(?:[ _.]*-[ _.]*|[ _.]+)|"
+                   "[a-z0-9-]{2,30}\\.(?:com|net|org|info|to|st|ag|ws|me|tv|cc|io|se|eu|cx|biz|ru|co|nu|am|is|vc|ch|pw|xyz)"
+                   "(?:\\s*-\\s*|_{2,}))"));
+
+// File sizes written into names: "1.3GB", "950 MB".
+inline const QRegularExpression kFileSizeRe(
+    QStringLiteral("(?i)\\b\\d+(?:[.,]\\d+)?\\s?(?:gb|mb)\\b"));
+
+// First release fact of a name that has no qualified year: everything after it (group credit,
+// audio descriptors, language lists) is release suffix, not title.
+inline const QRegularExpression kFirstReleaseFactRe(
+    QStringLiteral("(?i)\\b(?:(?:2160|1080|720|480)p|(?:blu[ -]?ray|b[dr]rip|web[ -]?rip|web[ -]?dl|"
+                   "hdtv|dvdrip|hdrip|x26[45]|hevc|xvid|hdcam|hdts)\\b)"));
 
 inline QList<int> extractSeasonNumbers(const QString& raw)
 {
@@ -66,53 +118,74 @@ inline QList<int> extractSeasonNumbers(const QString& raw)
 
 inline QString stripNoiseBracketChunks(const QString& text)
 {
-    QString result;
-    int lastEnd = 0;
-    auto it = kBracketChunkRe.globalMatch(text);
+    static const QRegularExpression yearOnly(QStringLiteral("^(?:19|20)\\d{2}(?:\\s*[-\u2013\u2014]\\s*(?:(?:19|20)\\d{2})?)?$"));
+    static const QRegularExpression pureNumeric(QStringLiteral("^\\d+$"));
+    static const QRegularExpression stereoOnly(QStringLiteral("(?i)^(?:3d|hsbs|half[ ._-]?sbs)$"));
+    static const QRegularExpression titleText(QStringLiteral("\\p{L}"));
 
+    struct Chunk {
+        int start = 0;
+        int end = 0;
+        QString inner;
+        QString normalized;
+        bool technical = false; // quality / audio / stereo fact, not just a year or number
+        bool noise = false;
+    };
+    QList<Chunk> chunks;
+    auto it = kBracketChunkRe.globalMatch(text);
     while (it.hasNext()) {
         auto match = it.next();
-        result += text.mid(lastEnd, match.capturedStart() - lastEnd);
-
-        QString inner;
+        Chunk c;
+        c.start = match.capturedStart();
+        c.end = match.capturedEnd();
         for (int g = 1; g <= 3; ++g) {
             if (!match.captured(g).isNull()) {
-                inner = match.captured(g).trimmed();
+                c.inner = match.captured(g).trimmed();
                 break;
             }
         }
-
-        if (inner.isEmpty()) {
-            result += ' ';
-        } else {
-            QString normalized = inner;
-            normalized.replace('_', ' ');
-            normalized.replace('.', ' ');
-            normalized = normalized.trimmed();
-
-            if (normalized.isEmpty()) {
-                result += ' ';
-            } else {
-                static const QRegularExpression yearOnly(QStringLiteral("^(?:19|20)\\d{2}$"));
-                static const QRegularExpression pureNumeric(QStringLiteral("^\\d+$"));
-                // Audio-channel and domain-tag noise is tested against `inner` — the RAW,
-                // pre-normalization capture — because both patterns hinge on a literal dot that
-                // `normalized` has already replaced with a space.
-                if (yearOnly.match(normalized).hasMatch() ||
-                    pureNumeric.match(normalized).hasMatch() ||
-                    kShowTitleNoiseRe.match(normalized).hasMatch() ||
-                    kAudioChannelRawRe.match(inner).hasMatch() ||
-                    kDomainTagRawRe.match(inner).hasMatch()) {
-                    result += ' ';
-                } else {
-                    result += ' ' + normalized + ' ';
-                }
-            }
-        }
-
-        lastEnd = match.capturedEnd();
+        c.normalized = c.inner;
+        c.normalized.replace('_', ' ');
+        c.normalized.replace('.', ' ');
+        c.normalized = c.normalized.trimmed();
+        // Audio-channel and domain-tag noise is tested against `inner` — the RAW,
+        // pre-normalization capture — because both patterns hinge on a literal dot that
+        // `normalized` has already replaced with a space.
+        c.technical = !c.normalized.isEmpty() &&
+            (kShowTitleNoiseRe.match(c.normalized).hasMatch() ||
+             kAudioChannelRawRe.match(c.inner).hasMatch() ||
+             stereoOnly.match(c.inner).hasMatch());
+        c.noise = c.normalized.isEmpty() || c.technical ||
+            yearOnly.match(c.normalized).hasMatch() ||
+            pureNumeric.match(c.normalized).hasMatch() ||
+            kDomainTagRawRe.match(c.inner).hasMatch();
+        chunks.append(c);
     }
 
+    bool anyTechnical = false;
+    for (const Chunk& c : chunks)
+        anyTechnical = anyTechnical || c.technical;
+
+    QString result;
+    int lastEnd = 0;
+    bool technicalSeen = false;
+    for (const Chunk& c : chunks) {
+        result += text.mid(lastEnd, c.start - lastEnd);
+        const bool titleBefore = titleText.match(result).hasMatch();
+        bool drop = c.noise;
+        if (!drop && anyTechnical) {
+            // A bracket after a quality bracket is a release credit ("[1080p] [pseudo]").
+            if (technicalSeen && titleBefore)
+                drop = true;
+            // A leading fansub/group tag ("[AnimeRG] Title [1080p]"). Short tags stay: "[REC]" is a title.
+            else if (!titleBefore && c.inner.size() >= 5 && !c.inner.contains(QLatin1Char(' ')) &&
+                     titleText.match(text.mid(c.end)).hasMatch())
+                drop = true;
+        }
+        result += drop ? QStringLiteral(" ") : ' ' + c.normalized + ' ';
+        technicalSeen = technicalSeen || c.technical;
+        lastEnd = c.end;
+    }
     result += text.mid(lastEnd);
     return result;
 }
@@ -130,16 +203,23 @@ inline ReleaseSuffix qualifiedReleaseSuffix(const QString& raw)
     static const QRegularExpression suffix(QStringLiteral(
         "(?i)(?:\\(((?:19|20)\\d{2})(?:\\s*-\\s*[^()]+)?\\)|"
         "\\[((?:19|20)\\d{2})\\]|\\{((?:19|20)\\d{2})\\}|\\b((?:19|20)\\d{2})\\b)"
-        "[\\s._-]+(?=(?:2160p|1080p|720p|480p|blu[ ._-]?ray|b[dr]rip|"
-        "dvdrip|hdrip|web[ ._-]?dl|webrip|hdtv|remux|xvid|x26[45]|h[._]?26[45])\\b)"));
+        "[\\s._-]+(?=(?:(?:2160|1080|720|480)p|(?:blu[ ._-]?ray|b[dr]rip|"
+        "dvdrip|hdrip|web[ ._-]?dl|webrip|hdtv|remux|xvid|x26[45]|h[._]?26[45]|3d|hsbs|half[ ._-]?sbs|max[ ._-]+web[ ._-]?dl|"
+        // Edition words are release suffix only straight after a year ("1991 DC", "1939 75th Anniversary Edition").
+        "criterion|despecialized|remastered|extended|uncensored|unrated|dc|proper|new|hq|hd[ ._-]?cam|cam|ts|hdts|telesync|"
+        "\\d{1,3}(?:st|nd|rd|th)[ ._-]+anniversary)\\b))"));
     static const QRegularExpression titleText(QStringLiteral("[\\p{L}\\p{N}]"));
     auto matches = suffix.globalMatch(raw);
     while (matches.hasNext()) {
         const auto match = matches.next();
         if (!titleText.match(raw.left(match.capturedStart())).hasMatch()) continue;
         for (int group = 1; group <= 4; ++group)
-            if (!match.captured(group).isEmpty())
-                return {int(match.capturedStart()), match.captured(group).toInt()};
+            if (!match.captured(group).isEmpty()) {
+                const int year = match.captured(group).toInt();
+                // A distant future numeric title word is not a bare release year.
+                if (group == 4 && year > QDate::currentDate().year() + 1) continue;
+                return {int(match.capturedStart()), year};
+            }
     }
     return {};
 }
@@ -149,6 +229,13 @@ inline QString cleanMediaFolderTitle(const QString& rawName)
     QString raw = rawName.trimmed();
     if (raw.isEmpty())
         return raw;
+
+    // A site credit in front of the title is never title text.
+    {
+        const auto site = kSitePrefixRe.match(raw);
+        if (site.hasMatch() && raw.mid(site.capturedEnd()).trimmed().size() >= 2)
+            raw = raw.mid(site.capturedEnd()).trimmed();
+    }
 
     const QList<int> seasonNumbers = extractSeasonNumbers(raw);
 
@@ -161,13 +248,33 @@ inline QString cleanMediaFolderTitle(const QString& rawName)
     // otherwise turn "5.1" into the unrecognizable "5 1" and "YTS.MX" into "YTS MX" BEFORE the
     // noise test ever saw them (the exact bug behind a real folder's stray "5 1"/"YTS MX").
     QString cleaned = stripNoiseBracketChunks(raw);
+    // Stereo words outside brackets are technical only beside actual release facts.
+    static const QRegularExpression technical(QStringLiteral("(?i)\\b(?:2160p|1080p|720p|480p|bluray|b[dr]rip|hdrip|x26[45]|hevc)\\b"));
+    const bool releaseFacts = release.year > 0 || technical.match(rawName).hasMatch()
+        || !seasonNumbers.isEmpty();
+    if (release.year > 0 || technical.match(rawName).hasMatch()) {
+        static const QRegularExpression stereo(QStringLiteral("(?i)\\b(?:3d|hsbs|half[ ._-]?sbs)\\b"));
+        cleaned.replace(stereo, QStringLiteral(" "));
+    }
 
     cleaned.replace(kQualifiedAudioChannelRawRe, QStringLiteral(" "));
+    cleaned.replace(kFileSizeRe, QStringLiteral(" "));
 
     cleaned.replace('_', ' ');
     cleaned.replace('.', ' ');
 
-    cleaned.replace(kShowTitleNoiseRe, QStringLiteral(" "));
+    // Without a qualified year, the first quality/source fact still opens the release suffix
+    // (group credit, audio descriptors and language lists follow it).
+    {
+        static const QRegularExpression titleLetters(QStringLiteral("\\p{L}"));
+        const auto fact = kFirstReleaseFactRe.match(cleaned);
+        if (fact.hasMatch() && titleLetters.match(cleaned.left(fact.capturedStart())).hasMatch())
+            cleaned = cleaned.left(fact.capturedStart()).trimmed();
+    }
+
+    // Edition words are title words unless the name has release facts but no qualified year (a
+    // qualified year already cut the release suffix, so nothing before it is an edition word).
+    cleaned.replace(releaseFacts && release.year <= 0 ? kShowTitleNoiseRe : kShowTitleNoiseNoEditionRe, QStringLiteral(" "));
 
     // Orphan "-N" / "+N" tokens left by season/noise removal.
     static const QRegularExpression strayNumToken(
@@ -182,10 +289,6 @@ inline QString cleanMediaFolderTitle(const QString& rawName)
     static const QRegularExpression trailingGroup(
         QStringLiteral("(?:\\s*-\\s*[A-Za-z0-9]{2,16})+$"));
     cleaned.replace(trailingGroup, QStringLiteral(" "));
-
-    static const QRegularExpression trailingYear(
-        QStringLiteral("(?<=\\S)\\s+(?:19|20)\\d{2}\\s*$"));
-    cleaned.replace(trailingYear, QStringLiteral(" "));
 
     static const QRegularExpression multiSpace(QStringLiteral("\\s+"));
     cleaned.replace(multiSpace, QStringLiteral(" "));

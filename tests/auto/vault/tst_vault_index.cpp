@@ -101,6 +101,7 @@ private:
     }
 
 private slots:
+    void group_sort_index_is_created_for_fresh_and_existing_schema();
     void publish_and_query_round_trip();
     void folder_listing_is_natural_order();
     void publish_is_atomic_when_cancelled();
@@ -212,6 +213,26 @@ void tst_vault_index::adopted_type_round_trips_and_carries_only_exact_tuple()
     auto suppressed = source; suppressed.identitySuppressed = true; QVERIFY(index.publish({suppressed}));
     QVERIFY(index.publish({adopted}));
     const auto current = index.rowsForKind(source.kind).first(); QVERIFY(current.identitySuppressed); QVERIFY(current.identityType.isEmpty());
+}
+
+void tst_vault_index::group_sort_index_is_created_for_fresh_and_existing_schema()
+{
+    QTemporaryDir temp; const QString path = temp.filePath("index.sqlite");
+    for (int pass = 0; pass < 2; ++pass) {
+        { VaultIndex index(path); QVERIFY(index.isOpen()); }
+        const QString connection = QStringLiteral("vault_group_index_check");
+        {
+            auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+            db.setDatabaseName(path); QVERIFY(db.open());
+            QSqlQuery query(db); QVERIFY(query.exec(QStringLiteral("PRAGMA index_info(idx_files_group_sort)")));
+            QStringList columns; while (query.next()) columns.append(query.value(2).toString());
+            QCOMPARE(columns, QStringList({QStringLiteral("groupKey"), QStringLiteral("sortKey")}));
+            query.finish();
+            if (pass == 0) QVERIFY(query.exec(QStringLiteral("DROP INDEX idx_files_group_sort")));
+            db.close();
+        }
+        QSqlDatabase::removeDatabase(connection);
+    }
 }
 
 void tst_vault_index::publish_and_query_round_trip()
@@ -581,15 +602,8 @@ void tst_vault_index::future_schema_fails_closed_without_downgrade()
 
 void tst_vault_index::identity_state_round_trips_and_survives_a_republish_that_still_carries_it()
 {
-    // Slice 2 (browse-face execution plan): identityState/identityCandidateCount are a plain
-    // column pair — VaultIndex does not know WHO set them (VaultIdentifier does). This proves
-    // the schema/insertRow/SELECT wiring round-trips them, and that a second publish() for the
-    // SAME stable (id, size, mtimeMs) tuple keeps the value WHEN THE CALLER SUPPLIES IT AGAIN —
-    // deliberately NOT via publish()'s identity-carry snapshot (that mechanism is a known hazard
-    // owned by a different arc and is not widened here). A real filesystem rescan that does NOT
-    // re-supply identityState resets it to "" (none) until VaultIdentifier's auto-identify pass
-    // (already scheduled on every VaultIndex::changed()) re-derives it — an accepted, reported
-    // gap, not a silent one.
+    // A fresh filesystem row lacks identity-attempt fields. For an unchanged
+    // id/size/mtime tuple, publication must retain that durable user-facing state.
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
     VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
@@ -624,8 +638,8 @@ void tst_vault_index::identity_state_round_trips_and_survives_a_republish_that_s
     rescanned.identityCandidateCount = 0;
     QVERIFY(idx.publish({rescanned}));
     rows = idx.rowsForGroup(row.groupKey);
-    QVERIFY(rows.first().identityState.isEmpty());
-    QCOMPARE(rows.first().identityCandidateCount, 0);
+    QCOMPARE(rows.first().identityState, QStringLiteral("ambiguous"));
+    QCOMPARE(rows.first().identityCandidateCount, 2);
 }
 
 void tst_vault_index::publish_carries_admission_only_for_exact_identity_tuple()

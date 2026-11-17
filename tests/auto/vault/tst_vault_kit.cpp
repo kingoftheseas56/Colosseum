@@ -272,13 +272,13 @@ void tst_vault_kit::parsed_year_data()
 
     // Vault ux uplift S16 — the cleaner's own find, captured for the identifier.
     QTest::newRow("trailing_bracket_year")  << QStringLiteral("Dune (2021)")     << 2021;
-    QTest::newRow("trailing_dash_year")     << QStringLiteral("Blade Runner 2049") << 2049;
+    QTest::newRow("numeric_title_suffix_is_not_release_year") << QStringLiteral("Blade Runner 2049") << 0;
     QTest::newRow("leading_numeric_title")  << QStringLiteral("2021 Dune")      << 0;
     QTest::newRow("embedded_title_year")    << QStringLiteral("The Wire S01E05 2002 1080p") << 2002;
     QTest::newRow("no_year")                << QStringLiteral("Dune")           << 0;
     QTest::newRow("two_digit_season_is_not_a_year") << QStringLiteral("Vol 2")  << 0;
     QTest::newRow("three_digit_is_not_a_year") << QStringLiteral("episode 033") << 0;
-    QTest::newRow("future_year_still_a_year")   << QStringLiteral("Horizon 2077") << 2077;
+    QTest::newRow("future_numeric_title_is_not_release_year") << QStringLiteral("Horizon 2077") << 0;
     QTest::newRow("numeric_title_release") << QStringLiteral("2001 A Space Odyssey (1968)") << 1968;
     QTest::newRow("numeric_title_square_release") << QStringLiteral("2001 A Space Odyssey [1968]") << 1968;
     QTest::newRow("numeric_title_1917_release") << QStringLiteral("1917 (2019)") << 2019;
