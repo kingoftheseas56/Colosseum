@@ -559,6 +559,9 @@ Item {
             onUniversesRequested: root.universeHallRequested()
             onSearchRequested: root.searching = true
             onInstallUrlRequested: root.openUrlInstaller()
+            onInstallRequested: (id, url) => root.activate({
+                id: id, slug: id, manifestUrl: url
+            })
             onConfigureRequested: (id) => root.openConfiguration(id)
         }
 

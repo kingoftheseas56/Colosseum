@@ -26,6 +26,21 @@ private:
   if(QDir(path).exists()) QVERIFY(QDir(path).removeRecursively());
  }
 private slots:
+ void sourceConsentBlocksNewAcquisition() {
+  QNetworkAccessManager nam;
+  AudiobookDownloader downloader(&nam,nullptr);
+  bool enabled=false;
+  downloader.setSourceEnabledCheck([&enabled]{return enabled;});
+  QSignalSpy failure(&downloader,&AudiobookDownloader::failed);
+  downloader.downloadAudiobook("consent",A,"Fixture","Author");
+  QCOMPARE(failure.count(),1);
+  QVERIFY(failure.at(0).at(1).toString().contains("Enable AudioBookBay"));
+  QCOMPARE(downloader.activeCount(),0);
+  enabled=true;
+  downloader.downloadAudiobook("consent",A,"Fixture","Author");
+  QCOMPARE(failure.count(),2);
+  QCOMPARE(failure.at(1).at(1).toString(),QStringLiteral("stream engine unavailable"));
+ }
  void init(){clearOwnData();}
  void cleanup(){clearOwnData();}
  void nativeNestedSuccessPreservesIndexAndPairing() {

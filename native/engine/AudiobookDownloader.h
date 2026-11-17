@@ -31,6 +31,8 @@
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
+#include <functional>
+#include <utility>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -50,6 +52,7 @@ public:
     // stream is the app's StreamServer (torrent→localhost HTTP); not owned.
     AudiobookDownloader(QNetworkAccessManager* nam, StreamServer* stream, QObject* parent = nullptr);
     ~AudiobookDownloader() override;
+    void setSourceEnabledCheck(std::function<bool()> check) { m_sourceEnabledCheck = std::move(check); }
     // C++ wiring only; Android injects the existing download-to-keep engine.
     void setTorrentTransport(AudiobookTorrentTransport* transport);
 
@@ -113,6 +116,7 @@ signals:
     void removed(const QString& pairKey);
 
 private:
+    std::function<bool()> m_sourceEnabledCheck;
     struct FileJob {
         int     fileIdx = 0;       // index into the manifest files[] = the streaming URL segment
         QString name;              // sanitized "NN - basename.ext"

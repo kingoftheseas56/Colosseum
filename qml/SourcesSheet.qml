@@ -957,16 +957,14 @@ Item {
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
         }
 
-        Text {
-            id: emptyText
-            objectName: "sourcesSheetEmptyText"
+        SourceExtensionPrompt {
             anchors.centerIn: parent
-            anchors.verticalCenterOffset: extensionsAction.visible ? -((extensionsAction.height + 12) / 2) : 0
             visible: sheet.visibleRows.length === 0
             width: Math.max(0, table.width - 36)
-            wrapMode: Text.WordWrap
-            horizontalAlignment: Text.AlignHCenter
-            text: sheet.smartPlayStatus || (sheet.loading ? "Finding sources…"
+            namePrefix: "sourcesSheet"
+            androidHost: sheet.androidHost
+            phoneLayout: sheet.phoneLayout
+            message: sheet.smartPlayStatus || (sheet.loading ? "Finding sources…"
                   : sheet.nuvioPending ? qsTr("Finding Nuvio sources…")
                   : (sheet.timedOut ? "Sources timed out. Try again."
                      : (sheet.askedCount === 0 && !sheet.nuvioAsked
@@ -974,46 +972,13 @@ Item {
                             ? "No stream extension carries this title — add one on the Extensions page."
                             : "No stream source is enabled for this title. Enable one in Extensions.")
                         : "No sources found.")))
-            color: sheet.timedOut ? "#e6a3a3" : theme.inkDim
-            font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 15 : 16
-        }
-
-        Rectangle {
-            id: extensionsAction
-            objectName: "sourcesSheetExtensionsRoute"
-            visible: sheet.open && sheet.mode === "play" && !sheet.loading && !sheet.nuvioPending && !sheet.timedOut
+            messageColor: sheet.timedOut ? "#e6a3a3" : theme.inkDim
+            actionVisible: sheet.open && sheet.mode === "play" && !sheet.loading && !sheet.nuvioPending && !sheet.timedOut
                      && sheet.rowCount === 0 && (!sheet.androidHost || sheet.askedCount === 0)
-            anchors.top: emptyText.bottom
-            anchors.topMargin: 12
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: Math.max(112, extensionsActionLabel.implicitWidth + 32)
-            height: sheet.phoneLayout ? 48 : 44
-            radius: height / 2
-            color: extensionsActionKeyboard.interactionActive ? theme.glassHi : "transparent"
-            border.width: 1
-            border.color: theme.gold
-            Text {
-                id: extensionsActionLabel
-                objectName: "sourcesSheetExtensionsLabel"
-                anchors.centerIn: parent
-                text: sheet.androidHost ? "Extensions" : "Find sources by adding extensions"
-                color: theme.gold
-                font.family: theme.ui
-                font.pixelSize: 13
-                font.weight: Font.DemiBold
-            }
-            KeyboardAction {
-                id: extensionsActionKeyboard
-                objectName: "sourcesSheetExtensionsAction"
-                anchors.fill: parent
-                visible: extensionsAction.visible
-                accessibleName: extensionsActionLabel.text
-                focusRadius: parent.radius
-                onTriggered: {
-                    var browseMoreSources = sheet.askedCount > 0 || sheet.nuvioAsked
-                    sheet.hide()
-                    sheet.openExtensionsRequested(browseMoreSources)
-                }
+            onOpenExtensionsRequested: {
+                var browseMoreSources = sheet.askedCount > 0 || sheet.nuvioAsked
+                sheet.hide()
+                sheet.openExtensionsRequested(browseMoreSources)
             }
         }
 

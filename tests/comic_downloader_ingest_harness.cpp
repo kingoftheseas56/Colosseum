@@ -679,6 +679,54 @@ int main(int argc, char** argv)
 
     QNetworkAccessManager nam;
 
+    {
+        ComicDownloader comics(&nam);
+        bool enabled = false;
+        comics.setSourceEnabledCheck([&enabled] { return enabled; });
+        bool denied = false;
+        QObject::connect(&comics, &ComicDownloader::failed, &comics,
+            [&](const QString &id, const QString &reason) {
+                if (id == QStringLiteral("source-consent"))
+                    denied = reason.contains(QStringLiteral("Enable GetComics"));
+            });
+        comics.downloadIssue(QStringLiteral("source-consent"), QStringLiteral("http://127.0.0.1:1/post"),
+                             QStringLiteral("gc:consent"), QStringLiteral("Consent"), QStringLiteral("Issue"));
+        if (!denied) {
+            std::printf("FAIL: disabled GetComics source allowed new acquisition\n");
+            return 1;
+        }
+        enabled = true;
+        comics.downloadIssue(QStringLiteral("source-consent"), QStringLiteral("http://127.0.0.1:1/post"),
+                             QStringLiteral("gc:consent"), QStringLiteral("Consent"), QStringLiteral("Issue"));
+        if (comics.statusOf(QStringLiteral("source-consent")).value(QStringLiteral("state")).toString()
+                != QStringLiteral("resolving")) {
+            std::printf("FAIL: enabled GetComics source did not start acquisition\n");
+            return 1;
+        }
+    }
+
+    if (app.arguments().contains(QStringLiteral("--source-consent"))) {
+        ComicDownloader comics(&nam);
+        comics.setSourceEnabledCheck([] { return false; });
+        const QString id = QStringLiteral("source-consent-local");
+        comics.deleteIssue(id);
+        bool finished = false, failed = false;
+        QObject::connect(&comics, &ComicDownloader::finished, &comics,
+                         [&](const QString &value) { if (value == id) finished = true; });
+        QObject::connect(&comics, &ComicDownloader::failed, &comics,
+                         [&](const QString &value, const QString &) { if (value == id) failed = true; });
+        comics.ingestLocalArchive(id, QStringLiteral("gc:consent"), QStringLiteral("Consent"),
+                                 QStringLiteral("Local issue"), firstArchive);
+        if (!waitFor([&] { return finished || failed; }) || !finished || failed
+                || comics.localPages(id).size() != 2) {
+            std::printf("FAIL: source consent blocked local comic ingest\n");
+            return 1;
+        }
+        comics.deleteIssue(id);
+        std::printf("PASS: GetComics opt-in blocks network acquisition and preserves local ingest\n");
+        return 0;
+    }
+
     // ── Task 6: imported CBZ takes the FAST path (no extraction) ─────────────
     // ingestLocalArchive() now routes through the same two-path ingest as
     // onFinished(): a natively-readable CBZ moves into the library

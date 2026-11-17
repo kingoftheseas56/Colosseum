@@ -349,6 +349,10 @@ void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QStrin
         return;
     }
     if (isActive(pairKey)) return;
+    if (m_sourceEnabledCheck && !m_sourceEnabledCheck()) {
+        emit failed(pairKey, QStringLiteral("Enable AudioBookBay in Extensions to download this audiobook."));
+        return;
+    }
     if (!m_stream && !m_torrent) {
         const QString reason = QStringLiteral("stream engine unavailable");
         rememberFailure(pairKey, title, author, reason);

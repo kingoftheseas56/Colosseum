@@ -78,6 +78,11 @@ Window {
     }
 
     FakeComics { id: comics }
+    QtObject {
+        id: extensions
+        property int revision: 1
+        function installed() { return [{id: "colosseum.well.getcomics.issues", enabled: true}] }
+    }
     FakeProgress { id: progress }
 
     property var page: null
@@ -119,7 +124,7 @@ Window {
             "width": harness.width, "height": harness.height,
             "seriesTitle": "Arc 19 Comics", "poster": "file:///arc19/poster.jpg",
             "gcdId": 19, "bakedReleases": rows,
-            "comicsRef": comics, "progressRef": progress
+            "comicsRef": comics, "progressRef": progress, "extensionsRef": extensions
         })
         if (!p) throw new Error("ComicSeries candidate did not instantiate")
         return p

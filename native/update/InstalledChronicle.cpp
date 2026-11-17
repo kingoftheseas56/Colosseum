@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QSaveFile>
 
 namespace Colosseum::Update {
 namespace {
@@ -40,6 +41,27 @@ QByteArray readFile(const QString& path, const char* what, QString* error)
 }
 
 } // namespace
+
+bool InstalledChronicle::materializeAsset(const QString& sourcePath,
+                                          const QString& destinationPath)
+{
+    QFile source(sourcePath);
+    if (!source.open(QIODevice::ReadOnly))
+        return false;
+    const QByteArray bytes = source.readAll();
+    if (source.error() != QFileDevice::NoError)
+        return false;
+
+    QFile existing(destinationPath);
+    if (existing.open(QIODevice::ReadOnly) && existing.readAll() == bytes)
+        return true;
+    existing.close();
+
+    QSaveFile output(destinationPath);
+    if (!output.open(QIODevice::WriteOnly) || output.write(bytes) != bytes.size())
+        return false;
+    return output.commit();
+}
 
 std::optional<LoadedChronicle> InstalledChronicle::load(const QString& manifestPath,
                                                         const QString& signaturePath,

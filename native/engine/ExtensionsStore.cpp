@@ -33,6 +33,26 @@ constexpr int kMaxExtraOptions = 1000;
 constexpr int kMaxProfileTheatreRows = 64;
 constexpr int kMaxProfileTransportUrlLength = 2048;
 
+QVariantMap optionalNativeSourceManifest(const QString &url)
+{
+    QString id, name, type;
+    if (url == QLatin1String("colosseum://well/getcomics.issues")) {
+        id = QStringLiteral("colosseum.well.getcomics.issues");
+        name = QStringLiteral("GetComics");
+        type = QStringLiteral("comic");
+    } else if (url == QLatin1String("colosseum://well/audiobookbay")) {
+        id = QStringLiteral("colosseum.well.audiobookbay");
+        name = QStringLiteral("AudioBookBay");
+        type = QStringLiteral("audiobook");
+    } else {
+        return {};
+    }
+    return {{QStringLiteral("id"), id}, {QStringLiteral("name"), name},
+            {QStringLiteral("description"), QString()},
+            {QStringLiteral("resources"), QStringList{QStringLiteral("stream")}},
+            {QStringLiteral("types"), QStringList{type}}};
+}
+
 QStringList stringListValue(const QVariant &value)
 {
     const QStringList direct = value.toStringList();
@@ -695,9 +715,9 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
         manifest("colosseum.well.tankoyomi", "Tankoyomi",
                   "Language-aware chapter sources for Tankoban Chapter Mode.",
                   { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, true));
-    add("colosseum.well.getcomics.issues", "colosseum://well/getcomics.issues", false,
-        manifest("colosseum.well.getcomics.issues", "GetComics", "",
-                 { QStringLiteral("stream") }, { QStringLiteral("comic") }, {}, false));
+    if (indexOfId(QStringLiteral("colosseum.well.getcomics.issues")) >= 0)
+        add("colosseum.well.getcomics.issues", "colosseum://well/getcomics.issues", false,
+            optionalNativeSourceManifest(QStringLiteral("colosseum://well/getcomics.issues")));
     add("colosseum.well.libgen", "colosseum://well/libgen", false,
         manifest("colosseum.well.libgen", "LibGen", "",
                  { QStringLiteral("stream") }, { QStringLiteral("book") }, {}, false));
@@ -708,14 +728,18 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // OPEN, awaiting his ruling: the `audiobook` type below is a dead claim — the federated
     // search is only ever asked for "books" and "comics", never audiobooks. Left in place
     // rather than silently changed, because dropping it changes Biblio's roster.
-    add("colosseum.well.indexers", "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json", false,
-        manifest("colosseum.well.indexers", "Tankorent", "",
-                 { QStringLiteral("stream") },
-                 { QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("audiobook") },
-                 {}, true));
-    add("colosseum.well.audiobookbay", "colosseum://well/audiobookbay", false,
-        manifest("colosseum.well.audiobookbay", "AudioBookBay", "",
-                 { QStringLiteral("stream") }, { QStringLiteral("audiobook") }, {}, false));
+    // Tankorent requires an explicit installation. Refresh an existing row
+    // without changing its switch, but never seed or resurrect it. No version
+    // bump: existing installations and their choices need no migration.
+    if (indexOfId(QStringLiteral("colosseum.well.indexers")) >= 0)
+        add("colosseum.well.indexers", "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json", false,
+            manifest("colosseum.well.indexers", "Tankorent", "",
+                     { QStringLiteral("stream") },
+                     { QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("audiobook") },
+                     {}, true));
+    if (indexOfId(QStringLiteral("colosseum.well.audiobookbay")) >= 0)
+        add("colosseum.well.audiobookbay", "colosseum://well/audiobookbay", false,
+            optionalNativeSourceManifest(QStringLiteral("colosseum://well/audiobookbay")));
 
     // ---- Universes: an IP gathered across every medium it lives in ---------
     // A universe is classified by ROLE, not content: the `universe` resource is checked
@@ -1266,6 +1290,11 @@ void ExtensionsStore::preview(const QString& rawUrl)
         emit previewFailed(rawUrl, QStringLiteral("Paste an extension address first."));
         return;
     }
+    const auto nativeManifest = optionalNativeSourceManifest(url);
+    if (!nativeManifest.isEmpty()) {
+        emit previewReady(url, nativeManifest);
+        return;
+    }
     fetchManifest(url, /*thenInstall=*/false);
 }
 
@@ -1274,6 +1303,11 @@ void ExtensionsStore::install(const QString& rawUrl)
     const QString url = normalizeUrl(rawUrl);
     if (url.isEmpty()) {
         emit installFailed(rawUrl, QStringLiteral("Paste an extension address first."));
+        return;
+    }
+    const auto nativeManifest = optionalNativeSourceManifest(url);
+    if (!nativeManifest.isEmpty()) {
+        finishInstall(url, nativeManifest);
         return;
     }
     if (m_previewCache.contains(url)) {

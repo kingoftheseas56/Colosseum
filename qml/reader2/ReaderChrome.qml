@@ -384,23 +384,29 @@ Item {
     }
 
     // ---------- 4. the bars ----------
-    TopBar {
-        id: topBar
+    Item {
+        id: topRevealBand
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
-        shown: chrome.awake
-        overlayActive: shown && !chrome.sheetCoversBars
-        title: chrome.title
-        author: chrome.author
-        chapterLabel: chrome.chapterLabel
-        shellWindowed: chrome.shellWindowed
-        onBackRequested: chrome.backRequested()
-        onMinimizeRequested: chrome.minimizeRequested()
-        onFullscreenRequested: chrome.fullscreenRequested()
-        onCloseRequested: chrome.closeRequested()
-        onSearchRequested: chrome.handleSearch()          // toggles the search sheet (Task 11)
-        onContentsRequested: chrome.handleContents()      // toggles the left panel (Task 8)
-        onAppearanceRequested: chrome.handleAppearance()  // toggles the right panel (Task 10)
-        onBookmarkRequested: chrome.bookmarkRequested()
+        height: chrome.revealBandPx
+        HoverHandler { onHoveredChanged: hovered ? chrome.enterBar() : chrome.exitBar() }
+        TopBar {
+            id: topBar
+            anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+            shown: chrome.awake
+            overlayActive: shown && !chrome.sheetCoversBars
+            title: chrome.title
+            author: chrome.author
+            chapterLabel: chrome.chapterLabel
+            shellWindowed: chrome.shellWindowed
+            onBackRequested: chrome.backRequested()
+            onMinimizeRequested: chrome.minimizeRequested()
+            onFullscreenRequested: chrome.fullscreenRequested()
+            onCloseRequested: chrome.closeRequested()
+            onSearchRequested: chrome.handleSearch()          // toggles the search sheet (Task 11)
+            onContentsRequested: chrome.handleContents()      // toggles the left panel (Task 8)
+            onAppearanceRequested: chrome.handleAppearance()  // toggles the right panel (Task 10)
+            onBookmarkRequested: chrome.bookmarkRequested()
+        }
     }
 
     BottomRail {
@@ -797,23 +803,14 @@ Item {
         }
     }
 
-    // ---------- 5. reveal bands (top + bottom) — the ONLY hover waker ----------
-    // Reaching the top or bottom edge reveals the chrome AND freezes it shown while the
-    // cursor stays in the band. The band is tall enough to contain the whole shown bar,
-    // so "hovering the bar" == "inside the band" == frozen; moving back into the reading
-    // body leaves the band → the 3s idle countdown resumes. HoverHandler (NOT a
-    // hoverEnabled MouseArea) is deliberate and mirrors MangaReader.qml's HUD hover-
-    // freeze: it is geometry-based and passive, so its hover can't be stolen by the bars'
-    // child icon-button MouseAreas (which would drop the freeze), it never blocks their
-    // clicks or hover-brighten, and it never shadows a lower cursorShape. Declared last
-    // (top-most) so hover is delivered reliably; carries no MouseArea, so every click
-    // falls straight through to the bars / page-turn zones beneath.
+    // ---------- 5. BOTTOM REVEAL BAND ----------
+    // The top reveal band wraps TopBar in section 4, making the reveal HoverHandler an
+    // ancestor of its icon controls. Both bands wake the chrome and keep it frozen while
+    // the cursor stays in the 96px edge region; moving back into the reading body resumes
+    // the 3s idle countdown. HoverHandler (not a hover-enabled MouseArea) keeps the reveal
+    // geometry-based and passive, so it never consumes clicks or shadows a lower cursor.
+    // The bottom band stays last in the scene so its HoverHandler remains above the rail.
     readonly property int revealBandPx: 96
-    Item {
-        anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
-        height: chrome.revealBandPx
-        HoverHandler { onHoveredChanged: hovered ? chrome.enterBar() : chrome.exitBar() }
-    }
     Item {
         anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right
         height: chrome.revealBandPx

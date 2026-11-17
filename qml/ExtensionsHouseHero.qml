@@ -6,6 +6,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "ExtensionsCatalog.js" as ExtensionCatalog
 import QtQuick.Effects
 
 Item {
@@ -15,6 +16,7 @@ Item {
     signal universesRequested()
     signal searchRequested()
     signal installUrlRequested()
+    signal installRequested(string extensionId, string url)
     signal configureRequested(string extensionId)
 
     readonly property bool compact: width < 1250
@@ -34,8 +36,13 @@ Item {
     }
     function isInstalled(id) { hero.revision; var r = hero.rowFor(id); return !!r && r.enabled !== false }
     function isPresent(id) { hero.revision; return hero.rowFor(id) !== null }
+    function canToggle(id) {
+        return hero.isPresent(id) || (typeof Extensions !== "undefined" && ExtensionCatalog.houseInstallUrl(id).length > 0)
+    }
     function toggle(id) {
         if (hero.isPresent(id)) Extensions.setEnabled(id, !hero.isInstalled(id))
+        else if (ExtensionCatalog.houseInstallUrl(id).length > 0 && typeof Extensions !== "undefined")
+            hero.installRequested(id, ExtensionCatalog.houseInstallUrl(id))
     }
 
     Timer {
@@ -287,7 +294,7 @@ Item {
                             color: tile.installed ? Qt.rgba(40 / 255, 120 / 255, 82 / 255, 0.82) : Qt.rgba(18 / 255, 19 / 255, 24 / 255, 0.72)
                             border.width: 1
                             border.color: tile.installed ? Qt.rgba(159 / 255, 1, 210 / 255, 0.55) : Qt.rgba(1, 1, 1, 0.34)
-                            opacity: hero.isPresent(tile.modelData.id) ? 1 : 0.5
+                            opacity: hero.canToggle(tile.modelData.id) ? 1 : 0.5
                             Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                             Text {
                                 anchors.centerIn: parent
@@ -298,7 +305,7 @@ Item {
                             KeyboardAction {
                                 id: toggleAction
                                 anchors.fill: parent
-                                enabled: hero.isPresent(tile.modelData.id)
+                                enabled: hero.canToggle(tile.modelData.id)
                                 accessibleName: (tile.installed ? "Turn off " : "Add ") + tile.modelData.name
                                 tooltipText: accessibleName
                                 focusRadius: 14
