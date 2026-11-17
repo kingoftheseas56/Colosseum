@@ -9,7 +9,7 @@ TestCase {
     id: tc
     name: "AudiobookListenPage"
     width: 1280
-    height: 700
+    height: 720
     visible: true
     when: windowShown
 
@@ -29,28 +29,49 @@ TestCase {
             property int currentIndex: 0
             property real position: 65
             property real duration: 600
+            readonly property int chapterIndex: {
+                if (!chapterModel.length || chapterModel[0].kind === "file") return currentIndex
+                var active = 0
+                for (var i = 0; i < chapterModel.length; i++) {
+                    if (chapterModel[i].time <= position) active = i
+                }
+                return active
+            }
+            readonly property real chapterStart: chapterModel.length && chapterModel[chapterIndex].kind === "seek"
+                ? chapterModel[chapterIndex].time : 0
+            readonly property real chapterPosition: position - chapterStart
+            readonly property real chapterDuration: chapterModel.length && chapterModel[0].kind === "seek"
+                && chapterIndex + 1 < chapterModel.length ? chapterModel[chapterIndex + 1].time - chapterStart
+                : duration - chapterStart
+            property real bookFraction: 0.27
+            property bool canGoBack: false
+            property real volume: 60
+            property bool mute: false
+            property int sleepMinutesLeft: 0
             property bool paused: true
             property real speed: 1.0
             property int sleepMinutes: 0
             property var calls: []
             function log(name, arg) { var c = calls.slice(); c.push([name, arg]); calls = c }
             function togglePlay() { log("togglePlay"); paused = !paused }
-            function seekTo(t) { log("seekTo", t) }
-            function seekRel(d) { log("seekRel", d) }
+            function seekInChapter(fraction) { log("seekInChapter", fraction) }
+            function markJumpOrigin() { log("markJumpOrigin") }
+            function skipBook(d) { log("skipBook", d) }
             function goToChapter(i) { log("goToChapter", i); currentIndex = i }
-            function setRate(r) { log("setRate", r); speed = r }
+            function cycleSpeed() { log("cycleSpeed"); speed = 1.25 }
             function callNames() { return calls.map(function (c) { return c[0] }) }
         }
     }
     function makePage(extraBook, sessionProps) {
-        stub = createTemporaryObject(stubComponent, tc)
+        destroyPage()
+        stub = stubComponent.createObject(tc)
         var props = sessionProps || ({})
         for (var k in props) stub[k] = props[k]
         var c = Qt.createComponent("../../qml/audiobook/AudiobookListenPage.qml")
         compare(c.status, Component.Ready, c.errorString())
         var book = { title: "The Long Way", authors: ["Becky Chambers"], narrators: ["Rachel Dulude"] }
         for (var b in (extraBook || ({}))) book[b] = extraBook[b]
-        page = createTemporaryObject(c, tc, { session: stub, book: book, width: 1280, height: 700 })
+        page = c.createObject(tc, { session: stub, book: book, width: 1280, height: 720 })
         verify(page !== null)
         waitForRendering(page)
         return page
@@ -58,19 +79,23 @@ TestCase {
     function find(name) { return findChild(page, name) }
     function visibleNamed(name) { var o = find(name); return o !== null && o.visible }
 
-    function cleanup() { page = null; stub = null }
+    function destroyPage() {
+        if (page) page.destroy()
+        if (stub) stub.destroy()
+        page = null
+        stub = null
+    }
+
+    function cleanup() { destroyPage() }
 
     function test_titleAuthorAndNarratorShow() {
         makePage()
         var song = find("vinylSongTitle")
         verify(song !== null)
-        compare(song.text, "Opening Credits", "current chapter title is the track title")
+        compare(song.text, "The Long Way")
         var artist = find("vinylSongArtist")
         verify(artist !== null)
-        var albumText = ""
-        var kids = find("vinylSongAlbum").children
-        for (var i = 0; i < kids.length; i++) if (kids[i].text !== undefined) albumText = kids[i].text
-        compare(albumText, "The Long Way", "book title is the album line")
+        verify(!visibleNamed("vinylSongAlbum"))
         compare(artist.names.join(" "), "Becky Chambers")
         var narrators = find("audiobookNarrators")
         verify(narrators.visible)
@@ -82,63 +107,92 @@ TestCase {
         verify(!visibleNamed("audiobookNarrators"))
     }
 
-    function test_titleFallsBackToBookWhenNoChapters() {
+    function test_bookTitleRemainsVisibleWithoutChapters() {
         makePage({}, { chapterModel: [] })
         compare(find("vinylSongTitle").text, "The Long Way")
+        mouseClick(find("abBarChapters"))
+        verify(!visibleNamed("audiobookChapters"))
+    }
+
+    function test_fullAudiobookBarReplacesVinylBar() {
+        makePage()
+        verify(visibleNamed("abBarSpeed"))
+        compare(find("vinylPlayerBar"), null)
+    }
+
+    function test_wholeBookLineIsVisible() {
+        makePage()
+        verify(visibleNamed("abBarBookLine"))
+    }
+
+    function test_chaptersButtonOpensChapterList() {
+        makePage()
+        verify(!visibleNamed("audiobookChapters"))
+        var button = find("abBarChapters")
+        verify(button !== null)
+        mouseClick(button)
+        verify(visibleNamed("audiobookChapterList"))
+        var panel = find("audiobookChapters")
+        var poster = find("vinylSongPoster")
+        verify(panel.x > poster.mapToItem(page, poster.width, 0).x)
+        mouseClick(find("audiobookCloseChapters"))
         verify(!visibleNamed("audiobookChapters"))
     }
 
     function test_playPauseTogglesStub() {
         makePage()
-        mouseClick(find("vinylBarPlay"))
+        mouseClick(find("abBarPlay"))
         compare(stub.callNames().join(), "togglePlay")
         compare(stub.paused, false)
-        mouseClick(find("vinylBarPlay"))
+        mouseClick(find("abBarPlay"))
         compare(stub.callNames().join(), "togglePlay,togglePlay")
     }
 
     function test_keyboardSeekCallsSeekTo() {
         makePage()
-        var seek = find("vinylBarSeek")
+        var seek = find("abBarChapterLine")
         verify(seek.enabled)
         seek.forceActiveFocus()
         keyClick(Qt.Key_Right)
-        compare(stub.calls[0][0], "seekTo")
-        compare(stub.calls[0][1], 70)
+        compare(stub.callNames().join(), "markJumpOrigin,seekInChapter")
+        compare(stub.calls[1][1], 70 / 600)
     }
 
     function test_pointerSeekCallsSeekTo() {
         makePage()
-        var seek = find("vinylBarSeek")
+        var seek = find("abBarChapterLine")
         mouseClick(seek, seek.width / 2, seek.height / 2)
-        compare(stub.calls[0][0], "seekTo")
-        verify(Math.abs(stub.calls[0][1] - 300) < 3)
+        compare(stub.callNames().join(), "markJumpOrigin,seekInChapter")
+        compare(stub.calls[1][1], 0.5)
     }
 
     function test_nextAndPreviousJumpChaptersAndDisableAtEnds() {
         makePage()
-        verify(!find("vinylBarPrev").enabled, "first chapter: no previous")
-        verify(find("vinylBarNext").enabled)
-        mouseClick(find("vinylBarNext"))
-        compare(stub.calls[0][0], "goToChapter")
-        compare(stub.calls[0][1], 1)
-        verify(find("vinylBarPrev").enabled)
-        mouseClick(find("vinylBarNext"))
-        compare(stub.calls[1][1], 2)
-        verify(!find("vinylBarNext").enabled, "last chapter: no next")
-        mouseClick(find("vinylBarPrev"))
-        compare(stub.calls[2][1], 1)
+        verify(!find("abBarPrevChapter").enabled, "first chapter: no previous")
+        verify(find("abBarNextChapter").enabled)
+        mouseClick(find("abBarNextChapter"))
+        compare(stub.callNames().join(), "markJumpOrigin,goToChapter")
+        compare(stub.calls[1][1], 1)
+        verify(find("abBarPrevChapter").enabled)
+        mouseClick(find("abBarNextChapter"))
+        compare(stub.calls[3][1], 2)
+        verify(!find("abBarNextChapter").enabled, "last chapter: no next")
+        mouseClick(find("abBarPrevChapter"))
+        compare(stub.calls[5][1], 1)
     }
 
     function test_chapterTapJumpsAndCurrentIsHighlighted() {
         makePage()
+        mouseClick(find("abBarChapters"))
         var current = find("audiobookChapterHighlight_0").color
         var other = find("audiobookChapterHighlight_2").color
         verify(current.a > 0, "current chapter row is highlighted")
         compare(other.a, 0, "other rows are not")
+        mouseClick(find("audiobookChapter_0"))
+        compare(stub.calls.length, 0, "reselecting the current file does not record a jump")
         mouseClick(find("audiobookChapter_2"))
-        compare(stub.calls[0][0], "goToChapter")
-        compare(stub.calls[0][1], 2)
+        compare(stub.callNames().join(), "markJumpOrigin,goToChapter")
+        compare(stub.calls[1][1], 2)
         tryVerify(function () { return find("audiobookChapterHighlight_2").color.a > 0 })
         compare(find("audiobookChapterHighlight_0").color.a, 0)
     }
@@ -150,39 +204,38 @@ TestCase {
                            { label: "Part 2", kind: "seek", index: 2, time: 400 }],
             position: 130
         })
-        compare(find("vinylSongTitle").text, "Part 1")
+        mouseClick(find("abBarChapters"))
+        compare(find("vinylSongTitle").text, "The Long Way")
+        compare(find("abBarChapterLabel").text, "CHAPTER 2 · PART 1")
         verify(!find("audiobookChapterTime_0").visible, "no start time shown when it is zero")
-        compare(find("audiobookChapterTime_1").text, "2:00")
+        compare(find("audiobookChapterTime_1").text, "NOW")
+        compare(find("audiobookChapterTime_2").text, "6:40")
         stub.position = 410
-        tryCompare(find("vinylSongTitle"), "text", "Part 2")
+        tryCompare(find("abBarChapterLabel"), "text", "CHAPTER 3 · PART 2")
+        compare(find("audiobookChapterTime_1").text, "2:00")
     }
 
-    function test_speedCycleFollowsTheLadder() {
+    function test_speedControlUsesSession() {
         makePage()
-        var expected = [1.25, 1.5, 1.75, 2.0, 0.75, 1.0]
-        for (var i = 0; i < expected.length; i++) {
-            mouseClick(find("audiobookSpeed"))
-            compare(stub.speed, expected[i])
-        }
-        compare(find("audiobookSpeed").label, "1.0\u00d7")
+        mouseClick(find("abBarSpeed"))
+        compare(stub.callNames().join(), "cycleSpeed")
+        compare(find("abBarSpeed").label, "1.25×")
         stub.speed = 1.5
-        compare(find("audiobookSpeed").label, "1.5\u00d7")
+        compare(find("abBarSpeed").label, "1.5×")
     }
 
-    function test_skipAndSleep() {
+    function test_skipAndSleepUseSession() {
         makePage()
-        mouseClick(find("audiobookSkipBack"))
-        mouseClick(find("audiobookSkipForward"))
-        compare(stub.calls[0][0], "seekRel")
-        compare(stub.calls[0][1], -Data.SKIP_SECONDS)
-        compare(stub.calls[1][1], Data.SKIP_SECONDS)
-        compare(Data.SKIP_SECONDS, 10, "matches the reader's step")
-        compare(find("audiobookSleep").label, "Sleep")
-        mouseClick(find("audiobookSleep"))
+        mouseClick(find("abBarBack10"))
+        mouseClick(find("abBarFwd10"))
+        compare(stub.callNames().join(), "skipBook,skipBook")
+        compare(stub.calls[0][1], -10)
+        compare(stub.calls[1][1], 10)
+        mouseClick(find("abBarSleep"))
+        var menu = find("abBarSleepMenu")
+        tryCompare(menu, "opened", true)
+        mouseClick(menu.itemAt(1))
         compare(stub.sleepMinutes, 15)
-        compare(find("audiobookSleep").label, "15 min")
-        for (var i = 0; i < 4; i++) mouseClick(find("audiobookSleep"))
-        compare(stub.sleepMinutes, 0, "the ladder wraps back to off")
     }
 
     function test_noDescriptionOrSeriesHidesNotesColumn() {
@@ -223,41 +276,16 @@ TestCase {
         compare(fired, 1)
     }
 
-    // ---- the pure mapping ----
-    function test_buildMapsSessionAndBook() {
-        stub = createTemporaryObject(stubComponent, tc)
-        stub.currentIndex = 1
-        var pd = Data.build(stub, { title: "T", authors: ["A", "B"], narrators: ["N"], cover: "C:\\books\\t.jpg" })
-        compare(pd.playingTrack.title, "Chapter One")
-        compare(pd.playingEdition.artist, "A \u00b7 B")
-        compare(pd.playingEdition.narrators[0], "N")
-        compare(pd.artwork(pd.playingEdition.cover), "file:///C:/books/t.jpg")
-        compare(pd.position, 65)
-        compare(pd.canNext, true)
-        compare(pd.canPrevious, true)
-        pd.next(1)
-        compare(stub.calls[0][1], 2)
-        pd.next(-1)   // the stub moved to chapter 2 after the first jump
-        compare(stub.calls[1][1], 1)
-        pd.seek(5)
-        compare(stub.calls[2][0], "seekTo")
-        compare(pd.lyricsShown, false)
-        compare(pd.videoShown, false)
-        compare(pd.queueEnabled, false)
-        compare(pd.geniusSongId, "")
+    function test_bookMetadataAndChapterTimeMapping() {
+        makePage({ title: "T", authors: ["A", "B"], narrators: ["N"] })
+        var edition = page.pageData.playingEdition
+        compare(edition.title, "T")
+        compare(edition.artist, "A · B")
+        compare(edition.narrators[0], "N")
+        compare(page.pageData.artwork("C:\\books\\t.jpg"), "file:///C:/books/t.jpg")
+        compare(page.pageData.artwork(""), "")
         compare(Data.formatTime(3725), "1:02:05")
         compare(Data.formatTime(65), "1:05")
-        compare(pd.artwork(""), "", "absent cover stays absent")
-        compare(Data.build(stub, {}).playingEdition.artist, "", "absent authors stay absent")
-    }
-
-    function test_pageDataExposesEveryMappedField() {
-        makePage()
-        var snap = Data.build(stub, page.book)
-        var missing = []
-        for (var key in snap) {
-            if (!(key in page.pageData)) missing.push(key)
-        }
-        compare(missing.join(), "", "page data lacks fields the mapping defines")
+        compare(Data.edition({}).artist, "")
     }
 }

@@ -9,8 +9,7 @@ Item {
     property bool artistNavigationEnabled: false
     property string backLabel: "Back"
     property bool browseMode: false
-    // Options for hosts whose content has no lyrics/annotations, saved-song tools or album page
-    // (the audiobook listening page). Defaults keep the Vinyl song page exactly as it was.
+    // The listening page uses the cover room without reading columns, song actions or album identity.
     property bool readersEnabled: true
     property bool songActionsEnabled: true
     property bool albumLinkEnabled: true
@@ -29,12 +28,15 @@ Item {
     readonly property real sideInset: Math.max(20, Math.min(54, width * 0.034))
     readonly property real sideGap: Math.max(18, Math.min(64, width * 0.034))
     readonly property real headerBottom: backAction.y + backAction.height
-    readonly property real artworkTop: stackedReaders ? headerBottom + 18 : 4
+    readonly property real artworkTop: readersEnabled
+        ? (stackedReaders ? headerBottom + 18 : 4)
+        : Math.max(headerBottom + 8, Math.min(88, height * 0.2))
     // The fixed metadata reservation keeps toggling reading tools from moving the cover.
     readonly property real centerWidth: Math.max(96, Math.min(540,
         stackedReaders ? width - 2 * sideInset : width * 0.36,
         stackedReaders ? height * 0.38 : height - artworkTop - 108))
-    readonly property real cardHeight: centerWidth
+    readonly property real cardHeight: readersEnabled ? centerWidth
+        : Math.max(96, Math.min(218, width - 2 * sideInset, height - artworkTop - 104))
     readonly property real videoFrameHeight: Math.max(0, Math.min(height, width * 9 / 16))
     readonly property real readingTop: stackedReaders
         ? room.y + cardHeight + 10 + songMetadata.implicitHeight + 54
@@ -240,7 +242,7 @@ Item {
                 objectName: "vinylSongMetadata"
                 x: (parent.width - width) / 2
                 y: parent.height + 10
-                width: root.centerWidth
+                width: root.readersEnabled ? root.centerWidth : Math.min(420, root.width - 40)
                 spacing: 2
                 Item {
                     width: parent.width
@@ -262,7 +264,7 @@ Item {
                         text: root.songTitle
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: root.stackedReaders ? 28 : 30
+                        font.pixelSize: !root.readersEnabled && !root.stackedReaders ? 36 : (root.stackedReaders ? 28 : 30)
                         maximumLineCount: 1
                         elide: Text.ElideRight
                         wrapMode: Text.NoWrap
@@ -281,7 +283,7 @@ Item {
                     id: artistNameMetrics
                     text: songArtists.displayedNames.join(" · ")
                     font.family: theme.ui
-                    font.pixelSize: 14
+                    font.pixelSize: songArtists.fontSize
                 }
                 Item {
                     width: parent.width
@@ -293,14 +295,17 @@ Item {
                         VinylArtistLinks {
                             id: songArtists
                             objectName: "vinylSongArtist"
-                            width: Math.min(songMetadata.width * 0.55, Math.max(24, artistNameMetrics.advanceWidth))
+                            width: Math.min(songMetadata.width * (root.albumLinkEnabled ? 0.55 : 1),
+                                            Math.max(24, artistNameMetrics.advanceWidth))
                             names: root.pageData.playingTrack.artists || root.pageData.playingEdition.artists || (root.pageData.playingEdition.sourceAlbum && root.pageData.playingEdition.sourceAlbum.artists) || []
                             fallbackName: root.pageData.playingEdition.artist
                             navigationEnabled: root.artistNavigationEnabled
-                            fontSize: 14
+                            opacity: root.artistNavigationEnabled || !root.albumLinkEnabled ? 1 : 0.5
+                            fontSize: root.albumLinkEnabled ? 14 : 16
                             onArtistRequested: name => root.artistRequested(name)
                         }
                         Text {
+                            visible: root.albumLinkEnabled
                             text: "\u00b7"
                             color: theme.inkDimmer
                             font.family: theme.ui
@@ -312,7 +317,8 @@ Item {
                                 Math.max(0, songMetadata.width - songArtists.width - 20))
                             height: 24
                             focusOnPointer: false
-                            enabled: root.albumLinkEnabled
+                            visible: root.albumLinkEnabled
+                            enabled: visible
                             accessibleName: qsTr("Open album %1").arg(albumLabel.text)
                             onTriggered: root.albumRequested()
                             Text {
