@@ -60,6 +60,16 @@ if(COLOSSEUM_FERIA_TEST_NODE)
     endforeach()
     add_test(NAME colosseum.feria_app_mode_test
         COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/feria_app_mode_test.mjs")
+    # ABB uses QML library JavaScript exercised through deterministic Node fixtures.
+    # Run from the source root so the existing fixture-relative paths stay valid.
+    foreach(abb_test abb_parse abb_adapter)
+        add_test(NAME colosseum.${abb_test}_test
+            COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${abb_test}_test.mjs")
+        set_tests_properties(colosseum.${abb_test}_test PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+            LABELS "unit;audiobooks;abb"
+            TIMEOUT 30)
+    endforeach()
 endif()
 
 # One place to grow the pilot set. Each entry: target name + labels.
