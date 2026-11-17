@@ -367,14 +367,18 @@ FocusScope {
     }
     readonly property string audioPairKey: (shell.audioPairing && shell.audioPairing.pairKey)
                                            ? String(shell.audioPairing.pairKey) : ""
+    readonly property string audioRecordingKey: (shell.audioPairing && shell.audioPairing.recordingKey)
+        ? String(shell.audioPairing.recordingKey)
+        : (shell.audioPairKey !== "" && typeof Audiobooks !== "undefined" && Audiobooks.resolveRecordingKey)
+            ? Audiobooks.resolveRecordingKey(shell.audioPairKey) : shell.audioPairKey
     // Attached = a pairing exists AND its audiobook is actually on disk (a stale pairing
     // whose files were deleted must fall back to the unattached state, never a dead card).
-    readonly property bool audioAttached: shell.audioPairKey !== ""
-        && typeof Audiobooks !== "undefined" && Audiobooks.isDownloaded(shell.audioPairKey)
+    readonly property bool audioAttached: shell.audioRecordingKey !== ""
+        && typeof Audiobooks !== "undefined" && Audiobooks.isDownloaded(shell.audioRecordingKey)
 
     // The downloaded-audiobook index entry (title/author/fileCount) for the card BEFORE
     // the session loads. Recomputed on the same triggers as the pairing.
-    property var audioEntry: shell.findAudioEntry(shell.audioPairKey, shell.audioPairingRev)
+    property var audioEntry: shell.findAudioEntry(shell.audioRecordingKey, shell.audioPairingRev)
     function findAudioEntry(pk, rev) {
         if (pk === "" || typeof Audiobooks === "undefined") return ({})
         var list = Audiobooks.downloadedAudiobooks() || []
@@ -387,7 +391,7 @@ FocusScope {
     // be streaming a DIFFERENT book — another reader/full player — in which case our
     // transport shows the idle state, never the other book's position).
     readonly property bool audioSessionLive: !!(shell.audioSession && shell.audioSession.ready
-                                                && shell.audioSession.activePairKey === shell.audioPairKey
+                                                && shell.audioSession.activePairKey === shell.audioRecordingKey
                                                 && shell.audioPairKey !== "")
 
     // ---- card + transport props (fed to the chrome → LeftPanel Audio pane) ----
@@ -442,16 +446,17 @@ FocusScope {
         return {
             title: (e.title ? String(e.title) : (shell.bookTitle !== "" ? shell.bookTitle : "Audiobook")),
             author: (e.author ? String(e.author) : shell.bookAuthor),
-            cover: ""
+            cover: "",
+            pairKey: shell.audioPairKey
         }
     }
     // Load the paired audiobook into the shared session if it isn't already streaming for
     // this book. openFor is IDEMPOTENT (same pairKey already live → no-op, stream untouched).
     // startPaused=true lands at the last spot paused (the Follow-on summon); false plays.
     function ensureAudioLoaded(startPaused) {
-        if (!shell.audioSession || shell.audioPairKey === "") return false
-        if (typeof Audiobooks !== "undefined" && !Audiobooks.isDownloaded(shell.audioPairKey)) return false
-        shell.audioSession.openFor(shell.audioPairKey, shell.audioSessionBook(), startPaused === true)
+        if (!shell.audioSession || shell.audioRecordingKey === "") return false
+        if (typeof Audiobooks !== "undefined" && !Audiobooks.isDownloaded(shell.audioRecordingKey)) return false
+        shell.audioSession.openFor(shell.audioRecordingKey, shell.audioSessionBook(), startPaused === true)
         if (shell.audioSession.setRate) shell.audioSession.setRate(shell.audioChosenSpeed)  // carry the chosen speed in
         return !!shell.audioSession.ready
     }
@@ -640,7 +645,7 @@ FocusScope {
             return ch.map(function(c) { return String(c.label || "") })
         }
         if (!shell.audioAttached || typeof Audiobooks === "undefined") return []
-        return Audiobooks.localFiles(shell.audioPairKey).map(function(p) {
+        return Audiobooks.localFiles(shell.audioRecordingKey).map(function(p) {
             var base = String(p).split(/[\\/]/).pop()
             return base.replace(/\.[a-z0-9]+$/i, "")      // filename, extension shed
         })
@@ -1522,10 +1527,12 @@ FocusScope {
                ? String(meta.pairKey)
                : B.pairKey(meta.title || "", meta.author || "")
         if (pk === "" || pk === "|") return              // no usable identity → nothing to match by
-        if (!Audiobooks.isDownloaded(pk)) return         // no audiobook on disk for this book
+        var rk = Audiobooks.resolveRecordingKey ? Audiobooks.resolveRecordingKey(pk) : pk
+        if (!rk || !Audiobooks.isDownloaded(rk)) return // no uniquely selected recording
         AudioPairing.savePairing(shell.bookId, {
             "pairKey": pk,
-            "dirPath": Audiobooks.localAudiobook(pk)
+            "recordingKey": rk,
+            "dirPath": Audiobooks.localAudiobook(rk)
         })
         if (shell.readerDebug) console.log("[shell] healed audio pairing:", shell.bookId, "→", pk)
     }

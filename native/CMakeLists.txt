@@ -368,6 +368,8 @@ set(COLOSSEUM_THEATRE_ACCOUNT_SOURCES
 set(COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES
     engine/AudiobookDownloader.cpp
     engine/AudiobookDownloader.h
+    engine/AudiobookRecordingMatch.cpp
+    engine/AudiobookRecordingMatch.h
     engine/AudiobookTorrentTransport.cpp
     engine/AudiobookTorrentTransport.h
     engine/AudiobookTorrentEngineAdapter.h)

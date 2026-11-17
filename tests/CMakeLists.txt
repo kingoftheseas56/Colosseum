@@ -15,6 +15,7 @@
 
 
 add_subdirectory(home_servers)
+add_subdirectory(audiobook_torrent_transport)
 
 if(WIN32)
     add_subdirectory(feria_host_probe)
@@ -54,6 +55,9 @@ add_test(NAME colosseum.feria_availability_test COMMAND feria_availability_test)
 
 find_program(COLOSSEUM_FERIA_TEST_NODE NAMES node)
 if(COLOSSEUM_FERIA_TEST_NODE)
+    add_test(NAME colosseum.audiobook_recording_session
+        COMMAND "${COLOSSEUM_FERIA_TEST_NODE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/audiobook_torrent_transport/session_recording_test.mjs")
     foreach(test_name feria_playback feria_resume feria_resume_repairs feria_connectors feria_youtube_music)
         add_test(NAME colosseum.${test_name}_test
             COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}_test.mjs")
