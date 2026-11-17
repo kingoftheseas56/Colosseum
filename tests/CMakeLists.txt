@@ -1957,6 +1957,14 @@ set_tests_properties(colosseum.qml.audiobook_listen_page PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
     TIMEOUT 120)
 
+# Audiobooks 1.4.0: the Biblio Audiobooks tab (Discover rows, Your Library), against fakes.
+add_test(NAME colosseum.qml.biblio_audiobooks_tab
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_biblio_audiobooks_tab.qml")
+set_tests_properties(colosseum.qml.biblio_audiobooks_tab PROPERTIES
+    LABELS "unit;qml;audiobook;biblio;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
 # Audiobooks 1.4.0 slice F: the audiobook book page (recordings as editions), against fixtures.
 add_test(NAME colosseum.qml.audiobook_book_page
     COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_audiobook_book_page.qml")

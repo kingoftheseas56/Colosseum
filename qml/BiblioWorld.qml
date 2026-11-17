@@ -40,6 +40,10 @@ WorldPage {
 
     property var featuredRows: Catalog.biblioFeatured
     signal collectionOpenRequested(var entry)
+    // Audiobooks tab doors (the host wires the audiobook page, genre and see-all pages).
+    signal audiobookRequested(var item)
+    signal audiobookGenreRequested(string genre)
+    signal audiobookShelfRequested(string key)
 
     // ── Featured carousel hydration: native Popular once BiblioCatalog is ready, the static
     //    Catalog.biblioFeatured fallback until then. loadBiblio() is NOT called here anymore —
@@ -149,6 +153,7 @@ WorldPage {
         currentTab: biblio.activeTab
         tabModel: [ { key: "discover", label: "Discover" },
                     { key: "explore", label: "Explore" },
+                    { key: "audiobooks", label: "Audiobooks" },
                     { key: "library", label: "Library" } ]
         onTabRequested: (tab) => biblio.activeTab = tab
     }
@@ -206,6 +211,22 @@ WorldPage {
         }
     }
 
+    // ── Audiobooks: its own medium tab (Discover rows + Your Library). Retained like the other
+    //    tabs; it fetches its catalogue rows once, on first activation. ──
+    BiblioAudiobooksTab {
+        id: audiobooksTab
+        objectName: "biblioAudiobooksTab"
+        visible: biblio.activeTab === "audiobooks"
+        width: parent.width
+        height: visible ? implicitHeight : 0
+        pageFlick: biblio.pageFlickable
+        backdrop: biblio.backdrop
+        active: biblio.lifecycleActive && visible
+        onAudiobookRequested: (item) => biblio.audiobookRequested(item)
+        onAudiobookGenreRequested: (genre) => biblio.audiobookGenreRequested(genre)
+        onAudiobookShelfRequested: (key) => biblio.audiobookShelfRequested(key)
+    }
+
     // ── Library: the Theatre-parity retained saved-shelf page (Slice 2). One Collection entry
     //    → one card; conservative Progress match enables Resume, else the card opens Details.
     //    Retained (not Loader-swapped) so its search/filter/sort/scroll state survives tab
@@ -235,4 +256,5 @@ WorldPage {
     readonly property Item _discoverPageForTest: discoverPage
     readonly property Item _explorePageForTest: explorePage
     readonly property Item _libraryPageForTest: libraryPage
+    readonly property Item _audiobooksTabForTest: audiobooksTab
 }
