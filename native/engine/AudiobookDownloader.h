@@ -3,8 +3,8 @@
 // The audiobook half of the download-fed backbone. An audiobook is a torrent of
 // N audio files (a single .m4b, or a set of .mp3 chapters). This ports
 // BookDownloader's proven HTTP-stream-to-disk machinery but sources bytes from
-// the Stremio engine's localhost HTTP instead of LibGen, and keys everything by
-// `pairKey` (the title+author pairing identity) so a book page can flip to "Listen".
+// the Stremio engine's localhost HTTP instead of LibGen. Storage and progress
+// use a recordingKey; the title+author pairKey remains the read-along work key.
 //
 // Transport (proven live 2026-07-12 — see docs plan Task 0):
 //   1. m_stream->prefetch(infoHash, 0) starts/adopts the Stremio engine AND
@@ -14,10 +14,10 @@
 //      fileIdx = the index into that files[] array. Filter to audio extensions,
 //      natural-sort, and each file streams from <base>/<infoHash>/<fileIdx>
 //      COMPLETE (plain GET, no Range → whole file; proven, no buffer cap).
-//   3. Stream each file to <appdata>/audiobooks/<pairKeyHash>/<NN - name>.<ext>
+//   3. Stream each file to <appdata>/audiobooks/<recordingKeyHash>/<NN - name>.<ext>
 //      via chunked readyRead → .part → atomic rename (BookDownloader lineage).
 //
-// On-disk: <appdata>/audiobooks/<pairKeyHash>/ + <appdata>/audiobooks/index.json.
+// On-disk: <appdata>/audiobooks/<recordingKeyHash>/ + <appdata>/audiobooks/index.json.
 //
 // Threading: pure QNetworkAccessManager + QObject lambdas on the main thread.
 
@@ -65,8 +65,8 @@ public:
     // ---- QML entry points (exposed as context property `Audiobooks`) ----
 
     // Resolve the torrent's audio files via the Stream engine, then download each
-    // to disk. Idempotent: an already-downloaded pairKey re-emits finished(); an
-    // active pairKey is a no-op.
+    // to disk. Legacy calls retain work-key signals; the downloaded content is
+    // selected by source recording identity, so different narrations never collide.
     //
     // bookId (optional) is the READER'S book identity — BookStores::keyFor(<the
     // ebook's file path>), the same key ReaderShell.bookId / Task 13's Audio tab
@@ -81,8 +81,14 @@ public:
                                        const QString& title, const QString& author,
                                        const QString& bookId = QString(),
                                        const QString& bookPath = QString());
+    // Explicit recording/source metadata; bundle items do not belong to one work.
+    Q_INVOKABLE void downloadRecording(const QVariantMap& request);
+    Q_INVOKABLE QString resolveRecordingKey(const QString& workOrRecordingKey) const;
+    Q_INVOKABLE QVariantList recordingsForWork(const QString& pairKey) const;
+    Q_INVOKABLE bool setDefaultRecording(const QString& pairKey, const QString& recordingKey);
+    Q_INVOKABLE bool markRecordingPlayed(const QString& recordingKey);
 
-    // The local FLIP: absolute path of the audiobook's directory, or "" if not local.
+    // The local FLIP: explicit recording key, or unambiguous work key; empty if not local.
     Q_INVOKABLE QString localAudiobook(const QString& pairKey) const;
     Q_INVOKABLE bool isDownloaded(const QString& pairKey) const;
     // Ordered local audio file paths for the player's chapter/playlist (or empty).
@@ -126,7 +132,10 @@ private:
         QString partPath;
     };
     struct Job {
-        QString pairKey, infoHash, title, author;
+        QString pairKey, recordingKey, signalKey, infoHash, title, author;
+        QString audiosiloRecordingId, format, abridgement, language, sourceKind, sourceRef;
+        QStringList narrators;
+        bool bundle = false;
         quint64 generation = 0;
         bool nativeTorrent = false;
         QString nativePhase = QStringLiteral("resolving");
@@ -175,20 +184,24 @@ private:
     // Read-along auto-attach: called at every finished() emit site. Writes the
     // pairing (audiobook pairKey + dirPath) under the remembered bookId, keyed the
     // SAME way Task 13's Audio tab reads it. No-op when no store or no bookId.
-    void attachToBook(const QString& pairKey, const QString& dirPath);
+    void attachToBook(const QString& recordingKey, const QString& dirPath);
+    void beginDownload(const QVariantMap& request, bool legacyCaller);
 
     // ── disk + index ──
     QString baseDir() const;                   // <appdata>/audiobooks
-    QString dirFor(const QString& pairKey) const;  // <appdata>/audiobooks/<sha1[:16]>
+    QString dirFor(const QString& recordingKey) const; // <appdata>/audiobooks/<sha1[:16]>
     void loadIndex();
     void saveIndex() const;
 
     struct Entry {
         QString dir;
         QStringList files;         // ordered absolute paths
-        QString title, author;
+        QString title, author, pairKey, recordingKey;
+        QString audiosiloRecordingId, format, abridgement, language, sourceKind, sourceRef;
+        QStringList narrators;
+        bool bundle = false, preferred = false;
         QString bookId, bookPath;
-        qint64  bytes = 0, addedAt = 0;
+        qint64 bytes = 0, addedAt = 0, lastPlayedAt = 0;
     };
 
     QPointer<AudiobookTorrentTransport> m_torrent;
@@ -197,9 +210,9 @@ private:
     StreamServer* m_stream = nullptr;
     Job* m_active = nullptr;
     QList<Job*> m_queue;
-    QHash<QString, Entry> m_index;             // pairKey → entry
+    QHash<QString, Entry> m_index;             // recordingKey → entry
     QHash<QString, QVariantMap> m_failures;
     AudioPairingStore* m_pairing = nullptr;    // read-along attach target (not owned)
-    QHash<QString, QString> m_bookIdFor;       // pairKey → reader bookId (for auto-attach)
-    QHash<QString, QString> m_bookPathFor;     // pairKey → ebook local path (stamped into pairing)
+    QHash<QString, QString> m_bookIdFor;       // recordingKey → reader bookId (for auto-attach)
+    QHash<QString, QString> m_bookPathFor;     // recordingKey → ebook local path (stamped into pairing)
 };

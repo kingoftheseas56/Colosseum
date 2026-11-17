@@ -773,7 +773,8 @@ Window {
         if (typeof Audiobooks !== "undefined") {
             var abs = Audiobooks.downloadedAudiobooks() || []
             for (var m = 0; m < abs.length; m++)
-                addBook(CollectionBackfill.entryForBook(abs[m], abs[m].id))
+                if (!abs[m].bundle)
+                    addBook(CollectionBackfill.entryForBook(abs[m], abs[m].pairKey || abs[m].id))
         }
         Collection.add("_meta", { "id": "backfill_v3", "type": "flag", "title": "", "cover": "" })
     }

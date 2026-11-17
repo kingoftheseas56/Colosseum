@@ -112,7 +112,7 @@ void AudiobookDownloader::setTorrentTransport(AudiobookTorrentTransport* transpo
             [this](quint64 generation, const QString& phase) {
         if (!m_active || !m_active->nativeTorrent || m_active->generation != generation) return;
         m_active->nativePhase = phase;
-        const QString key = m_active->pairKey;
+        const QString key = m_active->signalKey;
         emit resolving(key); // canonical stopping/finishing state is already visible
     });
     connect(transport, &AudiobookTorrentTransport::cancelled, this, [this](quint64 generation) {
@@ -124,7 +124,7 @@ void AudiobookDownloader::setTorrentTransport(AudiobookTorrentTransport* transpo
         if (!m_active || !m_active->nativeTorrent || m_active->generation != generation) return;
         m_active->doneBytes = received;
         m_active->totalBytes = total;
-        const QString key = m_active->pairKey;
+        const QString key = m_active->signalKey;
         emit progress(key, double(received), double(total));
     });
     connect(transport, &AudiobookTorrentTransport::completed, this,
@@ -170,16 +170,34 @@ void AudiobookDownloader::loadIndex()
     for (auto it = root.begin(); it != root.end(); ++it) {
         const QJsonObject o = it.value().toObject();
         Entry e;
-        e.dir     = o.value(QStringLiteral("dir")).toString();
-        e.title   = o.value(QStringLiteral("title")).toString();
-        e.author  = o.value(QStringLiteral("author")).toString();
-        e.bookId  = o.value(QStringLiteral("bookId")).toString();
+        // Old root keys are bare pairKeys. Never rehash, move, or reinterpret their folders.
+        e.recordingKey = it.key();
+        e.pairKey = o.value(QStringLiteral("pairKey")).toString();
+        e.bundle = o.value(QStringLiteral("bundle")).toBool()
+                || it.key().startsWith(QStringLiteral("bundle#src:"));
+        if (e.bundle) e.pairKey.clear();
+        else if (e.pairKey.isEmpty() && !it.key().contains(QStringLiteral("#src:"))
+                 && !it.key().contains(QStringLiteral("#as:")))
+            e.pairKey = it.key();
+        e.dir = o.value(QStringLiteral("dir")).toString();
+        e.title = o.value(QStringLiteral("title")).toString();
+        e.author = o.value(QStringLiteral("author")).toString();
+        e.audiosiloRecordingId = o.value(QStringLiteral("audiosiloRecordingId")).toString();
+        e.format = o.value(QStringLiteral("format")).toString();
+        e.abridgement = o.value(QStringLiteral("abridgement")).toString();
+        e.language = o.value(QStringLiteral("language")).toString();
+        e.sourceKind = o.value(QStringLiteral("sourceKind")).toString();
+        e.sourceRef = o.value(QStringLiteral("sourceRef")).toString();
+        for (const QJsonValue& name : o.value(QStringLiteral("narrators")).toArray())
+            if (name.isString()) e.narrators << name.toString();
+        e.bookId = o.value(QStringLiteral("bookId")).toString();
         e.bookPath = o.value(QStringLiteral("bookPath")).toString();
-        e.bytes   = static_cast<qint64>(o.value(QStringLiteral("bytes")).toDouble());
+        e.bytes = static_cast<qint64>(o.value(QStringLiteral("bytes")).toDouble());
         e.addedAt = static_cast<qint64>(o.value(QStringLiteral("addedAt")).toDouble());
-        const QJsonArray fa = o.value(QStringLiteral("files")).toArray();
-        for (const QJsonValue& v : fa) e.files << v.toString();
-        // keep only if the directory + at least the first file still exist
+        e.lastPlayedAt = static_cast<qint64>(o.value(QStringLiteral("lastPlayedAt")).toDouble());
+        e.preferred = o.value(QStringLiteral("preferred")).toBool();
+        for (const QJsonValue& v : o.value(QStringLiteral("files")).toArray())
+            if (v.isString()) e.files << v.toString();
         if (!e.files.isEmpty() && QFileInfo::exists(e.files.first()))
             m_index.insert(it.key(), e);
     }
@@ -190,69 +208,160 @@ void AudiobookDownloader::saveIndex() const
     QDir().mkpath(baseDir());
     QJsonObject root;
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
+        const Entry& e = it.value();
         QJsonObject o;
-        o[QStringLiteral("dir")]     = it.value().dir;
-        o[QStringLiteral("title")]   = it.value().title;
-        o[QStringLiteral("author")]  = it.value().author;
-        o[QStringLiteral("bookId")]  = it.value().bookId;
-        o[QStringLiteral("bookPath")] = it.value().bookPath;
-        o[QStringLiteral("bytes")]   = static_cast<double>(it.value().bytes);
-        o[QStringLiteral("addedAt")] = static_cast<double>(it.value().addedAt);
-        QJsonArray fa;
-        for (const QString& p : it.value().files) fa.append(p);
-        o[QStringLiteral("files")]   = fa;
-        root[it.key()] = o;
+        o[QStringLiteral("recordingKey")] = it.key();
+        o[QStringLiteral("pairKey")] = e.pairKey;
+        o[QStringLiteral("dir")] = e.dir;
+        o[QStringLiteral("title")] = e.title;
+        o[QStringLiteral("author")] = e.author;
+        o[QStringLiteral("audiosiloRecordingId")] = e.audiosiloRecordingId;
+        o[QStringLiteral("narrators")] = QJsonArray::fromStringList(e.narrators);
+        o[QStringLiteral("format")] = e.format;
+        o[QStringLiteral("abridgement")] = e.abridgement;
+        o[QStringLiteral("language")] = e.language;
+        o[QStringLiteral("sourceKind")] = e.sourceKind;
+        o[QStringLiteral("sourceRef")] = e.sourceRef;
+        o[QStringLiteral("bundle")] = e.bundle;
+        o[QStringLiteral("preferred")] = e.preferred;
+        o[QStringLiteral("lastPlayedAt")] = static_cast<double>(e.lastPlayedAt);
+        o[QStringLiteral("bookId")] = e.bookId;
+        o[QStringLiteral("bookPath")] = e.bookPath;
+        o[QStringLiteral("bytes")] = static_cast<double>(e.bytes);
+        o[QStringLiteral("addedAt")] = static_cast<double>(e.addedAt);
+        o[QStringLiteral("files")] = QJsonArray::fromStringList(e.files);
+        root.insert(it.key(),o);
     }
     QFile f(baseDir() + QStringLiteral("/index.json"));
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
         f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// QML read-model
-// ─────────────────────────────────────────────────────────────────────────────
-
-QString AudiobookDownloader::localAudiobook(const QString& pairKey) const
+QString AudiobookDownloader::resolveRecordingKey(const QString& key) const
 {
-    auto it = m_index.constFind(pairKey);
-    if (it == m_index.constEnd() || it.value().files.isEmpty()) return {};
-    if (!QFileInfo::exists(it.value().files.first())) return {};
-    return it.value().dir;
+    if (key.isEmpty()) return {};
+    // A legacy bare pairKey is BOTH an index root key and a work key. Resolve
+    // its selection first even when the old item exists alongside newer ones.
+    // Explicit recording keys belong to a different (or no) work key.
+    if (m_index.contains(key) && m_index.value(key).pairKey != key)
+        return key;
+    QString only, preferred, recent;
+    qint64 latest = 0;
+    int count = 0, preferredCount = 0;
+    bool recentTie = false;
+    for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
+        const Entry& e = it.value();
+        if (e.bundle || e.pairKey != key) continue;
+        ++count;
+        only = it.key();
+        if (e.preferred) { ++preferredCount; preferred = it.key(); }
+        if (e.lastPlayedAt > latest) {
+            latest = e.lastPlayedAt; recent = it.key(); recentTie = false;
+        } else if (e.lastPlayedAt && e.lastPlayedAt == latest) recentTie = true;
+    }
+    if (preferredCount == 1) return preferred;
+    if (preferredCount > 1) return {};
+    if (latest && !recentTie) return recent;
+    return count == 1 ? only : QString();
 }
 
-bool AudiobookDownloader::isDownloaded(const QString& pairKey) const
+bool AudiobookDownloader::setDefaultRecording(const QString& pairKey,
+                                               const QString& recordingKey)
 {
-    return !localAudiobook(pairKey).isEmpty();
+    auto selected = m_index.find(recordingKey);
+    if (selected == m_index.end() || selected->bundle || selected->pairKey != pairKey)
+        return false;
+    for (auto it = m_index.begin(); it != m_index.end(); ++it)
+        if (it->pairKey == pairKey) it->preferred = it.key() == recordingKey;
+    saveIndex();
+    return true;
 }
 
-QStringList AudiobookDownloader::localFiles(const QString& pairKey) const
+bool AudiobookDownloader::markRecordingPlayed(const QString& recordingKey)
 {
-    auto it = m_index.constFind(pairKey);
+    const QString resolved = resolveRecordingKey(recordingKey);
+    auto it = m_index.find(resolved);
+    if (it == m_index.end()) return false;
+    it->lastPlayedAt = QDateTime::currentMSecsSinceEpoch();
+    saveIndex();
+    return true;
+}
+
+QVariantList AudiobookDownloader::recordingsForWork(const QString& pairKey) const
+{
+    QVariantList out;
+    for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
+        const Entry& e = it.value();
+        if (e.pairKey != pairKey || e.bundle) continue;
+        out.append(QVariantMap{
+            {QStringLiteral("recordingKey"),it.key()},
+            {QStringLiteral("pairKey"),e.pairKey},
+            {QStringLiteral("title"),e.title},
+            {QStringLiteral("narrators"),e.narrators},
+            {QStringLiteral("format"),e.format},
+            {QStringLiteral("abridgement"),e.abridgement},
+            {QStringLiteral("language"),e.language},
+            {QStringLiteral("source"),e.sourceKind},
+            {QStringLiteral("sourceKind"),e.sourceKind},
+            {QStringLiteral("sourceRef"),e.sourceRef},
+            {QStringLiteral("audiosiloRecordingId"),e.audiosiloRecordingId},
+            {QStringLiteral("local"),!e.files.isEmpty() && QFileInfo::exists(e.files.first())},
+            {QStringLiteral("bundle"),false},
+            {QStringLiteral("preferred"),e.preferred},
+            {QStringLiteral("lastPlayedAt"),e.lastPlayedAt}
+        });
+    }
+    std::sort(out.begin(),out.end(),[](const QVariant& a,const QVariant& b) {
+        return a.toMap().value(QStringLiteral("recordingKey")).toString()
+             < b.toMap().value(QStringLiteral("recordingKey")).toString();
+    });
+    return out;
+}
+
+QString AudiobookDownloader::localAudiobook(const QString& key) const
+{
+    const auto it = m_index.constFind(resolveRecordingKey(key));
+    if (it == m_index.constEnd() || it->files.isEmpty()) return {};
+    return QFileInfo::exists(it->files.first()) ? it->dir : QString();
+}
+
+bool AudiobookDownloader::isDownloaded(const QString& key) const
+{
+    return !localAudiobook(key).isEmpty();
+}
+
+QStringList AudiobookDownloader::localFiles(const QString& key) const
+{
+    const auto it = m_index.constFind(resolveRecordingKey(key));
     if (it == m_index.constEnd()) return {};
     QStringList out;
-    for (const QString& p : it.value().files)
+    for (const QString& p : it->files)
         if (QFileInfo::exists(p)) out << p;
     return out;
 }
 
-QVariantMap AudiobookDownloader::statusOf(const QString& pairKey) const
+QVariantMap AudiobookDownloader::statusOf(const QString& key) const
 {
+    const QString resolved = resolveRecordingKey(key);
     QVariantMap s;
-    if (isDownloaded(pairKey)) {
-        s[QStringLiteral("state")]    = QStringLiteral("done");
-        s[QStringLiteral("received")] = static_cast<double>(m_index.value(pairKey).bytes);
-        s[QStringLiteral("total")]    = static_cast<double>(m_index.value(pairKey).bytes);
+    if (!resolved.isEmpty() && isDownloaded(resolved)) {
+        s[QStringLiteral("state")] = QStringLiteral("done");
+        s[QStringLiteral("received")] = static_cast<double>(m_index.value(resolved).bytes);
+        s[QStringLiteral("total")] = static_cast<double>(m_index.value(resolved).bytes);
         return s;
     }
-    if (m_active && m_active->pairKey == pairKey) {
-        s[QStringLiteral("state")]    = m_active->nativeTorrent ? m_active->nativePhase
+    if (m_active && (m_active->recordingKey == key || m_active->signalKey == key)) {
+        s[QStringLiteral("state")] = m_active->nativeTorrent ? m_active->nativePhase
             : (m_active->files.isEmpty() ? QStringLiteral("resolving") : QStringLiteral("downloading"));
         s[QStringLiteral("received")] = static_cast<double>(m_active->doneBytes + m_active->fileReceived);
-        s[QStringLiteral("total")]    = static_cast<double>(m_active->totalBytes);
+        s[QStringLiteral("total")] = static_cast<double>(m_active->totalBytes);
         return s;
     }
     for (const Job* q : m_queue)
-        if (q->pairKey == pairKey) { s[QStringLiteral("state")] = QStringLiteral("queued"); return s; }
+        if (q->recordingKey == key || q->signalKey == key) {
+            s[QStringLiteral("state")] = QStringLiteral("queued");
+            return s;
+        }
     s[QStringLiteral("state")] = QStringLiteral("none");
     return s;
 }
@@ -262,21 +371,21 @@ QVariantList AudiobookDownloader::activeDownloads() const
     QVariantList out;
     const auto describe = [](const Job* j, const QString& state) {
         return QVariantMap{
-            {QStringLiteral("id"),       j->pairKey},
-            {QStringLiteral("title"),    j->title},
-            {QStringLiteral("author"),   j->author},
-            {QStringLiteral("state"),    state},
-            {QStringLiteral("received"), static_cast<double>(j->doneBytes + j->fileReceived)},
-            {QStringLiteral("total"),    static_cast<double>(j->totalBytes)},
+            {QStringLiteral("id"),j->recordingKey},
+            {QStringLiteral("recordingKey"),j->recordingKey},
+            {QStringLiteral("pairKey"),j->pairKey},
+            {QStringLiteral("title"),j->title},
+            {QStringLiteral("author"),j->author},
+            {QStringLiteral("state"),state},
+            {QStringLiteral("received"),static_cast<double>(j->doneBytes + j->fileReceived)},
+            {QStringLiteral("total"),static_cast<double>(j->totalBytes)}
         };
     };
     if (m_active)
         out.append(describe(m_active, m_active->nativeTorrent ? m_active->nativePhase
-                : (m_active->files.isEmpty() ? QStringLiteral("resolving") : QStringLiteral("downloading"))));
-    for (const Job* q : m_queue)
-        out.append(describe(q, QStringLiteral("queued")));
-    for (const QVariantMap &failure : m_failures)
-        out.append(failure);
+                  : (m_active->files.isEmpty() ? QStringLiteral("resolving") : QStringLiteral("downloading"))));
+    for (const Job* q : m_queue) out.append(describe(q,QStringLiteral("queued")));
+    for (const QVariantMap& failure : m_failures) out.append(failure);
     return out;
 }
 
@@ -286,16 +395,26 @@ QVariantList AudiobookDownloader::downloadedAudiobooks() const
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
         const Entry& e = it.value();
         out.append(QVariantMap{
-            {QStringLiteral("id"), it.key()},
-            {QStringLiteral("title"), e.title},
-            {QStringLiteral("author"), e.author},
-            {QStringLiteral("dir"), e.dir},
-            {QStringLiteral("fileCount"), e.files.size()},
-            {QStringLiteral("bytes"), e.bytes},
-            {QStringLiteral("addedAt"), e.addedAt},
-            {QStringLiteral("bookId"), e.bookId},
-            {QStringLiteral("bookPath"), e.bookPath},
-            {QStringLiteral("missing"), e.files.isEmpty() || !QFile::exists(e.files.first())}
+            {QStringLiteral("id"),it.key()},
+            {QStringLiteral("recordingKey"),it.key()},
+            {QStringLiteral("pairKey"),e.pairKey},
+            {QStringLiteral("title"),e.title},
+            {QStringLiteral("author"),e.author},
+            {QStringLiteral("dir"),e.dir},
+            {QStringLiteral("fileCount"),e.files.size()},
+            {QStringLiteral("bytes"),e.bytes},
+            {QStringLiteral("addedAt"),e.addedAt},
+            {QStringLiteral("bookId"),e.bookId},
+            {QStringLiteral("bookPath"),e.bookPath},
+            {QStringLiteral("audiosiloRecordingId"),e.audiosiloRecordingId},
+            {QStringLiteral("narrators"),e.narrators},
+            {QStringLiteral("format"),e.format},
+            {QStringLiteral("abridgement"),e.abridgement},
+            {QStringLiteral("language"),e.language},
+            {QStringLiteral("sourceKind"),e.sourceKind},
+            {QStringLiteral("sourceRef"),e.sourceRef},
+            {QStringLiteral("bundle"),e.bundle},
+            {QStringLiteral("missing"),e.files.isEmpty() || !QFileInfo::exists(e.files.first())}
         });
     }
     return out;
@@ -305,10 +424,10 @@ QVariantList AudiobookDownloader::downloadedAudiobooks() const
 // download flow
 // ─────────────────────────────────────────────────────────────────────────────
 
-bool AudiobookDownloader::isActive(const QString& pairKey) const
+bool AudiobookDownloader::isActive(const QString& recordingKey) const
 {
-    if (m_active && m_active->pairKey == pairKey) return true;
-    for (const Job* q : m_queue) if (q->pairKey == pairKey) return true;
+    if (m_active && m_active->recordingKey == recordingKey) return true;
+    for (const Job* q : m_queue) if (q->recordingKey == recordingKey) return true;
     return false;
 }
 
@@ -320,52 +439,100 @@ AudiobookDownloader::Job* AudiobookDownloader::jobForHash(const QString& infoHas
     return nullptr;
 }
 
-void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QString& infoHashIn,
+void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QString& infoHash,
                                             const QString& title, const QString& author,
                                             const QString& bookId, const QString& bookPath)
 {
-    const QString infoHash = infoHashIn.trimmed().toLower();
-    if (pairKey.isEmpty()) { emit failed(pairKey, QStringLiteral("empty pairKey")); return; }
+    beginDownload({{QStringLiteral("pairKey"),pairKey},
+                   {QStringLiteral("infoHash"),infoHash},
+                   {QStringLiteral("title"),title},
+                   {QStringLiteral("author"),author},
+                   {QStringLiteral("bookId"),bookId},
+                   {QStringLiteral("bookPath"),bookPath},
+                   {QStringLiteral("sourceKind"),QStringLiteral("abb")}},true);
+}
+
+void AudiobookDownloader::downloadRecording(const QVariantMap& request)
+{
+    beginDownload(request,false);
+}
+
+void AudiobookDownloader::beginDownload(const QVariantMap& request, bool legacyCaller)
+{
+    const bool bundle = request.value(QStringLiteral("bundle")).toBool();
+    const QString pairKey = bundle ? QString() : request.value(QStringLiteral("pairKey")).toString();
+    const QString hash = request.value(QStringLiteral("infoHash")).toString().trimmed().toLower();
+    const QString title = request.value(QStringLiteral("title")).toString();
+    const QString author = request.value(QStringLiteral("author")).toString();
+    QString asid = request.value(QStringLiteral("audiosiloRecordingId")).toString().trimmed();
+    const QString suppliedKey = request.value(QStringLiteral("recordingKey")).toString();
+    if (!bundle && asid.isEmpty() && suppliedKey.startsWith(pairKey + QStringLiteral("#as:")))
+        asid = suppliedKey.mid(pairKey.size() + 4);
+    const QString recordingKey = bundle ? QStringLiteral("bundle#src:") + hash
+        : (asid.isEmpty() ? pairKey + QStringLiteral("#src:") + hash
+                          : pairKey + QStringLiteral("#as:") + asid);
+    const QString signalKey = legacyCaller ? pairKey : recordingKey;
+    if (!bundle && pairKey.isEmpty()) {
+        emit failed(signalKey,QStringLiteral("empty pairKey")); return;
+    }
+    if (!QRegularExpression(QStringLiteral("^[0-9a-f]{40}$")).match(hash).hasMatch()) {
+        const QString reason = QStringLiteral("bad infoHash");
+        rememberFailure(recordingKey,title,author,reason);
+        emit failed(signalKey,reason);
+        return;
+    }
+    if (!suppliedKey.isEmpty() && suppliedKey != recordingKey) {
+        emit failed(signalKey,QStringLiteral("recordingKey conflicts with source identity"));
+        return;
+    }
     QPointer<AudiobookDownloader> entryGuard(this);
-    if (m_failures.remove(pairKey)) {
+    if (m_failures.remove(recordingKey)) {
         emit failuresChanged();
         if (!entryGuard) return;
     }
-    // Remember the reader's bookId (and ebook path) for the auto-attach at finished().
-    // Only overwrite with a real value — a later empty call (e.g. the 4-arg selfTest
-    // path) must not clobber what a prior call already bound to this pairKey.
-    if (!bookId.isEmpty()) m_bookIdFor.insert(pairKey, bookId);
-    if (!bookPath.isEmpty()) m_bookPathFor.insert(pairKey, bookPath);
-    if (!QRegularExpression(QStringLiteral("^[0-9a-f]{40}$")).match(infoHash).hasMatch()) {
-        const QString reason = QStringLiteral("bad infoHash");
-        rememberFailure(pairKey, title, author, reason);
-        emit failed(pairKey, reason);
+    if (!bundle) {
+        const QString bookId = request.value(QStringLiteral("bookId")).toString();
+        const QString bookPath = request.value(QStringLiteral("bookPath")).toString();
+        if (!bookId.isEmpty()) m_bookIdFor.insert(recordingKey,bookId);
+        if (!bookPath.isEmpty()) m_bookPathFor.insert(recordingKey,bookPath);
+    }
+    if (isDownloaded(recordingKey)) {
+        const QString dir = localAudiobook(recordingKey);
+        attachToBook(recordingKey,dir);
+        emit finished(signalKey,dir);
         return;
     }
-    if (isDownloaded(pairKey)) {
-        const QString dir = localAudiobook(pairKey);
-        attachToBook(pairKey, dir);           // idempotent re-emit still attaches
-        emit finished(pairKey, dir);
-        return;
-    }
-    if (isActive(pairKey)) return;
+    if (isActive(recordingKey)) return;
     if (m_sourceEnabledCheck && !m_sourceEnabledCheck()) {
-        emit failed(pairKey, QStringLiteral("Enable AudioBookBay in Extensions to download this audiobook."));
+        emit failed(signalKey,QStringLiteral("Enable AudioBookBay in Extensions to download this audiobook."));
         return;
     }
     if (!m_stream && !m_torrent) {
         const QString reason = QStringLiteral("stream engine unavailable");
-        rememberFailure(pairKey, title, author, reason);
-        emit failed(pairKey, reason);
+        rememberFailure(recordingKey,title,author,reason);
+        emit failed(signalKey,reason);
         return;
     }
-
     Job* job = new Job;
     job->generation = ++m_nextGeneration;
-    job->pairKey = pairKey; job->infoHash = infoHash; job->title = title; job->author = author;
+    job->recordingKey = recordingKey;
+    job->signalKey = signalKey;
+    job->pairKey = pairKey;
+    job->infoHash = hash;
+    job->title = title;
+    job->author = author;
+    job->audiosiloRecordingId = asid;
+    job->bundle = bundle;
+    job->format = request.value(QStringLiteral("format")).toString();
+    job->abridgement = request.value(QStringLiteral("abridgement")).toString();
+    job->language = request.value(QStringLiteral("language")).toString();
+    job->sourceKind = request.value(QStringLiteral("sourceKind")).toString();
+    job->sourceRef = request.value(QStringLiteral("sourceRef")).toString();
+    const QVariant rawNames = request.value(QStringLiteral("narrators"));
+    if (rawNames.canConvert<QStringList>()) job->narrators = rawNames.toStringList();
     m_queue.append(job);
     QPointer<AudiobookDownloader> guard(this);
-    emit resolving(pairKey); // state already visible, including queued jobs
+    emit resolving(signalKey);
     if (!guard) return;
     emit activeCountChanged();
     if (guard) promoteQueue();
@@ -466,7 +633,7 @@ void AudiobookDownloader::onManifestReply(QNetworkReply* reply, Job* job)
     std::sort(audio.begin(), audio.end(), [](const FileJob& a, const FileJob& b) {
         return naturalLess(a.name, b.name);
     });
-    const QString dir = dirFor(job->pairKey);
+    const QString dir = dirFor(job->recordingKey);
     QDir().mkpath(dir);
     job->totalBytes = 0;
     for (int i = 0; i < audio.size(); ++i) {
@@ -478,7 +645,7 @@ void AudiobookDownloader::onManifestReply(QNetworkReply* reply, Job* job)
         job->totalBytes += fj.bytes;
     }
     job->files = audio;
-    qInfo() << "[AudiobookDownloader]" << job->pairKey << "→" << audio.size()
+    qInfo() << "[AudiobookDownloader]" << job->recordingKey << "→" << audio.size()
             << "audio files," << job->totalBytes << "bytes total";
     job->current = 0;
     startNextFile(job);
@@ -553,7 +720,7 @@ void AudiobookDownloader::onFileReadyRead()
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     if (job->lastProgressEmit == 0 || nowMs - job->lastProgressEmit >= kProgressThrottleMs) {
         job->lastProgressEmit = nowMs;
-        emit progress(job->pairKey, static_cast<double>(job->doneBytes + job->fileReceived),
+        emit progress(job->signalKey, static_cast<double>(job->doneBytes + job->fileReceived),
                       static_cast<double>(job->totalBytes));
     }
 }
@@ -597,7 +764,7 @@ void AudiobookDownloader::onFileFinished()
     }
     job->doneBytes += job->fileReceived;
     const quint64 generation = job->generation;
-    const QString key = job->pairKey;
+    const QString key = job->signalKey;
     QPointer<AudiobookDownloader> guard(this);
     emit progress(key, static_cast<double>(job->doneBytes), static_cast<double>(job->totalBytes));
     if (!guard || !m_active || m_active->generation != generation) return;
@@ -608,67 +775,77 @@ void AudiobookDownloader::onFileFinished()
 void AudiobookDownloader::finalizeJob(Job* job)
 {
     Entry e;
-    e.dir = job->nativeTorrent ? job->completedDir : dirFor(job->pairKey);
-    e.title = job->title; e.author = job->author;
-    e.bookId = m_bookIdFor.value(job->pairKey);
-    e.bookPath = m_bookPathFor.value(job->pairKey);
+    e.recordingKey = job->recordingKey;
+    e.pairKey = job->pairKey;
+    e.bundle = job->bundle;
+    e.dir = job->nativeTorrent ? job->completedDir : dirFor(job->recordingKey);
+    e.title = job->title;
+    e.author = job->author;
+    e.audiosiloRecordingId = job->audiosiloRecordingId;
+    e.narrators = job->narrators;
+    e.format = job->format;
+    e.abridgement = job->abridgement;
+    e.language = job->language;
+    e.sourceKind = job->sourceKind;
+    e.sourceRef = job->sourceRef;
+    e.bookId = job->bundle ? QString() : m_bookIdFor.value(job->recordingKey);
+    e.bookPath = job->bundle ? QString() : m_bookPathFor.value(job->recordingKey);
     e.bytes = job->doneBytes;
     e.addedAt = QDateTime::currentMSecsSinceEpoch();
     for (const FileJob& fj : job->files) e.files << fj.finalPath;
-    m_index.insert(job->pairKey, e);
+    m_index.insert(job->recordingKey,e);
     saveIndex();
 
-    const QString pk = job->pairKey;
+    const QString key = job->recordingKey, signalKey = job->signalKey;
     const QString dir = e.dir;
-    qInfo() << "[AudiobookDownloader] complete" << pk << "files=" << e.files.size() << "dir=" << dir;
+    qInfo() << "[AudiobookDownloader] complete" << key << "files=" << e.files.size() << "dir=" << dir;
     delete m_active; m_active = nullptr;
     QPointer<AudiobookDownloader> guard(this);
-    attachToBook(pk, dir);
+    attachToBook(key,dir);
     if (!guard) return;
-    emit finished(pk, dir);
+    emit finished(signalKey,dir);
     if (!guard) return;
     emit activeCountChanged();
     if (guard) promoteQueue();
 }
 
-// Write the read-along pairing under the reader's bookId — the SAME key Task 13's
-// Audio tab reads it back by (BookStores::keyFor(<ebook path>)). savePairing is an
-// upsert, so the idempotent re-emit path is safe. No-op without a store or a bookId.
-void AudiobookDownloader::attachToBook(const QString& pairKey, const QString& dirPath)
+// A read-along pairing retains the work key but pins the selected recording.
+void AudiobookDownloader::attachToBook(const QString& recordingKey, const QString& dirPath)
 {
     if (!m_pairing) return;
-    const QString bookId = m_bookIdFor.value(pairKey);
+    const auto it = m_index.constFind(recordingKey);
+    if (it == m_index.constEnd() || it->bundle || it->pairKey.isEmpty()) return;
+    const QString bookId = m_bookIdFor.value(recordingKey, it->bookId);
     if (bookId.isEmpty()) return;
-    // Stamp the audiobook's final directory (audioDir) and, when known, the ebook path
-    // so the read-along service can locate both assets straight from the pairing.
     QVariantMap pairing{
-        {QStringLiteral("pairKey"), pairKey},
-        {QStringLiteral("dirPath"), dirPath},
-        {QStringLiteral("audioDir"), dirPath},
+        {QStringLiteral("pairKey"),it->pairKey},
+        {QStringLiteral("recordingKey"),recordingKey},
+        {QStringLiteral("dirPath"),dirPath},
+        {QStringLiteral("audioDir"),dirPath}
     };
-    const QString bookPath = m_bookPathFor.value(pairKey);
-    if (!bookPath.isEmpty())
-        pairing.insert(QStringLiteral("bookPath"), bookPath);
-    m_pairing->savePairing(bookId, pairing);
-    qInfo() << "[AudiobookDownloader] attached" << pairKey << "→ book" << bookId;
+    const QString bookPath = m_bookPathFor.value(recordingKey,it->bookPath);
+    if (!bookPath.isEmpty()) pairing.insert(QStringLiteral("bookPath"),bookPath);
+    m_pairing->savePairing(bookId,pairing);
+    qInfo() << "[AudiobookDownloader] attached" << recordingKey << "→ book" << bookId;
 }
 
 void AudiobookDownloader::failJob(Job* job, const QString& reason)
 {
     cleanupInFlight(job);
     if (job->nativeTorrent && m_torrent) m_torrent->cancel(job->generation);
-    const QString pk = job->pairKey, title = job->title, author = job->author;
+    const QString key = job->recordingKey, signalKey = job->signalKey;
+    const QString title = job->title, author = job->author;
     const qint64 received = job->doneBytes + job->fileReceived, total = job->totalBytes;
     const QString failure = reason; // reason may alias the retired Job
     if (m_active == job) m_active = nullptr;
     else m_queue.removeAll(job);
     delete job; // retire before rememberFailure's failuresChanged observer
     QPointer<AudiobookDownloader> guard(this);
-    rememberFailure(pk, title, author, failure, received, total);
+    rememberFailure(key, title, author, failure, received, total);
     if (!guard) return;
-    if (isActive(pk)) return; // a failuresChanged observer already retried this key
-    qWarning() << "[AudiobookDownloader] FAILED" << pk << failure;
-    emit failed(pk, failure);
+    if (isActive(key)) return; // a failuresChanged observer already retried this recording
+    qWarning() << "[AudiobookDownloader] FAILED" << key << failure;
+    emit failed(signalKey, failure);
     if (!guard) return;
     emit activeCountChanged();
     if (guard) promoteQueue();
@@ -697,11 +874,11 @@ void AudiobookDownloader::promoteQueue()
     const quint64 generation = m_active->generation;
     m_active->nativeTorrent = bool(m_torrent);
     QPointer<AudiobookDownloader> guard(this);
-    const QString key = m_active->pairKey;
+    const QString key = m_active->signalKey;
     emit resolving(key);
     if (!guard || !m_active || m_active->generation != generation) return;
     if (m_active->nativeTorrent) {
-        m_torrent->start(generation, m_active->infoHash, dirFor(key));
+        m_torrent->start(generation, m_active->infoHash, dirFor(m_active->recordingKey));
     } else {
         m_stream->prefetch(m_active->infoHash, 0);
         if (guard && m_active && m_active->generation == generation) pollEngine(m_active);
@@ -723,47 +900,58 @@ void AudiobookDownloader::cleanupInFlight(Job* job)
     }
 }
 
-void AudiobookDownloader::cancelDownload(const QString& pairKey)
+void AudiobookDownloader::cancelDownload(const QString& key)
 {
-    if (m_active && m_active->pairKey == pairKey) {
-        cancelJob(m_active);
-        return;
+    Job* target = nullptr;
+    if (m_active && m_active->recordingKey == key) target = m_active;
+    for (Job* j : m_queue) if (j->recordingKey == key) target = j;
+    if (!target) {
+        // A bare work key may only cancel when it identifies one in-flight recording.
+        int matches = 0;
+        if (m_active && m_active->pairKey == key) { target = m_active; ++matches; }
+        for (Job* j : m_queue) if (j->pairKey == key) { target = j; ++matches; }
+        if (matches != 1) return;
     }
-    for (Job* job : std::as_const(m_queue)) {
-        if (job->pairKey == pairKey) { cancelJob(job); return; }
-    }
+    cancelJob(target);
 }
 
-QVariantMap AudiobookDownloader::deleteAudiobook(const QString& pairKey)
+QVariantMap AudiobookDownloader::deleteAudiobook(const QString& key)
 {
-    auto it = m_index.find(pairKey);
-    if (it == m_index.end())
-        return DownloadFileOps::toMap({true, QString()});
-    const auto result = DownloadFileOps::removeTree(it.value().dir);
+    const QString resolved = resolveRecordingKey(key);
+    auto it = m_index.find(resolved);
+    if (it == m_index.end()) {
+        for (const Entry& e : m_index)
+            if (e.pairKey == key)
+                return DownloadFileOps::toMap({false,QStringLiteral("Choose a recording before deleting this work.")});
+        return DownloadFileOps::toMap({true,QString()});
+    }
+    const auto result = DownloadFileOps::removeTree(it->dir);
     if (!result.success) {
-        qWarning() << "[downloads] delete failed" << pairKey << result.message;
+        qWarning() << "[downloads] delete failed" << resolved << result.message;
         return DownloadFileOps::toMap(result);
     }
     m_index.erase(it);
-    m_failures.remove(pairKey);
+    m_failures.remove(resolved);
+    m_bookIdFor.remove(resolved);
+    m_bookPathFor.remove(resolved);
     saveIndex();
-    emit removed(pairKey);
+    emit removed(key);
     return DownloadFileOps::toMap(result);
 }
 
 QVariantMap AudiobookDownloader::removeIncompleteDownloads()
 {
     if (m_active || !m_queue.isEmpty())
-        return DownloadFileOps::toMap({false, QStringLiteral("Audiobook downloads are still stopping.")});
+        return DownloadFileOps::toMap({false,QStringLiteral("Audiobook downloads are still stopping.")});
     if (!m_index.isEmpty())
-        return DownloadFileOps::toMap({false, QStringLiteral("Some downloaded audiobooks could not be deleted.")});
+        return DownloadFileOps::toMap({false,QStringLiteral("Some downloaded audiobooks could not be deleted.")});
     return DownloadFileOps::toMap(DownloadFileOps::removeTree(baseDir()));
 }
 
 void AudiobookDownloader::cancelJob(Job* job)
 {
     if (job->nativeTorrent && m_torrent) {
-        m_torrent->cancel(job->generation); // keep this Job live until its exact settlement
+        m_torrent->cancel(job->generation);
         return;
     }
     retireCancelledJob(job);
@@ -772,29 +960,40 @@ void AudiobookDownloader::cancelJob(Job* job)
 void AudiobookDownloader::retireCancelledJob(Job* job)
 {
     cleanupInFlight(job);
-    const QString key = job->pairKey;
+    const QString key = job->recordingKey, signalKey = job->signalKey;
     const bool native = job->nativeTorrent || bool(m_torrent);
     if (m_active == job) m_active = nullptr;
     else m_queue.removeAll(job);
     delete job;
-    // Native payload deletion belongs to the engine's asynchronous teardown.
-    const auto result = native ? DownloadFileOps::Result{true, {}}
+    const auto result = native ? DownloadFileOps::Result{true,{}}
                                : DownloadFileOps::removeTree(dirFor(key));
     QPointer<AudiobookDownloader> guard(this);
     if (!result.success) {
-        rememberFailure(key, {}, {}, result.message);
+        rememberFailure(key,{},{},result.message);
         if (!guard) return;
-        emit failed(key, result.message);
-    } else emit removed(key);
+        emit failed(signalKey,result.message);
+    } else emit removed(signalKey);
     if (!guard) return;
     emit activeCountChanged();
     if (guard) promoteQueue();
 }
 
-void AudiobookDownloader::dismissFailure(const QString& pairKey)
+void AudiobookDownloader::dismissFailure(const QString& key)
 {
+    QString toRemove = key;
+    if (!m_failures.contains(key)) {
+        // Preserve the old work-key facade only when exactly one failure matches.
+        int count = 0;
+        for (auto it = m_failures.constBegin(); it != m_failures.constEnd(); ++it)
+            if (it.key().startsWith(key + QStringLiteral("#src:"))
+                || it.key().startsWith(key + QStringLiteral("#as:"))) {
+                toRemove = it.key();
+                ++count;
+            }
+        if (count != 1) return;
+    }
     QPointer<AudiobookDownloader> entryGuard(this);
-    if (m_failures.remove(pairKey)) {
+    if (m_failures.remove(toRemove)) {
         emit failuresChanged();
         if (!entryGuard) return;
     }

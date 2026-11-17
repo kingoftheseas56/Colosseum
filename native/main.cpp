@@ -84,6 +84,7 @@
 #include "devtools/LanistaServer.h"
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
+#include "engine/AudiobookRecordingMatch.h"
 #ifdef Q_OS_ANDROID
 #include "engine/AudiobookTorrentTransport.h"
 #endif
@@ -1297,6 +1298,8 @@ int main(int argc, char *argv[]) {
     // by pairKey so the book page flips to "Listen". Needs the Stream engine above.
     auto *audiobooks = new AudiobookDownloader(dlNam, stream, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Audiobooks"), audiobooks);
+    auto *audiobookMatcher = new AudiobookRecordingMatcher(&backendServices);
+    engine.rootContext()->setContextProperty(QStringLiteral("AudiobookRecordingMatcher"), audiobookMatcher);
 
 #if defined(COLOSSEUM_HAVE_DLNA)
     // ── DLNA MediaServer (Arc 71): project the Vault + audiobooks into an immutable

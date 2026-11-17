@@ -6,7 +6,7 @@
 //
 // The brain is lifted from the shipped AudiobookPlayer.qml: a multi-file mp3 set makes
 // each FILE a chapter (advance on endFile); a single .m4b uses mpv's embedded `chapters`.
-// openFor() is IDEMPOTENT — re-opening the live pairKey keeps the stream and position
+// openFor() is IDEMPOTENT — re-opening the live recording keeps its stream and position
 // untouched (start listening in the reader, close the book, open the full player: same
 // stream, nothing restarts). A different pairKey loads fresh and resumes from the
 // Continue-saved spot (Progress.get("audiobook", pk).resume — the 10s heartbeat below
@@ -168,21 +168,29 @@ Item {
     }
     function openFor(pk, b, startPaused) {
         if (!pk) return
-        if (session.ready && session.activePairKey === pk) return
-        if (session.ready) session.recordProgress()          // leaving the old book: save its spot first
+        // Bare pairKey remains the work-facing API. Resolve it to one selected
+        // recording before touching the current session or its saved progress.
+        var key = (typeof Audiobooks !== 'undefined' && Audiobooks.resolveRecordingKey)
+            ? Audiobooks.resolveRecordingKey(pk) : pk
+        if (!key) return                  // ambiguous work: never resume an arbitrary narration
+        if (session.ready && session.activePairKey === key) return
+        var nextFiles = (typeof Audiobooks !== 'undefined') ? Audiobooks.localFiles(key) : []
+        if (!nextFiles || nextFiles.length === 0) return
+        if (session.ready) session.recordProgress()
         session.completed = false
-        session.activePairKey = pk
+        session.activePairKey = key
         session.book = b || ({})
-        session.files = (typeof Audiobooks !== 'undefined') ? Audiobooks.localFiles(pk) : []
+        session.files = nextFiles
         session.currentIndex = 0
-        session.ready = session.files.length > 0
+        session.ready = true
         session.rebuildChapters()
-        if (!session.ready) return
-        session.activityBeginIfNeeded()   // Activity (Lane E): new pairKey — end old session, begin new one
+        if (typeof Audiobooks !== 'undefined' && Audiobooks.markRecordingPlayed)
+            Audiobooks.markRecordingPlayed(key)
+        session.activityBeginIfNeeded()
         // Continue resume: the saved listening spot rides in from ProgressStore
         var idx = 0, pos = 0
         if (typeof Progress !== 'undefined') {
-            var pg = Progress.get("audiobook", pk)
+            var pg = Progress.get("audiobook", key)
             if (pg && pg.resume) {
                 idx = Number(pg.resume.fileIndex) || 0
                 pos = Number(pg.resume.position) || 0
@@ -375,7 +383,9 @@ Item {
             "sub": (session.book && session.book.author) ? session.book.author : "",
             "cover": (session.book && session.book.cover) ? session.book.cover : "",
             "progress": session.overallProgress(),
-            "resume": { "pairKey": session.activePairKey, "fileIndex": session.completed ? 0 : session.currentIndex,
+            "resume": { "pairKey": (session.book && session.book.pairKey) ? session.book.pairKey : session.activePairKey,
+                        "recordingKey": session.activePairKey,
+                        "fileIndex": session.completed ? 0 : session.currentIndex,
                         "position": session.completed ? 0 : mpv.position, "book": session.book }
         })
     }

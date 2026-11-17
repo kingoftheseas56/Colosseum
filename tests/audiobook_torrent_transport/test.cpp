@@ -13,6 +13,9 @@
 #include <QTcpSocket>
 #include <QStandardPaths>
 #include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 extern QString stubStreamUrl;
 class Tests:public QObject {
  Q_OBJECT
@@ -237,6 +240,101 @@ private slots:
   FakeEngine second;auto other=new AudiobookTorrentTransport(&second,{300,300,5});other->start(2,A,root.path());QTRY_COMPARE_WITH_TIMEOUT(second.adds.size(),1,500);delete other;QCOMPARE(second.deletions.size(),1);
  }
 
+ void distinctRecordingsAndDeletion() {
+  FakeEngine engine;engine.manifests[A]=FakeEngine::mixed();engine.manifests[B]=FakeEngine::mixed();engine.autoComplete=true;
+  QNetworkAccessManager nam;AudiobookDownloader books(&nam,nullptr);
+  books.setTorrentTransport(new AudiobookTorrentTransport(&engine,{300,300,5}));
+  QSignalSpy done(&books,&AudiobookDownloader::finished);
+  books.downloadAudiobook("one|author",A,"One","Author");
+  QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,1000);
+  books.downloadAudiobook("one|author",B,"One","Author");
+  QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,1000);
+  const QString ka="one|author#src:"+A,kb="one|author#src:"+B;
+  const QString first=books.localAudiobook(ka),second=books.localAudiobook(kb);
+  QVERIFY(!first.isEmpty());QVERIFY(!second.isEmpty());QVERIFY(first!=second);
+  QCOMPARE(books.recordingsForWork("one|author").size(),2);
+  QCOMPARE(books.localFiles(ka).size(),2);QCOMPARE(books.localFiles(kb).size(),2);
+  QVERIFY(books.deleteAudiobook(ka).value("success").toBool());
+  QVERIFY(books.localFiles(ka).isEmpty());QCOMPARE(books.localFiles(kb).size(),2);
+  QCOMPARE(books.recordingsForWork("one|author").size(),1);
+ }
+ void recordingDefaultAndRecentPlay() {
+  FakeEngine engine;engine.manifests[A]=FakeEngine::mixed();engine.manifests[B]=FakeEngine::mixed();engine.autoComplete=true;
+  QNetworkAccessManager nam;AudiobookDownloader books(&nam,nullptr);
+  books.setTorrentTransport(new AudiobookTorrentTransport(&engine,{300,300,5}));
+  QSignalSpy done(&books,&AudiobookDownloader::finished);
+  books.downloadAudiobook("same|author",A,"Same","Author");QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,1000);
+  books.downloadAudiobook("same|author",B,"Same","Author");QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,1000);
+  const QString ka="same|author#src:"+A,kb="same|author#src:"+B;
+  QCOMPARE(books.resolveRecordingKey("same|author"),QString());
+  QVERIFY(books.markRecordingPlayed(kb));QCOMPARE(books.resolveRecordingKey("same|author"),kb);
+  QVERIFY(books.setDefaultRecording("same|author",ka));
+  QCOMPARE(books.resolveRecordingKey("same|author"),ka);
+  QVERIFY(!books.setDefaultRecording("other|author",kb));
+  QCOMPARE(books.localFiles("same|author"),books.localFiles(ka));
+  QVERIFY(books.deleteAudiobook(ka).value("success").toBool());
+  QCOMPARE(books.resolveRecordingKey("same|author"),kb);
+ }
+ void legacyIndexKeepsBarePairKey() {
+  const QString appDir=QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+  const QString dir=appDir+"/audiobooks/legacy";QVERIFY(QDir().mkpath(dir));
+  const QString path=dir+"/chapter.mp3";
+  QFile audio(path);QVERIFY(audio.open(QIODevice::WriteOnly));audio.write("fixture");audio.close();
+  const QJsonObject legacy{{"dir",dir},{"title","Legacy"},{"author","Writer"},
+                           {"bytes",7},{"addedAt",1234},{"files",QJsonArray{path}}};
+  QFile f(appDir+"/audiobooks/index.json");QVERIFY(f.open(QIODevice::WriteOnly));
+  f.write(QJsonDocument(QJsonObject{{"legacy|writer",legacy}}).toJson());f.close();
+  QNetworkAccessManager nam;AudiobookDownloader books(&nam,nullptr);
+  QCOMPARE(books.resolveRecordingKey("legacy|writer"),"legacy|writer");
+  QCOMPARE(books.localFiles("legacy|writer"),QStringList{path});
+  QCOMPARE(books.recordingsForWork("legacy|writer").size(),1);
+  QCOMPARE(books.recordingsForWork("legacy|writer")[0].toMap().value("recordingKey").toString(),"legacy|writer");
+ }
+ void legacyAndModernRecordingCoexistWithoutImplicitPreference() {
+  const QString root=QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+  const QString dir=root+"/audiobooks/old";QVERIFY(QDir().mkpath(dir));
+  const QString file=dir+"/narration.mp3";
+  QFile f(file);QVERIFY(f.open(QIODevice::WriteOnly));f.write("legacy");f.close();
+  const QJsonObject old{{"dir",dir},{"title","Old"},{"author","Writer"},
+                        {"files",QJsonArray{file}}};
+  QFile index(root+"/audiobooks/index.json");
+  QVERIFY(index.open(QIODevice::WriteOnly));
+  index.write(QJsonDocument(QJsonObject{{"old|writer",old}}).toJson());index.close();
+  FakeEngine engine;engine.manifests[A]=FakeEngine::mixed();engine.autoComplete=true;
+  QNetworkAccessManager nam;AudiobookDownloader books(&nam,nullptr);
+  books.setTorrentTransport(new AudiobookTorrentTransport(&engine,{300,300,5}));
+  QSignalSpy done(&books,&AudiobookDownloader::finished);
+  books.downloadAudiobook("old|writer",A,"Old","Writer");
+  QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,1000);
+  const QString modern="old|writer#src:"+A;
+  QCOMPARE(books.recordingsForWork("old|writer").size(),2);
+  QCOMPARE(books.resolveRecordingKey("old|writer"),QString());
+  QVERIFY(books.setDefaultRecording("old|writer","old|writer"));
+  QCOMPARE(books.resolveRecordingKey("old|writer"),"old|writer");
+  QVERIFY(books.markRecordingPlayed(modern));
+  QCOMPARE(books.resolveRecordingKey("old|writer"),"old|writer");
+  QVERIFY(books.deleteAudiobook("old|writer").value("success").toBool());
+  QCOMPARE(books.resolveRecordingKey("old|writer"),modern);
+  QCOMPARE(books.localFiles(modern).size(),2);
+ }
+ void bundleNeverAttachesToWork() {
+  FakeEngine engine;engine.manifests[C]=FakeEngine::mixed();engine.autoComplete=true;
+  QTemporaryDir root(evidence+"/bundle-XXXXXX");QVERIFY(root.isValid());
+  QNetworkAccessManager nam;AudioPairingStore pairing(root.path()+"/pairs.ini");
+  AudiobookDownloader books(&nam,nullptr);books.setPairing(&pairing);
+  books.setTorrentTransport(new AudiobookTorrentTransport(&engine,{300,300,5}));
+  QSignalSpy done(&books,&AudiobookDownloader::finished);
+  books.downloadRecording({{"pairKey","one|author"},{"infoHash",C},{"title","Books 1-4"},
+                           {"author","Author"},{"bookId","reader-id"},{"bundle",true},
+                           {"sourceKind","abb"},{"sourceRef","bundle-post"}});
+  QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,1000);
+  const QString key="bundle#src:"+C;
+  QCOMPARE(done[0][0].toString(),key);
+  QCOMPARE(books.localFiles(key).size(),2);
+  QCOMPARE(books.recordingsForWork("one|author").size(),0);
+  QCOMPARE(books.downloadedAudiobooks()[0].toMap().value("bundle").toBool(),true);
+  QVERIFY(pairing.getPairing("reader-id").isEmpty());
+ }
  void desktopHttpErrorsAreHonest() {
   QTcpServer server; QVERIFY(server.listen(QHostAddress::LocalHost));
   connect(&server,&QTcpServer::newConnection,&server,[&] { auto s=server.nextPendingConnection(); connect(s,&QTcpSocket::readyRead,s,[s] { s->readAll();s->write("HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");s->disconnectFromHost(); });connect(s,&QTcpSocket::disconnected,s,&QObject::deleteLater); });
