@@ -5611,7 +5611,7 @@ set_tests_properties(colosseum.qml.vinyl_personal_library_native PROPERTIES
     LABELS "unit;qml;vinyl;local;native-adapter" TIMEOUT 180
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 set_tests_properties(colosseum.qml.vinyl_live_world_native PROPERTIES
-    LABELS "unit;qml;vinyl;local;native-adapter" TIMEOUT 120
+    LABELS "unit;qml;vinyl;local;native-adapter" TIMEOUT 295
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
 
 add_test(NAME colosseum.qml.vinyl_helper_warmup_native

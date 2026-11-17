@@ -746,7 +746,7 @@ Item {
     function row(key,home) {
         if(home) {
             if(homeListSnapshot && homeListSnapshot.key===key) return homeListSnapshot;
-            return homeRows.find(function(r){return r.key===key}) || {key:key,title:"Collection",items:[]};
+            return v1HomeRows.concat(homeRows).find(function(r){return r.key===key}) || {key:key,title:"Collection",items:[]};
         }
         if(key==="library") return {key:key,title:"Your library",kind:"albums",items:project(filteredLibraryAlbums,"albums")};
         if(key.indexOf("local-")===0) {var kind=key.slice(6),online=browseStates.discover.onlineMode;return {key:key,title:(online ? "Catalogue " : "Local ")+kind,kind:kind,items:project(discoverAlbums,kind,online)};}
@@ -865,7 +865,7 @@ Item {
             return true;
         }
         if(home) {
-            var selected=homeRows.find(function(r){return r.key===key;});
+            var selected=v1HomeRows.concat(homeRows).find(function(r){return r.key===key;});
             if(selected)
                 homeListSnapshot=JSON.parse(JSON.stringify(selected));
         }

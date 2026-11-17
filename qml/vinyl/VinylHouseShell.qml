@@ -113,6 +113,8 @@ WorldPage {
         listReturnFocus = root.Window.window ? root.Window.window.activeFocusItem : null;
         listHome = home; listKey = key;
         parkPage(Math.max(0, contentTop - dockedInset));
+        // A pointer-opened list must not leave keyboard focus on its hidden shelf.
+        root.forceActiveFocus(Qt.OtherFocusReason);
     }
     function backFromList() {
         if (!listKey) return false;
