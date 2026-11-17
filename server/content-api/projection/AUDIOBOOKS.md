@@ -40,7 +40,9 @@ The v2 Discover contract adds factual work genres; the recording's exact
 release date, publisher, cover URL pointer and ingestion timestamp; and
 materialized dramatization signals. Only a known GraphicAudio publisher,
 a direct GraphicAudio link, or an explicit Full Cast narrator credit
-qualifies a recording as dramatized. These exact signals and their counts,
+(including named credits such as "Full Cast featuring Joan Walker") qualifies
+a recording as dramatized. Multiple ordinary narrator names or "Various"
+alone are not evidence. These exact signals and their counts,
 the top three non-placeholder English narrators, and shelf counts **as
 of the pinned snapshot date** are recorded in the bake manifest. The
 served New releases row dynamically excludes future calendar dates. Five
@@ -66,6 +68,14 @@ Focused tests:
 node --test tests/catalogue-audiobooks.test.mjs
 python -I -m unittest discover -s tests -p 'test_audiobooks_*.py' -v
 ```
+
+The provenance acceptance test uses a separate field-level CC0 allowlist from
+the qualification report, requires coverage of every output column, and rejects
+expressive fields even if their containing source record has a CC0 tag. A tiny
+synthetic source additionally checks named Full Cast evidence, placeholder
+exclusion, expressive-field omission and refusal of non-CC0 source rows.
+The reproducibility check regenerates the checked-in fixture from the pinned
+source and requires byte equality, not just matching logical rows.
 
 Native harness: build through the lane-shared `build.cmd` wrapper, then run
 CTest `colosseum.audiobook_catalogue_harness` or the built harness directly.

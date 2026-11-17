@@ -77,6 +77,13 @@ def position_sort(value):
 
 SNAPSHOT_AS_OF = "2026-11-16"  # Pinned snapshot date; no wall-clock bytes in the bake.
 
+def full_cast_credit(person_id, name):
+    # A literal Full Cast credit is evidence, including named ensemble credits.
+    # Several ordinary narrators (or "Various") alone are not dramatization.
+    return person_id == "full-cast" or bool(re.search(
+        r"\bfull[\s-]+cast\b", str(name or ""), re.IGNORECASE))
+
+
 def drama_signals(publisher, link):
     value = re.sub(r"\s+", "", str(publisher or "").casefold())
     flags = []
@@ -144,6 +151,7 @@ def bake(source, output, fixture=False, snapshot_id=SNAPSHOT):
                 db.create_function("cc0_year", 1, year, deterministic=True)
                 db.create_function("cc0_sort_title", 1, sort_title, deterministic=True)
                 db.create_function("cc0_drama_signals", 2, drama_signals, deterministic=True)
+                db.create_function("cc0_full_cast_credit", 2, full_cast_credit, deterministic=True)
                 db.executescript(SCHEMA)
                 db.execute("ATTACH DATABASE ? AS upstream", (source_uri,))
                 if fixture:
@@ -197,7 +205,7 @@ def bake(source, output, fixture=False, snapshot_id=SNAPSHOT):
                     WHERE EXISTS (SELECT 1 FROM recording_narrators n
                     JOIN people p ON p.id=n.person_id WHERE n.work_id=recordings.work_id
                     AND n.recording_id=recordings.id
-                    AND (n.person_id='full-cast' OR lower(trim(p.name))='full cast'))""")
+                    AND cc0_full_cast_credit(n.person_id,p.name))""")
                 db.execute("UPDATE recordings SET dramatized=(dramatized_signals!='[]')")
                 db.execute("""INSERT INTO recording_asins
                     SELECT a.asin,a.region,a.work_id,a.recording_id FROM upstream.recording_asins a
