@@ -776,6 +776,8 @@ qt_add_executable(colosseum
     torrent/BookTorrentDownloader.h
     torrent/BookTorrents.cpp
     torrent/BookTorrents.h
+    torrent/AudiobookTorrents.cpp
+    torrent/AudiobookTorrents.h
     torrent/ComicTorrentRanker.cpp
     torrent/ComicTorrentRanker.h
     torrent/ComicEditionIdentity.cpp
@@ -1896,6 +1898,24 @@ add_executable(book_torrent_ranker_harness
 )
 target_include_directories(book_torrent_ranker_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(book_torrent_ranker_harness PRIVATE Qt6::Core)
+
+# audiobook_torrents_harness -- AudiobookTorrents contract (audio-only rows, ranking,
+# stale-handle guard, all-indexers-off) over a mock-indexer search service; no network.
+add_executable(audiobook_torrents_harness
+    ../tests/audiobook_torrents_harness.cpp
+    torrent/AudiobookTorrents.cpp
+    torrent/AudiobookTorrents.h
+    torrent/BookTorrentRanker.cpp
+    torrent/BookTorrentRanker.h
+    torrent/TankorentSearchService.cpp
+    torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
+    torrent/TorrentIndexer.cpp
+    torrent/TorrentIndexer.h
+)
+target_include_directories(audiobook_torrents_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(audiobook_torrents_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(book_torrent_filepicker_harness
     ../tests/book_torrent_filepicker_harness.cpp

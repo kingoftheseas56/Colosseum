@@ -154,3 +154,41 @@ QList<RankedTorrent> BookTorrentRanker::rank(const QString& title, const QString
     });
     return out;
 }
+
+// ---- audiobook helpers ----
+// Mirror of isReadableBook: reuses the same category + title nets (no second regex).
+// A video title never counts; a title that says audiobook/m4b/mp3 wins over a coarse
+// category; otherwise the source's own audio category (PirateBay 1xx, ExtTorrents Music).
+bool BookTorrentRanker::isAudiobook(const TorrentResult& r){
+    const MediaKind tk = kindFromTitle(r.title);
+    if (tk == MediaKind::Video) return false;
+    if (tk == MediaKind::Audio) return true;
+    return kindFromCategory(r) == MediaKind::Audio;
+}
+
+QString BookTorrentRanker::guessAudioFormat(const QString& title){
+    const QString t = title.toLower();
+    for (const char* ext : {"m4b", "mp3", "m4a", "aax", "flac", "ogg"}) {
+        const QRegularExpression re(QStringLiteral("(^|[^a-z0-9])%1([^a-z0-9]|$)")
+                                        .arg(QLatin1String(ext)));
+        if (re.match(t).hasMatch()) return QString::fromLatin1(ext);
+    }
+    return {};
+}
+
+bool BookTorrentRanker::looksLikeBundle(const QString& title){
+    const QString t = title.toLower();
+    // Words that name a multi-book pack. ("Part 1 of 2" is one book in parts: not here.)
+    static const QRegularExpression packWords(
+        "\\b(box(ed)?\\s?set|collections?|omnibus|anthology|complete\\s+series|\\d{1,3}\\s+books)\\b");
+    if (packWords.match(t).hasMatch()) return true;
+    // An explicit numbered range after a book/series word: "Books 1-3", "Series 1-4", "Vol 1 to 3".
+    static const QRegularExpression range(
+        "\\b(?:books?|vol(?:ume)?s?\\.?|series)\\s*(\\d{1,2})\\s*(?:-|\\x{2013}|to|&)\\s*(\\d{1,2})\\b");
+    auto it = range.globalMatch(t);
+    while (it.hasNext()) {
+        const auto m = it.next();
+        if (m.captured(2).toInt() > m.captured(1).toInt()) return true;
+    }
+    return false;
+}
