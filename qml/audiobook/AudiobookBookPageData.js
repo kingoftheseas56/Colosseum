@@ -1,269 +1,116 @@
 .pragma library
 
-// Audiobook book page data (Slice F).
-//
-// Pure functions: they turn one catalogue work plus its recordings into the
-// edition-shaped record the Vinyl album page already knows how to show. A work
-// with several narrations is one "album" with several "editions".
-//
-// Inputs
-//   work        slice C's work(id) shape: {id, title, authors:[name | {name}],
-//               series:[{name|title, id?, number_text?}], description?, cover?}
-//   recordings  [{recordingKey, narrators:[], runtime_min?, language?,
-//               abridgement?, release_year?, format?, source?,
-//               sourceMatch: "exact" | "probable" | "none", local?, bundle?}]
-//   local       {recordingKey: {chapters:[{title, seconds?}]} | [chapter]} for
-//               recordings that are downloaded; chapters come from local files.
-//
-// Nothing is invented: a field that is absent stays absent.
-
-function blank(value) {
-    return value === undefined || value === null || String(value).trim() === "";
-}
-
-function nameOf(entry) {
-    if (blank(entry)) return "";
-    if (typeof entry === "string") return entry.trim();
-    return String(entry.name || entry.title || "").trim();
+function text(value) {
+    return value === undefined || value === null ? "" : String(value).trim();
 }
 
 function names(list) {
-    var out = [];
-    if (!Array.isArray(list)) list = blank(list) ? [] : [list];
-    for (var i = 0; i < list.length; ++i) {
-        var n = nameOf(list[i]);
-        if (n) out.push(n);
-    }
-    return out;
+    return array(list).map(function(person) {
+        return typeof person === "string" ? text(person) : text(person && person.name);
+    }).filter(Boolean);
+}
+
+function array(list) {
+    return list && typeof list !== "string" && list.length !== undefined
+        ? Array.prototype.slice.call(list) : [];
 }
 
 function joinNames(list) {
-    if (list.length === 0) return "";
-    if (list.length === 1) return list[0];
-    return list.slice(0, -1).join(", ") + " & " + list[list.length - 1];
+    return list.length < 2 ? (list[0] || "")
+        : list.slice(0, -1).join(", ") + " & " + list[list.length - 1];
 }
 
-function capitalise(text) {
-    var t = String(text).trim();
-    return t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
+function value(object, camel, snake) {
+    return object[camel] !== undefined ? object[camel] : object[snake];
 }
 
 function runtimeText(minutes) {
     var total = Math.round(Number(minutes));
-    if (!(total > 0)) return "";
-    var h = Math.floor(total / 60);
-    var m = total % 60;
-    if (h === 0) return m + " min";
-    return m === 0 ? h + " h" : h + " h " + m + " min";
+    if (!isFinite(total) || total <= 0) return "";
+    var hours = Math.floor(total / 60), rest = total % 60;
+    return hours ? hours + " h" + (rest ? " " + rest + " min" : "") : rest + " min";
 }
 
-// "The Stormlight Archive, Book 4". number_text is shown as the catalogue gave it.
-function seriesLine(series) {
-    var name = nameOf(series);
-    if (!name) return "";
-    var number = blank(series.number_text) ? "" : String(series.number_text).trim();
-    if (!number) return name;
-    if (/^(book|vol\.?|volume|part|no\.?)\b/i.test(number)) return name + ", " + number;
-    return name + ", Book " + number;
+function capitalise(string) {
+    var s = text(string);
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
 }
 
-function seriesList(work) {
-    var out = [];
-    var list = work && Array.isArray(work.series) ? work.series : [];
-    for (var i = 0; i < list.length; ++i) {
-        var line = seriesLine(list[i]);
-        if (line) out.push({ id: list[i].id, name: nameOf(list[i]), line: line });
-    }
-    return out;
-}
-
-function isOther(recording) {
-    return recording.bundle === true || recording.sourceMatch === "none"
-        || (recording.sourceMatch !== "exact" && recording.sourceMatch !== "probable");
-}
-
-function sourceName(source) {
-    if (blank(source)) return "";
-    return typeof source === "string" ? source.trim() : String(source.name || source.label || source.site || "").trim();
-}
-
-function localEntry(recording, local) {
-    var entry = local && recording.recordingKey !== undefined ? local[recording.recordingKey] : undefined;
-    return entry === undefined ? null : entry;
-}
-
-function chaptersOf(entry) {
-    var list = Array.isArray(entry) ? entry : (entry && Array.isArray(entry.chapters) ? entry.chapters : []);
-    var out = [];
-    for (var i = 0; i < list.length; ++i) {
-        var c = list[i];
-        var title = typeof c === "string" ? c : (c && (c.title || c.name || c.file)) || "";
-        var seconds = c && typeof c === "object" ? Number(c.seconds) : NaN;
-        out.push({ title: String(title).trim() || "Part " + (i + 1), seconds: seconds > 0 ? seconds : 0, available: true });
-    }
-    return out;
-}
-
-// What the recording is, in the words the Recordings list shows.
-function recordingLabel(recording, narrators) {
-    var parts = [];
-    var n = joinNames(narrators);
-    if (n) parts.push(n);
-    if (!blank(recording.abridgement)) parts.push(capitalise(recording.abridgement));
-    if (!blank(recording.language)) parts.push(capitalise(recording.language));
-    return parts.length ? parts.join(" · ") : "Narrator not listed";
-}
-
-function recordingFacts(recording, narrators) {
-    var facts = [];
-    if (!blank(recording.language)) facts.push(["language", "Language", capitalise(recording.language)]);
-    if (!blank(recording.abridgement)) facts.push(["version", "Version", capitalise(recording.abridgement)]);
-    var runtime = runtimeText(recording.runtime_min);
-    if (runtime) facts.push(["runtime", "Length", runtime]);
-    if (!blank(recording.format)) facts.push(["format", "Format", String(recording.format).trim()]);
-    if (!blank(recording.release_year)) facts.push(["year", "Recorded", String(recording.release_year)]);
-    return facts;
-}
-
-function recordingDetail(recording, facts) {
-    var parts = [];
-    var runtime = runtimeText(recording.runtime_min);
-    if (runtime) parts.push(runtime);
-    if (!blank(recording.release_year)) parts.push(String(recording.release_year));
-    if (!blank(recording.format)) parts.push(String(recording.format).trim());
-    var src = sourceName(recording.source);
-    if (src) parts.push(src);
-    if (recording.sourceMatch === "probable") parts.push("probable match");
-    return parts.join(" · ");
-}
-
-function editionFor(work, recording, index, local, authors, about, cover) {
-    var narrators = names(recording.narrators);
-    var entry = localEntry(recording, local);
-    var isLocal = recording.local === true || entry !== null;
-    var chapters = isLocal ? chaptersOf(entry) : [];
-    var facts = recordingFacts(recording, narrators);
-    return {
-        id: String(recording.recordingKey),
-        albumId: String(recording.recordingKey),
-        name: String(work.title || ""),
-        subtitle: recordingLabel(recording, narrators),
-        artist: joinNames(authors),
-        artists: authors,
-        cover: cover,
-        about: about,
-        year: blank(recording.release_year) ? undefined : Number(recording.release_year),
-        discs: [chapters],
-        narrators: narrators,
-        narratorLine: joinNames(narrators),
-        facts: facts,
-        detail: recordingDetail(recording, facts),
-        source: sourceName(recording.source),
-        sourceMatch: recording.sourceMatch,
-        probable: recording.sourceMatch === "probable",
-        hasSource: !blank(recording.source),
-        local: isLocal,
-        hasChapters: chapters.length > 0,
-        index: index
-    };
-}
-
-function otherFor(recording) {
-    var narrators = names(recording.narrators);
-    var kind = recording.bundle === true
-        ? "A bundle: this download holds more than one book"
-        : "Not matched to a recording of this book";
-    var title = narrators.length ? joinNames(narrators) : "";
-    var src = sourceName(recording.source);
-    return {
-        id: String(recording.recordingKey),
-        title: title || src || "Download",
-        source: src,
-        kind: kind,
-        bundle: recording.bundle === true
-    };
-}
-
-function build(work, recordings, local) {
+// The owner supplies catalogue work(id), and series(id).works separately.
+// Both the catalogue's camelCase fields and its bake's snake_case fields are accepted.
+function build(work, seriesWorks, recordings) {
     work = work || {};
-    recordings = Array.isArray(recordings) ? recordings : [];
-    var authors = names(work.authors);
-    var about = blank(work.description) ? undefined : String(work.description).trim();
-    var cover = blank(work.cover) ? "" : String(work.cover);
-    var series = seriesList(work);
-    var editions = [];
-    var others = [];
-    for (var i = 0; i < recordings.length; ++i) {
-        var r = recordings[i];
-        if (!r || blank(r.recordingKey)) continue;
-        if (isOther(r)) others.push(otherFor(r));
-        else editions.push(editionFor(work, r, editions.length, local, authors, about, cover));
-    }
-    var information = [];
-    for (var s = 1; s < series.length; ++s)
-        information.push(["series" + s, "Also in the series", series[s].line]);
-    var fallback = {
-        id: "",
-        albumId: "",
-        name: String(work.title || ""),
-        subtitle: "",
-        artist: joinNames(authors),
-        artists: authors,
-        cover: cover,
-        about: about,
-        discs: [[]],
-        narrators: [],
-        narratorLine: "",
-        facts: [],
-        detail: "",
-        source: "",
-        sourceMatch: "none",
-        probable: false,
-        hasSource: false,
-        local: false,
-        hasChapters: false,
-        index: -1
-    };
+    var memberships = array(work.series);
+    var series = memberships[0] || {};
+    var seriesName = text(series.name);
+    var number = text(value(series, "numberText", "number_text"));
+    var books = seriesName ? array(seriesWorks) : [];
+    books = books.map(function(book, index) {
+        var position = value(book, "positionSort", "position_sort");
+        return {
+            workId: text(book.workId || book.id),
+            title: text(book.title),
+            cover: text(book.coverUrl || book.cover),
+            number: text(value(book, "numberText", "number_text")),
+            position: position === undefined || position === null || text(position) === ""
+                || !isFinite(Number(position)) ? Infinity : Number(position),
+            index: index,
+            current: text(book.workId || book.id) === text(work.workId || work.id)
+        };
+    }).filter(function(book) { return book.workId !== ""; });
+    books.sort(function(a, b) {
+        return a.position === b.position ? a.index - b.index : a.position - b.position;
+    });
+    var records = array(recordings === undefined ? work.recordings : recordings);
+    records = records.filter(function(r) { return r && !r.bundle; }).map(function(r) {
+        var facts = [];
+        if (text(r.language)) facts.push({ key: "language", label: qsTr("Language"), text: capitalise(r.language) });
+        if (text(r.abridgement)) facts.push({ key: "edition", label: qsTr("Edition"), text: capitalise(r.abridgement) });
+        var runtime = runtimeText(value(r, "runtimeMin", "runtime_min"));
+        if (runtime) facts.push({ key: "runtime", label: qsTr("Runtime"), text: runtime });
+        return { key: text(r.recordingKey), id: text(r.id), narrators: joinNames(names(r.narrators)),
+                 facts: facts, local: r.local === true };
+    });
     return {
-        title: String(work.title || ""),
-        authors: authors,
-        cover: cover,
-        about: about,
-        series: series,
-        seriesLine: series.length ? series[0].line : "",
-        information: information,
-        editions: editions,
-        others: others,
-        fallback: fallback
+        workId: text(work.workId || work.id), title: text(work.title),
+        authors: joinNames(names(work.authors)), cover: text(work.coverUrl || work.cover),
+        synopsis: text(work.description), seriesName: seriesName, seriesNumber: number,
+        seriesBooks: books, recordings: records
     };
 }
 
-// downloadState[recordingKey] is "none" | "done" | "failed" | "active" or
-// {state, progress} with progress 0..1 (or 0..100).
-function stateOf(downloadState, key) {
-    var raw = downloadState ? downloadState[key] : undefined;
-    var state = "none";
-    var progress = -1;
-    if (typeof raw === "string") state = raw;
-    else if (raw && typeof raw === "object") {
-        state = String(raw.state || "none");
-        if (typeof raw.progress === "number") progress = raw.progress > 1 ? raw.progress / 100 : raw.progress;
-    }
-    return { state: state, progress: progress };
+function stateOf(states, key) {
+    var raw = states && key ? states[key] : null;
+    if (typeof raw === "string") return { state: raw, progress: -1 };
+    var progress = raw && typeof raw.progress === "number" && isFinite(raw.progress) ? raw.progress : -1;
+    return { state: text(raw && raw.state), progress: progress < 0 ? -1 : Math.max(0, Math.min(1, progress)) };
 }
 
-// What the one gold primary action says and does for the shown recording.
-function primaryAction(edition, downloadState) {
-    var st = stateOf(downloadState, edition.id);
-    if (!edition.id)
-        return { kind: "none", label: "Download", enabled: false };
-    if (edition.local || st.state === "done")
-        return { kind: "listen", label: "Listen", enabled: true };
-    if (st.state === "active") {
-        var pct = st.progress >= 0 ? " " + Math.round(Math.max(0, Math.min(1, st.progress)) * 100) + "%" : "";
-        return { kind: "progress", label: "Downloading" + pct, enabled: false };
+function isLocal(record, local, states) {
+    return !!record.key && (record.local || !!(local && local[record.key])
+        || stateOf(states, record.key).state === "done");
+}
+
+// Prefer an owned recording; the page never chooses a source or starts a download.
+function recording(built, local, states) {
+    var list = built.recordings;
+    for (var i = 0; i < list.length; ++i)
+        if (isLocal(list[i], local, states)) return list[i];
+    for (var j = 0; j < list.length; ++j)
+        if (stateOf(states, list[j].key).state === "active") return list[j];
+    return list[0] || { key: "", id: "", narrators: "", facts: [], local: false };
+}
+
+function primaryAction(built, record, local, states) {
+    if (isLocal(record, local, states))
+        return { kind: "listen", label: qsTr("Listen"), enabled: true, progress: -1 };
+    var status = stateOf(states, record.key);
+    if (!status.state) status = stateOf(states, built.workId);
+    if (status.state === "active" || status.state === "queued" || status.state === "paused") {
+        var label = status.state === "queued" ? qsTr("Queued")
+            : status.state === "paused" ? qsTr("Download paused") : qsTr("Downloading");
+        if (status.progress >= 0) label += " " + Math.round(status.progress * 100) + "%";
+        return { kind: "progress", label: label, enabled: false, progress: status.progress };
     }
-    if (st.state === "failed")
-        return { kind: "download", label: "Download failed, try again", enabled: edition.hasSource };
-    return { kind: "download", label: "Download", enabled: edition.hasSource };
+    return { kind: "download", label: qsTr("Download"), enabled: built.workId !== "", progress: -1 };
 }
