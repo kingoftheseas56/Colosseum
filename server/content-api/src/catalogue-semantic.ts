@@ -1,5 +1,6 @@
 import {indexedRows} from './catalogue-lookup.ts';
 import {comicsMethod} from './catalogue-comics.ts';
+import {audiobooksMethod} from './catalogue-audiobooks.ts';
 // Semantic RPC queries run in D1; callers cannot supply SQL or table names.
 export type CatalogueDb = Pick<D1Database,'prepare'> & {observe?:(meta:D1Meta)=>void};
 export type Row = Record<string, any>;
@@ -144,8 +145,9 @@ export async function malMethod(db: CatalogueDb, method: string, args: any[]): P
  }
  throw new Error('UNKNOWN_CATALOGUE_METHOD');
 }
-export const catalogueMethods:Record<string,string[]>={imdb:['titleCatalog','matchByTitle','search','titleFacts','titlePresentation'],comics:['series','search','downloadsFor','exactMatches','curatedReady','curatedRanked','curatedSeries','curatedCoverage','curatedByNorm','curatedGenreShelves','curatedHasDownloadable','discoverFilters','discoverPage','discoverPageFiltered','shelf'],mal:['genreEntries','genreCount','genreCounts','animeCatalog','matchByTitle','mangaById','search','discoverFilters','cachedDiscoverFilters','discoverPage','discoverPageFiltered']};
+export const catalogueMethods:Record<string,string[]>={audiobooks:['search','work','recordingByAsin','recordingByIsbn','series','latest','byPerson','shelves','shelf','genres','genre'],imdb:['titleCatalog','matchByTitle','search','titleFacts','titlePresentation'],comics:['series','search','downloadsFor','exactMatches','curatedReady','curatedRanked','curatedSeries','curatedCoverage','curatedByNorm','curatedGenreShelves','curatedHasDownloadable','discoverFilters','discoverPage','discoverPageFiltered','shelf'],mal:['genreEntries','genreCount','genreCounts','animeCatalog','matchByTitle','mangaById','search','discoverFilters','cachedDiscoverFilters','discoverPage','discoverPageFiltered']};
 export async function catalogueMethod(db:CatalogueDb,dataset:string,method:string,args:any[]):Promise<any>{
+  if(dataset==='audiobooks'&&catalogueMethods.audiobooks.includes(method))return audiobooksMethod(db,method,args);
  if(dataset==='comics'&&catalogueMethods.comics.includes(method))return comicsMethod(db,method,args);
  if(dataset==='imdb'&&catalogueMethods.imdb.includes(method))return imdbMethod(db,method,args);
  if(dataset==='mal'&&catalogueMethods.mal.includes(method))return malMethod(db,method,args);

@@ -95,6 +95,7 @@
 #include "engine/MalCatalog.h"
 #include "engine/TankobanCatalog.h"
 #include "engine/ImdbCatalog.h"
+#include "engine/AudiobookCatalog.h"
 #include "engine/BiblioCatalog.h"
 #include "engine/ColosseumTitleIdentityRegistry.h"
 #include "engine/RatingsReviewsProviderReadProjection.h"
@@ -1493,11 +1494,16 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("TankobanCatalog"), tankobanCatalog);
     auto* imdbCatalog = new ImdbCatalog(contentApiConfigured ? QString() : imdbRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
+    // Audiobooks are served per query; no whole-catalogue download into the profile.
+    // A local SQLite is explicitly opt-in for development and offline qualification.
+    auto* audiobookCatalog = new AudiobookCatalog(qEnvironmentVariable("COLOSSEUM_AUDIOBOOK_CATALOG_PATH"), &backendServices);
+    engine.rootContext()->setContextProperty(QStringLiteral("AudiobookCatalog"), audiobookCatalog);
 
     if (contentApiConfigured) {
         comicsCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/comics_api_v1.json"));
         malCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/mal_api_v1.json"));
         imdbCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/imdb_api_v1.json"));
+        audiobookCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/audiobooks_api_v1.json"));
     }
     auto* sourceContent = new SourceContentStore(&backendServices);
     sourceContent->configure(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/content_api_v1.json"),
