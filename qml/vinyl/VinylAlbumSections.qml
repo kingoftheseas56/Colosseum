@@ -8,6 +8,14 @@ Column {
     property int editionThreshold: 4
     property bool creditsExpanded: false
     property bool editionsExpanded: false
+    // Options for non-music callers (the audiobook book page); defaults keep
+    // the Vinyl sections exactly as they were.
+    property string editionsTitle: "Editions"
+    property string editionsNoun: "editions"
+    property bool editionDetailFromData: false
+    property bool editionsSortByYear: true
+    property string extraTitle: ""
+    property Component extraComponent: null
     readonly property var sectionRows: [
         {
             key: "about",
@@ -30,8 +38,14 @@ Column {
         {
             key: "editions",
             iconSource: sectionIcon("editions", '<rect x="3" y="7" width="14" height="14" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v12"/><circle cx="10" cy="14" r="3"/>'),
-            title: "Editions",
+            title: root.editionsTitle,
             target: editions
+        },
+        {
+            key: "extra",
+            iconSource: sectionIcon("extra", '<path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/>'),
+            title: root.extraTitle,
+            target: extra
         },
         {
             key: "more",
@@ -203,14 +217,16 @@ Column {
         visible: root.pageData.sectionVisible("editions")
         width: parent.width
         spacing: 20
-        readonly property var sortedEditions: root.pageData.editions.slice().sort(function (a, b) {
-            return a.year - b.year;
-        })
+        readonly property var sortedEditions: root.editionsSortByYear
+            ? root.pageData.editions.slice().sort(function (a, b) {
+                return a.year - b.year;
+            })
+            : root.pageData.editions.slice()
         readonly property var editionYears: sortedEditions.map(function (e) {
             return e.year;
         })
         Heading {
-            text: "Editions"
+            text: root.editionsTitle
         }
         Repeater {
             model: root.editionsExpanded ? editions.sortedEditions.length : Math.min(editions.sortedEditions.length, root.editionThreshold)
@@ -234,13 +250,19 @@ Column {
                     width: parent.width - 120
                     spacing: 8
                     Text {
+                        width: root.editionDetailFromData ? parent.width : implicitWidth
+                        elide: root.editionDetailFromData ? Text.ElideRight : Text.ElideNone
                         text: parent.parent.modelData.subtitle || parent.parent.modelData.name
                         color: root.pageData.shownEditionId === parent.parent.modelData.id ? theme.gold : theme.ink
                         font.family: theme.display
                         font.pixelSize: 23
                     }
                     Text {
-                        text: [parent.parent.modelData.year, parent.parent.modelData.label, parent.parent.modelData.country, parent.parent.modelData.format, root.pageData.totalTracks(parent.parent.modelData) + " tracks"].filter(Boolean).join(" · ")
+                        width: root.editionDetailFromData ? parent.width : implicitWidth
+                        elide: root.editionDetailFromData ? Text.ElideRight : Text.ElideNone
+                        text: root.editionDetailFromData
+                            ? (parent.parent.modelData.detail || "")
+                            : [parent.parent.modelData.year, parent.parent.modelData.label, parent.parent.modelData.country, parent.parent.modelData.format, root.pageData.totalTracks(parent.parent.modelData) + " tracks"].filter(Boolean).join(" · ")
                         color: theme.inkDimmer
                         font.family: theme.ui
                         font.pixelSize: 12
@@ -258,8 +280,22 @@ Column {
         Link {
             objectName: "vinylAllEditions"
             visible: root.pageData.editions.length > root.editionThreshold
-            label: root.editionsExpanded ? "Fewer editions" : "All editions"
+            label: root.editionsExpanded ? "Fewer " + root.editionsNoun : "All " + root.editionsNoun
             onTriggered: root.editionsExpanded = !root.editionsExpanded
+        }
+    }
+    Column {
+        id: extra
+        objectName: "vinylSection_extra"
+        visible: root.extraComponent !== null
+        width: parent.width
+        spacing: 24
+        Heading {
+            text: root.extraTitle
+        }
+        Loader {
+            width: parent.width
+            sourceComponent: root.extraComponent
         }
     }
     Column {

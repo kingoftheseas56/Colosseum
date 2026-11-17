@@ -13,6 +13,29 @@ Flickable {
     property bool shuffleEnabled: true
     property bool saveEnabled: true
     property bool scrollbarVisible: true
+    // Options for non-music callers (the audiobook book page). Every default
+    // keeps the Vinyl album page exactly as it was.
+    property real coverMaxSize: 440
+    property bool shuffleVisible: true
+    property bool saveVisible: true
+    property bool collectionsVisible: true
+    property bool factsVisible: true
+    property bool discSwitchEnabled: true
+    // A non-empty label turns the first action into one wide labelled primary
+    // button that emits primaryActionRequested() instead of playing.
+    property string primaryActionLabel: ""
+    property bool primaryActionEnabled: true
+    // Extra lines under the artist: [{key, text, actionable, strong}]
+    property var metaLines: []
+    property string trackListHeading: ""
+    property Component trackAside: null
+    property string editionsTitle: "Editions"
+    property string editionsNoun: "editions"
+    property bool editionDetailFromData: false
+    property bool editionsSortByYear: true
+    property string extraSectionTitle: ""
+    property Component extraSectionComponent: null
+    property string sidebarWorldName: "Vinyl"
     readonly property int trackCount: pageData.tracks.length
     readonly property var sourceAlbum: pageData && pageData.shownEdition
         ? pageData.shownEdition.sourceAlbum : null
@@ -29,13 +52,13 @@ Flickable {
     readonly property bool showPlaylistMore: playlistHasMore || playlistPageLoading
         || playlistPageError.length > 0
     readonly property string shownEditionId: pageData.shownEditionId
-    readonly property bool discSwitchVisible: pageData.shownEdition.discs.length > 1
+    readonly property bool discSwitchVisible: discSwitchEnabled && pageData.shownEdition.discs.length > 1
     readonly property string currentSectionKey: sidebar.currentIndex >= 0 ? sidebar.visibleRows[sidebar.currentIndex].key : ""
     readonly property real inset: Math.max(54, (width - 1280) / 2)
     readonly property real usable: width - 2 * inset
     readonly property real albumMetadataHeight: albumTitle.height + albumArtist.height
-        + albumFacts.height + albumActionsRow.height + albumInfoColumn.spacing * 4
-    readonly property real coverSize: Math.min(440, albumInfoColumn.width)
+        + albumFacts.height + albumActionsRow.height + albumMeta.height + albumInfoColumn.spacing * 4
+    readonly property real coverSize: Math.min(coverMaxSize, albumInfoColumn.width)
     readonly property bool albumDetailsFit: albumInfoColumn.height + 48 <= height
     readonly property bool trackSaveAvailable: !!pageData
         && typeof pageData.personalEnabled === "boolean"
@@ -53,7 +76,9 @@ Flickable {
     readonly property bool personalTrackActionsVisible: trackSaveAvailable || trackPlaylistAvailable
     readonly property real personalTrackActionsWidth: personalTrackActionsVisible ? 80 : 0
     readonly property var albumActionModel: {
-        var actions = ["Play", "Shuffle", "Save"];
+        var actions = ["Play"];
+        if (shuffleVisible) actions.push("Shuffle");
+        if (saveVisible) actions.push("Save");
         if (queueActionsEnabled && pageData && typeof pageData.enqueueAlbum === "function")
             actions.push("Next", "Queue");
         if (albumPlaylistAvailable) actions.push("Playlist");
@@ -61,6 +86,8 @@ Flickable {
     }
     signal videoRequested(int track)
     signal songRequested(int track)
+    signal primaryActionRequested()
+    signal metaLineRequested(string key)
     property bool songNavigationEnabled: false
     property bool queueActionsEnabled: false
     function focusPrimaryControl() {
@@ -164,9 +191,41 @@ Flickable {
                 fontSize: 16
                 onArtistRequested: name => root.pageData.artistRequested(name)
             }
+            Column {
+                id: albumMeta
+                objectName: "vinylAlbumMeta"
+                visible: root.metaLines.length > 0
+                width: parent.width
+                spacing: 6
+                Repeater {
+                    model: root.metaLines
+                    delegate: KeyboardAction {
+                        id: metaLine
+                        required property var modelData
+                        focusOnPointer: false
+                        objectName: "vinylAlbumMeta_" + modelData.key
+                        width: parent.width
+                        height: metaText.implicitHeight + 4
+                        enabled: modelData.actionable === true
+                        accessibleName: modelData.text
+                        onTriggered: root.metaLineRequested(modelData.key)
+                        Text {
+                            id: metaText
+                            width: parent.width
+                            text: metaLine.modelData.text
+                            color: metaLine.interactionActive && metaLine.enabled ? theme.ink
+                                : metaLine.modelData.strong === true ? theme.inkDim : theme.inkDimmer
+                            font.family: theme.ui
+                            font.pixelSize: metaLine.modelData.strong === true ? 16 : 14
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+                }
+            }
             Text {
                 id: albumFacts
                 objectName: "vinylAlbumFacts"
+                visible: root.factsVisible
                 text: [root.pageData.shownEdition.year, root.pageData.shownEdition.origin === "local" ? "Local release" : (root.pageData.shownEdition.sourceAlbum || {}).type || "Album", root.trackCountFact(), root.pageData.shownEdition.length].filter(function(value) { return !!value; }).join(" · ")
                 width: parent.width
                 wrapMode: Text.WordWrap
@@ -180,6 +239,7 @@ Flickable {
                 height: implicitHeight
                 spacing: 10
                 CollectionsUi.AddToCollectionsButton {
+                    visible: root.collectionsVisible
                     objectName: "vinylAlbumAddToCollections"
                     reference: CollectionsReferences.album(root.pageData)
                 }
@@ -189,15 +249,18 @@ Flickable {
                     delegate: KeyboardAction {
                         focusOnPointer: false
                         required property string modelData
-                        objectName: "vinylAlbum" + modelData
-                        tooltipText: modelData === "Save" ? (root.pageData.saved ? qsTr("Unsave album") : qsTr("Save album")) : accessibleName
-                        width: 40
-                        height: 36
-                        accessibleName: modelData === "Save" && root.pageData.saved ? "Saved"
+                        readonly property bool labelled: modelData === "Play" && root.primaryActionLabel.length > 0
+                        objectName: labelled ? "vinylAlbumPrimaryAction" : "vinylAlbum" + modelData
+                        tooltipText: modelData === "Save" ? (root.pageData.saved ? qsTr("Unsave album") : qsTr("Save album")) : labelled ? "" : accessibleName
+                        width: labelled ? Math.max(150, primaryLabel.implicitWidth + 44) : 40
+                        height: labelled ? 46 : 36
+                        accessibleName: labelled ? root.primaryActionLabel
+                            : modelData === "Save" && root.pageData.saved ? "Saved"
                             : modelData === "Playlist" ? "Add album to playlist"
                             : modelData === "Next" ? "Play album next"
                             : modelData === "Queue" ? "Add album to queue" : modelData
-                        enabled: modelData === "Play" ? root.trackCount > 0
+                        enabled: labelled ? root.primaryActionEnabled
+                            : modelData === "Play" ? root.trackCount > 0
                             : modelData === "Shuffle" ? root.shuffleEnabled
                             : (modelData === "Next" || modelData === "Queue")
                                 ? root.trackCount > 0 && typeof root.pageData.enqueueAlbum === "function"
@@ -206,7 +269,9 @@ Flickable {
                             : root.saveEnabled
                         opacity: enabled ? 1 : 0.35
                         onTriggered: {
-                            if (modelData === "Play") {
+                            if (labelled) {
+                                root.primaryActionRequested();
+                            } else if (modelData === "Play") {
                                 if (typeof root.pageData.playShownAlbum === "function")
                                     root.pageData.playShownAlbum();
                                 else
@@ -225,11 +290,22 @@ Flickable {
                         }
                         Rectangle {
                             anchors.fill: parent
-                            radius: 10
+                            radius: parent.labelled ? 12 : 10
                             color: parent.modelData === "Play" ? theme.gold : theme.glassTint
                             border.color: theme.edge
                         }
+                        Text {
+                            id: primaryLabel
+                            anchors.centerIn: parent
+                            visible: parent.labelled
+                            text: root.primaryActionLabel
+                            color: theme.biblioWashBottom
+                            font.family: theme.ui
+                            font.pixelSize: 15
+                            font.weight: Font.DemiBold
+                        }
                         VinylControlIcon {
+                            visible: !parent.labelled
                             anchors.centerIn: parent
                             symbol: parent.modelData === "Play" ? "play"
                                 : parent.modelData === "Shuffle" ? "shuffle"
@@ -248,6 +324,23 @@ Flickable {
             x: root.usable * 0.46
             y: 24
             width: root.usable * 0.54
+            Loader {
+                id: trackAsideLoader
+                objectName: "vinylTrackAside"
+                visible: root.trackAside !== null
+                width: trackList.width
+                height: visible && item ? item.implicitHeight : 0
+                sourceComponent: root.trackAside
+            }
+            Text {
+                objectName: "vinylTrackListHeading"
+                visible: root.trackListHeading.length > 0
+                height: visible ? implicitHeight + 14 : 0
+                text: root.trackListHeading
+                color: theme.ink
+                font.family: theme.display
+                font.pixelSize: 27
+            }
             Row {
                 visible: root.discSwitchVisible
                 height: visible ? 42 : 0
@@ -395,6 +488,12 @@ Flickable {
         y: hero.height + 50
         width: root.usable - sidebar.contentLeft
         pageData: root.pageData
+        editionsTitle: root.editionsTitle
+        editionsNoun: root.editionsNoun
+        editionDetailFromData: root.editionDetailFromData
+        editionsSortByYear: root.editionsSortByYear
+        extraTitle: root.extraSectionTitle
+        extraComponent: root.extraSectionComponent
         onVideoRequested: track => root.videoRequested(track)
     }
     RowIndexSidebar {
@@ -405,7 +504,7 @@ Flickable {
         pageFlick: root
         flowHost: sections
         backdrop: root.backdrop
-        worldName: "Vinyl"
+        worldName: root.sidebarWorldName
         automationPrefix: "vinylRowIndex"
         rows: sections.sectionRows
         currentOffset: 12
