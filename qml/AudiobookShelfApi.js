@@ -59,6 +59,15 @@ function loadGenres(catalog) {
     })
 }
 
+function listeningState(record) {
+    if (record === null || record === undefined) return "new"
+    if (record.completed === true || record.progress >= 0.98) return "finished"
+    if ((record.progress || 0) === 0
+            && !(record.resume && record.resume.position > 0)
+            && !(record.resume && record.resume.fileIndex > 0)) return "new"
+    return "started"
+}
+
 // Downloaded audiobooks -> library cards with listening progress (0..1, absent when never played).
 function libraryCards(downloads, progressStore) {
     return _list(downloads).filter(function(d) { return d && !d.missing }).map(function(d) {
@@ -68,6 +77,7 @@ function libraryCards(downloads, progressStore) {
         if (d.author) c.author = String(d.author)
         if (key) c.id = String(key)
         var pg = (progressStore && key) ? progressStore.get("audiobook", String(key)) : null
+        c.listeningState = listeningState(pg)
         if (pg && pg.cover) c.cover = String(pg.cover)
         if (pg && pg.progress !== undefined && Number(pg.progress) > 0)
             c.progress = Math.max(0, Math.min(1, Number(pg.progress)))

@@ -139,7 +139,7 @@ Column {
                 required property int index
                 objectName: "audiobooksLibraryTile_" + String(modelData.id || index).replace(/[^A-Za-z0-9_]/g, "_")
                 width: 132
-                height: 224
+                height: 260
                 CataloguePosterCard {
                     anchors.fill: parent
                     item: tile.modelData
@@ -152,6 +152,15 @@ Column {
                     x: 0; y: 192; height: 4; radius: 2
                     width: 132 * (tile.modelData.progress !== undefined ? tile.modelData.progress : 0)
                     color: theme.gold
+                }
+                Text {
+                    objectName: "abLibraryState_" + tile.modelData.id
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    text: tile.modelData.listeningState === "finished" ? "Finished"
+                          : tile.modelData.listeningState === "started" ? "Started" : "New"
+                    color: theme.inkDim
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 }
             }
         }

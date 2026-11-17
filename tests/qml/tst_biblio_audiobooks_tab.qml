@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Window
 import QtTest
 import "../../qml" as Colosseum
+import "../../qml/AudiobookShelfApi.js" as ShelfApi
 
 // Biblio Audiobooks tab: tab position, Discover rows in contract order, genre mosaic,
 // signals, Your Library (+ empty state), and the no-catalogue quiet line. The catalogue,
@@ -185,6 +186,63 @@ TestCase {
         // opening a downloaded book emits the downloaded entry
         t.audiobookRequested(t.libraryItems[0].raw)
         compare(itemSpy.signalArguments[0][0].recordingKey, "rec-a")
+    }
+
+    function test_listeningState_null_is_new() {
+        compare(ShelfApi.listeningState(null), "new")
+        compare(ShelfApi.listeningState(undefined), "new")
+    }
+
+    function test_listeningState_zero_is_new() {
+        compare(ShelfApi.listeningState({}), "new")
+        compare(ShelfApi.listeningState({ progress: 0, resume: { position: 0, fileIndex: 0 } }), "new")
+        // A resume point counts even before a positive overall fraction is saved.
+        compare(ShelfApi.listeningState({ progress: 0, resume: { position: 12, fileIndex: 0 } }), "started")
+        compare(ShelfApi.listeningState({ progress: 0, resume: { position: 0, fileIndex: 1 } }), "started")
+    }
+
+    function test_listeningState_mid_is_started() {
+        compare(ShelfApi.listeningState({ progress: 0.4 }), "started")
+    }
+
+    function test_listeningState_completed_is_finished() {
+        compare(ShelfApi.listeningState({ completed: true, progress: 0.4 }), "finished")
+        compare(ShelfApi.listeningState({ completed: true, progress: 0 }), "finished")
+    }
+
+    function test_listeningState_0_98_is_finished() {
+        compare(ShelfApi.listeningState({ progress: 0.98 }), "finished")
+        compare(ShelfApi.listeningState({ progress: 1 }), "finished")
+    }
+
+    function test_listeningState_0_97_is_started() {
+        compare(ShelfApi.listeningState({ progress: 0.97 }), "started")
+    }
+
+    function test_library_tiles_show_state_labels() {
+        var dl = [
+            { recordingKey: "rec:new", title: "New book" },
+            { recordingKey: "rec-started", title: "Started book" },
+            { recordingKey: "rec-finished", title: "Finished book" }
+        ]
+        var prog = {
+            "audiobook:rec-started": { progress: 0.4 },
+            "audiobook:rec-finished": { completed: true, progress: 1 }
+        }
+        var t = make({ catalog: fakeCatalog(), downloads: fakeDownloads(dl), progressStore: fakeProgress(prog), active: true })
+        t.subTab = "library"
+        compare(t.libraryItems.length, 3)
+        var keys = ["rec:new", "rec-started", "rec-finished"]
+        var labels = ["New", "Started", "Finished"]
+        for (var i = 0; i < keys.length; i++) {
+            var label = find(t, "abLibraryState_" + keys[i])
+            verify(label !== null, "Missing state label for " + keys[i])
+            verify(label.visible)
+            compare(label.text, labels[i])
+        }
+        prog["audiobook:rec-started"] = { progress: 0.98 }
+        t.refreshLibrary()
+        compare(find(t, "abLibraryState_rec-started").text, "Finished")
     }
 
     function test_library_empty_state_is_one_calm_line() {
