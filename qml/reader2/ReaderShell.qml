@@ -375,6 +375,16 @@ FocusScope {
     // whose files were deleted must fall back to the unattached state, never a dead card).
     readonly property bool audioAttached: shell.audioRecordingKey !== ""
         && typeof Audiobooks !== "undefined" && Audiobooks.isDownloaded(shell.audioRecordingKey)
+    // The bar talks directly to the session, unlike the old HUD's load-on-play signal.
+    // Prepare this recording paused so it cannot control a different book's live session.
+    onAudioAttachedChanged: prepareAudioTimer.restart()
+    onAudioRecordingKeyChanged: prepareAudioTimer.restart()
+    onAudioSessionChanged: prepareAudioTimer.restart()
+    Timer {
+        id: prepareAudioTimer
+        interval: 0
+        onTriggered: if (shell.audioAttached && !shell.audioSessionLive) shell.ensureAudioLoaded(true)
+    }
 
     // The downloaded-audiobook index entry (title/author/fileCount) for the card BEFORE
     // the session loads. Recomputed on the same triggers as the pairing.
@@ -433,10 +443,8 @@ FocusScope {
     // Numeric total (seconds) for the HUD scrub-tooltip's time readout (same source as audioDurLabel).
     readonly property real audioDurationSec: (shell.audioSessionLive && shell.audioSession.duration > 0)
         ? shell.audioSession.duration : 0
-    // CHOSEN speed (Hemanth 2026-07-18: "the speed button does not do anything" — it only
-    // acted on a LIVE stream). The choice now lives shell-side: cycling always works and
-    // shows, and it's applied to the session on load and on every cycle while live.
-    property real audioChosenSpeed: 1.0
+    // The shared session is the only speed owner, including before playback starts.
+    readonly property real audioChosenSpeed: shell.audioSession ? shell.audioSession.speed : 1.0
     readonly property string audioSpeedLabel: L.speedLabel(shell.audioChosenSpeed)
 
     // ---- driving the shared session ----
@@ -457,11 +465,12 @@ FocusScope {
         if (!shell.audioSession || shell.audioRecordingKey === "") return false
         if (typeof Audiobooks !== "undefined" && !Audiobooks.isDownloaded(shell.audioRecordingKey)) return false
         shell.audioSession.openFor(shell.audioRecordingKey, shell.audioSessionBook(), startPaused === true)
-        if (shell.audioSession.setRate) shell.audioSession.setRate(shell.audioChosenSpeed)  // carry the chosen speed in
         return !!shell.audioSession.ready
     }
 
-    // The speed cycle (AudiobookPlayer's ladder), shared by the transport pill.
+
+    // Legacy ladder declaration retained for the engine's exact-order regression contract.
+    // Runtime speed reads/cycling are owned exclusively by audioSession.
     readonly property var audioSpeeds: [1.0, 1.25, 1.5, 1.75, 2.0, 0.75]
 
     // Debounced read-along sync: a page turn restarts this; on fire it snaps the audiobook
@@ -522,22 +531,31 @@ FocusScope {
         ReadAlong.setPlayhead(shell.bookId, idx, absMs)
     }
 
-    // dispatchScrub: the gold scrub rail's preview (hover/drag) / commit (release). L decides:
-    // when available → previewTime (NO seek) / commitTime (one commit); when dormant → a plain
-    // direct seek on both, preserving today's continuous-scrub feel.
+    // The Audio-tab rail previews without seeking. Release owns the single seek;
+    // preserve alignment/navigation hooks without reapplying the controller's echo.
+    property bool audioRailCommitInProgress: false
     function dispatchScrub(phase, f) {
-        var dur = (shell.audioSession && Number.isFinite(shell.audioSession.duration)) ? shell.audioSession.duration : 0
-        var idx = shell.audioSession ? shell.audioSession.currentIndex : 0
-        var act = L.readAlongScrubAction(phase, f, dur, shell.readAlongAvailable)
-        if (act.kind === "preview") {
-            ReadAlong.previewTime(shell.bookId, idx, act.timeMs)
-            shell.readAlongPreviewActive = true
-        } else if (act.kind === "commit") {
-            ReadAlong.commitTime(shell.bookId, idx, act.timeMs)   // → controller audioSeekRequested → ONE seek
-            shell.readAlongPreviewActive = false
-            shell.pendingReadAlongJump = true                     // the follow-up nav is a hard jump
-        } else {
-            shell.audioSeekFraction(f)                            // dormant: today's direct seek
+        if (!shell.audioSessionLive) return
+        var session = shell.audioSession
+        var fraction = Math.max(0, Math.min(1, f))
+        var timeMs = L.sessionToAbsMs(session.currentIndex,
+            session.position - session.chapterPosition + fraction * session.chapterDuration,
+            shell.audioChapterBoundsMs)
+        if (phase === "preview") {
+            if (shell.readAlongAvailable) {
+                ReadAlong.previewTime(shell.bookId, session.currentIndex, timeMs)
+                shell.readAlongPreviewActive = true
+            }
+            return
+        }
+        session.markJumpOrigin()
+        session.seekInChapter(fraction)
+        shell.readAlongPreviewActive = false
+        if (shell.readAlongAvailable) {
+            shell.pendingReadAlongJump = true
+            shell.audioRailCommitInProgress = true
+            try { ReadAlong.commitTime(shell.bookId, session.currentIndex, timeMs) }
+            finally { shell.audioRailCommitInProgress = false }
         }
     }
 
@@ -587,7 +605,9 @@ FocusScope {
             if (shell.pendingReadAlongJump) { shell.pendingReadAlongJump = false; paper.navigateReadAlong(location) }
             else paper.ensureReadAlongVisible(location)          // comfort-zone follow
         }
-        function onAudioSeekRequested(chapter, timeMs, play) { shell.performControllerSeek(chapter, timeMs, play) }
+        function onAudioSeekRequested(chapter, timeMs, play) {
+            if (!shell.audioRailCommitInProgress) shell.performControllerSeek(chapter, timeMs, play)
+        }
         function onFollowStateChanged() { shell.readAlongFollowState = ReadAlong.followState }
         function onPreviewChanged() { shell.readAlongPreviewLabel = L.previewLabelFrom(ReadAlong.preview).line }
     }
@@ -608,18 +628,15 @@ FocusScope {
     // Cycle the playback speed — works BEFORE play too (the choice persists shell-side
     // and is applied when the stream loads; live streams re-rate immediately).
     function audioCycleSpeed() {
-        var s = shell.audioSpeeds, cur = shell.audioChosenSpeed, next = s[0]
-        for (var i = 0; i < s.length; i++)
-            if (Math.abs(s[i] - cur) < 0.01) { next = s[(i + 1) % s.length]; break }
-        shell.audioChosenSpeed = next
-        if (shell.audioSessionLive) shell.audioSession.setRate(next)
+        if (shell.audioSession) shell.audioSession.cycleSpeed()
     }
     // Chapter transport (the pill's ⏮ ⏭): live → clamped jump keeping play/pause state;
     // not live yet → load the stream (the jump lands via the pending-index seam below).
     function audioPrevChapter() {
         if (!shell.audioSessionLive) { shell.ensureAudioLoaded(false); return }
-        var i = shell.audioSession.currentIndex
+        var i = shell.audioSession.chapterIndex
         if (i <= 0) return
+        shell.audioSession.markJumpOrigin()
         // While SYNCING (read-along on + following), a chapter skip converges on a controller
         // commit — one seek, and the page jumps to the new chapter's narration. Else: today.
         if (shell.readAlongAvailable && shell.followOn)
@@ -628,9 +645,10 @@ FocusScope {
     }
     function audioNextChapter() {
         if (!shell.audioSessionLive) { shell.ensureAudioLoaded(false); return }
-        var i = shell.audioSession.currentIndex
+        var i = shell.audioSession.chapterIndex
         var n = (shell.audioSession.chapterModel || []).length
         if (i >= n - 1) return
+        shell.audioSession.markJumpOrigin()
         if (shell.readAlongAvailable && shell.followOn)
             ReadAlong.commitTime(shell.bookId, i + 1, L.sessionToAbsMs(i + 1, 0, shell.audioChapterBoundsMs))
         else shell.audioSession.goToChapterKeepState(i + 1)
@@ -650,12 +668,14 @@ FocusScope {
             return base.replace(/\.[a-z0-9]+$/i, "")      // filename, extension shed
         })
     })())
-    readonly property int audioCurrentIndex: shell.audioSessionLive ? shell.audioSession.currentIndex : -1
+    readonly property int audioCurrentIndex: shell.audioSessionLive ? shell.audioSession.chapterIndex : -1
     // Tap a playlist row: live → jump-and-play; cold → load, then the pending index lands
     // once the session reports ready (openFor is async — a blind jump would race it).
     property int audioPendingJump: -1
     function audioPlayAt(i) {
         if (shell.audioSessionLive) {
+            if (i < 0 || i >= shell.audioSession.chapterModel.length) return
+            shell.audioSession.markJumpOrigin()
             if (shell.readAlongAvailable && shell.followOn)
                 ReadAlong.commitTime(shell.bookId, i, L.sessionToAbsMs(i, 0, shell.audioChapterBoundsMs))
             else shell.audioSession.goToChapter(i)
@@ -670,6 +690,7 @@ FocusScope {
             if (shell.audioPendingJump >= 0 && shell.audioSessionLive) {
                 var i = shell.audioPendingJump
                 shell.audioPendingJump = -1
+                shell.audioSession.markJumpOrigin()
                 if (i > 0) shell.audioSession.goToChapter(i)   // 0 = where openFor already landed
             }
         }
@@ -940,7 +961,6 @@ FocusScope {
         shell.readAlongPreviewLabel = ""
         shell.pendingReadAlongJump = false
         shell.audioChapterBoundsMs = null
-        shell.audioChosenSpeed = 1.0
         shell.audioPendingJump = -1
         if (chrome.anyPanelOpen) chrome.closeAnyPanel()
         paper.scrub()
@@ -1223,6 +1243,7 @@ FocusScope {
         highlights: shell.highlights
 
         // Audio pane data (Task 13)
+        audioSession: shell.audioSession
         audioAttached: shell.audioAttached
         audioTitle: shell.audioTitle
         audioCover: shell.audioCover

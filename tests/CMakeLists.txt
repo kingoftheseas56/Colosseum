@@ -1960,6 +1960,14 @@ set_tests_properties(colosseum.qml.audiobook_control_bar PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
     TIMEOUT 120)
 
+# Audiobook player Task 3: reader compact host and Audio-tab chapter controls.
+add_test(NAME colosseum.qml.reader_audiobook_bar
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_reader_audiobook_bar.qml")
+set_tests_properties(colosseum.qml.reader_audiobook_bar PROPERTIES
+    LABELS "unit;qml;audiobook;reader;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
 # Audiobooks 1.4.0 slice E: the audio-only listening page, against a stub session.
 add_test(NAME colosseum.qml.audiobook_listen_page
     COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_audiobook_listen_page.qml")
