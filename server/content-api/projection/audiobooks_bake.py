@@ -13,20 +13,22 @@ import re
 import sqlite3
 
 SNAPSHOT = "data-v2026.11.16-82ea38c-30a9e1e"
+# Hemanth's editorial Discover picks, 2026-11-17; order is intentional.
+NARRATOR_ROWS = ["scott-brick", "simon-vance", "robin-miles"]
 TABLES = {
     "works": {"id":["works.id"],"title":["works.title"],"sort_title":["works.title"],"original_language":["works.language"],"first_year":["works.first_published"]},
     "people": {"id":["people.id"],"name":["people.name"]},
     "series": {"id":["series.id"],"name":["series.name"]},
     "work_authors": {"work_id":["work_authors.work_id"],"person_id":["work_authors.person_id"],"ord":["work_authors.ord"]},
     "work_genres": {"work_id":["work_genres.work_id"],"genre":["work_genres.genre"]},
-    "narrator_shelves": {"rank":["recording_narrators.person_id","recordings.language"],"person_id":["recording_narrators.person_id"],
-                         "name":["people.name"],"english_recordings":["recording_narrators.recording_id","recordings.language"]},
+    "narrator_shelves": {"rank":["recording_narrators.person_id","recordings.language","recordings.librivox_id"],"person_id":["recording_narrators.person_id"],
+                         "name":["people.name"],"english_recordings":["recording_narrators.recording_id","recordings.language","recordings.librivox_id"]},
     "genres_summary": {"genre":["work_genres.genre"],"recording_count":["work_genres.work_id","recordings.id"],
                        "covers_json":["recordings.cover_url","recordings.release_date","work_genres.genre"]},
     "recordings": {"id":["recordings.id"],"work_id":["recordings.work_id"],"language":["recordings.language"],
                    "runtime_min":["recordings.runtime_min"],"release_year":["recordings.release_date"],
                    "abridgement":["recordings.abridged"],"asin":["recording_asins.asin"],"isbn":["recording_isbns.isbn"],
-                    "release_date":["recordings.release_date"],"publisher":["recordings.publisher"],
+                    "librivox_id":["recordings.librivox_id"],"release_date":["recordings.release_date"],"publisher":["recordings.publisher"],
                     "cover_url":["recordings.cover_url"],"added_at":["recordings.added_at"],
                     "dramatized":["recordings.publisher","recordings.link_graphicaudio","recording_narrators.person_id","people.name"],
                     "dramatized_signals":["recordings.publisher","recordings.link_graphicaudio","recording_narrators.person_id","people.name"]},
@@ -104,7 +106,7 @@ CREATE TABLE narrator_shelves(rank INTEGER PRIMARY KEY,person_id TEXT UNIQUE NOT
 CREATE TABLE genres_summary(genre TEXT PRIMARY KEY,recording_count INTEGER NOT NULL,covers_json TEXT NOT NULL);
 CREATE TABLE recordings(id TEXT NOT NULL,work_id TEXT NOT NULL,language TEXT,runtime_min INTEGER,release_year INTEGER,
   abridgement INTEGER,asin TEXT,isbn TEXT,release_date TEXT,publisher TEXT,cover_url TEXT,added_at TEXT,
-  dramatized INTEGER NOT NULL,dramatized_signals TEXT NOT NULL,PRIMARY KEY(work_id,id));
+  dramatized INTEGER NOT NULL,dramatized_signals TEXT NOT NULL,librivox_id INTEGER,PRIMARY KEY(work_id,id));
 CREATE TABLE recording_narrators(work_id TEXT NOT NULL,recording_id TEXT NOT NULL,person_id TEXT NOT NULL,ord INTEGER NOT NULL,
   PRIMARY KEY(work_id,recording_id,person_id,ord));
 CREATE TABLE work_series(work_id TEXT NOT NULL,series_id TEXT NOT NULL,number_text TEXT,position_sort REAL,
@@ -154,9 +156,23 @@ def bake(source, output, fixture=False, snapshot_id=SNAPSHOT):
                 db.create_function("cc0_full_cast_credit", 2, full_cast_credit, deterministic=True)
                 db.executescript(SCHEMA)
                 db.execute("ATTACH DATABASE ? AS upstream", (source_uri,))
+                for person_id in NARRATOR_ROWS:
+                    if not db.execute("SELECT 1 FROM upstream.people WHERE id=?", (person_id,)).fetchone():
+                        raise ValueError("Editorial narrator " + person_id + " missing from people")
                 if fixture:
                     db.execute("CREATE TEMP TABLE selected_works(id TEXT PRIMARY KEY)")
                     selected = ["dune", "rhythm-of-war"]
+                    for person_id in NARRATOR_ROWS:
+                        recording = db.execute("""SELECT r.work_id FROM upstream.recording_narrators n
+                            JOIN upstream.recordings r ON r.work_id=n.work_id AND r.id=n.recording_id
+                            JOIN upstream.works w ON w.id=r.work_id
+                            WHERE n.person_id=? AND r.language='en'
+                            AND (r.librivox_id IS NULL OR r.librivox_id='')
+                            ORDER BY r.work_id,r.id LIMIT 1""", (person_id,)).fetchone()
+                        if not recording:
+                            raise ValueError("Editorial narrator " + person_id + " has 0 commercial English recordings")
+                        if recording[0] not in selected:
+                            selected.append(recording[0])
                     regional = db.execute(
                         "SELECT id FROM upstream.works WHERE language IN ('te','ta') ORDER BY id LIMIT 1"
                     ).fetchone()
@@ -185,7 +201,7 @@ def bake(source, output, fixture=False, snapshot_id=SNAPSHOT):
                 db.execute("""INSERT INTO recordings
                     SELECT r.id,r.work_id,r.language,r.runtime_min,cc0_year(r.release_date),r.abridged,NULL,NULL,
                     r.release_date,r.publisher,r.cover_url,r.added_at,0,
-                    cc0_drama_signals(r.publisher,r.link_graphicaudio)
+                    cc0_drama_signals(r.publisher,r.link_graphicaudio),r.librivox_id
                     FROM upstream.recordings r JOIN works w ON w.id=r.work_id ORDER BY r.work_id,r.id""")
                 db.execute("""INSERT INTO work_authors
                     SELECT a.work_id,a.person_id,a.ord FROM upstream.work_authors a
@@ -231,20 +247,20 @@ def bake(source, output, fixture=False, snapshot_id=SNAPSHOT):
                     CREATE INDEX idx_recording_asins_record ON recording_asins(work_id,recording_id);
                     CREATE INDEX idx_recording_isbns_record ON recording_isbns(work_id,recording_id);
                 """)
-                top = db.execute("""SELECT p.id,p.name,COUNT(DISTINCT n.work_id||char(31)||n.recording_id) AS total
-                    FROM recording_narrators n JOIN recordings r
-                    ON r.work_id=n.work_id AND r.id=n.recording_id
-                    JOIN people p ON p.id=n.person_id WHERE r.language='en'
-                    AND lower(trim(p.name)) NOT IN ('various','various narrators','full cast',
-                      'full-cast','multiple narrators','unknown','anonymous','ensemble',
-                      'cast','narrator','narrators')
-                    AND lower(p.name) NOT LIKE '%full cast%'
-                    AND lower(p.name) NOT LIKE 'various %'
-                    GROUP BY p.id,p.name ORDER BY total DESC,p.name COLLATE NOCASE,p.id LIMIT 3""").fetchall()
-                if len(top) != 3:
-                    raise ValueError("Cannot select three evidenced English narrators")
+                picks = []
+                for person_id in NARRATOR_ROWS:
+                    person = db.execute("SELECT name FROM people WHERE id=?", (person_id,)).fetchone()
+                    if not person:
+                        raise ValueError("Editorial narrator " + person_id + " missing from people")
+                    count = db.execute("""SELECT COUNT(*) FROM recordings r
+                        WHERE r.language='en' AND (r.librivox_id IS NULL OR r.librivox_id='')
+                        AND EXISTS(SELECT 1 FROM recording_narrators n WHERE n.work_id=r.work_id
+                        AND n.recording_id=r.id AND n.person_id=?)""", (person_id,)).fetchone()[0]
+                    if count == 0:
+                        raise ValueError("Editorial narrator " + person_id + " has 0 commercial English recordings")
+                    picks.append((person_id, person[0], count))
                 db.executemany("INSERT INTO narrator_shelves VALUES (?,?,?,?)",
-                               ((rank,*person) for rank,person in enumerate(top,1)))
+                               ((rank,*person) for rank,person in enumerate(picks,1)))
                 db.execute("""UPDATE recordings SET asin=(SELECT asin FROM recording_asins a
                     WHERE a.work_id=recordings.work_id AND a.recording_id=recordings.id
                     ORDER BY (a.region!='us'),a.region,a.asin LIMIT 1)""")
@@ -286,15 +302,13 @@ def bake(source, output, fixture=False, snapshot_id=SNAPSHOT):
                         WHERE length(release_date)=10 AND date(release_date) IS NOT NULL
                         AND date(release_date)<=?""",(SNAPSHOT_AS_OF,)).fetchone()[0],
                     "dramatized": db.execute("SELECT COUNT(*) FROM recordings WHERE dramatized=1").fetchone()[0]}
-                for person_id,_,_ in top:
-                    shelf_counts["narrator:"+person_id] = db.execute("""SELECT COUNT(*) FROM recordings r
-                         WHERE r.language='en' AND EXISTS(SELECT 1 FROM recording_narrators n
-                         WHERE n.work_id=r.work_id AND n.recording_id=r.id AND n.person_id=?)""",
-                         (person_id,)).fetchone()[0]
+                for person_id,_,count in picks:
+                    shelf_counts["narrator:"+person_id] = count
         manifest = {"format":"colosseum-audiobooks-cc0-v2","schema_version":2,"source_snapshot_id":snapshot_id,
                     "source_sha256":source_hash,"rights":["CC0-1.0"],"cc0_sources":CC0_SOURCES,
                     "fixture":fixture,"sqlite_sha256":sha256(output),"sqlite_bytes":output.stat().st_size,
-                     "narrator_picks":[{"id":p[0],"name":p[1],"english_recordings":p[2]} for p in top],
+                     "narrator_picks":[{"id":p[0],"name":p[1],"english_recordings":p[2]} for p in picks],
+                     "narrator_selection":{"type":"editorial","by":"Hemanth","date":"2026-11-17"},
                      "dramatized_signals":db_counts,
                      "shelf_counts":shelf_counts,"shelf_count_as_of":SNAPSHOT_AS_OF,
                     "tables":{table:{"rows":rows[table],"licenses":["CC0-1.0"],"columns":columns}

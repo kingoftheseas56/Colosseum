@@ -127,7 +127,7 @@ async function shelf(db:CatalogueDb,key:string,p:any) {
     const who=key.slice(9);
     const known=await query(db,'SELECT person_id FROM narrator_shelves WHERE person_id=?',[who]);
     if(!known.length)return emptyPage(p);
-    return pageItems(db,`r.language='en' AND EXISTS
+    return pageItems(db,`r.language='en' AND (r.librivox_id IS NULL OR r.librivox_id='') AND EXISTS
       (SELECT 1 FROM recording_narrators n WHERE n.work_id=r.work_id
        AND n.recording_id=r.id AND n.person_id=?)`,[who],p);
   }

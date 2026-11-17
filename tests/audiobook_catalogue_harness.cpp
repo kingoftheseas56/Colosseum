@@ -3,6 +3,8 @@
 #include <QCoreApplication>
 #include <QFileInfo>
 #include <QSet>
+#include <QSqlDatabase>
+#include <QSqlQuery>
 #include <iostream>
 #include <cstdlib>
 
@@ -68,9 +70,44 @@ int main(int argc,char** argv) {
     require(shelves.size()==5,"five static Discover shelves");
     require(shelves.at(0).toMap().value("key")=="new-releases","new releases first");
     require(shelves.at(1).toMap().value("key")=="dramatized","dramatized second");
-    for(int i=2;i<5;++i)
-        require(shelves.at(i).toMap().value("key").toString().startsWith("narrator:"),
-                "three baked narrator rows");
+    const QStringList narratorIds{"scott-brick","simon-vance","robin-miles"};
+    const QStringList narratorNames{"Scott Brick","Simon Vance","Robin Miles"};
+    auto evidence=QSqlDatabase::addDatabase("QSQLITE","narrator-evidence");
+    evidence.setDatabaseName(QString::fromLocal8Bit(argv[1]));
+    evidence.setConnectOptions("QSQLITE_OPEN_READONLY");
+    require(evidence.open(),"open narrator evidence read-only");
+    for(int i=0;i<3;++i) {
+        const auto key="narrator:"+narratorIds.at(i);
+        require(shelves.at(i+2).toMap().value("key")==key,"editorial narrator order");
+        require(shelves.at(i+2).toMap().value("title")=="Narrated by "+narratorNames.at(i),
+                "editorial narrator name");
+        int count=0;
+        bool more=true;
+        for(int page=0;more;++page) {
+            const auto result=cat.shelf(key,page);
+            more=result.value("hasMore").toBool();
+            const auto items=result.value("items").toList();
+            for(const auto& value:items) {
+                const auto item=value.toMap();
+                QSqlQuery query(evidence);
+                query.prepare("SELECT 1 FROM recordings r WHERE r.work_id=? AND r.id=? "
+                              "AND r.language='en' AND (r.librivox_id IS NULL OR r.librivox_id='') "
+                              "AND EXISTS(SELECT 1 FROM recording_narrators n WHERE n.work_id=r.work_id "
+                              "AND n.recording_id=r.id AND n.person_id=?)");
+                query.addBindValue(item.value("workId"));
+                query.addBindValue(item.value("recordingId"));
+                query.addBindValue(narratorIds.at(i));
+                require(query.exec() && query.next(),"narrator shelf is commercial English with matching credit");
+                ++count;
+            }
+        }
+        QSqlQuery query(evidence);
+        query.prepare("SELECT english_recordings FROM narrator_shelves WHERE person_id=?");
+        query.addBindValue(narratorIds.at(i));
+        require(query.exec() && query.next() && count>0 && count==query.value(0).toInt(),
+                "narrator shelf count matches bake");
+    }
+    evidence.close();
     const auto newPage=cat.shelf("new-releases",0);
     const auto first=newPage.value("items").toList();
     require(first.size()==20,"Discover pages contain twenty items");

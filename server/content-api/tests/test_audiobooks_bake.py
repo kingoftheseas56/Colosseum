@@ -24,7 +24,7 @@ CC0_FIELDS = {
     "work_authors": {"work_id", "person_id", "ord"},
     "work_genres": {"work_id", "genre"},
     "recordings": {"id", "work_id", "language", "runtime_min", "release_date", "abridged",
-                   "publisher", "cover_url", "added_at", "link_graphicaudio"},
+                   "publisher", "cover_url", "added_at", "link_graphicaudio", "librivox_id"},
     "recording_narrators": {"work_id", "recording_id", "person_id", "ord"},
     "recording_asins": {"asin", "region", "work_id", "recording_id"},
     "recording_isbns": {"isbn", "work_id", "recording_id"},
@@ -67,37 +67,53 @@ class AudiobooksBakeTests(unittest.TestCase):
         for name in ("Various", "Various Narrators", "Scott Brick", "Castro"):
             self.assertFalse(credit("some-person", name), name)
 
+    @staticmethod
+    def make_source(source):
+        with closing(sqlite3.connect(source)) as db, db:
+            db.executescript("""
+                CREATE TABLE works(id,title,language,first_published,license,description);
+                CREATE TABLE people(id,name,license,description);
+                CREATE TABLE series(id,name,license);
+                CREATE TABLE recordings(id,work_id,language,runtime_min,release_date,abridged,
+                    publisher,cover_url,added_at,link_graphicaudio,license,librivox_id);
+                CREATE TABLE work_authors(work_id,person_id,ord);
+                CREATE TABLE work_genres(work_id,genre);
+                CREATE TABLE recording_narrators(work_id,recording_id,person_id,ord);
+                CREATE TABLE recording_asins(asin,region,work_id,recording_id);
+                CREATE TABLE recording_isbns(isbn,work_id,recording_id);
+                CREATE TABLE series_works(work_id,series_id,position);
+                CREATE TABLE work_descriptions(work_id,text,license);
+                INSERT INTO work_descriptions VALUES('w0','DO NOT COPY','CC-BY-SA-4.0');
+            """)
+            for n, (person_id, name) in enumerate((("cast", "Full Cast featuring Joan Walker"),
+                    ("scott-brick", "Scott Brick"), ("simon-vance", "Simon Vance"),
+                    ("robin-miles", "Robin Miles"))):
+                db.execute("INSERT INTO works VALUES(?,?,'en','2020','CC0-1.0','DO NOT COPY')",
+                           (f"w{n}", f"Work {n}"))
+                db.execute("INSERT INTO people VALUES(?,?,'CC0-1.0','DO NOT COPY')", (person_id, name))
+                db.execute("INSERT INTO recordings VALUES('r',?,'en',60,'2020-01-01',0,NULL,NULL,NULL,NULL,'CC0-1.0',NULL)",
+                           (f"w{n}",))
+                db.execute("INSERT INTO recording_narrators VALUES(?,'r',?,0)", (f"w{n}", person_id))
+            # Extra credits and non-commercial/non-English records must not inflate counts.
+            db.execute("INSERT INTO recording_narrators VALUES('w1','r','scott-brick',1)")
+            for rid, language, librivox in (("lv", "en", 123), ("zero", "en", 0),
+                                          ("foreign", "fr", None), ("empty", "en", "")):
+                db.execute("INSERT INTO recordings VALUES(?,'w1',?,60,'2020-01-01',0,NULL,NULL,NULL,NULL,'CC0-1.0',?)",
+                           (rid, language, librivox))
+                db.execute("INSERT INTO recording_narrators VALUES('w1',?,'scott-brick',0)", (rid,))
+
     def test_bake_preserves_cast_evidence_and_rejects_non_cc0_rows(self):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "source.sqlite"
             target = Path(folder) / "baked.sqlite"
-            with closing(sqlite3.connect(source)) as db, db:
-                db.executescript("""
-                    CREATE TABLE works(id,title,language,first_published,license,description);
-                    CREATE TABLE people(id,name,license,description);
-                    CREATE TABLE series(id,name,license);
-                    CREATE TABLE recordings(id,work_id,language,runtime_min,release_date,abridged,
-                        publisher,cover_url,added_at,link_graphicaudio,license);
-                    CREATE TABLE work_authors(work_id,person_id,ord);
-                    CREATE TABLE work_genres(work_id,genre);
-                    CREATE TABLE recording_narrators(work_id,recording_id,person_id,ord);
-                    CREATE TABLE recording_asins(asin,region,work_id,recording_id);
-                    CREATE TABLE recording_isbns(isbn,work_id,recording_id);
-                    CREATE TABLE series_works(work_id,series_id,position);
-                    CREATE TABLE work_descriptions(work_id,text,license);
-                    INSERT INTO work_descriptions VALUES('w0','DO NOT COPY','CC-BY-SA-4.0');
-                """)
-                for n, name in enumerate(("Full Cast featuring Joan Walker", "Reader One", "Reader Two", "Reader Three")):
-                    db.execute("INSERT INTO works VALUES(?,?,'en','2020','CC0-1.0','DO NOT COPY')",
-                               (f"w{n}", f"Work {n}"))
-                    db.execute("INSERT INTO people VALUES(?,?,'CC0-1.0','DO NOT COPY')", (f"p{n}", name))
-                    db.execute("INSERT INTO recordings VALUES('r',?,'en',60,'2020-01-01',0,NULL,NULL,NULL,NULL,'CC0-1.0')",
-                               (f"w{n}",))
-                    db.execute("INSERT INTO recording_narrators VALUES(?,'r',?,0)", (f"w{n}", f"p{n}"))
+            self.make_source(source)
             command = [sys.executable, "-I", str(BAKE), "--source", str(source), "--output", str(target)]
             result = subprocess.run(command, capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             with closing(sqlite3.connect(target)) as db:
+                self.assertEqual(db.execute("SELECT rank,person_id,name,english_recordings FROM narrator_shelves ORDER BY rank").fetchall(),
+                                 [(1, "scott-brick", "Scott Brick", 2), (2, "simon-vance", "Simon Vance", 1),
+                                  (3, "robin-miles", "Robin Miles", 1)])
                 self.assertEqual(db.execute("SELECT dramatized,dramatized_signals FROM recordings WHERE work_id='w0'").fetchone(),
                                  (1, '["narrator:full-cast"]'))
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM recordings WHERE dramatized=1").fetchone()[0], 1)
@@ -113,6 +129,31 @@ class AudiobooksBakeTests(unittest.TestCase):
             self.assertIn("Non-CC0 rows found in works", rejected.stderr)
             self.assertFalse(Path(command[-1]).exists())
 
+    def test_missing_or_empty_editorial_narrator_fails_loudly(self):
+        for person_id in ("scott-brick", "simon-vance", "robin-miles"):
+            for defect in ("missing", "librivox-only", "non-english-only", "no-recordings"):
+                with self.subTest(person_id=person_id, defect=defect), tempfile.TemporaryDirectory() as folder:
+                    source, target = Path(folder) / "source.sqlite", Path(folder) / "baked.sqlite"
+                    self.make_source(source)
+                    with closing(sqlite3.connect(source)) as db, db:
+                        if defect == "missing":
+                            db.execute("DELETE FROM people WHERE id=?", (person_id,))
+                        else:
+                            where = " WHERE (work_id,id) IN (SELECT work_id,recording_id FROM recording_narrators WHERE person_id=?)"
+                            if defect == "librivox-only":
+                                db.execute("UPDATE recordings SET librivox_id=123" + where, (person_id,))
+                            elif defect == "non-english-only":
+                                db.execute("UPDATE recordings SET language='fr'" + where, (person_id,))
+                            else:
+                                db.execute("DELETE FROM recordings" + where, (person_id,))
+                    result = subprocess.run([sys.executable, "-I", str(BAKE), "--source", str(source),
+                                             "--output", str(target)], capture_output=True, text=True, timeout=30)
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn(person_id, result.stderr)
+                    self.assertIn("missing from people" if defect == "missing" else "0 commercial English recordings", result.stderr)
+                    self.assertFalse(target.exists())
+                    self.assertFalse(target.with_suffix(".manifest.json").exists())
+
     @unittest.skipUnless(SOURCE.exists(), "pinned source snapshot unavailable")
     def test_two_independent_runs_have_identical_bytes(self):
         with tempfile.TemporaryDirectory() as work:
@@ -126,10 +167,12 @@ class AudiobooksBakeTests(unittest.TestCase):
             self.assertEqual(HASH(target), HASH(FIXTURE))
             self.assertEqual(target.read_bytes(), FIXTURE.read_bytes())
 
-    def test_discover_row_provenance_and_baked_narrator_ranking(self):
+    def test_discover_row_provenance_and_editorial_narrators(self):
         manifest = json.loads(FIXTURE.with_suffix(".manifest.json").read_text(encoding="utf-8"))
         self.assertIn("narrator_picks", manifest)
-        self.assertEqual(len(manifest["narrator_picks"]),3)
+        self.assertEqual([(p["id"], p["name"]) for p in manifest["narrator_picks"]],
+                         [("scott-brick", "Scott Brick"), ("simon-vance", "Simon Vance"), ("robin-miles", "Robin Miles")])
+        self.assertEqual(manifest["narrator_selection"], {"type": "editorial", "by": "Hemanth", "date": "2026-11-17"})
         self.assertIn("dramatized_signals", manifest)
         with sqlite3.connect(FIXTURE) as db:
             self.assertIn("work_genres",{t for t in manifest["tables"]})
@@ -137,7 +180,18 @@ class AudiobooksBakeTests(unittest.TestCase):
             self.assertIn("narrator_shelves",{t for t in manifest["tables"]})
             for col in ("release_date","publisher","cover_url","added_at","dramatized","dramatized_signals"):
                 self.assertIn(col,{row[1] for row in db.execute("PRAGMA table_info(recordings)")})
-            self.assertEqual(db.execute("SELECT COUNT(*) FROM narrator_shelves").fetchone()[0],3)
+            picks = db.execute("SELECT rank,person_id,name,english_recordings FROM narrator_shelves ORDER BY rank").fetchall()
+            self.assertEqual([(r[0],r[1],r[2]) for r in picks],
+                             [(1,"scott-brick","Scott Brick"),(2,"simon-vance","Simon Vance"),(3,"robin-miles","Robin Miles")])
+            for rank, person_id, name, count in picks:
+                actual = db.execute("""SELECT COUNT(*) FROM recordings r WHERE r.language='en'
+                    AND (r.librivox_id IS NULL OR r.librivox_id='') AND EXISTS
+                    (SELECT 1 FROM recording_narrators n WHERE n.work_id=r.work_id AND n.recording_id=r.id AND n.person_id=?)""",
+                    (person_id,)).fetchone()[0]
+                self.assertGreater(count, 0)
+                self.assertEqual(count, actual)
+                self.assertEqual(manifest["shelf_counts"]["narrator:"+person_id], count)
+                self.assertEqual(manifest["narrator_picks"][rank-1]["english_recordings"], count)
             self.assertGreater(db.execute("SELECT COUNT(*) FROM work_genres").fetchone()[0],0)
             for r in db.execute("SELECT covers_json FROM genres_summary"):
                 urls=json.loads(r[0]);self.assertEqual(len(urls),4)

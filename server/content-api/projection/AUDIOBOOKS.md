@@ -13,7 +13,9 @@ python -I projection/audiobooks_publication.py --source /path/to/bake/audiobooks
 
 For a deterministic small fixture, add `--fixture` to the first command and
 use a fresh output path. That selects 30 real works, including Dune and Rhythm
-of War. The checked-in fixture contains no fabricated records and is the test
+of War and at least one commercial English recording for each editorial
+narrator (selected by work id, then recording id). The checked-in fixture
+contains no fabricated records and is the test
 input for both the Python/Node and Qt C++ harnesses.
 
 Each bake refuses existing output and emits an adjacent
@@ -43,7 +45,7 @@ a direct GraphicAudio link, or an explicit Full Cast narrator credit
 (including named credits such as "Full Cast featuring Joan Walker") qualifies
 a recording as dramatized. Multiple ordinary narrator names or "Various"
 alone are not evidence. These exact signals and their counts,
-the top three non-placeholder English narrators, and shelf counts **as
+the three editorial narrator picks, and shelf counts **as
 of the pinned snapshot date** are recorded in the bake manifest. The
 served New releases row dynamically excludes future calendar dates. Five
 static shelves appear in order: New releases, Fully dramatized, then
@@ -53,6 +55,34 @@ cover URLs per genre; categories without four real pointers are omitted
 rather than filled with fabricated covers. A multiple-series work does
 not choose one numbering system for its item card. Cover URLs are third-
 party pointers only: the projection never mirrors image content.
+
+### Editorial narrator rows
+
+Hemanth selected these Discover rows on **2026-11-17**, in this exact order:
+
+1. Scott Brick (`scott-brick`)
+2. Simon Vance (`simon-vance`)
+3. Robin Miles (`robin-miles`)
+
+They are not ranked by recording volume. `NARRATOR_ROWS` in
+`audiobooks_bake.py` is the ordered editorial list. `narrator_shelves` retains
+rank (1–3), person id, the name from `people`, and `english_recordings`.
+That count and the narrator shelf include only English (`language='en'`)
+**commercial** recordings: `librivox_id IS NULL OR librivox_id=''`. Nonempty
+LibriVox ids (including zero) are excluded; other catalogue rows still retain
+those recordings. The projection preserves the factual `librivox_id` field
+so hosted and local shelf queries use the same rule.
+
+To change the rows, edit `NARRATOR_ROWS` in the desired order and update the
+editorial attribution/date in its comment and manifest `narrator_selection`,
+this list, and the tests' expected ids/names. Regenerate the fixture with
+`--fixture` to a fresh output, replace its SQLite and manifest together, and
+run the focused Python/Node tests and native harness. Regenerate the full
+bake separately before publication; an old bake lacks the commercial filter
+field. The bake fails with the offending id if any pick is missing from
+`people` or has zero commercial English recordings; it never silently
+substitutes a different narrator. The manifest records the ordered picks,
+their commercial English counts, and the editorial attribution.
 
 Colosseum's application provides the `AudiobookCatalog` context object,
 defaulting to bounded per-query content API requests. A local SQLite can be
@@ -72,8 +102,9 @@ python -I -m unittest discover -s tests -p 'test_audiobooks_*.py' -v
 The provenance acceptance test uses a separate field-level CC0 allowlist from
 the qualification report, requires coverage of every output column, and rejects
 expressive fields even if their containing source record has a CC0 tag. A tiny
-synthetic source additionally checks named Full Cast evidence, placeholder
-exclusion, expressive-field omission and refusal of non-CC0 source rows.
+synthetic source additionally checks named Full Cast evidence, editorial
+order, commercial-only counts/shelves, missing or empty picks, expressive-field
+omission and refusal of non-CC0 source rows.
 The reproducibility check regenerates the checked-in fixture from the pinned
 source and requires byte equality, not just matching logical rows.
 

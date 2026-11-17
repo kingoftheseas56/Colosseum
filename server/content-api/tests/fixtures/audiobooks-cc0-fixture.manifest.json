@@ -20,21 +20,26 @@
   "format": "colosseum-audiobooks-cc0-v2",
   "narrator_picks": [
     {
-      "english_recordings": 3,
-      "id": "skip-heitzig",
-      "name": "Skip Heitzig"
+      "english_recordings": 2,
+      "id": "scott-brick",
+      "name": "Scott Brick"
     },
     {
       "english_recordings": 2,
-      "id": "dawn-blair",
-      "name": "Dawn Blair"
+      "id": "simon-vance",
+      "name": "Simon Vance"
     },
     {
-      "english_recordings": 2,
-      "id": "paul-costanzo",
-      "name": "Paul Costanzo"
+      "english_recordings": 1,
+      "id": "robin-miles",
+      "name": "Robin Miles"
     }
   ],
+  "narrator_selection": {
+    "by": "Hemanth",
+    "date": "2026-11-17",
+    "type": "editorial"
+  },
   "rights": [
     "CC0-1.0"
   ],
@@ -42,15 +47,15 @@
   "shelf_count_as_of": "2026-11-16",
   "shelf_counts": {
     "dramatized": 1,
-    "narrator:dawn-blair": 2,
-    "narrator:paul-costanzo": 2,
-    "narrator:skip-heitzig": 3,
+    "narrator:robin-miles": 1,
+    "narrator:scott-brick": 2,
+    "narrator:simon-vance": 2,
     "new-releases": 26
   },
   "source_sha256": "57c75df6db30b7f4d1e1018ce3e055886898c6177e5d323d260b3f7ed3ced2ad",
   "source_snapshot_id": "data-v2026.11.16-82ea38c-30a9e1e",
   "sqlite_bytes": 192512,
-  "sqlite_sha256": "a918d37c33447ddf06f5b15d2792026e1fb6f1d449d0891694724214ddb0a41e",
+  "sqlite_sha256": "0208a7871c6c348e37729ddf55618b08de72721fd5e78c76579cf48fe3b81213",
   "tables": {
     "genres_summary": {
       "columns": {
@@ -76,7 +81,8 @@
       "columns": {
         "english_recordings": [
           "recording_narrators.recording_id",
-          "recordings.language"
+          "recordings.language",
+          "recordings.librivox_id"
         ],
         "name": [
           "people.name"
@@ -86,7 +92,8 @@
         ],
         "rank": [
           "recording_narrators.person_id",
-          "recordings.language"
+          "recordings.language",
+          "recordings.librivox_id"
         ]
       },
       "licenses": [
@@ -106,7 +113,7 @@
       "licenses": [
         "CC0-1.0"
       ],
-      "rows": 62
+      "rows": 60
     },
     "recording_asins": {
       "columns": {
@@ -126,7 +133,7 @@
       "licenses": [
         "CC0-1.0"
       ],
-      "rows": 67
+      "rows": 68
     },
     "recording_isbns": {
       "columns": {
@@ -200,6 +207,9 @@
         "language": [
           "recordings.language"
         ],
+        "librivox_id": [
+          "recordings.librivox_id"
+        ],
         "publisher": [
           "recordings.publisher"
         ],
@@ -242,7 +252,7 @@
       "licenses": [
         "CC0-1.0"
       ],
-      "rows": 92
+      "rows": 90
     },
     "series": {
       "columns": {
@@ -287,7 +297,7 @@
       "licenses": [
         "CC0-1.0"
       ],
-      "rows": 68
+      "rows": 67
     },
     "work_series": {
       "columns": {

@@ -314,7 +314,8 @@ QVariantMap AudiobookCatalog::shelf(const QString& key, int page) const {
         const auto person=k.mid(9);
         if(!select(QStringLiteral("SELECT person_id FROM narrator_shelves WHERE person_id=?"),{person}).isEmpty())
             return localPage(QStringLiteral(
-                "r.language='en' AND EXISTS(SELECT 1 FROM recording_narrators n "
+                "r.language='en' AND (r.librivox_id IS NULL OR r.librivox_id='') "
+                "AND EXISTS(SELECT 1 FROM recording_narrators n "
                 "WHERE n.work_id=r.work_id AND n.recording_id=r.id AND n.person_id=?)"),
                 {person},page);
     }
