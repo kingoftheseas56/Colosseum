@@ -13,7 +13,13 @@ const recordingRow = (r:Row) => ({
   runtimeMin:r.runtime_min==null?null:integer(r.runtime_min),
   releaseYear:r.release_year==null?null:integer(r.release_year),
   abridgement:r.abridgement==null?null:integer(r.abridgement),
-  asin:text(r.asin),isbn:text(r.isbn)
+  asin:text(r.asin),isbn:text(r.isbn),
+  ...(r.release_date?{releaseDate:text(r.release_date)}:{}),
+  ...(r.publisher?{publisher:text(r.publisher)}:{}),
+  ...(r.cover_url?{coverUrl:text(r.cover_url)}:{}),
+  ...(r.added_at?{addedAt:text(r.added_at)}:{}),
+  dramatized:integer(r.dramatized)!==0,
+  dramatizedSignals:JSON.parse(text(r.dramatized_signals)||'[]')
 });
 const seriesRow = (r:Row) => ({
   id:text(r.id),name:text(r.name),numberText:text(r.number_text),
@@ -69,7 +75,74 @@ async function byPerson(db:CatalogueDb,key:string,offset:number){
   const rows=await query(db,'SELECT DISTINCT w.* FROM works w WHERE EXISTS(SELECT 1 FROM work_authors a WHERE a.work_id=w.id AND a.person_id=?) OR EXISTS(SELECT 1 FROM recording_narrators n WHERE n.work_id=w.id AND n.person_id=?) ORDER BY (w.first_year IS NULL),w.first_year DESC,w.title COLLATE NOCASE,w.id LIMIT 24 OFFSET ?',[key,key,offset]);
   return rows.map(workRow);
 }
-export const audiobookMethods = ['search','work','recordingByAsin','recordingByIsbn','series','latest','byPerson'];
+
+const ROW_SIZE=20;
+const itemSql=`
+ SELECT r.work_id AS work_id,r.id AS recording_id,w.title,
+        r.cover_url,r.runtime_min,r.release_date,r.dramatized,
+        (SELECT json_group_array(name) FROM (
+          SELECT p.name AS name FROM work_authors a JOIN people p ON p.id=a.person_id
+          WHERE a.work_id=r.work_id ORDER BY a.ord,p.id)) AS authors_json,
+        (SELECT json_group_array(name) FROM (
+          SELECT p.name AS name FROM recording_narrators n JOIN people p ON p.id=n.person_id
+          WHERE n.work_id=r.work_id AND n.recording_id=r.id ORDER BY n.ord,p.id)) AS narrators_json,
+        (SELECT CASE WHEN COUNT(*)=1 THEN MAX(s.name) END
+         FROM work_series ws JOIN series s ON s.id=ws.series_id
+         WHERE ws.work_id=r.work_id) AS series_name,
+        (SELECT CASE WHEN COUNT(*)=1 THEN MAX(ws.number_text) END
+         FROM work_series ws WHERE ws.work_id=r.work_id) AS series_number
+ FROM recordings r JOIN works w ON w.id=r.work_id`;
+const releaseOrder=' ORDER BY r.release_date DESC, r.added_at DESC, r.work_id, r.id LIMIT 21 OFFSET ?';
+function item(r:Row):Row {
+  const value:Row={
+    workId:text(r.work_id),recordingId:text(r.recording_id),title:text(r.title),
+    dramatized:integer(r.dramatized)!==0
+  };
+  const authors=JSON.parse(text(r.authors_json)||'[]'),narrators=JSON.parse(text(r.narrators_json)||'[]');
+  if(authors.length)value.authors=authors;
+  if(narrators.length)value.narrators=narrators;
+  if(typeof r.cover_url==='string' && /^https?:\/\//i.test(r.cover_url))value.coverUrl=r.cover_url;
+  if(r.runtime_min!=null && integer(r.runtime_min)>0)value.runtimeMin=integer(r.runtime_min);
+  if(typeof r.release_date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(r.release_date))value.releaseDate=r.release_date;
+  if(r.series_name)value.seriesName=text(r.series_name);
+  if(r.series_number)value.seriesNumber=text(r.series_number);
+  return value;
+}
+async function pageItems(db:CatalogueDb,where:string,binds:any[],number:number):Promise<Row> {
+  const n=page(number);
+  const rows=await query(db,itemSql+' WHERE '+where+releaseOrder,[...binds,n*ROW_SIZE]);
+  return {items:rows.slice(0,ROW_SIZE).map(item),page:n,hasMore:rows.length>ROW_SIZE};
+}
+const emptyPage=(v:any)=>({items:[],page:page(v),hasMore:false});
+async function shelves(db:CatalogueDb) {
+  const narrators=await query(db,'SELECT person_id,name FROM narrator_shelves ORDER BY rank');
+  return [{key:'new-releases',title:'New releases'},{key:'dramatized',title:'Fully dramatized'},
+    ...narrators.map(n=>({key:'narrator:'+text(n.person_id),title:'Narrated by '+text(n.name)}))];
+}
+async function shelf(db:CatalogueDb,key:string,p:any) {
+  if(key==='new-releases')return pageItems(db,
+    "length(r.release_date)=10 AND date(r.release_date) IS NOT NULL AND date(r.release_date)<=date('now')",[],p);
+  if(key==='dramatized')return pageItems(db,'r.dramatized=1',[],p);
+  if(key.startsWith('narrator:') && key.length>9){
+    const who=key.slice(9);
+    const known=await query(db,'SELECT person_id FROM narrator_shelves WHERE person_id=?',[who]);
+    if(!known.length)return emptyPage(p);
+    return pageItems(db,`r.language='en' AND EXISTS
+      (SELECT 1 FROM recording_narrators n WHERE n.work_id=r.work_id
+       AND n.recording_id=r.id AND n.person_id=?)`,[who],p);
+  }
+  return emptyPage(p);
+}
+async function genres(db:CatalogueDb) {
+  const rows=await query(db,'SELECT genre,recording_count,covers_json FROM genres_summary ORDER BY recording_count DESC,genre');
+  return rows.map(r=>({genre:text(r.genre),count:integer(r.recording_count),covers:JSON.parse(text(r.covers_json))}));
+}
+async function genre(db:CatalogueDb,key:string,p:any) {
+  if(!key)return emptyPage(p);
+  return pageItems(db,'EXISTS (SELECT 1 FROM work_genres g WHERE g.work_id=r.work_id AND g.genre=?)',[key],p);
+}
+
+export const audiobookMethods = ['search','work','recordingByAsin','recordingByIsbn','series','latest','byPerson','shelves','shelf','genres','genre'];
 export async function audiobooksMethod(db:CatalogueDb,method:string,args:any[]):Promise<any>{
   if(method==='search'){
     const words=text(args[0]).normalize('NFKC').match(/[\p{L}\p{N}]+/gu)?.slice(0,8)??[];
@@ -84,5 +157,9 @@ export async function audiobooksMethod(db:CatalogueDb,method:string,args:any[]):
   if(method==='series')return series(db,id(args[0]));
   if(method==='latest')return latest(db,listPage(args[0]));
   if(method==='byPerson')return byPerson(db,id(args[0]),listPage(args[1]));
+  if(method==='shelves')return shelves(db);
+  if(method==='shelf')return shelf(db,id(args[0]),args[1]);
+  if(method==='genres')return genres(db);
+  if(method==='genre')return genre(db,id(args[0]),args[1]);
   throw new Error('UNKNOWN_CATALOGUE_METHOD');
 }

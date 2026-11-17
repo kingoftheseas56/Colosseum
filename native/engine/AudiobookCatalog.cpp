@@ -1,5 +1,7 @@
 #include "AudiobookCatalog.h"
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QNetworkAccessManager>
 #include <QRegularExpression>
 #include <QSqlQuery>
@@ -15,10 +17,19 @@ QVariantMap workRow(const QVariantMap& row) {
             {"firstYear",row.value("first_year")}};
 }
 QVariantMap recordingRow(const QVariantMap& row) {
-    return {{"id",row.value("id")},{"workId",row.value("work_id")},
+    QVariantMap result = {{"id",row.value("id")},{"workId",row.value("work_id")},
             {"language",row.value("language")},{"runtimeMin",row.value("runtime_min")},
             {"releaseYear",row.value("release_year")},{"abridgement",row.value("abridgement")},
             {"asin",row.value("asin")},{"isbn",row.value("isbn")}};
+    const auto put=[&](const char* key,const char* column) {
+        if(!row.value(column).toString().isEmpty()) result.insert(QString::fromLatin1(key),row.value(column));
+    };
+    put("releaseDate","release_date");put("publisher","publisher");
+    put("coverUrl","cover_url");put("addedAt","added_at");
+    result.insert(QStringLiteral("dramatized"),row.value("dramatized").toInt()!=0);
+    result.insert(QStringLiteral("dramatizedSignals"),
+                  QJsonDocument::fromJson(row.value("dramatized_signals").toString().toUtf8()).array().toVariantList());
+    return result;
 }
 QVariantMap personRow(const QVariantMap& row) {
     return {{"id",row.value("id")},{"name",row.value("name")}};
@@ -53,7 +64,7 @@ bool AudiobookCatalog::open(const QString& sqlitePath) {
     const bool valid = m_db.open() && [this]{
         QSqlQuery query(m_db);
         return query.exec(QStringLiteral("PRAGMA user_version")) && query.next() &&
-               query.value(0).toInt()==1;
+               query.value(0).toInt()==2;
     }();
     if(!valid) {
         m_db.close();
@@ -229,4 +240,102 @@ QVariantList AudiobookCatalog::byPerson(const QString& identifier, int page) con
         "ORDER BY (w.first_year IS NULL),w.first_year DESC,w.title COLLATE NOCASE,w.id LIMIT 24 OFFSET ?"),
         {key,key,pageOffset(page)})) items.append(workRow(value.toMap()));
     return items;
+}
+
+QVariantMap AudiobookCatalog::localItem(const QVariantMap& row) const {
+    const auto workId=row.value("work_id");
+    const auto recId=row.value("id");
+    QVariantMap item{{"workId",workId},{"recordingId",recId},{"title",row.value("title")},
+                     {"dramatized",row.value("dramatized").toInt()!=0}};
+    QVariantList authors,narrators;
+    for(const auto& v:select(QStringLiteral(
+        "SELECT p.name FROM work_authors a JOIN people p ON p.id=a.person_id "
+        "WHERE a.work_id=? ORDER BY a.ord,p.id"),{workId}))
+        authors.append(v.toMap().value("name"));
+    for(const auto& v:select(QStringLiteral(
+        "SELECT p.name FROM recording_narrators n JOIN people p ON p.id=n.person_id "
+        "WHERE n.work_id=? AND n.recording_id=? ORDER BY n.ord,p.id"),{workId,recId}))
+        narrators.append(v.toMap().value("name"));
+    if(!authors.isEmpty()) item.insert("authors",authors);
+    if(!narrators.isEmpty()) item.insert("narrators",narrators);
+    const auto cover=row.value("cover_url").toString();
+    if(cover.startsWith("https://",Qt::CaseInsensitive)||cover.startsWith("http://",Qt::CaseInsensitive))
+        item.insert("coverUrl",cover);
+    if(row.value("runtime_min").toInt()>0)
+        item.insert("runtimeMin",row.value("runtime_min"));
+    const auto release=row.value("release_date").toString();
+    if(QRegularExpression(QStringLiteral("^\\d{4}-\\d{2}-\\d{2}$")).match(release).hasMatch())
+        item.insert("releaseDate",release);
+    const auto series=select(QStringLiteral(
+        "SELECT s.name,ws.number_text FROM work_series ws JOIN series s ON s.id=ws.series_id "
+        "WHERE ws.work_id=? ORDER BY s.name COLLATE NOCASE,s.id"),{workId});
+    // An ambiguous multi-series work must not silently receive the wrong numbering system.
+    if(series.size()==1) {
+        const auto entry=series.first().toMap();
+        if(!entry.value("name").toString().isEmpty())
+            item.insert("seriesName",entry.value("name"));
+        if(!entry.value("number_text").toString().isEmpty())
+            item.insert("seriesNumber",entry.value("number_text"));
+    }
+    return item;
+}
+QVariantMap AudiobookCatalog::localPage(const QString& condition, const QVariantList& binds, int page) const {
+    const int n=std::clamp(page,0,100000);
+    QVariantList values=binds; values.append(n*20);
+    const auto rows=select(QStringLiteral(
+        "SELECT r.*,w.title FROM recordings r JOIN works w ON w.id=r.work_id WHERE ")+
+        condition+QStringLiteral(
+        " ORDER BY r.release_date DESC,r.added_at DESC,r.work_id,r.id LIMIT 21 OFFSET ?"),values);
+    QVariantList items;
+    for(int i=0;i<std::min(20,int(rows.size()));++i)items.append(localItem(rows.at(i).toMap()));
+    return {{"items",items},{"page",n},{"hasMore",rows.size()>20}};
+}
+QVariantList AudiobookCatalog::shelves() const {
+    if(!m_ok)return m_remote->read(QStringLiteral("shelves"),{},QVariantList{}).toList();
+    QVariantList rows{QVariantMap{{"key","new-releases"},{"title","New releases"}},
+                      QVariantMap{{"key","dramatized"},{"title","Fully dramatized"}}};
+    for(const auto& value:select(QStringLiteral(
+        "SELECT person_id,name FROM narrator_shelves ORDER BY rank"))) {
+        const auto v=value.toMap();
+        rows.append(QVariantMap{{"key","narrator:"+v.value("person_id").toString()},
+                                {"title","Narrated by "+v.value("name").toString()}});
+    }
+    return rows;
+}
+QVariantMap AudiobookCatalog::shelf(const QString& key, int page) const {
+    const auto k=validId(key);
+    if(!m_ok)return m_remote->read(QStringLiteral("shelf"),{k,page},QVariantMap{}).toMap();
+    if(k==QStringLiteral("new-releases"))
+        return localPage(QStringLiteral(
+            "length(r.release_date)=10 AND date(r.release_date) IS NOT NULL "
+            "AND date(r.release_date)<=date('now')"),{},page);
+    if(k==QStringLiteral("dramatized"))return localPage(QStringLiteral("r.dramatized=1"),{},page);
+    if(k.startsWith(QStringLiteral("narrator:")) && k.size()>9) {
+        const auto person=k.mid(9);
+        if(!select(QStringLiteral("SELECT person_id FROM narrator_shelves WHERE person_id=?"),{person}).isEmpty())
+            return localPage(QStringLiteral(
+                "r.language='en' AND EXISTS(SELECT 1 FROM recording_narrators n "
+                "WHERE n.work_id=r.work_id AND n.recording_id=r.id AND n.person_id=?)"),
+                {person},page);
+    }
+    return {{"items",QVariantList{}},{"page",std::clamp(page,0,100000)},{"hasMore",false}};
+}
+QVariantList AudiobookCatalog::genres() const {
+    if(!m_ok)return m_remote->read(QStringLiteral("genres"),{},QVariantList{}).toList();
+    QVariantList entries;
+    for(const auto& value:select(QStringLiteral(
+        "SELECT genre,recording_count,covers_json FROM genres_summary "
+        "ORDER BY recording_count DESC,genre"))) {
+        const auto v=value.toMap();
+        entries.append(QVariantMap{{"genre",v.value("genre")},{"count",v.value("recording_count")},
+            {"covers",QJsonDocument::fromJson(v.value("covers_json").toString().toUtf8()).array().toVariantList()}});
+    }
+    return entries;
+}
+QVariantMap AudiobookCatalog::genre(const QString& name, int page) const {
+    const auto k=validId(name);
+    if(!m_ok)return m_remote->read(QStringLiteral("genre"),{k,page},QVariantMap{}).toMap();
+    if(k.isEmpty())return {{"items",QVariantList{}},{"page",std::clamp(page,0,100000)},{"hasMore",false}};
+    return localPage(QStringLiteral(
+        "EXISTS (SELECT 1 FROM work_genres g WHERE g.work_id=r.work_id AND g.genre=?)"),{k},page);
 }

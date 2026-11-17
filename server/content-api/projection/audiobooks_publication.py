@@ -12,7 +12,8 @@ from pathlib import Path
 import sqlite3
 
 TABLES = ("works","people","series","work_authors","recordings",
-          "recording_narrators","work_series","recording_asins","recording_isbns","search_fts")
+          "recording_narrators","work_series","recording_asins","recording_isbns",
+          "work_genres","narrator_shelves","genres_summary","search_fts")
 MAX_STATEMENT_BYTES = 94000
 INSERT_CHUNK_ROWS = 64
 
@@ -38,7 +39,7 @@ def export(source, output):
         raise ValueError("Verified source SQLite and manifest required")
     manifest=json.loads(manifest_path.read_text(encoding="utf-8"))
     src_hash=sha256(source)
-    if manifest.get("format")!="colosseum-audiobooks-cc0-v1" or manifest.get("sqlite_sha256")!=src_hash:
+    if manifest.get("format")!="colosseum-audiobooks-cc0-v2" or manifest.get("sqlite_sha256")!=src_hash:
         raise ValueError("Catalogue hash or bake version mismatch")
     if manifest.get("rights")!=["CC0-1.0"]:
         raise ValueError("Non-CC0 catalogue")
@@ -62,10 +63,10 @@ def export(source, output):
             allowed=set(TABLES)|{name for name in all_table_names if name.startswith("search_fts_")}
             if all_table_names!=allowed:
                 raise ValueError("Unexpected table or expressive sidecar in bake")
-            if db.execute("PRAGMA user_version").fetchone()[0]!=1:
+            if db.execute("PRAGMA user_version").fetchone()[0]!=2:
                 raise ValueError("Unsupported projection version")
             sql.write("-- Colosseum Audiobooks CC0; source sha256: "+src_hash+"\n")
-            sql.write("PRAGMA user_version=1;\n")
+            sql.write("PRAGMA user_version=2;\n")
             for name in TABLES:
                 if name not in metadata or metadata[name][0]!="table":
                     raise ValueError("Missing source table: "+name)

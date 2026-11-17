@@ -33,6 +33,10 @@ public:
     Q_INVOKABLE QVariantMap series(const QString& id) const;
     Q_INVOKABLE QVariantList latest(int page = 0) const;
     Q_INVOKABLE QVariantList byPerson(const QString& personId, int page = 0) const;
+    Q_INVOKABLE QVariantList shelves() const;
+    Q_INVOKABLE QVariantMap shelf(const QString& key, int page = 0) const;
+    Q_INVOKABLE QVariantList genres() const;
+    Q_INVOKABLE QVariantMap genre(const QString& name, int page = 0) const;
     void configureRemote(QNetworkAccessManager* manager, const QUrl& endpoint,
                          const QString& cachePath = {});
 signals:
@@ -44,6 +48,8 @@ private:
     bool open(const QString& sqlitePath);
     QVariantList select(const QString& statement, const QVariantList& bind = {}) const;
     QVariantMap localRecording(const QVariantMap& row) const;
+    QVariantMap localItem(const QVariantMap& row) const;
+    QVariantMap localPage(const QString& condition, const QVariantList& binds, int page) const;
     QVariantMap recordingBy(const QString& kind, const QString& key) const;
     QSqlDatabase m_db;
     QString m_connection;

@@ -36,6 +36,22 @@ The SQLite includes a local title/people FTS5 index. None of the publisher's
 AGPL code is copied here, and no chapters, summaries, descriptions, cover
 image bytes, or CC BY-SA-derived expressive content is imported.
 
+The v2 Discover contract adds factual work genres; the recording's exact
+release date, publisher, cover URL pointer and ingestion timestamp; and
+materialized dramatization signals. Only a known GraphicAudio publisher,
+a direct GraphicAudio link, or an explicit Full Cast narrator credit
+qualifies a recording as dramatized. These exact signals and their counts,
+the top three non-placeholder English narrators, and shelf counts **as
+of the pinned snapshot date** are recorded in the bake manifest. The
+served New releases row dynamically excludes future calendar dates. Five
+static shelves appear in order: New releases, Fully dramatized, then
+Narrated by each of the three baked narrators. All shelf and genre pages
+are 20 recording items long. The genre mosaic has four distinct existing
+cover URLs per genre; categories without four real pointers are omitted
+rather than filled with fabricated covers. A multiple-series work does
+not choose one numbering system for its item card. Cover URLs are third-
+party pointers only: the projection never mirrors image content.
+
 Colosseum's application provides the `AudiobookCatalog` context object,
 defaulting to bounded per-query content API requests. A local SQLite can be
 enabled explicitly with `COLOSSEUM_AUDIOBOOK_CATALOG_PATH` for development or

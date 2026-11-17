@@ -14,7 +14,7 @@ const adapter={prepare(sql){return {bind(...args){return {async all(){
 test.after(()=>db.close());
 
 test('audiobook catalogue methods are registered for semantic RPC',()=>{
-  assert.deepEqual(catalogueMethods.audiobooks,['search','work','recordingByAsin','recordingByIsbn','series','latest','byPerson']);
+  assert.deepEqual(catalogueMethods.audiobooks,['search','work','recordingByAsin','recordingByIsbn','series','latest','byPerson','shelves','shelf','genres','genre']);
 });
 test('fixture is a real CC0 AudioSilo subset with exactly thirty works',()=>{
   assert.equal(db.prepare('SELECT count(*) n FROM works').get().n,30);
@@ -88,4 +88,59 @@ test('audiobooks series bypasses legacy prebuilt lookup and reaches D1',async()=
   }};
   assert.equal(await prebuiltCatalogue(assets,revision,'audiobooks','series',['dune']),null);
   assert.equal((await catalogueMethod(adapter,'audiobooks','series',['dune'])).name,'Dune');
+});
+
+test('Discover shelves expose exactly five static rows, with baked narrator picks',async()=>{
+  const rows=await catalogueMethod(adapter,'audiobooks','shelves',[]);
+  assert.equal(rows.length,5);
+  assert.deepEqual(rows.slice(0,2),[
+    {key:'new-releases',title:'New releases'},
+    {key:'dramatized',title:'Fully dramatized'}]);
+  const picks=db.prepare('SELECT person_id,name FROM narrator_shelves ORDER BY rank').all();
+  assert.equal(picks.length,3);
+  assert.deepEqual(rows.slice(2),picks.map(p=>({key:'narrator:'+p.person_id,title:'Narrated by '+p.name})));
+  assert.equal(new Set(rows.map(r=>r.key)).size,5);
+});
+test('Discover pages use 20 recordings, stable identity, no future releases, sparse item shape',async()=>{
+  const result=await catalogueMethod(adapter,'audiobooks','shelf',['new-releases',0]);
+  assert.equal(result.page,0);
+  assert.ok(result.items.length>0 && result.items.length<=20);
+  assert.equal(result.hasMore,db.prepare("SELECT count(*) c FROM recordings WHERE length(release_date)=10 AND date(release_date) IS NOT NULL AND date(release_date)<=date('now')").get().c>20);
+  for(const item of result.items){
+    assert.equal(typeof item.workId,'string');assert.equal(typeof item.recordingId,'string');
+    assert.ok(item.title);assert.ok(Array.isArray(item.authors));assert.ok(Array.isArray(item.narrators));
+    assert.equal(typeof item.dramatized,'boolean');
+    assert.ok(item.releaseDate<=(new Date()).toISOString().slice(0,10));
+    assert.ok(Object.values(item).every(v=>v!==null && v!==undefined && v!==''));
+  }
+  const next=await audiobooksMethod(adapter,'shelf',['new-releases',1]);
+  assert.equal(next.page,1);
+  assert.equal(new Set([...result.items,...next.items].map(x=>x.workId+'/'+x.recordingId)).size,result.items.length+next.items.length);
+});
+
+test('Dramatized and narrator shelves contain only evidenced recordings',async()=>{
+  const rows=await audiobooksMethod(adapter,'shelves',[]);
+  for(const s of rows.slice(1)){
+    const p=await audiobooksMethod(adapter,'shelf',[s.key,0]);
+    assert.equal(p.page,0);assert.equal(typeof p.hasMore,'boolean');
+    for(const i of p.items){
+      if(s.key==='dramatized') assert.equal(i.dramatized,true);
+      else assert.ok(db.prepare("SELECT 1 FROM recordings r JOIN recording_narrators n ON n.work_id=r.work_id AND n.recording_id=r.id WHERE r.work_id=? AND r.id=? AND n.person_id=? AND r.language='en'").get(i.workId,i.recordingId,s.key.slice(9)));
+    }
+  }
+  assert.deepEqual(await audiobooksMethod(adapter,'shelf',['bad-shelf',0]),{items:[],page:0,hasMore:false});
+});
+test('Genre mosaic contains only grounded cover pointers, genre pages and unknown genre',async()=>{
+  const gs=await audiobooksMethod(adapter,'genres',[]);
+  assert.ok(gs.length>0);
+  for(const g of gs){
+    assert.ok(g.genre && g.count>0);
+    assert.equal(g.covers.length,4);
+    assert.ok(g.covers.every(s=>typeof s==='string' && /^https?:\/\//.test(s)));
+  }
+  assert.ok(gs.every((g,i)=>i===0 || gs[i-1].count>=g.count));
+  const page=await audiobooksMethod(adapter,'genre',[gs[0].genre,0]);
+  assert.ok(page.items.length>0 && page.items.length<=20);
+  assert.ok(page.items.every(i=>db.prepare('SELECT 1 FROM work_genres WHERE work_id=? AND genre=?').get(i.workId,gs[0].genre)));
+  assert.deepEqual(await audiobooksMethod(adapter,'genre',['does-not-exist',0]),{items:[],page:0,hasMore:false});
 });

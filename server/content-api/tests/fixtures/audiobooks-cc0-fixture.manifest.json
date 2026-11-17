@@ -8,19 +8,92 @@
     "series",
     "series_works",
     "work_authors",
+    "work_genres",
     "works"
   ],
+  "dramatized_signals": {
+    "link:graphicaudio": 0,
+    "narrator:full-cast": 1,
+    "publisher:graphicaudio": 1
+  },
   "fixture": true,
-  "format": "colosseum-audiobooks-cc0-v1",
+  "format": "colosseum-audiobooks-cc0-v2",
+  "narrator_picks": [
+    {
+      "english_recordings": 3,
+      "id": "skip-heitzig",
+      "name": "Skip Heitzig"
+    },
+    {
+      "english_recordings": 2,
+      "id": "dawn-blair",
+      "name": "Dawn Blair"
+    },
+    {
+      "english_recordings": 2,
+      "id": "paul-costanzo",
+      "name": "Paul Costanzo"
+    }
+  ],
   "rights": [
     "CC0-1.0"
   ],
-  "schema_version": 1,
+  "schema_version": 2,
+  "shelf_count_as_of": "2026-11-16",
+  "shelf_counts": {
+    "dramatized": 1,
+    "narrator:dawn-blair": 2,
+    "narrator:paul-costanzo": 2,
+    "narrator:skip-heitzig": 3,
+    "new-releases": 26
+  },
   "source_sha256": "57c75df6db30b7f4d1e1018ce3e055886898c6177e5d323d260b3f7ed3ced2ad",
   "source_snapshot_id": "data-v2026.11.16-82ea38c-30a9e1e",
-  "sqlite_bytes": 139264,
-  "sqlite_sha256": "cd70dbf61a3ea18ef7b39f0475047dd17d00cb298d9b090f898b0a3e0a5271f9",
+  "sqlite_bytes": 192512,
+  "sqlite_sha256": "a918d37c33447ddf06f5b15d2792026e1fb6f1d449d0891694724214ddb0a41e",
   "tables": {
+    "genres_summary": {
+      "columns": {
+        "covers_json": [
+          "recordings.cover_url",
+          "recordings.release_date",
+          "work_genres.genre"
+        ],
+        "genre": [
+          "work_genres.genre"
+        ],
+        "recording_count": [
+          "work_genres.work_id",
+          "recordings.id"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 10
+    },
+    "narrator_shelves": {
+      "columns": {
+        "english_recordings": [
+          "recording_narrators.recording_id",
+          "recordings.language"
+        ],
+        "name": [
+          "people.name"
+        ],
+        "person_id": [
+          "recording_narrators.person_id"
+        ],
+        "rank": [
+          "recording_narrators.person_id",
+          "recordings.language"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 3
+    },
     "people": {
       "columns": {
         "id": [
@@ -97,8 +170,26 @@
         "abridgement": [
           "recordings.abridged"
         ],
+        "added_at": [
+          "recordings.added_at"
+        ],
         "asin": [
           "recording_asins.asin"
+        ],
+        "cover_url": [
+          "recordings.cover_url"
+        ],
+        "dramatized": [
+          "recordings.publisher",
+          "recordings.link_graphicaudio",
+          "recording_narrators.person_id",
+          "people.name"
+        ],
+        "dramatized_signals": [
+          "recordings.publisher",
+          "recordings.link_graphicaudio",
+          "recording_narrators.person_id",
+          "people.name"
         ],
         "id": [
           "recordings.id"
@@ -108,6 +199,12 @@
         ],
         "language": [
           "recordings.language"
+        ],
+        "publisher": [
+          "recordings.publisher"
+        ],
+        "release_date": [
+          "recordings.release_date"
         ],
         "release_year": [
           "recordings.release_date"
@@ -177,6 +274,20 @@
         "CC0-1.0"
       ],
       "rows": 34
+    },
+    "work_genres": {
+      "columns": {
+        "genre": [
+          "work_genres.genre"
+        ],
+        "work_id": [
+          "work_genres.work_id"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 68
     },
     "work_series": {
       "columns": {

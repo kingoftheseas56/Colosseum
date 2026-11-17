@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "projection" / "audiobooks_publication.py"
 FIXTURE = ROOT / "tests" / "fixtures" / "audiobooks-cc0-fixture.sqlite"
 TABLES = ["works","people","series","work_authors","recordings",
-          "recording_narrators","work_series","recording_asins","recording_isbns","search_fts"]
+          "recording_narrators","work_series","recording_asins","recording_isbns",
+          "work_genres","narrator_shelves","genres_summary","search_fts"]
 
 class PublicationTests(unittest.TestCase):
     def test_sql_is_deterministic_and_replays_exact_rows(self):
