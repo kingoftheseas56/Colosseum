@@ -30,28 +30,15 @@ QString ownerRootPath(const QVariantList& roots, const QString& path)
     static const QString kShowSentinel = QStringLiteral("::show::");
     const int sentinelPos = path.indexOf(kShowSentinel);
     const QString searchPath = sentinelPos >= 0 ? path.left(sentinelPos) : path;
-    const QString target = normPath(searchPath);
-
-    QString bestRootPath;
-    int bestLen = -1;
-    for (const QVariant& r : roots) {
-        const QVariantMap m = r.toMap();
-        const bool confirmedOrSynthetic = m.value(QStringLiteral("confirmed")).toBool()
-            || m.value(QStringLiteral("synthetic")).toBool();
-        if (!confirmedOrSynthetic)
-            continue;
-        const QString rootPath = m.value(QStringLiteral("path")).toString();
-        const QString normRoot = normPath(rootPath);
-        if (normRoot.isEmpty())
-            continue;
-        if (target != normRoot && !target.startsWith(normRoot + QLatin1Char('/')))
-            continue;
-        if (normRoot.size() > bestLen) {
-            bestLen = normRoot.size();
-            bestRootPath = rootPath;
-        }
+    QStringList candidates;
+    for (const QVariant& value : roots) {
+        const auto configured = value.toMap();
+        if (configured.value(QStringLiteral("hidden")).toBool()) continue;
+        if (configured.value(QStringLiteral("confirmed")).toBool()
+            || configured.value(QStringLiteral("synthetic")).toBool())
+            candidates.append(configured.value(QStringLiteral("path")).toString());
     }
-    return bestRootPath;
+    return VaultKit::ownerRootForPath(candidates, searchPath);
 }
 
 bool ownerRootAway(VaultIndex* index, const QVariantList& roots, const QString& path)

@@ -29,6 +29,7 @@ class HomeServerService final : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList connections READ connections NOTIFY changed)
     Q_PROPERTY(QVariantList shelves READ shelves NOTIFY changed)
+    Q_PROPERTY(QVariantList serverTabs READ serverTabs NOTIFY changed)
     Q_PROPERTY(QVariantList plexServers READ plexServers NOTIFY changed)
     Q_PROPERTY(bool available READ available NOTIFY changed)
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
@@ -49,6 +50,8 @@ public:
 
     QVariantList connections() const;
     QVariantList shelves() const;
+    QVariantList serverTabs() const;
+    Q_INVOKABLE QVariantList serverLibraries(const QString &connectionId) const;
     Q_INVOKABLE QVariantList shelfTitles(const QString &connectionId) const;
     Q_INVOKABLE QVariantMap titleMetadata(const QVariantMap &identity) const;
     QVariantList plexServers() const;
@@ -102,6 +105,7 @@ private:
     void cancelRefreshes();
     void scheduleRefreshes();
     void drainRefreshQueue();
+    QString serverState(const QString &connectionId) const;
     void cancelBackend(QObject *backend, bool stop);
     void cancelPlaybacks(const QString &connectionId = QString());
     void reconcileProgress(const QString &connectionId, const QString &canonicalId = QString());
@@ -139,6 +143,9 @@ private:
     QJsonArray m_plexCandidates;
     QHash<QString, QString> m_connectionStatus;
     QHash<QString, QJsonArray> m_index;
+    QHash<QString, QJsonArray> m_libraries;
+    QSet<QString> m_manifestKnown;
+    QHash<QString, QString> m_connectionState;
     QHash<QString, int> m_serverMajor;
     QHash<QString, QPointer<HomeServerRefresh>> m_refreshes;
     QSet<QString> m_expired;

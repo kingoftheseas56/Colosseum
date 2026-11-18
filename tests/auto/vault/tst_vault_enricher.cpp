@@ -94,14 +94,14 @@ private:
         f.close();
     }
 
-    static bool writeEpub(const QString& path, bool withCover)
+    static bool writeEpub(const QString& path, bool withCover, bool withTitle = true)
     {
         const QByteArray container =
             "<?xml version=\"1.0\"?><container version=\"1.0\" "
             "xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\"><rootfiles>"
             "<rootfile full-path=\"OPS/content.opf\" "
             "media-type=\"application/oebps-package+xml\"/></rootfiles></container>";
-        const QByteArray opf = withCover
+        QByteArray opf = withCover
             ? QByteArray(
                 "<?xml version=\"1.0\"?><package xmlns=\"http://www.idpf.org/2007/opf\" "
                 "version=\"3.0\"><metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">"
@@ -114,6 +114,11 @@ private:
                 "version=\"3.0\"><metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">"
                 "<dc:title>Coverless Book Title</dc:title><dc:creator>Coverless Author</dc:creator>"
                 "</metadata><manifest/></package>");
+
+        if (!withTitle) {
+            opf.replace("<dc:title>Embedded Book Title</dc:title>", "");
+            opf.replace("<dc:title>Coverless Book Title</dc:title>", "");
+        }
 
         mz_zip_archive zip{};
         const QByteArray nativePath = QDir::toNativeSeparators(path).toUtf8();
@@ -144,6 +149,9 @@ private slots:
     void corrupt_epub_is_error_not_wedge();
     void non_epub_book_stays_filename_honest();
     void enrich_writes_epub_metadata_and_republishes_durably();
+    void titleless_epub_keeps_provenance_without_filename_title_evidence();
+    void shared_book_facts_repair_only_generated_epub_identities();
+    void real_epub_metadata_read_only_when_requested();
     void duration_cache_hit_miss_and_persist();
     void enrich_writes_comic_facts_to_index();
     // ── vault-admission slice: probe off the owner thread, commit on it ──
@@ -305,6 +313,7 @@ void tst_vault_enricher::enrich_writes_epub_metadata_and_republishes_durably()
     QCOMPARE(enriched.first().synopsis, QStringLiteral("Embedded synopsis from OPF."));
     QCOMPARE(enriched.first().coverRef, QStringLiteral("OPS/images/cover.png"));
     QCOMPARE(enriched.first().metadataSource, QStringLiteral("EPUB"));
+    QCOMPARE(enriched.first().embeddedTitle, QStringLiteral("Embedded Book Title"));
     QCOMPARE(enriched.first().format, QStringLiteral("epub"));
 
     VaultIndex::FileRow rescan = source; // scanner rows do not carry enrichment facts
@@ -315,6 +324,25 @@ void tst_vault_enricher::enrich_writes_epub_metadata_and_republishes_durably()
     QCOMPARE(durable.first().displayTitle, QStringLiteral("Embedded Book Title"));
     QCOMPARE(durable.first().synopsis, QStringLiteral("Embedded synopsis from OPF."));
     QCOMPARE(durable.first().metadataSource, QStringLiteral("EPUB"));
+    QCOMPARE(durable.first().embeddedTitle, QStringLiteral("Embedded Book Title"));
+}
+
+void tst_vault_enricher::titleless_epub_keeps_provenance_without_filename_title_evidence()
+{
+    QTemporaryDir tmp; const auto path = tmp.filePath(QStringLiteral("filename-only.epub"));
+    QVERIFY(writeEpub(path, true, false));
+    const auto facts = VaultEnricher::readBookFacts(path); QVERIFY(facts.ok); QVERIFY(facts.title.isEmpty());
+    VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite"))); VaultEnricher enricher(&index, tmp.path());
+    VaultIndex::FileRow row; row.id = QStringLiteral("vault:titleless"); row.rootPath = row.subtreePath = row.groupKey = tmp.path();
+    row.kind = QStringLiteral("book"); row.groupTitle = QStringLiteral("Filename fallback"); row.path = path;
+    row.realName = QStringLiteral("filename-only.epub"); row.displayTitle = QStringLiteral("Filename fallback");
+    row.size = QFileInfo(path).size(); row.mtimeMs = 77;
+    row.metadataSource = QStringLiteral("EPUB"); row.embeddedTitle = QStringLiteral("Stale evidence");
+    QVERIFY(index.publish({row})); enricher.enrich({row});
+    const auto enriched = index.rowsForKind(QStringLiteral("book")).first();
+    QCOMPARE(enriched.metadataSource, QStringLiteral("EPUB"));
+    QCOMPARE(enriched.displayTitle, QStringLiteral("Filename fallback")); QVERIFY(enriched.embeddedTitle.isEmpty());
+    QCOMPARE(enriched.author, QStringLiteral("Embedded Author")); QVERIFY(enriched.errorState.isEmpty());
 }
 
 void tst_vault_enricher::duration_cache_hit_miss_and_persist()
@@ -737,6 +765,49 @@ void tst_vault_enricher::enrich_adopts_decodable_poster_jpg_as_group_cover()
              QUrl::fromLocalFile(QFileInfo(poster).absoluteFilePath()).toString());
     QVERIFY(rows.first().coverRef.startsWith(QStringLiteral("file://")));
     QCOMPARE(rows.first().durationSec, 91.0); // cache hit carried through enrich()
+}
+
+void tst_vault_enricher::shared_book_facts_repair_only_generated_epub_identities()
+{
+    VaultIndex::FileRow row;
+    row.id = "vault:second"; row.displayTitle = "A filename";
+    row.identityId = "epub:vault:first"; row.identityTitle = "The wrong sibling";
+    row.identitySource = "EPUB";
+    VaultEnricher::BookFacts facts; facts.ok = true; facts.title = "Actual embedded title";
+    VaultEnricher::applyBookFacts(row, facts);
+    QCOMPARE(row.embeddedTitle, facts.title);
+    QCOMPARE(row.identityId, QStringLiteral("epub:vault:second"));
+    QCOMPARE(row.identityTitle, facts.title);
+    facts.title.clear();
+    VaultEnricher::applyBookFacts(row, facts);
+    QVERIFY(row.embeddedTitle.isEmpty()); QVERIFY(row.identityId.isEmpty());
+    QCOMPARE(row.metadataSource, QStringLiteral("EPUB"));
+    row.identityId = "catalogue:manual"; row.identityTitle = "Deliberate manual match";
+    row.identitySource = "BOOKS";
+    VaultEnricher::applyBookFacts(row, facts);
+    QCOMPARE(row.identityId, QStringLiteral("catalogue:manual"));
+    QCOMPARE(row.identityTitle, QStringLiteral("Deliberate manual match"));
+    row.identitySuppressed = true;
+    facts.title = "Embedded title";
+    VaultEnricher::applyBookFacts(row, facts);
+    QVERIFY(row.identitySuppressed);
+    QCOMPARE(row.identityId, QStringLiteral("catalogue:manual"));
+}
+
+void tst_vault_enricher::real_epub_metadata_read_only_when_requested()
+{
+    const auto files = qEnvironmentVariable("COLOSSEUM_VAULT_REAL_BOOK_FILES").split('|', Qt::SkipEmptyParts);
+    if (files.isEmpty()) QSKIP("Optional read-only EPUB metadata check needs explicit file paths");
+    for (const auto& path : files) {
+        const auto facts = VaultEnricher::readBookFacts(path);
+        QVERIFY2(facts.ok, qPrintable(facts.errorDetail));
+        QVERIFY(!facts.title.trimmed().isEmpty());
+        VaultIndex::FileRow row; row.kind = "book"; row.path = path; row.displayTitle = "Filename fallback";
+        VaultEnricher::applyBookFacts(row, facts);
+        QCOMPARE(row.embeddedTitle, facts.title.trimmed());
+        QCOMPARE(row.displayTitle, row.embeddedTitle);
+        qInfo().noquote() << "real_epub" << row.embeddedTitle << "author=" << row.author;
+    }
 }
 
 QTEST_GUILESS_MAIN(tst_vault_enricher)

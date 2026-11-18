@@ -45,6 +45,51 @@ class StoreTest : public QObject {
             {"token", "secret-token"}};
   }
 private slots:
+  void catalogManifestRoundTripAndLegacyDistinction() {
+    QTemporaryDir dir; auto secrets = std::make_shared<FakeSecrets>(); HomeServerStore store(secrets);
+    QVERIFY(store.activate("a", dir.path())); const auto id = store.add(metadata(), "NATIVE-SECRET"); QVERIFY(!id.isEmpty());
+    const QJsonArray items{QJsonObject{{"id","shared"},{"token","DROP-ITEM-SECRET"}}};
+    QVERIFY(store.replaceItems(id, items));
+    QVERIFY(!store.catalog(id).value("manifestKnown").toBool());
+    const QJsonArray libraries{
+      QJsonObject{{"id","z"},{"name","Zulu"},{"kind","mixed"},{"itemIds",QJsonArray{"shared"}},{"token","DROP-LIBRARY-SECRET"},{"coverUrl","https://private/?token=DROP-URL"}},
+      QJsonObject{{"id","empty"},{"name","Empty library"},{"kind","series"},{"itemIds",QJsonArray{}}},
+      QJsonObject{{"id","a"},{"name","Alpha"},{"kind","movie"},{"itemIds",QJsonArray{"shared"}}}};
+    QVERIFY(store.replaceCatalog(id, libraries, items));
+    HomeServerStore restarted(secrets); QVERIFY(restarted.activate("a", dir.path()));
+    const auto snapshot = restarted.catalog(id); QVERIFY(snapshot.value("manifestKnown").toBool());
+    const auto manifest = snapshot.value("libraries").toArray(); QCOMPARE(manifest.size(),3);
+    QCOMPARE(manifest.at(0).toObject().value("name").toString(),QString("Zulu"));
+    QCOMPARE(manifest.at(1).toObject().value("name").toString(),QString("Empty library"));
+    QVERIFY(manifest.at(1).toObject().value("itemIds").toArray().isEmpty());
+    QCOMPARE(manifest.at(2).toObject().value("itemIds").toArray(),QJsonArray{"shared"});
+    QFile disk(dir.filePath("home-servers/index-"+id+".json")); QVERIFY(disk.open(QIODevice::ReadOnly));
+    const auto bytes = disk.readAll(); disk.close(); QVERIFY(!bytes.contains("SECRET")); QVERIFY(!bytes.contains("DROP-URL"));
+    QVERIFY(!restarted.replaceCatalog(id, QJsonArray{QJsonObject{{"id","bad"},{"name","Bad"},{"kind","movie"},{"itemIds",QJsonArray{"missing"}}}}, items));
+    QCOMPARE(restarted.catalog(id),snapshot);
+    QVERIFY(!restarted.replaceCatalog(id, QJsonArray{libraries.first(),libraries.first()}, items));
+    QCOMPARE(restarted.catalog(id),snapshot);
+    QVERIFY(disk.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    auto corrupt=QJsonDocument::fromJson(bytes).object(); corrupt.insert("libraries",QJsonArray{QJsonObject{{"id","bad"},{"name","Bad"},{"kind","movie"},{"itemIds",QJsonArray{"missing"}}}});
+    disk.write(QJsonDocument(corrupt).toJson()); disk.close();
+    QVERIFY(restarted.catalog(id).isEmpty()); QVERIFY(restarted.items(id).isEmpty());
+    QVERIFY(restarted.replaceCatalog(id, {}, {}));
+    QVERIFY(restarted.catalog(id).value("manifestKnown").toBool());
+    QVERIFY(restarted.catalog(id).value("libraries").toArray().isEmpty());
+    QVERIFY(restarted.replaceItems(id, {}));
+    QVERIFY(!restarted.catalog(id).value("manifestKnown").toBool());
+  }
+  void catalogAtomicFailureKeepsManifestAndItemsTogether() {
+    QTemporaryDir dir; auto secrets=std::make_shared<FakeSecrets>(); HomeServerStore store(secrets);
+    QVERIFY(store.activate("a",dir.path())); const auto id=store.add(metadata(),"token"); QVERIFY(!id.isEmpty());
+    const QJsonArray libraries{QJsonObject{{"id","old"},{"name","Old empty"},{"kind","movie"},{"itemIds",QJsonArray{}}}};
+    QVERIFY(store.replaceCatalog(id,libraries,{}));
+    const auto path=dir.filePath("home-servers/index-"+id+".json");
+    QVERIFY(QFile::rename(path,path+".saved")); QVERIFY(QDir().mkdir(path));
+    QVERIFY(!store.replaceCatalog(id,{},{})); QVERIFY(QDir().rmdir(path)); QVERIFY(QFile::rename(path+".saved",path));
+    QCOMPARE(store.catalog(id).value("libraries").toArray(),libraries);
+    store.deactivate(); QVERIFY(store.catalog(id).isEmpty());
+  }
   void secureRoundTrip() {
     QTemporaryDir dir;
     auto secrets = std::make_shared<FakeSecrets>();

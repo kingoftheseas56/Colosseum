@@ -229,6 +229,62 @@ QVariantMap VaultConfig::kindOverrides() const
     return m_doc.value(QStringLiteral("kinds")).toObject().toVariantMap();
 }
 
+QString VaultConfig::extrasParent(const QString& fileId) const
+{
+    return m_doc.value(QStringLiteral("extrasParents")).toObject().value(fileId).toString();
+}
+
+static QString declinedKey() { return QStringLiteral("extrasDeclined"); }
+
+bool VaultConfig::extrasDeclined(const QString& fileId) const
+{
+    return m_doc.value(declinedKey()).toObject().value(fileId).toBool();
+}
+
+bool VaultConfig::declineExtras(const QStringList& fileIds)
+{
+    if (fileIds.isEmpty()) return false;
+    auto next = m_doc;
+    auto parents = next.value(QStringLiteral("extrasParents")).toObject();
+    auto declined = next.value(declinedKey()).toObject();
+    for (const auto& id : fileIds) {
+        if (id.isEmpty()) return false;
+        parents.remove(id);
+        declined.insert(id, true);
+    }
+    next.insert(QStringLiteral("extrasParents"), parents);
+    next.insert(declinedKey(), declined);
+    if (!VaultStoreIo::save(m_dir, QStringLiteral("config.json"), next)) return false;
+    m_doc = next;
+    ++m_revision;
+    emit changed();
+    return true;
+}
+
+bool VaultConfig::setExtrasParent(const QStringList& fileIds, const QString& parentIdentityId)
+{
+    if (fileIds.isEmpty()) return false;
+    auto next = m_doc;
+    auto parents = next.value(QStringLiteral("extrasParents")).toObject();
+    auto declined = next.value(declinedKey()).toObject();
+    for (const auto& id : fileIds) {
+        if (id.isEmpty()) return false;
+        if (parentIdentityId.isEmpty()) parents.remove(id);
+        else {
+            parents.insert(id, parentIdentityId);
+            declined.remove(id); // an explicit attach overrides an earlier decline
+        }
+    }
+    next.insert(QStringLiteral("extrasParents"), parents);
+    if (declined.isEmpty()) next.remove(declinedKey());
+    else next.insert(declinedKey(), declined);
+    if (!VaultStoreIo::save(m_dir, QStringLiteral("config.json"), next)) return false;
+    m_doc = next;
+    ++m_revision;
+    emit changed();
+    return true;
+}
+
 QStringList VaultConfig::scanIgnore() const
 {
     QStringList out;
@@ -264,6 +320,10 @@ void VaultConfig::setHidden(const QString& fileId, bool hidden)
             if (!hidden) {
                 a.removeAt(i);
                 m_doc.insert(QStringLiteral("hidden"), a);
+                // An explicit unhide is also a refusal of automatic junk filing.
+                auto declined = m_doc.value(declinedKey()).toObject();
+                declined.insert(fileId, true);
+                m_doc.insert(declinedKey(), declined);
                 persist();
             }
             return;

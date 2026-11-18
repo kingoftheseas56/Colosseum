@@ -73,6 +73,12 @@ bool readableLess(const QVariant &a,const QVariant &b,const QString &field) {
     const int comparison=QString::localeAwareCompare(left.value(field).toString().toCaseFolded(),right.value(field).toString().toCaseFolded());
     return comparison?comparison<0:left.value("id").toString()<right.value("id").toString();
 }
+QString publicPoster(const QJsonObject &item) {
+    static const QRegularExpression validImdb("\\Att[0-9]+\\z");
+    const auto imdb=item.value("identity").toObject().value("imdbId").toString();
+    return validImdb.match(imdb).hasMatch()
+        ? QStringLiteral("https://live.metahub.space/poster/small/%1/img").arg(imdb) : QString();
+}
 QVariantList publicTitles(const QList<HeldTitle> &titles) {
     QVariantList out;
     QSet<QString> seen;
@@ -83,9 +89,10 @@ QVariantList publicTitles(const QList<HeldTitle> &titles) {
         seen.insert(id);
         const auto kind=item.value("kind").toString();
         const auto title=readableTitle(item,id);
-        QVariantMap identity{{"world","Theatre"},{"identityId",id},{"type",kind},{"title",title},{"coverUrl",QString()}};
+        const auto cover=publicPoster(item);
+        QVariantMap identity{{"world","Theatre"},{"identityId",id},{"type",kind},{"title",title},{"coverUrl",cover}};
         publicIds(item.value("identity").toObject(),identity);
-        out.append(QVariantMap{{"id",id},{"kind",kind},{"title",title},{"year",item.value("year").toInt()},{"coverUrl",QString()},{"identity",identity}});
+        out.append(QVariantMap{{"id",id},{"kind",kind},{"title",title},{"year",item.value("year").toInt()},{"coverUrl",cover},{"identity",identity}});
     }
     std::sort(out.begin(),out.end(),[](const auto &a,const auto &b){return readableLess(a,b,"title");});
     return out;
@@ -93,6 +100,43 @@ QVariantList publicTitles(const QList<HeldTitle> &titles) {
 HomeServerProgress::IdentityAliases aliasesFor(const std::shared_ptr<HomeServerProgressOwner> &progress) {
     return progress?HomeServerProgress::identityAliases(progress->entries()):HomeServerProgress::IdentityAliases{};
 }
+}
+
+QVariantList HomeServerService::serverTabs() const {
+    QVariantList rows;
+    if(!m_store.available()) return rows;
+    const auto aliases=aliasesFor(m_progress);
+    for(const auto &value:m_store.connections()) {
+        const auto connection=value.toObject();
+        const auto id=connection.value("id").toString();
+        const auto state=serverState(id);
+        rows.append(QVariantMap{{"id",id},{"name",connection.value("name").toString()},
+            {"provider",connection.value("provider").toString()},{"enabled",connection.value("enabled").toBool()},
+            {"state",state},{"dimmed",state!="ready"},{"manifestKnown",m_manifestKnown.contains(id)},
+            {"libraryCount",int(m_libraries.value(id).size())},
+            {"titleCount",int(publicTitles(heldTitles(m_index.value(id),aliases)).size())}});
+    }
+    return rows;
+}
+QVariantList HomeServerService::serverLibraries(const QString &id) const {
+    QVariantList rows;
+    if(m_store.connection(id).isEmpty() || !m_manifestKnown.contains(id)) return rows;
+    const auto state=serverState(id);
+    const auto aliases=aliasesFor(m_progress);
+    QHash<QString,QJsonObject> items;
+    for(const auto &value:m_index.value(id)) items.insert(value.toObject().value("id").toString(),value.toObject());
+    int position=0;
+    for(const auto &value:m_libraries.value(id)) {
+        const auto library=value.toObject();
+        QJsonArray held;
+        const auto members=library.value("itemIds").toArray();
+        for(const auto &member:members) if(items.contains(member.toString())) held.append(items.value(member.toString()));
+        const auto titles=publicTitles(heldTitles(held,aliases));
+        rows.append(QVariantMap{{"id",library.value("id").toString()},{"name",library.value("name").toString()},
+            {"kind",library.value("kind").toString()},{"position",position++},{"itemCount",int(members.size())},
+            {"titleCount",int(titles.size())},{"titles",titles},{"state",state},{"dimmed",state!="ready"}});
+    }
+    return rows;
 }
 
 QVariantList HomeServerService::shelves() const {

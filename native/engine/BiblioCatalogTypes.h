@@ -52,6 +52,39 @@ struct BiblioWork {
     QList<BiblioEdition> editions;
 };
 
+// Work identity evidence, not an assertion about a local file's edition/format.
+// Kept separate from discovery pages: unavailable/read failure must never look
+// like a successful exact lookup with no candidates.
+struct BiblioIdentitySource {
+    QString field;
+    QString source;
+    QString sourceId;
+    QDateTime observedAt;
+};
+
+struct BiblioIdentityCandidate {
+    QString canonicalId;
+    QString title;
+    QString author;
+    QString coverUrl;
+    QList<BiblioIdentitySource> sources;
+};
+
+struct BiblioIdentityLookup {
+    enum class Status { Available, Unavailable, ReadError };
+    Status status = Status::Unavailable;
+    qint64 snapshotId = 0;
+    QList<BiblioIdentityCandidate> candidates; // distinct canonical works only
+    QString warning;
+};
+
+// Shared by filename and catalogue identity gates, before either discards
+// title syntax. Unknown parentheticals remain conservative refusals too.
+inline constexpr char kBiblioIdentityTitleQualifier[] =
+    "(?i)[()\\[\\]]|\\b(?:abridged|unabridged|illustrated|anthology|anthologies|"
+    "collection|collected|omnibus|bundle|edition|adaptation|boxed[ -]+set|"
+    "box[ -]+set|graphic[ -]+novel|study[ -]+guide|summary)\\b";
+
 // A dated demand reading for one work, captured daily. Trending diffs two of
 // these (>= 6 days apart) to measure honest seven-day momentum.
 struct BiblioRankSnapshot {

@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QSet>
 #include <QUrl>
@@ -177,6 +178,36 @@ bool cleanItems(const QJsonArray &rows, QJsonArray &out) {
     out.append(item);
   }
   return true;
+}
+bool cleanLibraries(const QJsonArray &rows, const QJsonArray &items,
+                    QJsonArray &out) {
+  if (rows.size() > MaxItems) return false;
+  QSet<QString> itemIds, libraryIds, covered;
+  for (const auto &value : items) itemIds.insert(value.toObject().value("id").toString());
+  const QRegularExpression controls(QStringLiteral("[\\x00-\\x1f\\x7f]"));
+  for (const auto &value : rows) {
+    if (!value.isObject()) return false;
+    const auto in = value.toObject();
+    const auto id = in.value("id").toString();
+    const auto name = in.value("name");
+    const auto kind = in.value("kind").toString();
+    if (id.isEmpty() || id.size() > 1024 || controls.match(id).hasMatch() ||
+        libraryIds.contains(id) || !name.isString() || name.toString().size() > 4096 ||
+        !QStringList{"movie", "series", "mixed"}.contains(kind) ||
+        !in.value("itemIds").isArray()) return false;
+    libraryIds.insert(id);
+    QSet<QString> seen;
+    QJsonArray members;
+    const auto source = in.value("itemIds").toArray();
+    if (source.size() > MaxItems) return false;
+    for (const auto &member : source) {
+      if (!member.isString() || !itemIds.contains(member.toString()) ||
+          seen.contains(member.toString())) return false;
+      seen.insert(member.toString()); covered.insert(member.toString()); members.append(member);
+    }
+    out.append(QJsonObject{{"id", id}, {"name", name}, {"kind", kind}, {"itemIds", members}});
+  }
+  return covered.size() == itemIds.size();
 }
 } // namespace
 HomeServerStore::HomeServerStore(std::shared_ptr<AccountSecretBackend> secrets)
@@ -376,7 +407,7 @@ bool HomeServerStore::remove(QString id) {
   }
   return true;
 }
-QJsonArray HomeServerStore::items(QString id) const {
+QJsonObject HomeServerStore::catalog(QString id) const {
   if (connection(id).isEmpty())
     return {};
   const auto path = indexPath(id);
@@ -393,7 +424,20 @@ QJsonArray HomeServerStore::items(QString id) const {
     m_error = "Saved home-server index is invalid.";
     return {};
   }
-  return clean;
+  QJsonObject result{{"items", clean}, {"manifestKnown", envelope.contains("libraries")}};
+  if (envelope.contains("libraries")) {
+    QJsonArray libraries;
+    if (!envelope.value("libraries").isArray() ||
+        !cleanLibraries(envelope.value("libraries").toArray(), clean, libraries)) {
+      m_error = "Saved home-server library manifest is invalid.";
+      return {};
+    }
+    result.insert("libraries", libraries);
+  }
+  return result;
+}
+QJsonArray HomeServerStore::items(QString id) const {
+  return catalog(id).value("items").toArray();
 }
 bool HomeServerStore::replaceItems(QString id, QJsonArray rows) {
   if (connection(id).isEmpty()) {
@@ -410,6 +454,24 @@ bool HomeServerStore::replaceItems(QString id, QJsonArray rows) {
                                  {"connectionId", id},
                                  {"items", clean}})) {
     m_error = "Could not save home-server index.";
+    return false;
+  }
+  m_error.clear();
+  return true;
+}
+bool HomeServerStore::replaceCatalog(QString id, QJsonArray libraries, QJsonArray rows) {
+  if (connection(id).isEmpty()) {
+    m_error = "Unknown home-server connection.";
+    return false;
+  }
+  QJsonArray clean, manifest;
+  if (!cleanItems(rows, clean) || !cleanLibraries(libraries, clean, manifest)) {
+    m_error = "Home-server catalog is invalid.";
+    return false;
+  }
+  if (!writeJson(indexPath(id), {{"version", 1}, {"profileId", m_profileId},
+                               {"connectionId", id}, {"items", clean}, {"libraries", manifest}})) {
+    m_error = "Could not save home-server catalog.";
     return false;
   }
   m_error.clear();

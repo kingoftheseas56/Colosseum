@@ -277,13 +277,20 @@ QVariantList matchingSources(QJsonArray items,QVariantMap requested,QJsonObject 
 
 HomeServerRefresh::HomeServerRefresh(HomeServerClient *client,QObject *parent):QObject(parent),m_client(client) {}
 HomeServerRefresh::~HomeServerRefresh() { cancel(); }
-void HomeServerRefresh::cancel() { m_finished=true; m_callback={}; m_items={}; m_libraries={}; m_buffered.clear(); m_ids.clear(); m_token.clear(); }
+void HomeServerRefresh::cancel() { m_finished=true; m_callback={}; m_items={}; m_libraries={}; m_buffered.clear(); m_libraryItems.clear(); m_ids.clear(); m_token.clear(); }
 void HomeServerRefresh::finish(QString error,bool expired) {
     if(m_finished) return;
     m_finished=true;
     Result result; result.error=error; result.expired=expired; result.serverMajor=m_major;
-    if(error.isEmpty()) result.items=HomeServerCatalog::inheritSeriesIdentity(m_items);
-    m_items={}; m_libraries={}; m_buffered.clear(); m_ids.clear(); m_token.clear();
+    if(error.isEmpty()) {
+        result.items=HomeServerCatalog::inheritSeriesIdentity(m_items);
+        for(const auto &value:m_libraries) {
+            auto library=value.toObject();
+            library.insert("itemIds",m_libraryItems.value(library.value("id").toString()));
+            result.libraries.append(library);
+        }
+    }
+    m_items={}; m_libraries={}; m_buffered.clear(); m_libraryItems.clear(); m_ids.clear(); m_token.clear();
     auto callback=std::move(m_callback); if(callback) callback(std::move(result));
 }
 void HomeServerRefresh::start(QJsonObject connection,QString token,Callback callback) {
@@ -334,7 +341,10 @@ void HomeServerRefresh::libraries() {
             const auto id=identifier(object.value(provider=="plex"?"key":"Id"));
             const auto name=object.value(provider=="plex"?"title":"Name");
             if(id.isEmpty() || ids.contains(id) || (mixed && (!name.isString() || name.toString().trimmed().isEmpty()))) { finish("Invalid or repeated library identifier"); return; }
-            ids.insert(id); m_libraries.append(QJsonObject{{"id",id},{"name",text(name)},{"kind",movie?"movie":show?"series":"mixed"}});
+            const QJsonObject library{{"id",id},{"name",text(name)},{"kind",movie?"movie":show?"series":"mixed"}};
+            m_snapshotBytes+=QJsonDocument(library).toJson(QJsonDocument::Compact).size();
+            if(m_snapshotBytes>64*1024*1024) { finish("Server catalog snapshot size limit exceeded"); return; }
+            ids.insert(id); m_libraries.append(library);
         }
         if(m_libraries.isEmpty()) finish(); else page();
     });
@@ -384,6 +394,9 @@ void HomeServerRefresh::consumePage(const QJsonObject &body) {
         const auto id=item.value("id").toString();
         if(id.isEmpty() || m_ids.contains(id)) { finish("Invalid or repeated catalog item identifier"); return; }
         m_ids.insert(id);
+        m_snapshotBytes+=id.toUtf8().size()+3;
+        if(m_snapshotBytes>64*1024*1024) { finish("Server catalog snapshot size limit exceeded"); return; }
+        m_libraryItems[library.value("id").toString()].append(id);
         if(m_buffered.contains(id)) {
             const auto previous=m_buffered.value(id);
             auto versions=[](const QJsonObject &object) { QJsonArray ids; for(const auto &v:object.value("versions").toArray()) ids.append(v.toObject().value("id")); return ids; };

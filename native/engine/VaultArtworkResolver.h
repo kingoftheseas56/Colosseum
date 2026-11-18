@@ -59,16 +59,19 @@ public:
     // isn't cached yet kicks that producer's async fetch/grab and falls through to
     // the next rung; the result lands later via artResolved(rowKey).
     QString resolve(const RowFacts& facts);
+    void clearPendingRows();
 
 Q_SIGNALS:
     // Fired once a rung's async fetch (poster or thumb) lands a NEW local file for a
     // row previously resolved with `rowKey` — the caller re-resolves that one row to
     // pick up the fresh art and repaint just that tile.
     void artResolved(const QString& rowKey);
+    void artReady(const QString& rowKey, const QString& coverUrl);
 
 private:
     void onPosterReady(const QString& identityId, const QString& filePath);
     void onThumbReady(const QString& key, const QString& filePath);
+    void resolvePendingRows(const QSet<QString>& rowKeys);
 
     VaultThumbnailer* m_thumbnailer = nullptr;
     VaultPosterFetcher* m_posterFetcher = nullptr;
@@ -78,4 +81,6 @@ private:
     // Rung 4 kicked a thumb grab for this VaultCacheKey (path,size,mtimeMs) on behalf
     // of these rowKeys.
     QHash<QString, QSet<QString>> m_pendingThumbRowKeys;
+    // Current subscriptions only: prevents a late job from overwriting a new local pick.
+    QHash<QString, RowFacts> m_pendingRows;
 };

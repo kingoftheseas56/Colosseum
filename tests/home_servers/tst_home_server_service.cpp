@@ -121,6 +121,59 @@ class HomeServerServiceTest : public QObject {
         return id;
     }
 private slots:
+    void serverTabsRefreshStatesKeepCachedLibrariesOnErrorAndExpiry() {
+        QTemporaryDir dir; ServiceHttp server; server.delayMs=20;
+        int status=200;
+        server.response=[&](const QByteArray &request) {
+            server.status=status;
+            if(request.contains("/UserViews?")) return QByteArray("{\"Items\":[{\"Id\":\"films\",\"Name\":\"Films\",\"CollectionType\":\"movies\"},{\"Id\":\"empty\",\"Name\":\"Empty library\",\"CollectionType\":\"tvshows\"}]}");
+            if(request.toLower().contains("parentid=empty")) return QByteArray("{\"Items\":[],\"TotalRecordCount\":0,\"StartIndex\":0}");
+            return catalogResponse(request);
+        };
+        auto secrets=std::make_shared<ServiceSecrets>(); const auto root=dir.filePath("a");
+        const auto id=seedCopy(secrets,root,server.origin()); QVERIFY(!id.isEmpty());
+        HomeServerService service({secrets,dir.filePath("installation"),QUrl("https://plex.tv"),1500,false}); service.activate("a",root);
+        QCOMPARE(service.serverTabs().first().toMap().value("state").toString(),QString("cached"));
+        QVERIFY(!service.serverTabs().first().toMap().value("manifestKnown").toBool());
+        service.refresh(id); QCOMPARE(service.serverTabs().first().toMap().value("state").toString(),QString("refreshing"));
+        QTRY_COMPARE(service.serverTabs().first().toMap().value("state").toString(),QString("ready"));
+        const auto libraries=service.serverLibraries(id); QCOMPARE(libraries.size(),2);
+        QCOMPARE(libraries.at(1).toMap().value("name").toString(),QString("Empty library"));
+        QCOMPARE(libraries.at(1).toMap().value("titleCount").toInt(),0);
+        QVERIFY(!service.serverTabs().first().toMap().value("dimmed").toBool());
+        HomeServerStore saved(secrets); QVERIFY(saved.activate("a",root)); const auto snapshot=saved.catalog(id);
+        status=503; service.refresh(id);
+        QTRY_COMPARE(service.serverTabs().first().toMap().value("state").toString(),QString("unavailable"));
+        QCOMPARE(service.serverLibraries(id).size(),2); QCOMPARE(saved.catalog(id),snapshot);
+        status=401; service.refresh(id);
+        QTRY_COMPARE(service.serverTabs().first().toMap().value("state").toString(),QString("needsReconnect"));
+        QCOMPARE(service.serverLibraries(id).size(),2); QCOMPARE(saved.catalog(id),snapshot);
+        QVERIFY(service.shelves().isEmpty()); QVERIFY(service.shelfTitles(id).isEmpty());
+        QVERIFY(service.sources({{"id","tt1234567"},{"type","movie"}}).isEmpty());
+        const auto requests=server.requests.size(); service.refresh(id); QTest::qWait(50); QCOMPARE(server.requests.size(),requests);
+        HomeServerService restarted({secrets,dir.filePath("second-installation"),QUrl("https://plex.tv"),1500,false}); restarted.activate("a",root);
+        QCOMPARE(restarted.serverTabs().first().toMap().value("state").toString(),QString("cached"));
+        QCOMPARE(restarted.serverLibraries(id).size(),2);
+        service.deactivate(); QVERIFY(service.serverTabs().isEmpty()); QVERIFY(service.serverLibraries(id).isEmpty());
+    }
+    void serverTabsPendingAndLateRefreshAreProfileFenced() {
+        QTemporaryDir dir; ServiceHttp server; server.delayMs=150;
+        server.response=[](const QByteArray &request){return catalogResponse(request);};
+        auto secrets=std::make_shared<ServiceSecrets>(); const auto root=dir.filePath("a"); QVERIFY(QDir().mkpath(root));
+        HomeServerStore saved(secrets); QVERIFY(saved.activate("a",root)); QStringList ids;
+        const QJsonArray libraries{QJsonObject{{"id","empty"},{"name","Remembered empty"},{"kind","movie"},{"itemIds",QJsonArray{}}}};
+        for(int i=0;i<4;++i) {
+            const auto id=saved.add({{"provider","jellyfin"},{"name",QString::number(i)},{"origin",server.origin().toString()},{"userId","user"}},"REPLAY");
+            QVERIFY(!id.isEmpty()); ids.append(id); QVERIFY(saved.replaceCatalog(id,libraries,{}));
+        }
+        HomeServerService service({secrets,dir.filePath("installation"),QUrl("https://plex.tv"),1500,false}); service.activate("a",root);
+        for(const auto &id:ids) service.refresh(id);
+        const auto tabs=service.serverTabs(); QCOMPARE(tabs.size(),4);
+        for(int i=0;i<3;++i) QCOMPARE(tabs.at(i).toMap().value("state").toString(),QString("refreshing"));
+        QCOMPARE(tabs.at(3).toMap().value("state").toString(),QString("pending"));
+        QTRY_VERIFY(!server.requests.isEmpty()); service.activate("b",dir.filePath("b")); QTest::qWait(250);
+        QVERIFY(service.serverTabs().isEmpty()); for(const auto &id:ids) {QVERIFY(service.serverLibraries(id).isEmpty()); QCOMPARE(saved.catalog(id).value("libraries").toArray(),libraries);}
+    }
     void importedContinueUsesCurrentConnectionAndQueuedImportIsProfileFenced() {
         QTemporaryDir dir; ServiceHttp server; auto secrets=std::make_shared<ServiceSecrets>();
         const auto id=seedCopy(secrets,dir.filePath("a"),server.origin()); QVERIFY(!id.isEmpty());

@@ -335,28 +335,19 @@ Window {
         }
         return null
     }
-    function openStremioSyncPanel() {
-        stremioPanel.shown = true
+    function openStremioSyncPanel(nuvio) {
+        stremioPanel.openForProvider(nuvio === true ? "nuvio" : "stremio", win.activeFocusItem)
     }
     function openTheatreSyncFromAccount(invoker) {
-        stremioPanel.accountInvoker = invoker || win.activeFocusItem
-        win.openStremioSyncPanel()
+        win.externalServiceCardsPending = true
+        win.openSyncCenterPage()
+        if (syncCenterLayer.item && syncCenterLayer.item.openExternalServices) {
+            syncCenterLayer.item.openExternalServices()
+            win.externalServiceCardsPending = false
+        }
     }
     function closeStremioSyncPanel() {
         stremioPanel.shown = false
-        const invoker = stremioPanel.accountInvoker
-        stremioPanel.accountInvoker = null
-        if (invoker && invoker.visible && invoker.enabled) {
-            Qt.callLater(function() { invoker.forceActiveFocus() })
-            return
-        }
-        if (syncCenterLayer.active && syncCenterLayer.item) {
-            Qt.callLater(function() { syncCenterLayer.item.focusMainSyncButton() })
-            return
-        }
-        const theatreWorld = win.theatreWorldItem()
-        if (theatreWorld)
-            Qt.callLater(function() { theatreWorld.focusStremioButton() })
     }
     function requestTheatreRemoval(entry) {
         theatreRemoval.entry = entry
@@ -1726,7 +1717,8 @@ Window {
             win.openWorld("Theatre")
             win.openTheatreSeries({ id: sid.replace(/^imdb:/, ""), type: identity.type === "series" ? "series" : "movie",
                                     tmdbId: identity.tmdbId || 0, tvdbId: identity.tvdbId || 0,
-                                    title: identity.title || "", cover: identity.coverUrl || "" })
+                                    title: identity.title || "", cover: identity.coverUrl || "",
+                                    resumeSources: identity.resumeSources || null })
         } else if (identity.world === "Biblio") {
             win.openWorld("Biblio")
             win.openBook({ id: sid, title: identity.title || "", synopsis: identity.synopsis || "" })
@@ -2723,6 +2715,7 @@ Window {
     // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
     function openSyncCenterPage() {
         if (win.guardNamedCollectionsNavigation(function() { win.openSyncCenterPage() })) return
+        const openingServices = win.vaultServerConnectionsPending || win.externalServiceCardsPending
 
         win.parkFeria(true)
         win.bookRouteGeneration += 1
@@ -2733,8 +2726,18 @@ Window {
         historyStatsLayer.active = false
         syncCenterLayer.active = true
         taskbar.open = false
-        if (syncCenterLayer.item && syncCenterLayer.item.takeKeyboardFocus)
+        if (!openingServices && syncCenterLayer.item && syncCenterLayer.item.takeKeyboardFocus)
             Qt.callLater(syncCenterLayer.item.takeKeyboardFocus)
+    }
+    property bool vaultServerConnectionsPending: false
+    property bool externalServiceCardsPending: false
+    function openVaultServerConnections() {
+        vaultServerConnectionsPending = true
+        win.openSyncCenterPage()
+        if (syncCenterLayer.item && syncCenterLayer.item.openHomeServers) {
+            syncCenterLayer.item.openHomeServers()
+            vaultServerConnectionsPending = false
+        }
     }
     function closeSyncCenterPage() {
         syncCenterLayer.active = false
@@ -2836,26 +2839,10 @@ Window {
     }
     function closeVaultPage() { vaultLayer.active = false; win.restoreNamedCollectionsReturn() }
 
-    // Esc inside the Vault, mirroring VaultPage's own top-left Back law: sheet, then folder
-    // detail, then one browse level up (or out of the Hidden shelf), and only leave once
-    // there is nowhere left to ascend.
-    // The sheet must be handled HERE, not by its own Keys.onPressed: the window-context
-    // Escape Shortcut above is matched before the key reaches the focus item, and nothing in
-    // the Vault accepts Keys.onShortcutOverride, so an inner handler can never win Escape
-    // back. Backspace is not a Shortcut, so inner ascend handlers still see it.
+    // One Back law: transient sheet/search, then Home, then leave Vault.
     function vaultBack() {
-        var page = vaultLayer.item
-        if (!page) { win.closeVaultPage(); return }
-        if (page.detailSheetVisible) { page.closeDetailSheet(); return }
-        // Vault ux uplift S14: Escape leaves the search pseudo-level first — it is the most
-        // transient view state (the field itself can never see the key: the window-context
-        // Shortcut is matched before the focus item, the S2 lesson).
-        if (page.searchViewActive) { page.leaveSearchView(); return }
-        if (page.hiddenViewActive || (page.crumbStack && page.crumbStack.length > 1)) {
-            page.ascendBrowse()
-            return
-        }
-        win.closeVaultPage()
+        if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack()
+        else win.closeVaultPage()
     }
 
     Loader {
@@ -5726,6 +5713,7 @@ Window {
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.playRequested.connect(win.openMovieSession)
             item.playLocalRequested.connect(win.openLocalVideoSession)
+            item.localMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
             item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
@@ -5756,7 +5744,6 @@ Window {
     StremioSyncPanel {
         id: stremioPanel
         objectName: "stremioSyncOverlay"
-        property Item accountInvoker: null
         anchors.fill: parent
         z: 960
         syncState: typeof stremioSyncState !== "undefined" ? stremioSyncState : null
@@ -6070,15 +6057,17 @@ Window {
         // frames so opening the folder door does not synchronously block the world underneath.
         // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
         asynchronous: true
-        source: win.androidHost ? "" : "VaultPage.qml"
+        source: win.androidHost ? "" : "VaultLibraryPage.qml"
         onLoaded: {
             item.backdrop = wall
+            item.desktopDockInset = Qt.binding(function() { return taskbar.contentBottomInset })
             item.backRequested.connect(win.closeVaultPage)
             win.finishNamedCollectionVaultOpen()
             item.addFolderRequested.connect(function() { vaultFolderDialog.open() })
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
                 item.openMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
             item.viewWorldRequested.connect(win.openVaultIdentity)
+            item.connectServerRequested.connect(function() { win.openVaultServerConnections() })
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
@@ -6480,7 +6469,15 @@ Window {
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.mainSyncRequested.connect(win.openStremioSyncPanel)
-            item.takeKeyboardFocus()
+            if (win.vaultServerConnectionsPending && item.openHomeServers) {
+                item.openHomeServers()
+                win.vaultServerConnectionsPending = false
+            } else if (win.externalServiceCardsPending && item.openExternalServices) {
+                item.openExternalServices()
+                win.externalServiceCardsPending = false
+            } else {
+                item.takeKeyboardFocus()
+            }
         }
     }
 

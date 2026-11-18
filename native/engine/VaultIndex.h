@@ -55,6 +55,8 @@ public:
         QString format;
         QString synopsis;       // embedded book description, when available
         QString metadataSource; // "EPUB" for embedded EPUB facts; empty otherwise
+        QString embeddedTitle; // Actual embedded book title, never the filename/display fallback.
+        QString identityType; // Adopted movie/series/mini fact; empty when unknown.
         QString identityId;     // adopted catalogue/source id, e.g. mal:123 or imdb:tt...
         QString identityTitle;  // user-facing title supplied by a certain identity
         QString identitySource; // MAL / IMDB / COMICS / EPUB
@@ -80,10 +82,7 @@ public:
         // Browse tile can wear "Vault isn't sure" instead of looking merely unscanned.
         // identityCandidateCount is meaningful only when identityState == "ambiguous" (the
         // count of exact catalogue candidates the certainty gate declined to auto-adopt).
-        // NOT carried forward by publish()'s identity-carry snapshot (deliberately — Recon
-        // Gate 9 / the identity-carry hazard is owned by a different arc); a rescan resets it
-        // to "" until VaultIdentifier's auto-identify pass (already scheduled on every index
-        // change) re-derives it.
+        // Carried across fresh scanner/watcher rows only for the unchanged identity tuple.
         QString identityState;
         int identityCandidateCount = 0;
         bool progressed = false;
@@ -172,6 +171,7 @@ public:
     Q_INVOKABLE int itemCountForKind(const QString& kind) const;
     Q_INVOKABLE QStringList kinds() const;                        // distinct, sorted
     Q_INVOKABLE QVariantList groupsForKind(const QString& kind) const; // [{groupKey,subtreePath,groupTitle,kind,count}]
+    Q_INVOKABLE QVariantList filesForGroup(const QString& kind, const QString& groupKey) const;
     Q_INVOKABLE QVariantList filesInSubtree(const QString& subtreePath) const; // natural order, grouped by subfolder
     // Newest-mtime distinct groups across every kind, most-recent first — the Browse face's
     // "recently arrived" truth (mtime is v1's arrival signal; a durable addedAt column is the
@@ -203,6 +203,7 @@ private:
     // Migrate/verify the Vault-owned schema and stamp PRAGMA user_version. Returns false (and the
     // caller closes the DB) when the file was created by a newer schema owner — never downgrade.
     bool ensureSchema();
+    QVariantList projectFiles(const QString& key, const QString& kind, bool exactGroup) const;
     bool insertRow(const FileRow& row); // prepared INSERT OR REPLACE
 
     QString m_conn;

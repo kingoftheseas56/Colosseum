@@ -158,6 +158,15 @@ public:
     // true only when the new snapshot became active.
     bool publish(const BiblioCatalogSnapshot &snapshot);
 
+    // Read-only lookup in the active snapshot. A complete title+author pair
+    // returns exact works; an empty author returns all exact-title candidates
+    // for Vault's unique-title plus surname check, never identity by itself.
+    // Never consults rankings, fetches, or guesses an edition.
+    BiblioIdentityLookup exactWorkMatches(const QString &title, const QString &author) const;
+
+    // User-adopted work identities are independent of snapshot retention.
+    bool retainVaultWork(const BiblioIdentityCandidate &candidate, const QStringList &isbns = {});
+
     // Paged read in the ComicsCatalog::discoverPage shape:
     //   {items, nextOffset, exhausted, freshness, warning}.
     // catalogId is allowlisted to {popular, top-rated, new-releases, trending};

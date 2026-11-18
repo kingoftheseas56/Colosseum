@@ -51,6 +51,7 @@ public:
         QString errorDetail;
     };
     static BookFacts readBookFacts(const QString& epubPath);
+    static void applyBookFacts(VaultIndex::FileRow& row, const BookFacts& facts);
 
     // ── Local artwork adoption (browse-face execution plan, Slice 3) ──
     // Adopt by CONVENTION ONLY: a poster./folder./cover. basename (jpg/jpeg/png,

@@ -64,6 +64,7 @@
 #include "account/ProfilePreferencesStore.h"
 #include "homeserver/HomeServerService.h"
 #if !defined(Q_OS_ANDROID)
+#include "update/InstalledChronicle.h"
 #include "update/UpdateCache.h"
 #include "update/UpdateDownload.h"
 #include "update/UpdateInstallBridge.h"
@@ -671,26 +672,11 @@ int main(int argc, char *argv[]) {
             QDir(updateCache->rootPath()).filePath(QStringLiteral("installed-chronicle"));
         const QString artworkCacheDir = QDir(chronicleCacheDir).filePath(QStringLiteral("artwork"));
         QDir().mkpath(artworkCacheDir);
-        const auto extract = [&chronicleCacheDir, &artworkCacheDir](const QString& qrcPath,
-                                                                    const QString& destName,
-                                                                    const QString& destDir) {
-            QFile src(QStringLiteral(":/installed-chronicle/") + qrcPath);
-            if (!src.exists())
-                return false;
-            const QString dest = QDir(destDir).filePath(destName);
-            // Skip if already extracted with identical bytes (idempotent across launches).
-            if (QFile::exists(dest)) {
-                QFile existing(dest);
-                if (existing.open(QIODevice::ReadOnly) && src.open(QIODevice::ReadOnly)
-                    && existing.readAll() == src.readAll())
-                    return true;
-            }
-            if (!src.open(QIODevice::ReadOnly))
-                return false;
-            QFile out(dest);
-            if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate))
-                return false;
-            return out.write(src.readAll()) == src.size();
+        const auto extract = [](const QString& qrcPath, const QString& destName,
+                                const QString& destDir) {
+            return Colosseum::Update::InstalledChronicle::materializeAsset(
+                QStringLiteral(":/installed-chronicle/") + qrcPath,
+                QDir(destDir).filePath(destName));
         };
         if (extract(QStringLiteral("installed-manifest.json"), QStringLiteral("installed-manifest.json"), chronicleCacheDir)
             && extract(QStringLiteral("installed-manifest.json.sig"), QStringLiteral("installed-manifest.json.sig"), chronicleCacheDir)) {
@@ -1183,7 +1169,10 @@ int main(int argc, char *argv[]) {
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("book"))) {
             if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
                 && QFileInfo(r.path).suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) == 0
-                && r.errorState.isEmpty() && r.metadataSource.isEmpty())
+                && r.errorState.isEmpty()
+                && (r.metadataSource.isEmpty()
+                    || (r.embeddedTitle.isEmpty() && r.identitySource == QLatin1String("EPUB")
+                        && r.identityId.startsWith(QStringLiteral("epub:vault:")))))
                 todo.append(r);
         }
         if (todo.isEmpty()) {
@@ -1256,20 +1245,7 @@ int main(int argc, char *argv[]) {
 #endif
                 else if (r.kind == QLatin1String("book")) {
                     r.format = QFileInfo(r.path).suffix().toLower();
-                    const VaultEnricher::BookFacts book = VaultEnricher::readBookFacts(r.path);
-                    if (book.ok) {
-                        if (!book.title.isEmpty())
-                            r.displayTitle = book.title;
-                        r.author = book.author;
-                        r.synopsis = book.synopsis;
-                        r.coverRef = book.coverEntry;
-                        r.metadataSource = QStringLiteral("EPUB");
-                        r.errorState.clear();
-                        r.errorDetail.clear();
-                    } else {
-                        r.errorState = QStringLiteral("corrupt");
-                        r.errorDetail = book.errorDetail;
-                    }
+                    VaultEnricher::applyBookFacts(r, VaultEnricher::readBookFacts(r.path));
                 }
                 out.append(r);
             }
@@ -1503,6 +1479,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("TankobanCatalog"), tankobanCatalog);
     auto* imdbCatalog = new ImdbCatalog(contentApiConfigured ? QString() : imdbRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
+    vaultLibrary->setImdbCatalog(imdbCatalog);
 
     if (contentApiConfigured) {
         comicsCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/comics_api_v1.json"));
@@ -1627,6 +1604,26 @@ int main(int argc, char *argv[]) {
         + QStringLiteral("/catalog/biblio-v1.sqlite");
     auto *biblioCatalog = new BiblioCatalog(biblioCatalogPath, nullptr, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("BiblioCatalog"), biblioCatalog);
+#if !defined(Q_OS_ANDROID)
+    vaultIdentifier->setBookCatalogLookup(biblioCatalog,
+        [biblioCatalog](const QString &title, const QString &author) {
+            return biblioCatalog->exactWorkMatches(title, author);
+        }, [biblioCatalog](const QString &title, const QString &author, const QString &filenameTitle) {
+            return biblioCatalog->onlineWorkMatches(title, author, filenameTitle);
+        }, [biblioCatalog](const BiblioIdentityCandidate &candidate) {
+            return biblioCatalog->retainVaultWork(candidate);
+        });
+    vaultLibrary->setBookIdentityDisplay([biblioCatalog](const QString &id, const QString &title) {
+        for (const auto &work : biblioCatalog->exactWorkMatches(title, QString()).candidates)
+            if (QStringLiteral("biblio:") + work.canonicalId == id)
+                return QVariantMap{{QStringLiteral("author"), work.author}};
+        return QVariantMap{};
+    });
+    QObject::connect(biblioCatalog, &BiblioCatalog::vaultLookupFinished,
+                     vaultIdentifier, &VaultIdentifier::retryBookCatalog);
+    QObject::connect(biblioCatalog, &BiblioCatalog::revisionChanged,
+                     vaultIdentifier, &VaultIdentifier::retryBookCatalog);
+#endif
 
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);

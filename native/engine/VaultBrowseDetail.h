@@ -38,5 +38,7 @@ namespace VaultBrowseDetail {
 // admissionDetail, else any errorDetail; empty for a healthy copy) so the sheet can state a
 // rejected/errored copy's reason instead of a bare verdict code.
 QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& scanIgnore = {});
+// The same indexed copies/runtime/rating/genre facts, without filesystem companions/extras.
+QVariantMap presentationFor(VaultIndex* index, const QString& key);
 
 } // namespace VaultBrowseDetail

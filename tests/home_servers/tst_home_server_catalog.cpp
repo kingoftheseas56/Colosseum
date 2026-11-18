@@ -30,6 +30,32 @@ public:
 class HomeServerCatalogTest : public QObject {
  Q_OBJECT
 private slots:
+ void libraryManifestOrderEmptyAndMembership_data() {
+  QTest::addColumn<QString>("provider");
+  for(auto provider:{"jellyfin","emby","plex"}) QTest::newRow(provider)<<QString(provider);
+ }
+ void libraryManifestOrderEmptyAndMembership() {
+  QFETCH(QString,provider); CatalogReplay server; const bool plex=provider=="plex";
+  if(provider=="jellyfin") server.responses.append({200,"{\"Version\":\"12.4.0\"}"});
+  QJsonArray libraries;
+  for(const auto &pair:QList<QPair<QString,QString>>{{"z","Zulu"},{"empty","Empty library"},{"a","Alpha"}})
+   libraries.append(plex?QJsonObject{{"key",pair.first},{"title",pair.second},{"type","movie"}}
+                        :QJsonObject{{"Id",pair.first},{"Name",pair.second},{"CollectionType","movies"}});
+  server.responses.append({200,QJsonDocument(plex?QJsonObject{{"MediaContainer",QJsonObject{{"Directory",libraries}}}}:QJsonObject{{"Items",libraries}}).toJson()});
+  for(int i=0;i<3;++i) {
+   const QJsonArray rows=i==1?QJsonArray{}:QJsonArray{plex?QJsonObject{{"ratingKey","shared"},{"type","movie"},{"title","Movie"}}
+                                                                    :QJsonObject{{"Id","shared"},{"Type","Movie"},{"Name","Movie"}}};
+   server.responses.append({200,QJsonDocument(plex?QJsonObject{{"MediaContainer",QJsonObject{{"Metadata",rows},{"size",rows.size()},{"totalSize",rows.size()},{"offset",0}}}}
+                                                   :QJsonObject{{"Items",rows},{"TotalRecordCount",rows.size()},{"StartIndex",0}}).toJson()});
+  }
+  QTemporaryDir dir; HomeServerClient client(nullptr,dir.path()); HomeServerRefresh job(&client); bool done=false; HomeServerRefresh::Result result;
+  job.start(server.connection(provider),"REPLAY",[&](auto r){result=r;done=true;}); QTRY_VERIFY(done); QVERIFY2(result.ok(),qPrintable(result.error));
+  QCOMPARE(result.items.size(),1); QCOMPARE(result.libraries.size(),3);
+  QCOMPARE(result.libraries.at(0).toObject().value("name").toString(),QString("Zulu"));
+  QCOMPARE(result.libraries.at(1).toObject(),(QJsonObject{{"id","empty"},{"name","Empty library"},{"kind","movie"},{"itemIds",QJsonArray{}}}));
+  QCOMPARE(result.libraries.at(2).toObject().value("name").toString(),QString("Alpha"));
+  for(int i:{0,2}) QCOMPARE(result.libraries.at(i).toObject().value("itemIds").toArray(),QJsonArray{"shared"});
+ }
  void strictIdentityAndCanonicalIds() {
   using namespace HomeServerCatalog;
   QVERIFY(!identitiesMatch({{"imdbId","tt1234567"}},{{"imdbId","tt1234567"}}));
@@ -112,7 +138,7 @@ private slots:
  void failedRefreshNeverReturnsPartial() {
   QFETCH(QByteArray,last); QFETCH(int,status); CatalogReplay server; server.responses={{200,CatalogReplay::fixture("jellyfin-views.json")},{200,CatalogReplay::fixture("jellyfin-page1.json")},{status,last}};
   QTemporaryDir dir; HomeServerClient client(nullptr,dir.path()); HomeServerRefresh job(&client); bool done=false; HomeServerRefresh::Result result;
-  job.start(server.connection("emby"),"REPLAY",[&](auto r){result=r;done=true;}); QTRY_VERIFY(done); QVERIFY(!result.ok()); QVERIFY(result.items.isEmpty()); QCOMPARE(result.expired,status==401); QCOMPARE(server.requests.size(),3);
+  job.start(server.connection("emby"),"REPLAY",[&](auto r){result=r;done=true;}); QTRY_VERIFY(done); QVERIFY(!result.ok()); QVERIFY(result.items.isEmpty()); QVERIFY(result.libraries.isEmpty()); QCOMPARE(result.expired,status==401); QCOMPARE(server.requests.size(),3);
  }
  void blankLibrariesAndInfoFailure() {
   CatalogReplay server; server.responses={{200,"{}"}}; QTemporaryDir dir; HomeServerClient client(nullptr,dir.path()); HomeServerRefresh job(&client); bool done=false;

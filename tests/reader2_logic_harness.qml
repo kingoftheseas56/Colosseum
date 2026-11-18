@@ -25,6 +25,14 @@ QtObject {
             check(r1.format === "epub", "fresh: format derived from extension")
             check(r1.mediaType === "book", "fresh: mediaType book")
             check(r1.finished === false, "fresh: not finished at 41%")
+            var chapterRecord = L.progressRecord({}, { cfi:"epubcfi(/6/4)", chapterTitle:"The Departure", tocIndex:3 }, "C:/x/y.epub")
+            check(chapterRecord.locator.chapterTitle === "The Departure", "chapter: actual relocation label persisted")
+            check(chapterRecord.locator.tocIndex === 3, "chapter: TOC ordinal retained without a fabricated chapter number")
+            var chapterResume = L.progressResume({bookPath:"C:/x/y.epub",bookMeta:{id:"vault:book"}}, {chapterTitle:"The Departure"})
+            check(chapterResume.path === "C:/x/y.epub" && chapterResume.book.id === "vault:book", "chapter: exact saved copy ownership")
+            check(chapterResume.chapterTitle === "The Departure", "chapter: unified Continue label")
+            var unknownChapter = L.progressResume({bookPath:"C:/x/y.epub"}, {cfi:"epubcfi(/6/98)",tocIndex:98})
+            check(unknownChapter.chapterTitle === undefined && unknownChapter.chapterNumber === undefined, "chapter: no label invented from CFI or TOC")
 
             // 2. read-modify-write PRESERVES unknown prev fields (bookMeta, chapter).
             var r2 = L.progressRecord({ bookMeta: { title: "T" }, chapter: 7 },

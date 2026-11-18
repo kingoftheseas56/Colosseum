@@ -25,8 +25,12 @@ QString VaultArtworkResolver::resolve(const RowFacts& facts)
     // Rung 2: local artwork the row already carries (adopted local poster for a
     // video group, or the comic/book cover ref VaultLibrary already derived). This
     // class receives it as-is — it never re-derives cover refs itself.
-    if (!facts.localRef.isEmpty())
+    if (!facts.localRef.isEmpty()) {
+        m_pendingRows.remove(facts.rowKey);
         return facts.localRef;
+    }
+
+    m_pendingRows.remove(facts.rowKey);
 
     // Rung 3: canonical poster. Only meaningful once the row is identified (an
     // identityId) AND that identity carries a poster URL to fetch.
@@ -40,9 +44,12 @@ QString VaultArtworkResolver::resolve(const RowFacts& facts)
         // findLocalArtwork, MangaVolumeIndex, ComicDownloader, …); skipping it here would hand
         // QML a bare "C:/…" string, which QUrl's RFC3986 parser reads as scheme "c" (a Windows
         // drive letter looks exactly like a URI scheme) — an Image with no error but no picture.
-        if (!cached.isEmpty())
+        if (!cached.isEmpty()) {
+            m_pendingRows.remove(facts.rowKey);
             return QUrl::fromLocalFile(cached).toString();
+        }
         m_pendingPosterRowKeys[facts.identityId].insert(facts.rowKey);
+        m_pendingRows.insert(facts.rowKey, facts);
         m_posterFetcher->requestPoster(facts.identityId, facts.posterUrl);
         // Miss: fall through to rung 4 rather than block on the async fetch.
     }
@@ -57,6 +64,7 @@ QString VaultArtworkResolver::resolve(const RowFacts& facts)
             return QUrl::fromLocalFile(cached).toString();
         const QString key = VaultCacheKey::make(facts.path, facts.size, facts.mtimeMs);
         m_pendingThumbRowKeys[key].insert(facts.rowKey);
+        m_pendingRows.insert(facts.rowKey, facts);
         m_thumbnailer->requestThumb(facts.path, facts.size, facts.mtimeMs, facts.durationSec);
     }
 
@@ -64,16 +72,32 @@ QString VaultArtworkResolver::resolve(const RowFacts& facts)
     return QString();
 }
 
+void VaultArtworkResolver::clearPendingRows()
+{
+    m_pendingRows.clear();
+    m_pendingPosterRowKeys.clear();
+    m_pendingThumbRowKeys.clear();
+}
+
+void VaultArtworkResolver::resolvePendingRows(const QSet<QString>& rowKeys)
+{
+    for (const QString& rowKey : rowKeys) {
+        const auto pending = m_pendingRows.constFind(rowKey);
+        if (pending == m_pendingRows.cend()) continue;
+        const RowFacts facts = pending.value();
+        const QString coverUrl = resolve(facts);
+        if (coverUrl.isEmpty()) continue;
+        emit artReady(rowKey, coverUrl);
+        emit artResolved(rowKey);
+    }
+}
+
 void VaultArtworkResolver::onPosterReady(const QString& identityId, const QString& /*filePath*/)
 {
-    const QSet<QString> rowKeys = m_pendingPosterRowKeys.take(identityId);
-    for (const QString& rowKey : rowKeys)
-        emit artResolved(rowKey);
+    resolvePendingRows(m_pendingPosterRowKeys.take(identityId));
 }
 
 void VaultArtworkResolver::onThumbReady(const QString& key, const QString& /*filePath*/)
 {
-    const QSet<QString> rowKeys = m_pendingThumbRowKeys.take(key);
-    for (const QString& rowKey : rowKeys)
-        emit artResolved(rowKey);
+    resolvePendingRows(m_pendingThumbRowKeys.take(key));
 }

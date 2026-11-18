@@ -7,6 +7,7 @@ import QtQuick.Window
 
 Item {
     id: slideRoot
+    objectName: "featuredSlide_" + slideIndex
     property var slide: ({})                 // { title, blurb, ghost, c1, c2, art?, artKind?, primaryIcon? }
     property int slideIndex: -1
     property string kicker: "Featured"
@@ -31,6 +32,11 @@ Item {
         return !!(w && w["televisionMode"] === true)
     }
     readonly property bool compactCopy: slideRoot.height < 360 || slideRoot.narrowLayout
+    readonly property real progressFraction: {
+        const value = Number(slideRoot.slide.progressFraction || 0)
+        return isFinite(value) ? Math.max(0, Math.min(1, value)) : 0
+    }
+    readonly property bool extendedCopy: !!slideRoot.slide.logo || !!slideRoot.slide.metadataText || slideRoot.progressFraction > 0
     Theme { id: theme }
 
     Rectangle {
@@ -122,6 +128,7 @@ Item {
         // copy
         Column {
             id: copyColumn
+            objectName: "featuredCopy_" + slideRoot.slideIndex
             anchors.left: parent.left
             anchors.bottom: parent.bottom
             anchors.leftMargin: slideRoot.shortAndroid ? adaptive.heroCopyInset : (slideRoot.televisionMode ? 52 : (slideRoot.narrowLayout ? 20 : 42))
@@ -134,17 +141,44 @@ Item {
             Text { id: kickerText; text: slideRoot.kicker.toUpperCase(); color: theme.gold
                 visible: text.length > 0
                 font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 13 : 11; font.letterSpacing: 3 }
+            Image {
+                id: titleLogo
+                objectName: "featuredLogo_" + slideRoot.slideIndex
+                width: Math.min(320, copyColumn.width)
+                height: slideRoot.compactCopy ? 58 : 68
+                source: slideRoot.slide.logo || ""
+                sourceSize.width: 640
+                fillMode: Image.PreserveAspectFit
+                horizontalAlignment: Image.AlignLeft
+                asynchronous: true
+                visible: status === Image.Ready
+                Accessible.name: slideRoot.slide.title || ""
+            }
             Text { id: titleText; text: slideRoot.slide.title !== undefined ? slideRoot.slide.title : ""
-                height: slideRoot.shortAndroid ? Math.min(implicitHeight, Math.max(adaptive.heroMinimumTitleSize,
-                    slideRoot.height - adaptive.heroCopyTopInset - copyColumn.anchors.bottomMargin
+                objectName: "featuredTitle_" + slideRoot.slideIndex
+                visible: titleLogo.status !== Image.Ready
+                height: slideRoot.shortAndroid || slideRoot.extendedCopy ? Math.min(implicitHeight, Math.max(adaptive.heroMinimumTitleSize,
+                    slideRoot.height - (slideRoot.shortAndroid ? adaptive.heroCopyTopInset : 20) - copyColumn.anchors.bottomMargin
                     - (kickerText.visible ? kickerText.height : 0) - (blurbText.visible ? blurbText.height : 0)
-                    - heroActions.height - copyColumn.spacing * (1 + (kickerText.visible ? 1 : 0) + (blurbText.visible ? 1 : 0)))) : implicitHeight
-                fontSizeMode: slideRoot.shortAndroid ? Text.Fit : Text.FixedSize
+                    - (metadataText.visible ? metadataText.height : 0) - (progressRow.visible ? progressRow.height : 0)
+                    - heroActions.height - copyColumn.spacing * (1 + (kickerText.visible ? 1 : 0) + (blurbText.visible ? 1 : 0)
+                        + (metadataText.visible ? 1 : 0) + (progressRow.visible ? 1 : 0)))) : implicitHeight
+                fontSizeMode: slideRoot.shortAndroid || slideRoot.extendedCopy ? Text.Fit : Text.FixedSize
                 minimumPixelSize: adaptive.heroMinimumTitleSize
                 color: theme.ink; font.family: theme.display
                 font.pixelSize: slideRoot.shortAndroid ? adaptive.heroTitleSize : (slideRoot.televisionMode ? 58 : (slideRoot.narrowLayout ? 34 : (slideRoot.compactCopy ? 42 : 50)))
                 lineHeight: 0.96; maximumLineCount: 2; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap }
+            Text {
+                id: metadataText
+                objectName: "featuredMetadata_" + slideRoot.slideIndex
+                text: slideRoot.slide.metadataText || ""
+                visible: text.length > 0
+                width: parent.width
+                color: theme.inkDim
+                font.family: theme.ui; font.pixelSize: 13
+                elide: Text.ElideRight
+            }
             Text { id: blurbText; text: slideRoot.slide.blurb !== undefined ? slideRoot.slide.blurb : ""
                 visible: text.length > 0
                 color: theme.inkDim; font.family: theme.ui
@@ -153,6 +187,7 @@ Item {
                 width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.25 }
             Row {
                 id: heroActions
+                objectName: "featuredActions_" + slideRoot.slideIndex
                 spacing: 10; topPadding: 6
                 Rectangle {
                     radius: slideRoot.televisionMode ? 13 : 11
@@ -225,6 +260,28 @@ Item {
                         accessibleName: slideRoot.secondaryLabel
                         onTriggered: slideRoot.secondaryClicked()
                     }
+                }
+            }
+            Row {
+                id: progressRow
+                objectName: "featuredProgress_" + slideRoot.slideIndex
+                visible: slideRoot.progressFraction > 0
+                spacing: 10
+                Rectangle {
+                    id: progressTrack
+                    width: Math.min(160, copyColumn.width * 0.4); height: 3; y: 7; radius: 2
+                    color: theme.edge
+                    Rectangle {
+                        objectName: "featuredProgressFill_" + slideRoot.slideIndex
+                        width: parent.width * slideRoot.progressFraction; height: 3; radius: 2
+                        color: theme.gold
+                    }
+                }
+                Text {
+                    width: Math.max(0, copyColumn.width - progressTrack.width - progressRow.spacing)
+                    text: slideRoot.slide.progressText || ""
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                    elide: Text.ElideRight
                 }
             }
         }

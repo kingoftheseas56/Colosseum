@@ -72,8 +72,8 @@ TestCase {
         fixture.removedId = ""
         fixture.refreshedId = ""
     }
-    function openPanel() {
-        let panel = createTemporaryObject(panelComponent, testCase)
+    function openPanel(provider) {
+        let panel = createTemporaryObject(panelComponent, testCase, {initialProvider:provider || "jellyfin"})
         verify(panel !== null)
         panel.open()
         tryCompare(panel, "opened", true)
@@ -204,14 +204,7 @@ TestCase {
         compare(status.visible, false)
     }
     function test_providerAndPlex() {
-        let panel = openPanel()
-        credentials(panel, "https://server.local")
-        let choice = field(panel, "homeServerProvider")
-        choice.forceActiveFocus()
-        keyClick(Qt.Key_Down)
-        compare(panel.provider, "emby")
-        compare(field(panel, "homeServerPassword").text, "")
-        keyClick(Qt.Key_Down)
+        let panel = openPanel("plex")
         compare(panel.provider, "plex")
         compare(field(panel, "homeServerPassword").visible, false)
         verify(field(panel, "homeServerBeginPlex").visible)
@@ -233,36 +226,17 @@ TestCase {
         compare(fixture.selectedHttp, true)
         panel.close()
     }
-    function test_brandedTilesSelectAndPreserveSingleSelection() {
-        let panel = openPanel()
-        let tiles = field(panel, "homeServerProviderTiles")
-        let jellyfin = tiles.itemAt(0)
-        let emby = tiles.itemAt(1)
-        let plex = tiles.itemAt(2)
-        for (let i = 0; i < 3; ++i) {
-            let provider = ["jellyfin", "emby", "plex"][i]
-            tryCompare(findChild(tiles.itemAt(i), "homeServerProviderLogo_" + provider), "status", Image.Ready)
-        }
-        verify(jellyfin.checked)
-        verify(jellyfin.height >= 44 && emby.height >= 44 && plex.height >= 44)
-        mouseClick(jellyfin)
-        verify(jellyfin.checked)
-        jellyfin.forceActiveFocus()
-        keyClick(Qt.Key_Right)
-        compare(panel.provider, "emby")
-        verify(emby.activeFocus)
-        keyClick(Qt.Key_Left)
-        compare(panel.provider, "jellyfin")
-        credentials(panel, "https://server.local")
-        mouseClick(emby)
-        compare(panel.provider, "emby")
-        verify(emby.checked && !jellyfin.checked && !plex.checked)
-        compare(field(panel, "homeServerPassword").text, "")
-        mouseClick(plex)
-        compare(panel.provider, "plex")
-        verify(plex.checked && !emby.checked)
-        compare(field(panel, "homeServerAddress").visible, false)
-        compare(field(panel, "homeServerSubmit").visible, false)
+    function test_providerEntryHasNoChooserAndCannotSwitch_data() {
+        return [{tag:"jellyfin",provider:"jellyfin"},{tag:"emby",provider:"emby"},{tag:"plex",provider:"plex"}]
+    }
+    function test_providerEntryHasNoChooserAndCannotSwitch(data) {
+        let panel = openPanel(data.provider)
+        compare(findChild(panel,"homeServerProviderTiles"),null)
+        compare(findChild(panel,"homeServerProvider"),null)
+        tryCompare(findChild(panel,"homeServerProviderLogo_"+data.provider),"status",Image.Ready)
+        panel.initialProvider=data.provider === "plex" ? "emby" : "plex"
+        compare(panel.provider,data.provider)
+        compare(field(panel,"homeServerAddress").visible,data.provider !== "plex")
         panel.close()
     }
     function test_statusPreservesFormProfileClearsIt() {

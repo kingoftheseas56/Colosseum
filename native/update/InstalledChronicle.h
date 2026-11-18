@@ -34,10 +34,16 @@ struct LoadedChronicle
 //     first verified by verifyEd25519Raw.
 //   - On success, manifest is the verified chronicle; artworkRoot is the
 //     directory containing the bundled artwork files (absolute path).
-//   - The loader performs no network access and writes nothing.
+//   - load() performs no network access and writes nothing. The separate
+//     materializeAsset() helper only updates the local bundled-asset cache.
 class InstalledChronicle
 {
 public:
+    // Copy a bundled qrc asset into the chronicle cache, replacing older bytes
+    // atomically. Also accepts an ordinary file source for focused tests.
+    // Equal bytes leave the destination untouched.
+    static bool materializeAsset(const QString& sourcePath, const QString& destinationPath);
+
     // Load + verify the bundled chronicle at the given locations.
     // manifestPath / signaturePath: the signed manifest and its raw-or-hex
     //   Ed25519 signature (the same readVerifiedSignature convention the

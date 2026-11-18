@@ -1,5 +1,6 @@
 #include "VaultKit.h"
 #include "MediaTitleNormalization.h"
+#include "VaultLocation.h"
 
 #include <QCollator>
 #include <QDir>
@@ -184,9 +185,38 @@ QString cleanMediaFolderTitle(const QString& rawName)
 
 int parsedTitleYear(const QString& rawName)
 {
+    const auto release = MediaTitleNormalization::qualifiedReleaseSuffix(rawName);
+    if (release.year > 0) return release.year;
+    // Bracketed release facts outrank numeric words in the title itself.
+    static const QRegularExpression bracketYear(QStringLiteral(
+        "\\(((?:19|20)\\d{2})(?:\\s*[-\u2013\u2014]\\s*(?:(?:19|20)\\d{2})?)?\\)|\\[((?:19|20)\\d{2})\\]|\\{((?:19|20)\\d{2})\\}"));
+    int year = 0;
+    auto brackets = bracketYear.globalMatch(rawName);
+    while (brackets.hasNext()) {
+        const auto match = brackets.next();
+        for (int group = 1; group <= 3; ++group)
+            if (!match.captured(group).isEmpty()) year = match.captured(group).toInt();
+    }
+    if (year) return year;
+
     static const QRegularExpression yearToken(QStringLiteral("\\b(?:19|20)\\d{2}\\b"));
-    const QRegularExpressionMatch m = yearToken.match(rawName);
-    return m.hasMatch() ? m.captured(0).toInt() : 0;
+    static const QRegularExpression titleText(QStringLiteral("[\\p{L}\\p{N}]"));
+    static const QRegularExpression separators(QStringLiteral("^[\\s._-]+"));
+    static const QRegularExpression episodeNoise(QStringLiteral("(?i)^s\\d{1,2}(?:e\\d{1,3})?\\b"));
+    auto tokens = yearToken.globalMatch(rawName);
+    while (tokens.hasNext()) {
+        const auto match = tokens.next();
+        if (!titleText.match(rawName.left(match.capturedStart())).hasMatch()) continue;
+        QString suffix = rawName.mid(match.capturedEnd()).trimmed();
+        suffix.remove(separators);
+        const auto noise = MediaTitleNormalization::kShowTitleNoiseRe.match(suffix);
+        if ((!suffix.isEmpty() && noise.hasMatch() && noise.capturedStart() == 0)
+            || episodeNoise.match(suffix).hasMatch()) {
+            const int candidate = match.captured().toInt();
+            if (candidate <= QDate::currentDate().year() + 1) year = candidate;
+        }
+    }
+    return year;
 }
 
 QString normalizedTitle(const QString& rawTitle)
@@ -217,6 +247,42 @@ static QStringList filtersFor(const QSet<QString>& exts)
 const QStringList& comicFilters() { static const QStringList f = filtersFor(kComicExts); return f; }
 const QStringList& bookFilters()  { static const QStringList f = filtersFor(kBookExts);  return f; }
 const QStringList& videoFilters() { static const QStringList f = filtersFor(kVideoExts); return f; }
+
+
+QString ownerRootForPath(const QStringList& roots, const QString& path)
+{
+    const QString target = VaultLocation::normalize(path);
+    QString best;
+    for (const QString& root : roots) {
+        if (root.isEmpty()) continue;
+        const QString candidate = VaultLocation::normalize(root);
+        const QString prefix = candidate.endsWith(QLatin1Char('/')) ? candidate : candidate + QLatin1Char('/');
+        if ((target == candidate || target.startsWith(prefix))
+            && (best.isEmpty() || candidate.size() > VaultLocation::normalize(best).size()))
+            best = root;
+    }
+    return best;
+}
+
+bool isSampleVideo(const QString& filePath)
+{
+    const QFileInfo file(filePath);
+    static const QRegularExpression container(QStringLiteral("(?i)(?:^|/)(?:samples?|samples? & screenshots)(?:/|$)"));
+    if (container.match(QDir::fromNativeSeparators(file.absolutePath())).hasMatch()) return true;
+    const QString base = file.completeBaseName();
+    if (base.compare(QLatin1String("sample"), Qt::CaseInsensitive) == 0) return true;
+    static const QRegularExpression suffix(QStringLiteral("(?i)[._\\s-]+sample$"));
+    static const QRegularExpression technical(QStringLiteral("(?i)\\b(?:2160p|1080p|720p|480p|bluray|b[dr]rip|dvdrip|hdrip|xvid|x26[45])\\b"));
+    return suffix.match(base).hasMatch() && technical.match(base).hasMatch();
+}
+
+QString standaloneVideoTitle(const QString& fileName)
+{
+    QString title = cleanMediaFolderTitle(QFileInfo(fileName).completeBaseName());
+    static const QRegularExpression sample(QStringLiteral("(?i)(?:[._\\s-]+sample)$"));
+    title.remove(sample);
+    return title.trimmed();
+}
 
 QStringList allMediaFilters()
 {
@@ -357,15 +423,17 @@ SeasonEpisode parseSeasonEpisode(const QString& fileName)
 {
     SeasonEpisode r;
     static const QRegularExpression re(
-        QStringLiteral("[._\\s]?[Ss](\\d{1,2})[._\\s]?[Ee](\\d+)"),
+        QStringLiteral("(?:[Ss](\\d{1,2})[._\\s]?[Ee](\\d+)|"
+                       "Season[._\\s]+(\\d{1,2})[._\\s]+Episode[._\\s]+(\\d+))"),
         QRegularExpression::CaseInsensitiveOption);
     const QString base = QFileInfo(fileName).completeBaseName();
     const auto m = re.match(base);
     if (!m.hasMatch())
         return r;
     r.matched = true;
-    r.season = m.captured(1).toInt();
-    r.episode = m.captured(2).toInt();
+    const int first = m.captured(1).isEmpty() ? 3 : 1;
+    r.season = m.captured(first).toInt();
+    r.episode = m.captured(first + 1).toInt();
     return r;
 }
 
@@ -377,7 +445,13 @@ SeasonEpisode parseAbsoluteEpisode(const QString& fileName)
     // range like "1-5" or "S01-S05" (no spaces around '-') never matches either.
     static const QRegularExpression re(QStringLiteral("\\s-\\s(\\d{2,4})(?=\\s|$|\\[|\\()"));
     const QString base = QFileInfo(fileName).completeBaseName();
-    const auto m = re.match(base);
+    auto m = re.match(base);
+    if (!m.hasMatch()) {
+        static const QRegularExpression episodeOnly(
+            QStringLiteral("(?:^|[._\\s-])E(\\d{1,4})(?=[._\\s-]|$)"),
+            QRegularExpression::CaseInsensitiveOption);
+        m = episodeOnly.match(base);
+    }
     if (!m.hasMatch())
         return r;
     const int number = m.captured(1).toInt();
@@ -402,9 +476,14 @@ QString episodeSeriesTitle(const QString& fileName)
     const auto episode = parseEpisodeNumber(fileName);
     if (!episode.matched) return {};
     const QString base = QFileInfo(fileName).completeBaseName();
-    static const QRegularExpression explicitToken(QStringLiteral("[Ss]\\d{1,2}[._\\s]?[Ee]\\d+"));
-    static const QRegularExpression absoluteToken(QStringLiteral("\\s-\\s\\d{2,4}(?=\\s|$|\\[|\\()"));
+    static const QRegularExpression explicitToken(
+        QStringLiteral("(?:S\\d{1,2}[._\\s]?E\\d+|Season[._\\s]+\\d{1,2}[._\\s]+Episode[._\\s]+\\d+)"),
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression absoluteToken(
+        QStringLiteral("(?:\\s-\\s\\d{2,4}(?=\\s|$|\\[|\\()|(?:^|[._\\s-])E\\d{1,4}(?=[._\\s-]|$))"),
+        QRegularExpression::CaseInsensitiveOption);
     const auto token = (episode.absolute ? absoluteToken : explicitToken).match(base);
+    if (!token.hasMatch()) return {};
     QString title = base.left(token.capturedStart());
     static const QRegularExpression releaseGroup(QStringLiteral("^(?:\\[[^\\]]+\\]\\s*)+"));
     static const QRegularExpression trailing(QStringLiteral("[._\\s-]+$"));
@@ -429,12 +508,12 @@ QString episodeShowKey(const QString& directory, const QString& title)
     return path + QStringLiteral("::show::") + normalizedTitle(title);
 }
 
-static BrowseNode videoLeaf(const QFileInfo& file)
+static BrowseNode videoLeaf(const QFileInfo& file, const QStringList& siblings)
 {
     BrowseNode node;
     node.key = node.path = file.absoluteFilePath();
     node.displayTitle = cleanMediaFolderTitle(file.completeBaseName());
-    const auto episode = parseEpisodeNumber(file.fileName());
+    const auto episode = videoEpisodeContext(file.absoluteFilePath(), siblings).number;
     node.nodeType = episode.matched ? BrowseNodeType::Episode : BrowseNodeType::Clip;
     node.episodeNumber = episode.episode;
     node.seasonNumber = episode.season;
@@ -501,6 +580,120 @@ QString showRootForEpisodePath(const QString& filePath)
     return parent.absolutePath();
 }
 
+namespace {
+QString contextShowTitle(QString raw)
+{
+    static const QRegularExpression releaseGroup(QStringLiteral("^(?:\\[[^\\]]+\\]\\s*)+"));
+    raw.remove(releaseGroup);
+    QString title = cleanMediaFolderTitle(raw);
+    static const QRegularExpression season(QStringLiteral("(?i)(?:^|\\s)Season\\s+\\d{1,3}$"));
+    title.remove(season);
+    return title.trimmed();
+}
+struct ContextToken { SeasonEpisode number; QString prefix; int family = 0; };
+ContextToken contextToken(const QString& name)
+{
+    ContextToken token;
+    const QString base = QFileInfo(name).completeBaseName();
+    static const QRegularExpression leading(QStringLiteral("^(\\d{1,3})\\s+-\\s+\\S"));
+    static const QRegularExpression episode(QStringLiteral("(?i)^Episode[ ._-]+(\\d{1,3})(?:[ ._-]|$)"));
+    static const QRegularExpression dotted(QStringLiteral("^(.+?)\\s+-\\s+(\\d{1,2})\\.(\\d{1,3})\\s+-\\s+\\S"));
+    static const QRegularExpression chapter(QStringLiteral("(?i)^(.+?)\\s+-\\s+Chapter[ ._-]+(\\d{1,3})(?:[ ._-]|$)"));
+    auto m = leading.match(base);
+    if (m.hasMatch()) { token.family = 1; token.number.episode = m.captured(1).toInt(); }
+    else if ((m = episode.match(base)).hasMatch()) { token.family = 2; token.number.episode = m.captured(1).toInt(); }
+    else if ((m = dotted.match(base)).hasMatch()) { token.family = 3; token.prefix = m.captured(1); token.number.season = m.captured(2).toInt(); token.number.episode = m.captured(3).toInt(); }
+    else if ((m = chapter.match(base)).hasMatch()) { token.family = 4; token.prefix = m.captured(1); token.number.episode = m.captured(2).toInt(); }
+    return token;
+}
+bool coherentContextRun(const QString& filePath, const ContextToken& token, const QStringList& siblings)
+{
+    QSet<int> numbers;
+    const QString parent = QFileInfo(filePath).absolutePath();
+    for (const auto& sibling : siblings) {
+        if (QFileInfo(sibling).absolutePath() != parent || kindForFile(sibling) != MediaKind::Video || isSampleVideo(sibling)) continue;
+        const auto other = contextToken(sibling);
+        if (other.family != token.family || normalizedTitle(other.prefix) != normalizedTitle(token.prefix)) return false;
+        const int key = other.number.season * 1000 + other.number.episode;
+        if (numbers.contains(key)) return false;
+        numbers.insert(key);
+    }
+    if (numbers.size() < 2) return false;
+    // Runs may contain more than one season; each season's numbers must be contiguous.
+    QMap<int, QList<int>> seasons;
+    for (int key : numbers) seasons[key / 1000].append(key % 1000);
+    for (auto run : seasons) {
+        std::sort(run.begin(), run.end());
+        for (int i = 1; i < run.size(); ++i) if (run[i] != run[i-1] + 1) return false;
+    }
+    return true;
+}
+}
+
+VideoEpisodeContext videoEpisodeContext(const QString& filePath, const QStringList& siblingFiles)
+{
+    VideoEpisodeContext out;
+    if (isSampleVideo(filePath)) return out;
+    QDir parent = QFileInfo(filePath).absoluteDir();
+    QString folderTitle;
+    int closestSeason = 0;
+    bool namedSeason = false;
+    for (;;) {
+        const auto seasons = MediaTitleNormalization::extractSeasonNumbers(parent.dirName());
+        if (closestSeason == 0 && seasons.size() == 1) closestSeason = seasons.first();
+        const QString title = contextShowTitle(parent.dirName());
+        if (!isSeasonLikeDirName(parent.dirName())) {
+            folderTitle = title;
+            namedSeason = !title.isEmpty() && !seasons.isEmpty();
+            break;
+        }
+        const QString above = QFileInfo(parent.absolutePath()).absolutePath();
+        if (above == parent.absolutePath()) break;
+        parent = QDir(above);
+    }
+    out.root = parent.absolutePath();
+    const auto token = contextToken(filePath);
+    auto number = parseEpisodeNumber(filePath);
+    QString title = episodeSeriesTitle(filePath);
+    if (number.matched && (!number.absolute || token.family == 0)) {
+        // Explicit context tokens win over numbers inside an episode title.
+        out.number = number;
+        if (out.number.season == 0 && closestSeason > 0) { out.number.season = closestSeason; out.number.absolute = false; }
+        out.title = title.isEmpty() ? folderTitle : title;
+        // Prefer the actual named show ancestor over a flat download container.
+        if (!title.isEmpty()) {
+            const QString normalized = normalizedTitle(title);
+            QString candidate = QFileInfo(filePath).absolutePath();
+            while (!candidate.isEmpty()) {
+                const QString folder = normalizedTitle(contextShowTitle(QFileInfo(candidate).fileName()));
+                if (folder == normalized || folder.startsWith(normalized + QLatin1Char(' '))) out.root = candidate;
+                const QString above = QFileInfo(candidate).absolutePath();
+                if (above == candidate) break;
+                candidate = above;
+            }
+        }
+        return out;
+    }
+    if (!token.family || token.number.episode <= 0) return {};
+    static const QRegularExpression tvContext(QStringLiteral("(?i)(?:^|/)TV Shows(?:/|$)"));
+    static const QRegularExpression container(QStringLiteral(
+        "(?i)^(?:collections?|movies?|films?|videos?|clips?|downloads?|anime|cartoons|TV Shows)$"));
+    const bool qualifiedFolder = !folderTitle.isEmpty() && !container.match(folderTitle).hasMatch()
+        && (namedSeason || closestSeason > 0 || tvContext.match(QDir::fromNativeSeparators(filePath)).hasMatch());
+    const bool coherent = coherentContextRun(filePath, token, siblingFiles);
+    if (token.family == 1 && (!qualifiedFolder || !coherent)) return {};
+    if (token.family == 2 && (!qualifiedFolder || (!namedSeason && closestSeason == 0))) return {};
+    if ((token.family == 3 || token.family == 4) && (!coherent || !qualifiedFolder
+        || !normalizedTitle(folderTitle).startsWith(normalizedTitle(token.prefix)))) return {};
+    out.number = token.number;
+    out.number.matched = true;
+    if (out.number.season == 0) out.number.season = closestSeason;
+    out.number.absolute = out.number.season == 0;
+    out.title = token.prefix.isEmpty() ? folderTitle : cleanMediaFolderTitle(token.prefix);
+    if (out.title.isEmpty()) return {};
+    return out;
+}
+
 // ── Browse-collapse planner (Vault browse-face execution plan, Slice 1) ─────────────────────
 QString browseNodeTypeName(BrowseNodeType type)
 {
@@ -518,7 +711,9 @@ QString browseNodeTypeName(BrowseNodeType type)
 bool isExtrasDirName(const QString& name)
 {
     const QString n = name.trimmed().toLower();
-    return n == QLatin1String("extras") || n == QLatin1String("featurettes");
+    return n == QLatin1String("extras") || n == QLatin1String("featurettes")
+        || n == QLatin1String("sample") || n == QLatin1String("samples")
+        || n == QLatin1String("sample & screenshots") || n == QLatin1String("samples & screenshots");
 }
 
 // The ordinal from a bare season-like dir name (isSeasonLikeDirName already true), e.g.
@@ -627,7 +822,7 @@ static ChildClassification classifyChildDirectory(const QString& childPath,
     const auto looseMedia = mdir.entryInfoList(allMediaFilters(), QDir::Files);
     QStringList looseMediaPaths;
     for (const auto& f : looseMedia) {
-        if (pathHitsNeedle(f.absoluteFilePath(), needles))
+        if (pathHitsNeedle(f.absoluteFilePath(), needles) || isSampleVideo(f.absoluteFilePath()))
             continue;
         looseMediaPaths.append(f.absoluteFilePath());
     }
@@ -670,8 +865,9 @@ static ChildClassification classifyChildDirectory(const QString& childPath,
 
     if (looseMediaPaths.size() == 1) {
         const QString file = looseMediaPaths.first();
-        if (kindForFile(file) == MediaKind::Video && isEpisodeVideo(file)) {
-            const QString title = episodeSeriesTitle(file);
+        const auto context = videoEpisodeContext(file, looseMediaPaths);
+        if (kindForFile(file) == MediaKind::Video && context.number.matched) {
+            const QString title = context.title;
             cc.node.nodeType = BrowseNodeType::Show;
             cc.node.displayTitle = title.isEmpty() ? cleanMediaFolderTitle(rawName) : title;
             cc.node.key = cc.node.path = episodeShowKey(childPath, cc.node.displayTitle);
@@ -694,7 +890,7 @@ static ChildClassification classifyChildDirectory(const QString& childPath,
             if (kindForFile(p) != MediaKind::Video)
                 continue;
             ++videoTotal;
-            if (parseEpisodeNumber(QFileInfo(p).fileName()).matched)
+            if (videoEpisodeContext(p, looseMediaPaths).number.matched)
                 ++episodeLike;
         }
         if (videoTotal > 1 && episodeLike == videoTotal) {
@@ -746,18 +942,17 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
         const bool seasonLevel = suffix.contains(QStringLiteral("::season::"));
         const int requestedSeason = suffix.section(QStringLiteral("::season::"), 1).toInt();
         QMap<int, QList<QFileInfo>> looseSeasons;
-        for (const QString& path : videoFilesDirectlyIn(parentPath, needles)) {
-            QString title = episodeSeriesTitle(path);
-            if (title.isEmpty() && parseEpisodeNumber(path).matched)
-                title = cleanMediaFolderTitle(QFileInfo(parentPath).fileName());
-            if (normalizedTitle(title) != slug) continue;
-            const auto episode = parseEpisodeNumber(path);
+        const auto siblingFiles = videoFilesDirectlyIn(parentPath, needles);
+        for (const QString& path : siblingFiles) {
+            const auto context = videoEpisodeContext(path, siblingFiles);
+            if (!context.number.matched || normalizedTitle(context.title) != slug) continue;
+            const auto episode = context.number;
             const int season = episode.absolute ? 1 : episode.season;
             looseSeasons[season].append(QFileInfo(path));
         }
         if (seasonLevel) {
             for (const QFileInfo& file : looseSeasons.value(requestedSeason))
-                out.append(videoLeaf(file));
+                out.append(videoLeaf(file, siblingFiles));
             std::sort(out.begin(), out.end(), [](const BrowseNode& a, const BrowseNode& b) {
                 return a.episodeNumber < b.episodeNumber;
             });
@@ -877,9 +1072,10 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
     QList<BrowseNode> looseShows;
     QSet<QString> groupedFiles;
     QMap<QString, QStringList> looseGroups;
-    for (const QString& file : videoFilesDirectlyIn(levelPath, needles)) {
-        const QString title = episodeSeriesTitle(file);
-        if (!title.isEmpty()) looseGroups[title].append(file);
+    const auto siblingFiles = videoFilesDirectlyIn(levelPath, needles);
+    for (const QString& file : siblingFiles) {
+        const auto context = videoEpisodeContext(file, siblingFiles);
+        if (context.number.matched && !context.title.isEmpty()) looseGroups[context.title].append(file);
     }
     for (auto it = looseGroups.constBegin(); it != looseGroups.constEnd(); ++it) {
         const QString folderTitle = QStringLiteral(" ")
@@ -887,7 +1083,7 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
         const QString seriesTitle = QStringLiteral(" ") + normalizedTitle(it.key()) + QLatin1Char(' ');
         if (isSeasonLikeDirName(QFileInfo(levelPath).fileName()) || folderTitle.contains(seriesTitle))
             continue; // already inside the show's own folder: retain its episode wall
-        if (!isEpisodeVideo(it.value().first(), it.value().size())) continue;
+        if (!videoEpisodeContext(it.value().first(), siblingFiles).number.matched) continue;
         BrowseNode show;
         show.nodeType = BrowseNodeType::Show;
         show.key = show.path = episodeShowKey(levelPath, it.key());
@@ -990,7 +1186,7 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
     out += looseShows;
     const auto looseVideos = mdir.entryInfoList(videoFilters(), QDir::Files);
     for (const auto& f : looseVideos) {
-        if (groupedFiles.contains(f.absoluteFilePath())) continue;
+        if (isSampleVideo(f.absoluteFilePath()) || groupedFiles.contains(f.absoluteFilePath())) continue;
         if (cancel && cancel->isCancelled())
             return out;
         if (pathHitsNeedle(f.absoluteFilePath(), needles))
@@ -999,7 +1195,7 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
         n.key = f.absoluteFilePath();
         n.path = f.absoluteFilePath();
         n.displayTitle = cleanMediaFolderTitle(f.completeBaseName());
-        const SeasonEpisode se = parseEpisodeNumber(f.fileName());
+        const SeasonEpisode se = videoEpisodeContext(f.absoluteFilePath(), siblingFiles).number;
         if (se.matched) {
             n.nodeType = BrowseNodeType::Episode;
             n.episodeNumber = se.episode;
@@ -1082,13 +1278,11 @@ FilmPhysicalFacts describeFilmFolder(const QString& folderPath, const QString& p
             if (isIgnoredDir(name))
                 continue;
             if (isExtrasDirName(name)) {
-                QDir extrasDir(e.absoluteFilePath());
-                const auto vids = extrasDir.entryInfoList(videoFilters(), QDir::Files);
-                for (const auto& v : vids) {
-                    if (pathHitsNeedle(v.absoluteFilePath(), needles))
-                        continue;
+                const auto videos = walkFiles(e.absoluteFilePath(), videoFilters(), nullptr, needles);
+                for (const auto& path : videos) {
+                    const QFileInfo video(path);
                     facts.extras.append(FilmExtra{
-                        extraTitleFromFileName(v.completeBaseName()), v.absoluteFilePath()});
+                        extraTitleFromFileName(video.completeBaseName()), video.absoluteFilePath()});
                 }
                 continue;
             }
@@ -1119,7 +1313,9 @@ FilmPhysicalFacts describeFilmFolder(const QString& folderPath, const QString& p
             continue; // the film itself
         const QString ext = e.suffix();
         const QString base = e.completeBaseName();
-        if (isSubtitleExt(ext)) {
+        if (kindForFile(e.absoluteFilePath()) == MediaKind::Video && isSampleVideo(e.absoluteFilePath())) {
+            facts.extras.append(FilmExtra{extraTitleFromFileName(base), e.absoluteFilePath()});
+        } else if (isSubtitleExt(ext)) {
             facts.companions.append(QStringLiteral("Subtitle (.%1)").arg(ext.toUpper()));
         } else if (ext.compare(QStringLiteral("nfo"), Qt::CaseInsensitive) == 0) {
             facts.companions.append(QStringLiteral("Info file (.nfo)"));

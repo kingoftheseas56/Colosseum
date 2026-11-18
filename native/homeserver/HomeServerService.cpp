@@ -52,6 +52,9 @@ void HomeServerService::activate(const QString &profileId, const QString &profil
     m_store.deactivate();
     m_connectionStatus.clear();
     m_index.clear();
+    m_libraries.clear();
+    m_manifestKnown.clear();
+    m_connectionState.clear();
     m_sourceIdentities.clear();
     m_serverMajor.clear();
     m_expired.clear();
@@ -68,7 +71,10 @@ void HomeServerService::activate(const QString &profileId, const QString &profil
             else if (!m_dataClient.isReady()) m_status = m_dataClient.identityError();
             for (const auto &value : m_store.connections()) {
                 const auto id = value.toObject().value("id").toString();
-                m_index.insert(id, m_store.items(id));
+                const auto catalog = m_store.catalog(id);
+                m_index.insert(id, catalog.value("items").toArray());
+                m_libraries.insert(id, catalog.value("libraries").toArray());
+                if (catalog.value("manifestKnown").toBool()) m_manifestKnown.insert(id);
             }
         }
     }
@@ -293,6 +299,7 @@ void HomeServerService::setEnabled(const QString &id, bool enabled) {
     cancelRefresh(id);
     invalidateRequests();
     m_status = m_store.setEnabled(id, enabled) ? QString() : m_store.error();
+    if (enabled && m_store.connection(id).value("enabled").toBool()) m_connectionState[id] = "cached";
     const auto owner = m_progress;
     if (owner && !m_store.connection(id).value("enabled").toBool()) {
         QScopedValueRollback<bool> applying(m_applyingProgress, true);
@@ -325,6 +332,9 @@ void HomeServerService::remove(const QString &id) {
     m_connectionStatus.remove(id);
     if (m_store.connection(id).isEmpty()) {
         m_index.remove(id);
+        m_libraries.remove(id);
+        m_manifestKnown.remove(id);
+        m_connectionState.remove(id);
         m_serverMajor.remove(id);
         m_expired.remove(id);
     }
@@ -333,6 +343,16 @@ void HomeServerService::remove(const QString &id) {
 }
 
 int HomeServerService::itemCount(const QString &id) const { return m_index.value(id).size(); }
+
+QString HomeServerService::serverState(const QString &id) const {
+    const auto connection = m_store.connection(id);
+    if (connection.isEmpty()) return {};
+    if (!connection.value("enabled").toBool()) return "disabled";
+    if (m_expired.contains(id) || m_store.token(id).isEmpty()) return "needsReconnect";
+    if (m_refreshes.contains(id)) return "refreshing";
+    if (m_refreshQueue.contains(id)) return "pending";
+    return m_connectionState.value(id, "cached");
+}
 
 void HomeServerService::cancelRefresh(const QString &id) {
     const auto job = m_refreshes.take(id);
@@ -395,9 +415,12 @@ void HomeServerService::refresh(const QString &id) {
         m_refreshes.remove(id);
         const auto current = m_store.connection(id);
         if (current.isEmpty() || !current.value("enabled").toBool()) { drainRefreshQueue(); return; }
-        if (result.ok() && m_store.replaceItems(id, result.items)) {
+        if (result.ok() && m_store.replaceCatalog(id, result.libraries, result.items)) {
             m_sourceIdentities.clear();
             m_index[id] = result.items;
+            m_libraries[id] = result.libraries;
+            m_manifestKnown.insert(id);
+            m_connectionState[id] = "ready";
             m_serverMajor[id] = result.serverMajor;
             m_connectionStatus[id] = tr("Refreshed %1 items.").arg(result.items.size());
             reconcileProgress(id);
@@ -407,6 +430,7 @@ void HomeServerService::refresh(const QString &id) {
             m_connectionStatus[id] = tr("Sign-in expired. Remove this connection and connect again.");
             hideUnavailableProgress();
         } else {
+            m_connectionState[id] = "unavailable";
             m_connectionStatus[id] = result.ok() ? m_store.error() : result.error;
         }
         publish();

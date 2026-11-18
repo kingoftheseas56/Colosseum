@@ -12,6 +12,26 @@ Item {
     id: root
     objectName: "trackerSyncCenterPage"
 
+    function openHomeServers(provider) {
+        const index = ["jellyfin", "emby", "plex"].indexOf(provider)
+        if (index < 0) {
+            const first = homeServerCards.itemAt(0)
+            if (first) revealServiceCard(first, function() { if (first.focusConnectAction) first.focusConnectAction() })
+            return
+        }
+        const card = homeServerCards.itemAt(index)
+        if (card) card.panelOpen = true
+    }
+    function revealServiceCard(item, focusAction) {
+        Qt.callLater(function() {
+            const point = item.mapToItem(pageScroll.contentItem, 0, 0)
+            pageScroll.contentY = Math.max(0, Math.min(point.y - 18, pageScroll.contentHeight - pageScroll.height))
+            if (focusAction) focusAction()
+        })
+    }
+    function openExternalServices() {
+        revealServiceCard(mainSyncSection, function() { root.focusMainSyncButton() })
+    }
     property Item backdrop: null
     property var stremioState: null
     property var nuvioAccount: typeof NuvioAccounts !== "undefined" ? NuvioAccounts : null
@@ -134,7 +154,7 @@ Item {
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
-    signal mainSyncRequested()
+    signal mainSyncRequested(bool nuvio)
 
     Connections {
         target: root.trackerConnector
@@ -251,6 +271,15 @@ Item {
         return stremioConnected ? "Connected" : "Not connected"
     }
 
+    function stremioStatusKind() {
+        if (!stremioState) return "attention"
+        var status = String(stremioState.status || "")
+        if (status === "reconnectRequired" || status === "syncFailed" || status === "paused")
+            return "attention"
+        if (status === "connecting" || status === "syncing") return "busy"
+        return stremioConnected ? "linked" : "unlinked"
+    }
+
     function nuvioStatusLabel() {
         if (!nuvioAccount || !nuvioAccount.available)
             return qsTr("Unavailable")
@@ -259,6 +288,28 @@ Item {
         if (!nuvioAccount.connected)
             return qsTr("Not connected")
         return nuvioAccount.primaryProvider === "nuvio" ? qsTr("Primary sync service") : qsTr("Connected")
+    }
+
+    function nuvioStatusKind() {
+        if (!nuvioAccount || !nuvioAccount.available || nuvioAccount.needsReconnect)
+            return "attention"
+        var status = String(nuvioAccount.status || "")
+        if (status === "connecting" || status === "syncing" || status === "refreshing") return "busy"
+        return nuvioAccount.connected ? "linked" : "unlinked"
+    }
+
+    function trackerStatusKind(status, available, connected, pendingWork) {
+        var label = String(status || "")
+        if (pendingWork === true || label === "Attention" || label === "Waiting"
+                || label === "Needs attention" || label === "Unknown"
+                || label.toLowerCase().indexOf("unavailable") >= 0
+                || label.toLowerCase().indexOf("storage") >= 0)
+            return "attention"
+        if (label === "Syncing" || label === "Refreshing" || label === "Connecting") return "busy"
+        if (connected === true) return "linked"
+        if (label === "Not connected" || label === "Not linked" || label === "Connect"
+                || label === "Coming soon") return "unlinked"
+        return available === true ? "unlinked" : "attention"
     }
 
     function capabilityLabel(capability) {
@@ -331,7 +382,7 @@ Item {
         if (connectedCount === 0)
             return attentionProviderCount > 0
                    ? "Disconnected third-party tracker work needs attention"
-                   : "No third-party trackers connected"
+                   : ""
         var parts = [connectedCount + (connectedCount === 1 ? " connected" : " connected")]
         if (waitingCount > 0) parts.push(waitingCount + " waiting")
         if (attentionProviderCount > 0)
@@ -1795,7 +1846,7 @@ Item {
             }
 
             Text {
-                visible: root.connectedCount === 0
+                visible: root.connectedCount === 0 && root.aggregateSummary().length > 0
                 text: root.aggregateSummary()
                 color: theme.inkDim
                 font.family: theme.ui
@@ -1938,6 +1989,7 @@ Item {
                     Text {
                         id: relaySummary
                         objectName: "trackerRelayStatus"
+                        visible: root.aggregateSummary().length > 0
                         text: root.aggregateSummary()
                         color: root.attentionProviderCount > 0 ? theme.gold : theme.inkDim
                         font.family: theme.ui
@@ -1963,14 +2015,6 @@ Item {
                     font.family: theme.display
                     font.pixelSize: 25
                 }
-                Text {
-                    objectName: "trackerExternalServicesDescription"
-                    text: "Manage connections to external libraries."
-                    color: theme.inkDim
-                    font.family: theme.ui
-                    font.pixelSize: 11
-                }
-
                 Rectangle {
                     objectName: "trackerStremioCard"
                     Layout.fillWidth: true
@@ -1996,49 +2040,14 @@ Item {
                         }
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 6
+                            spacing: 0
                             Text {
+                                objectName: "trackerStremioName"
                                 text: "Stremio"
                                 color: theme.ink
                                 font.family: theme.display
                                 font.pixelSize: 24
                                 font.weight: Font.DemiBold
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                wrapMode: Text.WordWrap
-                                text: "Library, progress, and History"
-                                color: theme.inkDim
-                                font.family: theme.ui
-                                font.pixelSize: 11
-                            }
-                            RowLayout {
-                                visible: root.width >= 760
-                                spacing: 6
-                                Repeater {
-                                    model: ["Library", "Progress", "History"]
-                                    delegate: Rectangle {
-                                        id: stremioTag
-                                        required property string modelData
-                                        objectName: "trackerStremioCapabilityTag_"
-                                                     + modelData.toLowerCase()
-                                        implicitWidth: tagLabel.implicitWidth + 14
-                                        implicitHeight: 21
-                                        radius: 5
-                                        color: Qt.rgba(255 / 255, 255 / 255, 255 / 255, 0.075)
-                                        border.width: 0
-                                        Text {
-                                            id: tagLabel
-                                            objectName: "trackerStremioCapabilityLabel_"
-                                                         + stremioTag.modelData.toLowerCase()
-                                            anchors.centerIn: parent
-                                            text: stremioTag.modelData
-                                            color: theme.inkDim
-                                            font.family: theme.ui
-                                            font.pixelSize: 10
-                                        }
-                                    }
-                                }
                             }
                         }
                         ColumnLayout {
@@ -2048,19 +2057,65 @@ Item {
                             Rectangle {
                                 objectName: "trackerStremioStatusBadge"
                                 Layout.alignment: Qt.AlignRight
-                                implicitWidth: stremioStatusText.implicitWidth + 24
+                                implicitWidth: stremioStatusRow.implicitWidth + 20
                                 implicitHeight: 28
                                 radius: 10
-                                color: theme.glassTint
+                                color: root.stremioStatusKind() === "linked"
+                                       ? Qt.rgba(theme.vaultHealthy.r, theme.vaultHealthy.g, theme.vaultHealthy.b, 0.10)
+                                       : root.stremioStatusKind() === "attention"
+                                         ? Qt.rgba(theme.gold.r, theme.gold.g, theme.gold.b, 0.09) : theme.glassTint
                                 border.width: 1
-                                border.color: theme.edge
-                                Text {
-                                    id: stremioStatusText
+                                border.color: root.stremioStatusKind() === "linked" ? theme.vaultHealthy
+                                              : root.stremioStatusKind() === "attention" ? theme.gold : theme.edge
+                                Accessible.role: Accessible.StaticText
+                                Accessible.name: qsTr("Stremio status: %1").arg(root.stremioStatusLabel())
+                                ToolTip.text: Accessible.name
+                                ToolTip.delay: 350
+                                ToolTip.visible: stremioStatusHover.hovered
+                                HoverHandler { id: stremioStatusHover }
+                                RowLayout {
+                                    id: stremioStatusRow
                                     anchors.centerIn: parent
-                                    text: root.stremioStatusLabel()
-                                    color: theme.inkDim
-                                    font.family: theme.ui
-                                    font.pixelSize: 11
+                                    spacing: 6
+                                    Item {
+                                        objectName: "trackerStremioStatusIcon"
+                                        Layout.preferredWidth: 15; Layout.preferredHeight: 15
+                                        Accessible.ignored: true
+                                        Image {
+                                            objectName: "trackerStremioStatusGlyph"
+                                            anchors.centerIn: parent
+                                            width: 13; height: 13
+                                            source: root.stremioStatusKind() === "linked" ? "../assets/icons/lucide/circle-check.svg"
+                                                   : root.stremioStatusKind() === "attention" ? "../assets/icons/lucide/triangle-alert.svg"
+                                                   : "../assets/icons/link.svg"
+                                            sourceSize.width: 26
+                                            fillMode: Image.PreserveAspectFit
+                                            visible: root.stremioStatusKind() !== "busy"
+                                        }
+                                        Rectangle {
+                                            visible: root.stremioStatusKind() === "unlinked"
+                                            anchors.centerIn: parent
+                                            width: 15; height: 1.5; radius: 1
+                                            rotation: -45; color: theme.inkDim
+                                        }
+                                        BusyIndicator {
+                                            visible: root.stremioStatusKind() === "busy"
+                                            running: visible
+                                            anchors.centerIn: parent
+                                            width: 15; height: 15
+                                            palette.highlight: theme.inkDim
+                                            palette.buttonText: theme.inkDim
+                                            palette.windowText: theme.inkDim
+                                        }
+                                    }
+                                    Text {
+                                        id: stremioStatusText
+                                        text: root.stremioStatusLabel()
+                                        color: root.stremioStatusKind() === "linked" ? theme.vaultHealthy
+                                               : root.stremioStatusKind() === "attention" ? theme.gold : theme.inkDim
+                                        font.family: theme.ui
+                                        font.pixelSize: 11
+                                    }
                                 }
                             }
                             Button {
@@ -2071,7 +2126,10 @@ Item {
                                 Layout.preferredHeight: 40
                                 activeFocusOnTab: true
                                 Accessible.name: "Open Stremio settings"
-                                onClicked: root.mainSyncRequested()
+                                ToolTip.text: Accessible.name
+                                ToolTip.delay: 350
+                                ToolTip.visible: hovered || activeFocus
+                                onClicked: root.mainSyncRequested(false)
                                 background: Rectangle {
                                     radius: 9
                                     color: mainSyncButton.down || mainSyncButton.hovered
@@ -2122,21 +2180,14 @@ Item {
                         }
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 6
+                            spacing: 0
                             Text {
+                                objectName: "trackerNuvioName"
                                 text: qsTr("Nuvio")
                                 color: theme.ink
                                 font.family: theme.display
                                 font.pixelSize: 24
                                 font.weight: Font.DemiBold
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                wrapMode: Text.WordWrap
-                                text: qsTr("Library, watched items and addons")
-                                color: theme.inkDim
-                                font.family: theme.ui
-                                font.pixelSize: 11
                             }
                         }
                         ColumnLayout {
@@ -2146,19 +2197,65 @@ Item {
                             Rectangle {
                                 objectName: "trackerNuvioStatusBadge"
                                 Layout.alignment: Qt.AlignRight
-                                implicitWidth: nuvioStatusText.implicitWidth + 24
+                                implicitWidth: nuvioStatusRow.implicitWidth + 20
                                 implicitHeight: 28
                                 radius: 10
-                                color: theme.glassTint
+                                color: root.nuvioStatusKind() === "linked"
+                                       ? Qt.rgba(theme.vaultHealthy.r, theme.vaultHealthy.g, theme.vaultHealthy.b, 0.10)
+                                       : root.nuvioStatusKind() === "attention"
+                                         ? Qt.rgba(theme.gold.r, theme.gold.g, theme.gold.b, 0.09) : theme.glassTint
                                 border.width: 1
-                                border.color: theme.edge
-                                Text {
-                                    id: nuvioStatusText
+                                border.color: root.nuvioStatusKind() === "linked" ? theme.vaultHealthy
+                                              : root.nuvioStatusKind() === "attention" ? theme.gold : theme.edge
+                                Accessible.role: Accessible.StaticText
+                                Accessible.name: qsTr("Nuvio status: %1").arg(root.nuvioStatusLabel())
+                                ToolTip.text: Accessible.name
+                                ToolTip.delay: 350
+                                ToolTip.visible: nuvioStatusHover.hovered
+                                HoverHandler { id: nuvioStatusHover }
+                                RowLayout {
+                                    id: nuvioStatusRow
                                     anchors.centerIn: parent
-                                    text: root.nuvioStatusLabel()
-                                    color: theme.inkDim
-                                    font.family: theme.ui
-                                    font.pixelSize: 11
+                                    spacing: 6
+                                    Item {
+                                        objectName: "trackerNuvioStatusIcon"
+                                        Layout.preferredWidth: 15; Layout.preferredHeight: 15
+                                        Accessible.ignored: true
+                                        Image {
+                                            objectName: "trackerNuvioStatusGlyph"
+                                            anchors.centerIn: parent
+                                            width: 13; height: 13
+                                            source: root.nuvioStatusKind() === "linked" ? "../assets/icons/lucide/circle-check.svg"
+                                                   : root.nuvioStatusKind() === "attention" ? "../assets/icons/lucide/triangle-alert.svg"
+                                                   : "../assets/icons/link.svg"
+                                            sourceSize.width: 26
+                                            fillMode: Image.PreserveAspectFit
+                                            visible: root.nuvioStatusKind() !== "busy"
+                                        }
+                                        Rectangle {
+                                            visible: root.nuvioStatusKind() === "unlinked"
+                                            anchors.centerIn: parent
+                                            width: 15; height: 1.5; radius: 1
+                                            rotation: -45; color: theme.inkDim
+                                        }
+                                        BusyIndicator {
+                                            visible: root.nuvioStatusKind() === "busy"
+                                            running: visible
+                                            anchors.centerIn: parent
+                                            width: 15; height: 15
+                                            palette.highlight: theme.inkDim
+                                            palette.buttonText: theme.inkDim
+                                            palette.windowText: theme.inkDim
+                                        }
+                                    }
+                                    Text {
+                                        id: nuvioStatusText
+                                        text: root.nuvioStatusLabel()
+                                        color: root.nuvioStatusKind() === "linked" ? theme.vaultHealthy
+                                               : root.nuvioStatusKind() === "attention" ? theme.gold : theme.inkDim
+                                        font.family: theme.ui
+                                        font.pixelSize: 11
+                                    }
                                 }
                             }
                             Button {
@@ -2168,8 +2265,13 @@ Item {
                                 Layout.preferredWidth: 160
                                 Layout.preferredHeight: 40
                                 text: qsTr("Open sync settings ›")
+                                activeFocusOnTab: true
+                                Accessible.name: qsTr("Open Nuvio sync settings")
                                 Accessible.description: qsTr("Choose Nuvio in sync settings.")
-                                onClicked: root.mainSyncRequested()
+                                ToolTip.text: Accessible.description
+                                ToolTip.delay: 350
+                                ToolTip.visible: hovered || activeFocus
+                                onClicked: root.mainSyncRequested(true)
                                 background: Rectangle {
                                     radius: 9
                                     color: nuvioSettingsButton.down || nuvioSettingsButton.hovered
@@ -2190,9 +2292,16 @@ Item {
                         }
                     }
                 }
-                HomeServerSyncCard {
-                    Layout.fillWidth: true
-                    service: root.homeServers
+                Repeater {
+                    id: homeServerCards
+                    model: ["jellyfin", "emby", "plex"]
+                    HomeServerSyncCard {
+                        required property string modelData
+                        objectName: "homeServerSyncCard_" + modelData
+                        Layout.fillWidth: true
+                        service: root.homeServers
+                        provider: modelData
+                    }
                 }
             }
 
@@ -2287,12 +2396,18 @@ Item {
                             id: trackerCard
                             required property var modelData
                             objectName: "trackerCard_" + modelData.providerKey
+                            readonly property string statusKind:
+                                root.trackerStatusKind(modelData.status, true, true, false)
                             Layout.fillWidth: true
                             Layout.preferredHeight: 140
                             padding: 18
                             activeFocusOnTab: true
                             Accessible.name: (modelData.providerName || "Tracker") + ", "
                                              + root.displayStatus(modelData.status)
+                            Accessible.description: String(modelData.accountLabel || "Connected to this profile")
+                            ToolTip.text: Accessible.name + ". " + Accessible.description
+                            ToolTip.delay: 350
+                            ToolTip.visible: hovered || activeFocus
                             onClicked: modelData.status === "Attention"
                                        ? root.openRecoveryRoute(modelData.providerKey, trackerCard)
                                        : root.openDossier(modelData.providerKey, trackerCard)
@@ -2354,11 +2469,58 @@ Item {
                                             Layout.fillWidth: true
                                         }
                                     }
-                                    Text {
-                                        text: root.displayStatus(trackerCard.modelData.status)
-                                        color: trackerCard.modelData.status === "Attention" ? theme.gold : theme.inkDim
-                                        font.family: theme.ui
-                                        font.pixelSize: 10
+                                    Rectangle {
+                                        objectName: "trackerCardStatusBadge_" + trackerCard.modelData.providerKey
+                                        Layout.alignment: Qt.AlignRight
+                                        implicitWidth: trackerStatusRow.implicitWidth + 18
+                                        implicitHeight: 26
+                                        radius: 8
+                                        color: root.trackerStatusKind(trackerCard.modelData.status, true, true, false) === "attention"
+                                               ? Qt.rgba(theme.gold.r, theme.gold.g, theme.gold.b, 0.09)
+                                               : root.trackerStatusKind(trackerCard.modelData.status, true, true, false) === "linked"
+                                                 ? Qt.rgba(theme.vaultHealthy.r, theme.vaultHealthy.g, theme.vaultHealthy.b, 0.09) : theme.glassTint
+                                        border.width: 1
+                                        border.color: root.trackerStatusKind(trackerCard.modelData.status, true, true, false) === "attention"
+                                                      ? theme.gold : root.trackerStatusKind(trackerCard.modelData.status, true, true, false) === "linked"
+                                                        ? theme.vaultHealthy : theme.edge
+                                        RowLayout {
+                                            id: trackerStatusRow
+                                            anchors.centerIn: parent
+                                            spacing: 5
+                                            Item {
+                                                Layout.preferredWidth: 14; Layout.preferredHeight: 14
+                                                Accessible.ignored: true
+                                                Image {
+                                                    objectName: "trackerCardStatusGlyph_" + trackerCard.modelData.providerKey
+                                                    anchors.centerIn: parent
+                                                    width: 12; height: 12
+                                                    source: root.trackerStatusKind(trackerCard.modelData.status, true, true, false) === "linked"
+                                                            ? "../assets/icons/lucide/circle-check.svg"
+                                                            : root.trackerStatusKind(trackerCard.modelData.status, true, true, false) === "attention"
+                                                              ? "../assets/icons/lucide/triangle-alert.svg" : "../assets/icons/link.svg"
+                                                    sourceSize.width: 24
+                                                    fillMode: Image.PreserveAspectFit
+                                                    visible: root.trackerStatusKind(trackerCard.modelData.status, true, true, false) !== "busy"
+                                                }
+                                                BusyIndicator {
+                                                    visible: root.trackerStatusKind(trackerCard.modelData.status, true, true, false) === "busy"
+                                                    running: visible
+                                                    anchors.centerIn: parent
+                                                    width: 14; height: 14
+                                                    palette.highlight: theme.inkDim
+                                                    palette.buttonText: theme.inkDim
+                                                    palette.windowText: theme.inkDim
+                                                }
+                                            }
+                                            Text {
+                                                text: root.displayStatus(trackerCard.modelData.status)
+                                                color: root.trackerStatusKind(trackerCard.modelData.status, true, true, false) === "attention"
+                                                       ? theme.gold : root.trackerStatusKind(trackerCard.modelData.status, true, true, false) === "linked"
+                                                         ? theme.vaultHealthy : theme.inkDim
+                                                font.family: theme.ui
+                                                font.pixelSize: 10
+                                            }
+                                        }
                                     }
                                 }
                                 RowLayout {
@@ -2454,6 +2616,9 @@ Item {
                             id: catalogueCard
                             required property var modelData
                             objectName: "trackerCatalogue_" + modelData.providerKey
+                            readonly property string statusKind:
+                                root.trackerStatusKind(modelData.status, modelData.available,
+                                                      modelData.connected, modelData.pendingWork)
                             Layout.fillWidth: true
                             Layout.preferredHeight: 126
                             padding: 15
@@ -2462,6 +2627,10 @@ Item {
                                              + root.providerStatus(modelData.providerKey, modelData.status,
                                                                   modelData.available, modelData.connectUnavailableReason,
                                                                   modelData.connected)
+                            Accessible.description: root.providerSubject(modelData.providerKey, modelData.available)
+                            ToolTip.text: Accessible.name + (Accessible.description.length ? ". " + Accessible.description : "")
+                            ToolTip.delay: 350
+                            ToolTip.visible: hovered || activeFocus
                             onClicked: root.openDossier(modelData.providerKey, catalogueCard)
 
                             background: Rectangle {
@@ -2492,6 +2661,7 @@ Item {
                                         spacing: 5
                                         Text {
                                             text: catalogueCard.modelData.providerName || "Tracker"
+                                            objectName: "trackerCatalogueName_" + catalogueCard.modelData.providerKey
                                             color: theme.ink
                                             font.family: theme.ui
                                             font.pixelSize: 14
@@ -2499,48 +2669,113 @@ Item {
                                             Layout.fillWidth: true
                                             elide: Text.ElideRight
                                         }
-                                        Text {
-                                            text: root.providerSubject(catalogueCard.modelData.providerKey,
-                                                                       catalogueCard.modelData.available)
-                                            color: theme.inkDimmer
-                                            font.family: theme.ui
-                                            font.pixelSize: 11
-                                            wrapMode: Text.WordWrap
-                                            Layout.fillWidth: true
-                                        }
                                     }
                                 }
                                 Rectangle {
+                                    id: catalogueStatusBadge
+                                    objectName: "trackerCatalogueStatusBadge_" + catalogueCard.modelData.providerKey
                                     Layout.alignment: Qt.AlignRight
-                                    implicitWidth: catalogueStateText.implicitWidth + 22
+                                    implicitWidth: catalogueStatusRow.implicitWidth + 20
                                     implicitHeight: 28
-                                    radius: 7
-                                    color: theme.glassTint
-                                    border.width: 1
-                                    border.color: theme.edge
-                                    Text {
-                                        id: catalogueStateText
-                                        objectName: "trackerCatalogueStatus_" + catalogueCard.modelData.providerKey
-                                        anchors.centerIn: parent
-                                        text: catalogueCard.modelData.available === true
-                                              && !root.platformUnavailable(catalogueCard.modelData.providerKey,
-                                                                           catalogueCard.modelData.available,
-                                                                           catalogueCard.modelData.connectUnavailableReason)
-                                              && !catalogueCard.modelData.connectUnavailableReason
-                                              ? (catalogueCard.modelData.connected ? "Connected"
-                                                 : (catalogueCard.modelData.pendingWork === true
-                                                    ? "Needs attention" : "Connect"))
-                                              : root.providerStatus(catalogueCard.modelData.providerKey,
-                                                                    catalogueCard.modelData.status,
+                                    radius: 8
+                                    color: root.trackerStatusKind(catalogueCard.modelData.status,
+                                                                  catalogueCard.modelData.available,
+                                                                  catalogueCard.modelData.connected,
+                                                                  catalogueCard.modelData.pendingWork) === "linked"
+                                           ? Qt.rgba(theme.vaultHealthy.r, theme.vaultHealthy.g, theme.vaultHealthy.b, 0.10)
+                                           : root.trackerStatusKind(catalogueCard.modelData.status,
                                                                     catalogueCard.modelData.available,
-                                                                    catalogueCard.modelData.connectUnavailableReason,
-                                                                    catalogueCard.modelData.connected)
-                                        color: catalogueCard.modelData.available
-                                               ? (catalogueCard.modelData.pendingWork === true
-                                                  ? theme.gold : theme.inkDim)
-                                               : theme.inkDimmer
-                                        font.family: theme.ui
-                                        font.pixelSize: 10
+                                                                    catalogueCard.modelData.connected,
+                                                                    catalogueCard.modelData.pendingWork) === "attention"
+                                             ? Qt.rgba(theme.gold.r, theme.gold.g, theme.gold.b, 0.09) : theme.glassTint
+                                    border.width: 1
+                                    border.color: root.trackerStatusKind(catalogueCard.modelData.status,
+                                                                         catalogueCard.modelData.available,
+                                                                         catalogueCard.modelData.connected,
+                                                                         catalogueCard.modelData.pendingWork) === "linked" ? theme.vaultHealthy
+                                                  : root.trackerStatusKind(catalogueCard.modelData.status,
+                                                                           catalogueCard.modelData.available,
+                                                                           catalogueCard.modelData.connected,
+                                                                           catalogueCard.modelData.pendingWork) === "attention" ? theme.gold : theme.edge
+                                    RowLayout {
+                                        id: catalogueStatusRow
+                                        anchors.centerIn: parent
+                                        spacing: 6
+                                        Item {
+                                            objectName: "trackerCatalogueStatusIcon_" + catalogueCard.modelData.providerKey
+                                            Layout.preferredWidth: 14; Layout.preferredHeight: 14
+                                            Accessible.ignored: true
+                                            Image {
+                                                objectName: "trackerCatalogueStatusGlyph_" + catalogueCard.modelData.providerKey
+                                                anchors.centerIn: parent
+                                                width: 12; height: 12
+                                                source: root.trackerStatusKind(catalogueCard.modelData.status,
+                                                                               catalogueCard.modelData.available,
+                                                                               catalogueCard.modelData.connected,
+                                                                               catalogueCard.modelData.pendingWork) === "linked"
+                                                        ? "../assets/icons/lucide/circle-check.svg"
+                                                        : root.trackerStatusKind(catalogueCard.modelData.status,
+                                                                                 catalogueCard.modelData.available,
+                                                                                 catalogueCard.modelData.connected,
+                                                                                 catalogueCard.modelData.pendingWork) === "attention"
+                                                          ? "../assets/icons/lucide/triangle-alert.svg" : "../assets/icons/link.svg"
+                                                sourceSize.width: 24
+                                                fillMode: Image.PreserveAspectFit
+                                                visible: root.trackerStatusKind(catalogueCard.modelData.status,
+                                                                               catalogueCard.modelData.available,
+                                                                               catalogueCard.modelData.connected,
+                                                                               catalogueCard.modelData.pendingWork) !== "busy"
+                                            }
+                                            Rectangle {
+                                                visible: root.trackerStatusKind(catalogueCard.modelData.status,
+                                                                                catalogueCard.modelData.available,
+                                                                                catalogueCard.modelData.connected,
+                                                                                catalogueCard.modelData.pendingWork) === "unlinked"
+                                                anchors.centerIn: parent
+                                                width: 15; height: 1.5; radius: 1
+                                                rotation: -45; color: theme.inkDim
+                                            }
+                                            BusyIndicator {
+                                                visible: root.trackerStatusKind(catalogueCard.modelData.status,
+                                                                                catalogueCard.modelData.available,
+                                                                                catalogueCard.modelData.connected,
+                                                                                catalogueCard.modelData.pendingWork) === "busy"
+                                                running: visible
+                                                anchors.centerIn: parent
+                                                width: 14; height: 14
+                                                palette.highlight: theme.inkDim
+                                                palette.buttonText: theme.inkDim
+                                                palette.windowText: theme.inkDim
+                                            }
+                                        }
+                                        Text {
+                                            id: catalogueStateText
+                                            objectName: "trackerCatalogueStatus_" + catalogueCard.modelData.providerKey
+                                            text: catalogueCard.modelData.available === true
+                                                  && !root.platformUnavailable(catalogueCard.modelData.providerKey,
+                                                                               catalogueCard.modelData.available,
+                                                                               catalogueCard.modelData.connectUnavailableReason)
+                                                  && !catalogueCard.modelData.connectUnavailableReason
+                                                  ? (catalogueCard.modelData.connected ? "Connected"
+                                                     : (catalogueCard.modelData.pendingWork === true
+                                                        ? "Needs attention" : "Connect"))
+                                                  : root.providerStatus(catalogueCard.modelData.providerKey,
+                                                                        catalogueCard.modelData.status,
+                                                                        catalogueCard.modelData.available,
+                                                                        catalogueCard.modelData.connectUnavailableReason,
+                                                                        catalogueCard.modelData.connected)
+                                            color: root.trackerStatusKind(catalogueCard.modelData.status,
+                                                                          catalogueCard.modelData.available,
+                                                                          catalogueCard.modelData.connected,
+                                                                          catalogueCard.modelData.pendingWork) === "attention"
+                                                   ? theme.gold : root.trackerStatusKind(catalogueCard.modelData.status,
+                                                                                        catalogueCard.modelData.available,
+                                                                                        catalogueCard.modelData.connected,
+                                                                                        catalogueCard.modelData.pendingWork) === "linked"
+                                                     ? theme.vaultHealthy : theme.inkDim
+                                            font.family: theme.ui
+                                            font.pixelSize: 10
+                                        }
                                     }
                                 }
                             }

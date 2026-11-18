@@ -18,6 +18,7 @@ Item {
     property bool wrapNavigation: false        // opt-in cyclic option navigation
     property bool openOnDown: false            // opt-in combobox-style trigger
     property bool clearable: true             // an active filter shows an ✕ that resets it
+    property string actionAccessibleName: "" // optional stable name for embedded keyboard action
     property Item focusReturn: null
     // Lanista identity stem, world-namespaced by the host ("" = unnamed): <stem>Pill and
     // <stem>Option_<index>. Discover sidebar plan Slice 1 regression; the picker goes in Slice 3.
@@ -183,7 +184,8 @@ Item {
             spaceActivates: true
             anchors.fill: parent
             pointerEnabled: false
-            accessibleName: picker.hasValue ? picker.current.text : picker.label
+            accessibleName: picker.actionAccessibleName.length ? picker.actionAccessibleName
+                : (picker.hasValue ? picker.current.text : picker.label)
             accessibleDescription: "Open filter options"
             focusRadius: pill.radius
             onTriggered: picker.togglePopup(pillAction)

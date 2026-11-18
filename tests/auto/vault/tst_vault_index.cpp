@@ -19,7 +19,7 @@
 #include <algorithm>
 
 namespace {
-constexpr int kExpectedVaultSchemaVersion = 7;
+constexpr int kExpectedVaultSchemaVersion = 8;
 }
 
 class tst_vault_index : public QObject
@@ -101,6 +101,7 @@ private:
     }
 
 private slots:
+    void group_sort_index_is_created_for_fresh_and_existing_schema();
     void publish_and_query_round_trip();
     void folder_listing_is_natural_order();
     void publish_is_atomic_when_cancelled();
@@ -116,6 +117,9 @@ private slots:
     // ── vault-admission slice ──
     void legacy_schema_migrates_and_stamps_current_version();
     void future_schema_fails_closed_without_downgrade();
+    void embedded_title_round_trips_all_row_queries_and_exact_tuple_carry();
+    void legacy_epub_metadata_does_not_invent_embedded_title();
+    void adopted_type_round_trips_and_carries_only_exact_tuple();
     // ── browse-face execution plan, Slice 2 ──
     void identity_state_round_trips_and_survives_a_republish_that_still_carries_it();
     void publish_carries_admission_only_for_exact_identity_tuple();
@@ -125,6 +129,111 @@ private slots:
     void reconcile_root_removes_obsolete_and_preserves_unchanged_facts();
     void stale_revision_write_cannot_resurrect_removed_row();
 };
+
+void tst_vault_index::embedded_title_round_trips_all_row_queries_and_exact_tuple_carry()
+{
+    QTemporaryDir tmp;
+    const auto path = tmp.filePath(QStringLiteral("embedded.sqlite"));
+    VaultIndex index(path); QVERIFY(index.isOpen());
+    const auto source = mk(QStringLiteral("vault:book"), QStringLiteral("/fixture/books"),
+                           QStringLiteral("Books"), QStringLiteral("book"), QStringLiteral("payload.epub"));
+    auto enriched = source; enriched.metadataSource = QStringLiteral("EPUB");
+    enriched.embeddedTitle = QStringLiteral("Actual embedded title");
+    enriched.identityId = QStringLiteral("epub:vault:book");
+    QVERIFY(index.upsertMany({enriched}));
+    const QList<QList<VaultIndex::FileRow>> queries{
+        index.rowsForKind(source.kind), index.rowsForRoot(source.rootPath), index.rowsForGroup(source.groupKey),
+        index.rowsForPath(source.path), index.rowsMatching(QStringLiteral("payload"), 10), index.rowsForIdentity(enriched.identityId)};
+    for (const auto& rows : queries) {QCOMPARE(rows.size(), 1); QCOMPARE(rows.first().embeddedTitle, enriched.embeddedTitle);}
+    QCOMPARE(index.filesInSubtree(source.subtreePath).first().toMap().value(QStringLiteral("embeddedTitle")).toString(), enriched.embeddedTitle);
+    VaultIndex reopened(path); QVERIFY(reopened.isOpen());
+    QCOMPARE(reopened.rowsForKind(source.kind).first().embeddedTitle, enriched.embeddedTitle);
+    QVERIFY(index.publish({source}));
+    QCOMPARE(index.rowsForKind(source.kind).first().embeddedTitle, enriched.embeddedTitle);
+    for (int changed = 0; changed < 3; ++changed) {
+        QVERIFY(index.publish({enriched})); auto replacement = source;
+        if (changed == 0) ++replacement.size;
+        else if (changed == 1) ++replacement.mtimeMs;
+        else replacement.id = QStringLiteral("vault:replacement");
+        QVERIFY(index.publish({replacement}));
+        QVERIFY(index.rowsForKind(source.kind).first().embeddedTitle.isEmpty());
+    }
+    QVERIFY(index.publish({enriched}));
+    auto fresh = source; fresh.metadataSource = QStringLiteral("EPUB"); // a fresh, titleless read wins
+    QVERIFY(index.publish({fresh})); QVERIFY(index.rowsForKind(source.kind).first().embeddedTitle.isEmpty());
+    fresh.embeddedTitle = QStringLiteral("New embedded title");
+    QVERIFY(index.publish({fresh})); QCOMPARE(index.rowsForKind(source.kind).first().embeddedTitle, fresh.embeddedTitle);
+}
+
+void tst_vault_index::legacy_epub_metadata_does_not_invent_embedded_title()
+{
+    QTemporaryDir tmp; const auto path = tmp.filePath(QStringLiteral("legacy-epub.sqlite"));
+    { VaultIndex current(path); QVERIFY(current.isOpen()); }
+    const auto connection = QStringLiteral("legacy_epub_") + QUuid::createUuid().toString(QUuid::WithoutBraces);
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection); db.setDatabaseName(path); QVERIFY(db.open());
+        QSqlQuery q(db);
+        QVERIFY(q.exec(QStringLiteral("ALTER TABLE files DROP COLUMN embeddedTitle")));
+        QVERIFY(q.exec(QStringLiteral("ALTER TABLE files DROP COLUMN identityType")));
+        QVERIFY(q.exec(QStringLiteral("PRAGMA user_version = 7")));
+        QVERIFY(q.exec(QStringLiteral("INSERT INTO files(id,kind,path,displayTitle,metadataSource,identitySource,identityTitle) "
+                                     "VALUES('vault:legacy','book','/fixture/filename.epub','Filename','EPUB','EPUB','Filename')")));
+    }
+    QSqlDatabase::removeDatabase(connection);
+    VaultIndex migrated(path); QVERIFY(migrated.isOpen()); QCOMPARE(userVersionOf(path), kExpectedVaultSchemaVersion);
+    const auto row = migrated.rowsForKind(QStringLiteral("book")).first();
+    QCOMPARE(row.metadataSource, QStringLiteral("EPUB")); QCOMPARE(row.identityTitle, QStringLiteral("Filename"));
+    QVERIFY(row.embeddedTitle.isEmpty());
+    QVERIFY(row.identityType.isEmpty());
+}
+
+void tst_vault_index::adopted_type_round_trips_and_carries_only_exact_tuple()
+{
+    QTemporaryDir tmp; const auto path = tmp.filePath(QStringLiteral("type.sqlite"));
+    VaultIndex index(path); QVERIFY(index.isOpen());
+    const auto source = mk(QStringLiteral("vault:show"), QStringLiteral("/fixture/video"),
+                           QStringLiteral("Flat show"), QStringLiteral("video"), QStringLiteral("pilot.mkv"));
+    auto adopted = source; adopted.identityId = QStringLiteral("imdb:tt123");
+    adopted.identityTitle = QStringLiteral("Flat show"); adopted.identitySource = QStringLiteral("IMDB");
+    adopted.identityType = QStringLiteral("series"); QVERIFY(index.upsert(adopted));
+    const QList<QList<VaultIndex::FileRow>> queries{
+        index.rowsForKind(source.kind), index.rowsForRoot(source.rootPath), index.rowsForGroup(source.groupKey),
+        index.rowsForPath(source.path), index.rowsMatching(QStringLiteral("pilot"), 10), index.rowsForIdentity(adopted.identityId)};
+    for (const auto& rows : queries) { QCOMPARE(rows.size(), 1); QCOMPARE(rows.first().identityType, adopted.identityType); }
+    QCOMPARE(index.filesInSubtree(source.subtreePath).first().toMap().value(QStringLiteral("identityType")).toString(), adopted.identityType);
+    { VaultIndex reopened(path); QVERIFY(reopened.isOpen()); QCOMPARE(reopened.rowsForKind(source.kind).first().identityType, adopted.identityType); }
+    QVERIFY(index.publish({source})); QCOMPARE(index.rowsForKind(source.kind).first().identityType, adopted.identityType);
+    for (int changed = 0; changed < 3; ++changed) {
+        QVERIFY(index.publish({adopted})); auto replacement = source;
+        if (changed == 0) ++replacement.size;
+        else if (changed == 1) ++replacement.mtimeMs;
+        else replacement.id = QStringLiteral("vault:new");
+        QVERIFY(index.publish({replacement})); QVERIFY(index.rowsForKind(source.kind).first().identityType.isEmpty());
+    }
+    auto suppressed = source; suppressed.identitySuppressed = true; QVERIFY(index.publish({suppressed}));
+    QVERIFY(index.publish({adopted}));
+    const auto current = index.rowsForKind(source.kind).first(); QVERIFY(current.identitySuppressed); QVERIFY(current.identityType.isEmpty());
+}
+
+void tst_vault_index::group_sort_index_is_created_for_fresh_and_existing_schema()
+{
+    QTemporaryDir temp; const QString path = temp.filePath("index.sqlite");
+    for (int pass = 0; pass < 2; ++pass) {
+        { VaultIndex index(path); QVERIFY(index.isOpen()); }
+        const QString connection = QStringLiteral("vault_group_index_check");
+        {
+            auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+            db.setDatabaseName(path); QVERIFY(db.open());
+            QSqlQuery query(db); QVERIFY(query.exec(QStringLiteral("PRAGMA index_info(idx_files_group_sort)")));
+            QStringList columns; while (query.next()) columns.append(query.value(2).toString());
+            QCOMPARE(columns, QStringList({QStringLiteral("groupKey"), QStringLiteral("sortKey")}));
+            query.finish();
+            if (pass == 0) QVERIFY(query.exec(QStringLiteral("DROP INDEX idx_files_group_sort")));
+            db.close();
+        }
+        QSqlDatabase::removeDatabase(connection);
+    }
+}
 
 void tst_vault_index::publish_and_query_round_trip()
 {
@@ -493,15 +602,8 @@ void tst_vault_index::future_schema_fails_closed_without_downgrade()
 
 void tst_vault_index::identity_state_round_trips_and_survives_a_republish_that_still_carries_it()
 {
-    // Slice 2 (browse-face execution plan): identityState/identityCandidateCount are a plain
-    // column pair — VaultIndex does not know WHO set them (VaultIdentifier does). This proves
-    // the schema/insertRow/SELECT wiring round-trips them, and that a second publish() for the
-    // SAME stable (id, size, mtimeMs) tuple keeps the value WHEN THE CALLER SUPPLIES IT AGAIN —
-    // deliberately NOT via publish()'s identity-carry snapshot (that mechanism is a known hazard
-    // owned by a different arc and is not widened here). A real filesystem rescan that does NOT
-    // re-supply identityState resets it to "" (none) until VaultIdentifier's auto-identify pass
-    // (already scheduled on every VaultIndex::changed()) re-derives it — an accepted, reported
-    // gap, not a silent one.
+    // A fresh filesystem row lacks identity-attempt fields. For an unchanged
+    // id/size/mtime tuple, publication must retain that durable user-facing state.
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
     VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
@@ -536,8 +638,8 @@ void tst_vault_index::identity_state_round_trips_and_survives_a_republish_that_s
     rescanned.identityCandidateCount = 0;
     QVERIFY(idx.publish({rescanned}));
     rows = idx.rowsForGroup(row.groupKey);
-    QVERIFY(rows.first().identityState.isEmpty());
-    QCOMPARE(rows.first().identityCandidateCount, 0);
+    QCOMPARE(rows.first().identityState, QStringLiteral("ambiguous"));
+    QCOMPARE(rows.first().identityCandidateCount, 2);
 }
 
 void tst_vault_index::publish_carries_admission_only_for_exact_identity_tuple()

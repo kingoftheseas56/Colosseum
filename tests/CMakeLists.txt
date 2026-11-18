@@ -1060,6 +1060,45 @@ set_tests_properties(colosseum.qttest.vault_scanner PROPERTIES
 # away; offlineBrowseAt() is the durable-index fallback for a level whose owning root can no
 # longer be walked at all (design §4.7 "nothing disappears"). Qt6::Sql for VaultIndex; GUILESS;
 # QTemporaryDir index + real small fixture trees per run.
+# Overlapping sources, mixed media, durable facts and guarded title actions.
+add_executable(tst_vault_integrity
+    auto/vault/tst_vault_integrity.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentifier.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentifier.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.h"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
+target_include_directories(tst_vault_integrity PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_integrity PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network Qt6::Test)
+set_target_properties(tst_vault_integrity PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_integrity POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Test>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_integrity COMMAND tst_vault_integrity)
+set_tests_properties(colosseum.qttest.vault_integrity PROPERTIES LABELS "unit;qttest" TIMEOUT 120)
+
 add_executable(tst_vault_browse_away
     auto/vault/tst_vault_browse_away.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
@@ -1281,6 +1320,25 @@ set_tests_properties(colosseum.qttest.vault_imdb_match PROPERTIES
     TIMEOUT 120)
 
 # ── Vault identity adoption (Slice 17) ──────────────────────────────────────
+# The store's identity query shares Biblio's canonical title/author fold.
+target_sources(biblio_catalog_store_harness PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioProviders.cpp")
+
+add_executable(tst_vault_book_identity
+    auto/vault/tst_vault_book_identity.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioCatalogStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioProviders.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioTaxonomy.cpp")
+target_include_directories(tst_vault_book_identity PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_book_identity PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vault_book_identity PROPERTIES AUTOMOC ON
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_book_identity COMMAND tst_vault_book_identity)
+set_tests_properties(colosseum.qttest.vault_book_identity PROPERTIES
+    LABELS "unit;qttest;biblio;vault"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Fixture-backed certainty gate: one candidate adopts, ambiguity and absent catalogues stay
 # filename-honest, identity removal preserves progress/file ids, and reshelving changes kind only.
 add_executable(tst_vault_identifier
@@ -1311,6 +1369,40 @@ set_tests_properties(colosseum.qttest.vault_identifier PROPERTIES
     LABELS "unit;qttest"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+
+# Reuse the same native ownership seams as the surrounding Vault tests.
+# The catalogue classes' remote fallback owners are linked even though these
+# fixture tests perform no network requests.
+foreach(_catalogue_fixture_target tst_vault_identifier tst_vault_imdb_match)
+    target_sources(${_catalogue_fixture_target} PRIVATE
+        "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h"
+        "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.h")
+    target_link_libraries(${_catalogue_fixture_target} PRIVATE Qt6::Network)
+endforeach()
+get_target_property(_vault_book_identity_sources tst_vault_identifier SOURCES)
+list(REMOVE_ITEM _vault_book_identity_sources auto/vault/tst_vault_identifier.cpp)
+target_sources(tst_vault_book_identity PRIVATE ${_vault_book_identity_sources})
+target_link_libraries(tst_vault_book_identity PRIVATE Qt6::Concurrent Qt6::Network)
+
+get_target_property(_vault_video_identity_sources tst_vault_integrity SOURCES)
+list(REMOVE_ITEM _vault_video_identity_sources auto/vault/tst_vault_integrity.cpp)
+add_executable(tst_vault_video_identity auto/vault/tst_vault_video_identity.cpp
+    ${_vault_video_identity_sources})
+target_include_directories(tst_vault_video_identity PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_video_identity PRIVATE
+    Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network Qt6::Test)
+set_target_properties(tst_vault_video_identity PROPERTIES AUTOMOC ON
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_video_identity COMMAND tst_vault_video_identity)
+set_tests_properties(colosseum.qttest.vault_video_identity PROPERTIES
+    LABELS "unit;qttest;vault" ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" TIMEOUT 120)
+foreach(_vault_identity_target tst_vault_book_identity tst_vault_video_identity)
+    add_custom_command(TARGET ${_vault_identity_target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Test>"
+            "$<TARGET_FILE_DIR:${_vault_identity_target}>")
+endforeach()
 
 # ── Vault admission probe (execution plan Slice 6, 2026-08-08) ───────────────
 # MediaAdmissionProbe drives its OWN headless libmpv handle and admits only on a
@@ -1507,6 +1599,45 @@ set_tests_properties(colosseum.qttest.vault_forensics PROPERTIES
     LABELS "unit;qttest"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+
+# Real native/QML projection regression: reuse the forensic service closure.
+get_target_property(_vault_projection_sources tst_vault_forensics SOURCES)
+list(REMOVE_ITEM _vault_projection_sources auto/vault/tst_vault_forensics.cpp)
+add_executable(tst_vault_projection auto/vault/tst_vault_projection.cpp ${_vault_projection_sources})
+target_include_directories(tst_vault_projection PRIVATE "${COLOSSEUM_NATIVE_DIR}" "${COLOSSEUM_NATIVE_DIR}/player")
+target_link_libraries(tst_vault_projection PRIVATE
+    Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network Qt6::Test Qt6::Qml MpvQt::MpvQt)
+target_compile_definitions(tst_vault_projection PRIVATE COLOSSEUM_QML_SOURCE_DIR="${COLOSSEUM_NATIVE_DIR}/../qml")
+set_target_properties(tst_vault_projection PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_projection POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Test>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_projection COMMAND tst_vault_projection)
+set(_vault_projection_environment "QT_FORCE_STDERR_LOGGING=1")
+if(TARGET Qt6::QOffscreenIntegrationPlugin)
+    list(APPEND _vault_projection_environment
+        "QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::QOffscreenIntegrationPlugin>/..")
+endif()
+set_tests_properties(colosseum.qttest.vault_projection PROPERTIES
+    LABELS "unit;qttest" TIMEOUT 120 ENVIRONMENT "${_vault_projection_environment}")
+
+# Auto-filing of folder extras through VaultLibrary's real pass, plus the declined marker. Same
+# sources as the forensics target minus the mpv/forensics pieces VaultLibrary does not need.
+get_target_property(_vault_extras_hook_sources tst_vault_forensics SOURCES)
+list(REMOVE_ITEM _vault_extras_hook_sources
+    auto/vault/tst_vault_forensics.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.h")
+add_executable(tst_vault_extras_hook auto/vault/tst_vault_extras_hook.cpp ${_vault_extras_hook_sources})
+target_include_directories(tst_vault_extras_hook PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_extras_hook PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network Qt6::Test)
+set_target_properties(tst_vault_extras_hook PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_extras_hook COMMAND tst_vault_extras_hook)
+set_tests_properties(colosseum.qttest.vault_extras_hook PROPERTIES
+    LABELS "unit;qttest" TIMEOUT 120 ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1")
 
 # Slice 1 WIRE proof: drives a REAL MpvItem at a loopback QTcpServer and asserts the Referer/Origin
 # reaches ffmpeg's request, a comma value stays one header, ytdl is off, and loadFile clears the

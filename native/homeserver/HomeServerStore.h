@@ -20,6 +20,9 @@ public:
   bool remove(QString id);
   QJsonArray items(QString connectionId) const;
   bool replaceItems(QString id, QJsonArray items);
+  // Missing libraries means an older, items-only snapshot, not zero libraries.
+  QJsonObject catalog(QString connectionId) const;
+  bool replaceCatalog(QString id, QJsonArray libraries, QJsonArray items);
 
 private:
   QString target(const QString &id) const;
