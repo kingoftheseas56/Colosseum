@@ -367,6 +367,9 @@ set(COLOSSEUM_THEATRE_ACCOUNT_SOURCES
 
 set(COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES
     engine/AudiobookDownloader.cpp
+    engine/LibriVoxMedia.h
+    engine/LibriVoxSearch.cpp
+    engine/LibriVoxSearch.h
     engine/AudiobookDownloader.h
     engine/AudiobookRecordingMatch.cpp
     engine/AudiobookRecordingMatch.h

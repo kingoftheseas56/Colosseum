@@ -35,7 +35,8 @@ Item {
         { name: "GetComics", id: "colosseum.well.getcomics.issues", icon: "../../assets/addon-logos/getcomics.png", kind: "source" },
         { name: "Tankorent", id: "colosseum.well.indexers", icon: "../../assets/addon-logos/tankorent.png", kind: "source" },
         { name: "LibGen", id: "colosseum.well.libgen", icon: "../../assets/addon-logos/libgen.ico", kind: "source" },
-        { name: "AudioBookBay", id: "colosseum.well.audiobookbay", icon: "../../assets/addon-logos/audiobookbay.png", kind: "source" }
+        { name: "AudioBookBay", id: "colosseum.well.audiobookbay", icon: "../../assets/addon-logos/audiobookbay.png", kind: "source" },
+        { name: "LibriVox", id: "colosseum.well.librivox", icon: "../../assets/icons/reader2/headphones.svg", kind: "source" }
     ]
     readonly property real sourceToggleMinimumTouchTarget: 44
     property int universeIndex: 0

@@ -1,4 +1,5 @@
 #include "../../native/engine/AudiobookDownloader.h"
+#include "../../native/engine/LibriVoxSearch.h"
 #include "../../native/player/streamserver.h"
 #include "../../native/engine/AudiobookTorrentTransport.h"
 #include "../../native/AudioPairingStore.h"
@@ -17,11 +18,38 @@
 #include <QJsonObject>
 #include <QJsonArray>
 extern QString stubStreamUrl;
+class LocalArchiveNetwork : public QNetworkAccessManager {
+public:
+ explicit LocalArchiveNetwork(quint16 port) : m_port(port) {}
+protected:
+ QNetworkReply* createRequest(Operation op, const QNetworkRequest& request, QIODevice* body) override {
+  QNetworkRequest local(request);
+  QUrl url = request.url();
+  url.setScheme("http");
+  url.setHost("127.0.0.1");
+  url.setPort(m_port);
+  local.setUrl(url);
+  return QNetworkAccessManager::createRequest(op, local, body);
+ }
+private:
+ quint16 m_port;
+};
+
 class Tests:public QObject {
  Q_OBJECT
 private:
  const QString A=QString(40,'a'), B=QString(40,'b'), C=QString(40,'c');
  const QString evidence=QDir::tempPath();
+ QVariantMap libriVoxRequest() const {
+  return {
+   {"pairKey", "pride and prejudice|jane austen"},
+   {"recordingKey", "pride and prejudice|jane austen#librivox:1480"},
+   {"title", "Pride and Prejudice (version 3)"}, {"author", "Jane Austen"},
+   {"sourceKind", "librivox"}, {"sourceRef", "1480"},
+   {"chapters", QVariantList{QVariantMap{{"number", 1}, {"title", "Chapter 01"},
+                  {"url", "https://www.archive.org/download/fixture/chapter_01.mp3"}}}}
+  };
+ }
  void clearOwnData() {
   const QString path=QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation));
   QVERIFY(path.endsWith("/qttest/ColosseumNetworkTests/"+QCoreApplication::applicationName()));
@@ -392,6 +420,159 @@ private slots:
   QVERIFY(!restarted.downloadedAudiobooks()[0].toMap().contains("workId"));
   QVERIFY(pairing.getPairing("reader-id").isEmpty());
  }
+ void librivoxPersistsSortedEditionWithAbbDisabled() {
+  QTcpServer server; QVERIFY(server.listen(QHostAddress::LocalHost));
+  connect(&server, &QTcpServer::newConnection, &server, [&] {
+   auto socket = server.nextPendingConnection();
+   connect(socket, &QTcpSocket::readyRead, socket, [socket] {
+    const auto request = socket->readAll();
+    const auto data = request.contains("chapter_02.mp3") ? QByteArray("ID3second") : QByteArray("ID3tenth");
+    socket->write("HTTP/1.1 200 OK\r\nContent-Type: audio/mpeg\r\nContent-Length: "
+                  + QByteArray::number(data.size()) + "\r\nConnection: close\r\n\r\n" + data);
+    socket->disconnectFromHost();
+   });
+   connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+  });
+  LocalArchiveNetwork network(server.serverPort());
+  AudiobookDownloader downloader(&network, nullptr);
+  downloader.setSourceEnabledCheck([] { return false; });
+  QSignalSpy finished(&downloader, &AudiobookDownloader::finished);
+  const QString key = "pride and prejudice|jane austen#librivox:1480";
+  const QVariantList chapters {
+   QVariantMap{{"number", 10}, {"title", "Chapter 10"}, {"url", "https://www.archive.org/download/fixture/chapter_10.mp3"}},
+   QVariantMap{{"number", 2}, {"title", "Chapter 02"}, {"url", "https://www.archive.org/download/fixture/chapter_02.mp3"}}
+  };
+  downloader.downloadRecording({
+   {"pairKey", "pride and prejudice|jane austen"}, {"recordingKey", key},
+   {"title", "Pride and Prejudice (version 3)"}, {"author", "Jane Austen"},
+   {"sourceKind", "librivox"}, {"sourceRef", "1480"}, {"chapters", chapters},
+   {"narrators", QStringList{"Karen Savage"}}
+  });
+  QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 1500);
+  QCOMPARE(finished.first().first().toString(), key);
+  QVERIFY(downloader.isDownloaded(key));
+  const auto files = downloader.localFiles(key);
+  QCOMPARE(files.size(), 2);
+  QFile first(files[0]), second(files[1]);
+  QVERIFY(first.open(QIODevice::ReadOnly));
+  QVERIFY(second.open(QIODevice::ReadOnly));
+  QCOMPARE(first.readAll(), QByteArray("ID3second"));
+  QCOMPARE(second.readAll(), QByteArray("ID3tenth"));
+  AudiobookDownloader restarted(&network, nullptr);
+  QCOMPARE(restarted.localFiles(key), files);
+  const auto indexed = restarted.downloadedAudiobooks().first().toMap();
+  QCOMPARE(indexed.value("sourceRef").toString(), QString("1480"));
+  QCOMPARE(indexed.value("narrators").toStringList(), QStringList{"Karen Savage"});
+ }
+
+ void librivoxRetriesTransientFailureAndFollowsArchiveRedirect() {
+  QTcpServer server; QVERIFY(server.listen(QHostAddress::LocalHost));
+  int requests = 0;
+  connect(&server, &QTcpServer::newConnection, &server, [&] {
+   auto socket = server.nextPendingConnection();
+   connect(socket, &QTcpSocket::readyRead, socket, [socket, &requests] {
+    socket->readAll();
+    ++requests;
+    if (requests == 1)
+     socket->write("HTTP/1.1 503 Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+    else if (requests == 2)
+     socket->write("HTTP/1.1 302 Found\r\nLocation: https://dn-test.archive.org/0/items/fixture/chapter_01.mp3\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+    else
+     socket->write("HTTP/1.1 200 OK\r\nContent-Type: audio/mpeg\r\nContent-Length: 8\r\nConnection: close\r\n\r\nID3retry");
+    socket->disconnectFromHost();
+   });
+   connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+  });
+  LocalArchiveNetwork network(server.serverPort());
+  AudiobookDownloader downloader(&network, nullptr);
+  QSignalSpy finished(&downloader, &AudiobookDownloader::finished);
+  downloader.downloadRecording(libriVoxRequest());
+  QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 5000);
+  QCOMPARE(requests, 3);
+  QCOMPARE(downloader.downloadedAudiobooks().size(), 1);
+ }
+
+ void librivoxRejectsUntrustedRedirect() {
+  QTcpServer server; QVERIFY(server.listen(QHostAddress::LocalHost));
+  int requests = 0;
+  connect(&server, &QTcpServer::newConnection, &server, [&] {
+   auto socket = server.nextPendingConnection();
+   connect(socket, &QTcpSocket::readyRead, socket, [socket, &requests] {
+    socket->readAll();
+    ++requests;
+    socket->write("HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1/metadata.mp3\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+    socket->disconnectFromHost();
+   });
+   connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+  });
+  LocalArchiveNetwork network(server.serverPort());
+  AudiobookDownloader downloader(&network, nullptr);
+  QSignalSpy failure(&downloader, &AudiobookDownloader::failed);
+  downloader.downloadRecording(libriVoxRequest());
+  QTRY_COMPARE_WITH_TIMEOUT(failure.size(), 1, 1500);
+  QCOMPARE(requests, 1);
+  QVERIFY(downloader.downloadedAudiobooks().isEmpty());
+ }
+
+ void librivoxCancellationRetiresPartialRecording() {
+  QTcpServer server; QVERIFY(server.listen(QHostAddress::LocalHost));
+  LocalArchiveNetwork network(server.serverPort());
+  AudiobookDownloader downloader(&network, nullptr);
+  QSignalSpy removed(&downloader, &AudiobookDownloader::removed);
+  QSignalSpy finished(&downloader, &AudiobookDownloader::finished);
+  downloader.downloadRecording(libriVoxRequest());
+  QTRY_VERIFY_WITH_TIMEOUT(server.hasPendingConnections(), 1500);
+  const QString key = libriVoxRequest().value("recordingKey").toString();
+  downloader.cancelDownload(key);
+  QCOMPARE(removed.size(), 1);
+  QCOMPARE(removed.first().first().toString(), key);
+  QCOMPARE(downloader.activeCount(), 0);
+  QVERIFY(downloader.localFiles(key).isEmpty());
+  QVERIFY(downloader.downloadedAudiobooks().isEmpty());
+  QVERIFY(finished.isEmpty());
+ }
+
+ void librivoxSearchUsesPrefixAndExposesSeparateEditions() {
+  QTcpServer server; QVERIFY(server.listen(QHostAddress::LocalHost));
+  QByteArray requestLine;
+  const QByteArray response("{\"books\":["
+  "   {\"id\":\"1480\",\"title\":\"Pride and Prejudice (version 3)\",\"language\":\"English\",\"authors\":[{\"first_name\":\"Jane\",\"last_name\":\"Austen\"}],\"sections\":["
+  "    {\"section_number\":\"10\",\"title\":\"Chapter 10\",\"listen_url\":\"https://www.archive.org/download/savage/10.mp3\",\"readers\":[{\"reader_id\":\"103\",\"display_name\":\"Karen Savage\"}]},"
+  "    {\"section_number\":\"2\",\"title\":\"Chapter 02\",\"listen_url\":\"https://www.archive.org/download/savage/02.mp3\",\"readers\":[{\"reader_id\":\"103\",\"display_name\":\"Karen Savage\"}]}]},"
+  "   {\"id\":\"4023\",\"title\":\"Pride and Prejudice (version 4)\",\"language\":\"English\",\"authors\":[{\"first_name\":\"Jane\",\"last_name\":\"Austen\"}],\"sections\":["
+  "    {\"section_number\":\"1\",\"title\":\"Chapter 1\",\"listen_url\":\"https://www.archive.org/download/klett/01.mp3\",\"readers\":[{\"reader_id\":\"1259\",\"display_name\":\"Elizabeth Klett\"}]}]},"
+  "   {\"id\":\"6415\",\"title\":\"Pride and Prejudice: A Play\",\"authors\":[{\"first_name\":\"Jane\",\"last_name\":\"Austen\"}],\"sections\":["
+  "    {\"section_number\":\"1\",\"title\":\"Chapter 1\",\"listen_url\":\"https://www.archive.org/download/play/01.mp3\"}]},"
+  "   {\"id\":\"2007\",\"title\":\"Pride and Prejudice\",\"authors\":[{\"first_name\":\"Jane\",\"last_name\":\"Austen\"}],\"sections\":["
+  "    {\"section_number\":\"1\",\"title\":\"Chapter 1\",\"listen_url\":\"https://archive.org.example.com/download/forged/01.mp3\"}]}"
+  "  ]}");
+  connect(&server, &QTcpServer::newConnection, &server, [&] {
+   auto socket = server.nextPendingConnection();
+   connect(socket, &QTcpSocket::readyRead, socket, [&, socket] {
+    requestLine = socket->readAll().split('\n').first();
+    socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: "
+                  + QByteArray::number(response.size()) + "\r\nConnection: close\r\n\r\n" + response);
+    socket->disconnectFromHost();
+   });
+   connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+  });
+  LocalArchiveNetwork network(server.serverPort());
+  LibriVoxSearch catalogue(&network);
+  QSignalSpy done(&catalogue, &LibriVoxSearch::searchFinished);
+  catalogue.search("request", "Pride and Prejudice", "Jane Austen");
+  QTRY_COMPARE_WITH_TIMEOUT(done.size(), 1, 5000);
+  QVERIFY(requestLine.startsWith("GET /api/feed/audiobooks/?title=%5EPride%20and%20Prejudice&"));
+  QCOMPARE(done[0][0].toString(), QString("request"));
+  QVERIFY(done[0][2].toString().isEmpty());
+  const auto rows = done[0][1].toList();
+  QCOMPARE(rows.size(), 2);
+  QCOMPARE(rows[0].toMap().value("id").toString(), QString("1480"));
+  QCOMPARE(rows[0].toMap().value("narrators").toStringList(), QStringList{"Karen Savage"});
+  QCOMPARE(rows[0].toMap().value("chapters").toList()[0].toMap().value("number").toInt(), 2);
+  QCOMPARE(rows[1].toMap().value("id").toString(), QString("4023"));
+  QCOMPARE(rows[1].toMap().value("narrators").toStringList(), QStringList{"Elizabeth Klett"});
+ }
+
  void desktopHttpErrorsAreHonest() {
   QTcpServer server; QVERIFY(server.listen(QHostAddress::LocalHost));
   connect(&server,&QTcpServer::newConnection,&server,[&] { auto s=server.nextPendingConnection(); connect(s,&QTcpSocket::readyRead,s,[s] { s->readAll();s->write("HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");s->disconnectFromHost(); });connect(s,&QTcpSocket::disconnected,s,&QObject::deleteLater); });

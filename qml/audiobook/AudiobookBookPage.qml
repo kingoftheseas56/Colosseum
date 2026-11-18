@@ -42,7 +42,7 @@ FocusScope {
             return { kind: "lookup", label: qsTr("Finding downloads…"), enabled: false, progress: -1 }
         if (action.kind === "download" && action.enabled) {
             if (!sourceEnabled)
-                return { kind: "extensions", label: qsTr("Enable AudioBookBay in Extensions"),
+                return { kind: "extensions", label: qsTr("Enable an audiobook source in Extensions"),
                          enabled: true, progress: -1 }
             if (downloadError)
                 return { kind: "download", label: qsTr("Retry"), enabled: true, progress: -1 }

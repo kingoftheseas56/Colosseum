@@ -156,6 +156,112 @@ TestCase {
         compare(view.collection.entry, null)
     }
 
+    Component {
+        id: sourceFixture
+        QtObject {
+            property var rows: []
+            property var calls: []
+            property var cancellations: []
+            property bool autoReply: true
+            signal searchFinished(string token, var rows, string error)
+            function isEligible(work) { return work.id === "first" }
+            function search(token, first, second, third) {
+                calls.push({ token: token, first: first, second: second, third: third })
+                if (autoReply) searchFinished(token, rows, "")
+            }
+            function cancel(token) { cancellations.push(token) }
+        }
+    }
+
+    Component {
+        id: sourceExtensionsFixture
+        QtObject {
+            property string sourceId
+            property int revision: 0
+            function installed() { return [{ id: sourceId, enabled: !!sourceId }] }
+        }
+    }
+
+    Component {
+        id: sourceDownloadsFixture
+        QtObject {
+            property var captured: []
+            function activeDownloads() { return [] }
+            function recordingsForWork(key) { return [] }
+            function statusOf(key) { return { state: "none" } }
+            function downloadRecording(request) { captured.push(request) }
+        }
+    }
+
+    function test_librivox_is_selectable_without_abb() {
+        const view = setup()
+        view.flow.extensions = make(sourceExtensionsFixture, { sourceId: "colosseum.well.librivox" })
+        view.flow.downloads = make(sourceDownloadsFixture)
+        view.flow.librivox = make(sourceFixture, { rows: [{
+            id: "1480", title: "First Book (version 3)", author: "Alex Writer", narrators: ["Karen Savage"],
+            chapters: [{ number: 1, title: "Chapter 01", url: "https://www.archive.org/download/example/chapter.mp3" }]
+        }, {
+            id: "4023", title: "First Book (version 4)", author: "Alex Writer", narrators: ["Elizabeth Klett"],
+            chapters: [{ number: 1, title: "Chapter 1", url: "https://www.archive.org/download/example/other.mp3" }]
+        }] })
+        const page = openFirst(view)
+        compare(page.primary.kind, "download")
+        findChild(page, "audiobookPrimaryAction").triggered()
+        const picker = findChild(page, "audiobookSourcePicker")
+        tryCompare(picker, "opened", true)
+        compare(picker.rows.map(row => row.narrators[0]), ["Karen Savage", "Elizabeth Klett"])
+        compare(picker.rows[0].sourceLabel, "LibriVox")
+        compare(view.flow.downloads.captured.length, 0)
+        const choice = visualChild(picker.contentItem, "audiobookSourceOption_0")
+        verify(choice !== null)
+        choice.triggered()
+        compare(view.flow.downloads.captured.length, 1)
+        compare(view.flow.downloads.captured[0].recordingKey, "first book|alex writer#librivox:1480")
+    }
+
+    function test_tankorent_single_unverified_row_requires_selection() {
+        const view = setup()
+        view.flow.extensions = make(sourceExtensionsFixture, { sourceId: "colosseum.well.indexers" })
+        view.flow.downloads = make(sourceDownloadsFixture)
+        const key = "first book|alex writer#src:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        view.flow.tankorent = make(sourceFixture, { rows: [{
+            title: "First Book upload", narrators: [], reason: "Edition unconfirmed", sourceLabel: "Tankorent",
+            request: { sourceKind: "tankorent", recordingKey: key }
+        }] })
+        const page = openFirst(view)
+        findChild(page, "audiobookPrimaryAction").triggered()
+        const picker = findChild(page, "audiobookSourcePicker")
+        tryCompare(picker, "opened", true)
+        compare(view.flow.tankorent.calls[0].first.id, "first")
+        compare(view.flow.tankorent.calls[0].third, "first book|alex writer")
+        compare(view.flow.downloads.captured.length, 0)
+        compare(picker.rows[0].narrators, [])
+        const choice = visualChild(picker.contentItem, "audiobookSourceOption_0")
+        verify(choice !== null)
+        choice.triggered()
+        compare(view.flow.downloads.captured[0].recordingKey, key)
+    }
+
+    function test_disabling_tankorent_cancels_and_rejects_its_late_results() {
+        const view = setup()
+        const extensions = make(sourceExtensionsFixture, { sourceId: "colosseum.well.indexers" })
+        view.flow.extensions = extensions
+        view.flow.downloads = make(sourceDownloadsFixture)
+        const source = make(sourceFixture, { autoReply: false })
+        view.flow.tankorent = source
+        const page = openFirst(view)
+        findChild(page, "audiobookPrimaryAction").triggered()
+        compare(source.calls.length, 1)
+        const token = source.calls[0].token
+        extensions.sourceId = ""
+        ++extensions.revision
+        tryCompare(page, "lookupPending", false)
+        compare(source.cancellations, [token])
+        source.searchFinished(token, [{ title: "An old result", request: { sourceKind: "tankorent" } }], "")
+        verify(!findChild(page, "audiobookSourcePicker").opened)
+        compare(view.flow.downloads.captured.length, 0)
+    }
+
     function test_catalogue_edition_flag_has_a_readable_label() {
         const page = openFirst(setup())
         compare(page.shownRecording.facts.find(fact => fact.key === "edition").text, "Unabridged")

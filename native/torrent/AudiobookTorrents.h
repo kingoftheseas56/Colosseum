@@ -9,10 +9,8 @@
 class QNetworkAccessManager;
 class TankorentSearchService;
 
-// Tankorent as a second place audiobook FILES can come from (next to AudioBookBay).
-// Search only: no download method here -- downloads go through Audiobooks.downloadAudiobook.
-// A single app-lifetime instance; a new search supersedes the previous one
-// (cancelSearch + handle guard), so stale results never reach the page.
+// Manual Tankorent discovery for standalone audiobook works. The picker sends
+// a selected row's request through the existing audiobook downloader.
 class AudiobookTorrents : public QObject {
     Q_OBJECT
 public:
@@ -21,15 +19,13 @@ public:
     // DI seam (tests inject a mock-indexer search service). Takes ownership.
     explicit AudiobookTorrents(TankorentSearchService* search, QObject* parent = nullptr);
 
-    Q_INVOKABLE void search(const QString& title, const QString& author);
-
-    // Pure: audio-only, hash-bearing, ranked rows (title/author agreement, then seeders).
-    static QVariantList buildRows(const QString& title, const QString& author,
-                                  const QList<TorrentResult>& raw);
+    Q_INVOKABLE bool isEligible(const QVariantMap& work) const;
+    Q_INVOKABLE void search(const QString& token, const QVariantMap& work,
+                            const QString& recordingId, const QString& pairKey);
+    Q_INVOKABLE void cancel(const QString& token);
 
 signals:
-    void resultsReady(const QVariantList& rankedRows);
-    void searchFinished();
+    void searchFinished(const QString& token, const QVariantList& rows, const QString& error);
 
 private slots:
     void onIndexerResults(const QString& handle, const QList<TorrentResult>& r);
@@ -38,6 +34,9 @@ private slots:
 private:
     void wire();
     TankorentSearchService* m_search;
-    QString m_handle, m_title, m_author;
-    QList<TorrentResult> m_accum;   // accumulator for the ACTIVE handle; reset per search
+    QString m_token, m_handle, m_pairKey;
+    QVariantMap m_work;
+    QList<TorrentResult> m_accum;
+    bool m_receivedResults = false;
+    bool m_indexerFailed = false;
 };

@@ -9,6 +9,7 @@ Popup {
 
     property var rows: []
     property string workTitle: ""
+    property string notice: ""
     signal sourcePicked(var row)
 
     readonly property bool wide: parent && parent.width >= 900
@@ -33,6 +34,8 @@ Popup {
 
     function describe(row) {
         const parts = []
+        if (row.sourceLabel)
+            parts.push(String(row.sourceLabel))
         if (row.format)
             parts.push(String(row.format).toUpperCase())
         const count = Number(row.fileCount)
@@ -72,7 +75,7 @@ Popup {
                 spacing: 2
                 Text {
                     Layout.fillWidth: true
-                    text: qsTr("Choose an AudioBookBay upload")
+                    text: qsTr("Choose an audiobook source")
                     color: theme.ink
                     font.family: theme.display
                     font.pixelSize: theme.fontSize(21)
@@ -129,10 +132,20 @@ Popup {
             Layout.topMargin: 12
             Layout.bottomMargin: 12
             visible: picker.rows.length === 0
-            text: qsTr("No AudioBookBay uploads found.")
+            text: qsTr("No audiobook sources found.")
             color: theme.inkDim
             font.family: theme.ui
             font.pixelSize: theme.fontSize(14)
+            wrapMode: Text.WordWrap
+        }
+
+        Text {
+            Layout.fillWidth: true
+            visible: text.length > 0
+            text: picker.notice
+            color: theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: theme.fontSize(13)
             wrapMode: Text.WordWrap
         }
 
@@ -199,7 +212,7 @@ Popup {
                                     Text {
                                         id: sourceTitle
                                         Layout.fillWidth: true
-                                        text: option.modelData.title || qsTr("AudioBookBay upload")
+                                        text: option.modelData.title || qsTr("Audiobook source")
                                         color: theme.ink
                                         font.family: theme.ui
                                         font.pixelSize: theme.fontSize(14)

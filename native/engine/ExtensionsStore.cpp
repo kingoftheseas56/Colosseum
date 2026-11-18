@@ -44,6 +44,10 @@ QVariantMap optionalNativeSourceManifest(const QString &url)
         id = QStringLiteral("colosseum.well.audiobookbay");
         name = QStringLiteral("AudioBookBay");
         type = QStringLiteral("audiobook");
+    } else if (url == QLatin1String("colosseum://well/librivox")) {
+        id = QStringLiteral("colosseum.well.librivox");
+        name = QStringLiteral("LibriVox");
+        type = QStringLiteral("audiobook");
     } else {
         return {};
     }
@@ -740,6 +744,9 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     if (indexOfId(QStringLiteral("colosseum.well.audiobookbay")) >= 0)
         add("colosseum.well.audiobookbay", "colosseum://well/audiobookbay", false,
             optionalNativeSourceManifest(QStringLiteral("colosseum://well/audiobookbay")));
+    if (indexOfId(QStringLiteral("colosseum.well.librivox")) >= 0)
+        add("colosseum.well.librivox", "colosseum://well/librivox", false,
+            optionalNativeSourceManifest(QStringLiteral("colosseum://well/librivox")));
 
     // ---- Universes: an IP gathered across every medium it lives in ---------
     // A universe is classified by ROLE, not content: the `universe` resource is checked

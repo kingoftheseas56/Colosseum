@@ -269,7 +269,7 @@ TestCase {
     function test_disabled_source_opens_extensions() {
         const view = setup([upload(exactHash)], false)
         const page = book(view)
-        compare(page.primary.label, "Enable AudioBookBay in Extensions")
+        compare(page.primary.label, "Enable an audiobook source in Extensions")
         press(page)
         compare(extensionsSpy.count, 1)
         compare(view.abb.requests, 0)

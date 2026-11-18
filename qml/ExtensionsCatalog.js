@@ -13,6 +13,7 @@ function houseInstallUrl(id) {
         return "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json";
     if (id === "colosseum.well.getcomics.issues") return "colosseum://well/getcomics.issues";
     if (id === "colosseum.well.audiobookbay") return "colosseum://well/audiobookbay";
+    if (id === "colosseum.well.librivox") return "colosseum://well/librivox";
     return "";
 }
 
@@ -320,10 +321,9 @@ var JOB = {
     "colosseum.well.tankoyomi":          "chapter pages",
     "colosseum.well.getcomics.issues":  "issue downloads",
     "colosseum.well.libgen":            "book files",
-    // Three indexers, not four (Knaben is off in TankorentSearchService), and the search
-    // is only ever asked for books and comics — never audiobooks. 2026-07-26 ground-truth.
-    "colosseum.well.indexers":          "comic and book torrents",
-    "colosseum.well.audiobookbay":      "audiobook torrents"
+    "colosseum.well.indexers":          "comic, book and audiobook torrents",
+    "colosseum.well.audiobookbay":      "audiobook torrents",
+    "colosseum.well.librivox":          "public-domain audiobooks"
 };
 
 function jobFor(id) { return JOB[id] || ""; }
