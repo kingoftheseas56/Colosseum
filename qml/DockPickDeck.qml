@@ -21,7 +21,6 @@ FocusScope {
     readonly property var facts: factsFor(activeEntry)
     readonly property string detailLine: facts.length > 1 ? qsTr("%1 · %2").arg(facts[0]).arg(facts[1])
                                                          : facts[0] || ""
-    readonly property string summary: facts.length < 2 ? summaryFor(activeEntry) : ""
     readonly property real turnAngle: 7
     readonly property real fanAngle: 1.5
     readonly property real turnScale: .84
@@ -87,10 +86,6 @@ FocusScope {
             values = []
         }
         return values.map(value => String(value || "").trim()).filter(value => value.length > 0)
-    }
-    function summaryFor(entry) {
-        const text = String(entry?.blurb || entry?.raw?.synopsis || entry?.raw?.blurb || "").trim()
-        return /^A featured (anime )?title\.$/.test(text) ? "" : text.replace(/\s+/g, " ")
     }
 
     function cardDepth(index) {
@@ -285,11 +280,8 @@ FocusScope {
         y: deck.count ? deck.artHeight + 5 : Math.max(0, (deck.height - height) / 2)
         width: Math.max(0, deck.width - 2 * x)
         spacing: 4
-        readonly property real summaryRoom: deck.captionHeight - 5 - mediumLabel.height - titleLabel.height
-            - (factLabel.visible ? factLabel.height + spacing : 0) - 2 * spacing
 
         Text {
-            id: mediumLabel
             objectName: "dockPickMedium_" + deck.mediumKey
             width: labels.width
             text: deck.medium
@@ -303,7 +295,6 @@ FocusScope {
         }
 
         Text {
-            id: titleLabel
             objectName: "dockPickTitle_" + deck.mediumKey
             width: labels.width
             text: deck.count ? deck.title : qsTr("No picks available")
@@ -319,7 +310,6 @@ FocusScope {
         }
 
         Text {
-            id: factLabel
             objectName: "dockPickFacts_" + deck.mediumKey
             width: labels.width
             visible: text.length > 0 && deck.captionHeight >= 78
@@ -332,24 +322,6 @@ FocusScope {
             font.pixelSize: theme.fontSize(14)
             Accessible.ignored: true
         }
-
-        Text {
-            id: summaryLabel
-            objectName: "dockPickSummary_" + deck.mediumKey
-            width: labels.width
-            visible: text.length > 0 && labels.summaryRoom >= summaryMetrics.lineSpacing
-            text: deck.summary
-            textFormat: Text.PlainText
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.Wrap
-            maximumLineCount: Math.max(1, Math.min(2, Math.floor(labels.summaryRoom / summaryMetrics.lineSpacing)))
-            elide: Text.ElideRight
-            color: theme.inkDim
-            font.family: theme.ui
-            font.pixelSize: theme.fontSize(13)
-            Accessible.ignored: true
-        }
-        FontMetrics { id: summaryMetrics; font: summaryLabel.font }
     }
 
     SequentialAnimation {

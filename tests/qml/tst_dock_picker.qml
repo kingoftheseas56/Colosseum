@@ -379,36 +379,46 @@ Item {
             verify(!card.ToolTip.toolTip.visible)
             compare(tv.Accessible.name, "Open " + fullTitle + " (TV)")
             verify(!findChild(picker, "dockPickFacts_tv").visible)
-            verify(!findChild(picker, "dockPickSummary_tv").visible)
             compare(audio.Accessible.name, "Audiobooks")
             compare(audio.Accessible.description, "No picks available")
             compare(findChild(picker, "dockPickTitle_audiobooks").text, "No picks available")
         }
 
-        function test_captionsReadProviderMetadataAndOmitPlaceholders() {
+        function compareCaption(picker, key, medium, title, facts) {
+            const labels = findChild(picker, "dockPickTitle_" + key).parent.children
+            compare(labels.length, 3)
+            compare(labels[0].text, medium)
+            compare(labels[1].text, title)
+            compare(labels[2].text, facts)
+            compare(labels[2].visible, facts.length > 0)
+        }
+
+        function test_captionsShowFactsWithoutProviderDescriptions() {
+            catalogue.updateUniverses()
+            const franchise = catalogue.picks.universes.find(entry => entry.raw.blurb.length > 0)
+            verify(franchise !== undefined, "Use an actual franchise entry with a source description")
             bar.pickerReducedMotion = true
             bar.pickerPicks = {
-                anime: [{ title: "Anime pick", releaseInfo: "2024", blurb: "A featured anime title." }],
+                anime: [{ title: "Anime pick", releaseInfo: "2024", blurb: "The crew follows a signal from a lost city." }],
                 manga: [{ title: "Manga pick", year: 1997, raw: { authors: [{ name: "An author" }] } }],
                 comics: [{ title: "Comic pick", publisher: "A publisher", year: 2016 }],
                 manhwa: [{ title: "Manhwa pick", raw: { synopsis: "A short source synopsis." } }],
                 books: [{ title: "Book pick", author: "A novelist", year: 1988 }],
                 audiobooks: [{ title: "Audiobook pick", raw: { author: "An audiobook author" } }],
-                universes: [{ title: "Franchise pick", raw: { blurb: "The existing franchise synopsis." } }]
+                universes: [franchise]
             }
             bar.open = true
             const picker = findChild(bar, "dockPicker")
             verify(waitForRendering(picker))
-            compare(findChild(picker, "dockPickFacts_anime").text, "2024")
-            verify(!findChild(picker, "dockPickSummary_anime").visible)
+            compareCaption(picker, "anime", "Anime", "Anime pick", "2024")
             picker.selectSlide(1)
             compare(findChild(picker, "dockPickFacts_manga").text, "An author · 1997")
             compare(findChild(picker, "dockPickFacts_comics").text, "A publisher · 2016")
-            compare(findChild(picker, "dockPickSummary_manhwa").text, "A short source synopsis.")
+            compareCaption(picker, "manhwa", "Manhwa", "Manhwa pick", "")
             picker.selectSlide(2)
             compare(findChild(picker, "dockPickFacts_books").text, "A novelist · 1988")
             compare(findChild(picker, "dockPickFacts_audiobooks").text, "An audiobook author")
-            compare(findChild(picker, "dockPickSummary_universes").text, "The existing franchise synopsis.")
+            compareCaption(picker, "universes", "Franchises", franchise.title, "")
         }
 
         function test_keyboardTurnsPagesAndFocusesOnlyTheLandingDeck() {
