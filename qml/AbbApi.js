@@ -132,11 +132,19 @@ function parseSearch(html) {
             language: lm ? decode(lm[1]) : "",
             format: fm ? fm[1].trim() : "",
             size: zm ? (zm[1].trim() + " " + zm[2].trim()) : "",
+            seeders: parseSeeders(block),
             posted: pm ? pm[1].trim() : "",
             bundle: isBundleTitle(title)
         });
     }
     return out;
+}
+
+function parseSeeders(html) {
+    var row = /<td\b[^>]*>\s*Seeders:\s*<\/td>\s*<td\b[^>]*>\s*([\d,]+)\s*<\/td>/i.exec(html);
+    var span = /Seeders:\s*<span\b[^>]*>\s*([\d,]+)\s*<\/span>/i.exec(html);
+    var count = row || span;
+    return count ? Number(count[1].replace(/,/g, "")) : undefined;
 }
 
 // Facts describe the ABB upload only; they never establish a catalogue match.
@@ -167,6 +175,8 @@ function parseDetail(html) {
     var desc = dm ? dm[1] : "";
     var header = /<p\b[^>]*>\s*Written by[\s\S]*?<\/p>/i.exec(desc);
     var heading = header ? header[0] : "";
+    var authors = [], am, authorRe = /<span\s+class=["']author["'][^>]*>([^<]*)<\/span>/gi;
+    while ((am = authorRe.exec(heading)) !== null) authors.push(decode(am[1]));
     var narrators = [], nm, narrRe = /<span\s+class=["']narrator["'][^>]*>([^<]*)<\/span>/gi;
     while ((nm = narrRe.exec(heading)) !== null) narrators.push(decode(nm[1]));
     var ab = detailSpan(heading, "is_abridged").toLowerCase();
@@ -178,6 +188,7 @@ function parseDetail(html) {
     return {
         infoHash: hm ? hm[1].toLowerCase() : "",
         contents: parseFileSummary(text),
+        author: authors.join(", "),
         narrator: narrators,
         format: detailSpan(heading, "format"),
         bitrate: detailSpan(heading, "bitrate"),
@@ -185,7 +196,9 @@ function parseDetail(html) {
         language: lang ? decode(lang[1]) : "",
         description: plainText(desc.replace(/<p\b[^>]*>\s*Written by[\s\S]*?<\/p>/i, "")),
         postedDate: posted ? posted[1] : "",
-        fileCount: parseFileCount(text)
+        fileCount: parseFileCount(text),
+        audioFileCount: parseFileCount(text, true),
+        seeders: parseSeeders(text)
     };
 }
 
@@ -209,13 +222,15 @@ function parseFileSummary(text) {
 // VERBATIM from AbbScraper::constructMagnet — ABB's own 7-tracker list (typo'd port
 // kept; libtorrent ignores invalid trackers, matching ABB maximizes peer parity).
 // File rows include covers and metadata; not a chapter count.
-function parseFileCount(text) {
+function parseFileCount(text, audioOnly) {
     var mk = /<tr>\s*<td[^>]*>\s*This is a (Multifile|Singlefile) Torrent\s*<\/td>\s*<\/tr>/i.exec(text);
     if (!mk) return 0;
     var tail = text.substring(mk.index + mk[0].length, mk.index + mk[0].length + 32000);
     var re = /<tr>\s*<td[^>]*>\s*([^<]+?)\.([a-zA-Z0-9]+)\s+([0-9.]+\s*[GMK]?Bs?)\s*<\/td>\s*<\/tr>/gi;
-    var count = 0;
-    while (re.exec(tail) && count < 200) count++;
+    var count = 0, total = 0, file;
+    while ((file = re.exec(tail)) !== null && total++ < 200) {
+        if (!audioOnly || /^(?:m4b|mp3|m4a|aac|flac|ogg|opus|wav|wma)$/i.test(file[2])) count++;
+    }
     return count;
 }
 
@@ -281,6 +296,18 @@ function fetchInfoHash(slug, done) {
     requestText(ABB + "/abss/" + slug + "/", function(html) {
         if (!html) { done(null); return; }
         done(parseDetail(html));
+    });
+}
+
+function fetchDetail(slug, done) {
+    var name = String(slug || "");
+    try { name = decodeURIComponent(name); } catch (e) { name = ""; }
+    if (!name || /^\.+$/.test(name) || /[/\\?#]/.test(name)) {
+        done(null, "invalid-detail");
+        return { cancel: function() {} };
+    }
+    return requestText(ABB + "/abss/" + encodeURIComponent(name) + "/", function(html, reason) {
+        done(html ? parseDetail(html) : null, reason);
     });
 }
 

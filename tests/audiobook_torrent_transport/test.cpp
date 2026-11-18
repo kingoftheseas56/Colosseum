@@ -240,6 +240,58 @@ private slots:
   FakeEngine second;auto other=new AudiobookTorrentTransport(&second,{300,300,5});other->start(2,A,root.path());QTRY_COMPARE_WITH_TIMEOUT(second.adds.size(),1,500);delete other;QCOMPARE(second.deletions.size(),1);
  }
 
+ void catalogueWorkIdentitySurvivesCompletionAndReload() {
+  FakeEngine engine;
+  engine.manifests[A]=FakeEngine::mixed();
+  engine.autoComplete=true;
+  QNetworkAccessManager nam;
+  QTemporaryDir root(evidence+"/identity-XXXXXX");QVERIFY(root.isValid());
+  AudioPairingStore pairing(root.path()+"/pairs.ini");
+  const QString key="one|author#as:recording-123";
+  const QString workId="work-456";
+  {
+   AudiobookDownloader books(&nam,nullptr);books.setPairing(&pairing);
+   books.setTorrentTransport(new AudiobookTorrentTransport(&engine,{300,300,5}));
+   QSignalSpy done(&books,&AudiobookDownloader::finished);
+   QVariantMap request{{"pairKey","one|author"},{"infoHash",A},{"title","One"},
+                       {"author","Author"},{"workId",workId},{"bookId","reader-id"},
+                       {"audiosiloRecordingId","recording-123"}};
+   books.downloadRecording(request);
+   request["workId"]="different-work";
+   books.downloadRecording(request);
+   QCOMPARE(books.activeDownloads().size(),1);
+   QCOMPARE(books.activeDownloads()[0].toMap().value("workId").toString(),workId);
+   QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,1000);
+   QCOMPARE(done[0][0].toString(),key);
+   QCOMPARE(engine.adds,QList<QString>{A});
+   QCOMPARE(books.downloadedAudiobooks()[0].toMap().value("workId").toString(),workId);
+   QCOMPARE(pairing.getPairing("reader-id").value("recordingKey").toString(),key);
+   QVERIFY(pairing.getPairing(workId).isEmpty());
+  }
+  AudiobookDownloader restarted(&nam,nullptr);
+  QCOMPARE(restarted.downloadedAudiobooks().size(),1);
+  const QVariantMap downloaded=restarted.downloadedAudiobooks()[0].toMap();
+  QCOMPARE(downloaded.value("workId").toString(),workId);
+  QCOMPARE(downloaded.value("bookId").toString(),"reader-id");
+  QCOMPARE(restarted.recordingsForWork("one|author").size(),1);
+  QCOMPARE(restarted.recordingsForWork("one|author")[0].toMap().value("workId").toString(),workId);
+ }
+ void failedRecordingRetainsCatalogueWorkIdentity() {
+  FakeEngine engine;
+  engine.manifests[A]={QJsonObject{{"index",0},{"name","cover.jpg"},{"size",1}}};
+  QNetworkAccessManager nam;
+  AudiobookDownloader books(&nam,nullptr);
+  books.setTorrentTransport(new AudiobookTorrentTransport(&engine,{300,300,5}));
+  QSignalSpy failed(&books,&AudiobookDownloader::failed);
+  books.downloadRecording({{"pairKey","one|author"},{"infoHash",A},{"title","One"},
+                           {"author","Author"},{"workId","work-456"}});
+  QTRY_COMPARE_WITH_TIMEOUT(failed.size(),1,1000);
+  QCOMPARE(books.activeDownloads().size(),1);
+  const QVariantMap row=books.activeDownloads()[0].toMap();
+  QCOMPARE(row.value("state").toString(),"failed");
+  QCOMPARE(row.value("workId").toString(),"work-456");
+  QVERIFY(books.downloadedAudiobooks().isEmpty());
+ }
  void distinctRecordingsAndDeletion() {
   FakeEngine engine;engine.manifests[A]=FakeEngine::mixed();engine.manifests[B]=FakeEngine::mixed();engine.autoComplete=true;
   QNetworkAccessManager nam;AudiobookDownloader books(&nam,nullptr);
@@ -289,6 +341,7 @@ private slots:
   QCOMPARE(books.localFiles("legacy|writer"),QStringList{path});
   QCOMPARE(books.recordingsForWork("legacy|writer").size(),1);
   QCOMPARE(books.recordingsForWork("legacy|writer")[0].toMap().value("recordingKey").toString(),"legacy|writer");
+  QVERIFY(books.downloadedAudiobooks()[0].toMap().value("workId").toString().isEmpty());
  }
  void legacyAndModernRecordingCoexistWithoutImplicitPreference() {
   const QString root=QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
@@ -325,7 +378,7 @@ private slots:
   books.setTorrentTransport(new AudiobookTorrentTransport(&engine,{300,300,5}));
   QSignalSpy done(&books,&AudiobookDownloader::finished);
   books.downloadRecording({{"pairKey","one|author"},{"infoHash",C},{"title","Books 1-4"},
-                           {"author","Author"},{"bookId","reader-id"},{"bundle",true},
+                           {"author","Author"},{"bookId","reader-id"},{"workId","work-456"},{"bundle",true},
                            {"sourceKind","abb"},{"sourceRef","bundle-post"}});
   QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,1000);
   const QString key="bundle#src:"+C;
@@ -333,6 +386,10 @@ private slots:
   QCOMPARE(books.localFiles(key).size(),2);
   QCOMPARE(books.recordingsForWork("one|author").size(),0);
   QCOMPARE(books.downloadedAudiobooks()[0].toMap().value("bundle").toBool(),true);
+  QVERIFY(!books.downloadedAudiobooks()[0].toMap().contains("workId"));
+  AudiobookDownloader restarted(&nam,nullptr);
+  QCOMPARE(restarted.downloadedAudiobooks().size(),1);
+  QVERIFY(!restarted.downloadedAudiobooks()[0].toMap().contains("workId"));
   QVERIFY(pairing.getPairing("reader-id").isEmpty());
  }
  void desktopHttpErrorsAreHonest() {

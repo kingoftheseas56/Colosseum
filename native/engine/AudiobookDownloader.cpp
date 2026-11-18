@@ -182,6 +182,7 @@ void AudiobookDownloader::loadIndex()
         e.dir = o.value(QStringLiteral("dir")).toString();
         e.title = o.value(QStringLiteral("title")).toString();
         e.author = o.value(QStringLiteral("author")).toString();
+        if (!e.bundle) e.workId = o.value(QStringLiteral("workId")).toString();
         e.audiosiloRecordingId = o.value(QStringLiteral("audiosiloRecordingId")).toString();
         e.format = o.value(QStringLiteral("format")).toString();
         e.abridgement = o.value(QStringLiteral("abridgement")).toString();
@@ -215,6 +216,7 @@ void AudiobookDownloader::saveIndex() const
         o[QStringLiteral("dir")] = e.dir;
         o[QStringLiteral("title")] = e.title;
         o[QStringLiteral("author")] = e.author;
+        if (!e.workId.isEmpty()) o[QStringLiteral("workId")] = e.workId;
         o[QStringLiteral("audiosiloRecordingId")] = e.audiosiloRecordingId;
         o[QStringLiteral("narrators")] = QJsonArray::fromStringList(e.narrators);
         o[QStringLiteral("format")] = e.format;
@@ -293,7 +295,7 @@ QVariantList AudiobookDownloader::recordingsForWork(const QString& pairKey) cons
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
         const Entry& e = it.value();
         if (e.pairKey != pairKey || e.bundle) continue;
-        out.append(QVariantMap{
+        QVariantMap row{
             {QStringLiteral("recordingKey"),it.key()},
             {QStringLiteral("pairKey"),e.pairKey},
             {QStringLiteral("title"),e.title},
@@ -309,7 +311,9 @@ QVariantList AudiobookDownloader::recordingsForWork(const QString& pairKey) cons
             {QStringLiteral("bundle"),false},
             {QStringLiteral("preferred"),e.preferred},
             {QStringLiteral("lastPlayedAt"),e.lastPlayedAt}
-        });
+        };
+        if (!e.workId.isEmpty()) row.insert(QStringLiteral("workId"), e.workId);
+        out.append(row);
     }
     std::sort(out.begin(),out.end(),[](const QVariant& a,const QVariant& b) {
         return a.toMap().value(QStringLiteral("recordingKey")).toString()
@@ -370,7 +374,7 @@ QVariantList AudiobookDownloader::activeDownloads() const
 {
     QVariantList out;
     const auto describe = [](const Job* j, const QString& state) {
-        return QVariantMap{
+        QVariantMap row{
             {QStringLiteral("id"),j->recordingKey},
             {QStringLiteral("recordingKey"),j->recordingKey},
             {QStringLiteral("pairKey"),j->pairKey},
@@ -380,6 +384,8 @@ QVariantList AudiobookDownloader::activeDownloads() const
             {QStringLiteral("received"),static_cast<double>(j->doneBytes + j->fileReceived)},
             {QStringLiteral("total"),static_cast<double>(j->totalBytes)}
         };
+        if (!j->workId.isEmpty()) row.insert(QStringLiteral("workId"), j->workId);
+        return row;
     };
     if (m_active)
         out.append(describe(m_active, m_active->nativeTorrent ? m_active->nativePhase
@@ -394,7 +400,7 @@ QVariantList AudiobookDownloader::downloadedAudiobooks() const
     QVariantList out;
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
         const Entry& e = it.value();
-        out.append(QVariantMap{
+        QVariantMap row{
             {QStringLiteral("id"),it.key()},
             {QStringLiteral("recordingKey"),it.key()},
             {QStringLiteral("pairKey"),e.pairKey},
@@ -415,7 +421,9 @@ QVariantList AudiobookDownloader::downloadedAudiobooks() const
             {QStringLiteral("sourceRef"),e.sourceRef},
             {QStringLiteral("bundle"),e.bundle},
             {QStringLiteral("missing"),e.files.isEmpty() || !QFileInfo::exists(e.files.first())}
-        });
+        };
+        if (!e.workId.isEmpty()) row.insert(QStringLiteral("workId"), e.workId);
+        out.append(row);
     }
     return out;
 }
@@ -461,6 +469,7 @@ void AudiobookDownloader::beginDownload(const QVariantMap& request, bool legacyC
 {
     const bool bundle = request.value(QStringLiteral("bundle")).toBool();
     const QString pairKey = bundle ? QString() : request.value(QStringLiteral("pairKey")).toString();
+    const QString workId = bundle ? QString() : request.value(QStringLiteral("workId")).toString().trimmed();
     const QString hash = request.value(QStringLiteral("infoHash")).toString().trimmed().toLower();
     const QString title = request.value(QStringLiteral("title")).toString();
     const QString author = request.value(QStringLiteral("author")).toString();
@@ -477,7 +486,7 @@ void AudiobookDownloader::beginDownload(const QVariantMap& request, bool legacyC
     }
     if (!QRegularExpression(QStringLiteral("^[0-9a-f]{40}$")).match(hash).hasMatch()) {
         const QString reason = QStringLiteral("bad infoHash");
-        rememberFailure(recordingKey,title,author,reason);
+        rememberFailure(recordingKey,title,author,reason,workId);
         emit failed(signalKey,reason);
         return;
     }
@@ -509,7 +518,7 @@ void AudiobookDownloader::beginDownload(const QVariantMap& request, bool legacyC
     }
     if (!m_stream && !m_torrent) {
         const QString reason = QStringLiteral("stream engine unavailable");
-        rememberFailure(recordingKey,title,author,reason);
+        rememberFailure(recordingKey,title,author,reason,workId);
         emit failed(signalKey,reason);
         return;
     }
@@ -521,6 +530,7 @@ void AudiobookDownloader::beginDownload(const QVariantMap& request, bool legacyC
     job->infoHash = hash;
     job->title = title;
     job->author = author;
+    job->workId = workId;
     job->audiosiloRecordingId = asid;
     job->bundle = bundle;
     job->format = request.value(QStringLiteral("format")).toString();
@@ -781,6 +791,7 @@ void AudiobookDownloader::finalizeJob(Job* job)
     e.dir = job->nativeTorrent ? job->completedDir : dirFor(job->recordingKey);
     e.title = job->title;
     e.author = job->author;
+    e.workId = job->workId;
     e.audiosiloRecordingId = job->audiosiloRecordingId;
     e.narrators = job->narrators;
     e.format = job->format;
@@ -835,13 +846,14 @@ void AudiobookDownloader::failJob(Job* job, const QString& reason)
     if (job->nativeTorrent && m_torrent) m_torrent->cancel(job->generation);
     const QString key = job->recordingKey, signalKey = job->signalKey;
     const QString title = job->title, author = job->author;
+    const QString workId = job->workId;
     const qint64 received = job->doneBytes + job->fileReceived, total = job->totalBytes;
     const QString failure = reason; // reason may alias the retired Job
     if (m_active == job) m_active = nullptr;
     else m_queue.removeAll(job);
     delete job; // retire before rememberFailure's failuresChanged observer
     QPointer<AudiobookDownloader> guard(this);
-    rememberFailure(key, title, author, failure, received, total);
+    rememberFailure(key, title, author, failure, workId, received, total);
     if (!guard) return;
     if (isActive(key)) return; // a failuresChanged observer already retried this recording
     qWarning() << "[AudiobookDownloader] FAILED" << key << failure;
@@ -851,19 +863,22 @@ void AudiobookDownloader::failJob(Job* job, const QString& reason)
     if (guard) promoteQueue();
 }
 
-void AudiobookDownloader::rememberFailure(const QString& pairKey, const QString& title,
+void AudiobookDownloader::rememberFailure(const QString& recordingKey, const QString& title,
                                           const QString& author, const QString& reason,
+                                          const QString& workId,
                                           qint64 received, qint64 total)
 {
-    m_failures.insert(pairKey, QVariantMap{
-        {QStringLiteral("id"), pairKey},
+    QVariantMap row{
+        {QStringLiteral("id"), recordingKey},
         {QStringLiteral("title"), title},
         {QStringLiteral("author"), author},
         {QStringLiteral("state"), QStringLiteral("failed")},
         {QStringLiteral("error"), reason.simplified().left(240)},
         {QStringLiteral("received"), static_cast<double>(received)},
         {QStringLiteral("total"), static_cast<double>(total)}
-    });
+    };
+    if (!workId.isEmpty()) row.insert(QStringLiteral("workId"), workId);
+    m_failures.insert(recordingKey, row);
     emit failuresChanged();
 }
 

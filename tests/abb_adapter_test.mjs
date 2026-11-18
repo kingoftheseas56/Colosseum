@@ -274,5 +274,29 @@ check('stale cache HTTP errors do not masquerade as offline', () => {
   assert.ok(values[1].value.rows.length > 0);
 });
 
+check('detail lookup exposes provider timeout and supports aborting the request', () => {
+  const env = environment();
+  const values = [];
+  const request = env.api.fetchDetail('rhythm-of-war', (value, reason) => values.push([value, reason]));
+  assert.equal(env.newest().url, 'https://audiobookbay.lu/abss/rhythm-of-war/');
+  request.cancel();
+  assert.equal(env.newest().aborted, true);
+  assert.equal(values.length, 0);
+  env.api.fetchDetail('rhythm-of-war', (value, reason) => values.push([value, reason]));
+  env.fireTimers();
+  assert.deepEqual(values, [[null, 'timeout']]);
+});
+
+check('structured detail credits and seeder counts are available for comparison', () => {
+  const env = environment();
+  const html = fullHtml.replace('<td>Info Hash:</td>', '<td>Seeders:</td><td>42</td></tr><tr><td>Info Hash:</td>');
+  env.api.fetchDetail('rhythm-of-war', (value) => {
+    assert.equal(value.author, 'Brandon Sanderson');
+    assert.equal(value.seeders, 42);
+    assert.equal(value.audioFileCount, 1);
+  });
+  env.newest().respond(200, html);
+});
+
 console.log('SUMMARY ' + passed + ' passed, ' + failed + ' failed');
 if (failed) process.exitCode = 1;

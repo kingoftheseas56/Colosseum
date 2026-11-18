@@ -18,17 +18,37 @@ FocusScope {
     property var downloadState: ({})
     property bool canSave: false
     property bool saved: false
+    property bool sourceEnabled: true
+    property bool lookupPending: false
+    property string downloadError: ""
+    property string selectedDownloadKey: ""
     signal downloadRequested(string workId)
     signal listenRequested(string recordingKey)
     signal seriesBookRequested(string workId)
     signal authorRequested(string personId, string name)
     signal saveRequested()
+    signal enableSourceRequested()
+    signal cancelLookupRequested()
     signal backRequested()
 
     readonly property var built: BookData.build(work, seriesWorks, recordings)
     readonly property var shownRecording: BookData.recording(built, local, downloadState)
     readonly property string coverUrl: built.cover || shownRecording.cover || ""
-    readonly property var primary: BookData.primaryAction(built, shownRecording, local, downloadState)
+    readonly property var actionRecording: selectedDownloadKey
+        ? { key: selectedDownloadKey, local: false } : shownRecording
+    readonly property var primary: {
+        const action = BookData.primaryAction(built, actionRecording, local, downloadState)
+        if (lookupPending)
+            return { kind: "lookup", label: qsTr("Finding downloads…"), enabled: false, progress: -1 }
+        if (action.kind === "download" && action.enabled) {
+            if (!sourceEnabled)
+                return { kind: "extensions", label: qsTr("Enable AudioBookBay in Extensions"),
+                         enabled: true, progress: -1 }
+            if (downloadError)
+                return { kind: "download", label: qsTr("Retry"), enabled: true, progress: -1 }
+        }
+        return action
+    }
     readonly property bool hasSeries: built.seriesBooks.length > 0
     readonly property bool compact: width < 1050
     readonly property real inset: Math.max(0, (width - 1280) / 2)
@@ -102,8 +122,9 @@ FocusScope {
                         enabled: root.primary.enabled
                         focusPrimary: true
                         onTriggered: {
-                            if (root.primary.kind === "listen") root.listenRequested(root.shownRecording.key)
+                            if (root.primary.kind === "listen") root.listenRequested(root.actionRecording.key)
                             else if (root.primary.kind === "download") root.downloadRequested(root.built.workId)
+                            else if (root.primary.kind === "extensions") root.enableSourceRequested()
                         }
                         Rectangle {
                             anchors.fill: parent; radius: 11
@@ -112,6 +133,9 @@ FocusScope {
                         }
                         Row {
                             anchors.centerIn: parent
+                            readonly property int iconSpace:
+                                root.primary.kind === "listen" || root.primary.kind === "download" ? 28 : 0
+                            width: Math.min(primaryLabel.implicitWidth + iconSpace, parent.width - 16)
                             spacing: 10
                             Vinyl.VinylControlIcon {
                                 width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter
@@ -125,9 +149,13 @@ FocusScope {
                                 sourceSize: Qt.size(width, height)
                             }
                             Text {
+                                id: primaryLabel
+                                width: Math.max(0, parent.width - parent.iconSpace)
                                 text: root.primary.label
                                 color: "#181408"
                                 font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
+                                wrapMode: Text.WordWrap
+                                horizontalAlignment: Text.AlignHCenter
                             }
                         }
                     }
@@ -154,20 +182,40 @@ FocusScope {
                     }
                 }
                 ProgressBar {
+                    id: downloadProgress
                     objectName: "audiobookDownloadProgress"
                     width: parent.width; height: visible ? 4 : 0
-                    visible: root.primary.kind === "progress"
+                    visible: root.primary.kind === "progress" && root.primary.progress >= 0
+                    padding: 0
                     value: Math.max(0, root.primary.progress)
-                    indeterminate: root.primary.progress < 0
-                    palette.highlight: theme.gold
+                    background: Rectangle { radius: 2; color: theme.edge }
+                    contentItem: Item {
+                        Rectangle {
+                            width: parent.width * downloadProgress.position
+                            height: parent.height
+                            radius: 2
+                            color: theme.gold
+                        }
+                    }
+                }
+                BackAction {
+                    objectName: "audiobookCancelLookup"
+                    visible: root.lookupPending
+                    width: parent.width
+                    height: visible ? 26 : 0
+                    label: qsTr("Cancel")
+                    labelSize: 13
+                    onTriggered: root.cancelLookupRequested()
                 }
                 Text {
                     width: parent.width
                     objectName: "audiobookLocalStatus"
                     topPadding: theme.fontSize(11)
                     text: root.primary.kind === "listen" ? qsTr("Downloaded · Ready to listen")
-                        : root.primary.kind === "progress" ? root.primary.label : qsTr("Not downloaded")
+                        : root.primary.kind === "progress" || root.lookupPending ? ""
+                        : root.downloadError || qsTr("Not downloaded")
                     horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
                     color: theme.inkDim
                     font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 }

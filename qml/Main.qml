@@ -5814,14 +5814,12 @@ Window {
         z: 53
         backdrop: wall
         dockClearance: win.androidHost ? 0 : taskbar.contentBottomInset
-        onDownloadRequested: (workId) => {}
-        onListenRequested: (recordingKey) => {}
+        session: audioSession
+        onOpenExtensionsRequested: win.openExtensionsPage("biblio")
     }
 
     // ---- the ONE audiobook engine (read-along), hoisted at the window root (never in a
-    // Loader) so playback survives the reader opening/closing. The READER is the only
-    // audiobook surface (standalone player retired 2026-07-18): its HUD transport pill
-    // and Audio tab both drive this session. ----
+    // Loader). The Biblio listening page and the reader's transport share this session. ----
     AudiobookSession {
         id: audioSession
         objectName: "vinylHandoffAudiobook"

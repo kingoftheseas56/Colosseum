@@ -81,7 +81,8 @@ public:
                                        const QString& title, const QString& author,
                                        const QString& bookId = QString(),
                                        const QString& bookPath = QString());
-    // Explicit recording/source metadata; bundle items do not belong to one work.
+    // Optional workId identifies the AudioSilo catalogue work. bookId still identifies
+    // the local ebook for read-along pairing. Bundles carry neither work identity.
     Q_INVOKABLE void downloadRecording(const QVariantMap& request);
     Q_INVOKABLE QString resolveRecordingKey(const QString& workOrRecordingKey) const;
     Q_INVOKABLE QVariantList recordingsForWork(const QString& pairKey) const;
@@ -133,7 +134,7 @@ private:
     };
     struct Job {
         QString pairKey, recordingKey, signalKey, infoHash, title, author;
-        QString audiosiloRecordingId, format, abridgement, language, sourceKind, sourceRef;
+        QString workId, audiosiloRecordingId, format, abridgement, language, sourceKind, sourceRef;
         QStringList narrators;
         bool bundle = false;
         quint64 generation = 0;
@@ -170,8 +171,8 @@ private:
     void onFileFinished();
     void finalizeJob(Job* job);
     void failJob(Job* job, const QString& reason);
-    void rememberFailure(const QString& pairKey, const QString& title,
-                         const QString& author, const QString& reason,
+    void rememberFailure(const QString& recordingKey, const QString& title,
+                         const QString& author, const QString& reason, const QString& workId = {},
                          qint64 received = 0, qint64 total = 0);
     void cancelJob(Job* job);
     void retireCancelledJob(Job* job);
@@ -197,7 +198,7 @@ private:
         QString dir;
         QStringList files;         // ordered absolute paths
         QString title, author, pairKey, recordingKey;
-        QString audiosiloRecordingId, format, abridgement, language, sourceKind, sourceRef;
+        QString workId, audiosiloRecordingId, format, abridgement, language, sourceKind, sourceRef;
         QStringList narrators;
         bool bundle = false, preferred = false;
         QString bookId, bookPath;

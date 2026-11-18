@@ -136,8 +136,10 @@ function recording(built, local, states) {
     var list = built.recordings;
     for (var i = 0; i < list.length; ++i)
         if (isLocal(list[i], local, states)) return list[i];
-    for (var j = 0; j < list.length; ++j)
-        if (stateOf(states, list[j].key).state === "active") return list[j];
+    for (var j = 0; j < list.length; ++j) {
+        var state = stateOf(states, list[j].key).state;
+        if (state === "active" || state === "queued" || state === "paused") return list[j];
+    }
     return list[0] || { key: "", id: "", narrators: "", facts: [], local: false };
 }
 
@@ -152,5 +154,6 @@ function primaryAction(built, record, local, states) {
         if (status.progress >= 0) label += " " + Math.round(status.progress * 100) + "%";
         return { kind: "progress", label: label, enabled: false, progress: status.progress };
     }
-    return { kind: "download", label: qsTr("Download"), enabled: built.workId !== "", progress: -1 };
+    return { kind: "download", label: status.state === "failed" ? qsTr("Retry") : qsTr("Download"),
+             enabled: built.workId !== "", progress: -1 };
 }

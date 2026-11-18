@@ -15,6 +15,7 @@ Item {
     // Hosts can supply download state before opening the local files in the session.
     property bool downloaded: !!session && session.ready
     property bool saved: false
+    property bool saveAvailable: true
     // Inset from the top of the viewport to the content below the shell's top bar.
     property real contentTop: 138
     property bool chaptersOpen: false
@@ -31,11 +32,12 @@ Item {
     readonly property string bookTitle: Data.text(book && book.title)
     readonly property string authorLine: Data.list(book && (book.authors || book.author)).join(" · ")
     readonly property string narratorLine: Data.list(book && book.narrators).join(" & ")
+    readonly property string seriesLine: Data.text(book && book.seriesLine)
     readonly property url coverSource: Data.coverUrl(book && book.cover)
     readonly property real sideInset: Math.min(theme.margin, width * 0.075)
     readonly property bool stackedActions: width < 600
     readonly property real posterSize: Math.max(0, Math.min(290, width - 2 * sideInset,
-        bar.y - contentTop - (stackedActions ? 132 : 96)))
+        bar.y - contentTop - (stackedActions ? 132 : 96) - (seriesLine.length ? 14 : 0)))
 
     onHasChaptersChanged: if (!hasChapters) chaptersOpen = false
 
@@ -153,6 +155,7 @@ Item {
 
     PageAction {
         objectName: "audiobookReadAlong"
+        visible: !root.book.bundle
         x: root.stackedActions ? root.width / 2 + 4 : poster.x + poster.width + 44
         y: chaptersButton.y
         label: qsTr("Read along")
@@ -184,6 +187,7 @@ Item {
         }
         PageAction {
             objectName: "audiobookSave"
+            visible: root.saveAvailable
             symbol: root.saved ? "saved" : "save"
             selected: root.saved
             accessibleName: root.saved ? qsTr("Remove saved audiobook") : qsTr("Save audiobook")
@@ -214,6 +218,18 @@ Item {
             visible: root.narratorLine.length > 0
             width: parent.width
             text: qsTr("Narrated by %1").arg(root.narratorLine)
+            color: theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: 11
+            textFormat: Text.PlainText
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+        }
+        Text {
+            objectName: "audiobookPlayerSeries"
+            visible: root.seriesLine.length > 0
+            width: parent.width
+            text: root.seriesLine
             color: theme.inkDim
             font.family: theme.ui
             font.pixelSize: 11

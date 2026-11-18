@@ -76,10 +76,13 @@ TestCase {
         const all = findChild(page, "biblioLibraryMedium_all")
         const book = findChild(page, "biblioLibraryMedium_book")
         const audio = findChild(page, "biblioLibraryMedium_audiobook")
-        verify(all && book && audio)
-        compare([all.label, book.label, audio.label], ["All", "Books", "Audiobooks"])
+        compare(all, null)
+        verify(book && audio)
+        compare([book.label, audio.label], ["Books", "Audiobooks"])
         mouseClick(book)
         compare(page.visibleRows.map(r => r.title), ["A Book"])
+        mouseClick(book)
+        compare(page.visibleCount, 3)
         mouseClick(audio)
         compare(page.visibleRows.map(r => r.title), ["Emma", "Dune"])
         compare(findChild(page, "abLibraryState_audiobook:w1").text, "Started")
@@ -97,7 +100,7 @@ TestCase {
         page.query = ""
         page.sortMode = "lastRead"
         compare(page.visibleRows.map(r => r.title), ["Dune", "Emma"])
-        mouseClick(all)
+        mouseClick(audio)
         compare(page.visibleCount, 3)
     }
 

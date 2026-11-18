@@ -332,13 +332,13 @@ Item {
                 spacing: filters.spacing
                 Rectangle { width: 1; height: 22; anchors.verticalCenter: parent.verticalCenter; color: theme.edge }
                 Repeater {
-                    model: [ { key: "", label: qsTr("All") }, { key: "book", label: qsTr("Books") },
+                    model: [ { key: "book", label: qsTr("Books") },
                              { key: "audiobook", label: qsTr("Audiobooks") } ]
                     delegate: BiblioFilterPill {
                         required property var modelData
-                        objectName: "biblioLibraryMedium_" + (modelData.key || "all")
+                        objectName: "biblioLibraryMedium_" + modelData.key
                         label: modelData.label; active: root.mediumFilter === modelData.key
-                        onPicked: root.mediumFilter = modelData.key
+                        onPicked: root.mediumFilter = root.mediumFilter === modelData.key ? "" : modelData.key
                     }
                 }
             }
