@@ -9,37 +9,42 @@ FocusScope {
     property var entries: []
     property bool logoArt: false
     property bool reducedMotion: false
-    property bool labelsBeside: true
     property real aspect: 0.71
     property real leftMotionRoom: 0
     signal openRequested(var entry)
-    signal verticalPanRequested(real distance)
+    signal verticalSwipeRequested(real distance)
 
     readonly property int count: entries.length
     readonly property bool canBrowse: count > 1
-    readonly property string title: count ? String(entries[current].title) : ""
+    readonly property var activeEntry: count ? entries[current] : null
+    readonly property string title: activeEntry ? String(activeEntry.title) : ""
+    readonly property var facts: factsFor(activeEntry)
+    readonly property string detailLine: facts.length > 1 ? qsTr("%1 · %2").arg(facts[0]).arg(facts[1])
+                                                         : facts[0] || ""
+    readonly property string summary: facts.length < 2 ? summaryFor(activeEntry) : ""
     readonly property real turnAngle: 7
     readonly property real fanAngle: 1.5
     readonly property real turnScale: .84
     // The rotated card extends by at most half the perpendicular edge times sin(angle).
     readonly property real turnAllowance: Math.sin(turnAngle * Math.PI / 180) / 2
     readonly property real fanAllowance: Math.sin(2 * fanAngle * Math.PI / 180) / 2
-    readonly property real labelWidth: labelsBeside && count ? Math.min(144, Math.max(94, width * .36)) : width
-    readonly property real labelGap: labelsBeside ? 10 : 4
-    readonly property real artWidth: labelsBeside && count ? Math.max(0, width - labelWidth - labelGap) : width
-    readonly property real artHeight: labelsBeside ? height : Math.max(0, height - 64)
+    readonly property real captionHeight: Math.min(132, height * .37)
+    readonly property real artHeight: Math.max(0, height - captionHeight)
     readonly property real coverHeight: Math.max(0, Math.min(
         (artHeight - 8) / (1 + 2 * aspect * fanAllowance),
-        (artWidth - offset(2) - 4) / (aspect + fanAllowance)))
+        (width - offset(2) - 4) / (aspect + fanAllowance),
+        (width - 4) / (aspect + 2 * fanAllowance)))
     readonly property real coverWidth: coverHeight * aspect
     readonly property int backDepth: Math.min(Math.max(count - 1, 0), 2)
-    readonly property real stackOverhang: offset(backDepth) + coverHeight * Math.sin(backDepth * fanAngle * Math.PI / 180) / 2
-    readonly property real coverLeft: (artWidth - coverWidth - stackOverhang) / 2
+    readonly property real backRotationOverhang: coverHeight * Math.sin(backDepth * fanAngle * Math.PI / 180) / 2
+    readonly property real leftStackOverhang: Math.max(0, backRotationOverhang - offset(backDepth))
+    readonly property real rightStackOverhang: offset(backDepth) + backRotationOverhang
+    readonly property real coverLeft: (width - coverWidth + leftStackOverhang - rightStackOverhang) / 2
     readonly property real coverTop: (artHeight - coverHeight) / 2
     readonly property real turnOverhang: Math.max(0, coverHeight * turnAllowance - coverWidth * (1 - turnScale) / 2)
     readonly property real leftTravel: Math.max(0, Math.min(54, coverLeft + leftMotionRoom - turnOverhang - 1))
-    readonly property real rightTravel: Math.max(0, Math.min(54, artWidth - coverLeft - coverWidth
-        + (labelsBeside ? labelGap : leftMotionRoom) - turnOverhang - 1))
+    readonly property real rightTravel: Math.max(0, Math.min(54, width - coverLeft - coverWidth
+        + leftMotionRoom - turnOverhang - 1))
     property int current: 0
     property string selectionKey: ""
     property int direction: 1
@@ -52,6 +57,41 @@ FocusScope {
     z: moving >= 0 ? 1 : 0
 
     Theme { id: theme }
+
+    function factsFor(entry) {
+        if (!entry)
+            return []
+        const raw = entry.raw || {}
+        const year = entry.year || ""
+        let values
+        switch (mediumKey) {
+        case "anime":
+        case "tv":
+        case "movies":
+            values = [entry.releaseInfo, Array.isArray(entry.genres) ? entry.genres[0] : entry.genres]
+            break
+        case "manga":
+        case "manhwa":
+            values = [raw.authors?.[0]?.name, year]
+            break
+        case "comics":
+            values = [entry.publisher, year]
+            break
+        case "books":
+            values = [entry.author, year]
+            break
+        case "audiobooks":
+            values = [raw.author]
+            break
+        default:
+            values = []
+        }
+        return values.map(value => String(value || "").trim()).filter(value => value.length > 0)
+    }
+    function summaryFor(entry) {
+        const text = String(entry?.blurb || entry?.raw?.synopsis || entry?.raw?.blurb || "").trim()
+        return /^A featured (anime )?title\.$/.test(text) ? "" : text.replace(/\s+/g, " ")
+    }
 
     function cardDepth(index) {
         return count ? ((index - current) * direction + count) % count : 0
@@ -98,7 +138,7 @@ FocusScope {
         activeFocusOnTab: deck.count > 0
         Accessible.role: deck.count ? Accessible.Button : Accessible.StaticText
         Accessible.name: deck.count ? qsTr("Open %1 (%2)").arg(deck.title).arg(deck.medium) : deck.medium
-        Accessible.description: deck.count ? "" : qsTr("No picks available")
+        Accessible.description: deck.count ? deck.detailLine : qsTr("No picks available")
         Accessible.onPressAction: deck.openCurrent()
         Keys.onLeftPressed: deck.advance(-1)
         Keys.onRightPressed: deck.advance(1)
@@ -169,7 +209,7 @@ FocusScope {
                             anchors.margins: Math.min(parent.width, parent.height) * .12
                             fillMode: Image.PreserveAspectFit
                             asynchronous: true
-                            source: posterLoader.entry.cover
+                            source: posterLoader.entry.cover || ""
                             sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
                         }
                     }
@@ -189,7 +229,6 @@ FocusScope {
             preventStealing: true
             cursorShape: deck.canBrowse ? (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.PointingHandCursor
             property point start
-            property real lastPanY
             hoverEnabled: true
             property int dragAxis: 0
             readonly property bool hoverActive: containsMouse && !pressed && deck.moving < 0 && !deck.reducedMotion
@@ -207,7 +246,6 @@ FocusScope {
             onPressed: event => {
                 deck.resetMotion()
                 start = grab.mapToItem(null, event.x, event.y)
-                lastPanY = start.y
                 dragAxis = 0
             }
             onPositionChanged: event => {
@@ -217,11 +255,6 @@ FocusScope {
                 const dy = scenePosition.y - start.y
                 if (dragAxis === 0 && Math.max(Math.abs(dx), Math.abs(dy)) >= 6)
                     dragAxis = Math.abs(dx) >= Math.abs(dy) ? Qt.Horizontal : Qt.Vertical
-                if (dragAxis === Qt.Vertical) {
-                    deck.verticalPanRequested(scenePosition.y - lastPanY)
-                    lastPanY = scenePosition.y
-                    return
-                }
                 if (dragAxis !== Qt.Horizontal || !deck.canBrowse) return
                 deck.moving = deck.current
                 deck.direction = dx < 0 ? 1 : -1
@@ -237,6 +270,8 @@ FocusScope {
                 else if (dragAxis === Qt.Horizontal && deck.canBrowse
                         && Math.abs(dx) >= Math.max(12, Math.min(26, (dx < 0 ? deck.leftTravel : deck.rightTravel) * .62)))
                     deck.advance(dx < 0 ? 1 : -1)
+                else if (dragAxis === Qt.Vertical)
+                    deck.verticalSwipeRequested(dy)
                 else if (deck.moving >= 0) settle.start()
             }
             onCanceled: deck.resetMotion()
@@ -246,12 +281,12 @@ FocusScope {
 
     Column {
         id: labels
-        x: deck.labelsBeside && deck.count ? deck.artWidth + deck.labelGap : 0
-        y: deck.labelsBeside || !deck.count ? Math.max(0, (deck.height - height) / 2)
-                                           : deck.artHeight + deck.labelGap
-        width: deck.labelWidth
+        x: Math.min(5, deck.width * .03)
+        y: deck.count ? deck.artHeight + 5 : Math.max(0, (deck.height - height) / 2)
+        width: Math.max(0, deck.width - 2 * x)
         spacing: 4
-        readonly property int alignment: deck.labelsBeside && deck.count ? Text.AlignLeft : Text.AlignHCenter
+        readonly property real summaryRoom: deck.captionHeight - 5 - mediumLabel.height - titleLabel.height
+            - (factLabel.visible ? factLabel.height + spacing : 0) - 2 * spacing
 
         Text {
             id: mediumLabel
@@ -259,7 +294,7 @@ FocusScope {
             width: labels.width
             text: deck.medium
             textFormat: Text.PlainText
-            horizontalAlignment: labels.alignment
+            horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
             color: theme.inkDim
             font.family: theme.ui
@@ -273,17 +308,48 @@ FocusScope {
             width: labels.width
             text: deck.count ? deck.title : qsTr("No picks available")
             textFormat: Text.PlainText
-            horizontalAlignment: labels.alignment
+            horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
-            maximumLineCount: Math.max(1, Math.floor((deck.height - mediumLabel.height - labels.spacing
-                - (deck.labelsBeside || !deck.count ? 12 : labels.y)) / Math.max(1, titleMetrics.lineSpacing)))
+            maximumLineCount: deck.captionHeight >= 120 ? 3 : deck.captionHeight >= 78 ? 2 : 1
             elide: Text.ElideRight
             color: deck.count ? theme.ink : theme.inkDim
             font.family: deck.count ? theme.display : theme.ui
-            font.pixelSize: theme.fontSize(deck.count ? 16 : 13)
+            font.pixelSize: theme.fontSize(deck.count ? 20 : 13)
             Accessible.ignored: true
         }
-        FontMetrics { id: titleMetrics; font: titleLabel.font }
+
+        Text {
+            id: factLabel
+            objectName: "dockPickFacts_" + deck.mediumKey
+            width: labels.width
+            visible: text.length > 0 && deck.captionHeight >= 78
+            text: deck.detailLine
+            textFormat: Text.PlainText
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+            color: theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: theme.fontSize(14)
+            Accessible.ignored: true
+        }
+
+        Text {
+            id: summaryLabel
+            objectName: "dockPickSummary_" + deck.mediumKey
+            width: labels.width
+            visible: text.length > 0 && labels.summaryRoom >= summaryMetrics.lineSpacing
+            text: deck.summary
+            textFormat: Text.PlainText
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
+            maximumLineCount: Math.max(1, Math.min(2, Math.floor(labels.summaryRoom / summaryMetrics.lineSpacing)))
+            elide: Text.ElideRight
+            color: theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: theme.fontSize(13)
+            Accessible.ignored: true
+        }
+        FontMetrics { id: summaryMetrics; font: summaryLabel.font }
     }
 
     SequentialAnimation {

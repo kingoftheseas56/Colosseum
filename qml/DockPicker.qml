@@ -1,7 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
-import "KeyboardViewport.js" as Viewport
 
 FocusScope {
     id: picker
@@ -13,6 +11,10 @@ FocusScope {
     property int slide: 0
     property Component mapSlide
     property Item activityControl
+    property int focusColumn: 0
+    property bool focusOnArrival: false
+    property real wheelTravel: 0
+    property bool wheelStepTaken: false
     signal pickRequested(string medium, var entry)
     signal wallpaperRequested()
     signal chooseFilesRequested()
@@ -23,6 +25,11 @@ FocusScope {
 
     readonly property real inset: Math.min(24, height * .045)
     readonly property real railWidth: Math.min(208, width * .23)
+    readonly property int slideCount: mapSlide ? 4 : 3
+    readonly property var slideNames: [
+        qsTr("Anime, TV and Movies"), qsTr("Manga, Comics and Manhwa"),
+        qsTr("Books, Audiobooks and Franchises"), qsTr("Colosseum map")
+    ]
     readonly property var genres: [
         { key: "anime", name: qsTr("Anime") },
         { key: "tv", name: qsTr("TV") },
@@ -36,14 +43,73 @@ FocusScope {
     ]
     Theme { id: theme }
 
-    function selectSlide(index) {
-        if (index === 0 || (index === 1 && mapSlide)) slide = index
+    function selectSlide(index, keyboard) {
+        if (index < 0 || index >= slideCount || index === slide)
+            return
+        focusOnArrival = !!keyboard || focusOnArrival || viewport.activeFocus
+        if (focusOnArrival)
+            focusEntry()
+        slide = index
+        Qt.callLater(picker.restorePageFocus)
     }
-    onMapSlideChanged: if (!mapSlide) selectSlide(0)
+    function restorePageFocus() {
+        if (pageMotion.running || !focusOnArrival)
+            return
+        focusOnArrival = false
+        const row = pageRepeater.itemAt(slide) as PickRow
+        if (entryFocus.activeFocus && row)
+            row.focusDeck(focusColumn)
+    }
+    function clearWheel() {
+        wheelTravel = 0
+        wheelStepTaken = false
+    }
+    function pageWheel(deltaX, deltaY, phase) {
+        if (phase === Qt.ScrollMomentum)
+            return
+        if (phase === Qt.ScrollBegin || phase === Qt.ScrollEnd) {
+            wheelQuiet.stop()
+            clearWheel()
+            if (phase === Qt.ScrollEnd)
+                return
+        }
+        if (phase === Qt.NoScrollPhase)
+            wheelQuiet.restart()
+        if (wheelStepTaken || Math.abs(deltaY) <= Math.abs(deltaX))
+            return
+        if (wheelTravel * deltaY < 0)
+            wheelTravel = 0
+        wheelTravel += deltaY
+        if (Math.abs(wheelTravel) >= 40) {
+            wheelStepTaken = true
+            selectSlide(slide + (wheelTravel < 0 ? 1 : -1))
+        }
+    }
+    function pageSwipe(dy) {
+        if (Math.abs(dy) >= 48)
+            selectSlide(slide + (dy < 0 ? 1 : -1))
+    }
+    onMapSlideChanged: if (!mapSlide && slide === 3) selectSlide(2)
     onVisibleChanged: if (!visible) {
-        selectSlide(0)
-        pickScroll.cancelFlick()
+        focusOnArrival = false
+        focusColumn = 0
+        slide = 0
+        wheelQuiet.stop()
+        clearWheel()
     }
+    Keys.onPressed: event => {
+        if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
+            return
+        const vertical = viewport.activeFocus || entryFocus.activeFocus || pageDots.activeFocus
+        const up = event.key === Qt.Key_PageUp || (vertical && event.key === Qt.Key_Up)
+        const down = event.key === Qt.Key_PageDown || (vertical && event.key === Qt.Key_Down)
+        if (!up && !down)
+            return
+        event.accepted = true
+        if (!event.isAutoRepeat)
+            picker.selectSlide(picker.slide + (up ? -1 : 1), true)
+    }
+    Timer { id: wheelQuiet; interval: 200; onTriggered: picker.clearWheel() }
 
     function focusEntry() {
         entryFocus.forceActiveFocus(Qt.PopupFocusReason)
@@ -153,148 +219,176 @@ FocusScope {
         anchors.topMargin: Math.min(14, picker.inset)
         anchors.bottomMargin: Math.min(12, picker.inset)
         anchors.leftMargin: picker.railWidth + 19
-        anchors.rightMargin: picker.mapSlide ? 31 : picker.inset
+        anchors.rightMargin: 31
         clip: true
 
-        Item {
+        Text {
+            id: pickHeading
+            objectName: "dockPickHeading"
+            visible: picker.slide !== 3
             width: widgetArea.width
-            height: widgetArea.height
-            y: -picker.slide * height
-            Behavior on y {
-                enabled: !picker.reducedMotion
-                NumberAnimation { duration: 230; easing.type: Easing.OutCubic }
-            }
+            height: 28
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+            text: qsTr("Pick Something")
+            color: theme.ink
+            font.family: theme.display
+            font.pixelSize: theme.fontSize(23)
+            Accessible.role: Accessible.Heading
+            Accessible.name: text
+        }
 
-            Text {
-                id: pickHeading
-                objectName: "dockPickHeading"
-                width: widgetArea.width
-                height: 28
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-                text: qsTr("Pick Something")
-                color: theme.ink
-                font.family: theme.display
-                font.pixelSize: theme.fontSize(23)
-                Accessible.role: Accessible.Heading
-                Accessible.name: text
-            }
+        FocusScope {
+            id: viewport
+            objectName: "dockPickViewport"
+            y: pickHeading.height + 4
+            width: widgetArea.width
+            height: Math.max(0, widgetArea.height - y)
+            clip: true
 
-            Flickable {
-                id: pickScroll
-                objectName: "dockPickScroll"
-                y: pickHeading.height + 4
-                width: widgetArea.width
-                height: Math.max(0, widgetArea.height - y)
-                enabled: picker.slide === 0
-                clip: true
-                contentWidth: width
-                contentHeight: grid.height
-                flickableDirection: Flickable.VerticalFlick
-                boundsBehavior: Flickable.StopAtBounds
-                interactive: enabled && contentHeight > height
-                ScrollBar.vertical: HouseScrollBar { flick: pickScroll; glassStyle: true }
-
-                function revealDeck(deck) {
-                    const bottom = deck.y + deck.height
-                    if (deck.y < contentY || deck.height > height)
-                        Viewport.setPosition(pickScroll, false, deck.y)
-                    else if (bottom > contentY + height)
-                        Viewport.setPosition(pickScroll, false, bottom - height)
+            MouseArea {
+                anchors.fill: parent
+                property point start
+                onPressed: mouse => {
+                    mouse.accepted = !pageMotion.running
+                    start = Qt.point(mouse.x, mouse.y)
                 }
-
-                Grid {
-                    id: grid
-                    objectName: "dockPickGrid"
-                    x: Math.min(12, pickScroll.width * .025)
-                    width: Math.max(0, pickScroll.width - 2 * x)
-                    height: Math.max(pickScroll.height, 3 * (labelsBeside ? 232 : 264) + 2 * rowSpacing)
-                    columns: 3
-                    rowSpacing: 8
-                    columnSpacing: 12
-                    readonly property real cellWidth: Math.max(0, (width - 2 * columnSpacing) / 3)
-                    readonly property bool labelsBeside: cellWidth >= 218
-                    readonly property real rowHeight: (height - 2 * rowSpacing) / 3
-
-                    function focusVertical(step) {
-                        let index = 0
-                        while (index < decks.count && !decks.itemAt(index)?.activeFocus)
-                            ++index
-                        if (index === decks.count)
-                            return false
-                        for (index += step * columns; index >= 0 && index < decks.count; index += step * columns) {
-                            const deck = decks.itemAt(index) as DockPickDeck
-                            if (deck.count > 0) {
-                                deck.focusCover()
-                                return true
-                            }
-                        }
-                        return false
-                    }
-                    Keys.onUpPressed: event => event.accepted = grid.focusVertical(-1)
-                    Keys.onDownPressed: event => event.accepted = grid.focusVertical(1)
-
-                    Repeater {
-                        id: decks
-                        model: picker.genres
-                        delegate: DockPickDeck {
-                            id: deck
-                            required property var modelData
-                            objectName: "dockDeck_" + modelData.key
-                            width: grid.cellWidth
-                            height: grid.rowHeight
-                            labelsBeside: grid.labelsBeside
-                            leftMotionRoom: grid.x
-                            medium: modelData.name
-                            mediumKey: modelData.key
-                            aspect: modelData.aspect || .71
-                            entries: picker.picks[modelData.key] || []
-                            logoArt: modelData.key === "universes"
-                            reducedMotion: picker.reducedMotion
-                            onActiveFocusChanged: if (activeFocus) pickScroll.revealDeck(deck)
-                            onVerticalPanRequested: dy => Viewport.setPosition(pickScroll, false, pickScroll.contentY - dy)
-                            onOpenRequested: entry => picker.pickRequested(modelData.key, entry)
-                        }
-                    }
+                onReleased: mouse => {
+                    const dy = mouse.y - start.y
+                    if (Math.abs(dy) > Math.abs(mouse.x - start.x))
+                        picker.pageSwipe(dy)
+                }
+                onWheel: wheel => {
+                    wheel.accepted = true
+                    const pixelScroll = wheel.pixelDelta.x !== 0 || wheel.pixelDelta.y !== 0
+                    picker.pageWheel(pixelScroll ? wheel.pixelDelta.x : wheel.angleDelta.x / 3,
+                                     pixelScroll ? wheel.pixelDelta.y : wheel.angleDelta.y / 3, wheel.phase)
                 }
             }
 
-            Loader {
-                y: widgetArea.height
-                width: widgetArea.width
-                height: widgetArea.height
-                enabled: picker.slide === 1
-                sourceComponent: picker.mapSlide
+            Item {
+                id: pageStack
+                width: viewport.width
+                height: viewport.height
+                property real pagePosition: picker.slide
+                y: -pagePosition * height
+                Behavior on pagePosition {
+                    enabled: picker.visible && !picker.reducedMotion
+                    NumberAnimation {
+                        id: pageMotion
+                        duration: 230
+                        easing.type: Easing.OutCubic
+                        onRunningChanged: if (!running) Qt.callLater(picker.restorePageFocus)
+                    }
+                }
+                Repeater {
+                    id: pageRepeater
+                    model: 3
+                    delegate: PickRow {
+                        required property int index
+                        objectName: "dockPickPage_" + index
+                        rowIndex: index
+                    }
+                }
+                Loader {
+                    id: mapPage
+                    objectName: "dockPickMapPage"
+                    y: 3 * pageStack.height
+                    width: pageStack.width
+                    height: pageStack.height
+                    visible: !!picker.mapSlide && (picker.slide === 3 || (pageMotion.running && mapPage.y + pageStack.y < viewport.height))
+                    enabled: picker.slide === 3 && !pageMotion.running
+                    sourceComponent: picker.mapSlide
+                }
             }
         }
     }
 
-    Column {
-        visible: !!picker.mapSlide
+    component PickRow: Grid {
+        id: row
+        required property int rowIndex
+        x: Math.min(12, pageStack.width * .025)
+        y: rowIndex * pageStack.height
+        width: Math.max(0, pageStack.width - 2 * x)
+        height: pageStack.height
+        columns: 3
+        columnSpacing: Math.min(12, width * .025)
+        visible: picker.slide === rowIndex
+            || (pageMotion.running && y + pageStack.y < viewport.height && y + pageStack.y + height > 0)
+        enabled: picker.slide === rowIndex && !pageMotion.running
+        readonly property real cellWidth: Math.max(0, (width - 2 * columnSpacing) / columns)
+
+        function focusDeck(column) {
+            const preferred = decks.itemAt(column) as DockPickDeck
+            if (preferred && preferred.count > 0) {
+                preferred.focusCover()
+                return
+            }
+            for (let i = 0; i < decks.count; ++i) {
+                const deck = decks.itemAt(i) as DockPickDeck
+                if (deck.count > 0) {
+                    deck.focusCover()
+                    return
+                }
+            }
+        }
+
+        Repeater {
+            id: decks
+            model: picker.genres.slice(row.rowIndex * 3, row.rowIndex * 3 + 3)
+            delegate: DockPickDeck {
+                id: deck
+                required property int index
+                required property var modelData
+                objectName: "dockDeck_" + modelData.key
+                width: row.cellWidth
+                height: row.height
+                leftMotionRoom: row.x
+                medium: modelData.name
+                mediumKey: modelData.key
+                aspect: modelData.aspect || .71
+                entries: picker.picks[modelData.key] || []
+                logoArt: modelData.key === "universes"
+                reducedMotion: picker.reducedMotion
+                onActiveFocusChanged: if (activeFocus) picker.focusColumn = index
+                onVerticalSwipeRequested: dy => picker.pageSwipe(dy)
+                onOpenRequested: entry => picker.pickRequested(modelData.key, entry)
+            }
+        }
+    }
+
+    FocusScope {
+        id: pageDots
+        width: 27
+        height: width * picker.slideCount
+        z: 1
         anchors.right: parent.right
         anchors.rightMargin: 2
         anchors.verticalCenter: parent.verticalCenter
         Repeater {
-            model: picker.mapSlide ? 2 : 0
+            model: picker.slideCount
             delegate: Item {
+                id: dot
                 required property int index
-                width: 27
-                height: 27
+                y: index * height
+                width: pageDots.width
+                height: width
                 Rectangle {
                     anchors.centerIn: parent
-                    width: picker.slide === parent.index ? 8 : 6
+                    width: picker.slide === dot.index ? 8 : 6
                     height: width
                     radius: width / 2
-                    color: picker.slide === parent.index ? theme.gold : "#91ffffff"
+                    color: picker.slide === dot.index ? theme.gold : "#91ffffff"
                 }
                 KeyboardAction {
-                    objectName: "dockSlideDot_" + parent.index
+                    id: dotAction
+                    objectName: "dockSlideDot_" + dot.index
                     anchors.fill: parent
                     focusOnPointer: false
-                    accessibleName: parent.index === 0 ? pickHeading.text : qsTr("Colosseum worlds")
+                    accessibleName: picker.slideNames[dot.index]
                     focusRadius: 13
                     spaceActivates: true
-                    onTriggered: picker.selectSlide(parent.index)
+                    onTriggered: picker.selectSlide(dot.index, dotAction.activeFocus)
                 }
             }
         }
