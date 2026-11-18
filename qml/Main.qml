@@ -1424,8 +1424,8 @@ Window {
         case "bookReader": win.requestBookReaderEscape(); return
         case "comicReader": win.requestComicReaderEscape(); return
         case "update": win.closeUpdatePage(); return
-        case "historyStats": win.closeHistoryStatsPage(true); return
-        case "yourFeria": win.closeYourFeriaPage(true); return
+        case "historyStats": win.closeHistoryStatsPage(); taskbar.focusHistoryStatsAction(); return
+        case "yourFeria": win.closeYourFeriaPage(); taskbar.focusHistoryStatsAction(); return
         case "syncCenter":
             if (syncCenterLayer.item && syncCenterLayer.item.requestEscape)
                 syncCenterLayer.item.requestEscape()
@@ -2789,13 +2789,11 @@ Window {
         taskbar.open = false
         if (yourFeriaLayer.item) Qt.callLater(yourFeriaLayer.item.takeKeyboardFocus)
     }
-    function closeYourFeriaPage(restoreFocus) {
+    function closeYourFeriaPage() {
         yourFeriaLayer.open = false
-        if (restoreFocus) taskbar.focusHistoryStatsAction()
     }
-    function closeHistoryStatsPage(restoreFocus) {
+    function closeHistoryStatsPage() {
         historyStatsLayer.active = false
-        if (restoreFocus) taskbar.focusHistoryStatsAction()
     }
 
     // ---- Downloads page: the taskbar's own full page over everything non-immersive ----
