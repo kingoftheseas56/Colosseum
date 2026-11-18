@@ -1244,6 +1244,7 @@ Window {
         target: typeof NamedCollectionsProfileScope !== "undefined" ? NamedCollectionsProfileScope : null
         function onStoresAboutToChange() {
             win.namedCollectionsProfileGeneration++
+            win.clearDockPickReturns()
             win.cancelNamedCollectionsOpen()
             win.namedCollectionsNavigation = null
             win.namedCollectionsReturn = null
@@ -1868,7 +1869,8 @@ Window {
             sourceRequiredMarkers: ["colored", "full color", "full colour"]
         }, "13")
     }
-    function openSeries(title, malId, profile, requestedVolumeNumber) {
+    function openSeries(title, malId, profile, requestedVolumeNumber, pickerIntent) {
+        const pickerReturn = win.prepareDockPickDetail(seriesLayer, pickerIntent)
         seriesLayer.exactCollectionReference = null
  if (win.cancelCatalogueRoute) win.cancelCatalogueRoute();
         if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
@@ -1885,9 +1887,11 @@ Window {
                 seriesLayer.item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
             seriesLayer.item.seriesTitle = title
         } else seriesLayer.active = true
+        win.attachDockPickDetail(seriesLayer, pickerReturn)
     }
     // Direct provider compatibility for the returning WeebCentral colored edition.
     function openWeebCentralSeries(title, requestedVolumeNumber) {
+        seriesLayer.dockPickReturn = null
         seriesLayer.exactCollectionReference = null
 
         if (seriesLayer.active) seriesLayer.active = false
@@ -1903,6 +1907,7 @@ Window {
 
     // open a manga series AND jump straight into the reader at a saved chapter (Continue resume).
     function openSeriesAt(title, seriesId, chapterId) {
+        seriesLayer.dockPickReturn = null
         seriesLayer.exactCollectionReference = null
  win.cancelCatalogueRoute();
         if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
@@ -1921,7 +1926,12 @@ Window {
             else seriesLayer.item.openChapterId = chapterId || ""
         } else seriesLayer.active = true
     }
-    function closeSeries() { seriesLayer.active = false; win.restoreNamedCollectionsReturn() }
+    function closeSeries(returnToPicker) {
+        const pick = win.takeDockPickDetail(seriesLayer, returnToPicker)
+        seriesLayer.active = false
+        if (!win.finishDockPickDetail(seriesLayer, pick))
+            win.restoreNamedCollectionsReturn()
+    }
 
     // Featured Read (WT-06). Comics (ghost "C") need the GetComics source: without it the
     // Extensions page opens instead of a dead end. Manga opens the existing series owner and
@@ -2278,7 +2288,7 @@ Window {
         return ComicsDb.ready() ? ComicsDb.seriesByTitle(title) : null
     }
 
-    function openComicSeries(d) {
+    function openComicSeries(d, pickerIntent) {
         win.cancelCatalogueRoute();
         var generation = _catalogueRouteGeneration;
         var snapshot = win.catalogueRouteSnapshot();
@@ -2289,10 +2299,11 @@ Window {
         }, function() {
             if (generation !== _catalogueRouteGeneration || snapshot !== win.catalogueRouteSnapshot()) return;
             _catalogueRouteCancel = null;
-            win._openComicSeriesReady(d);
+            win._openComicSeriesReady(d, pickerIntent);
         });
     }
-    function _openComicSeriesReady(d) {
+    function _openComicSeriesReady(d, pickerIntent) {
+        const pickerReturn = win.prepareDockPickDetail(comicSeriesLayer, pickerIntent)
         comicSeriesLayer.locgSid = (d && d.id) || ""
         comicSeriesLayer.locgMeta = (d && d.locgMeta) || ({})
         comicSeriesLayer.title = (d && d.title) || ""
@@ -2304,8 +2315,15 @@ Window {
             comicSeriesLayer.item.locgMeta = comicSeriesLayer.locgMeta
             comicSeriesLayer.item.locgId = comicSeriesLayer.locgSid   // set LAST — triggers attach()
         } else comicSeriesLayer.active = true
+        win.attachDockPickDetail(comicSeriesLayer, pickerReturn)
     }
-    function closeComicSeries() { win.cancelCatalogueRoute(); comicSeriesLayer.active = false; win.restoreNamedCollectionsReturn() }
+    function closeComicSeries(returnToPicker) {
+        win.cancelCatalogueRoute()
+        const pick = win.takeDockPickDetail(comicSeriesLayer, returnToPicker)
+        comicSeriesLayer.active = false
+        if (!win.finishDockPickDetail(comicSeriesLayer, pick))
+            win.restoreNamedCollectionsReturn()
+    }
 
     // ---- LOCG publisher grid: one publisher shelf (Marvel/DC/Image...) as a paginated
     //      series grid; tile → LOCG series list via openComicSeries. ----
@@ -2339,7 +2357,9 @@ Window {
 
 
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
-    function openTheatreSeries(item) { win.cancelCatalogueRoute();
+    function openTheatreSeries(item, pickerIntent) {
+        win.cancelCatalogueRoute()
+        const pickerReturn = win.prepareDockPickDetail(theatreSeriesLayer, pickerIntent)
         theatreSeriesLayer.pendingItem = item
         if (theatreSeriesLayer.active && theatreSeriesLayer.item) {
             theatreSeriesLayer.item.itemData = item
@@ -2347,6 +2367,7 @@ Window {
                 theatreSeriesLayer.item.openResumeSources(item.resumeSources)
         }
         else theatreSeriesLayer.active = true
+        win.attachDockPickDetail(theatreSeriesLayer, pickerReturn)
     }
     // PF-04: Continue on a download whose local file is gone. Returns true when it routed to
     // the exact title/episode Sources sheet (canonical tt/anime ids only); false keeps the
@@ -2373,7 +2394,15 @@ Window {
                     "resumePosition": Number(r.position) || 0 } } })
         return true
     }
-    function closeTheatreSeries() { theatreSeriesLayer.active = false; win.restoreNamedCollectionsReturn() }
+    function closeTheatreSeries(returnToPicker) {
+        if (returnToPicker !== false && theatreSeriesLayer.dockPickReturn && theatreSeriesLayer.item
+                && theatreSeriesLayer.item.requestEscape && theatreSeriesLayer.item.requestEscape())
+            return
+        const pick = win.takeDockPickDetail(theatreSeriesLayer, returnToPicker)
+        theatreSeriesLayer.active = false
+        if (!win.finishDockPickDetail(theatreSeriesLayer, pick))
+            win.restoreNamedCollectionsReturn()
+    }
 
     // ---- video player: a fullscreen layer over everything; kept alive once opened so mpv
     //      isn't torn down/recreated each play (avoids the use-after-free teardown trap). ----
@@ -2890,7 +2919,8 @@ Window {
     // for the header band before the payload lands.
     // One renderer for every universe. The per-category dispatcher is gone: it existed to
     // pick between bespoke per-IP pages, and those are being deleted (next task).
-    function openUniverse(extensionId, name, plain) {
+    function openUniverse(extensionId, name, plain, pickerIntent) {
+        const pickerReturn = win.prepareDockPickDetail(universeLayer, pickerIntent)
         if (!extensionId) return
         win.closeOnePieceArc()
         universeLayer.templatePage = ""
@@ -2902,10 +2932,12 @@ Window {
             universeLayer.item.universeName = name || ""
         }
         universeLayer.active = true
+        win.attachDockPickDetail(universeLayer, pickerReturn)
     }
     // An archived universe has no extension; it opens by name on its category's template.
-    function openArchivedUniverse(name, page) {
+    function openArchivedUniverse(name, page, pickerIntent) {
         if (!name || !universeLayer.templateSources[page]) return
+        const pickerReturn = win.prepareDockPickDetail(universeLayer, pickerIntent)
         win.closeOnePieceArc()
         universeLayer.plain = false
         universeLayer.extensionId = "archive." + page
@@ -2914,18 +2946,19 @@ Window {
         if (universeLayer.item && universeLayer.status === Loader.Ready && universeLayer.item.universeName !== undefined)
             universeLayer.item.universeName = name
         universeLayer.active = true
+        win.attachDockPickDetail(universeLayer, pickerReturn)
     }
     // A banner in the Universes world opens the universe's STANDARD page. An entry with a
     // page (a curated sagaGrid, or an archived universe's template) opens through
     // openArchivedUniverse; only an entry with no page falls back to the extension route —
     // an installed One Piece carries both, and its story-grid page wins over the payload
     // route (a payload-less Cosmere still lands on its Tribute).
-    function openRosterUniverse(entry) {
+    function openRosterUniverse(entry, pickerIntent) {
         if (!entry) return
         if (entry.page)
-            win.openArchivedUniverse(entry.name, entry.page)
+            win.openArchivedUniverse(entry.name, entry.page, pickerIntent)
         else
-            win.openUniverse(entry.extensionId, entry.name, UniverseApi.fileFor(entry.extensionId).length > 0)
+            win.openUniverse(entry.extensionId, entry.name, UniverseApi.fileFor(entry.extensionId).length > 0, pickerIntent)
     }
     // The Universes world's carousel: the hand-made art page.
     function openTribute(entry) { if (entry && entry.extensionId) win.openUniverse(entry.extensionId, entry.name) }
@@ -2938,8 +2971,10 @@ Window {
             win.openArchivedUniverse(cfg.name, (cfg.shelves || cfg.manga) ? "shelves" : (cfg.sagaGrid ? "saga" : cfg.category))
     }
     function closeUniverse() {
+        const pick = win.takeDockPickDetail(universeLayer)
         win.closeOnePieceArc()
         universeLayer.active = false
+        win.finishDockPickDetail(universeLayer, pick)
     }
     function openOnePieceArc(arc) {
         if (!arc) return
@@ -3163,16 +3198,19 @@ Window {
                    : (worldKey === "biblio" || worldKey === "audiobook") ? "Biblio" : "Theatre"
         win.openWorld(medium)
     }
-    function routeDownloadedAudiobook(item) {
-        if (!item || !String(item.bookPath || "").length) return
-        win.closeDownloadsPage()
-        win.openBookSession(item.bookPath, {
+    function routeDownloadedAudiobook(item, pickerIntent) {
+        if (!item || !String(item.bookPath || "").length || (pickerIntent && item.missing)) return
+        if (!pickerIntent) win.closeDownloadsPage()
+        const sessionId = win.openBookSession(item.bookPath, {
             "id": item.bookId || item.bookPath,
             "title": item.title || "Book",
             "author": item.author || "",
             "pairKey": item.id || "",
             "openAudio": true
         })
+        if (pickerIntent && sessionId && Sessions.activeId === sessionId && bookReaderLayer.active
+                && bookReaderLayer.status !== Loader.Error)
+            win.dockPickAudiobookReturn = { sessionId: sessionId, intent: pickerIntent }
     }
 
     function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
@@ -3521,21 +3559,25 @@ Window {
         return target.activeFocus === true || (snapshot.owner && snapshot.owner.activeFocus === true)
     }
 
-    function openBook(b) { win.cancelCatalogueRoute();
+    function openBook(b, pickerIntent) {
+        win.cancelCatalogueRoute()
+        const pickerReturn = win.prepareDockPickDetail(bookLayer, pickerIntent)
         win.pendingBookReturn = null
         if (!bookLayer.active)
             win.bookReturnSnapshot = win._captureBookReturn()
         win.bookRouteGeneration += 1
         bookLayer.book = b
         bookLayer.active = true
+        win.attachDockPickDetail(bookLayer, pickerReturn)
     }
     function closeBook() {
         var generation = ++win.bookRouteGeneration
         win.pendingBookReturn = null
-        bookLayer.active = false
-        if (win.restoreNamedCollectionsReturn()) { win.bookReturnSnapshot = null; return }
+        const pick = win.takeDockPickDetail(bookLayer)
         var snapshot = win.bookReturnSnapshot
         win.bookReturnSnapshot = null
+        bookLayer.active = false
+        if (win.finishDockPickDetail(bookLayer, pick) || win.restoreNamedCollectionsReturn()) return
         if (snapshot)
             Qt.callLater(function() {
                 if (generation === win.bookRouteGeneration)
@@ -3861,9 +3903,10 @@ Window {
     }
     function openBookSession(path, book) {
         if (!path) return
+        win.dockPickAudiobookReturn = null
         setGuiStallContext("open", "Reader")
         var b = book || ({})
-        Sessions.openOrSwitch({
+        return Sessions.openOrSwitch({
             "appType": "biblio", "contentKind": "book", "title": b.title || "Book",
             "target": { "path": path, "book": b, "id": path }
         })
@@ -3890,22 +3933,81 @@ Window {
         else if (r.family === "video") win.openLocalVideoSession(win.videoTargetFor(r.path, r.vaultId, r.title))
     }
     readonly property bool localMediaAvailable: typeof LocalLaunch !== "undefined" && LocalLaunch !== null
-    function openDockPick(medium, entry) {
-        if (!entry) return
+    property var dockPickAudiobookReturn: null
+
+    // A pick returns through the route it opened. Keep the picker snapshot on that
+    // detail loader, or on its exact audiobook reader session.
+    function snapshotDockPickDetail(layer) {
+        if (!layer.active) return null
+        const values = {}
+        for (const field of layer.dockPickFields)
+            values[field] = layer[field]
+        return { values: values, pickerReturn: layer.dockPickReturn,
+                 bookReturn: layer === bookLayer ? win.bookReturnSnapshot : null }
+    }
+    function prepareDockPickDetail(layer, intent) {
+        const result = intent ? { intent: intent, previous: win.snapshotDockPickDetail(layer) } : null
+        layer.dockPickReturn = null
+        return result
+    }
+    function attachDockPickDetail(layer, pick, restoring) {
+        if (layer.active && layer.status !== Loader.Error
+                && (!pick || restoring || ShellBackPolicy.actionFor(win.shellEscapeState()) === layer.dockPickAction))
+            layer.dockPickReturn = pick
+    }
+    function takeDockPickDetail(layer, returnToPicker) {
+        const pick = returnToPicker !== false && layer.active && layer.status !== Loader.Error
+                   ? layer.dockPickReturn : null
+        layer.dockPickReturn = null
+        return pick
+    }
+    function restoreDockPickDetail(layer, snapshot) {
+        for (const field of layer.dockPickFields)
+            layer[field] = snapshot.values[field]
+        if (layer === bookLayer) {
+            win.bookReturnSnapshot = snapshot.bookReturn
+        } else if (layer === seriesLayer) {
+            layer.resumeChapterId = ""
+            layer.resumeVolumeId = ""
+        }
+        layer.active = true
+        win.attachDockPickDetail(layer, snapshot.pickerReturn, true)
+    }
+    function canReturnToDockPick(intent) {
+        return !!intent && taskbar.visible && intent.world === worldStack.current
+            && intent.profile === win.namedCollectionsProfileGeneration
+            && intent.showExplicit === contentPreferences.showExplicit
+    }
+    function finishDockPickDetail(layer, pick) {
+        if (!pick || !win.canReturnToDockPick(pick.intent))
+            return false
+        if (pick.previous)
+            win.restoreDockPickDetail(layer, pick.previous)
+        return taskbar.restorePicker(pick.intent.state)
+    }
+    function clearDockPickReturns() {
+        for (const layer of [seriesLayer, comicSeriesLayer, theatreSeriesLayer, bookLayer, universeLayer])
+            if (layer) layer.dockPickReturn = null
+        win.dockPickAudiobookReturn = null
+    }
+    function openDockPick(medium, entry, returnState) {
+        if (!entry || !entry.title || !returnState) return
         const raw = entry.raw || entry
+        const intent = { state: returnState, world: worldStack.current,
+                         profile: win.namedCollectionsProfileGeneration, showExplicit: contentPreferences.showExplicit }
         switch (medium) {
         case "manga":
-        case "manhwa": win.openSeries(entry.title, entry.id); break
+        case "manhwa": win.openSeries(entry.title, entry.id, null, "", intent); break
         case "comics": win.openComicSeries({
             id: raw.locgId || raw.locg_id || entry.id || "",
             title: entry.title, cover: entry.cover, locgMeta: raw
-        }); break
-        case "books": win.openBook(raw); break
-        case "audiobooks": win.routeDownloadedAudiobook(raw); break
+        }, intent); break
+        case "books": win.openBook(raw, intent); break
+        case "audiobooks": win.routeDownloadedAudiobook(raw, intent); break
         case "anime":
         case "tv":
-        case "movies": win.openTheatreSeries(raw); break
-        case "universes": win.openRosterUniverse(raw); break
+        case "movies": win.openTheatreSeries(raw, intent); break
+        case "universes": win.openRosterUniverse(raw, intent); break
         }
     }
     function openDroppedMedia(urls) {
@@ -4047,7 +4149,7 @@ Window {
                 win.openComicSession(w.seriesTitle, w.seriesId, w.openChapterId)   // seriesId = "gc:<slug>" (live) or "gcd:<id>" (baked catalogue run)
             } else {
                 var s = seriesLayer.item
-                if (!s || !s.openChapterId) { win.closeSeries(); return }
+                if (!s || !s.openChapterId) { win.closeSeries(false); return }
                 win.openComicSession(s.seriesTitle, s.seriesId, s.openChapterId, s.openEntryKind)
             }
         }
@@ -4056,11 +4158,21 @@ Window {
     function closeComicReader() {
         var rec = Sessions.get(Sessions.activeId)
         if (rec && rec.contentKind === "comic") win.closeSession(rec.id)
-        else if (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length) win.closeComicSeries()
+        else if (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length) win.closeComicSeries(false)
         else if (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length) win.closeWestern()
-        else win.closeSeries()
+        else win.closeSeries(false)
+    }
+    function returnDockComicDetail(layer) {
+        if (!layer.active || !layer.dockPickReturn || !layer.item || !layer.item.openChapterId)
+            return false
+        const snapshot = win.snapshotDockPickDetail(layer)
+        win.closeComicReader()
+        layer.active = false
+        win.restoreDockPickDetail(layer, snapshot)
+        return true
     }
     function backFromMangaReader() {
+        if (win.returnDockComicDetail(seriesLayer)) return
         var page = seriesLayer.item
         if (!page || !page.openChapterId) { win.closeComicReader(); return }
         var title = page.seriesTitle
@@ -4098,8 +4210,12 @@ Window {
     }
     function closeBookReaderSession() {
         var rec = Sessions.get(Sessions.activeId)
+        const pick = win.dockPickAudiobookReturn
+        win.dockPickAudiobookReturn = null
         if (rec && rec.contentKind === "book") win.closeSession(rec.id)
         else win.closeBookReader()
+        if (pick && rec && rec.id === pick.sessionId && win.canReturnToDockPick(pick.intent))
+            taskbar.restorePicker(pick.intent.state)
     }
     // (minimizeAudiobook / closeAudiobookSession retired with the standalone player, 2026-07-18.)
 
@@ -4202,6 +4318,8 @@ Window {
                 if (westernLayer.item && westernLayer.item.restoreState) westernLayer.item.restoreState(st)
                 return
             }
+            if (seriesLayer.dockPickReturn && (!seriesLayer.item || seriesLayer.item.seriesId !== t.seriesId))
+                seriesLayer.dockPickReturn = null
             var savedComicId = (st.chapterId || t.chapterId || "")
             if (t.entryKind === "tankoban") {
                 // a VOLUME session: restore the series with Tankoban Mode ON, then open the
@@ -5023,6 +5141,7 @@ Window {
         anchors.fill: parent
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         property string current: ""                      // "" = home; else the visible mode
+        onCurrentChanged: win.clearDockPickReturns()
         Repeater {
             id: worldRepeater
             model: openModes
@@ -5423,7 +5542,16 @@ Window {
         visible: active
         // Pending Featured Read for one exact title (WT-06); see readTankobanFeatured.
         property var featuredRead: null
-        onActiveChanged: if (!active) featuredRead = null
+        property var dockPickReturn: null
+        readonly property string dockPickAction: "series"
+        readonly property var dockPickFields: ["title", "malId", "seriesIdOverride", "sourceSearchTitle",
+            "sourceSearchAliases", "sourceRequiredMarkers", "resumeSeriesId", "requestedVolumeNumber",
+            "legacyWeebCentral", "exactCollectionReference"]
+        onActiveChanged: if (!active) {
+            featuredRead = null
+            dockPickReturn = null
+        }
+        onStatusChanged: if (status === Loader.Error) dockPickReturn = null
         Connections {
             target: seriesLayer.item
             ignoreUnknownSignals: true
@@ -5480,10 +5608,10 @@ Window {
             item.readerBackRequested.connect(win.backFromMangaReader)
             // Rebuilt title page only: the world pills, search and a Back pill that names its place.
             if (item.worldRequested)
-                item.worldRequested.connect(function(w) { win.closeSeries(); win.openWorld(w) })
+                item.worldRequested.connect(function(w) { win.closeSeries(false); win.openWorld(w) })
             if (item.searchRequested)
                 item.searchRequested.connect(function() {
-                    win.closeSeries()
+                    win.closeSeries(false)
                     if (worldStack.current !== "Tankoban") win.openWorld("Tankoban")
                     win.openSearch()
                 })
@@ -5553,6 +5681,11 @@ Window {
         z: 50
         active: false
         visible: active
+        property var dockPickReturn: null
+        readonly property string dockPickAction: "comicSeries"
+        readonly property var dockPickFields: ["title", "cover", "locgSid", "locgMeta"]
+        onActiveChanged: if (!active) dockPickReturn = null
+        onStatusChanged: if (status === Loader.Error) dockPickReturn = null
         property string title: ""
         property string cover: ""
         property string locgSid: ""          // "locg:<id>" — the catalogue entry
@@ -5570,7 +5703,9 @@ Window {
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
-            item.readerBackRequested.connect(win.closeComicReader)
+            item.readerBackRequested.connect(function() {
+                if (!win.returnDockComicDetail(comicSeriesLayer)) win.closeComicReader()
+            })
             item.locgMeta = comicSeriesLayer.locgMeta
             item.locgId = comicSeriesLayer.locgSid       // set LAST — triggers attach()
         }
@@ -5701,6 +5836,11 @@ Window {
         z: 53     // above the universe overlay (z:52): a film/show opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
+        property var dockPickReturn: null
+        readonly property string dockPickAction: "theatreSeries"
+        readonly property var dockPickFields: ["pendingItem"]
+        onActiveChanged: if (!active) dockPickReturn = null
+        onStatusChanged: if (status === Loader.Error) dockPickReturn = null
         property var pendingItem: ({})
         source: viewSettings.rebuiltTitlePages ? "TheatreSeriesView.qml" : "TheatreSeries.qml"
         onLoaded: {
@@ -5723,10 +5863,10 @@ Window {
             })
             // Rebuilt title page only: the world pills, search and a Back pill that names its place.
             if (item.worldRequested)
-                item.worldRequested.connect(function(w) { win.closeTheatreSeries(); win.openWorld(w) })
+                item.worldRequested.connect(function(w) { win.closeTheatreSeries(false); win.openWorld(w) })
             if (item.searchRequested)
                 item.searchRequested.connect(function() {
-                    win.closeTheatreSeries()
+                    win.closeTheatreSeries(false)
                     if (worldStack.current !== "Theatre") win.openWorld("Theatre")
                     win.openSearch()
                 })
@@ -5829,6 +5969,11 @@ Window {
         z: 53
         active: false
         visible: active
+        property var dockPickReturn: null
+        readonly property string dockPickAction: "book"
+        readonly property var dockPickFields: ["book"]
+        onActiveChanged: if (!active) dockPickReturn = null
+        onStatusChanged: if (status === Loader.Error) dockPickReturn = null
         property var book: ({})
         source: "BiblioBook.qml"
         onLoaded: {
@@ -5879,6 +6024,8 @@ Window {
         z: 58
         active: false
         visible: active
+        onActiveChanged: if (!active) win.dockPickAudiobookReturn = null
+        onStatusChanged: if (status === Loader.Error) win.dockPickAudiobookReturn = null
         property string bookPath: ""
         property var bookMeta: ({})
         // The FRESH reader (Task 16 swap): reader2/ReaderShell replaces the imported TB2
@@ -5979,6 +6126,8 @@ Window {
     Connections {
         target: Sessions
         function onActiveChanged(prevId, nextId) {
+            if (win.dockPickAudiobookReturn && win.dockPickAudiobookReturn.sessionId === prevId)
+                win.dockPickAudiobookReturn = null
             var prev = Sessions.get(prevId)
             if (prev && prev.id) {
                 Sessions.saveState(prevId, win.captureSession(prev))
@@ -6111,6 +6260,11 @@ Window {
         z: 52
         active: false
         visible: active
+        property var dockPickReturn: null
+        readonly property string dockPickAction: "universe"
+        readonly property var dockPickFields: ["extensionId", "universeName", "templatePage", "plain"]
+        onActiveChanged: if (!active) dockPickReturn = null
+        onStatusChanged: if (status === Loader.Error) dockPickReturn = null
         asynchronous: true
         property string extensionId: ""
         property string universeName: ""
@@ -6177,7 +6331,7 @@ Window {
             // Normal user navigation never opens a universe through the onboarding cover.
             if (accountHost.visible)
                 accountHost.focusReturnItem = item
-            else if (item.takeKeyboardFocus)
+            else if (!taskbar.pickerShown && item.takeKeyboardFocus)
                 Qt.callLater(item.takeKeyboardFocus)
             // Works open ABOVE this overlay — series/theatre/western are z:53 (> this layer's 52),
             // book is z:53 — so a clicked work paints on top and the overlay stays loaded beneath.
@@ -6621,8 +6775,8 @@ Window {
         pickerScene: dockScene
         pickerPicks: dockCatalog.picks
         pickerReducedMotion: win.reducedMotion
-        onPickerPickRequested: (medium, entry) => {
-            const open = () => win.openDockPick(medium, entry)
+        onPickerPickRequested: (medium, entry, returnState) => {
+            const open = () => win.openDockPick(medium, entry, returnState)
             if (!win.guardNamedCollectionsNavigation(open)) open()
         }
         onPickerWallpaperRequested: win.openWallpaperSearch(win.currentSurface)

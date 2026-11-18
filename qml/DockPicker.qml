@@ -13,9 +13,10 @@ FocusScope {
     property Item activityControl
     property int focusColumn: 0
     property bool focusOnArrival: false
+    property var restoredPick: null
     property real wheelTravel: 0
     property bool wheelStepTaken: false
-    signal pickRequested(string medium, var entry)
+    signal pickRequested(string medium, var entry, var returnState)
     signal wallpaperRequested()
     signal chooseFilesRequested()
     signal recentRequested()
@@ -60,6 +61,24 @@ FocusScope {
         if (entryFocus.activeFocus && row)
             row.focusDeck(focusColumn)
     }
+    function entriesFor(medium) {
+        const entries = picks[medium] || []
+        if (!restoredPick || restoredPick.medium !== medium
+                || entries.some(entry => String(entry.id || entry.title) === restoredPick.key))
+            return entries
+        return [restoredPick.entry].concat(entries)
+    }
+    function restorePick(state) {
+        const row = pageRepeater.itemAt(state.slide) as PickRow
+        if (!row)
+            return false
+        restoredPick = state
+        slide = state.slide
+        row.selectPick(state.column, state.key)
+        focusColumn = state.column
+        focusOnArrival = state.keyboard
+        return true
+    }
     function clearWheel() {
         wheelTravel = 0
         wheelStepTaken = false
@@ -94,6 +113,7 @@ FocusScope {
         focusOnArrival = false
         focusColumn = 0
         slide = 0
+        restoredPick = null
         wheelQuiet.stop()
         clearWheel()
     }
@@ -321,6 +341,11 @@ FocusScope {
         enabled: picker.slide === rowIndex && !pageMotion.running
         readonly property real cellWidth: Math.max(0, (width - 2 * columnSpacing) / columns)
 
+        function selectPick(column, key) {
+            const deck = decks.itemAt(column) as DockPickDeck
+            if (deck) deck.selectEntry(key)
+        }
+
         function focusDeck(column) {
             const preferred = decks.itemAt(column) as DockPickDeck
             if (preferred && preferred.count > 0) {
@@ -351,12 +376,15 @@ FocusScope {
                 medium: modelData.name
                 mediumKey: modelData.key
                 aspect: modelData.aspect || .71
-                entries: picker.picks[modelData.key] || []
+                entries: picker.entriesFor(modelData.key)
                 logoArt: modelData.key === "universes"
                 reducedMotion: picker.reducedMotion
                 onActiveFocusChanged: if (activeFocus) picker.focusColumn = index
                 onVerticalSwipeRequested: dy => picker.pageSwipe(dy)
-                onOpenRequested: entry => picker.pickRequested(modelData.key, entry)
+                onOpenRequested: entry => picker.pickRequested(modelData.key, entry, {
+                    medium: modelData.key, entry: entry, key: deck.identity(entry),
+                    slide: row.rowIndex, column: index, keyboard: deck.activeFocus
+                })
             }
         }
     }

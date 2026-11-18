@@ -43,7 +43,7 @@ Item {
     signal switchRequested(string id)
     signal closeRequested(string id)
     signal startClicked()
-    signal pickerPickRequested(string medium, var entry)
+    signal pickerPickRequested(string medium, var entry, var returnState)
     signal pickerWallpaperRequested()
     signal openMediaClicked()             // Open Media… — hand the app a local file (Slice 8)
     signal watchPartyJoinClicked()        // Accountless/signed-in Room ID entry outside Player 1
@@ -84,6 +84,18 @@ Item {
 
     onOpenChanged: if (!open) fan.visible = false
     onPickerShownChanged: if (pickerShown) picker.focusEntry()
+    function restorePicker(state) {
+        if (!visible || !pickerScene || !state)
+            return false
+        open = false
+        autoRevealed = false
+        idleTimer.stop()
+        if (!picker.restorePick(state))
+            return false
+        open = true
+        Qt.callLater(picker.restorePageFocus)
+        return true
+    }
     property bool pendingAutoReveal: false
     onVisibleChanged: {
         if (!visible) open = false
@@ -191,9 +203,9 @@ Item {
         reducedMotion: bar.pickerReducedMotion
         mediaAvailable: bar.localMediaAvailable
         activityLabel: bar.activityLabel
-        onPickRequested: (medium, entry) => {
+        onPickRequested: (medium, entry, returnState) => {
             bar.open = false
-            bar.pickerPickRequested(medium, entry)
+            bar.pickerPickRequested(medium, entry, returnState)
         }
         onWallpaperRequested: {
             bar.open = false

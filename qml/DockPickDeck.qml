@@ -96,8 +96,12 @@ FocusScope {
     function cardDepth(index) {
         return count ? ((index - current) * direction + count) % count : 0
     }
-    function offset(layerNumber) { return Math.min(layerNumber, 2) * 4 }
+    function offset(layerNumber) { return Math.min(layerNumber, 2) * 6 }
     function identity(entry) { return entry ? String(entry.id || entry.title) : "" }
+    function selectEntry(key) {
+        const index = entries.findIndex(entry => identity(entry) === key)
+        if (index >= 0) current = index
+    }
     function resetMotion() {
         turn.stop()
         settle.stop()

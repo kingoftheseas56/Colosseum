@@ -69,6 +69,13 @@ Item {
             compare(picker.y, 20)
             const title = findChild(deck, "dockPickTitle_tv")
             const facts = findChild(deck, "dockPickFacts_tv")
+            const front = findChild(deck, "dockPickFace_0")
+            const rightEdge = front.mapToItem(deck, front.width, front.height / 2).x
+            for (let layer = 1; layer < 3; ++layer) {
+                const rear = findChild(deck, "dockPickFace_" + layer)
+                const exposed = rear.mapToItem(deck, rear.width, rear.height / 2).x - rightEdge
+                verify(exposed >= layer * 5.5, "Each rear cover exposes a wider real right edge")
+            }
             const x = card.width / 2
             const y = card.height / 2
             mouseMove(card, card.width * .8, card.height * .2)
@@ -105,6 +112,37 @@ Item {
             compare(picks.signalArguments[0][0], "tv")
             compare(picks.signalArguments[0][1].title, "Second")
             verify(!picker.visible)
+        }
+
+        function test_returnRestoresSlideCardAndKeyboardFocusAfterRefresh() {
+            bar.pickerReducedMotion = true
+            bar.pickerPicks = { comics: [{ id: "a", title: "First" }, { id: "b", title: "Chosen" }] }
+            bar.open = true
+            const picker = findChild(bar, "dockPicker")
+            verify(waitForRendering(picker))
+            picker.selectSlide(1)
+            const stage = findChild(picker, "dockPickStage_comics")
+            const title = findChild(picker, "dockPickTitle_comics")
+            stage.forceActiveFocus(Qt.TabFocusReason)
+            keyClick(Qt.Key_Right)
+            tryCompare(title, "text", "Chosen")
+            keyClick(Qt.Key_Return)
+            verify(!picker.visible)
+            const state = picks.signalArguments[0][2]
+            compare(state.slide, 1)
+            compare(state.key, "b")
+            bar.pickerPicks = { comics: [{ id: "c", title: "New catalogue pick" }] }
+            verify(bar.restorePicker(state))
+            verify(picker.visible)
+            compare(picker.slide, 1)
+            tryCompare(title, "text", "Chosen")
+            tryVerify(() => stage.activeFocus)
+
+            bar.open = false
+            bar.open = true
+            compare(picker.slide, 0)
+            picker.selectSlide(1)
+            compare(title.text, "New catalogue pick")
         }
 
         function test_verticalDragAndWheelTurnOnePage() {
