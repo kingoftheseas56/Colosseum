@@ -185,7 +185,7 @@ Item {
         x: bar.leftEdge
         y: dock.y - height - 12
         width: bar.pickerWidth
-        height: Math.max(0, Math.min(560, dock.y - 12 - 20))
+        height: Math.max(0, dock.y - 12 - 20)
         picks: bar.pickerPicks
         mapSlide: bar.pickerMapSlide
         reducedMotion: bar.pickerReducedMotion

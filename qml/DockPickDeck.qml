@@ -1,12 +1,13 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import "PosterSourcePolicy.js" as PosterPolicy
 
 FocusScope {
     id: deck
     required property string medium
     required property string mediumKey
-    required property string categoryFamily
+    required property url mediumIcon
     property var entries: []
     property bool logoArt: false
     property bool reducedMotion: false
@@ -16,13 +17,21 @@ FocusScope {
 
     readonly property int count: entries.length
     readonly property bool canBrowse: count > 1
-    readonly property bool sideLabels: width >= 228
-    readonly property real coverHeight: Math.max(1, Math.min(150, stage.height - 9,
-        (width * (sideLabels ? .60 : 1) - (sideLabels ? 12 : 32)) / aspect))
+    readonly property string title: count ? String(entries[current].title) : ""
+    readonly property string details: count ? qsTr("%1\n%2").arg(title).arg(medium)
+                                             : qsTr("%1\nNo picks available").arg(medium)
+    readonly property real turnAngle: 7
+    // The rotated card extends by at most half the perpendicular edge times sin(angle).
+    readonly property real turnAllowance: Math.sin(turnAngle * Math.PI / 180) / 2
+    readonly property real sideClearance: Math.min(36, width * .16)
+    readonly property real coverHeight: Math.max(0, Math.min((height - 4) / (1 + 2 * aspect * turnAllowance),
+        (width - 2 * sideClearance - 12) / (aspect + 2 * turnAllowance)))
     readonly property real coverWidth: coverHeight * aspect
-    readonly property real coverLeft: Math.max(0, (width - coverWidth) / 2 - (sideLabels ? width * .13 : 0))
-    readonly property real leftTravel: Math.max(0, Math.min(68, coverLeft - 8))
-    readonly property real rightTravel: Math.max(0, Math.min(68, width - coverLeft - coverWidth - 12))
+    readonly property int backDepth: Math.min(Math.max(count - 1, 0), 2)
+    readonly property real stackOverhang: offset(backDepth) + coverHeight * Math.sin(backDepth * Math.PI / 90) / 2
+    readonly property real coverLeft: (width - coverWidth - stackOverhang) / 2
+    readonly property real leftTravel: Math.max(0, Math.min(68, coverLeft - coverHeight * turnAllowance - 2))
+    readonly property real rightTravel: Math.max(0, Math.min(68, width - coverLeft - coverWidth - coverHeight * turnAllowance - 2))
     property int current: 0
     property string selectionKey: ""
     property int direction: 1
@@ -72,12 +81,11 @@ FocusScope {
 
     Item {
         id: stage
-        width: deck.width
-        height: deck.sideLabels ? deck.height : Math.max(0, labels.y - 5)
-        z: 1
+        objectName: "dockPickStage_" + deck.mediumKey
+        anchors.fill: parent
         activeFocusOnTab: deck.count > 0
-        Accessible.role: Accessible.Button
-        Accessible.name: deck.count ? qsTr("Open %1").arg(deck.entries[deck.current].title) : deck.medium
+        Accessible.role: deck.count ? Accessible.Button : Accessible.StaticText
+        Accessible.name: deck.count ? qsTr("Open %1 (%2)").arg(deck.title).arg(deck.medium) : deck.details
         Accessible.onPressAction: deck.openCurrent()
         Keys.onLeftPressed: deck.advance(-1)
         Keys.onRightPressed: deck.advance(1)
@@ -85,12 +93,35 @@ FocusScope {
         Keys.onEnterPressed: deck.openCurrent()
         Keys.onSpacePressed: deck.openCurrent()
 
+        readonly property bool wrapFullToolTip: true
+        ToolTip.delay: 350
+        ToolTip.text: deck.details
+        ToolTip.visible: stage.visible && stage.enabled && !grab.pressed && deck.moving < 0
+            && (stage.activeFocus || grab.containsMouse || markHover.hovered)
+
+        Image {
+            id: mediumMark
+            objectName: "dockPickMark_" + deck.mediumKey
+            width: Math.min(25, stage.width * .16, stage.height * .25)
+            height: width
+            x: Math.min(stage.width - width - 2, (stage.width + deck.coverWidth + deck.stackOverhang) / 2 + 8)
+            y: (stage.height + deck.coverHeight) / 2 - height
+            source: deck.mediumIcon
+            sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
+            fillMode: Image.PreserveAspectFit
+            opacity: .72
+            Accessible.ignored: true
+
+            HoverHandler { id: markHover }
+        }
+
         Repeater {
             model: deck.entries
             delegate: Rectangle {
                 id: card
                 required property var modelData
                 required property int index
+                objectName: "dockPickFace_" + index
                 readonly property int depth: deck.cardDepth(index)
                 readonly property bool inMotion: index === deck.moving
                 readonly property bool front: depth === 0
@@ -160,7 +191,7 @@ FocusScope {
             preventStealing: true
             cursorShape: deck.canBrowse ? (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.PointingHandCursor
             property point start
-            hoverEnabled: !deck.reducedMotion
+            hoverEnabled: true
             property int dragAxis: 0
             readonly property bool hoverActive: containsMouse && !pressed && deck.moving < 0 && !deck.reducedMotion
             property real hoverTilt: hoverActive ? (mouseX / Math.max(1, width) - .5) * 5 : 0
@@ -190,7 +221,7 @@ FocusScope {
                 deck.direction = dx < 0 ? 1 : -1
                 deck.shift = Math.max(-deck.leftTravel, Math.min(deck.rightTravel, dx))
                 const travel = dx < 0 ? deck.leftTravel : deck.rightTravel
-                deck.tilt = deck.reducedMotion ? 0 : deck.shift / Math.max(1, travel) * 7
+                deck.tilt = deck.reducedMotion ? 0 : deck.shift / Math.max(1, travel) * deck.turnAngle
             }
             onReleased: event => {
                 const dx = event.x - start.x
@@ -208,44 +239,6 @@ FocusScope {
 
     }
 
-    Column {
-        id: labels
-        objectName: "dockPickLabels_" + deck.mediumKey
-        x: deck.sideLabels && deck.count > 0 ? deck.coverLeft + deck.coverWidth + 25 : 2
-        y: deck.sideLabels ? Math.max(0, (deck.height - height) / 2) : Math.max(0, deck.height - height)
-        width: Math.max(0, deck.width - x - 8)
-        spacing: deck.sideLabels ? 8 : 3
-
-        Text {
-            width: labels.width
-            text: deck.medium
-            textFormat: Text.PlainText
-            horizontalAlignment: deck.sideLabels ? Text.AlignLeft : Text.AlignHCenter
-            elide: Text.ElideRight
-            color: theme.inkDim
-            font.family: deck.categoryFamily
-            fontSizeMode: Text.HorizontalFit
-            minimumPixelSize: theme.fontSize(11)
-            font.pixelSize: theme.fontSize(deck.sideLabels ? 14 : 13)
-            font.weight: Font.Medium
-            font.letterSpacing: .4
-        }
-
-        Text {
-            width: labels.width
-            visible: deck.count > 0
-            text: deck.count ? deck.entries[deck.current].title : ""
-            textFormat: Text.PlainText
-            horizontalAlignment: deck.sideLabels ? Text.AlignLeft : Text.AlignHCenter
-            wrapMode: Text.Wrap
-            maximumLineCount: deck.sideLabels ? 3 : 2
-            elide: Text.ElideRight
-            color: theme.ink
-            font.family: theme.display
-            font.pixelSize: theme.fontSize(deck.sideLabels ? 17 : 15)
-        }
-    }
-
     SequentialAnimation {
         id: settle
         ParallelAnimation {
@@ -258,7 +251,7 @@ FocusScope {
         id: turn
         ParallelAnimation {
             NumberAnimation { target: deck; property: "shift"; to: deck.direction > 0 ? -deck.leftTravel : deck.rightTravel; duration: deck.duration; easing.type: Easing.OutCubic }
-            NumberAnimation { target: deck; property: "tilt"; to: -deck.direction * 7; duration: deck.duration }
+            NumberAnimation { target: deck; property: "tilt"; to: -deck.direction * deck.turnAngle; duration: deck.duration }
         }
         ScriptAction {
             script: {

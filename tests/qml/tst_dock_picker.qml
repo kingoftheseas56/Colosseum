@@ -1,12 +1,15 @@
 import QtQuick
+import QtQuick.Controls
 import QtTest
 import "../../qml" as App
 
 Item {
+    id: root
     width: 1280
     height: 720
 
     Rectangle { id: scene; anchors.fill: parent; color: "#26354e" }
+    App.TooltipStyle { backdrop: root }
     Component { id: mapComponent; Item {} }
     App.DockPickerCatalog { id: catalogue }
     Component {
@@ -41,6 +44,8 @@ Item {
         SignalSpy { id: files; target: suite.bar; signalName: "openMediaClicked" }
 
         function init() {
+            root.width = 1280
+            root.height = 720
             bar = createTemporaryObject(taskbarComponent, scene.parent)
             verify(bar !== null)
             picks.clear()
@@ -60,25 +65,20 @@ Item {
             tryCompare(dock, "width", picker.width)
             compare(picker.x, dock.x)
             compare(picker.x + picker.width, bar.width - picker.x)
-            compare(picker.height, 560)
-            tryVerify(() => card.height >= 148)
-            const labels = findChild(deck, "dockPickLabels_tv")
-            const heading = findChild(picker, "dockPickHeading")
-            compare(heading.text, "Pick Something")
-            verify(heading.visible)
-            verify(card.x + card.width < labels.x)
-            compare(labels.children[0].font.family, "Cinzel")
-            compare(labels.children[0].font.pixelSize, 14)
-            compare(labels.children[1].font.family, "Fraunces")
-            compare(labels.children[1].font.pixelSize, 17)
+            compare(picker.y, 20)
+            const mark = findChild(deck, "dockPickMark_tv")
+            const markPosition = Qt.point(mark.x, mark.y)
+            const stage = findChild(deck, "dockPickStage_tv")
             const x = card.width / 2
             const y = card.height / 2
             mouseMove(card, card.width * .8, card.height * .2)
             tryVerify(() => card.hoverTilt > 0 && card.hoverPitch > 0)
+            tryVerify(() => stage.ToolTip.visible)
             mousePress(card, x, y)
             compare(card.hoverTilt, 0)
             compare(card.hoverPitch, 0)
             verify(card.pressed, "Press reaches the front cover")
+            tryVerify(() => !stage.ToolTip.visible)
             mouseMove(card, x - 11, y, 20, Qt.LeftButton)
             verify(deck.shift < 0)
             mouseRelease(card, x - 11, y)
@@ -89,8 +89,13 @@ Item {
             mousePress(card, x, y)
             mouseMove(card, x - 48, y, 20, Qt.LeftButton)
             compare(deck.moving, 0)
+            checkDeckBounds(deck)
+            compare(Qt.point(mark.x, mark.y), markPosition)
             mouseRelease(card, x - 48, y)
             tryVerify(() => deck.behind && deck.moving === 0 && deck.current === 1)
+            verify(!stage.ToolTip.visible)
+            checkDeckBounds(deck)
+            compare(Qt.point(mark.x, mark.y), markPosition)
             tryCompare(deck, "moving", -1)
             compare(picks.count, 0)
 
@@ -200,18 +205,93 @@ Item {
             compare(picks.signalArguments[1][0], "manhwa")
         }
 
-        function test_audiobooksHeadingFitsWithAndWithoutArtwork() {
+        function checkDeckBounds(deck) {
+            let left = deck.width
+            let right = 0
+            for (let i = 0; i < Math.min(3, deck.count); ++i) {
+                const face = findChild(deck, "dockPickFace_" + i)
+                const bounds = face.mapToItem(deck, Qt.rect(0, 0, face.width, face.height))
+                verify(bounds.x >= 0 && bounds.x + bounds.width <= deck.width + 1, "Card stays inside its column")
+                verify(bounds.y >= 0 && bounds.y + bounds.height <= deck.height + 1, "Card stays inside its row")
+                left = Math.min(left, bounds.x)
+                right = Math.max(right, bounds.x + bounds.width)
+            }
+            if (deck.moving < 0)
+                fuzzyCompare((left + right) / 2, deck.width / 2, 1)
+            return right
+        }
+
+        function test_postersScaleAndMarksLoad() {
             bar.open = true
             const picker = findChild(bar, "dockPicker")
             verify(waitForRendering(picker))
-            const labels = findChild(picker, "dockPickLabels_audiobooks")
-            const heading = labels.children[0]
-            compare(heading.text, "Audiobooks")
-            verify(!heading.truncated)
-            const emptyWidth = labels.width
-            bar.pickerPicks = { audiobooks: [{ id: "book", title: "An audiobook" }] }
-            tryVerify(() => labels.width < emptyWidth)
-            tryVerify(() => !heading.truncated && heading.contentWidth <= heading.width)
+            const heading = findChild(picker, "dockPickHeading")
+            compare(heading.text, "Pick Something")
+            compare(heading.horizontalAlignment, Text.AlignHCenter)
+            compare(heading.width, heading.parent.width)
+            mouseMove(heading)
+
+            const keys = ["manga", "comics", "manhwa", "books", "audiobooks", "anime", "tv", "movies", "universes"]
+            const entries = bar.pickerPicks.tv
+            const allPicks = {}
+            for (const key of keys)
+                allPicks[key] = entries
+            bar.pickerPicks = allPicks
+            const stdHeight = findChild(picker, "dockPickCard_tv").height
+            verify(stdHeight > 160, "TV poster height at 1280×720: " + stdHeight)
+            const iconSources = new Set()
+            for (const key of keys) {
+                const deck = findChild(picker, "dockDeck_" + key)
+                const mark = findChild(deck, "dockPickMark_" + key)
+                tryCompare(mark, "status", Image.Ready)
+                iconSources.add(mark.source.toString())
+                verify(mark.x > checkDeckBounds(deck), "The mark sits beside the resting stack")
+                verify(mark.x + mark.width <= deck.width && mark.y + mark.height <= deck.height)
+                verify(findChild(deck, "dockPickLabels_" + key) === null)
+            }
+            compare(iconSources.size, 9)
+            const audio = findChild(picker, "dockPickCard_audiobooks")
+            compare(audio.width, audio.height)
+            root.width = 1600
+            root.height = 900
+            tryVerify(() => findChild(picker, "dockPickCard_tv").height >= stdHeight + 40)
+            for (const key of keys)
+                checkDeckBounds(findChild(picker, "dockDeck_" + key))
+            console.info("TV poster height (1280×720 → 1600×900):",
+                stdHeight.toFixed(1), "→", findChild(picker, "dockPickCard_tv").height.toFixed(1))
+        }
+
+        function test_tooltipOnHoverAndKeyboardWithReducedMotion() {
+            const fullTitle = "A very long title that takes more than three tooltip lines to render in the picker. The final words also stay visible."
+            bar.pickerPicks = { tv: [{ title: fullTitle }, { title: "Second" }] }
+            bar.pickerReducedMotion = true
+            bar.open = true
+            const picker = findChild(bar, "dockPicker")
+            verify(waitForRendering(picker))
+            const audio = findChild(picker, "dockPickStage_audiobooks")
+            const audioMark = findChild(picker, "dockPickMark_audiobooks")
+            mouseMove(audioMark)
+            verify(!audio.ToolTip.visible)
+            tryVerify(() => audio.ToolTip.visible)
+            compare(audio.ToolTip.toolTip.text, "Audiobooks\nNo picks available")
+            const card = findChild(picker, "dockPickCard_tv")
+            const tv = findChild(picker, "dockPickStage_tv")
+            mouseMove(card)
+            tryVerify(() => tv.ToolTip.visible)
+            compare(tv.ToolTip.toolTip.text, fullTitle + "\nTV")
+            compare(tv.Accessible.name, "Open " + fullTitle + " (TV)")
+            const label = tv.ToolTip.toolTip.contentItem.children[0]
+            tryVerify(() => label.lineCount > 3)
+            verify(!label.truncated)
+            mouseMove(findChild(picker, "dockPickHeading"))
+            tryVerify(() => !tv.ToolTip.visible)
+            tv.forceActiveFocus(Qt.TabFocusReason)
+            tryVerify(() => tv.ToolTip.visible)
+            keyClick(Qt.Key_Right)
+            tryVerify(() => tv.ToolTip.visible && tv.ToolTip.toolTip.text === "Second\nTV")
+            keyClick(Qt.Key_Return)
+            compare(picks.signalArguments[0][1].title, "Second")
+            tryVerify(() => !tv.ToolTip.visible)
         }
 
         function test_autoRevealKeepsPickerClosed() {

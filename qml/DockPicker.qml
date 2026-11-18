@@ -22,18 +22,17 @@ FocusScope {
     readonly property real inset: Math.min(24, height * .045)
     readonly property real railWidth: Math.min(220, width * .23)
     readonly property var genres: [
-        { key: "manga", name: qsTr("Manga") },
-        { key: "comics", name: qsTr("Comics") },
-        { key: "manhwa", name: qsTr("Manhwa") },
-        { key: "books", name: qsTr("Books") },
-        { key: "audiobooks", name: qsTr("Audiobooks"), aspect: 1 },
-        { key: "anime", name: qsTr("Anime") },
-        { key: "tv", name: qsTr("TV") },
-        { key: "movies", name: qsTr("Movies") },
-        { key: "universes", name: qsTr("Universes") }
+        { key: "manga", name: qsTr("Manga"), icon: "comics.svg" },
+        { key: "comics", name: qsTr("Comics"), icon: "dock-pick/comics-burst.svg" },
+        { key: "manhwa", name: qsTr("Manhwa"), icon: "comicreader/layout-strip.svg" },
+        { key: "books", name: qsTr("Books"), icon: "books.svg" },
+        { key: "audiobooks", name: qsTr("Audiobooks"), icon: "dock-pick/audiobook.svg", aspect: 1 },
+        { key: "anime", name: qsTr("Anime"), icon: "dock-pick/anime.svg" },
+        { key: "tv", name: qsTr("TV"), icon: "dock-pick/tv.svg" },
+        { key: "movies", name: qsTr("Movies"), icon: "movies.svg" },
+        { key: "universes", name: qsTr("Universes"), icon: "dock-pick/universes-light.svg" }
     ]
     Theme { id: theme }
-    FontLoader { id: categoryTypeface; source: "../assets/fonts/cinzel/Cinzel-Variable.ttf" }
 
     function selectSlide(index) {
         if (index === 0 || (index === 1 && mapSlide)) slide = index
@@ -179,6 +178,7 @@ FocusScope {
                 objectName: "dockPickHeading"
                 width: widgetArea.width
                 height: 28
+                horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 text: qsTr("Pick Something")
                 color: theme.ink
@@ -195,7 +195,7 @@ FocusScope {
                 height: Math.max(0, widgetArea.height - y)
                 enabled: picker.slide === 0
                 columns: 3
-                rowSpacing: Math.min(14, height * .03)
+                rowSpacing: Math.min(4, height * .03)
                 columnSpacing: 14
                 Repeater {
                     model: picker.genres
@@ -205,8 +205,8 @@ FocusScope {
                         width: Math.max(0, (grid.width - 2 * grid.columnSpacing) / 3)
                         height: Math.max(0, (grid.height - 2 * grid.rowSpacing) / 3)
                         medium: modelData.name
-                        categoryFamily: categoryTypeface.status === FontLoader.Ready ? categoryTypeface.name : theme.display
                         mediumKey: modelData.key
+                        mediumIcon: "../assets/icons/" + modelData.icon
                         aspect: modelData.aspect || .71
                         entries: picker.picks[modelData.key] || []
                         logoArt: modelData.key === "universes"
