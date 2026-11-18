@@ -20,7 +20,7 @@ FocusScope {
     readonly property real coverHeight: Math.max(1, Math.min(150, stage.height - 9,
         (width * (sideLabels ? .60 : 1) - (sideLabels ? 12 : 32)) / aspect))
     readonly property real coverWidth: coverHeight * aspect
-    readonly property real coverLeft: Math.max(0, (width - coverWidth) / 2 + (sideLabels ? width * .15 : 0))
+    readonly property real coverLeft: Math.max(0, (width - coverWidth) / 2 - (sideLabels ? width * .13 : 0))
     readonly property real leftTravel: Math.max(0, Math.min(68, coverLeft - 8))
     readonly property real rightTravel: Math.max(0, Math.min(68, width - coverLeft - coverWidth - 12))
     property int current: 0
@@ -211,9 +211,9 @@ FocusScope {
     Column {
         id: labels
         objectName: "dockPickLabels_" + deck.mediumKey
-        x: deck.sideLabels ? 4 : 2
+        x: deck.sideLabels && deck.count > 0 ? deck.coverLeft + deck.coverWidth + 25 : 2
         y: deck.sideLabels ? Math.max(0, (deck.height - height) / 2) : Math.max(0, deck.height - height)
-        width: deck.sideLabels && deck.count > 0 ? Math.max(0, deck.coverLeft - x - 12) : Math.max(0, deck.width - 2 * x)
+        width: Math.max(0, deck.width - x - 8)
         spacing: deck.sideLabels ? 8 : 3
 
         Text {
@@ -222,13 +222,13 @@ FocusScope {
             textFormat: Text.PlainText
             horizontalAlignment: deck.sideLabels ? Text.AlignLeft : Text.AlignHCenter
             elide: Text.ElideRight
-            color: theme.ink
+            color: theme.inkDim
             font.family: deck.categoryFamily
             fontSizeMode: Text.HorizontalFit
             minimumPixelSize: theme.fontSize(11)
-            font.pixelSize: theme.fontSize(deck.sideLabels ? 15 : 13)
+            font.pixelSize: theme.fontSize(deck.sideLabels ? 14 : 13)
             font.weight: Font.Medium
-            font.letterSpacing: .55
+            font.letterSpacing: .4
         }
 
         Text {
@@ -240,7 +240,7 @@ FocusScope {
             wrapMode: Text.Wrap
             maximumLineCount: deck.sideLabels ? 3 : 2
             elide: Text.ElideRight
-            color: theme.inkDim
+            color: theme.ink
             font.family: theme.display
             font.pixelSize: theme.fontSize(deck.sideLabels ? 17 : 15)
         }

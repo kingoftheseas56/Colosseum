@@ -146,8 +146,8 @@ FocusScope {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.topMargin: picker.inset
-        anchors.bottomMargin: picker.inset
+        anchors.topMargin: Math.min(14, picker.inset)
+        anchors.bottomMargin: Math.min(12, picker.inset)
         anchors.leftMargin: picker.railWidth + 25
         anchors.rightMargin: picker.mapSlide ? 31 : picker.inset
         clip: true
@@ -174,13 +174,28 @@ FocusScope {
                 NumberAnimation { duration: 230; easing.type: Easing.OutCubic }
             }
 
+            Text {
+                id: pickHeading
+                objectName: "dockPickHeading"
+                width: widgetArea.width
+                height: 28
+                elide: Text.ElideRight
+                text: qsTr("Pick Something")
+                color: theme.ink
+                font.family: theme.display
+                font.pixelSize: theme.fontSize(23)
+                Accessible.role: Accessible.Heading
+                Accessible.name: text
+            }
+
             Grid {
                 id: grid
+                y: pickHeading.height + 4
                 width: widgetArea.width
-                height: widgetArea.height
+                height: Math.max(0, widgetArea.height - y)
                 enabled: picker.slide === 0
                 columns: 3
-                rowSpacing: Math.min(16, height * .033)
+                rowSpacing: Math.min(14, height * .03)
                 columnSpacing: 14
                 Repeater {
                     model: picker.genres
@@ -234,7 +249,7 @@ FocusScope {
                     objectName: "dockSlideDot_" + parent.index
                     anchors.fill: parent
                     focusOnPointer: false
-                    accessibleName: parent.index === 0 ? qsTr("Pick Anything") : qsTr("Colosseum worlds")
+                    accessibleName: parent.index === 0 ? pickHeading.text : qsTr("Colosseum worlds")
                     focusRadius: 13
                     spaceActivates: true
                     onTriggered: picker.selectSlide(parent.index)
