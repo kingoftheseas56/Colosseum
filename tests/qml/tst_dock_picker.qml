@@ -8,6 +8,7 @@ Item {
 
     Rectangle { id: scene; anchors.fill: parent; color: "#26354e" }
     Component { id: mapComponent; Item {} }
+    App.DockPickerCatalog { id: catalogue }
     Component {
         id: taskbarComponent
         App.Taskbar {
@@ -162,6 +163,29 @@ Item {
             verify(!activity.visible)
             verify(!bar.open)
             verify(findChild(bar, "taskbarToggleAction").activeFocus)
+        }
+
+        function test_manhwaAndUniverseLogoDecks() {
+            catalogue.updateUniverses()
+            const entries = catalogue.picks.universes
+            verify(entries.length > 1)
+            verify(entries.every(entry => entry.raw.page && entry.raw.logo))
+            bar.pickerPicks = { universes: entries, manhwa: [{ id: "123", title: "Manhwa pick" }] }
+            bar.open = true
+            const picker = findChild(bar, "dockPicker")
+            verify(waitForRendering(picker))
+            const manhwa = findChild(picker, "dockPickCard_manhwa")
+            const universes = findChild(picker, "dockPickCard_universes")
+            compare(universes.width, manhwa.width)
+            verify(findChild(picker, "dockDeck_music") === null)
+            verify(findChild(picker, "dockDeck_tributes") === null)
+            tryVerify(() => findChild(picker, "dockUniverseLogo")?.status === Image.Ready)
+            mouseClick(universes)
+            compare(picks.signalArguments[0][0], "universes")
+            compare(picks.signalArguments[0][1].raw.page, entries[0].raw.page)
+            bar.open = true
+            mouseClick(manhwa)
+            compare(picks.signalArguments[1][0], "manhwa")
         }
 
         function test_autoRevealKeepsPickerClosed() {

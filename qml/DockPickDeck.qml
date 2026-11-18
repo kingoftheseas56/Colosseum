@@ -7,7 +7,7 @@ FocusScope {
     required property string medium
     required property string mediumKey
     property var entries: []
-    property bool locked: false
+    property bool logoArt: false
     property bool reducedMotion: false
     property real aspect: 0.71
     signal openRequested(var entry)
@@ -70,7 +70,7 @@ FocusScope {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         text: deck.medium
-        color: deck.locked ? theme.inkDimmer : theme.ink
+        color: theme.ink
         font.family: theme.ui
         font.pixelSize: 12
     }
@@ -125,31 +125,32 @@ FocusScope {
                     anchors.margins: 1
                     active: parent.visible
                     readonly property var entry: parent.modelData
-                    sourceComponent: RoundedPosterImage {
+                    sourceComponent: deck.logoArt ? logoFace : posterFace
+                }
+
+                Component {
+                    id: posterFace
+                    RoundedPosterImage {
                         radius: 4
                         revealDuration: deck.reducedMotion ? 0 : 150
                         sources: PosterPolicy.candidates(posterLoader.entry.cover || "", posterLoader.entry.coverCandidates || [])
                     }
                 }
-            }
-        }
 
-        Item {
-            anchors.centerIn: parent
-            width: 25
-            height: 25
-            visible: deck.locked
-            opacity: .45
-            Accessible.ignored: true
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: 1; width: 12; height: 15; radius: 6
-                color: "transparent"; border.color: theme.ink
-            }
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: 10; width: 19; height: 14; radius: 3
-                color: "#24272e"; border.color: theme.ink
+                Component {
+                    id: logoFace
+                    Item {
+                        Image {
+                            objectName: "dockUniverseLogo"
+                            anchors.fill: parent
+                            anchors.margins: Math.min(parent.width, parent.height) * .12
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                            source: posterLoader.entry.cover
+                            sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
+                        }
+                    }
+                }
             }
         }
 
@@ -223,7 +224,7 @@ FocusScope {
         color: theme.inkDim
         font.family: theme.ui
         font.pixelSize: 11
-        text: deck.count ? deck.entries[deck.current].title : deck.locked ? qsTr("Available with Vinyl") : ""
+        text: deck.count ? deck.entries[deck.current].title : ""
     }
 
     SequentialAnimation {

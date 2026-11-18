@@ -24,13 +24,13 @@ FocusScope {
     readonly property var genres: [
         { key: "manga", name: qsTr("Manga") },
         { key: "comics", name: qsTr("Comics") },
-        { key: "music", name: qsTr("Music") },
+        { key: "manhwa", name: qsTr("Manhwa") },
         { key: "books", name: qsTr("Books") },
         { key: "audiobooks", name: qsTr("Audiobooks"), aspect: 1 },
         { key: "anime", name: qsTr("Anime") },
         { key: "tv", name: qsTr("TV") },
         { key: "movies", name: qsTr("Movies") },
-        { key: "tributes", name: qsTr("Tributes"), aspect: 1.2 }
+        { key: "universes", name: qsTr("Universes") }
     ]
     Theme { id: theme }
 
@@ -192,7 +192,7 @@ FocusScope {
                         mediumKey: modelData.key
                         aspect: modelData.aspect || .71
                         entries: picker.picks[modelData.key] || []
-                        locked: modelData.key === "music"
+                        logoArt: modelData.key === "universes"
                         reducedMotion: picker.reducedMotion
                         onVerticalSwipeRequested: direction => picker.selectSlide(picker.slide + direction)
                         onOpenRequested: entry => picker.pickRequested(modelData.key, entry)

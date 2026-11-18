@@ -50,7 +50,7 @@ Item {
         }
     }
     function updateReading(key, shelf) {
-        if (!active || readingRequests[key] || !(key === "manga" ? manga : comics)) return
+        if (!active || readingRequests[key] || !(key === "comics" ? comics : manga)) return
         readingRequests[key] = true
         const adapter = Tankoban.create(manga, comics, installedAddons, showExplicit)
         adapter.fetchPage({ type: key, catalogKey: shelf }, 0, readingGeneration, function(generation, page) {
@@ -70,9 +70,10 @@ Item {
         rows.sort((a, b) => b.addedAt - a.addedAt)
         publish("audiobooks", rows, item => ({ id: item.id, title: item.title, cover: item.cover || "", raw: item }))
     }
-    function updateTributes() {
-        publish("tributes", Universes.tributes(installedUniverses), item => ({
-            id: item.extensionId, title: item.name, cover: item.banner ? Qt.resolvedUrl(item.banner) : "", raw: item
+    function updateUniverses() {
+        const roster = Universes.worldRoster(installedUniverses).filter(item => item.logo)
+        publish("universes", roster, item => ({
+            id: item.extensionId || item.name, title: item.name, cover: Qt.resolvedUrl(item.logo), raw: item
         }))
     }
     function updateTheatre() {
@@ -116,10 +117,11 @@ Item {
     onActiveChanged: {
         if (active) {
             updateReading("manga", "trending")
+            updateReading("manhwa", "trending")
             updateReading("comics", "new-releases")
             updateBooks()
             updateAudio()
-            updateTributes()
+            updateUniverses()
             updateTheatre()
         } else if (Object.keys(pendingPicks).length) {
             picks = Object.assign({}, picks, pendingPicks)
@@ -136,10 +138,11 @@ Item {
         theatreRefreshedAt = 0
         if (active) {
             updateReading("manga", "trending")
+            updateReading("manhwa", "trending")
             updateReading("comics", "new-releases")
             updateBooks()
             updateAudio()
-            updateTributes()
+            updateUniverses()
             Qt.callLater(updateTheatre)
         }
     }
@@ -149,10 +152,13 @@ Item {
         theatreRefreshedAt = 0
         if (active) updateTheatre()
     }
-    onInstalledUniversesChanged: if (active) updateTributes()
+    onInstalledUniversesChanged: if (active) updateUniverses()
     Connections {
         target: catalog.manga
-        function onRevisionChanged() { catalog.updateReading("manga", "trending") }
+        function onRevisionChanged() {
+            catalog.updateReading("manga", "trending")
+            catalog.updateReading("manhwa", "trending")
+        }
     }
     Connections {
         target: catalog.comics

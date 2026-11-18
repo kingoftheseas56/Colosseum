@@ -3894,7 +3894,8 @@ Window {
         if (!entry) return
         const raw = entry.raw || entry
         switch (medium) {
-        case "manga": win.openSeries(entry.title, entry.id); break
+        case "manga":
+        case "manhwa": win.openSeries(entry.title, entry.id); break
         case "comics": win.openComicSeries({
             id: raw.locgId || raw.locg_id || entry.id || "",
             title: entry.title, cover: entry.cover, locgMeta: raw
@@ -3904,7 +3905,7 @@ Window {
         case "anime":
         case "tv":
         case "movies": win.openTheatreSeries(raw); break
-        case "tributes": win.openTribute(raw); break
+        case "universes": win.openRosterUniverse(raw); break
         }
     }
     function openDroppedMedia(urls) {
