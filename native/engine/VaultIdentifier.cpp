@@ -818,8 +818,13 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
             return match;
         }
         bool episodesOnly = true;
-        for (const auto& member : rows)
-            episodesOnly = episodesOnly && VaultKit::videoEpisodeContext(member.path, siblingPaths).number.matched;
+        int lastAbsoluteEpisode = 0;
+        for (const auto& member : rows) {
+            const auto episode = VaultKit::videoEpisodeContext(member.path, siblingPaths).number;
+            episodesOnly = episodesOnly && episode.matched;
+            if (episode.matched && episode.absolute)
+                lastAbsoluteEpisode = qMax(lastAbsoluteEpisode, episode.episode);
+        }
         QVariantList hits;
         for (const auto& value : m_imdb->matchByTitle(normalizedTitle, lookup.year)) {
             const auto type = value.toMap().value(QStringLiteral("type")).toString();
@@ -827,6 +832,19 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
                 hits.append(value);
         }
         if (m_imdb->remoteWaiting()) { m_pendingGroups.insert(groupKey); return match; }
+        if (episodesOnly && lastAbsoluteEpisode > 0 && hits.size() > 1) {
+            QVariantList fits;
+            bool countsKnown = true;
+            for (const auto& value : std::as_const(hits)) {
+                const int count = value.toMap().value(QStringLiteral("episodes")).toInt();
+                countsKnown = countsKnown && count > 0;
+                if (count >= lastAbsoluteEpisode)
+                    fits.append(value);
+            }
+            // Missing episode counts provide no evidence against a candidate.
+            if (countsKnown && fits.size() == 1)
+                hits = std::move(fits);
+        }
         match.candidateCount = hits.size();
         if (hits.isEmpty()) {
             // Zero candidates is absence, not ambiguity; two narrow, year-bound retries follow, each

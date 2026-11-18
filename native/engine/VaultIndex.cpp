@@ -186,6 +186,10 @@ void carryUnchangedFacts(VaultIndex::FileRow& row, const QHash<QString, DurableF
         row.author = prior.author;
     if (row.synopsis.isEmpty() && row.metadataSource.isEmpty())
         row.synopsis = prior.synopsis;
+    // A downloaded identity can fill an unmatched row. An exact-file manual
+    // match wins, and same-identity rescans retain existing catalogue facts.
+    const bool keepPriorMatch = row.identityState == QLatin1String("adopted")
+        && (prior.identityState == QLatin1String("manual") || prior.identityId == row.identityId);
     if (!row.identitySuppressed && prior.identitySuppressed) {
         row.identityId.clear();
         row.identityTitle.clear();
@@ -200,7 +204,7 @@ void carryUnchangedFacts(VaultIndex::FileRow& row, const QHash<QString, DurableF
         row.identityState = prior.identityState;
         row.identityCandidateCount = prior.identityCandidateCount;
         row.identitySuppressed = true;
-    } else if (!row.identitySuppressed && row.identitySource.isEmpty()
+    } else if (!row.identitySuppressed && (row.identitySource.isEmpty() || keepPriorMatch)
                && !prior.identitySuppressed && !prior.identitySource.isEmpty()) {
         row.identityId = prior.identityId;
         row.identityTitle = prior.identityTitle;
@@ -212,6 +216,10 @@ void carryUnchangedFacts(VaultIndex::FileRow& row, const QHash<QString, DurableF
         row.identityYear = prior.identityYear;
         row.identityRating = prior.identityRating;
         row.identityGenres = prior.identityGenres;
+        if (keepPriorMatch && !prior.identityState.isEmpty()) {
+            row.identityState = prior.identityState;
+            row.identityCandidateCount = prior.identityCandidateCount;
+        }
     }
     if (row.identityState.isEmpty() && row.identitySource == prior.identitySource) {
         row.identityState = prior.identityState;

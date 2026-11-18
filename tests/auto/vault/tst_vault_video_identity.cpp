@@ -57,6 +57,10 @@ QString catalog(const QString &path, bool aliases = false)
                         "programme','Alternate Programme','US','en','title.akas.tsv')"))
                 return {};
         }
+        if (!q.exec("INSERT INTO title VALUES"
+                    "('tt0388629','series','One Piece','one piece',1999,0,24,'[]',8,5000,1193,'ja',1),"
+                    "('tt11737520','series','One Piece','one piece',2023,0,50,'[]',8,5000,17,'en',0)"))
+            return {};
         db.close();
     }
     QSqlDatabase::removeDatabase(name);
@@ -232,6 +236,22 @@ class VideoIdentityTest : public QObject
 {
     Q_OBJECT
   private slots:
+    void absolute_episode_disambiguates_only_when_one_series_can_contain_it()
+    {
+        QTemporaryDir d;
+        QVERIFY(d.isValid());
+        const auto db = catalog(d.filePath("catalogue.sqlite"));
+        QVERIFY(!db.isEmpty());
+        const auto identifiable = identifyPath(db, d.filePath("[SubsPlease] One Piece - 1179 (1080p) [A02F35FE].mkv"));
+        QVERIFY(identifiable.adopted);
+        QCOMPARE(identifiable.sourceId, QStringLiteral("imdb:tt0388629"));
+        for (const auto &episode : {QStringLiteral("012"), QStringLiteral("1200")}) {
+            const auto ambiguous = identifyPath(db, d.filePath("[SubsPlease] One Piece - " + episode + " (1080p).mkv"));
+            QVERIFY(!ambiguous.adopted);
+            QCOMPARE(ambiguous.candidates, 2);
+        }
+    }
+
     void recordedProfileGenreReplay()
     {
         const auto directory=qEnvironmentVariable("VAULT_GENRE_REPLAY");

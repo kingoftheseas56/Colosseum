@@ -122,6 +122,7 @@ private slots:
     void adopted_type_round_trips_and_carries_only_exact_tuple();
     // ── browse-face execution plan, Slice 2 ──
     void identity_state_round_trips_and_survives_a_republish_that_still_carries_it();
+    void downloaded_identity_does_not_overwrite_a_manual_match();
     void publish_carries_admission_only_for_exact_identity_tuple();
     void publish_explicit_new_verdict_wins_over_carried_verdict();
     void admission_projection_is_video_only_and_omits_unprobed_rows();
@@ -129,6 +130,27 @@ private slots:
     void reconcile_root_removes_obsolete_and_preserves_unchanged_facts();
     void stale_revision_write_cannot_resurrect_removed_row();
 };
+
+void tst_vault_index::downloaded_identity_does_not_overwrite_a_manual_match()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex index(tmp.filePath("vault.sqlite"));
+    auto download = mk("volume", "D:/lib", "Downloaded Manga", "comic", "vol-1-8675309.cbz");
+    download.identityId = "mal:13";
+    download.identitySource = "MAL";
+    download.identityState = "adopted";
+    auto manual = download;
+    manual.identityId = "mal:14";
+    manual.identityState = "manual";
+    manual.progressed = true;
+    QVERIFY(index.publish({manual}));
+    QVERIFY(index.publish({download}));
+    const auto row = index.rowsForKind("comic").value(0);
+    QCOMPARE(row.identityId, QStringLiteral("mal:14"));
+    QCOMPARE(row.identityState, QStringLiteral("manual"));
+    QVERIFY(row.progressed);
+}
 
 void tst_vault_index::embedded_title_round_trips_all_row_queries_and_exact_tuple_carry()
 {
