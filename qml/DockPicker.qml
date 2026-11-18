@@ -16,6 +16,8 @@ FocusScope {
     property var restoredPick: null
     property real wheelTravel: 0
     property bool wheelStepTaken: false
+    property int artStage: 0
+    property int artSlide: 0
     signal pickRequested(string medium, var entry, var returnState)
     signal wallpaperRequested()
     signal chooseFilesRequested()
@@ -54,7 +56,11 @@ FocusScope {
         Qt.callLater(picker.restorePageFocus)
     }
     function restorePageFocus() {
-        if (pageMotion.running || !focusOnArrival)
+        if (pageMotion.running)
+            return
+        if (visible)
+            artSlide = slide
+        if (!focusOnArrival)
             return
         focusOnArrival = false
         const row = pageRepeater.itemAt(slide) as PickRow
@@ -74,6 +80,7 @@ FocusScope {
             return false
         restoredPick = state
         slide = state.slide
+        artSlide = state.slide
         row.selectPick(state.column, state.key)
         focusColumn = state.column
         focusOnArrival = state.keyboard
@@ -109,14 +116,41 @@ FocusScope {
             selectSlide(slide + (dy < 0 ? 1 : -1))
     }
     onMapSlideChanged: if (!mapSlide && slide === 3) selectSlide(2)
-    onVisibleChanged: if (!visible) {
+    onVisibleChanged: if (visible) {
+        artSlide = slide
+        artKeepAlive.stop()
+    } else {
         focusOnArrival = false
         focusColumn = 0
         slide = 0
         restoredPick = null
         wheelQuiet.stop()
         clearWheel()
+        artWarmup.stop()
+        if (artStage) artKeepAlive.restart()
     }
+    // Open with the three front cards. Add the current row's backing cards
+    // in both directions, then the other slides' front cards, after the first frame.
+    Connections {
+        target: picker.visible ? picker.Window.window : null
+        enabled: picker.artStage < 3 && !artWarmup.running
+        function onFrameSwapped() { artWarmup.start() }
+    }
+    Timer {
+        id: artWarmup
+        interval: 32
+        repeat: true
+        onTriggered: {
+            ++picker.artStage
+            if (picker.artStage === 3) stop()
+        }
+    }
+    Timer {
+        id: artKeepAlive
+        interval: 1800
+        onTriggered: picker.artStage = 0
+    }
+
     Keys.onPressed: event => {
         if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
             return
@@ -379,6 +413,15 @@ FocusScope {
                 entries: picker.entriesFor(modelData.key)
                 logoArt: modelData.key === "universes"
                 reducedMotion: picker.reducedMotion
+                artRadius: {
+                    if (picker.artStage && picker.artSlide === row.rowIndex)
+                        return Math.min(picker.artStage, 2)
+                    if (picker.visible && picker.slide === row.rowIndex)
+                        return Math.min(picker.artStage, 1)
+                    if ((picker.visible && row.visible) || picker.artStage === 3)
+                        return 0
+                    return -1
+                }
                 onActiveFocusChanged: if (activeFocus) picker.focusColumn = index
                 onVerticalSwipeRequested: dy => picker.pageSwipe(dy)
                 onOpenRequested: entry => picker.pickRequested(modelData.key, entry, {

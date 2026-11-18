@@ -15,10 +15,12 @@ Item {
     property var picks: ({})
     property var pendingPicks: ({})
     property var readingRequests: ({})
+    property var readingRefreshedAt: ({})
     property int readingGeneration: 0
     property double theatreRefreshedAt: 0
     property bool theatreLoading: false
     property int theatreGeneration: 0
+    property int refreshStep: 0
 
     readonly property var manga: typeof MalCatalog !== "undefined" ? MalCatalog : null
     readonly property var comics: typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null
@@ -51,12 +53,16 @@ Item {
     }
     function updateReading(key, shelf) {
         if (!active || readingRequests[key] || !(key === "comics" ? comics : manga)) return
+        if (Date.now() - (readingRefreshedAt[key] || 0) < 300000) return
         readingRequests[key] = true
         const adapter = Tankoban.create(manga, comics, installedAddons, showExplicit)
         adapter.fetchPage({ type: key, catalogKey: shelf }, 0, readingGeneration, function(generation, page) {
             if (generation !== catalog.readingGeneration) return
             delete catalog.readingRequests[key]
-            if (page && !page.failed) catalog.publish(key, page.items, item => item)
+            if (page && !page.failed) {
+                if (page.items && page.items.length) catalog.readingRefreshedAt[key] = Date.now()
+                catalog.publish(key, page.items, item => item)
+            }
         })
     }
     function updateBooks() {
@@ -116,16 +122,38 @@ Item {
     }
     onActiveChanged: {
         if (active) {
-            updateReading("manga", "trending")
-            updateReading("manhwa", "trending")
-            updateReading("comics", "new-releases")
-            updateBooks()
-            updateAudio()
-            updateUniverses()
-            updateTheatre()
-        } else if (Object.keys(pendingPicks).length) {
-            picks = Object.assign({}, picks, pendingPicks)
-            pendingPicks = ({})
+            refreshStep = 0
+        } else {
+            openRefresh.stop()
+            if (Object.keys(pendingPicks).length) {
+                picks = Object.assign({}, picks, pendingPicks)
+                pendingPicks = ({})
+            }
+        }
+    }
+    Connections {
+        target: catalog.active && catalog.refreshStep === 0 ? catalog.Window.window : null
+        function onFrameSwapped() {
+            catalog.refreshStep = 1
+            catalog.updateTheatre()
+            openRefresh.start()
+        }
+    }
+    Timer {
+        id: openRefresh
+        interval: 48
+        repeat: true
+        onTriggered: {
+            // The native discover queries run synchronously. Give rendering a
+            // turn between them and avoid starting another query after dismissal.
+            switch (catalog.refreshStep++) {
+            case 1: catalog.updateAudio(); break
+            case 2: catalog.updateUniverses(); break
+            case 3: catalog.updateReading("manga", "trending"); break
+            case 4: catalog.updateReading("manhwa", "trending"); break
+            case 5: catalog.updateReading("comics", "new-releases"); break
+            case 6: catalog.updateBooks(); stop(); break
+            }
         }
     }
     onShowExplicitChanged: {
@@ -133,40 +161,43 @@ Item {
         pendingPicks = ({})
         readingGeneration++
         readingRequests = ({})
+        readingRefreshedAt = ({})
         theatreGeneration++
         theatreLoading = false
         theatreRefreshedAt = 0
         if (active) {
-            updateReading("manga", "trending")
-            updateReading("manhwa", "trending")
-            updateReading("comics", "new-releases")
-            updateBooks()
-            updateAudio()
-            updateUniverses()
-            Qt.callLater(updateTheatre)
+            openRefresh.stop()
+            refreshStep = 0
         }
     }
     onInstalledAddonsChanged: {
         theatreGeneration++
         theatreLoading = false
         theatreRefreshedAt = 0
-        if (active) updateTheatre()
+        if (active && refreshStep) updateTheatre()
     }
-    onInstalledUniversesChanged: if (active) updateUniverses()
+    onInstalledUniversesChanged: if (active && refreshStep) updateUniverses()
     Connections {
         target: catalog.manga
         function onRevisionChanged() {
-            catalog.updateReading("manga", "trending")
-            catalog.updateReading("manhwa", "trending")
+            delete catalog.readingRefreshedAt.manga
+            delete catalog.readingRefreshedAt.manhwa
+            if (catalog.refreshStep) {
+                catalog.updateReading("manga", "trending")
+                catalog.updateReading("manhwa", "trending")
+            }
         }
     }
     Connections {
         target: catalog.comics
-        function onRevisionChanged() { catalog.updateReading("comics", "new-releases") }
+        function onRevisionChanged() {
+            delete catalog.readingRefreshedAt.comics
+            if (catalog.refreshStep) catalog.updateReading("comics", "new-releases")
+        }
     }
     Connections {
         target: catalog.biblio
-        function onReadyChanged() { catalog.updateBooks() }
-        function onRevisionChanged() { catalog.updateBooks() }
+        function onReadyChanged() { if (catalog.refreshStep) catalog.updateBooks() }
+        function onRevisionChanged() { if (catalog.refreshStep) catalog.updateBooks() }
     }
 }

@@ -12,6 +12,7 @@ FocusScope {
     property real headingExpansion: 0
     property real aspect: 0.71
     property real leftMotionRoom: 0
+    property int artRadius: -1
     signal openRequested(var entry)
     signal verticalSwipeRequested(real distance)
 
@@ -58,6 +59,9 @@ FocusScope {
     property real tilt: 0
     property real incoming: 0
     readonly property int duration: reducedMotion ? 0 : 155
+    readonly property real revealShift: direction > 0 ? -leftTravel : rightTravel
+    property int revealTime: 0
+    property var warmedEntries: null
     z: moving >= 0 ? 1 : 0
 
     Theme { id: theme }
@@ -116,6 +120,10 @@ FocusScope {
         settle.stop()
         direction = step
         moving = current
+        // The finger already performed most (or all) of the reveal on a long pull.
+        const shiftRemaining = Math.abs(revealShift - shift) / Math.max(1, Math.abs(revealShift))
+        const tiltRemaining = Math.abs(-direction * turnAngle - tilt) / turnAngle
+        revealTime = Math.round(duration * Math.min(1, Math.max(shiftRemaining, tiltRemaining)))
         turn.start()
     }
     function openCurrent() {
@@ -134,6 +142,14 @@ FocusScope {
     onCurrentChanged: selectionKey = identity(entries[current])
     onVisibleChanged: if (!visible) resetMotion()
     onReducedMotionChanged: resetMotion()
+
+    // A late catalogue response can populate several decks together. Submit
+    // their front covers before adding the backing cards to the download queue.
+    Timer {
+        interval: 64
+        running: deck.artRadius > 0 && deck.count > 1 && deck.warmedEntries !== deck.entries
+        onTriggered: deck.warmedEntries = deck.entries
+    }
 
     Item {
         id: stage
@@ -160,16 +176,18 @@ FocusScope {
                 readonly property int depth: deck.cardDepth(index)
                 readonly property bool inMotion: index === deck.moving
                 readonly property bool front: depth === 0
+                readonly property int nearbyDepth: Math.min(depth, deck.count - depth)
                 width: deck.coverWidth
                 height: deck.coverHeight
                 x: deck.coverLeft + (inMotion ? deck.shift : front ? deck.incoming : deck.offset(depth))
                 y: deck.coverTop + (front ? 0 : Math.min(depth, 2))
                 rotation: inMotion ? deck.tilt : front ? grab.hoverTilt : Math.min(depth, 2) * deck.fanAngle
-                scale: inMotion && !deck.reducedMotion
-                    ? 1 - (1 - deck.turnScale) * Math.min(1,
-                          Math.abs(deck.shift - (deck.behind ? deck.offset(depth) : 0))
-                          / Math.max(1, deck.shift < 0 ? deck.leftTravel : deck.rightTravel))
-                    : 1
+                scale: {
+                    if (!inMotion || deck.reducedMotion) return 1
+                    const restingShift = deck.behind ? deck.offset(depth) : 0
+                    return 1 - (1 - deck.turnScale) * Math.min(1,
+                        Math.abs(deck.shift - restingShift) / Math.max(1, Math.abs(deck.revealShift - restingShift)))
+                }
                 transform: Rotation {
                     origin.x: deck.coverWidth / 2
                     origin.y: deck.coverHeight / 2
@@ -188,7 +206,9 @@ FocusScope {
                     id: posterLoader
                     anchors.fill: parent
                     anchors.margins: 1
-                    active: parent.visible
+                    active: (card.inMotion && deck.visible)
+                        || (card.front && deck.artRadius >= 0)
+                        || (deck.warmedEntries === deck.entries && card.nearbyDepth <= deck.artRadius)
                     readonly property var entry: parent.modelData
                     sourceComponent: deck.logoArt ? logoFace : posterFace
                 }
@@ -353,8 +373,8 @@ FocusScope {
     SequentialAnimation {
         id: turn
         ParallelAnimation {
-            NumberAnimation { target: deck; property: "shift"; to: deck.direction > 0 ? -deck.leftTravel : deck.rightTravel; duration: deck.duration; easing.type: Easing.OutCubic }
-            NumberAnimation { target: deck; property: "tilt"; to: -deck.direction * deck.turnAngle; duration: deck.duration }
+            NumberAnimation { target: deck; property: "shift"; to: deck.revealShift; duration: deck.revealTime; easing.type: Easing.OutCubic }
+            NumberAnimation { target: deck; property: "tilt"; to: -deck.direction * deck.turnAngle; duration: deck.revealTime }
         }
         ScriptAction {
             script: {

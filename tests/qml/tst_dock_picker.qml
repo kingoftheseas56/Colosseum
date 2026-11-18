@@ -13,6 +13,7 @@ Item {
     App.TooltipStyle { backdrop: root }
     Component { id: mapComponent; Item {} }
     App.DockPickerCatalog { id: catalogue }
+    Component { id: catalogueComponent; App.DockPickerCatalog {} }
     Component {
         id: taskbarComponent
         App.Taskbar {
@@ -99,6 +100,7 @@ Item {
             compare(deck.moving, 0)
             checkDeckBounds(deck)
             mouseRelease(card, x - 48, y)
+            verify(deck.revealTime < deck.duration, "Release continues from the artwork's dragged position")
             tryVerify(() => deck.behind && deck.moving === 0 && deck.current === 1)
             checkDeckBounds(deck)
             compare(title.text, "Second")
@@ -112,6 +114,74 @@ Item {
             compare(picks.signalArguments[0][0], "tv")
             compare(picks.signalArguments[0][1].title, "Second")
             verify(!picker.visible)
+        }
+
+        function test_catalogueRefreshWaitsForPickerFrame() {
+            const state = createTemporaryObject(catalogueComponent, root)
+            state.active = true
+            verify(!state.picks.universes)
+            state.active = false
+            wait(200)
+            verify(!state.picks.universes)
+            state.active = true
+            bar.open = true
+            tryVerify(() => state.picks.universes && state.picks.universes.length > 1)
+        }
+
+        function test_coversRemainReadyAcrossTurnsAndPageChanges() {
+            const covers = ["captured-motion.jpg", "cold-ripple.jpg", "sagas/dune.jpg"]
+            const entries = Array.from({ length: 7 }, (_, i) => ({
+                id: String(i), title: "Title " + i,
+                cover: Qt.resolvedUrl("../../assets/wallpaper/" + covers[i % covers.length])
+            }))
+            bar.pickerPicks = { tv: entries, manga: entries, books: entries }
+            const picker = findChild(bar, "dockPicker")
+            const tv = findChild(picker, "dockDeck_tv")
+            const manga = findChild(picker, "dockDeck_manga")
+            const books = findChild(picker, "dockDeck_books")
+            const stage = findChild(tv, "dockPickStage_tv")
+            function art(deck, i) {
+                return findChild(findChild(deck, "dockPickFace_" + i), "dockPosterArt_img")
+            }
+            function ready(deck, i) {
+                const image = art(deck, i)
+                return image !== null && image.status === Image.Ready
+            }
+
+            verify(art(tv, 0) === null)
+            bar.open = true
+            compare(picker.artStage, 0)
+            tryVerify(() => [0, 1, 2, 5, 6].every(i => ready(tv, i)))
+            verify(art(tv, 3) === null && art(tv, 4) === null)
+            tryVerify(() => ready(manga, 0) && ready(books, 0))
+            verify(art(manga, 1) === null && art(books, 1) === null)
+
+            bar.pickerReducedMotion = true
+            stage.forceActiveFocus(Qt.TabFocusReason)
+            const initialArtwork = [0, 1, 6].map(i => [i, art(tv, i)])
+            for (const [key, index] of [[Qt.Key_Left, 6], [Qt.Key_Right, 0], [Qt.Key_Right, 1], [Qt.Key_Right, 2]]) {
+                keyClick(key)
+                tryCompare(tv, "current", index)
+                verify(ready(tv, index))
+                const previous = initialArtwork.find(([i]) => i === index)
+                if (previous) compare(art(tv, index), previous[1])
+            }
+            const front = art(tv, 2)
+            const bookFront = art(books, 0)
+            picker.selectSlide(2)
+            tryCompare(books, "artRadius", 2)
+            compare(art(books, 0), bookFront)
+            verify(ready(books, 0))
+            picker.selectSlide(0)
+            tryCompare(tv, "artRadius", 2)
+            verify(ready(tv, 2))
+            compare(art(tv, 2), front)
+            bar.open = false
+            bar.open = true
+            compare(art(tv, 2), front)
+            verify(ready(tv, 2))
+            bar.open = false
+            tryVerify(() => art(tv, 2) === null)
         }
 
         function test_returnRestoresSlideCardAndKeyboardFocusAfterRefresh() {
