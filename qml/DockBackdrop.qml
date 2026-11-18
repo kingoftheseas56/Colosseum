@@ -15,6 +15,7 @@ Item {
         anchors.fill: parent
         visible: false
         sourceItem: root.visible ? root.scene : null
+        // The captured scene already fills the opaque backdrop.
         hideSource: true
         live: false
         textureSize: Qt.size(Math.max(1, Math.ceil(width / 2)), Math.max(1, Math.ceil(height / 2)))
@@ -22,24 +23,12 @@ Item {
         onTextureSizeChanged: if (sourceItem) scheduleUpdate()
     }
     MultiEffect {
-        id: blur
         anchors.fill: parent
         source: snapshot
         autoPaddingEnabled: false
         blurEnabled: true
         blur: 1
         blurMax: 64
-    }
-    // The scene is a still image while the picker is open. Reuse the blurred
-    // result while decks move instead of running the full-window effect again.
-    ShaderEffectSource {
-        anchors.fill: parent
-        sourceItem: blur
-        hideSource: true
-        live: false
-        Component.onCompleted: scheduleUpdate()
-        onWidthChanged: scheduleUpdate()
-        onHeightChanged: scheduleUpdate()
     }
     Rectangle {
         anchors.fill: parent

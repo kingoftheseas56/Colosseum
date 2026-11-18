@@ -58,8 +58,6 @@ FocusScope {
     function restorePageFocus() {
         if (pageMotion.running)
             return
-        if (visible)
-            artSlide = slide
         if (!focusOnArrival)
             return
         focusOnArrival = false
@@ -130,10 +128,11 @@ FocusScope {
         if (artStage) artKeepAlive.restart()
     }
     // Open with the three front cards. Add the current row's backing cards
-    // in both directions, then the other slides' front cards, after the first frame.
+    // in both directions, then the other slides' fronts and the next likely
+    // slide's nearest backing cards, after the first frame.
     Connections {
         target: picker.visible ? picker.Window.window : null
-        enabled: picker.artStage < 3 && !artWarmup.running
+        enabled: picker.artStage < 4 && !artWarmup.running
         function onFrameSwapped() { artWarmup.start() }
     }
     Timer {
@@ -142,8 +141,15 @@ FocusScope {
         repeat: true
         onTriggered: {
             ++picker.artStage
-            if (picker.artStage === 3) stop()
+            if (picker.artStage === 4) stop()
         }
+    }
+    // Keep the source slide's cache while it moves. Avoid allocating a new
+    // row of artwork during the slide animation.
+    Timer {
+        interval: 48
+        running: picker.visible && !pageMotion.running && picker.artSlide !== picker.slide
+        onTriggered: picker.artSlide = picker.slide
     }
     Timer {
         id: artKeepAlive
@@ -416,9 +422,10 @@ FocusScope {
                 artRadius: {
                     if (picker.artStage && picker.artSlide === row.rowIndex)
                         return Math.min(picker.artStage, 2)
-                    if (picker.visible && picker.slide === row.rowIndex)
-                        return Math.min(picker.artStage, 1)
-                    if ((picker.visible && row.visible) || picker.artStage === 3)
+                    const adjacent = picker.artSlide < 2 ? picker.artSlide + 1 : picker.artSlide - 1
+                    if (picker.artStage === 4 && picker.artSlide < 3 && row.rowIndex === adjacent)
+                        return 1
+                    if ((picker.visible && row.visible) || picker.artStage >= 3)
                         return 0
                     return -1
                 }

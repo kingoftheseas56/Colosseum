@@ -219,7 +219,7 @@ FocusScope {
                         objectName: "dockPosterArt"
                         radius: 4
                         fitArtwork: true
-                        revealDuration: deck.reducedMotion ? 0 : 150
+                        revealDuration: deck.reducedMotion || !card.visible ? 0 : 150
                         sources: PosterPolicy.candidates(posterLoader.entry.cover || "", posterLoader.entry.coverCandidates || [])
                     }
                 }

@@ -153,8 +153,8 @@ Item {
             compare(picker.artStage, 0)
             tryVerify(() => [0, 1, 2, 5, 6].every(i => ready(tv, i)))
             verify(art(tv, 3) === null && art(tv, 4) === null)
-            tryVerify(() => ready(manga, 0) && ready(books, 0))
-            verify(art(manga, 1) === null && art(books, 1) === null)
+            tryVerify(() => ready(manga, 0) && ready(manga, 1) && ready(manga, 6) && ready(books, 0))
+            verify(art(manga, 2) === null && art(books, 1) === null)
 
             bar.pickerReducedMotion = true
             stage.forceActiveFocus(Qt.TabFocusReason)
@@ -168,7 +168,9 @@ Item {
             }
             const front = art(tv, 2)
             const bookFront = art(books, 0)
+            bar.pickerReducedMotion = false
             picker.selectSlide(2)
+            compare(books.artRadius, 0, "Only the preloaded front is needed during the slide")
             tryCompare(books, "artRadius", 2)
             compare(art(books, 0), bookFront)
             verify(ready(books, 0))
