@@ -28,7 +28,7 @@ Item {
     property Component pickerMapSlide
     property bool pickerReducedMotion: false
     readonly property bool pickerShown: visible && open && !autoRevealed && !!pickerScene
-    readonly property real pickerWidth: Math.min(1040, Math.max(0, width - leftEdge * 2))
+    readonly property real pickerWidth: Math.max(0, width - leftEdge * 2)
     property bool localMediaAvailable: typeof LocalLaunch !== "undefined" && LocalLaunch !== null
     readonly property string localMediaUnavailableReason: qsTr("Local file import is unavailable. Open downloaded media from Downloads.")
     readonly property int leftEdge: Math.max(18, Math.min(80, parent.width * 0.045))
