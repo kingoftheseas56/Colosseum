@@ -9,6 +9,7 @@ Item {
     height: 720
 
     Rectangle { id: scene; anchors.fill: parent; color: "#26354e" }
+    FontLoader { id: fraunces; source: "../../assets/fonts/Fraunces-Regular.ttf" }
     App.TooltipStyle { backdrop: root }
     Component { id: mapComponent; Item {} }
     App.DockPickerCatalog { id: catalogue }
@@ -139,6 +140,7 @@ Item {
             mouseClick(findChild(picker, "dockSlideDot_3"))
             tryCompare(picker, "slide", 3)
             verify(findChild(picker, "dockPickMapPage").visible)
+            verify(!heading.visible)
             const firstDot = findChild(picker, "dockSlideDot_0")
             mouseMove(firstDot)
             tryVerify(() => firstDot.hovered, 2000, "First dot remains reachable on the map page at "
@@ -276,9 +278,12 @@ Item {
 
         function checkSlides(picker, rows) {
             const viewport = findChild(picker, "dockPickViewport")
+            const heading = findChild(picker, "dockPickHeading")
             for (let index = 0; index < rows.length; ++index) {
                 picker.selectSlide(index)
                 compare(picker.slide, index)
+                verify(heading.visible && !heading.truncated)
+                verify(heading.contentHeight <= heading.height && heading.contentWidth <= heading.width)
                 const row = findChild(picker, "dockPickPage_" + index)
                 row.forceLayout()
                 compare(row.mapToItem(viewport, 0, 0).y, 0)
@@ -299,6 +304,9 @@ Item {
                     checkDeckBounds(deck)
                     verify(label.parent.x >= 0 && label.parent.x + label.width <= deck.width + 1)
                     verify(title.parent.y + title.y + title.height <= deck.height + 1)
+                    const facts = findChild(deck, "dockPickFacts_" + key)
+                    if (facts.visible)
+                        verify(facts.parent.y + facts.y + facts.height <= deck.height + 1)
                     compare(deck.y, 0)
                     verify(deck.x >= deckRight && deck.height === row.height)
                     deckRight = deck.x + deck.width
@@ -318,9 +326,12 @@ Item {
             const picker = findChild(bar, "dockPicker")
             verify(waitForRendering(picker))
             const heading = findChild(picker, "dockPickHeading")
+            tryCompare(fraunces, "status", FontLoader.Ready)
+            tryVerify(() => heading.fontInfo.family === "Fraunces")
             compare(heading.text, "Pick Something")
             compare(heading.horizontalAlignment, Text.AlignHCenter)
             compare(heading.width, heading.parent.width)
+            compare(heading.font.weight, Font.DemiBold)
             mouseMove(heading)
 
             const rows = [["anime", "tv", "movies"], ["manga", "comics", "manhwa"], ["books", "audiobooks", "universes"]]
@@ -341,7 +352,10 @@ Item {
             root.width = 1264
             root.height = 656
             tryCompare(bar, "width", 1264)
-            verify(tv.height >= 300, "TV poster height at 1264x656: " + tv.height)
+            const windowedHeadingSize = heading.font.pixelSize
+            verify(windowedHeadingSize >= 35 && windowedHeadingSize <= 40)
+            console.info("Resolved heading font:", heading.fontInfo.family, heading.fontInfo.weight)
+            fuzzyCompare(tv.height, 333.6, 1)
             checkSlides(picker, rows)
             const windowedHeight = tv.height
             const windowedSquare = audio.height
@@ -355,11 +369,16 @@ Item {
             root.width = 900
             root.height = 720
             tryVerify(() => tv.height < windowedHeight)
+            verify(heading.font.pixelSize < windowedHeadingSize)
             checkSlides(picker, rows)
+            console.info("Pick Something font px (1264x656 / 900x720):",
+                windowedHeadingSize, "/", heading.font.pixelSize)
         }
 
         function test_visibleLabelAndAccessibleTitleReplaceTooltip() {
             const fullTitle = "The remarkably long title of the illustrated television series"
+            root.width = 1264
+            root.height = 656
             bar.pickerPicks = { tv: [{ title: fullTitle }] }
             bar.pickerReducedMotion = true
             bar.open = true
@@ -381,7 +400,11 @@ Item {
             verify(!findChild(picker, "dockPickFacts_tv").visible)
             compare(audio.Accessible.name, "Audiobooks")
             compare(audio.Accessible.description, "No picks available")
-            compare(findChild(picker, "dockPickTitle_audiobooks").text, "No picks available")
+            picker.selectSlide(2)
+            const emptyTitle = findChild(picker, "dockPickTitle_audiobooks")
+            compare(emptyTitle.text, "No picks available")
+            verify(emptyTitle.visible && !emptyTitle.truncated)
+            verify(emptyTitle.parent.y + emptyTitle.y + emptyTitle.height <= audio.height)
         }
 
         function compareCaption(picker, key, medium, title, facts) {

@@ -9,6 +9,7 @@ FocusScope {
     property var entries: []
     property bool logoArt: false
     property bool reducedMotion: false
+    property real headingExpansion: 0
     property real aspect: 0.71
     property real leftMotionRoom: 0
     signal openRequested(var entry)
@@ -27,7 +28,11 @@ FocusScope {
     // The rotated card extends by at most half the perpendicular edge times sin(angle).
     readonly property real turnAllowance: Math.sin(turnAngle * Math.PI / 180) / 2
     readonly property real fanAllowance: Math.sin(2 * fanAngle * Math.PI / 180) / 2
-    readonly property real captionHeight: Math.min(132, height * .37)
+    // Reuse the old caption budget for the taller heading, retaining one line
+    // each for the medium and current title even in compact windows.
+    readonly property real captionHeight: Math.min(height, Math.max(
+        5 + mediumLabel.height + labels.spacing + titleMetrics.height,
+        Math.min(132, (height + headingExpansion) * .37) - headingExpansion))
     readonly property real artHeight: Math.max(0, height - captionHeight)
     readonly property real coverHeight: Math.max(0, Math.min(
         (artHeight - 8) / (1 + 2 * aspect * fanAllowance),
@@ -282,6 +287,7 @@ FocusScope {
         spacing: 4
 
         Text {
+            id: mediumLabel
             objectName: "dockPickMedium_" + deck.mediumKey
             width: labels.width
             text: deck.medium
@@ -295,13 +301,18 @@ FocusScope {
         }
 
         Text {
+            id: titleLabel
             objectName: "dockPickTitle_" + deck.mediumKey
             width: labels.width
             text: deck.count ? deck.title : qsTr("No picks available")
             textFormat: Text.PlainText
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
-            maximumLineCount: deck.captionHeight >= 120 ? 3 : deck.captionHeight >= 78 ? 2 : 1
+            maximumLineCount: {
+                const room = deck.captionHeight - 5 - mediumLabel.height - labels.spacing
+                    - (factLabel.visible ? factLabel.height + labels.spacing : 0)
+                return Math.max(1, Math.min(3, 1 + Math.floor((room - titleMetrics.height) / Math.max(1, titleMetrics.lineSpacing))))
+            }
             elide: Text.ElideRight
             color: deck.count ? theme.ink : theme.inkDim
             font.family: deck.count ? theme.display : theme.ui
@@ -310,9 +321,11 @@ FocusScope {
         }
 
         Text {
+            id: factLabel
             objectName: "dockPickFacts_" + deck.mediumKey
             width: labels.width
-            visible: text.length > 0 && deck.captionHeight >= 78
+            visible: text.length > 0 && deck.captionHeight >= 5 + mediumLabel.height + titleMetrics.height
+                + height + 2 * labels.spacing
             text: deck.detailLine
             textFormat: Text.PlainText
             horizontalAlignment: Text.AlignHCenter
@@ -322,6 +335,7 @@ FocusScope {
             font.pixelSize: theme.fontSize(14)
             Accessible.ignored: true
         }
+        FontMetrics { id: titleMetrics; font: titleLabel.font }
     }
 
     SequentialAnimation {

@@ -227,13 +227,16 @@ FocusScope {
             objectName: "dockPickHeading"
             visible: picker.slide !== 3
             width: widgetArea.width
-            height: 28
+            height: Math.ceil(implicitHeight)
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
             text: qsTr("Pick Something")
-            color: theme.ink
+            color: "#fff5e6"
             font.family: theme.display
-            font.pixelSize: theme.fontSize(23)
+            font.weight: Font.DemiBold
+            font.pixelSize: theme.fontSize(Math.round(Math.max(24, Math.min(40, width / 24, widgetArea.height / 13))))
+            fontSizeMode: Text.HorizontalFit
+            minimumPixelSize: theme.fontSize(16)
             Accessible.role: Accessible.Heading
             Accessible.name: text
         }
@@ -343,6 +346,7 @@ FocusScope {
                 objectName: "dockDeck_" + modelData.key
                 width: row.cellWidth
                 height: row.height
+                headingExpansion: Math.max(0, pickHeading.height - 28)
                 leftMotionRoom: row.x
                 medium: modelData.name
                 mediumKey: modelData.key
