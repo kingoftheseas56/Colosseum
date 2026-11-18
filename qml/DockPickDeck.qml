@@ -213,7 +213,7 @@ FocusScope {
         objectName: "dockPickLabels_" + deck.mediumKey
         x: deck.sideLabels ? 4 : 2
         y: deck.sideLabels ? Math.max(0, (deck.height - height) / 2) : Math.max(0, deck.height - height)
-        width: deck.sideLabels ? Math.max(0, deck.coverLeft - x - 12) : Math.max(0, deck.width - 2 * x)
+        width: deck.sideLabels && deck.count > 0 ? Math.max(0, deck.coverLeft - x - 12) : Math.max(0, deck.width - 2 * x)
         spacing: deck.sideLabels ? 8 : 3
 
         Text {
@@ -224,6 +224,8 @@ FocusScope {
             elide: Text.ElideRight
             color: theme.ink
             font.family: deck.categoryFamily
+            fontSizeMode: Text.HorizontalFit
+            minimumPixelSize: theme.fontSize(11)
             font.pixelSize: theme.fontSize(deck.sideLabels ? 15 : 13)
             font.weight: Font.Medium
             font.letterSpacing: .55

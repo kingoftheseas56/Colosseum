@@ -194,6 +194,20 @@ Item {
             compare(picks.signalArguments[1][0], "manhwa")
         }
 
+        function test_audiobooksHeadingFitsWithAndWithoutArtwork() {
+            bar.open = true
+            const picker = findChild(bar, "dockPicker")
+            verify(waitForRendering(picker))
+            const labels = findChild(picker, "dockPickLabels_audiobooks")
+            const heading = labels.children[0]
+            compare(heading.text, "Audiobooks")
+            verify(!heading.truncated)
+            const emptyWidth = labels.width
+            bar.pickerPicks = { audiobooks: [{ id: "book", title: "An audiobook" }] }
+            tryVerify(() => labels.width < emptyWidth)
+            tryVerify(() => !heading.truncated && heading.contentWidth <= heading.width)
+        }
+
         function test_autoRevealKeepsPickerClosed() {
             bar.reveal()
             verify(bar.open)
