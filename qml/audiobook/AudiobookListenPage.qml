@@ -5,6 +5,7 @@ import "../collections"
 import "../vinyl"
 import "../CollectionsReferences.js" as CollectionsReferences
 import "AudiobookListenPageData.js" as Data
+import "AudiobookChapterLabels.js" as ChapterLabels
 
 Item {
     id: root
@@ -19,6 +20,9 @@ Item {
     // Inset from the top of the viewport to the content below the shell's top bar.
     property real contentTop: 138
     property bool chaptersOpen: false
+    property var listeningJump: null
+    readonly property string listeningJumpOffer: listeningJump
+        ? qsTr("Jump to %1, where you're reading?").arg(listeningJump.label) : ""
     signal backRequested()
     signal readAlongRequested()
     signal listenRequested()
@@ -40,6 +44,14 @@ Item {
         bar.y - contentTop - (stackedActions ? 132 : 96) - (seriesLine.length ? 14 : 0)))
 
     onHasChaptersChanged: if (!hasChapters) chaptersOpen = false
+    function acceptListeningJump() {
+        const jump = listeningJump
+        listeningJump = null
+        if (!jump || !playbackReady || jump.index < 0 || jump.index >= chapterList.length
+                || jump.index === session.chapterIndex) return
+        session.markJumpOrigin()
+        session.goToChapterKeepState(jump.index)
+    }
 
     Theme { id: theme }
 
@@ -137,6 +149,7 @@ Item {
         height: width
         radius: 18
         sources: root.coverSource.toString() ? [root.coverSource] : []
+        placeholderTitle: root.bookTitle
     }
 
     PageAction {
@@ -286,7 +299,7 @@ Item {
                 height: chapterView.rowHeight
                 focusOnPointer: false
                 focusRadius: 8
-                accessibleName: Data.text(modelData.label)
+                accessibleName: ChapterLabels.display(modelData, index, qsTr("Chapter %1"))
                 accessibleDescription: current ? qsTr("Playing now")
                     : modelData.kind === "seek" && Number(modelData.time) > 0
                       ? qsTr("Starts at %1").arg(Data.formatTime(modelData.time)) : ""
@@ -305,16 +318,8 @@ Item {
                     color: row.current || row.interactionActive ? "#18ffffff" : "transparent"
                 }
                 Text {
-                    x: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: row.modelData.number || row.index + 1
-                    color: row.current ? theme.gold : theme.inkDimmer
-                    font.family: theme.ui
-                    font.pixelSize: 11
-                }
-                Text {
                     anchors.left: parent.left
-                    anchors.leftMargin: 44
+                    anchors.leftMargin: 12
                     anchors.right: marker.left
                     anchors.rightMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
@@ -340,6 +345,18 @@ Item {
                 }
             }
         }
+    }
+
+    AudiobookJumpOffer {
+        objectName: "audiobookListeningJumpOffer"
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: bar.top
+        anchors.bottomMargin: 26
+        width: Math.min(implicitWidth, parent.width - 32)
+        label: root.listeningJumpOffer
+        z: 2
+        onAccepted: root.acceptListeningJump()
+        onDismissed: root.listeningJump = null
     }
 
     AudiobookControlBar {

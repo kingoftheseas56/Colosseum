@@ -70,4 +70,5 @@ void BookTorrents::download(const QString& infoHash, const QString& title, const
 void BookTorrents::deleteDownload(const QString& h) { m_dl->deleteDownload(h); }
 bool        BookTorrents::isDownloaded(const QString& h) const { return m_dl->isDownloaded(h); }
 QString     BookTorrents::localFile(const QString& h) const    { return m_dl->localFile(h); }
+QVariantList BookTorrents::downloadedBooks() const              { return m_dl->downloadedBooks(); }
 QVariantMap BookTorrents::statusOf(const QString& h) const     { return m_dl->statusOf(h); }

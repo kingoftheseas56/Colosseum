@@ -74,7 +74,7 @@ TestCase {
         compare(bar.height, 104)
         verify(!f("Chapters").visible)
         verify(f("Cover").visible)
-        compare(f("ChapterLabel").text, "Chapter 2 · Unity")
+        compare(f("ChapterLabel").text, "Unity")
         compare(f("BookTitle").text, "The Way of Kings")
         var center = f("Play").mapToItem(bar, f("Play").width / 2, f("Play").height / 2)
         compare(center.x, bar.width / 2)
@@ -117,9 +117,9 @@ TestCase {
     function test_sleepPresets() { make(); compare(f("Sleep").badge, "23m"); mouseClick(f("Sleep")); var menu = f("SleepMenu"); tryCompare(menu, "opened", true); compare(menu.count, 5); mouseClick(menu.itemAt(3)); compare(stub.sleepMinutes, 45); menu.close(); stub.sleepMinutesLeft = 0; compare(f("Sleep").badge, "") }
     function test_statusAndChapterClock() {
         make(); stub.chapterIndex = 11
-        verify(f("ChapterLabel").text.indexOf("CHAPTER 12") >= 0)
+        compare(f("ChapterLabel").text, "Audiobook")
         stub.chapterIndex = 1
-        verify(f("ChapterLabel").text.indexOf("UNITY") >= 0)
+        compare(f("ChapterLabel").text, "Unity")
         bar.nowMs = new Date(2026, 10, 18, 10, 0, 0).getTime()
         compare(f("EndsAt").text, "chapter ends " + Qt.formatTime(new Date(bar.nowMs + 872 / 1.25 * 1000), "h:mm AP"))
         stub.speed = 2

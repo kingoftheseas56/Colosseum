@@ -26,6 +26,7 @@ public:
     Q_INVOKABLE void deleteDownload(const QString& infoHash);   // remove the copy + files (one-per-book replace)
     Q_INVOKABLE bool    isDownloaded(const QString& infoHash) const;
     Q_INVOKABLE QString localFile(const QString& infoHash) const;
+    Q_INVOKABLE QVariantList downloadedBooks() const;
     Q_INVOKABLE QVariantMap statusOf(const QString& infoHash) const;
 
 signals:

@@ -31,6 +31,7 @@ import "Torrentio.js" as Torrentio
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "DirectSourcePolicy.js" as DirectSourcePolicy
 import "BiblioApi.js" as BiblioApi
+import "AudiobookBridgeData.js" as AudiobookBridge
 import "CollectionBackfill.js" as CollectionBackfill
 import "WarmingQueue.js" as Warming
 import "ShellBackPolicy.js" as ShellBackPolicy
@@ -1253,6 +1254,7 @@ Window {
     Connections {
         target: typeof NamedCollectionsProfileScope !== "undefined" ? NamedCollectionsProfileScope : null
         function onStoresAboutToChange() {
+            win.audiobookReaderArrival = null
             win.namedCollectionsProfileGeneration++
             win.cancelNamedCollectionsOpen()
             win.namedCollectionsNavigation = null
@@ -3887,6 +3889,46 @@ Window {
         })
     }
 
+    property var audiobookReaderArrival: null
+    property int ebookDownloadRevision: 0
+
+    function takeAudiobookArrival(path) {
+        if (!audiobookReaderArrival || audiobookReaderArrival.path !== path) return ""
+        const key = audiobookReaderArrival.recordingKey
+        audiobookReaderArrival = null
+        return key
+    }
+
+    function openReadAlong(ebook, recordingKey) {
+        if (!ebook || !ebook.path || !recordingKey) return
+        const current = audiobookFlow.currentPage
+        const meta = Object.assign({}, ebook, { audiobookWorkId: current && current.route
+                ? current.route.workId || ebook.audiobookWorkId : ebook.audiobookWorkId })
+        audiobookReaderArrival = { path: ebook.path, recordingKey: recordingKey }
+        openBookSession(ebook.path, meta)
+        if (audiobookReaderArrival && bookReaderLayer.item && bookReaderLayer.bookPath === ebook.path) {
+            bookReaderLayer.bookMeta = meta
+            bookReaderLayer.item.bookMeta = meta
+            bookReaderLayer.item.openBook(ebook.path, takeAudiobookArrival(ebook.path))
+        }
+    }
+
+    function openAudiobookBridge(bridge, recordingKey, jump, fromReader) {
+        if (!bridge || (!bridge.workId && !recordingKey)) return
+        const origin = fromReader ? Sessions.activeId : ""
+        if (worldStack.current !== "Biblio") openWorld("Biblio")
+        const alreadyOpen = audiobookFlow.active
+        if (recordingKey) {
+            if (!audiobookFlow.openListen(recordingKey, {
+                    workId: bridge.workId, recordingId: bridge.recordingId, pairKey: bridge.pairKey
+                }, jump)) return
+        } else audiobookFlow.openWork(bridge.workId, bridge.recordingId)
+        if (fromReader) {
+            if (!alreadyOpen) audiobookFlow.returnSessionId = origin
+            minimizeBookReader()
+        }
+    }
+
     // ── Vault launch pillar (execution plan Slice 8): hand the app a local file ──
     // The picker / an OS drag-drop / Ctrl+O all funnel here. LocalLaunch (C++) routes the
     // FIRST file and decides if it can open at all; QML paints the door — the right reader/
@@ -4226,7 +4268,7 @@ Window {
             // THREW when the layer was already live — Continue resume into an open reader died).
             if (bookReaderLayer.active && bookReaderLayer.item) {
                 bookReaderLayer.item.bookMeta = bookReaderLayer.bookMeta
-                bookReaderLayer.item.openBook(t.path)
+                bookReaderLayer.item.openBook(t.path, win.takeAudiobookArrival(t.path))
                 if (bookReaderLayer.bookMeta.openAudio) {
                     var audioPanelGeneration = win.vinylShellGeneration
                     var audioPanelSessionId = rec.id
@@ -5794,16 +5836,35 @@ Window {
         property var book: ({})
         source: "BiblioBook.qml"
         onLoaded: {
-            item.openExtensionsRequested.connect(function() { win.openExtensionsPage("biblio") })
             item.backdrop = wall
-            item.book = bookLayer.book
+            item.book = Qt.binding(function() { return bookLayer.book })
+            item.audiobookBridge = Qt.binding(function() {
+                audiobookFlow.downloadsRevision
+                const catalogue = audiobookFlow.catalog
+                if (catalogue) catalogue.revision
+                return AudiobookBridge.describe(catalogue, audiobookFlow.downloads, bookLayer.book)
+            })
+            item.audiobookBridgeRequested.connect(function(bridge) {
+                win.openAudiobookBridge(bridge, bridge.recordingKey, null, false)
+            })
             item.backRequested.connect(win.closeBook)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.readRequested.connect(win.openBookSession)
-            // (listenRequested retired — the reader carries audiobook playback now)
         }
+    }
+
+    Connections {
+        target: typeof Books !== "undefined" ? Books : null
+        function onFinished(key, path) { ++win.ebookDownloadRevision }
+        function onRemoved(key) { ++win.ebookDownloadRevision }
+    }
+
+    Connections {
+        target: typeof BookTorrents !== "undefined" ? BookTorrents : null
+        function onFinished(key, path) { ++win.ebookDownloadRevision }
+        function onRemoved(key) { ++win.ebookDownloadRevision }
     }
 
     AudiobookFlow {
@@ -5815,7 +5876,18 @@ Window {
         backdrop: wall
         dockClearance: win.androidHost ? 0 : taskbar.contentBottomInset
         session: audioSession
+        ebookLibrary: {
+            win.ebookDownloadRevision
+            let rows = typeof Books !== "undefined" ? Array.prototype.slice.call(Books.downloadedBooks()) : []
+            if (typeof BookTorrents !== "undefined" && BookTorrents.downloadedBooks)
+                rows = rows.concat(Array.prototype.slice.call(BookTorrents.downloadedBooks()))
+            if (bookLayer.item && bookLayer.item.localPath)
+                rows.push(Object.assign({}, bookLayer.book, { path: bookLayer.item.localPath }))
+            return rows
+        }
         onOpenExtensionsRequested: win.openExtensionsPage("biblio")
+        onReadAlongRequested: (ebook, key) => win.openReadAlong(ebook, key)
+        onReturnToReaderRequested: (id) => { if (Sessions.get(id).id) Sessions.switchTo(id) }
     }
 
     // ---- the ONE audiobook engine (read-along), hoisted at the window root (never in a
@@ -5852,6 +5924,7 @@ Window {
         visible: active
         property string bookPath: ""
         property var bookMeta: ({})
+        onActiveChanged: if (!active) audiobookFlow.refreshPlayerRoute()
         // The FRESH reader (Task 16 swap): reader2/ReaderShell replaces the imported TB2
         // foliate web-app. Contract mapping per the ratified plan: open(path, meta) →
         // openBook(path) (meta stays on this layer for session records), closed() → the same
@@ -5861,7 +5934,7 @@ Window {
         onLoaded: {
             item.audioSession = audioSession   // the ONE shared audiobook engine → read-along Audio tab
             item.bookMeta = bookReaderLayer.bookMeta   // catalog identity → the pairing self-heal
-            item.openBook(bookReaderLayer.bookPath)
+            item.openBook(bookReaderLayer.bookPath, win.takeAudiobookArrival(bookReaderLayer.bookPath))
             if (bookReaderLayer.bookMeta.openAudio)
                 Qt.callLater(function() {
                     if (bookReaderLayer.item) bookReaderLayer.item.openAudioPanel()
@@ -5869,6 +5942,12 @@ Window {
             item.closed.connect(win.closeBookReaderSession)
             item.minimized.connect(win.minimizeBookReader)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.findAudiobookRequested.connect(function(bridge) {
+                win.openAudiobookBridge(bridge, "", null, true)
+            })
+            item.openAudiobookPlayerRequested.connect(function(key, bridge, jump) {
+                win.openAudiobookBridge(bridge, key, jump, true)
+            })
         }
     }
 

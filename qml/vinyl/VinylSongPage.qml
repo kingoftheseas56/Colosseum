@@ -189,20 +189,21 @@ Item {
                 color: theme.glassTint
                 visible: !root.videoShown
             }
-            Text {
-                anchors.centerIn: parent
-                text: "♪"
-                font.pixelSize: parent.height * 0.24
-                color: theme.inkDimmer
-                visible: !root.videoShown && !root.pageData.playingEdition.cover
-            }
             RoundedPosterImage {
+                id: artwork
                 objectName: "vinylSongArtwork"
                 anchors.fill: parent
                 radius: 18
                 sources: root.pageData.playingEdition.cover
                     ? [root.pageData.artwork(root.pageData.playingEdition.cover)] : []
                 visible: !root.videoShown
+            }
+            Text {
+                anchors.centerIn: parent
+                text: "♪"
+                font.pixelSize: parent.height * 0.24
+                color: theme.inkDimmer
+                visible: artwork.visible && artwork.placeholderVisible
             }
             KeyboardAction {
                 focusOnPointer: false

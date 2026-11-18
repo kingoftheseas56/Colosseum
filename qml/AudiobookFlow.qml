@@ -3,6 +3,7 @@ import QtQuick.Controls
 import "audiobook" as Audiobook
 import "AudiobookShelfApi.js" as ShelfApi
 import "AudiobookFlowData.js" as FlowData
+import "AudiobookBridgeData.js" as Bridge
 import "AudiobookSmartDownload.js" as SmartDownload
 import "AbbApi.js" as Abb
 import "ExtensionsCatalog.js" as ExtensionCatalog
@@ -18,6 +19,8 @@ FocusScope {
     property var matcher: (typeof AudiobookRecordingMatcher !== "undefined") ? AudiobookRecordingMatcher : null
     property var abb: ({ search: Abb.search, detail: Abb.fetchDetail, searchTerm: Abb.searchTerm, relevantRows: Abb.relevantRows })
     property var session: null
+    property var ebookLibrary: []
+    property string returnSessionId: ""
     property Item backdrop: null
     property real dockClearance: 0
     readonly property bool sourceEnabled: ExtensionCatalog.sourceEnabled(extensions, "colosseum.well.audiobookbay")
@@ -25,6 +28,8 @@ FocusScope {
     readonly property alias currentPage: routeStack.currentItem
 
     signal openExtensionsRequested()
+    signal readAlongRequested(var ebook, string recordingKey)
+    signal returnToReaderRequested(string id)
 
     property int downloadsRevision: 0
     property var failedKeys: ({})
@@ -41,15 +46,27 @@ FocusScope {
                                 StackView.Immediate)
     }
 
-    function openListen(recordingKey, item) {
+    function openListen(recordingKey, item, jump) {
         if (!session || !downloads || !recordingKey || !downloads.isDownloaded(recordingKey)) return false
         const owned = downloads.downloadedAudiobooks().find(row => row.recordingKey === recordingKey)
         const route = Object.assign({}, item || {}, owned || {}, { recordingKey: recordingKey })
         const work = !route.bundle && route.workId && catalog ? catalog.work(route.workId) : {}
-        session.openFor(recordingKey, FlowData.playerBook(route, work))
+        if (!session.ready || session.activePairKey !== recordingKey)
+            session.openFor(recordingKey, FlowData.playerBook(route, work))
         if (!session.ready || session.activePairKey !== recordingKey) return false
-        routeStack.pushItem(playerPage, { route: route }, StackView.Immediate)
+        if (currentPage && currentPage.objectName === "audiobookListenPage") {
+            if (currentPage.route.recordingKey !== recordingKey) currentPage.route = route
+            currentPage.listeningJump = jump || null
+            return true
+        }
+        routeStack.pushItem(playerPage, { route: route, listeningJump: jump || null }, StackView.Immediate)
         return true
+    }
+
+    function refreshPlayerRoute() {
+        if (currentPage && currentPage.objectName === "audiobookListenPage" && session && session.ready
+                && currentPage.route.recordingKey !== session.activePairKey)
+            openListen(session.activePairKey)
     }
 
     function downloadStatus(key) {
@@ -83,10 +100,17 @@ FocusScope {
             return
         }
         if (routeStack.depth > 1) routeStack.popCurrentItem(StackView.Immediate)
-        else clear()
+        else {
+            const reader = returnSessionId
+            clear()
+            if (reader) returnToReaderRequested(reader)
+        }
     }
 
-    function clear() { routeStack.clear(StackView.Immediate) }
+    function clear() {
+        returnSessionId = ""
+        routeStack.clear(StackView.Immediate)
+    }
 
     Connections {
         target: flow.downloads
@@ -319,6 +343,8 @@ FocusScope {
             session: flow.session
             downloaded: true
             contentTop: 75
+            readonly property var ebook: Bridge.ownedEbook(Object.assign({}, route, book), flow.ebookLibrary)
+            ebookAvailable: !!ebook
             saveAvailable: !!flow.collectionStore && !!route.workId && !route.bundle
             saved: saveAvailable && (flow.collectionStore.revision,
                 flow.collectionStore.has("biblio", "audiobook:" + route.workId))
@@ -331,6 +357,10 @@ FocusScope {
             onBookChanged: if (session && route && session.activePairKey === route.recordingKey) session.book = book
             onBackRequested: flow.back()
             onListenRequested: if (session.paused) session.togglePlay()
+            onReadAlongRequested: if (ebookAvailable) {
+                listeningJump = null
+                flow.readAlongRequested(ebook, route.recordingKey)
+            }
             onSaveToggled: flow.toggleSaved(route.workId, route.audiosiloRecordingId || route.recordingId,
                                             bookTitle, book.author, book.cover)
         }

@@ -160,11 +160,10 @@ Item {
         } else {
             var ch = mpv.chapters || []
             for (var j = 0; j < ch.length; j++)
-                out.push({ label: (ch[j].title || ("Chapter " + (j + 1))), kind: "seek", index: j,
-                           time: Number(ch[j].time) || 0 })
+                out.push({ label: ch[j].title === "Chapter" ? "" : (ch[j].title || ""), kind: "seek", index: j,
+                           time: Number(ch[j].startSec) || 0 })
             if (out.length === 0 && session.files.length === 1)
-                out.push({ label: (session.book && session.book.title) ? session.book.title : "Audiobook",
-                           kind: "seek", index: 0, time: 0 })
+                out.push({ label: "", kind: "seek", index: 0, time: 0, synthetic: true })
         }
         session.chapterModel = out
     }

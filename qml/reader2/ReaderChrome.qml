@@ -42,6 +42,20 @@ Item {
     // ---- Audio pane data (Task 13), bound through from ReaderShell ----
     property var audioSession: null
     property bool audioAttached: false
+    property bool audiobookAvailable: false
+    property bool audiobookDiscoverable: false
+    property bool audioFollowAllowed: true
+    property bool audioDetached: false
+    property var audioRecordings: []
+    property string audioRecordingKey: ""
+    property string readAlongJumpOffer: ""
+    signal audiobookRequested()
+    signal findAudiobookRequested()
+    signal openAudiobookPlayerRequested()
+    signal detachAudioRecordingRequested()
+    signal audioRecordingPicked(string key)
+    signal readAlongJumpAccepted()
+    signal readAlongJumpDismissed()
     property string audioTitle: ""
     property url audioCover: ""
     property string audioMetaLine: ""
@@ -228,6 +242,7 @@ Item {
         if (panelInvoker === "contents") { topBar.focusContents(); return true }
         if (panelInvoker === "appearance") { topBar.focusAppearance(); return true }
         if (panelInvoker === "audioChapter" || panelInvoker === "audioPlaylist") { topBar.focusContents(); return true }
+        if (panelInvoker === "audioButton") { topBar.focusAudiobook(); return true }
         topBar.focusContents()
         return true
     }
@@ -399,6 +414,7 @@ Item {
             author: chrome.author
             chapterLabel: chrome.chapterLabel
             shellWindowed: chrome.shellWindowed
+            audiobookAvailable: chrome.audiobookAvailable
             onBackRequested: chrome.backRequested()
             onMinimizeRequested: chrome.minimizeRequested()
             onFullscreenRequested: chrome.fullscreenRequested()
@@ -407,6 +423,7 @@ Item {
             onContentsRequested: chrome.handleContents()      // toggles the left panel (Task 8)
             onAppearanceRequested: chrome.handleAppearance()  // toggles the right panel (Task 10)
             onBookmarkRequested: chrome.bookmarkRequested()
+            onAudiobookRequested: chrome.audiobookRequested()
         }
     }
 
@@ -438,20 +455,49 @@ Item {
         width: Math.min(380, parent.width - 48)
         height: 50
         sourceComponent: Item {
-        ReaderKeyboardArea {
-            anchors.fill: parent
-            visible: compactBar.visible
-        }
-        AudiobookControlBar {
-            id: compactBar
-            objectName: "readerAudiobookBar"
-            anchors.fill: parent
-            compact: true
-            session: chrome.audioSession
-            awake: chrome.awake && chrome.audioAttached
-            onChaptersRequested: chrome.openPanelTo("audio", "audioChapter")
+            ReaderKeyboardArea {
+                anchors.fill: parent
+                visible: compactBar.visible
+            }
+            AudiobookControlBar {
+                id: compactBar
+                objectName: "readerAudiobookBar"
+                anchors.fill: parent
+                compact: true
+                session: chrome.audioSession
+                awake: chrome.awake && chrome.audioAttached
+                onChaptersRequested: chrome.openPanelTo("audio", "audioChapter")
+                TapHandler {
+                    acceptedButtons: Qt.LeftButton
+                    enabled: chrome.audiobookAvailable
+                    onLongPressed: chrome.openAudiobookPlayerRequested()
+                }
+                TapHandler {
+                    acceptedButtons: Qt.RightButton
+                    enabled: chrome.audiobookAvailable
+                    onTapped: chrome.openAudiobookPlayerRequested()
+                }
+            }
         }
     }
+
+    ReaderOverlay {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 76
+        width: Math.min(parent.width - 32, readingJump.implicitWidth)
+        height: readingJump.implicitHeight
+        visible: chrome.readAlongJumpOffer.length > 0 && !chrome.sheetCoversBars
+        overlayActive: visible
+        z: 3
+        AudiobookJumpOffer {
+            id: readingJump
+            objectName: "readerListeningJumpOffer"
+            anchors.fill: parent
+            label: chrome.readAlongJumpOffer
+            onAccepted: chrome.readAlongJumpAccepted()
+            onDismissed: chrome.readAlongJumpDismissed()
+        }
     }
 
     // ---------- read-along "Return to narration" chip (Task 6) ----------
@@ -528,6 +574,15 @@ Item {
         // Audio pane (Task 13) — data down, intent up.
         audioSession: chrome.audioSession
         audioAttached: chrome.audioAttached
+        audiobookDiscoverable: chrome.audiobookDiscoverable
+        audioFollowAllowed: chrome.audioFollowAllowed
+        audioDetached: chrome.audioDetached
+        audioRecordings: chrome.audioRecordings
+        audioRecordingKey: chrome.audioRecordingKey
+        onFindAudiobookRequested: chrome.findAudiobookRequested()
+        onOpenAudiobookPlayerRequested: chrome.openAudiobookPlayerRequested()
+        onDetachAudioRecordingRequested: chrome.detachAudioRecordingRequested()
+        onAudioRecordingPicked: (key) => chrome.audioRecordingPicked(key)
         audioVolume: chrome.audioVolume
         audioMuted: chrome.audioMuted
         onAudioVolumeRequested: (f) => chrome.audioVolumeRequested(f)

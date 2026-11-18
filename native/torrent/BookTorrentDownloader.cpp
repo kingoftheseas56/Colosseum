@@ -256,6 +256,22 @@ bool BookTorrentDownloader::isDownloaded(const QString& infoHash) const
     return !localFile(infoHash).isEmpty();
 }
 
+QVariantList BookTorrentDownloader::downloadedBooks() const
+{
+    QVariantList books;
+    for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
+        const Entry& entry = it.value();
+        if (!QFileInfo(entry.path).isFile()) continue;
+        books.append(QVariantMap{
+            {QStringLiteral("id"), it.key()},
+            {QStringLiteral("title"), entry.title},
+            {QStringLiteral("author"), entry.author},
+            {QStringLiteral("path"), entry.path}
+        });
+    }
+    return books;
+}
+
 QVariantMap BookTorrentDownloader::statusOf(const QString& infoHash) const
 {
     const QString h = infoHash.toLower();

@@ -262,12 +262,12 @@ TestCase {
         })
         mouseClick(find("audiobookChaptersButton"))
         compare(find("audiobookIdentity").text, "Becky Chambers · The Long Way")
-        compare(find("abBarChapterLabel").text, "Chapter 2 · Part 1")
+        compare(find("abBarChapterLabel").text, "Part 1")
         verify(visibleNamed("audiobookChapterMarker_1"))
         verify(!visibleNamed("audiobookChapterMarker_0"))
         compare(find("audiobookChapter_2").accessibleDescription, "Starts at 6:40")
         stub.position = 410
-        tryCompare(find("abBarChapterLabel"), "text", "Chapter 3 · Part 2")
+        tryCompare(find("abBarChapterLabel"), "text", "Part 2")
         verify(visibleNamed("audiobookChapterMarker_2"))
         verify(!visibleNamed("audiobookChapterMarker_1"))
     }

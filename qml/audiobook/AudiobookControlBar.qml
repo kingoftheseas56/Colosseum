@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import ".."
 import "AudiobookListenPageData.js" as Data
+import "AudiobookChapterLabels.js" as ChapterLabels
 
 // One presentation surface for AudiobookSession. No playback, history or timer ownership here.
 Rectangle {
@@ -40,10 +41,9 @@ Rectangle {
     readonly property real chapterFraction: chapterDuration > 0 ? chapterPosition / chapterDuration : 0
     readonly property real shownPosition: scrubbing ? previewFraction * chapterDuration : chapterPosition
     readonly property real remaining: Math.max(0, chapterDuration - chapterPosition)
-    readonly property string chapterName: {
-        var chapter = session.chapterModel[session.chapterIndex]
-        return chapter ? String(chapter.label || "") : ""
-    }
+    readonly property string chapterLabel: ChapterLabels.display(session.chapterModel[session.chapterIndex],
+                                                                  session.chapterIndex, qsTr("Chapter %1"))
+                                           || qsTr("Audiobook")
     function fmt(seconds) {
         if (wideLayout)
             return Data.formatTime(seconds)
@@ -159,10 +159,6 @@ Rectangle {
         font.pixelSize: 12
         font.features: ({"tnum": 1})
     }
-    readonly property string wideChapterLabel: session.chapterIndex >= 0 && session.chapterIndex < session.chapterModel.length
-        ? qsTr("Chapter %1").arg(session.chapterIndex + 1) + (chapterName ? " · " + chapterName : "")
-        : qsTr("Audiobook")
-
     Item {
         id: status
         visible: !root.compact
@@ -171,7 +167,8 @@ Rectangle {
             objectName: root.wideLayout ? "" : "abBarChapterLabel"
             visible: !root.wideLayout
             anchors.left: parent.left; anchors.right: endsAt.left; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter
-            text: "CHAPTER " + (root.session.chapterIndex + 1) + (root.chapterName ? " · " + root.chapterName.toUpperCase() : "")
+            text: root.chapterLabel
+            textFormat: Text.PlainText
             elide: Text.ElideRight
             color: "#f2d27e"; font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: .8
         }
@@ -305,7 +302,7 @@ Rectangle {
                 TimeLabel {
                     objectName: root.wideLayout ? "abBarChapterLabel" : ""
                     width: parent.width
-                    text: root.wideChapterLabel
+                    text: root.chapterLabel
                     textFormat: Text.PlainText
                     elide: Text.ElideRight
                     color: theme.ink

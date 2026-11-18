@@ -14,6 +14,7 @@
 #include <QJsonArray>
 #include <QSet>
 #include <QString>
+#include <QVariantList>
 #include <QVariantMap>
 
 class TorrentEngine;
@@ -27,6 +28,7 @@ public:
     Q_INVOKABLE void download(const QString& infoHash, const QString& title, const QString& author);
     Q_INVOKABLE QString localFile(const QString& infoHash) const;   // path or ""
     Q_INVOKABLE bool    isDownloaded(const QString& infoHash) const;
+    QVariantList downloadedBooks() const;
     Q_INVOKABLE QVariantMap statusOf(const QString& infoHash) const; // {state,received,total}
     Q_INVOKABLE void cancelDownload(const QString& infoHash);
     Q_INVOKABLE void deleteDownload(const QString& infoHash);   // remove the copy + files (one-per-book replace)
