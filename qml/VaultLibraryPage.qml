@@ -361,8 +361,7 @@ FocusScope {
                 anchors.left: parent.left; anchors.right: parent.right; y: 28; height: Math.min(360, parent.height - 32); backdrop: root.backdrop; radius: theme.vaultRadius
                 Column {
                     anchors.centerIn: parent; width: parent.width - 80; spacing: 18
-                    Text { text: "Your stories, together."; width: parent.width; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultPageTitle; wrapMode: Text.Wrap }
-                    Text { width: parent.width; text: "Add your movies, shows, books and comics. Vault turns your folders into a library worth exploring."; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.vaultBody; wrapMode: Text.Wrap }
+                    Text { text: "A place for your stories"; width: parent.width; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultPageTitle; wrapMode: Text.Wrap }
                     Row { spacing: 10; VaultLibraryButton { text: "Add a folder"; primary: true; onClicked: root.addFolderRequested() } VaultLibraryButton { text: "Connect a server"; onClicked: root.connectServerRequested() } }
                 }
                 DropArea { anchors.fill: parent; onDropped: drop => { if (drop.hasUrls) { root.addFolderRequested(); drop.acceptProposedAction() } } }
