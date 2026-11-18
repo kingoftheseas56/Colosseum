@@ -86,7 +86,8 @@ TestCase {
     function panel() { chrome.openPanelTo("audio", "contents"); wait(350) }
     function test_attachedSlimBar() {
         verify(named("abBarPlay") !== null)
-        verify(named("abBarPlay").visible)
+        // The bar fades in on the reader's awake beat; wait for it rather than sampling once.
+        tryVerify(function() { return named("abBarPlay").visible }, 3000, "slim bar becomes visible")
         // The shared bar keeps its full-size controls as hidden instances in compact mode;
         // what matters is that the reader never shows them (Claude, 2026-11-18).
         var speed = named("abBarSpeed")
