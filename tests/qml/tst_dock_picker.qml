@@ -58,7 +58,13 @@ Item {
             verify(picker.visible)
             compare(picker.width, 1040)
             compare(picker.height, 560)
-            tryVerify(() => card.height >= 125)
+            tryVerify(() => card.height >= 148)
+            const labels = findChild(deck, "dockPickLabels_tv")
+            verify(labels.x + labels.width < card.x)
+            compare(labels.children[0].font.family, "Cinzel")
+            compare(labels.children[0].font.pixelSize, 15)
+            compare(labels.children[1].font.family, "Fraunces")
+            compare(labels.children[1].font.pixelSize, 17)
             const x = card.width / 2
             const y = card.height / 2
             mouseMove(card, card.width * .8, card.height * .2)

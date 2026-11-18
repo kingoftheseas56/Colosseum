@@ -6,6 +6,7 @@ FocusScope {
     id: deck
     required property string medium
     required property string mediumKey
+    required property string categoryFamily
     property var entries: []
     property bool logoArt: false
     property bool reducedMotion: false
@@ -15,9 +16,13 @@ FocusScope {
 
     readonly property int count: entries.length
     readonly property bool canBrowse: count > 1
-    readonly property real coverHeight: Math.max(1, Math.min(stage.height - 5, (stage.width - 32) / aspect))
+    readonly property bool sideLabels: width >= 228
+    readonly property real coverHeight: Math.max(1, Math.min(150, stage.height - 9,
+        (width * (sideLabels ? .60 : 1) - (sideLabels ? 12 : 32)) / aspect))
     readonly property real coverWidth: coverHeight * aspect
-    readonly property real travel: Math.max(0, Math.min(78, (stage.width - coverWidth) / 2 - 9))
+    readonly property real coverLeft: Math.max(0, (width - coverWidth) / 2 + (sideLabels ? width * .15 : 0))
+    readonly property real leftTravel: Math.max(0, Math.min(68, coverLeft - 8))
+    readonly property real rightTravel: Math.max(0, Math.min(68, width - coverLeft - coverWidth - 12))
     property int current: 0
     property string selectionKey: ""
     property int direction: 1
@@ -65,23 +70,11 @@ FocusScope {
     onVisibleChanged: if (!visible) resetMotion()
     onReducedMotionChanged: resetMotion()
 
-    Text {
-        id: mediumLabel
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
-        text: deck.medium
-        color: theme.ink
-        font.family: theme.ui
-        font.pixelSize: 12
-    }
-
     Item {
         id: stage
-        anchors.top: mediumLabel.bottom
-        anchors.topMargin: 2
-        anchors.bottom: caption.top
-        anchors.left: parent.left
-        anchors.right: parent.right
+        width: deck.width
+        height: deck.sideLabels ? deck.height : Math.max(0, labels.y - 5)
+        z: 1
         activeFocusOnTab: deck.count > 0
         Accessible.role: Accessible.Button
         Accessible.name: deck.count ? qsTr("Open %1").arg(deck.entries[deck.current].title) : deck.medium
@@ -95,6 +88,7 @@ FocusScope {
         Repeater {
             model: deck.entries
             delegate: Rectangle {
+                id: card
                 required property var modelData
                 required property int index
                 readonly property int depth: deck.cardDepth(index)
@@ -102,14 +96,14 @@ FocusScope {
                 readonly property bool front: depth === 0
                 width: deck.coverWidth
                 height: deck.coverHeight
-                x: (stage.width - width) / 2 + (inMotion ? deck.shift : front ? deck.incoming : deck.offset(depth))
+                x: deck.coverLeft + (inMotion ? deck.shift : front ? deck.incoming : deck.offset(depth))
                 y: (stage.height - height) / 2 + (front ? 0 : Math.min(depth, 2))
                 rotation: inMotion ? deck.tilt : front ? grab.hoverTilt : Math.min(depth, 2) * 2
                 transform: Rotation {
                     origin.x: deck.coverWidth / 2
                     origin.y: deck.coverHeight / 2
                     axis { x: 1; y: 0; z: 0 }
-                    angle: parent.front && !parent.inMotion ? grab.hoverPitch : 0
+                    angle: card.front && !card.inMotion ? grab.hoverPitch : 0
                 }
                 z: inMotion ? (deck.behind ? 0 : 20) : 10 - Math.min(depth, 5)
                 visible: depth < 3 || inMotion
@@ -158,7 +152,7 @@ FocusScope {
             id: grab
             objectName: "dockPickCard_" + deck.mediumKey
             z: 25
-            x: (stage.width - width) / 2
+            x: deck.coverLeft
             y: (stage.height - height) / 2
             width: deck.coverWidth
             height: deck.coverHeight
@@ -194,15 +188,16 @@ FocusScope {
                 if (dragAxis !== Qt.Horizontal || !deck.canBrowse) return
                 deck.moving = deck.current
                 deck.direction = dx < 0 ? 1 : -1
-                deck.shift = Math.max(-deck.travel, Math.min(deck.travel, dx))
-                deck.tilt = deck.reducedMotion ? 0 : deck.shift / Math.max(1, deck.travel) * 7
+                deck.shift = Math.max(-deck.leftTravel, Math.min(deck.rightTravel, dx))
+                const travel = dx < 0 ? deck.leftTravel : deck.rightTravel
+                deck.tilt = deck.reducedMotion ? 0 : deck.shift / Math.max(1, travel) * 7
             }
             onReleased: event => {
                 const dx = event.x - start.x
                 const dy = event.y - start.y
                 if (dragAxis === 0 && Math.hypot(dx, dy) < 6) deck.openCurrent()
                 else if (dragAxis === Qt.Horizontal && deck.canBrowse
-                        && Math.abs(dx) >= Math.max(12, Math.min(26, deck.travel * .62)))
+                        && Math.abs(dx) >= Math.max(12, Math.min(26, (dx < 0 ? deck.leftTravel : deck.rightTravel) * .62)))
                     deck.advance(dx < 0 ? 1 : -1)
                 else if (dragAxis === Qt.Vertical && Math.abs(dy) >= 48)
                     deck.verticalSwipeRequested(dy < 0 ? 1 : -1)
@@ -213,18 +208,40 @@ FocusScope {
 
     }
 
-    Text {
-        id: caption
-        anchors.bottom: parent.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: 17
-        horizontalAlignment: Text.AlignHCenter
-        elide: Text.ElideRight
-        color: theme.inkDim
-        font.family: theme.ui
-        font.pixelSize: 11
-        text: deck.count ? deck.entries[deck.current].title : ""
+    Column {
+        id: labels
+        objectName: "dockPickLabels_" + deck.mediumKey
+        x: deck.sideLabels ? 4 : 2
+        y: deck.sideLabels ? Math.max(0, (deck.height - height) / 2) : Math.max(0, deck.height - height)
+        width: deck.sideLabels ? Math.max(0, deck.coverLeft - x - 12) : Math.max(0, deck.width - 2 * x)
+        spacing: deck.sideLabels ? 8 : 3
+
+        Text {
+            width: labels.width
+            text: deck.medium
+            textFormat: Text.PlainText
+            horizontalAlignment: deck.sideLabels ? Text.AlignLeft : Text.AlignHCenter
+            elide: Text.ElideRight
+            color: theme.ink
+            font.family: deck.categoryFamily
+            font.pixelSize: theme.fontSize(deck.sideLabels ? 15 : 13)
+            font.weight: Font.Medium
+            font.letterSpacing: .55
+        }
+
+        Text {
+            width: labels.width
+            visible: deck.count > 0
+            text: deck.count ? deck.entries[deck.current].title : ""
+            textFormat: Text.PlainText
+            horizontalAlignment: deck.sideLabels ? Text.AlignLeft : Text.AlignHCenter
+            wrapMode: Text.Wrap
+            maximumLineCount: deck.sideLabels ? 3 : 2
+            elide: Text.ElideRight
+            color: theme.inkDim
+            font.family: theme.display
+            font.pixelSize: theme.fontSize(deck.sideLabels ? 17 : 15)
+        }
     }
 
     SequentialAnimation {
@@ -238,7 +255,7 @@ FocusScope {
     SequentialAnimation {
         id: turn
         ParallelAnimation {
-            NumberAnimation { target: deck; property: "shift"; to: -deck.direction * deck.travel; duration: deck.duration; easing.type: Easing.OutCubic }
+            NumberAnimation { target: deck; property: "shift"; to: deck.direction > 0 ? -deck.leftTravel : deck.rightTravel; duration: deck.duration; easing.type: Easing.OutCubic }
             NumberAnimation { target: deck; property: "tilt"; to: -deck.direction * 7; duration: deck.duration }
         }
         ScriptAction {

@@ -33,6 +33,7 @@ FocusScope {
         { key: "universes", name: qsTr("Universes") }
     ]
     Theme { id: theme }
+    FontLoader { id: categoryTypeface; source: "../assets/fonts/cinzel/Cinzel-Variable.ttf" }
 
     function selectSlide(index) {
         if (index === 0 || (index === 1 && mapSlide)) slide = index
@@ -179,8 +180,8 @@ FocusScope {
                 height: widgetArea.height
                 enabled: picker.slide === 0
                 columns: 3
-                rowSpacing: 5
-                columnSpacing: 9
+                rowSpacing: Math.min(16, height * .033)
+                columnSpacing: 14
                 Repeater {
                     model: picker.genres
                     delegate: DockPickDeck {
@@ -189,6 +190,7 @@ FocusScope {
                         width: Math.max(0, (grid.width - 2 * grid.columnSpacing) / 3)
                         height: Math.max(0, (grid.height - 2 * grid.rowSpacing) / 3)
                         medium: modelData.name
+                        categoryFamily: categoryTypeface.status === FontLoader.Ready ? categoryTypeface.name : theme.display
                         mediumKey: modelData.key
                         aspect: modelData.aspect || .71
                         entries: picker.picks[modelData.key] || []
