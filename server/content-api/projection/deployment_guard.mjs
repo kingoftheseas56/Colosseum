@@ -49,7 +49,8 @@ async function main(){
   'publication-report':{type:'string'},'previous-publication':{type:'string',multiple:true},evidence:{type:'string'},deploy:{type:'boolean',default:false}}});
  const cwd=fileURLToPath(new URL('../',import.meta.url)),repo=resolve(cwd,'../..');
  const cli=join(cwd,'node_modules/wrangler/bin/wrangler.js');
- const wrangler=args=>execFileSync(process.execPath,[cli,...args],{cwd,encoding:'utf8',timeout:300000,stdio:['ignore','pipe','pipe']});
+ // Large static publications can require more than five minutes for asset upload.
+ const wrangler=args=>execFileSync(process.execPath,[cli,...args],{cwd,encoding:'utf8',timeout:900000,stdio:['ignore','pipe','pipe']});
  const config=JSON.parse(readFileSync(join(cwd,'wrangler.jsonc'),'utf8').replace(/^\s*\/\/.*$/gm,''));
  if(config.name!=='colosseum-content-api-staging'||config.account_id!=='69049ce787cd73028c878bf0953946f6')throw Error('STAGING_CONFIG_CHANGED');
  const git=args=>execFileSync('git',args,{cwd:repo,encoding:'utf8'}).trim();
