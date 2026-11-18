@@ -156,11 +156,16 @@ QtObject {
     }
     function publishLocal(rows) {
         allItems = rows
-        movies = rows.filter(function(r) { return r.kind === "movie" })
-        shows = rows.filter(function(r) { return r.kind === "show" })
-        books = rows.filter(function(r) { return r.kind === "book" })
-        comics = rows.filter(function(r) { return r.kind === "comic" })
+        publishShelf("movies", rows.filter(function(r) { return r.kind === "movie" }))
+        publishShelf("shows", rows.filter(function(r) { return r.kind === "show" }))
+        publishShelf("books", rows.filter(function(r) { return r.kind === "book" }))
+        publishShelf("comics", rows.filter(function(r) { return r.kind === "comic" }))
         updateHighlights()
+    }
+    function publishShelf(name, rows) {
+        const previous = adapter[name]
+        if (rows.length !== previous.length || rows.some((row, index) => row !== previous[index]))
+            adapter[name] = rows
     }
     function rejoinProgress() {
         var mapped = {}, grouped = {}
@@ -206,19 +211,23 @@ QtObject {
     }
     function flushArtwork() {
         if (projectionBuild || metadataTimer.running) return
-        var updates = pendingArtwork, affected = {}, buckets = [allItems.slice(), unmatchedItems.slice(), hiddenItems.slice()]
+        var updates = pendingArtwork, affected = {}
         pendingArtwork = ({})
         Object.keys(updates).forEach(function(key) {
             var targets = artworkTargets[key] || {}
             Object.keys(targets).forEach(function(target) { affected[target] = targets[target] })
         })
-        if (!Object.keys(affected).length) return
+        const buckets = [allItems, unmatchedItems, hiddenItems]
+        const patched = []
         Object.keys(affected).forEach(function(target) {
             var location = affected[target]
-            buckets[location[0]][location[1]] = patchArtwork(buckets[location[0]][location[1]], updates)
+            const bucket = location[0], index = location[1]
+            if (!patched[bucket]) patched[bucket] = buckets[bucket].slice()
+            patched[bucket][index] = patchArtwork(buckets[bucket][index], updates)
         })
-        unmatchedItems = buckets[1]; hiddenItems = buckets[2]
-        publishLocal(buckets[0])
+        if (patched[1]) unmatchedItems = patched[1]
+        if (patched[2]) hiddenItems = patched[2]
+        if (patched[0]) publishLocal(patched[0])
     }
     function refreshServers() {
         var connections = homeServers ? homeServers.serverTabs || [] : [], mapped = {}, grouped = {}, remote = [], tabs = []

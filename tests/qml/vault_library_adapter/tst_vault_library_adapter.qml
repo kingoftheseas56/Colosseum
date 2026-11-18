@@ -68,6 +68,9 @@ TestCase {
     }
     function noLibraryReads() { compare(Object.keys(library.reads).length,0); compare(service.reads,0) }
     function test_artworkBurstPatchesOnlyFinalCover() {
+        const books = adapter.books
+        const unmatched = adapter.unmatchedItems
+        const hidden = adapter.hiddenItems
         for (let i=0;i<20;++i) {
             library.browseArtResolved("film")
             library.browseArtworkReady("film","file:///poster-"+i+".jpg")
@@ -79,6 +82,9 @@ TestCase {
         compare(adapter.movies[0].genres,"Drama")
         compare(adapter.movies[0].identity.coverUrl,"file:///poster-19.jpg")
         compare(adapter.heroItems.find(row=>row.kind==="movie").cover,"file:///poster-19.jpg")
+        verify(adapter.books === books)
+        verify(adapter.unmatchedItems === unmatched)
+        verify(adapter.hiddenItems === hidden)
     }
     function test_progressBurstRejoinsAndClearsDeletedProgress() {
         progress.records = {"book-file":{id:"book-file",progress:0.4,updatedAt:10,resume:{path:"/fixture/book",chapterTitle:"Chapter 2"}}}

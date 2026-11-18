@@ -113,6 +113,33 @@ TestCase {
     }
     function cleanup() { playback.clear(); world.clear(); connect.clear(); addFolder.clear(); page.destroy(); wait(0) }
     function content() { return findChild(page,"vaultLibraryContent").item }
+    function countMatchButtons(item) {
+        if (item.objectName === "vaultMatchTitle") return 1
+        return (item.children || []).reduce((count, child) => count + countMatchButtons(child), 0)
+    }
+    function test_largeUnmatchedListKeepsOnlyNearbyRows() {
+        model.unmatchedItems = Array.from({length: 158}, (_, index) => ({
+            seriesKey: "fixture-" + index, path: "/fixture/title-" + index + ".mkv",
+            nativeKind: "video"
+        }))
+        page.showView("match", "")
+        tryVerify(() => !!findChild(content(), "vaultMatchTitle"))
+        tryVerify(() => countMatchButtons(content()) < 30)
+
+        const firstButton = findChild(content(), "vaultMatchTitle")
+        const rows = model.unmatchedItems.slice()
+        rows[100] = Object.assign({}, rows[100], {cover: "file:///fixture/new-cover.jpg"})
+        model.unmatchedItems = rows
+        wait(0)
+        compare(findChild(content(), "vaultMatchTitle"), firstButton)
+
+        content().positionViewAtEnd()
+        tryVerify(() => content().itemAtIndex(157) !== null)
+        const lastButton = findChild(content().itemAtIndex(157), "vaultMatchTitle")
+        verify(lastButton.visible)
+        mouseClick(lastButton)
+        tryCompare(findChild(page, "vaultIdentifyDialog"), "groupKey", "fixture-157")
+    }
     function test_navigationAllViewsAndEscape() {
         compare(page.currentView,"home")
         compare(content().heroRows[0].title,"Dunkirk")

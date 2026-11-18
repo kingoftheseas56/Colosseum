@@ -317,16 +317,31 @@ FocusScope {
     }
     Component {
         id: listComponent
-        Flickable {
-            id: listScroll; clip: true; contentHeight: listBody.implicitHeight + theme.vaultDockClearance; boundsBehavior: Flickable.StopAtBounds
+        VaultMatchList {
+            id: listScroll
+            hiddenMode: root.currentView === "hidden"
+            rows: hiddenMode ? root.adapter.hiddenItems : root.adapter.unmatchedItems
+            bottomMargin: theme.vaultDockClearance
+            onMatchRequested: row => root.matchRow(row)
+            onRestoreRequested: row => root.adapter.restore(row)
+            onExtrasRequested: row => root.fileExtras(row)
             ScrollBar.vertical: HouseScrollBar { flick: listScroll }
-            Column {
-                id: listBody; width: parent.width - 12; spacing: 18
-                Text { text: root.currentView === "hidden" ? "Hidden" : "Unmatched"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultPageTitle }
-                Text { width: parent.width; text: root.currentView === "hidden" ? "Titles you have hidden. Restore one to return it to your library." : "Choose the title these files belong to. Unmatched files stay off the shelves."; wrapMode: Text.Wrap; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultBody }
-                VaultMatchList { width: parent.width; hiddenMode: root.currentView === "hidden"; rows: hiddenMode ? root.adapter.hiddenItems : root.adapter.unmatchedItems; onMatchRequested: row => root.matchRow(row); onRestoreRequested: row => root.adapter.restore(row); onExtrasRequested: row => root.fileExtras(row) }
+            header: Column {
+                width: listScroll.width - 12; spacing: 18; bottomPadding: 18
+                Text { text: listScroll.hiddenMode ? "Hidden" : "Unmatched"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultPageTitle }
+                Text { width: parent.width; text: listScroll.hiddenMode ? "Titles you have hidden. Restore one to return it to your library." : "Choose the title these files belong to. Unmatched files stay off the shelves."; wrapMode: Text.Wrap; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultBody }
+                Text {
+                    visible: listScroll.count === 0; width: parent.width
+                    text: listScroll.hiddenMode ? "Nothing hidden. Restored titles return to their shelves." : "Everything has a match."
+                    color: theme.inkDimmer; wrapMode: Text.Wrap; font.family: theme.ui; font.pixelSize: theme.vaultBody
+                }
+            }
+            footer: Column {
+                width: listScroll.width - 12; spacing: 18
+                topPadding: extrasEntries.count > 0 && listScroll.count > 0 ? 18 : 0
                 Repeater {
-                    model: root.currentView === "match" ? root.showsWithSupplementalFiles() : []
+                    id: extrasEntries
+                    model: listScroll.hiddenMode ? [] : root.showsWithSupplementalFiles()
                     delegate: VaultLibraryButton {
                         required property var modelData
                         objectName: "vaultShowExtras_" + (modelData.show.id || modelData.show.seriesKey)
