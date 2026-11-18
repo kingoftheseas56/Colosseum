@@ -5813,6 +5813,7 @@ Window {
         anchors.bottomMargin: win.browseBottomInset
         z: 53
         backdrop: wall
+        dockClearance: win.androidHost ? 0 : taskbar.contentBottomInset
         onDownloadRequested: (workId) => {}
         onListenRequested: (recordingKey) => {}
     }

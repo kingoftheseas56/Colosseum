@@ -48,10 +48,16 @@ function loadRows(catalog) {
 
 // [{ name, count?, cover? }] for GenreMosaic. covers: up to four urls per genre; the tile shows
 // the first (the mosaic's single-image tile).
+function genreTitle(key) {
+    return String(key || "").replace(/-/g, " ").replace(/(^|\s)\S/g, function(character) {
+        return character.toUpperCase()
+    })
+}
+
 function loadGenres(catalog) {
     if (!catalog || typeof catalog.genres !== "function") return []
     return _list(catalog.genres()).filter(function(g) { return g && g.genre }).map(function(g) {
-        var t = { name: String(g.genre) }
+        var t = { name: genreTitle(g.genre), key: String(g.genre) }
         if (g.count !== undefined && g.count !== null) t.count = g.count
         var covers = _list(g.covers)
         if (covers.length > 0 && covers[0]) t.cover = String(covers[0])
@@ -97,30 +103,4 @@ function loadPage(catalog, pin, page, done) {
     if (catalog.requestFailed) catalog.requestFailed.connect(read)
     read()
     return cancelled ? undefined : cancel
-}
-
-function listeningState(record) {
-    if (record === null || record === undefined) return "new"
-    if (record.completed === true || record.progress >= 0.98) return "finished"
-    if ((record.progress || 0) === 0
-            && !(record.resume && record.resume.position > 0)
-            && !(record.resume && record.resume.fileIndex > 0)) return "new"
-    return "started"
-}
-
-// Downloaded audiobooks -> library cards with listening progress (0..1, absent when never played).
-function libraryCards(downloads, progressStore) {
-    return _list(downloads).filter(function(d) { return d && !d.missing }).map(function(d) {
-        var key = d.recordingKey || d.id
-        var c = { raw: d }
-        if (d.title) c.title = String(d.title)
-        if (d.author) c.author = String(d.author)
-        if (key) c.id = String(key)
-        var pg = (progressStore && key) ? progressStore.get("audiobook", String(key)) : null
-        c.listeningState = listeningState(pg)
-        if (pg && pg.cover) c.cover = String(pg.cover)
-        if (pg && pg.progress !== undefined && Number(pg.progress) > 0)
-            c.progress = Math.max(0, Math.min(1, Number(pg.progress)))
-        return c
-    })
 }

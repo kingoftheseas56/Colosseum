@@ -17,6 +17,7 @@ GridView {
     property bool keyboardMode: false
     // "classic" (default; every un-cleared consumer stays pixel-identical) | "gallery" (approved polish).
     property string visualProfile: "classic"
+    property bool squareArtwork: false
     readonly property bool _gallery: wall.visualProfile === "gallery"
     readonly property var _gm: Metrics.gallery
     signal requestMore()
@@ -35,7 +36,8 @@ GridView {
     readonly property int columnCount: Math.max(3, Math.floor(width / (wall._gallery
         ? (wall._gm.posterWidth + wall._gm.cardGap) : 146)))
     cellWidth: Math.floor(width / columnCount)
-    cellHeight: wall._gallery
+    cellHeight: wall.squareArtwork ? cellWidth + 16 + (wall._gallery ? wall._gm.titleMinHeight : 32)
+        : wall._gallery
         // poster (card width × ratio) + title top gap + two-line reserve + the delegate's 14px inset + margin
         ? (Math.floor((cellWidth - 14) * wall._gm.posterRatio) + 10 + wall._gm.titleMinHeight + 14 + 6)
         : (Math.floor(cellWidth * 1.62) + 34)
@@ -79,6 +81,7 @@ GridView {
         width: wall.cellWidth - 14
         height: wall.cellHeight - 14
         visualProfile: wall.visualProfile
+        squareArtwork: wall.squareArtwork
         // gallery hover surfaces the rating's origin, matching the Theatre rails.
         hoverSourceText: wall._gallery ? "IMDb" : ""
         skeleton: index >= wall.items.length

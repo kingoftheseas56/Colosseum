@@ -62,6 +62,16 @@ function editionText(value) {
     return capitalise(edition);
 }
 
+function languageText(value) {
+    var language = text(value);
+    if (/^(en|eng|english)$/i.test(language)) return qsTr("English");
+    if (/^[a-z]{2,3}([-_][a-z]{2})?$/i.test(language)) {
+        var locale = Qt.locale(language);
+        if (locale.name !== "C" && locale.nativeLanguageName) return capitalise(locale.nativeLanguageName);
+    }
+    return capitalise(language);
+}
+
 // The owner supplies catalogue work(id), and series(id).works separately.
 // Both the catalogue's camelCase fields and its bake's snake_case fields are accepted.
 function build(work, seriesWorks, recordings) {
@@ -90,7 +100,8 @@ function build(work, seriesWorks, recordings) {
     var records = array(recordings === undefined ? work.recordings : recordings);
     records = records.filter(function(r) { return r && !r.bundle; }).map(function(r) {
         var facts = [];
-        if (text(r.language)) facts.push({ key: "language", label: qsTr("Language"), text: capitalise(r.language) });
+        var language = languageText(r.language);
+        if (language) facts.push({ key: "language", label: qsTr("Language"), text: language });
         var edition = editionText(r.abridgement);
         if (edition) facts.push({ key: "edition", label: qsTr("Edition"), text: edition });
         var runtime = runtimeText(value(r, "runtimeMin", "runtime_min"));

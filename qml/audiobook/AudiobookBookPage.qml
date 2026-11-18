@@ -16,10 +16,13 @@ FocusScope {
     property var local: ({})
     // {recordingKey (or workId): "none"|"done"|"failed"|{state, progress: 0..1}}
     property var downloadState: ({})
+    property bool canSave: false
+    property bool saved: false
     signal downloadRequested(string workId)
     signal listenRequested(string recordingKey)
     signal seriesBookRequested(string workId)
     signal authorRequested(string personId, string name)
+    signal saveRequested()
     signal backRequested()
 
     readonly property var built: BookData.build(work, seriesWorks, recordings)
@@ -67,6 +70,7 @@ FocusScope {
                 RoundedPosterImage {
                     anchors.fill: parent
                     sources: root.coverUrl ? [root.coverUrl] : []
+                    placeholderTitle: root.built.title
                     radius: 13
                 }
                 Rectangle { anchors.fill: parent; radius: 13; color: "transparent"; border.color: theme.edge }
@@ -85,40 +89,67 @@ FocusScope {
             Column {
                 width: artColumn.width
                 spacing: 9
-                KeyboardAction {
-                    id: primaryAction
-                    objectName: "audiobookPrimaryAction"
-                    width: artColumn.width; height: 50
-                    accessibleName: root.primary.label
-                    enabled: root.primary.enabled
-                    focusPrimary: true
-                    onTriggered: {
-                        if (root.primary.kind === "listen") root.listenRequested(root.shownRecording.key)
-                        else if (root.primary.kind === "download") root.downloadRequested(root.built.workId)
-                    }
-                    Rectangle {
-                        anchors.fill: parent; radius: 11
-                        color: primaryAction.interactionActive ? "#f6d16c" : theme.gold
-                        border.color: "#f6d776"
-                    }
-                    Row {
-                        anchors.centerIn: parent
-                        spacing: 10
-                        Vinyl.VinylControlIcon {
-                            width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter
-                            visible: root.primary.kind === "listen"
-                            symbol: "play"; color: "#181408"
+                Row {
+                    id: actions
+                    width: parent.width
+                    spacing: root.canSave ? 9 : 0
+                    KeyboardAction {
+                        id: primaryAction
+                        objectName: "audiobookPrimaryAction"
+                        width: actions.width - (root.canSave ? saveAction.width + actions.spacing : 0)
+                        height: 50
+                        accessibleName: root.primary.label
+                        enabled: root.primary.enabled
+                        focusPrimary: true
+                        onTriggered: {
+                            if (root.primary.kind === "listen") root.listenRequested(root.shownRecording.key)
+                            else if (root.primary.kind === "download") root.downloadRequested(root.built.workId)
                         }
-                        Image {
-                            width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter
-                            visible: root.primary.kind === "download"
-                            source: "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#181408" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>')
-                            sourceSize: Qt.size(width, height)
+                        Rectangle {
+                            anchors.fill: parent; radius: 11
+                            color: primaryAction.interactionActive ? "#f6d16c" : theme.gold
+                            border.color: "#f6d776"
+                        }
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: 10
+                            Vinyl.VinylControlIcon {
+                                width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter
+                                visible: root.primary.kind === "listen"
+                                symbol: "play"; color: "#181408"
+                            }
+                            Image {
+                                width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter
+                                visible: root.primary.kind === "download"
+                                source: "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#181408" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>')
+                                sourceSize: Qt.size(width, height)
+                            }
+                            Text {
+                                text: root.primary.label
+                                color: "#181408"
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
+                            }
+                        }
+                    }
+                    KeyboardAction {
+                        id: saveAction
+                        objectName: "audiobookSave"
+                        visible: root.canSave
+                        width: 50; height: 50
+                        accessibleName: root.saved ? qsTr("Remove from Library") : qsTr("Save to Library")
+                        focusRadius: 11
+                        onTriggered: root.saveRequested()
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: 11
+                            color: saveAction.interactionActive ? "#30ffffff" : "#12ffffff"
+                            border.color: theme.edge
                         }
                         Text {
-                            text: root.primary.label
-                            color: "#181408"
-                            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
+                            anchors.centerIn: parent
+                            text: root.saved ? "♥" : "♡"
+                            color: root.saved ? theme.gold : theme.ink
+                            font.pixelSize: 24
                         }
                     }
                 }
@@ -285,9 +316,9 @@ FocusScope {
             objectName: "audiobookSeriesShelf"
             visible: root.hasSeries
             x: root.compact ? 24 : root.inset + 416
-            y: Math.max(root.compact ? 0 : 418, details.y + details.height + 19)
+            y: Math.max(root.compact ? 0 : 372, details.y + details.height + 19)
             width: Math.max(0, root.width - x - (root.compact ? 24 : root.inset + 49))
-            height: shelfHeading.height + seriesFlow.height + 24
+            height: seriesScroll.y + seriesScroll.height + 8
             radius: 17
             color: "#7a141822"; border.color: "#21ffffff"
             Row {
@@ -307,74 +338,94 @@ FocusScope {
                     font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                 }
             }
-            Flow {
-                id: seriesFlow
+            Flickable {
+                id: seriesScroll
+                objectName: "audiobookSeriesScroll"
                 x: 18; y: shelfHeading.y + shelfHeading.height + 4
                 width: parent.width - 36
-                spacing: 11
-                Repeater {
-                    model: root.built.seriesBooks
-                    delegate: KeyboardAction {
-                        id: card
-                        required property var modelData
-                        objectName: "audiobookSeries_" + modelData.workId
-                        width: root.compact ? 98 : Math.max(98, Math.floor((seriesFlow.width - 66) / 7))
-                        height: 112
-                        accessibleName: [modelData.number ? qsTr("Book %1").arg(modelData.number) : "",
-                            modelData.title, modelData.current ? qsTr("Current audiobook") : ""].filter(Boolean).join(", ")
-                        onTriggered: root.seriesBookRequested(modelData.workId)
-                        RoundedPosterImage {
-                            x: (parent.width - width) / 2
-                            width: 86; height: 86
-                            readonly property string coverUrl: card.modelData.cover
-                                || (card.modelData.current ? root.coverUrl : "")
-                            sources: coverUrl ? [coverUrl] : []
-                            radius: 8
-                        }
-                        Rectangle {
-                            x: (parent.width - width) / 2
-                            width: 86; height: 86; radius: 8
-                            color: "transparent"
-                            border.color: card.modelData.current || card.interactionActive ? theme.gold : theme.edge
-                            border.width: card.modelData.current ? 2 : 1
-                        }
-                        Rectangle {
-                            x: (parent.width - 86) / 2 + 5; y: 5
-                            visible: card.modelData.number !== ""
-                            width: Math.max(22, numberText.implicitWidth + 10); height: 19; radius: 5
-                            color: card.modelData.current ? theme.gold : "#e006080e"
-                            Text {
-                                id: numberText
-                                objectName: "audiobookNumber_" + card.modelData.workId
-                                anchors.centerIn: parent
-                                text: card.modelData.number
-                                color: card.modelData.current ? "#181406" : theme.ink
-                                font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.weight: Font.DemiBold
+                height: 126
+                contentWidth: seriesRow.width
+                contentHeight: height
+                flickableDirection: Flickable.HorizontalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
+                ScrollBar.horizontal: ScrollBar {
+                    policy: seriesScroll.contentWidth > seriesScroll.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+                }
+                Row {
+                    id: seriesRow
+                    spacing: 11
+                    Repeater {
+                        model: root.built.seriesBooks
+                        delegate: KeyboardAction {
+                            id: card
+                            required property var modelData
+                            objectName: "audiobookSeries_" + modelData.workId
+                            width: root.compact ? 98 : Math.max(98, Math.floor((seriesScroll.width - 66) / 7))
+                            height: 116
+                            accessibleName: [modelData.number ? qsTr("Book %1").arg(modelData.number) : "",
+                                modelData.title, modelData.current ? qsTr("Current audiobook") : ""].filter(Boolean).join(", ")
+                            onTriggered: root.seriesBookRequested(modelData.workId)
+                            onActiveFocusChanged: {
+                                if (!activeFocus) return
+                                if (x < seriesScroll.contentX) seriesScroll.contentX = x
+                                else if (x + width > seriesScroll.contentX + seriesScroll.width)
+                                    seriesScroll.contentX = x + width - seriesScroll.width
                             }
-                        }
-                        Rectangle {
-                            objectName: "audiobookCurrent_" + card.modelData.workId
-                            x: (parent.width + 86) / 2 - width; y: 71
-                            visible: card.modelData.current
-                            width: currentLabel.implicitWidth + 8; height: 14; radius: 4
-                            color: theme.gold
-                            Text {
-                                id: currentLabel
-                                anchors.centerIn: parent
-                                text: qsTr("CURRENT")
-                                color: "#1d1608"
-                                font.family: theme.ui; font.pixelSize: theme.fontSize(8); font.weight: Font.Bold
+                            RoundedPosterImage {
+                                x: (parent.width - width) / 2
+                                width: 86; height: 86
+                                readonly property string coverUrl: (card.modelData.current ? root.coverUrl : "")
+                                    || card.modelData.cover
+                                sources: coverUrl ? [coverUrl] : []
+                                placeholderTitle: card.modelData.title
+                                radius: 8
                             }
-                        }
-                        Text {
-                            y: 91
-                            width: parent.width; height: 26
-                            text: card.modelData.title
-                            color: card.modelData.current ? "#f8d777" : "#dedde2"
-                            font.family: theme.ui; font.pixelSize: theme.fontSize(11)
-                            font.weight: card.modelData.current ? Font.DemiBold : Font.Normal
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                            Rectangle {
+                                x: (parent.width - width) / 2
+                                width: 86; height: 86; radius: 8
+                                color: "transparent"
+                                border.color: card.modelData.current || card.interactionActive ? theme.gold : theme.edge
+                                border.width: card.modelData.current ? 2 : 1
+                            }
+                            Rectangle {
+                                x: (parent.width - 86) / 2 + 5; y: 5
+                                visible: card.modelData.number !== ""
+                                width: Math.max(22, numberText.implicitWidth + 10); height: 19; radius: 5
+                                color: card.modelData.current ? theme.gold : "#e006080e"
+                                Text {
+                                    id: numberText
+                                    objectName: "audiobookNumber_" + card.modelData.workId
+                                    anchors.centerIn: parent
+                                    text: card.modelData.number
+                                    color: card.modelData.current ? "#181406" : theme.ink
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.weight: Font.DemiBold
+                                }
+                            }
+                            Rectangle {
+                                objectName: "audiobookCurrent_" + card.modelData.workId
+                                x: (parent.width + 86) / 2 - width; y: 71
+                                visible: card.modelData.current
+                                width: currentLabel.implicitWidth + 8; height: 14; radius: 4
+                                color: theme.gold
+                                Text {
+                                    id: currentLabel
+                                    anchors.centerIn: parent
+                                    text: qsTr("CURRENT")
+                                    color: "#1d1608"
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(8); font.weight: Font.Bold
+                                }
+                            }
+                            Text {
+                                y: 91
+                                width: parent.width; height: 26
+                                text: card.modelData.title
+                                color: card.modelData.current ? "#f8d777" : "#dedde2"
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(11)
+                                font.weight: card.modelData.current ? Font.DemiBold : Font.Normal
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                            }
                         }
                     }
                 }

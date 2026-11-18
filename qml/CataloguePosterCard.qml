@@ -24,7 +24,8 @@ Item {
     // "classic" | "gallery" — default classic so a shared-file change never silently restyles a world.
     property string visualProfile: "classic"
     // Music sleeves use the same gallery interaction with square artwork.
-    property real artworkRatio: card._m.posterRatio
+    property bool squareArtwork: false
+    property real artworkRatio: card.squareArtwork ? 1 : card._m.posterRatio
     property string artworkObjectName: ""
     // optional source attribution, revealed bottom-right on gallery hover only (Theatre supplies "IMDb").
     property string hoverSourceText: ""
@@ -131,6 +132,7 @@ Item {
             revealDuration: card._m.imageRevealDuration
             hovered: card.effectiveHovered
             sources: card.coverCandidates
+            placeholderTitle: card.squareArtwork ? card.capText : ""
         }
 
         // Colosseum's one focus look, riding the poster plane so it lifts with the art.

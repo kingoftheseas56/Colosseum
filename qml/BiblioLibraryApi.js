@@ -6,23 +6,29 @@
 // provable headless. Proven by tests/biblio_library_api_harness.qml.
 //
 // This is the book-domain mirror of LibraryApi.js, MINUS Theatre's video concepts: no
-// watched/airing/finale/new-episode logic. One Collection entry → one card. Conservative
+// watched/airing/finale/new-episode logic. Saved entries and local audiobook recordings
+// share the shelf. Conservative
 // Progress matching: reliable existing match enables Resume; uncertain match → Details.
 
 // buildBiblioRows — the one live snapshot the page renders. Joins Collection entries with
 // book Progress (Progress.recent("book", N)). Input-pure: the QML call site fetches both
-// and passes them in; this never touches the stores.
+// and passes them in alongside downloaded audiobook records and their progress lookup.
 //   entries      = Collection.items("biblio")           (each carries id, title, cover, payload, world, addedAt)
 //   progressList = Progress.recent("book", 200)          (each carries id, kind, progress, updatedAt, resume?)
 // A row is a read-only projection — the page never persists it. Fields:
 //   { entry, progressRecord, title, author, cover, progress, downloaded, canResume, lastReadAt, addedAt }
-function buildBiblioRows(entries, progressList) {
+function buildBiblioRows(entries, progressList, downloads, audiobookProgress) {
     entries = entries || [];
     progressList = progressList || [];
     var rows = [];
+    var savedAudiobooks = [];
     for (var i = 0; i < entries.length; i++) {
         var e = entries[i];
         if (!e || !e.id) continue;
+        if (e.payload && e.payload.kind === "audiobook") {
+            savedAudiobooks.push(e);
+            continue;
+        }
         var pm = _matchProgress(String(e.id), progressList);
         var rawProgress = pm ? Number(pm.progress || 0) : 0;
         if (isNaN(rawProgress)) rawProgress = 0;
@@ -30,6 +36,7 @@ function buildBiblioRows(entries, progressList) {
         if (!lastReadAt) lastReadAt = Number(e.addedAt || 0);
         rows.push({
             entry: e,
+            medium: "book",
             progressRecord: pm || null,
             title: String(e.title || ""),
             author: _authorOf(e),
@@ -41,7 +48,94 @@ function buildBiblioRows(entries, progressList) {
             addedAt: Number(e.addedAt || 0)
         });
     }
+    var matchedSaves = Object.create(null);
+    var localRecordings = Array.prototype.filter.call(downloads || [], function(download) {
+        return download && (download.recordingKey || download.id);
+    });
+    localRecordings.sort(function(a, b) {
+        return Number(!!a.missing) - Number(!!b.missing)
+            || Number(b.addedAt || 0) - Number(a.addedAt || 0);
+    });
+    for (var j = 0; j < localRecordings.length; j++) {
+        var download = localRecordings[j];
+        var saved = matchSavedAudiobook(download, savedAudiobooks);
+        // One save can annotate a local recording. Keep additional downloads as distinct cards.
+        var matched = saved && !matchedSaves[saved.id] ? saved : null;
+        if (matched) matchedSaves[matched.id] = true;
+        if (!download.missing || matched)
+            rows.push(audiobookRow(matched, download, audiobookProgress));
+    }
+    for (var k = 0; k < savedAudiobooks.length; k++) {
+        var entry = savedAudiobooks[k];
+        if (!matchedSaves[entry.id]) rows.push(audiobookRow(entry, null, audiobookProgress));
+    }
     return rows;
+}
+
+function matchSavedAudiobook(download, savedAudiobooks) {
+    var recordingId = download.audiosiloRecordingId || download.recordingId;
+    // Catalogue recording IDs are scoped to a work. The legacy download index has
+    // title/author and pairKey but no canonical work ID.
+    var downloadTitle = normalizedCredit(download.title);
+    var downloadAuthor = normalizedCredit(download.author);
+    var match = null;
+    for (var i = 0; i < savedAudiobooks.length; i++) {
+        var entry = savedAudiobooks[i];
+        var saved = entry.payload;
+        if (!recordingId || saved.recordingId !== recordingId) continue;
+        var sameWork = download.workId ? download.workId === saved.workId
+            : (download.pairKey && saved.pairKey ? download.pairKey === saved.pairKey
+               : downloadTitle && downloadAuthor
+                 && normalizedCredit(entry.title) === downloadTitle
+                 && normalizedCredit(saved.author) === downloadAuthor);
+        if (!sameWork) continue;
+        if (match) return null;
+        match = entry;
+    }
+    return match;
+}
+
+function normalizedCredit(value) {
+    return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function audiobookRow(saved, download, audiobookProgress) {
+    var payload = saved ? saved.payload : {};
+    var local = download || {};
+    var recordingKey = String(local.recordingKey || local.id || "");
+    var progressKey = recordingKey || payload.recordingKey;
+    var record = progressKey && audiobookProgress ? audiobookProgress(progressKey) : null;
+    var title = String((saved && saved.title) || local.title || "");
+    var author = String(payload.author || local.author || "");
+    var cover = String((saved && saved.cover) || payload.cover || local.coverUrl || local.cover
+                       || (record && record.cover) || "");
+    var addedAt = Math.max(Number((saved && saved.addedAt) || 0), Number(local.addedAt || 0));
+    var downloaded = !!download && !download.missing;
+    var route = Object.assign({}, local, {
+        workId: String(payload.workId || local.workId || ""),
+        recordingId: String(payload.recordingId || local.audiosiloRecordingId || local.recordingId || ""),
+        recordingKey: recordingKey,
+        title: title, author: author, coverUrl: cover, downloaded: downloaded
+    });
+    return {
+        entry: saved || { id: "audiobook:download:" + recordingKey, title: title },
+        medium: "audiobook", title: title, author: author, cover: cover,
+        progressRecord: record || null,
+        progress: Math.max(0, Math.min(1, Number(record && record.progress) || 0)),
+        listeningState: listeningState(record),
+        downloaded: downloaded, canResume: false, canRemove: !!saved,
+        lastReadAt: Number((record && record.updatedAt) || local.lastPlayedAt || addedAt),
+        addedAt: addedAt, audiobook: route
+    };
+}
+
+function listeningState(record) {
+    if (record === null || record === undefined) return "new";
+    if (record.completed === true || record.progress >= 0.98) return "finished";
+    if ((record.progress || 0) === 0
+            && !(record.resume && record.resume.position > 0)
+            && !(record.resume && record.resume.fileIndex > 0)) return "new";
+    return "started";
 }
 
 // Conservative match, first wins:
@@ -106,11 +200,14 @@ function _authorOf(entry) {
 function applyBiblioFilters(rows, state) {
     state = state || {};
     var sf = state.stateFilter || "";
+    var medium = state.mediumFilter || "";
     var q = String(state.query || "").trim().toLowerCase();
     var out = [];
     for (var i = 0; i < (rows || []).length; i++) {
         var r = rows[i];
-        if (sf === "inProgress" && !(r.progress > 0)) continue;
+        if (medium && (r.medium || "book") !== medium) continue;
+        if (sf === "inProgress" && !(r.medium === "audiobook" ? r.listeningState === "started" : r.progress > 0))
+            continue;
         if (sf === "downloaded" && !r.downloaded) continue;
         if (q) {
             var title = String(r.title || "").toLowerCase();

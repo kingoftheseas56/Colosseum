@@ -174,7 +174,12 @@ TestCase {
                 { tag: "series", work: Fixtures.series(), books: Fixtures.seriesWorks() }];
     }
     function test_desktopFit(data) {
-        make(data.work, data.books);
+        var books = data.books.slice();
+        if (books.length) {
+            for (var extra = 0; extra < 4; ++extra)
+                books.push({ id: "extra-" + extra, title: "Later Book", positionSort: 20 + extra });
+        }
+        make(data.work, books);
         var names = ["audiobookCover", "audiobookPrimaryAction", "audiobookFacts"];
         if (data.books.length) names.push("audiobookSeriesShelf");
         for (var i = 0; i < names.length; ++i) {
@@ -187,12 +192,18 @@ TestCase {
         var shelf = item("audiobookSeriesShelf"), facts = item("audiobookFacts");
         if (shelf.visible) {
             verify(shelf.y >= facts.mapToItem(shelf.parent, 0, facts.height).y + 12);
+            var seriesScroll = item("audiobookSeriesScroll");
+            verify(seriesScroll !== null && seriesScroll.contentWidth > seriesScroll.width);
+            var firstY = item("audiobookSeries_" + page.built.seriesBooks[0].workId).mapToItem(shelf, 0, 0).y;
             for (var b = 0; b < page.built.seriesBooks.length; ++b) {
                 var tile = item("audiobookSeries_" + page.built.seriesBooks[b].workId);
                 var pos = tile.mapToItem(shelf, 0, 0);
-                verify(pos.x >= 0 && pos.x + tile.width <= shelf.width);
+                compare(pos.y, firstY);
                 verify(pos.y >= 0 && pos.y + tile.height <= shelf.height);
             }
+            var lastTile = item("audiobookSeries_extra-3");
+            seriesScroll.contentX = seriesScroll.contentWidth - seriesScroll.width;
+            verify(lastTile.mapToItem(shelf, lastTile.width, 0).x <= shelf.width);
         }
     }
     function test_smallWindowScrolls() {

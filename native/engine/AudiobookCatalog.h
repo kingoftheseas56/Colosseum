@@ -1,6 +1,7 @@
 #pragma once
 // Local-first read-only audiobook catalogue. No audio, profiles or full-data downloads.
 #include "CatalogRemote.h"
+#include <QDate>
 #include <QObject>
 #include <QSqlDatabase>
 #include <QString>
@@ -53,6 +54,8 @@ private:
     QVariantMap localItem(const QVariantMap& row) const;
     QVariantMap localPage(const QString& condition, const QVariantList& binds, int page) const;
     QVariantMap recordingBy(const QString& kind, const QString& key) const;
+    mutable QDate m_genreMosaicDate;
+    mutable QVariantList m_genreMosaic;
     QSqlDatabase m_db;
     QString m_connection;
     CatalogRemote* m_remote = nullptr;

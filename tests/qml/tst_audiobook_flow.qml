@@ -36,10 +36,10 @@ TestCase {
                          page: page, hasMore: page === 0 }
             }
             function genres() {
-                return remote && revision < 2 ? [] : [{ genre: "Fantasy", count: 2, covers: [] }]
+                return remote && revision < 2 ? [] : [{ genre: "fantasy", count: 2, covers: [] }]
             }
             function genre(name, page) {
-                if (name !== "Fantasy" || (remote && revision < 2)) return {}
+                if (name !== "fantasy" || (remote && revision < 2)) return {}
                 return { items: [page === 0 ? item("second", "Second Book") : item("first", "First Book")],
                          page: page, hasMore: page === 0 }
             }
@@ -49,7 +49,7 @@ TestCase {
                 return { id: id, title: id === "first" ? "First Book" : "Second Book",
                          authors: [{ id: "writer", name: "Alex Writer" }],
                          series: [{ id: "series", name: "The Series" }],
-                         recordings: [{ id: "edition-" + id, abridgement: 0,
+                         recordings: [{ id: "edition-" + id, abridgement: 0, language: "en",
                                         narrators: [{ id: "n", name: "Reader One" }] }] }
             }
             function series(id) {
@@ -76,6 +76,16 @@ TestCase {
         id: flowComponent
         Colosseum.AudiobookFlow {}
     }
+    Component {
+        id: collectionComponent
+        QtObject {
+            property int revision: 0
+            property var entry: null
+            function has(world, id) { return world === "biblio" && entry !== null && entry.id === id }
+            function add(world, item) { if (world === "biblio") { entry = item; ++revision } }
+            function remove(world, id) { if (has(world, id)) { entry = null; ++revision } }
+        }
+    }
 
     function make(component, properties) {
         const object = createTemporaryObject(component, viewport.contentItem, properties || {})
@@ -91,8 +101,10 @@ TestCase {
         world.lifecycleActive = true
         tryCompare(tab, "visible", true)
         compare(tab.shelfRows.length, remote ? 0 : 1)
-        return { world: world, tab: tab, catalog: catalog, flow: make(flowComponent, {
-            width: width, height: height, world: world, catalog: catalog
+        const collection = make(collectionComponent)
+        return { world: world, tab: tab, catalog: catalog, collection: collection, flow: make(flowComponent, {
+            width: width, height: height, world: world, catalog: catalog,
+            collectionStore: collection, dockClearance: 80
         }) }
     }
 
@@ -133,6 +145,15 @@ TestCase {
         const page = openFirst(view)
         compare(page.work.id, "first")
         compare(findChild(page, "audiobookNarrator").text, "Reader One")
+        compare(page.shownRecording.facts.find(fact => fact.key === "language").text, "English")
+        const heart = findChild(page, "audiobookSave")
+        verify(heart.visible)
+        heart.triggered()
+        compare(view.collection.entry.payload.workId, "first")
+        compare(view.collection.entry.type, "audiobook")
+        verify(page.saved)
+        heart.triggered()
+        compare(view.collection.entry, null)
     }
 
     function test_catalogue_edition_flag_has_a_readable_label() {
@@ -160,6 +181,14 @@ TestCase {
         tryCompare(view.flow, "active", false)
         compare(view.world.activeTab, "audiobooks")
         compare(flick.contentY, 190)
+        view.world.audiobookRequested({
+            recordingKey: "legacy-download", title: "Local Audiobook", author: "Alex Writer",
+            downloaded: true
+        })
+        const localPage = view.flow.currentPage
+        compare(localPage.built.title, "Local Audiobook")
+        compare(localPage.built.workId, "")
+        compare(localPage.primary.kind, "listen")
     }
 
     function test_catalogue_browse_data() {
@@ -179,6 +208,7 @@ TestCase {
         }
         const browser = view.flow.currentPage
         compare(browser.titleText, data.title)
+        compare(browser.height, height - view.flow.dockClearance)
         compare(browser.items.map(card => card.title), [data.first])
         verify(browser.hasMore)
         browser.requestMore()
@@ -186,6 +216,7 @@ TestCase {
         compare(browser.items.map(card => card.title), [data.first, data.second])
         compare(browser.hasMore, false)
         const grid = findChild(browser, "theatreSeeAllPosterWall")
+        verify(grid.squareArtwork)
         grid.itemRequested(grid.items[1])
         tryCompare(findChild(view.flow.currentPage, "audiobookTitle"), "text", data.second)
         view.flow.back()
@@ -211,7 +242,7 @@ TestCase {
 
     function test_pending_genre_and_book_wait_for_catalogue_revision() {
         const view = setup(true)
-        view.world.audiobookGenreRequested("Fantasy")
+        view.world.audiobookGenreRequested("fantasy")
         const browser = view.flow.currentPage
         compare(browser.loading, true)
         compare(browser.items.length, 0)
@@ -230,6 +261,9 @@ TestCase {
         const cover = findChild(page, "audiobookCover").children[0]
         verify(cover.placeholderVisible)
         compare(cover.activeSource.toString(), "")
+        const placeholder = findChild(cover, "biblioCoverPlaceholder")
+        verify(placeholder && placeholder.visible)
+        compare(placeholder.title, "First Book")
     }
 
     function test_local_editorial_bake() {

@@ -8,9 +8,10 @@ import {prebuiltCatalogue} from '../src/catalogue-prebuilt.ts';
 
 const fixture=fileURLToPath(new URL('./fixtures/audiobooks-cc0-fixture.sqlite',import.meta.url));
 const db=new DatabaseSync(fixture,{readOnly:true});
-const adapter={prepare(sql){return {bind(...args){return {async all(){
-  return {success:true,results:db.prepare(sql).all(...args)};
-}}}}}};
+const sqliteAdapter=database=>({prepare(sql){return {bind(...args){return {async all(){
+  return {success:true,results:database.prepare(sql).all(...args)};
+}}}}}});
+const adapter=sqliteAdapter(db);
 test.after(()=>db.close());
 
 test('audiobook catalogue methods are registered for semantic RPC',()=>{
@@ -26,6 +27,8 @@ test('search indexes title and associated people, rejects malformed text and cla
   const works=await catalogueMethod(adapter,'audiobooks','search',['Rhythm of War',1000]);
   assert.ok(works.some(r=>r.id==='rhythm-of-war'));
   assert.equal(works.length<=100,true);
+  assert.deepEqual(await audiobooksMethod(adapter,'search',['Bank Note',10]),[]);
+  assert.ok((await audiobooksMethod(adapter,'search',['ari kami',10])).some(r=>r.id==='1-ari-kami-book-1'));
   assert.deepEqual(await audiobooksMethod(adapter,'search',['',10]),[]);
   assert.deepEqual(await audiobooksMethod(adapter,'search',['"""',10]),[]);
 });
@@ -36,6 +39,9 @@ test('work returns the real full cast and single-reader recordings and linked au
   assert.deepEqual(new Set(v.recordings.map(r=>r.id)),new Set(['full-cast-2020','kate-reading-2020']));
   assert.ok(v.recordings.every(r=>r.narrators.length>0));
   assert.ok(v.authors.length>0);
+  const undated=await audiobooksMethod(adapter,'work',['1-000-000-bank-note-other-new-stories']);
+  assert.equal(undated.recordings.length,1);
+  assert.equal(undated.recordings[0].releaseDate,undefined);
 });
 test('Dune retains separate ordered series numbers without choosing one',async()=>{
   const v=await audiobooksMethod(adapter,'work',['dune']);
@@ -60,12 +66,32 @@ test('series returns works in numeric position sort and preserves display text',
   assert.ok(v.works.length>=2);
   for(let i=1;i<v.works.length;i++)assert.ok(v.works[i-1].positionSort<=v.works[i].positionSort);
   assert.ok(v.works.every(r=>typeof r.numberText==='string'));
+
+  const memory=new DatabaseSync(':memory:');
+  try{
+    memory.prepare('ATTACH DATABASE ? AS fixture').run(fixture);
+    for(const table of ['works','work_series','series','recordings']){
+      memory.exec('CREATE TABLE '+table+' AS SELECT * FROM fixture.'+table);
+    }
+    memory.exec(`INSERT INTO work_series VALUES
+      ('1-ari-kami-book-1','the-stormlight-archive','2.1',2.1),
+      ('1-000-000-bank-note-other-new-stories','the-stormlight-archive','2.2',2.2),
+      ('2061-odyssey-three','the-stormlight-archive','2.3',2.3);
+      UPDATE recordings SET release_date='9999-12-31',cover_url='https://example.test/future.jpg'
+      WHERE (work_id='rhythm-of-war' AND id='full-cast-2020') OR work_id='2061-odyssey-three';`);
+    const stormlight=await audiobooksMethod(sqliteAdapter(memory),'series',['the-stormlight-archive']);
+    assert.deepEqual(stormlight.works.map(r=>r.id),['rhythm-of-war']);
+    assert.equal(stormlight.works[0].coverUrl,'https://m.media-amazon.com/images/I/51FF+pax2vL._SL500_.jpg');
+  }finally{memory.close();}
 });
 test('latest and person listings page and contain stable work ids',async()=>{
   const first=await audiobooksMethod(adapter,'latest',[0]);
   const next=await audiobooksMethod(adapter,'latest',[1]);
   assert.ok(first.length>0);
   assert.ok(first.every(r=>r.id&&r.workId));
+  const today=new Date().toISOString().slice(0,10);
+  assert.ok([...first,...next].every(r=>r.releaseDate?.length===10 && r.releaseDate<=today));
+  assert.ok([...first,...next].some(r=>r.language==='ru'));
   assert.equal(new Set([...first,...next].map(r=>r.workId+'|'+r.id)).size,first.length+next.length);
   const author=db.prepare('SELECT person_id FROM work_authors LIMIT 1').get();
   const works=await audiobooksMethod(adapter,'byPerson',[author.person_id,0]);
@@ -106,10 +132,12 @@ test('Discover pages use 20 recordings, stable identity, no future releases, spa
   const result=await catalogueMethod(adapter,'audiobooks','shelf',['new-releases',0]);
   assert.equal(result.page,0);
   assert.ok(result.items.length>0 && result.items.length<=20);
-  assert.equal(result.hasMore,db.prepare("SELECT count(*) c FROM recordings WHERE length(release_date)=10 AND date(release_date) IS NOT NULL AND date(release_date)<=date('now')").get().c>20);
+  assert.equal(result.hasMore,db.prepare("SELECT count(*) c FROM recordings WHERE language='en' AND length(release_date)=10 AND date(release_date)<=date('now')").get().c>20);
+  assert.equal(result.items[0].workId,'1-800-starship');
   for(const item of result.items){
     assert.equal(typeof item.workId,'string');assert.equal(typeof item.recordingId,'string');
     assert.ok(item.title);assert.ok(Array.isArray(item.authors));assert.ok(Array.isArray(item.narrators));
+    assert.equal(db.prepare('SELECT language FROM recordings WHERE work_id=? AND id=?').get(item.workId,item.recordingId).language,'en');
     assert.equal(typeof item.dramatized,'boolean');
     assert.ok(item.releaseDate<=(new Date()).toISOString().slice(0,10));
     assert.ok(Object.values(item).every(v=>v!==null && v!==undefined && v!==''));
@@ -154,19 +182,49 @@ test('narrator commercial filtering is not merely incidental to fixture selectio
     memory.exec(`INSERT INTO works VALUES('w','Work','Work','en',2020);
       INSERT INTO people VALUES('scott-brick','Scott Brick');
       INSERT INTO narrator_shelves VALUES(1,'scott-brick','Scott Brick',2);`);
-    for(const [rid,language,lv] of [['null','en',null],['empty','en',''],['lv','en',123],['zero','en',0],['foreign','fr',null]]){
-      memory.prepare("INSERT INTO recordings(id,work_id,language,dramatized,dramatized_signals,librivox_id) VALUES(?,'w',?,0,'[]',?)").run(rid,language,lv);
+    for(const [rid,language,lv,date,cover] of [
+      ['null','en',null,'2020-01-01','https://example.test/cover.jpg'],
+      ['empty',' English ','','2021-01-01',null],
+      ['code','eng',null,'2019-01-01','https://example.test/back.jpg'],
+      ['lv','en',123,'2020-01-01',null],['zero','en',0,'2020-01-01',null],
+      ['foreign','fr',null,'2020-01-01',null],['future','en',null,'9999-12-31',null],
+      ['undated','en',null,null,null],['invalid','en',null,'2020-02-31',null]]){
+      memory.prepare("INSERT INTO recordings(id,work_id,language,dramatized,dramatized_signals,librivox_id,release_date,cover_url) VALUES(?,'w',?,1,'[]',?,?,?)").run(rid,language,lv,date,cover);
       memory.prepare("INSERT INTO recording_narrators VALUES('w',?,'scott-brick',0)").run(rid);
     }
-    const local={prepare(sql){return {bind(...args){return {async all(){return {success:true,results:memory.prepare(sql).all(...args)};}}}};}};
+    const local=sqliteAdapter(memory);
     const result=await audiobooksMethod(local,'shelf',['narrator:scott-brick',0]);
-    assert.deepEqual(result.items.map(i=>i.recordingId),['empty','null']);
+    assert.deepEqual(result.items.map(i=>i.recordingId),['null','code','empty']);
     assert.equal(result.hasMore,false);
+    memory.exec("INSERT INTO work_genres VALUES('w','fantasy')");
+    for(const [method,key,expected] of [
+      ['shelf','new-releases',['null','code','empty','lv','zero']],
+      ['shelf','dramatized',['null','code','empty','lv','zero']],
+      ['genre','fantasy',['null','code','empty','lv','zero']]]){
+      assert.deepEqual((await audiobooksMethod(local,method,[key,0])).items.map(i=>i.recordingId),expected);
+    }
+    // Place the cover boundary exactly between pages to exercise the offset
+    // after all covered recordings have been returned.
+    const addCovered=memory.prepare(`INSERT INTO recordings(id,work_id,language,
+      dramatized,dramatized_signals,release_date,cover_url)
+      VALUES(?,'w','en',1,'[]','2018-01-01',?)`);
+    for(let n=0;n<18;n++)addCovered.run('covered-'+n,'https://example.test/'+n+'.jpg');
+    const first=await audiobooksMethod(local,'genre',['fantasy',0]);
+    const second=await audiobooksMethod(local,'genre',['fantasy',1]);
+    assert.equal(first.items.length,20);
+    assert.equal(first.hasMore,true);
+    assert.ok(first.items.every(r=>r.coverUrl));
+    assert.deepEqual(second.items.map(r=>r.recordingId),['empty','lv','zero']);
+    assert.equal(second.hasMore,false);
   }finally{memory.close();}
 });
 test('Genre mosaic contains only grounded cover pointers, genre pages and unknown genre',async()=>{
   const gs=await audiobooksMethod(adapter,'genres',[]);
   assert.ok(gs.length>0);
+  assert.equal(gs.find(g=>g.genre==='fantasy').count,7);
+  assert.ok(!gs.some(g=>g.genre==='classics'||g.genre==='urban-fantasy'));
+  assert.equal(gs.find(g=>g.genre==='fantasy').covers[0],db.prepare(
+    "SELECT cover_url FROM recordings WHERE work_id='dune' AND id='nikola-muckajev-2021'").get().cover_url);
   for(const g of gs){
     assert.ok(g.genre && g.count>0);
     assert.equal(g.covers.length,4);

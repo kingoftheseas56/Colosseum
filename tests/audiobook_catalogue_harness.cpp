@@ -1,7 +1,9 @@
 // Offline AudiobookCatalog acceptance: no user profile, network, or installed app.
 #include "engine/AudiobookCatalog.h"
 #include <QCoreApplication>
+#include <QFile>
 #include <QFileInfo>
+#include <QTemporaryDir>
 #include <QSet>
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -131,6 +133,67 @@ int main(int argc,char** argv) {
     require(!cat.genre(genreName,0).value("items").toList().isEmpty(),"genre page populated");
     require(cat.genre("not-a-genre",0).value("items").toList().isEmpty(),
             "unknown genre empty");
+    auto counts = QHash<QString, int>{};
+    for (const auto& genre : mosaic) {
+        const auto row = genre.toMap();
+        counts.insert(row.value("genre").toString(), row.value("count").toInt());
+    }
+    require(counts.value("fantasy") == 7, "genre mosaic counts released English recordings");
+    require(!counts.contains("classics") && !counts.contains("urban-fantasy"),
+            "genre mosaic hides genres with fewer than four eligible covers");
+    require(cat.search("Bank Note", 20).isEmpty(), "undated work is absent from search");
+    require(!locate(cat.search("ari kami", 20), "1-ari-kami-book-1").isEmpty(),
+            "released foreign work remains searchable");
+    require(cat.work("1-000-000-bank-note-other-new-stories").value("recordings").toList().size() == 1,
+            "direct work retains undated recordings");
+
+    QTemporaryDir temporary;
+    const auto path = temporary.filePath("catalogue.sqlite");
+    require(temporary.isValid() && QFile::copy(QString::fromLocal8Bit(argv[1]), path),
+            "copy fixture for release, language and cover edge cases");
+    {
+        auto writable = QSqlDatabase::addDatabase("QSQLITE", "eligibility-fixture");
+        writable.setDatabaseName(path);
+        require(writable.open(), "open fixture copy");
+        QSqlQuery q(writable);
+        require(q.exec("UPDATE recordings SET release_date='9999-12-31', "
+                       "cover_url='https://example.test/future.jpg' "
+                       "WHERE work_id='rhythm-of-war' AND id='full-cast-2020'"),
+                "add future dated dramatization");
+        require(q.exec("UPDATE recordings SET cover_url=NULL,language=' English ',"
+                       "release_date='2026-01-01' WHERE work_id='1-800-mischief'"),
+                "add newer uncovered English alias");
+        require(q.exec("UPDATE recordings SET language='eng' WHERE work_id='1-800-starship'"),
+                "add English ISO-639-2 alias");
+        require(q.exec("INSERT INTO work_series VALUES('1-ari-kami-book-1',"
+                       "'the-stormlight-archive','2.1',2.1),"
+                       "('1-000-000-bank-note-other-new-stories','the-stormlight-archive','2.2',2.2)"),
+                "add foreign and undated series works");
+        require(q.exec("INSERT INTO work_series VALUES('2061-odyssey-three',"
+                       "'the-stormlight-archive','2.3',2.3)")
+                && q.exec("UPDATE recordings SET release_date='9999-12-31' "
+                          "WHERE work_id='2061-odyssey-three'"),
+                "add a series work with only future recordings");
+        writable.close();
+    }
+    QSqlDatabase::removeDatabase("eligibility-fixture");
+    AudiobookCatalog edge(path);
+    require(edge.ready(), "open eligibility fixture catalogue");
+    const auto series = edge.series("the-stormlight-archive").value("works").toList();
+    require(series.size() == 1, "series omits future, undated and foreign-only works");
+    const auto seriesCover = series.first().toMap().value("coverUrl").toString();
+    require(seriesCover == "https://m.media-amazon.com/images/I/51FF+pax2vL._SL500_.jpg",
+            "series picks an eligible supplied cover");
+    const auto fantasy = edge.genre("fantasy", 0).value("items").toList();
+    require(!fantasy.isEmpty() && fantasy.last().toMap().value("workId") == "1-800-mischief"
+            && !fantasy.last().toMap().contains("coverUrl"),
+            "genre places newer uncovered English-alias items after covered items");
+    const auto newReleases = edge.shelf("new-releases", 0).value("items").toList();
+    require(!newReleases.isEmpty() && newReleases.first().toMap().value("workId") == "1-800-starship",
+            "Discover lists covered English ISO-639-2 alias first");
+    const auto personWorks = edge.byPerson("scott-brick", 0);
+    require(locate(personWorks, "2061-odyssey-three").isEmpty(),
+            "narrator discovery excludes works with no released recording");
     std::cout << "PASS audiobook_catalogue_harness checks=" << checks << "\n";
     return 0;
 }
