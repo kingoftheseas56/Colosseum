@@ -15,6 +15,7 @@ Item {
     property bool showExplicit: false
     property var explicitFilter: null
     property var pageLoader: null            // (pin, offset, limit, options, done) — defaults to the API
+    property string emptyMessage: qsTr("This shelf answered with nothing.")
     signal itemRequested(var item)
     signal backRequested()
 
@@ -190,7 +191,7 @@ Item {
         loading: seeAll.loading
         loadingMore: seeAll.loadingMore
         hasMore: seeAll.hasMore
-        emptyMessage: seeAll.errorText.length > 0 ? "" : "This shelf answered with nothing."
+        emptyMessage: seeAll.errorText.length > 0 ? "" : seeAll.emptyMessage
         onRequestMore: seeAll.requestMore()
         onItemRequested: (it) => seeAll.itemRequested(it)
     }

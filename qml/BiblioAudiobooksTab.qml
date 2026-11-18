@@ -1,5 +1,4 @@
-// BiblioAudiobooksTab - the Audiobooks medium tab in Biblio, built like TankobanComicsTab: a plain
-// Column of rows, data fetched once and cached here so switching tabs never refetches.
+// BiblioAudiobooksTab - the retained Audiobooks medium tab in Biblio.
 // Two sub-tabs (the house WorldTabBar): Discover (static catalogue rows + genre mosaic) and
 // Your Library (downloaded audiobooks with listening progress). It only emits signals; the
 // audiobook page, sources page and player are wired by the host.
@@ -29,17 +28,26 @@ Column {
     property var _genres: []
     property var _library: []
     property bool _loaded: false
+    property bool _dirty: true
 
     signal audiobookRequested(var item)
     signal audiobookGenreRequested(string genre)
     signal audiobookShelfRequested(string key)
 
     function reload() {
-        var r = ShelfApi.loadRows(tab.catalog)
+        const r = ShelfApi.loadRows(tab.catalog)
+        const genres = r.available ? ShelfApi.loadGenres(tab.catalog) : []
         tab._available = r.available
-        tab._rows = r.rows
-        tab._genres = r.available ? ShelfApi.loadGenres(tab.catalog) : []
+        // Detail and see-all queries also bump the revision. Preserve the
+        // landing delegates and their scroll positions if their data is equal.
+        if (JSON.stringify(tab._rows) !== JSON.stringify(r.rows)) tab._rows = r.rows
+        if (JSON.stringify(tab._genres) !== JSON.stringify(genres)) tab._genres = genres
         tab._loaded = true
+        tab._dirty = false
+    }
+    function invalidateCatalogue() {
+        tab._dirty = true
+        if (tab.active) tab.reload()
     }
     function refreshLibrary() {
         tab._library = ShelfApi.libraryCards(
@@ -48,13 +56,20 @@ Column {
     }
     function _activate() {
         if (!tab.active) return
-        if (!tab._loaded) tab.reload()
+        if (tab._dirty) tab.reload()
         tab.refreshLibrary()
     }
     onActiveChanged: tab._activate()
-    onCatalogChanged: if (tab._loaded) tab.reload()
+    onCatalogChanged: tab.invalidateCatalogue()
     onSubTabChanged: if (tab.subTab === "library") tab.refreshLibrary()
     Component.onCompleted: tab._activate()
+
+    Connections {
+        target: tab.catalog && tab.catalog.revisionChanged !== undefined ? tab.catalog : null
+        ignoreUnknownSignals: true
+        function onRevisionChanged() { tab.invalidateCatalogue() }
+        function onReadyChanged() { tab.invalidateCatalogue() }
+    }
 
     Connections {
         target: (tab.progressStore && tab.progressStore.revisionChanged !== undefined) ? tab.progressStore : null

@@ -1062,6 +1062,7 @@ Window {
         comicSeriesLayer.active = false
         theatreSeriesLayer.active = false
         bookLayer.active = false
+        audiobookFlow.clear()
         bookReturnSnapshot = null
         searchLayer.active = false
         worldSearchLayer.active = false
@@ -1310,6 +1311,7 @@ Window {
             downloadsActive: downloadsLayer.active,
             profileActive: phoneShell.profileActive,
             bookActive: bookLayer.active,
+            audiobookActive: audiobookFlow.active,
             theatreSeriesActive: theatreSeriesLayer.active,
             westernActive: westernLayer.active,
             seriesActive: seriesLayer.active,
@@ -1453,6 +1455,7 @@ Window {
         case "downloads": win.closeDownloadsPage(); return
         case "profile": phoneShell.closeProfilePage(); return
         case "book": win.closeBook(); return
+        case "audiobook": audiobookFlow.back(); return
         case "theatreSeries":
             // Native Back (PF-03) closes the title's visible transient first (episode
             // context, Sources context/extension menu/sheet, episode jump, season menu);
@@ -2503,6 +2506,7 @@ Window {
         collectionsPanel.showing
         || theatreSeriesLayer.active
         || bookLayer.active
+        || audiobookFlow.active
         || seriesLayer.active
         || westernLayer.active
         || comicSeriesLayer.active
@@ -4996,6 +5000,7 @@ Window {
         anchors.fill: parent
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         property string current: ""                      // "" = home; else the visible mode
+        onCurrentChanged: if (current !== "Biblio") audiobookFlow.clear()
         Repeater {
             id: worldRepeater
             model: openModes
@@ -5146,6 +5151,7 @@ Window {
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
                     var biblioGenreIndexSignal = item["biblio" + "GenreIndexRequested"]
                     if (biblioGenreIndexSignal) biblioGenreIndexSignal.connect(win.openBiblioGenreIndex)
+                    if (mode === "Biblio") audiobookFlow.world = item
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                     // the Universes world: its list is the installed roster plus the archived templates
@@ -5798,6 +5804,17 @@ Window {
             item.readRequested.connect(win.openBookSession)
             // (listenRequested retired — the reader carries audiobook playback now)
         }
+    }
+
+    AudiobookFlow {
+        id: audiobookFlow
+        objectName: "audiobookFlow"
+        anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
+        z: 53
+        backdrop: wall
+        onDownloadRequested: (workId) => {}
+        onListenRequested: (recordingKey) => {}
     }
 
     // ---- the ONE audiobook engine (read-along), hoisted at the window root (never in a

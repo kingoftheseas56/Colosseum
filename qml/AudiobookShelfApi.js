@@ -19,7 +19,7 @@ function card(item) {
     var authors = _list(item.authors).filter(function(a) { return !!a })
     if (authors.length > 0) out.author = authors.join(", ")
     if (item.coverUrl) out.cover = String(item.coverUrl)
-    var id = item.recordingId || item.workId
+    var id = item.recordingId || item.workId || item.id
     if (id) out.id = String(id)
     return out
 }
@@ -57,6 +57,46 @@ function loadGenres(catalog) {
         if (covers.length > 0 && covers[0]) t.cover = String(covers[0])
         return t
     })
+}
+
+// Adapt the catalogue's page-number API to the existing see-all loader.
+function loadPage(catalog, pin, page, done) {
+    var method = pin.method
+    var args = [pin.key, page]
+    var cancelled = false
+
+    function cancel() {
+        if (cancelled) return
+        cancelled = true
+        if (catalog.revisionChanged) catalog.revisionChanged.disconnect(read)
+        if (catalog.requestFailed) catalog.requestFailed.disconnect(read)
+    }
+    function read() {
+        if (cancelled) return
+        var result = catalog[method](pin.key, page)
+        var personPage = method === "byPerson"
+        var items = personPage ? _list(result) : _list(result && result.items)
+        var state = typeof catalog.remoteQueryState === "function" ? catalog.remoteQueryState(method, args) : null
+        var incomplete = personPage ? items.length === 0 : !result || result.items === undefined
+        if (incomplete && (state ? state.pending : catalog.remotePending && catalog.remotePending())) return
+        cancel()
+        if (incomplete && state && state.status === "failure") {
+            done({ error: qsTr("The audiobook catalogue could not load this page.") })
+        } else {
+            done({ items: cards(items), nextCursor: page + 1,
+                   hasMore: personPage ? items.length === 24 : !!(result && result.hasMore) })
+        }
+    }
+
+    if (!catalog) {
+        done({ error: qsTr("The audiobook catalogue is unavailable right now.") })
+        return
+    }
+    if (typeof catalog.retryRemoteQuery === "function") catalog.retryRemoteQuery(method, args)
+    if (catalog.revisionChanged) catalog.revisionChanged.connect(read)
+    if (catalog.requestFailed) catalog.requestFailed.connect(read)
+    read()
+    return cancelled ? undefined : cancel
 }
 
 function listeningState(record) {

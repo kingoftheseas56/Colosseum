@@ -19,10 +19,12 @@ FocusScope {
     signal downloadRequested(string workId)
     signal listenRequested(string recordingKey)
     signal seriesBookRequested(string workId)
+    signal authorRequested(string personId, string name)
     signal backRequested()
 
     readonly property var built: BookData.build(work, seriesWorks, recordings)
     readonly property var shownRecording: BookData.recording(built, local, downloadState)
+    readonly property string coverUrl: built.cover || shownRecording.cover || ""
     readonly property var primary: BookData.primaryAction(built, shownRecording, local, downloadState)
     readonly property bool hasSeries: built.seriesBooks.length > 0
     readonly property bool compact: width < 1050
@@ -64,7 +66,7 @@ FocusScope {
                 width: artColumn.width; height: width
                 RoundedPosterImage {
                     anchors.fill: parent
-                    sources: root.built.cover ? [root.built.cover] : []
+                    sources: root.coverUrl ? [root.coverUrl] : []
                     radius: 13
                 }
                 Rectangle { anchors.fill: parent; radius: 13; color: "transparent"; border.color: theme.edge }
@@ -170,13 +172,22 @@ FocusScope {
                 bottomPadding: 9
             }
             Text {
+                id: author
                 objectName: "audiobookAuthor"
                 width: parent.width
                 visible: root.built.authors !== ""
-                text: visible ? qsTr("By %1").arg(root.built.authors) : ""
+                readonly property var linkedAuthors: root.built.authorPeople.filter(person => person.id)
+                textFormat: linkedAuthors.length ? Text.RichText : Text.PlainText
+                text: !visible ? "" : qsTr("By %1").arg(linkedAuthors.length
+                    ? BookData.authorMarkup(root.built.authorPeople, String(theme.ink)) : root.built.authors)
                 color: theme.ink
                 font.family: theme.ui; font.pixelSize: theme.fontSize(20); font.weight: Font.Medium
                 wrapMode: Text.WordWrap
+                onLinkActivated: (link) => {
+                    const person = linkedAuthors.find(entry => encodeURIComponent(entry.id) === link)
+                    if (person) root.authorRequested(person.id, person.name)
+                }
+                HoverHandler { cursorShape: author.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
             }
             Row {
                 objectName: "audiobookNarratorRow"
@@ -315,7 +326,9 @@ FocusScope {
                         RoundedPosterImage {
                             x: (parent.width - width) / 2
                             width: 86; height: 86
-                            sources: card.modelData.cover ? [card.modelData.cover] : []
+                            readonly property string coverUrl: card.modelData.cover
+                                || (card.modelData.current ? root.coverUrl : "")
+                            sources: coverUrl ? [coverUrl] : []
                             radius: 8
                         }
                         Rectangle {

@@ -22,6 +22,8 @@ public:
     bool remoteEnabled() const { return m_remote->enabled(); }
     int revision() const { return m_remote->revision(); }
     Q_INVOKABLE bool remotePending() const { return m_remote->pending(); }
+    Q_INVOKABLE QVariantMap remoteQueryState(const QString& method, const QVariantList& args) const;
+    Q_INVOKABLE bool retryRemoteQuery(const QString& method, const QVariantList& args);
     Q_INVOKABLE QString remoteQueryKey(const QString& method, const QVariantList& args) const {
         return m_remote->queryKey(method,args);
     }

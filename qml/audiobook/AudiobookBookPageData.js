@@ -20,6 +20,25 @@ function joinNames(list) {
         : list.slice(0, -1).join(", ") + " & " + list[list.length - 1];
 }
 
+function html(value) {
+    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function authors(list) {
+    return array(list).map(function(person) {
+        return { id: text(person && person.id),
+                 name: typeof person === "string" ? text(person) : text(person && person.name) };
+    }).filter(function(person) { return person.name; });
+}
+
+function authorMarkup(people, linkColor) {
+    return joinNames(people.map(function(person) {
+        var name = html(person.name);
+        return person.id ? '<a style="color:' + linkColor + '" href="'
+            + encodeURIComponent(person.id) + '">' + name + '</a>' : name;
+    })).replace(/ & /g, " &amp; ");
+}
+
 function value(object, camel, snake) {
     return object[camel] !== undefined ? object[camel] : object[snake];
 }
@@ -34,6 +53,13 @@ function runtimeText(minutes) {
 function capitalise(string) {
     var s = text(string);
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+}
+
+function editionText(value) {
+    var edition = text(value);
+    if (edition === "0") return qsTr("Unabridged");
+    if (edition === "1") return qsTr("Abridged");
+    return capitalise(edition);
 }
 
 // The owner supplies catalogue work(id), and series(id).works separately.
@@ -65,15 +91,18 @@ function build(work, seriesWorks, recordings) {
     records = records.filter(function(r) { return r && !r.bundle; }).map(function(r) {
         var facts = [];
         if (text(r.language)) facts.push({ key: "language", label: qsTr("Language"), text: capitalise(r.language) });
-        if (text(r.abridgement)) facts.push({ key: "edition", label: qsTr("Edition"), text: capitalise(r.abridgement) });
+        var edition = editionText(r.abridgement);
+        if (edition) facts.push({ key: "edition", label: qsTr("Edition"), text: edition });
         var runtime = runtimeText(value(r, "runtimeMin", "runtime_min"));
         if (runtime) facts.push({ key: "runtime", label: qsTr("Runtime"), text: runtime });
-        return { key: text(r.recordingKey), id: text(r.id), narrators: joinNames(names(r.narrators)),
+        return { key: text(r.recordingKey), id: text(r.id), cover: text(r.coverUrl),
+                 narrators: joinNames(names(r.narrators)),
                  facts: facts, local: r.local === true };
     });
     return {
         workId: text(work.workId || work.id), title: text(work.title),
-        authors: joinNames(names(work.authors)), cover: text(work.coverUrl || work.cover),
+        authors: joinNames(names(work.authors)), authorPeople: authors(work.authors),
+        cover: text(work.coverUrl || work.cover),
         synopsis: text(work.description), seriesName: seriesName, seriesNumber: number,
         seriesBooks: books, recordings: records
     };

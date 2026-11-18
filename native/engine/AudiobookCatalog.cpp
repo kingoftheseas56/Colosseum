@@ -40,6 +40,11 @@ QVariantMap seriesRow(const QVariantMap& row) {
 }
 QString validId(const QString& raw) { return raw.trimmed().left(256); }
 int pageOffset(int page) { return std::clamp(page,0,100000)*24; }
+QVariant queryShape(const QString& method) {
+    if(method=="shelves" || method=="genres" || method=="byPerson" || method=="search" || method=="latest")
+        return QVariantList{};
+    return QVariantMap{};
+}
 }
 
 AudiobookCatalog::AudiobookCatalog(const QString& sqlitePath, QObject* parent)
@@ -85,6 +90,12 @@ bool AudiobookCatalog::reopen(const QString& sqlitePath) {
 void AudiobookCatalog::configureRemote(QNetworkAccessManager* manager, const QUrl& endpoint,
                                        const QString& cachePath) {
     m_remote->configure(manager,endpoint,cachePath);
+}
+QVariantMap AudiobookCatalog::remoteQueryState(const QString& method, const QVariantList& args) const {
+    return m_ok ? QVariantMap{} : m_remote->queryState(method,args,queryShape(method));
+}
+bool AudiobookCatalog::retryRemoteQuery(const QString& method, const QVariantList& args) {
+    return !m_ok && m_remote->retry(method,args,queryShape(method));
 }
 QVariantList AudiobookCatalog::select(const QString& statement, const QVariantList& binds) const {
     QVariantList rows;

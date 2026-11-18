@@ -1838,6 +1838,10 @@ set_tests_properties(colosseum.qml.vault_offline_restore PROPERTIES
     TIMEOUT 120)
 colosseum_add_tracker_sync_center_sources(colosseum_qml_tests)
 target_sources(colosseum_qml_tests PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/engine/AudiobookCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/AudiobookCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h"
     "${COLOSSEUM_NATIVE_DIR}/stream/SmartPlayBridge.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stream/SmartPlayBridge.h")
 target_link_libraries(colosseum_qml_tests PRIVATE colosseum_stream_picker)
@@ -1845,7 +1849,7 @@ target_compile_definitions(colosseum_qml_tests PRIVATE SMART_PLAY_PLAYER_SOURCE=
 target_include_directories(colosseum_qml_tests PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(colosseum_qml_tests
-    PRIVATE Qt6::Core Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui)
+    PRIVATE Qt6::Core Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui Qt6::Sql Qt6::Concurrent)
 set_target_properties(colosseum_qml_tests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET colosseum_qml_tests POST_BUILD
@@ -1861,6 +1865,8 @@ add_custom_command(TARGET colosseum_qml_tests POST_BUILD
             "$<TARGET_FILE:Qt6::Quick>"
             "$<TARGET_FILE:Qt6::QuickTest>"
             "$<TARGET_FILE:Qt6::Test>"
+            "$<TARGET_FILE:Qt6::Sql>"
+            "$<TARGET_FILE:Qt6::Concurrent>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 if(WIN32)
 add_custom_command(TARGET colosseum_qml_tests POST_BUILD
@@ -1883,6 +1889,13 @@ set_tests_properties(colosseum.qml.manga_live_reading PROPERTIES
     LABELS "unit;qml;manga;comicreader"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Basic"
     TIMEOUT 120)
+
+add_test(NAME colosseum.qml.audiobook_flow
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_audiobook_flow.qml")
+set_tests_properties(colosseum.qml.audiobook_flow PROPERTIES
+    LABELS "unit;qml;audiobook"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../plugins;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 300)
 
 foreach(arc74_suite IN ITEMS continue_tile continue_surfaces restore_integrity strip_restore)
     if(arc74_suite STREQUAL "restore_integrity")

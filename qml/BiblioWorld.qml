@@ -211,8 +211,7 @@ WorldPage {
         }
     }
 
-    // ── Audiobooks: its own medium tab (Discover rows + Your Library). Retained like the other
-    //    tabs; it fetches its catalogue rows once, on first activation. ──
+    // ── Audiobooks: its own retained medium tab (Discover rows + Your Library). ──
     BiblioAudiobooksTab {
         id: audiobooksTab
         objectName: "biblioAudiobooksTab"
