@@ -89,23 +89,23 @@ Item {
             compare(card.hoverPitch, 0)
             verify(card.pressed, "Press reaches the front cover")
             mouseMove(card, x - 11, y, 20, Qt.LeftButton)
-            verify(deck.shift < 0)
+            verify(front.x < deck.coverLeft)
             mouseRelease(card, x - 11, y)
-            tryCompare(deck, "moving", -1)
+            tryCompare(deck, "circulating", -1)
             compare(deck.current, 0)
             compare(picks.count, 0)
 
             mousePress(card, x, y)
             mouseMove(card, x - 48, y, 20, Qt.LeftButton)
-            compare(deck.moving, 0)
+            compare(deck.circulating, 0)
             checkDeckBounds(deck)
             mouseRelease(card, x - 48, y)
             verify(deck.revealTime < deck.duration, "Release continues from the artwork's dragged position")
-            tryVerify(() => deck.behind && deck.moving === 0 && deck.current === 1)
+            tryVerify(() => deck.turning && deck.current === 1)
             checkDeckBounds(deck)
             compare(title.text, "Second")
             compare(facts.text, "2023 · Drama")
-            tryCompare(deck, "moving", -1)
+            tryCompare(deck, "circulating", -1)
             compare(picks.count, 0)
 
             compare(deck.current, 1)
@@ -114,6 +114,103 @@ Item {
             compare(picks.signalArguments[0][0], "tv")
             compare(picks.signalArguments[0][1].title, "Second")
             verify(!picker.visible)
+        }
+
+        function test_circulationSharesOnePhysicalPath_data() {
+            return [
+                { tag: "pair", count: 2, width: 1264, height: 656, medium: "anime" },
+                { tag: "fan", count: 3, width: 1264, height: 656, medium: "tv" },
+                { tag: "deepStack", count: 7, width: 900, height: 720, medium: "movies" },
+                { tag: "square", count: 5, width: 1264, height: 656, medium: "audiobooks" }
+            ]
+        }
+        function test_circulationSharesOnePhysicalPath(data) {
+            root.width = data.width
+            root.height = data.height
+            const covers = ["captured-motion.jpg", "cold-ripple.jpg", "sagas/dune.jpg"]
+            const entries = Array.from({ length: data.count }, (_, i) => ({
+                id: String(i), title: "Title " + i,
+                cover: Qt.resolvedUrl("../../assets/wallpaper/" + covers[i % covers.length])
+            }))
+            bar.pickerPicks = { [data.medium]: entries }
+            bar.open = true
+            const picker = findChild(bar, "dockPicker")
+            if (data.medium === "audiobooks") picker.selectSlide(2)
+            const deck = findChild(picker, "dockDeck_" + data.medium)
+            const grab = findChild(deck, "dockPickCard_" + data.medium)
+            const outgoing = findChild(deck, "dockPickFace_0")
+            const incoming = findChild(deck, "dockPickFace_1")
+            const viewport = findChild(picker, "dockPickViewport")
+            const row = findChild(picker, "dockPickPage_" + picker.slide)
+            tryVerify(() => grab.visible && grab.enabled && Math.abs(row.mapToItem(viewport, 0, 0).y) < .1)
+            verify(waitForRendering(picker))
+
+            const x = grab.width / 2
+            const y = grab.height / 2
+            mouseMove(grab, x, y)
+            tryVerify(() => Math.abs(grab.hoverTilt) < .02 && Math.abs(grab.hoverPitch) < .02)
+            const original = faceBounds(outgoing, deck)
+            const waiting = faceBounds(incoming, deck)
+            function compareRest() {
+                const restored = faceBounds(outgoing, deck)
+                fuzzyCompare(restored.x, original.x, .2)
+                fuzzyCompare(restored.y, original.y, .2)
+                fuzzyCompare(restored.width, original.width, .2)
+                fuzzyCompare(restored.height, original.height, .2)
+                compare(faceBounds(incoming, deck), waiting)
+            }
+            const distance = Math.floor(deck.leftTravel / 2)
+            mousePress(grab, x, y, Qt.LeftButton, Qt.NoModifier, 0)
+            mouseMove(grab, x - distance, y, 1, Qt.LeftButton)
+            const pulled = faceBounds(outgoing, deck)
+            const revealed = faceBounds(incoming, deck)
+            verify(pulled.x + pulled.width / 2 < original.x + original.width / 2
+                   && revealed.x + revealed.width / 2 > waiting.x + waiting.width / 2,
+                   "Both cover centers move during the held pull: " + pulled + " / " + revealed)
+            mouseRelease(grab, x - distance, y, Qt.LeftButton, Qt.NoModifier, 0)
+            compare(faceBounds(outgoing, deck), pulled, "Cancel begins from the held outgoing pose")
+            compare(faceBounds(incoming, deck), revealed, "Cancel begins from the held incoming pose")
+            tryCompare(deck, "turning", false)
+            mouseMove(grab, x, y)
+            tryVerify(() => Math.abs(grab.hoverTilt) < .02 && Math.abs(grab.hoverPitch) < .02)
+            compareRest()
+            compare(deck.current, 0)
+
+            mousePress(grab, x, y, Qt.LeftButton, Qt.NoModifier, 0)
+            mouseMove(grab, x - Math.ceil(deck.leftTravel + 1), y, 1, Qt.LeftButton)
+            compare(deck.progress, .5)
+            const leftAtEdge = faceBounds(outgoing, deck)
+            const rightAtEdge = faceBounds(incoming, deck)
+            verify(leftAtEdge.x + leftAtEdge.width < rightAtEdge.x)
+            verify(leftAtEdge.width >= deck.width * .36, "The real outgoing art still has room at the handoff")
+            const carrier = Array.from({ length: Math.min(data.count - 1, 3) }, (_, i) =>
+                findChild(deck, "dockPickFace_" + (i + 1)))
+            verify(carrier.every(face => leftAtEdge.x + leftAtEdge.width < faceBounds(face, deck).x))
+            checkDeckBounds(deck)
+
+            mouseRelease(grab, x - Math.ceil(deck.leftTravel + 1), y, Qt.LeftButton, Qt.NoModifier, 0)
+            compare(faceBounds(outgoing, deck), leftAtEdge, "Commit begins from the held outgoing pose")
+            compare(faceBounds(incoming, deck), rightAtEdge, "Commit begins from the held incoming pose")
+            tryVerify(() => deck.turning && deck.current === 1 && outgoing.z < incoming.z)
+            checkDeckBounds(deck)
+            tryCompare(deck, "turning", false)
+            compare(deck.current, 1)
+            compare(outgoing.visible, data.count <= 3)
+
+            mousePress(grab, x, y, Qt.LeftButton, Qt.NoModifier, 0)
+            mouseMove(grab, x + Math.ceil(deck.rightTravel + 1), y, 1, Qt.LeftButton)
+            compare(deck.current, 1)
+            compare(deck.circulating, 0, "The exact tucked cover comes around again")
+            compare(faceBounds(outgoing, deck), leftAtEdge, "Reverse uses the same edge and pose")
+            compare(faceBounds(incoming, deck), rightAtEdge)
+            checkDeckBounds(deck)
+            mouseRelease(grab, x + Math.ceil(deck.rightTravel + 1), y, Qt.LeftButton, Qt.NoModifier, 0)
+            tryCompare(deck, "turning", false)
+            compare(deck.current, 0)
+            mouseMove(grab, x, y)
+            tryVerify(() => Math.abs(grab.hoverTilt) < .02 && Math.abs(grab.hoverPitch) < .02)
+            compareRest()
+            compare(picks.count, 0)
         }
 
         function test_catalogueRefreshWaitsForPickerFrame() {
@@ -239,7 +336,7 @@ Item {
             mouseRelease(viewport, start.x - 60, start.y - 75)
             compare(picker.slide, 1)
             compare(deck.current, 0)
-            compare(deck.moving, -1)
+            compare(deck.circulating, -1)
             compare(picks.count, 0)
             compare(heading.mapToItem(root, 0, 0), headingPosition)
 
@@ -366,23 +463,25 @@ Item {
             compare(picks.signalArguments[1][0], "manhwa")
         }
 
+        function faceBounds(face, deck) {
+            return face.mapToItem(deck, Qt.rect(0, 0, face.width, face.height))
+        }
+
         function checkDeckBounds(deck) {
             let left = deck.width
             let right = 0
-            const motion = deck.moving >= 0
-            const area = motion ? findChild(bar, "dockPickViewport") : deck
-            for (let i = 0; i < Math.min(3, deck.count); ++i) {
+            for (let i = 0; i < deck.count; ++i) {
                 const face = findChild(deck, "dockPickFace_" + i)
-                const bounds = face.mapToItem(area, Qt.rect(0, 0, face.width, face.height))
-                verify(bounds.x >= -1 && bounds.x + bounds.width <= area.width + 1,
-                    deck.medium + " card " + i + " has bounds " + bounds + " within " + area.width
-                    + " px (cover width " + deck.coverWidth + ", rotation " + face.rotation + ")")
-                verify(bounds.y >= -1 && bounds.y + bounds.height <= area.height + 1,
-                    "Card stays inside " + (motion ? "the picker" : "its row") + ": " + deck.medium)
+                if (!face.visible) continue
+                const bounds = faceBounds(face, deck)
+                verify(bounds.x >= -1 && bounds.x + bounds.width <= deck.width + 1,
+                    deck.medium + " card " + i + " has bounds " + bounds + " within " + deck.width + " px")
+                verify(bounds.y >= -1 && bounds.y + bounds.height <= deck.artHeight + 1,
+                    "Card stays above the caption for " + deck.medium)
                 left = Math.min(left, bounds.x)
                 right = Math.max(right, bounds.x + bounds.width)
             }
-            if (!motion)
+            if (!deck.turning)
                 fuzzyCompare((left + right) / 2, deck.width / 2, 1)
         }
 

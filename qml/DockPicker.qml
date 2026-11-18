@@ -412,7 +412,6 @@ FocusScope {
                 width: row.cellWidth
                 height: row.height
                 headingExpansion: Math.max(0, pickHeading.height - 28)
-                leftMotionRoom: row.x
                 medium: modelData.name
                 mediumKey: modelData.key
                 aspect: modelData.aspect || .71

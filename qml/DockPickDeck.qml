@@ -11,7 +11,6 @@ FocusScope {
     property bool reducedMotion: false
     property real headingExpansion: 0
     property real aspect: 0.71
-    property real leftMotionRoom: 0
     property int artRadius: -1
     signal openRequested(var entry)
     signal verticalSwipeRequested(real distance)
@@ -23,11 +22,8 @@ FocusScope {
     readonly property var facts: factsFor(activeEntry)
     readonly property string detailLine: facts.length > 1 ? qsTr("%1 · %2").arg(facts[0]).arg(facts[1])
                                                          : facts[0] || ""
-    readonly property real turnAngle: 7
+    readonly property real turnAngle: 4
     readonly property real fanAngle: 1.5
-    readonly property real turnScale: .84
-    // The rotated card extends by at most half the perpendicular edge times sin(angle).
-    readonly property real turnAllowance: Math.sin(turnAngle * Math.PI / 180) / 2
     readonly property real fanAllowance: Math.sin(2 * fanAngle * Math.PI / 180) / 2
     // Reuse the old caption budget for the taller heading, retaining one line
     // each for the medium and current title even in compact windows.
@@ -46,23 +42,28 @@ FocusScope {
     readonly property real rightStackOverhang: offset(backDepth) + backRotationOverhang
     readonly property real coverLeft: (width - coverWidth + leftStackOverhang - rightStackOverhang) / 2
     readonly property real coverTop: (artHeight - coverHeight) / 2
-    readonly property real turnOverhang: Math.max(0, coverHeight * turnAllowance - coverWidth * (1 - turnScale) / 2)
-    readonly property real leftTravel: Math.max(0, Math.min(54, coverLeft + leftMotionRoom - turnOverhang - 1))
-    readonly property real rightTravel: Math.max(0, Math.min(54, width - coverLeft - coverWidth
-        + leftMotionRoom - turnOverhang - 1))
+    // At the depth change the traveling cover occupies the left lane. The
+    // other covers form a stack in the right lane, with room for its fan.
+    readonly property real singleLane: width * .24 - coverWidth / 2
+    readonly property real stackLane: width * .74 - coverWidth / 2
+    readonly property real crossingWidth: Math.max(0, width * .43 - coverHeight * Math.sin(turnAngle * Math.PI / 180))
+    readonly property real crossingStretch: Math.min(1, crossingWidth / Math.max(1, coverWidth))
+    readonly property real leftTravel: Math.max(0, coverLeft - singleLane)
+    readonly property real rightTravel: Math.max(0, stackLane - coverLeft)
     property int current: 0
     property string selectionKey: ""
     property int direction: 1
-    property int moving: -1
-    property bool behind: false
-    property real shift: 0
-    property real tilt: 0
-    property real incoming: 0
+    property int circulating: -1
+    property real progress: 0
+    readonly property bool turning: circulating >= 0
+    // Forward and reverse use the same poses. Zero puts the circulating
+    // cover on top, and one tucks it all the way behind the rest.
+    readonly property real circulation: direction > 0 ? progress : 1 - progress
+    readonly property real spread: 1 - Math.abs(2 * circulation - 1)
     readonly property int duration: reducedMotion ? 0 : 155
-    readonly property real revealShift: direction > 0 ? -leftTravel : rightTravel
     property int revealTime: 0
     property var warmedEntries: null
-    z: moving >= 0 ? 1 : 0
+    z: turning ? 1 : 0
 
     Theme { id: theme }
 
@@ -98,9 +99,30 @@ FocusScope {
     }
 
     function cardDepth(index) {
-        return count ? ((index - current) * direction + count) % count : 0
+        return count ? (index - current + count) % count : 0
     }
     function offset(layerNumber) { return Math.min(layerNumber, 2) * 6 }
+    function between(before, after, amount) {
+        return before + (after - before) * amount
+    }
+    function across(before, edge, after) {
+        return circulation <= .5
+            ? between(before, edge, spread)
+            : between(after, edge, spread)
+    }
+    function prepare(step) {
+        direction = step
+        circulating = step > 0 ? current : (current + count - 1) % count
+    }
+    function pull(dx) {
+        const step = dx < 0 ? 1 : -1
+        if (!turning || step !== direction) {
+            progress = 0
+            prepare(step)
+        }
+        const travel = step > 0 ? leftTravel : rightTravel
+        progress = Math.min(.5, Math.abs(dx) / (2 * Math.max(1, travel)))
+    }
     function identity(entry) { return entry ? String(entry.id || entry.title) : "" }
     function selectEntry(key) {
         const index = entries.findIndex(entry => identity(entry) === key)
@@ -109,25 +131,18 @@ FocusScope {
     function resetMotion() {
         turn.stop()
         settle.stop()
-        moving = -1
-        shift = 0
-        tilt = 0
-        incoming = 0
-        behind = false
+        circulating = -1
+        progress = 0
     }
     function advance(step) {
-        if (!canBrowse || turn.running) return
-        settle.stop()
-        direction = step
-        moving = current
-        // The finger already performed most (or all) of the reveal on a long pull.
-        const shiftRemaining = Math.abs(revealShift - shift) / Math.max(1, Math.abs(revealShift))
-        const tiltRemaining = Math.abs(-direction * turnAngle - tilt) / turnAngle
-        revealTime = Math.round(duration * Math.min(1, Math.max(shiftRemaining, tiltRemaining)))
+        if (!canBrowse || turn.running || settle.running) return
+        if (!turning || step !== direction) prepare(step)
+        // Continue from the last pointer pose. A full pull is already at the edge.
+        revealTime = Math.round(duration * (1 - 2 * progress))
         turn.start()
     }
     function openCurrent() {
-        if (count && !turn.running) openRequested(entries[current])
+        if (count && !turning) openRequested(entries[current])
     }
     function focusCover() {
         stage.forceActiveFocus(Qt.TabFocusReason)
@@ -174,28 +189,42 @@ FocusScope {
                 required property int index
                 objectName: "dockPickFace_" + index
                 readonly property int depth: deck.cardDepth(index)
-                readonly property bool inMotion: index === deck.moving
                 readonly property bool front: depth === 0
                 readonly property int nearbyDepth: Math.min(depth, deck.count - depth)
+                readonly property bool solo: index === deck.circulating
+                readonly property int stackDepth: deck.count > 0
+                    ? (index - deck.circulating - 1 + deck.count) % deck.count : 0
+                readonly property int topDepth: solo ? 0 : Math.min(2, stackDepth + 1)
+                readonly property int bottomDepth: solo ? deck.backDepth : Math.min(2, stackDepth)
+                readonly property bool posing: deck.turning && !deck.reducedMotion
                 width: deck.coverWidth
                 height: deck.coverHeight
-                x: deck.coverLeft + (inMotion ? deck.shift : front ? deck.incoming : deck.offset(depth))
-                y: deck.coverTop + (front ? 0 : Math.min(depth, 2))
-                rotation: inMotion ? deck.tilt : front ? grab.hoverTilt : Math.min(depth, 2) * deck.fanAngle
-                scale: {
-                    if (!inMotion || deck.reducedMotion) return 1
-                    const restingShift = deck.behind ? deck.offset(depth) : 0
-                    return 1 - (1 - deck.turnScale) * Math.min(1,
-                        Math.abs(deck.shift - restingShift) / Math.max(1, Math.abs(deck.revealShift - restingShift)))
-                }
-                transform: Rotation {
-                    origin.x: deck.coverWidth / 2
-                    origin.y: deck.coverHeight / 2
-                    axis { x: 1; y: 0; z: 0 }
-                    angle: card.front && !card.inMotion ? grab.hoverPitch : 0
-                }
-                z: inMotion ? (deck.behind ? 0 : 20) : 10 - Math.min(depth, 5)
-                visible: depth < 3 || inMotion
+                x: posing ? deck.across(deck.coverLeft + deck.offset(topDepth),
+                    solo ? deck.singleLane : deck.stackLane + deck.offset(stackDepth) * .32,
+                    deck.coverLeft + deck.offset(bottomDepth))
+                    : deck.coverLeft + deck.offset(depth)
+                y: deck.coverTop + (posing ? deck.between(topDepth, bottomDepth, deck.circulation)
+                    : Math.min(depth, 2))
+                rotation: posing ? deck.across(topDepth * deck.fanAngle, solo ? -deck.turnAngle : deck.turnAngle,
+                    bottomDepth * deck.fanAngle) : front ? grab.hoverTilt : Math.min(depth, 2) * deck.fanAngle
+                transform: [
+                    Scale {
+                        origin.x: deck.coverWidth / 2
+                        origin.y: deck.coverHeight / 2
+                        xScale: card.posing ? deck.between(1, deck.crossingStretch, deck.spread) : 1
+                    },
+                    Rotation {
+                        origin.x: deck.coverWidth / 2
+                        origin.y: deck.coverHeight / 2
+                        axis { x: 1; y: 0; z: 0 }
+                        angle: card.front && !deck.turning ? grab.hoverPitch : 0
+                    }
+                ]
+                // Their projected outlines are disjoint at the crossover,
+                // so changing order cannot cover or uncover part of the solo card.
+                z: posing ? (solo ? (deck.circulation <= .5 ? 20 : 0) : 10 - Math.min(stackDepth, 5))
+                    : 10 - Math.min(depth, 5)
+                visible: posing ? (solo || stackDepth < 3) : depth < 3
                 radius: 4
                 color: "#24272e"
                 border.width: 1
@@ -206,7 +235,7 @@ FocusScope {
                     id: posterLoader
                     anchors.fill: parent
                     anchors.margins: 1
-                    active: (card.inMotion && deck.visible)
+                    active: (card.posing && card.visible)
                         || (card.front && deck.artRadius >= 0)
                         || (deck.warmedEntries === deck.entries && card.nearbyDepth <= deck.artRadius)
                     readonly property var entry: parent.modelData
@@ -219,7 +248,7 @@ FocusScope {
                         objectName: "dockPosterArt"
                         radius: 4
                         fitArtwork: true
-                        revealDuration: deck.reducedMotion || !card.visible ? 0 : 150
+                        revealDuration: deck.turning || deck.reducedMotion || !card.visible ? 0 : 150
                         sources: PosterPolicy.candidates(posterLoader.entry.cover || "", posterLoader.entry.coverCandidates || [])
                     }
                 }
@@ -249,13 +278,13 @@ FocusScope {
             y: deck.coverTop
             width: deck.coverWidth
             height: deck.coverHeight
-            enabled: deck.count > 0 && !turn.running
+            enabled: deck.count > 0 && !turn.running && !settle.running
             preventStealing: true
             cursorShape: deck.canBrowse ? (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.PointingHandCursor
             property point start
             hoverEnabled: true
             property int dragAxis: 0
-            readonly property bool hoverActive: containsMouse && !pressed && deck.moving < 0 && !deck.reducedMotion
+            readonly property bool hoverActive: containsMouse && !pressed && !deck.turning && !deck.reducedMotion
             property real hoverTilt: hoverActive ? (mouseX / Math.max(1, width) - .5) * 5 : 0
             property real hoverPitch: hoverActive ? (.5 - mouseY / Math.max(1, height)) * 8 : 0
             Behavior on hoverTilt {
@@ -280,25 +309,24 @@ FocusScope {
                 if (dragAxis === 0 && Math.max(Math.abs(dx), Math.abs(dy)) >= 6)
                     dragAxis = Math.abs(dx) >= Math.abs(dy) ? Qt.Horizontal : Qt.Vertical
                 if (dragAxis !== Qt.Horizontal || !deck.canBrowse) return
-                deck.moving = deck.current
-                deck.direction = dx < 0 ? 1 : -1
-                deck.shift = Math.max(-deck.leftTravel, Math.min(deck.rightTravel, dx))
-                const travel = dx < 0 ? deck.leftTravel : deck.rightTravel
-                deck.tilt = deck.reducedMotion ? 0 : deck.shift / Math.max(1, travel) * deck.turnAngle
+                deck.pull(dx)
             }
             onReleased: event => {
                 const scenePosition = grab.mapToItem(null, event.x, event.y)
                 const dx = scenePosition.x - start.x
                 const dy = scenePosition.y - start.y
                 if (dragAxis === 0 && Math.hypot(dx, dy) < 6) deck.openCurrent()
-                else if (dragAxis === Qt.Horizontal && deck.canBrowse
-                        && Math.abs(dx) >= Math.max(12, Math.min(26, (dx < 0 ? deck.leftTravel : deck.rightTravel) * .62)))
-                    deck.advance(dx < 0 ? 1 : -1)
+                else if (dragAxis === Qt.Horizontal && deck.turning) {
+                    const travel = deck.direction > 0 ? deck.leftTravel : deck.rightTravel
+                    if (2 * deck.progress * travel >= Math.max(12, travel * .62))
+                        deck.advance(deck.direction)
+                    else settle.start()
+                }
                 else if (dragAxis === Qt.Vertical)
                     deck.verticalSwipeRequested(dy)
-                else if (deck.moving >= 0) settle.start()
+                else if (deck.turning) settle.start()
             }
-            onCanceled: deck.resetMotion()
+            onCanceled: if (deck.turning && !turn.running) settle.start()
         }
 
     }
@@ -364,37 +392,20 @@ FocusScope {
 
     SequentialAnimation {
         id: settle
-        ParallelAnimation {
-            NumberAnimation { target: deck; property: "shift"; to: 0; duration: deck.duration; easing.type: Easing.OutCubic }
-            NumberAnimation { target: deck; property: "tilt"; to: 0; duration: deck.duration; easing.type: Easing.OutCubic }
-        }
-        ScriptAction { script: deck.moving = -1 }
+        NumberAnimation { target: deck; property: "progress"; to: 0; duration: deck.duration; easing.type: Easing.OutCubic }
+        ScriptAction { script: deck.circulating = -1 }
     }
     SequentialAnimation {
         id: turn
-        ParallelAnimation {
-            NumberAnimation { target: deck; property: "shift"; to: deck.revealShift; duration: deck.revealTime; easing.type: Easing.OutCubic }
-            NumberAnimation { target: deck; property: "tilt"; to: -deck.direction * deck.turnAngle; duration: deck.revealTime }
+        NumberAnimation { target: deck; property: "progress"; to: .5; duration: deck.revealTime; easing.type: Easing.OutCubic }
+        ScriptAction { script: deck.current = (deck.current + deck.direction + deck.count) % deck.count }
+        NumberAnimation {
+            target: deck
+            property: "progress"
+            to: 1
+            duration: deck.reducedMotion ? 0 : 240
+            easing.type: Easing.InOutSine
         }
-        ScriptAction {
-            script: {
-                deck.behind = true
-                deck.incoming = deck.offset(1)
-                deck.current = (deck.current + deck.direction + deck.count) % deck.count
-            }
-        }
-        ParallelAnimation {
-            NumberAnimation { target: deck; property: "shift"; to: deck.offset(deck.count - 1); duration: deck.duration + (deck.reducedMotion ? 0 : 85); easing.type: Easing.OutCubic }
-            NumberAnimation { target: deck; property: "tilt"; to: Math.min(deck.count - 1, 2) * deck.fanAngle; duration: deck.duration; easing.type: Easing.OutCubic }
-            NumberAnimation { target: deck; property: "incoming"; to: 0; duration: deck.duration; easing.type: Easing.OutCubic }
-        }
-        ScriptAction {
-            script: {
-                deck.moving = -1
-                deck.behind = false
-                deck.shift = 0
-                deck.tilt = 0
-            }
-        }
+        ScriptAction { script: { deck.circulating = -1; deck.progress = 0 } }
     }
 }
