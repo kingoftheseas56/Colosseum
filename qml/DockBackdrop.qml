@@ -26,11 +26,11 @@ Item {
         autoPaddingEnabled: false
         blurEnabled: true
         blur: 1
-        blurMax: 32
+        blurMax: 64
     }
     Rectangle {
         anchors.fill: parent
-        color: "#1705050a"
+        color: "#2405050a"
     }
     MouseArea {
         anchors.fill: parent

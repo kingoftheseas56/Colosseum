@@ -25,6 +25,7 @@ Item {
     property bool open: false
     property Item pickerScene
     property var pickerPicks: ({})
+    property Component pickerMapSlide
     property bool pickerReducedMotion: false
     readonly property bool pickerShown: visible && open && !autoRevealed && !!pickerScene
     readonly property real pickerWidth: Math.min(1040, Math.max(0, width - leftEdge * 2))
@@ -35,7 +36,8 @@ Item {
     readonly property int closedSize: 64
     readonly property real contentBottomInset: visible ? height - dock.y : 0
     // Permanent buttons: Colosseum, Vault, Collections, Downloads.
-    readonly property int closedWidth: pickerScene ? 250 : 190
+    readonly property int closedWidth: pickerScene
+        ? 250 + (extensionsActive ? 60 : 0) + (historyStatsActive ? 60 : 0) : 190
     Keys.onPressed: (event) => spatialNav.handle(event)
 
     signal switchRequested(string id)
@@ -43,7 +45,6 @@ Item {
     signal startClicked()
     signal pickerPickRequested(string medium, var entry)
     signal pickerWallpaperRequested()
-    signal pickerFilesDropped(var urls)
     signal openMediaClicked()             // Open Media… — hand the app a local file (Slice 8)
     signal watchPartyJoinClicked()        // Accountless/signed-in Room ID entry outside Player 1
     // Slice 6 Lanista scalars: bound by Main.qml to the outside-player Join sheet.
@@ -68,8 +69,21 @@ Item {
     readonly property string activityLabel: feriaContext ? "Your Feria" : "Your Colosseum"
     // Third-party trackers (the Sync Center) live in the TopBar's right cluster, not here.
 
+    property bool openingMedia: false
+    function requestOpenMedia() {
+        if (openingMedia) return
+        openingMedia = true
+        open = false
+        autoRevealed = false
+        idleTimer.stop()
+        Qt.callLater(function() {
+            bar.openingMedia = false
+            if (bar.visible && !bar.open) bar.openMediaClicked()
+        })
+    }
+
     onOpenChanged: if (!open) fan.visible = false
-    onPickerShownChanged: if (pickerShown) picker.forceActiveFocus(Qt.PopupFocusReason)
+    onPickerShownChanged: if (pickerShown) picker.focusEntry()
     property bool pendingAutoReveal: false
     onVisibleChanged: {
         if (!visible) open = false
@@ -93,6 +107,10 @@ Item {
     }
     function focusHistoryStatsAction() {
         if (!bar.visible) return
+        if (bar.pickerScene && !bar.open) {
+            startInput.forceActiveFocus(Qt.TabFocusReason)
+            return
+        }
         bar.autoRevealed = false
         idleTimer.stop()
         if (!bar.open)
@@ -167,8 +185,9 @@ Item {
         x: bar.leftEdge
         y: dock.y - height - 12
         width: bar.pickerWidth
-        height: Math.max(0, Math.min(520, dock.y - 12 - 20))
+        height: Math.max(0, Math.min(560, dock.y - 12 - 20))
         picks: bar.pickerPicks
+        mapSlide: bar.pickerMapSlide
         reducedMotion: bar.pickerReducedMotion
         mediaAvailable: bar.localMediaAvailable
         activityLabel: bar.activityLabel
@@ -180,11 +199,7 @@ Item {
             bar.open = false
             bar.pickerWallpaperRequested()
         }
-        onFilesDropped: urls => {
-            bar.open = false
-            bar.pickerFilesDropped(urls)
-        }
-        onChooseFilesRequested: { bar.open = false; bar.openMediaClicked() }
+        onChooseFilesRequested: bar.requestOpenMedia()
         onRecentRequested: { bar.open = false; bar.openRecentRequested() }
         onJoinRequested: { bar.open = false; bar.watchPartyJoinClicked() }
         onExtensionsRequested: { bar.open = false; bar.extensionsClicked() }
@@ -209,7 +224,10 @@ Item {
         border.color: startInput.interactionActive ? Qt.rgba(0.94, 0.76, 0.35, 0.56)
                                             : Qt.rgba(1, 1, 1, 0.16)
 
-        Behavior on width { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
+        Behavior on width {
+            enabled: !bar.openingMedia
+            NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
+        }
         Behavior on radius { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
         Behavior on color { ColorAnimation { duration: 140 } }
         Behavior on border.color { ColorAnimation { duration: 140 } }
@@ -315,6 +333,7 @@ Item {
                     id: collectionsInput
                     objectName: "taskbarCollectionsAction"
                     anchors.fill: parent
+                    focusOnPointer: !bar.pickerScene
                     anchors.leftMargin: -touchMetrics.targetInset(parent.width)
                     anchors.rightMargin: -touchMetrics.targetInset(parent.width)
                     anchors.topMargin: -touchMetrics.targetInset(parent.height)
@@ -358,7 +377,7 @@ Item {
                     tooltipText: accessibleName
                     tooltipHovered: hovered && !recentInput.hovered
                     focusRadius: 13
-                    onTriggered: bar.openMediaClicked()
+                    onTriggered: bar.requestOpenMedia()
                 }
                 // Recent disclosure (Slice 9): the corner caret opens the remembered-files list;
                 // the icon itself still opens the picker (Slice 8 preserved). Declared after omMa
@@ -514,7 +533,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open && !bar.pickerShown
+                visible: (bar.open && !bar.pickerShown) || (!!bar.pickerScene && bar.extensionsActive)
                 activeFocusOnTab: visible
                 Accessible.role: Accessible.Button
                 Accessible.name: "Extensions"
@@ -542,6 +561,7 @@ Item {
                 KeyboardAction {
                     id: extensionsInput
                     anchors.fill: parent
+                    focusOnPointer: !bar.pickerScene
                     accessibleName: "Extensions"
                     tooltipText: accessibleName
                     focusRadius: 13
@@ -560,7 +580,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open && !bar.pickerShown
+                visible: (bar.open && !bar.pickerShown) || (!!bar.pickerScene && bar.historyStatsActive)
                 Rectangle {
                     objectName: "taskbarHistoryStatsSurface"
                     anchors.fill: parent
@@ -595,6 +615,7 @@ Item {
                     id: historyStatsInput
                     objectName: "taskbarHistoryStatsInput"
                     anchors.fill: parent
+                    focusOnPointer: !bar.pickerScene
                     accessibleName: bar.activityLabel
                     tooltipText: accessibleName
                     spaceActivates: true

@@ -1424,8 +1424,8 @@ Window {
         case "bookReader": win.requestBookReaderEscape(); return
         case "comicReader": win.requestComicReaderEscape(); return
         case "update": win.closeUpdatePage(); return
-        case "historyStats": win.closeHistoryStatsPage(); return
-        case "yourFeria": win.closeYourFeriaPage(); return
+        case "historyStats": win.closeHistoryStatsPage(true); return
+        case "yourFeria": win.closeYourFeriaPage(true); return
         case "syncCenter":
             if (syncCenterLayer.item && syncCenterLayer.item.requestEscape)
                 syncCenterLayer.item.requestEscape()
@@ -2789,13 +2789,13 @@ Window {
         taskbar.open = false
         if (yourFeriaLayer.item) Qt.callLater(yourFeriaLayer.item.takeKeyboardFocus)
     }
-    function closeYourFeriaPage() {
+    function closeYourFeriaPage(restoreFocus) {
         yourFeriaLayer.open = false
-        taskbar.focusHistoryStatsAction()
+        if (restoreFocus) taskbar.focusHistoryStatsAction()
     }
-    function closeHistoryStatsPage() {
+    function closeHistoryStatsPage(restoreFocus) {
         historyStatsLayer.active = false
-        taskbar.focusHistoryStatsAction()
+        if (restoreFocus) taskbar.focusHistoryStatsAction()
     }
 
     // ---- Downloads page: the taskbar's own full page over everything non-immersive ----
@@ -6627,7 +6627,6 @@ Window {
             if (!win.guardNamedCollectionsNavigation(open)) open()
         }
         onPickerWallpaperRequested: win.openWallpaperSearch(win.currentSurface)
-        onPickerFilesDropped: urls => win.openDroppedMedia(urls)
         localMediaAvailable: win.localMediaAvailable
         z: 900
         onFeedbackClicked: win.openFeedback()

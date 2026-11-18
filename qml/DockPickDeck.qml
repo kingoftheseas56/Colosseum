@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "PosterSourcePolicy.js" as PosterPolicy
 
 FocusScope {
     id: deck
@@ -10,10 +11,11 @@ FocusScope {
     property bool reducedMotion: false
     property real aspect: 0.71
     signal openRequested(var entry)
+    signal verticalSwipeRequested(int direction)
 
     readonly property int count: entries.length
     readonly property bool canBrowse: count > 1
-    readonly property real coverHeight: Math.max(1, Math.min(stage.height - 12, 115, (stage.width - 76) / aspect))
+    readonly property real coverHeight: Math.max(1, Math.min(stage.height - 5, (stage.width - 32) / aspect))
     readonly property real coverWidth: coverHeight * aspect
     readonly property real travel: Math.max(0, Math.min(78, (stage.width - coverWidth) / 2 - 9))
     property int current: 0
@@ -65,8 +67,7 @@ FocusScope {
 
     Text {
         id: mediumLabel
-        anchors.left: parent.left
-        anchors.leftMargin: 8
+        anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         text: deck.medium
         color: deck.locked ? theme.inkDimmer : theme.ink
@@ -103,7 +104,13 @@ FocusScope {
                 height: deck.coverHeight
                 x: (stage.width - width) / 2 + (inMotion ? deck.shift : front ? deck.incoming : deck.offset(depth))
                 y: (stage.height - height) / 2 + (front ? 0 : Math.min(depth, 2))
-                rotation: inMotion ? deck.tilt : front ? 0 : Math.min(depth, 2) * 2
+                rotation: inMotion ? deck.tilt : front ? grab.hoverTilt : Math.min(depth, 2) * 2
+                transform: Rotation {
+                    origin.x: deck.coverWidth / 2
+                    origin.y: deck.coverHeight / 2
+                    axis { x: 1; y: 0; z: 0 }
+                    angle: parent.front && !parent.inMotion ? grab.hoverPitch : 0
+                }
                 z: inMotion ? (deck.behind ? 0 : 20) : 10 - Math.min(depth, 5)
                 visible: depth < 3 || inMotion
                 radius: 4
@@ -112,24 +119,17 @@ FocusScope {
                 border.color: front && stage.activeFocus ? theme.gold : "#45ffffff"
                 Accessible.ignored: true
 
-                Image {
-                    id: coverArt
+                Loader {
+                    id: posterLoader
                     anchors.fill: parent
                     anchors.margins: 1
-                    source: parent.visible ? parent.modelData.cover : ""
-                    sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
-                    asynchronous: true
-                    fillMode: deck.mediumKey === "tributes" ? Image.PreserveAspectCrop : Image.PreserveAspectFit
-                    clip: deck.mediumKey === "tributes"
-                }
-                Image {
-                    anchors.centerIn: parent
-                    width: 20
-                    height: 20
-                    visible: coverArt.status !== Image.Ready
-                    source: "../assets/icons/comicreader/image.svg"
-                    sourceSize: Qt.size(40, 40)
-                    opacity: .35
+                    active: parent.visible
+                    readonly property var entry: parent.modelData
+                    sourceComponent: RoundedPosterImage {
+                        radius: 4
+                        revealDuration: deck.reducedMotion ? 0 : 150
+                        sources: PosterPolicy.candidates(posterLoader.entry.cover || "", posterLoader.entry.coverCandidates || [])
+                    }
                 }
             }
         }
@@ -165,17 +165,32 @@ FocusScope {
             preventStealing: true
             cursorShape: deck.canBrowse ? (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.PointingHandCursor
             property point start
-            property bool dragged: false
+            hoverEnabled: !deck.reducedMotion
+            property int dragAxis: 0
+            readonly property bool hoverActive: containsMouse && !pressed && deck.moving < 0 && !deck.reducedMotion
+            property real hoverTilt: hoverActive ? (mouseX / Math.max(1, width) - .5) * 5 : 0
+            property real hoverPitch: hoverActive ? (.5 - mouseY / Math.max(1, height)) * 8 : 0
+            Behavior on hoverTilt {
+                enabled: !grab.pressed
+                NumberAnimation { duration: 100; easing.type: Easing.OutCubic }
+            }
+            Behavior on hoverPitch {
+                enabled: !grab.pressed
+                NumberAnimation { duration: 100; easing.type: Easing.OutCubic }
+            }
+
             onPressed: event => {
                 deck.resetMotion()
                 start = Qt.point(event.x, event.y)
-                dragged = false
+                dragAxis = 0
             }
             onPositionChanged: event => {
-                if (!pressed || !deck.canBrowse) return
+                if (!pressed) return
                 const dx = event.x - start.x
-                if (!dragged && Math.hypot(dx, event.y - start.y) < 6) return
-                dragged = true
+                const dy = event.y - start.y
+                if (dragAxis === 0 && Math.max(Math.abs(dx), Math.abs(dy)) >= 6)
+                    dragAxis = Math.abs(dx) >= Math.abs(dy) ? Qt.Horizontal : Qt.Vertical
+                if (dragAxis !== Qt.Horizontal || !deck.canBrowse) return
                 deck.moving = deck.current
                 deck.direction = dx < 0 ? 1 : -1
                 deck.shift = Math.max(-deck.travel, Math.min(deck.travel, dx))
@@ -184,37 +199,17 @@ FocusScope {
             onReleased: event => {
                 const dx = event.x - start.x
                 const dy = event.y - start.y
-                if (!dragged && Math.hypot(dx, dy) < 6) deck.openCurrent()
-                else if (deck.canBrowse && Math.abs(dx) >= Math.max(12, Math.min(26, deck.travel * .62)) && Math.abs(dx) > Math.abs(dy))
+                if (dragAxis === 0 && Math.hypot(dx, dy) < 6) deck.openCurrent()
+                else if (dragAxis === Qt.Horizontal && deck.canBrowse
+                        && Math.abs(dx) >= Math.max(12, Math.min(26, deck.travel * .62)))
                     deck.advance(dx < 0 ? 1 : -1)
+                else if (dragAxis === Qt.Vertical && Math.abs(dy) >= 48)
+                    deck.verticalSwipeRequested(dy < 0 ? 1 : -1)
                 else if (deck.moving >= 0) settle.start()
             }
             onCanceled: deck.resetMotion()
         }
 
-        Repeater {
-            model: deck.canBrowse ? [-1, 1] : []
-            delegate: Item {
-                required property int modelData
-                z: 26
-                width: 34
-                height: 34
-                x: (stage.width - width) / 2 + modelData * (deck.coverWidth / 2 + 22)
-                anchors.verticalCenter: parent.verticalCenter
-                Image {
-                    anchors.centerIn: parent
-                    width: 14
-                    height: 14
-                    sourceSize: Qt.size(28, 28)
-                    source: parent.modelData < 0 ? "../assets/icons/lucide/chevron-left.svg" : "../assets/icons/lucide/chevron-right.svg"
-                }
-                KeyboardAction {
-                    anchors.fill: parent
-                    accessibleName: parent.modelData < 0 ? qsTr("Previous %1 pick").arg(deck.medium) : qsTr("Next %1 pick").arg(deck.medium)
-                    onTriggered: deck.advance(parent.modelData)
-                }
-            }
-        }
     }
 
     Text {
@@ -222,10 +217,8 @@ FocusScope {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 26
+        height: 17
         horizontalAlignment: Text.AlignHCenter
-        wrapMode: Text.Wrap
-        maximumLineCount: 2
         elide: Text.ElideRight
         color: theme.inkDim
         font.family: theme.ui

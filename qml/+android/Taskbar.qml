@@ -32,7 +32,6 @@ Item {
     signal startClicked()
     signal pickerPickRequested(string medium, var entry)
     signal pickerWallpaperRequested()
-    signal pickerFilesDropped(var urls)
     signal openMediaClicked()
     signal openRecentRequested()
     signal watchPartyJoinClicked()

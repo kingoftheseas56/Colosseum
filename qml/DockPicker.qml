@@ -9,10 +9,10 @@ FocusScope {
     property bool mediaAvailable: true
     property string activityLabel: qsTr("Your Colosseum")
     property int slide: 0
+    property Component mapSlide
     property Item activityControl
     signal pickRequested(string medium, var entry)
     signal wallpaperRequested()
-    signal filesDropped(var urls)
     signal chooseFilesRequested()
     signal recentRequested()
     signal joinRequested()
@@ -35,8 +35,15 @@ FocusScope {
     Theme { id: theme }
 
     function selectSlide(index) {
-        if (index === 0 || index === 2) slide = index
+        if (index === 0 || (index === 1 && mapSlide)) slide = index
     }
+    onMapSlideChanged: if (!mapSlide) selectSlide(0)
+    onVisibleChanged: if (!visible) selectSlide(0)
+
+    function focusEntry() {
+        entryFocus.forceActiveFocus(Qt.PopupFocusReason)
+    }
+
     function focusActivity() {
         if (activityControl) activityControl.forceActiveFocus(Qt.TabFocusReason)
     }
@@ -50,16 +57,10 @@ FocusScope {
 
     MouseArea {
         anchors.fill: parent
-        property point start
-        onPressed: mouse => start = Qt.point(mouse.x, mouse.y)
-        onReleased: mouse => {
-            const dx = mouse.x - start.x
-            const dy = mouse.y - start.y
-            if (start.x > picker.railWidth + picker.inset && Math.abs(dx) > Math.max(48, Math.abs(dy) * 1.4))
-                picker.selectSlide(dx < 0 ? 2 : 0)
-        }
-        onWheel: wheel => wheel.accepted = true
+        onWheel: event => event.accepted = true
     }
+
+    Item { id: entryFocus }
 
     Column {
         x: picker.inset
@@ -119,7 +120,7 @@ FocusScope {
                     enabled: shortcut.modelData.available
                     contextEnabled: shortcut.modelData.key === "media"
                     accessibleName: shortcut.modelData.title
-                    tooltipText: accessibleName
+                    focusOnPointer: false
                     focusRadius: 12
                     spaceActivates: true
                     onTriggered: shortcut.modelData.run()
@@ -147,71 +148,91 @@ FocusScope {
         anchors.topMargin: picker.inset
         anchors.bottomMargin: picker.inset
         anchors.leftMargin: picker.railWidth + 25
-        anchors.rightMargin: 31
+        anchors.rightMargin: picker.mapSlide ? 31 : picker.inset
+        clip: true
 
-        Grid {
-            id: grid
+        MouseArea {
             anchors.fill: parent
-            visible: picker.slide === 0
-            columns: 3
-            rowSpacing: 5
-            columnSpacing: 9
-            Repeater {
-                model: picker.genres
-                delegate: DockPickDeck {
-                    required property var modelData
-                    objectName: "dockDeck_" + modelData.key
-                    width: Math.max(0, (grid.width - 2 * grid.columnSpacing) / 3)
-                    height: Math.max(0, (grid.height - 2 * grid.rowSpacing) / 3)
-                    medium: modelData.name
-                    mediumKey: modelData.key
-                    aspect: modelData.aspect || .71
-                    entries: picker.picks[modelData.key] || []
-                    locked: modelData.key === "music"
-                    reducedMotion: picker.reducedMotion
-                    onOpenRequested: entry => picker.pickRequested(modelData.key, entry)
-                }
+            enabled: !!picker.mapSlide
+            property point start
+            onPressed: mouse => start = Qt.point(mouse.x, mouse.y)
+            onReleased: mouse => {
+                const dx = mouse.x - start.x
+                const dy = mouse.y - start.y
+                if (Math.abs(dy) > Math.max(48, Math.abs(dx) * 1.4))
+                    picker.selectSlide(picker.slide + (dy < 0 ? 1 : -1))
             }
         }
 
-        Loader {
-            anchors.fill: parent
-            active: picker.visible && picker.slide === 2
-            sourceComponent: DockMediaWidgets {
-                mediaAvailable: picker.mediaAvailable
-                reducedMotion: picker.reducedMotion
-                onWallpaperRequested: picker.wallpaperRequested()
-                onChooseFilesRequested: picker.chooseFilesRequested()
-                onFilesDropped: urls => picker.filesDropped(urls)
+        Item {
+            width: widgetArea.width
+            height: widgetArea.height
+            y: -picker.slide * height
+            Behavior on y {
+                enabled: !picker.reducedMotion
+                NumberAnimation { duration: 230; easing.type: Easing.OutCubic }
+            }
+
+            Grid {
+                id: grid
+                width: widgetArea.width
+                height: widgetArea.height
+                enabled: picker.slide === 0
+                columns: 3
+                rowSpacing: 5
+                columnSpacing: 9
+                Repeater {
+                    model: picker.genres
+                    delegate: DockPickDeck {
+                        required property var modelData
+                        objectName: "dockDeck_" + modelData.key
+                        width: Math.max(0, (grid.width - 2 * grid.columnSpacing) / 3)
+                        height: Math.max(0, (grid.height - 2 * grid.rowSpacing) / 3)
+                        medium: modelData.name
+                        mediumKey: modelData.key
+                        aspect: modelData.aspect || .71
+                        entries: picker.picks[modelData.key] || []
+                        locked: modelData.key === "music"
+                        reducedMotion: picker.reducedMotion
+                        onVerticalSwipeRequested: direction => picker.selectSlide(picker.slide + direction)
+                        onOpenRequested: entry => picker.pickRequested(modelData.key, entry)
+                    }
+                }
+            }
+
+            Loader {
+                y: widgetArea.height
+                width: widgetArea.width
+                height: widgetArea.height
+                enabled: picker.slide === 1
+                sourceComponent: picker.mapSlide
             }
         }
     }
 
     Column {
+        visible: !!picker.mapSlide
         anchors.right: parent.right
         anchors.rightMargin: 2
         anchors.verticalCenter: parent.verticalCenter
         Repeater {
-            model: 4
+            model: picker.mapSlide ? 2 : 0
             delegate: Item {
                 required property int index
                 width: 27
                 height: 27
-                readonly property bool available: index === 0 || index === 2
                 Rectangle {
                     anchors.centerIn: parent
                     width: picker.slide === parent.index ? 8 : 6
                     height: width
                     radius: width / 2
-                    color: picker.slide === parent.index ? theme.gold : parent.available ? "#91ffffff" : "#48ffffff"
+                    color: picker.slide === parent.index ? theme.gold : "#91ffffff"
                 }
                 KeyboardAction {
                     objectName: "dockSlideDot_" + parent.index
                     anchors.fill: parent
-                    enabled: parent.available
                     focusOnPointer: false
-                    accessibleName: parent.index === 0 ? qsTr("Pick Anything")
-                        : parent.index === 2 ? qsTr("Wallpaper and Drop Media") : qsTr("Unavailable slide")
+                    accessibleName: parent.index === 0 ? qsTr("Pick Anything") : qsTr("Colosseum worlds")
                     focusRadius: 13
                     spaceActivates: true
                     onTriggered: picker.selectSlide(parent.index)
