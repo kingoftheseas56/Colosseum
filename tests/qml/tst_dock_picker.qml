@@ -66,19 +66,17 @@ Item {
             compare(picker.x, dock.x)
             compare(picker.x + picker.width, bar.width - picker.x)
             compare(picker.y, 20)
-            const mark = findChild(deck, "dockPickMark_tv")
-            const markPosition = Qt.point(mark.x, mark.y)
-            const stage = findChild(deck, "dockPickStage_tv")
+            const title = findChild(deck, "dockPickTitle_tv")
             const x = card.width / 2
             const y = card.height / 2
             mouseMove(card, card.width * .8, card.height * .2)
             tryVerify(() => card.hoverTilt > 0 && card.hoverPitch > 0)
-            tryVerify(() => stage.ToolTip.visible)
+            verify(title.visible)
+            compare(title.text, "First")
             mousePress(card, x, y)
             compare(card.hoverTilt, 0)
             compare(card.hoverPitch, 0)
             verify(card.pressed, "Press reaches the front cover")
-            tryVerify(() => !stage.ToolTip.visible)
             mouseMove(card, x - 11, y, 20, Qt.LeftButton)
             verify(deck.shift < 0)
             mouseRelease(card, x - 11, y)
@@ -90,12 +88,10 @@ Item {
             mouseMove(card, x - 48, y, 20, Qt.LeftButton)
             compare(deck.moving, 0)
             checkDeckBounds(deck)
-            compare(Qt.point(mark.x, mark.y), markPosition)
             mouseRelease(card, x - 48, y)
             tryVerify(() => deck.behind && deck.moving === 0 && deck.current === 1)
-            verify(!stage.ToolTip.visible)
             checkDeckBounds(deck)
-            compare(Qt.point(mark.x, mark.y), markPosition)
+            compare(title.text, "Second")
             tryCompare(deck, "moving", -1)
             compare(picks.count, 0)
 
@@ -107,7 +103,7 @@ Item {
             verify(!picker.visible)
         }
 
-        function test_verticalSwipeChangesOnlyTheSlide() {
+        function test_verticalDragAndWheelScrollPicksWithoutSwitchingSlides() {
             bar.pickerReducedMotion = true
             bar.open = true
             const picker = findChild(bar, "dockPicker")
@@ -117,18 +113,27 @@ Item {
             verify(findChild(picker, "dockSlideDot_0") === null)
             bar.pickerMapSlide = mapComponent
             tryVerify(() => findChild(picker, "dockSlideDot_1") !== null)
-            const x = card.width / 2
-            const y = card.height / 2
+            const scroll = findChild(picker, "dockPickScroll")
+            const heading = findChild(picker, "dockPickHeading")
+            const headingPosition = heading.mapToItem(root, 0, 0)
+            const start = card.mapToItem(scroll, card.width / 2, card.height * .8)
 
-            mousePress(card, x, y)
-            mouseMove(card, x + 1, y - 15, 20, Qt.LeftButton)
-            mouseMove(card, x - 60, y - 55, 20, Qt.LeftButton)
-            mouseRelease(card, x - 60, y - 55)
-            tryCompare(picker, "slide", 1)
+            mousePress(scroll, start.x, start.y)
+            mouseMove(scroll, start.x + 1, start.y - 15, 20, Qt.LeftButton)
+            mouseMove(scroll, start.x - 60, start.y - 75, 20, Qt.LeftButton)
+            mouseRelease(scroll, start.x - 60, start.y - 75)
+            fuzzyCompare(scroll.contentY, 75, 1)
+            compare(picker.slide, 0)
             compare(deck.current, 0)
             compare(deck.moving, -1)
             compare(picks.count, 0)
+            compare(heading.mapToItem(root, 0, 0), headingPosition)
 
+            mouseWheel(scroll, scroll.width / 2, scroll.height / 2, 0, -120)
+            tryVerify(() => scroll.contentY > 75)
+            compare(picker.slide, 0)
+            mouseClick(findChild(picker, "dockSlideDot_1"))
+            tryCompare(picker, "slide", 1)
             mouseClick(findChild(picker, "dockSlideDot_0"))
             tryCompare(picker, "slide", 0)
             compare(deck.current, 0)
@@ -196,7 +201,12 @@ Item {
             compare(universes.width, manhwa.width)
             verify(findChild(picker, "dockDeck_music") === null)
             verify(findChild(picker, "dockDeck_tributes") === null)
-            tryVerify(() => findChild(picker, "dockUniverseLogo")?.status === Image.Ready)
+            const logo = findChild(picker, "dockUniverseLogo")
+            tryCompare(logo, "status", Image.Ready)
+            compare(logo.fillMode, Image.PreserveAspectFit)
+            const franchises = findChild(picker, "dockPickStage_universes")
+            compare(franchises.Accessible.name, "Open " + entries[0].title + " (Franchises)")
+            franchises.forceActiveFocus(Qt.TabFocusReason)
             mouseClick(universes)
             compare(picks.signalArguments[0][0], "universes")
             compare(picks.signalArguments[0][1].raw.page, entries[0].raw.page)
@@ -208,20 +218,59 @@ Item {
         function checkDeckBounds(deck) {
             let left = deck.width
             let right = 0
+            const motion = deck.moving >= 0
+            const area = motion ? findChild(bar, "dockPickScroll").contentItem : deck
             for (let i = 0; i < Math.min(3, deck.count); ++i) {
                 const face = findChild(deck, "dockPickFace_" + i)
-                const bounds = face.mapToItem(deck, Qt.rect(0, 0, face.width, face.height))
-                verify(bounds.x >= 0 && bounds.x + bounds.width <= deck.width + 1, "Card stays inside its column")
-                verify(bounds.y >= 0 && bounds.y + bounds.height <= deck.height + 1, "Card stays inside its row")
+                const bounds = face.mapToItem(area, Qt.rect(0, 0, face.width, face.height))
+                verify(bounds.x >= -1 && bounds.x + bounds.width <= area.width + 1,
+                    "Card stays inside " + (motion ? "the picker" : "its column") + ": " + deck.medium)
+                verify(bounds.y >= -1 && bounds.y + bounds.height <= area.height + 1,
+                    "Card stays inside " + (motion ? "the picker" : "its row") + ": " + deck.medium)
                 left = Math.min(left, bounds.x)
                 right = Math.max(right, bounds.x + bounds.width)
             }
-            if (deck.moving < 0)
-                fuzzyCompare((left + right) / 2, deck.width / 2, 1)
-            return right
+            if (!motion)
+                fuzzyCompare((left + right) / 2, deck.artWidth / 2, 1)
         }
 
-        function test_postersScaleAndMarksLoad() {
+        function checkRows(picker, rows) {
+            const grid = findChild(picker, "dockPickGrid")
+            grid.forceLayout()
+            let rowBottom = 0
+            for (const row of rows) {
+                let deckRight = 0
+                let firstX = -1
+                let rowY = -1
+                for (const key of row) {
+                    const deck = findChild(picker, "dockDeck_" + key)
+                    const label = findChild(deck, "dockPickMedium_" + key)
+                    const title = findChild(deck, "dockPickTitle_" + key)
+                    verify(deck.visible && deck.coverHeight > 0 && label.visible && title.visible)
+                    verify(!label.truncated && !title.truncated)
+                    compare(label.text, key === "tv" ? "TV"
+                                                    : key === "universes" ? "Franchises"
+                                                                         : key[0].toUpperCase() + key.slice(1))
+                    const image = findChild(deck, "dockPosterArt_img")
+                    if (key !== "universes")
+                        compare(image.fillMode, Image.PreserveAspectFit)
+                    checkDeckBounds(deck)
+                    verify(label.parent.x >= 0 && label.parent.x + label.width <= deck.width + 1)
+                    verify(title.parent.y + title.y + title.height <= deck.height + 1)
+                    if (rowY < 0) {
+                        firstX = deck.x
+                        rowY = deck.y
+                    }
+                    compare(deck.y, rowY)
+                    verify(deck.x >= deckRight && deck.y >= rowBottom && deck.y + deck.height <= grid.height + 1)
+                    deckRight = deck.x + deck.width
+                }
+                fuzzyCompare((firstX + deckRight) / 2, grid.width / 2, 1)
+                rowBottom = rowY + findChild(picker, "dockDeck_" + row[0]).height
+            }
+        }
+
+        function test_fixedRowsKeepReadableTitlesAndLargerArtwork() {
             bar.open = true
             const picker = findChild(bar, "dockPicker")
             verify(waitForRendering(picker))
@@ -231,67 +280,119 @@ Item {
             compare(heading.width, heading.parent.width)
             mouseMove(heading)
 
-            const keys = ["manga", "comics", "manhwa", "books", "audiobooks", "anime", "tv", "movies", "universes"]
+            const rows = [["anime", "tv", "movies"], ["manga", "comics", "manhwa"], ["books", "audiobooks", "universes"]]
             const entries = bar.pickerPicks.tv
             const allPicks = {}
-            for (const key of keys)
-                allPicks[key] = entries
+            for (const row of rows)
+                for (const key of row)
+                    allPicks[key] = entries
             bar.pickerPicks = allPicks
-            const stdHeight = findChild(picker, "dockPickCard_tv").height
-            verify(stdHeight > 160, "TV poster height at 1280×720: " + stdHeight)
-            const iconSources = new Set()
-            for (const key of keys) {
-                const deck = findChild(picker, "dockDeck_" + key)
-                const mark = findChild(deck, "dockPickMark_" + key)
-                tryCompare(mark, "status", Image.Ready)
-                iconSources.add(mark.source.toString())
-                verify(mark.x > checkDeckBounds(deck), "The mark sits beside the resting stack")
-                verify(mark.x + mark.width <= deck.width && mark.y + mark.height <= deck.height)
-                verify(findChild(deck, "dockPickLabels_" + key) === null)
-            }
-            compare(iconSources.size, 9)
+            const tv = findChild(picker, "dockPickCard_tv")
+            const scroll = findChild(picker, "dockPickScroll")
+            const stdHeight = tv.height
+            verify(stdHeight >= 215, "TV poster height at 1280x720: " + stdHeight)
+            checkRows(picker, rows)
             const audio = findChild(picker, "dockPickCard_audiobooks")
             compare(audio.width, audio.height)
+            const universe = findChild(picker, "dockPickCard_universes")
+            compare(universe.height, tv.height)
+            root.width = 1264
+            root.height = 656
+            tryCompare(bar, "width", 1264)
+            verify(tv.height >= 215, "TV poster height at 1264x656: " + tv.height)
+            verify(scroll.contentHeight > scroll.height)
+            verify(scroll.height >= 2 * findChild(picker, "dockDeck_tv").height + 8, "Two complete rows fit")
+            compare(scroll.contentY, 0)
+            checkRows(picker, rows)
+            const windowedHeight = tv.height
+            scroll.contentY = scroll.contentHeight - scroll.height
             root.width = 1600
             root.height = 900
-            tryVerify(() => findChild(picker, "dockPickCard_tv").height >= stdHeight + 40)
-            for (const key of keys)
-                checkDeckBounds(findChild(picker, "dockDeck_" + key))
-            console.info("TV poster height (1280×720 → 1600×900):",
-                stdHeight.toFixed(1), "→", findChild(picker, "dockPickCard_tv").height.toFixed(1))
+            tryVerify(() => tv.height > stdHeight)
+            verify(!scroll.interactive, "Tall windows can display all three rows at once")
+            tryCompare(scroll, "contentY", 0)
+            checkRows(picker, rows)
+            console.info("TV poster height (1264x656 / 1280x720 / 1600x900):",
+                windowedHeight.toFixed(1), "/", stdHeight.toFixed(1), "/", tv.height.toFixed(1))
+            root.width = 900
+            root.height = 720
+            tryCompare(findChild(picker, "dockPickGrid"), "labelsBeside", false)
+            verify(scroll.interactive)
+            checkRows(picker, rows)
         }
 
-        function test_tooltipOnHoverAndKeyboardWithReducedMotion() {
-            const fullTitle = "A very long title that takes more than three tooltip lines to render in the picker. The final words also stay visible."
-            bar.pickerPicks = { tv: [{ title: fullTitle }, { title: "Second" }] }
+        function test_visibleLabelAndAccessibleTitleReplaceTooltip() {
+            const fullTitle = "The remarkably long title of the illustrated television series"
+            bar.pickerPicks = { tv: [{ title: fullTitle }] }
             bar.pickerReducedMotion = true
             bar.open = true
             const picker = findChild(bar, "dockPicker")
             verify(waitForRendering(picker))
-            const audio = findChild(picker, "dockPickStage_audiobooks")
-            const audioMark = findChild(picker, "dockPickMark_audiobooks")
-            mouseMove(audioMark)
-            verify(!audio.ToolTip.visible)
-            tryVerify(() => audio.ToolTip.visible)
-            compare(audio.ToolTip.toolTip.text, "Audiobooks\nNo picks available")
             const card = findChild(picker, "dockPickCard_tv")
             const tv = findChild(picker, "dockPickStage_tv")
+            const audio = findChild(picker, "dockPickStage_audiobooks")
+            const label = findChild(picker, "dockPickTitle_tv")
+            compare(label.text, fullTitle)
+            verify(label.visible && label.lineCount > 1)
+            verify(!label.truncated, "Title width " + label.width + ", line count " + label.lineCount
+                + " of " + label.maximumLineCount + ", font px " + label.font.pixelSize)
             mouseMove(card)
-            tryVerify(() => tv.ToolTip.visible)
-            compare(tv.ToolTip.toolTip.text, fullTitle + "\nTV")
-            compare(tv.Accessible.name, "Open " + fullTitle + " (TV)")
-            const label = tv.ToolTip.toolTip.contentItem.children[0]
-            tryVerify(() => label.lineCount > 3)
-            verify(!label.truncated)
-            mouseMove(findChild(picker, "dockPickHeading"))
-            tryVerify(() => !tv.ToolTip.visible)
             tv.forceActiveFocus(Qt.TabFocusReason)
-            tryVerify(() => tv.ToolTip.visible)
+            wait(400)
+            verify(!card.ToolTip.toolTip.visible)
+            compare(tv.Accessible.name, "Open " + fullTitle + " (TV)")
+            compare(audio.Accessible.name, "Audiobooks")
+            compare(audio.Accessible.description, "No picks available")
+            compare(findChild(picker, "dockPickTitle_audiobooks").text, "No picks available")
+        }
+
+        function test_keyboardBrowsesCardsAndRevealsTheThirdRow() {
+            bar.pickerPicks = {
+                anime: [{ title: "Anime pick" }],
+                tv: [{ title: "First" }, { title: "Second" }],
+                comics: [{ title: "Comic pick" }],
+                audiobooks: [{ title: "An audiobook" }]
+            }
+            bar.pickerReducedMotion = true
+            bar.open = true
+            const picker = findChild(bar, "dockPicker")
+            verify(waitForRendering(picker))
+            const scroll = findChild(picker, "dockPickScroll")
+            const tv = findChild(picker, "dockPickStage_tv")
+            const audio = findChild(picker, "dockPickStage_audiobooks")
+            const comics = findChild(picker, "dockPickStage_comics")
+            findChild(picker, "dockPickStage_anime").forceActiveFocus(Qt.TabFocusReason)
+            keyClick(Qt.Key_Tab)
+            verify(tv.activeFocus)
             keyClick(Qt.Key_Right)
-            tryVerify(() => tv.ToolTip.visible && tv.ToolTip.toolTip.text === "Second\nTV")
+            tryCompare(findChild(picker, "dockPickTitle_tv"), "text", "Second")
+            keyClick(Qt.Key_Down)
+            verify(comics.activeFocus)
+            keyClick(Qt.Key_Down)
+            verify(audio.activeFocus)
+            const rect = audio.mapToItem(scroll, Qt.rect(0, 0, audio.width, audio.height))
+            verify(rect.y >= -1 && rect.y + rect.height <= scroll.height + 1)
+            verify(scroll.contentY > 0)
             keyClick(Qt.Key_Return)
-            compare(picks.signalArguments[0][1].title, "Second")
-            tryVerify(() => !tv.ToolTip.visible)
+            compare(picks.signalArguments[0][0], "audiobooks")
+            compare(picks.signalArguments[0][1].title, "An audiobook")
+        }
+
+        function test_touchPansTheWidgetWithoutSelectingACover() {
+            bar.open = true
+            const picker = findChild(bar, "dockPicker")
+            verify(waitForRendering(picker))
+            const scroll = findChild(picker, "dockPickScroll")
+            const card = findChild(picker, "dockPickCard_tv")
+            const start = card.mapToItem(scroll, card.width / 2, card.height * .8)
+            const finger = touchEvent(scroll)
+            finger.press(0, scroll, start.x, start.y).commit()
+            finger.move(0, scroll, start.x, start.y - 20).commit()
+            finger.move(0, scroll, start.x, start.y - 85).commit()
+            finger.release(0, scroll, start.x, start.y - 85).commit()
+            tryVerify(() => scroll.contentY > 30)
+            compare(picks.count, 0)
+            compare(findChild(picker, "dockDeck_tv").current, 0)
         }
 
         function test_autoRevealKeepsPickerClosed() {

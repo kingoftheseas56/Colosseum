@@ -1,5 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
+import "KeyboardViewport.js" as Viewport
 
 FocusScope {
     id: picker
@@ -20,17 +22,17 @@ FocusScope {
     signal activityRequested()
 
     readonly property real inset: Math.min(24, height * .045)
-    readonly property real railWidth: Math.min(220, width * .23)
+    readonly property real railWidth: Math.min(208, width * .23)
     readonly property var genres: [
-        { key: "manga", name: qsTr("Manga"), icon: "comics.svg" },
-        { key: "comics", name: qsTr("Comics"), icon: "dock-pick/comics-burst.svg" },
-        { key: "manhwa", name: qsTr("Manhwa"), icon: "comicreader/layout-strip.svg" },
-        { key: "books", name: qsTr("Books"), icon: "books.svg" },
-        { key: "audiobooks", name: qsTr("Audiobooks"), icon: "dock-pick/audiobook.svg", aspect: 1 },
-        { key: "anime", name: qsTr("Anime"), icon: "dock-pick/anime.svg" },
-        { key: "tv", name: qsTr("TV"), icon: "dock-pick/tv.svg" },
-        { key: "movies", name: qsTr("Movies"), icon: "movies.svg" },
-        { key: "universes", name: qsTr("Universes"), icon: "dock-pick/universes-light.svg" }
+        { key: "anime", name: qsTr("Anime") },
+        { key: "tv", name: qsTr("TV") },
+        { key: "movies", name: qsTr("Movies") },
+        { key: "manga", name: qsTr("Manga") },
+        { key: "comics", name: qsTr("Comics") },
+        { key: "manhwa", name: qsTr("Manhwa") },
+        { key: "books", name: qsTr("Books") },
+        { key: "audiobooks", name: qsTr("Audiobooks"), aspect: 1 },
+        { key: "universes", name: qsTr("Franchises") }
     ]
     Theme { id: theme }
 
@@ -38,7 +40,10 @@ FocusScope {
         if (index === 0 || (index === 1 && mapSlide)) slide = index
     }
     onMapSlideChanged: if (!mapSlide) selectSlide(0)
-    onVisibleChanged: if (!visible) selectSlide(0)
+    onVisibleChanged: if (!visible) {
+        selectSlide(0)
+        pickScroll.cancelFlick()
+    }
 
     function focusEntry() {
         entryFocus.forceActiveFocus(Qt.PopupFocusReason)
@@ -147,22 +152,9 @@ FocusScope {
         anchors.right: parent.right
         anchors.topMargin: Math.min(14, picker.inset)
         anchors.bottomMargin: Math.min(12, picker.inset)
-        anchors.leftMargin: picker.railWidth + 25
+        anchors.leftMargin: picker.railWidth + 19
         anchors.rightMargin: picker.mapSlide ? 31 : picker.inset
         clip: true
-
-        MouseArea {
-            anchors.fill: parent
-            enabled: !!picker.mapSlide
-            property point start
-            onPressed: mouse => start = Qt.point(mouse.x, mouse.y)
-            onReleased: mouse => {
-                const dx = mouse.x - start.x
-                const dy = mouse.y - start.y
-                if (Math.abs(dy) > Math.max(48, Math.abs(dx) * 1.4))
-                    picker.selectSlide(picker.slide + (dy < 0 ? 1 : -1))
-            }
-        }
 
         Item {
             width: widgetArea.width
@@ -188,31 +180,81 @@ FocusScope {
                 Accessible.name: text
             }
 
-            Grid {
-                id: grid
+            Flickable {
+                id: pickScroll
+                objectName: "dockPickScroll"
                 y: pickHeading.height + 4
                 width: widgetArea.width
                 height: Math.max(0, widgetArea.height - y)
                 enabled: picker.slide === 0
-                columns: 3
-                rowSpacing: Math.min(4, height * .03)
-                columnSpacing: 14
-                Repeater {
-                    model: picker.genres
-                    delegate: DockPickDeck {
-                        required property var modelData
-                        objectName: "dockDeck_" + modelData.key
-                        width: Math.max(0, (grid.width - 2 * grid.columnSpacing) / 3)
-                        height: Math.max(0, (grid.height - 2 * grid.rowSpacing) / 3)
-                        medium: modelData.name
-                        mediumKey: modelData.key
-                        mediumIcon: "../assets/icons/" + modelData.icon
-                        aspect: modelData.aspect || .71
-                        entries: picker.picks[modelData.key] || []
-                        logoArt: modelData.key === "universes"
-                        reducedMotion: picker.reducedMotion
-                        onVerticalSwipeRequested: direction => picker.selectSlide(picker.slide + direction)
-                        onOpenRequested: entry => picker.pickRequested(modelData.key, entry)
+                clip: true
+                contentWidth: width
+                contentHeight: grid.height
+                flickableDirection: Flickable.VerticalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                interactive: enabled && contentHeight > height
+                ScrollBar.vertical: HouseScrollBar { flick: pickScroll; glassStyle: true }
+
+                function revealDeck(deck) {
+                    const bottom = deck.y + deck.height
+                    if (deck.y < contentY || deck.height > height)
+                        Viewport.setPosition(pickScroll, false, deck.y)
+                    else if (bottom > contentY + height)
+                        Viewport.setPosition(pickScroll, false, bottom - height)
+                }
+
+                Grid {
+                    id: grid
+                    objectName: "dockPickGrid"
+                    x: Math.min(12, pickScroll.width * .025)
+                    width: Math.max(0, pickScroll.width - 2 * x)
+                    height: Math.max(pickScroll.height, 3 * (labelsBeside ? 232 : 264) + 2 * rowSpacing)
+                    columns: 3
+                    rowSpacing: 8
+                    columnSpacing: 12
+                    readonly property real cellWidth: Math.max(0, (width - 2 * columnSpacing) / 3)
+                    readonly property bool labelsBeside: cellWidth >= 218
+                    readonly property real rowHeight: (height - 2 * rowSpacing) / 3
+
+                    function focusVertical(step) {
+                        let index = 0
+                        while (index < decks.count && !decks.itemAt(index)?.activeFocus)
+                            ++index
+                        if (index === decks.count)
+                            return false
+                        for (index += step * columns; index >= 0 && index < decks.count; index += step * columns) {
+                            const deck = decks.itemAt(index) as DockPickDeck
+                            if (deck.count > 0) {
+                                deck.focusCover()
+                                return true
+                            }
+                        }
+                        return false
+                    }
+                    Keys.onUpPressed: event => event.accepted = grid.focusVertical(-1)
+                    Keys.onDownPressed: event => event.accepted = grid.focusVertical(1)
+
+                    Repeater {
+                        id: decks
+                        model: picker.genres
+                        delegate: DockPickDeck {
+                            id: deck
+                            required property var modelData
+                            objectName: "dockDeck_" + modelData.key
+                            width: grid.cellWidth
+                            height: grid.rowHeight
+                            labelsBeside: grid.labelsBeside
+                            leftMotionRoom: grid.x
+                            medium: modelData.name
+                            mediumKey: modelData.key
+                            aspect: modelData.aspect || .71
+                            entries: picker.picks[modelData.key] || []
+                            logoArt: modelData.key === "universes"
+                            reducedMotion: picker.reducedMotion
+                            onActiveFocusChanged: if (activeFocus) pickScroll.revealDeck(deck)
+                            onVerticalPanRequested: dy => Viewport.setPosition(pickScroll, false, pickScroll.contentY - dy)
+                            onOpenRequested: entry => picker.pickRequested(modelData.key, entry)
+                        }
                     }
                 }
             }

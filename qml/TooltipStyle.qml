@@ -72,8 +72,7 @@ Item {
         // contentItem.implicitWidth. Short hints hug their text; long ones wrap at 248px.
         Item {
             id: host
-            property ToolTip tip
-            readonly property var anchorItem: tip?.parent
+            property QtObject tip
             implicitWidth: Math.min(Math.ceil(metrics.advanceWidth) + 1, tooltipSkin.maxTextWidth)
             implicitHeight: label.implicitHeight
             Text {
@@ -88,7 +87,7 @@ Item {
                 font.weight: shortHint ? Font.Medium : Font.Normal
                 font.letterSpacing: shortHint ? 0.8 : 0
                 wrapMode: Text.Wrap
-                maximumLineCount: host.anchorItem?.wrapFullToolTip === true ? 2147483647 : 3
+                maximumLineCount: 3
                 elide: Text.ElideRight
             }
             TextMetrics { id: metrics; font: label.font; text: label.text }

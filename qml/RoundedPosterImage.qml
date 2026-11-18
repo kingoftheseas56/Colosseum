@@ -15,6 +15,7 @@ Item {
     property real radius: 12
     property int revealDuration: 280
     property bool hovered: false             // drives the cheap depth plates + inset edge accent
+    property bool fitArtwork: false
     // 0 → use the live Screen.devicePixelRatio; a positive value is a deterministic harness override.
     property real testDevicePixelRatio: 0
     readonly property bool softwareRendering: root.GraphicsInfo.api === GraphicsInfo.Software
@@ -91,7 +92,7 @@ Item {
         anchors.fill: parent
         visible: root.softwareRendering
         source: root.activeSource
-        fillMode: Image.PreserveAspectCrop
+        fillMode: root.fitArtwork ? Image.PreserveAspectFit : Image.PreserveAspectCrop
         asynchronous: true
         cache: true
         smooth: true
@@ -110,7 +111,9 @@ Item {
     ShaderEffect {
         id: roundedPass
         visible: !root.softwareRendering
-        anchors.fill: parent
+        anchors.centerIn: parent
+        width: root.fitArtwork && root.ready ? Math.min(root.width, root.height * _texAspect) : root.width
+        height: root.fitArtwork && root.ready ? Math.min(root.height, root.width / _texAspect) : root.height
         readonly property real _texW: Math.max(1, art.implicitWidth)
         readonly property real _texH: Math.max(1, art.implicitHeight)
         readonly property real _texAspect: _texW / _texH
