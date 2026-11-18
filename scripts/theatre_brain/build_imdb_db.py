@@ -30,7 +30,8 @@ DUMPS = ["title.ratings.tsv.gz", "title.basics.tsv.gz",
          "title.episode.tsv.gz", "title.akas.tsv.gz"]
 
 VOTE_FLOOR = 1000          # inclusion dial — raise if the artifact runs fat
-KEEP_TYPES = {"movie": "movie", "tvMovie": "movie", "video": "movie",
+# Keep IMDb shorts as movies at the ordinary vote floor (v2 snapshot parity).
+KEEP_TYPES = {"movie": "movie", "short": "movie", "tvMovie": "movie", "video": "movie",
               "tvSeries": "series", "tvMiniSeries": "mini"}
 
 _POSSESSIVE = re.compile(r"['’]s")
@@ -177,6 +178,9 @@ def selftest() -> int:
     check(not keep_title("tvEpisode", "0", 99999) and keep_title("tvMiniSeries", "0", 1000)
           and keep_title("tvMovie", "0", 1000), "type filter")
     check(not keep_title("movie", "0", VOTE_FLOOR - 1), "vote floor")
+    check(keep_title("short", "0", VOTE_FLOOR, ["Short"])
+          and not keep_title("short", "1", VOTE_FLOOR)
+          and not keep_title("short", "0", VOTE_FLOOR - 1), "v2 shorts at normal floor")
     check(keep_title("video", "0", VOTE_FLOOR, ["Animation", "Action"])
           and not keep_title("video", "0", 99999, ["Short"])
           and not keep_title("video", "0", 99999, ["Drama", "Music"]), "video feature policy")
@@ -311,14 +315,16 @@ def bake() -> int:
     db = sqlite3.connect(tmp)
     create_catalog_schema(db)
     for tt, title in titles.items():
-        add_title_alias(db, tt, title["originalTitle"], source="title.basics.tsv:originalTitle")
+        # Only original-title spellings that add a distinct normalized lookup key.
+        # Regional AKA rows caused Vault false matches; exclude them by policy.
+        if normalized_title(title["originalTitle"]) != normalized_title(title["title"]):
+            add_title_alias(db, tt, title["originalTitle"], source="title.basics.tsv:originalTitle")
 
     # pass 4 — exact alternate titles and existing language evidence from akas
     for r in tsv_rows(fetch("title.akas.tsv.gz")):
         t = titles.get(r["titleId"])
         if t is None:
             continue
-        add_title_alias(db, r["titleId"], r["title"], r.get("region", ""), r.get("language", ""))
         lang = "" if r["language"] == "\\N" else r["language"]
         region = r.get("region", "\\N")
         if r["isOriginalTitle"] == "1" and lang and not t["origAkaLang"]:

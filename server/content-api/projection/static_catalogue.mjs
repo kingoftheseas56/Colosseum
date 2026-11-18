@@ -117,11 +117,18 @@ for(const[bucket,values]of lookupBuckets)manifest.lookups[bucket]=put(values);
 if(tankobanLookups.size)manifest.lookupRanges={version:1,ranges:packLookupFiles([...tankobanLookups].sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0)).map(({first,last,body})=>({first,last,path:putRaw(body)}))};
 
 const fold=s=>s.replace(/[A-Z]/g,c=>c.toLowerCase());const lex=(a,b)=>a<b?-1:a>b?1:0;
-// IMDb title_alias (optional table): extra normalized names per canonical tt, same dual-name mechanism MAL uses for English titles.
+function nameDirectory(rows){
+ rows.sort((a,b)=>lex(fold(a[0]),fold(b[0]))||a[7]-b[7]);
+ const refs=[];
+ for(let n=0;n<rows.length;n+=2048){const chunk=rows.slice(n,n+2048);refs.push({path:put(chunk),first:chunk[0][0],last:chunk.at(-1)[0]});}
+ return refs;
+}
+// Older clients read names for both search and exact matching. Keep IMDb
+// aliases in a separate directory so those clients only see canonical titles.
 const imdbAliasNames=new Map();
 if(sqlite.prepare("SELECT 1 FROM sqlite_master WHERE name='lib_imdb_title_alias'").get())for(const a of sqlite.prepare('SELECT tt,norm_title FROM lib_imdb_title_alias ORDER BY rowid').all()){const set=imdbAliasNames.get(a.tt)??new Set();set.add(a.norm_title);imdbAliasNames.set(a.tt,set);}
 for(const [family,table]of [['imdb','lib_imdb_title'],['anime','lib_mal_anime'],['manga','lib_mal_manga'],['comics','den_comics_series']]){
- const source=sqlite.prepare('SELECT * FROM '+table+' ORDER BY rowid').all().map((r,i)=>({...r,__staticOrder:i})).sort((a,b)=>lex(fold(family==='comics'?a.title??'':a.norm_title??''),fold(family==='comics'?b.title??'':b.norm_title??''))||a.__staticOrder-b.__staticOrder),names=[],keys=[];
+ const source=sqlite.prepare('SELECT * FROM '+table+' ORDER BY rowid').all().map((r,i)=>({...r,__staticOrder:i})).sort((a,b)=>lex(fold(family==='comics'?a.title??'':a.norm_title??''),fold(family==='comics'?b.title??'':b.norm_title??''))||a.__staticOrder-b.__staticOrder),names=[],aliases=[],keys=[];
  const recordRows=raw=>raw.map(r=>family==='imdb'?{identity:imdbRow(r,true)}:family==='comics'?{identity:legacyRow(r)}:{identity:malRow(r,family,true),...(family==='manga'?{normal:malRow(r,family)}:{})});
  // Manga record blocks are byte-packed to the search shard budget; the other
  // families keep the published 128-record grouping.
@@ -133,12 +140,16 @@ for(const [family,table]of [['imdb','lib_imdb_title'],['anime','lib_mal_anime'],
   source.slice(start,end+1).forEach((r,i)=>{
    const id=family==='imdb'?r.tt:family==='comics'?r.gcd_id:r.mal_id;
    keys.push([id,path,i,...(family==='imdb'?[{identity:{title:records[i].identity.title,type:records[i].identity.type,rating:records[i].identity.rating,votes:records[i].identity.votes,isAnime:records[i].identity.isAnime},ordinal:r.__staticOrder}]:[])]);
-   for(const name of family==='comics'?[r.title??'']:family==='imdb'?[...new Set([r.norm_title,...(imdbAliasNames.get(r.tt)??[])].filter(Boolean))]:[r.norm_title,r.norm_title_english].filter(Boolean))names.push([name,id,path,i,r.norm_title??'',r.year,family==='imdb'?r.rating:family==='comics'?r.__downloads:r.score,family==='imdb'?r.votes:r.__staticOrder]);
+   const nameRow=[id,path,i,r.norm_title??'',r.year,family==='imdb'?r.rating:family==='comics'?r.__downloads:r.score,family==='imdb'?r.votes:r.__staticOrder];
+   const titles=family==='comics'?[r.title??'']:family==='imdb'?[r.norm_title].filter(Boolean):[r.norm_title,r.norm_title_english].filter(Boolean);
+   for(const title of titles)names.push([title,...nameRow]);
+   if(family==='imdb')for(const alias of imdbAliasNames.get(r.tt)??[])
+    if(alias&&alias!==r.norm_title)aliases.push([alias,...nameRow]);
   });
  }
- names.sort((a,b)=>lex(fold(a[0]),fold(b[0]))||a[7]-b[7]);keys.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
- const directory={names:[],keys:[]};
- for(let n=0;n<names.length;n+=2048){const chunk=names.slice(n,n+2048);directory.names.push({path:put(chunk),first:chunk[0][0],last:chunk.at(-1)[0]});}
+ keys.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
+ const directory={names:nameDirectory(names),keys:[]};
+ if(aliases.length)directory.aliases=nameDirectory(aliases);
  // Manga key chunks are byte-packed for the same reason; other families keep
  // the published 2,048-row grouping so old clients stay byte-identical.
  if(family==='manga'){for(const [start,end]of packOffsets(keys)){const chunk=keys.slice(start,end+1);directory.keys.push({path:put(chunk),first:chunk[0][0],last:chunk.at(-1)[0]});}}

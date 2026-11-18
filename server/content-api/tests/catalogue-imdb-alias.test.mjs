@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync}from'node:sqlite';
 import {imdbMethod}from'../src/catalogue-semantic.ts';
+import {prebuiltCatalogue} from '../src/catalogue-prebuilt.ts';
 const adapt=db=>({prepare(sql){return{bind(...args){return{async all(){return{success:true,results:db.prepare(sql).all(...args),meta:{}}}}}}}});
 const titles="CREATE TABLE lib_imdb_title(tt TEXT,type TEXT,title TEXT,year INTEGER,endYear INTEGER,runtimeMin INTEGER,genres TEXT,rating REAL,votes INTEGER,episodes INTEGER,origLang TEXT,isAnime INTEGER,norm_title TEXT);"
  +"INSERT INTO lib_imdb_title VALUES('tt0807832','series','Mushi-Shi',2005,2006,25,'[]',8.6,50000,26,'ja',1,'mushi shi'),('tt0862946','movie','Mushi-Shi: The Movie',2006,0,131,'[]',7.5,9000,0,'ja',1,'mushi shi the movie'),('tt1','movie','Plain',2001,0,90,'[]',7,100,0,'en',0,'plain'),('tt2','movie','Other Plain',2001,0,90,'[]',7,100,0,'en',0,'other plain');";
@@ -24,4 +25,38 @@ test('matchByTitle keeps working when the alias table was not published',async()
 test('search is unchanged by aliases',async()=>{
  const db=adapt(open(titles,aliases));
  assert.deepEqual(tts(await imdbMethod(db,'search',['alt plain',20])),[]);
+});
+
+test('prebuilt IMDb aliases are only used for exact title matches', async () => {
+ const revision = '1'.repeat(64);
+ const prefix = '/internal/prebuilt/' + revision + '/';
+ const records = prefix + 'records.json';
+ const canonical = [
+  ['aztec batman', 'tt1', records, 0, 'aztec batman', 2025, 7, 4000],
+  ['batman', 'tt2', records, 1, 'batman', 1989, 8, 5000],
+ ];
+ const alternate = ['batman azteca', 'tt1', records, 0, 'aztec batman', 2025, 7, 4000];
+ for (const mixedIndex of [false, true]) {
+  const names = mixedIndex ? [...canonical, alternate] : canonical;
+  const directory = {
+   names: [{path: prefix + 'names.json', first: names[0][0], last: names.at(-1)[0]}],
+   keys: [],
+   ...(mixedIndex ? {} : {aliases: [{path: prefix + 'aliases.json', first: alternate[0], last: alternate[0]}]}),
+  };
+  const files = {
+   [prefix + 'manifest.json']: {version: 1, revision, fixed: {}, lists: {}, search: {imdb: directory}},
+   [prefix + 'names.json']: names,
+   [prefix + 'aliases.json']: [alternate],
+   [records]: [{identity: {tt: 'tt1'}}, {identity: {tt: 'tt2'}}],
+  };
+  const assets = {async fetch(request) {
+   return Response.json(files[new URL(request.url).pathname]);
+  }};
+  const query = async (method, ...args) => tts((await prebuiltCatalogue(assets, revision, 'imdb', method, args)).result);
+  assert.deepEqual(await query('search', 'bat', 20), ['tt2']);
+  assert.deepEqual(await query('search', 'batman azteca', 20), []);
+  assert.deepEqual(await query('search', 'aztec', 20), ['tt1']);
+  assert.deepEqual(await query('matchByTitle', 'batman azteca', 2025), ['tt1']);
+  assert.deepEqual(await query('matchByTitle', 'batman azteca', 1989), []);
+ }
 });

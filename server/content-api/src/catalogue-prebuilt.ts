@@ -1,7 +1,7 @@
 import {clamp,integer,text} from './catalogue-semantic.ts';
 type Ref={path:string;first:string|number;last:string|number};
 type List={parts:string[];length:number;chunkSize:number;shape:'array'|'mal'|'comics';period:string;notBefore?:string};
-type Manifest={version:1;revision:string;publicRevision?:string;lists:Record<string,List>;listBuckets?:Record<string,string>;search:Record<string,{names:Ref[];keys:Ref[]}>;fixed:Record<string,string>;lookups?:Record<string,string>;lookupRanges?:{version:number;ranges:Ref[]};tankobanSourceHash?:string};
+type Manifest={version:1;revision:string;publicRevision?:string;lists:Record<string,List>;listBuckets?:Record<string,string>;search:Record<string,{names:Ref[];keys:Ref[];aliases?:Ref[]}>;fixed:Record<string,string>;lookups?:Record<string,string>;lookupRanges?:{version:number;ranges:Ref[]};tankobanSourceHash?:string};
 const cachesByAssets=new WeakMap<Fetcher,Map<string,{value:any;bytes:number}>>();
 const MAX_CACHE_BYTES=12*1024*1024;
 const canonical=(v:any):any=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
@@ -127,10 +127,12 @@ export async function prebuiltCatalogue(assets:Fetcher,revision:string,dataset:s
   for(const family of families){
    const directory=manifest.search[family];if(!directory)return null;
    const exact=method!=='search',target=fold(norm),wildcard=/[%_]/.test(norm);
-   const parts=dataset==='comics'||wildcard?directory.names:directory.names.filter(p=>fold(text(p.last))>=target&&fold(text(p.first))<=(exact?target:target+'\uffff'));
+   const names=exact&&dataset==='imdb'?[...directory.names,...(directory.aliases??[])]:directory.names;
+   const parts=dataset==='comics'||wildcard?names:names.filter(p=>fold(text(p.last))>=target&&fold(text(p.first))<=(exact?target:target+'\uffff'));
    const found=new Map<string,any[]>();
    for(const p of parts){const rows=await get(p.path);if(!Array.isArray(rows))throw Error('PREBUILT_ASSET_MISSING');
     for(const e of rows){const name=e[0] as string;
+     if(dataset==='imdb'&&!exact&&name!==e[4])continue;
    // The deployed packed prefix directory uses literal normalized key ranges,
    // not SQL LIKE wildcards. Retain that contract for '%'/'_' and casing.
    const match=dataset==='comics'?(exact?fold(name)===target:(norm.split(/[^\p{L}\p{N}]+/u).filter(Boolean).every(w=>fold(name).includes(fold(w))))):exact?name===norm:name.startsWith(norm);

@@ -745,8 +745,12 @@ std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
             if (!directories.contains(family))
                 return std::nullopt;
             const auto directory = object(directories.value(family));
+            auto nameRefs = array(directory.value("names"));
+            if (ds == "imdb" && exact && directory.contains("aliases"))
+                for (const auto &ref : array(directory.value("aliases")))
+                    nameRefs.append(ref);
             QHash<QString, QJsonArray> found;
-            for (const auto &value : array(directory.value("names"))) {
+            for (const auto &value : std::as_const(nameRefs)) {
                 const auto ref = object(value);
                 if (!wildcard &&
                     (fold(text(ref.value("last"))) < target ||
@@ -757,6 +761,8 @@ std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
                     if (e.size() < 8)
                         throw QStringLiteral("STATIC_INVALID_NAME");
                     const auto name = e.at(0).toString();
+                    if (ds == "imdb" && !exact && e.at(0) != e.at(4))
+                        continue;
                     const bool match = ds == "comics" ? fold(name) == target
                                        : exact        ? name == norm
                                                       : name.startsWith(norm);

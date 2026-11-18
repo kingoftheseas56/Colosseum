@@ -30,6 +30,7 @@ const cases=[
  ['comics','discoverPageFiltered',['all',[],false,1000,24]],['imdb','titleCatalog',[{},1020,100]],
  ['mal','search',['one',100,'manga']],['mal','search',['ワン',20]],
  ['mal','matchByTitle',['one piece',1997,'manga']],['imdb','search',['bat',20]],['imdb','matchByTitle',['batman',1989]],
+ ['imdb','search',['gisaengchung',20]],['imdb','matchByTitle',['gisaengchung',2019]],['imdb','matchByTitle',['gisaengchung',2020]],
  ['comics','exactMatches',['Batman']],['comics','search',['Spider-Man',50]],['comics','search',['%',50]],
  ['mal','genreEntries',['anime','Action','score',24]],['mal','genreEntries',['manga','Action','members',24]],
  ['mal','genreCount',['manga','Action']],['mal','genreCounts',['manga']],['mal','cachedDiscoverFilters',['demographic',false]],
