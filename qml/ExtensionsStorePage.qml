@@ -561,12 +561,18 @@ Item {
     property string installError: ""
     Timer { id: installErrorTimer; interval: 6000; onTriggered: root.installError = "" }
 
-    Rectangle {
-        id: night
+    Item {
+        id: storeBackdrop
         anchors.fill: parent
-        gradient: Gradient {
-            GradientStop { position: 0; color: "#181c24" }
-            GradientStop { position: 1; color: "#090b10" }
+
+        Rectangle { anchors.fill: parent; color: "#0b0d12" }
+        ShaderEffectSource {
+            objectName: "extensionsWallpaper"
+            anchors.fill: parent
+            sourceItem: root.backdrop
+            visible: root.backdrop !== null
+            hideSource: false
+            live: true
         }
     }
 
@@ -581,7 +587,7 @@ Item {
         contentBottomInset: root.bottomInset
         topBarBackOnly: true
         onVisibleChanged: if (!visible) nuvioDrawer.close()
-        backdrop: night
+        backdrop: storeBackdrop
         onHomeRequested: root.backRequested()
 
         Item {
@@ -646,10 +652,12 @@ Item {
                 else nuvioDrawer.open()
             }
 
-            Rectangle {
+            Glass {
                 anchors.fill: parent
+                backdrop: root.backdrop
+                track: storeWorld.viewportContentY
                 radius: 12
-                color: nuvioTrigger.interactionActive ? theme.glassHi : theme.glassTint
+                tint: nuvioTrigger.interactionActive ? 0.18 : 0.10
             }
             Row {
                 id: nuvioLabelRow
@@ -802,7 +810,11 @@ Item {
         focus: true
         popupType: Popup.Item
         closePolicy: Popup.CloseOnEscape
-        background: Rectangle { color: "#161e2d"; radius: 15 }
+        background: Glass {
+            backdrop: root.backdrop
+            radius: 18
+            scrim: 0.56
+        }
         onOpened: Qt.callLater(nuvioBar.focusAddress)
         onClosed: {
             if (storeWorld.visible && !root.installUrlOpen)
@@ -991,7 +1003,7 @@ Item {
         anchors.fill: parent
         z: 30
         visible: root.configuringExtensionId === "colosseum.well.tankoyomi"
-        backdrop: night
+        backdrop: storeBackdrop
         onBackRequested: root.closeConfiguration()
         onSearchClicked: root.searchClicked()
         onMinimizeRequested: root.minimizeRequested()

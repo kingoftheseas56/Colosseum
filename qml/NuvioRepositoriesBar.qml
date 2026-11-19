@@ -3,19 +3,15 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-Rectangle {
+Item {
     id: bar
     required property var store
     signal closeRequested()
-    readonly property color accent: theme.nuvioAccent
     property string expandedRepo: ""
     property int countBeforeAdd: -1
     width: parent ? parent.width : 800
     implicitHeight: body.implicitHeight + 32
     height: implicitHeight
-    radius: 15
-    color: "#88202a42"
-    border.color: "#656e97d0"
 
     function focusAddress() { address.forceActiveFocus() }
     function offerLink(link: string) {
@@ -107,7 +103,7 @@ Rectangle {
                 background: Rectangle {
                     radius: 9
                     color: "#66141820"
-                    border.color: address.activeFocus ? bar.accent : theme.edge
+                    border.color: address.activeFocus ? theme.gold : theme.edge
                 }
                 onAccepted: bar.submit()
             }
