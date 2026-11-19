@@ -37,19 +37,12 @@ Assert-Contains $surface 'readonly property int recentCount:' "SearchSurface mus
 Assert-Contains $surface 'readonly property bool showingProviderError:' "SearchSurface must expose provider-error truth for runtime proof."
 Assert-Contains $surface 'readonly property bool showingNoResults:' "SearchSurface must expose ordinary-empty truth for runtime proof."
 Assert-NotContains $surface 'surf.historyStore = SearchHistory' "SearchSurface must not capture one profile owner imperatively."
-Assert-Contains $biblio 'property var historyStore: typeof SearchHistory !== "undefined" ? SearchHistory : null' `
-    "BiblioSearch must follow the current profile SearchHistory context owner."
-Assert-Contains $biblio 'onHistoryStoreChanged:' "BiblioSearch must refresh recents when the profile history owner changes."
-Assert-Contains $biblio 'property string searchError:' "BiblioSearch must expose provider failure separately from empty results."
-Assert-Contains $biblio 'objectName: "biblioSearchSurface"' "BiblioSearch must expose a stable runtime identity."
-Assert-Contains $biblio 'objectName: "biblioSearchInput"' "BiblioSearch input must expose a stable runtime identity."
+Assert-Contains $biblio 'SearchSurface {' "BiblioSearch must use the shared search history, failure and runtime state."
+Assert-Contains $biblio 'searchMode: "Biblio"' "BiblioSearch must keep the Biblio history scope and runtime identity."
+Assert-Contains $biblio 'searchInputObjectName: "biblioSearchInput"' "BiblioSearch input must expose a stable runtime identity."
 Assert-Contains $biblio 'readonly property int bookResultCount:' "BiblioSearch must expose read-only book result count."
 Assert-Contains $biblio 'readonly property int audioResultCount:' "BiblioSearch must expose read-only audiobook result count."
-Assert-Contains $biblio 'readonly property int recentCount:' "BiblioSearch must expose read-only recent count."
-Assert-Contains $biblio 'readonly property bool showingProviderError:' "BiblioSearch must expose provider-error truth."
-Assert-Contains $biblio 'readonly property bool showingNoResults:' "BiblioSearch must expose ordinary-empty truth."
 Assert-Contains $biblio 'property var audioSearchDispatcher:' "Biblio audiobook search must be injectable and failure-testable."
-Assert-NotContains $biblio 'search.historyStore = SearchHistory' "BiblioSearch must not capture one profile owner imperatively."
 
 Assert-Contains $center 'onPrivacyRememberSearchHistoryChangeRequested:' `
     "AccountCenter must give the Remember search history switch an authoritative handler."

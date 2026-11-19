@@ -3582,8 +3582,7 @@ Window {
         setGuiStallContext("navigate", currentSurface || "Home")
     }
 
-    // ---- search: a layer over the world. Biblio has its own rich surface; Tankoban + Theatre use the
-    //      generic SearchSurface fed by their own source (AniList / Cinemeta). ----
+    // ---- search: each world supplies its own catalogue to the shared search surface. ----
     function openSearch() {
         if (win.guardNamedCollectionsNavigation(function() { win.openSearch() })) return
  win.cancelCatalogueRoute();
@@ -3591,7 +3590,11 @@ Window {
         setGuiStallContext("open", "Search")
         var w = worldStack.current
         if (w === "Vinyl" && win.vinylWorld) { win.vinylWorld.enterDiscoverSearch(true, false); return }
-        if (w === "Biblio") { searchLayer.active = true; return }
+        if (w === "Biblio") {
+            searchLayer.audioFirst = !!audiobookFlow.world && audiobookFlow.world.activeTab === "audiobooks"
+            searchLayer.active = true
+            return
+        }
         if (w === "Tankoban") {
             worldSearchLayer.searchMode = "Tankoban"
             worldSearchLayer.placeholder = "Search manga…"
@@ -6002,19 +6005,24 @@ Window {
         }
     }
 
-    // ---- search layer: Biblio's search surface over the world (below the book detail) ----
+    // ---- Biblio search remains mounted beneath either detail so Back returns to the results. ----
     Loader {
         id: searchLayer
         anchors.fill: parent
         z: 51
         active: false
         visible: active
+        enabled: !audiobookFlow.active && !bookLayer.active
+        property bool audioFirst: false
         source: "BiblioSearch.qml"
         onLoaded: {
             item.backdrop = wall
+            item.androidHost = win.androidHost
+            item.audioFirst = searchLayer.audioFirst
+            item.audiobookCatalog = audiobookFlow.catalog
             item.backRequested.connect(win.closeSearch)
-            item.homeRequested.connect(function() { win.closeSearch(); win.closeWorld() })
             item.bookRequested.connect(win.openBook)
+            item.audiobookRequested.connect(function(workId) { audiobookFlow.openWork(workId) })
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })

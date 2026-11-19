@@ -37,7 +37,7 @@ Get-ChildItem (Join-Path $root "qml") -Filter *.qml | ForEach-Object {
 $migrated = @(
     "qml/TheatreSeries.qml", "qml/MangaSeries.qml", "qml/ComicSeries.qml",
     "qml/ComicArchiveIndex.qml", "qml/SourcesSheet.qml", "qml/BiblioBook.qml",
-    "qml/TopBar.qml", "qml/SearchSurface.qml", "qml/BiblioSearch.qml",
+    "qml/TopBar.qml", "qml/SearchSurface.qml",
     "qml/GenrePage.qml", "qml/GenreIndex.qml", "qml/TheatreGenrePage.qml",
     "qml/TheatreGenreIndex.qml", "qml/BiblioGenrePage.qml", "qml/BiblioGenreIndex.qml",
     "qml/ExtensionsSeeAllPage.qml",
@@ -59,9 +59,8 @@ foreach ($f in @("qml/TheatreSeries.qml", "qml/MangaSeries.qml", "qml/ComicSerie
 }
 
 # --- search surfaces expose a VISIBLE exit (Esc is a hint, not the only door) ---
-foreach ($f in @("qml/SearchSurface.qml", "qml/BiblioSearch.qml")) {
-    Assert-Contains (Read-File $f) 'id: searchBack' "$f must carry the visible header BackAction exit."
-}
+Assert-Contains (Read-File "qml/SearchSurface.qml") 'id: searchBack' "SearchSurface must carry the visible header BackAction exit."
+Assert-Contains (Read-File "qml/BiblioSearch.qml") 'SearchSurface {' "BiblioSearch must inherit the visible header BackAction exit."
 
 # --- player: the top-left control is an honest minimize, not a fake Back ---
 $pp = Read-File "qml/PlayerPage.qml"

@@ -19,12 +19,10 @@ Need ($biblioApi.Contains('xhr.abort()') -and $biblioApi.Contains('xhr.timeout =
     'BiblioApi transport must expose abort and a bounded timeout.'
 Need ($search.Contains('function cancelAllRequests()') -and $search.Contains('surf.cancelAllRequests()')) `
     'SearchSurface must cancel pending work on lifecycle exits.'
-Need ($search.Contains('debounce.stop(); surf.runSearch()')) `
+Need ($search -match 'debounce\.stop\(\)\s+surf\.runSearch\(\)') `
     'SearchSurface Enter submission must stop the pending debounce before dispatching immediately.'
-Need ($biblio.Contains('function cancelAllRequests()') -and $biblio.Contains('search.audioSearchDispatcher')) `
-    'BiblioSearch must cancel both book and audiobook lanes.'
-Need ($biblio.Contains('debounce.stop(); search.runAppleSearch()')) `
-    'BiblioSearch Enter submission must stop the pending debounce before dispatching immediately.'
+Need ($biblio.Contains('searchProvider: provider') -and $biblio.Contains('bookLane.cancel()') -and $biblio.Contains('audioLane.cancel()')) `
+    'BiblioSearch must use shared cancellation for both providers.'
 Need ($historyTest.Contains('test_genericSearchCancelsSupersededRequestAndRejectsLateResult')) `
     'Search history tests must cover superseded requests and late callbacks.'
 Need ($historyTest.Contains('test_searchDestructionCancelsBookAndAudioRequests')) `
