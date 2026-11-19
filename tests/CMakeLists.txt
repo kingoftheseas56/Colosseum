@@ -695,6 +695,23 @@ set_tests_properties(colosseum.qttest.local_downloads_projection PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+add_executable(tst_download_location
+    auto/downloads/tst_download_location.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/DownloadLocation.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/DownloadMoveController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/DownloadMoveController.h")
+target_include_directories(tst_download_location PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_download_location PRIVATE Qt6::Core Qt6::Concurrent Qt6::Test)
+set_target_properties(tst_download_location PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_download_location POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.download_location COMMAND tst_download_location)
+set_tests_properties(colosseum.qttest.download_location PROPERTIES
+    LABELS "unit;qttest;downloads" TIMEOUT 120)
+
 # ── Vault kit (execution plan Slice 1, 2026-08-08) ───────────────────────────
 # The Vault's pure-logic kit (VaultKit): census classifier (kind inference,
 # mixed-leaf flag, loose capture, scanIgnore needles), the ported title cleaner,

@@ -98,6 +98,11 @@
 #include "engine/ColosseumTitleIdentityRegistry.h"
 #include "engine/RatingsReviewsProviderReadProjection.h"
 #include "engine/LocalDownloads.h"
+#include "engine/DownloadLocation.h"
+#include "engine/DownloadMediaPaths.h"
+#include "engine/DownloadMoveController.h"
+#include "engine/VaultBookStateMigrator.h"
+#include "reader/BookStores.h"
 #include "engine/AppLog.h"
 #include "bootstrap/AppDataMigration.h"
 #include "bootstrap/InstanceLock.h"
@@ -527,6 +532,17 @@ int main(int argc, char *argv[]) {
     // Backend stores and workers must finish while Qt and its event dispatcher
     // still exist. QML goes first so its destruction handlers can flush activity.
     QObject backendServices(&app);
+#ifndef Q_OS_ANDROID
+    std::unique_ptr<DownloadLocation> downloadLocation;
+    if (!isolatedAppData && !QStandardPaths::isTestModeEnabled()) {
+        downloadLocation = std::make_unique<DownloadLocation>(
+            QDir(instanceAppData).filePath(QStringLiteral("download-location.json")));
+        DownloadMediaPaths::install(downloadLocation->root(), downloadLocation->marker(),
+                                    downloadLocation->aliases(), downloadLocation->knownLocations());
+        DownloadMediaPaths::loadJobPaths(QDir(instanceAppData).filePath(QStringLiteral("download-job-paths.json")));
+        DownloadMediaPaths::setMoving(!downloadLocation->pending().id.isEmpty());
+    }
+#endif
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("SmartPlay"), new SmartPlayBridge(&engine));
     engine.rootContext()->setContextProperty(QStringLiteral("FeedbackRequests"),
@@ -2195,6 +2211,110 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("Sessions"), sessions);
     if (qEnvironmentVariableIsSet("COLOSSEUM_SESSION_SELFTEST"))
         sessions->selfTest();
+
+#ifndef Q_OS_ANDROID
+    if (downloadLocation) {
+        localDownloads->setBookTorrentSource(bookTorrents);
+        QObject::connect(bookTorrents, &BookTorrents::resolving, localDownloads, &LocalDownloads::refreshLocation);
+        QObject::connect(bookTorrents, &BookTorrents::progress, localDownloads, &LocalDownloads::refreshLocation);
+        QObject::connect(bookTorrents, &BookTorrents::finished, localDownloads, &LocalDownloads::refreshLocation);
+        QObject::connect(bookTorrents, &BookTorrents::failed, localDownloads, &LocalDownloads::refreshLocation);
+        QObject::connect(bookTorrents, &BookTorrents::removed, localDownloads, &LocalDownloads::refreshLocation);
+        const auto inventory = [downloads, books, bookTorrents, comics, download, tankobanVolumes, audiobooks] {
+            auto items = downloads->managedDownloadItems();
+            items.append(books->managedDownloadItems());
+            items.append(bookTorrents->managedDownloadItems());
+            items.append(comics->managedDownloadItems());
+            items.append(download->managedDownloadItems());
+            items.append(audiobooks->managedDownloadItems());
+            if (tankobanVolumes)
+                items.append(tankobanVolumes->managedDownloadItems());
+            return items;
+        };
+        const auto busy = [localDownloads, tankobanVolumes, audiobooks, bookTorrents, sessions, torrentEngine, inventory] {
+            if (tankobanVolumes && !tankobanVolumes->recoveryReady())
+                return QObject::tr("Wait for the manga download index to finish loading.");
+            for (const QVariant &value : localDownloads->activeJobs()) {
+                const QString state = value.toMap().value(QStringLiteral("state")).toString();
+                if (state != QStringLiteral("done") && state != QStringLiteral("failed"))
+                    return QObject::tr("Wait for active and paused downloads to finish before moving their files.");
+            }
+            if (audiobooks->activeCount() > 0)
+                return QObject::tr("Wait for the audiobook downloads to finish.");
+            if (bookTorrents->busy())
+                return QObject::tr("Wait for ebook torrent downloads to finish.");
+            const auto items = inventory();
+            for (const TorrentStatus &torrent : torrentEngine->allStatuses()) {
+                for (const auto &item : items) {
+                    if (DownloadMediaPaths::pathKey(torrent.savePath) == DownloadMediaPaths::pathKey(item.source)
+                        || DownloadMediaPaths::isWithin(torrent.savePath, item.source)) {
+                        return QObject::tr("A torrent is using these files. Wait for it to release them before moving.");
+                    }
+                }
+            }
+            for (const QVariant &value : sessions->list()) {
+                const auto target = value.toMap().value(QStringLiteral("target")).toMap();
+                if (target.contains(QStringLiteral("chapterId")) || target.contains(QStringLiteral("vaultPath"))
+                    || target.contains(QStringLiteral("localPath")) || target.contains(QStringLiteral("book"))) {
+                    return QObject::tr("Close open local reader and player sessions before moving downloads.");
+                }
+            }
+            return QString();
+        };
+        const auto apply = [downloads, books, bookTorrents, comics, download, tankobanVolumes, audiobooks,
+                            audioPairing, localDownloads, vaultLibrary, vaultIdentity](const DownloadLocation::Plan &plan) {
+            QList<QPair<QString, QString>> verifiedPaths;
+            for (const auto &file : plan.files) {
+                verifiedPaths.append({file.source, file.destination});
+                if (QFileInfo(file.source).suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) == 0
+                    || QFileInfo(file.source).suffix().compare(QStringLiteral("pdf"), Qt::CaseInsensitive) == 0)
+                    VaultBookStateMigrator::migrate(file.source, file.destination);
+            }
+            vaultIdentity->relocateVerifiedDownloads(verifiedPaths);
+            for (const QVariant &value : audioPairing->allPairings()) {
+                auto record = value.toMap();
+                const QString bookPath = record.value(QStringLiteral("bookPath")).toString();
+                const QString audioDir = record.value(QStringLiteral("audioDir")).toString();
+                const QString newBook = DownloadMediaPaths::resolved(bookPath);
+                const QString newAudio = DownloadMediaPaths::resolved(audioDir);
+                if (newBook == bookPath && newAudio == audioDir)
+                    continue;
+                const QString oldId = record.value(QStringLiteral("bookId")).toString();
+                const QString newId = newBook != bookPath && oldId == BookStores::keyFor(bookPath)
+                    ? BookStores::keyFor(newBook) : oldId;
+                record.insert(QStringLiteral("bookPath"), newBook);
+                record.insert(QStringLiteral("audioDir"), newAudio);
+                if (newId == oldId || audioPairing->getPairing(newId).isEmpty())
+                    audioPairing->savePairing(newId, record);
+            }
+            downloads->refreshDownloadPaths();
+            books->refreshDownloadPaths();
+            bookTorrents->refreshDownloadPaths();
+            comics->refreshDownloadPaths();
+            download->refreshDownloadPaths();
+            audiobooks->refreshDownloadPaths();
+            if (tankobanVolumes)
+                tankobanVolumes->refreshDownloadPaths();
+            localDownloads->refreshLocation();
+            vaultLibrary->republishAtBoot();
+        };
+        auto *moveController = new DownloadMoveController(std::move(*downloadLocation), inventory, busy,
+                                                          apply, &backendServices);
+        localDownloads->setLocation(moveController);
+        QObject::connect(moveController, &DownloadMoveController::locationAvailableChanged, download,
+                         [download, localDownloads, bookTorrents, downloads, books, audiobooks, vaultLibrary](bool available) {
+            localDownloads->refreshLocation();
+            if (available) {
+                download->downloadLocationAvailable();
+                bookTorrents->downloadLocationAvailable();
+                downloads->downloadLocationAvailable();
+                books->downloadLocationAvailable();
+                audiobooks->downloadLocationAvailable();
+                vaultLibrary->republishAtBoot();
+            }
+        });
+    }
+#endif
 
     // Keyless anime ordering (spec 2026-07-15): downloads two community mapping
     // datasets at runtime, caches immutable generations, and hands Theatre/player

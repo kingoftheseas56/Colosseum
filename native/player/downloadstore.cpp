@@ -1,5 +1,6 @@
 #include "downloadstore.h"
 #include "engine/DownloadFileOps.h"
+#include "engine/DownloadMediaPaths.h"
 
 #include <QDateTime>
 #include <QDesktopServices>
@@ -126,6 +127,8 @@ void DownloadStore::touch() {
 }
 
 void DownloadStore::enqueue(const QVariantMap &request) {
+    if (DownloadMediaPaths::moving())
+        return;
     QString id = request.value(QStringLiteral("id")).toString();
     if (id.isEmpty())
         id = QStringLiteral("video-%1").arg(QDateTime::currentMSecsSinceEpoch());
@@ -177,6 +180,8 @@ void DownloadStore::cancelDownload() {
 void DownloadStore::cancelJob(const QString &id) {
     const int i = jobIndex(id);
     if (i < 0)
+        return;
+    if (DownloadMediaPaths::moving() || DownloadMediaPaths::waitingForDrive(m_jobs.at(i).partPath))
         return;
     const QString gk = m_jobs.at(i).request
                            .value(QStringLiteral("groupKey"), m_jobs.at(i).id).toString();
@@ -249,7 +254,7 @@ void DownloadStore::resumeJob(const QString &id) {
 }
 
 void DownloadStore::pump() {
-    if (!executionAllowed())
+    if (!executionAllowed() || DownloadMediaPaths::moving())
         return;
     if (activeIndex() >= 0)
         return;   // MAX_ACTIVE_VIDEO = 1: one live job at a time
@@ -367,7 +372,19 @@ void DownloadStore::startHttp(Job &job) {
         job.outputPath = buildOutputPath(job.request);
         job.partPath = job.outputPath + QStringLiteral(".part");
     }
-    QDir().mkpath(QFileInfo(job.outputPath).absolutePath());
+    if (job.outputPath.isEmpty() || DownloadMediaPaths::waitingForDrive(job.outputPath)) {
+        job.state = QStringLiteral("queued");
+        job.error = tr("Waiting for the download drive.");
+        saveQueue();
+        touch();
+        return;
+    }
+    if (!QDir().mkpath(QFileInfo(job.outputPath).absolutePath())) {
+        failJob(job.id, tr("Colosseum could not create the download folder."));
+        return;
+    }
+    job.error.clear();
+    saveQueue();
 
     job.baseOffset = 0;
     job.resumeRangeValidated = false;
@@ -521,7 +538,8 @@ void DownloadStore::finishHttp(Job &job) {
         pump();
         return;
     }
-    QFile::remove(job.outputPath);
+    if (!DownloadMediaPaths::enabled())
+        QFile::remove(job.outputPath);
     if (!QFile::rename(job.partPath, job.outputPath)) {
         failJob(job.id, QStringLiteral("rename failed"));
         return;
@@ -617,6 +635,8 @@ bool DownloadStore::hasVideo(const QString &id) const {
 // ── paths / naming (unchanged) ──
 
 QString DownloadStore::buildDefaultDownloadDir() const {
+    if (DownloadMediaPaths::enabled())
+        return QDir::toNativeSeparators(DownloadMediaPaths::root());
     QString base = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
     if (base.isEmpty())
         base = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation);
@@ -633,6 +653,17 @@ QString DownloadStore::buildOutputPath(const QVariantMap &request) const {
     const QString requested = request.value(QStringLiteral("outputPath")).toString();
     if (!requested.isEmpty())
         return QDir::toNativeSeparators(requested);
+
+    if (DownloadMediaPaths::enabled()) {
+        return DownloadMediaPaths::allocate(DownloadMediaPaths::videoPath(
+            request.value(QStringLiteral("kind")).toString(),
+            request.value(QStringLiteral("title")).toString(),
+            request.value(QStringLiteral("subtitle")).toString(),
+            request.value(QStringLiteral("seriesTitle")).toString(),
+            request.value(QStringLiteral("season")).toInt(),
+            request.value(QStringLiteral("episode")).toInt(),
+            extensionFromUrl(request.value(QStringLiteral("url")).toString())));
+    }
 
     QString stem = sanitizeFilePart(request.value(QStringLiteral("title")).toString());
     if (stem.isEmpty())
@@ -685,7 +716,7 @@ void DownloadStore::loadIndex() {
         e.seriesTitle = o.value(QStringLiteral("seriesTitle")).toString();
         e.season = o.value(QStringLiteral("season")).toInt();
         e.episode = o.value(QStringLiteral("episode")).toInt();
-        e.path = o.value(QStringLiteral("path")).toString();
+        e.path = DownloadMediaPaths::resolved(o.value(QStringLiteral("path")).toString());
         e.art = o.value(QStringLiteral("art")).toString();
         e.bytes = qint64(o.value(QStringLiteral("bytes")).toDouble());
         e.addedAt = qint64(o.value(QStringLiteral("addedAt")).toDouble());
@@ -827,16 +858,38 @@ QVariantList DownloadStore::downloadedVideos() const {
             {QStringLiteral("art"), e.art},
             {QStringLiteral("bytes"), e.bytes},
             {QStringLiteral("addedAt"), e.addedAt},
-            {QStringLiteral("missing"), !QFile::exists(e.path)}
+            {QStringLiteral("missing"), DownloadMediaPaths::waitingForDrive(e.path) || !QFile::exists(e.path)}
         });
     }
     return out;
+}
+
+QList<DownloadLocation::Item> DownloadStore::managedDownloadItems() const {
+    QList<DownloadLocation::Item> result;
+    for (const Entry &entry : m_index) {
+        result.append({entry.path, DownloadMediaPaths::videoPath(entry.kind, entry.title,
+            entry.subtitle, entry.seriesTitle, entry.season, entry.episode, QFileInfo(entry.path).suffix()), {}});
+    }
+    return result;
+}
+
+void DownloadStore::refreshDownloadPaths() {
+    if (DownloadMediaPaths::enabled())
+        m_defaultDownloadDir = QDir::toNativeSeparators(DownloadMediaPaths::root());
+    for (Entry &entry : m_index)
+        entry.path = DownloadMediaPaths::resolved(entry.path);
+    m_lastDonePath = DownloadMediaPaths::resolved(m_lastDonePath);
+    saveIndex();
+    emit libraryChanged();
+    touch();
 }
 
 QVariantMap DownloadStore::removeVideo(const QString &id) {
     const auto it = m_index.constFind(id);
     if (it == m_index.constEnd())
         return DownloadFileOps::toMap({true, QString()});
+    if (DownloadMediaPaths::moving() || DownloadMediaPaths::waitingForDrive(it.value().path))
+        return DownloadFileOps::toMap({false, tr("The download location is unavailable.")});
     const auto result = DownloadFileOps::removeFile(it.value().path);
     if (!result.success) {
         qWarning() << "[downloads] delete failed" << id << result.message;
@@ -1108,6 +1161,9 @@ bool DownloadStore::localFileAvailable(const QString &path) const {
     if (localPath.isEmpty())
         return false;
 
-    const QFileInfo info(localPath);
+    const QString resolved = DownloadMediaPaths::resolved(localPath);
+    if (DownloadMediaPaths::waitingForDrive(resolved))
+        return false;
+    const QFileInfo info(resolved);
     return info.isFile() && info.isReadable();
 }

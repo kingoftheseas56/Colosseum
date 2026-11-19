@@ -8,6 +8,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 
 Item {
     id: root
@@ -39,6 +40,7 @@ Item {
 
     // ---- read-model bindings (revision-driven refresh) ----
     property var downloadsApi: (typeof LocalDownloads !== "undefined") ? LocalDownloads : null
+    readonly property var locationApi: downloadsApi && downloadsApi.location ? downloadsApi.location : null
     property var audiobooksApi: (typeof Audiobooks !== "undefined") ? Audiobooks : null
     property var vaultApi: (typeof VaultLibrary !== "undefined") ? VaultLibrary : null
     property var jobs: []
@@ -177,6 +179,7 @@ Item {
     }
 
     property bool confirmationOpen: false
+    property bool locationConfirmation: false
     property string confirmationTitle: ""
     property string confirmationBody: ""
     property string confirmationLabel: ""
@@ -184,6 +187,7 @@ Item {
     property Item confirmationInvoker: null
 
     function confirmAction(title, body, label, callback) {
+        locationConfirmation = false;
         confirmationTitle = title;
         confirmationBody = body;
         confirmationLabel = label;
@@ -194,6 +198,9 @@ Item {
     }
     function closeConfirmation() {
         var invoker = confirmationInvoker;
+        if (locationConfirmation && locationApi)
+            locationApi.cancelPreview();
+        locationConfirmation = false;
         confirmationOpen = false;
         confirmationCallback = null;
         confirmationInvoker = null;
@@ -201,9 +208,48 @@ Item {
             Qt.callLater(function() { invoker.forceActiveFocus(Qt.BacktabFocusReason) });
     }
     function runConfirmedAction() {
+        if (locationConfirmation) {
+            if (locationApi && !locationApi.preview.error) {
+                locationApi.confirmMove();
+                if (locationApi.pending)
+                    closeConfirmation();
+            }
+            return;
+        }
         var callback = confirmationCallback;
         closeConfirmation();
         if (callback) callback();
+    }
+
+    function locationPreviewText(preview) {
+        var text = qsTr("Current folder\n%1\n\nNew folder\n%2")
+            .arg(preview.currentPath || "").arg(preview.proposedPath || "");
+        text += "\n\n" + qsTr("%n managed download(s)", "", preview.items || 0)
+            + " · " + (fmtBytes(preview.bytes || 0) || qsTr("0 bytes"));
+        if (preview.collisions)
+            text += "\n" + qsTr("%n download(s) will get a distinct name to keep existing files.", "", preview.collisions);
+        if (preview.error)
+            text += "\n\n" + preview.error;
+        return text;
+    }
+
+    FolderDialog {
+        id: downloadFolderPicker
+        title: qsTr("Choose a download location")
+        onAccepted: {
+            if (!root.locationApi) return;
+            root.locationApi.previewLocation(selectedFolder);
+            root.confirmAction(qsTr("Move downloads?"), "", qsTr("Move"), null);
+            root.locationConfirmation = true;
+        }
+    }
+
+    Connections {
+        target: root.locationApi
+        function onChanged() {
+            root.abRefresh();
+            root.refresh();
+        }
     }
     function finishMutation(result, fallbackMessage) {
         if (result && result.success === false) {
@@ -614,6 +660,7 @@ Item {
                     height: 36
                     radius: 18
                     enabled: !!root.downloadsApi && !root.deletingAllDownloads
+                             && (!root.locationApi || !root.locationApi.pending)
                              && ((root.totalsMap.items || 0) > 0 || root.jobs.length > 0 || Object.keys(root.abActive).length > 0)
                     color: deleteAllInput.interactionActive ? "#543238" : "#302027"
                     border.color: "#805058"
@@ -638,6 +685,67 @@ Item {
             }
             Item { width: 1; height: 20 }
             Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
+
+            Column {
+                width: parent.width
+                visible: !!root.locationApi
+                topPadding: 16
+                spacing: 8
+
+                Text {
+                    width: parent.width
+                    text: root.locationApi ? root.locationApi.currentPath : ""
+                    color: theme.ink
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                    Accessible.name: qsTr("Current download folder") + " " + text
+                }
+
+                Rectangle {
+                    width: Math.min(parent.width, locationLabel.implicitWidth + 28)
+                    height: 36
+                    radius: 18
+                    enabled: root.locationApi && !root.locationApi.working
+                    opacity: enabled ? 1 : 0.5
+                    color: locationInput.interactionActive ? "#ffd968" : theme.gold
+                    Text {
+                        id: locationLabel
+                        anchors.centerIn: parent
+                        text: root.locationApi && root.locationApi.pending
+                            ? qsTr("Resume download move") : qsTr("Change download location")
+                        color: "#111217"
+                        font.family: theme.ui
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                    }
+                    KeyboardAction {
+                        id: locationInput
+                        objectName: "changeDownloadLocationAction"
+                        anchors.fill: parent
+                        accessibleName: locationLabel.text
+                        focusRadius: 18
+                        onTriggered: {
+                            if (root.locationApi.pending)
+                                root.locationApi.retryMove();
+                            else
+                                downloadFolderPicker.open();
+                        }
+                    }
+                }
+
+                Text {
+                    width: parent.width
+                    visible: text.length > 0
+                    text: root.locationApi ? root.locationApi.status : ""
+                    color: theme.inkDim
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                }
+            }
 
             // one quiet inline metrics line — no stat cards, no pills
             Text {
@@ -1840,7 +1948,9 @@ Item {
                 }
                 Text {
                     width: parent.width
-                    text: root.confirmationBody
+                    text: root.locationConfirmation && root.locationApi
+                        ? root.locationPreviewText(root.locationApi.preview) : root.confirmationBody
+                    textFormat: Text.PlainText
                     color: theme.inkDim
                     font.family: theme.ui
                     font.pixelSize: 13
@@ -1857,7 +1967,7 @@ Item {
                         Text {
                             id: cancelConfirmText
                             anchors.centerIn: parent
-                            text: "Go back"
+                            text: root.locationConfirmation ? qsTr("Cancel") : qsTr("Go back")
                             color: theme.ink
                             font.family: theme.ui
                             font.pixelSize: 13
@@ -1865,7 +1975,7 @@ Item {
                         KeyboardAction {
                             id: cancelConfirmInput
                             anchors.fill: parent
-                            accessibleName: "Go back"
+                            accessibleName: cancelConfirmText.text
                             focusRadius: 17
                             KeyNavigation.tab: confirmActionInput
                             KeyNavigation.backtab: confirmActionInput
@@ -1876,6 +1986,8 @@ Item {
                         width: confirmActionText.implicitWidth + 28
                         height: 34
                         radius: 17
+                        enabled: !root.locationConfirmation || (root.locationApi && !root.locationApi.preview.error)
+                        opacity: enabled ? 1 : 0.45
                         color: confirmActionInput.interactionActive ? "#ffd968" : theme.gold
                         Text {
                             id: confirmActionText

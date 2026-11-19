@@ -72,6 +72,7 @@ public:
 
     // Path aliases recorded by migrations (the Reader 2 bridge hook).
     Q_INVOKABLE QVariantList pathAliases() const; // [{oldPath, newPath}]
+    void relocateVerifiedDownloads(const QList<QPair<QString, QString>> &paths);
 
 signals:
     void changed();

@@ -700,6 +700,9 @@ qt_add_executable(colosseum
     engine/CatalogVaultClient.cpp  # data-vault adoption, Slice 1/2 (2026-08-22)
     engine/CatalogVaultClient.h
     engine/LocalDownloads.cpp
+    engine/DownloadLocation.cpp
+    engine/DownloadMoveController.cpp
+    engine/DownloadMoveController.h
     engine/LocalDownloads.h
     engine/LocalDownloadsProjection.cpp
     engine/LocalDownloadsProjection.h

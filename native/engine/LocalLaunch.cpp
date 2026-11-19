@@ -1,6 +1,7 @@
 #include "LocalLaunch.h"
 
 #include "CbzArchive.h"
+#include "DownloadMediaPaths.h"
 #include "VaultIdentity.h"
 #include "VaultKit.h"
 #include "player/MediaAdmissionProbe.h"
@@ -182,7 +183,10 @@ LocalLaunch::Route LocalLaunch::route(const QString& path)
 namespace {
 QString toLocalPath(const QString& s)
 {
-    return s.startsWith(QLatin1String("file:")) ? QUrl(s).toLocalFile() : s;
+    const QString path = s.startsWith(QLatin1String("file:")) ? QUrl(s).toLocalFile() : s;
+    if (QDir::isAbsolutePath(path) && !QFileInfo::exists(path))
+        return DownloadMediaPaths::resolved(path);
+    return path;
 }
 
 // The taskbar tile / reader title show a cleaned name, not a raw filename

@@ -1,4 +1,5 @@
 #include "engine/MangaVolumeArchiveIngestor.h"
+#include "DownloadMediaPaths.h"
 #include "engine/CbzArchive.h"
 
 #include <QCollator>
@@ -175,7 +176,13 @@ void MangaVolumeArchiveIngestor::validateAndAdoptCbz(int attempt)
 {
     if (!m_active) return;
     const QString sourcePath = m_active->archivePath;
-    const QString finalPath = m_index->archivePathFor(m_active->record);
+    if (m_active->destinationPath.isEmpty())
+        m_active->destinationPath = m_index->newArchivePathFor(m_active->record);
+    const QString finalPath = m_active->destinationPath;
+    if (finalPath.isEmpty()) {
+        failActive(tr("Waiting for the download drive."));
+        return;
+    }
     const QString partPath = finalPath + QStringLiteral(".part");
     // Archive central-directory inspection and the source-to-.part copy are
     // unpredictable disk work from the QML/torrent ingestion boundary. Keep
@@ -255,10 +262,15 @@ void MangaVolumeArchiveIngestor::validateAndAdoptCbz(int attempt)
         result.sourceEntries = CbzArchive::imageEntries(sourcePath, &result.error);
         if (result.sourceEntries.isEmpty()) return result;
         QDir().mkpath(QFileInfo(finalPath).absolutePath());
-        QFile::remove(partPath);
-        if (!QFile::copy(sourcePath, partPath)) {
-            result.error = QStringLiteral("copy failed");
+        const bool managed = DownloadMediaPaths::enabled();
+        if (!managed)
             QFile::remove(partPath);
+        const bool copied = managed ? DownloadMediaPaths::copyVerified(sourcePath, partPath)
+                                    : QFile::copy(sourcePath, partPath);
+        if (!copied) {
+            result.error = QStringLiteral("copy failed");
+            if (!managed)
+                QFile::remove(partPath);
             return result;
         }
         result.stagedEntries = CbzArchive::imageEntries(partPath, &result.error);
@@ -402,7 +414,9 @@ QString MangaVolumeArchiveIngestor::finalizeInto(const VolumeProvenance& record,
 
     // 4. Write the naturally ordered source pages into a same-directory .part
     //    archive without recompression, reopen it, then atomically rename it.
-    const QString finalArchive = m_index->archivePathFor(record);
+    const QString finalArchive = m_index->newArchivePathFor(record);
+    if (finalArchive.isEmpty())
+        return tr("Waiting for the download drive.");
     if (QFileInfo::exists(finalArchive))
         return QStringLiteral("canonical CBZ already exists");
     QString archiveError;

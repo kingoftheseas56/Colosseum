@@ -2354,6 +2354,11 @@ Window {
     function openMissingDownloadSources(entry, r, presentation, title, cover) {
         if (typeof Download === "undefined" || !Download || typeof Download.localFileAvailable !== "function")
             return false
+        var location = typeof LocalDownloads !== "undefined" && LocalDownloads ? LocalDownloads.location : null
+        if (location && location.pathWaitingForDrive(String(r.localPath))) {
+            localLaunchToast.flash(qsTr("Reconnect the download drive to play this video."), false)
+            return true
+        }
         if (Download.localFileAvailable(String(r.localPath)))
             return false
         var sourceId = String(r.subId || entry.id || "")
@@ -3839,12 +3844,16 @@ Window {
     // A downloaded video's session: dedup key = target.id (the stream id, e.g. "tt123:1:2"),
     // so re-opening the same episode reuses its tile. `position` rides along for first-open
     // resume; a fresher captured position (minimize) wins via restoreState.
+    function resolvedDownloadPath(path) {
+        var location = typeof LocalDownloads !== "undefined" && LocalDownloads ? LocalDownloads.location : null
+        return location ? location.resolveLocalPath(String(path || "")) : path
+    }
     function openLocalVideoSession(v) {
         setGuiStallContext("open", "Player")
         Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": v.title || "Video",
             "target": { "showKey": EpisodeBrowser.seriesRootId(v.id || ""),
-                        "localPath": v.path, "id": v.id || "", "title": v.title || "",
+                        "localPath": win.resolvedDownloadPath(v.path), "id": v.id || "", "title": v.title || "",
                         "playbackContext": v.playbackContext || ({}),
                         "art": v.art || "", "kind": v.kind || "", "position": v.position || 0 }
         })
@@ -3861,6 +3870,7 @@ Window {
     }
     function openBookSession(path, book) {
         if (!path) return
+        path = win.resolvedDownloadPath(path)
         setGuiStallContext("open", "Reader")
         var b = book || ({})
         Sessions.openOrSwitch({
@@ -4085,9 +4095,10 @@ Window {
             playerLayer.item.resumeFromMinimize()
         } else {
             win.requestTheatreAudio()
-            if (t.localPath && String(t.localPath).length)
+            if (t.localPath && String(t.localPath).length) {
+                t.localPath = win.resolvedDownloadPath(t.localPath)
                 playerLayer.item.playLocalFile(t)
-            else if (t.streamUrl && String(t.streamUrl).length) {
+            } else if (t.streamUrl && String(t.streamUrl).length) {
                 var landed = win.downloadedVideoPath(t.id || "")
                 if (landed.length) {
                     t.localPath = landed

@@ -1,5 +1,6 @@
 #include "engine/MangaVolumeIndex.h"
 #include "engine/CbzArchive.h"
+#include "DownloadMediaPaths.h"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -80,6 +81,15 @@ QString MangaVolumeIndex::archivePathFor(const VolumeProvenance& record) const
            + QChar('-') + hash10(record.id) + QStringLiteral(".cbz");
 }
 
+QString MangaVolumeIndex::newArchivePathFor(const VolumeProvenance& record) const
+{
+    if (!DownloadMediaPaths::enabled())
+        return archivePathFor(record);
+    return DownloadMediaPaths::allocate(DownloadMediaPaths::mangaTitlePath(record.seriesTitle,
+        QStringLiteral("Volume"), QStringLiteral("Volume %1").arg(record.volumeNumber),
+        QStringLiteral("cbz")), false, {QStringLiteral(".json")}, QStringLiteral("volume:") + record.id);
+}
+
 void MangaVolumeIndex::load()
 {
     m_index.clear();
@@ -92,8 +102,8 @@ void MangaVolumeIndex::load()
         e.seriesId     = o.value(QStringLiteral("seriesId")).toString();
         e.seriesTitle  = o.value(QStringLiteral("seriesTitle")).toString();
         e.volumeNumber = o.value(QStringLiteral("volumeNumber")).toString();
-        e.dir          = o.value(QStringLiteral("dir")).toString();
-        e.archive      = o.value(QStringLiteral("archive")).toString();
+        e.dir          = DownloadMediaPaths::resolved(o.value(QStringLiteral("dir")).toString());
+        e.archive      = DownloadMediaPaths::resolved(o.value(QStringLiteral("archive")).toString());
         e.bytes        = static_cast<qint64>(o.value(QStringLiteral("bytes")).toDouble());
         e.sourceKind   = o.value(QStringLiteral("sourceKind")).toString();
         e.releaseTitle = o.value(QStringLiteral("releaseTitle")).toString();
@@ -149,6 +159,8 @@ bool MangaVolumeIndex::save() const
 
 bool MangaVolumeIndex::entryIntact(const Entry& e) const
 {
+    if (DownloadMediaPaths::waitingForDrive(e.archive.isEmpty() ? e.dir : e.archive))
+        return false;
     if (!e.archive.isEmpty()) {
         if (e.files.isEmpty() || !QFileInfo::exists(e.archive)) {
             qWarning() << "[manga-volume] CBZ row missing archive/files"
@@ -556,6 +568,9 @@ bool MangaVolumeIndex::remove(const QString& volumeId)
 {
     auto it = m_index.find(volumeId.trimmed());
     if (it == m_index.end()) return false;
+    if (DownloadMediaPaths::moving()
+        || DownloadMediaPaths::waitingForDrive(it->archive.isEmpty() ? it->dir : it->archive))
+        return false;
     if (!it.value().archive.isEmpty()) {
         if (!QFile::remove(it.value().archive))
             return false;
@@ -564,7 +579,21 @@ bool MangaVolumeIndex::remove(const QString& volumeId)
             return false;
     }
     if (!it.value().dir.isEmpty()) {
-        const auto result = DownloadFileOps::removeTree(it.value().dir, m_treeRemover);
+        auto result = DownloadFileOps::Result{true, QString()};
+        if (DownloadMediaPaths::enabled() && DownloadMediaPaths::isWithin(DownloadMediaPaths::root(), it->dir)) {
+            for (const QString &name : it->files) {
+                const QString path = QDir(it->dir).filePath(name);
+                if (!DownloadMediaPaths::destinationParentsSafe(it->dir, path))
+                    return false;
+                result = DownloadFileOps::removeFile(path);
+                if (!result.success)
+                    break;
+            }
+            if (result.success)
+                QDir().rmdir(it->dir);
+        } else {
+            result = DownloadFileOps::removeTree(it->dir, m_treeRemover);
+        }
         if (!result.success)
             return false;
     }
@@ -580,13 +609,48 @@ void MangaVolumeIndex::reload()
     emit changed();
 }
 
+QList<DownloadLocation::Item> MangaVolumeIndex::managedDownloadItems() const
+{
+    QList<DownloadLocation::Item> result;
+    for (auto it = m_index.cbegin(); it != m_index.cend(); ++it) {
+        const Entry &entry = it.value();
+        const QString label = QStringLiteral("Volume %1").arg(entry.volumeNumber);
+        if (!entry.archive.isEmpty()) {
+            const QString suffix = QFileInfo(entry.archive).suffix();
+            QStringList companion;
+            if (QFileInfo(entry.archive + QStringLiteral(".json")).isFile())
+                companion.append(QStringLiteral(".json"));
+            result.append({entry.archive, DownloadMediaPaths::mangaTitlePath(
+                entry.seriesTitle, QStringLiteral("Volume"), label, suffix), {}, companion});
+        } else if (!entry.files.isEmpty()) {
+            result.append({entry.dir, DownloadMediaPaths::mangaTitlePath(
+                entry.seriesTitle, QStringLiteral("Volume"), label), entry.files});
+        }
+    }
+    return result;
+}
+
+void MangaVolumeIndex::refreshDownloadPaths()
+{
+    for (Entry &entry : m_index) {
+        entry.archive = DownloadMediaPaths::resolved(entry.archive);
+        entry.dir = DownloadMediaPaths::resolved(entry.dir);
+    }
+    save();
+    emit changed();
+}
+
 void MangaVolumeIndex::heal()
 {
+    if (DownloadMediaPaths::moving())
+        return;
     bool mutated = false;
     const QStringList ids = m_index.keys();
     for (const QString& id : ids) {
         auto it = m_index.find(id);
         if (it == m_index.end()) continue;
+        if (DownloadMediaPaths::waitingForDrive(it->archive.isEmpty() ? it->dir : it->archive))
+            continue;
 
         if (!it->archive.isEmpty()) {
             Entry repaired = it.value();

@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include "DownloadLocation.h"
+
 #include <QObject>
 #include <QHash>
 #include <QList>
@@ -90,6 +92,10 @@ public:
     // { state:"none"|"resolving"|"downloading"|"done", received, total }.
     Q_INVOKABLE QVariantMap statusOf(const QString& pairKey) const;
     Q_INVOKABLE QVariantList downloadedAudiobooks() const;
+    QList<DownloadLocation::Item> managedDownloadItems() const;
+    void refreshDownloadPaths();
+    void downloadLocationAvailable() { promoteQueue(); }
+    Q_SIGNAL void downloadPathsChanged();
     // In-flight jobs (active + queued): [{id,title,author,state,received,total}] — the
     // Downloads page SEEDS its live map from this on open. Signals alone can't backfill
     // a job that started before the page existed (the 2026-07-20 invisible-download gap:
@@ -131,6 +137,7 @@ private:
         bool nativeTorrent = false;
         QString nativePhase = QStringLiteral("resolving");
         QString completedDir;
+        QString downloadDir;
         QString manifestReason;
         QString baseUrl;                       // http://127.0.0.1:<port>/<infoHash>
         QList<FileJob> files;                  // resolved audio files, natural-sorted
