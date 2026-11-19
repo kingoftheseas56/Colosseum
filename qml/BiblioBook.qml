@@ -182,14 +182,15 @@ Item {
         if (detail.audioLocal || !detail.audiobookBayEnabled) return
         detail.abLoading = true
         Abb.resolveAudiobook(detail.book.title, detail.book.author, function(res, reason) {
-            if (!detail.audiobookBayEnabled || gen !== detail.audiobookGeneration || key !== detail.pairKey) return
+            if (!detail || !detail.audiobookBayEnabled || gen !== detail.audiobookGeneration
+                    || key !== detail.pairKey) return
             detail.abRows = (res && res.rows) ? res.rows : []
             detail.abLoading = false
             detail.abLookupUnavailable = !!reason
             if (!detail.audioLocal && detail.abRows.length > 0) {
                 var slug = detail.abRows[0].slug
                 Abb.fetchInfoHash(slug, function(d) {
-                    if (!detail.audiobookBayEnabled || gen !== detail.audiobookGeneration || key !== detail.pairKey
+                    if (!detail || !detail.audiobookBayEnabled || gen !== detail.audiobookGeneration || key !== detail.pairKey
                             || detail.abRows.length === 0 || detail.abRows[0].slug !== slug
                             || (abCol.abActiveSlug !== "" && abCol.abActiveSlug !== slug)) return
                     if (d && d.infoHash) {
@@ -698,7 +699,7 @@ Item {
         var key = detail.pairKey
         var slug = row.slug
         Abb.fetchInfoHash(slug, function(d) {
-            if (!detail.audiobookBayEnabled || gen !== detail.audiobookGeneration
+            if (!detail || !detail.audiobookBayEnabled || gen !== detail.audiobookGeneration
                     || key !== detail.pairKey || slug !== abCol.abActiveSlug) return
             if (!d || !d.infoHash) { abCol.abState = "failed"; return }
             detail.abInfoHash = d.infoHash
