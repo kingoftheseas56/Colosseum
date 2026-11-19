@@ -217,7 +217,7 @@ TestCase {
             const panel = findChild(page,"vaultSourcesPanel")
             verify(panel.x >= 0 && panel.x+panel.width <= page.width)
             verify(panel.y+panel.height <= page.height)
-            compare(panel.track, panel.x) // The blur crop follows the sliding panel.
+            tryVerify(() => Math.abs(panel.x + panel.width + 24 - page.width) < 0.5)
             compare(findChild(page,"vaultSourcesFolderList").count,1)
             keyClick(Qt.Key_Escape); compare(page.sourcesOpen,false); wait(260)
         }
@@ -369,24 +369,34 @@ TestCase {
     function test_sourceAddConnectAndIgnoreCancel() {
         mouseClick(findChild(page,"vaultsourcesTile")); wait(260)
         const sheet=findChild(page,"vaultStorageSheet")
-        mouseClick(findButton(sheet,"+ Add folder")); compare(addFolder.count,1)
-        mouseClick(findButton(sheet,"Ignore patterns ›")); compare(sheet.editingIgnore,true)
+        const panel=findChild(sheet,"vaultSourcesPanel")
+        tryVerify(() => Math.abs(panel.x + panel.width + 24 - page.width) < 0.5)
+        mouseClick(findChild(sheet,"vaultSourcesAddFolder"))
+        compare(addFolder.count,1)
+        compare(page.sourcesOpen,false)
+        tryCompare(sheet, "visible", false)
+        mouseClick(findChild(page,"vaultsourcesTile"))
+        tryVerify(() => Math.abs(panel.x + panel.width + 24 - page.width) < 0.5)
+        mouseClick(findChild(sheet,"vaultEditIgnorePatterns")); compare(sheet.editingIgnore,true)
         const input=findChild(page,"vaultIgnorePatterns")
         input.text="*.tmp"
-        mouseClick(findButton(sheet,"Cancel")); compare(sheet.editingIgnore,false)
-        mouseClick(findButton(sheet,"Connect a server ›")); compare(connect.count,1); compare(page.sourcesOpen,false)
+        mouseClick(findChild(sheet,"vaultCancelIgnorePatterns")); compare(sheet.editingIgnore,false)
+        mouseClick(findChild(sheet,"vaultSourcesConnectServer")); compare(connect.count,1); compare(page.sourcesOpen,false)
     }
-    function test_forgetDialogEscapeStaysInSources() {
+    function test_forgetConfirmationEscapeStaysInSources() {
         mouseClick(findChild(page,"vaultsourcesTile")); wait(260)
         const sheet=findChild(page,"vaultStorageSheet")
-        const dialog=findChild(page,"vaultForgetSourceDialog")
-        dialog.path="/fixture/media"; dialog.open(); wait(30)
-        verify(dialog.opened)
-        keyClick(Qt.Key_Escape); wait(30)
-        compare(dialog.opened,false); compare(page.sourcesOpen,true)
+        const confirmation=findChild(page,"vaultForgetSourceConfirmation")
+        sheet.pendingSource={name:"Media",path:"/fixture/media"}
+        findChild(sheet,"vaultCancelForgetSource").forceActiveFocus()
+        verify(confirmation.visible)
+        keyClick(Qt.Key_Escape)
+        compare(confirmation.visible,false); compare(page.sourcesOpen,true)
         keyClick(Qt.Key_Escape); compare(page.sourcesOpen,false)
-        sheet.show(null); wait(260); dialog.open(); wait(30)
-        sheet.open=false; wait(30); compare(dialog.opened,false)
+        sheet.show(null); wait(260)
+        sheet.pendingSource={name:"Media",path:"/fixture/media"}
+        verify(confirmation.visible)
+        sheet.open=false; compare(confirmation.visible,false)
     }
     function test_folderAdmissionConfirmationAndDismiss() {
         page.destroy(); wait(0)

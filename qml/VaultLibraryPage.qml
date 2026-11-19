@@ -171,9 +171,8 @@ FocusScope {
     }
     Keys.onEscapePressed: event => { handleBack(); event.accepted = true }
     Component.onCompleted: { forceActiveFocus(); Qt.callLater(admission.initialize) }
-    // Capture a non-recursive page surface for the drawer’s backdrop blur.
     Item {
-    id: pageSurface; anchors.fill: parent
+    anchors.fill: parent
     Rectangle { anchors.fill: parent; color: theme.vaultBackdrop }
     ShaderEffectSource { anchors.fill: parent; sourceItem: root.backdrop; live: true; hideSource: false }
     Rectangle { anchors.fill: parent; gradient: Gradient { GradientStop { position: 0; color: theme.vaultVeilTop } GradientStop { position: 1; color: theme.vaultVeilBottom } } }
@@ -223,7 +222,7 @@ FocusScope {
     }
     }
     VaultStorageSheet {
-        id: sources; anchors.fill: parent; z: 20; backdrop: pageSurface; adapter: root.adapter
+        id: sources; anchors.fill: parent; z: 20; adapter: root.adapter
         onAddFolderRequested: { sources.close(); root.addFolderRequested() }
         onConnectServerRequested: root.connectServerRequested()
         onEditFolderRequested: path => {
