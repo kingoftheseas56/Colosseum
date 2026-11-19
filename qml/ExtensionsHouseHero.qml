@@ -12,6 +12,7 @@ import QtQuick.Effects
 Item {
     id: hero
 
+    property bool controlsOnly: false
     property int revision: 0                 // bump when Extensions changes
     signal universesRequested()
     signal searchRequested()
@@ -23,7 +24,7 @@ Item {
     property int universeIndex: 0
 
     width: parent ? parent.width : 1400
-    height: 330
+    height: controlsOnly ? 254 : 330
 
     Theme { id: theme }
 
@@ -47,7 +48,7 @@ Item {
 
     Timer {
         interval: 7500; repeat: true
-        running: hero.visible
+        running: hero.visible && !hero.controlsOnly
         onTriggered: hero.universeIndex = (hero.universeIndex + 1) % banners.count
     }
 
@@ -69,7 +70,7 @@ Item {
             anchors.fill: parent
             Repeater {
                 id: banners
-                model: ["../assets/extensions/house/starwars-banner.jpg",
+                model: hero.controlsOnly ? [] : ["../assets/extensions/house/starwars-banner.jpg",
                         "../assets/extensions/house/dcau.jpg",
                         "../assets/extensions/house/cosmere.jpg"]
                 delegate: Image {
@@ -105,6 +106,7 @@ Item {
     // ---- Search: the Store's add-on search ----
     Rectangle {
         id: searchPill
+        visible: !hero.controlsOnly
         anchors.right: parent.right; anchors.top: parent.top
         anchors.rightMargin: 26; anchors.topMargin: 20
         width: searchRow.implicitWidth + 36; height: 34
@@ -132,7 +134,7 @@ Item {
         }
         KeyboardAction {
             id: searchAction
-            objectName: "extensionsSearchButton"
+            objectName: hero.controlsOnly ? "" : "extensionsSearchButton"
             anchors.fill: parent
             accessibleName: "Search add-ons"
             focusRadius: 17

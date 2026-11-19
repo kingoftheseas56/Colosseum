@@ -19,6 +19,9 @@ Item {
     property Item backdrop: null
     property bool showExplicit: false
     property string world: "theatre"
+    property var tributes: []
+    property bool reducedMotion: false
+    signal tributeRequested(var tribute)
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -582,30 +585,73 @@ Item {
         medium: "Extensions"
         glassScrollBar: true
         topBarBackOnly: true
-        topBarTitle: "Extensions"
-        topBarSubtitle: "Add-ons and sources for every world."
         backdrop: night
         onHomeRequested: root.backRequested()
 
-        ExtensionsHouseHero {
-            revision: root.revision
-            onUniversesRequested: root.universeHallRequested()
-            onSearchRequested: root.searching = true
-            onInstallUrlRequested: root.openUrlInstaller()
-            onInstallRequested: (id, url) => root.activate({
-                id: id, slug: id, manifestUrl: url
-            })
-            onConfigureRequested: (id) => root.openConfiguration(id)
+        Item {
+            id: poster
+            objectName: "extensionsTributePoster"
+            width: parent.width
+            height: Math.round(Math.max(160, Math.min(310, width * 0.22)))
+
+            Rectangle {
+                anchors.fill: parent
+                radius: 20
+                color: "#0b0d12"
+            }
+            FeaturedCarousel {
+                anchors.fill: parent
+                automationId: "extensionsTributeCarousel"
+                androidHost: root.phoneLayout
+                artworkOnly: true
+                autoAdvance: !root.reducedMotion
+                kicker: qsTr("Tributes")
+                slides: root.tributes.map(tribute => ({
+                    id: tribute.extensionId,
+                    title: tribute.name,
+                    art: tribute.banner
+                }))
+                onPrimaryClicked: index => {
+                    const tribute = root.tributes[index]
+                    if (tribute) root.tributeRequested(tribute)
+                }
+            }
+            Text {
+                objectName: "extensionsPosterTitle"
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: Math.round(Math.max(16, Math.min(48, poster.width * 0.04)))
+                text: qsTr("Extensions")
+                font.family: theme.display
+                font.pixelSize: theme.fontSize(Math.round(Math.min(88, poster.width * 0.12)))
+                font.weight: Font.DemiBold
+                fontSizeMode: Text.HorizontalFit
+                minimumPixelSize: 22
+                elide: Text.ElideRight
+                color: "#fff5df"
+                style: Text.Raised
+                styleColor: Qt.rgba(0, 0, 0, 0.74)
+                Accessible.role: Accessible.Heading
+            }
         }
 
-        ExtensionsInstalledSection {
-            entries: root.installedEntries
-            capabilitiesFor: root.manifestResources
-            instanceLabelFor: root.instanceLabel
-            onManageRequested: (index) => {
-                management.initialIndex = index
-                root.managingInstalled = true
-            }
+        ExtensionsStoreRail {
+            id: essentialsRail
+            title: qsTr("Essentials")
+            automationId: "extensionsEssentialsRail"
+            essentialsLayout: true
+            canSeeAll: false
+            limitArtworkToViewport: root.limitArtworkToViewport
+            artworkActive: root.rowArtworkActive(essentialsRail)
+            items: root.essentials
+            installedFn: root.isInstalled
+            disabledFn: root.isDisabled
+            busy: root.busy
+            revision: root.revision
+            onAddonActivated: (a) => root.installEssential(a)
+            onAddonConfigured: (a) => root.configureEssential(a)
+            onAddonRemoved: (a) => management.requestRemoval(root.essentialInstanceIndices(a))
         }
 
         NuvioRepositoriesBar {
@@ -664,22 +710,16 @@ Item {
             font.family: theme.ui; font.pixelSize: 14
         }
 
-        ExtensionsStoreRail {
-            id: essentialsRail
-            title: qsTr("Essentials")
-            automationId: "extensionsEssentialsRail"
-            essentialsLayout: true
-            canSeeAll: false
-            limitArtworkToViewport: root.limitArtworkToViewport
-            artworkActive: root.rowArtworkActive(essentialsRail)
-            items: root.essentials
-            installedFn: root.isInstalled
-            disabledFn: root.isDisabled
-            busy: root.busy
+        ExtensionsHouseHero {
+            controlsOnly: true
             revision: root.revision
-            onAddonActivated: (a) => root.installEssential(a)
-            onAddonConfigured: (a) => root.configureEssential(a)
-            onAddonRemoved: (a) => management.requestRemoval(root.essentialInstanceIndices(a))
+            onUniversesRequested: root.universeHallRequested()
+            onSearchRequested: root.searching = true
+            onInstallUrlRequested: root.openUrlInstaller()
+            onInstallRequested: (id, url) => root.activate({
+                id: id, slug: id, manifestUrl: url
+            })
+            onConfigureRequested: (id) => root.openConfiguration(id)
         }
 
         Repeater {
@@ -751,7 +791,51 @@ Item {
 
     // Keep the existing Back-only Store masthead, but restore the house
     // Minimize / Fullscreen / Quit trio on Store, Search and Your Add-ons.
+    Row {
+        anchors.right: extensionsWindowControls.left
+        anchors.rightMargin: extensionsWindowControls.visible ? 24 : 0
+        anchors.verticalCenter: extensionsWindowControls.verticalCenter
+        z: 15
+        visible: storeWorld.visible
+        spacing: 10
+
+        KeyboardAction {
+            width: installedLabel.implicitWidth + 24
+            height: 44
+            accessibleName: qsTr("Installed add-ons")
+            onTriggered: {
+                management.initialIndex = 0
+                root.managingInstalled = true
+            }
+            Text {
+                id: installedLabel
+                anchors.centerIn: parent
+                text: qsTr("Installed")
+                font.family: theme.ui
+                font.pixelSize: theme.fontSize(14)
+                color: parent.interactionActive ? theme.gold : theme.ink
+            }
+        }
+        KeyboardAction {
+            id: storeSearch
+            objectName: "extensionsSearchButton"
+            width: 44
+            height: 44
+            accessibleName: qsTr("Search add-ons")
+            onTriggered: root.searching = true
+            Image {
+                anchors.centerIn: parent
+                width: 22
+                height: 22
+                sourceSize.width: 44
+                sourceSize.height: 44
+                source: "../assets/icons/search.svg"
+                opacity: storeSearch.interactionActive ? 1 : 0.74
+            }
+        }
+    }
     HouseWindowControls {
+        id: extensionsWindowControls
         objectPrefix: "extensionsWindow"
         anchors.right: parent.right; anchors.rightMargin: theme.margin
         y: 46

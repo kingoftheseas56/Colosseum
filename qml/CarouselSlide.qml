@@ -3,10 +3,12 @@
 // a left scrim, copy, and the ghost medium marker. Used as a SwipeView page by FeaturedCarousel.
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Controls
 import QtQuick.Window
 
 Item {
     id: slideRoot
+    property bool artworkOnly: false
     objectName: "featuredSlide_" + slideIndex
     property var slide: ({})                 // { title, blurb, ghost, c1, c2, art?, artKind?, primaryIcon? }
     property int slideIndex: -1
@@ -118,16 +120,26 @@ Item {
         }
         // ghost medium marker
         Text {
-            visible: !slideRoot.narrowLayout
+            visible: !slideRoot.artworkOnly && !slideRoot.narrowLayout
             text: slideRoot.slide.ghost !== undefined ? slideRoot.slide.ghost : ""
             color: Qt.rgba(1, 1, 1, 0.06)
             font.family: theme.display; font.bold: true; font.pixelSize: 150
             anchors.right: parent.right; anchors.rightMargin: 40
             anchors.top: parent.top; anchors.topMargin: -30
         }
+        KeyboardAction {
+            objectName: slideRoot.SwipeView.isCurrentItem ? "extensionsFeaturedTribute" : ""
+            anchors.fill: parent
+            visible: slideRoot.artworkOnly && slideRoot.SwipeView.isCurrentItem
+            focusEnabled: false
+            showFocusFrame: false
+            accessibleName: qsTr("Open %1 tribute").arg(slideRoot.slide.title || "")
+            onTriggered: slideRoot.primaryClicked()
+        }
         // copy
         Column {
             id: copyColumn
+            visible: !slideRoot.artworkOnly
             objectName: "featuredCopy_" + slideRoot.slideIndex
             anchors.left: parent.left
             anchors.bottom: parent.bottom

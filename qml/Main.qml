@@ -2923,6 +2923,7 @@ Window {
     // One renderer for every universe. The per-category dispatcher is gone: it existed to
     // pick between bespoke per-IP pages, and those are being deleted (next task).
     function openUniverse(extensionId, name, plain, pickerIntent) {
+        universeLayer.returnToExtensions = false
         const pickerReturn = win.prepareDockPickDetail(universeLayer, pickerIntent)
         if (!extensionId) return
         win.closeOnePieceArc()
@@ -2939,6 +2940,7 @@ Window {
     }
     // An archived universe has no extension; it opens by name on its category's template.
     function openArchivedUniverse(name, page, pickerIntent) {
+        universeLayer.returnToExtensions = false
         if (!name || !universeLayer.templateSources[page]) return
         const pickerReturn = win.prepareDockPickDetail(universeLayer, pickerIntent)
         win.closeOnePieceArc()
@@ -2977,10 +2979,12 @@ Window {
             win.openArchivedUniverse(cfg.name, (cfg.shelves || cfg.manga) ? "shelves" : (cfg.sagaGrid ? "saga" : cfg.category))
     }
     function closeUniverse() {
+        const returnToExtensions = universeLayer.returnToExtensions
         const pick = win.takeDockPickDetail(universeLayer)
         win.closeOnePieceArc()
         universeLayer.active = false
         win.finishDockPickDetail(universeLayer, pick)
+        if (returnToExtensions) win.openExtensionsPage()
     }
     function openOnePieceArc(arc) {
         if (!arc) return
@@ -6271,7 +6275,11 @@ Window {
         property var dockPickReturn: null
         readonly property string dockPickAction: "universe"
         readonly property var dockPickFields: ["extensionId", "universeName", "templatePage", "plain"]
-        onActiveChanged: if (!active) dockPickReturn = null
+        property bool returnToExtensions: false
+        onActiveChanged: if (!active) {
+            dockPickReturn = null
+            returnToExtensions = false
+        }
         onStatusChanged: if (status === Loader.Error) dockPickReturn = null
         asynchronous: true
         property string extensionId: ""
@@ -6588,6 +6596,13 @@ Window {
         source: "ExtensionsStorePage.qml"
         onLoaded: {
             item.backdrop = wall
+            item.tributes = Qt.binding(function() { return win.installedUniverses })
+            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
+            item.tributeRequested.connect(function(tribute) {
+                win.closeExtensionsPage()
+                win.openTribute(tribute)
+                universeLayer.returnToExtensions = true
+            })
             if (item.universeHallRequested)
                 item.universeHallRequested.connect(function() { win.closeExtensionsPage(); win.openWorld("Universes") })
             // Same global preference Discover/genres/search read — a live binding so

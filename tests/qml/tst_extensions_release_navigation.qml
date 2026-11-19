@@ -33,6 +33,33 @@ TestCase {
         page.installedRows = [{id: "starwars", manifest: {}}]
         compare(page.extensionBackground("starwars", "local.jpg"), "local.jpg")
     }
+    function test_poster_title_stays_put_and_activates_current_tribute() {
+        const tributes = [
+            { extensionId: "first", name: "First Tribute" },
+            { extensionId: "second", name: "Second Tribute" }
+        ]
+        page = pageComponent.createObject(host.contentItem, {
+            width: host.width, height: host.height, tributes: tributes, reducedMotion: true
+        })
+        verify(page !== null)
+        const carousel = findChild(page, "extensionsTributeCarousel")
+        const title = findChild(page, "extensionsPosterTitle")
+        verify(carousel && title)
+        const titlePosition = title.mapToItem(page, 0, 0)
+        compare(title.text, "Extensions")
+        var activated = ""
+        page.tributeRequested.connect(tribute => { activated = tribute.extensionId })
+        carousel.setCurrentIndex(1)
+        tryVerify(() => {
+            const action = findChild(carousel, "extensionsFeaturedTribute")
+            return action && action.accessibleName === "Open Second Tribute tribute"
+        })
+        const action = findChild(carousel, "extensionsFeaturedTribute")
+        verify(action.activate())
+        compare(activated, "second")
+        compare(title.mapToItem(page, 0, 0), titlePosition)
+        compare(title.text, "Extensions")
+    }
     function test_single_store_world_preserves_escape_and_back() {
         page = pageComponent.createObject(host.contentItem, {width: host.width, height: host.height})
         verify(page !== null)
