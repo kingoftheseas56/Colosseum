@@ -132,25 +132,24 @@ TestCase {
         compare(fired, 1)
     }
 
-    function test_listenDownloadAndSaveSignals() {
+    function test_playerBarOwnsPlaybackAndSaveStillWorks() {
         makePage({}, {ready: false})
-        var button = find("audiobookPrimary")
-        verify(button !== null && button.visible)
-        compare(button.accessibleName, "Download")
-        var actions = []
-        page.downloadRequested.connect(function () { actions.push("download") })
-        page.listenRequested.connect(function () { actions.push("listen") })
-        page.saveToggled.connect(function () { actions.push("save") })
-        verify(!find("abBarPlay").enabled)
-        mouseClick(button)
-        page.downloaded = true
-        compare(button.accessibleName, "Listen")
-        verify(!find("abBarPlay").enabled)
-        mouseClick(button)
+        var playButton = find("abBarPlay")
+        compare(find("audiobookPrimary"), null)
+        verify(!playButton.enabled)
         stub.ready = true
-        verify(find("abBarPlay").enabled)
+        verify(playButton.enabled)
+
+        var saves = 0
+        page.saveToggled.connect(function () { saves++ })
         mouseClick(find("audiobookSave"))
-        compare(actions.join(), "download,listen,save")
+        compare(saves, 1)
+
+        var identity = find("audiobookIdentity")
+        var titleWithSave = identity.mapToItem(page, 0, 0).y
+        page.saveAvailable = false
+        verify(!visibleNamed("audiobookSave"))
+        verify(identity.mapToItem(page, 0, 0).y < titleWithSave)
     }
 
     function test_noNarratorsMeansNoNarratorLine() {

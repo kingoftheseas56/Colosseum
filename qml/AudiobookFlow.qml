@@ -387,7 +387,6 @@ FocusScope {
             id: player
             required property var route
             session: flow.session
-            downloaded: true
             contentTop: 75
             readonly property var ebook: Bridge.ownedEbook(Object.assign({}, route, book), flow.ebookLibrary)
             ebookAvailable: !!ebook
@@ -402,7 +401,6 @@ FocusScope {
             StackView.onActivated: forceActiveFocus()
             onBookChanged: if (session && route && session.activePairKey === route.recordingKey) session.book = book
             onBackRequested: flow.back()
-            onListenRequested: if (session.paused) session.togglePlay()
             onReadAlongRequested: if (ebookAvailable) {
                 listeningJump = null
                 flow.readAlongRequested(ebook, route.recordingKey)

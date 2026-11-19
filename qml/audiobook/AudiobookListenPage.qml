@@ -13,8 +13,6 @@ Item {
     required property var session
     property var book: ({})
     property bool ebookAvailable: false
-    // Hosts can supply download state before opening the local files in the session.
-    property bool downloaded: !!session && session.ready
     property bool saved: false
     property bool saveAvailable: true
     // Inset from the top of the viewport to the content below the shell's top bar.
@@ -25,11 +23,9 @@ Item {
         ? qsTr("Jump to %1, where you're reading?").arg(listeningJump.label) : ""
     signal backRequested()
     signal readAlongRequested()
-    signal listenRequested()
-    signal downloadRequested()
     signal saveToggled()
 
-    readonly property bool playbackReady: downloaded && !!session && session.ready
+    readonly property bool playbackReady: !!session && session.ready
     readonly property var chapterList: session && session.chapterModel ? session.chapterModel : []
     readonly property bool hasChapters: chapterList.length > 0
     readonly property int chapterIndex: playbackReady && hasChapters ? session.chapterIndex : -1
@@ -178,41 +174,23 @@ Item {
         onTriggered: root.readAlongRequested()
     }
 
-    Row {
-        id: actions
+    PageAction {
+        id: saveButton
+        objectName: "audiobookSave"
         x: poster.x
         y: poster.y + poster.height + 12
-        spacing: 7
-
-        PageAction {
-            objectName: "audiobookPrimary"
-            label: root.downloaded ? qsTr("Listen") : qsTr("Download")
-            accessibleName: label
-            path: root.downloaded
-                ? "M3 14v-3a9 9 0 0 1 18 0v3M3 14a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Zm13 0a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2Z"
-                : "M12 4v10M7.5 10.5 12 15l4.5-4.5M5 19h14"
-            onTriggered: {
-                if (root.downloaded)
-                    root.listenRequested()
-                else
-                    root.downloadRequested()
-            }
-        }
-        PageAction {
-            objectName: "audiobookSave"
-            visible: root.saveAvailable
-            symbol: root.saved ? "saved" : "save"
-            selected: root.saved
-            accessibleName: root.saved ? qsTr("Remove saved audiobook") : qsTr("Save audiobook")
-            tooltipText: accessibleName
-            onTriggered: root.saveToggled()
-        }
+        visible: root.saveAvailable
+        symbol: root.saved ? "saved" : "save"
+        selected: root.saved
+        accessibleName: root.saved ? qsTr("Remove saved audiobook") : qsTr("Save audiobook")
+        tooltipText: accessibleName
+        onTriggered: root.saveToggled()
     }
 
     Column {
         id: identity
         anchors.horizontalCenter: parent.horizontalCenter
-        y: actions.y + actions.height + 8
+        y: (root.saveAvailable ? saveButton.y + saveButton.height : poster.y + poster.height) + 8
         width: Math.min(420, root.width - 2 * root.sideInset)
 
         Text {
