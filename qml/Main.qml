@@ -4470,6 +4470,8 @@ Window {
     Item {
         id: wall
         parent: dockScene
+        // Keep the wallpaper behind the pages that share the dock snapshot.
+        z: -1
         anchors.fill: parent
         // Not painted while the player is up. The player layer is opaque (PlayerPage draws a
         // full-bleed black Rectangle at z:-1) and does not fade, so nothing below it is ever
