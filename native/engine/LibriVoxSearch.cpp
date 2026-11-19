@@ -14,7 +14,7 @@
 
 namespace {
 constexpr int requestGapMs = 3000;
-constexpr int requestTimeoutMs = 12000;
+constexpr int requestTimeoutMs = 25000;
 constexpr int maxAttempts = 2;
 constexpr int maxBooks = 20;
 constexpr qsizetype maxBodyBytes = 4 * 1024 * 1024;

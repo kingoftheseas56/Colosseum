@@ -99,7 +99,6 @@ FocusScope {
 
     function back() {
         const page = currentPage
-        if (page && page.objectName === "audiobookBookPage" && page.dismissDownloadUi()) return
         if (page && page.objectName === "audiobookListenPage" && page.chaptersOpen) {
             page.chaptersOpen = false
             return
@@ -180,7 +179,6 @@ FocusScope {
             property var download: null
             property string catalogueStatus
             property var chosenUpload: null
-            property var sourceLookup: null
             property bool submitting: false
             readonly property string collectionId: workId ? "audiobook:" + workId : ""
             readonly property string pairKey: FlowData.pairFor(work)
@@ -188,13 +186,6 @@ FocusScope {
                 ? Array.prototype.slice.call(flow.downloads.recordingsForWork(pairKey))
                     .concat(flow.activeDownloads.filter(job => job.workId && job.workId === workId))
                 : [])
-            readonly property bool tankorentForWork: flow.tankorentEnabled && flow.tankorent.isEligible(work)
-            readonly property var enabledSources: [
-                flow.abbEnabled && flow.matcher ? "abb" : "",
-                flow.librivoxEnabled ? "librivox" : "",
-                tankorentForWork ? "tankorent" : ""
-            ].filter(Boolean)
-            sourceEnabled: enabledSources.length > 0
             selectedDownloadKey: chosenUpload ? chosenUpload.recordingKey : ""
             recordings: FlowData.recordingsFor(work, selectedRecording, chosenUpload || download, ownedSources, !flow.downloads)
             downloadState: {
@@ -229,25 +220,8 @@ FocusScope {
                     : pending ? qsTr("Loading audiobook…") : qsTr("This audiobook is unavailable right now.")
             }
 
-            function cancelSourceLookup() {
-                const lookup = sourceLookup
-                sourceLookup = null
-                lookupPending = false
-                if (!lookup) return
-                if (lookup.abbCancel) lookup.abbCancel()
-                if (lookup.pending.librivox) lookup.librivox.cancel(lookup.token)
-                if (lookup.pending.tankorent) lookup.tankorent.cancel(lookup.token)
-            }
-
-            function dismissDownloadUi() {
-                if (picker.opened) { picker.close(); return true }
-                if (lookupPending) { cancelSourceLookup(); return true }
-                return false
-            }
-
             function submitUpload(request) {
                 if (!request || !flow.downloads || submitting) return
-                if (!enabledSources.includes(request.sourceKind)) { flow.openExtensionsRequested(); return }
                 chosenUpload = request
                 const state = flow.downloadStatus(request.recordingKey).state
                 if (state === "done") { flow.openListen(request.recordingKey, request); return }
@@ -255,111 +229,13 @@ FocusScope {
                 const failures = Object.assign({}, flow.failedKeys)
                 delete failures[request.recordingKey]
                 flow.failedKeys = failures
-                downloadError = ""
                 submitting = true
                 flow.downloads.downloadRecording(request)
                 submitting = false
             }
 
-            function acceptSources(kind, token, rows, error, automatic) {
-                const lookup = sourceLookup
-                if (!lookup || lookup.token !== token || !lookup.pending[kind]) return
-                delete lookup.pending[kind]
-                lookup.rows[kind] = Array.prototype.slice.call(rows || [])
-                if (error) {
-                    const label = kind === "librivox" ? qsTr("LibriVox")
-                        : kind === "tankorent" ? qsTr("Tankorent") : qsTr("AudioBookBay")
-                    lookup.errors.push(error === "timeout" ? qsTr("%1 timed out.").arg(label)
-                                                           : qsTr("%1 is unavailable right now.").arg(label))
-                }
-                if (Object.keys(lookup.pending).length) return
-                sourceLookup = null
-                lookupPending = false
-                if (automatic && lookup.abbOnly) {
-                    submitUpload(automatic.request)
-                    return
-                }
-                const choices = [].concat(lookup.rows.librivox || [], lookup.rows.abb || [], lookup.rows.tankorent || [])
-                if (!choices.length && lookup.errors.length) {
-                    downloadError = lookup.errors.join(" ")
-                    return
-                }
-                picker.rows = choices
-                picker.notice = lookup.errors.join(" ")
-                picker.open()
-            }
-
-            function librivoxRows(books) {
-                return Array.prototype.map.call(books || [], function(book) {
-                    return Object.assign({}, book, {
-                        sourceLabel: qsTr("LibriVox"), format: "MP3", fileCount: book.chapters.length,
-                        request: {
-                            sourceKind: "librivox", sourceRef: book.id, chapters: book.chapters,
-                            pairKey: detail.pairKey, workId: detail.workId,
-                            recordingKey: detail.pairKey + "#librivox:" + book.id,
-                            title: book.title, author: book.author, narrators: book.narrators,
-                            format: "MP3", language: book.language
-                        }
-                    })
-                })
-            }
-
-            function findSources() {
-                if (lookupPending || picker.opened || submitting || primary.kind !== "download") return
-                if (!flow.downloads || !workId || !pairKey || !enabledSources.length) return
-                if (chosenUpload && enabledSources.includes(chosenUpload.sourceKind)
-                    && flow.downloadStatus(chosenUpload.recordingKey).state === "failed") {
-                    submitUpload(chosenUpload)
-                    return
-                }
-                downloadError = ""
-                const token = String(++flow.lastLookupToken)
-                const pending = ({})
-                enabledSources.forEach(kind => pending[kind] = true)
-                const lookup = { token: token, pending: pending, rows: {}, errors: [],
-                                 librivox: flow.librivox, tankorent: flow.tankorent,
-                                 abbOnly: enabledSources.length === 1 && pending.abb, abbCancel: null }
-                sourceLookup = lookup
-                lookupPending = true
-                if (pending.librivox) lookup.librivox.search(token, built.title, built.authors)
-                if (pending.tankorent) lookup.tankorent.search(token, work, shownRecording.id, pairKey)
-                if (pending.abb) {
-                    lookup.abbCancel = SmartDownload.resolve(flow.abb, flow.matcher, {
-                        workId: workId, title: built.title, author: built.authors, pairKey: pairKey,
-                        targetRecordingId: shownRecording.id, recordings: work.recordings || [], series: work.series || []
-                    }, function(result) {
-                        const rows = result.rows.map(row => Object.assign({}, row, { sourceLabel: qsTr("AudioBookBay") }))
-                        detail.acceptSources("abb", token, rows, result.error, result.automatic)
-                    })
-                }
-            }
-
-            Connections {
-                target: flow.librivox
-                function onSearchFinished(token, rows, error) {
-                    if (detail.sourceLookup && detail.sourceLookup.token === token)
-                        detail.acceptSources("librivox", token, detail.librivoxRows(rows), error)
-                }
-            }
-
-            Connections {
-                target: flow.tankorent
-                function onSearchFinished(token, rows, error) {
-                    detail.acceptSources("tankorent", token, rows, error)
-                }
-            }
-
             Component.onCompleted: refresh()
-            Component.onDestruction: cancelSourceLookup()
             StackView.onActivated: forceActiveFocus()
-            StackView.onDeactivating: {
-                cancelSourceLookup()
-                picker.close()
-            }
-            onEnabledSourcesChanged: {
-                cancelSourceLookup()
-                picker.close()
-            }
             Connections {
                 target: flow.catalog && flow.catalog.revisionChanged !== undefined ? flow.catalog : null
                 ignoreUnknownSignals: true
@@ -369,10 +245,7 @@ FocusScope {
             }
             onSeriesBookRequested: (id) => {
                 if (id === detail.workId) return
-                detail.cancelSourceLookup()
-                picker.close()
                 detail.chosenUpload = null
-                detail.downloadError = ""
                 detail.download = null
                 detail.selectedRecording = ""
                 detail.workId = id
@@ -381,20 +254,14 @@ FocusScope {
             onAuthorRequested: (personId, name) => flow.browse("byPerson", personId, name)
             onSaveRequested: if (canSave) flow.toggleSaved(workId, shownRecording.id, built.title, built.authors, coverUrl)
             onBackRequested: flow.back()
-            onDownloadRequested: (id) => detail.findSources()
-            onEnableSourceRequested: flow.openExtensionsRequested()
-            onCancelLookupRequested: detail.cancelSourceLookup()
+            onDownloadRequested: {
+                if (flow.currentPage === detail && detail.pairKey)
+                    routeStack.pushItem(sourcesPage, { detail: detail }, StackView.Immediate)
+            }
             onListenRequested: (key) => flow.openListen(key, detail.chosenUpload || {
                 workId: detail.workId, recordingId: detail.shownRecording.id, title: detail.built.title,
                 author: detail.built.authors, coverUrl: detail.coverUrl
             })
-
-            Audiobook.AudiobookSourcePicker {
-                id: picker
-                parent: detail
-                workTitle: detail.built.title
-                onSourcePicked: (row) => detail.submitUpload(row.request)
-            }
 
             Text {
                 anchors.centerIn: parent
@@ -402,6 +269,142 @@ FocusScope {
                 text: detail.catalogueStatus
                 color: "#a5a7b0"
                 font.pixelSize: 15
+            }
+        }
+    }
+
+    Component {
+        id: sourcesPage
+        Audiobook.AudiobookSourcesPage {
+            id: sources
+            required property Item detail
+
+            property bool showing: false
+            property var lookups: ({})
+            readonly property bool abbSearchEnabled: flow.abbEnabled
+            readonly property bool librivoxSearchEnabled: flow.librivoxEnabled
+            readonly property bool tankorentSearchEnabled: showTankorent && flow.tankorentEnabled
+            workTitle: detail.built.title
+            workAuthor: detail.built.authors
+            showTankorent: !!flow.tankorent && flow.tankorent.isEligible(detail.work)
+            recordingStatus: key => { flow.downloadsRevision; return flow.downloadStatus(key).state }
+
+            function publish(kind, state, rows, error) {
+                const next = Object.assign({}, providerStates)
+                next[kind] = { state: state, rows: rows || [], error: error || "" }
+                providerStates = next
+            }
+
+            function cancel(kind) {
+                const job = lookups[kind]
+                if (!job) return
+                delete lookups[kind]
+                if (job.cancel) job.cancel()
+            }
+
+            function stop() {
+                showing = false
+                Object.keys(lookups).forEach(kind => sources.cancel(kind))
+            }
+
+            function receive(kind, token, rows, error) {
+                if (!showing || lookups[kind]?.token !== token) return
+                delete lookups[kind]
+                const options = Array.prototype.slice.call(rows || [])
+                publish(kind, options.length ? "results" : error ? "error" : "empty", options, error)
+            }
+
+            function isEnabled(kind) {
+                return kind === "abb" ? abbSearchEnabled : kind === "librivox"
+                    ? librivoxSearchEnabled : tankorentSearchEnabled
+            }
+
+            function lookup(kind) {
+                if (!showing) return
+                cancel(kind)
+                if (kind === "tankorent" && !showTankorent) return
+                if (!isEnabled(kind)) {
+                    publish(kind, "disabled")
+                    return
+                }
+                if (kind === "abb" && (!flow.abb || !flow.matcher)) {
+                    publish(kind, "error")
+                    return
+                }
+
+                const token = String(++flow.lastLookupToken)
+                const job = { token: token, cancel: null }
+                lookups[kind] = job
+                publish(kind, "searching")
+                Qt.callLater(function() {
+                    if (!sources || !sources.showing || sources.lookups[kind] !== job) return
+                    if (kind === "abb") {
+                        job.cancel = SmartDownload.resolve(flow.abb, flow.matcher, {
+                            workId: detail.workId, title: workTitle, author: workAuthor, pairKey: detail.pairKey,
+                            targetRecordingId: detail.shownRecording.id, recordings: detail.work.recordings || [],
+                            series: detail.work.series || []
+                        }, function(result) {
+                            sources.receive(kind, token, result.rows, result.error)
+                        })
+                    } else if (kind === "librivox") {
+                        const service = flow.librivox
+                        job.cancel = () => service.cancel(token)
+                        service.search(token, workTitle, workAuthor)
+                    } else {
+                        const service = flow.tankorent
+                        job.cancel = () => service.cancel(token)
+                        service.search(token, detail.work, detail.shownRecording.id, detail.pairKey)
+                    }
+                })
+            }
+
+            Connections {
+                target: flow.librivox
+                function onSearchFinished(token, rows, error) {
+                    if (sources.lookups.librivox?.token !== token) return
+                    const options = Array.prototype.map.call(rows || [], function(book) {
+                        return Object.assign({}, book, {
+                            format: "MP3", fileCount: book.chapters.length,
+                            request: {
+                                sourceKind: "librivox", sourceRef: book.id, chapters: book.chapters,
+                                pairKey: detail.pairKey, workId: detail.workId,
+                                recordingKey: detail.pairKey + "#librivox:" + book.id,
+                                title: book.title, author: book.author, narrators: book.narrators,
+                                format: "MP3", language: book.language
+                            }
+                        })
+                    })
+                    sources.receive("librivox", token, options, error)
+                }
+            }
+
+            Connections {
+                target: flow.tankorent
+                function onSearchFinished(token, rows, error) {
+                    sources.receive("tankorent", token, rows, error)
+                }
+            }
+
+            StackView.onActivated: {
+                showing = true
+                lookup("abb")
+                lookup("librivox")
+                lookup("tankorent")
+            }
+            StackView.onDeactivating: stop()
+            Component.onDestruction: stop()
+            onAbbSearchEnabledChanged: lookup("abb")
+            onLibrivoxSearchEnabledChanged: lookup("librivox")
+            onTankorentSearchEnabledChanged: lookup("tankorent")
+            onRetryRequested: kind => lookup(kind)
+            onBackRequested: flow.back()
+            onExtensionsRequested: flow.openExtensionsRequested()
+            onSourcePicked: row => {
+                const request = row.request
+                if (flow.currentPage !== sources || !request || !isEnabled(request.sourceKind)) return
+                const book = detail
+                flow.back()
+                book.submitUpload(request)
             }
         }
     }

@@ -1,103 +1,83 @@
 import QtQuick
 import QtTest
+import "../../qml/audiobook" as Audiobook
 
 TestCase {
     id: testCase
-    name: "AudiobookSourcePicker"
+    name: "AudiobookSourcesPage"
     width: 800
     height: 600
     visible: true
     when: windowShown
 
-    property var picker
-    property var picks: []
+    Component { id: sourcePage; Audiobook.AudiobookSourcesPage {} }
 
-    function openPicker(rows) {
-        const component = Qt.createComponent("../../qml/audiobook/AudiobookSourcePicker.qml")
-        compare(component.status, Component.Ready, component.errorString())
-        picker = createTemporaryObject(component, testCase, {rows: rows, workTitle: "Dune"})
-        verify(picker)
-        picker.sourcePicked.connect(row => picks.push(row))
-        picker.open()
-        tryCompare(picker, "opened", true)
-        if (rows.length > 0)
-            tryVerify(() => item("audiobookSourceOptions").height > 0)
+    function make(rows) {
+        const page = createTemporaryObject(sourcePage, testCase, {
+            width: width, height: height, workTitle: "Dune",
+            providerStates: { abb: { state: rows.length ? "results" : "empty", rows: rows },
+                librivox: { state: "disabled", rows: [] } }
+        })
+        verify(page)
+        return page
     }
 
-    function item(name) {
-        const child = findChild(picker.contentItem, name)
-        verify(child, name)
-        return child
-    }
-
-    function init() { picks = [] }
-
-    function test_sourceEvidenceAndExplicitChoice() {
-        openPicker([
-            { title: "Dune", format: "M4B", fileCount: 1, size: "1.5 GB", narrators: ["Scott Brick"],
-                verdict: "exact", recommended: true, request: {infoHash: "selected"} },
-            { title: "Dune collection", bundle: true, bundleCount: 3, reason: "Different narration",
-                verdict: "none", request: {infoHash: "other"} },
-            { title: "Dune collection", bundle: true, reason: "Unconfirmed", verdict: "none" }
-        ])
-        compare(item("audiobookSourceWorkTitle").text, "Dune")
-        compare(item("audiobookSourceSummary0").text, "M4B · 1 file · 1.5 GB · narrated by Scott Brick")
-        compare(item("audiobookSourceRecommendation_0").text, "Recommended")
-        verify(item("audiobookSourceRecommendation_0").visible)
-        compare(item("audiobookSourceBundle1").text, "Bundle · 3 books")
-        compare(item("audiobookSourceBundle2").text, "Bundle")
-        compare(item("audiobookSourceReason1").text, "Different narration")
-        compare(picks.length, 0)
-        mouseClick(item("audiobookSourceOption_2"))
-        compare(picks.length, 0)
-        compare(picker.opened, true)
-        mouseClick(item("audiobookSourceOption_1"))
-        compare(picks.length, 1)
-        compare(picks[0].request.infoHash, "other")
-        tryCompare(picker, "opened", false)
-    }
-
-    function test_keyboardChoice() {
-        openPicker([{title: "Unavailable", reason: "Unconfirmed"}, {title: "Dune", request: {infoHash: "selected"}}])
-        tryCompare(item("audiobookSourceClose"), "activeFocus", true)
-        keyClick(Qt.Key_Tab)
-        tryCompare(item("audiobookSourceOption_1"), "activeFocus", true)
-        keyClick(Qt.Key_Return)
-        compare(picks.length, 1)
-        compare(picks[0].request.infoHash, "selected")
-        tryCompare(picker, "opened", false)
-    }
-
-    function test_tabScrollsLongList() {
-        const rows = Array.from({length: 12}, (_, index) => ({title: "Upload " + index, request: index + 1}))
-        openPicker(rows)
-        const list = item("audiobookSourceOptions")
-        verify(list.contentHeight > list.height)
-        compare(list.contentY, 0)
-        for (let index = 0; index < rows.length; ++index) {
-            keyClick(Qt.Key_Tab)
-            tryCompare(item("audiobookSourceOption_" + index), "activeFocus", true)
+    function visual(item, name) {
+        if (item.objectName === name) return item
+        for (const child of item.children) {
+            const found = visual(child, name)
+            if (found) return found
         }
-        verify(list.contentY > 0)
-        keyClick(Qt.Key_Space)
-        compare(picks.length, 1)
-        compare(picks[0].request, 12)
-        tryCompare(picker, "opened", false)
+        return null
     }
 
-    function test_emptyAndDismiss() {
-        openPicker([])
-        verify(item("audiobookSourceEmpty").visible)
+    function test_evidence_and_explicit_mouse_choice() {
+        const offered = { title: "Dune collection", bundle: true, bundleCount: 3, reason: "Different narration",
+            fileCount: 1, format: "m4b", size: "1.5 GB", narrators: ["Scott Brick"], recommended: true,
+            request: { infoHash: "chosen" } }
+        const page = make([{ title: "Unverified", reason: "Unconfirmed" }, offered])
+        compare(page.rowDetails(offered), "Narrated by Scott Brick · M4B · 1 file · 1.5 GB · Bundle · 3 books · Recommended · Different narration")
+        const selections = []
+        page.sourcePicked.connect(row => selections.push(row))
+        const unknown = visual(page, "audiobookSourceOption_abb_0")
+        verify(unknown && !unknown.enabled)
+        mouseClick(unknown)
+        compare(selections.length, 0)
+        mouseClick(visual(page, "audiobookSourceOption_abb_1"))
+        compare(selections.length, 1)
+        compare(selections[0].request.infoHash, "chosen")
+    }
+
+    function test_back_stays_visible_and_keyboard_scrolls_long_sources_list() {
+        const page = make(Array.from({ length: 12 }, (_, index) => ({
+            title: "Upload " + index, request: { recordingKey: String(index) }
+        })))
+        const list = visual(page, "audiobookSourcesScroll")
+        const back = visual(page, "audiobookSourcesBack")
+        const last = visual(page, "audiobookSourceOption_abb_11")
+        verify(list.contentHeight > list.height)
+        const backAtTop = back.mapToItem(page, 0, 0).y
+        last.forceActiveFocus(Qt.TabFocusReason)
+        tryVerify(() => list.contentY > 0)
+        compare(back.mapToItem(page, 0, 0).y, backAtTop)
+        const selections = []
+        page.sourcePicked.connect(row => selections.push(row))
+        keyClick(Qt.Key_Return)
+        compare(selections.length, 1)
+        compare(selections[0].request.recordingKey, "11")
+    }
+
+    function test_provider_status_and_back() {
+        const page = make([])
+        compare(visual(page, "audiobookSourcesStatus_abb").text, "No matches found")
+        compare(visual(page, "audiobookSourcesStatus_librivox").text, "Disabled in Extensions")
+        const back = visual(page, "audiobookSourcesBack")
+        let returns = 0
+        page.backRequested.connect(() => ++returns)
+        mouseClick(back)
+        compare(returns, 1)
+        back.focusControl(Qt.TabFocusReason)
         keyClick(Qt.Key_Escape)
-        tryCompare(picker, "opened", false)
-        picker.open()
-        tryCompare(picker, "opened", true)
-        keyClick(Qt.Key_Back)
-        tryCompare(picker, "opened", false)
-        picker.open()
-        tryCompare(picker, "opened", true)
-        mouseClick(item("audiobookSourceClose"))
-        tryCompare(picker, "opened", false)
-        compare(picks.length, 0)
+        compare(returns, 2)
     }
 }

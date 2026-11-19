@@ -202,109 +202,138 @@ TestCase {
         return page
     }
 
-    function picker(page) {
-        const result = findChild(page, "audiobookSourcePicker")
-        verify(result !== null)
-        return result
+    function sources(view) {
+        const current = view.flow.currentPage
+        compare(current.objectName, "audiobookSourcesPage")
+        return current
+    }
+
+    function rows(view, count) {
+        const page = sources(view)
+        tryVerify(() => page.providerStates.abb.rows.length === count
+            && page.providerStates.abb.state !== "searching")
+        return page.providerStates.abb.rows
+    }
+
+    function pick(view) {
+        const result = rows(view, 1)[0]
+        sources(view).sourcePicked(result)
     }
 
     function press(page) { findChild(page, "audiobookPrimaryAction").triggered() }
 
-    function test_one_confident_match_starts_immediately() {
+    function test_download_navigates_before_a_slow_provider() {
         const view = setup([upload(exactHash)])
-        const page = book(view)
-        press(page)
-        compare(view.downloads.requests.length, 1)
-        compare(view.downloads.requests[0].recordingKey, recordingKey)
-        compare(picker(page).opened, false)
+        const detail = book(view)
+        view.abb.delaySearch = true
+        press(detail)
+        compare(view.flow.currentPage.objectName, "audiobookSourcesPage")
+        compare(view.abb.requests, 0)
+        compare(view.downloads.requests.length, 0)
+        tryCompare(view.abb, "requests", 1)
+        view.flow.back()
+        compare(view.flow.currentPage, detail)
+        compare(view.abb.cancellations, 1)
     }
 
-    function test_two_matches_open_picker_and_exact_is_recommended() {
-        const view = setup([upload(probableHash, { seeders: 500 }), upload(exactHash, { fileCount: 4 })])
-        const page = book(view)
-        press(page)
-        const sheet = picker(page)
-        tryCompare(sheet, "opened", true)
+    function test_single_confident_match_waits_for_choice() {
+        const view = setup([upload(exactHash)])
+        const detail = book(view)
+        press(detail)
+        rows(view, 1)
         compare(view.downloads.requests.length, 0)
-        compare(sheet.rows.length, 2)
-        verify(sheet.rows[0].recommended)
-        compare(sheet.rows[0].verdict, "exact")
-        compare(sheet.rows.filter(row => row.recommended).length, 1)
+        pick(view)
+        compare(view.downloads.requests.length, 1)
+        compare(view.downloads.requests[0].recordingKey, recordingKey)
+        compare(view.flow.currentPage, detail)
+    }
+
+    function test_two_matches_recommend_exact_without_downloading() {
+        const view = setup([upload(probableHash, { seeders: 500 }), upload(exactHash, { fileCount: 4 })])
+        press(book(view))
+        const choices = rows(view, 2)
+        compare(view.downloads.requests.length, 0)
+        verify(choices[0].recommended)
+        compare(choices[0].verdict, "exact")
+        compare(choices.filter(row => row.recommended).length, 1)
     }
 
     function test_uncertain_upload_reports_reason_and_requires_a_tap() {
         const view = setup([upload(unknownHash, { narrators: ["Another Narrator"] })])
-        const page = book(view)
-        press(page)
-        const sheet = picker(page)
-        tryCompare(sheet, "opened", true)
+        press(book(view))
+        verify(rows(view, 1)[0].reason.length > 0)
         compare(view.downloads.requests.length, 0)
-        verify(sheet.rows[0].reason.length > 0)
-        sheet.sourcePicked(sheet.rows[0])
+        pick(view)
         compare(view.downloads.requests.length, 1)
         verify(view.downloads.requests[0].recordingKey.endsWith("#src:" + unknownHash))
     }
 
     function test_bundle_is_labelled_and_never_automatic() {
         const view = setup([upload(bundleHash, { bundle: true, bundleCount: 3 })])
-        const page = book(view)
-        press(page)
-        const sheet = picker(page)
-        tryCompare(sheet, "opened", true)
+        press(book(view))
+        const row = rows(view, 1)[0]
         compare(view.downloads.requests.length, 0)
-        verify(sheet.rows[0].bundle)
-        compare(sheet.rows[0].bundleCount, 3)
+        verify(row.bundle)
+        compare(row.bundleCount, 3)
     }
 
-    function test_empty_search_opens_picker_without_downloading() {
+    function test_empty_search_reports_no_matches() {
         const view = setup([])
-        const page = book(view)
-        press(page)
-        const sheet = picker(page)
-        tryCompare(sheet, "opened", true)
-        compare(sheet.rows.length, 0)
+        press(book(view))
+        rows(view, 0)
+        compare(sources(view).providerStates.abb.state, "empty")
         compare(view.downloads.requests.length, 0)
     }
 
-    function test_disabled_source_opens_extensions() {
+    function test_disabled_source_still_opens_sources() {
         const view = setup([upload(exactHash)], false)
-        const page = book(view)
-        compare(page.primary.label, "Enable an audiobook source in Extensions")
-        press(page)
-        compare(extensionsSpy.count, 1)
+        const detail = book(view)
+        compare(detail.primary.label, "Download")
+        press(detail)
+        const page = sources(view)
+        compare(page.providerStates.abb.state, "disabled")
+        compare(page.providerStates.librivox.state, "disabled")
+        compare(extensionsSpy.count, 0)
         compare(view.abb.requests, 0)
+        findChild(page, "audiobookSourcesExtensions").clicked()
+        compare(extensionsSpy.count, 1)
     }
 
-    function test_cancel_and_timeout_allow_retry() {
+    function test_back_ignores_old_result_and_error_can_retry() {
         const view = setup([upload(exactHash)])
-        const page = book(view)
+        const detail = book(view)
         view.abb.delaySearch = true
-        press(page)
-        verify(page.lookupPending)
+        press(detail)
+        tryCompare(view.abb, "requests", 1)
+        const late = view.abb.onSearchDone
         view.flow.back()
-        compare(view.flow.currentPage, page)
-        compare(page.lookupPending, false)
+        compare(view.flow.currentPage, detail)
         compare(view.abb.cancellations, 1)
-        press(page)
+        press(detail)
+        tryCompare(view.abb, "requests", 2)
+        late({ rows: view.abb.rows, page: 1, hasMore: false })
+        compare(sources(view).providerStates.abb.state, "searching")
         view.abb.onSearchDone(null, "timeout")
-        compare(page.lookupPending, false)
-        compare(page.primary.label, "Retry")
+        tryVerify(() => sources(view).providerStates.abb.state === "error")
+        compare(sources(view).providerStates.abb.error, "timeout")
         view.abb.delaySearch = false
-        press(page)
+        sources(view).retryRequested("abb")
+        pick(view)
         compare(view.downloads.requests.length, 1)
     }
 
     function test_download_progress_completion_and_listen_route() {
         const view = setup([upload(exactHash)])
-        const page = book(view)
-        press(page)
+        const detail = book(view)
+        press(detail)
+        pick(view)
         compare(view.downloads.requests.length, 1)
         view.downloads.move(recordingKey, 43, 100)
-        compare(page.primary.label, "Downloading 43%")
-        compare(findChild(page, "audiobookLocalStatus").text, "")
+        compare(detail.primary.label, "Downloading 43%")
+        compare(findChild(detail, "audiobookLocalStatus").text, "")
         view.downloads.complete(recordingKey, view.downloads.requests[0])
-        compare(page.primary.label, "Listen")
-        press(page)
+        compare(detail.primary.label, "Listen")
+        press(detail)
         compare(view.session.opens, [recordingKey])
         const player = view.flow.currentPage
         compare(player.objectName, "audiobookListenPage")
@@ -313,35 +342,38 @@ TestCase {
         compare(player.book.narrators, ["Michael Kramer"])
         compare(findChild(player, "audiobookPlayerSeries").text, "The Stormlight Archive · Book 1")
         view.flow.back()
-        compare(view.flow.currentPage, page)
+        compare(view.flow.currentPage, detail)
     }
 
-    function test_double_press_and_failure_retry() {
+    function test_double_press_and_failure_retry_require_a_choice() {
         const view = setup([upload(exactHash)])
-        const page = book(view)
-        view.abb.delaySearch = true
-        press(page)
-        press(page)
+        const detail = book(view)
+        press(detail)
+        press(detail)
+        rows(view, 1)
         compare(view.abb.requests, 1)
-        view.abb.onSearchDone({ rows: view.abb.rows, page: 1, hasMore: false })
-        press(page)
+        pick(view)
         compare(view.downloads.requests.length, 1)
         view.downloads.fail(recordingKey)
-        compare(page.primary.label, "Retry")
-        press(page)
+        compare(detail.primary.label, "Retry")
+        press(detail)
+        rows(view, 1)
+        compare(view.downloads.requests.length, 1)
+        pick(view)
         compare(view.downloads.requests.length, 2)
-        compare(view.abb.requests, 1)
+        compare(view.abb.requests, 2)
     }
 
     function test_reopened_detail_uses_native_failure_snapshot() {
         const view = setup([upload(exactHash)])
         view.downloads.failureRows = [{ id: recordingKey, workId: "the-way-of-kings", state: "failed" }]
         view.downloads.failuresChanged()
-        const page = book(view)
-        compare(page.primary.label, "Retry")
-        press(page)
+        const detail = book(view)
+        compare(detail.primary.label, "Retry")
+        press(detail)
+        pick(view)
         compare(view.downloads.requests.length, 1)
-        compare(page.primary.label, "Downloading")
+        compare(detail.primary.label, "Downloading")
     }
 
     function test_library_routes_downloads_and_bundles_to_player() {

@@ -45,6 +45,11 @@ TestCase {
             }
             function work(id) {
                 if (remote && revision < 2) return {}
+                if (id === "mercy-book-1" || id === "the-time-machine")
+                    return { id: id, title: id === "mercy-book-1" ? "Mercy" : "The Time Machine",
+                        authors: [{ name: "Alex Writer" }],
+                        series: id === "mercy-book-1" ? [{ id: "series", name: "The Mercy Series", numberText: "1" }] : [],
+                        recordings: [{ id: "edition-" + id, language: "en" }] }
                 if (id !== "first" && id !== "second") return {}
                 return { id: id, title: id === "first" ? "First Book" : "Second Book",
                          authors: [{ id: "writer", name: "Alex Writer" }],
@@ -164,7 +169,7 @@ TestCase {
             property var cancellations: []
             property bool autoReply: true
             signal searchFinished(string token, var rows, string error)
-            function isEligible(work) { return work.id === "first" }
+            function isEligible(work) { return !!work.id && Array.isArray(work.series) && work.series.length === 0 }
             function search(token, first, second, third) {
                 calls.push({ token: token, first: first, second: second, third: third })
                 if (autoReply) searchFinished(token, rows, "")
@@ -176,9 +181,9 @@ TestCase {
     Component {
         id: sourceExtensionsFixture
         QtObject {
-            property string sourceId
+            property var sourceIds: []
             property int revision: 0
-            function installed() { return [{ id: sourceId, enabled: !!sourceId }] }
+            function installed() { return sourceIds.map(id => ({ id: id, enabled: true })) }
         }
     }
 
@@ -193,9 +198,25 @@ TestCase {
         }
     }
 
-    function test_librivox_is_selectable_without_abb() {
+    Component {
+        id: stalledAbbFixture
+        QtObject {
+            property int requests: 0
+            property int cancellations: 0
+            function search(term, page, done) {
+                ++requests
+                return { cancel: () => ++cancellations }
+            }
+        }
+    }
+
+    function test_librivox_is_selectable_while_abb_is_pending() {
         const view = setup()
-        view.flow.extensions = make(sourceExtensionsFixture, { sourceId: "colosseum.well.librivox" })
+        view.flow.extensions = make(sourceExtensionsFixture, {
+            sourceIds: ["colosseum.well.audiobookbay", "colosseum.well.librivox"]
+        })
+        view.flow.abb = make(stalledAbbFixture)
+        view.flow.matcher = {}
         view.flow.downloads = make(sourceDownloadsFixture)
         view.flow.librivox = make(sourceFixture, { rows: [{
             id: "1480", title: "First Book (version 3)", author: "Alex Writer", narrators: ["Karen Savage"],
@@ -204,39 +225,61 @@ TestCase {
             id: "4023", title: "First Book (version 4)", author: "Alex Writer", narrators: ["Elizabeth Klett"],
             chapters: [{ number: 1, title: "Chapter 1", url: "https://www.archive.org/download/example/other.mp3" }]
         }] })
-        const page = openFirst(view)
-        compare(page.primary.kind, "download")
-        findChild(page, "audiobookPrimaryAction").triggered()
-        const picker = findChild(page, "audiobookSourcePicker")
-        tryCompare(picker, "opened", true)
-        compare(picker.rows.map(row => row.narrators[0]), ["Karen Savage", "Elizabeth Klett"])
-        compare(picker.rows[0].sourceLabel, "LibriVox")
+        const detail = openFirst(view)
+        compare(detail.primary.kind, "download")
+        findChild(detail, "audiobookPrimaryAction").triggered()
+        const sources = view.flow.currentPage
+        compare(sources.objectName, "audiobookSourcesPage")
+        tryVerify(() => sources.providerStates.librivox.state === "results")
+        compare(sources.providerStates.abb.state, "searching")
+        compare(view.flow.abb.requests, 1)
+        compare(sources.providerStates.librivox.rows.map(row => row.narrators[0]), ["Karen Savage", "Elizabeth Klett"])
         compare(view.flow.downloads.captured.length, 0)
-        const choice = visualChild(picker.contentItem, "audiobookSourceOption_0")
+        const choice = visualChild(sources, "audiobookSourceOption_librivox_0")
         verify(choice !== null)
         choice.triggered()
         compare(view.flow.downloads.captured.length, 1)
         compare(view.flow.downloads.captured[0].recordingKey, "first book|alex writer#librivox:1480")
+        compare(view.flow.abb.cancellations, 1)
+        compare(view.flow.currentPage, detail)
     }
 
-    function test_tankorent_single_unverified_row_requires_selection() {
+    function test_tankorent_excludes_mercy_book_one_and_shows_for_a_standalone() {
         const view = setup()
-        view.flow.extensions = make(sourceExtensionsFixture, { sourceId: "colosseum.well.indexers" })
+        view.flow.extensions = make(sourceExtensionsFixture, { sourceIds: ["colosseum.well.indexers"] })
         view.flow.downloads = make(sourceDownloadsFixture)
-        const key = "first book|alex writer#src:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        const key = "the time machine|alex writer#src:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         view.flow.tankorent = make(sourceFixture, { rows: [{
-            title: "First Book upload", narrators: [], reason: "Edition unconfirmed", sourceLabel: "Tankorent",
+            title: "The Time Machine upload", narrators: [], reason: "Edition unconfirmed",
             request: { sourceKind: "tankorent", recordingKey: key }
         }] })
-        const page = openFirst(view)
-        findChild(page, "audiobookPrimaryAction").triggered()
-        const picker = findChild(page, "audiobookSourcePicker")
-        tryCompare(picker, "opened", true)
-        compare(view.flow.tankorent.calls[0].first.id, "first")
-        compare(view.flow.tankorent.calls[0].third, "first book|alex writer")
+
+        view.flow.openWork("mercy-book-1")
+        const mercy = view.flow.currentPage
+        compare(mercy.built.title, "Mercy")
+        findChild(mercy, "audiobookPrimaryAction").triggered()
+        const mercySources = view.flow.currentPage
+        compare(mercySources.objectName, "audiobookSourcesPage")
+        verify(!mercySources.showTankorent)
+        verify(!visualChild(mercySources, "audiobookSources_tankorent").visible)
+        compare(mercySources.providerStates.abb.state, "disabled")
+        compare(mercySources.providerStates.librivox.state, "disabled")
+        compare(view.flow.tankorent.calls.length, 0)
+        view.flow.back()
+        compare(view.flow.currentPage, mercy)
+        view.flow.back()
+
+        view.flow.openWork("the-time-machine")
+        const standalone = view.flow.currentPage
+        findChild(standalone, "audiobookPrimaryAction").triggered()
+        const sources = view.flow.currentPage
+        verify(sources.showTankorent)
+        tryVerify(() => sources.providerStates.tankorent.state === "results")
+        compare(view.flow.tankorent.calls[0].first.id, "the-time-machine")
+        compare(view.flow.tankorent.calls[0].third, "the time machine|alex writer")
         compare(view.flow.downloads.captured.length, 0)
-        compare(picker.rows[0].narrators, [])
-        const choice = visualChild(picker.contentItem, "audiobookSourceOption_0")
+        compare(sources.providerStates.tankorent.rows[0].narrators, [])
+        const choice = visualChild(sources, "audiobookSourceOption_tankorent_0")
         verify(choice !== null)
         choice.triggered()
         compare(view.flow.downloads.captured[0].recordingKey, key)
@@ -244,22 +287,27 @@ TestCase {
 
     function test_disabling_tankorent_cancels_and_rejects_its_late_results() {
         const view = setup()
-        const extensions = make(sourceExtensionsFixture, { sourceId: "colosseum.well.indexers" })
+        const extensions = make(sourceExtensionsFixture, { sourceIds: ["colosseum.well.indexers"] })
         view.flow.extensions = extensions
         view.flow.downloads = make(sourceDownloadsFixture)
         const source = make(sourceFixture, { autoReply: false })
         view.flow.tankorent = source
-        const page = openFirst(view)
-        findChild(page, "audiobookPrimaryAction").triggered()
-        compare(source.calls.length, 1)
+        view.flow.openWork("the-time-machine")
+        const detail = view.flow.currentPage
+        findChild(detail, "audiobookPrimaryAction").triggered()
+        const sources = view.flow.currentPage
+        tryVerify(() => source.calls.length === 1)
         const token = source.calls[0].token
-        extensions.sourceId = ""
+        extensions.sourceIds = []
         ++extensions.revision
-        tryCompare(page, "lookupPending", false)
+        tryVerify(() => sources.providerStates.tankorent.state === "disabled")
         compare(source.cancellations, [token])
         source.searchFinished(token, [{ title: "An old result", request: { sourceKind: "tankorent" } }], "")
-        verify(!findChild(page, "audiobookSourcePicker").opened)
+        compare(sources.providerStates.tankorent.state, "disabled")
+        compare(sources.providerStates.tankorent.rows.length, 0)
         compare(view.flow.downloads.captured.length, 0)
+        findChild(sources, "audiobookSourcesBack").triggered()
+        compare(view.flow.currentPage, detail)
     }
 
     function test_catalogue_edition_flag_has_a_readable_label() {
