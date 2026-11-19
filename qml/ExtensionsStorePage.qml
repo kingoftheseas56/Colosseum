@@ -73,6 +73,10 @@ Item {
     readonly property var setup: setupLoader.item
 
     Theme { id: theme }
+    FontLoader {
+        id: posterFont
+        source: "../assets/fonts/cinzel/Cinzel-Variable.ttf"
+    }
 
     function rowArtworkActive(row) {
         if (!root.limitArtworkToViewport) return true
@@ -623,7 +627,9 @@ Item {
                 anchors.bottom: parent.bottom
                 anchors.margins: Math.round(Math.max(16, Math.min(48, poster.width * 0.04)))
                 text: qsTr("Extensions")
-                font.family: theme.display
+                font.family: posterFont.status === FontLoader.Ready ? posterFont.name : theme.display
+                font.capitalization: Font.AllUppercase
+                font.letterSpacing: 1.5
                 font.pixelSize: theme.fontSize(Math.round(Math.min(88, poster.width * 0.12)))
                 font.weight: Font.DemiBold
                 fontSizeMode: Text.HorizontalFit
@@ -812,7 +818,8 @@ Item {
                 anchors.centerIn: parent
                 text: qsTr("Installed")
                 font.family: theme.ui
-                font.pixelSize: theme.fontSize(14)
+                font.pixelSize: theme.fontSize(19)
+                font.weight: Font.DemiBold
                 color: parent.interactionActive ? theme.gold : theme.ink
             }
         }
