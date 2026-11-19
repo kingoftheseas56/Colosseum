@@ -474,6 +474,12 @@ FocusScope {
         Accessible.role: Accessible.Heading
         Accessible.name: text
 
+        TextMetrics {
+            id: titleMetrics
+            font: heading.font
+            text: heading.text
+        }
+
         KeyboardAction {
             id: arrow
             objectName: heading.arrowName
@@ -484,7 +490,11 @@ FocusScope {
             x: heading.forward ? (heading.width + heading.contentWidth) / 2
                                : (heading.width - heading.contentWidth) / 2 - width
             anchors.verticalCenter: parent.verticalCenter
-            anchors.verticalCenterOffset: -1
+            // Centre the forward chevron on the lettering, including descenders.
+            anchors.verticalCenterOffset: heading.forward
+                ? heading.baselineOffset + titleMetrics.tightBoundingRect.y
+                    + titleMetrics.tightBoundingRect.height / 2 - heading.height / 2
+                : -1
             focusRadius: width / 2
             focusOnPointer: false
             spaceActivates: true
