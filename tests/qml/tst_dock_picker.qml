@@ -70,7 +70,6 @@ Item {
             compare(picker.x + picker.width, bar.width - picker.x)
             compare(picker.y, 20)
             const title = findChild(deck, "dockPickTitle_tv")
-            const facts = findChild(deck, "dockPickFacts_tv")
             const front = findChild(deck, "dockPickFace_0")
             const rightEdge = front.mapToItem(deck, front.width, front.height / 2).x
             for (let layer = 1; layer < 3; ++layer) {
@@ -84,7 +83,6 @@ Item {
             tryVerify(() => card.hoverTilt > 0 && card.hoverPitch > 0)
             verify(title.visible)
             compare(title.text, "First")
-            compare(facts.text, "")
             mousePress(card, x, y)
             compare(card.hoverTilt, 0)
             compare(card.hoverPitch, 0)
@@ -105,7 +103,6 @@ Item {
             tryVerify(() => deck.turning && deck.current === 1)
             checkDeckBounds(deck)
             compare(title.text, "Second")
-            compare(facts.text, "")
             tryCompare(deck, "circulating", -1)
             compare(picks.count, 0)
 
@@ -611,9 +608,6 @@ Item {
                     checkDeckBounds(deck)
                     verify(label.parent.x >= 0 && label.parent.x + label.width <= deck.width + 1)
                     verify(title.parent.y + title.y + title.height <= deck.height + 1)
-                    const facts = findChild(deck, "dockPickFacts_" + key)
-                    if (facts.visible)
-                        verify(facts.parent.y + facts.y + facts.height <= deck.height + 1)
                     compare(deck.y, 0)
                     verify(deck.x >= deckRight && deck.height === row.height)
                     deckRight = deck.x + deck.width
@@ -703,7 +697,6 @@ Item {
             wait(400)
             verify(!card.ToolTip.toolTip.visible)
             compare(tv.Accessible.name, "Open " + fullTitle + " (TV)")
-            verify(!findChild(picker, "dockPickFacts_tv").visible)
             compare(tribute.Accessible.name, "Tributes")
             compare(tribute.Accessible.description, "No picks available")
             picker.selectDeckPage(2)
@@ -713,16 +706,14 @@ Item {
             verify(emptyTitle.parent.y + emptyTitle.y + emptyTitle.height <= tribute.height)
         }
 
-        function compareCaption(picker, key, medium, title, facts) {
+        function compareCaption(picker, key, medium, title) {
             const labels = findChild(picker, "dockPickTitle_" + key).parent.children
-            compare(labels.length, 3)
+            compare(labels.length, 2)
             compare(labels[0].text, medium)
             compare(labels[1].text, title)
-            compare(labels[2].text, facts)
-            compare(labels[2].visible, facts.length > 0)
         }
 
-        function test_captionsShowCreditsWithoutYearsGenresOrDescriptions() {
+        function test_captionsShowOnlyMediumAndTitle() {
             catalogue.updateUniverses()
             const franchise = catalogue.picks.universes.find(entry => entry.raw.blurb.length > 0)
             verify(franchise !== undefined, "Use an actual franchise entry with a source description")
@@ -739,15 +730,15 @@ Item {
             bar.open = true
             const picker = findChild(bar, "dockPicker")
             verify(waitForRendering(picker))
-            compareCaption(picker, "anime", "Anime", "Anime pick", "")
+            compareCaption(picker, "anime", "Anime", "Anime pick")
             picker.selectDeckPage(1)
-            compare(findChild(picker, "dockPickFacts_manga").text, "An author")
-            compare(findChild(picker, "dockPickFacts_comics").text, "A publisher")
-            compareCaption(picker, "manhwa", "Manhwa", "Manhwa pick", "")
+            compareCaption(picker, "manga", "Manga", "Manga pick")
+            compareCaption(picker, "comics", "Comics", "Comic pick")
+            compareCaption(picker, "manhwa", "Manhwa", "Manhwa pick")
             picker.selectDeckPage(2)
-            compare(findChild(picker, "dockPickFacts_books").text, "A novelist")
-            compareCaption(picker, "tributes", "Tributes", "A Tribute", "")
-            compareCaption(picker, "universes", "Franchises", franchise.title, "")
+            compareCaption(picker, "books", "Books", "Book pick")
+            compareCaption(picker, "tributes", "Tributes", "A Tribute")
+            compareCaption(picker, "universes", "Franchises", franchise.title)
         }
 
         function test_keyboardTurnsPagesAndFocusesOnlyTheLandingDeck() {

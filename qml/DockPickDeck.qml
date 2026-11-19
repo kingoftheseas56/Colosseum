@@ -19,7 +19,6 @@ FocusScope {
     readonly property bool canBrowse: count > 1
     readonly property var activeEntry: count ? entries[current] : null
     readonly property string title: activeEntry ? String(activeEntry.title) : ""
-    readonly property string detailLine: creditFor(activeEntry)
     readonly property real turnAngle: 4
     readonly property real fanAngle: 1.5
     readonly property real fanAllowance: Math.sin(2 * fanAngle * Math.PI / 180) / 2
@@ -64,28 +63,6 @@ FocusScope {
     z: turning ? 1 : 0
 
     Theme { id: theme }
-
-    function creditFor(entry) {
-        if (!entry)
-            return ""
-        let credit
-        switch (mediumKey) {
-        case "manga":
-        case "manhwa":
-            credit = entry.raw?.authors?.[0]?.name
-            break
-        case "comics":
-            credit = entry.publisher
-            break
-        case "books":
-            credit = entry.author
-            break
-        case "audiobooks":
-            credit = entry.raw?.author
-            break
-        }
-        return String(credit || "").trim()
-    }
 
     function cardDepth(index) {
         return count ? (index - current + count) % count : 0
@@ -162,7 +139,7 @@ FocusScope {
         activeFocusOnTab: deck.count > 0
         Accessible.role: deck.count ? Accessible.Button : Accessible.StaticText
         Accessible.name: deck.count ? qsTr("Open %1 (%2)").arg(deck.title).arg(deck.medium) : deck.medium
-        Accessible.description: deck.count ? deck.detailLine : qsTr("No picks available")
+        Accessible.description: deck.count ? "" : qsTr("No picks available")
         Accessible.onPressAction: deck.openCurrent()
         Keys.onLeftPressed: deck.advance(-1)
         Keys.onRightPressed: deck.advance(1)
@@ -351,7 +328,6 @@ FocusScope {
             wrapMode: Text.Wrap
             maximumLineCount: {
                 const room = deck.captionHeight - 5 - mediumLabel.height - labels.spacing
-                    - (factLabel.visible ? factLabel.height + labels.spacing : 0)
                 return Math.max(1, Math.min(3, 1 + Math.floor((room - titleMetrics.height) / Math.max(1, titleMetrics.lineSpacing))))
             }
             elide: Text.ElideRight
@@ -361,21 +337,6 @@ FocusScope {
             Accessible.ignored: true
         }
 
-        Text {
-            id: factLabel
-            objectName: "dockPickFacts_" + deck.mediumKey
-            width: labels.width
-            visible: text.length > 0 && deck.captionHeight >= 5 + mediumLabel.height + titleMetrics.height
-                + height + 2 * labels.spacing
-            text: deck.detailLine
-            textFormat: Text.PlainText
-            horizontalAlignment: Text.AlignHCenter
-            elide: Text.ElideRight
-            color: theme.inkDim
-            font.family: theme.ui
-            font.pixelSize: theme.fontSize(14)
-            Accessible.ignored: true
-        }
         FontMetrics { id: titleMetrics; font: titleLabel.font }
     }
 
