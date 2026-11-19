@@ -82,8 +82,9 @@ GridView {
         height: wall.cellHeight - 14
         visualProfile: wall.visualProfile
         squareArtwork: wall.squareArtwork
-        // gallery hover surfaces the rating's origin, matching the Theatre rails.
-        hoverSourceText: wall._gallery ? "IMDb" : ""
+        // AudiobookShelfApi wraps Biblio records in `raw`; IMDb applies to Theatre cards.
+        hoverSourceText: wall._gallery && !(wall.items[index] && wall.items[index].raw !== undefined)
+                         ? "IMDb" : ""
         skeleton: index >= wall.items.length
         item: (index >= 0 && index < wall.items.length) ? wall.items[index] : null
         keyboardFocused: wall.keyboardMode && index === wall.currentIndex && index < wall.items.length

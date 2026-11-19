@@ -1997,6 +1997,14 @@ set_tests_properties(colosseum.qml.biblio_audiobooks_tab PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
     TIMEOUT 120)
 
+# Audiobook tile attribution: both shared gallery wrappers, against audiobook/movie cards.
+add_test(NAME colosseum.qml.catalogue_poster_attribution
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_catalogue_poster_attribution.qml")
+set_tests_properties(colosseum.qml.catalogue_poster_attribution PROPERTIES
+    LABELS "unit;qml;audiobook;catalogue;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
 # Audiobooks 1.4.0 slice F: the audiobook book page (recordings as editions), against fixtures.
 add_test(NAME colosseum.qml.audiobook_book_page
     COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_audiobook_book_page.qml")

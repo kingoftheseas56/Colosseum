@@ -176,8 +176,9 @@ Column {
                 height: list.height
                 visualProfile: rail.visualProfile
                 squareArtwork: rail.squareArtwork
-                // Theatre poster ratings all derive from IMDb; surface that on gallery hover only.
-                hoverSourceText: rail._gallery ? "IMDb" : ""
+                // AudiobookShelfApi wraps Biblio records in `raw`; IMDb applies to Theatre cards.
+                hoverSourceText: rail._gallery && !(cell.modelData && cell.modelData.raw !== undefined)
+                                 ? "IMDb" : ""
                 keyboardFocused: rail.railFocused && cell.index === rail.currentIndex
                 anchors.left: rail.ranked ? rankNum.right : parent.left
                 anchors.leftMargin: rail.ranked ? -32 : 0
