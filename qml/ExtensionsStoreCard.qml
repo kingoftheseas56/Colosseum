@@ -19,6 +19,7 @@ Item {
     signal activated()
     signal configureRequested()
     signal removeRequested()
+    signal browseRequested()
     signal actionFocused()
 
     function focusActions() {
@@ -27,17 +28,85 @@ Item {
     }
 
     readonly property bool lit: card.selected || action.hovered
-                                || installAction.interactionActive || configuration.interactionActive
+                                || (installAction.enabled && (installAction.hovered || installAction.activeFocus)) || configuration.interactionActive
+    readonly property bool browsable: !!card.addon.world
+    readonly property int padding: 16
     readonly property real h: StoreApi.hue(card.addon.name || "")
 
     width: theme.extensionCardWidth
-    height: essentialsLayout ? essentialsActions.y + essentialsActions.height
+    height: essentialsLayout ? 174
             : phoneLayout ? mobileInstall.y + mobileInstall.height + 12 : theme.extensionCardHeight
 
     Theme { id: theme }
 
     Rectangle {
+        anchors.fill: parent
+        visible: card.essentialsLayout
+        radius: 16
+        border.width: 1
+        border.color: card.lit ? theme.gold : card.installed && !card.disabled
+                      ? Qt.rgba(0.94, 0.77, 0.29, 0.26) : theme.edge
+        gradient: Gradient {
+            GradientStop { position: 0; color: card.lit ? theme.glassHi : theme.glassTint }
+            GradientStop { position: 1; color: Qt.rgba(1, 1, 1, 0.035) }
+        }
+
+        Row {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: card.padding
+            spacing: 12
+
+            Loader {
+                width: 46
+                height: 46
+                active: card.essentialsLayout && card.artworkActive
+                sourceComponent: AddonLogo {
+                    size: 46
+                    showPlate: false
+                    addonId: String(card.addon.id || "")
+                    addonName: String(card.addon.title || card.addon.name || "")
+                    manifestLogo: String(card.addon.logo || "")
+                    preferManifestLogo: true
+                }
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.max(0, parent.width - 58)
+                text: title.text
+                textFormat: Text.PlainText
+                color: theme.ink
+                font.family: theme.ui
+                font.pixelSize: theme.fontSize(16)
+                font.weight: Font.DemiBold
+                wrapMode: Text.Wrap
+                maximumLineCount: 2
+                elide: Text.ElideRight
+            }
+        }
+
+        Text {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.leftMargin: card.padding
+            anchors.rightMargin: card.padding
+            anchors.topMargin: 72
+            text: card.addon.description || ""
+            textFormat: Text.PlainText
+            color: theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: theme.fontSize(13)
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
+            elide: Text.ElideRight
+        }
+    }
+
+    Rectangle {
         id: art
+        visible: !card.essentialsLayout
         width: parent.width
         height: card.essentialsLayout ? width : card.phoneLayout ? 140 : theme.extensionCardArtHeight
         radius: card.phoneLayout ? 23 : 16
@@ -57,7 +126,7 @@ Item {
             anchors.centerIn: parent
             width: art.width * 1.7 * 0.56 * 1.35
             height: width
-            source: card.artworkActive ? (card.addon.logo || "") : ""
+            source: !card.essentialsLayout && card.artworkActive ? (card.addon.logo || "") : ""
             fillMode: Image.PreserveAspectFit
             asynchronous: true
             visible: false
@@ -65,7 +134,7 @@ Item {
         }
         Loader {
             anchors.fill: washSource
-            active: card.artworkActive
+            active: !card.essentialsLayout && card.artworkActive
             sourceComponent: Component {
                 MultiEffect {
                     anchors.fill: parent
@@ -107,7 +176,7 @@ Item {
                 anchors.centerIn: parent
                 width: card.essentialsLayout ? parent.width : parent.width * 0.78
                 height: width
-                source: card.artworkActive ? (card.addon.logo || "") : ""
+                source: !card.essentialsLayout && card.artworkActive ? (card.addon.logo || "") : ""
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 sourceSize.width: 192; sourceSize.height: 192
@@ -145,6 +214,8 @@ Item {
 
     Text {
         id: title
+        visible: !card.essentialsLayout
+        textFormat: Text.PlainText
         anchors.top: art.bottom; anchors.topMargin: card.phoneLayout ? 12 : 8
         width: parent.width
         text: card.addon.title || card.addon.name || ""
@@ -173,35 +244,41 @@ Item {
     Item {
         id: essentialsActions
         visible: card.essentialsLayout
-        anchors.top: title.bottom
-        width: parent.width
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: card.padding
         height: 44
 
         Text {
-            id: installLabel
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+            width: Math.max(0, (configuration.visible ? configuration.x
+                       : installAction.visible ? installAction.x : parent.width) - 4)
+            elide: Text.ElideRight
+            visible: card.builtIn || card.disabled || card.busy
             text: card.builtIn ? qsTr("Built in")
-                : card.busy ? qsTr("Installing…")
-                : card.installed ? qsTr("Uninstall") : qsTr("Install")
-            color: card.builtIn || card.busy ? theme.inkDim
-                 : !card.installed || installAction.interactionActive ? theme.gold : theme.ink
+                : card.busy ? qsTr("Installing…") : qsTr("Disabled")
+            color: theme.inkDim
             font.family: theme.ui
-            font.pixelSize: theme.fontSize(14)
-            font.underline: installAction.hovered
+            font.pixelSize: theme.fontSize(12)
         }
-        KeyboardAction {
+        ExtensionsActionButton {
             id: installAction
             objectName: "essentialsAction_" + (card.addon.slug || "")
-            enabled: card.essentialsLayout && !card.builtIn && !card.busy
-            width: Math.min(parent.width - (configuration.visible ? configuration.width : 0),
-                            Math.max(64, installLabel.implicitWidth + 12))
+            visible: card.essentialsLayout && (!card.builtIn || card.browsable)
+            enabled: visible && !card.busy
+            anchors.right: parent.right
             height: parent.height
-            accessibleName: qsTr("%1 %2").arg(installLabel.text).arg(title.text)
-            accessibleDescription: card.disabled ? qsTr("This add-on is disabled") : ""
+            text: card.browsable ? qsTr("Browse") : card.installed ? qsTr("Uninstall") : qsTr("Install")
+            readonly property string accessibleName: qsTr("%1 %2").arg(text).arg(title.text)
+            Accessible.name: accessibleName
+            Keys.onReturnPressed: clicked()
+            Keys.onEnterPressed: clicked()
             onActiveFocusChanged: if (activeFocus) card.actionFocused()
-            onTriggered: {
-                if (card.installed) card.removeRequested()
+            onClicked: {
+                if (card.browsable) card.browseRequested()
+                else if (card.installed) card.removeRequested()
                 else card.activated()
             }
         }
@@ -212,7 +289,7 @@ Item {
             enabled: !card.busy
             width: 44
             height: parent.height
-            anchors.right: parent.right
+            anchors.right: installAction.left
             accessibleName: qsTr("Configure %1").arg(title.text)
             onActiveFocusChanged: if (activeFocus) card.actionFocused()
             onTriggered: card.configureRequested()
@@ -220,7 +297,7 @@ Item {
                 anchors.centerIn: parent
                 width: 19
                 height: 19
-                source: configuration.visible ? "../assets/icons/settings.svg" : ""
+                source: configuration.visible ? "../assets/icons/extension-configure.svg" : ""
                 sourceSize.width: 38
                 sourceSize.height: 38
                 opacity: configuration.interactionActive ? 1 : 0.74
@@ -230,7 +307,7 @@ Item {
 
     Rectangle {
         id: mobileInstall
-        visible: card.phoneLayout
+        visible: card.phoneLayout && !card.essentialsLayout
         z: 2
         anchors.top: description.bottom
         anchors.topMargin: 12

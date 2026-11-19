@@ -182,6 +182,7 @@ Item {
             y: 2
             spacing: 5
             Text {
+                visible: rail.contextLabel.length > 0
                 text: rail.contextLabel
                 color: theme.gold
                 font.family: theme.ui

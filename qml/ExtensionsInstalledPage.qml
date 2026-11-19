@@ -9,6 +9,17 @@ Item {
     required property var instanceLabelFor
     required property var configurableFor
     property int initialIndex: 0
+    property real bottomInset: 24
+    readonly property bool wide: width >= 950
+    readonly property var filteredEntries: {
+        const needle = search.text.trim().toLowerCase()
+        return page.entries.map((entry, index) => ({ entry: entry, sourceIndex: index }))
+            .filter(match => {
+                const manifest = match.entry.manifest || {}
+                const label = page.instanceLabelFor(match.sourceIndex)
+                return (String(manifest.name || "") + " " + label).toLowerCase().includes(needle)
+            })
+    }
     property string actionError: ""
     property var removalEntry: null
     property var removalChoices: []
@@ -24,7 +35,7 @@ Item {
     readonly property int sideMargin: width < 840 ? 16 : theme.margin
     function takeKeyboardFocus() { back.focusControl() }
     function focusInstalledIndex(index) {
-        if (index >= page.entries.length) {
+        if (index >= list.count) {
             page.takeKeyboardFocus()
             return
         }
@@ -68,6 +79,7 @@ Item {
             page.initialIndex = page.entries.length - 1
     }
     onVisibleChanged: if (visible) {
+        search.clear()
         Qt.callLater(function() {
             if (page.entries.length) {
                 list.currentIndex = Math.max(0, Math.min(page.initialIndex, page.entries.length - 1))
@@ -82,29 +94,27 @@ Item {
         id: back
         anchors.left: parent.left; anchors.leftMargin: page.sideMargin
         anchors.top: parent.top; anchors.topMargin: 44
-        label: qsTr("Store")
+        label: qsTr("Extensions")
         onTriggered: page.backRequested()
         Keys.onTabPressed: (event) => {
-            if (page.entries.length) {
-                page.focusInstalledIndex(Math.max(0, Math.min(page.initialIndex, page.entries.length - 1)))
-                event.accepted = true
-            }
+            search.forceActiveFocus(Qt.TabFocusReason)
+            event.accepted = true
         }
     }
     Column {
         id: heading
         anchors.top: back.bottom; anchors.topMargin: 22
         anchors.left: parent.left; anchors.leftMargin: page.sideMargin
-        anchors.right: parent.right; anchors.rightMargin: page.sideMargin
+        width: page.wide ? 206 : parent.width - 2 * page.sideMargin
         spacing: 8
         Text {
-            text: qsTr("Your Add-ons")
+            text: qsTr("Installed")
             color: theme.ink
             font.family: theme.display; font.pixelSize: page.width < 840 ? 28 : 40
         }
         Text {
             width: parent.width
-            text: qsTr("%1 installed · Includes disabled add-ons. Core add-ons stay on.").arg(page.entries.length)
+            text: qsTr("%n installed", "", page.entries.length)
             color: theme.inkDim
             wrapMode: Text.WordWrap
             font.family: theme.ui; font.pixelSize: 14
@@ -118,12 +128,34 @@ Item {
             font.family: theme.ui; font.pixelSize: 13
         }
     }
+    TextField {
+        id: search
+        objectName: "extensionsInstalledSearch"
+        anchors.left: page.wide ? heading.right : heading.left
+        anchors.leftMargin: page.wide ? 30 : 0
+        anchors.top: page.wide ? heading.top : heading.bottom
+        anchors.topMargin: page.wide ? 0 : 16
+        width: Math.min(340, page.width - x - page.sideMargin)
+        height: 44
+        placeholderText: qsTr("Search installed add-ons")
+        color: theme.ink
+        font.family: theme.ui
+        font.pixelSize: 14
+        background: Rectangle {
+            color: "#17181e"
+            radius: 10
+            border.width: 1
+            border.color: search.activeFocus ? theme.gold : theme.edge
+        }
+        Keys.onDownPressed: if (list.count) page.focusInstalledIndex(0)
+    }
+
     ListView {
         id: list
         objectName: "extensionsManagementList"
-        anchors.top: heading.bottom; anchors.topMargin: 24
-        anchors.bottom: parent.bottom; anchors.bottomMargin: 24
-        anchors.left: parent.left; anchors.leftMargin: page.sideMargin
+        anchors.top: search.bottom; anchors.topMargin: 16
+        anchors.bottom: parent.bottom; anchors.bottomMargin: page.bottomInset
+        anchors.left: search.left
         anchors.right: parent.right; anchors.rightMargin: page.sideMargin
         spacing: 12
         clip: true
@@ -138,7 +170,7 @@ Item {
         }
         Keys.onReturnPressed: page.focusCurrentIndex()
         Keys.onSpacePressed: page.focusCurrentIndex()
-        model: page.visible ? page.entries : []
+        model: page.visible ? page.filteredEntries : []
         ScrollBar.vertical: HouseScrollBar { flick: list; glassStyle: true }
         delegate: ExtensionsInstalledCard {
             id: managedCard
@@ -147,11 +179,11 @@ Item {
             property int focusRequestSerial: page.focusRequestSerial
             objectName: "extensionsManagedCard_" + index
             width: list.width
-            entry: modelData
+            entry: modelData.entry
             management: true
-            capabilities: page.capabilitiesFor(modelData.manifest)
-            instanceLabel: page.instanceLabelFor(index)
-            configurable: page.configurableFor(modelData)
+            capabilities: page.capabilitiesFor(entry.manifest)
+            instanceLabel: page.instanceLabelFor(modelData.sourceIndex)
+            configurable: page.configurableFor(entry)
             function applyFocusRequest() {
                 if (page.focusRequestIndex === index && !managedCard.focusFirstAction())
                     Qt.callLater(function() { page.focusInstalledIndex(index + 1) })
@@ -164,16 +196,16 @@ Item {
             }
             onTabForwardRequested: page.focusInstalledIndex(index + 1)
             onToggleRequested: {
-                page.toggleRequested(modelData)
+                page.toggleRequested(entry)
                 Qt.callLater(function() { page.focusInstalledIndex(index) })
             }
-            onConfigureRequested: page.configureRequested(modelData)
-            onRemoveRequested: page.requestRemoval([index])
+            onConfigureRequested: page.configureRequested(entry)
+            onRemoveRequested: page.requestRemoval([modelData.sourceIndex])
         }
         Text {
-            visible: page.entries.length === 0
+            visible: list.count === 0
             width: list.width
-            text: qsTr("No add-ons installed. Return to the Store to add one.")
+            text: search.text.length ? qsTr("No matching add-ons") : qsTr("No add-ons installed")
             wrapMode: Text.WordWrap
             color: theme.inkDim
             font.family: theme.ui; font.pixelSize: 14
@@ -261,13 +293,12 @@ Item {
                     destructive: true
                     onClicked: {
                         var entry = page.removalEntry
-                        var index = page.removalIndex
                         removeDialog.close()
                         if (entry) page.removeRequested(entry)
                         Qt.callLater(function() {
                             if (!page.visible) return
-                            if (page.entries.length)
-                                page.focusInstalledIndex(Math.min(index, page.entries.length - 1))
+                            if (list.count)
+                                page.focusInstalledIndex(Math.min(list.currentIndex, list.count - 1))
                             else page.takeKeyboardFocus()
                         })
                     }

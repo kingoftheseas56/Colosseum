@@ -6601,14 +6601,15 @@ Window {
                 if (win.androidHost) return win.browseBottomInset + 12
                 return taskbar.visible ? taskbar.closedSize + taskbar.bottomGap + 16 : 24
             })
-            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
             item.tributeRequested.connect(function(tribute) {
                 win.closeExtensionsPage()
                 win.openTribute(tribute)
                 universeLayer.returnToExtensions = true
             })
-            if (item.universeHallRequested)
-                item.universeHallRequested.connect(function() { win.closeExtensionsPage(); win.openWorld("Universes") })
+            item.catalogueWorldRequested.connect(function(world) {
+                win.closeExtensionsPage()
+                win.openWorld(world)
+            })
             // Same global preference Discover/genres/search read — a live binding so
             // the registry follows the shell visibility policy.
             item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })

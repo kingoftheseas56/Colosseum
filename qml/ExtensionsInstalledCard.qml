@@ -33,7 +33,7 @@ Rectangle {
     Theme { id: theme }
     implicitHeight: body.height + 2 * card.inset
     radius: card.compact ? 12 : 16
-    color: "#cc141820"
+    color: card.management ? theme.glassTint : "#cc141820"
     border.width: 1
     border.color: openAction.interactionActive && !management ? theme.gold : theme.edge
 
@@ -47,6 +47,7 @@ Rectangle {
             spacing: card.compact ? 10 : 14
             AddonLogo {
                 size: card.logoSize
+                showPlate: !card.management
                 addonId: String(card.entry.id || "")
                 addonName: card.addonName
                 manifestLogo: String(card.manifest.logo || "")
@@ -65,7 +66,7 @@ Rectangle {
                 }
                 Text {
                     width: parent.width
-                    text: (card.core ? qsTr("Core · Always on") : card.isEnabled ? qsTr("Enabled") : qsTr("Disabled"))
+                    text: (card.core ? qsTr("Built in") : card.isEnabled ? qsTr("Enabled") : qsTr("Disabled"))
                           + (card.instanceLabel.length ? " · " + card.instanceLabel : "")
                     elide: Text.ElideRight
                     color: card.isEnabled ? theme.gold : theme.inkDimmer
@@ -104,9 +105,10 @@ Rectangle {
             }
             ExtensionsActionButton {
                 id: removeAction
-                text: qsTr("Remove")
+                text: qsTr("Uninstall")
                 destructive: true
-                enabled: !card.core
+                visible: !card.core
+                enabled: visible
                 tabNavigationExit: !card.core
                 onClicked: card.removeRequested()
                 onKeyboardFocusReceived: card.keyboardFocusReceived()

@@ -41,33 +41,50 @@ TestCase {
         page.installedRows = [{id: "starwars", manifest: {}}]
         compare(page.extensionBackground("starwars", "local.jpg"), "local.jpg")
     }
-    function test_poster_title_stays_put_and_activates_current_tribute() {
-        const tributes = [
-            { extensionId: "first", name: "First Tribute" },
-            { extensionId: "second", name: "Second Tribute" }
-        ]
+    function test_section_index_and_installed_return() {
+        page = pageComponent.createObject(host.contentItem, {width: host.width, height: host.height})
+        verify(page !== null)
+        const heading = findChild(page, "extensionsHeading")
+        compare(heading.text, "Extensions")
+        const world = findChild(page, "extensionsStoreWorld")
+        const index = findChild(page, "extensionsRowIndexSidebar")
+        compare(index.automationRows, "Essentials\nMore Sources\nEnrichment\nCatalogues")
+        compare(page.essentials.length, 8)
+        compare(page.moreSources.length, 5)
+        compare(page.enrichment.length, 4)
+        compare(page.catalogues.length, 7)
+        const railWidth = index.width
+        index.collapsed = false
+        tryCompare(index, "width", index.openWidth)
+        verify(index.width > railWidth)
+        index.rowRequested(index.rows[1].target)
+        tryCompare(index, "automationCurrentRow", "More Sources")
+        const position = world.viewportContentY
+        verify(position > 0)
+        const installed = findChild(page, "extensionsInstalledButton")
+        verify(installed.activate())
+        compare(page.managingInstalled, true)
+        compare(page.requestEscape(), true)
+        compare(page.managingInstalled, false)
+        compare(world.viewportContentY, position)
+    }
+
+    function test_tributes_catalogue_uses_the_installed_roster() {
+        const tributes = [{extensionId: "test-tribute", name: "Test Tribute"}]
         page = pageComponent.createObject(host.contentItem, {
-            width: host.width, height: host.height, tributes: tributes, reducedMotion: true
+            width: host.width, height: host.height, tributes: tributes
         })
         verify(page !== null)
-        const carousel = findChild(page, "extensionsTributeCarousel")
-        const title = findChild(page, "extensionsPosterTitle")
-        verify(carousel && title)
-        const titlePosition = title.mapToItem(page, 0, 0)
-        compare(title.text, "Extensions")
-        var activated = ""
-        page.tributeRequested.connect(tribute => { activated = tribute.extensionId })
-        carousel.setCurrentIndex(1)
-        tryVerify(() => {
-            const action = findChild(carousel, "extensionsFeaturedTribute")
-            return action && action.accessibleName === "Open Second Tribute tribute"
-        })
-        const action = findChild(carousel, "extensionsFeaturedTribute")
-        verify(action.activate())
-        compare(activated, "second")
-        compare(title.mapToItem(page, 0, 0), titlePosition)
-        compare(title.text, "Extensions")
+        const entry = page.catalogues.find(addon => addon.slug === "tributes")
+        page.browseCatalogue(entry)
+        compare(page.seeAllRow.items.length, 1)
+        compare(page.seeAllRow.items[0].title, tributes[0].name)
+        let opened = ""
+        page.tributeRequested.connect(tribute => { opened = tribute.extensionId })
+        page.browseCatalogue(page.seeAllRow.items[0])
+        compare(opened, tributes[0].extensionId)
     }
+
     function test_nuvio_drawer_preserves_link_and_respects_dock_clearance() {
         page = pageComponent.createObject(host.contentItem, {
             width: host.width, height: host.height,
@@ -78,6 +95,7 @@ TestCase {
         const drawer = findChild(page, "extensionsNuvioRepositoryDrawer")
         const scrollbar = findChild(page, "extensionsWorldScrollBar")
         verify(trigger && drawer && scrollbar)
+        compare(trigger.height, 74)
         host.requestActivate()
         tryCompare(host, "active", true)
         verify(scrollbar.prominent && !scrollbar.glassStyle)

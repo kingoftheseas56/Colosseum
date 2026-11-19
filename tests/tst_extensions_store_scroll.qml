@@ -110,9 +110,9 @@ Item {
             rail.essentialsLayout = true
             rail.items = [
                 { slug: "torrentio", name: "Torrentio", configurable: true },
-                { slug: "cinemeta", name: "Cinemeta", id: "com.linvo.cinemeta", configurable: false }
+                { slug: "cinemeta", name: "Cinemeta", id: "com.linvo.cinemeta", builtIn: true, configurable: false }
             ]
-            wait(100)  // allow the horizontal row to position its new delegates
+            wait(100)  // allow the grid to position its new delegates
             const install = findChild(rail, "essentialsAction_torrentio")
             const gear = findChild(rail, "essentialsConfigure_torrentio")
             const builtIn = findChild(rail, "essentialsAction_cinemeta")
@@ -134,6 +134,20 @@ Item {
             compare(install.accessibleName, "Uninstall Torrentio")
             mouseClick(install)
             compare(actions.join(", "), "configure torrentio, install torrentio, uninstall torrentio")
+        }
+
+        function test_installed_search_keeps_the_original_instance() {
+            const management = createTemporaryObject(managementComponent, surface, {visible: true})
+            verify(management)
+            const search = findChild(management, "extensionsInstalledSearch")
+            const list = findChild(management, "extensionsManagementList")
+            search.text = "Instance 2"
+            tryCompare(list, "count", 1)
+            tryVerify(() => list.itemAtIndex(0) !== null)
+            const card = list.itemAtIndex(0)
+            compare(card.entry.transportUrl, "second")
+            card.removeRequested()
+            compare(management.removalEntry.transportUrl, "second")
         }
 
         function test_compactCardsAndGrabbableHorizontalBar() {

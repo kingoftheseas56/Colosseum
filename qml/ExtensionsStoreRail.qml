@@ -23,11 +23,12 @@ Column {
     property bool artworkActive: true
     readonly property real cardWidth: Math.min(essentialsLayout ? 160 : theme.extensionCardWidth, width)
     readonly property real scrollLimit: Math.max(0, shelfFlick.contentWidth - shelfFlick.width)
-    readonly property bool hasOverflow: !phoneLayout && scrollLimit > 0.5
+    readonly property bool hasOverflow: !essentialsLayout && !phoneLayout && scrollLimit > 0.5
     signal addonActivated(var addon)
     signal addonConfigured(var addon)
     signal addonRemoved(var addon)
     signal seeAllRequested()
+    signal catalogueRequested(var addon)
 
     function scrollByPage(direction) {
         const step = rail.cardWidth + row.spacing
@@ -125,16 +126,43 @@ Column {
         Keys.onEnterPressed: clicked()
     }
 
+    Grid {
+        id: storeCards
+        visible: rail.essentialsLayout
+        width: parent.width
+        columns: Math.max(1, Math.min(4, Math.floor((width + spacing) / (226 + spacing))))
+        spacing: 14
+
+        Repeater {
+            model: rail.essentialsLayout ? rail.items : []
+            delegate: ExtensionsStoreCard {
+                required property var modelData
+                width: (storeCards.width - (storeCards.columns - 1) * storeCards.spacing) / storeCards.columns
+                essentialsLayout: true
+                artworkActive: rail.artworkActive
+                addon: modelData
+                builtIn: modelData.builtIn === true
+                installed: { rail.revision; return rail.installedFn(modelData) }
+                disabled: { rail.revision; return rail.disabledFn(modelData) }
+                busy: rail.busy[modelData.slug] === true
+                onActivated: rail.addonActivated(modelData)
+                onConfigureRequested: rail.addonConfigured(modelData)
+                onRemoveRequested: rail.addonRemoved(modelData)
+                onBrowseRequested: rail.catalogueRequested(modelData)
+            }
+        }
+    }
+
     Column {
         id: mobileCards
-        visible: rail.phoneLayout
+        visible: rail.phoneLayout && !rail.essentialsLayout
         width: parent.width
         spacing: 18
         Repeater {
             // A phone shows the first few of a rail and leaves the rest behind See all (a lazy
             // list). Building every card of every rail at once, logos included, got the app
             // killed for memory on a 4 GB tablet (2026-10-10, Android exit record LOW_MEMORY).
-            model: !rail.phoneLayout ? []
+            model: !rail.phoneLayout || rail.essentialsLayout ? []
                  : (rail.canSeeAll ? rail.items.slice(0, rail.phoneVisibleCount) : rail.items)
             delegate: ExtensionsStoreCard {
                 required property var modelData
@@ -152,7 +180,7 @@ Column {
 
     Flickable {
         id: shelfFlick
-        visible: !rail.phoneLayout
+        visible: !rail.phoneLayout && !rail.essentialsLayout
         objectName: rail.automationId
         property bool keyboardReturnOwner: true
         property var keyboardSectionCoordinator: rail.keyboardSectionCoordinator
@@ -199,7 +227,7 @@ Column {
             Repeater {
                 id: cards
                 // the wide row is not built at all on a phone; hidden cards still load their logos
-                model: rail.phoneLayout ? [] : rail.items
+                model: rail.phoneLayout || rail.essentialsLayout ? [] : rail.items
                 delegate: ExtensionsStoreCard {
                     required property var modelData
                     required property int index
@@ -213,8 +241,6 @@ Column {
                     disabled: { rail.revision; return rail.disabledFn(modelData) }
                     busy: rail.busy[modelData.slug] === true
                     selected: shelfFlick.activeFocus && shelfFlick.currentIndex === index
-                    essentialsLayout: rail.essentialsLayout
-                    builtIn: modelData.id === "com.linvo.cinemeta"
                     onActivated: rail.addonActivated(modelData)
                     onConfigureRequested: rail.addonConfigured(modelData)
                     onRemoveRequested: rail.addonRemoved(modelData)
@@ -233,14 +259,7 @@ Column {
             modelRevision: rail.items.length
             keyboardSectionCoordinator: rail.keyboardSectionCoordinator
             positionIndexFn: function(index) { shelfFlick.keyboardRevealIndex(index) }
-            onActivated: (index) => {
-                if (rail.essentialsLayout) {
-                    const card = cards.itemAt(index)
-                    if (card) card.focusActions()
-                } else {
-                    rail.addonActivated(rail.items[index])
-                }
-            }
+            onActivated: (index) => rail.addonActivated(rail.items[index])
         }
     }
 }

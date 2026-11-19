@@ -1,11 +1,3 @@
-// ExtensionsStorePage — Extensions as a world (agents/colosseum-extensions-world-mock.html):
-// a top bar with only Back and the page name (as Your Colosseum), the House hero, Your Add-ons,
-// Essentials, then Store rows from stremio-addons.net (ExtensionsStoreApi.js). Your Add-ons
-// manages every profile-installed transport URL instance. The House corner holds Search and the
-// manifest-preview installer, which waits for artwork or a bounded fallback before confirmation.
-// An add-on needing setup uses ExtensionsSetupSheet, not the outside browser — except on Android,
-// which has no QtWebEngine and hands setup to the phone's browser (ExtensionsSetupSheetAndroid).
-// Tankoyomi's own settings open from its House tile (TankoyomiConfigurationPage).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -20,14 +12,13 @@ Item {
     property bool showExplicit: false
     property string world: "theatre"
     property var tributes: []
-    property bool reducedMotion: false
     signal tributeRequested(var tribute)
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
     signal searchClicked()
-    signal universeHallRequested()
+    signal catalogueWorldRequested(string world)
 
     property var nuvioRepositoryStore: typeof NuvioRepos !== "undefined" ? NuvioRepos : null
     property real bottomInset: 24
@@ -67,30 +58,42 @@ Item {
         root.revision
         return typeof Extensions !== "undefined" ? Extensions.installed() : []
     }
-    readonly property var searchPool: root.catalogue.filter(function(a) { return StoreApi.visible(a, root.showExplicit) })
-
+    readonly property var directoryEntries: root.catalogue.filter(function(a) {
+        return StoreApi.visible(a, root.showExplicit)
+    })
     readonly property var essentials: StoreApi.essentialsPreview(root.catalogue)
+    readonly property var moreSources: StoreApi.curated(directoryEntries, StoreApi.MORE_SOURCES)
+    readonly property var enrichment: StoreApi.curated(directoryEntries, StoreApi.ENRICHMENT)
+    readonly property var searchPool: {
+        const pinned = root.essentials.concat(root.moreSources, root.enrichment)
+        return pinned.concat(root.directoryEntries.filter(function(a) {
+            return !pinned.some(function(item) { return item.id === a.id || item.slug === a.slug })
+        }))
+    }
+    readonly property var categories: StoreApi.supportedCategories(directoryEntries)
+    readonly property var catalogues: StoreApi.catalogues().concat(enrichment.filter(function(a) {
+        return a.title === "Streaming Catalogs"
+    }))
     readonly property var rows: StoreApi.rows(root.catalogue, root.showExplicit)
     readonly property var setup: setupLoader.item
 
     Theme { id: theme }
-    FontLoader {
-        id: posterFont
-        source: "../assets/fonts/cinzel/Cinzel-Variable.ttf"
-    }
-
     function rowArtworkActive(row) {
         if (!root.limitArtworkToViewport) return true
         if (!storeWorld.visible) return false
         const height = storeWorld.viewportHeight
         if (height <= 0) return true
         const top = storeWorld.viewportContentY
-        return row.y + row.height >= top - height && row.y <= top + height * 2
+        row.y
+        tierBoard.y
+        const rowTop = row.mapToItem(storeWorld.pageFlickable.contentItem, 0, 0).y
+        return rowTop + row.height >= top - height && rowTop <= top + height * 2
     }
 
     function isInstalled(a) {
         if (!a || typeof Extensions === "undefined") return false
-        return Extensions.isInstalled(a.id) || Extensions.isInstalled(a.manifestUrl)
+        return (!!a.id && Extensions.isInstalled(a.id))
+            || (!!a.manifestUrl && Extensions.isInstalled(a.manifestUrl))
     }
     function isDisabled(a) {
         if (!a || typeof Extensions === "undefined") return false
@@ -278,6 +281,18 @@ Item {
             root.configureInstalled(root.installedEntries[indices[0]])
         } else {
             root.openSetup(addon, null)
+        }
+    }
+    function browseCatalogue(addon) {
+        if (addon.world === "Tributes") {
+            root.seeAllRow = { title: qsTr("Tributes"), items: root.tributes.map(function(tribute) {
+                return { slug: tribute.extensionId, title: tribute.name, logo: tribute.logo,
+                         description: "", world: "Tribute", tribute: tribute }
+            }) }
+        } else if (addon.world === "Tribute") {
+            root.tributeRequested(addon.tribute)
+        } else {
+            root.catalogueWorldRequested(addon.world)
         }
     }
     function openSuggestedStreamSource() {
@@ -566,13 +581,26 @@ Item {
         anchors.fill: parent
 
         Rectangle { anchors.fill: parent; color: "#0b0d12" }
-        ShaderEffectSource {
-            objectName: "extensionsWallpaper"
+
+        Image {
             anchors.fill: parent
-            sourceItem: root.backdrop
-            visible: root.backdrop !== null
-            hideSource: false
-            live: true
+            source: "../assets/wallpaper/cold-ripple.jpg"
+            sourceSize.width: 1280
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            opacity: 0.13
+        }
+
+        Loader {
+            anchors.fill: parent
+            active: root.backdrop !== null && root.GraphicsInfo.api !== GraphicsInfo.Software
+            sourceComponent: Glass {
+                backdrop: root.backdrop
+                radius: 0
+                tint: 0
+                scrim: 0.71
+                edge: "transparent"
+            }
         }
     }
 
@@ -591,120 +619,185 @@ Item {
         onHomeRequested: root.backRequested()
 
         Item {
-            id: poster
-            objectName: "extensionsTributePoster"
+            id: header
             width: parent.width
-            height: Math.round(Math.max(160, Math.min(310, width * 0.22)))
+            readonly property bool stacked: width < 520
+            height: stacked ? 186 : 180
+            clip: true
+
+            Image {
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: parent.width * (header.stacked ? 1 : 0.66)
+                source: "../assets/extensions/colosseum-night-cc0-1920x1080.jpg"
+                sourceSize.width: 1280
+                fillMode: Image.PreserveAspectCrop
+                verticalAlignment: Image.AlignVCenter
+                asynchronous: true
+
+                Rectangle {
+                    anchors.fill: parent
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0; color: "#0b0d12" }
+                        GradientStop { position: 0.55; color: "#320b0d12" }
+                        GradientStop { position: 1; color: "#660b0d12" }
+                    }
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    gradient: Gradient {
+                        GradientStop { position: 0; color: "#330b0d12" }
+                        GradientStop { position: 0.6; color: "transparent" }
+                        GradientStop { position: 1; color: "#0b0d12" }
+                    }
+                }
+            }
+
+            Text {
+                objectName: "extensionsHeading"
+                anchors.left: parent.left
+                y: header.stacked ? 20 : (header.height - height) / 2
+                width: header.stacked || !nuvioTrigger.visible
+                    ? parent.width : parent.width - nuvioTrigger.width - 20
+                text: qsTr("Extensions")
+                font.family: theme.display
+                font.pixelSize: theme.fontSize(header.stacked ? 45 : 62)
+                font.weight: Font.DemiBold
+                fontSizeMode: Text.HorizontalFit
+                minimumPixelSize: 26
+                color: theme.ink
+                Accessible.role: Accessible.Heading
+            }
+
+            KeyboardAction {
+                id: nuvioTrigger
+                objectName: "extensionsNuvioRepositoriesButton"
+                visible: root.nuvioRepositoryStore !== null
+                anchors.right: parent.right
+                y: header.stacked ? header.height - height - 12 : (header.height - height) / 2
+                width: header.stacked ? parent.width : Math.min(272, parent.width * 0.43)
+                height: 74
+                accessibleName: nuvioDrawer.visible ? qsTr("Hide Nuvio repositories") : qsTr("Show Nuvio repositories")
+                onTriggered: if (nuvioDrawer.visible) nuvioDrawer.close(); else nuvioDrawer.open()
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 16
+                    color: nuvioTrigger.interactionActive ? "#cf202839" : "#b8141923"
+                    border.width: 1
+                    border.color: nuvioTrigger.interactionActive ? theme.gold : "#8f829bc2"
+                }
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 12
+                    Image {
+                        Layout.preferredWidth: 34
+                        Layout.preferredHeight: 38
+                        source: "../assets/icons/nuvio-official.png"
+                        sourceSize.width: 68
+                        fillMode: Image.PreserveAspectFit
+                    }
+                    Column {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        Text {
+                            text: qsTr("Nuvio repositories")
+                            color: theme.ink
+                            font.family: theme.ui
+                            font.pixelSize: theme.fontSize(15)
+                            font.weight: Font.DemiBold
+                        }
+                        Text {
+                            text: qsTr("Add a repository link")
+                            color: "#b2c8ec"
+                            font.family: theme.ui
+                            font.pixelSize: theme.fontSize(12)
+                        }
+                    }
+                    Image {
+                        Layout.preferredWidth: 15
+                        Layout.preferredHeight: 15
+                        source: "../assets/icons/lucide/chevron-right.svg"
+                        sourceSize.width: 30
+                        rotation: nuvioDrawer.visible ? -90 : 90
+                    }
+                }
+            }
+        }
+
+        Column {
+            id: tierBoard
+            x: root.width < 700 ? sectionIndex.closedWidth + 12
+               : (sectionIndex.collapsed ? sectionIndex.closedWidth : sectionIndex.openWidth) + 28
+            width: parent.width - x
+            spacing: 28
+
+            ExtensionGrid {
+                id: essentialsRail
+                title: qsTr("Essentials")
+                automationId: "extensionsEssentialsRail"
+                items: root.essentials
+            }
+            ExtensionGrid {
+                id: moreSourcesRail
+                title: qsTr("More Sources")
+                items: root.moreSources
+            }
+            ExtensionGrid {
+                id: enrichmentRail
+                title: qsTr("Enrichment")
+                items: root.enrichment
+            }
+            ExtensionGrid {
+                id: cataloguesRail
+                title: qsTr("Catalogues")
+                items: root.catalogues
+            }
+            GenreMosaic {
+                objectName: "extensionsCategoryMosaic"
+                visible: genres.length > 0
+                title: qsTr("Categories")
+                genres: root.categories
+                columns: Math.max(1, Math.min(5, Math.floor(width / 158)))
+                navigable: false
+                onGenreClicked: index => root.seeAllRow = root.categories[index]
+            }
+        }
+
+        RowIndexSidebar {
+            id: sectionIndex
+            parent: storeWorld.pageFlickable
+            z: 2
+            x: storeWorld.outerPageMargin
+            pageFlick: storeWorld.pageFlickable
+            flowHost: tierBoard
+            worldName: qsTr("Extensions")
+            contextLabel: ""
+            automationPrefix: "extensionsRowIndex"
+            currentOffset: storeWorld.parkGap
+            rows: [
+                { key: "essentials", title: essentialsRail.title, target: essentialsRail, iconSource: "../assets/icons/star.svg" },
+                { key: "sources", title: moreSourcesRail.title, target: moreSourcesRail, iconSource: "../assets/icons/play.svg" },
+                { key: "enrichment", title: enrichmentRail.title, target: enrichmentRail, iconSource: "../assets/icons/extensions.svg" },
+                { key: "catalogues", title: cataloguesRail.title, target: cataloguesRail, iconSource: "../assets/icons/book-library.svg" }
+            ]
+            onRowRequested: target => storeWorld.parkRow(target)
 
             Rectangle {
                 anchors.fill: parent
-                radius: 20
-                color: "#0b0d12"
-            }
-            FeaturedCarousel {
-                anchors.fill: parent
-                automationId: "extensionsTributeCarousel"
-                androidHost: root.phoneLayout
-                artworkOnly: true
-                autoAdvance: !root.reducedMotion
-                kicker: qsTr("Tributes")
-                slides: root.tributes.map(tribute => ({
-                    id: tribute.extensionId,
-                    title: tribute.name,
-                    art: tribute.banner
-                }))
-                onPrimaryClicked: index => {
-                    const tribute = root.tributes[index]
-                    if (tribute) root.tributeRequested(tribute)
-                }
-            }
-            Text {
-                objectName: "extensionsPosterTitle"
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.margins: Math.round(Math.max(16, Math.min(48, poster.width * 0.04)))
-                text: qsTr("Extensions")
-                font.family: posterFont.status === FontLoader.Ready ? posterFont.name : theme.display
-                font.capitalization: Font.AllUppercase
-                font.letterSpacing: 1.5
-                font.pixelSize: theme.fontSize(Math.round(Math.min(88, poster.width * 0.12)))
-                font.weight: Font.DemiBold
-                fontSizeMode: Text.HorizontalFit
-                minimumPixelSize: 22
-                elide: Text.ElideRight
-                color: "#fff5df"
-                style: Text.Raised
-                styleColor: Qt.rgba(0, 0, 0, 0.74)
-                Accessible.role: Accessible.Heading
+                z: -1
+                visible: root.width < 700 && !sectionIndex.collapsed
+                color: "#f217181e"
+                radius: 14
             }
         }
 
-        KeyboardAction {
-            id: nuvioTrigger
-            objectName: "extensionsNuvioRepositoriesButton"
-            visible: root.nuvioRepositoryStore !== null
-            width: nuvioLabelRow.implicitWidth + 28
-            height: 44
-            accessibleName: nuvioDrawer.visible ? qsTr("Hide Nuvio repositories") : qsTr("Show Nuvio repositories")
-            onTriggered: {
-                if (nuvioDrawer.visible) nuvioDrawer.close()
-                else nuvioDrawer.open()
-            }
-
-            Glass {
-                anchors.fill: parent
-                backdrop: root.backdrop
-                track: storeWorld.viewportContentY
-                radius: 12
-                tint: nuvioTrigger.interactionActive ? 0.18 : 0.10
-            }
-            Row {
-                id: nuvioLabelRow
-                anchors.centerIn: parent
-                spacing: 9
-                Image {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 22; height: 22
-                    source: "../assets/icons/nuvio-official.png"
-                    sourceSize.width: 44; sourceSize.height: 44
-                    fillMode: Image.PreserveAspectFit
-                }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: qsTr("Nuvio repositories")
-                    color: theme.ink
-                    font.family: theme.ui
-                    font.pixelSize: theme.fontSize(14)
-                    font.weight: Font.DemiBold
-                }
-                Image {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 15; height: 15
-                    source: "../assets/icons/lucide/chevron-right.svg"
-                    sourceSize.width: 30; sourceSize.height: 30
-                    rotation: nuvioDrawer.visible ? -90 : 90
-                    opacity: 0.8
-                }
-            }
-        }
-
-        ExtensionsStoreRail {
-            id: essentialsRail
-            title: qsTr("Essentials")
-            automationId: "extensionsEssentialsRail"
-            essentialsLayout: true
-            canSeeAll: false
-            limitArtworkToViewport: root.limitArtworkToViewport
-            artworkActive: root.rowArtworkActive(essentialsRail)
-            items: root.essentials
-            installedFn: root.isInstalled
-            disabledFn: root.isDisabled
-            busy: root.busy
-            revision: root.revision
-            onAddonActivated: (a) => root.installEssential(a)
-            onAddonConfigured: (a) => root.configureEssential(a)
-            onAddonRemoved: (a) => management.requestRemoval(root.essentialInstanceIndices(a))
+        ExtensionsActionButton {
+            text: qsTr("Install from URL")
+            onClicked: root.openUrlInstaller()
         }
 
         RowLayout {
@@ -747,55 +840,37 @@ Item {
         }
 
         Text {
-            visible: root.loading || (root.loadError.length > 0 && root.catalogue.length === 0)
+            visible: root.loading || root.loadError.length > 0
             width: parent.width
-            text: root.loading ? "Opening the Store…"
-                               : "The Store couldn't reach stremio-addons.net (" + root.loadError + "). Try again in a moment."
+            text: root.loading ? qsTr("Loading community add-ons…")
+                               : qsTr("Couldn’t load community add-ons. Try again later.")
             color: theme.inkDim
             font.family: theme.ui; font.pixelSize: 14
-        }
-
-        ExtensionsHouseHero {
-            controlsOnly: true
-            revision: root.revision
-            onUniversesRequested: root.universeHallRequested()
-            onSearchRequested: root.searching = true
-            onInstallUrlRequested: root.openUrlInstaller()
-            onInstallRequested: (id, url) => root.activate({
-                id: id, slug: id, manifestUrl: url
-            })
-            onConfigureRequested: (id) => root.openConfiguration(id)
-        }
-
-        Repeater {
-            model: root.rows
-            delegate: ExtensionsStoreRail {
-                id: extensionRail
-                required property var modelData
-                required property int index
-                title: modelData.title
-                sub: modelData.sub
-                automationId: "extensionsStoreRail_" + index
-                phoneLayout: root.phoneLayout
-                limitArtworkToViewport: root.limitArtworkToViewport
-                artworkActive: root.rowArtworkActive(extensionRail)
-                items: modelData.items
-                installedFn: root.isInstalled
-                disabledFn: root.isDisabled
-                busy: root.busy
-                revision: root.revision
-                onAddonActivated: (a) => root.activate(a)
-                onSeeAllRequested: root.seeAllRow = modelData
-            }
         }
 
         Text {
             visible: root.catalogue.length > 0
             width: parent.width
-            text: "Community add-ons and stars from stremio-addons.net. Their authors run them, not Colosseum."
+            text: qsTr("Community directory by Stremio Addons")
             color: Qt.rgba(1, 1, 1, 0.34)
             font.family: theme.ui; font.pixelSize: 12
         }
+    }
+
+    component ExtensionGrid: ExtensionsStoreRail {
+        id: rail
+        essentialsLayout: true
+        canSeeAll: false
+        limitArtworkToViewport: root.limitArtworkToViewport
+        artworkActive: root.rowArtworkActive(rail)
+        installedFn: root.isInstalled
+        disabledFn: root.isDisabled
+        busy: root.busy
+        revision: root.revision
+        onAddonActivated: addon => root.installEssential(addon)
+        onAddonConfigured: addon => root.configureEssential(addon)
+        onAddonRemoved: addon => management.requestRemoval(root.essentialInstanceIndices(addon))
+        onCatalogueRequested: addon => root.browseCatalogue(addon)
     }
 
     Popup {
@@ -853,7 +928,11 @@ Item {
         disabledFn: root.isDisabled
         busy: root.busy
         revision: root.revision
-        onAddonActivated: (a) => root.activate(a)
+        bottomInset: root.bottomInset
+        onAddonActivated: addon => root.installEssential(addon)
+        onAddonConfigured: addon => root.configureEssential(addon)
+        onAddonRemoved: addon => management.requestRemoval(root.essentialInstanceIndices(addon))
+        onCatalogueRequested: addon => root.browseCatalogue(addon)
         onBackRequested: { root.seeAllRow = null; root.searching = false }
         onVisibleChanged: if (visible) Qt.callLater(seeAll.takeKeyboardFocus)
                           else Qt.callLater(root.takeKeyboardFocus)
@@ -865,6 +944,7 @@ Item {
         anchors.fill: parent
         z: 10
         visible: root.managingInstalled && !tankoyomiConfiguration.visible
+        bottomInset: root.bottomInset
         entries: root.installedEntries
         capabilitiesFor: root.manifestResources
         instanceLabelFor: root.instanceLabel
@@ -889,6 +969,7 @@ Item {
         spacing: 10
 
         KeyboardAction {
+            objectName: "extensionsInstalledButton"
             width: installedLabel.implicitWidth + 24
             height: 44
             accessibleName: qsTr("Installed add-ons")

@@ -142,32 +142,111 @@ function fetchAll(done) {
     next()
 }
 
-// The first Essentials row uses bundled identities and art so it is present before the directory loads.
+// Keep native sources and the first-run stream and subtitle choices available offline.
 function essentialsPreview(all) {
-    var torrentio = withTorrentio(all).find(isTorrentio)
     return [
-        torrentio,
-        previewEntry(all, "colosseum.well.tankoyomi", "tankoyomi", "Tankoyomi",
-                     "https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json", true),
-        previewEntry(all, "com.linvo.cinemeta", "cinemeta", "Cinemeta",
-                     "https://v3-cinemeta.strem.io/manifest.json", false),
-        previewEntry(all, "org.stremio.opensubtitlesv3", "opensubtitles", "OpenSubtitles v3",
-                     "https://opensubtitles-v3.strem.io/manifest.json", false)
+        Object.assign({}, withTorrentio(all).find(isTorrentio), { description: "Movie, show and anime streams" }),
+        bundled("colosseum.well.tankoyomi", "tankoyomi", "Tankoyomi", "tankoyomi.png",
+                "https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json",
+                "Manga chapter sources", true),
+        bundled("org.stremio.opensubtitlesv3", "opensubtitles", "OpenSubtitles v3",
+                "opensubtitles.png", "https://opensubtitles-v3.strem.io/manifest.json", "Subtitles"),
+        bundled("colosseum.well.nyaa", "nyaa", "Nyaa", "nyaa.png",
+                "colosseum://well/nyaa", "Manga volume sources"),
+        bundled("colosseum.well.getcomics.issues", "getcomics", "GetComics", "getcomics.png",
+                "colosseum://well/getcomics.issues", "Comic issue sources"),
+        bundled("colosseum.well.indexers", "tankorent", "Tankorent", "tankorent.png",
+                "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json",
+                "Comic and book torrent sources", true),
+        bundled("colosseum.well.libgen", "libgen", "LibGen", "libgen.ico",
+                "colosseum://well/libgen", "Book sources"),
+        bundled("colosseum.well.audiobookbay", "audiobookbay", "AudioBookBay", "audiobookbay.png",
+                "colosseum://well/audiobookbay", "Audiobook sources")
     ]
 }
 
-function previewEntry(all, id, slug, name, manifestUrl, configurable) {
-    var remote = all.find(function(item) { return item.id === id && visible(item, false) })
-    var localArt = slug === "cinemeta" ? "" : "../assets/addon-logos/" + slug + ".png"
-    return Object.assign({}, remote, {
-        id: id,
-        slug: slug,
-        name: name,
-        title: name,
-        logo: (remote && remote.logo) || localArt,
-        manifestUrl: manifestUrl,
-        configurable: configurable || !!(remote && remote.configurable)
+function bundled(id, slug, name, art, url, description, configurable) {
+    return {
+        id: id, slug: slug, name: name, title: name, manifestUrl: url,
+        description: description, categories: [], stars: 0,
+        logo: art ? "../assets/addon-logos/" + art : "",
+        configurable: !!configurable
+    }
+}
+
+// The directory can be delayed or unavailable. Keep these nine known entries
+// actionable while it loads, then prefer the matching directory record.
+var MORE_SOURCES = [
+    ["comet", "comet.elfhosted.com.aKyc", "Comet", "comet.png",
+     "https://comet.elfhosted.com/manifest.json", "https://comet.elfhosted.com/configure", false,
+     "Movie, show and anime streams"],
+    ["mediafusion-elfhosted", "stremio.addons.mediafusion|elfhosted", "MediaFusion", "mediafusion.png",
+     "https://mediafusion.elfhosted.com/manifest.json", "https://mediafusion.elfhosted.com/configure", false,
+     "Torrent and HTTP streams"],
+    ["aiostreams", "com.aiostreams.viren070", "AIOStreams", "aiostreams.png",
+     "https://aiostreams.elfhosted.com/stremio/manifest.json", "https://aiostreams.elfhosted.com/stremio/configure", true,
+     "Combine and filter stream sources"],
+    ["subsense", "com.subsense.nepiraw", "SubSense", "",
+     "https://subsense.nepiraw.com/manifest.json", "https://subsense.nepiraw.com/configure", true,
+     "Subtitles from multiple providers"],
+    ["subdl-subtitles", "community.subdl.subtitles", "SubDL", "subdl.jpg",
+     "https://subdl.strem.top/manifest.json", "https://subdl.strem.top/configure", true,
+     "Subtitles from SubDL"]
+]
+
+var ENRICHMENT = [
+    ["streaming-catalogs", "pw.ers.netflix-catalog", "Streaming Catalogs", "streaming-catalogs.png",
+     "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club/manifest.json",
+     "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club/configure", false,
+     "Movie and show catalogues by service"],
+    ["aiometadata-elfhosted", "com.aio.metadata", "AIOMetadata", "",
+     "https://aiometadata.elfhosted.com/stremio/manifest.json", "https://aiometadata.elfhosted.com/stremio/configure", true,
+     "Choose metadata and artwork providers"],
+    ["mdblist", "com.mdblist.lists", "MDBList", "mdblist.png",
+     "https://1fe84bc728af-stremio-mdblist.baby-beamup.club/manifest.json",
+     "https://1fe84bc728af-stremio-mdblist.baby-beamup.club/configure", true, "Browse curated lists"],
+    ["anime-kitsu", "community.anime.kitsu", "Anime Kitsu", "anime-kitsu.png",
+     "https://anime-kitsu.strem.fun/manifest.json", "", false, "Anime catalogues from Kitsu"]
+]
+
+function curated(all, selection) {
+    return selection.map(function(entry) {
+        var [slug, id, title, logo, manifestUrl, configureUrl, setupRequired, description] = entry
+        var live = all.find(function(addon) { return addon.slug === slug })
+        if (live) return Object.assign({}, live, { title: title, description: description,
+            setupRequired: setupRequired || live.setupRequired })
+        var addon = bundled(id, slug, title, logo, manifestUrl, description, configureUrl !== "")
+        addon.configureUrl = configureUrl
+        addon.setupRequired = setupRequired
+        return addon
     })
+}
+
+function catalogues() {
+    return [
+        Object.assign(bundled("colosseum.catalogue.vault", "grand-database", "Colosseum Grand Database",
+            "colosseum-grand-database.png", "", "Manga and comics"), { world: "Tankoban", builtIn: true }),
+        Object.assign(bundled("colosseum.catalogue.applebooks", "apple-books", "Apple Books",
+            "applebooks.ico", "", "Books and authors"), { world: "Biblio", builtIn: true }),
+        Object.assign(bundled("com.linvo.cinemeta", "cinemeta", "Cinemeta", "",
+            "", "Movies and shows"), { world: "Theatre", builtIn: true }),
+        Object.assign(bundled("colosseum.catalogue.anilist", "anilist", "AniList", "anilist.png",
+            "", "Manga and series"), { world: "Tankoban", builtIn: true }),
+        { slug: "tributes", title: "Tributes", description: "Franchise tributes",
+          logo: "../assets/icons/universes-atom.svg", world: "Tributes" },
+        { slug: "universes", title: "Universes", description: "Franchise catalogues",
+          logo: "../assets/icons/universes-atom.svg", world: "Universes" }
+    ]
+}
+
+function supportedCategories(all) {
+    var supported = ["anime", "asian drama", "bollywood", "debrid support", "http streams",
+                     "metadata", "movies", "subtitles", "torrents", "tv shows"]
+    return supported.map(function(name) {
+        var items = all.filter(function(a) { return has(a, name) })
+        var art = items.find(function(a) { return a.logo.length > 0 })
+        return { name: name, title: name, count: items.length, cover: art ? art.logo : "", all: items }
+    }).filter(function(category) { return category.count > 0 })
 }
 
 function essentials(all) {
