@@ -23,10 +23,8 @@ FocusScope {
     property string returnSessionId: ""
     property Item backdrop: null
     property real dockClearance: 0
-    property var librivox: (typeof LibriVoxCatalogue !== "undefined") ? LibriVoxCatalogue : null
     property var tankorent: (typeof AudiobookTorrents !== "undefined") ? AudiobookTorrents : null
     readonly property bool abbEnabled: ExtensionCatalog.sourceEnabled(extensions, "colosseum.well.audiobookbay")
-    readonly property bool librivoxEnabled: !!librivox && ExtensionCatalog.sourceEnabled(extensions, "colosseum.well.librivox")
     readonly property bool tankorentEnabled: !!tankorent && ExtensionCatalog.sourceEnabled(extensions, "colosseum.well.indexers")
     property int lastLookupToken: 0
     readonly property bool active: routeStack.depth > 0
@@ -282,10 +280,11 @@ FocusScope {
             property bool showing: false
             property var lookups: ({})
             readonly property bool abbSearchEnabled: flow.abbEnabled
-            readonly property bool librivoxSearchEnabled: flow.librivoxEnabled
             readonly property bool tankorentSearchEnabled: showTankorent && flow.tankorentEnabled
             workTitle: detail.built.title
             workAuthor: detail.built.authors
+            artwork: detail.coverUrl
+            backdrop: flow.backdrop
             showTankorent: !!flow.tankorent && flow.tankorent.isEligible(detail.work)
             recordingStatus: key => { flow.downloadsRevision; return flow.downloadStatus(key).state }
 
@@ -315,12 +314,11 @@ FocusScope {
             }
 
             function isEnabled(kind) {
-                return kind === "abb" ? abbSearchEnabled : kind === "librivox"
-                    ? librivoxSearchEnabled : tankorentSearchEnabled
+                return kind === "abb" ? abbSearchEnabled : kind === "tankorent" && tankorentSearchEnabled
             }
 
             function lookup(kind) {
-                if (!showing) return
+                if (!showing || (kind !== "abb" && kind !== "tankorent")) return
                 cancel(kind)
                 if (kind === "tankorent" && !showTankorent) return
                 if (!isEnabled(kind)) {
@@ -346,36 +344,12 @@ FocusScope {
                         }, function(result) {
                             sources.receive(kind, token, result.rows, result.error)
                         })
-                    } else if (kind === "librivox") {
-                        const service = flow.librivox
-                        job.cancel = () => service.cancel(token)
-                        service.search(token, workTitle, workAuthor)
                     } else {
                         const service = flow.tankorent
                         job.cancel = () => service.cancel(token)
                         service.search(token, detail.work, detail.shownRecording.id, detail.pairKey)
                     }
                 })
-            }
-
-            Connections {
-                target: flow.librivox
-                function onSearchFinished(token, rows, error) {
-                    if (sources.lookups.librivox?.token !== token) return
-                    const options = Array.prototype.map.call(rows || [], function(book) {
-                        return Object.assign({}, book, {
-                            format: "MP3", fileCount: book.chapters.length,
-                            request: {
-                                sourceKind: "librivox", sourceRef: book.id, chapters: book.chapters,
-                                pairKey: detail.pairKey, workId: detail.workId,
-                                recordingKey: detail.pairKey + "#librivox:" + book.id,
-                                title: book.title, author: book.author, narrators: book.narrators,
-                                format: "MP3", language: book.language
-                            }
-                        })
-                    })
-                    sources.receive("librivox", token, options, error)
-                }
             }
 
             Connections {
@@ -388,13 +362,11 @@ FocusScope {
             StackView.onActivated: {
                 showing = true
                 lookup("abb")
-                lookup("librivox")
                 lookup("tankorent")
             }
             StackView.onDeactivating: stop()
             Component.onDestruction: stop()
             onAbbSearchEnabledChanged: lookup("abb")
-            onLibrivoxSearchEnabledChanged: lookup("librivox")
             onTankorentSearchEnabledChanged: lookup("tankorent")
             onRetryRequested: kind => lookup(kind)
             onBackRequested: flow.back()

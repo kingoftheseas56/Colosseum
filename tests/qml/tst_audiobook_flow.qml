@@ -210,36 +210,37 @@ TestCase {
         }
     }
 
-    function test_librivox_is_selectable_while_abb_is_pending() {
+    function test_tankorent_is_selectable_while_abb_is_pending() {
         const view = setup()
         view.flow.extensions = make(sourceExtensionsFixture, {
-            sourceIds: ["colosseum.well.audiobookbay", "colosseum.well.librivox"]
+            sourceIds: ["colosseum.well.audiobookbay", "colosseum.well.indexers"]
         })
         view.flow.abb = make(stalledAbbFixture)
         view.flow.matcher = {}
         view.flow.downloads = make(sourceDownloadsFixture)
-        view.flow.librivox = make(sourceFixture, { rows: [{
-            id: "1480", title: "First Book (version 3)", author: "Alex Writer", narrators: ["Karen Savage"],
-            chapters: [{ number: 1, title: "Chapter 01", url: "https://www.archive.org/download/example/chapter.mp3" }]
-        }, {
-            id: "4023", title: "First Book (version 4)", author: "Alex Writer", narrators: ["Elizabeth Klett"],
-            chapters: [{ number: 1, title: "Chapter 1", url: "https://www.archive.org/download/example/other.mp3" }]
+        const key = "the time machine|alex writer#src:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        view.flow.tankorent = make(sourceFixture, { rows: [{
+            title: "The Time Machine upload", narrators: ["Reader Two"],
+            request: { sourceKind: "tankorent", recordingKey: key }
         }] })
-        const detail = openFirst(view)
+        view.flow.openWork("the-time-machine")
+        const detail = view.flow.currentPage
         compare(detail.primary.kind, "download")
         findChild(detail, "audiobookPrimaryAction").triggered()
         const sources = view.flow.currentPage
         compare(sources.objectName, "audiobookSourcesPage")
-        tryVerify(() => sources.providerStates.librivox.state === "results")
+        tryVerify(() => sources.providerStates.tankorent.state === "results")
+        compare(Object.keys(sources.providerStates).sort(), ["abb", "tankorent"])
         compare(sources.providerStates.abb.state, "searching")
         compare(view.flow.abb.requests, 1)
-        compare(sources.providerStates.librivox.rows.map(row => row.narrators[0]), ["Karen Savage", "Elizabeth Klett"])
+        compare(sources.providerStates.tankorent.rows[0].narrators, ["Reader Two"])
+        sources.sourcePicked({ request: { sourceKind: "retired", recordingKey: key } })
         compare(view.flow.downloads.captured.length, 0)
-        const choice = visualChild(sources, "audiobookSourceOption_librivox_0")
+        const choice = visualChild(sources, "audiobookSourceOption_tankorent_0")
         verify(choice !== null)
         choice.triggered()
         compare(view.flow.downloads.captured.length, 1)
-        compare(view.flow.downloads.captured[0].recordingKey, "first book|alex writer#librivox:1480")
+        compare(view.flow.downloads.captured[0].recordingKey, key)
         compare(view.flow.abb.cancellations, 1)
         compare(view.flow.currentPage, detail)
     }
@@ -263,7 +264,7 @@ TestCase {
         verify(!mercySources.showTankorent)
         verify(!visualChild(mercySources, "audiobookSources_tankorent").visible)
         compare(mercySources.providerStates.abb.state, "disabled")
-        compare(mercySources.providerStates.librivox.state, "disabled")
+        compare(Object.keys(mercySources.providerStates), ["abb"])
         compare(view.flow.tankorent.calls.length, 0)
         view.flow.back()
         compare(view.flow.currentPage, mercy)

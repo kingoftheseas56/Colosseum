@@ -1,8 +1,7 @@
 // AudiobookDownloader.h
 //
 // Audiobook storage and downloads share one recording index. Torrent sources
-// obtain local files from the torrent engine. LibriVox streams its ordered MP3
-// chapters over HTTPS into a private staging directory before registering them.
+// obtain local files from the torrent engine.
 // Storage and progress use a recording key; the title+author pair key identifies
 // the work for read-along.
 //
@@ -32,15 +31,12 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <functional>
-#include <memory>
 #include <QByteArray>
 #include <utility>
 
 class QNetworkAccessManager;
 class QNetworkReply;
 class QFile;
-class QTemporaryDir;
-class QUrl;
 class StreamServer;
 class AudioPairingStore;
 class AudiobookTorrentTransport;
@@ -57,7 +53,6 @@ public:
     AudiobookDownloader(QNetworkAccessManager* nam, StreamServer* stream, QObject* parent = nullptr);
     ~AudiobookDownloader() override;
     void setSourceEnabledCheck(std::function<bool()> check) { m_sourceEnabledCheck = std::move(check); }
-    void setLibriVoxEnabledCheck(std::function<bool()> check) { m_libriVoxEnabledCheck = std::move(check); }
     void setTankorentEnabledCheck(std::function<bool()> check) { m_tankorentEnabledCheck = std::move(check); }
     // C++ wiring only; Android injects the existing download-to-keep engine.
     void setTorrentTransport(AudiobookTorrentTransport* transport);
@@ -130,14 +125,12 @@ signals:
 
 private:
     std::function<bool()> m_sourceEnabledCheck;
-    std::function<bool()> m_libriVoxEnabledCheck;
     std::function<bool()> m_tankorentEnabledCheck;
     struct FileJob {
         int     fileIdx = 0;       // index into the manifest files[] = the streaming URL segment
         QString name;              // sanitized "NN - basename.ext"
         QString ext;
         qint64  bytes = 0;         // expected length from the manifest
-        QString url;               // direct HTTP provider file, when present
         QString finalPath;
         QString partPath;
     };
@@ -163,10 +156,6 @@ private:
         QFile*  file = nullptr;
         qint64  fileReceived = 0;
         qint64  lastProgressEmit = 0;
-        std::unique_ptr<QTemporaryDir> httpDir;
-        QByteArray httpSignature;
-        int httpRedirects = 0;
-        int httpRetries = 0;
     };
 
     // ── engine handshake ──
@@ -179,10 +168,6 @@ private:
 
     // ── per-file streaming (BookDownloader lineage) ──
     void startNextFile(Job* job);
-    void startHttpRequest(Job* job, const QUrl& url);
-    void onHttpFileReadyRead();
-    void onHttpFileFinished();
-    QString writeHttpBytes(Job* job, QNetworkReply* reply);
     void finishDownloadedFile(Job* job);
     void reportFileProgress(Job* job);
     void onFileReadyRead();

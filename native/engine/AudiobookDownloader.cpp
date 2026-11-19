@@ -1,7 +1,6 @@
 #include "AudiobookDownloader.h"
 #include "DownloadFileOps.h"
 #include "AudiobookTorrentTransport.h"
-#include "LibriVoxMedia.h"
 
 #include "../AudioPairingStore.h"
 #include "../player/streamserver.h"
@@ -20,9 +19,7 @@
 #include <QNetworkRequest>
 #include <QRegularExpression>
 #include <QSaveFile>
-#include <QSet>
 #include <QStandardPaths>
-#include <QTemporaryDir>
 #include <QTimer>
 #include <QUrl>
 
@@ -35,14 +32,17 @@ constexpr int    kProgressThrottleMs = 500;
 constexpr int    kMaxManifestPolls   = 4;       // ~4× (30s /create timeout) → honest fail, not a 6-min hang
 constexpr int    kManifestPollMs     = 2000;
 constexpr int    kFileTransferTimeoutMs = 120000;
-constexpr qint64 kMaxHttpChapterBytes = 256LL * 1024 * 1024;
-constexpr qint64 kMaxHttpRecordingBytes = 4LL * 1024 * 1024 * 1024;
-constexpr int kMaxHttpRedirects = 5;
-constexpr int kMaxHttpRetries = 2;
-
-bool isLibriVox(const QString& sourceKind)
+// Keep both historical recording keys as written on disk and in progress.
+QString legacyLibriVoxPairKey(const QString& recordingKey)
 {
-    return sourceKind == QLatin1String("librivox");
+    auto suffix = recordingKey.lastIndexOf(QLatin1String("#librivox:"));
+    if (suffix < 0) suffix = recordingKey.lastIndexOf(QLatin1String("#lv:"));
+    return suffix > 0 ? recordingKey.left(suffix) : QString();
+}
+
+bool isLegacyLibriVox(const QString& sourceKind, const QString& recordingKey)
+{
+    return sourceKind == QLatin1String("librivox") || !legacyLibriVoxPairKey(recordingKey).isEmpty();
 }
 
 bool allFilesPresent(const QStringList& files)
@@ -50,13 +50,6 @@ bool allFilesPresent(const QStringList& files)
     return !files.isEmpty() && std::all_of(files.begin(), files.end(), [](const QString& path) {
         return QFileInfo(path).isFile();
     });
-}
-
-bool looksLikeMp3(const QByteArray& signature)
-{
-    return signature.startsWith("ID3") || (signature.size() >= 3
-        && static_cast<unsigned char>(signature[0]) == 0xff
-        && (static_cast<unsigned char>(signature[1]) & 0xe0) == 0xe0);
 }
 
 const QStringList& audioExts()
@@ -203,9 +196,12 @@ void AudiobookDownloader::loadIndex()
         e.bundle = o.value(QStringLiteral("bundle")).toBool()
                 || it.key().startsWith(QStringLiteral("bundle#src:"));
         if (e.bundle) e.pairKey.clear();
-        else if (e.pairKey.isEmpty() && !it.key().contains(QStringLiteral("#src:"))
-                 && !it.key().contains(QStringLiteral("#as:")))
-            e.pairKey = it.key();
+        else if (e.pairKey.isEmpty()) {
+            e.pairKey = legacyLibriVoxPairKey(it.key());
+            if (e.pairKey.isEmpty() && !it.key().contains(QStringLiteral("#src:"))
+                && !it.key().contains(QStringLiteral("#as:")))
+                e.pairKey = it.key();
+        }
         e.dir = o.value(QStringLiteral("dir")).toString();
         e.title = o.value(QStringLiteral("title")).toString();
         e.author = o.value(QStringLiteral("author")).toString();
@@ -353,8 +349,8 @@ QString AudiobookDownloader::localAudiobook(const QString& key) const
 {
     const auto it = m_index.constFind(resolveRecordingKey(key));
     if (it == m_index.constEnd() || it->files.isEmpty()) return {};
-    const bool available = isLibriVox(it->sourceKind) ? allFilesPresent(it->files)
-                                                     : QFileInfo::exists(it->files.first());
+    const bool available = isLegacyLibriVox(it->sourceKind, it.key())
+        ? allFilesPresent(it->files) : QFileInfo::exists(it->files.first());
     return available ? it->dir : QString();
 }
 
@@ -367,7 +363,7 @@ QStringList AudiobookDownloader::localFiles(const QString& key) const
 {
     const auto it = m_index.constFind(resolveRecordingKey(key));
     if (it == m_index.constEnd()) return {};
-    if (isLibriVox(it->sourceKind) && !allFilesPresent(it->files)) return {};
+    if (isLegacyLibriVox(it->sourceKind, it.key()) && !allFilesPresent(it->files)) return {};
     QStringList out;
     for (const QString& p : it->files)
         if (QFileInfo::exists(p)) out << p;
@@ -450,8 +446,8 @@ QVariantList AudiobookDownloader::downloadedAudiobooks() const
             {QStringLiteral("sourceKind"),e.sourceKind},
             {QStringLiteral("sourceRef"),e.sourceRef},
             {QStringLiteral("bundle"),e.bundle},
-            {QStringLiteral("missing"),isLibriVox(e.sourceKind) ? !allFilesPresent(e.files)
-                                        : e.files.isEmpty() || !QFileInfo::exists(e.files.first())}
+            {QStringLiteral("missing"),isLegacyLibriVox(e.sourceKind, e.recordingKey)
+                ? !allFilesPresent(e.files) : e.files.isEmpty() || !QFileInfo::exists(e.files.first())}
         };
         if (!e.workId.isEmpty()) row.insert(QStringLiteral("workId"), e.workId);
         out.append(row);
@@ -500,27 +496,29 @@ void AudiobookDownloader::beginDownload(const QVariantMap& request, bool legacyC
 {
     const QString sourceKind = request.value(QStringLiteral("sourceKind")).toString();
     const QString sourceRef = request.value(QStringLiteral("sourceRef")).toString().trimmed();
-    const bool directHttp = isLibriVox(sourceKind);
+    const QString suppliedKey = request.value(QStringLiteral("recordingKey")).toString();
+    if (isLegacyLibriVox(sourceKind, suppliedKey)) {
+        emit failed(suppliedKey, tr("This audiobook source is no longer available."));
+        return;
+    }
     const bool tankorent = sourceKind == QLatin1String("tankorent");
-    const bool bundle = !directHttp && request.value(QStringLiteral("bundle")).toBool();
+    const bool bundle = request.value(QStringLiteral("bundle")).toBool();
     const QString pairKey = bundle ? QString() : request.value(QStringLiteral("pairKey")).toString();
     const QString workId = bundle ? QString() : request.value(QStringLiteral("workId")).toString().trimmed();
     const QString hash = request.value(QStringLiteral("infoHash")).toString().trimmed().toLower();
     const QString title = request.value(QStringLiteral("title")).toString();
     const QString author = request.value(QStringLiteral("author")).toString();
     QString asid = request.value(QStringLiteral("audiosiloRecordingId")).toString().trimmed();
-    const QString suppliedKey = request.value(QStringLiteral("recordingKey")).toString();
     if (!bundle && asid.isEmpty() && suppliedKey.startsWith(pairKey + QStringLiteral("#as:")))
         asid = suppliedKey.mid(pairKey.size() + 4);
-    const QString recordingKey = directHttp ? pairKey + QStringLiteral("#librivox:") + sourceRef
-        : bundle ? QStringLiteral("bundle#src:") + hash
+    const QString recordingKey = bundle ? QStringLiteral("bundle#src:") + hash
         : asid.isEmpty() ? pairKey + QStringLiteral("#src:") + hash
                          : pairKey + QStringLiteral("#as:") + asid;
     const QString signalKey = legacyCaller ? pairKey : recordingKey;
     if (!bundle && pairKey.isEmpty()) {
         emit failed(signalKey,QStringLiteral("empty pairKey")); return;
     }
-    if (!directHttp && !QRegularExpression(QStringLiteral("^[0-9a-f]{40}$")).match(hash).hasMatch()) {
+    if (!QRegularExpression(QStringLiteral("^[0-9a-f]{40}$")).match(hash).hasMatch()) {
         const QString reason = QStringLiteral("bad infoHash");
         rememberFailure(recordingKey,title,author,reason,workId);
         emit failed(signalKey,reason);
@@ -529,41 +527,6 @@ void AudiobookDownloader::beginDownload(const QVariantMap& request, bool legacyC
     if (!suppliedKey.isEmpty() && suppliedKey != recordingKey) {
         emit failed(signalKey,QStringLiteral("recordingKey conflicts with source identity"));
         return;
-    }
-    QList<FileJob> httpFiles;
-    if (directHttp) {
-        const auto sections = request.value(QStringLiteral("chapters")).toList();
-        if (!LibriVoxMedia::validProjectId(sourceRef) || !asid.isEmpty() || sections.isEmpty()
-            || sections.size() > LibriVoxMedia::maxChapters) {
-            emit failed(signalKey, QStringLiteral("Invalid LibriVox recording manifest."));
-            return;
-        }
-        QSet<int> seenNumbers;
-        QSet<QString> seenUrls;
-        for (const auto& section : sections) {
-            const QVariantMap chapter = section.toMap();
-            bool ok = false;
-            const int number = chapter.value(QStringLiteral("number")).toInt(&ok);
-            const QString url = chapter.value(QStringLiteral("url")).toString();
-            if (!ok || number < 1 || number > 10000 || seenNumbers.contains(number)
-                || seenUrls.contains(url) || !LibriVoxMedia::validAudioUrl(QUrl(url, QUrl::StrictMode))) {
-                emit failed(signalKey, QStringLiteral("Invalid LibriVox chapter manifest."));
-                return;
-            }
-            seenNumbers.insert(number);
-            seenUrls.insert(url);
-            FileJob file;
-            file.fileIdx = number;
-            file.name = sanitizeFilename(chapter.value(QStringLiteral("title"))
-                                         .toString().left(180));
-            if (file.name == QLatin1String("track"))
-                file.name = QStringLiteral("Chapter %1").arg(number);
-            file.url = url;
-            httpFiles.append(std::move(file));
-        }
-        std::sort(httpFiles.begin(), httpFiles.end(), [](const FileJob& a, const FileJob& b) {
-            return a.fileIdx < b.fileIdx;
-        });
     }
     QPointer<AudiobookDownloader> entryGuard(this);
     if (m_failures.remove(recordingKey)) {
@@ -583,15 +546,13 @@ void AudiobookDownloader::beginDownload(const QVariantMap& request, bool legacyC
         return;
     }
     if (isActive(recordingKey)) return;
-    const auto& sourceCheck = directHttp ? m_libriVoxEnabledCheck
-        : tankorent ? m_tankorentEnabledCheck : m_sourceEnabledCheck;
+    const auto& sourceCheck = tankorent ? m_tankorentEnabledCheck : m_sourceEnabledCheck;
     if (sourceCheck && !sourceCheck()) {
-        const QString source = directHttp ? QStringLiteral("LibriVox")
-            : tankorent ? QStringLiteral("Tankorent") : QStringLiteral("AudioBookBay");
+        const QString source = tankorent ? QStringLiteral("Tankorent") : QStringLiteral("AudioBookBay");
         emit failed(signalKey, QStringLiteral("Enable %1 in Extensions to download this audiobook.").arg(source));
         return;
     }
-    if ((directHttp && !m_nam) || (!directHttp && !m_stream && !m_torrent)) {
+    if (!m_stream && !m_torrent) {
         const QString reason = QStringLiteral("stream engine unavailable");
         rememberFailure(recordingKey,title,author,reason,workId);
         emit failed(signalKey,reason);
@@ -613,8 +574,6 @@ void AudiobookDownloader::beginDownload(const QVariantMap& request, bool legacyC
     job->language = request.value(QStringLiteral("language")).toString();
     job->sourceKind = sourceKind;
     job->sourceRef = sourceRef;
-    job->files = std::move(httpFiles);
-    if (directHttp) job->format = QStringLiteral("MP3");
     const QVariant rawNames = request.value(QStringLiteral("narrators"));
     if (rawNames.canConvert<QStringList>()) job->narrators = rawNames.toStringList();
     m_queue.append(job);
@@ -778,15 +737,7 @@ void AudiobookDownloader::startNextFile(Job* job)
         return;
     }
     job->fileReceived = 0;
-    job->httpSignature.clear();
-    job->httpRedirects = 0;
-    job->httpRetries = 0;
     job->lastProgressEmit = 0;
-
-    if (!fj.url.isEmpty()) {
-        startHttpRequest(job, QUrl(fj.url, QUrl::StrictMode));
-        return;
-    }
     const QString url = job->baseUrl + QStringLiteral("/") + QString::number(fj.fileIdx);
     QNetworkRequest req{QUrl(url)};
     req.setRawHeader("Accept", "*/*");
@@ -795,112 +746,6 @@ void AudiobookDownloader::startNextFile(Job* job)
     job->reply = reply;
     connect(reply, &QNetworkReply::readyRead, this, &AudiobookDownloader::onFileReadyRead);
     connect(reply, &QNetworkReply::finished,  this, &AudiobookDownloader::onFileFinished);
-}
-
-void AudiobookDownloader::startHttpRequest(Job* job, const QUrl& url)
-{
-    QNetworkRequest request(url);
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
-    request.setAttribute(QNetworkRequest::CookieLoadControlAttribute, QNetworkRequest::Manual);
-    request.setAttribute(QNetworkRequest::CookieSaveControlAttribute, QNetworkRequest::Manual);
-    request.setAttribute(QNetworkRequest::AuthenticationReuseAttribute, QNetworkRequest::Manual);
-    request.setRawHeader("Accept", "audio/mpeg, application/octet-stream");
-    request.setRawHeader("Accept-Encoding", "identity");
-    request.setTransferTimeout(30000);
-    QNetworkReply* reply = m_nam->get(request);
-    job->reply = reply;
-    reply->setReadBufferSize(64 * 1024);
-    connect(reply, &QNetworkReply::readyRead, this, &AudiobookDownloader::onHttpFileReadyRead);
-    connect(reply, &QNetworkReply::finished, this, &AudiobookDownloader::onHttpFileFinished);
-    QTimer::singleShot(kFileTransferTimeoutMs, reply, [reply] {
-        if (!reply->isFinished()) reply->abort();
-    });
-}
-
-QString AudiobookDownloader::writeHttpBytes(Job* job, QNetworkReply* reply)
-{
-    const QByteArray chunk = reply->readAll();
-    if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200 || chunk.isEmpty())
-        return {};
-    const qint64 nextSize = job->fileReceived + chunk.size();
-    if (nextSize > kMaxHttpChapterBytes || job->doneBytes + nextSize > kMaxHttpRecordingBytes)
-        return QStringLiteral("LibriVox download exceeded its size limit.");
-    if (job->httpSignature.size() < 3)
-        job->httpSignature += chunk.left(3 - job->httpSignature.size());
-    if (job->file->write(chunk) != chunk.size())
-        return QStringLiteral("Could not write the LibriVox chapter.");
-    job->fileReceived = nextSize;
-    return {};
-}
-
-void AudiobookDownloader::onHttpFileReadyRead()
-{
-    Job* job = m_active;
-    if (!job || job->reply != sender()) return;
-    const QString error = writeHttpBytes(job, job->reply);
-    if (!error.isEmpty()) {
-        failJob(job, error);
-        return;
-    }
-    if (job->fileReceived > 0) reportFileProgress(job);
-}
-
-void AudiobookDownloader::onHttpFileFinished()
-{
-    Job* job = m_active;
-    if (!job || job->reply != sender()) return;
-    QNetworkReply* reply = job->reply;
-    const auto error = reply->error();
-    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    const QUrl redirect = reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl();
-    const QUrl target = reply->request().url().resolved(redirect);
-    const QByteArray mediaType = reply->rawHeader("Content-Type").split(';').first().trimmed().toLower();
-    const qint64 expected = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
-    const QString writeError = error == QNetworkReply::NoError ? writeHttpBytes(job, reply) : QString();
-    job->reply.clear();
-    reply->deleteLater();
-
-    if (!writeError.isEmpty()) { failJob(job, writeError); return; }
-    if (status >= 300 && status < 400) {
-        if (redirect.isEmpty() || ++job->httpRedirects > kMaxHttpRedirects
-            || !LibriVoxMedia::validAudioUrl(target)) {
-            failJob(job, QStringLiteral("LibriVox returned an unsupported media redirect."));
-            return;
-        }
-        startHttpRequest(job, target);
-        return;
-    }
-    const bool shortRead = status == 200 && expected > 0 && job->fileReceived != expected;
-    if (status == 408 || status == 429 || status >= 500 || (error != QNetworkReply::NoError && status < 400)
-        || shortRead) {
-        if (job->httpRetries < kMaxHttpRetries) {
-            if (!job->file->resize(0) || !job->file->seek(0)) {
-                failJob(job, QStringLiteral("Could not restart the LibriVox chapter."));
-                return;
-            }
-            job->fileReceived = 0;
-            job->httpRedirects = 0;
-            job->httpSignature.clear();
-            const auto generation = job->generation;
-            const QUrl original(job->files[job->current].url, QUrl::StrictMode);
-            QTimer::singleShot(1500 * ++job->httpRetries, this, [this, generation, original] {
-                if (m_active && m_active->generation == generation) startHttpRequest(m_active, original);
-            });
-            return;
-        }
-    }
-    if (status != 200 || error != QNetworkReply::NoError || shortRead) {
-        const QString failure = status ? QStringLiteral("LibriVox chapter download failed (HTTP %1).").arg(status)
-                                       : QStringLiteral("LibriVox chapter download failed.");
-        failJob(job, failure);
-        return;
-    }
-    if ((mediaType != "audio/mpeg" && mediaType != "audio/mp3" && mediaType != "application/octet-stream")
-        || !looksLikeMp3(job->httpSignature)) {
-        failJob(job, QStringLiteral("LibriVox did not return MP3 audio."));
-        return;
-    }
-    finishDownloadedFile(job);
 }
 
 void AudiobookDownloader::onFileReadyRead()
@@ -992,8 +837,7 @@ void AudiobookDownloader::finalizeJob(Job* job)
     e.recordingKey = job->recordingKey;
     e.pairKey = job->pairKey;
     e.bundle = job->bundle;
-    e.dir = job->httpDir ? job->httpDir->path()
-                       : job->nativeTorrent ? job->completedDir : dirFor(job->recordingKey);
+    e.dir = job->nativeTorrent ? job->completedDir : dirFor(job->recordingKey);
     e.title = job->title;
     e.author = job->author;
     e.workId = job->workId;
@@ -1009,15 +853,8 @@ void AudiobookDownloader::finalizeJob(Job* job)
     e.bytes = job->doneBytes;
     e.addedAt = QDateTime::currentMSecsSinceEpoch();
     for (const FileJob& fj : job->files) e.files << fj.finalPath;
-    const Entry previous = m_index.value(job->recordingKey);
     m_index.insert(job->recordingKey,e);
-    if (!saveIndex() && job->httpDir) {
-        if (previous.recordingKey.isEmpty()) m_index.remove(job->recordingKey);
-        else m_index.insert(job->recordingKey, previous);
-        failJob(job, QStringLiteral("Cannot save the audiobook download index."));
-        return;
-    }
-    if (job->httpDir) job->httpDir->setAutoRemove(false);
+    saveIndex();
 
     const QString key = job->recordingKey, signalKey = job->signalKey;
     const QString dir = e.dir;
@@ -1099,35 +936,12 @@ void AudiobookDownloader::promoteQueue()
     if (m_active || m_queue.isEmpty()) return;
     m_active = m_queue.takeFirst();
     const quint64 generation = m_active->generation;
-    const bool directHttp = isLibriVox(m_active->sourceKind);
-    m_active->nativeTorrent = !directHttp && bool(m_torrent);
+    m_active->nativeTorrent = bool(m_torrent);
     QPointer<AudiobookDownloader> guard(this);
     const QString key = m_active->signalKey;
     emit resolving(key);
     if (!guard || !m_active || m_active->generation != generation) return;
-    if (directHttp) {
-        if (m_libriVoxEnabledCheck && !m_libriVoxEnabledCheck()) {
-            failJob(m_active, QStringLiteral("Enable LibriVox in Extensions to download this audiobook."));
-            return;
-        }
-        Job* job = m_active;
-        if (!QDir().mkpath(baseDir())) {
-            failJob(job, QStringLiteral("Cannot create the audiobook download directory."));
-            return;
-        }
-        job->httpDir = std::make_unique<QTemporaryDir>(dirFor(key) + QStringLiteral("-XXXXXX"));
-        if (!job->httpDir->isValid()) {
-            failJob(job, QStringLiteral("Cannot create the LibriVox recording directory."));
-            return;
-        }
-        for (FileJob& file : job->files) {
-            const QString name = QStringLiteral("%1 - %2.mp3")
-                .arg(file.fileIdx, 2, 10, QChar('0')).arg(file.name);
-            file.finalPath = job->httpDir->filePath(name);
-            file.partPath = file.finalPath + QStringLiteral(".part");
-        }
-        startNextFile(job);
-    } else if (m_active->nativeTorrent) {
+    if (m_active->nativeTorrent) {
         m_torrent->start(generation, m_active->infoHash, dirFor(m_active->recordingKey));
     } else {
         m_stream->prefetch(m_active->infoHash, 0);
@@ -1211,7 +1025,7 @@ void AudiobookDownloader::retireCancelledJob(Job* job)
 {
     cleanupInFlight(job);
     const QString key = job->recordingKey, signalKey = job->signalKey;
-    const bool separatelyOwned = isLibriVox(job->sourceKind) || job->nativeTorrent || bool(m_torrent);
+    const bool separatelyOwned = job->nativeTorrent || bool(m_torrent);
     if (m_active == job) m_active = nullptr;
     else m_queue.removeAll(job);
     delete job;

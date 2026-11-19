@@ -84,7 +84,6 @@
 #include "devtools/LanistaServer.h"
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
-#include "engine/LibriVoxSearch.h"
 #include "engine/AudiobookRecordingMatch.h"
 #ifdef Q_OS_ANDROID
 #include "engine/AudiobookTorrentTransport.h"
@@ -1294,11 +1293,8 @@ int main(int argc, char *argv[]) {
     if (!vinylV1OfflineBoot)
         QTimer::singleShot(3000, stream, [stream]() { stream->warmUp(); });
 
-    // Torrent and LibriVox downloads share the audiobook recording index.
     auto *audiobooks = new AudiobookDownloader(dlNam, stream, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Audiobooks"), audiobooks);
-    auto* libriVoxSearch = new LibriVoxSearch(dlNam, &backendServices);
-    engine.rootContext()->setContextProperty(QStringLiteral("LibriVoxCatalogue"), libriVoxSearch);
     auto *audiobookMatcher = new AudiobookRecordingMatcher(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("AudiobookRecordingMatcher"), audiobookMatcher);
 
@@ -1795,11 +1791,6 @@ int main(int argc, char *argv[]) {
     audiobooks->setTankorentEnabledCheck([sourceEnabled] {
         return sourceEnabled(QStringLiteral("colosseum.well.indexers"));
     });
-    const auto libriVoxEnabled = [sourceEnabled] {
-        return sourceEnabled(QStringLiteral("colosseum.well.librivox"));
-    };
-    audiobooks->setLibriVoxEnabledCheck(libriVoxEnabled);
-    libriVoxSearch->setEnabledCheck(libriVoxEnabled);
 #ifdef COLOSSEUM_NUVIO_PLUGINS
     const QString nuvioDirectory = instanceAppData + QStringLiteral("/extensions/nuvio");
     auto *nuvioRepos = new NuvioRepositoryStore(nuvioDirectory, NuvioNetwork::getRepositoryAsset,

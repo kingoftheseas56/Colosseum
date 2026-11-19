@@ -13,7 +13,6 @@ function houseInstallUrl(id) {
         return "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json";
     if (id === "colosseum.well.getcomics.issues") return "colosseum://well/getcomics.issues";
     if (id === "colosseum.well.audiobookbay") return "colosseum://well/audiobookbay";
-    if (id === "colosseum.well.librivox") return "colosseum://well/librivox";
     return "";
 }
 
@@ -322,8 +321,7 @@ var JOB = {
     "colosseum.well.getcomics.issues":  "issue downloads",
     "colosseum.well.libgen":            "book files",
     "colosseum.well.indexers":          "comic, book and audiobook torrents",
-    "colosseum.well.audiobookbay":      "audiobook torrents",
-    "colosseum.well.librivox":          "public-domain audiobooks"
+    "colosseum.well.audiobookbay":      "audiobook torrents"
 };
 
 function jobFor(id) { return JOB[id] || ""; }

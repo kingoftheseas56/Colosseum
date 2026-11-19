@@ -217,6 +217,19 @@ TestCase {
         tryCompare(shell.audioSession, "activePairKey", pair)
     }
 
+    function test_retired_source_opens_with_its_original_recording_key() {
+        const key = pair + "#librivox:1480"
+        const legacy = Object.assign(row(key), { workId: "", sourceKind: "librivox", sourceRef: "1480" })
+        const flow = createTemporaryObject(flowComponent, surface.contentItem)
+        flow.downloads = createTemporaryObject(localComponent, tc, { rows: [legacy] })
+        flow.session = createTemporaryObject(audioComponent, tc)
+
+        verify(flow.openListen(key))
+        compare(flow.currentPage.route.recordingKey, key)
+        compare(flow.session.calls, ["open:" + key])
+        compare(flow.session.activePairKey, key)
+    }
+
     function test_player_ownership_and_reverse_jump() {
         const flow = createTemporaryObject(flowComponent, surface.contentItem)
         flow.downloads = createTemporaryObject(localComponent, tc, { rows: [row(first)] })

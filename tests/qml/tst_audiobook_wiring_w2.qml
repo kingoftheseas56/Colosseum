@@ -292,7 +292,7 @@ TestCase {
         press(detail)
         const page = sources(view)
         compare(page.providerStates.abb.state, "disabled")
-        compare(page.providerStates.librivox.state, "disabled")
+        compare(Object.keys(page.providerStates), ["abb"])
         compare(extensionsSpy.count, 0)
         compare(view.abb.requests, 0)
         findChild(page, "audiobookSourcesExtensions").clicked()
