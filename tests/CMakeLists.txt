@@ -4940,6 +4940,11 @@ if(COLOSSEUM_PLAYER_TEST_NODE)
                      "${CMAKE_CURRENT_SOURCE_DIR}/player_loader_failure_test.mjs")
     set_tests_properties(colosseum.player_loader_failure PROPERTIES
         LABELS "unit;player" TIMEOUT 30)
+    add_test(NAME colosseum.player2_smart_pick_loader
+             COMMAND "${COLOSSEUM_PLAYER_TEST_NODE}"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/player2_smart_pick_loader_test.mjs")
+    set_tests_properties(colosseum.player2_smart_pick_loader PROPERTIES
+        LABELS "unit;player" TIMEOUT 30)
     add_test(NAME colosseum.player1_recovery_resume
              COMMAND "${COLOSSEUM_PLAYER_TEST_NODE}"
                      "${CMAKE_CURRENT_SOURCE_DIR}/player_recovery_resume_test.mjs")
