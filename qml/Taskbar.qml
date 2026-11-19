@@ -30,6 +30,8 @@ Item {
     property Component pickerMapSlide
     property bool pickerReducedMotion: false
     readonly property bool pickerShown: visible && open && !autoRevealed && !!pickerScene
+    readonly property bool legacyExpanded: open && !pickerScene
+    readonly property bool dockExpanded: pickerShown || legacyExpanded
     readonly property real pickerWidth: Math.max(0, width - leftEdge * 2)
     property bool localMediaAvailable: typeof LocalLaunch !== "undefined" && LocalLaunch !== null
     readonly property string localMediaUnavailableReason: qsTr("Local file import is unavailable. Open downloaded media from Downloads.")
@@ -235,12 +237,15 @@ Item {
         x: bar.leftEdge
         y: parent.height - height - bar.bottomGap
         width: bar.pickerShown ? bar.pickerWidth
-             : bar.open ? Math.min(parent.width - (bar.leftEdge * 2), 1720) : bar.closedWidth
+             : bar.legacyExpanded ? Math.min(bar.pickerWidth, 1720)
+             : bar.autoRevealed && bar.open && sessionTiles.implicitWidth > 0
+                 ? Math.min(bar.pickerWidth, bar.closedWidth + dockRow.spacing + sessionTiles.implicitWidth)
+                 : bar.closedWidth
         height: bar.closedSize
-        radius: bar.open ? 18 : bar.closedSize / 2
+        radius: bar.dockExpanded ? 18 : bar.closedSize / 2
         clip: true
         color: bar.pickerShown ? "#7210141c"
-             : startInput.interactionActive || bar.open ? Qt.rgba(0.02, 0.02, 0.04, 0.94)
+             : startInput.interactionActive || bar.dockExpanded ? Qt.rgba(0.02, 0.02, 0.04, 0.94)
                                                  : Qt.rgba(0.02, 0.02, 0.03, 0.72)
         border.width: 1
         border.color: startInput.interactionActive ? Qt.rgba(0.94, 0.76, 0.35, 0.56)
@@ -261,6 +266,7 @@ Item {
         }
 
         RowLayout {
+            id: dockRow
             anchors.fill: parent
             anchors.leftMargin: 8
             anchors.rightMargin: 14
@@ -275,9 +281,9 @@ Item {
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: bar.open ? 14 : 24
+                    radius: bar.dockExpanded ? 14 : 24
                     color: startInput.interactionActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                    border.width: bar.open || startInput.activeFocus ? 1 : 0
+                    border.width: bar.dockExpanded || startInput.activeFocus ? 1 : 0
                     border.color: startInput.activeFocus ? theme.gold : Qt.rgba(1, 1, 1, 0.13)
 
                     Behavior on radius { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
@@ -302,11 +308,13 @@ Item {
                     anchors.rightMargin: -touchMetrics.targetInset(parent.width)
                     anchors.topMargin: -touchMetrics.targetInset(parent.height)
                     anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
-                    accessibleName: bar.open ? "Close Colosseum taskbar" : "Open Colosseum taskbar"
-                    focusRadius: bar.open ? 14 : 24
+                    accessibleName: bar.dockExpanded
+                        ? "Close Colosseum taskbar" : "Open Colosseum taskbar"
+                    focusRadius: bar.dockExpanded ? 14 : 24
                     onTriggered: {
-                        bar.open = !bar.open
+                        bar.open = !bar.dockExpanded
                         bar.autoRevealed = false
+                        idleTimer.stop()
                     }
                 }
             }
@@ -370,7 +378,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open && !bar.pickerShown
+                visible: bar.legacyExpanded
                 Rectangle {
                     anchors.fill: parent
                     radius: 13
@@ -435,7 +443,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open && !bar.pickerShown
+                visible: bar.legacyExpanded
                 readonly property bool atlasActive: bar.watchPartyJoinOpen
 
                 Rectangle {
@@ -540,7 +548,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: (bar.open && !bar.pickerShown) || (!!bar.pickerScene && bar.extensionsActive)
+                visible: bar.legacyExpanded || (!!bar.pickerScene && bar.extensionsActive)
                 activeFocusOnTab: visible
                 Accessible.role: Accessible.Button
                 Accessible.name: "Extensions"
@@ -586,7 +594,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: (bar.open && !bar.pickerShown) || (!!bar.pickerScene && bar.historyStatsActive)
+                visible: bar.legacyExpanded || (!!bar.pickerScene && bar.historyStatsActive)
                 Rectangle {
                     objectName: "taskbarHistoryStatsSurface"
                     anchors.fill: parent
@@ -631,6 +639,7 @@ Item {
 
             // Session tiles — the dock's fill-width content.
             Row {
+                id: sessionTiles
                 objectName: "taskbarSessionTiles"
                 Layout.fillWidth: true
                 spacing: 10

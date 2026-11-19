@@ -44,6 +44,7 @@ Item {
         SignalSpy { id: picks; target: suite.bar; signalName: "pickerPickRequested" }
         SignalSpy { id: wallpapers; target: suite.bar; signalName: "pickerWallpaperRequested" }
         SignalSpy { id: files; target: suite.bar; signalName: "openMediaClicked" }
+        SignalSpy { id: sessions; target: suite.bar; signalName: "switchRequested" }
 
         function init() {
             root.width = 1280
@@ -852,15 +853,35 @@ Item {
             verify(!bar.pickerShown)
         }
 
-        function test_autoRevealKeepsPickerClosed() {
+        function test_autoRevealShowsOnlyTheRealSession() {
+            bar.groups = [{ appType: "theatre", sessions: [{ id: "movie", title: "Movie" }] }]
+            sessions.clear()
+            bar.visible = false
             bar.reveal()
-            verify(bar.open)
+            verify(!bar.open)
+            bar.visible = true
+            const dock = findChild(bar, "taskbarDock")
+            const picker = findChild(bar, "dockPicker")
+            const strip = findChild(bar, "taskbarSessionTiles")
+            verify(waitForRendering(dock))
+            verify(bar.open && bar.autoRevealed)
             verify(!bar.pickerShown)
-            bar.open = false
+            verify(!findChild(bar, "taskbarOpenMedia").visible)
+            verify(!findChild(bar, "taskbarExtensions").visible)
+            tryCompare(dock, "width", bar.closedWidth + 14 + strip.implicitWidth)
+            verify(dock.width < picker.width)
+            tryCompare(dock, "radius", bar.closedSize / 2)
+            verify(strip.enabled && strip.implicitWidth > 0)
+
             mouseClick(findChild(bar, "taskbarToggleAction"))
             verify(bar.pickerShown)
             bar.reveal()
             verify(bar.pickerShown)
+            tryCompare(dock, "width", picker.width)
+            mouseClick(strip, 23, 23)
+            compare(sessions.count, 1)
+            compare(sessions.signalArguments[0][0], "movie")
+            verify(!bar.open)
         }
     }
 }
