@@ -189,6 +189,10 @@ int main(int argc,char** argv) {
             "series search returns released works once in reading order");
     require(edge.search("The Stormlight Archive", 1) == seriesSearch.mid(0, 1),
             "series search honors the limit and optional article");
+    require(edge.search("stormliht archive", 20) == seriesSearch,
+            "series search recovers the missing letter in the reported query");
+    require(edge.search("The Stormligth Archive", 20) == seriesSearch,
+            "series search recovers a transposition with the leading article");
     const auto series = edge.series("the-stormlight-archive").value("works").toList();
     require(series.size() == 1, "series omits future, undated and foreign-only works");
     const auto seriesCover = series.first().toMap().value("coverUrl").toString();

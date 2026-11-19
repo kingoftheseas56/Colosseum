@@ -2,6 +2,26 @@
 import {query, text, integer, clamp, type Row, type CatalogueDb} from './catalogue-semantic.ts';
 
 const id = (v:any) => text(v).trim().slice(0,256);
+function nearbySeriesIds(slug:string):string[]{
+  const base=slug.startsWith('the-')?slug.slice(4):slug;
+  if(base.length<8 || base.length>48 || !/^[a-z]+(?:-[a-z]+)+$/.test(base))return [];
+
+  const candidates:string[]=[];
+  const add=(key:string)=>candidates.push(key,'the-'+key);
+  for(let pos=0;pos<=base.length;++pos){
+    const left=base.slice(0,pos), right=base.slice(pos);
+    const hasLetter=right.length>0 && right[0]!=='-';
+    for(const letter of 'abcdefghijklmnopqrstuvwxyz'){
+      add(left+letter+right);
+      if(hasLetter && right[0]!==letter)add(left+letter+right.slice(1));
+    }
+    if(!hasLetter)continue;
+    add(left+right.slice(1));
+    if(right.length>1 && right[1]!=='-' && right[0]!==right[1])
+      add(left+right[1]+right[0]+right.slice(2));
+  }
+  return candidates;
+}
 const page = (v:any) => Math.min(100000, Math.max(0, integer(v)));
 const workRow = (r:Row) => ({
   id:text(r.id), title:text(r.title), sortTitle:text(r.sort_title),
@@ -234,12 +254,15 @@ export async function audiobooksMethod(db:CatalogueDb,method:string,args:any[]):
     const slug=input.normalize('NFKD').toLowerCase().replace(/[\p{M}'’]+/gu,'')
       .match(/[\p{L}\p{N}]+/gu)?.join('-')??'';
     const articleVariant=slug.startsWith('the-')?slug.slice(4):'the-'+slug;
-    const seriesWorks=await query(db,`
+    const worksForSeries=(seriesId:string)=>query(db,`
       SELECT w.* FROM work_series ws JOIN works w ON w.id=ws.work_id
-      WHERE ws.series_id=(SELECT id FROM series WHERE id IN (?,?) ORDER BY id<>? LIMIT 1)
+      WHERE ws.series_id=?
       AND EXISTS (SELECT 1 FROM recordings r WHERE r.work_id=w.id AND ${released('r')})
       ORDER BY (ws.position_sort IS NULL),ws.position_sort,w.title COLLATE NOCASE,w.id LIMIT ?`,
-      [slug,articleVariant,slug,limit]);
+      [seriesId,limit]);
+    const [seriesMatch]=await query(db,
+      'SELECT id FROM series WHERE id IN (?,?) ORDER BY id<>? LIMIT 1',[slug,articleVariant,slug]);
+    const seriesWorks=seriesMatch?await worksForSeries(text(seriesMatch.id)):[];
     if(seriesWorks.length===limit)return seriesWorks.map(workRow);
 
     const result=await query(db,`
@@ -248,7 +271,15 @@ export async function audiobooksMethod(db:CatalogueDb,method:string,args:any[]):
         SELECT 1 FROM recordings r WHERE r.work_id=w.id AND ${released('r')})
       ORDER BY bm25(search_fts),w.title COLLATE NOCASE,w.id LIMIT ?`,[token,limit]);
     const seen=new Set(seriesWorks.map(row=>row.id));
-    return seriesWorks.concat(result.filter(row=>!seen.has(row.id))).slice(0,limit).map(workRow);
+    const matches=seriesWorks.concat(result.filter(row=>!seen.has(row.id))).slice(0,limit);
+    if(matches.length || seriesMatch)return matches.map(workRow);
+
+    // Match the native search: only correct an empty query with one candidate series.
+    const candidates=nearbySeriesIds(slug);
+    if(!candidates.length)return [];
+    const corrected=await query(db,
+      'SELECT id FROM series WHERE id IN (SELECT value FROM json_each(?)) LIMIT 2',[JSON.stringify(candidates)]);
+    return corrected.length===1?(await worksForSeries(text(corrected[0].id))).map(workRow):[];
   }
   if(method==='work')return work(db,id(args[0]));
   if(method==='recordingByAsin')return recordingBy(db,'asin',id(args[0]).toUpperCase());

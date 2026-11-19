@@ -28,6 +28,7 @@ SearchSurface {
     activateTopOnEnter: true
     showSearchErrorSummary: false
     topResult: (audioFirst ? audioLane.loading : bookLane.loading) ? null
+        : audioFirst && provider.audioGroup.items.length ? provider.audioGroup.items[0]
         : results.length ? results[0] : null
 
     readonly property var genreTerms: [
@@ -133,8 +134,8 @@ SearchSurface {
         readonly property string error: bookLane.error || audioLane.error
         readonly property var bookGroup: biblio.searchGroup("books", qsTr("Books"), bookLane, false)
         readonly property var audioGroup: biblio.searchGroup("audiobooks", qsTr("Audiobooks"), audioLane, true)
-        readonly property var groups: biblio.audioFirst ? [audioGroup, bookGroup] : [bookGroup, audioGroup]
-        readonly property var results: groups[0].items.concat(groups[1].items)
+        readonly property var groups: [bookGroup, audioGroup]
+        readonly property var results: bookGroup.items.concat(audioGroup.items)
 
         function cancel() {
             bookLane.cancel()

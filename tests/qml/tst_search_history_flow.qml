@@ -327,14 +327,16 @@ TestCase {
         var status = findItem(surface, "searchGroupStatus_audiobooks")
         verify(status !== null && status.visible)
         compare(status.text, "No audiobook matches")
+        compare(surface.groupedResults().map(function(group) { return group.key }),
+                ["books", "audiobooks"])
         compare(surface.bookResultCount, 2)
     }
 
-    function test_biblio_origin_orders_provider_groups_data() {
+    function test_biblio_books_section_precedes_audiobooks_data() {
         return [{ tag: "books", audioFirst: false }, { tag: "audiobooks", audioFirst: true }]
     }
 
-    function test_biblio_origin_orders_provider_groups(data) {
+    function test_biblio_books_section_precedes_audiobooks(data) {
         var surface = createTemporaryObject(biblioSearch, testWindow.contentItem, {
             historyStore: history, audioFirst: data.audioFirst,
             width: testWindow.width, height: testWindow.height,
@@ -350,7 +352,7 @@ TestCase {
         verify(findItem(surface, "searchSurfaceResults") !== null)
         compare(surface.topResult.title, data.audioFirst ? "Audio One" : "Book One")
         var sections = surface.groupedResults().map(function(group) { return group.key })
-        compare(sections, data.audioFirst ? ["audiobooks", "books"] : ["books", "audiobooks"])
+        compare(sections, ["books", "audiobooks"])
     }
 
     function test_biblio_enter_opens_current_match_and_restores_search_state() {

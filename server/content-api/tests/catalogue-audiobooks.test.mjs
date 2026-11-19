@@ -86,6 +86,10 @@ test('series returns works in numeric position sort and preserves display text',
     const found=await audiobooksMethod(sqliteAdapter(memory),'search',['stormlight archive',20]);
     assert.deepEqual(found.map(r=>r.id),['1-ari-kami-book-1','rhythm-of-war']);
     assert.deepEqual(await audiobooksMethod(sqliteAdapter(memory),'search',['The Stormlight Archive',1]),found.slice(0,1));
+    assert.deepEqual(await audiobooksMethod(sqliteAdapter(memory),'search',['stormliht archive',20]),found);
+    assert.deepEqual(await audiobooksMethod(sqliteAdapter(memory),'search',['The Stormligth Archive',20]),found);
+    memory.exec("INSERT INTO series VALUES('the-stormliat-archive','The Stormliat Archive')");
+    assert.deepEqual(await audiobooksMethod(sqliteAdapter(memory),'search',['stormliht archive',20]),[]);
     assert.equal(stormlight.works[0].coverUrl,'https://m.media-amazon.com/images/I/51FF+pax2vL._SL500_.jpg');
   }finally{memory.close();}
 });

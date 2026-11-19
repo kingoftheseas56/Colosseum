@@ -54,6 +54,31 @@ QVariantMap seriesRow(const QVariantMap& row) {
     return {{"id",row.value("id")},{"name",row.value("name")},
             {"numberText",row.value("number_text")},{"positionSort",row.value("position_sort")}};
 }
+QStringList nearbySeriesIds(const QString& slug) {
+    static const QRegularExpression titlePattern(QStringLiteral("^[a-z]+(?:-[a-z]+)+$"));
+    const auto base = slug.startsWith(QStringLiteral("the-")) ? slug.mid(4) : slug;
+    if (base.size() < 8 || base.size() > 48 || !titlePattern.match(base).hasMatch()) return {};
+
+    QStringList candidates;
+    const auto add = [&candidates](const QString& id) {
+        candidates << id << QStringLiteral("the-") + id;
+    };
+    for (qsizetype pos = 0; pos <= base.size(); ++pos) {
+        const auto left = base.left(pos);
+        const auto right = base.mid(pos);
+        const bool hasLetter = !right.isEmpty() && right.front() != QLatin1Char('-');
+        for (char ch = 'a'; ch <= 'z'; ++ch) {
+            const QLatin1Char letter(ch);
+            add(left + letter + right);
+            if (hasLetter && right.front() != letter) add(left + letter + right.mid(1));
+        }
+        if (!hasLetter) continue;
+        add(left + right.mid(1));
+        if (right.size() > 1 && right.at(1) != QLatin1Char('-') && right.at(0) != right.at(1))
+            add(left + right.at(1) + right.at(0) + right.mid(2));
+    }
+    return candidates;
+}
 QString validId(const QString& raw) { return raw.trimmed().left(256); }
 int pageOffset(int page) { return std::clamp(page,0,100000)*24; }
 QVariant queryShape(const QString& method) {
@@ -150,12 +175,19 @@ QVariantList AudiobookCatalog::search(const QString& text, int limit) const {
                           .join(QLatin1Char('-'));
     const auto articleVariant = slug.startsWith(QStringLiteral("the-"))
         ? slug.mid(4) : QStringLiteral("the-") + slug;
-    const auto seriesWorks = select(QStringLiteral(
-        "SELECT w.* FROM work_series ws JOIN works w ON w.id=ws.work_id "
-        "WHERE ws.series_id=(SELECT id FROM series WHERE id IN (?,?) ORDER BY id<>? LIMIT 1) "
-        "AND EXISTS (SELECT 1 FROM recordings r WHERE r.work_id=w.id AND %1) "
-        "ORDER BY (ws.position_sort IS NULL),ws.position_sort,w.title COLLATE NOCASE,w.id LIMIT ?")
-        .arg(released("r")), {slug, articleVariant, slug, maxResults});
+    const auto worksForSeries = [this, maxResults](const QVariant& seriesId) {
+        return select(QStringLiteral(
+            "SELECT w.* FROM work_series ws JOIN works w ON w.id=ws.work_id "
+            "WHERE ws.series_id=? "
+            "AND EXISTS (SELECT 1 FROM recordings r WHERE r.work_id=w.id AND %1) "
+            "ORDER BY (ws.position_sort IS NULL),ws.position_sort,w.title COLLATE NOCASE,w.id LIMIT ?")
+            .arg(released("r")), {seriesId, maxResults});
+    };
+    const auto seriesMatches = select(QStringLiteral(
+        "SELECT id FROM series WHERE id IN (?,?) ORDER BY id<>? LIMIT 1"),
+        {slug, articleVariant, slug});
+    const auto seriesWorks = seriesMatches.isEmpty() ? QVariantList{}
+        : worksForSeries(seriesMatches.first().toMap().value("id"));
     QSet<QString> seen;
     for (const auto& value : seriesWorks) {
         const auto row = value.toMap();
@@ -175,6 +207,19 @@ QVariantList AudiobookCatalog::search(const QString& text, int limit) const {
         if (seen.contains(row.value("id").toString())) continue;
         result.append(workRow(row));
         if (result.size() == maxResults) break;
+    }
+    if (!result.isEmpty() || !seriesMatches.isEmpty()) return result;
+
+    // Try a single-letter correction only after an empty search, and require one series.
+    const auto candidates = nearbySeriesIds(slug);
+    if (candidates.isEmpty()) return result;
+    const auto ids = QString::fromUtf8(
+        QJsonDocument(QJsonArray::fromStringList(candidates)).toJson(QJsonDocument::Compact));
+    const auto corrected = select(QStringLiteral(
+        "SELECT id FROM series WHERE id IN (SELECT value FROM json_each(?)) LIMIT 2"), {ids});
+    if (corrected.size() == 1) {
+        for (const auto& value : worksForSeries(corrected.first().toMap().value("id")))
+            result.append(workRow(value.toMap()));
     }
     return result;
 }
