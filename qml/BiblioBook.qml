@@ -60,6 +60,7 @@ Item {
     property var booksRef: (typeof Books !== "undefined") ? Books : null
     property var bookTorrentsRef: (typeof BookTorrents !== "undefined") ? BookTorrents : null
     property var audiobooksRef: (typeof Audiobooks !== "undefined") ? Audiobooks : null
+    property var audioSessionRef: null
     property var streamRef: (typeof Stream !== "undefined") ? Stream : null
     readonly property bool audiobookBayEnabled:
         ExtensionCatalog.sourceEnabled(detail.extensionsRef, "colosseum.well.audiobookbay")
@@ -106,6 +107,7 @@ Item {
     // ── audiobook pairing lane: the same title's audiobook, from AudioBookBay ──
     property var abRows: []                             // ABB search rows for this title
     property bool abLoading: false
+    property bool abLookupUnavailable: false
     property string abInfoHash: ""                      // resolved infoHash of the picked row
     // the pairing identity — same for this title's ebook and audiobook entities.
     // audiobook-opened pages carry book.pairKey; ebook-opened pages compute it from title/author.
@@ -113,6 +115,8 @@ Item {
                              : BiblioApi.pairKey(detail.book ? detail.book.title : "",
                                                  detail.book ? detail.book.author : "")
     property bool audioLocal: false                     // recomputed in loadEditions + on Audiobooks.finished
+    readonly property bool audioPlayingHere: audioLocal && audioSessionRef && audioSessionRef.ready
+        && audioSessionRef.activePairKey === pairKey && !audioSessionRef.paused && !audioSessionRef.completed
 
     Theme { id: theme }
     Keys.priority: Keys.AfterItem
@@ -154,10 +158,9 @@ Item {
         detail.abInfoHash = ""
         abCol.abActiveSlug = ""
         abCol.abState = "idle"
-        if (!detail.book || !detail.book.title) return
-        abCol.syncStatus()
-        detail.loadLibgenEditions()
         detail.loadAudiobookSources()
+        if (!detail.book || !detail.book.title) return
+        detail.loadLibgenEditions()
         detail.loadTorrents()
         detail.refreshLocal()
     }
@@ -167,18 +170,22 @@ Item {
         detail.abInfoHash = ""
         detail.abRows = []
         detail.abLoading = false
+        detail.abLookupUnavailable = false
+        detail.audioLocal = false
         if (!detail.book || !detail.book.title) return
-        var key = detail.book.pairKey || BiblioApi.pairKey(detail.book.title, detail.book.author || "")
+        // bookChanged can run before the pairKey binding has been notified.
+        var key = detail.book.pairKey || BiblioApi.pairKey(detail.book.title, detail.book.author)
         abCol.syncStatus(key)
         if (!detail.audiobookBusy(abCol.abState) && abCol.abState !== "done")
             abCol.abActiveSlug = ""
         detail.audioLocal = !!detail.audiobooksRef && detail.audiobooksRef.isDownloaded(key)
-        if (!detail.audiobookBayEnabled) return
+        if (detail.audioLocal || !detail.audiobookBayEnabled) return
         detail.abLoading = true
-        Abb.resolveAudiobook(detail.book.title, detail.book.author, function(res) {
+        Abb.resolveAudiobook(detail.book.title, detail.book.author, function(res, reason) {
             if (!detail.audiobookBayEnabled || gen !== detail.audiobookGeneration || key !== detail.pairKey) return
             detail.abRows = (res && res.rows) ? res.rows : []
             detail.abLoading = false
+            detail.abLookupUnavailable = !!reason
             if (!detail.audioLocal && detail.abRows.length > 0) {
                 var slug = detail.abRows[0].slug
                 Abb.fetchInfoHash(slug, function(d) {
@@ -668,10 +675,20 @@ Item {
         return state === "resolving" || state === "queued" || state === "downloading"
                 || state === "stopping" || state === "finishing"
     }
+    function toggleLocalAudiobook() {
+        if (!detail.audioLocal || !detail.audioSessionRef) return
+        if (!detail.audiobooksRef.isDownloaded(detail.pairKey)) {
+            detail.loadAudiobookSources()
+            return
+        }
+        var session = detail.audioSessionRef
+        if (session.ready && session.activePairKey === detail.pairKey)
+            session.togglePlay()
+        else
+            session.openFor(detail.pairKey, detail.book, false)
+    }
     function activateAudiobookRow(row) {
-        if (!row) return
-        var rowState = row.slug === abCol.abActiveSlug ? abCol.abState : "idle"
-        if (rowState === "done") { if (detail.localPath) detail.readRequested(detail.localPath, detail.book); return }
+        if (!row || detail.audioLocal) return
         if (detail.audiobookBusy(abCol.abState)) return
         abCol.syncStatus()
         if (detail.audiobookBusy(abCol.abState)) return
@@ -981,9 +998,7 @@ Item {
                         width: parent.width
                         reference: CollectionsReferences.book(detail.book)
                     }
-                    // (The standalone Listen button is retired — Hemanth 2026-07-18: the reader IS
-                    // the audiobook player. A downloaded audiobook auto-attaches; Read opens the
-                    // book and the reader's HUD transport + Audio tab carry playback.)
+                    // The paired audiobook also auto-attaches when Read opens the reader.
                 }
             }
 
@@ -1303,7 +1318,8 @@ Item {
 
                 Item { width: 1; height: 30 }
                 Text {
-                    text: "AUDIOBOOK" + (!detail.audiobookBayEnabled ? "" : detail.abLoading ? "  ·  SEARCHING…"
+                    text: "AUDIOBOOK" + (detail.audioLocal || detail.abLookupUnavailable
+                          || !detail.audiobookBayEnabled ? "" : detail.abLoading ? "  ·  SEARCHING…"
                           : (detail.abRows.length > 0 ? "  ·  " + detail.abRows.length : "  ·  NONE"))
                     color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                     font.weight: Font.DemiBold; font.letterSpacing: 1.6
@@ -1311,7 +1327,7 @@ Item {
                 Item { width: 1; height: 12 }
                 SourceExtensionPrompt {
                     width: Math.min(parent.width, 640)
-                    visible: !detail.audiobookBayEnabled
+                    visible: !detail.audioLocal && !detail.audiobookBayEnabled
                     namePrefix: "audiobookSource"
                     message: qsTr("No audiobook download source is enabled for this title. Enable one in Extensions.")
                     androidHost: detail.androidHost
@@ -1320,7 +1336,7 @@ Item {
                 }
                 Glass {
                     id: audiobookList
-                    visible: detail.audiobookBayEnabled
+                    visible: detail.audioLocal || detail.audiobookBayEnabled
                     backdrop: detail.backdrop
                     width: Math.min(parent.width, 640); radius: 14
                     height: abCol.implicitHeight
@@ -1345,12 +1361,13 @@ Item {
                             target: detail.audiobooksRef
                             function onResolving(key) { if (key === detail.pairKey) abCol.syncStatus() }
                             function onProgress(key, rcv, tot) { if (key === detail.pairKey) { abCol.abState = "downloading"; abCol.abPct = tot > 0 ? rcv / tot : 0 } }
-                            function onFinished(key, path) { if (key === detail.pairKey) { abCol.abState = "done"; abCol.abPct = 1; detail.audioLocal = true } }
+                            function onFinished(key, path) {
+                                if (key === detail.pairKey) detail.loadAudiobookSources()
+                            }
                             function onFailed(key, why) { if (key === detail.pairKey) abCol.abState = "failed" }
                             function onRemoved(key) {
                                 if (key !== detail.pairKey) return
-                                abCol.syncStatus()
-                                detail.audioLocal = detail.audiobooksRef.isDownloaded(key)
+                                detail.loadAudiobookSources()
                             }
                         }
                         // REHYDRATE on page (re)entry: the download runs in C++ and survives leaving
@@ -1380,12 +1397,35 @@ Item {
                                 color: theme.gold; font.family: theme.ui; font.pixelSize: 13
                             }
                         }
-                        Item {                              // loading / empty
-                            visible: detail.abLoading || detail.abRows.length === 0
+                        Item {
+                            visible: detail.audioLocal || detail.abLoading || detail.abRows.length === 0
                             width: parent.width; height: 52
-                            Text { anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter
-                                text: detail.abLoading ? "Searching AudioBookBay…" : "No audiobook found"
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                            Text {
+                                objectName: "biblioAudiobookStatus"
+                                anchors.left: parent.left; anchors.leftMargin: 18
+                                anchors.right: audiobookAction.visible ? audiobookAction.left : parent.right
+                                anchors.rightMargin: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: detail.audioLocal ? qsTr("Downloaded")
+                                    : detail.abLoading ? qsTr("Searching AudioBookBay…")
+                                    : detail.abLookupUnavailable ? qsTr("AudioBookBay unavailable")
+                                    : qsTr("No audiobook found")
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                                wrapMode: Text.WordWrap
+                            }
+                            ExtensionsActionButton {
+                                id: audiobookAction
+                                objectName: "biblioAudiobookStatusAction"
+                                anchors.right: parent.right; anchors.rightMargin: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: detail.audioLocal ? !!detail.audioSessionRef : detail.abLookupUnavailable
+                                text: !detail.audioLocal ? qsTr("Retry")
+                                    : detail.audioPlayingHere ? qsTr("Pause") : qsTr("Listen")
+                                onClicked: {
+                                    if (detail.audioLocal) detail.toggleLocalAudiobook()
+                                    else detail.loadAudiobookSources()
+                                }
+                            }
                         }
                         Repeater {
                             id: audiobookRepeater

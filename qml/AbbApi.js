@@ -1,23 +1,54 @@
 // AbbApi.js — AudioBookBay scraper, ported from Tankoban 2's AbbScraper (C++ → QML JS).
 // Discovery is Apple (BiblioApi.searchAudiobooks); THIS is delivery: given a book's
 // title/author, find its audiobook torrent on ABB and hand a magnet/infoHash to the
-// native Audio engine. Base URL oscillates on takedowns — ONE constant to bump.
-// Regexes are verbatim from AbbScraper.cpp (verified against the 2026-04-22 probe fixtures).
+// native Audio engine. The existing Tankorent Worker handles the ABB lookups.
 .pragma library
 
 var ABB = "https://audiobookbay.lu";
-var ABB_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+var ABB_LOOKUP_URL = "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/v1/audiobookbay";
+var ABB_LOOKUP_TIMEOUT_MS = 22000;
 
-function requestText(url, done) {
+function requestLookup(operation, payload, done) {
     var xhr = new XMLHttpRequest();
+    // QML XMLHttpRequest does not expose a timeout property.
+    var timeout = Qt.createQmlObject(
+        "import QtQml\nTimer { repeat: false }", Qt.application, "AbbRequestTimeout.qml");
+    timeout.interval = ABB_LOOKUP_TIMEOUT_MS;
+
+    function finish(result, reason) {
+        xhr.onreadystatechange = null;
+        timeout.stop();
+        timeout.destroy();
+        done(result, reason);
+    }
+
+    timeout.triggered.connect(function() {
+        finish(null, "timeout");
+        xhr.abort();
+    });
     xhr.onreadystatechange = function() {
         if (xhr.readyState !== XMLHttpRequest.DONE) return;
-        if (xhr.status < 200 || xhr.status >= 300) { done(null); return; }
-        done(xhr.responseText);
+        if (xhr.status < 200 || xhr.status >= 300) {
+            finish(null, xhr.status ? "http-" + xhr.status : "offline");
+            return;
+        }
+        var response;
+        try { response = JSON.parse(xhr.responseText); } catch (e) {}
+        if (!response || response.contractVersion !== 1 || response.sourceId !== "audiobookbay"
+                || !response.result || typeof response.result !== "object") {
+            finish(null, "invalid-response");
+            return;
+        }
+        finish(response.result);
     };
-    xhr.open("GET", url);
-    try { xhr.setRequestHeader("User-Agent", ABB_UA); } catch (e) {}
-    xhr.send();
+    try {
+        xhr.open("POST", ABB_LOOKUP_URL + "/" + operation);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        timeout.start();
+        xhr.send(JSON.stringify(payload));
+    } catch (e) {
+        if (xhr.onreadystatechange) finish(null, "offline");
+    }
 }
 
 function decode(s) {
@@ -148,21 +179,35 @@ function relevantRows(rows, title, author) {
 }
 
 // full delivery flow: search ABB for a book → rows. Caller picks a row, then calls
-// fetchInfoHash(slug) to resolve the torrent hash. done({ rows }) or done(null) on miss.
+// fetchInfoHash(slug) to resolve the torrent hash. An empty array is a successful lookup.
 function resolveAudiobook(title, author, done) {
     var term = searchTerm(title, author);
-    if (!term) { done(null); return; }
-    requestText(ABB + "/?s=" + encodeURIComponent(term), function(html) {
-        if (!html) { done(null); return; }
-        var rows = relevantRows(parseSearch(html), title, author);
-        if (rows.length === 0) { done(null); return; }
-        done({ rows: rows });
+    if (!term) { done({ rows: [] }); return; }
+    requestLookup("search", { query: term, page: 1 }, function(result, reason) {
+        if (reason) { done(null, reason); return; }
+        if (result.page !== 1 || !Array.isArray(result.rows) || result.rows.some(function(row) {
+            return !row || typeof row.slug !== "string" || !row.slug || typeof row.title !== "string";
+        })) {
+            done(null, "invalid-response");
+            return;
+        }
+        done({ rows: relevantRows(result.rows, title, author) });
     });
 }
 
 function fetchInfoHash(slug, done) {
-    requestText(ABB + "/abss/" + slug + "/", function(html) {
-        if (!html) { done(null); return; }
-        done(parseDetail(html));
+    var name = String(slug || "");
+    try { name = decodeURIComponent(name); } catch (e) { name = ""; }
+    if (!name || name.length > 200 || /^\.+$/.test(name) || /[/\\?#]/.test(name)) {
+        done(null, "invalid-detail");
+        return;
+    }
+    requestLookup("detail", { slug: name }, function(detail, reason) {
+        if (reason) { done(null, reason); return; }
+        if (!/^[a-f0-9]{40}$/.test(detail.infoHash)) {
+            done(null, "invalid-response");
+            return;
+        }
+        done(detail);
     });
 }

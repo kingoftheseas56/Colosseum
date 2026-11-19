@@ -5776,13 +5776,13 @@ Window {
         onLoaded: {
             item.openExtensionsRequested.connect(function() { win.openExtensionsPage("biblio") })
             item.backdrop = wall
+            item.audioSessionRef = audioSession
             item.book = bookLayer.book
             item.backRequested.connect(win.closeBook)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.readRequested.connect(win.openBookSession)
-            // (listenRequested retired — the reader carries audiobook playback now)
         }
     }
 
