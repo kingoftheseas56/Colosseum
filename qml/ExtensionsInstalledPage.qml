@@ -11,6 +11,7 @@ Item {
     property int initialIndex: 0
     property string actionError: ""
     property var removalEntry: null
+    property var removalChoices: []
     property string removalInstanceLabel: ""
     property int removalIndex: 0
     property int focusRequestIndex: -1
@@ -34,8 +35,26 @@ Item {
         page.focusRequestSerial++
     }
     function focusCurrentIndex() { page.focusInstalledIndex(list.currentIndex) }
+    function dismissRemoval() {
+        if (!removeDialog.opened) return false
+        removeDialog.close()
+        return true
+    }
+    function selectRemoval(index) {
+        page.removalEntry = page.entries[index]
+        page.removalInstanceLabel = page.instanceLabelFor(index)
+        page.removalIndex = index
+    }
+    function requestRemoval(indices) {
+        if (!indices.length) return
+        page.removalChoices = indices.length > 1 ? indices : []
+        page.removalEntry = null
+        page.removalInstanceLabel = ""
+        if (indices.length === 1) page.selectRemoval(indices[0])
+        removeDialog.open()
+    }
     function requestEscape() {
-        if (removeDialog.opened) { removeDialog.close(); return true }
+        if (page.dismissRemoval()) return true
         page.backRequested()
         return true
     }
@@ -43,6 +62,7 @@ Item {
         // Never retain a destructive target across native/profile changes.
         removeDialog.close()
         page.removalEntry = null
+        page.removalChoices = []
         page.removalInstanceLabel = ""
         if (page.entries.length && page.initialIndex >= page.entries.length)
             page.initialIndex = page.entries.length - 1
@@ -148,12 +168,7 @@ Item {
                 Qt.callLater(function() { page.focusInstalledIndex(index) })
             }
             onConfigureRequested: page.configureRequested(modelData)
-            onRemoveRequested: {
-                page.removalEntry = modelData
-                page.removalInstanceLabel = page.instanceLabelFor(index)
-                page.removalIndex = index
-                removeDialog.open()
-            }
+            onRemoveRequested: page.requestRemoval([index])
         }
         Text {
             visible: page.entries.length === 0
@@ -176,20 +191,51 @@ Item {
         closePolicy: Popup.CloseOnEscape
         background: Rectangle { radius: 18; color: "#141820"; border.color: theme.edge }
         onOpened: cancelRemoval.forceActiveFocus()
-        onClosed: page.takeKeyboardFocus()
+        onClosed: if (page.visible) page.takeKeyboardFocus()
         contentItem: Column {
             spacing: 18
             Text {
                 width: parent.width
-                text: qsTr("Remove %1?").arg(page.removalEntry ? String(page.removalEntry.manifest.name) : "")
+                text: page.removalEntry ? qsTr("Uninstall %1?").arg(String(page.removalEntry.manifest.name))
+                      : qsTr("Choose an installation")
                 textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
                 color: theme.ink
                 font.family: theme.display; font.pixelSize: 24
             }
+            ListView {
+                id: removalChoice
+                visible: page.removalChoices.length > 0
+                width: parent.width
+                height: Math.min(176, count * 44)
+                clip: true
+                model: page.removalChoices
+                ScrollBar.vertical: HouseScrollBar { flick: removalChoice; glassStyle: true }
+                delegate: KeyboardAction {
+                    id: choice
+                    required property int modelData
+                    readonly property bool selected: page.removalEntry !== null
+                                                     && page.removalIndex === modelData
+                    width: removalChoice.width
+                    height: 44
+                    accessibleName: caption.text
+                    onTriggered: page.selectRemoval(modelData)
+                    onActiveFocusChanged: if (activeFocus) removalChoice.positionViewAtIndex(
+                        page.removalChoices.indexOf(modelData), ListView.Contain)
+                    Text {
+                        id: caption
+                        anchors.verticalCenter: parent.verticalCenter
+                        leftPadding: 4
+                        text: page.instanceLabelFor(choice.modelData)
+                        color: choice.selected || choice.interactionActive ? theme.gold : theme.ink
+                        font.family: theme.ui
+                        font.pixelSize: 15
+                    }
+                }
+            }
             Text {
                 width: parent.width
-                visible: page.removalInstanceLabel.length > 0
+                visible: !removalChoice.visible && page.removalInstanceLabel.length > 0
                 text: page.removalInstanceLabel
                 color: theme.gold
                 font.family: theme.ui; font.pixelSize: 13
@@ -210,7 +256,8 @@ Item {
                 }
                 ExtensionsActionButton {
                     objectName: "extensionsConfirmRemoval"
-                    text: qsTr("Remove")
+                    text: qsTr("Uninstall")
+                    enabled: page.removalEntry !== null
                     destructive: true
                     onClicked: {
                         var entry = page.removalEntry
@@ -218,6 +265,7 @@ Item {
                         removeDialog.close()
                         if (entry) page.removeRequested(entry)
                         Qt.callLater(function() {
+                            if (!page.visible) return
                             if (page.entries.length)
                                 page.focusInstalledIndex(Math.min(index, page.entries.length - 1))
                             else page.takeKeyboardFocus()

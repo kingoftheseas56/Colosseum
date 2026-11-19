@@ -142,6 +142,34 @@ function fetchAll(done) {
     next()
 }
 
+// The first Essentials row uses bundled identities and art so it is present before the directory loads.
+function essentialsPreview(all) {
+    var torrentio = withTorrentio(all).find(isTorrentio)
+    return [
+        torrentio,
+        previewEntry(all, "colosseum.well.tankoyomi", "tankoyomi", "Tankoyomi",
+                     "https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json", true),
+        previewEntry(all, "com.linvo.cinemeta", "cinemeta", "Cinemeta",
+                     "https://v3-cinemeta.strem.io/manifest.json", false),
+        previewEntry(all, "org.stremio.opensubtitlesv3", "opensubtitles", "OpenSubtitles v3",
+                     "https://opensubtitles-v3.strem.io/manifest.json", false)
+    ]
+}
+
+function previewEntry(all, id, slug, name, manifestUrl, configurable) {
+    var remote = all.find(function(item) { return item.id === id && visible(item, false) })
+    var localArt = slug === "cinemeta" ? "" : "../assets/addon-logos/" + slug + ".png"
+    return Object.assign({}, remote, {
+        id: id,
+        slug: slug,
+        name: name,
+        title: name,
+        logo: (remote && remote.logo) || localArt,
+        manifestUrl: manifestUrl,
+        configurable: configurable || !!(remote && remote.configurable)
+    })
+}
+
 function essentials(all) {
     var out = []
     for (var i = 0; i < ESSENTIALS.length; i++)

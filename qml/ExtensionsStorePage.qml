@@ -65,7 +65,7 @@ Item {
     }
     readonly property var searchPool: root.catalogue.filter(function(a) { return StoreApi.visible(a, root.showExplicit) })
 
-    readonly property var essentials: StoreApi.essentials(root.catalogue)
+    readonly property var essentials: StoreApi.essentialsPreview(root.catalogue)
     readonly property var rows: StoreApi.rows(root.catalogue, root.showExplicit)
     readonly property var setup: setupLoader.item
 
@@ -243,6 +243,35 @@ Item {
         }
         Extensions.install(a.manifestUrl)
     }
+    function essentialInstanceIndices(addon) {
+        var indices = []
+        root.installedEntries.forEach(function(entry, index) {
+            if (!entry.core && (entry.id === addon.id || entry.transportUrl === addon.manifestUrl))
+                indices.push(index)
+        })
+        return indices
+    }
+    function installEssential(addon) {
+        if (addon.id === "colosseum.well.tankoyomi" || !addon.setupRequired)
+            root.activate(Object.assign({}, addon, { configurable: false }))
+        else
+            root.activate(addon)
+    }
+    function configureEssential(addon) {
+        if (addon.id === "colosseum.well.tankoyomi") {
+            root.openConfiguration(addon.id)
+            return
+        }
+        var indices = root.essentialInstanceIndices(addon)
+        if (indices.length > 1) {
+            management.initialIndex = indices[0]
+            root.managingInstalled = true
+        } else if (indices.length && root.canConfigure(root.installedEntries[indices[0]])) {
+            root.configureInstalled(root.installedEntries[indices[0]])
+        } else {
+            root.openSetup(addon, null)
+        }
+    }
     function openSuggestedStreamSource() {
         // The empty Sources sheet should reach the actual first-run action even
         // when the community catalogue is slow or unavailable.
@@ -341,8 +370,11 @@ Item {
         if (entry.core) return
         management.actionError = ""
         Extensions.removeInstance(entry.transportUrl)
-        if (Extensions.installed().some(function(e) { return e.transportUrl === entry.transportUrl }))
-            management.actionError = qsTr("Couldn't remove the add-on. Try again.")
+        if (Extensions.installed().some(function(e) { return e.transportUrl === entry.transportUrl })) {
+            const message = qsTr("Couldn't remove the add-on. Try again.")
+            if (root.managingInstalled) management.actionError = message
+            else root.showInstallError(message)
+        }
     }
 
     function openUrlInstaller() {
@@ -446,6 +478,7 @@ Item {
         if (root.installUrlOpen) { root.closeUrlInstaller(); return true }
         if (setup && setup.open) { root.closeSetup(); return true }
         if (root.configuringExtensionId.length) { root.replacingInstance = null; root.closeConfiguration(); return true }
+        if (management.dismissRemoval()) return true
         if (root.managingInstalled) return management.requestEscape()
         if (root.seeAllRow || root.searching) { root.seeAllRow = null; root.searching = false; return true }
         return false
@@ -633,11 +666,10 @@ Item {
 
         ExtensionsStoreRail {
             id: essentialsRail
-            title: "Essentials"
-            sub: "The five a fresh Colosseum needs."
+            title: qsTr("Essentials")
             automationId: "extensionsEssentialsRail"
-            canSeeAll: false                 // all five are already on screen
-            phoneLayout: root.phoneLayout
+            essentialsLayout: true
+            canSeeAll: false
             limitArtworkToViewport: root.limitArtworkToViewport
             artworkActive: root.rowArtworkActive(essentialsRail)
             items: root.essentials
@@ -645,7 +677,9 @@ Item {
             disabledFn: root.isDisabled
             busy: root.busy
             revision: root.revision
-            onAddonActivated: (a) => root.activate(a)
+            onAddonActivated: (a) => root.installEssential(a)
+            onAddonConfigured: (a) => root.configureEssential(a)
+            onAddonRemoved: (a) => management.requestRemoval(root.essentialInstanceIndices(a))
         }
 
         Repeater {

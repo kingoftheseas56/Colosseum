@@ -18,12 +18,15 @@ Column {
     property bool canSeeAll: true
     readonly property int phoneVisibleCount: 4
     property bool phoneLayout: false
+    property bool essentialsLayout: false
     property bool limitArtworkToViewport: false
     property bool artworkActive: true
-    readonly property real cardWidth: Math.min(theme.extensionCardWidth, width)
+    readonly property real cardWidth: Math.min(essentialsLayout ? 160 : theme.extensionCardWidth, width)
     readonly property real scrollLimit: Math.max(0, shelfFlick.contentWidth - shelfFlick.width)
     readonly property bool hasOverflow: !phoneLayout && scrollLimit > 0.5
     signal addonActivated(var addon)
+    signal addonConfigured(var addon)
+    signal addonRemoved(var addon)
     signal seeAllRequested()
 
     function scrollByPage(direction) {
@@ -51,9 +54,18 @@ Column {
 
     Item {
         width: parent.width
-        height: Math.max(head.height, navigation.height)
+        height: Math.max(rail.essentialsLayout ? essentialsHeader.height : head.height, navigation.height)
+        WidgetHeader {
+            id: essentialsHeader
+            width: head.width
+            height: implicitHeight
+            visible: rail.essentialsLayout
+            title: rail.title
+            navigable: false
+        }
         Column {
             id: head
+            visible: !rail.essentialsLayout
             width: Math.max(0, rail.width - navigation.width - (navigation.width > 0 ? 12 : 0))
             spacing: 5
             Text {
@@ -193,7 +205,7 @@ Column {
                     required property int index
                     width: rail.cardWidth
                     artworkActive: rail.artworkActive
-                        && (!rail.limitArtworkToViewport || shelfFlick.width <= 0
+                        && (!(rail.limitArtworkToViewport || rail.essentialsLayout) || shelfFlick.width <= 0
                             || (x + width >= shelfFlick.contentX - shelfFlick.width * 0.5
                                 && x <= shelfFlick.contentX + shelfFlick.width * 1.5))
                     addon: modelData
@@ -201,7 +213,12 @@ Column {
                     disabled: { rail.revision; return rail.disabledFn(modelData) }
                     busy: rail.busy[modelData.slug] === true
                     selected: shelfFlick.activeFocus && shelfFlick.currentIndex === index
+                    essentialsLayout: rail.essentialsLayout
+                    builtIn: modelData.id === "com.linvo.cinemeta"
                     onActivated: rail.addonActivated(modelData)
+                    onConfigureRequested: rail.addonConfigured(modelData)
+                    onRemoveRequested: rail.addonRemoved(modelData)
+                    onActionFocused: shelfFlick.keyboardRevealIndex(index)
                 }
             }
         }
@@ -216,7 +233,14 @@ Column {
             modelRevision: rail.items.length
             keyboardSectionCoordinator: rail.keyboardSectionCoordinator
             positionIndexFn: function(index) { shelfFlick.keyboardRevealIndex(index) }
-            onActivated: (index) => rail.addonActivated(rail.items[index])
+            onActivated: (index) => {
+                if (rail.essentialsLayout) {
+                    const card = cards.itemAt(index)
+                    if (card) card.focusActions()
+                } else {
+                    rail.addonActivated(rail.items[index])
+                }
+            }
         }
     }
 }
