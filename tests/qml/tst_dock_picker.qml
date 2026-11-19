@@ -84,7 +84,7 @@ Item {
             tryVerify(() => card.hoverTilt > 0 && card.hoverPitch > 0)
             verify(title.visible)
             compare(title.text, "First")
-            compare(facts.text, "2020 · Mystery")
+            compare(facts.text, "")
             mousePress(card, x, y)
             compare(card.hoverTilt, 0)
             compare(card.hoverPitch, 0)
@@ -105,7 +105,7 @@ Item {
             tryVerify(() => deck.turning && deck.current === 1)
             checkDeckBounds(deck)
             compare(title.text, "Second")
-            compare(facts.text, "2023 · Drama")
+            compare(facts.text, "")
             tryCompare(deck, "circulating", -1)
             compare(picks.count, 0)
 
@@ -722,13 +722,13 @@ Item {
             compare(labels[2].visible, facts.length > 0)
         }
 
-        function test_captionsShowFactsWithoutProviderDescriptions() {
+        function test_captionsShowCreditsWithoutYearsGenresOrDescriptions() {
             catalogue.updateUniverses()
             const franchise = catalogue.picks.universes.find(entry => entry.raw.blurb.length > 0)
             verify(franchise !== undefined, "Use an actual franchise entry with a source description")
             bar.pickerReducedMotion = true
             bar.pickerPicks = {
-                anime: [{ title: "Anime pick", releaseInfo: "2024", blurb: "The crew follows a signal from a lost city." }],
+                anime: [{ title: "Anime pick", releaseInfo: "2024", genres: ["Drama"], blurb: "The crew follows a signal from a lost city." }],
                 manga: [{ title: "Manga pick", year: 1997, raw: { authors: [{ name: "An author" }] } }],
                 comics: [{ title: "Comic pick", publisher: "A publisher", year: 2016 }],
                 manhwa: [{ title: "Manhwa pick", raw: { synopsis: "A short source synopsis." } }],
@@ -739,13 +739,13 @@ Item {
             bar.open = true
             const picker = findChild(bar, "dockPicker")
             verify(waitForRendering(picker))
-            compareCaption(picker, "anime", "Anime", "Anime pick", "2024")
+            compareCaption(picker, "anime", "Anime", "Anime pick", "")
             picker.selectDeckPage(1)
-            compare(findChild(picker, "dockPickFacts_manga").text, "An author · 1997")
-            compare(findChild(picker, "dockPickFacts_comics").text, "A publisher · 2016")
+            compare(findChild(picker, "dockPickFacts_manga").text, "An author")
+            compare(findChild(picker, "dockPickFacts_comics").text, "A publisher")
             compareCaption(picker, "manhwa", "Manhwa", "Manhwa pick", "")
             picker.selectDeckPage(2)
-            compare(findChild(picker, "dockPickFacts_books").text, "A novelist · 1988")
+            compare(findChild(picker, "dockPickFacts_books").text, "A novelist")
             compareCaption(picker, "tributes", "Tributes", "A Tribute", "")
             compareCaption(picker, "universes", "Franchises", franchise.title, "")
         }

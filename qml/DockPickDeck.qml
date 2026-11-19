@@ -19,9 +19,7 @@ FocusScope {
     readonly property bool canBrowse: count > 1
     readonly property var activeEntry: count ? entries[current] : null
     readonly property string title: activeEntry ? String(activeEntry.title) : ""
-    readonly property var facts: factsFor(activeEntry)
-    readonly property string detailLine: facts.length > 1 ? qsTr("%1 · %2").arg(facts[0]).arg(facts[1])
-                                                         : facts[0] || ""
+    readonly property string detailLine: creditFor(activeEntry)
     readonly property real turnAngle: 4
     readonly property real fanAngle: 1.5
     readonly property real fanAllowance: Math.sin(2 * fanAngle * Math.PI / 180) / 2
@@ -67,35 +65,26 @@ FocusScope {
 
     Theme { id: theme }
 
-    function factsFor(entry) {
+    function creditFor(entry) {
         if (!entry)
-            return []
-        const raw = entry.raw || {}
-        const year = entry.year || ""
-        let values
+            return ""
+        let credit
         switch (mediumKey) {
-        case "anime":
-        case "tv":
-        case "movies":
-            values = [entry.releaseInfo, Array.isArray(entry.genres) ? entry.genres[0] : entry.genres]
-            break
         case "manga":
         case "manhwa":
-            values = [raw.authors?.[0]?.name, year]
+            credit = entry.raw?.authors?.[0]?.name
             break
         case "comics":
-            values = [entry.publisher, year]
+            credit = entry.publisher
             break
         case "books":
-            values = [entry.author, year]
+            credit = entry.author
             break
         case "audiobooks":
-            values = [raw.author]
+            credit = entry.raw?.author
             break
-        default:
-            values = []
         }
-        return values.map(value => String(value || "").trim()).filter(value => value.length > 0)
+        return String(credit || "").trim()
     }
 
     function cardDepth(index) {
