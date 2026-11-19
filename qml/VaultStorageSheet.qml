@@ -1,4 +1,5 @@
 // Storage management is separate from Theatre's playback SourcesSheet.
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Controls
@@ -14,6 +15,7 @@ FocusScope {
     signal dismissed()
     signal addFolderRequested()
     signal connectServerRequested()
+    signal editFolderRequested(string path)
     Theme { id: theme }
     visible: open || slide.running
     function show(invoker) { returnFocus = invoker || null; editingIgnore = false; open = true; Qt.callLater(function() { closeButton.forceActiveFocus(Qt.PopupFocusReason) }) }
@@ -58,17 +60,25 @@ FocusScope {
                 clip: true; spacing: 6; model: root.adapter.roots
                 ScrollBar.vertical: ScrollBar { width: 6; policy: ScrollBar.AsNeeded }
                 delegate: Rectangle {
+                    id: folder
                     required property var modelData
                     width: folders.width - 12; height: info.implicitHeight + 24; radius: 12; color: theme.glassTint
                     Column {
                         id: info; x: 12; y: 12; width: parent.width - 24; spacing: 6
-                        Text { width: parent.width; text: modelData.name || "Folder"; elide: Text.ElideMiddle; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.vaultBody }
-                        Text { objectName: "vaultSourcesPathText"; width: parent.width; text: modelData.path || ""; elide: Text.ElideMiddle; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.vaultSmall }
-                        Text { objectName: "vaultSourcesStatusText"; width: parent.width; text: (modelData.subtitle || "") + " · " + (modelData.state || ""); elide: Text.ElideRight; color: modelData.offline ? theme.gold : theme.inkDim; font.family: theme.ui; font.pixelSize: theme.vaultCaption }
+                        Text { width: parent.width; text: folder.modelData.name || "Folder"; elide: Text.ElideMiddle; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.vaultBody }
+                        Text { objectName: "vaultSourcesPathText"; width: parent.width; text: folder.modelData.path || ""; elide: Text.ElideMiddle; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.vaultSmall }
+                        Text { objectName: "vaultSourcesStatusText"; width: parent.width; text: (folder.modelData.subtitle || "") + " · " + (folder.modelData.state || ""); elide: Text.ElideRight; color: folder.modelData.offline ? theme.gold : theme.inkDim; font.family: theme.ui; font.pixelSize: theme.vaultCaption }
                         Row {
                             spacing: 8
-                            VaultLibraryButton { objectName: "vaultSourcesRescan"; text: "Rescan"; enabled: !root.adapter.busy; onClicked: root.adapter.rescan(modelData.path) }
-                            VaultLibraryButton { objectName: "vaultSourcesForget"; text: "Forget"; onClicked: { forgetDialog.path = modelData.path; forgetDialog.open() } }
+                            VaultLibraryButton { objectName: "vaultSourcesRescan"; text: "Rescan"; enabled: !root.adapter.busy; onClicked: root.adapter.rescan(folder.modelData.path) }
+                            VaultLibraryButton {
+                                objectName: "vaultSourcesEditFolder"
+                                visible: !folder.modelData.synthetic && root.adapter.library
+                                         && typeof root.adapter.library.openFolderSelection === "function"
+                                text: qsTr("Choose files")
+                                onClicked: root.editFolderRequested(folder.modelData.path)
+                            }
+                            VaultLibraryButton { objectName: "vaultSourcesForget"; text: "Forget"; onClicked: { forgetDialog.path = folder.modelData.path; forgetDialog.open() } }
                         }
                     }
                 }

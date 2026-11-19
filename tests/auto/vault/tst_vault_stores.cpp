@@ -42,6 +42,8 @@ private slots:
     void config_fresh_when_both_corrupt();
     void config_normalizes_paths();
     void config_preserves_android_content_uri();
+    void config_personal_choices_persist_across_overlapping_sources();
+    void config_first_import_waits_for_publication();
 
     // ── VaultConfig Slice 18 (synthetic + hidden downloads root) ──
     void config_synthetic_root_is_preconfirmed_and_idempotent();
@@ -156,6 +158,63 @@ void tst_vault_stores::config_preserves_android_content_uri()
     c.addRoot(uri, 42);
     QVERIFY(c.hasRoot(uri));
     QCOMPARE(c.roots().first().toMap().value(QStringLiteral("path")).toString(), uri);
+}
+
+void tst_vault_stores::config_personal_choices_persist_across_overlapping_sources()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString root = tmp.filePath("media");
+    const QString selectedFile = root + "/sub/private.cbz";
+    const QString privateFolder = root + "/private";
+    const QString otherRoot = tmp.filePath("other");
+    const QString otherFile = otherRoot + "/private.epub";
+    {
+        VaultConfig config(tmp.path());
+        QVERIFY(config.applyFolderSelection(otherRoot, {{otherFile}, {}}));
+        QVERIFY(config.applyFolderSelection(root, {{selectedFile, otherFile}, {privateFolder}}));
+        QVERIFY(config.isRootConfirmed(root));
+        config.removeRoot(root);
+    }
+    VaultConfig config(tmp.path());
+    auto paths = config.personalPaths();
+    QVERIFY(paths.excludes(selectedFile));
+    QVERIFY(paths.excludes(privateFolder + "/nested/film.mkv"));
+    QVERIFY(!paths.excludes(privateFolder + "-shared/film.mkv"));
+    QVERIFY(paths.excludes(otherFile));
+    // An overlapping source reads the same privacy policy and can restore its own file.
+    QVERIFY(config.applyFolderSelection(root + "/sub", {}));
+    QVERIFY(!config.personalPaths().excludes(selectedFile));
+    QVERIFY(config.personalPaths().excludes(privateFolder + "/nested/film.mkv"));
+    QVERIFY(config.personalPaths().excludes(otherFile));
+}
+
+void tst_vault_stores::config_first_import_waits_for_publication()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString root = tmp.filePath("media");
+    {
+        VaultConfig config(tmp.path());
+        config.addSyntheticRoot(tmp.filePath("downloads"));
+        const QString uri = QStringLiteral("content://provider/legacy");
+        config.addRoot(uri);
+        config.confirmRoot(uri);
+        QVERIFY(!config.hasCompletedFolderImport());
+        QVERIFY(config.applyFolderSelection(root, {}));
+    }
+    {
+        VaultConfig config(tmp.path());
+        QVERIFY(config.isRootConfirmed(root));
+        QVERIFY(!config.hasCompletedFolderImport());
+        QVERIFY(config.markFolderImportComplete());
+    }
+    QVERIFY(VaultConfig(tmp.path()).hasCompletedFolderImport());
+
+    VaultConfig legacy(tmp.filePath("legacy"));
+    legacy.addRoot(root);
+    legacy.confirmRoot(root);
+    QVERIFY(legacy.hasCompletedFolderImport());
 }
 
 // ── Slice 18: synthetic + hidden downloads root ──

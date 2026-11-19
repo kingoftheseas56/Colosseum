@@ -6692,8 +6692,7 @@ Window {
         title: "Add a folder to your Vault"
         onAccepted: {
             vaultState.lastAddedFolder = "" + selectedFolder
-            // C++ owns it: add the folder as an unconfirmed root and census it off-thread; the
-            // confirmation card rises on scanFinished (Slice 11).
+            // Open the source selector. Indexing starts after the user confirms what to include.
             if (typeof VaultLibrary !== "undefined")
                 VaultLibrary.addFolder("" + selectedFolder)
         }

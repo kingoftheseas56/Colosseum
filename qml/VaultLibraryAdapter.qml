@@ -24,18 +24,37 @@ QtObject {
     property var allItems: []
     property var counts: ({ movies: movies.length, shows: shows.length, books: books.length, comics: comics.length,
                               unmatched: unmatchedItems.length, hidden: hiddenItems.length })
+    readonly property bool indexing: !!(library && library.scanning)
+    readonly property bool firstFolderIndexing: indexing && !!library.firstFolderIndexing
+    readonly property bool indexingCancellable: indexing && !!library.scanCanCancel
     readonly property bool busy: projectionBuild !== null || !!(metadataTimer && metadataTimer.running)
-        || !!((library && library.scanning) || (homeServers && homeServers.busy))
+        || indexing || !!(homeServers && homeServers.busy)
     readonly property bool empty: roots.length === 0 && servers.length === 0 && allItems.length === 0 && unmatchedItems.length === 0
+    readonly property string indexingPhase: indexing ? (library.scanPhase || "discovering") : ""
+    readonly property string indexingStage: {
+        if (indexingPhase === "privacy") return qsTr("Applying Personal choices")
+        if (indexingPhase === "publishing") return qsTr("Updating shelves")
+        if (indexingPhase === "processing") return qsTr("Preparing files")
+        return indexing ? qsTr("Finding media") : ""
+    }
+    readonly property string indexingCount: {
+        if (indexingPhase !== "discovering" && indexingPhase !== "processing") return ""
+        const files = Number(library.scanDone) || 0
+        if (files <= 0) return ""
+        if (indexingPhase === "processing")
+            return files === 1 ? qsTr("1 file prepared") : qsTr("%L1 files prepared").arg(files)
+        return files === 1 ? qsTr("1 file found") : qsTr("%L1 files found").arg(files)
+    }
+    readonly property string indexingStatus: indexingCount
+        ? qsTr("%1 · %2").arg(indexingStage).arg(indexingCount) : indexingStage
     readonly property string status: {
-        if (library && library.scanning) return "Scanning " + (library.scanningRoot || "folder")
-                + (library.scanTotal > 0 ? " · " + library.scanDone + " of " + library.scanTotal : "…")
+        if (indexingStatus.length) return indexingStatus
         var offline = roots.filter(function(r) { return r.available === false }).length
                     + servers.filter(function(s) { return s.offline || s.authRequired || s.disabled }).length
         var total = roots.length + servers.length
         if (!total) return "No sources connected"
         return offline ? offline + " source" + (offline === 1 ? "" : "s") + " unavailable"
-                       : total + (total === 1 ? " source · " : " sources · ") + (busy ? "Updating…" : servers.length ? "Libraries loaded" : "Folders indexed")
+                       : total + (total === 1 ? " source · " : " sources · ") + (busy ? "Updating…" : servers.length ? "Libraries loaded" : "Folders connected")
     }
     property var gaps: []
     property string actionError: ""
@@ -53,6 +72,13 @@ QtObject {
         target: adapter.library
         ignoreUnknownSignals: true
         function onChanged() { adapter.invalidateProjection() }
+        function onPersonalPathsChanged() {
+            adapter.unmatchedItems = []
+            adapter.hiddenItems = []
+            adapter.admission = ({})
+            adapter.publishLocal([])
+            adapter.invalidateProjection()
+        }
         function onBrowseArtworkReady(rowKey, coverUrl) {
             adapter.pendingArtwork[rowKey] = coverUrl
             adapter.artworkTimer.start()
@@ -380,6 +406,6 @@ QtObject {
     function reveal(path) { return call("revealInExplorer", [path], false) }
     function scanIgnore() { return call("scanIgnore", [], []) }
     function setScanIgnore(patterns) { call("setScanIgnore", [patterns], null) }
-    function cancelScan() { call("cancelScan", [], null) }
+    function cancelScan() { if (indexingCancellable) call("cancelScan", [], null) }
     function refreshServer(id) { if (homeServers && typeof homeServers.refresh === "function") homeServers.refresh(id) }
 }

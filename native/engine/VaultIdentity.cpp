@@ -218,8 +218,12 @@ QVariantMap VaultIdentity::observeFile(const QString& path, qint64 size, qint64 
     const QString cid = computeId(path, size, mtimeMs);
     QVariantMap out;
     out.insert(QStringLiteral("id"), cid);
+    // Explicit local playback still needs its stable progress id.
+    if (m_personalPaths.excludes(path))
+        return out;
     for (const auto& fields : m_pending) {
-        if (fields.size() >= 6 && (fields.at(3) == resolve(cid)
+        if (fields.size() >= 6 && !m_personalPaths.excludes(fields.at(4))
+            && !m_personalPaths.excludes(fields.at(5)) && (fields.at(3) == resolve(cid)
                 || normalizePath(fields.at(5)) == normalizePath(path))) {
             const auto prompt = ceremonyMap(fields);
             for (auto it = prompt.constBegin(); it != prompt.constEnd(); ++it) out.insert(it.key(), it.value());
@@ -239,7 +243,8 @@ QVariantMap VaultIdentity::observeFile(const QString& path, qint64 size, qint64 
             while (!pendingPaths.isEmpty()) {
                 const QString destination = pendingPaths.takeLast();
                 for (const auto& pa : m_pathAliases) {
-                    if (pa.size() != 2 || normalizePath(pa.at(1)) != destination) continue;
+                    if (pa.size() != 2 || m_personalPaths.excludes(pa.at(0))
+                        || m_personalPaths.excludes(pa.at(1)) || normalizePath(pa.at(1)) != destination) continue;
                     provenance.append(pa);
                     const QString predecessor = normalizePath(pa.at(0));
                     if (!visitedPaths.contains(predecessor)) {
@@ -250,7 +255,7 @@ QVariantMap VaultIdentity::observeFile(const QString& path, qint64 size, qint64 
             }
             for (const auto& pa : provenance) {
                 for (const auto& other : m_byId) {
-                    if (other.id==canonical) continue;
+                    if (other.id==canonical || m_personalPaths.excludes(other.path)) continue;
                     const bool changed = (normalizePath(other.path)==normalizePath(pa.at(0))
                         || normalizePath(other.path)==normalizePath(path))
                         && (other.size!=candidate.size || !withinMtimeTolerance(other.mtimeMs,candidate.mtimeMs));
@@ -287,6 +292,7 @@ QVariantMap VaultIdentity::observeFile(const QString& path, qint64 size, qint64 
         for (const auto& otherId : ids) {
             if (otherId == cid) continue;
             const auto other = m_byId.value(otherId);
+            if (m_personalPaths.excludes(other.path)) continue;
             bool unapprovedCandidate = false;
             for (const auto& pending : m_pending)
                 if (pending.size() >= 6 && pending.at(3) == otherId) { unapprovedCandidate = true; break; }
@@ -372,7 +378,7 @@ QVariantMap VaultIdentity::observeFile(const QString& path, qint64 size, qint64 
     Entry copyEntry;
     int copyMatches = 0;
     for (const Entry& e : m_byId) {
-        if (e.id == cid || normalizePath(e.path) == normalized)
+        if (e.id == cid || m_personalPaths.excludes(e.path) || normalizePath(e.path) == normalized)
             continue;
         if (e.size == size && e.mtimeMs == mtimeMs && QFileInfo(e.path).exists()) {
             copyEntry = e;
@@ -410,15 +416,19 @@ QVariantMap VaultIdentity::observeFile(const QString& path, qint64 size, qint64 
 QVariantList VaultIdentity::pendingCeremonies() const
 {
     QVariantList out;
-    for (const QStringList& fields : m_pending)
-        out.append(ceremonyMap(fields));
+    for (const QStringList& fields : m_pending) {
+        if (fields.size() >= 6 && !m_personalPaths.excludes(fields.at(4))
+            && !m_personalPaths.excludes(fields.at(5)))
+            out.append(ceremonyMap(fields));
+    }
     return out;
 }
 
 bool VaultIdentity::decideFileCeremony(const QString& relationship, const QString& choice)
 {
     const auto fields = m_pending.value(relationship);
-    if (fields.size() < 6) return false;
+    if (fields.size() < 6 || m_personalPaths.excludes(fields.at(4))
+        || m_personalPaths.excludes(fields.at(5))) return false;
     const QFileInfo current(fields.at(5));
     if (!current.exists() || !current.isFile()) return false;
     const auto currentId = computeId(fields.at(5), current.size(), current.lastModified().toMSecsSinceEpoch());
@@ -443,7 +453,8 @@ bool VaultIdentity::decideFileCeremony(const QString& relationship, const QStrin
 bool VaultIdentity::decideCeremony(const QString& relationship, const QString& choice)
 {
     const auto it = m_pending.constFind(relationship);
-    if (it == m_pending.constEnd() || it->size() < 6)
+    if (it == m_pending.constEnd() || it->size() < 6
+        || m_personalPaths.excludes(it->at(4)) || m_personalPaths.excludes(it->at(5)))
         return false;
     const QString type = it->at(0);
     const bool valid = (type == QLatin1String("changed-content")
@@ -494,6 +505,7 @@ VaultIdentity::ReconcileResult VaultIdentity::reconcile(const QList<FileFacts>& 
     QList<Item> items;
     QSet<QString> canonicalsPresent;
     for (const FileFacts& f : current) {
+        if (m_personalPaths.excludes(f.path)) continue;
         const QString cid = computeId(f.path, f.size, f.mtimeMs);
         items.append({cid, f});
         if (m_byId.contains(cid))
@@ -517,7 +529,7 @@ VaultIdentity::ReconcileResult VaultIdentity::reconcile(const QList<FileFacts>& 
     // Missing = registered canonical entries not present in this scan.
     QList<Entry> missing;
     for (const Entry& e : m_byId) {
-        if (!canonicalsPresent.contains(e.id))
+        if (!canonicalsPresent.contains(e.id) && !m_personalPaths.excludes(e.path))
             missing.append(e);
     }
 
@@ -579,7 +591,7 @@ VaultIdentity::ReconcileResult VaultIdentity::reconcile(const QList<FileFacts>& 
         Entry copyEntry;
         int copyMatches = 0;
         for (const Entry& e : m_byId) {
-            if (e.id == candidate.cid || !canonicalsPresent.contains(e.id)
+            if (e.id == candidate.cid || m_personalPaths.excludes(e.path) || !canonicalsPresent.contains(e.id)
                 || normalizePath(e.path) == normalizePath(candidate.f.path))
                 continue;
             if (e.size == candidate.f.size && e.mtimeMs == candidate.f.mtimeMs) {
@@ -654,7 +666,7 @@ QVariantList VaultIdentity::pathAliases() const
 {
     QVariantList out;
     for (const QStringList& pa : m_pathAliases) {
-        if (pa.size() != 2)
+        if (pa.size() != 2 || m_personalPaths.excludes(pa.at(0)) || m_personalPaths.excludes(pa.at(1)))
             continue;
         QVariantMap m;
         m[QStringLiteral("oldPath")] = pa.at(0);

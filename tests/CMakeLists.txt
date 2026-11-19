@@ -1219,9 +1219,15 @@ add_custom_command(TARGET tst_vault_enricher POST_BUILD
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.vault_enricher
          COMMAND tst_vault_enricher)
+set(_vault_enricher_environment "QT_FORCE_STDERR_LOGGING=1")
+if(TARGET Qt6::QJpegPlugin)
+    # The build tree does not deploy imageformats. Use the matching codec from this Qt kit.
+    list(APPEND _vault_enricher_environment
+        "QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::QJpegPlugin>/..")
+endif()
 set_tests_properties(colosseum.qttest.vault_enricher PROPERTIES
     LABELS "unit;qttest"
-    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    ENVIRONMENT "${_vault_enricher_environment}"
     TIMEOUT 120)
 
 # ── Vault browse artwork: persistent frame-grab producer (browse-artwork execution

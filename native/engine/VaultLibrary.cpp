@@ -19,6 +19,9 @@
 
 #include <QCollator>
 #include <QDir>
+#include <QDirIterator>
+#include <QFuture>
+#include <QtConcurrent>
 #include <QFileInfo>
 #include <QMap>
 #include <QProcess>
@@ -164,9 +167,31 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
             m_artworkResolver->clearPendingRows();
             ++m_revision;
             emit changed();
-            if (m_identifier)
+            if (m_identifier && !m_index->isPreparingPersonalPaths())
                 scheduleAutoIdentify();
         });
+    }
+    if (m_index) {
+        connect(m_index, &VaultIndex::personalPathsPrepared, this, [this](bool success) {
+            if (success && m_identity) {
+                m_identity->setPersonalPaths(m_index->personalPaths());
+                emit identityCeremoniesChanged();
+            }
+            if (!m_publishAfterPolicy)
+                return;
+            m_publishAfterPolicy = false;
+            if (success) {
+                publishAllConfirmed();
+            } else {
+                setScanning(false);
+                setFirstFolderIndexing(false);
+                emit indexingFailed();
+            }
+        });
+    }
+    if (m_config) {
+        updatePersonalPaths();
+        connect(m_config, &VaultConfig::personalPathsChanged, this, &VaultLibrary::updatePersonalPaths);
     }
     if (m_identity) {
         connect(m_identity, &VaultIdentity::changed, this,
@@ -174,13 +199,7 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
     }
     if (m_scanner) {
         // Live census progress → the scan pill.
-        connect(m_scanner, &VaultScanner::progress, this,
-                [this](const QString& root, int done, int total, const QString&) {
-                    m_scanningRoot = root;
-                    m_scanDone = done;
-                    m_scanTotal = total;
-                    emit scanProgressChanged();
-                });
+        connect(m_scanner, &VaultScanner::scanActivity, this, &VaultLibrary::setScanActivity);
         // A finished census: cancelled → clear; otherwise the candidate raises the card.
         connect(m_scanner, &VaultScanner::scanFinished, this,
                 [this](const QString& root, const QVariantList& slices, bool cancelled) {
@@ -195,12 +214,20 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
                     emit candidateChanged();
                     maybePublishPendingRevives();
                 });
-        // A successful publish ends the shelving state (revision bumps via index.changed()).
-        connect(m_scanner, &VaultScanner::indexPublished, this,
-                [this](const QString&, int) {
+        connect(m_scanner, &VaultScanner::publicationFinished, this,
+                [this](bool published, bool cancelled, bool scannedUserRoot) {
+                    const bool first = m_firstFolderIndexing;
+                    const bool completionSaved = !first || !published || !scannedUserRoot
+                        || m_config->markFolderImportComplete();
                     setScanning(false);
+                    setFirstFolderIndexing(false);
                     m_revivalRescanInFlight = false;
-                    m_pendingReviveRoots.clear();
+                    if (published)
+                        m_pendingReviveRoots.clear();
+                    if (cancelled)
+                        emit indexingCancelled();
+                    else if (!published || !completionSaved || (first && !scannedUserRoot))
+                        emit indexingFailed();
                 });
     }
 
@@ -213,18 +240,36 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
     connect(m_watcher, &VaultWatcher::newKindArrival, this, &VaultLibrary::onWatcherNewKind);
     connect(m_watcher, &VaultWatcher::rootAvailabilityChanged, this,
             &VaultLibrary::onRootAvailabilityChanged);
+    connect(m_watcher, &VaultWatcher::scanActivity, this,
+            [this](const QString& root, int done, int total, const QString& phase) {
+                if (m_scanning)
+                    return;
+                setScanActivity(root, done, total, phase);
+                if (!m_watcherScanning) {
+                    m_watcherScanning = true;
+                    emit scanningChanged();
+                }
+            });
+    connect(m_watcher, &VaultWatcher::scanEnded, this, [this] {
+        if (m_watcherScanning) {
+            m_watcherScanning = false;
+            emit scanningChanged();
+        }
+    });
     m_watcher->refresh();
 #endif
 }
 
 QVariantList VaultLibrary::identityCeremonies() const
 {
-    return m_identity ? m_identity->pendingCeremonies() : QVariantList();
+    if (!m_identity || (m_index && m_index->isPreparingPersonalPaths()))
+        return {};
+    return m_identity->pendingCeremonies();
 }
 
 bool VaultLibrary::decideIdentityCeremony(const QString& relationship, const QString& choice)
 {
-    if (!m_identity)
+    if (!m_identity || (m_index && m_index->isPreparingPersonalPaths()))
         return false;
     const bool accepted = m_identity->decideCeremony(relationship, choice);
     if (accepted)
@@ -731,6 +776,8 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
                                     const QVariantMap& filter) const
 {
     QVariantList out;
+    if (m_index && m_index->isPreparingPersonalPaths())
+        return out;
     const QVariantList roots = m_config ? m_config->roots() : QVariantList();
     if (VaultLocation::isContentUri(rootOrPath))
         return VaultBrowseAway::indexedBrowseAt(m_index, roots, rootOrPath, sort, filter);
@@ -752,7 +799,8 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
         }
         nodes = groups.values();
     } else {
-        nodes = VaultKit::planBrowseLevel(rootOrPath, scanIgnore);
+        nodes = VaultKit::planBrowseLevel(rootOrPath, scanIgnore, nullptr,
+                                           m_index ? m_index->personalPaths() : VaultLocation::PersonalPaths{});
     }
     // Logical keys come from the index; filesystem browsing continues to use physical paths.
     QHash<QString, QString> comicGroupsByPath;
@@ -1122,6 +1170,7 @@ QVariantList VaultLibrary::rootsDetail() const
         const QString path = m.value(QStringLiteral("path")).toString();
         QVariantMap row;
         row.insert(QStringLiteral("path"), path);
+        row.insert(QStringLiteral("synthetic"), m.value(QStringLiteral("synthetic")));
         const QString name = VaultLocation::isContentUri(path)
             ? QString() : QFileInfo(path).fileName();
         row.insert(QStringLiteral("name"), name.isEmpty() ? path : name);
@@ -1632,11 +1681,350 @@ void VaultLibrary::setScanning(bool scanning)
     if (m_scanning == scanning)
         return;
     m_scanning = scanning;
+    if (m_watcher) m_watcher->setPublishing(scanning);
     emit scanningChanged();
+    emit scanProgressChanged();
+}
+
+void VaultLibrary::setScanActivity(const QString& root, int done, int total, const QString& phase)
+{
+    if (m_scanningRoot == root && m_scanDone == done && m_scanTotal == total && m_scanPhase == phase)
+        return;
+    m_scanningRoot = root;
+    m_scanDone = done;
+    m_scanTotal = total;
+    m_scanPhase = phase;
+    emit scanProgressChanged();
+}
+
+void VaultLibrary::setFirstFolderIndexing(bool first)
+{
+    if (first == m_firstFolderIndexing)
+        return;
+    m_firstFolderIndexing = first;
+    emit firstFolderIndexingChanged();
+}
+
+namespace {
+constexpr int kFolderSelectionPageSize = 96;
+
+struct FolderSelectionPage {
+    QVariantList entries;
+    bool more = false;
+    QString error;
+};
+}
+
+struct VaultLibrary::FolderCursor {
+    explicit FolderCursor(QString path) : directory(std::move(path)) {}
+    QString directory;
+    std::unique_ptr<QDirIterator> entries;
+    std::atomic<bool> cancelled{false};
+};
+
+QVariantMap VaultLibrary::folderSelection() const
+{
+    if (m_selectionRoot.isEmpty())
+        return {};
+    QVariantList entries = m_selectionEntries;
+    for (QVariant& value : entries) {
+        auto entry = value.toMap();
+        const QString path = entry.value(QStringLiteral("path")).toString();
+        const bool dir = entry.value(QStringLiteral("directory")).toBool();
+        const QString normalized = normPath(path);
+        const auto& explicitPaths = dir ? m_selectionDraft.directories : m_selectionDraft.files;
+        entry.insert(QStringLiteral("included"), !m_selectionDraft.excludes(path, dir));
+        entry.insert(QStringLiteral("inherited"), m_selectionDraft.excludes(path, dir)
+                     && !explicitPaths.contains(normalized));
+        value = entry;
+    }
+    return {{QStringLiteral("root"), m_selectionRoot},
+            {QStringLiteral("directory"), m_selectionDirectory},
+            {QStringLiteral("entries"), entries},
+            {QStringLiteral("busy"), m_selectionBusy},
+            {QStringLiteral("more"), m_selectionMore},
+            {QStringLiteral("previous"), m_selectionPersonalView ? m_selectionOffset > 0 : m_selectionPage > 0},
+            {QStringLiteral("page"), 1 + (m_selectionPersonalView ? m_selectionOffset / kFolderSelectionPageSize : m_selectionPage)},
+            {QStringLiteral("canSave"), !m_selectionDraft.excludes(m_selectionRoot, true)
+                && (m_selectionRootReady || m_config->isRootConfirmed(m_selectionRoot))},
+            {QStringLiteral("personalView"), m_selectionPersonalView},
+            {QStringLiteral("editing"), m_config->isRootConfirmed(m_selectionRoot)},
+            {QStringLiteral("error"), m_selectionError}};
+}
+
+void VaultLibrary::openFolderSelection(const QString& pathOrUrl)
+{
+    if (!m_config || !m_scanner)
+        return;
+    const QUrl url(pathOrUrl);
+    const QString path = url.isLocalFile() ? url.toLocalFile() : pathOrUrl;
+    if (!QDir::isAbsolutePath(path) || VaultLocation::isContentUri(path) || m_config->isSyntheticRoot(path))
+        return;
+    cancelFolderSelection();
+    if (cardVisible())
+        dismissCard();
+    m_selectionRoot = normPath(path);
+    m_selectionDraft = m_config->personalPaths();
+    readFolderSelection(m_selectionRoot);
+}
+
+void VaultLibrary::readFolderSelection(const QString& path)
+{
+    if (m_folderCursor) m_folderCursor->cancelled.store(true);
+    m_folderCursor = std::make_shared<FolderCursor>(path);
+    m_selectionDirectory = path;
+    m_selectionError.clear();
+    m_selectionEntries.clear();
+    m_selectionPages.clear();
+    m_selectionPage = 0;
+    m_selectionBusy = false;
+    m_selectionMore = false;
+    m_selectionCursorMore = false;
+    if (m_selectionDraft.excludes(path, true)) {
+        m_selectionError = tr("An enclosing folder marks this location Personal. Open that source to restore it.");
+        emit folderSelectionChanged();
+        return;
+    }
+    fetchFolderSelectionPage();
+}
+
+void VaultLibrary::fetchFolderSelectionPage()
+{
+    if (!m_folderCursor || m_selectionBusy)
+        return;
+    const auto cursor = m_folderCursor;
+    m_selectionBusy = true;
+    emit folderSelectionChanged();
+    auto work = QtConcurrent::run([cursor]() {
+        FolderSelectionPage page;
+        if (!cursor->entries) {
+            const QFileInfo info(cursor->directory);
+            if (!info.isDir() || !info.isReadable() || !VaultKit::isDirectDirectory(info)) {
+                page.error = VaultLibrary::tr("This folder is unavailable or cannot be read.");
+                return page;
+            }
+            cursor->entries = std::make_unique<QDirIterator>(cursor->directory,
+                QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks);
+        }
+        // Limit examined entries as well as results, even in drives with lots of system/junction entries.
+        for (int i = 0; i < kFolderSelectionPageSize && !cursor->cancelled.load()
+             && cursor->entries->hasNext(); ++i) {
+            cursor->entries->next();
+            const QFileInfo entry = cursor->entries->fileInfo();
+            const bool directory = entry.isDir();
+            if (entry.isJunction() || (directory && VaultKit::isIgnoredDir(entry.fileName())))
+                continue;
+            page.entries.append(QVariantMap{{QStringLiteral("path"), entry.absoluteFilePath()},
+                                            {QStringLiteral("name"), entry.fileName()},
+                                            {QStringLiteral("directory"), directory}});
+        }
+        page.more = !cursor->cancelled.load() && cursor->entries->hasNext();
+        return page;
+    });
+    work.then(this, [this, cursor](FolderSelectionPage page) {
+        if (m_folderCursor != cursor || m_selectionPersonalView)
+            return;
+        m_selectionBusy = false;
+        if (normPath(cursor->directory) == m_selectionRoot)
+            m_selectionRootReady = page.error.isEmpty();
+        m_selectionEntries = std::move(page.entries);
+        m_selectionPage = m_selectionPages.size();
+        m_selectionPages.append(m_selectionEntries);
+        m_selectionCursorMore = m_selectionMore = page.more;
+        m_selectionError = std::move(page.error);
+        emit folderSelectionChanged();
+    });
+}
+
+void VaultLibrary::browseFolderSelection(const QString& childPath)
+{
+    if (m_selectionBusy || m_selectionPersonalView || m_selectionRoot.isEmpty()
+        || m_selectionDraft.excludes(childPath, true))
+        return;
+    for (const QVariant& value : m_selectionEntries) {
+        const auto entry = value.toMap();
+        if (entry.value(QStringLiteral("directory")).toBool()
+            && entry.value(QStringLiteral("path")).toString() == childPath) {
+            readFolderSelection(childPath);
+            return;
+        }
+    }
+}
+
+void VaultLibrary::folderSelectionUp()
+{
+    if (m_selectionPersonalView || m_selectionRoot.isEmpty()
+        || normPath(m_selectionDirectory) == m_selectionRoot)
+        return;
+    const QString parent = QFileInfo(m_selectionDirectory).path();
+    if (VaultLocation::containsPath(m_selectionRoot, normPath(parent)))
+        readFolderSelection(parent);
+}
+
+void VaultLibrary::nextFolderSelectionPage()
+{
+    if (!m_selectionMore || m_selectionBusy)
+        return;
+    if (m_selectionPersonalView) {
+        m_selectionOffset += kFolderSelectionPageSize;
+        loadPersonalFolderChoices();
+    } else if (m_selectionPage + 1 < m_selectionPages.size()) {
+        m_selectionEntries = m_selectionPages.at(++m_selectionPage);
+        m_selectionMore = m_selectionPage + 1 < m_selectionPages.size() || m_selectionCursorMore;
+        emit folderSelectionChanged();
+    } else {
+        fetchFolderSelectionPage();
+    }
+}
+
+void VaultLibrary::previousFolderSelectionPage()
+{
+    if (m_selectionBusy)
+        return;
+    if (m_selectionPersonalView && m_selectionOffset > 0) {
+        m_selectionOffset -= kFolderSelectionPageSize;
+        loadPersonalFolderChoices();
+    } else if (!m_selectionPersonalView && m_selectionPage > 0) {
+        m_selectionEntries = m_selectionPages.at(--m_selectionPage);
+        m_selectionMore = true;
+        emit folderSelectionChanged();
+    }
+}
+
+void VaultLibrary::showPersonalFolderChoices(bool show)
+{
+    if (m_selectionRoot.isEmpty() || show == m_selectionPersonalView)
+        return;
+    m_selectionPersonalView = show;
+    if (!show) {
+        readFolderSelection(m_selectionRoot);
+        return;
+    }
+    if (m_folderCursor) m_folderCursor->cancelled.store(true);
+    m_folderCursor.reset();
+    m_selectionBusy = false;
+    m_selectionOffset = 0;
+    loadPersonalFolderChoices();
+}
+
+void VaultLibrary::loadPersonalFolderChoices()
+{
+    m_selectionEntries.clear();
+    m_selectionError.clear();
+    m_selectionMore = false;
+    int index = 0;
+    auto append = [&](const QSet<QString>& paths, bool directory) {
+        QStringList sorted = paths.values();
+        sorted.sort(Qt::CaseInsensitive);
+        for (const QString& path : sorted) {
+            if (path == m_selectionRoot || !VaultLocation::containsPath(m_selectionRoot, path))
+                continue;
+            if (index++ < m_selectionOffset)
+                continue;
+            if (m_selectionEntries.size() >= kFolderSelectionPageSize) {
+                m_selectionMore = true;
+                break;
+            }
+            const QString name = QDir(m_selectionRoot).relativeFilePath(path);
+            m_selectionEntries.append(QVariantMap{{QStringLiteral("path"), path},
+                                                   {QStringLiteral("name"), name},
+                                                   {QStringLiteral("directory"), directory}});
+        }
+    };
+    append(m_selectionDraft.directories, true);
+    if (!m_selectionMore) append(m_selectionDraft.files, false);
+    emit folderSelectionChanged();
+}
+
+void VaultLibrary::toggleFolderSelectionEntry(const QString& path, bool directory)
+{
+    if (m_selectionRoot.isEmpty() || m_selectionBusy)
+        return;
+    for (const QVariant& value : m_selectionEntries) {
+        const auto entry = value.toMap();
+        if (entry.value(QStringLiteral("path")).toString() != path
+            || entry.value(QStringLiteral("directory")).toBool() != directory)
+            continue;
+        const QString normalized = normPath(path);
+        auto& paths = directory ? m_selectionDraft.directories : m_selectionDraft.files;
+        if (!paths.remove(normalized) && !m_selectionDraft.excludes(path, directory))
+            paths.insert(normalized);
+        if (m_selectionPersonalView) {
+            // Keep the current page populated when restoring its last choice.
+            if (m_selectionEntries.size() == 1 && m_selectionOffset > 0)
+                m_selectionOffset -= kFolderSelectionPageSize;
+            loadPersonalFolderChoices();
+        } else {
+            emit folderSelectionChanged();
+        }
+        return;
+    }
+}
+
+bool VaultLibrary::confirmFolderSelection()
+{
+    if (m_selectionRoot.isEmpty() || m_selectionBusy
+        || !folderSelection().value(QStringLiteral("canSave")).toBool())
+        return false;
+    if (!m_config->applyFolderSelection(m_selectionRoot, m_selectionDraft)) {
+        m_selectionError = tr("Vault could not save these choices. Try again.");
+        emit folderSelectionChanged();
+        return false;
+    }
+    m_offeredThisRun.insert(m_selectionRoot);
+    cancelFolderSelection();
+    publishAllConfirmed();
+    return true;
+}
+
+void VaultLibrary::cancelFolderSelection()
+{
+    if (m_selectionRoot.isEmpty())
+        return;
+    if (m_folderCursor) m_folderCursor->cancelled.store(true);
+    m_folderCursor.reset();
+    m_selectionRoot.clear();
+    m_selectionDirectory.clear();
+    m_selectionEntries.clear();
+    m_selectionPages.clear();
+    m_selectionDraft = {};
+    m_selectionError.clear();
+    m_selectionBusy = false;
+    m_selectionRootReady = false;
+    m_selectionMore = false;
+    m_selectionPersonalView = false;
+    m_selectionOffset = 0;
+    m_selectionPage = 0;
+    m_selectionCursorMore = false;
+    emit folderSelectionChanged();
+}
+
+void VaultLibrary::updatePersonalPaths()
+{
+    emit personalPathsChanging();
+    const auto choices = m_config->personalPaths();
+    if (m_scanner && m_scanning)
+        m_scanner->invalidate();
+    if (m_identity)
+        m_identity->setPersonalPaths(choices);
+    if (m_index) {
+        if (!m_index->setPersonalPaths(choices))
+            emit indexingFailed();
+        else if (m_identity && !m_index->isPreparingPersonalPaths())
+            m_identity->setPersonalPaths(m_index->personalPaths());
+    }
+    m_candidate.clear();
+    m_candidateRoot.clear();
+    emit candidateChanged();
+    emit personalPathsChanged();
+    emit identityCeremoniesChanged();
 }
 
 void VaultLibrary::addFolder(const QString& pathOrUrl)
 {
+#ifndef Q_OS_ANDROID
+    openFolderSelection(pathOrUrl);
+#else
     if (!m_scanner || !m_config)
         return;
     QString path = pathOrUrl;
@@ -1651,6 +2039,7 @@ void VaultLibrary::addFolder(const QString& pathOrUrl)
     m_config->addRoot(path);
     m_offeredThisRun.insert(normPath(path)); // an explicit add is this run's offer for it
     beginCensus(path);
+#endif
 }
 
 void VaultLibrary::beginCensus(const QString& path)
@@ -1660,10 +2049,7 @@ void VaultLibrary::beginCensus(const QString& path)
     m_candidateRoot.clear();
     emit candidateChanged();
 
-    m_scanningRoot = path;
-    m_scanDone = 0;
-    m_scanTotal = 0;
-    emit scanProgressChanged();
+    setScanActivity(path, 0, 0, QStringLiteral("discovering"));
     setScanning(true);
     m_scanner->scanRoot(path, m_config->scanIgnore());
 }
@@ -1678,7 +2064,7 @@ void VaultLibrary::offerUnconfirmedRoots()
     ensureDownloadsRoot();
 
     // Never interrupt an in-flight scan or a card already up.
-    if (m_scanning || cardVisible())
+    if (m_scanning || cardVisible() || !m_selectionRoot.isEmpty())
         return;
     const QVariantList roots = m_config->roots();
     for (const QVariant& r : roots) {
@@ -1694,14 +2080,18 @@ void VaultLibrary::offerUnconfirmedRoots()
         if (path.isEmpty() || m_offeredThisRun.contains(path))
             continue;
         m_offeredThisRun.insert(path);
+#ifdef Q_OS_ANDROID
         beginCensus(path);
-        return; // one founding card at a time
+#else
+        openFolderSelection(path);
+#endif
+        return; // one founding choice at a time
     }
 }
 
 void VaultLibrary::confirmRoot(const QString& root, const QVariantMap& kindOverrides)
 {
-    if (!m_scanner || !m_config)
+    if (!m_scanner || !m_config || !m_selectionRoot.isEmpty())
         return;
 
     // Persist the card's chip reassignments (subtreePath → kind), then mark the root confirmed.
@@ -1760,6 +2150,24 @@ void VaultLibrary::publishAllConfirmed()
             confirmed.append(m.value(QStringLiteral("path")).toString());
     }
 
+#ifndef Q_OS_ANDROID
+    setFirstFolderIndexing(!confirmed.isEmpty() && !m_config->hasCompletedFolderImport());
+#endif
+    if (m_index && m_index->isPreparingPersonalPaths()) {
+        m_publishAfterPolicy = true;
+        setScanActivity(confirmed.value(0), 0, 0, QStringLiteral("privacy"));
+        setScanning(true);
+        // Starts another attempt after a failed check, or joins the active one.
+        if (!m_index->setPersonalPaths(m_config->personalPaths())) {
+            m_publishAfterPolicy = false;
+            setScanning(false);
+            setFirstFolderIndexing(false);
+            emit indexingFailed();
+        }
+        return;
+    }
+    m_publishAfterPolicy = false;
+
     // Snapshot every chip override on the GUI thread and hand it to the off-thread census
     // so the re-shelve honors the user's choices (Thread A). Keys are already normalized.
     QMap<QString, QString> overrides;
@@ -1778,14 +2186,12 @@ void VaultLibrary::publishAllConfirmed()
 
     // Clear the pill's scan counts so the brief shelving pass shows "Scanning …", not the
     // last census's stale "N of M".
-    m_scanDone = 0;
-    m_scanTotal = 0;
-    emit scanProgressChanged();
-
+    setScanActivity(confirmed.value(0), 0, 0, QStringLiteral("discovering"));
     setScanning(true); // shelving
     if (m_watcher)
         m_watcher->refresh();
-    m_scanner->publishConfirmed(confirmed, m_config->scanIgnore(), overrides, extraRows);
+    const auto personal = m_index ? m_index->personalPaths() : m_config->personalPaths();
+    m_scanner->publishConfirmed(confirmed, m_config->scanIgnore(), overrides, extraRows, personal);
 }
 
 void VaultLibrary::ensureDownloadsRoot()
@@ -1869,7 +2275,7 @@ void VaultLibrary::onWatcherNewKind(const QString& root, const QVariantList& sli
 
     // One card at a time (S11 law): a scan in flight or a card already up defers this
     // arrival's card to the next rescan — never a second card on top.
-    if (m_scanning || cardVisible() || slices.isEmpty())
+    if (m_scanning || cardVisible() || !m_selectionRoot.isEmpty() || slices.isEmpty())
         return;
     m_candidate = slices;
     m_candidateRoot = root;
@@ -2011,6 +2417,13 @@ void VaultLibrary::dismissCard()
 
 void VaultLibrary::cancelScan()
 {
+    if (m_publishAfterPolicy) {
+        m_publishAfterPolicy = false;
+        setScanning(false);
+        setFirstFolderIndexing(false);
+        emit indexingCancelled();
+        return;
+    }
     if (m_scanner)
         m_scanner->cancel();
 }

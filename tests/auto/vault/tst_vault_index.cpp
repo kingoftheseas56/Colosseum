@@ -8,10 +8,14 @@
 #include "engine/VaultIndex.h"
 #include "engine/VaultKit.h" // CancellationToken
 
+#include <QDir>
+#include <QFile>
 #include <QSet>
+#include <QSignalSpy>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QTemporaryDir>
+#include <QUrl>
 #include <QUuid>
 #include <QVariantMap>
 #include <QtTest>
@@ -129,7 +133,148 @@ private slots:
     // ── Arc 14: live reconciliation + stale async write barriers ──
     void reconcile_root_removes_obsolete_and_preserves_unchanged_facts();
     void stale_revision_write_cannot_resurrect_removed_row();
+    void personal_paths_hide_and_remove_rows_across_roots();
+    void personal_purge_failure_keeps_index_private_until_retry();
+    void personal_cover_urls_are_cleared_without_removing_the_media();
 };
+
+void tst_vault_index::personal_cover_urls_are_cleared_without_removing_the_media()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString dbPath = tmp.filePath("vault.sqlite");
+    VaultIndex index(dbPath);
+    const QString movies = tmp.filePath("movies");
+    const QString cover = tmp.filePath("Personal cover #1.png");
+    auto movie = mk("private-cover", movies + "/a", "A", "video", "a.mp4");
+    movie.coverRef = QUrl::fromLocalFile(cover).toString(QUrl::FullyEncoded);
+    auto shared = mk("public-cover", movies + "/b", "B", "video", "b.mp4");
+    shared.coverRef = QUrl::fromLocalFile(tmp.filePath("Public cover.png")).toString();
+    QList<VaultIndex::FileRow> rows{movie, shared};
+#ifndef Q_OS_WIN
+    {
+        QFile image(cover);
+        QVERIFY(image.open(QIODevice::WriteOnly));
+    }
+    const QString linkedCover = tmp.filePath("poster.png");
+    QVERIFY(QFile::link(cover, linkedCover));
+    auto alias = mk("private-cover-alias", movies + "/c", "C", "video", "c.mp4");
+    alias.coverRef = QUrl::fromLocalFile(linkedCover).toString();
+    rows.append(alias);
+#endif
+    QVERIFY(index.publish(rows));
+    const quint64 before = index.revision();
+    QCOMPARE(index.rowsForPath(movie.path).first().coverRef, movie.coverRef);
+
+    QSignalSpy ready(&index, &VaultIndex::personalPathsPrepared);
+    QVERIFY(index.setPersonalPaths({{VaultLocation::normalize(cover)}, {}}));
+    QVERIFY(index.groupsForKind("video").isEmpty());
+    QTRY_COMPARE(ready.size(), 1);
+    QVERIFY(ready.at(0).at(0).toBool());
+    QCOMPARE(index.itemCount(), rows.size());
+    QVERIFY(index.rowsForPath(movie.path).first().coverRef.isEmpty());
+    QCOMPARE(index.rowsForPath(shared.path).first().coverRef, shared.coverRef);
+    QVERIFY(index.filesForGroup("video", movie.groupKey).first().toMap()
+                .value(QStringLiteral("coverRef")).toString().isEmpty());
+#ifndef Q_OS_WIN
+    QVERIFY(index.rowsForPath(alias.path).first().coverRef.isEmpty());
+#endif
+    VaultIndex reopened(dbPath);
+    QVERIFY(reopened.rowsForPath(movie.path).first().coverRef.isEmpty());
+    QVERIFY(!index.upsertManyIfRevision(rows, before));
+    QVERIFY(index.publish(rows));
+    QVERIFY(index.rowsForPath(movie.path).first().coverRef.isEmpty());
+#ifndef Q_OS_WIN
+    QVERIFY(index.rowsForPath(alias.path).first().coverRef.isEmpty());
+#endif
+}
+
+void tst_vault_index::personal_paths_hide_and_remove_rows_across_roots()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex index(tmp.filePath("vault.sqlite"));
+    const QString path = tmp.filePath("media");
+    auto personal = mk("secret", path + "/personal", "Private", "video", "secret.mp4");
+    personal.admissionVerdict = QStringLiteral("Unsupported");
+    auto duplicate = personal;
+    duplicate.id = QStringLiteral("other-root-secret");
+    duplicate.rootPath = path;
+    const auto individual = mk("individual", path, "Private File", "book", "personal.epub");
+    const auto allowed = mk("allowed", path + "/personalized", "Allowed", "video", "keep.mp4");
+    QList<VaultIndex::FileRow> existing{personal, duplicate, individual, allowed};
+#ifndef Q_OS_WIN
+    // QFile::link creates a real symlink on Unix; the Windows variant creates a shortcut.
+    QVERIFY(QDir().mkpath(personal.subtreePath));
+    {
+        QFile source(personal.path);
+        QVERIFY(source.open(QIODevice::WriteOnly));
+        QVERIFY(source.write("test") > 0);
+    }
+    const auto alias = mk("legacy-alias", path, "Alias", "video", "linked.mp4");
+    QVERIFY(QFile::link(personal.path, alias.path));
+    existing.append(alias);
+#endif
+    QVERIFY(index.publish(existing));
+    const quint64 old = index.revision();
+    const VaultLocation::PersonalPaths choices{{VaultLocation::normalize(individual.path)},
+        {VaultLocation::normalize(personal.subtreePath)}};
+    QSignalSpy ready(&index, &VaultIndex::personalPathsPrepared);
+    QVERIFY(index.setPersonalPaths(choices));
+    QVERIFY(index.isPreparingPersonalPaths());
+    QVERIFY(index.rowsMatching("secret", 10).isEmpty());
+    QVERIFY(index.recentGroups(10).isEmpty());
+    QVERIFY(!index.upsert(duplicate));
+    QTRY_COMPARE(ready.size(), 1);
+    QVERIFY(ready.at(0).at(0).toBool());
+    QCOMPARE(index.itemCount(), 1);
+    QVERIFY(index.rowsForPath(individual.path).isEmpty());
+    QVERIFY(index.admissionById().isEmpty());
+    QVERIFY(!index.upsertManyIfRevision({personal, duplicate}, old));
+    QVERIFY(index.publish(existing));
+    QCOMPARE(index.itemCount(), 1);
+    QCOMPARE(index.rowsForKind("video").first().id, allowed.id);
+}
+
+void tst_vault_index::personal_purge_failure_keeps_index_private_until_retry()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString dbPath = tmp.filePath("vault.sqlite");
+    VaultIndex index(dbPath);
+    const auto personal = mk("secret", tmp.filePath("media"), "Private", "video", "secret.mp4");
+    QVERIFY(index.publish({personal}));
+    const auto connection = QUuid::createUuid().toString();
+    auto sql = [&connection, &dbPath](const QString& statement) {
+        bool ok = false;
+        {
+            auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+            db.setDatabaseName(dbPath);
+            if (db.open()) {
+                QSqlQuery openedQuery(db);
+                ok = openedQuery.exec(statement);
+            }
+        }
+        QSqlDatabase::removeDatabase(connection);
+        return ok;
+    };
+    QVERIFY(sql(QStringLiteral("CREATE TRIGGER block_prune BEFORE DELETE ON files "
+                               "BEGIN SELECT RAISE(FAIL, 'blocked'); END")));
+    QSignalSpy ready(&index, &VaultIndex::personalPathsPrepared);
+    const VaultLocation::PersonalPaths choices{{VaultLocation::normalize(personal.path)}, {}};
+    QVERIFY(index.setPersonalPaths(choices));
+    QTRY_COMPARE(ready.size(), 1);
+    QVERIFY(!ready.at(0).at(0).toBool());
+    QVERIFY(index.isPreparingPersonalPaths());
+    QVERIFY(index.rowsForKind("video").isEmpty());
+    QVERIFY(!index.publish({personal}));
+    QVERIFY(sql(QStringLiteral("DROP TRIGGER block_prune")));
+    QVERIFY(index.setPersonalPaths(choices));
+    QTRY_COMPARE(ready.size(), 2);
+    QVERIFY(ready.at(1).at(0).toBool());
+    QVERIFY(index.isOpen());
+    QCOMPARE(index.itemCount(), 0);
+}
 
 void tst_vault_index::downloaded_identity_does_not_overwrite_a_manual_match()
 {

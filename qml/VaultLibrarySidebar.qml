@@ -13,6 +13,8 @@ FocusScope {
     property int unmatchedCount: 0
     property string status: ""
     property bool busy: false
+    property string scanStatus: ""
+    property bool scanCanCancel: false
     property bool expanded: true
     readonly property int collapsedWidth: 62
     readonly property bool compactFooter: height < 620
@@ -23,6 +25,7 @@ FocusScope {
     signal selected(string view, string serverId)
     signal sourcesRequested()
     signal rescanRequested()
+    signal stopScanRequested()
     signal addFolderRequested()
     signal toggleRequested()
     width: expanded ? theme.vaultSidebarWidth : collapsedWidth
@@ -250,7 +253,7 @@ FocusScope {
                         Text { visible: root.expanded && !root.compactFooter; anchors.horizontalCenter: parent.horizontalCenter; y: 25; text: tile.modelData.title; color: tile.hovered ? theme.ink : theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultSmall }
                         Rectangle {
                             objectName: "vaultRescanStatusDot"
-                            visible: tile.modelData.key === "rescan" && root.compactFooter && root.status.length > 0
+                            visible: tile.modelData.key === "rescan" && root.compactFooter && !root.scanStatus && root.status.length > 0
                             x: parent.width - width - 2; y: parent.height - height - 2
                             width: 6; height: 6; radius: 3
                             color: root.status === qsTr("No sources connected") ? theme.inkDimmer
@@ -262,9 +265,46 @@ FocusScope {
                 }
             }
         }
+        Column {
+            objectName: "vaultSidebarScan"
+            visible: root.scanStatus.length > 0
+            width: parent.width
+            spacing: 3
+            Text {
+                objectName: "vaultSidebarScanLabel"
+                width: parent.width
+                text: root.expanded ? root.scanStatus : qsTr("Scan", "Short label for ongoing scan")
+                horizontalAlignment: root.expanded ? Text.AlignLeft : Text.AlignHCenter
+                wrapMode: root.expanded ? Text.WordWrap : Text.NoWrap
+                elide: Text.ElideRight
+                maximumLineCount: 2
+                color: theme.ink
+                font.family: theme.ui
+                font.pixelSize: theme.vaultSmall
+                Accessible.ignored: true
+            }
+            ProgressBar {
+                objectName: "vaultSidebarScanProgress"
+                width: parent.width
+                height: 6
+                indeterminate: true
+                Accessible.name: root.scanStatus
+            }
+            VaultLibraryButton {
+                objectName: "vaultSidebarStopScan"
+                visible: root.scanCanCancel
+                width: root.expanded ? implicitWidth : parent.width
+                height: 26
+                leftPadding: root.expanded ? 14 : 4
+                rightPadding: leftPadding
+                text: root.expanded ? qsTr("Stop scan") : qsTr("Stop")
+                accessibleName: qsTr("Stop scan")
+                onClicked: root.stopScanRequested()
+            }
+        }
         Item {
             objectName: "vaultLibrarySourcesStatus"
-            visible: root.expanded && !root.compactFooter && root.status.length > 0
+            visible: root.expanded && !root.compactFooter && !root.scanStatus && root.status.length > 0
             width: parent.width; height: 15
             activeFocusOnTab: true
             Accessible.role: Accessible.StaticText

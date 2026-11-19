@@ -1,6 +1,5 @@
 #include "DlnaContentDirectory.h"
 
-#include <QDir>
 #include <QFileInfo>
 #include <QHash>
 #include <QSet>
@@ -267,10 +266,9 @@ QString thumbProfileForSuffix(const QString& suffixLower)
 
 QString subtitlePathFor(const DlnaItem& item)
 {
-    if (!item.mime.startsWith(QLatin1String("video/")))
-        return QString();
-    const QFileInfo fi(item.filePath);
-    const QFileInfo srt(QDir(fi.absolutePath()), fi.completeBaseName() + QLatin1String(".srt"));
+    if (item.subtitlePersonal)
+        return {};
+    const QFileInfo srt(item.subtitleCandidatePath());
     return srt.isFile() && !srt.isSymLink() ? srt.absoluteFilePath() : QString();
 }
 

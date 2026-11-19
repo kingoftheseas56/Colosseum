@@ -21,6 +21,7 @@
 #include "engine/ComicCoverId.h"
 #include "engine/VaultBookCoverProvider.h"
 #include "engine/VaultIndex.h"
+#include "engine/VaultKit.h"
 #include "third_party/miniz/miniz.h"
 
 #include <QBuffer>
@@ -161,6 +162,8 @@ private slots:
     // ── local artwork adoption slice (browse-face execution plan Slice 3) ──
     void find_local_artwork_prefers_poster_then_folder_then_cover();
     void find_local_artwork_accepts_jpg_and_jpeg_variants();
+    void find_local_artwork_skips_personal_companions();
+    void snapshot_cancelled_between_files_leaves_the_unread_remainder_unchanged();
     void find_local_artwork_refuses_the_real_release_site_junk_image();
     void find_local_artwork_returns_empty_without_any_artwork();
     void find_local_artwork_refuses_corrupt_image();
@@ -586,6 +589,56 @@ void tst_vault_enricher::find_local_artwork_accepts_jpg_and_jpeg_variants()
     writeFile(posterUpper, coverJpeg());
     QCOMPARE(VaultEnricher::findLocalArtwork(tmp3.path()),
              QUrl::fromLocalFile(QFileInfo(posterUpper).absoluteFilePath()).toString());
+}
+
+void tst_vault_enricher::find_local_artwork_skips_personal_companions()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString preferred = tmp.filePath(QStringLiteral("poster.png"));
+    const QString allowed = tmp.filePath(QStringLiteral("cover.png"));
+    writeFile(preferred, coverPng());
+    writeFile(allowed, coverPng());
+    QCOMPARE(VaultEnricher::findLocalArtwork(tmp.path()), QUrl::fromLocalFile(preferred).toString());
+
+    VaultLocation::PersonalPaths personal;
+    personal.files.insert(VaultLocation::normalize(preferred));
+    QCOMPARE(VaultEnricher::findLocalArtwork(tmp.path(), personal),
+             QUrl::fromLocalFile(allowed).toString());
+    QVERIFY(QFileInfo::exists(preferred));
+
+    personal.directories.insert(VaultLocation::normalize(tmp.path()));
+    QVERIFY(VaultEnricher::findLocalArtwork(tmp.path(), personal).isEmpty());
+}
+
+void tst_vault_enricher::snapshot_cancelled_between_files_leaves_the_unread_remainder_unchanged()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+    VaultEnricher enricher(&index, tmp.path());
+    QList<VaultIndex::FileRow> rows;
+    for (const auto* name : {"first.cbz", "second.cbz"}) {
+        VaultIndex::FileRow row;
+        row.id = QString::fromLatin1(name);
+        row.path = tmp.filePath(row.id);
+        row.rootPath = row.groupKey = row.subtreePath = tmp.path();
+        row.kind = QStringLiteral("comic");
+        row.realName = row.id;
+        // Corrupt input becomes an error if and only if its read was attempted.
+        writeFile(row.path, QByteArrayLiteral("invalid cbz"));
+        rows.append(row);
+    }
+    QVERIFY(index.publish(rows));
+
+    VaultKit::CancellationToken token;
+    QSignalSpy progress(&enricher, &VaultEnricher::progress);
+    connect(&enricher, &VaultEnricher::progress, this, [&](int, int) { token.cancel(); });
+    enricher.enrichSnapshot(rows, index.revision(), {}, &token);
+    QCOMPARE(progress.count(), 1);
+    QCOMPARE(index.rowsForPath(rows.first().path).first().errorState, QStringLiteral("corrupt"));
+    QVERIFY(index.rowsForPath(rows.last().path).first().errorState.isEmpty());
 }
 
 void tst_vault_enricher::find_local_artwork_refuses_the_real_release_site_junk_image()

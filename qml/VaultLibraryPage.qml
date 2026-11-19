@@ -1,6 +1,7 @@
 // Desktop Vault library. Native services own scanning, identity and durable progress.
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import QtCore
 import "VaultLibraryData.js" as Data
 
@@ -18,10 +19,11 @@ FocusScope {
     property Item connectionInvoker: null
     property string notice: ""
     readonly property int itemCount: adapter.allItems.length
-    readonly property string vaultState: adapter.busy ? "scanning" : adapter.empty ? "empty" : "populated"
-    readonly property bool cardVisible: admission.cardVisible
+    readonly property string vaultState: adapter.indexing ? "scanning" : adapter.empty ? "empty" : "populated"
+    readonly property bool cardVisible: admission.modalOpen
     readonly property bool sourcesOpen: sources.open
     readonly property bool searchViewActive: bar.query.trim().length > 0
+    readonly property bool firstScanOnHome: adapter.firstFolderIndexing && currentView === "home" && !searchViewActive
     readonly property var searchRows: adapter.search(bar.query, "all", currentView === "server" ? currentServer : "")
     readonly property var selectedServer: adapter.providers.find(s => s.id === currentServer) || ({})
     signal backRequested()
@@ -44,7 +46,7 @@ FocusScope {
         currentServer = view === "server" ? root.adapter.providerKey(serverId || "") : (serverId || "")
         bar.query = ""
         viewReveal.restart()
-        Qt.callLater(function() { var page = content.item as Item; if (page) page.forceActiveFocus(Qt.OtherFocusReason) })
+        Qt.callLater(function() { if (content.status === Loader.Ready) content.item.forceActiveFocus(Qt.OtherFocusReason) })
     }
     function selectProvider(provider) {
         const entry = root.adapter.providers.find(row => row.id === provider)
@@ -182,7 +184,14 @@ FocusScope {
         x: sidebar.x + sidebar.width + (theme.vaultContentLeft - theme.vaultSidebarInset - theme.vaultSidebarWidth); y: theme.vaultSidebarTop
         width: Math.max(240, root.width - x - theme.vaultContentRight)
         height: Math.max(100, root.height - y - 24)
-        sourceComponent: root.searchViewActive ? searchComponent : root.adapter.empty ? emptyComponent : root.currentView === "home" ? homeComponent : root.currentView === "server" ? serverComponent : root.currentView === "match" || root.currentView === "hidden" ? listComponent : kindComponent
+        sourceComponent: {
+            if (root.searchViewActive) return searchComponent
+            if (root.firstScanOnHome) return firstScanComponent
+            if (root.currentView === "home") return root.adapter.empty ? emptyComponent : homeComponent
+            if (root.currentView === "server") return serverComponent
+            if (root.currentView === "match" || root.currentView === "hidden") return listComponent
+            return kindComponent
+        }
         NumberAnimation { id: viewReveal; target: content; property: "opacity"; from: 0; to: 1; duration: theme.vaultMotionDuration; easing.type: Easing.OutCubic }
     }
     VaultLibrarySidebar {
@@ -192,17 +201,20 @@ FocusScope {
         expanded: root.sidebarSettings.railExpanded
         backdrop: root.backdrop; counts: root.adapter.counts; servers: root.adapter.providers; currentView: root.currentView; currentServer: root.currentServer
         unmatchedCount: root.adapter.unmatchedItems.length; status: root.adapter.status; busy: root.adapter.busy
+        scanStatus: root.firstScanOnHome ? "" : root.adapter.indexingStatus
+        scanCanCancel: root.adapter.indexingCancellable
         onSelected: (view, serverId) => view === "server" ? root.selectProvider(serverId) : root.showView(view, serverId)
         onSourcesRequested: sources.show(sidebar)
         onAddFolderRequested: root.addFolderRequested()
         onToggleRequested: root.sidebarSettings.railExpanded = !root.sidebarSettings.railExpanded
         onRescanRequested: { if (!root.adapter.rescan()) sources.show(sidebar) }
+        onStopScanRequested: root.adapter.cancelScan()
     }
     VaultLibraryBar {
         id: bar; objectName: "vaultHeader"
         x: 16; y: 12; width: parent.width - 32; z: 10
         backdrop: root.backdrop; contentBackdrop: content
-        scrollOffset: (content.item as Flickable) ? (content.item as Flickable).contentY : 0
+        scrollOffset: content.status === Loader.Ready && (content.item as Flickable) ? (content.item as Flickable).contentY : 0
         onBackRequested: root.handleBack()
         onMinimizeRequested: root.minimizeRequested()
         onFullscreenRequested: root.fullscreenRequested()
@@ -214,6 +226,10 @@ FocusScope {
         id: sources; anchors.fill: parent; z: 20; backdrop: pageSurface; adapter: root.adapter
         onAddFolderRequested: { sources.close(); root.addFolderRequested() }
         onConnectServerRequested: root.connectServerRequested()
+        onEditFolderRequested: path => {
+            sources.close()
+            root.adapter.library.openFolderSelection(path)
+        }
     }
     Loader {
         id: providerConnection
@@ -226,6 +242,17 @@ FocusScope {
             onConnected: id => root.providerConnected(id)
             onDismissed: root.providerConnectionOpen = false
             Component.onCompleted: open()
+        }
+    }
+    Connections {
+        target: root.adapter.library
+        ignoreUnknownSignals: true
+        function onIndexingFailed() { root.flash(qsTr("Vault could not finish scanning. Select Rescan in Sources to try again.")) }
+        function onIndexingCancelled() { root.flash(qsTr("Scan stopped. Select Rescan in Sources to try again.")) }
+        function onPersonalPathsChanged() {
+            extrasDialog.close()
+            extrasDialog.show = null
+            extrasDialog.sourceRow = null
         }
     }
     VaultFolderAdmission { id: admission; anchors.fill: parent; z: 25; library: root.adapter.library || null }
@@ -269,6 +296,71 @@ FocusScope {
         Text { id: noticeText; anchors.fill: parent; anchors.margins: 12; text: root.notice; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.vaultBody; wrapMode: Text.Wrap }
     }
     Timer { id: noticeTimer; interval: 5000; onTriggered: root.notice = "" }
+    Component {
+        id: firstScanComponent
+        Flickable {
+            id: firstScan
+            objectName: "vaultFirstScan"
+            contentWidth: width
+            contentHeight: panel.y + panel.height + 24
+            boundsBehavior: Flickable.StopAtBounds
+            clip: true
+            ScrollBar.vertical: HouseScrollBar { flick: firstScan }
+            Glass {
+                id: panel
+                y: 28
+                width: parent.width
+                height: Math.max(300, details.implicitHeight + 64)
+                backdrop: root.backdrop
+                radius: theme.vaultRadius
+                ColumnLayout {
+                    id: details
+                    anchors.centerIn: parent
+                    width: Math.min(540, parent.width - 48)
+                    spacing: 16
+                    Text {
+                        objectName: "vaultFirstScanHeading"
+                        Layout.fillWidth: true
+                        text: qsTr("Vault is scanning your folders")
+                        color: theme.ink
+                        font.family: theme.display
+                        font.pixelSize: theme.vaultPageTitle
+                        wrapMode: Text.Wrap
+                    }
+                    Text {
+                        objectName: "vaultFirstScanStage"
+                        Layout.fillWidth: true
+                        text: root.adapter.indexingStatus
+                        color: theme.ink
+                        font.family: theme.ui
+                        font.pixelSize: theme.vaultBody
+                        wrapMode: Text.Wrap
+                        Accessible.ignored: true
+                    }
+                    ProgressBar {
+                        objectName: "vaultFirstScanProgress"
+                        Layout.fillWidth: true
+                        indeterminate: true
+                        Accessible.name: root.adapter.indexingStatus
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("You can keep using Vault while the scan runs.")
+                        color: theme.inkDimmer
+                        font.family: theme.ui
+                        font.pixelSize: theme.vaultBody
+                        wrapMode: Text.Wrap
+                    }
+                    VaultLibraryButton {
+                        objectName: "vaultCancelIndexing"
+                        text: qsTr("Stop scan")
+                        enabled: root.adapter.indexingCancellable
+                        onClicked: root.adapter.cancelScan()
+                    }
+                }
+            }
+        }
+    }
     Component {
         id: homeComponent
         VaultHomeView {
@@ -361,7 +453,7 @@ FocusScope {
                 anchors.left: parent.left; anchors.right: parent.right; y: 28; height: Math.min(360, parent.height - 32); backdrop: root.backdrop; radius: theme.vaultRadius
                 Column {
                     anchors.centerIn: parent; width: parent.width - 80; spacing: 18
-                    Text { text: "A place for your stories"; width: parent.width; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultPageTitle; wrapMode: Text.Wrap }
+                    Text { objectName: "vaultEmptyHeading"; text: qsTr("A place for your stories"); width: parent.width; color: theme.ink; font.family: theme.display; font.pixelSize: theme.vaultPageTitle; wrapMode: Text.Wrap }
                     Row { spacing: 10; VaultLibraryButton { text: "Add a folder"; primary: true; onClicked: root.addFolderRequested() } VaultLibraryButton { text: "Connect a server"; onClicked: root.connectServerRequested() } }
                 }
                 DropArea { anchors.fill: parent; onDropped: drop => { if (drop.hasUrls) { root.addFolderRequested(); drop.acceptProposedAction() } } }
