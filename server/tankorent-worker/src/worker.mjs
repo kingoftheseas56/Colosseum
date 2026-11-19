@@ -223,7 +223,9 @@ function sourceHeaders(extra = {}) {
   });
 }
 
-async function fetchText(source, input, { method = 'GET', body, headers = sourceHeaders(), acceptUrl, contentType } = {}, fetchImpl, budget) {
+async function fetchText(source, input, {
+  method = 'GET', body, headers = sourceHeaders(), acceptUrl, contentType, retryTransient = false
+} = {}, fetchImpl, budget) {
   if (method !== 'GET' && method !== 'POST') throw new SourceError('Provider request method is invalid');
   if (method === 'GET' && body !== undefined) throw new SourceError('GET provider requests cannot have a body');
   if (body !== undefined && utf8Length(String(body)) > MAX_REQUEST_BYTES)
@@ -254,6 +256,10 @@ async function fetchText(source, input, { method = 'GET', body, headers = source
     } catch (error) {
       if (Date.now() >= deadline)
         throw new SourceError('Search deadline exceeded', 'unreachable', 502, true);
+      if (retryTransient) {
+        retryTransient = false;
+        continue;
+      }
       if (signal.aborted) throw new SourceError('Upstream request timed out');
       throw new SourceError('Upstream request failed');
     }
@@ -293,6 +299,10 @@ async function fetchText(source, input, { method = 'GET', body, headers = source
     } catch (error) {
       if (Date.now() >= deadline)
         throw new SourceError('Search deadline exceeded', 'unreachable', 502, true);
+      if (signal.aborted && retryTransient) {
+        retryTransient = false;
+        continue;
+      }
       if (signal.aborted) throw new SourceError('Upstream request timed out');
       if (error?.message === 'Upstream response is too large') throw new SourceError(error.message);
       throw new SourceError('Could not read upstream response');
@@ -826,7 +836,8 @@ async function lookupAbb(operation, body, fetchImpl, budget) {
   const html = await fetchText(ABB_SOURCE, target, {
     headers: new Headers(),
     acceptUrl: matches,
-    contentType: /^text\/html(?:\s*;|$)/i
+    contentType: /^text\/html(?:\s*;|$)/i,
+    retryTransient: true
   }, fetchImpl, budget);
   const canonical = [...html.matchAll(/<link\b[^>]*>/gi)].find(match => attrValue(match[0], 'rel') === 'canonical');
   if (!canonical || !matches(abbUrl(attrValue(canonical[0], 'href'))))

@@ -416,3 +416,25 @@ test('AudioBookBay refuses unsafe inputs and redirects without additional upstre
     assert.deepEqual(seen, ['https://audiobookbay.lu/?s=sample']);
   }
 });
+
+test('AudioBookBay retries one transient upstream failure within the request budget', async () => {
+  const confirmedEmpty = '<link rel="canonical" href="/?s=sample" /><h3>Not Found</h3>';
+  for (const persistent of [false, true]) {
+    let requests = 0;
+    const abb = createWorker({ fetchImpl: async () => {
+      if (++requests === 1 || persistent) throw new Error('Connection reset');
+      return new Response(confirmedEmpty, { headers: { 'content-type': 'text/html' } });
+    } });
+    const response = await abb.fetch(request('/v1/audiobookbay/search', { query: 'sample' }));
+    assert.equal(response.status, persistent ? 502 : 200);
+    assert.equal(requests, 2);
+  }
+  let requests = 0;
+  const abb = createWorker({ fetchImpl: async () => {
+    ++requests;
+    return new Response(null, { status: 429 });
+  } });
+  const response = await abb.fetch(request('/v1/audiobookbay/search', { query: 'sample' }));
+  assert.equal(response.status, 429);
+  assert.equal(requests, 1);
+});
