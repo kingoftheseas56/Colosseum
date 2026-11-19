@@ -9,11 +9,30 @@ var ABB_LOOKUP_URL = "https://colosseum-tankorent.colosseum-watchparty-relay.wor
 var ABB_LOOKUP_TIMEOUT_MS = 22000;
 
 function requestLookup(operation, payload, done) {
+    var deadline = Date.now() + ABB_LOOKUP_TIMEOUT_MS;
+    requestLookupAttempt(operation, payload, ABB_LOOKUP_TIMEOUT_MS, function(result, reason) {
+        var remaining = deadline - Date.now();
+        if (remaining >= 3000 && (reason === "offline" || reason === "http-408"
+                                 || /^http-5\d\d$/.test(reason || ""))) {
+            requestLookupAttempt(operation, payload, remaining, complete);
+            return;
+        }
+        complete(result, reason);
+    });
+
+    function complete(result, reason) {
+        if (reason)
+            console.warn("[AudioBookBay] " + operation + " failed (" + reason + ")");
+        done(result, reason);
+    }
+}
+
+function requestLookupAttempt(operation, payload, timeoutMs, done) {
     var xhr = new XMLHttpRequest();
     // QML XMLHttpRequest does not expose a timeout property.
     var timeout = Qt.createQmlObject(
         "import QtQml\nTimer { repeat: false }", Qt.application, "AbbRequestTimeout.qml");
-    timeout.interval = ABB_LOOKUP_TIMEOUT_MS;
+    timeout.interval = timeoutMs;
 
     function finish(result, reason) {
         xhr.onreadystatechange = null;
