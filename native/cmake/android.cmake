@@ -107,7 +107,7 @@ list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^feria/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^vinyl/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "(^|/)Vault[^/]*[.](qml|js)$")
 # These are pure presentation components, not the unavailable Vault world/backend.
-list(APPEND COLOSSEUM_ANDROID_QML_FILES VaultDoor.qml VaultHomeWidget.qml)
+list(APPEND COLOSSEUM_ANDROID_QML_FILES VaultDoor.qml VaultHomeWidget.qml VaultLibraryButton.qml)
 set(_android_desktop_chrome TopBar.qml Taskbar.qml ExtensionsHouseHero.qml)
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^[+]android/(TopBar|Taskbar|ExtensionsHouseHero)[.]qml$")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^(TrackerApprovalWebView|ExtensionsSetupSheet)[.]qml$")
