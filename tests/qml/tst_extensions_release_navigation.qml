@@ -13,6 +13,14 @@ TestCase {
     Component { id: houseComponent; Colosseum.ExtensionsHousePage {} }
     property var page: null
     property var originalFetch: null
+    QtObject {
+        id: repositoryStore
+        property var repositories: []
+        property bool busy: false
+        property string error: ""
+        signal changed()
+    }
+
 
     function init() {
         originalFetch = StoreApi.fetchAll
@@ -60,6 +68,42 @@ TestCase {
         compare(title.mapToItem(page, 0, 0), titlePosition)
         compare(title.text, "Extensions")
     }
+    function test_nuvio_drawer_preserves_link_and_respects_dock_clearance() {
+        page = pageComponent.createObject(host.contentItem, {
+            width: host.width, height: host.height,
+            bottomInset: 76, nuvioRepositoryStore: repositoryStore
+        })
+        verify(page !== null)
+        const trigger = findChild(page, "extensionsNuvioRepositoriesButton")
+        const drawer = findChild(page, "extensionsNuvioRepositoryDrawer")
+        const scrollbar = findChild(page, "extensionsWorldScrollBar")
+        verify(trigger && drawer && scrollbar)
+        host.requestActivate()
+        tryCompare(host, "active", true)
+        verify(scrollbar.prominent && !scrollbar.glassStyle)
+        compare(drawer.visible, false)
+        verify(trigger.activate())
+        tryCompare(drawer, "opened", true)
+        compare(drawer.y + drawer.height, host.height - 76)
+        const repoBar = findChild(drawer.contentItem, "nuvioRepositoriesBar")
+        const address = findChild(repoBar, "nuvioRepositoryAddress")
+        verify(repoBar && address)
+        tryVerify(() => address.activeFocus, 2000,
+                  "repository field focus, enabled=" + address.enabled
+                  + " visible=" + address.visible
+                  + " focus=" + address.focus
+                  + " active window item=" + host.activeFocusItem)
+        repoBar.offerLink("https://example.test/repository.json")
+        compare(page.requestEscape(), true)
+        tryCompare(drawer, "visible", false)
+        verify(trigger.activate())
+        tryCompare(drawer, "opened", true)
+        compare(address.text, "https://example.test/repository.json")
+        const close = findChild(repoBar, "closeNuvioRepositories")
+        verify(close && close.activate())
+        tryCompare(drawer, "visible", false)
+    }
+
     function test_single_store_world_preserves_escape_and_back() {
         page = pageComponent.createObject(host.contentItem, {width: host.width, height: host.height})
         verify(page !== null)

@@ -29,7 +29,8 @@ Item {
     signal searchClicked()
     signal universeHallRequested()
 
-    readonly property var nuvioRepositoryStore: typeof NuvioRepos !== "undefined" ? NuvioRepos : null
+    property var nuvioRepositoryStore: typeof NuvioRepos !== "undefined" ? NuvioRepos : null
+    property real bottomInset: 24
     property var catalogue: StoreApi.withTorrentio([]) // every cleaned add-on, most starred first; the bundled Torrentio card is present while/if the catalogue cannot load
     property string loadError: ""
     property bool loading: true
@@ -486,6 +487,7 @@ Item {
         if (setup && setup.open) { root.closeSetup(); return true }
         if (root.configuringExtensionId.length) { root.replacingInstance = null; root.closeConfiguration(); return true }
         if (management.dismissRemoval()) return true
+        if (nuvioDrawer.visible) { nuvioDrawer.close(); return true }
         if (root.managingInstalled) return management.requestEscape()
         if (root.seeAllRow || root.searching) { root.seeAllRow = null; root.searching = false; return true }
         return false
@@ -550,6 +552,7 @@ Item {
                 return
             }
             root.closeUrlInstaller()
+            nuvioDrawer.open()
             Qt.callLater(nuvioBar.offerLink, url)
         }
     }
@@ -558,25 +561,12 @@ Item {
     property string installError: ""
     Timer { id: installErrorTimer; interval: 6000; onTriggered: root.installError = "" }
 
-    // The Store's own wallpaper (Hemanth's pick, 2026-09-28): the Jolly Roger, under a dark veil
-    // so the cards read over it. It stays put while the board scrolls, like a world wallpaper.
-    Item {
+    Rectangle {
         id: night
         anchors.fill: parent
-        Rectangle { anchors.fill: parent; color: "#06070a" }
-        Image {
-            anchors.fill: parent
-            source: "../assets/extensions/store-jolly-roger.jpg"
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-        }
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(4 / 255, 5 / 255, 8 / 255, 0.55) }
-                GradientStop { position: 0.5; color: Qt.rgba(4 / 255, 5 / 255, 8 / 255, 0.66) }
-                GradientStop { position: 1.0; color: Qt.rgba(4 / 255, 5 / 255, 8 / 255, 0.80) }
-            }
+        gradient: Gradient {
+            GradientStop { position: 0; color: "#181c24" }
+            GradientStop { position: 1; color: "#090b10" }
         }
     }
 
@@ -587,8 +577,10 @@ Item {
         anchors.fill: parent
         visible: !seeAll.visible && !tankoyomiConfiguration.visible && !management.visible
         medium: "Extensions"
-        glassScrollBar: true
+        prominentScrollBar: true
+        contentBottomInset: root.bottomInset
         topBarBackOnly: true
+        onVisibleChanged: if (!visible) nuvioDrawer.close()
         backdrop: night
         onHomeRequested: root.backRequested()
 
@@ -642,6 +634,53 @@ Item {
             }
         }
 
+        KeyboardAction {
+            id: nuvioTrigger
+            objectName: "extensionsNuvioRepositoriesButton"
+            visible: root.nuvioRepositoryStore !== null
+            width: nuvioLabelRow.implicitWidth + 28
+            height: 44
+            accessibleName: nuvioDrawer.visible ? qsTr("Hide Nuvio repositories") : qsTr("Show Nuvio repositories")
+            onTriggered: {
+                if (nuvioDrawer.visible) nuvioDrawer.close()
+                else nuvioDrawer.open()
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                radius: 12
+                color: nuvioTrigger.interactionActive ? theme.glassHi : theme.glassTint
+            }
+            Row {
+                id: nuvioLabelRow
+                anchors.centerIn: parent
+                spacing: 9
+                Image {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 22; height: 22
+                    source: "../assets/icons/nuvio-official.png"
+                    sourceSize.width: 44; sourceSize.height: 44
+                    fillMode: Image.PreserveAspectFit
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: qsTr("Nuvio repositories")
+                    color: theme.ink
+                    font.family: theme.ui
+                    font.pixelSize: theme.fontSize(14)
+                    font.weight: Font.DemiBold
+                }
+                Image {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 15; height: 15
+                    source: "../assets/icons/lucide/chevron-right.svg"
+                    sourceSize.width: 30; sourceSize.height: 30
+                    rotation: nuvioDrawer.visible ? -90 : 90
+                    opacity: 0.8
+                }
+            }
+        }
+
         ExtensionsStoreRail {
             id: essentialsRail
             title: qsTr("Essentials")
@@ -660,17 +699,9 @@ Item {
             onAddonRemoved: (a) => management.requestRemoval(root.essentialInstanceIndices(a))
         }
 
-        NuvioRepositoriesBar {
-            id: nuvioBar
-            objectName: "nuvioRepositoriesBar"
-            store: root.nuvioRepositoryStore
-            visible: store !== null
-            onFocusRequested: (item) => storeWorld.revealFocusedItem(item)
-        }
-
         RowLayout {
             objectName: "extensionsDataSourceCredits"
-            visible: nuvioBar.visible
+            visible: root.nuvioRepositoryStore !== null
             width: parent.width
             spacing: 12
 
@@ -756,6 +787,46 @@ Item {
             text: "Community add-ons and stars from stremio-addons.net. Their authors run them, not Colosseum."
             color: Qt.rgba(1, 1, 1, 0.34)
             font.family: theme.ui; font.pixelSize: 12
+        }
+    }
+
+    Popup {
+        id: nuvioDrawer
+        objectName: "extensionsNuvioRepositoryDrawer"
+        parent: root
+        x: storeWorld.outerPageMargin
+        y: root.height - root.bottomInset - height
+        width: root.width - 2 * x
+        height: Math.min(nuvioBar.implicitHeight, Math.max(0, root.height - root.bottomInset) * 0.57)
+        padding: 0
+        focus: true
+        popupType: Popup.Item
+        closePolicy: Popup.CloseOnEscape
+        background: Rectangle { color: "#161e2d"; radius: 15 }
+        onOpened: Qt.callLater(nuvioBar.focusAddress)
+        onClosed: {
+            if (storeWorld.visible && !root.installUrlOpen)
+                root.takeKeyboardFocus()
+        }
+        contentItem: Flickable {
+            id: repoScroll
+            contentWidth: width
+            contentHeight: nuvioBar.height
+            clip: true
+            flickableDirection: Flickable.VerticalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: HouseScrollBar {
+                flick: repoScroll
+                prominent: true
+            }
+
+            NuvioRepositoriesBar {
+                id: nuvioBar
+                objectName: "nuvioRepositoriesBar"
+                width: repoScroll.width
+                store: root.nuvioRepositoryStore
+                onCloseRequested: nuvioDrawer.close()
+            }
         }
     }
 
