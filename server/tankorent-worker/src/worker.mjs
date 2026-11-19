@@ -14,6 +14,9 @@ const MAX_TITLE_LENGTH = 512;
 const MAX_MAGNET_LENGTH = 8_192;
 const MAX_CATEGORY_VALUE_LENGTH = 128;
 const MAX_INT32 = 2_147_483_647;
+const ABB_ORIGIN = 'https://audiobookbay.lu';
+const ABB_SOURCE = { id: 'audiobookbay', allowedHosts: ['audiobookbay.lu'] };
+const ABB_MAX_PAGE = 30;
 
 const DEFAULT_TRACKERS = [
   'udp://tracker.opentrackr.org:1337/announce',
@@ -33,7 +36,7 @@ const SOURCES = new Map(SOURCE_LIST.map(source => [source.id, source]));
 
 export const manifest = Object.freeze({
   id: 'colosseum.well.indexers',
-  version: '1.0.2',
+  version: '1.0.3',
   name: 'Tankorent',
   description: 'Colosseum local-first torrent search metadata',
   resources: ['stream'],
@@ -220,7 +223,9 @@ function sourceHeaders(extra = {}) {
   });
 }
 
-async function fetchText(source, input, { method = 'GET', body, headers = sourceHeaders() } = {}, fetchImpl, budget) {
+async function fetchText(source, input, {
+  method = 'GET', body, headers = sourceHeaders(), acceptUrl, contentType, retryTransient = false
+} = {}, fetchImpl, budget) {
   if (method !== 'GET' && method !== 'POST') throw new SourceError('Provider request method is invalid');
   if (method === 'GET' && body !== undefined) throw new SourceError('GET provider requests cannot have a body');
   if (body !== undefined && utf8Length(String(body)) > MAX_REQUEST_BYTES)
@@ -236,6 +241,7 @@ async function fetchText(source, input, { method = 'GET', body, headers = source
   while (true) {
     if (budget.used >= MAX_UPSTREAM_SUBREQUESTS)
       throw new SourceError('Provider request limit exceeded', 'unreachable', 502, true);
+    if (acceptUrl && !acceptUrl(currentUrl)) throw new SourceError('Provider URL path or query is not allowed');
     const signal = signalForDeadline(deadline);
     budget.used += 1;
     let response;
@@ -250,6 +256,10 @@ async function fetchText(source, input, { method = 'GET', body, headers = source
     } catch (error) {
       if (Date.now() >= deadline)
         throw new SourceError('Search deadline exceeded', 'unreachable', 502, true);
+      if (retryTransient) {
+        retryTransient = false;
+        continue;
+      }
       if (signal.aborted) throw new SourceError('Upstream request timed out');
       throw new SourceError('Upstream request failed');
     }
@@ -276,6 +286,10 @@ async function fetchText(source, input, { method = 'GET', body, headers = source
       await response.body?.cancel().catch(() => {});
       throw new SourceError(`Upstream returned HTTP ${response.status}`, health, response.status === 429 ? 429 : 502);
     }
+    if (contentType && !contentType.test(response.headers.get('content-type') || '')) {
+      await response.body?.cancel().catch(() => {});
+      throw new SourceError('Upstream response has an unexpected content type');
+    }
     if (contentLength(response.headers) > MAX_RESPONSE_BYTES) {
       await response.body?.cancel().catch(() => {});
       throw new SourceError('Upstream response is too large');
@@ -285,6 +299,10 @@ async function fetchText(source, input, { method = 'GET', body, headers = source
     } catch (error) {
       if (Date.now() >= deadline)
         throw new SourceError('Search deadline exceeded', 'unreachable', 502, true);
+      if (signal.aborted && retryTransient) {
+        retryTransient = false;
+        continue;
+      }
       if (signal.aborted) throw new SourceError('Upstream request timed out');
       if (error?.message === 'Upstream response is too large') throw new SourceError(error.message);
       throw new SourceError('Could not read upstream response');
@@ -696,6 +714,137 @@ async function searchExtTorrents(input, source, fetchImpl, budget) {
   return results;
 }
 
+function abbPostSlug(value) {
+  try {
+    const slug = decodeURIComponent(value);
+    return /^[\p{L}\p{N}][\p{L}\p{N}\p{M}-]{0,199}$/u.test(slug) ? slug : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function abbPathSlug(url) {
+  const part = /^\/abss\/([^/]+)\/$/.exec(url.pathname);
+  return part ? abbPostSlug(part[1]) : '';
+}
+
+function abbUrl(value) {
+  try {
+    const url = new URL(value, ABB_ORIGIN);
+    return url.origin === ABB_ORIGIN && !url.username && !url.password && !url.hash ? url : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function abbText(value) {
+  return stripTags(String(value || '').replace(/&#821[12];|&(?:en|em)dash;/gi, '-'))
+    .replace(/\s+/g, ' ').slice(0, MAX_TITLE_LENGTH);
+}
+
+function abbSeeders(html) {
+  const count = /<td\b[^>]*>\s*Seeders:\s*<\/td>\s*<td\b[^>]*>\s*([\d,]+)\s*<\/td>/i.exec(html)
+    || /Seeders:\s*<span\b[^>]*>\s*([\d,]+)\s*<\/span>/i.exec(html);
+  return count ? Math.min(Number(count[1].replace(/,/g, '')), MAX_INT32) : undefined;
+}
+
+function abbSearchResult(html, page) {
+  // The decoy posts use a different class. Only an exact post block is a listing.
+  const posts = html.split(/<div\s+class=["']post["'][^>]*>/i).slice(1);
+  const rows = [];
+  const seen = new Set();
+  for (const post of posts) {
+    const heading = /<h2\b[^>]*>\s*(<a\b[^>]*>)([\s\S]*?)<\/a>\s*<\/h2>/i.exec(post);
+    const url = heading && abbUrl(attrValue(heading[1], 'href'));
+    const slug = url && !url.search ? abbPathSlug(url) : '';
+    const titleLine = heading ? abbText(heading[2]) : '';
+    if (!slug || !titleLine || seen.has(slug)) continue;
+    seen.add(slug);
+    const dash = titleLine.lastIndexOf(' - ');
+    const suffix = dash > 0 ? titleLine.slice(dash + 3).trim() : '';
+    const author = suffix && suffix.length <= 60 && !/[/\[]|^\d/.test(suffix) ? suffix : '';
+    const size = /File Size:\s*<span[^>]*>([\d.,]+)<\/span>\s*([GMK]?Bs?)/i.exec(post);
+    rows.push({
+      slug,
+      title: author ? titleLine.slice(0, dash).trim() : titleLine,
+      author,
+      language: abbText(/Language:\s*([^<]+?)(?:<span|<br)/i.exec(post)?.[1]),
+      format: abbText(/Format:\s*<span[^>]*>([^<]+)<\/span>/i.exec(post)?.[1]),
+      size: size ? size[1] + ' ' + size[2] : '',
+      seeders: abbSeeders(post)
+    });
+    if (rows.length === 30) break;
+  }
+  if (!rows.length && (posts.length || !/<h3>\s*Not Found\s*<\/h3>/i.test(html)))
+    throw new SourceError('Upstream search page has unrecognized listings');
+  const pager = /<div\s+class=["']wp-pagenavi["'][^>]*>([\s\S]*?)<\/div>/i.exec(html)?.[1] || '';
+  const next = '/page/' + (page + 1) + '/';
+  const hasMore = page < ABB_MAX_PAGE && [...pager.matchAll(/<a\b[^>]*>/gi)]
+    .some(match => abbUrl(attrValue(match[0], 'href'))?.pathname === next);
+  return { rows, page, hasMore };
+}
+
+function abbReleaseDetail(html) {
+  const title = abbText(/<h1\b[^>]*itemprop=["']name["'][^>]*>([\s\S]*?)<\/h1>/i.exec(html)?.[1]);
+  const infoHash = canonicalInfoHash(/<td>\s*Info Hash:\s*<\/td>\s*<td[^>]*>\s*([0-9a-f]{40})\s*<\/td>/i.exec(html)?.[1]);
+  if (!title || !infoHash) throw new SourceError('Upstream release did not provide a title and valid info hash');
+
+  const description = /<div\s+class=["']desc["'][^>]*>([\s\S]*?)<\/div>/i.exec(html)?.[1] || '';
+  const credits = /<p\b[^>]*>\s*Written by[\s\S]*?<\/p>/i.exec(description)?.[0] || '';
+  const spans = (name) => Array.from(credits.matchAll(
+    new RegExp('<span\\s+class=["\\x27]' + name + '["\\x27][^>]*>([^<]*)</span>', 'gi')),
+    match => abbText(match[1])).filter(Boolean).slice(0, 40);
+  const edition = (spans('is_abridged')[0] || '').toLowerCase();
+  const abridgement = ['abridged', 'unabridged'].includes(edition) ? edition
+    : ['dramatization', 'dramatized'].includes(edition) ? 'dramatized' : '';
+  const start = /<tr>\s*<td[^>]*>\s*This is a (?:Multifile|Singlefile) Torrent\s*<\/td>\s*<\/tr>/i.exec(html);
+  const fileRows = start ? html.slice(start.index + start[0].length, start.index + start[0].length + 32000) : '';
+  const files = [...fileRows.matchAll(/<tr>\s*<td[^>]*>\s*[^<]+?\.([a-z0-9]+)\s+[0-9.]+\s*[GMK]?Bs?\s*<\/td>\s*<\/tr>/gi)].slice(0, 200);
+  return {
+    title,
+    infoHash,
+    author: spans('author').join(', '),
+    narrator: spans('narrator'),
+    format: spans('format')[0] || '',
+    abridgement,
+    language: abbText(/<span\b[^>]*itemprop=["']inLanguage["'][^>]*>([^<]+)<\/span>/i.exec(html)?.[1]),
+    fileCount: files.length,
+    audioFileCount: files.filter(file => /^(?:m4b|mp3|m4a|aac|flac|ogg|opus|wav|wma)$/i.test(file[1])).length,
+    seeders: abbSeeders(html)
+  };
+}
+
+async function lookupAbb(operation, body, fetchImpl, budget) {
+  if (!body || typeof body !== 'object' || Array.isArray(body))
+    throw new HttpError(400, 'Request body must be a JSON object');
+  const detail = operation === 'detail';
+  const slug = detail && typeof body.slug === 'string' && abbPostSlug(body.slug);
+  const query = !detail && typeof body.query === 'string' && body.query.trim().toLowerCase();
+  const page = body.page === undefined ? 1 : body.page;
+  if (detail && !slug) throw new HttpError(400, 'Invalid AudioBookBay release slug');
+  if (!detail && (!query || query.length > MAX_QUERY_LENGTH ||
+      !Number.isInteger(page) || page < 1 || page > ABB_MAX_PAGE))
+    throw new HttpError(400, 'Invalid AudioBookBay query or page');
+
+  const path = detail ? '/abss/' + encodeURIComponent(slug) + '/' : page === 1 ? '/' : '/page/' + page + '/';
+  const target = new URL(path, ABB_ORIGIN);
+  if (!detail) target.searchParams.set('s', query);
+  const matches = url => url && url.origin === ABB_ORIGIN && !url.hash && (
+    detail ? abbPathSlug(url) === slug && !url.search
+      : url.pathname === path && url.searchParams.size === 1 && url.searchParams.get('s') === query
+  );
+  const html = await fetchText(ABB_SOURCE, target, {
+    headers: new Headers(),
+    acceptUrl: matches,
+    contentType: /^text\/html(?:\s*;|$)/i,
+    retryTransient: true
+  }, fetchImpl, budget);
+  const canonical = [...html.matchAll(/<link\b[^>]*>/gi)].find(match => attrValue(match[0], 'rel') === 'canonical');
+  if (!canonical || !matches(abbUrl(attrValue(canonical[0], 'href'))))
+    throw new SourceError('Upstream returned a different AudioBookBay page');
+  return detail ? abbReleaseDetail(html) : abbSearchResult(html, page);
+}
+
 async function searchSource(source, input, fetchImpl, budget) {
   if (source.id === 'piratebay') {
     const url = new URL('https://apibay.org/q.php');
@@ -745,21 +894,23 @@ export function createWorker({ fetchImpl = globalThis.fetch } = {}) {
       return jsonResponse({ ...manifest, contractVersion: CONTRACT_VERSION });
     }
 
-    const route = url.pathname.match(/^\/v1\/([^/]+)\/search$/);
-    if (!route) return errorResponse('unknown', new HttpError(404, 'Route not found'));
+    const route = url.pathname.match(/^\/v1\/([^/]+)\/(search|detail)$/);
+    const isAbb = route?.[1] === ABB_SOURCE.id;
+    if (!route || (route[2] === 'detail' && !isAbb)) return errorResponse('unknown', new HttpError(404, 'Route not found'));
     const sourceId = /^[a-z][a-z0-9]{0,31}$/.test(route[1]) ? route[1] : 'unknown';
     if (request.method !== 'POST') return errorResponse(sourceId, new HttpError(405, 'Method not allowed'));
-    const source = SOURCES.get(sourceId);
+    const source = isAbb ? ABB_SOURCE : SOURCES.get(sourceId);
     if (!source) return errorResponse(sourceId, new HttpError(404, 'Source is not available'));
     const contentType = request.headers.get('content-type') || '';
     if (!/^application\/json(?:\s*;|$)/i.test(contentType))
       return errorResponse(sourceId, new HttpError(415, 'Content-Type must be application/json'));
 
     try {
-      const input = validateRequest(parseJson(await readRequestBody(request)), source);
+      const body = parseJson(await readRequestBody(request));
       const budget = { used: 0, deadline: Date.now() + SEARCH_DEADLINE_MS };
-      const result = await searchSource(source, input, fetchImpl, budget);
-      if (!Array.isArray(result)) throw new SourceError('Provider result must be an array');
+      const result = isAbb ? await lookupAbb(route[2], body, fetchImpl, budget)
+        : await searchSource(source, validateRequest(body, source), fetchImpl, budget);
+      if (!isAbb && !Array.isArray(result)) throw new SourceError('Provider result must be an array');
       const payload = { contractVersion: CONTRACT_VERSION, sourceId, result };
       const serialized = JSON.stringify(payload);
       if (utf8Length(serialized) > MAX_RESULT_BYTES)
