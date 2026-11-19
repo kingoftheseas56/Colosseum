@@ -247,7 +247,7 @@ FocusScope {
                     RoundedPosterImage {
                         objectName: "dockPosterArt"
                         radius: 4
-                        fitArtwork: true
+                        fitArtwork: deck.mediumKey !== "tributes"
                         revealDuration: deck.turning || deck.reducedMotion || !card.visible ? 0 : 150
                         sources: PosterPolicy.candidates(posterLoader.entry.cover || "", posterLoader.entry.coverCandidates || [])
                     }

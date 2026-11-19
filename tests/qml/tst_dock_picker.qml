@@ -122,7 +122,7 @@ Item {
                 { tag: "pair", count: 2, width: 1264, height: 656, medium: "anime" },
                 { tag: "fan", count: 3, width: 1264, height: 656, medium: "tv" },
                 { tag: "deepStack", count: 7, width: 900, height: 720, medium: "movies" },
-                { tag: "square", count: 5, width: 1264, height: 656, medium: "audiobooks" }
+                { tag: "tribute", count: 5, width: 1264, height: 656, medium: "tributes" }
             ]
         }
         function test_circulationSharesOnePhysicalPath(data) {
@@ -136,7 +136,7 @@ Item {
             bar.pickerPicks = { [data.medium]: entries }
             bar.open = true
             const picker = findChild(bar, "dockPicker")
-            if (data.medium === "audiobooks") picker.selectDeckPage(2)
+            if (data.medium === "tributes") picker.selectDeckPage(2)
             const deck = findChild(picker, "dockDeck_" + data.medium)
             const grab = findChild(deck, "dockPickCard_" + data.medium)
             const outgoing = findChild(deck, "dockPickFace_0")
@@ -224,6 +224,26 @@ Item {
             state.active = true
             bar.open = true
             tryVerify(() => state.picks.universes && state.picks.universes.length > 1)
+        }
+
+        function test_universesPreferColourAndTributesUseInstalledRoster() {
+            const state = createTemporaryObject(catalogueComponent, root, {
+                installedUniverses: [
+                    { extensionId: "custom.starwars", name: "Star Wars", banner: "hero.jpg", logo: "logo.png" },
+                    { extensionId: "custom.dexter", name: "Dexter", banner: "dexter.jpg" }
+                ]
+            })
+            state.updateUniverses()
+            state.updateTributes()
+            const universes = state.picks.universes
+            compare(universes.length, 10)
+            const firstMonochrome = universes.findIndex(entry => !entry.raw.logoColored)
+            verify(firstMonochrome > 0)
+            verify(universes.slice(firstMonochrome).every(entry => !entry.raw.logoColored))
+            compare(state.picks.tributes.map(entry => entry.id), ["custom.starwars", "custom.dexter"])
+            compare(state.picks.tributes[0].cover, "hero.jpg")
+            compare(state.picks.tributes[0].coverCandidates, ["logo.png"])
+            verify(!state.picks.audiobooks)
         }
 
         function test_coversRemainReadyAcrossTurnsAndPageChanges() {
@@ -524,7 +544,7 @@ Item {
             const universes = findChild(picker, "dockPickCard_universes")
             compare(universes.width, manhwa.width)
             verify(findChild(picker, "dockDeck_music") === null)
-            verify(findChild(picker, "dockDeck_tributes") === null)
+            verify(findChild(picker, "dockDeck_audiobooks") === null)
             mouseClick(findChild(picker, "dockDeckDot_2"))
             const logo = findChild(picker, "dockUniverseLogo")
             tryCompare(logo, "status", Image.Ready)
@@ -587,7 +607,7 @@ Item {
                                                                          : key[0].toUpperCase() + key.slice(1))
                     const image = findChild(deck, "dockPosterArt_img")
                     if (key !== "universes")
-                        compare(image.fillMode, Image.PreserveAspectFit)
+                        compare(image.fillMode, key === "tributes" ? Image.PreserveAspectCrop : Image.PreserveAspectFit)
                     checkDeckBounds(deck)
                     verify(label.parent.x >= 0 && label.parent.x + label.width <= deck.width + 1)
                     verify(title.parent.y + title.y + title.height <= deck.height + 1)
@@ -621,7 +641,7 @@ Item {
             compare(heading.font.weight, Font.DemiBold)
             mouseMove(heading)
 
-            const rows = [["anime", "tv", "movies"], ["manga", "comics", "manhwa"], ["books", "audiobooks", "universes"]]
+            const rows = [["movies", "tv", "anime"], ["manga", "comics", "manhwa"], ["books", "universes", "tributes"]]
             const entries = bar.pickerPicks.tv
             const allPicks = {}
             for (const row of rows)
@@ -632,8 +652,9 @@ Item {
             const stdHeight = tv.height
             verify(stdHeight >= 300, "TV poster height at 1280x720: " + stdHeight)
             checkSlides(picker, rows)
-            const audio = findChild(picker, "dockPickCard_audiobooks")
-            compare(audio.width, audio.height)
+            const tribute = findChild(picker, "dockPickCard_tributes")
+            compare(tribute.width, tv.width)
+            compare(tribute.height, tv.height)
             const universe = findChild(picker, "dockPickCard_universes")
             compare(universe.height, tv.height)
             root.width = 1264
@@ -645,14 +666,12 @@ Item {
             fuzzyCompare(tv.height, 333.6, 1)
             checkSlides(picker, rows)
             const windowedHeight = tv.height
-            const windowedSquare = audio.height
             root.width = 1600
             root.height = 900
             tryVerify(() => tv.height > stdHeight)
             checkSlides(picker, rows)
             console.info("TV poster height (1264x656 / 1280x720 / 1600x900):",
                 windowedHeight.toFixed(1), "/", stdHeight.toFixed(1), "/", tv.height.toFixed(1))
-            console.info("Audiobook square (1264x656):", windowedSquare.toFixed(1))
             root.width = 900
             root.height = 720
             tryVerify(() => tv.height < windowedHeight)
@@ -673,7 +692,7 @@ Item {
             verify(waitForRendering(picker))
             const card = findChild(picker, "dockPickCard_tv")
             const tv = findChild(picker, "dockPickStage_tv")
-            const audio = findChild(picker, "dockPickStage_audiobooks")
+            const tribute = findChild(picker, "dockPickStage_tributes")
             const label = findChild(picker, "dockPickTitle_tv")
             compare(label.text, fullTitle)
             verify(label.visible && label.lineCount > 1)
@@ -685,13 +704,13 @@ Item {
             verify(!card.ToolTip.toolTip.visible)
             compare(tv.Accessible.name, "Open " + fullTitle + " (TV)")
             verify(!findChild(picker, "dockPickFacts_tv").visible)
-            compare(audio.Accessible.name, "Audiobooks")
-            compare(audio.Accessible.description, "No picks available")
+            compare(tribute.Accessible.name, "Tributes")
+            compare(tribute.Accessible.description, "No picks available")
             picker.selectDeckPage(2)
-            const emptyTitle = findChild(picker, "dockPickTitle_audiobooks")
+            const emptyTitle = findChild(picker, "dockPickTitle_tributes")
             compare(emptyTitle.text, "No picks available")
             verify(emptyTitle.visible && !emptyTitle.truncated)
-            verify(emptyTitle.parent.y + emptyTitle.y + emptyTitle.height <= audio.height)
+            verify(emptyTitle.parent.y + emptyTitle.y + emptyTitle.height <= tribute.height)
         }
 
         function compareCaption(picker, key, medium, title, facts) {
@@ -714,7 +733,7 @@ Item {
                 comics: [{ title: "Comic pick", publisher: "A publisher", year: 2016 }],
                 manhwa: [{ title: "Manhwa pick", raw: { synopsis: "A short source synopsis." } }],
                 books: [{ title: "Book pick", author: "A novelist", year: 1988 }],
-                audiobooks: [{ title: "Audiobook pick", raw: { author: "An audiobook author" } }],
+                tributes: [{ title: "A Tribute" }],
                 universes: [franchise]
             }
             bar.open = true
@@ -727,25 +746,25 @@ Item {
             compareCaption(picker, "manhwa", "Manhwa", "Manhwa pick", "")
             picker.selectDeckPage(2)
             compare(findChild(picker, "dockPickFacts_books").text, "A novelist · 1988")
-            compare(findChild(picker, "dockPickFacts_audiobooks").text, "An audiobook author")
+            compareCaption(picker, "tributes", "Tributes", "A Tribute", "")
             compareCaption(picker, "universes", "Franchises", franchise.title, "")
         }
 
         function test_keyboardTurnsPagesAndFocusesOnlyTheLandingDeck() {
             bar.pickerPicks = {
-                anime: [{ title: "Anime pick" }],
+                movies: [{ title: "Movie pick" }],
                 tv: [{ title: "First" }, { title: "Second" }],
                 comics: [{ title: "Comic pick" }],
-                audiobooks: [{ title: "An audiobook" }]
+                tributes: [{ title: "A Tribute" }]
             }
             bar.open = true
             const picker = findChild(bar, "dockPicker")
             verify(waitForRendering(picker))
             const viewport = findChild(picker, "dockPickViewport")
             const tv = findChild(picker, "dockPickStage_tv")
-            const audio = findChild(picker, "dockPickStage_audiobooks")
+            const tribute = findChild(picker, "dockPickStage_tributes")
             const comics = findChild(picker, "dockPickStage_comics")
-            findChild(picker, "dockPickStage_anime").forceActiveFocus(Qt.TabFocusReason)
+            findChild(picker, "dockPickStage_movies").forceActiveFocus(Qt.TabFocusReason)
             keyClick(Qt.Key_Tab)
             verify(tv.activeFocus)
             keyClick(Qt.Key_Right)
@@ -756,13 +775,13 @@ Item {
             tryVerify(() => tv.activeFocus)
             keyClick(Qt.Key_PageDown)
             keyClick(Qt.Key_PageDown)
-            tryVerify(() => audio.activeFocus)
-            const rect = audio.mapToItem(viewport, Qt.rect(0, 0, audio.width, audio.height))
+            tryVerify(() => tribute.activeFocus)
+            const rect = tribute.mapToItem(viewport, Qt.rect(0, 0, tribute.width, tribute.height))
             verify(rect.y >= -1 && rect.y + rect.height <= viewport.height + 1)
             verify(!tv.activeFocus && !comics.activeFocus && !tv.enabled && !comics.enabled)
             keyClick(Qt.Key_Return)
-            compare(picks.signalArguments[0][0], "audiobooks")
-            compare(picks.signalArguments[0][1].title, "An audiobook")
+            compare(picks.signalArguments[0][0], "tributes")
+            compare(picks.signalArguments[0][1].title, "A Tribute")
         }
 
         function test_touchTurnsOnePageWithoutSelectingACover() {

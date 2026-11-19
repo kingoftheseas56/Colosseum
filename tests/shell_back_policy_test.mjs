@@ -148,7 +148,7 @@ function dockRouteFixture() {
     for (const name of [
         'openDockPick', 'handleEscape', 'openSeries', 'closeSeries', 'openComicSeries',
         '_openComicSeriesReady', 'closeComicSeries', 'openTheatreSeries', 'closeTheatreSeries',
-        'openBook', 'closeBook', 'openRosterUniverse', 'openArchivedUniverse', 'closeUniverse',
+        'openBook', 'closeBook', 'openRosterUniverse', 'openArchivedUniverse', 'openTribute', 'openUniverse', 'closeUniverse',
         'requestUniverseEscape', 'routeDownloadedAudiobook', 'openBookSession', 'closeBookReaderSession',
         'requestBookReaderEscape', 'closeSession', 'cancelCatalogueRoute', 'returnDockComicDetail',
         'backFromMangaReader', 'closeComicReader', 'snapshotDockPickDetail', 'prepareDockPickDetail',
@@ -166,14 +166,19 @@ function dockRouteFixture() {
 for (const [medium, rootClose] of [
     ['anime', 'closeTheatreSeries'], ['tv', 'closeTheatreSeries'], ['movies', 'closeTheatreSeries'],
     ['manga', 'closeSeries'], ['comics', 'closeComicSeries'], ['manhwa', 'closeSeries'],
-    ['books', 'closeBook'], ['audiobooks', 'closeBookReaderSession'], ['universes', 'closeUniverse'],
+    ['books', 'closeBook'], ['audiobooks', 'closeBookReaderSession'], ['universes', 'closeUniverse'], ['tributes', 'closeUniverse'],
 ]) {
     const signal = rootClose === 'closeBookReaderSession' ? 'closed' : 'backRequested';
     if (!main.includes(`item.${signal}.connect(win.${rootClose})`)) fail(medium + ' Page Back has no route-owner binding');
     const { ctx, restored, deferred } = dockRouteFixture();
-    const entry = { id: 'demo', title: 'Demo', name: 'Demo', page: 'shelves', bookPath: 'test.epub' };
+    const entry = { id: 'demo', title: 'Demo', name: 'Demo', page: 'shelves', bookPath: 'test.epub', extensionId: 'tribute.demo' };
     const state = { medium, key: 'demo', slide: 2, column: 0 };
     ctx.launchFromPicker(medium, entry, state);
+    if (medium === 'tributes') {
+        eq(ctx.universeLayer.extensionId, entry.extensionId, 'Tribute opens by its installed ID');
+        eq(ctx.universeLayer.templatePage, '', 'Tribute bypasses the standard Universe template');
+        eq(ctx.universeLayer.plain, false, 'Tribute selects its bespoke page');
+    }
     deferred.splice(0).forEach(deliver => deliver());
     ctx.handleEscape();
     eq(restored.length, 1, medium + ' shell Back restores the picker once');

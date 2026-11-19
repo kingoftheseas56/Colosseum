@@ -32,19 +32,19 @@ FocusScope {
     readonly property real inset: Math.min(24, height * .045)
     readonly property real railWidth: Math.min(208, width * .23)
     readonly property var deckPageNames: [
-        qsTr("Anime, TV and Movies"), qsTr("Manga, Comics and Manhwa"),
-        qsTr("Books, Audiobooks and Franchises")
+        qsTr("Movies, TV and Anime"), qsTr("Manga, Comics and Manhwa"),
+        qsTr("Books, Franchises and Tributes")
     ]
     readonly property var genres: [
-        { key: "anime", name: qsTr("Anime") },
-        { key: "tv", name: qsTr("TV") },
         { key: "movies", name: qsTr("Movies") },
+        { key: "tv", name: qsTr("TV") },
+        { key: "anime", name: qsTr("Anime") },
         { key: "manga", name: qsTr("Manga") },
         { key: "comics", name: qsTr("Comics") },
         { key: "manhwa", name: qsTr("Manhwa") },
         { key: "books", name: qsTr("Books") },
-        { key: "audiobooks", name: qsTr("Audiobooks"), aspect: 1 },
-        { key: "universes", name: qsTr("Franchises") }
+        { key: "universes", name: qsTr("Franchises") },
+        { key: "tributes", name: qsTr("Tributes") }
     ]
     Theme { id: theme }
 
@@ -595,7 +595,6 @@ FocusScope {
                 headingExpansion: Math.max(0, pickHeading.height - 28)
                 medium: modelData.name
                 mediumKey: modelData.key
-                aspect: modelData.aspect || .71
                 entries: picker.entriesFor(modelData.key)
                 logoArt: modelData.key === "universes"
                 reducedMotion: picker.reducedMotion

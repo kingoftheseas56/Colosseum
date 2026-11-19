@@ -25,7 +25,6 @@ Item {
     readonly property var manga: typeof MalCatalog !== "undefined" ? MalCatalog : null
     readonly property var comics: typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null
     readonly property var biblio: typeof BiblioCatalog !== "undefined" ? BiblioCatalog : null
-    readonly property var audio: typeof Audiobooks !== "undefined" ? Audiobooks : null
 
     function publish(key, rows, convert) {
         const seen = new Set()
@@ -70,16 +69,19 @@ Item {
         const page = biblio.discoverPage("popular", "", "", showExplicit, 0, 10)
         publish("books", page && page.items, Books.normalizeBook)
     }
-    function updateAudio() {
-        if (!audio) return
-        const rows = audio.downloadedAudiobooks().filter(item => item.bookPath && !item.missing)
-        rows.sort((a, b) => b.addedAt - a.addedAt)
-        publish("audiobooks", rows, item => ({ id: item.id, title: item.title, cover: item.cover || "", raw: item }))
-    }
     function updateUniverses() {
         const roster = Universes.worldRoster(installedUniverses).filter(item => item.logo)
-        publish("universes", roster, item => ({
+        const colored = roster.filter(item => item.logoColored)
+        const monochrome = roster.filter(item => !item.logoColored)
+        publish("universes", colored.concat(monochrome), item => ({
             id: item.extensionId || item.name, title: item.name, cover: Qt.resolvedUrl(item.logo), raw: item
+        }))
+    }
+    function updateTributes() {
+        const roster = installedUniverses.filter(item => item.extensionId)
+        publish("tributes", roster, item => ({
+            id: item.extensionId, title: item.name, cover: item.banner || "",
+            coverCandidates: item.logo ? [item.logo] : [], raw: item
         }))
     }
     function updateTheatre() {
@@ -147,8 +149,8 @@ Item {
             // The native discover queries run synchronously. Give rendering a
             // turn between them and avoid starting another query after dismissal.
             switch (catalog.refreshStep++) {
-            case 1: catalog.updateAudio(); break
-            case 2: catalog.updateUniverses(); break
+            case 1: catalog.updateUniverses(); break
+            case 2: catalog.updateTributes(); break
             case 3: catalog.updateReading("manga", "trending"); break
             case 4: catalog.updateReading("manhwa", "trending"); break
             case 5: catalog.updateReading("comics", "new-releases"); break
@@ -176,7 +178,10 @@ Item {
         theatreRefreshedAt = 0
         if (active && refreshStep) updateTheatre()
     }
-    onInstalledUniversesChanged: if (active && refreshStep) updateUniverses()
+    onInstalledUniversesChanged: if (active && refreshStep) {
+        updateUniverses()
+        updateTributes()
+    }
     Connections {
         target: catalog.manga
         function onRevisionChanged() {

@@ -1200,10 +1200,17 @@ var PRIMARY = {
     "The Witcher":                ["books", "series"]
 };
 
+// The content bundle can replace MARKS at runtime. Colour follows the actual artwork file.
+var COLORED_MARKS = new Set([
+    "dc.png", "dragon-ball.png", "jurassic-park.png", "marvel.png",
+    "one-piece.png", "shonen-jump.png", "star-trek.png"
+]);
+
 function markFor(name) {
     var m = MARKS[name];
     var rawLogo = m ? ("../assets/universes/marks/" + m[0]) : "";
-    return m ? { logo: /^https:\/\//.test(m[0]) ? m[0] : (typeof ContentApi !== "undefined" ? ContentApi.asset(rawLogo) : rawLogo), shape: m[1] } : { logo: "", shape: "" };
+    return m ? { logo: /^https:\/\//.test(m[0]) ? m[0] : (typeof ContentApi !== "undefined" ? ContentApi.asset(rawLogo) : rawLogo),
+                 shape: m[1], colored: COLORED_MARKS.has(m[0]) } : { logo: "", shape: "", colored: false };
 }
 
 function worldRoster(installed) {
@@ -1219,6 +1226,7 @@ function worldRoster(installed) {
         var entry = { extensionId: shelf[i].extensionId, name: shelf[i].name,
                       banner: cfg.galleryBanner || (typeof ContentApi !== "undefined" ? ContentApi.asset(shelf[i].banner || "") : (shelf[i].banner || "")) || cfg.wallpaper || cfg.banner || "",
                       logo: mark.logo || shelf[i].logo || "", logoShape: mark.shape,
+                      logoColored: !!mark.logo && mark.colored,
                       primary: PRIMARY[shelf[i].name] || null,
                       blurb: cfg.blurb || "", chips: cfg.chips || [] };
         if (cfg.shelves || cfg.manga) entry.page = "shelves";
@@ -1235,7 +1243,7 @@ function worldRoster(installed) {
         var cmark = markFor(c.name);
         roster.push({ name: c.name,
                       banner: c.wallpaper || c.banner || "",
-                      logo: cmark.logo, logoShape: cmark.shape,
+                      logo: cmark.logo, logoShape: cmark.shape, logoColored: cmark.colored,
                       primary: PRIMARY[c.name] || null,
                       blurb: c.blurb || "",
                       chips: c.chips || [],

@@ -2961,7 +2961,10 @@ Window {
             win.openUniverse(entry.extensionId, entry.name, UniverseApi.fileFor(entry.extensionId).length > 0, pickerIntent)
     }
     // The Universes world's carousel: the hand-made art page.
-    function openTribute(entry) { if (entry && entry.extensionId) win.openUniverse(entry.extensionId, entry.name) }
+    function openTribute(entry, pickerIntent) {
+        if (entry && entry.extensionId)
+            win.openUniverse(entry.extensionId, entry.name, false, pickerIntent)
+    }
     // A "More universes" card names a sibling; its template comes from the curated list.
     function openUniverseByName(name) {
         var cfg = UniverseCanon.configFor(name)
@@ -4008,6 +4011,7 @@ Window {
         case "tv":
         case "movies": win.openTheatreSeries(raw, intent); break
         case "universes": win.openRosterUniverse(raw, intent); break
+        case "tributes": win.openTribute(raw, intent); break
         }
     }
     function openDroppedMedia(urls) {
