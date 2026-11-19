@@ -6774,6 +6774,17 @@ Window {
         id: taskbar
         pickerScene: dockScene
         pickerPicks: dockCatalog.picks
+        pickerMapSlide: Component {
+            DockWorldMap {
+                onWorldRequested: world => {
+                    taskbar.open = false
+                    if (world === "vault")
+                        win.openVaultPage()
+                    else
+                        win.openWorld(world.charAt(0).toUpperCase() + world.slice(1))
+                }
+            }
+        }
         pickerReducedMotion: win.reducedMotion
         onPickerPickRequested: (medium, entry, returnState) => {
             const open = () => win.openDockPick(medium, entry, returnState)

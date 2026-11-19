@@ -12,6 +12,7 @@ Item {
     FontLoader { id: fraunces; source: "../../assets/fonts/Fraunces-Regular.ttf" }
     App.TooltipStyle { backdrop: root }
     Component { id: mapComponent; Item {} }
+    Component { id: nativeMapComponent; App.DockWorldMap {} }
     App.DockPickerCatalog { id: catalogue }
     Component { id: catalogueComponent; App.DockPickerCatalog {} }
     Component {
@@ -356,6 +357,49 @@ Item {
             tryCompare(picker, "slide", 0)
             compare(deck.current, 0)
             verify(!findChild(picker, "dockPickMapPage").visible)
+        }
+
+        function test_nativeMapUsesFullPaneAndRoutesOnlyAvailableLand() {
+            root.width = 1264
+            root.height = 656
+            bar.pickerReducedMotion = true
+            bar.pickerMapSlide = nativeMapComponent
+            bar.open = true
+            const picker = findChild(bar, "dockPicker")
+            verify(waitForRendering(picker))
+            mouseClick(findChild(picker, "dockSlideDot_3"))
+            tryCompare(picker, "slide", 3)
+            const loader = findChild(picker, "dockPickMapPage")
+            tryCompare(loader, "status", Loader.Ready)
+            const map = loader.item
+            compare(map.height, picker.height)
+            compare(map.width + loader.parent.x, picker.width)
+            compare(map.mapToItem(picker, 0, 0).y, 0)
+            const destinations = createTemporaryObject(worldSpy, map, { target: map })
+            verify(destinations.valid)
+
+            const keys = ["tankoban", "theatre", "biblio", "universes", "vault", "feria", "vinyl"]
+            for (let i = 0; i < keys.length; ++i) {
+                const key = keys[i]
+                const label = findChild(map, "dockWorldLabel_" + key)
+                const point = label.mapToItem(map, label.width / 2, label.height / 2)
+                mouseClick(map, point.x, point.y)
+                compare(destinations.count, Math.min(i + 1, 5), key)
+                if (i < 5)
+                    compare(destinations.signalArguments[i][0], key)
+            }
+            mouseClick(map, 10, 10)
+            compare(destinations.count, 5)
+            map.focusFirstWorld()
+            keyClick(Qt.Key_Return)
+            compare(destinations.signalArguments[5][0], "tankoban")
+            mouseWheel(map, map.width / 2, 12, 0, 120)
+            tryCompare(picker, "slide", 2)
+        }
+
+        Component {
+            id: worldSpy
+            SignalSpy { signalName: "worldRequested" }
         }
 
         function test_trackpadMomentumDoesNotSkipPages() {

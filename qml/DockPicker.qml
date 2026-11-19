@@ -49,7 +49,7 @@ FocusScope {
     function selectSlide(index, keyboard) {
         if (index < 0 || index >= slideCount || index === slide)
             return
-        focusOnArrival = !!keyboard || focusOnArrival || viewport.activeFocus
+        focusOnArrival = !!keyboard || focusOnArrival || viewport.activeFocus || mapPage.activeFocus
         if (focusOnArrival)
             focusEntry()
         slide = index
@@ -62,8 +62,15 @@ FocusScope {
             return
         focusOnArrival = false
         const row = pageRepeater.itemAt(slide) as PickRow
-        if (entryFocus.activeFocus && row)
-            row.focusDeck(focusColumn)
+        if (entryFocus.activeFocus) {
+            if (row)
+                row.focusDeck(focusColumn)
+            else if (mapPage.status === Loader.Ready) {
+                const atlas = mapPage.item as DockWorldMap
+                if (atlas)
+                    atlas.focusFirstWorld()
+            }
+        }
     }
     function entriesFor(medium) {
         const entries = picks[medium] || []
@@ -160,7 +167,7 @@ FocusScope {
     Keys.onPressed: event => {
         if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
             return
-        const vertical = viewport.activeFocus || entryFocus.activeFocus || pageDots.activeFocus
+        const vertical = viewport.activeFocus || entryFocus.activeFocus || pageDots.activeFocus || mapPage.activeFocus
         const up = event.key === Qt.Key_PageUp || (vertical && event.key === Qt.Key_Up)
         const down = event.key === Qt.Key_PageDown || (vertical && event.key === Qt.Key_Down)
         if (!up && !down)
@@ -270,6 +277,13 @@ FocusScope {
         color: "#25ffffff"
     }
 
+    PageGesture {
+        x: picker.slide === 3 ? mapPage.x : widgetArea.x
+        y: picker.slide === 3 ? 0 : widgetArea.y + viewport.y
+        width: picker.slide === 3 ? mapPage.width : viewport.width
+        height: picker.slide === 3 ? mapPage.height : viewport.height
+    }
+
     Item {
         id: widgetArea
         anchors.top: parent.top
@@ -309,26 +323,6 @@ FocusScope {
             height: Math.max(0, widgetArea.height - y)
             clip: true
 
-            MouseArea {
-                anchors.fill: parent
-                property point start
-                onPressed: mouse => {
-                    mouse.accepted = !pageMotion.running
-                    start = Qt.point(mouse.x, mouse.y)
-                }
-                onReleased: mouse => {
-                    const dy = mouse.y - start.y
-                    if (Math.abs(dy) > Math.abs(mouse.x - start.x))
-                        picker.pageSwipe(dy)
-                }
-                onWheel: wheel => {
-                    wheel.accepted = true
-                    const pixelScroll = wheel.pixelDelta.x !== 0 || wheel.pixelDelta.y !== 0
-                    picker.pageWheel(pixelScroll ? wheel.pixelDelta.x : wheel.angleDelta.x / 3,
-                                     pixelScroll ? wheel.pixelDelta.y : wheel.angleDelta.y / 3, wheel.phase)
-                }
-            }
-
             Item {
                 id: pageStack
                 width: viewport.width
@@ -353,17 +347,45 @@ FocusScope {
                         rowIndex: index
                     }
                 }
-                Loader {
-                    id: mapPage
-                    objectName: "dockPickMapPage"
-                    y: 3 * pageStack.height
-                    width: pageStack.width
-                    height: pageStack.height
-                    visible: !!picker.mapSlide && (picker.slide === 3 || (pageMotion.running && mapPage.y + pageStack.y < viewport.height))
-                    enabled: picker.slide === 3 && !pageMotion.running
-                    sourceComponent: picker.mapSlide
-                }
             }
+        }
+    }
+
+    Item {
+        x: picker.railWidth + 9
+        width: Math.max(0, picker.width - x)
+        height: picker.height
+        clip: true
+
+        Loader {
+            id: mapPage
+            objectName: "dockPickMapPage"
+            y: (3 - pageStack.pagePosition) * parent.height
+            width: parent.width
+            height: parent.height
+            visible: !!picker.mapSlide && y < height
+            active: picker.visible && !!picker.mapSlide && (picker.slide === 3 || y < height)
+            enabled: picker.slide === 3 && !pageMotion.running
+            sourceComponent: picker.mapSlide
+        }
+    }
+
+    component PageGesture: MouseArea {
+        property point start
+        onPressed: mouse => {
+            mouse.accepted = !pageMotion.running
+            start = Qt.point(mouse.x, mouse.y)
+        }
+        onReleased: mouse => {
+            const dy = mouse.y - start.y
+            if (Math.abs(dy) > Math.abs(mouse.x - start.x))
+                picker.pageSwipe(dy)
+        }
+        onWheel: wheel => {
+            wheel.accepted = true
+            const pixelScroll = wheel.pixelDelta.x !== 0 || wheel.pixelDelta.y !== 0
+            picker.pageWheel(pixelScroll ? wheel.pixelDelta.x : wheel.angleDelta.x / 3,
+                             pixelScroll ? wheel.pixelDelta.y : wheel.angleDelta.y / 3, wheel.phase)
         }
     }
 

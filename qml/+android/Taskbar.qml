@@ -11,6 +11,7 @@ Item {
     property bool localMediaAvailable: false
     property Item pickerScene
     property var pickerPicks: ({})
+    property Component pickerMapSlide
     property bool pickerReducedMotion: false
     readonly property bool pickerShown: false
     property bool collectionsActive: false
