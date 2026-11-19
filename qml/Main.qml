@@ -1331,6 +1331,7 @@ Window {
                || (comicSeriesLayer.active && comicSeriesLayer.item && String(comicSeriesLayer.item.openChapterId || "").length))
     }
     function requestPlayerEscape() {
+        if (win.smartPickPlayerPending) { win.closePlayer(); return }
         var rec = Sessions.get(Sessions.activeId)
         if (playerLayer.active && playerLayer.item && playerLayer.item.requestEscape) {
             playerLayer.item.requestEscape()
@@ -2372,11 +2373,17 @@ Window {
                     "resumePosition": Number(r.position) || 0 } } })
         return true
     }
-    function closeTheatreSeries() { theatreSeriesLayer.active = false; win.restoreNamedCollectionsReturn() }
+    function closeTheatreSeries() {
+        if (win.smartPickPlayerPending) win.closePlayer()
+        theatreSeriesLayer.active = false
+        win.restoreNamedCollectionsReturn()
+    }
 
     // ---- video player: a fullscreen layer over everything; kept alive once opened so mpv
     //      isn't torn down/recreated each play (avoids the use-after-free teardown trap). ----
     property bool playerOpen: false
+    // No session is created until Smart Pick returns a playable source.
+    property bool smartPickPlayerPending: false
     // The movie session the player minimized while still loaded. Reopening it from the
     // taskbar finds the stream warm — we resume in place instead of re-streaming.
     property string warmPlayerSessionId: ""
@@ -2420,6 +2427,11 @@ Window {
         win.ensurePlayerLayerLoading()
     }
 
+    function queueSmartPickPlayerOpen(title, backdrop, subType, subId, context) {
+        win.pendingPlayerOpen = { "kind": "smartPick", "title": title, "backdrop": backdrop,
+                                  "subType": subType, "subId": subId, "context": context || ({}) }
+        win.ensurePlayerLayerLoading()
+    }
     function queueWatchPartyPlayerOpen() {
         win.pendingPlayerOpen = { "kind": "watchParty" }
         win.ensurePlayerLayerLoading()
@@ -2437,6 +2449,11 @@ Window {
             return
         var p = win.pendingPlayerOpen
         win.pendingPlayerOpen = null
+        if (p.kind === "smartPick") {
+            if (win.playerOpen && win.smartPickPlayerPending && playerLayer.item.beginSmartPick)
+                playerLayer.item.beginSmartPick(p.title, p.backdrop, p.subType, p.subId, p.context)
+            return
+        }
         if (p.kind === "session") {
             if (!win.playerOpen || Sessions.activeId !== p.sessionId)
                 return
@@ -3175,6 +3192,28 @@ Window {
         })
     }
 
+    function beginSmartPickPlayer(title, backdrop, subType, subId, playbackContext) {
+        setGuiStallContext("open", "Player")
+        win.smartPickPlayerPending = true
+        win.playerOpen = true
+        if (!playerLayer.item) {
+            win.queueSmartPickPlayerOpen(title, backdrop, subType, subId, playbackContext)
+            return
+        }
+        if (playerLayer.item.beginSmartPick)
+            playerLayer.item.beginSmartPick(title, backdrop, subType, subId, playbackContext)
+        else
+            win.chooseSmartPickSourceManually()
+    }
+    function chooseSmartPickSourceManually() {
+        if (!win.smartPickPlayerPending) return
+        if (theatreSeriesLayer.item && theatreSeriesLayer.item.chooseSmartPickSourceManually)
+            theatreSeriesLayer.item.chooseSmartPickSourceManually()
+        win.closePlayer()
+    }
+    function smartPickNoSource() {
+        if (win.smartPickPlayerPending) win.closePlayer()
+    }
     function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
         setGuiStallContext("open", "Player")
         win.playerOpen = true
@@ -3216,6 +3255,9 @@ Window {
         return true
     }
     function closePlayer() {
+        if (win.smartPickPlayerPending && theatreSeriesLayer.item && theatreSeriesLayer.item.cancelSmartPick)
+            theatreSeriesLayer.item.cancelSmartPick()
+        win.smartPickPlayerPending = false
         win.pendingPlayerOpen = null
         if (playerLayer.item) playerLayer.item.stop()
         win.playerOpen = false
@@ -3804,6 +3846,7 @@ Window {
 
     // UI entry points (replace direct open* calls from cards / world pages):
     function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext, position) {
+        win.smartPickPlayerPending = false
         setGuiStallContext("open", "Player")
         // Library membership (spec §4.4): the moment playback starts, it joins the shelf.
         // The show root is EpisodeBrowser.seriesRootId (tt123:1:2 → tt123 ; kitsu:9:3:4 → kitsu:9);
@@ -3994,11 +4037,13 @@ Window {
         Sessions.close(id)
     }
     function minimizePlayer() {
+        if (win.smartPickPlayerPending) { win.closePlayer(); return }
         var rec = Sessions.get(Sessions.activeId)
         if (rec && rec.contentKind === "movie") Sessions.switchTo("")
         else win.closePlayer()                       // not session-run (legacy path): just drop it
     }
     function closePlayerSession() {
+        if (win.smartPickPlayerPending) { win.closePlayer(); return }
         var rec = Sessions.get(Sessions.activeId)
         if (rec && rec.contentKind === "movie") win.closeSession(rec.id)
         else win.closePlayer()
@@ -5655,6 +5700,8 @@ Window {
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.playRequested.connect(win.openMovieSession)
+            item.smartPickStarted.connect(win.beginSmartPickPlayer)
+            item.smartPickFailed.connect(win.smartPickNoSource)
             item.playLocalRequested.connect(win.openLocalVideoSession)
             item.localMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
             item.playArrivingRequested.connect(win.routeArrivingPlay)
@@ -5735,6 +5782,8 @@ Window {
             if (item.playbackRequested)
                 item.playbackRequested.connect(function() { win.claimAudio("theatre") })
             item.backRequested.connect(win.minimizePlayer)
+            if (item.manualSourceRequested)
+                item.manualSourceRequested.connect(win.chooseSmartPickSourceManually)
             item.minimizeRequested.connect(win.minimizePlayer)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(win.closePlayerSession)

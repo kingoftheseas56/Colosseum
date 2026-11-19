@@ -106,10 +106,15 @@ Item {
     property bool smartPlayCancelled: false
     property bool smartPlaySettled: false
     property var smartPlayRow: null
+    // Keep the search alive while the player owns the visible loading face.
+    property bool smartPickInPlayer: false
     readonly property bool smartPicking: sheet.open && sheet.smartPlayEnabled
-        && ((!sheet.smartPlaySettled && !sheet.smartPlayCancelled) || sheet.smartPlayRow !== null)
+        && !sheet.smartPlaySettled && !sheet.smartPlayCancelled
+    signal smartPickStarted(string title, string backdropUrl, string subType, string subId, var playbackContext)
+    signal smartPickFailed()
     function chooseSourceManually() {
         if (!sheet.smartPicking || sheet.smartPlaySettled) return
+        sheet.smartPickInPlayer = false
         sheet.smartPlayCancelled = true
         sheet.smartPlayRow = null
         sheet.closeSourceContext(false)
@@ -136,7 +141,16 @@ Item {
         sheet.smartPlayRow = pick.index >= 0 ? allRows[pick.index] : null
         sheet.smartPlaySettled = true
         sheet.warmTopRow()
-        if (pick.index >= 0) sheet.activateSource(pick.index, allRows)
+        if (pick.index >= 0) {
+            sheet.activateSource(pick.index, allRows)
+            // The player has already received the chosen source. Invalidate late
+            // replies without restoring focus behind the newly opened player.
+            sheet.focusReturnItem = null
+            sheet.hide()
+        } else if (sheet.smartPickInPlayer) {
+            sheet.smartPickInPlayer = false
+            sheet.smartPickFailed()
+        }
     }
     onLoadingChanged: if (!sheet.loading) sheet.finishSmartPlay(false)
     onNuvioPendingChanged: if (!sheet.nuvioPending) sheet.finishSmartPlay(false)
@@ -273,8 +287,8 @@ Item {
     readonly property bool androidHost: !!(sheet.Window.window && sheet.Window.window.androidHost)
     signal openExtensionsRequested(bool browseMoreSources)
 
-    visible: sheet.open || sheet.opacity > 0.01
-    opacity: sheet.open ? 1 : 0
+    visible: sheet.opacity > 0.01 || (sheet.open && !sheet.smartPickInPlayer)
+    opacity: sheet.open && !sheet.smartPickInPlayer ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 180 } }
 
     Theme { id: theme }
@@ -322,6 +336,7 @@ Item {
         sheet.smartPlayCancelled = true;
         sheet.smartPlayRow = null;
         sheet.smartPlaySettled = false;
+        sheet.smartPickInPlayer = false;
         sheet.refreshSmartPlayQuality();
         sheet.cancelNuvio();
         sheet.closeSourceContext(false);
@@ -348,12 +363,17 @@ Item {
         sheet.refreshTitleQueued();
         sheet.loading = true;
         sheet.smartPlayCancelled = false;
+        sheet.smartPickInPlayer = sheet.smartPlayEnabled;
         sheet.open = true;
         sheet.gen += 1;
         sheet.homeServerProfileGeneration = sheet.homeServerSourceService ? sheet.homeServerSourceService.profileGeneration : -1;
         sheet.refreshHomeServerRows();
         sheet.refreshVaultLocalRows();
-        Qt.callLater(function(){ sourcesBack.forceActiveFocus(Qt.PopupFocusReason) });
+        // Local copies retain their existing explicit-choice protection.
+        if (sheet.smartPlayCancelled) sheet.smartPickInPlayer = false;
+        if (sheet.smartPickInPlayer)
+            sheet.smartPickStarted(sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId, sheet.playbackContext);
+        Qt.callLater(function(){ if (sheet.open && !sheet.smartPickInPlayer) sourcesBack.forceActiveFocus(Qt.PopupFocusReason) });
         var myGen = sheet.gen;
         timeout.restart();
 
@@ -540,8 +560,10 @@ Item {
 
     function hide() {
         sheet.gen += 1;
+        if (sheet.smartPickInPlayer) sheet.cancelNuvio();
         sheet.closeSourceContext(false);
         sheet.extMenuOpen = false;
+        sheet.smartPickInPlayer = false;
         sheet.open = false;
         sheet.smartPlayCancelled = true;
         sheet.smartPlayRow = null;
@@ -742,16 +764,6 @@ Item {
         x: sheet.phoneLayout ? 16 : sheet.headerOuterMargin
         y: sheet.compactHeight ? 12 : (bannerStrip.compact ? 20 : 30); z: 20
         onTriggered: sheet.hide()
-    }
-
-    SmartPickingScreen {
-        objectName: "smartPickingScreen"
-        anchors.fill: parent
-        z: 10
-        visible: sheet.smartPicking
-        enabled: visible
-        allowManual: !sheet.smartPlaySettled
-        onManualRequested: sheet.chooseSourceManually()
     }
 
     // ---- title block, pinned to the bottom of the banner ----

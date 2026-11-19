@@ -40,6 +40,9 @@ Item {
     readonly property bool playbackPaused: mpv.pause
     property bool audioHandoffPaused: false
     signal playbackRequested()
+    signal manualSourceRequested()
+    // Search begins before any media session or stream candidate exists.
+    property bool smartPickLoading: false
     readonly property real playbackPosition: mpv.position
     readonly property real playbackDuration: mpv.duration
     readonly property bool playerActive:     root.visible   // player item is the shown surface
@@ -1040,6 +1043,8 @@ Item {
         return "Auto: " + (langs.length ? langs[0].toUpperCase() : "ENG") + " subtitles"
     }
     function loadingStatusText() {
+        if (root.smartPickLoading)
+            return qsTr("Finding the best stream")
         if (root.errored)
             return root.statusMsg
         if (!root.starting)
@@ -1751,7 +1756,27 @@ Item {
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
+    // This is a presentation-only startup: do not create a session or call Stream.play
+    // until SourcesSheet finishes choosing. The same PlayerLoadingScreen stays active.
+    function beginSmartPick(title, posterUrl, subType, subId, playbackContext) {
+        root.stop()
+        var ctx = playbackContext || ({})
+        var imdbId = String(ctx.imdbId || subId || "").match(/tt\d+/)
+        root.mediaTitle = title || ""
+        root.mediaLogo = ctx.logo || (imdbId ? "https://live.metahub.space/logo/medium/" + imdbId[0] + "/img" : "")
+        root.mediaLoadingArt = ctx.episodeStill || ctx.loaderBackdrop || posterUrl || ""
+        root.mediaLoadingLine = ctx.episodeLine || ""
+        root.resumeChoiceOpen = false
+        root.errored = false
+        root.fileReady = false
+        root.streamStatsSeen = false
+        root.statusMsg = "Finding the best stream"
+        root.smartPickLoading = true
+        root.starting = true
+    }
+
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
+        root.smartPickLoading = false
         root.homePlaybackActive = false
         if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.streamDemandActive = false
@@ -1824,6 +1849,8 @@ Item {
         // deriving here is what makes the Stremio logo appear everywhere, not only from the series page.
         var _ttMatch = String(posterUrl || "").match(/\/(tt\d+)\//)
         var _ttId = _ttMatch ? _ttMatch[1] : ""
+        var _contextImdb = String((playbackContext || ({})).imdbId || "").match(/tt\d+/)
+        if (!_ttId && _contextImdb) _ttId = _contextImdb[0]
         root.mediaLogo        = (playbackContext || ({})).logo
             || (_ttId ? "https://live.metahub.space/logo/medium/" + _ttId + "/img" : "")
         root.mediaLoadingArt  = (playbackContext || ({})).episodeStill || (playbackContext || ({})).loaderBackdrop || posterUrl || ""
@@ -3327,6 +3354,7 @@ Item {
     }
 
     function stop() {
+        root.smartPickLoading = false
         root.homePlaybackActive = false
         root.streamDemandActive = false
         root.streamDemandEpoch++
@@ -3900,6 +3928,7 @@ Item {
     // application Shortcut: temporary controls close first, otherwise Back minimizes
     // through the existing session-aware player seam.
     function requestEscape() {
+        if (root.smartPickLoading) { root.backRequested(); return }
         if (root.touchLocked) { root.touchLocked = false; root.wakeChrome(); return }
         if (root.shortcutsOpen) { root.shortcutsOpen = false; return }
         if (root.anyMenuOpen) root.closeMenus()
@@ -4656,7 +4685,9 @@ Item {
         backdropUrl: root.mediaLoadingArt
         statusText: root.loadingStatusText()
         errorText: root.loadingStatusText()
+        allowManual: root.smartPickLoading
         hudFamily: theme.hud
+        onManualRequested: if (root.smartPickLoading) root.manualSourceRequested()
         onCancelRequested: {
             root.closeMenus()
             root.backRequested()

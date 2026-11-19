@@ -14,9 +14,55 @@ Item {
         backdropUrl: Qt.resolvedUrl("../../assets/addon-logos/comet.png")
     }
 
+    SignalSpy { id: manualSpy; target: screen; signalName: "manualRequested" }
+    SignalSpy { id: cancelSpy; target: screen; signalName: "cancelRequested" }
+
     TestCase {
         name: "PlayerLoadingScreen"
         when: windowShown
+
+        function init() {
+            screen.statusText = ""
+            screen.allowManual = false
+            manualSpy.clear()
+            cancelSpy.clear()
+        }
+        function cleanup() {
+            screen.allowManual = false
+            screen.active = false
+        }
+        function test_smartPickWaitUsesSameLoaderUntilConnecting() {
+            screen.title = "Fixture title"
+            screen.statusText = "Finding the best stream"
+            screen.allowManual = true
+            screen.active = true
+            tryCompare(screen, "opacity", 1)
+            var status = findChild(screen, "playerLoadingStatus")
+            var manual = findChild(screen, "playerChooseSourceAction")
+            verify(status !== null && manual !== null)
+            compare(status.text, "FINDING THE BEST STREAM")
+            compare(manual.visible, true)
+            var position = manual.mapToItem(screen, 0, 0)
+            verify(position.y >= 0 && position.y + manual.height <= screen.height)
+            waitForRendering(screen)
+            mouseClick(manual, 60, 18)
+            compare(manualSpy.count, 1)
+            compare(cancelSpy.count, 0)
+            screen.allowManual = false
+            screen.statusText = "Connecting to peers..."
+            compare(screen.active, true)
+            compare(screen.opacity, 1)
+            compare(status.text, "CONNECTING TO PEERS...")
+            compare(manual.visible, false)
+        }
+        function test_smartPickBackCancels() {
+            screen.allowManual = true
+            screen.active = true
+            tryCompare(screen, "opacity", 1)
+            mouseClick(screen, 48, 44)
+            compare(cancelSpy.count, 1)
+            compare(manualSpy.count, 0)
+        }
 
         function imageForSource(item, source) {
             if (item.source !== undefined && String(item.source) === String(source))

@@ -49,6 +49,10 @@ Item {
     signal closeRequested()
     signal localMediaRequested(string path)
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
+    signal smartPickStarted(string title, string backdropUrl, string subType, string subId, var playbackContext)
+    signal smartPickFailed()
+    function cancelSmartPick() { if (sources.smartPickInPlayer) sources.hide() }
+    function chooseSmartPickSourceManually() { sources.chooseSourceManually() }
     signal playLocalRequested(var payload)   // downloaded copy on disk → openLocalVideoSession, no sources sheet
     signal playArrivingRequested(var job)    // still-downloading copy → routeArrivingPlay (disk-first .part play)
     signal openItemRequested(var item)
@@ -2361,6 +2365,9 @@ Item {
         onOpenExtensionsRequested: (browseMoreSources) => page.openExtensionsRequested(browseMoreSources)
         onLocalMediaRequested: (path) => page.localMediaRequested(path)
         onPlayRequested: (infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext) => page.playRequested(infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext)
+        onSmartPickStarted: (title, backdropUrl, subType, subId, playbackContext) =>
+            page.smartPickStarted(title, backdropUrl, subType, subId, playbackContext)
+        onSmartPickFailed: page.smartPickFailed()
         onDownloadRequested: (row) => {
             if (page.pendingSeasonPick) {
                 page.queueSeasonDownload(row)
