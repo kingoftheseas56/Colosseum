@@ -81,16 +81,18 @@ TestCase {
         compare(verbs.visible, true)
     }
     function test_topbar_removes_only_window_verbs_and_reflows() {
-        const item = make(topComponent, { androidHost: false })
+        const item = make(topComponent, { androidHost: false, wallpaperEnabled: true })
         const chrome = child(item, "topBarSystemChrome")
+        const search = child(item, "topBarSearch_Biblio")
+        const wallpaper = child(item, "topBarWallpaperButton")
         tryVerify(function() { return chrome.width > 0 })
         const desktopWidth = chrome.width
         compare(actions(item).length, 3)
         item.androidHost = true
-        tryCompare(chrome, "width", desktopWidth - 3 * 22 - 3 * chrome.spacing)
+        tryCompare(chrome, "width", search.width + wallpaper.width + chrome.spacing)
         noActiveWindowActions(item)
-        compare(child(item, "topBarSearch_Biblio").visible, true)
-        compare(child(item, "topBarWallpaperButton").visible, true)
+        compare(search.visible, true)
+        compare(wallpaper.visible, true)
         item.androidHost = false
         tryCompare(chrome, "width", desktopWidth)
     }

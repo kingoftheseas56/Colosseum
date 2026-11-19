@@ -6786,12 +6786,6 @@ Window {
         pickerPicks: dockCatalog.picks
         pickerUtilityShortcuts: !win.desktopPickerUtilities ? [] : [
             {
-                key: "updates", title: qsTr("Updates"), icon: "update.svg", available: true, utility: true,
-                badge: () => topbar.updateAvailable ? "#f2f2ef" : "transparent",
-                accessibleTitle: () => topbar.updateAvailable ? qsTr("Update available") : qsTr("Updates"),
-                run: () => updateLayer.active ? win.closeUpdatePage() : win.openUpdatePage()
-            },
-            {
                 key: "sync", title: qsTr("Sync"), icon: "trackers.svg", available: true, utility: true,
                 badge: () => topbar.trackersDotState === "ok" ? "#5fd18b"
                     : topbar.trackersDotState === "error" ? "#ef6a5a"

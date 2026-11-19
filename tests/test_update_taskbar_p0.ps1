@@ -1,4 +1,4 @@
-# Verify the picker Update shortcut, the fallback home button and the full-bleed Update page.
+# Verify the home Update button, its badge and the full-bleed Update page.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $topbar = Get-Content (Join-Path $root 'qml/TopBar.qml') -Raw
@@ -30,7 +30,7 @@ if ($topbar -notmatch 'objectName:\s*"colosseumTopbarUpdateBadge"') {
 if ($topbar -notmatch 'source:\s*"\.\./assets/icons/search\.svg"[\s\S]*?visible:\s*bar\.activeMedium\s*!==\s*""') {
     throw 'search SysIcon is not gated to worlds only'
 }
-if ($topbar -notmatch 'visible:\s*!bar\.utilityActionsInPicker\s*&&\s*bar\.activeMedium\s*===\s*""') {
+if ($topbar -notmatch 'visible:\s*bar\.activeMedium\s*===\s*""') {
     throw 'Update glyph is not gated to home only'
 }
 if ($topbar -notmatch 'visible:\s*bar\.updateAvailable[\s\S]*?SequentialAnimation[\s\S]*?running:\s*bar\.updateUnseen\s*&&\s*bar\.updateAvailable\s*&&\s*!bar\.reducedMotion') {
@@ -53,8 +53,8 @@ if ($main -notmatch 'updateAvailable:\s*typeof Updates' -or
     $main -notmatch 'updateUnseen:\s*typeof Updates') {
     throw 'Main.qml does not bind Updates service to the home TopBar'
 }
-if ($main -notmatch 'key:\s*"updates"[\s\S]*?badge:\s*\(\)\s*=>\s*topbar\.updateAvailable[\s\S]*?run:\s*\(\)\s*=>\s*updateLayer\.active\s*\?\s*win\.closeUpdatePage\(\)\s*:\s*win\.openUpdatePage\(\)') {
-    throw 'Main.qml must wire the Update indicator and route through the picker'
+if ($main -match 'key:\s*"updates"') {
+    throw 'Updates must use the Home top bar'
 }
 if ($main -notmatch 'function openUpdatePage\(\)[\s\S]*?updateLayer\.active\s*=\s*true') {
     throw 'Main.qml has no openUpdatePage route'
@@ -133,4 +133,4 @@ if ($gallery -notmatch 'automationPresentedFrames\s*>?=\s*2[\s\S]*?automationVis
     throw 'gallery visual-readiness contract does not require two completed frame swaps'
 }
 
-Write-Host 'test_update_taskbar_p0: PASS (picker shortcut, fallback badge, and Update page route)'
+Write-Host 'test_update_taskbar_p0: PASS (home glyph and badge, and Update page route)'

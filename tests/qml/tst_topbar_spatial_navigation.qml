@@ -208,8 +208,12 @@ TestCase {
         const account = findChild(bar, "colosseumTopbarAccountButton")
         verify(updates.visible && sync.visible)
         bar.utilityActionsInPicker = true
-        verify(!updates.visible && !sync.visible)
+        verify(updates.visible && !sync.visible)
         verify(account.visible)
+        verify(findChild(account, "colosseumTopbarAccountGlyph").visible)
+        compare(findChild(account, "colosseumTopbarAccountInput").accessibleName, "Account Centre")
+        bar.activeMedium = "Theatre"
+        verify(findChild(bar, "topBarSearch").visible)
         bar.accountController = null
     }
 

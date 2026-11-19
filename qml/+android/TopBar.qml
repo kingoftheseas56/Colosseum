@@ -44,8 +44,6 @@ Item {
     readonly property bool accountPresent: accountController
         && (accountController.mode === "signedIn"
             || accountController.mode === "offline")
-    readonly property bool localDevice: accountController
-        && accountController.mode === "localOnly"
     readonly property bool televisionMode: {
         const w = bar.Window.window
         return !!(w && w["televisionMode"] === true)
@@ -437,24 +435,25 @@ Item {
         // signed in, quiet outline when not. Sits beside Update + Wallpapers.
         Item {
             id: accountButton
-            width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22
+            width: 22
             height: 22
             objectName: "colosseumTopbarAccountButton"
             opacity: accountInput.interactionActive ? 1.0 : 0.92
             Rectangle {
                 anchors.fill: parent
-                radius: bar.localDevice ? 11 : width / 2
+                radius: width / 2
                 color: bar.accountPresent
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.16)
-                    : (bar.localDevice ? Qt.rgba(1, 1, 1, 0.04) : "transparent")
+                    : "transparent"
                 border.width: 1.5
                 border.color: bar.accountPresent
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.8)
                     : Qt.rgba(1, 1, 1, 0.38)
                 Item {
+                    objectName: "colosseumTopbarAccountGlyph"
                     anchors.centerIn: parent
                     width: 14; height: 14
-                    visible: !bar.accountPresent && !bar.localDevice
+                    visible: !bar.accountPresent
                     opacity: 0.82
                     Rectangle {
                         width: 5; height: 5; radius: 2.5
@@ -468,17 +467,6 @@ Item {
                         y: 7
                         color: "#ffffff"
                     }
-                }
-                Text {
-                    id: localDeviceText
-                    objectName: "colosseumTopbarDeviceLabel"
-                    anchors.centerIn: parent
-                    visible: bar.localDevice
-                    text: qsTr("Device")
-                    color: theme.inkDim
-                    font.family: theme.ui
-                    font.pixelSize: 10
-                    font.weight: Font.DemiBold
                 }
                 Text {
                     anchors.centerIn: parent
@@ -498,12 +486,9 @@ Item {
                 objectName: "colosseumTopbarAccountInput"
                 anchors.fill: parent
                 focusOnPointer: false
-                accessibleName: bar.localDevice
-                    ? qsTr("Device")
-                    : (bar.accountPresent
-                        ? ("Account: " + bar.accountController.username)
-                        : "Account")
-                focusRadius: bar.localDevice ? 11 : width / 2
+                accessibleName: bar.accountPresent
+                    ? qsTr("Account: %1").arg(bar.accountController.username) : qsTr("Account Centre")
+                focusRadius: width / 2
                 onTriggered: {
                     const anchor = accountButton.mapToItem(null, accountButton.width, accountButton.height)
                     bar.accountClicked(anchor.x, anchor.y)

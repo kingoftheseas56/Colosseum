@@ -500,8 +500,8 @@ Item {
                 }
                 Image {
                     anchors.centerIn: parent
-                    width: 21; height: 21
-                    source: "../assets/icons/download.svg"
+                    width: 26; height: 26
+                    source: "../assets/icons/lucide/download.svg"
                     fillMode: Image.PreserveAspectFit
                 }
                 Rectangle {   // active-page underline, same gold language as session tiles

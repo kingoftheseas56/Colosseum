@@ -818,13 +818,13 @@ Item {
 
         function test_utilityShortcutsOpenTheirActions() {
             const routes = []
-            bar.pickerUtilityShortcuts = ["updates", "sync", "dlna"].map(key => ({
+            bar.pickerUtilityShortcuts = ["sync", "dlna"].map(key => ({
                 key: key, title: key, icon: "update.svg", available: true, utility: true,
                 run: invoker => routes.push({ key: key, invoker: invoker.objectName, open: bar.open })
             }))
             root.height = 500
             const picker = findChild(bar, "dockPicker")
-            for (const key of ["updates", "sync", "dlna"]) {
+            for (const key of ["sync", "dlna"]) {
                 bar.open = true
                 verify(waitForRendering(picker))
                 const shortcut = findChild(picker, "dockShortcut_" + key)
@@ -832,7 +832,7 @@ Item {
                 mouseClick(shortcut)
                 tryCompare(bar, "pickerShown", false)
             }
-            compare(routes, ["updates", "sync", "dlna"].map(key => ({
+            compare(routes, ["sync", "dlna"].map(key => ({
                 key: key, invoker: "dockShortcut_" + key, open: false
             })))
         }
