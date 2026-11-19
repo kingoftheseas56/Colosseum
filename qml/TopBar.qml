@@ -47,7 +47,8 @@ Item {
     readonly property real touchTargetSize: inputMetrics.touchTargetSize
     readonly property real touchHorizontalInset: bar.touchTargetSize > 0
         ? Math.min((bar.touchTargetSize - 22) / 2, Math.floor(systemChrome.spacing / 2)) : 0
-    property bool wallpaperEnabled: true
+    // Wallpaper is available from the desktop app picker.
+    property bool wallpaperEnabled: false
     property string clock: "8:29"
     property string ampm: "PM"
     property string date: "Wednesday, June 24"

@@ -58,7 +58,7 @@ Item {
     Image {
         anchors.centerIn: parent
         width: 28; height: 28
-        source: "../assets/icons/vault-app.png"
+        source: "../assets/icons/vault-door.svg"
         sourceSize.width: 56
         sourceSize.height: 56
         fillMode: Image.PreserveAspectFit

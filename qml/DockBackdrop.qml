@@ -37,7 +37,11 @@ Item {
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.AllButtons
-        onClicked: root.dismissed()
+        // Keep the picker open when a primary click lands on the glass.
+        onClicked: mouse => {
+            if (mouse.button !== Qt.LeftButton)
+                root.dismissed()
+        }
         onWheel: event => event.accepted = true
     }
 }

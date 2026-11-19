@@ -816,6 +816,21 @@ Item {
             compare(findChild(picker, "dockDeck_tv").current, 0)
         }
 
+        function test_leftClicksOnPickerGlassKeepItOpen() {
+            bar.open = true
+            const picker = findChild(bar, "dockPicker")
+            verify(waitForRendering(picker))
+            const dock = findChild(bar, "taskbarDock")
+            tryCompare(dock, "width", picker.width)
+            // Empty space beside the left shortcuts, then the left window gutter.
+            mouseClick(picker, 12, Math.floor(picker.height / 2))
+            verify(bar.pickerShown)
+            mouseClick(bar, Math.floor(picker.x / 2), Math.floor(bar.height / 2))
+            verify(bar.pickerShown)
+            mouseClick(findChild(bar, "taskbarToggleAction"))
+            verify(!bar.pickerShown)
+        }
+
         function test_autoRevealKeepsPickerClosed() {
             bar.reveal()
             verify(bar.open)

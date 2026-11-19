@@ -202,11 +202,10 @@ TestCase {
     function test_wallpaper_and_compact_browser_chrome_flags() {
         var wall = findChild(bar, "topBarWallpaperButton")
         verify(wall !== null)
-        compare(wall.visible, true)
-        bar.wallpaperEnabled = false
         compare(wall.visible, false)
         bar.wallpaperEnabled = true
         compare(wall.visible, true)
+        bar.wallpaperEnabled = false
         bar.width = 1240
         compare(bar.compactChrome, false)
         bar.compactBrowserChrome = true
