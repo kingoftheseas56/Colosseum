@@ -43,8 +43,21 @@ Item {
     property var vaultApi: (typeof VaultLibrary !== "undefined") ? VaultLibrary : null
     property var jobs: []
     property var jobGroups: []
-    property int liveJobCount: 0
-    property int attentionCount: 0
+    readonly property var jobCounts: {
+        var live = 0;
+        var attention = 0;
+        for (var k = 0; k < jobs.length; k++) {
+            if (isLiveState(jobs[k].state)) live++;
+            else if (jobs[k].state === "failed") attention++;
+        }
+        for (var key in abActive) {
+            if (isLiveState(abActive[key].state)) live++;
+            else if (abActive[key].state === "failed") attention++;
+        }
+        return { live: live, attention: attention };
+    }
+    readonly property int liveJobCount: jobCounts.live
+    readonly property int attentionCount: jobCounts.attention
     property var openGroups: ({})
     property var laneSeries: ({})      // world -> series list
     property var remoteItems: []       // intent exists in the account, bytes do not exist here
@@ -289,17 +302,6 @@ Item {
         if (!downloadsApi) return;
         jobs = downloadsApi.activeJobs();
         jobGroups = groupJobs(jobs);
-        var live = 0;
-        var attention = 0;
-        for (var k = 0; k < jobs.length; k++)
-            if (isLiveState(jobs[k].state)) live++;
-            else if (jobs[k].state === "failed") attention++;
-        for (var abKey in abActive) {
-            if (isLiveState(abActive[abKey].state)) live++;
-            else if (abActive[abKey].state === "failed") attention++;
-        }
-        liveJobCount = live;
-        attentionCount = attention;
         // drop cooldowns whose job left the queue without a terminal signal
         // (e.g. cancelled) so a stale countdown never lingers.
         var present = {};
@@ -316,9 +318,7 @@ Item {
             tankoban: baseTotals.tankoban || 0,
             biblio: baseTotals.biblio || 0,
             theatre: baseTotals.theatre || 0,
-            audiobook: abDone.length,
-            active: live,
-            attention: attention
+            audiobook: abDone.length
         };
         var lanes = {};
         for (var i = 0; i < worlds.length; i++)
@@ -658,8 +658,8 @@ Item {
                     parts.push("Biblio <font color='#c9c8d0'>" + (t.biblio || 0) + "</font>");
                     parts.push("Theatre <font color='#c9c8d0'>" + (t.theatre || 0) + "</font>");
                     parts.push("Audiobooks <font color='#c9c8d0'>" + (t.audiobook || 0) + "</font>");
-                    if (t.active) parts.push("<b><font color='#f0c44a'>" + t.active + " arriving</font></b>");
-                    if (t.attention) parts.push("<b><font color='#c98b8b'>" + t.attention + " need attention</font></b>");
+                    if (root.liveJobCount) parts.push("<b><font color='#f0c44a'>" + root.liveJobCount + " arriving</font></b>");
+                    if (root.attentionCount) parts.push("<b><font color='#c98b8b'>" + root.attentionCount + " need attention</font></b>");
                     return parts.join("  ·  ");
                 }
             }

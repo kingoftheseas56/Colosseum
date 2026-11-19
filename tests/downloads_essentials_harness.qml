@@ -54,6 +54,7 @@ Window {
 
     QtObject {
         id: fakeAudiobooks
+        signal failed(string key, string reason)
         function downloadedAudiobooks() {
             return [{ id: "audio", title: "Audio", bytes: 500, bookPath: "C:/book.epub" }]
         }
@@ -79,6 +80,13 @@ Window {
                 Qt.exit(12)
             if (item.attentionCount !== 2)
                 Qt.exit(13)
+            fakeAudiobooks.failed("audio-live", "fixture audiobook transfer failed")
+            if (item.liveJobCount !== 3 || item.attentionCount !== 3
+                    || item.abActive["audio-live"].state !== "failed") {
+                console.error("Audiobook failure did not update the Downloads counts")
+                Qt.exit(19)
+                return
+            }
             if (item.totalsMap.items !== 4 || item.totalsMap.bytes !== 5596
                     || item.totalsMap.biblio !== 1 || item.totalsMap.audiobook !== 1)
                 Qt.exit(14)

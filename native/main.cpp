@@ -84,7 +84,7 @@
 #include "devtools/LanistaServer.h"
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_WIN)
 #include "engine/AudiobookTorrentTransport.h"
 #endif
 #include "engine/ComicDownloader.h"
@@ -1362,7 +1362,7 @@ int main(int argc, char *argv[]) {
         + QStringLiteral("/torrent-engine");
     QDir().mkpath(torrentEngineDir);
     auto *torrentEngine = new TorrentEngine(torrentEngineDir, &backendServices);
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_WIN)
     auto *audiobookEngine = new AudiobookTorrentEngineAdapter(torrentEngine, audiobooks);
     audiobooks->setTorrentTransport(new AudiobookTorrentTransport(audiobookEngine, audiobooks));
 #endif
