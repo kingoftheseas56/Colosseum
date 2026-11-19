@@ -513,7 +513,7 @@ FocusScope {
                 layer.enabled: true
                 layer.effect: MultiEffect {
                     colorization: 1
-                    colorizationColor: arrow.interactionActive ? theme.gold : heading.color
+                    colorizationColor: theme.gold
                 }
             }
         }
