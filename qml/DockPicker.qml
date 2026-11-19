@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Effects
 
 FocusScope {
     id: picker
@@ -8,7 +9,9 @@ FocusScope {
     property bool reducedMotion: false
     property bool mediaAvailable: true
     property string activityLabel: qsTr("Your Colosseum")
-    property int slide: 0
+    property int deckPage: 0
+    property bool showingMap: false
+    property bool focusHeaderOnArrival: false
     property Component mapSlide
     property Item activityControl
     property int focusColumn: 0
@@ -28,10 +31,9 @@ FocusScope {
 
     readonly property real inset: Math.min(24, height * .045)
     readonly property real railWidth: Math.min(208, width * .23)
-    readonly property int slideCount: mapSlide ? 4 : 3
-    readonly property var slideNames: [
+    readonly property var deckPageNames: [
         qsTr("Anime, TV and Movies"), qsTr("Manga, Comics and Manhwa"),
-        qsTr("Books, Audiobooks and Franchises"), qsTr("Colosseum map")
+        qsTr("Books, Audiobooks and Franchises")
     ]
     readonly property var genres: [
         { key: "anime", name: qsTr("Anime") },
@@ -46,30 +48,39 @@ FocusScope {
     ]
     Theme { id: theme }
 
-    function selectSlide(index, keyboard) {
-        if (index < 0 || index >= slideCount || index === slide)
+    function selectDeckPage(index, keyboard) {
+        if (showingMap || index < 0 || index >= deckPageNames.length || index === deckPage)
             return
-        focusOnArrival = !!keyboard || focusOnArrival || viewport.activeFocus || mapPage.activeFocus
+        focusOnArrival = !!keyboard || focusOnArrival || viewport.activeFocus
         if (focusOnArrival)
             focusEntry()
-        slide = index
+        deckPage = index
+        Qt.callLater(picker.restorePageFocus)
+    }
+    function showMap(show, keyboard) {
+        if (show === showingMap || (show && !mapSlide))
+            return
+        if (deckPane.activeFocus || mapPane.activeFocus)
+            focusEntry()
+        focusOnArrival = false
+        focusHeaderOnArrival = !!keyboard
+        wheelQuiet.stop()
+        clearWheel()
+        showingMap = show
         Qt.callLater(picker.restorePageFocus)
     }
     function restorePageFocus() {
-        if (pageMotion.running)
+        if (slideMotion.running || pageMotion.running)
             return
-        if (!focusOnArrival)
-            return
-        focusOnArrival = false
-        const row = pageRepeater.itemAt(slide) as PickRow
-        if (entryFocus.activeFocus) {
-            if (row)
+        if (focusHeaderOnArrival) {
+            focusHeaderOnArrival = false
+            if (entryFocus.activeFocus)
+                (showingMap ? mapHeading : pickHeading).focusArrow()
+        } else if (focusOnArrival) {
+            focusOnArrival = false
+            const row = pageRepeater.itemAt(deckPage) as PickRow
+            if (entryFocus.activeFocus && row)
                 row.focusDeck(focusColumn)
-            else if (mapPage.status === Loader.Ready) {
-                const atlas = mapPage.item as DockWorldMap
-                if (atlas)
-                    atlas.focusFirstWorld()
-            }
         }
     }
     function entriesFor(medium) {
@@ -84,7 +95,7 @@ FocusScope {
         if (!row)
             return false
         restoredPick = state
-        slide = state.slide
+        deckPage = state.slide
         artSlide = state.slide
         row.selectPick(state.column, state.key)
         focusColumn = state.column
@@ -96,7 +107,7 @@ FocusScope {
         wheelStepTaken = false
     }
     function pageWheel(deltaX, deltaY, phase) {
-        if (phase === Qt.ScrollMomentum)
+        if (showingMap || phase === Qt.ScrollMomentum)
             return
         if (phase === Qt.ScrollBegin || phase === Qt.ScrollEnd) {
             wheelQuiet.stop()
@@ -113,21 +124,23 @@ FocusScope {
         wheelTravel += deltaY
         if (Math.abs(wheelTravel) >= 40) {
             wheelStepTaken = true
-            selectSlide(slide + (wheelTravel < 0 ? 1 : -1))
+            selectDeckPage(deckPage + (wheelTravel < 0 ? 1 : -1))
         }
     }
     function pageSwipe(dy) {
         if (Math.abs(dy) >= 48)
-            selectSlide(slide + (dy < 0 ? 1 : -1))
+            selectDeckPage(deckPage + (dy < 0 ? 1 : -1))
     }
-    onMapSlideChanged: if (!mapSlide && slide === 3) selectSlide(2)
+    onMapSlideChanged: if (!mapSlide) showMap(false, false)
     onVisibleChanged: if (visible) {
-        artSlide = slide
+        artSlide = deckPage
         artKeepAlive.stop()
     } else {
         focusOnArrival = false
         focusColumn = 0
-        slide = 0
+        focusHeaderOnArrival = false
+        showingMap = false
+        deckPage = 0
         restoredPick = null
         wheelQuiet.stop()
         clearWheel()
@@ -135,8 +148,8 @@ FocusScope {
         if (artStage) artKeepAlive.restart()
     }
     // Open with the three front cards. Add the current row's backing cards
-    // in both directions, then the other slides' fronts and the next likely
-    // slide's nearest backing cards, after the first frame.
+    // in both directions, then the other rows' fronts and the next likely
+    // row's nearest backing cards, after the first frame.
     Connections {
         target: picker.visible ? picker.Window.window : null
         enabled: picker.artStage < 4 && !artWarmup.running
@@ -151,12 +164,12 @@ FocusScope {
             if (picker.artStage === 4) stop()
         }
     }
-    // Keep the source slide's cache while it moves. Avoid allocating a new
-    // row of artwork during the slide animation.
+    // Keep the source row's cache while it moves. Avoid allocating a new
+    // row of artwork during the page animation.
     Timer {
         interval: 48
-        running: picker.visible && !pageMotion.running && picker.artSlide !== picker.slide
-        onTriggered: picker.artSlide = picker.slide
+        running: picker.visible && !pageMotion.running && picker.artSlide !== picker.deckPage
+        onTriggered: picker.artSlide = picker.deckPage
     }
     Timer {
         id: artKeepAlive
@@ -165,16 +178,16 @@ FocusScope {
     }
 
     Keys.onPressed: event => {
-        if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
+        if (picker.showingMap || (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)))
             return
-        const vertical = viewport.activeFocus || entryFocus.activeFocus || pageDots.activeFocus || mapPage.activeFocus
+        const vertical = viewport.activeFocus || entryFocus.activeFocus || pageDots.activeFocus
         const up = event.key === Qt.Key_PageUp || (vertical && event.key === Qt.Key_Up)
         const down = event.key === Qt.Key_PageDown || (vertical && event.key === Qt.Key_Down)
         if (!up && !down)
             return
         event.accepted = true
         if (!event.isAutoRepeat)
-            picker.selectSlide(picker.slide + (up ? -1 : 1), true)
+            picker.selectDeckPage(picker.deckPage + (up ? -1 : 1), true)
     }
     Timer { id: wheelQuiet; interval: 200; onTriggered: picker.clearWheel() }
 
@@ -277,96 +290,232 @@ FocusScope {
         color: "#25ffffff"
     }
 
-    PageGesture {
-        x: picker.slide === 3 ? mapPage.x : widgetArea.x
-        y: picker.slide === 3 ? 0 : widgetArea.y + viewport.y
-        width: picker.slide === 3 ? mapPage.width : viewport.width
-        height: picker.slide === 3 ? mapPage.height : viewport.height
-    }
-
     Item {
-        id: widgetArea
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.topMargin: Math.min(14, picker.inset)
-        anchors.bottomMargin: Math.min(12, picker.inset)
-        anchors.leftMargin: picker.railWidth + 19
-        anchors.rightMargin: 31
-        clip: true
-
-        Text {
-            id: pickHeading
-            objectName: "dockPickHeading"
-            visible: picker.slide !== 3
-            width: widgetArea.width
-            height: Math.ceil(implicitHeight)
-            horizontalAlignment: Text.AlignHCenter
-            elide: Text.ElideRight
-            text: qsTr("Pick Something")
-            color: "#fff5e6"
-            font.family: theme.display
-            font.weight: Font.DemiBold
-            font.pixelSize: theme.fontSize(Math.round(Math.max(24, Math.min(40, width / 24, widgetArea.height / 13))))
-            fontSizeMode: Text.HorizontalFit
-            minimumPixelSize: theme.fontSize(16)
-            Accessible.role: Accessible.Heading
-            Accessible.name: text
-        }
-
-        FocusScope {
-            id: viewport
-            objectName: "dockPickViewport"
-            y: pickHeading.height + 4
-            width: widgetArea.width
-            height: Math.max(0, widgetArea.height - y)
-            clip: true
-
-            Item {
-                id: pageStack
-                width: viewport.width
-                height: viewport.height
-                property real pagePosition: picker.slide
-                y: -pagePosition * height
-                Behavior on pagePosition {
-                    enabled: picker.visible && !picker.reducedMotion
-                    NumberAnimation {
-                        id: pageMotion
-                        duration: 230
-                        easing.type: Easing.OutCubic
-                        onRunningChanged: if (!running) Qt.callLater(picker.restorePageFocus)
-                    }
-                }
-                Repeater {
-                    id: pageRepeater
-                    model: 3
-                    delegate: PickRow {
-                        required property int index
-                        objectName: "dockPickPage_" + index
-                        rowIndex: index
-                    }
-                }
-            }
-        }
-    }
-
-    Item {
+        id: slides
         x: picker.railWidth + 9
         width: Math.max(0, picker.width - x)
         height: picker.height
         clip: true
 
-        Loader {
-            id: mapPage
-            objectName: "dockPickMapPage"
-            y: (3 - pageStack.pagePosition) * parent.height
-            width: parent.width
-            height: parent.height
-            visible: !!picker.mapSlide && y < height
-            active: picker.visible && !!picker.mapSlide && (picker.slide === 3 || y < height)
-            enabled: picker.slide === 3 && !pageMotion.running
-            sourceComponent: picker.mapSlide
+        property real position: picker.showingMap ? 1 : 0
+        Behavior on position {
+            enabled: picker.visible && !picker.reducedMotion && !!picker.mapSlide
+            NumberAnimation {
+                id: slideMotion
+                duration: 230
+                easing.type: Easing.OutCubic
+                onRunningChanged: if (!running) Qt.callLater(picker.restorePageFocus)
+            }
+        }
+
+        FocusScope {
+            id: deckPane
+            x: -slides.position * width
+            width: slides.width
+            height: slides.height
+            visible: x + width > 0
+            enabled: !picker.showingMap && !slideMotion.running
+
+            PageGesture {
+                x: widgetArea.x
+                y: widgetArea.y + viewport.y
+                width: viewport.width
+                height: viewport.height
+            }
+
+            Item {
+                id: widgetArea
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: Math.min(14, picker.inset)
+                anchors.bottomMargin: Math.min(12, picker.inset)
+                anchors.leftMargin: 10
+                anchors.rightMargin: 31
+
+                SlideHeading {
+                    id: pickHeading
+                    objectName: "dockPickHeading"
+                    width: parent.width
+                    text: qsTr("Pick Something")
+                    forward: true
+                    hasArrow: !!picker.mapSlide
+                    arrowName: "dockMapNext"
+                    arrowLabel: qsTr("Open World Map")
+                    onNavigate: keyboard => picker.showMap(true, keyboard)
+                }
+
+                FocusScope {
+                    id: viewport
+                    objectName: "dockPickViewport"
+                    y: pickHeading.height + 4
+                    width: widgetArea.width
+                    height: Math.max(0, widgetArea.height - y)
+                    clip: true
+
+                    Item {
+                        id: pageStack
+                        width: viewport.width
+                        height: viewport.height
+                        property real pagePosition: picker.deckPage
+                        y: -pagePosition * height
+                        Behavior on pagePosition {
+                            enabled: picker.visible && !picker.reducedMotion
+                            NumberAnimation {
+                                id: pageMotion
+                                duration: 230
+                                easing.type: Easing.OutCubic
+                                onRunningChanged: if (!running) Qt.callLater(picker.restorePageFocus)
+                            }
+                        }
+                        Repeater {
+                            id: pageRepeater
+                            model: 3
+                            delegate: PickRow {
+                                required property int index
+                                objectName: "dockPickPage_" + index
+                                rowIndex: index
+                            }
+                        }
+                    }
+                }
+            }
+
+            FocusScope {
+                id: pageDots
+                width: 27
+                height: width * picker.deckPageNames.length
+                z: 1
+                anchors.right: parent.right
+                anchors.rightMargin: 2
+                anchors.verticalCenter: parent.verticalCenter
+                Repeater {
+                    model: picker.deckPageNames.length
+                    delegate: Item {
+                        id: dot
+                        required property int index
+                        y: index * height
+                        width: pageDots.width
+                        height: width
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: picker.deckPage === dot.index ? 8 : 6
+                            height: width
+                            radius: width / 2
+                            color: picker.deckPage === dot.index ? theme.gold : "#91ffffff"
+                        }
+                        KeyboardAction {
+                            id: dotAction
+                            objectName: "dockDeckDot_" + dot.index
+                            anchors.fill: parent
+                            focusOnPointer: false
+                            accessibleName: picker.deckPageNames[dot.index]
+                            focusRadius: 13
+                            spaceActivates: true
+                            onTriggered: picker.selectDeckPage(dot.index, dotAction.activeFocus)
+                        }
+                    }
+                }
+            }
+        }
+
+        FocusScope {
+            id: mapPane
+            x: (1 - slides.position) * width
+            width: slides.width
+            height: slides.height
+            visible: !!picker.mapSlide && x < width
+            enabled: picker.showingMap && !slideMotion.running
+
+            Loader {
+                id: mapPage
+                objectName: "dockPickMapPage"
+                anchors.fill: parent
+                active: picker.visible && mapPane.visible
+                sourceComponent: picker.mapSlide
+            }
+
+            SlideHeading {
+                id: mapHeading
+                objectName: "dockMapHeading"
+                x: widgetArea.x
+                y: widgetArea.y
+                width: widgetArea.width
+                text: qsTr("World Map")
+                arrowName: "dockMapBack"
+                arrowLabel: qsTr("Back to Pick Something")
+                onNavigate: keyboard => picker.showMap(false, keyboard)
+            }
+        }
+    }
+
+    component SlideHeading: Text {
+        id: heading
+        property bool forward: false
+        property bool hasArrow: true
+        property string arrowName
+        property string arrowLabel
+        signal navigate(bool keyboard)
+
+        function focusArrow() { arrow.forceActiveFocus(Qt.TabFocusReason) }
+
+        height: Math.ceil(implicitHeight)
+        horizontalAlignment: Text.AlignHCenter
+        leftPadding: hasArrow ? arrow.width + 3 : 0
+        rightPadding: leftPadding
+        elide: Text.ElideRight
+        color: "#fff5e6"
+        font.family: theme.display
+        font.weight: Font.DemiBold
+        font.pixelSize: theme.fontSize(Math.round(Math.max(24, Math.min(40, width / 24, widgetArea.height / 13))))
+        fontSizeMode: Text.HorizontalFit
+        minimumPixelSize: theme.fontSize(16)
+        Accessible.role: Accessible.Heading
+        Accessible.name: text
+
+        KeyboardAction {
+            id: arrow
+            objectName: heading.arrowName
+            accessibleName: heading.arrowLabel
+            visible: heading.hasArrow
+            width: 44
+            height: width
+            x: heading.forward ? (heading.width + heading.contentWidth) / 2
+                               : (heading.width - heading.contentWidth) / 2 - width
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: -1
+            focusRadius: width / 2
+            focusOnPointer: false
+            spaceActivates: true
+            onTriggered: heading.navigate(activeFocus)
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: 32
+                height: width
+                radius: width / 2
+                color: "#25ffffff"
+                border.color: "#30ffffff"
+                opacity: arrow.interactionActive ? 1 : 0
+                Behavior on opacity {
+                    enabled: !picker.reducedMotion
+                    NumberAnimation { duration: 120 }
+                }
+            }
+            Image {
+                anchors.centerIn: parent
+                width: 28
+                height: width
+                sourceSize: Qt.size(56, 56)
+                source: heading.forward ? "../assets/icons/lucide/chevron-right.svg"
+                                        : "../assets/icons/lucide/chevron-left.svg"
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    colorization: 1
+                    colorizationColor: arrow.interactionActive ? theme.gold : heading.color
+                }
+            }
         }
     }
 
@@ -398,9 +547,9 @@ FocusScope {
         height: pageStack.height
         columns: 3
         columnSpacing: Math.min(12, width * .025)
-        visible: picker.slide === rowIndex
+        visible: picker.deckPage === rowIndex
             || (pageMotion.running && y + pageStack.y < viewport.height && y + pageStack.y + height > 0)
-        enabled: picker.slide === rowIndex && !pageMotion.running
+        enabled: picker.deckPage === rowIndex && !pageMotion.running
         readonly property real cellWidth: Math.max(0, (width - 2 * columnSpacing) / columns)
 
         function selectPick(column, key) {
@@ -444,7 +593,7 @@ FocusScope {
                     if (picker.artStage && picker.artSlide === row.rowIndex)
                         return Math.min(picker.artStage, 2)
                     const adjacent = picker.artSlide < 2 ? picker.artSlide + 1 : picker.artSlide - 1
-                    if (picker.artStage === 4 && picker.artSlide < 3 && row.rowIndex === adjacent)
+                    if (picker.artStage === 4 && row.rowIndex === adjacent)
                         return 1
                     if ((picker.visible && row.visible) || picker.artStage >= 3)
                         return 0
@@ -456,43 +605,6 @@ FocusScope {
                     medium: modelData.key, entry: entry, key: deck.identity(entry),
                     slide: row.rowIndex, column: index, keyboard: deck.activeFocus
                 })
-            }
-        }
-    }
-
-    FocusScope {
-        id: pageDots
-        width: 27
-        height: width * picker.slideCount
-        z: 1
-        anchors.right: parent.right
-        anchors.rightMargin: 2
-        anchors.verticalCenter: parent.verticalCenter
-        Repeater {
-            model: picker.slideCount
-            delegate: Item {
-                id: dot
-                required property int index
-                y: index * height
-                width: pageDots.width
-                height: width
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: picker.slide === dot.index ? 8 : 6
-                    height: width
-                    radius: width / 2
-                    color: picker.slide === dot.index ? theme.gold : "#91ffffff"
-                }
-                KeyboardAction {
-                    id: dotAction
-                    objectName: "dockSlideDot_" + dot.index
-                    anchors.fill: parent
-                    focusOnPointer: false
-                    accessibleName: picker.slideNames[dot.index]
-                    focusRadius: 13
-                    spaceActivates: true
-                    onTriggered: picker.selectSlide(dot.index, dotAction.activeFocus)
-                }
             }
         }
     }

@@ -136,13 +136,13 @@ Item {
             bar.pickerPicks = { [data.medium]: entries }
             bar.open = true
             const picker = findChild(bar, "dockPicker")
-            if (data.medium === "audiobooks") picker.selectSlide(2)
+            if (data.medium === "audiobooks") picker.selectDeckPage(2)
             const deck = findChild(picker, "dockDeck_" + data.medium)
             const grab = findChild(deck, "dockPickCard_" + data.medium)
             const outgoing = findChild(deck, "dockPickFace_0")
             const incoming = findChild(deck, "dockPickFace_1")
             const viewport = findChild(picker, "dockPickViewport")
-            const row = findChild(picker, "dockPickPage_" + picker.slide)
+            const row = findChild(picker, "dockPickPage_" + picker.deckPage)
             tryVerify(() => grab.visible && grab.enabled && Math.abs(row.mapToItem(viewport, 0, 0).y) < .1)
             verify(waitForRendering(picker))
 
@@ -267,12 +267,12 @@ Item {
             const front = art(tv, 2)
             const bookFront = art(books, 0)
             bar.pickerReducedMotion = false
-            picker.selectSlide(2)
+            picker.selectDeckPage(2)
             compare(books.artRadius, 0, "Only the preloaded front is needed during the slide")
             tryCompare(books, "artRadius", 2)
             compare(art(books, 0), bookFront)
             verify(ready(books, 0))
-            picker.selectSlide(0)
+            picker.selectDeckPage(0)
             tryCompare(tv, "artRadius", 2)
             verify(ready(tv, 2))
             compare(art(tv, 2), front)
@@ -290,7 +290,7 @@ Item {
             bar.open = true
             const picker = findChild(bar, "dockPicker")
             verify(waitForRendering(picker))
-            picker.selectSlide(1)
+            picker.selectDeckPage(1)
             const stage = findChild(picker, "dockPickStage_comics")
             const title = findChild(picker, "dockPickTitle_comics")
             stage.forceActiveFocus(Qt.TabFocusReason)
@@ -304,14 +304,14 @@ Item {
             bar.pickerPicks = { comics: [{ id: "c", title: "New catalogue pick" }] }
             verify(bar.restorePicker(state))
             verify(picker.visible)
-            compare(picker.slide, 1)
+            compare(picker.deckPage, 1)
             tryCompare(title, "text", "Chosen")
             tryVerify(() => stage.activeFocus)
 
             bar.open = false
             bar.open = true
-            compare(picker.slide, 0)
-            picker.selectSlide(1)
+            compare(picker.deckPage, 0)
+            picker.selectDeckPage(1)
             compare(title.text, "New catalogue pick")
         }
 
@@ -322,9 +322,9 @@ Item {
             const deck = findChild(picker, "dockDeck_tv")
             const card = findChild(deck, "dockPickCard_tv")
             verify(waitForRendering(picker))
-            verify(findChild(picker, "dockSlideDot_0") !== null)
-            verify(findChild(picker, "dockSlideDot_2") !== null)
-            verify(findChild(picker, "dockSlideDot_3") === null)
+            verify(findChild(picker, "dockDeckDot_0") !== null)
+            verify(findChild(picker, "dockDeckDot_2") !== null)
+            verify(findChild(picker, "dockDeckDot_3") === null)
             const viewport = findChild(picker, "dockPickViewport")
             const heading = findChild(picker, "dockPickHeading")
             const headingPosition = heading.mapToItem(root, 0, 0)
@@ -333,30 +333,63 @@ Item {
             mousePress(viewport, start.x, start.y)
             mouseMove(viewport, start.x + 1, start.y - 15, 20, Qt.LeftButton)
             mouseMove(viewport, start.x - 60, start.y - 75, 20, Qt.LeftButton)
-            compare(picker.slide, 0)
+            compare(picker.deckPage, 0)
             mouseRelease(viewport, start.x - 60, start.y - 75)
-            compare(picker.slide, 1)
+            compare(picker.deckPage, 1)
             compare(deck.current, 0)
             compare(deck.circulating, -1)
             compare(picks.count, 0)
             compare(heading.mapToItem(root, 0, 0), headingPosition)
 
             mouseWheel(viewport, viewport.width / 2, viewport.height / 2, 0, -120)
-            tryCompare(picker, "slide", 2)
+            tryCompare(picker, "deckPage", 2)
+            verify(!findChild(picker, "dockMapNext").visible)
+        }
+
+        function test_headerArrowsOpenMapAndRetainDeckPage() {
             bar.pickerMapSlide = mapComponent
-            tryVerify(() => findChild(picker, "dockSlideDot_3") !== null)
-            mouseClick(findChild(picker, "dockSlideDot_3"))
-            tryCompare(picker, "slide", 3)
-            verify(findChild(picker, "dockPickMapPage").visible)
-            verify(!heading.visible)
-            const firstDot = findChild(picker, "dockSlideDot_0")
-            mouseMove(firstDot)
-            tryVerify(() => firstDot.hovered, 2000, "First dot remains reachable on the map page at "
-                + firstDot.mapToItem(root, firstDot.width / 2, firstDot.height / 2))
-            mouseClick(firstDot)
-            tryCompare(picker, "slide", 0)
-            compare(deck.current, 0)
-            verify(!findChild(picker, "dockPickMapPage").visible)
+            bar.open = true
+            const picker = findChild(bar, "dockPicker")
+            const next = findChild(picker, "dockMapNext")
+            const back = findChild(picker, "dockMapBack")
+            const heading = findChild(picker, "dockPickHeading")
+            const mapHeading = findChild(picker, "dockMapHeading")
+            const viewport = findChild(picker, "dockPickViewport")
+            const map = findChild(picker, "dockPickMapPage")
+            const lastDot = findChild(picker, "dockDeckDot_2")
+            verify(waitForRendering(picker))
+            verify(next.visible && !back.visible)
+            const homePosition = heading.mapToItem(picker, 0, 0)
+
+            // Keyboard activation works from the first row and hands focus to Back.
+            next.forceActiveFocus(Qt.TabFocusReason)
+            keyClick(Qt.Key_Return)
+            tryVerify(() => back.activeFocus)
+            compare(picker.deckPage, 0)
+            verify(map.visible)
+            keyClick(Qt.Key_Return)
+            tryVerify(() => next.activeFocus)
+            verify(!map.visible)
+
+            mouseClick(lastDot)
+            tryVerify(() => findChild(picker, "dockDeck_books").enabled)
+            mouseWheel(viewport, viewport.width / 2, viewport.height / 2, 0, -120)
+            compare(picker.deckPage, 2)
+            verify(!picker.showingMap && !map.visible)
+
+            mouseClick(next)
+            tryVerify(() => back.visible && back.enabled)
+            verify(!next.visible && !lastDot.visible)
+            compare(mapHeading.mapToItem(picker, 0, 0), homePosition)
+            mouseWheel(map, map.width / 2, map.height / 2, 0, 120)
+            verify(picker.showingMap)
+            compare(picker.deckPage, 2)
+
+            mouseClick(back)
+            tryVerify(() => next.visible && next.enabled)
+            compare(picker.deckPage, 2)
+            verify(findChild(picker, "dockDeck_books").visible && !map.visible)
+            compare(heading.mapToItem(picker, 0, 0), homePosition)
         }
 
         function test_nativeMapUsesFullPaneAndRoutesOnlyAvailableLand() {
@@ -367,13 +400,13 @@ Item {
             bar.open = true
             const picker = findChild(bar, "dockPicker")
             verify(waitForRendering(picker))
-            mouseClick(findChild(picker, "dockSlideDot_3"))
-            tryCompare(picker, "slide", 3)
+            mouseClick(findChild(picker, "dockMapNext"))
+            tryCompare(picker, "showingMap", true)
             const loader = findChild(picker, "dockPickMapPage")
             tryCompare(loader, "status", Loader.Ready)
             const map = loader.item
             compare(map.height, picker.height)
-            compare(map.width + loader.parent.x, picker.width)
+            compare(map.width + map.mapToItem(picker, 0, 0).x, picker.width)
             compare(map.mapToItem(picker, 0, 0).y, 0)
             const destinations = createTemporaryObject(worldSpy, map, { target: map })
             verify(destinations.valid)
@@ -394,7 +427,8 @@ Item {
             keyClick(Qt.Key_Return)
             compare(destinations.signalArguments[5][0], "tankoban")
             mouseWheel(map, map.width / 2, 12, 0, 120)
-            tryCompare(picker, "slide", 2)
+            compare(picker.showingMap, true)
+            compare(picker.deckPage, 0)
         }
 
         Component {
@@ -411,21 +445,21 @@ Item {
             picker.pageWheel(12, -4, Qt.ScrollUpdate)
             picker.pageWheel(0, -18, Qt.ScrollUpdate)
             picker.pageWheel(0, -18, Qt.ScrollUpdate)
-            compare(picker.slide, 0)
+            compare(picker.deckPage, 0)
             picker.pageWheel(0, -9, Qt.ScrollUpdate)
-            compare(picker.slide, 1)
+            compare(picker.deckPage, 1)
             picker.pageWheel(0, -200, Qt.ScrollUpdate)
             picker.pageWheel(0, -160, Qt.ScrollMomentum)
             picker.pageWheel(0, 0, Qt.ScrollEnd)
             picker.pageWheel(0, -100, Qt.ScrollMomentum)
-            compare(picker.slide, 1)
+            compare(picker.deckPage, 1)
             picker.pageWheel(0, 0, Qt.ScrollBegin)
             picker.pageWheel(0, -48, Qt.ScrollUpdate)
-            compare(picker.slide, 2)
+            compare(picker.deckPage, 2)
             picker.pageWheel(0, 0, Qt.ScrollEnd)
             picker.pageWheel(0, 40, Qt.NoScrollPhase)
             picker.pageWheel(0, 120, Qt.NoScrollPhase)
-            compare(picker.slide, 1)
+            compare(picker.deckPage, 1)
         }
 
         function test_railActionsAndCompactMediaHandoff() {
@@ -491,7 +525,7 @@ Item {
             compare(universes.width, manhwa.width)
             verify(findChild(picker, "dockDeck_music") === null)
             verify(findChild(picker, "dockDeck_tributes") === null)
-            mouseClick(findChild(picker, "dockSlideDot_2"))
+            mouseClick(findChild(picker, "dockDeckDot_2"))
             const logo = findChild(picker, "dockUniverseLogo")
             tryCompare(logo, "status", Image.Ready)
             compare(logo.fillMode, Image.PreserveAspectFit)
@@ -502,7 +536,7 @@ Item {
             compare(picks.signalArguments[0][0], "universes")
             compare(picks.signalArguments[0][1].raw.page, entries[0].raw.page)
             bar.open = true
-            mouseClick(findChild(picker, "dockSlideDot_1"))
+            mouseClick(findChild(picker, "dockDeckDot_1"))
             mouseClick(manhwa)
             compare(picks.signalArguments[1][0], "manhwa")
         }
@@ -533,8 +567,8 @@ Item {
             const viewport = findChild(picker, "dockPickViewport")
             const heading = findChild(picker, "dockPickHeading")
             for (let index = 0; index < rows.length; ++index) {
-                picker.selectSlide(index)
-                compare(picker.slide, index)
+                picker.selectDeckPage(index)
+                compare(picker.deckPage, index)
                 verify(heading.visible && !heading.truncated)
                 verify(heading.contentHeight <= heading.height && heading.contentWidth <= heading.width)
                 const row = findChild(picker, "dockPickPage_" + index)
@@ -653,7 +687,7 @@ Item {
             verify(!findChild(picker, "dockPickFacts_tv").visible)
             compare(audio.Accessible.name, "Audiobooks")
             compare(audio.Accessible.description, "No picks available")
-            picker.selectSlide(2)
+            picker.selectDeckPage(2)
             const emptyTitle = findChild(picker, "dockPickTitle_audiobooks")
             compare(emptyTitle.text, "No picks available")
             verify(emptyTitle.visible && !emptyTitle.truncated)
@@ -687,11 +721,11 @@ Item {
             const picker = findChild(bar, "dockPicker")
             verify(waitForRendering(picker))
             compareCaption(picker, "anime", "Anime", "Anime pick", "2024")
-            picker.selectSlide(1)
+            picker.selectDeckPage(1)
             compare(findChild(picker, "dockPickFacts_manga").text, "An author · 1997")
             compare(findChild(picker, "dockPickFacts_comics").text, "A publisher · 2016")
             compareCaption(picker, "manhwa", "Manhwa", "Manhwa pick", "")
-            picker.selectSlide(2)
+            picker.selectDeckPage(2)
             compare(findChild(picker, "dockPickFacts_books").text, "A novelist · 1988")
             compare(findChild(picker, "dockPickFacts_audiobooks").text, "An audiobook author")
             compareCaption(picker, "universes", "Franchises", franchise.title, "")
@@ -743,9 +777,9 @@ Item {
             finger.press(0, viewport, start.x, start.y).commit()
             finger.move(0, viewport, start.x, start.y - 20).commit()
             finger.move(0, viewport, start.x, start.y - 85).commit()
-            compare(picker.slide, 0)
+            compare(picker.deckPage, 0)
             finger.release(0, viewport, start.x, start.y - 85).commit()
-            tryCompare(picker, "slide", 1)
+            tryCompare(picker, "deckPage", 1)
             compare(picks.count, 0)
             compare(findChild(picker, "dockDeck_tv").current, 0)
         }
