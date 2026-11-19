@@ -1,5 +1,7 @@
 #pragma once
 
+#include "engine/DownloadLocation.h"
+
 // DownloadStore — the Theatre lane's video download engine.
 // v2 (2026-07-04): bounded job QUEUE with lazy per-job stream resolution — TB2's
 // proven gap-episode flow at Harbor's simplicity. A job's durable payload is the
@@ -63,6 +65,9 @@ public:
 
     // ── downloaded-videos library ──
     Q_INVOKABLE QVariantList downloadedVideos() const;
+    QList<DownloadLocation::Item> managedDownloadItems() const;
+    void refreshDownloadPaths();
+    void downloadLocationAvailable() { pump(); }
     Q_INVOKABLE QVariantMap removeVideo(const QString &id);
 
     // dev harness: COLOSSEUM_VIDEOQ_SELFTEST="exactrow" (later: "group"|"speed"|"pause")

@@ -1,4 +1,5 @@
 #include "VaultRecent.h"
+#include "DownloadMediaPaths.h"
 
 #include "VaultStoreIo.h"
 
@@ -70,13 +71,13 @@ QVariantList VaultRecent::items() const
     out.reserve(m_items.size());
     for (const auto& v : m_items) {
         const QJsonObject e = v.toObject();
-        const QString path = e.value(QStringLiteral("path")).toString();
+        const QString path = DownloadMediaPaths::resolved(e.value(QStringLiteral("path")).toString());
         out.append(QVariantMap{
             {QStringLiteral("path"), path},
             {QStringLiteral("title"), e.value(QStringLiteral("title")).toString()},
             {QStringLiteral("kind"), e.value(QStringLiteral("kind")).toString()},
             {QStringLiteral("vaultId"), e.value(QStringLiteral("vaultId")).toString()},
-            {QStringLiteral("available"), QFileInfo::exists(path)},
+            {QStringLiteral("available"), !DownloadMediaPaths::waitingForDrive(path) && QFileInfo::exists(path)},
         });
     }
     return out;

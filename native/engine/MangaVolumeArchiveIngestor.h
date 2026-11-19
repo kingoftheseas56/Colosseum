@@ -57,6 +57,7 @@ private:
     struct Job {
         VolumeProvenance record;
         QString archivePath;
+        QString destinationPath;
         QString extractTmp;   // scratch dir for raw extraction output
     };
 

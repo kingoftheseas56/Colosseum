@@ -293,6 +293,14 @@ QVariantMap LocalDownloads::redownload(const QVariantMap &item) {
         const QVariantMap intentError = rememberIntent();
         if (!intentError.isEmpty())
             return intentError;
+        if (m_bookTorrents && id.size() == 40) {
+            const QString title = item.value(QStringLiteral("title")).toString();
+            const QString author = item.value(QStringLiteral("author")).toString();
+            QMetaObject::invokeMethod(m_bookTorrents, "download", Qt::DirectConnection,
+                                      Q_ARG(QString, id), Q_ARG(QString, title), Q_ARG(QString, author));
+            bump();
+            return {{QStringLiteral("success"), true}};
+        }
         m_books->downloadBook(
             id,
             QString(),
@@ -441,9 +449,8 @@ QVariantList LocalDownloads::tankobanItems() const {
 
 QVariantList LocalDownloads::biblioItems() const {
     QVariantList out;
-    if (!m_books)
-        return out;
-    const QVariantList books = m_books->downloadedBooks();
+    QVariantList books = m_books ? m_books->downloadedBooks() : QVariantList{};
+    books.append(invokeList(m_bookTorrents, "downloadedBooks"));
     for (const QVariant &v : books) {
         QVariantMap e = v.toMap();
         e.insert(QStringLiteral("world"), QStringLiteral("biblio"));
@@ -621,8 +628,9 @@ QVariantList LocalDownloads::activeJobs() const {
             });
         }
     }
-    if (m_books) {
-        const QVariantList jobs = m_books->activeBookJobs();
+    if (m_books || m_bookTorrents) {
+        QVariantList jobs = m_books ? m_books->activeBookJobs() : QVariantList{};
+        jobs.append(invokeList(m_bookTorrents, "activeBookJobs"));
         for (const QVariant &v : jobs) {
             QVariantMap j = v.toMap();
             const double done = j.value(QStringLiteral("done")).toDouble();
@@ -634,6 +642,7 @@ QVariantList LocalDownloads::activeJobs() const {
                 {QStringLiteral("itemKind"), QStringLiteral("edition")},
                 {QStringLiteral("title"), j.value(QStringLiteral("title"))},
                 {QStringLiteral("state"), j.value(QStringLiteral("state"))},
+                {QStringLiteral("error"), j.value(QStringLiteral("error"))},
                 {QStringLiteral("ratio"), total > 0 ? done / total : 0.0},
                 {QStringLiteral("detail"), total > 0
                     ? QStringLiteral("%1 of %2 MB").arg(done / 1048576.0, 0, 'f', 1)
@@ -780,7 +789,9 @@ void LocalDownloads::cancel(const QString &world, const QString &id) {
         if (m_comics)
             m_comics->cancelDownload(id);
     } else if (world == QStringLiteral("biblio")) {
-        if (m_books)
+        if (m_bookTorrents && id.size() == 40)
+            QMetaObject::invokeMethod(m_bookTorrents, "cancelDownload", Qt::DirectConnection, Q_ARG(QString, id));
+        else if (m_books)
             m_books->cancelDownload(id);
     } else if (world == QStringLiteral("theatre")) {
         // Exact-row discipline: drop the job the user clicked (active, queued,
@@ -815,6 +826,12 @@ QVariantMap LocalDownloads::remove(const QString &world, const QString &id) {
         if (m_comics)
             return m_comics->deleteIssue(id);
     } else if (world == QStringLiteral("biblio")) {
+        if (m_bookTorrents && id.size() == 40) {
+            QVariantMap result;
+            QMetaObject::invokeMethod(m_bookTorrents, "removeCompletedBook", Qt::DirectConnection,
+                                      Q_RETURN_ARG(QVariantMap, result), Q_ARG(QString, id));
+            return result;
+        }
         if (m_books)
             return m_books->deleteBook(id);
     } else if (world == QStringLiteral("theatre")) {

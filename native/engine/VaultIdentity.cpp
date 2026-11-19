@@ -675,3 +675,34 @@ QVariantList VaultIdentity::pathAliases() const
     }
     return out;
 }
+
+void VaultIdentity::relocateVerifiedDownloads(const QList<QPair<QString, QString>> &paths)
+{
+    QHash<QString, QString> idsByPath;
+    for (auto it = m_byId.cbegin(); it != m_byId.cend(); ++it)
+        idsByPath.insert(normalizePath(it->path), it.key());
+    bool changed = false;
+    for (const auto &path : paths) {
+        const QString id = idsByPath.value(normalizePath(path.first));
+        auto entry = m_byId.find(id);
+        if (entry == m_byId.end())
+            continue;
+        const QFileInfo destination(path.second);
+        if (!destination.isFile() || destination.isSymLink() || destination.size() != entry->size)
+            continue;
+        const qint64 mtime = destination.lastModified().toMSecsSinceEpoch();
+        const QString computed = computeId(path.second, destination.size(), mtime);
+        // The mover has already matched the entire file. It can make the path
+        // handoff explicit even when scan-based size/mtime matching is ambiguous.
+        if (computed != id)
+            m_alias.insert(computed, id);
+        m_pathAliases.append({entry->path, path.second});
+        entry->path = path.second;
+        entry->mtimeMs = mtime;
+        changed = true;
+    }
+    if (changed) {
+        persist();
+        emit this->changed();
+    }
+}

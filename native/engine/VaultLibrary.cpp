@@ -16,6 +16,7 @@
 #include "VaultPosterFetcher.h"
 #include "VaultArtworkResolver.h"
 #include "VaultLocation.h"
+#include "DownloadMediaPaths.h"
 
 #include <QCollator>
 #include <QDir>
@@ -1966,6 +1967,11 @@ bool VaultLibrary::confirmFolderSelection()
     if (m_selectionRoot.isEmpty() || m_selectionBusy
         || !folderSelection().value(QStringLiteral("canSave")).toBool())
         return false;
+    if (DownloadMediaPaths::moving() && m_selectionDraft != m_config->personalPaths()) {
+        m_selectionError = tr("Finish moving downloads before saving Personal choices.");
+        emit folderSelectionChanged();
+        return false;
+    }
     if (!m_config->applyFolderSelection(m_selectionRoot, m_selectionDraft)) {
         m_selectionError = tr("Vault could not save these choices. Try again.");
         emit folderSelectionChanged();

@@ -1,4 +1,5 @@
 #include "engine/CbzArchive.h"
+#include "DownloadMediaPaths.h"
 
 #include "third_party/miniz/miniz.h"
 
@@ -8,6 +9,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QSet>
+#include <QTemporaryFile>
 
 #include <algorithm>
 #include <cstdlib>
@@ -232,11 +234,21 @@ bool CbzArchive::writeImagesAtomic(const QString& archivePath,
         }
     }
 
-    const QString partPath = archivePath + QStringLiteral(".part");
-    QFile::remove(partPath);
     if (!QDir().mkpath(QFileInfo(archivePath).absolutePath())) {
         setError(error, QStringLiteral("cannot create CBZ parent directory"));
         return false;
+    }
+    QString partPath = archivePath + QStringLiteral(".part");
+    QTemporaryFile temporary(archivePath + QStringLiteral(".XXXXXX.part"));
+    if (DownloadMediaPaths::enabled() && DownloadMediaPaths::isWithin(DownloadMediaPaths::root(), archivePath)) {
+        if (!temporary.open()) {
+            setError(error, QStringLiteral("cannot reserve temporary CBZ path"));
+            return false;
+        }
+        partPath = temporary.fileName();
+        temporary.close();
+    } else {
+        QFile::remove(partPath);
     }
 
     mz_zip_archive zip{};
