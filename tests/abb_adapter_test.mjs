@@ -10,7 +10,11 @@ const home = fixture('latest-live');
 const page2 = fixture('latest-page2');
 const categoryHtml = fixture('category-fantasy');
 const languageHtml = fixture('language-english');
-const searchHtml = fixture('search-page2');
+const workerUrl = 'https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/v1/audiobookbay';
+
+function workerResponse(request, result) {
+  request.respond(200, JSON.stringify({ contractVersion: 1, sourceId: 'audiobookbay', result }));
+}
 const fullHtml = fixture('detail-full');
 const dramatizedHtml = fixture('detail-dramatized');
 
@@ -21,10 +25,10 @@ function environment() {
   let nextTimer = 0;
   class FakeXHR {
     static DONE = 4;
-    constructor() { this.status = 0; this.readyState = 0; this.responseText = ''; this.aborted = false; requests.push(this); }
+    constructor() { this.status = 0; this.readyState = 0; this.responseText = ''; this.aborted = false; this.headers = {}; requests.push(this); }
     open(method, url) { this.method = method; this.url = url; }
-    setRequestHeader() {}
-    send() { this.sent = true; }
+    setRequestHeader(name, value) { this.headers[name] = value; }
+    send(body) { this.sent = true; this.body = body; }
     abort() { this.aborted = true; if (this.onabort) this.onabort(); }
     respond(status, html) {
       this.status = status; this.responseText = html || ''; this.readyState = 4;
@@ -90,10 +94,65 @@ check('language uses real tag path, including page 2', () => {
   assert.equal(env.newest().url, 'https://audiobookbay.lu/audio-books/tag/english/page/2/');
 });
 
-check('paged search remains lowercase and parses search fixture', () => {
+check('paged search posts a lowercase query to the Worker and preserves source row facts', () => {
   const env = environment();
-  onePage(env, (done) => env.api.search('Rhythm of War', 2, done),
-    '/page/2/?s=rhythm+of+war', searchHtml, 2);
+  const values = [];
+  env.api.search('Rhythm of War', 2, (value, reason) => values.push({ value, reason }));
+  const http = env.newest();
+  assert.equal(http.method, 'POST');
+  assert.equal(http.url, workerUrl + '/search');
+  assert.equal(http.headers['Content-Type'], 'application/json');
+  assert.deepEqual(JSON.parse(http.body), { query: 'rhythm of war', page: 2 });
+  workerResponse(http, { rows: [
+    { slug: 'rhythm-of-war', title: 'Rhythm of War', author: 'Brandon Sanderson', size: '512 MB' },
+    { slug: 'series-bundle', title: 'Rhythm of War Books 1-3' }
+  ], page: 2, hasMore: true });
+  assert.equal(values.length, 1);
+  assert.equal(values[0].reason, undefined);
+  assert.equal(values[0].value.page, 2);
+  assert.equal(values[0].value.hasMore, true);
+  assert.equal(values[0].value.rows[0].size, '512 MB');
+  assert.equal(values[0].value.rows[0].bundle, false);
+  assert.equal(values[0].value.rows[1].bundle, true);
+});
+
+check('Worker search distinguishes confirmed empty, provider failure and malformed 200', () => {
+  const env = environment();
+  const values = [];
+  const search = () => env.api.search('missing book', 1, (value, reason) => values.push({ value, reason }));
+  search();
+  workerResponse(env.newest(), { page: 1, hasMore: false, rows: [] });
+  assert.equal(values[0].reason, undefined);
+  assert.equal(values[0].value.rows.length, 0);
+  search();
+  env.newest().respond(502, JSON.stringify({ error: 'upstream unavailable' }));
+  assert.equal(values[1].reason, 'http-502');
+  search();
+  workerResponse(env.newest(), [{ slug: 'wrong-contract' }]);
+  assert.equal(values[2].reason, 'invalid-response');
+});
+
+check('Worker search reuses the old cache and keeps stale data on provider failure', () => {
+  const env = environment();
+  const page = { page: 1, hasMore: false, rows: [{ slug: 'cached', title: 'Cached Book' }] };
+  const storage = new Map([['abb:https://audiobookbay.lu/?s=cached+book', { value: page, expiresAt: 1e9 + 1000 }]]);
+  env.api.setAbbCacheStore({ get: key => storage.get(key), put: (key, value) => storage.set(key, value) });
+  const values = [];
+  const search = () => env.api.search('cached book', 1, (value, reason) => values.push({ value, reason }));
+  search();
+  assert.equal(env.requests.length, 0);
+  assert.equal(values[0].value.rows[0].slug, 'cached');
+  env.advance(1001);
+  search();
+  assert.equal(values[1].value.stale, true);
+  env.newest().respond(502, '');
+  assert.equal(values[2].value.rows[0].slug, 'cached');
+  assert.equal(values[2].value.offline, false);
+  assert.equal(values[2].reason, 'http-502');
+  search();
+  workerResponse(env.newest(), { page: 1, hasMore: false, rows: [{ slug: 'new', title: 'Cached Book' }] });
+  assert.equal(values[4].value.stale, false);
+  assert.equal(values[4].value.rows[0].slug, 'new');
 });
 
 check('last page without a next link has hasMore=false', () => {
@@ -278,7 +337,9 @@ check('detail lookup exposes provider timeout and supports aborting the request'
   const env = environment();
   const values = [];
   const request = env.api.fetchDetail('rhythm-of-war', (value, reason) => values.push([value, reason]));
-  assert.equal(env.newest().url, 'https://audiobookbay.lu/abss/rhythm-of-war/');
+  assert.equal(env.newest().url, workerUrl + '/detail');
+  assert.equal(env.newest().method, 'POST');
+  assert.deepEqual(JSON.parse(env.newest().body), { slug: 'rhythm-of-war' });
   request.cancel();
   assert.equal(env.newest().aborted, true);
   assert.equal(values.length, 0);
@@ -287,15 +348,24 @@ check('detail lookup exposes provider timeout and supports aborting the request'
   assert.deepEqual(values, [[null, 'timeout']]);
 });
 
-check('structured detail credits and seeder counts are available for comparison', () => {
+check('structured Worker credits and seeder counts are available for comparison', () => {
   const env = environment();
-  const html = fullHtml.replace('<td>Info Hash:</td>', '<td>Seeders:</td><td>42</td></tr><tr><td>Info Hash:</td>');
-  env.api.fetchDetail('rhythm-of-war', (value) => {
-    assert.equal(value.author, 'Brandon Sanderson');
-    assert.equal(value.seeders, 42);
-    assert.equal(value.audioFileCount, 1);
+  const values = [];
+  const lookup = () => env.api.fetchDetail('rhythm-of-war', (value, reason) => values.push({ value, reason }));
+  lookup();
+  workerResponse(env.newest(), {
+    title: 'Rhythm of War - Brandon Sanderson', author: 'Brandon Sanderson',
+    infoHash: '1d32f8b449ebe0d63b9d08ba6e86525ff17baa3d',
+    narrator: ['Kate Reading', 'Michael Kramer'], audioFileCount: 1, seeders: 42
   });
-  env.newest().respond(200, html);
+  assert.equal(values[0].value.author, 'Brandon Sanderson');
+  assert.equal(values[0].value.seeders, 42);
+  assert.equal(values[0].value.audioFileCount, 1);
+  assert.deepEqual(Array.from(values[0].value.narrator), ['Kate Reading', 'Michael Kramer']);
+  lookup();
+  workerResponse(env.newest(), { title: 'Invalid hash', infoHash: 'short' });
+  assert.equal(values[1].value, null);
+  assert.equal(values[1].reason, 'invalid-response');
 });
 
 console.log('SUMMARY ' + passed + ' passed, ' + failed + ' failed');

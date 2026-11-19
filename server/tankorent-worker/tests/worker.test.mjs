@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createWorker, manifest, parseExtList } from '../src/worker.mjs';
+
+const abbSearch = readFileSync(new URL('../../../tests/fixtures/abb/search-page2.html', import.meta.url), 'utf8');
+const abbDetail = readFileSync(new URL('../../../tests/fixtures/abb/detail-full.html', import.meta.url), 'utf8');
 
 const HASH_A = '0123456789abcdef0123456789abcdef01234567';
 const HASH_B = '89abcdef0123456789abcdef0123456789abcdef';
@@ -334,4 +338,81 @@ test('route, content type, and bounded request validation fail before provider f
   }));
   assert.equal(boundary.status, 200);
   assert.equal(fetches, 1);
+});
+
+test('AudioBookBay search and release detail return only metadata from their fixed upstream paths', async () => {
+  const seen = [];
+  const abb = createWorker({
+    fetchImpl: async (input, init) => {
+      const url = new URL(input);
+      seen.push({ url, init });
+      const html = url.pathname.startsWith('/abss/') ? abbDetail : abbSearch.replaceAll(
+        'rhythvm-of-war-the-stormlight-archive-4-brandon-sanderson',
+        'rhytuhm-of-war-stormlight-archive-4-brandon-sanderson');
+      return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+    }
+  });
+  const search = await abb.fetch(request('/v1/audiobookbay/search', { query: ' Rhythm of War ', page: 2 }));
+  assert.equal(search.status, 200);
+  const page = (await search.json()).result;
+  assert.equal(page.page, 2);
+  assert.equal(page.hasMore, true);
+  const listing = page.rows.find(row => row.title === 'Rhythm of War (The Stormlight Archive #4)');
+  assert.equal(listing.author, 'Brandon Sanderson');
+  assert.equal(listing.slug, 'rhytuhm-of-war-stormlight-archive-4-brandon-sanderson');
+  assert.ok(!page.rows.some(row => row.slug === 'decoy'));
+  assert.equal(seen[0].url.href, 'https://audiobookbay.lu/page/2/?s=rhythm+of+war');
+  assert.equal(seen[0].init.method, 'GET');
+  assert.equal(seen[0].init.redirect, 'manual');
+  assert.equal(seen[0].init.headers.has('cookie'), false);
+  const detail = await abb.fetch(request('/v1/audiobookbay/detail', { slug: listing.slug }));
+  assert.equal(detail.status, 200);
+  const release = (await detail.json()).result;
+  assert.equal(release.title, 'Rhythm of War ( Stormlight Archive #4) - Brandon Sanderson');
+  assert.equal(release.infoHash, '1d32f8b449ebe0d63b9d08ba6e86525ff17baa3d');
+  assert.deepEqual(release.narrator, ['Kate Reading', 'Michael Kramer']);
+  assert.equal(release.abridgement, 'unabridged');
+  assert.equal(release.language, 'English');
+  assert.equal(release.format, 'M4B');
+  assert.equal(release.fileCount, 3);
+  assert.equal(release.audioFileCount, 1);
+  for (const key of ['magnetUri', 'torrentUrl', 'html']) assert.equal(release[key], undefined);
+  assert.equal(seen[1].url.href, 'https://audiobookbay.lu/abss/' + listing.slug + '/');
+});
+
+test('AudioBookBay confirms empty results and rejects challenge or mismatched pages', async () => {
+  const empty = '<link rel="canonical" href="/?s=miss" /><h3>Not Found</h3>';
+  const source = html => createWorker({
+    fetchImpl: async () => new Response(html, { headers: { 'content-type': 'text/html' } })
+  });
+  const lookup = request('/v1/audiobookbay/search', { query: 'miss', page: 1 });
+  const confirmed = await source(empty).fetch(lookup);
+  assert.equal(confirmed.status, 200);
+  assert.deepEqual((await confirmed.json()).result, { rows: [], page: 1, hasMore: false });
+  for (const html of ['<title>Just a moment...</title>', '<h3>Not Found</h3>', abbSearch,
+    '<link rel="canonical" href="/?s=miss" /><div class="post">Changed markup</div>']) {
+    const result = await source(html).fetch(request('/v1/audiobookbay/search', { query: 'miss', page: 1 }));
+    assert.equal(result.status, 502);
+    assert.equal((await result.json()).result, undefined);
+  }
+  const wrongSlug = await source(abbDetail).fetch(request('/v1/audiobookbay/detail', { slug: 'different-release' }));
+  assert.equal(wrongSlug.status, 502);
+});
+
+test('AudioBookBay refuses unsafe inputs and redirects without additional upstream requests', async () => {
+  for (const location of ['https://example.net/?s=sample', '/dload-now?ll=x', '/?s=other']) {
+    const seen = [];
+    const abb = createWorker({ fetchImpl: async input => {
+      seen.push(input);
+      return new Response(null, { status: 302, headers: { location } });
+    } });
+    const invalidDetail = await abb.fetch(request('/v1/audiobookbay/detail', { slug: '../example' }));
+    const invalidPage = await abb.fetch(request('/v1/audiobookbay/search', { query: 'sample', page: 10000 }));
+    assert.equal(invalidDetail.status, 400);
+    assert.equal(invalidPage.status, 400);
+    assert.deepEqual(seen, []);
+    const response = await abb.fetch(request('/v1/audiobookbay/search', { query: 'sample', page: 1 }));
+    assert.equal(response.status, 502);
+    assert.deepEqual(seen, ['https://audiobookbay.lu/?s=sample']);
+  }
 });

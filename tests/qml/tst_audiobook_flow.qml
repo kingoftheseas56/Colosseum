@@ -210,6 +210,26 @@ TestCase {
         }
     }
 
+    function test_audiobookbay_search_runs_with_tankorent_disabled() {
+        const view = setup()
+        view.flow.extensions = make(sourceExtensionsFixture, { sourceIds: ["colosseum.well.audiobookbay"] })
+        view.flow.abb = make(stalledAbbFixture)
+        view.flow.matcher = {}
+        view.flow.downloads = make(sourceDownloadsFixture)
+        view.flow.tankorent = make(sourceFixture)
+        view.flow.openWork("the-time-machine")
+        findChild(view.flow.currentPage, "audiobookPrimaryAction").triggered()
+        const sources = view.flow.currentPage
+        compare(sources.objectName, "audiobookSourcesPage")
+        verify(sources.showTankorent)
+        tryCompare(view.flow.abb, "requests", 1)
+        compare(sources.providerStates.abb.state, "searching")
+        compare(sources.providerStates.tankorent.state, "disabled")
+        compare(view.flow.tankorent.calls.length, 0)
+        view.flow.back()
+        compare(view.flow.abb.cancellations, 1)
+    }
+
     function test_tankorent_is_selectable_while_abb_is_pending() {
         const view = setup()
         view.flow.extensions = make(sourceExtensionsFixture, {

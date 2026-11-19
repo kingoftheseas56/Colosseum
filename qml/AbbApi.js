@@ -6,6 +6,8 @@
 .pragma library
 
 var ABB = "https://audiobookbay.lu";
+var ABB_LOOKUP_URL = "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/v1/audiobookbay";
+var ABB_LOOKUP_TIMEOUT_MS = 22000;
 var ABB_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 // Qt QML XMLHttpRequest does not expose a standard timeout property.
@@ -64,13 +66,33 @@ function requestText(url, done, options) {
         }, ms);
         // Never start an unbounded request if the host cannot provide a timer.
         if (!stopTimer) { finish(null, "offline"); return handle; }
-        xhr.open("GET", url);
-        try { xhr.setRequestHeader("User-Agent", ABB_UA); } catch (e) {}
-        xhr.send();
+        var post = options.payload !== undefined;
+        xhr.open(post ? "POST" : "GET", url);
+        if (post) {
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.send(JSON.stringify(options.payload));
+        } else {
+            try { xhr.setRequestHeader("User-Agent", ABB_UA); } catch (e) {}
+            xhr.send();
+        }
     } catch (e) {
         finish(null, "offline");
     }
     return handle;
+}
+
+function requestLookup(operation, payload, done) {
+    return requestText(ABB_LOOKUP_URL + "/" + operation, function(text, reason) {
+        if (reason) { done(null, reason); return; }
+        var response;
+        try { response = JSON.parse(text); } catch (e) {}
+        if (!response || response.contractVersion !== 1 || response.sourceId !== "audiobookbay"
+            || !response.result || typeof response.result !== "object") {
+            done(null, "invalid-response");
+            return;
+        }
+        done(response.result);
+    }, { payload: payload, timeoutMs: ABB_LOOKUP_TIMEOUT_MS });
 }
 
 function decode(s) {
@@ -279,35 +301,33 @@ function relevantRows(rows, title, author) {
     return out;
 }
 
-// full delivery flow: search ABB for a book → rows. Caller picks a row, then calls
-// fetchInfoHash(slug) to resolve the torrent hash. done({ rows }) or done(null) on miss.
+// Compatibility helpers use the same metadata lookups as the Sources page.
 function resolveAudiobook(title, author, done) {
-    var term = searchTerm(title, author);
-    if (!term) { done(null); return; }
-    requestText(ABB + "/?s=" + encodeURIComponent(term), function(html) {
-        if (!html) { done(null); return; }
-        var rows = relevantRows(parseSearch(html), title, author);
-        if (rows.length === 0) { done(null); return; }
-        done({ rows: rows });
+    return search(searchTerm(title, author), 1, function(page, reason) {
+        if (reason) { done(null); return; }
+        if (page.stale) return;
+        var rows = relevantRows(page.rows, title, author);
+        done(rows.length ? { rows: rows } : null);
     });
 }
 
 function fetchInfoHash(slug, done) {
-    requestText(ABB + "/abss/" + slug + "/", function(html) {
-        if (!html) { done(null); return; }
-        done(parseDetail(html));
-    });
+    return fetchDetail(slug, done);
 }
 
 function fetchDetail(slug, done) {
     var name = String(slug || "");
     try { name = decodeURIComponent(name); } catch (e) { name = ""; }
-    if (!name || /^\.+$/.test(name) || /[/\\?#]/.test(name)) {
+    if (!name || name.length > 200 || /^\.+$/.test(name) || /[/\\?#]/.test(name)) {
         done(null, "invalid-detail");
         return { cancel: function() {} };
     }
-    return requestText(ABB + "/abss/" + encodeURIComponent(name) + "/", function(html, reason) {
-        done(html ? parseDetail(html) : null, reason);
+    return requestLookup("detail", { slug: name }, function(detail, reason) {
+        if (detail && (typeof detail.title !== "string" || !/^[a-f0-9]{40}$/.test(detail.infoHash))) {
+            done(null, "invalid-response");
+            return;
+        }
+        done(detail, reason);
     });
 }
 
@@ -367,24 +387,31 @@ function copyPage(result, stale, offline) {
     };
 }
 
-function browse(url, page, done) {
-    var cached = abbCacheGet(url);
+function loadPage(key, page, done, request) {
+    var cached = abbCacheGet(key);
     if (cached && !cached.stale) {
         done(copyPage(cached.value, false, false));
         return { cancel: function() {} };
     }
     // Immediate stale display; an eventual success or failure updates it.
     if (cached) done(copyPage(cached.value, true, false));
-    return requestText(url, function(html, reason) {
-        if (html !== null && html !== undefined) {
-            var data = parsePage(html, page);
-            abbCachePut(url, data, ABB_CACHE_TTL_SEC);
+    return request(function(data, reason) {
+        if (data) {
+            abbCachePut(key, data, ABB_CACHE_TTL_SEC);
             done(copyPage(data, false, false));
         } else if (cached) {
             done(copyPage(cached.value, true, reason === "offline"), reason);
         } else {
             done({ rows: [], page: page, hasMore: false, stale: false, offline: reason === "offline" }, reason);
         }
+    });
+}
+
+function browse(url, page, done) {
+    return loadPage(url, page, done, function(receive) {
+        return requestText(url, function(html, reason) {
+            receive(html != null ? parsePage(html, page) : null, reason);
+        });
     });
 }
 
@@ -416,7 +443,22 @@ function search(term, page, done) {
     var n = pageNumber(page);
     var query = String(term || "").trim().toLowerCase();
     if (!query) { done({ rows: [], page: n, hasMore: false }); return { cancel: function() {} }; }
+    // Keep the original logical cache key so existing cached lookups still work.
     var url = ABB + (n === 1 ? "/" : "/page/" + n + "/")
             + "?s=" + encodeURIComponent(query).replace(/%20/g, "+");
-    return browse(url, n, done);
+    return loadPage(url, n, done, function(receive) {
+        return requestLookup("search", { query: query, page: n }, function(result, reason) {
+            if (result) {
+                if (result.page !== n || typeof result.hasMore !== "boolean" || !Array.isArray(result.rows)
+                    || result.rows.some(function(row) {
+                        return !row || typeof row.slug !== "string" || typeof row.title !== "string";
+                    })) {
+                    receive(null, "invalid-response");
+                    return;
+                }
+                result.rows.forEach(function(row) { row.bundle = isBundleTitle(row.title); });
+            }
+            receive(result, reason);
+        });
+    });
 }
