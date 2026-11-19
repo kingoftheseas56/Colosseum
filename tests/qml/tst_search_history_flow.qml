@@ -313,6 +313,23 @@ TestCase {
         biblio.destroy()
     }
 
+    function test_biblio_empty_audiobook_group_stays_visible_with_book_matches() {
+        var surface = createTemporaryObject(biblioSearch, testWindow.contentItem, {
+            historyStore: history, audioFirst: true,
+            width: testWindow.width, height: testWindow.height,
+            searchDispatcher: function(query, done) {
+                done([{ id: 1, title: "Book One" }, { id: 2, title: "Book Two" }])
+            },
+            audioSearchDispatcher: function(query, done) { done([]) }
+        })
+        verify(surface !== null)
+        surface.fillAndSearch("Dune")
+        var status = findItem(surface, "searchGroupStatus_audiobooks")
+        verify(status !== null && status.visible)
+        compare(status.text, "No audiobook matches")
+        compare(surface.bookResultCount, 2)
+    }
+
     function test_biblio_origin_orders_provider_groups_data() {
         return [{ tag: "books", audioFirst: false }, { tag: "audiobooks", audioFirst: true }]
     }

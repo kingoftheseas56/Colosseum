@@ -277,10 +277,16 @@ Item {
         if (surf.searchProvider) {
             var first = surf.topResult
             return surf.searchProvider.groups.map(function(group) {
-                return Object.assign({}, group, {items: group.items.filter(function(item) {
-                    return !first || item.data.id !== first.data.id || item.data.kind !== first.data.kind
-                })})
-            }).filter(function(group) { return group.items.length || group.loading || group.error || group.hasMore })
+                return Object.assign({}, group, {
+                    items: group.items.filter(function(item) {
+                        return !first || item.data.id !== first.data.id || item.data.kind !== first.data.kind
+                    }),
+                    showEmpty: !!group.emptyText && !group.items.length && !group.loading
+                        && !group.error && !group.hasMore && surf.results.length > 0
+                })
+            }).filter(function(group) {
+                return group.items.length || group.loading || group.error || group.hasMore || group.showEmpty
+            })
         }
         var rest = surf.results.length > 1 ? surf.results.slice(1) : []
         var order = [], map = ({})
@@ -924,9 +930,12 @@ Item {
                         }
                         Item { width: 1; height: surf.resultLoadingPresentation && !surf.phoneNarrow ? 24 : 34 }
                         Text {
-                            visible: (!!section.modelData.loading && !section.usingCustomLoading) || !!section.modelData.error
+                            objectName: "searchGroupStatus_" + (section.modelData.key || "")
+                            visible: (!!section.modelData.loading && !section.usingCustomLoading)
+                                || !!section.modelData.error || !!section.modelData.showEmpty
                             width: parent.width; wrapMode: Text.Wrap
-                            text: section.modelData.error || "Searching…"
+                            text: section.modelData.error || (section.modelData.showEmpty
+                                ? section.modelData.emptyText : qsTr("Searching…"))
                             color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 14
                         }
                         KeyboardAction {

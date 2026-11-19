@@ -174,11 +174,21 @@ int main(int argc,char** argv) {
                 && q.exec("UPDATE recordings SET release_date='9999-12-31' "
                           "WHERE work_id='2061-odyssey-three'"),
                 "add a series work with only future recordings");
+        require(q.exec("UPDATE search_fts SET title='Rhythm of War The Stormlight Archive' "
+                       "WHERE kind='work' AND id='rhythm-of-war'"),
+                "add a work that also matches the series in the title index");
         writable.close();
     }
     QSqlDatabase::removeDatabase("eligibility-fixture");
     AudiobookCatalog edge(path);
     require(edge.ready(), "open eligibility fixture catalogue");
+    const auto seriesSearch = edge.search("stormlight archive", 20);
+    require(seriesSearch.size() == 2
+            && seriesSearch.at(0).toMap().value("id") == "1-ari-kami-book-1"
+            && seriesSearch.at(1).toMap().value("id") == "rhythm-of-war",
+            "series search returns released works once in reading order");
+    require(edge.search("The Stormlight Archive", 1) == seriesSearch.mid(0, 1),
+            "series search honors the limit and optional article");
     const auto series = edge.series("the-stormlight-archive").value("works").toList();
     require(series.size() == 1, "series omits future, undated and foreign-only works");
     const auto seriesCover = series.first().toMap().value("coverUrl").toString();

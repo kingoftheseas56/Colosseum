@@ -106,6 +106,7 @@ SearchSurface {
     function searchGroup(key, label, lane, isAudio) {
         return {
             key: key, group: label, loading: lane.loading, error: lane.error,
+            emptyText: isAudio ? qsTr("No audiobook matches") : qsTr("No book matches"),
             items: lane.rows.filter(function(row) { return row && (!isAudio || row.workId) }).map(function(row) {
                 return {
                     title: row.title,

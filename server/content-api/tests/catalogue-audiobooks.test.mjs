@@ -73,6 +73,8 @@ test('series returns works in numeric position sort and preserves display text',
     for(const table of ['works','work_series','series','recordings']){
       memory.exec('CREATE TABLE '+table+' AS SELECT * FROM fixture.'+table);
     }
+    memory.exec('CREATE VIRTUAL TABLE search_fts USING fts5(kind UNINDEXED,id UNINDEXED,title,people)');
+    memory.exec("INSERT INTO search_fts VALUES('work','rhythm-of-war','Rhythm of War The Stormlight Archive','')");
     memory.exec(`INSERT INTO work_series VALUES
       ('1-ari-kami-book-1','the-stormlight-archive','2.1',2.1),
       ('1-000-000-bank-note-other-new-stories','the-stormlight-archive','2.2',2.2),
@@ -81,6 +83,9 @@ test('series returns works in numeric position sort and preserves display text',
       WHERE (work_id='rhythm-of-war' AND id='full-cast-2020') OR work_id='2061-odyssey-three';`);
     const stormlight=await audiobooksMethod(sqliteAdapter(memory),'series',['the-stormlight-archive']);
     assert.deepEqual(stormlight.works.map(r=>r.id),['rhythm-of-war']);
+    const found=await audiobooksMethod(sqliteAdapter(memory),'search',['stormlight archive',20]);
+    assert.deepEqual(found.map(r=>r.id),['1-ari-kami-book-1','rhythm-of-war']);
+    assert.deepEqual(await audiobooksMethod(sqliteAdapter(memory),'search',['The Stormlight Archive',1]),found.slice(0,1));
     assert.equal(stormlight.works[0].coverUrl,'https://m.media-amazon.com/images/I/51FF+pax2vL._SL500_.jpg');
   }finally{memory.close();}
 });

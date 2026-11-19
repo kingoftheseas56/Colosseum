@@ -226,15 +226,29 @@ async function genre(db:CatalogueDb,key:string,p:any) {
 export const audiobookMethods = ['search','work','recordingByAsin','recordingByIsbn','series','latest','byPerson','shelves','shelf','genres','genre'];
 export async function audiobooksMethod(db:CatalogueDb,method:string,args:any[]):Promise<any>{
   if(method==='search'){
-    const words=text(args[0]).normalize('NFKC').match(/[\p{L}\p{N}]+/gu)?.slice(0,8)??[];
+    const input=text(args[0]);
+    const words=input.normalize('NFKC').match(/[\p{L}\p{N}]+/gu)?.slice(0,8)??[];
     if(!words.length)return [];
     const token=words.map(w=>'"'+w.slice(0,96)+'"*').join(' ');
+    const limit=clamp(args[1],24);
+    const slug=input.normalize('NFKD').toLowerCase().replace(/[\p{M}'’]+/gu,'')
+      .match(/[\p{L}\p{N}]+/gu)?.join('-')??'';
+    const articleVariant=slug.startsWith('the-')?slug.slice(4):'the-'+slug;
+    const seriesWorks=await query(db,`
+      SELECT w.* FROM work_series ws JOIN works w ON w.id=ws.work_id
+      WHERE ws.series_id=(SELECT id FROM series WHERE id IN (?,?) ORDER BY id<>? LIMIT 1)
+      AND EXISTS (SELECT 1 FROM recordings r WHERE r.work_id=w.id AND ${released('r')})
+      ORDER BY (ws.position_sort IS NULL),ws.position_sort,w.title COLLATE NOCASE,w.id LIMIT ?`,
+      [slug,articleVariant,slug,limit]);
+    if(seriesWorks.length===limit)return seriesWorks.map(workRow);
+
     const result=await query(db,`
       SELECT w.* FROM search_fts JOIN works w ON w.id=search_fts.id
       WHERE search_fts MATCH ? AND search_fts.kind='work' AND EXISTS (
         SELECT 1 FROM recordings r WHERE r.work_id=w.id AND ${released('r')})
-      ORDER BY bm25(search_fts),w.title COLLATE NOCASE,w.id LIMIT ?`,[token,clamp(args[1],24)]);
-    return result.map(workRow);
+      ORDER BY bm25(search_fts),w.title COLLATE NOCASE,w.id LIMIT ?`,[token,limit]);
+    const seen=new Set(seriesWorks.map(row=>row.id));
+    return seriesWorks.concat(result.filter(row=>!seen.has(row.id))).slice(0,limit).map(workRow);
   }
   if(method==='work')return work(db,id(args[0]));
   if(method==='recordingByAsin')return recordingBy(db,'asin',id(args[0]).toUpperCase());

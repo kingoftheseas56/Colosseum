@@ -5,6 +5,7 @@
 #include <QJsonDocument>
 #include <QNetworkAccessManager>
 #include <QRegularExpression>
+#include <QSet>
 #include <QSqlQuery>
 #include <QSqlRecord>
 #include <QUrl>
@@ -140,13 +141,41 @@ QVariantList AudiobookCatalog::search(const QString& text, int limit) const {
         parts << QStringLiteral("\"")+matches.next().captured().left(96)+QStringLiteral("\"*");
     }
     if(parts.isEmpty()) return result;
+    const int maxResults = std::clamp(limit, 1, 100);
+    // Series are linked through work_series and older bakes index only works and people.
+    static const QRegularExpression slugMarks(QStringLiteral("[\\p{M}'’]+"));
+    static const QRegularExpression slugSeparators(QStringLiteral("[^\\p{L}\\p{N}]+"));
+    const auto slug = text.normalized(QString::NormalizationForm_KD).toLower()
+                          .remove(slugMarks).split(slugSeparators, Qt::SkipEmptyParts)
+                          .join(QLatin1Char('-'));
+    const auto articleVariant = slug.startsWith(QStringLiteral("the-"))
+        ? slug.mid(4) : QStringLiteral("the-") + slug;
+    const auto seriesWorks = select(QStringLiteral(
+        "SELECT w.* FROM work_series ws JOIN works w ON w.id=ws.work_id "
+        "WHERE ws.series_id=(SELECT id FROM series WHERE id IN (?,?) ORDER BY id<>? LIMIT 1) "
+        "AND EXISTS (SELECT 1 FROM recordings r WHERE r.work_id=w.id AND %1) "
+        "ORDER BY (ws.position_sort IS NULL),ws.position_sort,w.title COLLATE NOCASE,w.id LIMIT ?")
+        .arg(released("r")), {slug, articleVariant, slug, maxResults});
+    QSet<QString> seen;
+    for (const auto& value : seriesWorks) {
+        const auto row = value.toMap();
+        seen.insert(row.value("id").toString());
+        result.append(workRow(row));
+    }
+    if (result.size() == maxResults) return result;
+
     const auto rows=select(QStringLiteral(
         "SELECT w.* FROM search_fts JOIN works w ON w.id=search_fts.id "
         "WHERE search_fts MATCH ? AND search_fts.kind='work' AND EXISTS ("
         "SELECT 1 FROM recordings r WHERE r.work_id=w.id AND %1) "
         "ORDER BY bm25(search_fts),w.title COLLATE NOCASE,w.id LIMIT ?").arg(released("r")),
-        {parts.join(QLatin1Char(' ')),std::clamp(limit,1,100)});
-    for(const QVariant& value:rows) result.append(workRow(value.toMap()));
+        {parts.join(QLatin1Char(' ')),maxResults});
+    for (const auto& value : rows) {
+        const auto row = value.toMap();
+        if (seen.contains(row.value("id").toString())) continue;
+        result.append(workRow(row));
+        if (result.size() == maxResults) break;
+    }
     return result;
 }
 QVariantMap AudiobookCatalog::localRecording(const QVariantMap& row) const {
