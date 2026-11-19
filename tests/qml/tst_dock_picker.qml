@@ -243,6 +243,29 @@ Item {
             verify(!state.picks.audiobooks)
         }
 
+        function test_cosmereTributeLoadsBundledPortraitCrop() {
+            const state = createTemporaryObject(catalogueComponent, root, {
+                installedUniverses: [{
+                    extensionId: "com.colosseum.universe.cosmere", name: "Cosmere",
+                    banner: "remote-cosmere-banner.jpg"
+                }]
+            })
+            state.updateTributes()
+            bar.pickerPicks = state.picks
+            const expected = Qt.resolvedUrl("../../assets/extensions/house/cosmere.jpg")
+            compare(state.picks.tributes[0].cover, expected)
+
+            bar.open = true
+            const picker = findChild(bar, "dockPicker")
+            picker.selectDeckPage(2)
+            const deck = findChild(picker, "dockDeck_tributes")
+            tryVerify(() => findChild(deck, "dockPosterArt_img") !== null)
+            const image = findChild(deck, "dockPosterArt_img")
+            tryCompare(image, "status", Image.Ready)
+            compare(image.source, expected)
+            compare(image.fillMode, Image.PreserveAspectCrop)
+        }
+
         function test_coversRemainReadyAcrossTurnsAndPageChanges() {
             const covers = ["captured-motion.jpg", "cold-ripple.jpg", "sagas/dune.jpg"]
             const entries = Array.from({ length: 7 }, (_, i) => ({

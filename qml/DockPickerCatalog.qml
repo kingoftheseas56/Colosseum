@@ -80,7 +80,9 @@ Item {
     function updateTributes() {
         const roster = installedUniverses.filter(item => item.extensionId)
         publish("tributes", roster, item => ({
-            id: item.extensionId, title: item.name, cover: item.banner || "",
+            id: item.extensionId, title: item.name,
+            cover: item.extensionId === "com.colosseum.universe.cosmere"
+                ? Qt.resolvedUrl("../assets/extensions/house/cosmere.jpg") : (item.banner || ""),
             coverCandidates: item.logo ? [item.logo] : [], raw: item
         }))
     }
