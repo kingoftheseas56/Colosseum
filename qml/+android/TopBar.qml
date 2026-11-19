@@ -120,6 +120,7 @@ Item {
     // Third-party trackers door (AniList, MAL, Trakt, Simkl...). Unlike Stremio it is not one
     // provider and it serves every world, so it gets a provider-neutral mark in all of them.
     // Hosts that wire trackersClicked opt in; other TopBar hosts (reader, player) stay unchanged.
+    property bool utilityActionsInPicker: false
     property bool trackersEnabled: false
     property bool trackersActive: false
     // Aggregate sync state -> dot colour. No dot when nothing is connected, so the icon

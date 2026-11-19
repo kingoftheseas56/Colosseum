@@ -6,6 +6,7 @@ FocusScope {
     id: picker
     objectName: "dockPicker"
     property var picks: ({})
+    property var utilityShortcuts: []
     property bool reducedMotion: false
     property bool mediaAvailable: true
     property string activityLabel: qsTr("Your Colosseum")
@@ -23,6 +24,7 @@ FocusScope {
     property int artSlide: 0
     signal pickRequested(string medium, var entry, var returnState)
     signal wallpaperRequested()
+    signal utilityRequested(var shortcut, Item invoker)
     signal chooseFilesRequested()
     signal recentRequested()
     signal joinRequested()
@@ -213,70 +215,104 @@ FocusScope {
 
     Item { id: entryFocus }
 
-    Column {
+    Flickable {
+        id: shortcutRail
         x: picker.inset
         y: picker.inset
         width: picker.railWidth - picker.inset
-        spacing: Math.min(10, picker.height * .018)
+        height: picker.height - 2 * picker.inset
+        contentHeight: shortcutColumn.height
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        flickableDirection: Flickable.VerticalFlick
+        interactive: contentHeight > height
 
-        Text {
-            text: qsTr("Colosseum")
-            font.family: theme.display
-            font.pixelSize: 23
-            color: theme.ink
-            bottomPadding: Math.min(16, picker.height * .03)
-        }
-        Repeater {
-            model: [
-                { key: "media", title: qsTr("Open Media"), icon: "open-media.svg", run: picker.chooseFilesRequested, available: picker.mediaAvailable },
-                { key: "wallpaper", title: qsTr("Wallpaper"), icon: "comicreader/image.svg", run: picker.wallpaperRequested, available: true },
-                { key: "watchParty", title: qsTr("Join Watch Party"), icon: "watch-party.svg", run: picker.joinRequested, available: true },
-                { key: "extensions", title: qsTr("Extensions"), icon: "extensions.svg", run: picker.extensionsRequested, available: true },
-                { key: "activity", title: picker.activityLabel, icon: "your-colosseum-laurel.svg", run: picker.activityRequested, available: true }
-            ]
-            delegate: Item {
-                id: shortcut
-                required property var modelData
-                width: parent.width
-                height: Math.min(52, picker.height * .13)
-                Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: Math.min(43, shortcut.height)
-                    height: width
-                    radius: 12
-                    color: input.interactionActive ? "#2affffff" : "#13ffffff"
-                    Image {
-                        anchors.centerIn: parent
-                        width: 22; height: 22
-                        source: "../assets/icons/" + shortcut.modelData.icon
-                        sourceSize: Qt.size(44, 44)
-                        opacity: shortcut.modelData.available ? 1 : .5
+        Column {
+            id: shortcutColumn
+            width: shortcutRail.width
+            spacing: Math.min(10, picker.height * .018)
+
+            Text {
+                id: railHeading
+                text: qsTr("Colosseum")
+                font.family: theme.display
+                font.pixelSize: 23
+                color: theme.ink
+                bottomPadding: Math.min(16, picker.height * .03)
+            }
+            Repeater {
+                id: shortcuts
+                model: [
+                    { key: "media", title: qsTr("Open Media"), icon: "open-media.svg", run: picker.chooseFilesRequested, available: picker.mediaAvailable },
+                    { key: "wallpaper", title: qsTr("Wallpaper"), icon: "comicreader/image.svg", run: picker.wallpaperRequested, available: true },
+                    { key: "watchParty", title: qsTr("Join Watch Party"), icon: "watch-party.svg", run: picker.joinRequested, available: true },
+                    { key: "extensions", title: qsTr("Extensions"), icon: "extensions.svg", run: picker.extensionsRequested, available: true },
+                    { key: "activity", title: picker.activityLabel, icon: "your-colosseum-laurel.svg", run: picker.activityRequested, available: true }
+                ].concat(picker.utilityShortcuts)
+                delegate: Item {
+                    id: shortcut
+                    required property var modelData
+                    width: parent.width
+                    height: Math.max(34, Math.min(52, (shortcutRail.height - railHeading.height) /
+                        Math.max(1, shortcuts.count) - shortcutColumn.spacing))
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.min(43, shortcut.height)
+                        height: width
+                        radius: 12
+                        color: input.interactionActive ? "#2affffff" : "#13ffffff"
+                        Image {
+                            anchors.centerIn: parent
+                            width: 22; height: 22
+                            source: "../assets/icons/" + shortcut.modelData.icon
+                            sourceSize: Qt.size(44, 44)
+                            opacity: shortcut.modelData.available ? 1 : .5
+                        }
+                        Rectangle {
+                            width: 7; height: 7; radius: 3.5
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.margins: 3
+                            color: shortcut.modelData.badge ? shortcut.modelData.badge() : "transparent"
+                            visible: color.a > 0
+                        }
                     }
-                }
-                Text {
-                    x: Math.min(43, shortcut.height) + 10
-                    width: Math.max(0, shortcut.width - x)
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: shortcut.modelData.title
-                    color: theme.ink
-                    opacity: shortcut.modelData.available ? 1 : .5
-                    font.family: theme.ui
-                    font.pixelSize: 14
-                    elide: Text.ElideRight
-                }
-                KeyboardAction {
-                    id: input
-                    objectName: "dockShortcut_" + shortcut.modelData.key
-                    anchors.fill: parent
-                    enabled: shortcut.modelData.available
-                    contextEnabled: shortcut.modelData.key === "media"
-                    accessibleName: shortcut.modelData.title
-                    focusOnPointer: false
-                    focusRadius: 12
-                    spaceActivates: true
-                    onTriggered: shortcut.modelData.run()
-                    onContextRequested: picker.recentRequested()
-                    Component.onCompleted: if (shortcut.modelData.key === "activity") picker.activityControl = input
+                    Text {
+                        x: Math.min(43, shortcut.height) + 10
+                        width: Math.max(0, shortcut.width - x)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: shortcut.modelData.title
+                        color: theme.ink
+                        opacity: shortcut.modelData.available ? 1 : .5
+                        font.family: theme.ui
+                        font.pixelSize: 14
+                        elide: Text.ElideRight
+                    }
+                    KeyboardAction {
+                        id: input
+                        objectName: "dockShortcut_" + shortcut.modelData.key
+                        anchors.fill: parent
+                        enabled: shortcut.modelData.available
+                        contextEnabled: shortcut.modelData.key === "media"
+                        accessibleName: shortcut.modelData.accessibleTitle
+                            ? shortcut.modelData.accessibleTitle() : shortcut.modelData.title
+                        focusOnPointer: false
+                        focusRadius: 12
+                        spaceActivates: true
+                        onTriggered: {
+                            if (shortcut.modelData.utility)
+                                picker.utilityRequested(shortcut.modelData, input)
+                            else
+                                shortcut.modelData.run()
+                        }
+                        onActiveFocusChanged: if (activeFocus) {
+                            if (shortcut.y < shortcutRail.contentY)
+                                shortcutRail.contentY = shortcut.y
+                            else if (shortcut.y + shortcut.height > shortcutRail.contentY + shortcutRail.height)
+                                shortcutRail.contentY = shortcut.y + shortcut.height - shortcutRail.height
+                        }
+                        onContextRequested: picker.recentRequested()
+                        Component.onCompleted: if (shortcut.modelData.key === "activity") picker.activityControl = input
+                    }
                 }
             }
         }

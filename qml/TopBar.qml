@@ -84,6 +84,7 @@ Item {
     // Third-party trackers door (AniList, MAL, Trakt, Simkl...). Unlike Stremio it is not one
     // provider and it serves every world, so it gets a provider-neutral mark in all of them.
     // Hosts that wire trackersClicked opt in; other TopBar hosts (reader, player) stay unchanged.
+    property bool utilityActionsInPicker: false
     property bool trackersEnabled: false
     property bool trackersActive: false
     // Aggregate sync state -> dot colour. No dot when nothing is connected, so the icon
@@ -379,7 +380,7 @@ Item {
         Item {
             y: bar.androidHost ? (parent.height - height) / 2 : 0
             width: 22; height: 22
-            visible: bar.activeMedium === ""
+            visible: !bar.utilityActionsInPicker && bar.activeMedium === ""
             opacity: updateInput.interactionActive ? 1.0 : 0.92
             objectName: "colosseumTopbarUpdateButton"
             Image {
@@ -423,7 +424,7 @@ Item {
                         : bar.activeMedium === "" ? "topBarTrackersButton"
                         : "topBarTrackersButton_" + bar.activeMedium
             width: 22; height: 22
-            visible: bar.trackersEnabled && bar.lifecycleActive
+            visible: !bar.utilityActionsInPicker && bar.trackersEnabled && bar.lifecycleActive
             opacity: trackersInput.interactionActive || bar.trackersActive ? 1.0 : 0.92
             Image {
                 anchors.fill: parent
@@ -538,7 +539,7 @@ Item {
             objectName: !bar.lifecycleActive ? ""
                         : bar.activeMedium === "" ? "topBarDlnaButton"
                         : "topBarDlnaButton_" + bar.activeMedium
-            visible: bar.dlnaVisible
+            visible: !bar.utilityActionsInPicker && bar.dlnaVisible
             lit: bar.dlnaRunning
             source: bar.dlnaRunning ? "../assets/icons/access-point-gold.svg"
                                     : "../assets/icons/access-point.svg"

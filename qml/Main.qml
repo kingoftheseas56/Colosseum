@@ -2775,9 +2775,12 @@ Window {
     function toggleSyncCenterPage() {
         !syncCenterLayer.active ? win.openSyncCenterPage() : win.closeSyncCenterPage()
     }
-    // The trackers door lives in the TopBar of home and of every world; hand focus back to
-    // whichever of those is in front.
+    // Return focus to the launcher on desktop and the current world or Home on Android.
     function focusTrackersDoor() {
+        if (win.desktopPickerUtilities) {
+            Qt.callLater(taskbar.focusPickerButton)
+            return
+        }
         for (let i = 0; i < worldRepeater.count; ++i) {
             const loader = worldRepeater.itemAt(i)
             if (loader && loader.mode === worldStack.current && loader.item
@@ -3076,8 +3079,7 @@ Window {
         updateLayer.active = true
         // Full-bleed: the chronicle owns the whole page. The taskbar closes like
         // every other full-page destination (Downloads/Vault/Extensions)
-        // and still reveals on hover for session switching. The Update entry point
-        // is the home topbar glyph now — no launcher in the taskbar dock.
+        // and still reveals on hover for session switching.
         taskbar.open = false
         if (typeof Updates !== "undefined" && Updates.markSeen)
             Updates.markSeen()
@@ -4571,6 +4573,7 @@ Window {
         updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
         reducedMotion: win.reducedMotion
         onUpdateClicked: !updateLayer.active ? win.openUpdatePage() : win.closeUpdatePage()
+        utilityActionsInPicker: win.desktopPickerUtilities
         trackersEnabled: true
         trackersActive: syncCenterLayer.active
         onTrackersClicked: win.toggleSyncCenterPage()
@@ -5344,6 +5347,8 @@ Window {
                     }
                     item.searchClicked.connect(win.openSearch)
                     if (item.stremioClicked) item.stremioClicked.connect(win.openStremioSyncPanel)
+                    if (item.topBarUtilityActionsInPicker !== undefined)
+                        item.topBarUtilityActionsInPicker = Qt.binding(function() { return win.desktopPickerUtilities })
                     if (item.trackersClicked) {
                         item.trackersClicked.connect(win.toggleSyncCenterPage)
                         item.trackersActive = Qt.binding(function() { return syncCenterLayer.active })
@@ -6765,6 +6770,8 @@ Window {
     // ---- the OS-shell taskbar: auto-hidden switcher over everything (under the boot splash) ----
     readonly property int theatreSourcesDockInset: taskbar.visible ? taskbar.closedSize + taskbar.bottomGap : 0
 
+    readonly property bool desktopPickerUtilities: !win.androidHost && taskbar.visible && !!taskbar.pickerScene
+
     DockPickerCatalog {
         id: dockCatalog
         active: taskbar.pickerShown
@@ -6777,6 +6784,32 @@ Window {
         id: taskbar
         pickerScene: dockScene
         pickerPicks: dockCatalog.picks
+        pickerUtilityShortcuts: !win.desktopPickerUtilities ? [] : [
+            {
+                key: "updates", title: qsTr("Updates"), icon: "update.svg", available: true, utility: true,
+                badge: () => topbar.updateAvailable ? "#f2f2ef" : "transparent",
+                accessibleTitle: () => topbar.updateAvailable ? qsTr("Update available") : qsTr("Updates"),
+                run: () => updateLayer.active ? win.closeUpdatePage() : win.openUpdatePage()
+            },
+            {
+                key: "sync", title: qsTr("Sync"), icon: "trackers.svg", available: true, utility: true,
+                badge: () => topbar.trackersDotState === "ok" ? "#5fd18b"
+                    : topbar.trackersDotState === "error" ? "#ef6a5a"
+                    : topbar.trackersDotState === "pending" ? "#f0c44a" : "transparent",
+                accessibleTitle: () => topbar.trackersDotState === "error"
+                    ? qsTr("Sync, attention required") : qsTr("Sync"),
+                run: () => win.toggleSyncCenterPage()
+            },
+            {
+                key: "dlna", title: qsTr("DLNA"), icon: "access-point.svg", available: true, utility: true,
+                badge: () => dlnaSharePopup.isRunning ? "#f0c44a" : "transparent",
+                accessibleTitle: () => dlnaSharePopup.isRunning ? qsTr("DLNA, sharing active") : qsTr("DLNA"),
+                run: invoker => {
+                    const anchor = invoker.mapToItem(null, invoker.width, invoker.height)
+                    dlnaSharePopup.toggleAt(anchor.x, anchor.y)
+                }
+            }
+        ].filter(shortcut => shortcut.key !== "dlna" || dlnaSharePopup.available)
         pickerMapSlide: Component {
             DockWorldMap {
                 onWorldRequested: world => {
@@ -7274,8 +7307,7 @@ Window {
         }
     }
 
-    // "Share on your Wi-Fi" (DLNA) flyout, opened from the top-bar access-point glyph on home
-    // and on every world while sharing runs. Same plain-layer shape as the account flyout.
+    // DLNA flyout, opened from the app picker on desktop.
     DlnaSharePopup {
         id: dlnaSharePopup
         objectName: "dlnaSharePopup"

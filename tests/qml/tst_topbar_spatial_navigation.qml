@@ -132,6 +132,7 @@ TestCase {
         mediumSpy.clear()
         bar.activeMedium = ""
         bar.lifecycleActive = true
+        bar.utilityActionsInPicker = false
         testWindow.feriaComingSoon = true
         wait(20)
     }
@@ -197,6 +198,19 @@ TestCase {
         compare(findChild(bar, "modePill_Theatre").active, false)
         bar.activeMedium = "Feria"
         compare(feriaPill.active, false)
+    }
+
+    function test_desktop_picker_owns_moved_utilities() {
+        bar.trackersEnabled = true
+        bar.accountController = localAccount
+        const updates = findChild(bar, "colosseumTopbarUpdateButton")
+        const sync = findChild(bar, "topBarTrackersButton")
+        const account = findChild(bar, "colosseumTopbarAccountButton")
+        verify(updates.visible && sync.visible)
+        bar.utilityActionsInPicker = true
+        verify(!updates.visible && !sync.visible)
+        verify(account.visible)
+        bar.accountController = null
     }
 
     function test_wallpaper_and_compact_browser_chrome_flags() {

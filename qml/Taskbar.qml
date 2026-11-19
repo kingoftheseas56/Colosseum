@@ -26,6 +26,7 @@ Item {
     property bool open: false
     property Item pickerScene
     property var pickerPicks: ({})
+    property var pickerUtilityShortcuts: []
     property Component pickerMapSlide
     property bool pickerReducedMotion: false
     readonly property bool pickerShown: visible && open && !autoRevealed && !!pickerScene
@@ -68,7 +69,6 @@ Item {
     property bool historyStatsActive: false // Your Colosseum (history / highlights / stats) is the front surface
     property bool feriaContext: false
     readonly property string activityLabel: feriaContext ? "Your Feria" : "Your Colosseum"
-    // Third-party trackers (the Sync Center) live in the TopBar's right cluster, not here.
 
     property bool openingMedia: false
     function requestOpenMedia() {
@@ -135,6 +135,9 @@ Item {
                 historyStatsInput.forceActiveFocus(Qt.TabFocusReason)
         })
     }
+    function focusPickerButton() {
+        startInput.forceActiveFocus(Qt.TabFocusReason)
+    }
     function focusCollectionsAction() {
         Qt.callLater(function() {
             if (collectionsInput.visible && collectionsInput.enabled)
@@ -200,6 +203,7 @@ Item {
         width: bar.pickerWidth
         height: Math.max(0, dock.y - 12 - 20)
         picks: bar.pickerPicks
+        utilityShortcuts: bar.pickerUtilityShortcuts
         mapSlide: bar.pickerMapSlide
         reducedMotion: bar.pickerReducedMotion
         mediaAvailable: bar.localMediaAvailable
@@ -211,6 +215,11 @@ Item {
         onWallpaperRequested: {
             bar.open = false
             bar.pickerWallpaperRequested()
+        }
+        onUtilityRequested: (shortcut, invoker) => {
+            bar.open = false
+            bar.focusPickerButton()
+            shortcut.run(invoker)
         }
         onChooseFilesRequested: bar.requestOpenMedia()
         onRecentRequested: { bar.open = false; bar.openRecentRequested() }
@@ -494,7 +503,6 @@ Item {
                     width: 21; height: 21
                     source: "../assets/icons/download.svg"
                     fillMode: Image.PreserveAspectFit
-                    opacity: bar.downloadsActive ? 1 : 0.75
                 }
                 Rectangle {   // active-page underline, same gold language as session tiles
                     visible: bar.downloadsActive

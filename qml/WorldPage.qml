@@ -124,6 +124,7 @@ Item {
     property bool topBarBackOnly: false       // Extensions: the bar keeps only Back and the page's name
     property string topBarObjectName: ""
     property bool topBarTrackersEnabled: true
+    property bool topBarUtilityActionsInPicker: false
     property string topBarTitle: ""
     property string topBarSubtitle: ""
     property string initialFocusName: ""
@@ -260,6 +261,7 @@ Item {
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
+        utilityActionsInPicker: world.topBarUtilityActionsInPicker
         trackersEnabled: world.topBarTrackersEnabled
         trackersActive: world.trackersActive
         onTrackersClicked: world.trackersClicked()
