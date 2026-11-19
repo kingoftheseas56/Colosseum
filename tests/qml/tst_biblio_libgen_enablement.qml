@@ -60,14 +60,28 @@ TestCase {
     QtObject {
         id: audiobooks
         property int downloads: 0
+        property string downloadedKey: ""
         signal resolving(string key)
         signal progress(string key, double received, double total)
         signal finished(string key, string path)
         signal failed(string key, string reason)
         signal removed(string key)
-        function isDownloaded(key) { return false }
-        function statusOf(key) { return {state: "none"} }
+        function isDownloaded(key) { return key !== "" && key === downloadedKey }
+        function statusOf(key) { return {state: isDownloaded(key) ? "done" : "none"} }
         function downloadAudiobook(key, hash, title, author, bookId, path) { downloads++ }
+    }
+    QtObject {
+        id: audioSession
+        property string activePairKey: ""
+        property bool ready: false
+        property bool paused: true
+        property bool completed: false
+        function openFor(key, book, startPaused) {
+            activePairKey = key
+            paused = startPaused
+            ready = true
+        }
+        function togglePlay() { paused = !paused }
     }
     QtObject {
         id: stream
@@ -78,7 +92,7 @@ TestCase {
     function page(owner) {
         const item = createTemporaryObject(pageComponent, suite, {
             extensionsRef: owner, booksRef: books, bookTorrentsRef: torrents,
-            audiobooksRef: audiobooks, streamRef: stream,
+            audiobooksRef: audiobooks, audioSessionRef: audioSession, streamRef: stream,
             collectionRef: null, progressRef: null
         })
         verify(item !== null)
@@ -117,7 +131,62 @@ TestCase {
         searches = 0; callbacks = []; audioCallbacks = []; audioSearches = 0; hashCallbacks = []
         books.downloads = 0; books.deletions = 0; books.state = "none"
         torrents.searches = 0; torrents.downloads = 0; torrents.state = "none"
-        audiobooks.downloads = 0; stream.prefetches = 0
+        audiobooks.downloads = 0; audiobooks.downloadedKey = ""; stream.prefetches = 0
+        audioSession.activePairKey = ""; audioSession.ready = false; audioSession.paused = true
+    }
+    function test_audiobook_local_works_with_source_disabled_and_without_ebook() {
+        audiobooks.downloadedKey = BiblioApi.pairKey("Offline fixture", "Author")
+        const item = page(extensions)
+        item.parent = promptHost.contentItem
+        const status = findChild(item, "biblioAudiobookStatus")
+        const action = findChild(item, "biblioAudiobookStatusAction")
+        verify(status.visible)
+        compare(status.text, "Downloaded")
+        verify(action.visible)
+        compare(action.text, "Listen")
+        action.clicked()
+        compare(audioSession.activePairKey, audiobooks.downloadedKey)
+        compare(audioSession.paused, false)
+        compare(action.text, "Pause")
+        action.clicked()
+        compare(audioSession.paused, true)
+        compare(item.localPath, "")
+        compare(audioSearches, 0)
+
+        extensions.setRows([{ id: "colosseum.well.audiobookbay", enabled: true }])
+        compare(audioSearches, 0)
+        audiobooks.downloadedKey = ""
+        audiobooks.removed(item.pairKey)
+        compare(item.audioLocal, false)
+        compare(audioSearches, 1)
+    }
+    function test_audiobook_lookup_failure_retries_then_shows_true_empty() {
+        extensions.setRows([{ id: "colosseum.well.audiobookbay", enabled: true }])
+        const item = page(extensions)
+        item.parent = promptHost.contentItem
+        const status = findChild(item, "biblioAudiobookStatus")
+        const action = findChild(item, "biblioAudiobookStatusAction")
+        compare(status.text, "Searching AudioBookBay…")
+        audioCallbacks[0](null, "timeout")
+        compare(status.text, "AudioBookBay unavailable")
+        verify(action.visible)
+        compare(action.text, "Retry")
+        action.clicked()
+        compare(audioSearches, 2)
+        audioCallbacks[1]({rows: []})
+        compare(status.text, "No audiobook found")
+        verify(!action.visible)
+    }
+    function test_audiobook_download_completion_retires_pending_lookup() {
+        extensions.setRows([{ id: "colosseum.well.audiobookbay", enabled: true }])
+        const item = page(extensions)
+        audiobooks.downloadedKey = item.pairKey
+        audiobooks.finished(item.pairKey, "/fixture/audio")
+        audioCallbacks[0](null, "timeout")
+        compare(item.audioLocal, true)
+        compare(item.abLoading, false)
+        compare(item.abLookupUnavailable, false)
+        compare(audioSearches, 1)
     }
     function test_audiobookbay_missing_and_disabled_never_searches() {
         const item = page(extensions)
