@@ -94,7 +94,7 @@ TestCase {
         compare(findChild(page,"vaultNav_booksLabel").visible,false)
         compare(findChild(page,"vaultNav_booksCount").visible,false)
         compare(bookNav.Accessible.name,"Books, 40")
-        tryCompare(bookNav.ToolTip,"visible",true)
+        compare(bookNav.ToolTip.visible,false)
         preferences.railExpanded=true
         tryCompare(sidebar(),"width",248)
         compare(pane().item,content); verify(bookNav.activeFocus); compare(grid.contentY,savedScroll)
@@ -136,7 +136,7 @@ TestCase {
         toggle().forceActiveFocus(Qt.TabFocusReason)
         const home=findChild(page,"vaultNav_home")
         mouseMove(home)
-        tryCompare(home.ToolTip,"visible",true)
+        compare(home.ToolTip.visible,false)
         compare(home.Accessible.name,"Home")
         compare(sidebar().expanded,false)
         verify(toggle().activeFocus)
@@ -219,7 +219,7 @@ TestCase {
             compare(String(providerIcon.source),"../assets/icons/servers/plex.svg")
             tryCompare(providerIcon,"status",Image.Ready)
             if(!expanded) {
-                tryCompare(server.ToolTip,"visible",true)
+                compare(server.ToolTip.visible,false)
                 compare(findChild(page,"vaultNav_provider_plexLabel").visible,false)
                 compare(findChild(page,"vaultNav_provider_plexCount").visible,false)
             }
@@ -348,7 +348,7 @@ TestCase {
         compare(emptyStatus.Accessible.name,"Sources status: No sources connected")
         compare(emptyStatusLabel.visible,false)
         emptyStatus.forceActiveFocus(Qt.TabFocusReason)
-        tryCompare(emptyStatus.ToolTip,"visible",true)
+        compare(emptyStatus.ToolTip.visible,false)
         for(const view of ["home","match","hidden"]) {
             page.showView(view,"")
             for(const expanded of [true,false]) {

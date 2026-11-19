@@ -336,9 +336,6 @@ Item {
                    font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: 0.6 }
         }
         HoverHandler { id: watchedBadgeHover; enabled: !tile.isHome && tile.watched }
-        ToolTip.text: qsTr("Watched")
-        ToolTip.delay: 350
-        ToolTip.visible: watchedBadgeHover.hovered
     }
 
     // ── shared: 46px resume circle — centered on the art ──
@@ -369,8 +366,6 @@ Item {
             pointerEnabled: false
             focusEnabled: !tile.effectiveCollectionManaged
             accessibleName: "Resume " + tile.label
-            tooltipText: qsTr("Resume")
-            tooltipHovered: rbHov.hovered
             focusRadius: resumeButton.radius
             onTriggered: tile.activateResumeControl()
         }
@@ -397,8 +392,6 @@ Item {
             pointerEnabled: false
             focusEnabled: !tile.effectiveCollectionManaged
             accessibleName: "Remove " + tile.label + " from Continue"
-            tooltipText: qsTr("Remove from Continue")
-            tooltipHovered: rmMa.containsMouse
             focusRadius: removeBtn.radius
             onTriggered: tile.removeRequested()
         }

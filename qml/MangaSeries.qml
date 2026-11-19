@@ -1199,8 +1199,6 @@ Item {
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.minimizeRequested() }
             KeyboardAction { id: mangaSeriesMinKeyboard; anchors.fill: parent; pointerEnabled: false
-                tooltipText: accessibleName
-                tooltipHovered: minMa.containsMouse
                 accessibleName: "Minimize"; focusRadius: 6; onTriggered: page.minimizeRequested() }
         }
         Item {
@@ -1224,8 +1222,6 @@ Item {
                 onClicked: page.fullscreenRequested()
             }
             KeyboardAction { id: mangaSeriesFsKeyboard; anchors.fill: parent; pointerEnabled: false
-                tooltipText: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                tooltipHovered: fsMa.containsMouse
                 accessibleName: "Toggle fullscreen"; focusRadius: 6; onTriggered: page.fullscreenRequested() }
         }
         Item {
@@ -1236,8 +1232,6 @@ Item {
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.closeRequested() }
             KeyboardAction { id: mangaSeriesCloseKeyboard; anchors.fill: parent; pointerEnabled: false
-                tooltipText: accessibleName
-                tooltipHovered: clMa.containsMouse
                 accessibleName: "Close"; focusRadius: 6; onTriggered: page.closeRequested() }
         }
     }

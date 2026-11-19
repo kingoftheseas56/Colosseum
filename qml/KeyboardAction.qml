@@ -2,7 +2,6 @@
 // Atomic controls route pointer, keyboard and accessibility through `triggered()`.
 // Complex controls may set pointerEnabled=false and keep specialized pointer handlers.
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Window
 
 Item {
@@ -10,11 +9,6 @@ Item {
 
     property string accessibleName: ""
     property string accessibleDescription: ""
-    property string tooltipText: ""
-    property bool tooltipHovered: action.hovered
-    // Touch has no hover: on Android the same tooltip shows on press-and-hold instead.
-    property bool longPressTooltipEnabled: Qt.platform.os === "android" // test-injectable platform seam
-    property bool _longPressTooltip: false
     property bool focusEnabled: visible && enabled
     property bool pointerEnabled: true
     property bool focusOnPointer: true
@@ -39,13 +33,6 @@ Item {
     readonly property bool hovered: hover.hovered
     readonly property bool pressed: primaryTap.pressed
     readonly property bool interactionActive: hovered || pressed || activeFocus
-
-    // Desktop waits 350 ms on hover; a held finger already waited for the long-press.
-    ToolTip.delay: action.longPressTooltipEnabled ? 0 : 350
-    ToolTip.text: action.tooltipText
-    readonly property bool tooltipRequested: action.visible && action.enabled && action.tooltipText.length > 0
-        && (action.longPressTooltipEnabled ? action._longPressTooltip : action.tooltipHovered)
-    ToolTip.visible: action.tooltipRequested
 
     signal triggered()
     signal contextRequested()
@@ -104,19 +91,6 @@ Item {
         acceptedButtons: Qt.LeftButton
         gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: action.activate(Qt.MouseFocusReason)
-        // Android norm: the hint appears ~0.4 s into the hold, while the finger is still down,
-        // and stays until 1.5 s after release.
-        Component.onCompleted: if (action.longPressTooltipEnabled) longPressThreshold = 0.4
-        onLongPressed: {
-            if (action.longPressTooltipEnabled && action.tooltipText.length > 0) {
-                longPressTooltipTimeout.stop()
-                action._longPressTooltip = true
-            }
-        }
-        onPressedChanged: {
-            if (!pressed && action._longPressTooltip)
-                longPressTooltipTimeout.restart()
-        }
     }
     TapHandler {
         enabled: action.pointerEnabled && action.contextEnabled && action.enabled
@@ -127,12 +101,6 @@ Item {
     }
 
     // Colosseum's one focus look (world-feel R1): a solid gold ring outside the control.
-    Timer {
-        id: longPressTooltipTimeout
-        interval: 1500
-        onTriggered: action._longPressTooltip = false
-    }
-
     FocusRing {
         anchors.fill: parent
         anchors.margins: action.focusInset + 2

@@ -323,7 +323,7 @@ Item {
     property string downloadPath: ""
     property string downloadError: ""
 
-    function downloadTooltip() {
+    function downloadActionLabel() {
         if (shell.downloadKind === "queued")
             return "Preparing download"
         if (shell.downloadKind === "downloading")
@@ -682,7 +682,7 @@ Item {
                              && String(shell.hostServices.currentPlaybackUrl || "").length > 0
                              && String(shell.hostServices.mediaLocalPath || "").length === 0
                 downloadKind: shell.downloadKind
-                downloadTooltip: shell.downloadTooltip()
+                downloadActionLabel: shell.downloadActionLabel()
                 onFullscreenRequested: shell.fullscreenRequested()
                 onBrowseRequested: { shell.rememberMenuFocus(); sourceDrawer.open = true; shell.wakeChrome() }
                 // His ruling: the drawer KEEPS ownership of switching, so the HUD button is a

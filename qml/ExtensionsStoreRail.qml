@@ -84,9 +84,6 @@ Column {
                 padding: 0
                 text: "←"
                 Accessible.name: qsTr("Previous add-ons in %1").arg(rail.title)
-                ToolTip.visible: hovered
-                ToolTip.delay: 350
-                ToolTip.text: qsTr("Previous add-ons in %1").arg(rail.title)
                 onClicked: rail.scrollByPage(-1)
             }
             ShelfButton {
@@ -97,9 +94,6 @@ Column {
                 padding: 0
                 text: "→"
                 Accessible.name: qsTr("Next add-ons in %1").arg(rail.title)
-                ToolTip.visible: hovered
-                ToolTip.delay: 350
-                ToolTip.text: qsTr("Next add-ons in %1").arg(rail.title)
                 onClicked: rail.scrollByPage(1)
             }
             ShelfButton {

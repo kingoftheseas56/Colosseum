@@ -259,7 +259,6 @@ Item {
                             enabled: tile.modelData.kind === "universes" || tile.modelData.id === "colosseum.well.tankoyomi"
                             accessibleName: tile.modelData.kind === "universes" ? tile.modelData.name
                                                                                  : tile.modelData.name + " settings"
-                            tooltipText: tile.modelData.kind === "universes" ? qsTr("Open Tributes") : qsTr("Configure Tankoyomi")
                             focusRadius: 19
                             onTriggered: tile.modelData.kind === "universes" ? hero.universesRequested()
                                                                              : hero.configureRequested(tile.modelData.id)
@@ -307,7 +306,6 @@ Item {
                                 anchors.fill: parent
                                 enabled: hero.canToggle(tile.modelData.id)
                                 accessibleName: (tile.installed ? "Turn off " : "Add ") + tile.modelData.name
-                                tooltipText: accessibleName
                                 focusRadius: 14
                                 onTriggered: hero.toggle(tile.modelData.id)
                             }

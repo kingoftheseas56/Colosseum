@@ -239,7 +239,7 @@ ReaderOverlay {
 
             // ICON tabs (Hemanth 2026-07-18: "change every name in toc to an SVG icon placed at
             // equal distance") — equal-width cells, icon centered in each; the name lives on in
-            // the hover tooltip. Same SVG set as the rest of the reader chrome.
+            // the same SVG set as the rest of the reader chrome.
             Tab { id: contentsTab; width: tabStrip.tabW; icon: "contents.svg";  tip: "Contents";   active: panel.activeTab === "contents";   onPicked: panel.tabSelected("contents") }
             Tab { id: bookmarksTab; width: tabStrip.tabW; icon: "bookmark.svg";  tip: "Bookmarks";  active: panel.activeTab === "bookmarks";  onPicked: panel.tabSelected("bookmarks") }
             Tab { id: highlightsTab; width: tabStrip.tabW; icon: "highlight.svg"; tip: "Highlights"; active: panel.activeTab === "highlights"; onPicked: panel.tabSelected("highlights") }
@@ -449,7 +449,6 @@ ReaderOverlay {
                         // across the full row height, disjoint from the jump area.
                         ReaderKeyboardArea {
                             id: bmDelMa
-                            tooltipText: qsTr("Delete bookmark")
                             objectName: "reader2BookmarkDeleteTouch_" + bmRow.index
                             visible: bmDelGlyph.visible
                             x: panel.touchInput ? parent.width - panel.touchDeleteGutter : bmDelGlyph.x - 6
@@ -1250,7 +1249,6 @@ ReaderOverlay {
             id: raStepMa
             anchors.fill: parent
             keyboardLabel: raStep.symbol === "+" ? "Increase word size" : "Decrease word size"
-            tooltipText: raStepMa.keyboardLabel
             hoverEnabled: true
             cursorShape: raStep.enabledStep ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: if (raStep.enabledStep) raStep.stepped()
@@ -1258,7 +1256,7 @@ ReaderOverlay {
     }
 
     // ---------- a tab: SVG icon centered in an equal-width cell + gold underline when
-    // active; the tab NAME lives in the hover tooltip (icon tabs, Hemanth 2026-07-18) ----------
+    // active; each tab has an accessible name. ----------
     component Tab: Item {
         id: tab
         property string icon: ""            // filename under assets/icons/reader2/
@@ -1292,7 +1290,6 @@ ReaderOverlay {
             id: tabMa
             anchors.fill: parent
             keyboardLabel: tab.tip
-            tooltipText: tab.tip
             hoverEnabled: true
             cursorShape: tab.tabEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: if (tab.tabEnabled) tab.picked()

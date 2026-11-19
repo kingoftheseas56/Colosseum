@@ -474,9 +474,6 @@ Item {
                                 id: altMa; anchors.fill: parent; enabled: ed.canAlternate
                                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: ledger.alternateSourcesRequested(ed.modelData, ed.chId)
-                                ToolTip.visible: containsMouse
-                                ToolTip.text: "Find alternate sources"
-                                ToolTip.delay: 350
                             }
                             KeyboardAction {
                                 id: alternateSourcesKeyboard

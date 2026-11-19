@@ -382,7 +382,6 @@ Item {
                         iconName: "trash"
                         emphasis: "ghost"
                         Accessible.name: qsTr("Delete collection")
-                        tooltipText: qsTr("Delete collection")
                         onClicked: page.deleteRequested(deleteButton)
                     }
                     CollectionActionButton {

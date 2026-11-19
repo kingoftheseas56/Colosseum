@@ -136,7 +136,6 @@ Item {
                 objectName: "titleBarSearch"
                 anchors.fill: parent
                 accessibleName: "Search"
-                tooltipText: accessibleName
                 focusRadius: 20
                 focusColor: bar.focusGold
                 onTriggered: bar.searchRequested()
@@ -159,7 +158,6 @@ Item {
                 objectName: "titleBarSystemMenu"
                 anchors.fill: parent
                 accessibleName: "Window and app"
-                tooltipText: accessibleName
                 focusRadius: 20
                 focusColor: bar.focusGold
                 onTriggered: bar.menuOpen ? bar.closeMenu(true) : bar.openMenu()

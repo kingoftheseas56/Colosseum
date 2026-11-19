@@ -32,17 +32,17 @@ Item {
         Row {
             id: headerWindowControls; objectName: "vaultHeaderWindowControls"; anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter; height: 44
             VaultAction {
-                id: minimizeButton; objectName: "vaultHeaderMinimize"; width: 44; height: 44; quiet: true; accessibleName: "Minimize"; tooltipText: accessibleName
+                id: minimizeButton; objectName: "vaultHeaderMinimize"; width: 44; height: 44; quiet: true; accessibleName: "Minimize"
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/minimize.svg"; opacity: minimizeButton.keyboardAction.interactionActive ? 1 : 0.8 }
                 onTriggered: root.minimizeRequested()
             }
             VaultAction {
-                id: fullButton; objectName: "vaultHeaderFullscreen"; width: 44; height: 44; quiet: true; accessibleName: "Toggle fullscreen"; tooltipText: accessibleName
+                id: fullButton; objectName: "vaultHeaderFullscreen"; width: 44; height: 44; quiet: true; accessibleName: "Toggle fullscreen"
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/fullscreen.svg"; opacity: fullButton.keyboardAction.interactionActive ? 1 : 0.8 }
                 onTriggered: root.fullscreenRequested()
             }
             VaultAction {
-                id: closeButton; objectName: "vaultHeaderClose"; width: 44; height: 44; quiet: true; accessibleName: "Close Colosseum"; tooltipText: accessibleName
+                id: closeButton; objectName: "vaultHeaderClose"; width: 44; height: 44; quiet: true; accessibleName: "Close Colosseum"
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/power.svg"; opacity: closeButton.keyboardAction.interactionActive ? 1 : 0.8 }
                 onTriggered: root.closeRequested()
             }
@@ -61,6 +61,6 @@ Item {
             onAccepted: root.accepted()
         }
         Text { anchors.fill: parent; anchors.leftMargin: 38; anchors.rightMargin: 12; verticalAlignment: Text.AlignVCenter; visible: searchInput.length === 0; text: "Search titles, people, filenames"; elide: Text.ElideRight; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultCaption }
-        VaultAction { objectName: "vaultHeaderClearSearch"; anchors.right: parent.right; width: 34; height: parent.height; text: "×"; accessibleName: "Clear search"; tooltipText: accessibleName; quiet: true; visible: searchInput.length > 0; onTriggered: { searchInput.text = ""; root.focusSearch() } }
+        VaultAction { objectName: "vaultHeaderClearSearch"; anchors.right: parent.right; width: 34; height: parent.height; text: "×"; accessibleName: "Clear search"; quiet: true; visible: searchInput.length > 0; onTriggered: { searchInput.text = ""; root.focusSearch() } }
     }
 }

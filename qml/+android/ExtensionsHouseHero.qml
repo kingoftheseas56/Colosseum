@@ -189,7 +189,6 @@ Item {
                              || mobileRow.modelData.id === "colosseum.well.tankoyomi"
                     accessibleName: mobileRow.modelData.kind === "universes"
                                     ? "Open Universes" : mobileRow.modelData.name + " settings"
-                    tooltipText: mobileRow.modelData.id === "colosseum.well.tankoyomi" ? accessibleName : ""
                     focusRadius: 8
                     onTriggered: mobileRow.modelData.kind === "universes"
                                  ? hero.universesRequested()
@@ -241,7 +240,6 @@ Item {
                             anchors.fill: parent
                             accessibleName: (mobileRow.installed ? "Turn off " : "Turn on ")
                                             + mobileRow.modelData.name
-                            tooltipText: accessibleName
                             enabled: hero.canToggle(mobileRow.modelData.id)
                             focusRadius: 14
                             onTriggered: hero.toggle(mobileRow.modelData.id)
@@ -328,7 +326,6 @@ Item {
                             enabled: tile.modelData.kind === "universes" || tile.modelData.id === "colosseum.well.tankoyomi"
                             accessibleName: tile.modelData.kind === "universes" ? tile.modelData.name
                                                                                  : tile.modelData.name + " settings"
-                            tooltipText: tile.modelData.id === "colosseum.well.tankoyomi" ? accessibleName : ""
                             focusRadius: 19
                             onTriggered: tile.modelData.kind === "universes" ? hero.universesRequested()
                                                                              : hero.configureRequested(tile.modelData.id)
@@ -383,7 +380,6 @@ Item {
                                 focusInset: Qt.platform.os === "android" ? (width - parent.width) / 2 - 2 : -2
                                 enabled: hero.canToggle(tile.modelData.id)
                                 accessibleName: (tile.installed ? "Turn off " : "Add ") + tile.modelData.name
-                                tooltipText: accessibleName
                                 focusRadius: 14
                                 onTriggered: hero.toggle(tile.modelData.id)
                             }

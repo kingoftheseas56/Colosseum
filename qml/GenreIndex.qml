@@ -252,9 +252,6 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        ToolTip.text: qsTr("Search")
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
                         onClicked: root.searchClicked()
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; focusRadius: 4; onTriggered: root.searchClicked() } }
@@ -263,9 +260,6 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        ToolTip.text: qsTr("Minimize")
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
                         onClicked: root.minimizeRequested()
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; focusRadius: 4; onTriggered: root.minimizeRequested() } }
@@ -274,10 +268,6 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        ToolTip.text: typeof WindowMode !== "undefined" && WindowMode.shellWindowed
-                                      ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
                         onClicked: root.fullscreenRequested()
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; focusRadius: 4; onTriggered: root.fullscreenRequested() } }
@@ -286,9 +276,6 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        ToolTip.text: qsTr("Close Colosseum")
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
                         onClicked: root.closeRequested()
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"; focusRadius: 4; onTriggered: root.closeRequested() } }

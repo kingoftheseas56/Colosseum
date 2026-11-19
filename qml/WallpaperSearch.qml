@@ -123,8 +123,6 @@ Item {
                 onClicked: root.minimizeRequested()
             }
             KeyboardAction { id: wpMinKey; anchors.fill: parent; pointerEnabled: false
-                tooltipText: accessibleName
-                tooltipHovered: wpMinMa.containsMouse
                 accessibleName: "Minimize"; onTriggered: root.minimizeRequested() }
         }
         Item {
@@ -145,9 +143,6 @@ Item {
                 onClicked: root.fullscreenRequested()
             }
             KeyboardAction { id: wpFsKey; anchors.fill: parent; pointerEnabled: false
-                tooltipText: typeof WindowMode !== "undefined" && WindowMode.shellWindowed
-                             ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                tooltipHovered: wpFsMa.containsMouse
                 accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() }
         }
         Item {
@@ -166,8 +161,6 @@ Item {
                 onClicked: root.quitRequested()
             }
             KeyboardAction { id: wpPowKey; anchors.fill: parent; pointerEnabled: false
-                tooltipText: accessibleName
-                tooltipHovered: wpPowMa.containsMouse
                 accessibleName: "Close Colosseum"; onTriggered: root.quitRequested() }
         }
     }
@@ -213,8 +206,6 @@ Item {
                     }
                     KeyboardAction { anchors.fill: parent; anchors.margins: -10; pointerEnabled: false
                         accessibleName: "Close wallpaper picker"
-                        tooltipText: accessibleName
-                        tooltipHovered: closeMa.containsMouse
                         onTriggered: root.closeRequested() }
                 }
             }

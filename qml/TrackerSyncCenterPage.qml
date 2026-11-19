@@ -2069,10 +2069,6 @@ Item {
                                               : root.stremioStatusKind() === "attention" ? theme.gold : theme.edge
                                 Accessible.role: Accessible.StaticText
                                 Accessible.name: qsTr("Stremio status: %1").arg(root.stremioStatusLabel())
-                                ToolTip.text: Accessible.name
-                                ToolTip.delay: 350
-                                ToolTip.visible: stremioStatusHover.hovered
-                                HoverHandler { id: stremioStatusHover }
                                 RowLayout {
                                     id: stremioStatusRow
                                     anchors.centerIn: parent
@@ -2126,9 +2122,6 @@ Item {
                                 Layout.preferredHeight: 40
                                 activeFocusOnTab: true
                                 Accessible.name: "Open Stremio settings"
-                                ToolTip.text: Accessible.name
-                                ToolTip.delay: 350
-                                ToolTip.visible: hovered || activeFocus
                                 onClicked: root.mainSyncRequested(false)
                                 background: Rectangle {
                                     radius: 9
@@ -2209,10 +2202,6 @@ Item {
                                               : root.nuvioStatusKind() === "attention" ? theme.gold : theme.edge
                                 Accessible.role: Accessible.StaticText
                                 Accessible.name: qsTr("Nuvio status: %1").arg(root.nuvioStatusLabel())
-                                ToolTip.text: Accessible.name
-                                ToolTip.delay: 350
-                                ToolTip.visible: nuvioStatusHover.hovered
-                                HoverHandler { id: nuvioStatusHover }
                                 RowLayout {
                                     id: nuvioStatusRow
                                     anchors.centerIn: parent
@@ -2268,9 +2257,6 @@ Item {
                                 activeFocusOnTab: true
                                 Accessible.name: qsTr("Open Nuvio sync settings")
                                 Accessible.description: qsTr("Choose Nuvio in sync settings.")
-                                ToolTip.text: Accessible.description
-                                ToolTip.delay: 350
-                                ToolTip.visible: hovered || activeFocus
                                 onClicked: root.mainSyncRequested(true)
                                 background: Rectangle {
                                     radius: 9
@@ -2405,9 +2391,6 @@ Item {
                             Accessible.name: (modelData.providerName || "Tracker") + ", "
                                              + root.displayStatus(modelData.status)
                             Accessible.description: String(modelData.accountLabel || "Connected to this profile")
-                            ToolTip.text: Accessible.name + ". " + Accessible.description
-                            ToolTip.delay: 350
-                            ToolTip.visible: hovered || activeFocus
                             onClicked: modelData.status === "Attention"
                                        ? root.openRecoveryRoute(modelData.providerKey, trackerCard)
                                        : root.openDossier(modelData.providerKey, trackerCard)
@@ -2628,9 +2611,6 @@ Item {
                                                                   modelData.available, modelData.connectUnavailableReason,
                                                                   modelData.connected)
                             Accessible.description: root.providerSubject(modelData.providerKey, modelData.available)
-                            ToolTip.text: Accessible.name + (Accessible.description.length ? ". " + Accessible.description : "")
-                            ToolTip.delay: 350
-                            ToolTip.visible: hovered || activeFocus
                             onClicked: root.openDossier(modelData.providerKey, catalogueCard)
 
                             background: Rectangle {
@@ -2887,9 +2867,6 @@ Item {
                         objectName: "trackerDossierClose"
                         activeFocusOnTab: true
                         Accessible.name: "Close tracker details"
-                        ToolTip.visible: dossierCloseButton.hovered
-                        ToolTip.delay: 350
-                        ToolTip.text: qsTr("Close tracker details")
                         onClicked: root.closeDossier()
                         contentItem: Text {
                             text: "×"
@@ -3610,9 +3587,6 @@ Item {
                             text: "×"
                             activeFocusOnTab: true
                             Accessible.name: "Close send review"
-                            ToolTip.visible: exportReviewCloseButton.hovered
-                            ToolTip.delay: 350
-                            ToolTip.text: qsTr("Close send review")
                             KeyNavigation.tab: exportReviewList
                             onClicked: root.closeExportReview()
                             contentItem: Text {
@@ -3856,9 +3830,6 @@ Item {
                                 objectName: "trackerImportReviewClose"
                                 activeFocusOnTab: true
                                 Accessible.name: "Close import review"
-                                ToolTip.visible: importReviewCloseButton.hovered
-                                ToolTip.delay: 350
-                                ToolTip.text: qsTr("Close import review")
                                 text: "×"
                                 KeyNavigation.backtab: cancelImportReviewButton
                                 Keys.priority: Keys.BeforeItem
@@ -4269,9 +4240,6 @@ Item {
                             activeFocusOnTab: true
                             text: "×"
                             Accessible.name: "Close title search"
-                            ToolTip.visible: titleMatchCloseButton.hovered
-                            ToolTip.delay: 350
-                            ToolTip.text: qsTr("Close title search")
                             onClicked: root.closeTitleMatchFinder()
                             contentItem: Text {
                                 text: titleMatchCloseButton.text

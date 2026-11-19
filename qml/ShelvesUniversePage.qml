@@ -1380,7 +1380,6 @@ Item {
             id: edgeAction; anchors.fill: parent
             focusPolicy: Qt.NoFocus; focusEnabled: false
             accessibleName: chevron.atRight ? "More " + chevron.label : "Earlier " + chevron.label
-            tooltipText: accessibleName
             onTriggered: chevron.triggered()
         }
     }

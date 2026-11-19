@@ -187,7 +187,6 @@ Item {
             anchors.leftMargin: -bar.touchHorizontalInset
             anchors.rightMargin: -bar.touchHorizontalInset
             accessibleName: sysRoot.accessibleName
-            tooltipText: sysRoot.showLabel ? "" : accessibleName
             focusRadius: 6
             onTriggered: sysRoot.clicked()
         }
@@ -408,7 +407,6 @@ Item {
                 id: updateInput
                 anchors.fill: parent
                 accessibleName: bar.updateAvailable ? "Update available" : "Updates"
-                tooltipText: accessibleName
                 focusRadius: 6
                 onTriggered: bar.updateClicked()
             }
@@ -448,7 +446,6 @@ Item {
                 anchors.fill: parent
                 accessibleName: bar.trackersDotState === "error"
                                 ? qsTr("Trackers, attention required") : qsTr("Trackers")
-                tooltipText: accessibleName
                 focusRadius: 6
                 onTriggered: bar.trackersClicked()
             }
@@ -525,7 +522,6 @@ Item {
                     : (bar.accountPresent
                         ? ("Account: " + bar.accountController.username)
                         : "Account")
-                tooltipText: bar.localDevice ? "" : qsTr("Account")
                 focusRadius: bar.localDevice ? 11 : width / 2
                 onTriggered: {
                     const anchor = accountButton.mapToItem(null, accountButton.width, accountButton.height)

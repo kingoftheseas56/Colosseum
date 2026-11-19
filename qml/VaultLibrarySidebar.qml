@@ -63,7 +63,6 @@ FocusScope {
             width: root.expanded ? 38 : parent.width; height: 38
             hoverEnabled: true; activeFocusOnTab: true
             Accessible.name: root.expanded ? qsTr("Collapse library sidebar") : qsTr("Expand library sidebar")
-            ToolTip.text: Accessible.name; ToolTip.delay: 350; ToolTip.visible: hovered || activeFocus
             onClicked: root.toggleRequested()
             Keys.onReturnPressed: clicked()
             Keys.onEnterPressed: clicked()
@@ -229,10 +228,6 @@ FocusScope {
                     enabled: modelData.key !== "rescan" || !root.busy
                     Accessible.name: modelData.key === "rescan" && root.status.length > 0
                                      ? modelData.title + ", " + root.status : modelData.title
-                    ToolTip.text: modelData.key === "rescan" && root.status.length > 0
-                                  ? root.status : modelData.title
-                    ToolTip.delay: 350
-                    ToolTip.visible: (root.compactFooter || !root.expanded) && (hovered || activeFocus)
                     Keys.onReturnPressed: clicked()
                     Keys.onEnterPressed: clicked()
                     Keys.onLeftPressed: { if (root.expanded && index > 0) utilityItems.itemAt(index - 1).forceActiveFocus(Qt.TabFocusReason) }
@@ -269,8 +264,6 @@ FocusScope {
             activeFocusOnTab: true
             Accessible.role: Accessible.StaticText
             Accessible.name: qsTr("Sources status: %1").arg(root.status)
-            ToolTip.text: root.status; ToolTip.delay: 350; ToolTip.visible: statusHover.hovered || activeFocus
-            HoverHandler { id: statusHover }
             Rectangle { x: 0; width: 7; height: 7; radius: 4; anchors.verticalCenter: parent.verticalCenter; color: root.status === qsTr("No sources connected") ? theme.inkDimmer : root.busy || (root.status.indexOf("offline") >= 0 || root.status.indexOf("unavailable") >= 0) ? theme.gold : theme.vaultHealthy }
             Text { objectName: "vaultLibraryStatus"; visible: root.expanded && !root.compactFooter && root.status !== qsTr("No sources connected"); text: root.status; x: 13; width: parent.width - 13; elide: Text.ElideRight; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultSmall }
         }

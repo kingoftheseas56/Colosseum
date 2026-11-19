@@ -293,7 +293,6 @@ Item {
                     anchors.topMargin: -touchMetrics.targetInset(parent.height)
                     anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                     accessibleName: bar.open ? "Close Colosseum taskbar" : "Open Colosseum taskbar"
-                    tooltipText: accessibleName
                     focusRadius: bar.open ? 14 : 24
                     onTriggered: {
                         bar.open = !bar.open
@@ -352,7 +351,6 @@ Item {
                     anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                     accessibleName: "Your Collections"
                     accessibleDescription: "Open your named collections"
-                    tooltipText: accessibleName
                     focusRadius: 13
                     onTriggered: bar.collectionsClicked()
                 }
@@ -386,8 +384,6 @@ Item {
                     anchors.fill: parent
                     accessibleName: bar.localMediaAvailable ? qsTr("Open media") : qsTr("Open media unavailable")
                     accessibleDescription: bar.localMediaAvailable ? "" : bar.localMediaUnavailableReason
-                    tooltipText: accessibleName
-                    tooltipHovered: hovered && !recentInput.hovered
                     focusRadius: 13
                     onTriggered: bar.requestOpenMedia()
                 }
@@ -416,16 +412,12 @@ Item {
                         anchors.fill: parent
                         accessibleName: bar.localMediaAvailable ? qsTr("Open recent media") : qsTr("Recent media unavailable")
                         accessibleDescription: bar.localMediaAvailable ? "" : bar.localMediaUnavailableReason
-                        tooltipText: accessibleName
                         focusRadius: 4
                         focusInset: -2
                         onTriggered: bar.openRecentRequested()
                     }
                 }
                 HoverHandler { id: localMediaHover; enabled: !bar.localMediaAvailable; cursorShape: Qt.ArrowCursor }
-                ToolTip.visible: !bar.localMediaAvailable && localMediaHover.hovered
-                ToolTip.text: bar.localMediaUnavailableReason
-                ToolTip.delay: 350
             }
 
             // ---- Watch Party: Room ID join lives outside immersive Player 1 so
@@ -472,7 +464,6 @@ Item {
                     id: watchPartyInput
                     anchors.fill: parent
                     accessibleName: "Join Watch Party"
-                    tooltipText: accessibleName
                     focusRadius: 13
                     onTriggered: bar.watchPartyJoinClicked()
                 }
@@ -529,7 +520,6 @@ Item {
                     id: downloadsInput
                     anchors.fill: parent
                     accessibleName: "Downloads"
-                    tooltipText: accessibleName
                     focusRadius: 13
                     onTriggered: bar.downloadsClicked()
                 }
@@ -575,7 +565,6 @@ Item {
                     anchors.fill: parent
                     focusOnPointer: !bar.pickerScene
                     accessibleName: "Extensions"
-                    tooltipText: accessibleName
                     focusRadius: 13
                     onTriggered: bar.extensionsClicked()
                 }
@@ -629,7 +618,6 @@ Item {
                     anchors.fill: parent
                     focusOnPointer: !bar.pickerScene
                     accessibleName: bar.activityLabel
-                    tooltipText: accessibleName
                     spaceActivates: true
                     focusRadius: 13
                     onTriggered: bar.historyStatsClicked()
@@ -702,8 +690,6 @@ Item {
                                 if (sessions.length === 1) return sessions[0].title || "Open session"
                                 return "Open " + sessions.length + " sessions"
                             }
-                            tooltipText: accessibleName
-                            tooltipHovered: hovered && !tileCloseMa.containsMouse
                             focusRadius: 23
                             onTriggered: {
                                 var sessions = tile.modelData.sessions || []
@@ -760,9 +746,6 @@ Item {
                                 hoverEnabled: true
                                 enabled: tileClose.visible && tileInput.interactionActive
                                 cursorShape: Qt.PointingHandCursor
-                                ToolTip.text: qsTr("Close session")
-                                ToolTip.delay: 350
-                                ToolTip.visible: enabled && containsMouse
                                 onClicked: bar.closeRequested(tile.modelData.sessions[0].id)
                             }
                         }
@@ -885,9 +868,6 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            ToolTip.text: qsTr("Close session")
-                            ToolTip.delay: 350
-                            ToolTip.visible: containsMouse
                             onClicked: {
                                 bar.closeRequested(modelData.id)
                                 fan.closeAndRestore()

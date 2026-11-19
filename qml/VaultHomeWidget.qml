@@ -398,8 +398,5 @@ Glass {
         accessibleDescription: vault.available ? "" : qsTr("Vault is unavailable on Android.")
         onTriggered: vault.clicked()
     }
-    ToolTip.visible: !vault.available && hit.containsMouse
-    ToolTip.text: qsTr("Vault is unavailable on Android.")
-    ToolTip.delay: 350
 
 }

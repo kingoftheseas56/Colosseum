@@ -88,8 +88,8 @@ Assert-Contains $player "Download.resetDownload" `
     "PlayerPage must call native Download.resetDownload."
 Assert-Contains $player "Download.status.kind" `
     "PlayerPage must react to Harbor-like download status."
-Assert-Contains $player "downloadTooltip" `
-    "PlayerPage must expose progress/error/download tooltips."
+Assert-Contains $player "downloadActionLabel" `
+    "PlayerPage must expose progress/error/download accessible labels."
 Assert-Contains $player "icon: root.downloadIcon()" `
     "PlayerPage transport controls must expose a download action."
 Assert-Contains $player "Downloading" `

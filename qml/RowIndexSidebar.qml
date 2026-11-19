@@ -302,8 +302,6 @@ Item {
                         objectName: rowItem.objectName + "Action"
                         anchors.fill: parent
                         accessibleName: "Row " + String(rowItem.modelData.title || "row")
-                        tooltipText: rail.collapsed ? String(rowItem.modelData.title || "") : ""
-                        tooltipHovered: interactionActive
                         focusRadius: 12
                         focusOnPointer: false
                         onTriggered: rail.rowRequested(rowItem.modelData.target)
@@ -372,7 +370,6 @@ Item {
             anchors.topMargin: -touchMetrics.targetInset(parent.height)
             anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
             accessibleName: rail.collapsed ? "Expand row index" : "Retract row index"
-            tooltipText: accessibleName
             focusRadius: 14
             focusOnPointer: false
             onTriggered: rail.collapsed = !rail.collapsed

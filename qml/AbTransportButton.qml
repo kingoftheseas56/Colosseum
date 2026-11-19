@@ -22,7 +22,6 @@ Item {
             id: input
             anchors.fill: parent
             accessibleName: root.glyph + " " + root.sub
-            tooltipText: (root.glyph === "«" ? qsTr("Skip back ") : qsTr("Skip forward ")) + root.sub + qsTr(" seconds")
             focusRadius: 22
             onTriggered: root.tapped()
         }

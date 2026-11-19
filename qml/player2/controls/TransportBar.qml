@@ -28,7 +28,7 @@ Item {
     property bool canSwitchSource: false
     property bool canDownload: false
     property string downloadKind: "idle"   // idle | queued | downloading | done | failed
-    property string downloadTooltip: "Download video"
+    property string downloadActionLabel: "Download video"
     property bool windowed: true   // host-fed window state; drives the fullscreen/exit icon (parity)
     // Playback-speed presets (parity with the current player's speedChoices).
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -115,7 +115,7 @@ Item {
         property bool hero: false
         property bool active: false
         property real size: 40
-        property string tooltip: ""
+        property string actionLabel: ""
         signal tapped()
         implicitWidth: size
         implicitHeight: size
@@ -134,7 +134,7 @@ Item {
             kind: rb.icon
             ink: rb.hero ? "#101014" : (rb.active && root.theme ? root.theme.gold
                                         : (root.theme ? root.theme.ink : "#f7f7f5"))
-            accessibleName: rb.tooltip
+            accessibleName: rb.actionLabel
         }
         Text {
             visible: rb.seconds !== ""
@@ -156,9 +156,7 @@ Item {
         KeyboardAction {
             anchors.fill: parent
             pointerEnabled: false
-            accessibleName: rb.tooltip
-            tooltipText: rb.tooltip
-            tooltipHovered: tap.containsMouse
+            accessibleName: rb.actionLabel
             focusRadius: rb.size / 2
             onTriggered: rb.tapped()
         }
@@ -175,7 +173,7 @@ Item {
             size: 48
             icon: vol.muted ? "mute" : "volume"
             active: vol.muted
-            tooltip: root.session && root.session.muted ? qsTr("Unmute") : qsTr("Mute")
+            actionLabel: root.session && root.session.muted ? qsTr("Unmute") : qsTr("Mute")
             onTapped: if (root.session) root.session.setMuted(!root.session.muted)
         }
         Item {
@@ -356,7 +354,7 @@ Item {
                 // "stream" maps to Lucide `replace` in Player2Icon, the SAME glyph the shipped
                 // player uses (PlayerIcon.qml:39). His words: no substitute.
                 icon: "stream"
-                tooltip: "Pick another stream"
+                actionLabel: "Pick another stream"
                 anchors.verticalCenter: parent.verticalCenter
                 visible: root.canSwitchSource
                 onTapped: root.switchSourceRequested()
@@ -370,7 +368,7 @@ Item {
                       : root.downloadKind === "failed" ? "warning" : "download"
                 // Gold while a download is anything but idle, exactly as production tints it.
                 active: root.downloadKind !== "idle"
-                tooltip: root.downloadTooltip
+                actionLabel: root.downloadActionLabel
                 anchors.verticalCenter: parent.verticalCenter
                 visible: root.canDownload
                 onTapped: root.downloadRequested()
@@ -379,7 +377,7 @@ Item {
                 id: fillButton
                 size: 40; icon: "fit"
                 active: fillMenu.open || root.fillIndex !== 0
-                tooltip: "Aspect ratio"
+                actionLabel: "Aspect ratio"
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: {
                     audioMenu.open = false; subtitleMenu.open = false; speedMenu.open = false
@@ -394,32 +392,32 @@ Item {
             spacing: 8
             RoundButton {
                 visible: root.hasPrevEpisode
-                size: 40; icon: "prevEpisode"; tooltip: "Previous episode"
+                size: 40; icon: "prevEpisode"; actionLabel: "Previous episode"
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: root.prevEpisodeRequested()
             }
             RoundButton {
                 size: 40; icon: "seekBack"; seconds: String(root.seekStepSeconds)
-                tooltip: "Skip back"
+                actionLabel: "Skip back"
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: if (root.session) root.session.seekRelative(-root.seekStepSeconds)
             }
             RoundButton {
                 size: 48; hero: true
                 icon: (root.playing || root.buffering) ? "pause" : "play"
-                tooltip: (root.playing || root.buffering) ? "Pause" : "Play"
+                actionLabel: (root.playing || root.buffering) ? "Pause" : "Play"
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: root.togglePlayPause()
             }
             RoundButton {
                 size: 40; icon: "seekForward"; seconds: String(root.seekStepSeconds)
-                tooltip: "Skip forward"
+                actionLabel: "Skip forward"
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: if (root.session) root.session.seekRelative(root.seekStepSeconds)
             }
             RoundButton {
                 visible: root.hasNextEpisode
-                size: 40; icon: "nextEpisode"; tooltip: "Next episode"
+                size: 40; icon: "nextEpisode"; actionLabel: "Next episode"
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: root.nextEpisodeRequested()
             }
@@ -431,15 +429,15 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
             RoundButton {
-                size: 40; icon: "episodes"; tooltip: "Episodes & sources (E)"
+                size: 40; icon: "episodes"; actionLabel: "Episodes & sources (E)"
                 onTapped: { root.closeMenus(); root.browseRequested() }
             }
             RoundButton {
-                size: 40; icon: "audio"; active: audioMenu.open; tooltip: "Audio track"
+                size: 40; icon: "audio"; active: audioMenu.open; actionLabel: "Audio track"
                 onTapped: { subtitleMenu.open = false; audioMenu.open = !audioMenu.open }
             }
             RoundButton {
-                size: 40; icon: "subtitle"; active: subtitleMenu.open; tooltip: "Subtitles"
+                size: 40; icon: "subtitle"; active: subtitleMenu.open; actionLabel: "Subtitles"
                 onTapped: { audioMenu.open = false; subtitleMenu.open = !subtitleMenu.open }
             }
             // Playback speed — icon button with a small gold badge showing the rate when non-default,
@@ -453,7 +451,7 @@ Item {
                     anchors.fill: parent
                     size: 40; icon: "speed"
                     active: speedMenu.open || speedButton.nonDefault
-                    tooltip: "Speed"
+                    actionLabel: "Speed"
                     onTapped: {
                         audioMenu.open = false; subtitleMenu.open = false; fillMenu.open = false
                         speedMenu.open = !speedMenu.open
@@ -478,7 +476,7 @@ Item {
             RoundButton {
                 size: 40
                 icon: root.windowed ? "fullscreen" : "fullscreenExit"
-                tooltip: root.windowed ? "Enter fullscreen (F)" : "Exit fullscreen (F)"
+                actionLabel: root.windowed ? "Enter fullscreen (F)" : "Exit fullscreen (F)"
                 onTapped: root.fullscreenRequested()
             }
         }

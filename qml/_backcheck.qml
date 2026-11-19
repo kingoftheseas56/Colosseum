@@ -1,5 +1,5 @@
 // PROTOTYPE harness: qml.exe qml/_backcheck.qml — instantiates every BackAction variant and
-// quits. Proves the component compiles and renders (Shape chevron, Theme, tooltip machinery).
+// quits. Proves the component compiles and renders (Shape chevron and Theme).
 import QtQuick
 
 Rectangle {

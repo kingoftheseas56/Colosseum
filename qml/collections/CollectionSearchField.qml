@@ -47,7 +47,6 @@ TextField {
         iconName: "close"
         visible: root.text.length > 0
         Accessible.name: qsTr("Clear search")
-        tooltipText: qsTr("Clear search")
         onClicked: { root.clear(); root.forceActiveFocus(Qt.OtherFocusReason) }
     }
 }

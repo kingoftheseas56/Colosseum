@@ -53,7 +53,7 @@ Item {
     component BarButton: Item {
         id: rb
         property string icon: ""
-        property string tooltip: ""
+        property string actionLabel: ""
         property real size: 38
         signal tapped()
         implicitWidth: size
@@ -69,7 +69,7 @@ Item {
             anchors.fill: parent
             kind: rb.icon
             ink: bar.theme ? bar.theme.ink : "#f7f7f5"
-            accessibleName: rb.tooltip
+            accessibleName: rb.actionLabel
         }
         MouseArea {
             id: tap
@@ -81,9 +81,7 @@ Item {
         KeyboardAction {
             anchors.fill: parent
             pointerEnabled: false
-            accessibleName: rb.tooltip
-            tooltipText: rb.icon === "minimizeToBar" ? qsTr("Minimize") : rb.tooltip
-            tooltipHovered: tap.containsMouse
+            accessibleName: rb.actionLabel
             focusRadius: rb.size / 2
             onTriggered: rb.tapped()
         }
@@ -99,7 +97,7 @@ Item {
         BarButton {
             anchors.verticalCenter: parent.verticalCenter
             icon: "back"
-            tooltip: "Back"
+            actionLabel: "Back"
             onTapped: bar.backRequested()
         }
 
@@ -163,12 +161,12 @@ Item {
 
         BarButton {
             icon: "minimizeToBar"
-            tooltip: "Minimize — paused in the taskbar, resumes with no reload"
+            actionLabel: "Minimize — paused in the taskbar, resumes with no reload"
             onTapped: bar.minimizeRequested()
         }
         BarButton {
             icon: "cancel"
-            tooltip: "Close"
+            actionLabel: "Close"
             onTapped: bar.closeRequested()
         }
     }

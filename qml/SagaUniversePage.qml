@@ -1266,7 +1266,6 @@ Item {
             id: edgeAction; anchors.fill: parent
             focusPolicy: Qt.NoFocus; focusEnabled: false
             accessibleName: chevron.atRight ? "Show later stories" : "Show earlier stories"
-            tooltipText: accessibleName
             onTriggered: chevron.triggered()
         }
     }

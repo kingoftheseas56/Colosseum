@@ -306,7 +306,6 @@ Item {
                         }
                         KeyboardAction {
                             objectName: "vinylLibrarySavedSongNext_" + savedRow.index
-                            tooltipText: qsTr("Play next")
                             visible: !!root.libraryData && typeof root.libraryData.enqueueSavedSong === "function"
                             x: root.contentWidth < 360
                                 ? Math.max(4, (parent.width - (root.savedSongQueueAvailable ? 162 : 78)) / 2)
@@ -322,7 +321,6 @@ Item {
                         }
                         KeyboardAction {
                             objectName: "vinylLibrarySavedSongQueue_" + savedRow.index
-                            tooltipText: qsTr("Add to queue")
                             visible: !!root.libraryData && typeof root.libraryData.enqueueSavedSong === "function"
                             x: root.contentWidth < 360
                                 ? Math.max(4, (parent.width - (root.savedSongQueueAvailable ? 162 : 78)) / 2) + 42
@@ -338,7 +336,6 @@ Item {
                         }
                         KeyboardAction {
                             objectName: "vinylLibrarySavedSongAdd_" + savedRow.index
-                            tooltipText: qsTr("Add to playlist")
                             x: root.contentWidth < 360
                                 ? Math.max(4, (parent.width - (root.savedSongQueueAvailable ? 162 : 78)) / 2)
                                     + (root.savedSongQueueAvailable ? 126 : 42)
@@ -353,7 +350,6 @@ Item {
                         }
                         KeyboardAction {
                             objectName: "vinylLibrarySavedSongRemove_" + savedRow.index
-                            tooltipText: qsTr("Remove saved song")
                             x: root.contentWidth < 360
                                 ? Math.max(4, (parent.width - (root.savedSongQueueAvailable ? 162 : 78)) / 2)
                                     + (root.savedSongQueueAvailable ? 84 : 0)
@@ -443,7 +439,6 @@ Item {
             }
             KeyboardAction {
                 objectName: "vinylPlaylistBack"
-                tooltipText: accessibleName
                 width: 38; height: 38
                 focusOnPointer: false
                 accessibleName: "Back to playlists"
@@ -459,7 +454,6 @@ Item {
                 KeyboardAction {
                     id: playlistPlay
                     objectName: "vinylPlaylistPlay"
-                    tooltipText: accessibleName
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: "Play playlist"
@@ -470,7 +464,6 @@ Item {
                 }
                 KeyboardAction {
                     objectName: "vinylPlaylistShuffle"
-                    tooltipText: accessibleName
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: "Shuffle playlist"
@@ -481,7 +474,6 @@ Item {
                 }
                 KeyboardAction {
                     objectName: "vinylPlaylistQueue"
-                    tooltipText: accessibleName
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: "Queue playlist"
@@ -493,7 +485,6 @@ Item {
                 }
                 KeyboardAction {
                     objectName: "vinylPlaylistNext"
-                    tooltipText: accessibleName
                     visible: !!root.libraryData && typeof root.libraryData.enqueuePlaylist === "function"
                     width: 38; height: 36
                     focusOnPointer: false
@@ -506,7 +497,6 @@ Item {
                 KeyboardAction {
                     id: playlistAdd
                     objectName: "vinylPlaylistAdd"
-                    tooltipText: accessibleName
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: root.addingSongs ? "Close add songs" : "Add songs to playlist"
@@ -516,7 +506,6 @@ Item {
                 }
                 KeyboardAction {
                     objectName: "vinylPlaylistRename"
-                    tooltipText: accessibleName
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: "Rename playlist"
@@ -529,7 +518,6 @@ Item {
                 }
                 KeyboardAction {
                     objectName: "vinylPlaylistDelete"
-                    tooltipText: accessibleName
                     width: 38; height: 36
                     focusOnPointer: false
                     accessibleName: "Delete playlist"
@@ -629,7 +617,6 @@ Item {
                         }
                         KeyboardAction {
                             objectName: "vinylPlaylistItemNext_" + playlistItemRow.index
-                            tooltipText: qsTr("Play next")
                             visible: !!root.libraryData && typeof root.libraryData.enqueuePlaylistItem === "function"
                             x: root.contentWidth < 430
                                 ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2)
@@ -648,7 +635,6 @@ Item {
                         }
                         KeyboardAction {
                             objectName: "vinylPlaylistItemQueue_" + playlistItemRow.index
-                            tooltipText: qsTr("Add to queue")
                             visible: !!root.libraryData && typeof root.libraryData.enqueuePlaylistItem === "function"
                             x: root.contentWidth < 430
                                 ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2) + 35
@@ -667,7 +653,6 @@ Item {
                         }
                         KeyboardAction {
                             objectName: "vinylPlaylistMoveUp_" + playlistItemRow.index
-                            tooltipText: qsTr("Move up")
                             x: root.contentWidth < 430
                                 ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2)
                                     + (root.playlistItemQueueAvailable ? 70 : 0)
@@ -682,7 +667,6 @@ Item {
                         }
                         KeyboardAction {
                             objectName: "vinylPlaylistMoveDown_" + playlistItemRow.index
-                            tooltipText: qsTr("Move down")
                             x: root.contentWidth < 430
                                 ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2)
                                     + (root.playlistItemQueueAvailable ? 105 : 35)
@@ -697,7 +681,6 @@ Item {
                         }
                         KeyboardAction {
                             objectName: "vinylPlaylistRemove_" + playlistItemRow.index
-                            tooltipText: qsTr("Remove from playlist")
                             x: root.contentWidth < 430
                                 ? Math.max(4, (parent.width - (root.playlistItemQueueAvailable ? 170 : 100)) / 2)
                                     + (root.playlistItemQueueAvailable ? 140 : 70)

@@ -10,7 +10,6 @@ Item {
 
     Rectangle { id: scene; anchors.fill: parent; color: "#26354e" }
     FontLoader { id: fraunces; source: "../../assets/fonts/Fraunces-Regular.ttf" }
-    App.TooltipStyle { backdrop: root }
     Component { id: mapComponent; Item {} }
     Component { id: nativeMapComponent; App.DockWorldMap {} }
     App.DockPickerCatalog { id: catalogue }

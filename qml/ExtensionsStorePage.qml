@@ -852,7 +852,6 @@ Item {
                             objectName: "extensionsInstallUrlClose"
                             anchors.fill: parent; focusRadius: 16
                             accessibleName: "Close install from URL"
-                            tooltipText: accessibleName
                             onTriggered: root.closeUrlInstaller()
                         }
                     }

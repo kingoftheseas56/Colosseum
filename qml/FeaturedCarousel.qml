@@ -170,9 +170,6 @@ Item {
                         anchors.fill: parent; anchors.margins: -4
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        ToolTip.text: qsTr("Show slide %1").arg(index + 1)
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
                         onClicked: view.currentIndex = index
                     }
                 }

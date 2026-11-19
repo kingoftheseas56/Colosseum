@@ -1179,9 +1179,6 @@ Item {
 
                 MouseArea {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
-                    ToolTip.text: sheet.mode === "play" ? qsTr("Play source") : qsTr("Download source")
-                    ToolTip.visible: containsMouse && mouseX >= play.x && mouseX < play.x + play.width && mouseY >= play.y && mouseY < play.y + play.height
-                    ToolTip.delay: 350
                     visible: !sheet.phoneLayout
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
@@ -1212,9 +1209,6 @@ Item {
                     }
                     MouseArea {
                         id: copyMa; anchors.fill: parent; hoverEnabled: true
-                        ToolTip.text: row.copiedTick ? qsTr("Source link copied") : qsTr("Copy source link")
-                        ToolTip.visible: containsMouse
-                        ToolTip.delay: 350
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             list.currentIndex = row.index
@@ -1246,9 +1240,6 @@ Item {
                     }
                     MouseArea {
                         id: dlMa; anchors.fill: parent; hoverEnabled: true
-                        ToolTip.text: sheet.titleQueued ? qsTr("Download queued") : qsTr("Download source")
-                        ToolTip.visible: containsMouse
-                        ToolTip.delay: 350
                         cursorShape: sheet.titleQueued ? Qt.ArrowCursor : Qt.PointingHandCursor
                         onClicked: {
                             list.currentIndex = row.index
@@ -1404,10 +1395,6 @@ Item {
                             MouseArea {
                                 objectName: "sourcePlay_" + row.index
                                 anchors.fill: parent
-                                ToolTip.text: sheet.mode === "play" ? qsTr("Play source") : qsTr("Download source")
-                                ToolTip.visible: mobilePlayHover.hovered
-                                ToolTip.delay: 350
-                                HoverHandler { id: mobilePlayHover }
                                 onClicked: {
                                     list.currentIndex = row.index
                                     list.forceActiveFocus(Qt.MouseFocusReason)
@@ -1429,10 +1416,6 @@ Item {
                             MouseArea {
                                 objectName: "sourceCopy_" + row.index
                                 anchors.fill: parent
-                                ToolTip.text: row.copiedTick ? qsTr("Source link copied") : qsTr("Copy source link")
-                                ToolTip.visible: mobileCopyHover.hovered
-                                ToolTip.delay: 350
-                                HoverHandler { id: mobileCopyHover }
                                 onClicked: {
                                     list.currentIndex = row.index
                                     list.forceActiveFocus(Qt.MouseFocusReason)
@@ -1454,10 +1437,6 @@ Item {
                             MouseArea {
                                 objectName: "sourceDownload_" + row.index
                                 anchors.fill: parent
-                                ToolTip.text: sheet.titleQueued ? qsTr("Download queued") : qsTr("Download source")
-                                ToolTip.visible: mobileDownloadHover.hovered
-                                ToolTip.delay: 350
-                                HoverHandler { id: mobileDownloadHover }
                                 onClicked: {
                                     list.currentIndex = row.index
                                     list.forceActiveFocus(Qt.MouseFocusReason)

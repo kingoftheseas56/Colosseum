@@ -66,7 +66,7 @@ foreach ($f in @("qml/SearchSurface.qml", "qml/BiblioSearch.qml")) {
 # --- player: the top-left control is an honest minimize, not a fake Back ---
 $pp = Read-File "qml/PlayerPage.qml"
 Assert-Contains $pp 'icon: "minimizeToBar"' "Player top-left control must wear the minimize icon."
-Assert-Contains $pp 'tooltip: "Minimize' "Player top-left tooltip must say Minimize, not Back."
+Assert-Contains $pp 'actionLabel: "Minimize' "Player top-left accessible label must say Minimize, not Back."
 Assert-Contains $pp 'PlayerIcon {' "Player RoundButton must render ordinary controls through PlayerIcon."
 Assert-Contains $pp 'kind: rb.icon' "Player RoundButton must pass its semantic icon kind into PlayerIcon."
 $playerIcon = Read-File "qml/PlayerIcon.qml"

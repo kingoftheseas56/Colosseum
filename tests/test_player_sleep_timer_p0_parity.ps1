@@ -37,7 +37,7 @@ Assert-Contains $player "mpv.pause = true" `
 Assert-Contains $player "Sleep timer" `
     "Speed menu must render a Sleep timer section."
 Assert-Contains $player "Speed & sleep" `
-    "Speed menu tooltip must expose combined speed and sleep behavior."
+    "Speed menu accessible label must expose combined speed and sleep behavior."
 Assert-Contains $player "Cancel timer" `
     "Speed menu must provide a timer cancel action."
 Assert-Contains $player "sleepTimerLabel" `

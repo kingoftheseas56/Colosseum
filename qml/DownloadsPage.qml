@@ -1090,10 +1090,6 @@ Item {
                                                 visible: epRow.modelData.state === "done"
                                                 text: "✓"; color: theme.inkDim
                                                 font.family: theme.ui; font.pixelSize: 13
-                                                HoverHandler { id: completeMarkHover }
-                                                ToolTip.visible: completeMarkHover.hovered
-                                                ToolTip.text: qsTr("Download complete")
-                                                ToolTip.delay: 350
                                             }
                                             Text {
                                                 // Android touch host: glyph unchanged, hit host >= 48 (desktop: implicit size).
@@ -1701,10 +1697,6 @@ Item {
                                 width: abShelfCol.width; height: 54
                                 Text {
                                     id: abMark
-                                    HoverHandler { id: audiobookMarkHover }
-                                    ToolTip.visible: audiobookMarkHover.hovered
-                                    ToolTip.text: abDoneRow.modelData.missing ? qsTr("File missing") : qsTr("Saved on this device")
-                                    ToolTip.delay: 350
                                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                                     width: 22
                                     text: abDoneRow.modelData.missing ? "✕" : "✓"
@@ -1914,7 +1906,6 @@ Item {
                 id: backInput
                 anchors.fill: parent
                 accessibleName: "Back"
-                tooltipText: accessibleName
                 focusRadius: 17
                 onTriggered: root.backRequested()
             }
@@ -1923,16 +1914,16 @@ Item {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.rightMargin: 26
             spacing: 20
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
-                    KeyboardAction { anchors.fill: parent; accessibleName: "Search"; tooltipText: accessibleName; focusRadius: 5
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Search"; focusRadius: 5
                         onTriggered: root.searchClicked() } }
             Image { visible: !root.onAndroid; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
-                    KeyboardAction { anchors.fill: parent; accessibleName: "Minimize"; tooltipText: accessibleName; focusRadius: 5
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Minimize"; focusRadius: 5
                         onTriggered: root.minimizeRequested() } }
             Image { visible: !root.onAndroid; source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
-                    KeyboardAction { anchors.fill: parent; accessibleName: "Toggle fullscreen"; tooltipText: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen"); focusRadius: 5
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Toggle fullscreen"; focusRadius: 5
                         onTriggered: root.fullscreenRequested() } }
             Image { visible: !root.onAndroid; source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
-                    KeyboardAction { anchors.fill: parent; accessibleName: "Close Colosseum"; tooltipText: accessibleName; focusRadius: 5
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Close Colosseum"; focusRadius: 5
                         onTriggered: root.closeRequested() } }
         }
     }
@@ -1950,10 +1941,6 @@ Item {
         }
         Text {
             id: markT
-            HoverHandler { id: ledgerMarkHover }
-            ToolTip.visible: ledgerMarkHover.hovered
-            ToolTip.text: row.rowData.missing ? qsTr("File missing") : qsTr("Saved on this device")
-            ToolTip.delay: 350
             x: row.indent
             anchors.verticalCenter: parent.verticalCenter
             width: 22

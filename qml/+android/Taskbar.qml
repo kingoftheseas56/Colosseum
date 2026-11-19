@@ -70,7 +70,6 @@ Item {
                     objectName: "colosseumTaskbarHomeButton"
                     anchors.fill: parent
                     accessibleName: bar.open ? qsTr("Close taskbar") : qsTr("Open taskbar")
-                    tooltipText: accessibleName
                     focusRadius: 14
                     onTriggered: bar.open = !bar.open
                 }

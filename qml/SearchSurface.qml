@@ -349,8 +349,6 @@ Item {
                 MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { queryInput.text = ""; queryInput.forceActiveFocus() } }
                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Clear search"; focusRadius: 13
-                    tooltipText: accessibleName
-                    tooltipHovered: clearMa.containsMouse
                     onTriggered: { queryInput.text = ""; queryInput.forceActiveFocus() } }
             }
             Rectangle {
@@ -967,8 +965,6 @@ Item {
                 onClicked: surf.minimizeRequested()
             }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; focusRadius: 4
-                tooltipText: accessibleName
-                tooltipHovered: chromeMinMa.containsMouse
                 onTriggered: surf.minimizeRequested() }
         }
         Item {
@@ -985,9 +981,6 @@ Item {
                 opacity: fsMa.containsMouse ? 1.0 : 0.72
             }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; focusRadius: 4
-                tooltipText: typeof WindowMode !== "undefined" && WindowMode.shellWindowed
-                             ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                tooltipHovered: fsMa.containsMouse
                 onTriggered: surf.fullscreenRequested() }
             MouseArea {
                 id: fsMa
@@ -1009,8 +1002,6 @@ Item {
                 opacity: chromePowMa.containsMouse ? 1.0 : 0.72
             }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close Colosseum"; focusRadius: 4
-                tooltipText: accessibleName
-                tooltipHovered: chromePowMa.containsMouse
                 onTriggered: { surf.cancelAllRequests(); surf.closeRequested() } }
             MouseArea {
                 id: chromePowMa

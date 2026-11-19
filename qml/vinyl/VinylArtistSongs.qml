@@ -366,7 +366,6 @@ Column {
                         id: nextAction
                         focusOnPointer: false
                         objectName: row.isCompact ? "vinylArtistSinglesNext_" + row.index : ""
-                        tooltipText: qsTr("Play next")
                         visible: row.isCompact && root.compactQueueAvailable
                         x: parent.width - 76
                         y: (parent.height - 32) / 2
@@ -383,7 +382,6 @@ Column {
                         id: queueAction
                         focusOnPointer: false
                         objectName: row.isCompact ? "vinylArtistSinglesQueue_" + row.index : ""
-                        tooltipText: qsTr("Add to queue")
                         visible: row.isCompact && root.compactQueueAvailable
                         x: parent.width - 40
                         y: (parent.height - 32) / 2
