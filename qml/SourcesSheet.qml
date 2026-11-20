@@ -135,15 +135,29 @@ Item {
     readonly property string smartPlayStatus: !sheet.smartPlayEnabled || sheet.smartPlayCancelled ? ""
         : !sheet.smartPlaySettled ? qsTr("Finding the best source…")
         : !sheet.smartPlayRow ? qsTr("No source passed the quality check. Choose one below.") : ""
-    function finishSmartPlay(atTimeout) {
+    // Smart Pick never waits for the slowest provider. After the first answer carrying
+    // sources a short grace window collects more, then the best passing candidate among
+    // what has arrived is picked; a hard cap picks (or falls back to the list) regardless.
+    property int smartPickGraceMs: 4000
+    property int smartPickCapMs: 11000
+    property bool smartPickGraceElapsed: false
+    function smartPickAnswered() {
+        if (!sheet.open || !sheet.smartPlayEnabled || sheet.smartPlayCancelled || sheet.smartPlaySettled) return
+        if (sheet.smartPickGraceElapsed) { sheet.finishSmartPlay(true, true); return }
+        if (!smartGraceTimer.running && sheet.baseRows().length > 0) smartGraceTimer.start()
+    }
+    function finishSmartPlay(atTimeout, earlyOnly) {
         if (!sheet.open || !sheet.smartPlayEnabled || sheet.smartPlayCancelled || sheet.smartPlaySettled
                 || (!atTimeout && (sheet.loading || sheet.nuvioPending))) return
-        timeout.stop()
         var allRows = sheet.baseRows()
         var pick = SmartPlay.pick(allRows, sheet.smartPlayQuality,
             Object.assign({}, sheet.playbackContext, { type: sheet.subType, id: sheet.subId,
                 preferredLanguages: TrackLanguage.parseLanguageList(
                     smartPlaySettings.value("preferredAudioLanguages", "eng,jpn"), ["eng", "jpn"]) }))
+        if (earlyOnly && pick.index < 0) return   // nothing passing yet: keep waiting for the cap
+        timeout.stop()
+        smartGraceTimer.stop()
+        smartCapTimer.stop()
         sheet.smartPlayRow = pick.index >= 0 ? allRows[pick.index] : null
         sheet.smartPlaySettled = true
         sheet.warmTopRow()
@@ -382,6 +396,9 @@ Item {
         Qt.callLater(function(){ if (sheet.open && !sheet.smartPickInPlayer) sourcesBack.forceActiveFocus(Qt.PopupFocusReason) });
         var myGen = sheet.gen;
         timeout.restart();
+        smartGraceTimer.stop();
+        sheet.smartPickGraceElapsed = false;
+        if (sheet.smartPlayEnabled) smartCapTimer.restart(); else smartCapTimer.stop();
 
         var installedList = sheet.extensionsService ? sheet.extensionsService.installed() : [];
 
@@ -414,6 +431,7 @@ Item {
         var selected = sheet.nuvioRows.length ? sheet.visibleRows[list.currentIndex] : null;
         sheet.rows = rows;
         if (selected && selected.nuvio) list.currentIndex = sheet.visibleRows.indexOf(selected);
+        sheet.smartPickAnswered();
     }
 
     function startNuvio(type, id, context) {
@@ -454,6 +472,7 @@ Item {
                 batch.push(row);
             }
             sheet.nuvioRows = sheet.nuvioRows.concat(batch);
+            if (batch.length) sheet.smartPickAnswered();
         }
         function onFinished(requestId) {
             if (requestId === sheet.nuvioRequestId) sheet.nuvioRequestId = 0;
@@ -524,6 +543,7 @@ Item {
     // Bounded to ONE row on purpose — warming all of them would open a swarm per row.
     property string warmedHash: ""
     function warmTopRow() {
+        if (!sheet.open) return;
         if (sheet.mode === "play" && sheet.vaultLocalRows.length && (sheet.extFilter === "all" || sheet.extFilter === "vault-local")) return;
         if (typeof Stream === "undefined" || sheet.mode === "download") return;
         var rows = sheet.smartPlayRow ? [sheet.smartPlayRow] : sheet.filteredRows();
@@ -574,6 +594,8 @@ Item {
         sheet.smartPlayCancelled = true;
         sheet.smartPlayRow = null;
         timeout.stop();
+        smartGraceTimer.stop();
+        smartCapTimer.stop();
         var target=sheet.focusReturnItem; sheet.focusReturnItem=null
         if(target) Qt.callLater(function(){ if(target.visible&&target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
@@ -709,6 +731,20 @@ Item {
         return p.join("   ·   ");
     }
 
+    Timer {
+        id: smartGraceTimer
+        objectName: "smartPickGraceTimer"
+        interval: sheet.smartPickGraceMs
+        repeat: false
+        onTriggered: { sheet.smartPickGraceElapsed = true; sheet.finishSmartPlay(true, true) }
+    }
+    Timer {
+        id: smartCapTimer
+        objectName: "smartPickCapTimer"
+        interval: sheet.smartPickCapMs
+        repeat: false
+        onTriggered: sheet.finishSmartPlay(true)
+    }
     Timer {
         id: timeout
         objectName: "sourcesTimeout"

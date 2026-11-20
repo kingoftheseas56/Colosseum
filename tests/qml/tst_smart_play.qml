@@ -129,6 +129,38 @@ Item {
             compare(sheet.smartPickInPlayer, false)
             compare(sheet.smartPlayStatus, "No source passed the quality check. Choose one below.")
         }
+        function test_slowProvider_doesNotHoldPick_afterGrace() {
+            sheet.smartPickGraceMs = 300; sheet.smartPickCapMs = 5000
+            // one provider answered with a passing row; another provider and Nuvio never answer
+            show(); stremio.requests[0].partial([row(0, "720p"), row(1, "1080p")])
+            compare(playSpy.count, 0)
+            tryCompare(playSpy, "count", 1, 2000)
+            compare(playSpy.signalArguments[0][0], "2".repeat(40))
+            compare(sheet.loading, true); compare(sheet.nuvioPending, true)
+            compare(sheet.open, false)
+            // a late answer after the pick is ignored
+            stremio.requests[0].done([row(5, "1080p")])
+            wait(50); compare(playSpy.count, 1)
+            sheet.smartPickGraceMs = 4000; sheet.smartPickCapMs = 11000
+        }
+        function test_hardCap_noPassingCandidate_fallsBackToSheet() {
+            sheet.smartPickGraceMs = 200; sheet.smartPickCapMs = 700
+            show(); stremio.requests[0].partial([row(0, "1080p", "CAM")])
+            wait(400); compare(playSpy.count, 0); compare(sheet.smartPlaySettled, false)
+            tryCompare(sheet, "smartPlaySettled", true, 2000)
+            compare(playSpy.count, 0); compare(sheet.open, true)
+            compare(sheet.smartPlayStatus, "No source passed the quality check. Choose one below.")
+            sheet.smartPickGraceMs = 4000; sheet.smartPickCapMs = 11000
+        }
+        function test_hardCap_picksBestSoFar_whenPassingRowArrivesLate() {
+            sheet.smartPickGraceMs = 200; sheet.smartPickCapMs = 700
+            show(); stremio.requests[0].partial([row(0, "1080p", "CAM")])
+            wait(300)
+            stremio.requests[0].partial([row(0, "1080p", "CAM"), row(1, "1080p")])
+            tryCompare(playSpy, "count", 1, 2000)
+            compare(playSpy.signalArguments[0][0], "2".repeat(40))
+            sheet.smartPickGraceMs = 4000; sheet.smartPickCapMs = 11000
+        }
         function test_manualTap_duringLoading_wins() {
             var rows = [row(0, "720p"), row(1, "1080p")]
             show(); stremio.requests[0].partial(rows)
