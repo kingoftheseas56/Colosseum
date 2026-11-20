@@ -118,22 +118,39 @@ Item {
             const builtIn = findChild(rail, "essentialsAction_cinemeta")
             verify(install && gear && builtIn)
             var installed = false
+            var disabled = false
             rail.installedFn = () => installed
+            rail.disabledFn = () => disabled
             var actions = []
-            rail.addonActivated.connect(addon => actions.push("install " + addon.slug))
+            rail.addonActivated.connect(addon => actions.push((disabled ? "enable " : "install ") + addon.slug))
             rail.addonConfigured.connect(addon => actions.push("configure " + addon.slug))
             rail.addonRemoved.connect(addon => actions.push("uninstall " + addon.slug))
 
+            const enable = findChild(rail, "essentialsEnable_torrentio")
             compare(install.accessibleName, "Install Torrentio")
+            verify(enable && !enable.visible)
             verify(gear.visible && gear.height >= 44)
             verify(!builtIn.enabled)
             mouseClick(gear)
             mouseClick(install)
             installed = true
+            disabled = true
             rail.revision++
+            verify(enable.visible && enable.enabled)
+            compare(enable.accessibleName, "Enable Torrentio")
             compare(install.accessibleName, "Uninstall Torrentio")
+            rail.width = 150
+            wait(0)
+            verify(enable.x >= 0 && enable.width >= 44 && install.width >= 44)
+            verify(enable.x + enable.width <= install.x)
+            verify(gear.y + gear.height <= install.y)
+            mouseClick(gear)
+            mouseClick(enable)
+            disabled = false
+            rail.revision++
+            verify(!enable.visible)
             mouseClick(install)
-            compare(actions.join(", "), "configure torrentio, install torrentio, uninstall torrentio")
+            compare(actions.join(", "), "configure torrentio, install torrentio, configure torrentio, enable torrentio, uninstall torrentio")
         }
 
         function test_installed_search_keeps_the_original_instance() {

@@ -23,11 +23,13 @@ Item {
     signal actionFocused()
 
     function focusActions() {
-        if (installAction.enabled) installAction.forceActiveFocus(Qt.TabFocusReason)
+        if (enableAction.visible && enableAction.enabled) enableAction.forceActiveFocus(Qt.TabFocusReason)
+        else if (installAction.enabled) installAction.forceActiveFocus(Qt.TabFocusReason)
         else if (configuration.visible) configuration.forceActiveFocus(Qt.TabFocusReason)
     }
 
     readonly property bool lit: card.selected || action.hovered
+                                || (enableAction.visible && (enableAction.hovered || enableAction.activeFocus))
                                 || (installAction.enabled && (installAction.hovered || installAction.activeFocus)) || configuration.interactionActive
     readonly property bool browsable: !!card.addon.world
     readonly property int padding: 16
@@ -91,7 +93,7 @@ Item {
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.leftMargin: card.padding
-            anchors.rightMargin: card.padding
+            anchors.rightMargin: card.padding + (essentialsActions.configurationAbove ? configuration.width : 0)
             anchors.topMargin: 72
             text: card.addon.description || ""
             textFormat: Text.PlainText
@@ -249,6 +251,9 @@ Item {
         anchors.bottom: parent.bottom
         anchors.margins: card.padding
         height: 44
+        readonly property bool configurationAbove: configuration.visible && enableAction.visible
+            && width < enableAction.implicitWidth + installAction.implicitWidth + configuration.width + 4
+        readonly property real buttonWidth: width - (configuration.visible && !configurationAbove ? configuration.width : 0)
 
         Text {
             anchors.left: parent.left
@@ -256,12 +261,33 @@ Item {
             width: Math.max(0, (configuration.visible ? configuration.x
                        : installAction.visible ? installAction.x : parent.width) - 4)
             elide: Text.ElideRight
-            visible: card.builtIn || card.disabled || card.busy
-            text: card.builtIn ? qsTr("Built in")
-                : card.busy ? qsTr("Installing…") : qsTr("Disabled")
+            visible: card.builtIn || card.busy
+            text: card.builtIn ? qsTr("Built in") : qsTr("Installing…")
             color: theme.inkDim
             font.family: theme.ui
             font.pixelSize: theme.fontSize(12)
+        }
+        ExtensionsActionButton {
+            id: enableAction
+            objectName: "essentialsEnable_" + (card.addon.slug || "")
+            visible: card.essentialsLayout && card.installed && card.disabled && !card.builtIn && !card.browsable
+            enabled: visible && !card.busy
+            anchors.right: configuration.visible && !essentialsActions.configurationAbove ? configuration.left : installAction.left
+            anchors.rightMargin: 4
+            height: parent.height
+            width: Math.min(implicitWidth, Math.max(0, (essentialsActions.buttonWidth - 4) / 2,
+                                                  essentialsActions.buttonWidth - installAction.implicitWidth - 4))
+            padding: 4
+            text: qsTr("Enable")
+            readonly property string accessibleName: qsTr("Enable %1").arg(title.text)
+            Accessible.name: accessibleName
+            Keys.onReturnPressed: clicked()
+            Keys.onEnterPressed: clicked()
+            onActiveFocusChanged: if (activeFocus) card.actionFocused()
+            onClicked: {
+                installAction.forceActiveFocus()
+                card.activated()
+            }
         }
         ExtensionsActionButton {
             id: installAction
@@ -270,6 +296,10 @@ Item {
             enabled: visible && !card.busy
             anchors.right: parent.right
             height: parent.height
+            width: enableAction.visible
+                ? Math.max(0, Math.min(implicitWidth, essentialsActions.buttonWidth - enableAction.width - 4))
+                : implicitWidth
+            padding: enableAction.visible ? 4 : 12
             text: card.browsable ? qsTr("Browse") : card.installed ? qsTr("Uninstall") : qsTr("Install")
             readonly property string accessibleName: qsTr("%1 %2").arg(text).arg(title.text)
             Accessible.name: accessibleName
@@ -289,7 +319,8 @@ Item {
             enabled: !card.busy
             width: 44
             height: parent.height
-            anchors.right: installAction.left
+            anchors.right: essentialsActions.configurationAbove ? parent.right : installAction.left
+            y: essentialsActions.configurationAbove ? card.padding + 50 - essentialsActions.y : 0
             accessibleName: qsTr("Configure %1").arg(title.text)
             onActiveFocusChanged: if (activeFocus) card.actionFocused()
             onTriggered: card.configureRequested()

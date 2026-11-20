@@ -285,10 +285,8 @@ bool ExtensionsStore::isSafeTheatreDefault(const QVariantMap& item)
 {
     static const QSet<QString> safeUrls{
         QStringLiteral("https://v3-cinemeta.strem.io/manifest.json"),
-        QStringLiteral("https://torrentio.strem.fun/manifest.json"),
         QStringLiteral("https://addon.notorrent2.workers.dev/manifest.json"),
-        QStringLiteral("https://anime-kitsu.strem.fun/manifest.json"),
-        QStringLiteral("https://opensubtitles-v3.strem.io/manifest.json")};
+        QStringLiteral("https://anime-kitsu.strem.fun/manifest.json")};
     return isTheatreCompatible(item)
         && safeUrls.contains(item.value(QStringLiteral("transportUrl")).toString().toLower());
 }
@@ -579,9 +577,8 @@ void ExtensionsStore::bump()
 
 // -------------------------------------------------------------------- seeding
 
-// The four the house already runs on. Manifests are embedded (no network at
-// boot); the real, richer manifest replaces the seed copy if the extension is
-// ever re-installed by link.
+// The house roster's embedded manifests seed defaults and refresh metadata for
+// previously installed house add-ons. Optional Essentials require installation.
 // Returns true if anything was actually added or refreshed — the caller cannot infer
 // that from the row COUNT, because a generation can add as many rows as it retires and
 // a manifest refresh changes no count at all.
@@ -596,12 +593,8 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
         e.insert(QStringLiteral("id"), QString::fromLatin1(id));
         e.insert(QStringLiteral("transportUrl"), QString::fromLatin1(url));
         e.insert(QStringLiteral("installedAt"), now);
-        // First-run source consent (locked product rule, the Stremio model): a removable acquisition/
-        // playback WELL — a non-core extension that provides `stream` sources — is seeded INSTALLED but
-        // DISABLED until the user turns it on. Core catalogues and non-fetching capabilities
-        // (catalog/meta/subtitles/universe) stay enabled. Derived from the manifest's resources + core,
-        // never from string-matching a name. `add` preserves an existing profile's own enabled choice;
-        // this default reaches only rows a profile does not already carry.
+        // A removable stream provider included in the defaults starts disabled.
+        // Other seeded capabilities start enabled. Metadata refreshes keep the saved switch.
         const bool removableWell = !core
             && manifest.value(QStringLiteral("resources")).toStringList().contains(QStringLiteral("stream"));
         e.insert(QStringLiteral("enabled"), !removableWell);
@@ -640,7 +633,8 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // and "Colosseum Data" stayed after it was renamed. Remote add-ons are never touched
     // here — their manifest belongs to their author and arrives over the wire.
     auto add = [this, onlyMissing, &entry, &touched](const char* id, const char* url,
-                                                     bool core, const QVariantMap& m) {
+                                                     bool core, const QVariantMap& m,
+                                                     bool installByDefault = true) {
         const int at = indexOfId(QString::fromLatin1(id));
         if (at >= 0) {
             if (onlyMissing
@@ -650,6 +644,8 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
             }
             return;
         }
+        if (!installByDefault)
+            return;
         m_items.append(entry(id, url, core, m));
         touched = true;
     };
@@ -666,11 +662,9 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
                  "Play sources from twelve indexers, sorted by quality and health.",
                  { QStringLiteral("stream") },
                  { QStringLiteral("movie"), QStringLiteral("series"), QStringLiteral("anime") },
-                 { QStringLiteral("tt"), QStringLiteral("kitsu") }, true));
-    // NoTorrent — direct HTTP streams that play instantly, no torrent, no seeding. Seeded enabled
-    // as Theatre's HTTP source ALONGSIDE Torrentio (not instead of it). Measured 2026-08-07 to
-    // cover 18/18 Discover-catalog titles (House HTTP Source slice 3); its URLs are self-authed on
-    // its own worker, so it needs no proxy headers. Generation 9.
+                 { QStringLiteral("tt"), QStringLiteral("kitsu") }, true),
+        /*installByDefault=*/false);
+    // NoTorrent is Theatre's seeded HTTP source and starts disabled.
     add("com.notorrent.addon", "https://addon.notorrent2.workers.dev/manifest.json", false,
         manifest("com.notorrent.addon", "NoTorrent",
                  "Direct HTTP streams — movies and shows that play instantly, no torrent, no seeding.",
@@ -688,7 +682,8 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
                  "Subtitles in every language, matched to the exact episode playing.",
                  { QStringLiteral("subtitles") },
                  { QStringLiteral("movie"), QStringLiteral("series") },
-                 {}, false));
+                 {}, false),
+        /*installByDefault=*/false);
 
     // ---- Catalogues: what fills the shelves. Locked (core), never ranked ----
     // Hemanth's ruling 2026-07-26: WeebCentral and GetComics are NOT our catalogues —
@@ -718,17 +713,20 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // with the one shared Torrent Indexers row landing 4th in Tankoban and 2nd in Biblio.
     add("colosseum.well.nyaa", "colosseum://well/nyaa", false,
         manifest("colosseum.well.nyaa", "Nyaa", "",
-                 { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
+                 { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false),
+        /*installByDefault=*/false);
     add("colosseum.well.tankoyomi", "https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json", false,
         manifest("colosseum.well.tankoyomi", "Tankoyomi",
                   "Language-aware chapter sources for Tankoban Chapter Mode.",
-                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, true));
+                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, true),
+        /*installByDefault=*/false);
     if (indexOfId(QStringLiteral("colosseum.well.getcomics.issues")) >= 0)
         add("colosseum.well.getcomics.issues", "colosseum://well/getcomics.issues", false,
             optionalNativeSourceManifest(QStringLiteral("colosseum://well/getcomics.issues")));
     add("colosseum.well.libgen", "colosseum://well/libgen", false,
         manifest("colosseum.well.libgen", "LibGen", "",
-                 { QStringLiteral("stream") }, { QStringLiteral("book") }, {}, false));
+                 { QStringLiteral("stream") }, { QStringLiteral("book") }, {}, false),
+        /*installByDefault=*/false);
     // One well, two worlds. Hemanth overrode the four-separate-extensions recommendation,
     // so it carries a Configure sheet (stage 4). Named "Tankorent" on his word 2026-07-26 —
     // which is what the engine has called it all along (native/torrent/TankorentSearchService).

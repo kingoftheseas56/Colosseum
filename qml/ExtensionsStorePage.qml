@@ -241,17 +241,10 @@ Item {
             root.showInstallError(qsTr("An add-on install is already finishing. Try again shortly."))
             return
         }
-        // An add-on with a setup page opens it in-app, installed or not. A seeded,
-        // disabled source can be enabled there without fetching its manifest again.
+        // Configurable add-ons open their setup in-app.
         if (a.configurable) { root.openSetup(a, null); return }
         if (root.isInstalled(a)) {
-            if (root.isDisabled(a)) {
-                var existing = root.installedEntries.find(function(entry) {
-                    return entry.transportUrl === a.manifestUrl || entry.id === a.id
-                })
-                if (!existing || !root.enableInstalledUrl(existing.transportUrl))
-                    root.showInstallError(qsTr("Couldn't enable the add-on. Try again in Your Add-ons."))
-            }
+            if (root.isDisabled(a)) root.enableAddon(a)
             return
         }
         root.setBusy(a.slug, true)
@@ -269,7 +262,19 @@ Item {
         })
         return indices
     }
+    function enableAddon(addon) {
+        const indices = root.essentialInstanceIndices(addon)
+        if (indices.length > 1) {
+            management.initialIndex = indices[0]
+            root.managingInstalled = true
+            return
+        }
+        const entry = root.installedEntries[indices[0]]
+        if (!entry || !root.enableInstalledUrl(entry.transportUrl))
+            root.showInstallError(qsTr("Couldn't enable the add-on. Try again in Your Add-ons."))
+    }
     function installEssential(addon) {
+        if (root.isDisabled(addon)) { root.enableAddon(addon); return }
         if (addon.id === "colosseum.well.tankoyomi" || !addon.setupRequired)
             root.activate(Object.assign({}, addon, { configurable: false }))
         else

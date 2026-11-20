@@ -197,6 +197,15 @@ class tst_extensions_first_run : public QObject
         row.insert(QStringLiteral("manifest"), manifest);
         return row;
     }
+    static QJsonObject legacyMangaWell(const QString &id, const QString &url)
+    {
+        QJsonObject row = QJsonObject::fromVariantMap(theatreFixture(url, id));
+        QJsonObject manifest = row.value(QStringLiteral("manifest")).toObject();
+        manifest.insert(QStringLiteral("types"), QJsonArray{QStringLiteral("manga")});
+        manifest.insert(QStringLiteral("resources"), QJsonArray{QStringLiteral("stream")});
+        row.insert(QStringLiteral("manifest"), manifest);
+        return row;
+    }
     static bool activateProfile(ExtensionsStore *store,
                                 const QString &profileId,
                                 const QString &path)
@@ -279,6 +288,8 @@ private slots:
         QFETCH(QString, id);
         QFETCH(QString, url);
         ExtensionsStore store(nullptr);
+        QVERIFY(!store.isInstalled(id));
+        store.install(url);
         QVERIFY(store.isInstalled(id));
         store.removeInstance(url);
         QVERIFY(!store.isInstalled(id));
@@ -454,57 +465,73 @@ private slots:
                  "a persisted enable choice was reset on store reconstruction");
     }
 
-    // R1 (release gate for 1.1.1, 2026-08-21, "nyaa ships dark"): the manga Nyaa well
-    // rides the SAME generic removable-well gate proven above (fresh_profile_requires_
-    // consent_for_removable_wells) -- this case names it explicitly so the release
-    // gate has its own direct, traceable assertion rather than relying only on the
-    // generic "at least one well" count. Mirrors Torrentio's own treatment exactly:
-    // both are non-core, both provide "stream", both seed enabled:false.
-    void manga_nyaa_well_seeded_disabled()
+    void optional_essentials_require_explicit_install_data()
     {
+        QTest::addColumn<QString>("id");
+        QTest::newRow("torrentio") << QStringLiteral("com.stremio.torrentio.addon");
+        QTest::newRow("tankoyomi") << QStringLiteral("colosseum.well.tankoyomi");
+        QTest::newRow("opensubtitles") << QStringLiteral("org.stremio.opensubtitlesv3");
+        QTest::newRow("nyaa") << QStringLiteral("colosseum.well.nyaa");
+        QTest::newRow("libgen") << QStringLiteral("colosseum.well.libgen");
+    }
+
+    void optional_essentials_require_explicit_install()
+    {
+        QFETCH(QString, id);
         ExtensionsStore store(nullptr);
-        const QVariantMap nyaa = findById(store.installed(), QStringLiteral("colosseum.well.nyaa"));
-        QVERIFY2(!nyaa.isEmpty(), "colosseum.well.nyaa missing from the house seed");
-        QCOMPARE(nyaa.value(QStringLiteral("transportUrl")).toString(),
-                 QStringLiteral("colosseum://well/nyaa"));
-        QVERIFY2(isRemovableWell(nyaa), "colosseum.well.nyaa is not classified as a removable well");
-        QVERIFY2(!nyaa.value(QStringLiteral("enabled")).toBool(),
-                 "colosseum.well.nyaa seeded ENABLED on a fresh install -- nyaa must ship dark");
+        QVERIFY(!store.isInstalled(id));
+        QVERIFY(!ExtensionsStore(nullptr).isInstalled(id));
+    }
+
+    void existing_theatre_choices_do_not_become_fresh_profile_defaults()
+    {
+        const QString torrentioId = QStringLiteral("com.stremio.torrentio.addon");
+        const QString subtitleId = QStringLiteral("org.stremio.opensubtitlesv3");
+        auto torrentio = theatreFixture(QStringLiteral("https://torrentio.strem.fun/manifest.json"), torrentioId);
+        torrentio.insert(QStringLiteral("enabled"), false);
+        const auto subtitles = theatreFixture(
+            QStringLiteral("https://opensubtitles-v3.strem.io/manifest.json"), subtitleId);
+        const QJsonArray rows{QJsonObject::fromVariantMap(torrentio), QJsonObject::fromVariantMap(subtitles)};
+        const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+            + QStringLiteral("/extensions/installed.json");
+        QVERIFY(QDir().mkpath(QFileInfo(path).absolutePath()));
+        QFile index(path);
+        QVERIFY(index.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        const QJsonObject oldIndex{
+            {QStringLiteral("defaultsVersion"), 21},
+            {QStringLiteral("extensions"), rows},
+            {QStringLiteral("theatreDefaults"), rows}};
+        QVERIFY(index.write(QJsonDocument(oldIndex).toJson()) > 0);
+        index.close();
+
+        QTemporaryDir profiles;
+        QVERIFY(profiles.isValid());
+        const QString existing = profiles.filePath(QStringLiteral("existing/extensions.json"));
+        const QString fresh = profiles.filePath(QStringLiteral("fresh/extensions.json"));
+        ExtensionsStore store(nullptr);
+        QVERIFY(activateProfile(&store, QStringLiteral("existing"), existing));
+        QCOMPARE(store.installed(), rows.toVariantList());
+        QVERIFY(activateProfile(&store, QStringLiteral("fresh"), fresh));
+        QVERIFY(!store.isInstalled(torrentioId));
+        QVERIFY(!store.isInstalled(subtitleId));
+        QVERIFY(activateProfile(&store, QStringLiteral("existing"), existing));
+        QCOMPARE(store.installed(), rows.toVariantList());
     }
 
     void legacy_weebcentral_well_migrates_in_place_to_tankoyomi()
     {
         const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
             + QStringLiteral("/extensions/installed.json");
-        int originalIndex = -1;
-        {
-            ExtensionsStore seeded(nullptr);
-            const QVariantList items = seeded.installed();
-            for (int i = 0; i < items.size(); ++i) {
-                if (items.at(i).toMap().value(QStringLiteral("id")).toString()
-                    == QStringLiteral("colosseum.well.tankoyomi")) {
-                    originalIndex = i;
-                    break;
-                }
-            }
-        }
-        QVERIFY(originalIndex >= 0);
+        constexpr int originalIndex = 1;
+        { ExtensionsStore seeded(nullptr); }
 
         QFile in(path);
         QVERIFY(in.open(QIODevice::ReadOnly));
         QJsonObject root = QJsonDocument::fromJson(in.readAll()).object();
         in.close();
         QJsonArray rows = root.value(QStringLiteral("extensions")).toArray();
-        QVERIFY(originalIndex < rows.size());
-        QJsonObject legacy = rows.at(originalIndex).toObject();
-        legacy.insert(QStringLiteral("id"), QStringLiteral("colosseum.well.weebcentral.pages"));
-        legacy.insert(QStringLiteral("transportUrl"), QStringLiteral("colosseum://well/weebcentral.pages"));
-        legacy.insert(QStringLiteral("enabled"), true);
-        QJsonObject legacyManifest = legacy.value(QStringLiteral("manifest")).toObject();
-        legacyManifest.insert(QStringLiteral("id"), QStringLiteral("colosseum.well.weebcentral.pages"));
-        legacyManifest.insert(QStringLiteral("name"), QStringLiteral("WeebCentral"));
-        legacy.insert(QStringLiteral("manifest"), legacyManifest);
-        rows.replace(originalIndex, legacy);
+        rows.insert(originalIndex, legacyMangaWell(
+            QStringLiteral("colosseum.well.weebcentral.pages"), QStringLiteral("colosseum://well/weebcentral.pages")));
         root.insert(QStringLiteral("defaultsVersion"), 11);
         root.insert(QStringLiteral("extensions"), rows);
         QDir().mkpath(QFileInfo(path).absolutePath());
@@ -533,34 +560,19 @@ private slots:
     {
         const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
             + QStringLiteral("/extensions/installed.json");
-        int originalIndex = -1;
-        QStringList originalOrder;
-        {
-            ExtensionsStore seeded(nullptr);
-            const QVariantList before = seeded.installed();
-            for (int i = 0; i < before.size(); ++i) {
-                const QVariantMap row = before.at(i).toMap();
-                originalOrder.append(row.value(QStringLiteral("id")).toString());
-                if (row.value(QStringLiteral("id")).toString()
-                    == QStringLiteral("colosseum.well.tankoyomi")) {
-                    originalIndex = i;
-                }
-            }
-        }
-        QVERIFY(originalIndex >= 0);
+        constexpr int originalIndex = 1;
+        { ExtensionsStore seeded(nullptr); }
 
         QFile in(path);
         QVERIFY(in.open(QIODevice::ReadOnly));
         QJsonObject root = QJsonDocument::fromJson(in.readAll()).object();
         in.close();
         QJsonArray rows = root.value(QStringLiteral("extensions")).toArray();
-        QVERIFY(originalIndex < rows.size());
-        QJsonObject stale = rows.at(originalIndex).toObject();
-        stale.insert(QStringLiteral("enabled"), true); // explicit user choice must survive
-        QJsonObject staleManifest = stale.value(QStringLiteral("manifest")).toObject();
-        staleManifest.remove(QStringLiteral("behaviorHints"));
-        stale.insert(QStringLiteral("manifest"), staleManifest);
-        rows.replace(originalIndex, stale);
+        rows.insert(originalIndex, legacyMangaWell(
+            QStringLiteral("colosseum.well.tankoyomi"), QStringLiteral("colosseum://well/tankoyomi")));
+        QStringList originalOrder;
+        for (const QJsonValue &value : rows)
+            originalOrder.append(value.toObject().value(QStringLiteral("id")).toString());
         root.insert(QStringLiteral("defaultsVersion"), 12);
         root.insert(QStringLiteral("extensions"), rows);
         QFile out(path);
@@ -593,40 +605,20 @@ private slots:
     {
         const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
             + QStringLiteral("/extensions/installed.json");
-        int tankoyomiIndex = -1;
-        QJsonArray rows;
-        {
-            ExtensionsStore seeded(nullptr);
-            const QVariantList before = seeded.installed();
-            for (int i = 0; i < before.size(); ++i) {
-                if (before.at(i).toMap().value(QStringLiteral("id")).toString()
-                    == QStringLiteral("colosseum.well.tankoyomi")) {
-                    tankoyomiIndex = i;
-                    break;
-                }
-            }
-        }
-        QVERIFY(tankoyomiIndex >= 0);
+        constexpr int tankoyomiIndex = 1;
+        { ExtensionsStore seeded(nullptr); }
 
         QFile in(path);
         QVERIFY(in.open(QIODevice::ReadOnly));
         QJsonObject root = QJsonDocument::fromJson(in.readAll()).object();
         in.close();
-        rows = root.value(QStringLiteral("extensions")).toArray();
-        QVERIFY(tankoyomiIndex < rows.size());
-        QJsonObject tankoyomi = rows.at(tankoyomiIndex).toObject();
-        tankoyomi.insert(QStringLiteral("transportUrl"), QStringLiteral("colosseum://well/tankoyomi"));
-        tankoyomi.insert(QStringLiteral("enabled"), true);
+        QJsonArray rows = root.value(QStringLiteral("extensions")).toArray();
+        QJsonObject tankoyomi = legacyMangaWell(
+            QStringLiteral("colosseum.well.tankoyomi"), QStringLiteral("colosseum://well/tankoyomi"));
         tankoyomi.insert(QStringLiteral("installedAt"), qint64(1700000001));
-        rows.replace(tankoyomiIndex, tankoyomi);
+        rows.insert(tankoyomiIndex, tankoyomi);
 
-        // Put the row at a distinctive rank and add a user-installed external addon.
-        // Generation 14 profiles stored order as the array's relative ask order.
-        if (tankoyomiIndex != 1) {
-            rows.removeAt(tankoyomiIndex);
-            rows.insert(1, tankoyomi);
-            tankoyomiIndex = 1;
-        }
+        // Generation 14 profiles stored the external add-on in the same ordered index.
         const QString customUrl = QStringLiteral("https://custom.example/addon/manifest.json");
         const QVariantMap custom = theatreFixture(customUrl, QStringLiteral("fixture.custom.external"));
         rows.append(QJsonObject::fromVariantMap(custom));
@@ -673,32 +665,19 @@ private slots:
     {
         const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
             + QStringLiteral("/extensions/installed.json");
-        int tankoyomiIndex = -1;
-        {
-            ExtensionsStore seeded(nullptr);
-            const QVariantList before = seeded.installed();
-            for (int i = 0; i < before.size(); ++i) {
-                if (before.at(i).toMap().value(QStringLiteral("id")).toString()
-                    == QStringLiteral("colosseum.well.tankoyomi")) {
-                    tankoyomiIndex = i;
-                    break;
-                }
-            }
-        }
-        QVERIFY(tankoyomiIndex >= 0);
+        constexpr int tankoyomiIndex = 1;
+        { ExtensionsStore seeded(nullptr); }
 
         QFile in(path);
         QVERIFY(in.open(QIODevice::ReadOnly));
         QJsonObject root = QJsonDocument::fromJson(in.readAll()).object();
         in.close();
         QJsonArray rows = root.value(QStringLiteral("extensions")).toArray();
-        QVERIFY(tankoyomiIndex < rows.size());
-        QJsonObject tankoyomi = rows.at(tankoyomiIndex).toObject();
         const QString customUrl = QStringLiteral("https://reader.example/my-tankoyomi/manifest.json");
-        tankoyomi.insert(QStringLiteral("transportUrl"), customUrl);
+        QJsonObject tankoyomi = legacyMangaWell(QStringLiteral("colosseum.well.tankoyomi"), customUrl);
         tankoyomi.insert(QStringLiteral("enabled"), false);
         tankoyomi.insert(QStringLiteral("installedAt"), qint64(1700000002));
-        rows.replace(tankoyomiIndex, tankoyomi);
+        rows.insert(tankoyomiIndex, tankoyomi);
         root.insert(QStringLiteral("defaultsVersion"), 14);
         root.insert(QStringLiteral("extensions"), rows);
         QFile out(path);
@@ -816,15 +795,9 @@ private slots:
         QJsonObject root = QJsonDocument::fromJson(input.readAll()).object();
         input.close();
         QJsonArray rows = root.value(QStringLiteral("extensions")).toArray();
-        int at = -1;
-        for (int i = 0; i < rows.size(); ++i)
-            if (rows.at(i).toObject().value(QStringLiteral("id")) == QLatin1String("colosseum.well.nyaa")) at = i;
-        QVERIFY(at >= 0);
-        QJsonObject row = rows.at(at).toObject();
-        row.insert(QStringLiteral("transportUrl"), oldUrl);
+        QJsonObject row = legacyMangaWell(QStringLiteral("colosseum.well.nyaa"), oldUrl);
         row.insert(QStringLiteral("enabled"), enabled);
         row.insert(QStringLiteral("installedAt"), qint64(1700000017));
-        rows.removeAt(at);
         rows.insert(1, row);
         root.insert(QStringLiteral("extensions"), rows);
         root.insert(QStringLiteral("defaultsVersion"), generation);
