@@ -21,6 +21,10 @@ import "LocalLibrarySources.js" as LocalLibrarySources
 Item {
     id: sheet
     anchors.fill: parent
+    // Android title pages stop above the phone dock (Main.qml browseBottomInset), which left the
+    // page's own content showing below the sheet. The sheet covers the whole window instead; the
+    // list's dock scroll padding keeps the last row clear of the dock.
+    anchors.bottomMargin: sheet.Window.window ? -(sheet.Window.window.browseBottomInset || 0) : 0
     // Slice-2 automation surface (no visual effect): names the sheet root so the Lanista bridge can
     // read its state (`qml-get sourcesSheet.loading/rowCount/httpRowCount`) and prove the source-sheet
     // slices (5–7) in the running app instead of by eye. dump-ui sees named items only.
