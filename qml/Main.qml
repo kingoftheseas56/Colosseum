@@ -1015,7 +1015,9 @@ Window {
         taskbar.open = false
         collectionsPanel.showOverview()
     }
-    function closeNamedCollectionsPage() { collectionsPanel.requestClose() }
+    function closeNamedCollectionsPage(restoreDockFocus = true) {
+        collectionsPanel.requestClose(restoreDockFocus)
+    }
     function restoreNamedCollectionsReturn() {
         if (!namedCollectionsReturn) return false
         var target = namedCollectionsReturn
@@ -1229,7 +1231,7 @@ Window {
         onPickerActiveChanged: if (pickerActive) win.cancelNamedCollectionsOpen()
         onDeleteActiveChanged: if (deleteActive) win.cancelNamedCollectionsOpen()
         onNavigationCanceled: win.namedCollectionsNavigation = null
-        onClosed: {
+        onClosed: restoreDockFocus => {
             win.cancelNamedCollectionsOpen()
             var continuation = win.namedCollectionsNavigation
             win.namedCollectionsNavigation = null
@@ -1237,7 +1239,7 @@ Window {
             if (continuation) Qt.callLater(function() {
                 if (profileGeneration === win.namedCollectionsProfileGeneration) continuation()
             })
-            else taskbar.focusCollectionsAction()
+            else if (restoreDockFocus) taskbar.focusCollectionsAction()
         }
     }
     Connections {
@@ -6938,9 +6940,9 @@ Window {
             else win.closeDownloadsPage()
         }
         collectionsActive: collectionsPanel.showing
-        onCollectionsClicked: {
+        onCollectionsClicked: viaPointer => {
             if (taskbar.pickerShown) taskbar.open = false
-            if (collectionsPanel.showing) win.closeNamedCollectionsPage()
+            if (collectionsPanel.showing) win.closeNamedCollectionsPage(!viaPointer)
             else win.openNamedCollectionsPage()
         }
         vaultActive: vaultLayer.active

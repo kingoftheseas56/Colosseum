@@ -59,7 +59,7 @@ Item {
     signal openRecentRequested()          // Open Recent disclosure — the remembered files (Slice 9)
     signal vaultClicked()                 // Vault folder door — opens the "On this machine" page (Slice 10)
     property bool vaultActive: false      // the Vault page is the front surface
-    signal collectionsClicked()
+    signal collectionsClicked(bool viaPointer)
     property bool collectionsActive: false
     signal downloadsClicked()
     property int downloadsBadge: 0        // live download jobs (gold count chip)
@@ -358,7 +358,7 @@ Item {
                     id: collectionsInput
                     objectName: "taskbarCollectionsAction"
                     anchors.fill: parent
-                    focusOnPointer: !bar.pickerScene
+                    focusOnPointer: false
                     anchors.leftMargin: -touchMetrics.targetInset(parent.width)
                     anchors.rightMargin: -touchMetrics.targetInset(parent.width)
                     anchors.topMargin: -touchMetrics.targetInset(parent.height)
@@ -366,7 +366,11 @@ Item {
                     accessibleName: "Your Collections"
                     accessibleDescription: "Open your named collections"
                     focusRadius: 13
-                    onTriggered: bar.collectionsClicked()
+                    onTriggered: {
+                        const viaPointer = activationFocusReason === Qt.MouseFocusReason
+                        if (viaPointer && bar.collectionsActive && activeFocus) focus = false
+                        bar.collectionsClicked(viaPointer)
+                    }
                 }
             }
 
@@ -531,10 +535,16 @@ Item {
                 }
                 KeyboardAction {
                     id: downloadsInput
+                    objectName: "taskbarDownloadsAction"
                     anchors.fill: parent
+                    focusOnPointer: false
                     accessibleName: "Downloads"
                     focusRadius: 13
-                    onTriggered: bar.downloadsClicked()
+                    onTriggered: {
+                        if (activationFocusReason === Qt.MouseFocusReason && bar.downloadsActive && activeFocus)
+                            focus = false
+                        bar.downloadsClicked()
+                    }
                 }
                 Keys.onReturnPressed: bar.downloadsClicked()
                 Keys.onEnterPressed: bar.downloadsClicked()

@@ -12,6 +12,7 @@ Item {
     property bool focusEnabled: visible && enabled
     property bool pointerEnabled: true
     property bool focusOnPointer: true
+    property int activationFocusReason: Qt.OtherFocusReason
     // PlayStation-style map: Enter is the universal primary action. Space remains
     // opt-in for controls whose native/scoped convention actually owns it.
     property bool spaceActivates: false
@@ -51,6 +52,7 @@ Item {
             action.forceActiveFocus(focusReason)
         if (action.command && action.command.invoke)
             return action.command.invoke(action)
+        action.activationFocusReason = focusReason === undefined ? Qt.OtherFocusReason : focusReason
         action.triggered()
         return true
     }

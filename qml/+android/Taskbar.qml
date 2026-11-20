@@ -37,7 +37,7 @@ Item {
     signal openMediaClicked()
     signal openRecentRequested()
     signal watchPartyJoinClicked()
-    signal collectionsClicked()
+    signal collectionsClicked(bool viaPointer)
     signal feedbackClicked()
     signal vaultClicked()
     signal downloadsClicked()

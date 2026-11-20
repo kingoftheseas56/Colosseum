@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtTest
 import "../../qml" as App
+import "../../qml/collections" as Collections
 
 Item {
     id: root
@@ -11,6 +12,7 @@ Item {
     Rectangle { id: scene; anchors.fill: parent; color: "#26354e" }
     FontLoader { id: fraunces; source: "../../assets/fonts/Fraunces-Regular.ttf" }
     Component { id: mapComponent; Item {} }
+    Component { id: collectionsComponent; Collections.CollectionsPanel { nativeStore: null } }
     Component { id: nativeMapComponent; App.DockWorldMap {} }
     App.DockPickerCatalog { id: catalogue }
     Component { id: catalogueComponent; App.DockPickerCatalog {} }
@@ -548,6 +550,87 @@ Item {
             verify(!activity.visible)
             verify(!bar.open)
             verify(findChild(bar, "taskbarToggleAction").activeFocus)
+        }
+
+        function test_downloadsDockCloseRespectsInput() {
+            const button = findChild(bar, "taskbarDownloads")
+            const action = findChild(button, "taskbarDownloadsAction")
+            const ring = findChild(button, "focusRingStroke")
+            verify(button.visible && action && ring)
+            verify(waitForRendering(bar))
+            bar.downloadsClicked.connect(() => { bar.downloadsActive = !bar.downloadsActive })
+
+            scene.forceActiveFocus(Qt.OtherFocusReason)
+            mouseClick(button)
+            verify(bar.downloadsActive)
+            scene.forceActiveFocus(Qt.OtherFocusReason)
+            mouseClick(button)
+            verify(!bar.downloadsActive)
+            mouseMove(scene, scene.width - 16, 16)
+            compare(ring.visible, false, "Mouse close should clear the Downloads ring")
+
+            action.forceActiveFocus(Qt.TabFocusReason)
+            verify(ring.visible)
+            keyClick(Qt.Key_Return)
+            verify(bar.downloadsActive)
+            keyClick(Qt.Key_Return)
+            verify(!bar.downloadsActive)
+            verify(ring.visible, "Keyboard toggling keeps the dock focus visible")
+
+            keyClick(Qt.Key_Return)
+            mouseClick(button)
+            verify(!bar.downloadsActive)
+            mouseMove(scene, scene.width - 16, 16)
+            compare(ring.visible, false, "Mouse close should also clear prior keyboard focus")
+        }
+
+        function test_collectionsDockCloseRespectsInput() {
+            const panel = createTemporaryObject(collectionsComponent, scene)
+            verify(panel)
+            const action = findChild(bar, "taskbarCollectionsAction")
+            const ring = findChild(action, "focusRingStroke")
+            verify(waitForRendering(bar))
+            bar.collectionsActive = Qt.binding(() => panel.showing)
+            bar.collectionsClicked.connect(viaPointer => {
+                if (panel.showing) panel.requestClose(!viaPointer)
+                else panel.showOverview()
+            })
+            panel.closed.connect(restoreDockFocus => {
+                if (restoreDockFocus !== false) bar.focusCollectionsAction()
+            })
+
+            mouseClick(action)
+            verify(panel.showing)
+            mouseClick(action)
+            verify(!panel.showing)
+            mouseMove(scene, scene.width - 16, 16)
+            // Let the deferred dock focus restoration run.
+            wait(0)
+            compare(ring.visible, false, "Mouse close should clear the Collections ring")
+
+            action.forceActiveFocus(Qt.TabFocusReason)
+            verify(ring.visible)
+            keyClick(Qt.Key_Return)
+            verify(panel.showing)
+            keyClick(Qt.Key_Escape)
+            verify(!panel.showing)
+            tryCompare(ring, "visible", true)
+
+            keyClick(Qt.Key_Return)
+            verify(panel.showing)
+            action.forceActiveFocus(Qt.TabFocusReason)
+            keyClick(Qt.Key_Return)
+            verify(!panel.showing)
+            tryCompare(ring, "visible", true)
+
+            keyClick(Qt.Key_Return)
+            verify(panel.showing)
+            action.forceActiveFocus(Qt.TabFocusReason)
+            mouseClick(action)
+            verify(!panel.showing)
+            mouseMove(scene, scene.width - 16, 16)
+            wait(0)
+            compare(ring.visible, false, "Mouse close should also clear prior keyboard focus")
         }
 
         function test_manhwaAndUniverseLogoDecks() {
