@@ -6595,6 +6595,7 @@ Window {
         // The Extensions world: House, Essentials and the Store rows (live from stremio-addons.net).
         source: "ExtensionsStorePage.qml"
         onLoaded: {
+            item.shellWallpaper = wall
             item.tributes = Qt.binding(function() { return win.installedUniverses })
             item.bottomInset = Qt.binding(function() {
                 if (win.androidHost) return win.browseBottomInset + 12

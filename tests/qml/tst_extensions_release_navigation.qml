@@ -69,6 +69,23 @@ TestCase {
         compare(world.viewportContentY, position)
     }
 
+    function test_section_sidebar_stays_pinned_during_page_scroll() {
+        page = pageComponent.createObject(host.contentItem, {width: host.width, height: host.height})
+        verify(page !== null)
+        const world = findChild(page, "extensionsStoreWorld")
+        const index = findChild(page, "extensionsRowIndexSidebar")
+        const viewport = world.pageFlickable
+        tryVerify(() => viewport.contentHeight > viewport.height)
+        for (const descriptor of index.rows.slice(1, 3)) {
+            const top = descriptor.target.mapToItem(viewport.contentItem, 0, 0).y
+            viewport.contentY = top - world.parkGap
+            tryCompare(index, "automationCurrentRow", descriptor.title)
+            const railY = index.mapToItem(viewport, 0, 0).y
+            verify(Math.abs(railY - index.pinLine) < 1,
+                   "Sidebar should stay at the pin line, got " + railY)
+        }
+    }
+
     function test_banner_opens_the_current_tribute() {
         const tributes = [
             {extensionId: "first", name: "First Tribute"},

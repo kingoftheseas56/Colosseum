@@ -62,7 +62,10 @@ Rectangle {
                     textFormat: Text.PlainText
                     elide: Text.ElideRight
                     color: theme.ink
-                    font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                    font.family: card.management ? theme.display : theme.ui
+                    font.pixelSize: theme.fontSize(card.management ? 18 : 15)
+                    font.weight: card.management ? Font.Medium : Font.DemiBold
+                    font.letterSpacing: card.management ? -0.2 : 0
                 }
                 Text {
                     width: parent.width

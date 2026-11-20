@@ -8,6 +8,7 @@ Item {
     required property var capabilitiesFor
     required property var instanceLabelFor
     required property var configurableFor
+    property Item backdrop: null
     property int initialIndex: 0
     property real bottomInset: 24
     readonly property bool wide: width >= 950
@@ -32,6 +33,10 @@ Item {
     signal configureRequested(var entry)
     signal removeRequested(var entry)
     Theme { id: theme }
+    FontLoader {
+        id: installedTitleFont
+        source: "../assets/fonts/cinzel/Cinzel-Variable.ttf"
+    }
     readonly property int sideMargin: width < 840 ? 16 : theme.margin
     function takeKeyboardFocus() { back.focusControl() }
     function focusInstalledIndex(index) {
@@ -89,6 +94,20 @@ Item {
         })
     } else removeDialog.close()
     Keys.onEscapePressed: page.requestEscape()
+    Loader {
+        anchors.fill: parent
+        active: page.visible && page.backdrop !== null
+            && page.GraphicsInfo.api !== GraphicsInfo.Software
+        sourceComponent: Glass {
+            backdrop: page.backdrop
+            radius: 0
+            blurAmount: 0.85
+            tint: 0
+            edge: "transparent"
+            scrim: 0.58
+        }
+    }
+
     MouseArea { anchors.fill: parent }
     BackAction {
         id: back
@@ -108,9 +127,16 @@ Item {
         width: page.wide ? 206 : parent.width - 2 * page.sideMargin
         spacing: 8
         Text {
+            width: parent.width
             text: qsTr("Installed")
             color: theme.ink
-            font.family: theme.display; font.pixelSize: page.width < 840 ? 28 : 40
+            font.family: installedTitleFont.status === FontLoader.Ready
+                ? installedTitleFont.name : theme.display
+            font.pixelSize: theme.fontSize(page.width < 840 ? 28 : 35)
+            font.weight: Font.DemiBold
+            fontSizeMode: Text.HorizontalFit
+            minimumPixelSize: 22
+            Accessible.role: Accessible.Heading
         }
         Text {
             width: parent.width

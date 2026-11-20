@@ -8,6 +8,7 @@ Item {
     id: root
     objectName: "extensionsStorePage"
 
+    property Item shellWallpaper: null
     property bool showExplicit: false
     property string world: "theatre"
     property var tributes: []
@@ -631,14 +632,14 @@ Item {
             id: header
             width: parent.width
             readonly property bool stacked: width < 520
-            height: stacked ? 186 : 180
+            height: stacked ? 224 : Math.round(Math.max(220, Math.min(270, width * 0.20)))
             clip: true
 
             FeaturedCarousel {
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
-                width: header.stacked ? parent.width : parent.width * 0.66
+                width: header.stacked ? parent.width : parent.width * 0.76
                 visible: slides.length > 0
                 automationId: "extensionsTributeCarousel"
                 androidHost: root.phoneLayout
@@ -664,7 +665,7 @@ Item {
                     ? parent.width : parent.width - nuvioTrigger.width - 20
                 text: qsTr("Extensions")
                 font.family: theme.display
-                font.pixelSize: theme.fontSize(header.stacked ? 45 : 62)
+                font.pixelSize: theme.fontSize(header.stacked ? 39 : 49)
                 font.weight: Font.DemiBold
                 fontSizeMode: Text.HorizontalFit
                 minimumPixelSize: 26
@@ -695,8 +696,8 @@ Item {
                     anchors.margins: 14
                     spacing: 12
                     Image {
-                        Layout.preferredWidth: 34
-                        Layout.preferredHeight: 38
+                        Layout.preferredWidth: 28
+                        Layout.preferredHeight: 32
                         source: "../assets/icons/nuvio-official.png"
                         sourceSize.width: 68
                         fillMode: Image.PreserveAspectFit
@@ -770,7 +771,7 @@ Item {
 
         RowIndexSidebar {
             id: sectionIndex
-            parent: storeWorld.pageFlickable
+            parent: storeWorld.pageFlickable.contentItem
             z: 2
             x: storeWorld.outerPageMargin
             pageFlick: storeWorld.pageFlickable
@@ -955,6 +956,7 @@ Item {
         anchors.fill: parent
         z: 10
         visible: root.managingInstalled && !tankoyomiConfiguration.visible
+        backdrop: root.shellWallpaper
         bottomInset: root.bottomInset
         entries: root.installedEntries
         capabilitiesFor: root.manifestResources
