@@ -8,10 +8,10 @@ Item {
     id: root
     objectName: "extensionsStorePage"
 
-    property Item backdrop: null
     property bool showExplicit: false
     property string world: "theatre"
     property var tributes: []
+    property bool reducedMotion: false
     signal tributeRequested(var tribute)
     signal backRequested()
     signal minimizeRequested()
@@ -471,22 +471,48 @@ Item {
         var labels = {
             catalog: qsTr("Catalogs"),
             meta: qsTr("Details"),
-            stream: qsTr("Streams"),
             subtitles: qsTr("Subtitles"),
             universe: qsTr("Universes"),
             universes: qsTr("Universes")
         }
         for (var i = 0; i < resources.length; i++) {
-            var name = typeof resources[i] === "string" ? resources[i] : resources[i].name
+            var name = typeof resources[i] === "string" ? resources[i] : resources[i] && resources[i].name
             if (!name) continue
             var key = String(name).toLowerCase()
-            var label = labels[key] || String(name)
-                    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+            var label = key === "stream" ? root.sourceLabel(manifest, resources[i]) : labels[key]
+            if (!label) {
+                label = String(name).replace(/([a-z0-9])([A-Z])/g, "$1 $2")
                     .replace(/[_-]+/g, " ").replace(/^\s+|\s+$/g, "")
                     .replace(/\b\w/g, function(letter) { return letter.toUpperCase() })
+            }
             if (names.indexOf(label) < 0) names.push(label)
         }
         return names.length ? names.join(" · ") : "No resources declared"
+    }
+
+    function sourceLabel(manifest, resource) {
+        const bundledSource = root.essentials.find(addon => addon.id === manifest.id
+                                                        && addon.id.startsWith("colosseum.well."))
+        if (bundledSource)
+            return bundledSource.description
+
+        const types = resource && resource.types && resource.types.length
+            ? resource.types : manifest.types || []
+        const labels = {
+            manga: qsTr("Manga sources"),
+            comic: qsTr("Comic sources"),
+            book: qsTr("Book sources"),
+            audiobook: qsTr("Audiobook sources")
+        }
+        const descriptions = []
+        for (const type of types) {
+            const label = labels[type]
+            if (typeof label === "string" && !descriptions.includes(label))
+                descriptions.push(label)
+        }
+        if (types.some(type => type === "movie" || type === "series" || type === "anime"))
+            descriptions.unshift(qsTr("Playback sources"))
+        return descriptions.length ? descriptions.join(" · ") : qsTr("Playback sources")
     }
 
     function takeKeyboardFocus() {
@@ -576,31 +602,14 @@ Item {
     property string installError: ""
     Timer { id: installErrorTimer; interval: 6000; onTriggered: root.installError = "" }
 
-    Item {
+    Rectangle {
         id: storeBackdrop
+        objectName: "extensionsBackdrop"
         anchors.fill: parent
-
-        Rectangle { anchors.fill: parent; color: "#0b0d12" }
-
-        Image {
-            anchors.fill: parent
-            source: "../assets/wallpaper/cold-ripple.jpg"
-            sourceSize.width: 1280
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            opacity: 0.13
-        }
-
-        Loader {
-            anchors.fill: parent
-            active: root.backdrop !== null && root.GraphicsInfo.api !== GraphicsInfo.Software
-            sourceComponent: Glass {
-                backdrop: root.backdrop
-                radius: 0
-                tint: 0
-                scrim: 0.71
-                edge: "transparent"
-            }
+        gradient: Gradient {
+            GradientStop { position: 0; color: "#22232a" }
+            GradientStop { position: 0.52; color: "#16171c" }
+            GradientStop { position: 1; color: "#0b0d12" }
         }
     }
 
@@ -625,33 +634,25 @@ Item {
             height: stacked ? 186 : 180
             clip: true
 
-            Image {
-                anchors.right: parent.right
+            FeaturedCarousel {
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                width: parent.width * (header.stacked ? 1 : 0.66)
-                source: "../assets/extensions/colosseum-night-cc0-1920x1080.jpg"
-                sourceSize.width: 1280
-                fillMode: Image.PreserveAspectCrop
-                verticalAlignment: Image.AlignVCenter
-                asynchronous: true
-
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0; color: "#0b0d12" }
-                        GradientStop { position: 0.55; color: "#320b0d12" }
-                        GradientStop { position: 1; color: "#660b0d12" }
-                    }
-                }
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        GradientStop { position: 0; color: "#330b0d12" }
-                        GradientStop { position: 0.6; color: "transparent" }
-                        GradientStop { position: 1; color: "#0b0d12" }
-                    }
+                anchors.right: parent.right
+                width: header.stacked ? parent.width : parent.width * 0.66
+                visible: slides.length > 0
+                automationId: "extensionsTributeCarousel"
+                androidHost: root.phoneLayout
+                artworkOnly: true
+                autoAdvance: !root.reducedMotion
+                kicker: qsTr("Tributes")
+                slides: root.tributes.map(tribute => ({
+                    id: tribute.extensionId,
+                    title: tribute.name,
+                    art: tribute.banner
+                }))
+                onPrimaryClicked: index => {
+                    const tribute = root.tributes[index]
+                    if (tribute) root.tributeRequested(tribute)
                 }
             }
 
@@ -877,23 +878,33 @@ Item {
         id: nuvioDrawer
         objectName: "extensionsNuvioRepositoryDrawer"
         parent: root
-        x: storeWorld.outerPageMargin
-        y: root.height - root.bottomInset - height
-        width: root.width - 2 * x
-        height: Math.min(nuvioBar.implicitHeight, Math.max(0, root.height - root.bottomInset) * 0.57)
+        readonly property real viewportTop: storeWorld.pageFlickable.y + 8
+        readonly property real viewportBottom: root.height - root.bottomInset
+        readonly property real triggerBottom: storeWorld.pageFlickable.y + header.y
+            + nuvioTrigger.y + nuvioTrigger.height - storeWorld.viewportContentY
+        readonly property real anchorY: Math.max(viewportTop, triggerBottom + 12)
+        x: root.width - storeWorld.outerPageMargin - width
+        y: Math.max(viewportTop, Math.min(anchorY, viewportBottom - height))
+        width: Math.max(0, Math.min(640, root.width - 2 * storeWorld.outerPageMargin))
+        height: Math.min(nuvioBar.implicitHeight, Math.max(160, viewportBottom - anchorY),
+                         Math.max(0, viewportBottom - viewportTop))
         padding: 0
         focus: true
         popupType: Popup.Item
         closePolicy: Popup.CloseOnEscape
         background: Glass {
-            backdrop: root.backdrop
+            backdrop: storeBackdrop
             radius: 18
             scrim: 0.56
         }
         onOpened: Qt.callLater(nuvioBar.focusAddress)
         onClosed: {
-            if (storeWorld.visible && !root.installUrlOpen)
-                root.takeKeyboardFocus()
+            if (storeWorld.visible && !root.installUrlOpen) {
+                if (triggerBottom > viewportTop && triggerBottom <= viewportBottom)
+                    nuvioTrigger.forceActiveFocus(Qt.TabFocusReason)
+                else
+                    root.takeKeyboardFocus()
+            }
         }
         contentItem: Flickable {
             id: repoScroll

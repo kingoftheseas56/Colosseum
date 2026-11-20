@@ -6595,12 +6595,12 @@ Window {
         // The Extensions world: House, Essentials and the Store rows (live from stremio-addons.net).
         source: "ExtensionsStorePage.qml"
         onLoaded: {
-            item.backdrop = wall
             item.tributes = Qt.binding(function() { return win.installedUniverses })
             item.bottomInset = Qt.binding(function() {
                 if (win.androidHost) return win.browseBottomInset + 12
                 return taskbar.visible ? taskbar.closedSize + taskbar.bottomGap + 16 : 24
             })
+            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
             item.tributeRequested.connect(function(tribute) {
                 win.closeExtensionsPage()
                 win.openTribute(tribute)

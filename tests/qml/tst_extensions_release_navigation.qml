@@ -69,6 +69,43 @@ TestCase {
         compare(world.viewportContentY, position)
     }
 
+    function test_banner_opens_the_current_tribute() {
+        const tributes = [
+            {extensionId: "first", name: "First Tribute"},
+            {extensionId: "second", name: "Second Tribute"}
+        ]
+        page = pageComponent.createObject(host.contentItem, {
+            width: host.width, height: host.height, tributes: tributes, reducedMotion: true
+        })
+        verify(page !== null)
+        const carousel = findChild(page, "extensionsTributeCarousel")
+        verify(carousel && carousel.visible)
+        carousel.setCurrentIndex(1)
+        tryVerify(() => {
+            const action = findChild(carousel, "extensionsFeaturedTribute")
+            return action && action.accessibleName === "Open Second Tribute tribute"
+        })
+        let opened = ""
+        page.tributeRequested.connect(tribute => { opened = tribute.extensionId })
+        verify(findChild(carousel, "extensionsFeaturedTribute").activate())
+        compare(opened, "second")
+    }
+
+    function test_installed_source_labels_use_the_media() {
+        page = pageComponent.createObject(host.contentItem, {width: host.width, height: host.height})
+        verify(page !== null)
+        compare(page.manifestResources({id: "colosseum.well.tankoyomi", resources: ["stream"],
+                                        types: ["manga"]}), "Manga chapter sources")
+        compare(page.manifestResources({id: "colosseum.well.libgen", resources: ["stream"],
+                                        types: ["book"]}), "Book sources")
+        compare(page.manifestResources({id: "colosseum.well.indexers", resources: ["stream"],
+                                        types: ["comic", "book", "audiobook"]}), "Comic and book torrent sources")
+        compare(page.manifestResources({resources: ["stream", "subtitles"],
+                                        types: ["movie"]}), "Playback sources · Subtitles")
+        compare(page.manifestResources({resources: [{name: "stream", types: ["audiobook"]}],
+                                        types: ["book"]}), "Audiobook sources")
+    }
+
     function test_tributes_catalogue_uses_the_installed_roster() {
         const tributes = [{extensionId: "test-tribute", name: "Test Tribute"}]
         page = pageComponent.createObject(host.contentItem, {
@@ -102,7 +139,9 @@ TestCase {
         compare(drawer.visible, false)
         verify(trigger.activate())
         tryCompare(drawer, "opened", true)
-        compare(drawer.y + drawer.height, host.height - 76)
+        compare(drawer.y, trigger.mapToItem(page, 0, trigger.height).y + 12)
+        compare(drawer.x + drawer.width, trigger.mapToItem(page, trigger.width, 0).x)
+        verify(drawer.y + drawer.height <= host.height - 76)
         const repoBar = findChild(drawer.contentItem, "nuvioRepositoriesBar")
         const address = findChild(repoBar, "nuvioRepositoryAddress")
         verify(repoBar && address)
