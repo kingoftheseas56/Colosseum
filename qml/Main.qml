@@ -2928,8 +2928,12 @@ Window {
             if (!ExtCatalog.isUniverse(e)) continue
             if (e.enabled !== true) continue
             var m = e.manifest || ({})
+            // Cosmere's manifest banner is a Wikimedia hotlink that answers 429/403 to the app's
+            // default user agent, leaving the hero blank; use the bundled copy of the same art.
+            var banner = e.id === "com.colosseum.universe.cosmere"
+                ? Qt.resolvedUrl("../assets/extensions/house/cosmere.jpg") : (m.background || "")
             out.push({ extensionId: e.id, name: m.name || e.id,
-                       banner: m.background || "", logo: m.logo || "" })
+                       banner: banner, logo: m.logo || "" })
         }
         return out
     }
