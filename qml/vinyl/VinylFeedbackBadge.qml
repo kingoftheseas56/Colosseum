@@ -3,7 +3,6 @@ import ".."
 
 KeyboardAction {
     id: root
-    tooltipText: accessibleName
     property string symbol: "check"
     property bool revealed: false
     focusOnPointer: false

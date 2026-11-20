@@ -15,9 +15,6 @@ Button {
     height: theme.vaultRowHeight
     hoverEnabled: true; activeFocusOnTab: true
     Accessible.name: text + (statusText ? ", " + statusText : detail ? ", " + detail : "") + (badge ? ", " + badge : "")
-    ToolTip.text: Accessible.name
-    ToolTip.delay: 350
-    ToolTip.visible: (collapsed || statusKind.length > 0) && (hovered || activeFocus)
     Keys.onReturnPressed: root.clicked()
     Keys.onEnterPressed: root.clicked()
     background: Rectangle {

@@ -37,6 +37,7 @@ Item {
     property string backLabel: "Home"
     // With backOnly, the page names itself beside the arrow (as Your Colosseum does).
     property string pageTitle: ""
+    property string pageTitleFont: ""
     property string pageSubtitle: ""
     // Retained world pages stay instantiated for state preservation, but hidden bars must not
     // keep their live clock timer waking the GUI every second.
@@ -47,7 +48,8 @@ Item {
     readonly property real touchTargetSize: inputMetrics.touchTargetSize
     readonly property real touchHorizontalInset: bar.touchTargetSize > 0
         ? Math.min((bar.touchTargetSize - 22) / 2, Math.floor(systemChrome.spacing / 2)) : 0
-    property bool wallpaperEnabled: true
+    // Wallpaper is available from the desktop app picker.
+    property bool wallpaperEnabled: false
     property string clock: "8:29"
     property string ampm: "PM"
     property string date: "Wednesday, June 24"
@@ -56,8 +58,6 @@ Item {
     readonly property bool accountPresent: accountController
         && (accountController.mode === "signedIn"
             || accountController.mode === "offline")
-    readonly property bool localDevice: accountController
-        && accountController.mode === "localOnly"
     // No-account edition gate: the account medallion is the only shell entry
     // point to the account flyout/center, so hiding it removes sign-in,
     // registration and account-sync surfaces wholesale. Stub controllers
@@ -83,6 +83,7 @@ Item {
     // Third-party trackers door (AniList, MAL, Trakt, Simkl...). Unlike Stremio it is not one
     // provider and it serves every world, so it gets a provider-neutral mark in all of them.
     // Hosts that wire trackersClicked opt in; other TopBar hosts (reader, player) stay unchanged.
+    property bool utilityActionsInPicker: false
     property bool trackersEnabled: false
     property bool trackersActive: false
     // Aggregate sync state -> dot colour. No dot when nothing is connected, so the icon
@@ -187,7 +188,6 @@ Item {
             anchors.leftMargin: -bar.touchHorizontalInset
             anchors.rightMargin: -bar.touchHorizontalInset
             accessibleName: sysRoot.accessibleName
-            tooltipText: sysRoot.showLabel ? "" : accessibleName
             focusRadius: 6
             onTriggered: sysRoot.clicked()
         }
@@ -277,7 +277,15 @@ Item {
             visible: bar.backOnly && bar.pageTitle.length > 0
             spacing: 2
             anchors.verticalCenter: parent.verticalCenter
-            Text { text: bar.pageTitle; color: theme.ink; font.family: theme.display; font.pixelSize: 24 }
+            Text {
+                objectName: "topBarPageTitle"
+                text: bar.pageTitle
+                color: theme.ink
+                font.family: bar.pageTitleFont || theme.display
+                font.pixelSize: 24
+                font.weight: bar.pageTitleFont ? Font.DemiBold : Font.Normal
+                Accessible.role: Accessible.Heading
+            }
             Text {
                 visible: bar.pageSubtitle.length > 0
                 text: bar.pageSubtitle; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
@@ -408,7 +416,6 @@ Item {
                 id: updateInput
                 anchors.fill: parent
                 accessibleName: bar.updateAvailable ? "Update available" : "Updates"
-                tooltipText: accessibleName
                 focusRadius: 6
                 onTriggered: bar.updateClicked()
             }
@@ -424,7 +431,7 @@ Item {
                         : bar.activeMedium === "" ? "topBarTrackersButton"
                         : "topBarTrackersButton_" + bar.activeMedium
             width: 22; height: 22
-            visible: bar.trackersEnabled && bar.lifecycleActive
+            visible: !bar.utilityActionsInPicker && bar.trackersEnabled && bar.lifecycleActive
             opacity: trackersInput.interactionActive || bar.trackersActive ? 1.0 : 0.92
             Image {
                 anchors.fill: parent
@@ -448,7 +455,6 @@ Item {
                 anchors.fill: parent
                 accessibleName: bar.trackersDotState === "error"
                                 ? qsTr("Trackers, attention required") : qsTr("Trackers")
-                tooltipText: accessibleName
                 focusRadius: 6
                 onTriggered: bar.trackersClicked()
             }
@@ -458,25 +464,26 @@ Item {
         Item {
             id: accountButton
             y: bar.androidHost ? (parent.height - height) / 2 : 0
-            width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22
+            width: 22
             height: 22
             objectName: "colosseumTopbarAccountButton"
             visible: bar.accountEntryAvailable
             opacity: accountInput.interactionActive ? 1.0 : 0.92
             Rectangle {
                 anchors.fill: parent
-                radius: bar.localDevice ? 11 : width / 2
+                radius: width / 2
                 color: bar.accountPresent
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.16)
-                    : (bar.localDevice ? Qt.rgba(1, 1, 1, 0.04) : "transparent")
+                    : "transparent"
                 border.width: 1.5
                 border.color: bar.accountPresent
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.8)
                     : Qt.rgba(1, 1, 1, 0.38)
                 Item {
+                    objectName: "colosseumTopbarAccountGlyph"
                     anchors.centerIn: parent
                     width: 14; height: 14
-                    visible: !bar.accountPresent && !bar.localDevice
+                    visible: !bar.accountPresent
                     opacity: 0.82
                     Rectangle {
                         width: 5; height: 5; radius: 2.5
@@ -490,17 +497,6 @@ Item {
                         y: 7
                         color: "#ffffff"
                     }
-                }
-                Text {
-                    id: localDeviceText
-                    objectName: "colosseumTopbarDeviceLabel"
-                    anchors.centerIn: parent
-                    visible: bar.localDevice
-                    text: qsTr("Device")
-                    color: theme.inkDim
-                    font.family: theme.ui
-                    font.pixelSize: 10
-                    font.weight: Font.DemiBold
                 }
                 Text {
                     anchors.centerIn: parent
@@ -520,13 +516,9 @@ Item {
                 objectName: "colosseumTopbarAccountInput"
                 anchors.fill: parent
                 focusOnPointer: false
-                accessibleName: bar.localDevice
-                    ? qsTr("Device")
-                    : (bar.accountPresent
-                        ? ("Account: " + bar.accountController.username)
-                        : "Account")
-                tooltipText: bar.localDevice ? "" : qsTr("Account")
-                focusRadius: bar.localDevice ? 11 : width / 2
+                accessibleName: bar.accountPresent
+                    ? qsTr("Account: %1").arg(bar.accountController.username) : qsTr("Account Centre")
+                focusRadius: width / 2
                 onTriggered: {
                     const anchor = accountButton.mapToItem(null, accountButton.width, accountButton.height)
                     bar.accountClicked(anchor.x, anchor.y)
@@ -541,7 +533,7 @@ Item {
             objectName: !bar.lifecycleActive ? ""
                         : bar.activeMedium === "" ? "topBarDlnaButton"
                         : "topBarDlnaButton_" + bar.activeMedium
-            visible: bar.dlnaVisible
+            visible: !bar.utilityActionsInPicker && bar.dlnaVisible
             lit: bar.dlnaRunning
             source: bar.dlnaRunning ? "../assets/icons/access-point-gold.svg"
                                     : "../assets/icons/access-point.svg"

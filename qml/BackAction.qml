@@ -131,8 +131,6 @@ Item {
         // stretch the interactive target to ≥44px in both axes without moving the visuals
         anchors.margins: -Math.max(0, Math.ceil((44 - Math.min(root.width, root.height)) / 2))
         accessibleName: root.tip.length > 0 ? root.tip : root.label
-        tooltipText: root.tip.length > 0 || root.iconOnly || root.label.length === 0
-                     ? (accessibleName || qsTr("Back")) : ""
         focusRadius: root.variant === "capsule" ? root.height / 2 : 7
         onTriggered: root.triggered()
     }

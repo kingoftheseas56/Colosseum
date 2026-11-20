@@ -133,10 +133,6 @@ Rectangle {
                                   : root.providerStatusKind === "attention" ? theme.gold : theme.edge
                     Accessible.role: Accessible.StaticText
                     Accessible.name: root.providerName + qsTr(" status: ") + root.providerStatus
-                    ToolTip.text: Accessible.name
-                    ToolTip.delay: 350
-                    ToolTip.visible: visible && statusHover.hovered
-                    HoverHandler { id: statusHover }
                     RowLayout {
                         id: providerStatusRow
                         anchors.centerIn: parent
@@ -193,9 +189,6 @@ Rectangle {
                     implicitWidth: 136
                     text: qsTr("Connect")
                     Accessible.name: root.provider ? qsTr("Connect to %1").arg(root.providerName) : qsTr("Connect a home server")
-                    ToolTip.text: Accessible.name
-                    ToolTip.delay: 350
-                    ToolTip.visible: hovered || activeFocus
                     enabled: !!root.service && root.service.available
                     onClicked: root.panelOpen = true
                 }
@@ -288,9 +281,6 @@ Rectangle {
                         implicitWidth: 84
                         text: qsTr("Refresh")
                         Accessible.name: qsTr("Refresh %1").arg(serverRow.modelData.name)
-                        ToolTip.text: Accessible.name
-                        ToolTip.delay: 350
-                        ToolTip.visible: hovered || activeFocus
                         enabled: !!serverRow.modelData.enabled && !serverRow.modelData.needsReconnect && !serverRow.modelData.refreshing
                         onClicked: if (root.service) root.service.refresh(serverRow.modelData.id)
                     }
@@ -300,9 +290,6 @@ Rectangle {
                         variant: "link"
                         text: qsTr("Remove")
                         Accessible.name: qsTr("Remove %1 connection").arg(serverRow.modelData.name)
-                        ToolTip.text: Accessible.name
-                        ToolTip.delay: 350
-                        ToolTip.visible: hovered || activeFocus
                         onClicked: if (root.service) root.service.remove(serverRow.modelData.id)
                     }
                 }

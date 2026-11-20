@@ -53,6 +53,22 @@ Item {
         }
     }
 
+    Component {
+        id: managementComponent
+        ExtensionsInstalledPage {
+            width: 600
+            height: 500
+            visible: false
+            entries: [
+                { id: "torrentio", transportUrl: "first", manifest: { name: "Torrentio" } },
+                { id: "torrentio", transportUrl: "second", manifest: { name: "Torrentio" } }
+            ]
+            capabilitiesFor: () => "Streams"
+            instanceLabelFor: index => "Instance " + (index + 1)
+            configurableFor: () => true
+        }
+    }
+
     SignalSpy { id: manageSpy; target: harness.installed; signalName: "manageRequested" }
 
     TestCase {
@@ -72,6 +88,68 @@ Item {
             harness.installed = null
             manageSpy.clear()
         }
+        function test_uninstall_confirmation_works_from_the_store() {
+            const management = createTemporaryObject(managementComponent, surface)
+            verify(management)
+            var removedUrl = ""
+            management.removeRequested.connect(entry => { removedUrl = entry.transportUrl })
+            management.requestRemoval([0, 1])
+            const popup = findChild(management, "extensionsRemoveDialog")
+            verify(popup)
+            tryCompare(popup, "opened", true)
+            const confirm = findChild(popup.contentItem, "extensionsConfirmRemoval")
+            verify(confirm && !confirm.enabled)
+            management.selectRemoval(1)
+            verify(confirm.enabled)
+            confirm.clicked()
+            compare(removedUrl, "second")
+        }
+
+        function test_essentials_exposes_separate_card_actions() {
+            const rail = harness.rail
+            rail.essentialsLayout = true
+            rail.items = [
+                { slug: "torrentio", name: "Torrentio", configurable: true },
+                { slug: "cinemeta", name: "Cinemeta", id: "com.linvo.cinemeta", builtIn: true, configurable: false }
+            ]
+            wait(100)  // allow the grid to position its new delegates
+            const install = findChild(rail, "essentialsAction_torrentio")
+            const gear = findChild(rail, "essentialsConfigure_torrentio")
+            const builtIn = findChild(rail, "essentialsAction_cinemeta")
+            verify(install && gear && builtIn)
+            var installed = false
+            rail.installedFn = () => installed
+            var actions = []
+            rail.addonActivated.connect(addon => actions.push("install " + addon.slug))
+            rail.addonConfigured.connect(addon => actions.push("configure " + addon.slug))
+            rail.addonRemoved.connect(addon => actions.push("uninstall " + addon.slug))
+
+            compare(install.accessibleName, "Install Torrentio")
+            verify(gear.visible && gear.height >= 44)
+            verify(!builtIn.enabled)
+            mouseClick(gear)
+            mouseClick(install)
+            installed = true
+            rail.revision++
+            compare(install.accessibleName, "Uninstall Torrentio")
+            mouseClick(install)
+            compare(actions.join(", "), "configure torrentio, install torrentio, uninstall torrentio")
+        }
+
+        function test_installed_search_keeps_the_original_instance() {
+            const management = createTemporaryObject(managementComponent, surface, {visible: true})
+            verify(management)
+            const search = findChild(management, "extensionsInstalledSearch")
+            const list = findChild(management, "extensionsManagementList")
+            search.text = "Instance 2"
+            tryCompare(list, "count", 1)
+            tryVerify(() => list.itemAtIndex(0) !== null)
+            const card = list.itemAtIndex(0)
+            compare(card.entry.transportUrl, "second")
+            card.removeRequested()
+            compare(management.removalEntry.transportUrl, "second")
+        }
+
         function test_compactCardsAndGrabbableHorizontalBar() {
             var card = findChild(harness.rail, "extensionsCard_one")
             var flick = findChild(harness.rail, "testEssentials")

@@ -146,8 +146,6 @@ Item {
                         KeyboardAction {
                             id: continueBackKeyboard; anchors.fill: parent; anchors.margins: -10; pointerEnabled: false
                             accessibleName: "Back"
-                            tooltipText: accessibleName
-                            tooltipHovered: backMa.containsMouse
                             onTriggered: root.backRequested()
                         }
                     }
@@ -300,8 +298,6 @@ Item {
                 onClicked: root.minimizeRequested()
             }
             KeyboardAction { id: continueMinKeyboard; anchors.fill: parent; pointerEnabled: false
-                tooltipText: accessibleName
-                tooltipHovered: chromeMinMa.containsMouse
                 accessibleName: "Minimize"; focusRadius: 6; onTriggered: root.minimizeRequested() }
         }
         Item {
@@ -325,9 +321,6 @@ Item {
                 onClicked: root.fullscreenRequested()
             }
             KeyboardAction { id: continueFsKeyboard; anchors.fill: parent; pointerEnabled: false
-                tooltipText: typeof WindowMode !== "undefined" && WindowMode.shellWindowed
-                             ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                tooltipHovered: fsMa.containsMouse
                 accessibleName: "Toggle fullscreen"; focusRadius: 6; onTriggered: root.fullscreenRequested() }
         }
         Item {
@@ -349,8 +342,6 @@ Item {
                 onClicked: root.closeRequested()
             }
             KeyboardAction { id: continueCloseKeyboard; anchors.fill: parent; pointerEnabled: false
-                tooltipText: accessibleName
-                tooltipHovered: chromePowMa.containsMouse
                 accessibleName: "Close"; focusRadius: 6; onTriggered: root.closeRequested() }
         }
     }

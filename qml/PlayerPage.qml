@@ -2558,7 +2558,7 @@ Item {
         mpv.refreshAudioOutput()
     }
 
-    function downloadTooltip() {
+    function downloadActionLabel() {
         if (typeof Download === "undefined")
             return "Download"
         var s = Download.status || ({ "kind": "idle" })
@@ -5061,7 +5061,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     size: 38
                     icon: "back"
-                    tooltip: "Back"
+                    actionLabel: "Back"
                     onClicked: {
                         root.closeMenus()
                         root.backRequested()
@@ -5126,7 +5126,7 @@ Item {
                 RoundButton {
                     size: 38
                     icon: "minimizeToBar"
-                    tooltip: "Minimize — paused in the taskbar, resumes with no reload"
+                    actionLabel: "Minimize — paused in the taskbar, resumes with no reload"
                     onClicked: {
                         root.closeMenus()
                         root.minimizeRequested()
@@ -5135,7 +5135,7 @@ Item {
                 RoundButton {
                     size: 38
                     icon: "cancel"
-                    tooltip: "Close"
+                    actionLabel: "Close"
                     onClicked: {
                         var playing = root.fileReady && !mpv.pause
                         root.closeMenus()
@@ -5554,7 +5554,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     size: 46
                     icon: "back"
-                    tooltip: "Close guide"
+                    actionLabel: "Close guide"
                     onClicked: {
                         root.liveGuideOpen = false
                         root.wakeChrome()
@@ -5858,7 +5858,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     size: 26
                     icon: "cancel"
-                    tooltip: "Clear A-B loop"
+                    actionLabel: "Clear A-B loop"
                     onClicked: root.clearAbLoop()
                 }
             }
@@ -6721,7 +6721,7 @@ Item {
                         visible: root.errored || root.starting
                         size: 48
                         icon: "retry"
-                        tooltip: "Retry stream"
+                        actionLabel: "Retry stream"
                         onClicked: root.retryCurrentStream()
                     }
 
@@ -6730,7 +6730,7 @@ Item {
                         visible: root.streamCandidates.length > 1 && !root.barSnug
                         size: 48
                         icon: "stream"
-                        tooltip: "Pick another stream"
+                        actionLabel: "Pick another stream"
                         onClicked: root.pickAnotherStream()
                     }
 
@@ -6743,7 +6743,7 @@ Item {
                         label: (typeof Download !== "undefined" && Download.status.kind === "downloading")
                                ? Math.round((Download.status.ratio || 0) * 100)
                                : ""
-                        tooltip: root.downloadTooltip()
+                        actionLabel: root.downloadActionLabel()
                         onClicked: root.handleDownloadAction()
                     }
 
@@ -6768,14 +6768,14 @@ Item {
                         visible: root.hasAdjacentEpisode("prev")
                         size: tight ? 38 : 40
                         icon: "prevEpisode"
-                        tooltip: "Previous episode"
+                        actionLabel: "Previous episode"
                         onClicked: root.goToAdjacentEpisode("prev")
                     }
                     RoundButton {
                         size: tight ? 38 : 40
                         icon: "seekBack"
                         label: root.seekBackSeconds
-                        tooltip: "Back " + root.seekBackSeconds + "s"
+                        actionLabel: "Back " + root.seekBackSeconds + "s"
                         onClicked: root.requestUserSeekStep(-root.seekBackSeconds)
                     }
                     RoundButton {
@@ -6783,21 +6783,21 @@ Item {
                         size: tight ? 46 : 48
                         icon: mpv.pause ? "play" : "pause"
                         hero: true
-                        tooltip: mpv.pause ? "Play" : "Pause"
+                        actionLabel: mpv.pause ? "Play" : "Pause"
                         onClicked: root.togglePlayPause()
                     }
                     RoundButton {
                         size: tight ? 38 : 40
                         icon: "seekForward"
                         label: root.seekForwardSeconds
-                        tooltip: "Forward " + root.seekForwardSeconds + "s"
+                        actionLabel: "Forward " + root.seekForwardSeconds + "s"
                         onClicked: root.requestUserSeekStep(root.seekForwardSeconds)
                     }
                     RoundButton {
                         visible: root.hasAdjacentEpisode("next")
                         size: tight ? 38 : 40
                         icon: "nextEpisode"
-                        tooltip: "Next episode"
+                        actionLabel: "Next episode"
                         onClicked: root.goToAdjacentEpisode("next")
                     }
                 }
@@ -6818,7 +6818,7 @@ Item {
                         size: 40
                         icon: "episodes"
                         active: root.browserOpen
-                        tooltip: "Episodes & sources (E)"
+                        actionLabel: "Episodes & sources (E)"
                         onClicked: {
                             var wasOpen = root.browserOpen
                             root.closeMenus()
@@ -6924,7 +6924,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         size: 40
                         icon: root.shellWindowed ? "fullscreen" : "fullscreenExit"
-                        tooltip: root.shellWindowed ? "Enter fullscreen (F11)" : "Exit fullscreen (F11)"
+                        actionLabel: root.shellWindowed ? "Enter fullscreen (F11)" : "Exit fullscreen (F11)"
                         onClicked: root.fullscreenRequested()
                     }
 
@@ -7024,7 +7024,7 @@ Item {
         property int size: 48
         property string icon: ""
         property string label: ""
-        property string tooltip: ""
+        property string actionLabel: ""
         property bool hero: false
         property bool active: false
         signal clicked()
@@ -7049,7 +7049,7 @@ Item {
             visible: rb.icon !== "seekBack" && rb.icon !== "seekForward"
             kind: rb.icon
             ink: rb.hero ? "#101014" : (rb.active ? theme.gold : theme.ink)
-            accessibleName: rb.tooltip
+            accessibleName: rb.actionLabel
         }
         PlayerSeekIcon {
             anchors.fill: parent
@@ -7070,9 +7070,7 @@ Item {
         KeyboardAction {
             anchors.fill: parent
             pointerEnabled: false
-            accessibleName: rb.tooltip.length ? rb.tooltip : rb.icon
-            tooltipText: rb.icon === "minimizeToBar" ? qsTr("Minimize") : (rb.tooltip.length ? rb.tooltip : rb.icon)
-            tooltipHovered: press.containsMouse
+            accessibleName: rb.actionLabel.length ? rb.actionLabel : rb.icon
             focusRadius: rb.width / 2
             onTriggered: {
                 root.wakeChrome()
@@ -7092,7 +7090,7 @@ Item {
             size: 48
             icon: mpv.mute || mpv.volume <= 0 ? "mute" : "volume"
             active: mpv.mute
-            tooltip: mpv.mute ? qsTr("Unmute") : qsTr("Mute")
+            actionLabel: mpv.mute ? qsTr("Unmute") : qsTr("Mute")
             onClicked: mpv.mute = !mpv.mute
         }
         Item {
@@ -7199,7 +7197,7 @@ Item {
             size: 48
             icon: menu.icon
             active: menu.panelOpen || menu.active
-            tooltip: menu.title
+            actionLabel: menu.title
             onClicked: {
                 var wasOpen = menu.panelOpen
                 root.closeMenus()
@@ -7402,7 +7400,7 @@ Item {
             size: 40
             icon: "speed"
             active: sm.panelOpen || sm.nonDefault
-            tooltip: "Speed & sleep"
+            actionLabel: "Speed & sleep"
             onClicked: {
                 var wasOpen = sm.panelOpen
                 root.closeMenus()
@@ -7812,7 +7810,7 @@ Item {
             size: 48
             icon: "fit"
             active: fm.panelOpen || root.fillModeIndex !== 0
-            tooltip: "Aspect ratio"
+            actionLabel: "Aspect ratio"
             onClicked: {
                 var wasOpen = fm.panelOpen
                 root.closeMenus()

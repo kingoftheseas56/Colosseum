@@ -44,6 +44,14 @@ QVariantMap optionalNativeSourceManifest(const QString &url)
         id = QStringLiteral("colosseum.well.audiobookbay");
         name = QStringLiteral("AudioBookBay");
         type = QStringLiteral("audiobook");
+    } else if (url == QLatin1String("colosseum://well/nyaa")) {
+        id = QStringLiteral("colosseum.well.nyaa");
+        name = QStringLiteral("Nyaa");
+        type = QStringLiteral("manga");
+    } else if (url == QLatin1String("colosseum://well/libgen")) {
+        id = QStringLiteral("colosseum.well.libgen");
+        name = QStringLiteral("LibGen");
+        type = QStringLiteral("book");
     } else {
         return {};
     }
@@ -913,6 +921,13 @@ int ExtensionsStore::indexOfId(const QString& id) const
 
 int ExtensionsStore::indexOfTransportUrl(const QString& transportUrl) const
 {
+    if (transportUrl.startsWith(QLatin1String("colosseum://"))) {
+        for (int i = 0; i < m_items.size(); ++i) {
+            if (m_items.at(i).value(QStringLiteral("transportUrl")).toString() == transportUrl)
+                return i;
+        }
+        return -1;
+    }
     const QString identity = transportIdentity(transportUrl);
     if (identity.isEmpty())
         return -1;

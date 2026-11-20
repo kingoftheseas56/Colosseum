@@ -123,7 +123,6 @@ Item {
     Theme { id: theme }
 
     component Action: KeyboardAction {
-        tooltipText: accessibleName
         id: control
         property string symbol: ""
         property string label: ""
@@ -226,7 +225,6 @@ Item {
                 reference: CollectionsReferences.song(root.songData)
                 labelText: qsTr("Add to Collection")
                 iconOnly: true
-                hoverDescriptionEnabled: false
                 width: implicitWidth
                 height: 34
             }

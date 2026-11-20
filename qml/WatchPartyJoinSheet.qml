@@ -223,9 +223,6 @@ Popup {
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Close Join Watch Party"
-                ToolTip.visible: closeMouse.containsMouse
-                ToolTip.text: qsTr("Close Join Watch Party")
-                ToolTip.delay: 350
 
                 Rectangle {
                     anchors.fill: parent

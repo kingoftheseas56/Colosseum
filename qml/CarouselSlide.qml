@@ -3,10 +3,12 @@
 // a left scrim, copy, and the ghost medium marker. Used as a SwipeView page by FeaturedCarousel.
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Controls
 import QtQuick.Window
 
 Item {
     id: slideRoot
+    property bool artworkOnly: false
     objectName: "featuredSlide_" + slideIndex
     property var slide: ({})                 // { title, blurb, ghost, c1, c2, art?, artKind?, primaryIcon? }
     property int slideIndex: -1
@@ -27,6 +29,7 @@ Item {
     readonly property bool isSquare: slide.artKind !== undefined && slide.artKind === "square"
     readonly property bool hasInsetArt: slideRoot.isPoster || slideRoot.isSquare
     readonly property bool narrowLayout: slideRoot.width < 600
+    readonly property bool softwareArtwork: GraphicsInfo.api === GraphicsInfo.Software
     readonly property bool televisionMode: {
         const w = slideRoot.Window.window
         return !!(w && w["televisionMode"] === true)
@@ -49,6 +52,34 @@ Item {
         }
         border.width: 1; border.color: theme.edge
 
+        Loader {
+            anchors.fill: parent
+            active: slideRoot.artworkOnly && slideRoot.SwipeView.isCurrentItem
+                && !slideRoot.softwareArtwork && !!slideRoot.slide.art
+            sourceComponent: Item {
+                Image {
+                    id: bannerBleed
+                    anchors.fill: parent
+                    source: slideRoot.slide.art
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    visible: false
+                }
+                MultiEffect {
+                    anchors.fill: parent
+                    source: bannerBleed
+                    visible: bannerBleed.status === Image.Ready
+                    autoPaddingEnabled: false
+                    blurEnabled: true
+                    blur: 0.85
+                    blurMax: 56
+                    brightness: -0.30
+                    maskEnabled: true
+                    maskSource: artMask
+                }
+            }
+        }
+
         Image {
             id: artRaw
             objectName: slideRoot.slideIndex >= 0 ? "featuredBleedArt_" + slideRoot.slideIndex : ""
@@ -58,9 +89,10 @@ Item {
             source: (!slideRoot.hasInsetArt || (slideRoot.isSquare && slideRoot.narrowLayout))
                 && (slideRoot.visible || readySource === String(slideRoot.slide.art)) && slideRoot.slide.art !== undefined ? slideRoot.slide.art : ""
             asynchronous: true; cache: true
-            fillMode: slideRoot.isSquare ? Image.PreserveAspectFit : Image.PreserveAspectCrop
-            verticalAlignment: Image.AlignTop
-            visible: false
+            fillMode: slideRoot.artworkOnly || slideRoot.isSquare
+                ? Image.PreserveAspectFit : Image.PreserveAspectCrop
+            verticalAlignment: slideRoot.artworkOnly ? Image.AlignVCenter : Image.AlignTop
+            visible: slideRoot.artworkOnly && slideRoot.softwareArtwork
         }
         Item {
             id: artMask
@@ -72,7 +104,8 @@ Item {
             anchors.fill: parent
             source: artRaw
             maskEnabled: true; maskSource: artMask
-            visible: !slideRoot.hasInsetArt || slideRoot.narrowLayout
+            visible: !(slideRoot.artworkOnly && slideRoot.softwareArtwork)
+                && (!slideRoot.hasInsetArt || slideRoot.narrowLayout)
             opacity: ((!slideRoot.hasInsetArt || slideRoot.narrowLayout) && artRaw.status === Image.Ready) ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 300 } }
         }
@@ -109,6 +142,7 @@ Item {
         // left darkening wash so copy reads over ANY art
         Rectangle {
             anchors.fill: parent; radius: parent.radius
+            visible: !slideRoot.artworkOnly
             gradient: Gradient {
                 orientation: Gradient.Horizontal
                 GradientStop { position: 0;    color: Qt.rgba(0, 0, 0, 0.78) }
@@ -118,16 +152,26 @@ Item {
         }
         // ghost medium marker
         Text {
-            visible: !slideRoot.narrowLayout
+            visible: !slideRoot.artworkOnly && !slideRoot.narrowLayout
             text: slideRoot.slide.ghost !== undefined ? slideRoot.slide.ghost : ""
             color: Qt.rgba(1, 1, 1, 0.06)
             font.family: theme.display; font.bold: true; font.pixelSize: 150
             anchors.right: parent.right; anchors.rightMargin: 40
             anchors.top: parent.top; anchors.topMargin: -30
         }
+        KeyboardAction {
+            objectName: slideRoot.SwipeView.isCurrentItem ? "extensionsFeaturedTribute" : ""
+            anchors.fill: parent
+            visible: slideRoot.artworkOnly && slideRoot.SwipeView.isCurrentItem
+            focusEnabled: false
+            showFocusFrame: false
+            accessibleName: qsTr("Open %1 tribute").arg(slideRoot.slide.title || "")
+            onTriggered: slideRoot.primaryClicked()
+        }
         // copy
         Column {
             id: copyColumn
+            visible: !slideRoot.artworkOnly
             objectName: "featuredCopy_" + slideRoot.slideIndex
             anchors.left: parent.left
             anchors.bottom: parent.bottom

@@ -264,6 +264,32 @@ private slots:
         QVERIFY(!removed.isInstalled(id));
     }
 
+    void bundled_wells_can_be_reinstalled_data()
+    {
+        QTest::addColumn<QString>("id");
+        QTest::addColumn<QString>("url");
+        QTest::newRow("nyaa") << QStringLiteral("colosseum.well.nyaa")
+            << QStringLiteral("colosseum://well/nyaa");
+        QTest::newRow("libgen") << QStringLiteral("colosseum.well.libgen")
+            << QStringLiteral("colosseum://well/libgen");
+    }
+
+    void bundled_wells_can_be_reinstalled()
+    {
+        QFETCH(QString, id);
+        QFETCH(QString, url);
+        ExtensionsStore store(nullptr);
+        QVERIFY(store.isInstalled(id));
+        store.removeInstance(url);
+        QVERIFY(!store.isInstalled(id));
+
+        QSignalSpy installed(&store, &ExtensionsStore::installFinished);
+        store.install(url);
+        QCOMPARE(installed.count(), 1);
+        QVERIFY(store.isInstalled(id));
+        QVERIFY(findById(store.installed(), id).value(QStringLiteral("enabled")).toBool());
+    }
+
     void defaults_upgrade_does_not_reinstall_tankorent()
     {
         const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)

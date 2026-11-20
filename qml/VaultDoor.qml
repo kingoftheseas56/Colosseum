@@ -58,7 +58,7 @@ Item {
     Image {
         anchors.centerIn: parent
         width: 28; height: 28
-        source: "../assets/icons/vault-app.png"
+        source: "../assets/icons/vault-door.svg"
         sourceSize.width: 56
         sourceSize.height: 56
         fillMode: Image.PreserveAspectFit
@@ -106,15 +106,8 @@ Item {
         anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
         pointerEnabled: false
         accessibleName: door.available ? qsTr("Open Vault") : qsTr("Vault unavailable")
-        tooltipText: !door.available ? ""
-            : door.arrivalPulse ? qsTr("Open Vault · New media arrived")
-            : door.scanning ? qsTr("Open Vault · Scanning") : accessibleName
-        tooltipHovered: doorMa.containsMouse
         accessibleDescription: door.available ? "" : qsTr("Vault is unavailable on Android.")
         onTriggered: door.clicked()
     }
-    ToolTip.visible: !door.available && doorMa.containsMouse
-    ToolTip.text: qsTr("Vault is unavailable on Android.")
-    ToolTip.delay: 350
 
 }

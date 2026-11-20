@@ -124,7 +124,9 @@ Item {
     property bool topBarBackOnly: false       // Extensions: the bar keeps only Back and the page's name
     property string topBarObjectName: ""
     property bool topBarTrackersEnabled: true
+    property bool topBarUtilityActionsInPicker: false
     property string topBarTitle: ""
+    property string topBarTitleFont: ""
     property string topBarSubtitle: ""
     property string initialFocusName: ""
     // Main binds this to the current world. Bare page harnesses keep the default true, while
@@ -252,6 +254,7 @@ Item {
         activeMedium: world.medium
         backOnly: world.topBarBackOnly
         pageTitle: world.topBarTitle
+        pageTitleFont: world.topBarTitleFont
         pageSubtitle: world.topBarSubtitle
         lifecycleActive: world.lifecycleActive
         androidHost: world.androidHost
@@ -260,6 +263,7 @@ Item {
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
+        utilityActionsInPicker: world.topBarUtilityActionsInPicker
         trackersEnabled: world.topBarTrackersEnabled
         trackersActive: world.trackersActive
         onTrackersClicked: world.trackersClicked()

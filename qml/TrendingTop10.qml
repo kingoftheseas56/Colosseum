@@ -65,9 +65,6 @@ Column {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            ToolTip.text: chevronKeyboard.accessibleName
-            ToolTip.delay: 350
-            ToolTip.visible: containsMouse
             onClicked: chev.tapped()
         }
         KeyboardAction {

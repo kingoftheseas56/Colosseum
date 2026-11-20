@@ -201,7 +201,6 @@ Item {
     KeyboardAction {
         id: resume
         objectName: "vinylLyricsResume"
-        tooltipText: qsTr("Resume following")
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         width: 34;height: 34

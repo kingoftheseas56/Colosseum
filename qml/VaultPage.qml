@@ -1533,8 +1533,8 @@ Item {
                                     text: root.sortLabelOf(root.sortMode) + "  ⌄"
                                     onTriggered: root.toggleSortMenu(browseSortControl.keyboardAction.activeFocus)
                                 }
-                                VaultAction { text: "▦"; accessibleName: "Poster view"; tooltipText: accessibleName; selected: !browseSettings.listPresentation; onTriggered: browseSettings.listPresentation = false }
-                                VaultAction { text: "☷"; accessibleName: "List view"; tooltipText: accessibleName; selected: browseSettings.listPresentation; onTriggered: browseSettings.listPresentation = true }
+                                VaultAction { text: "▦"; accessibleName: "Poster view"; selected: !browseSettings.listPresentation; onTriggered: browseSettings.listPresentation = false }
+                                VaultAction { text: "☷"; accessibleName: "List view"; selected: browseSettings.listPresentation; onTriggered: browseSettings.listPresentation = true }
                             }
                         }
                     }
@@ -1679,7 +1679,6 @@ Item {
                     width: 44; height: 44
                     quiet: true
                     accessibleName: "Minimize"
-                    tooltipText: accessibleName
                     Image {
                         anchors.centerIn: parent; width: 20; height: 20
                         source: "../assets/icons/minimize.svg"
@@ -1693,8 +1692,6 @@ Item {
                     width: 44; height: 44
                     quiet: true
                     accessibleName: "Toggle fullscreen"
-                    tooltipText: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
-                        ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
                     Image {
                         anchors.centerIn: parent; width: 20; height: 20
                         source: "../assets/icons/fullscreen.svg"
@@ -1708,7 +1705,6 @@ Item {
                     width: 44; height: 44
                     quiet: true
                     accessibleName: "Close Colosseum"
-                    tooltipText: accessibleName
                     Image {
                         anchors.centerIn: parent; width: 20; height: 20
                         source: "../assets/icons/power.svg"
@@ -1769,7 +1765,7 @@ Item {
             VaultAction {
                 objectName: "vaultHeaderClearSearch"
                 anchors.right: parent.right; width: 34; height: parent.height
-                text: "×"; accessibleName: "Clear search"; tooltipText: accessibleName; quiet: true; visible: searchInput.length > 0
+                text: "×"; accessibleName: "Clear search"; quiet: true; visible: searchInput.length > 0
                 onTriggered: {
                     root.leaveSearchView()
                     Qt.callLater(function() { searchInput.forceActiveFocus() })

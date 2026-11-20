@@ -234,8 +234,6 @@ Item {
             pointerEnabled: false
             focusEnabled: root.active
             accessibleName: qsTr("Cancel loading")
-            tooltipText: accessibleName
-            tooltipHovered: cancelHover.containsMouse
             focusRadius: width / 2
             onTriggered: root.cancelRequested()
         }

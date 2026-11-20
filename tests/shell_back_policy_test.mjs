@@ -1,4 +1,5 @@
 import fs from 'fs';
+import vm from 'node:vm';
 
 const root = process.argv[2] || '.';
 const policyPath = root + '/qml/ShellBackPolicy.js';
@@ -74,6 +75,175 @@ eq(action({ genreActive: true, genreIndexActive: true }), 'genre', 'manga genre 
 // Bottom of the stack is world -> Home -> Home top. Back never quits (world-feel Slice 6).
 eq(action({ worldOpen: true }), 'world', 'world exits to Home');
 eq(action({}), 'homeTop', 'empty Home stack returns to the top of Home, never quits');
+
+// Exercise the actual Taskbar handler, Main route functions and shell Back
+// dispatcher together. Only the catalogue delivery and native loaders are faked.
+const main = fs.readFileSync(root + '/qml/Main.qml', 'utf8').replace(/\r\n/g, '\n');
+const taskbarSource = fs.readFileSync(root + '/qml/Taskbar.qml', 'utf8');
+const pickerHandler = /^        onPickerPickRequested: \(medium, entry, returnState\) => \{([\s\S]*?)^        \}/m.exec(main);
+if (!pickerHandler) fail('Taskbar picker signal must feed Main with the return state');
+if (!/bar\.open = false\s+bar\.pickerPickRequested\(medium, entry, returnState\)/.test(taskbarSource))
+    fail('Taskbar closes before handing the captured picker state to Main');
+
+function dockRouteFixture() {
+    const restored = [];
+    const deferred = [];
+    const makeLayer = (dockPickAction, dockPickFields) => ({
+        active: false, item: null, status: 1, dockPickAction, dockPickFields, dockPickReturn: null,
+    });
+    const ctx = vm.createContext({
+        Loader: { Error: 3 },
+        worldStack: { current: 'Theatre' },
+        contentPreferences: { showExplicit: false },
+        taskbar: { visible: true, restorePicker: state => { restored.push(state); return true; } },
+        seriesLayer: makeLayer('series', ['title', 'malId', 'seriesIdOverride', 'resumeSeriesId']),
+        comicSeriesLayer: makeLayer('comicSeries', ['locgSid', 'title', 'cover', 'locgMeta']),
+        theatreSeriesLayer: makeLayer('theatreSeries', ['pendingItem']),
+        bookLayer: makeLayer('book', ['book']),
+        universeLayer: Object.assign(makeLayer('universe', ['extensionId', 'universeName', 'templatePage', 'plain']),
+                                     { templateSources: { shelves: 'ShelvesUniversePage.qml' } }),
+        bookReaderLayer: makeLayer('bookReader', []),
+        westernLayer: makeLayer('western', []),
+        shellInputMethod: { visible: false },
+        androidHost: false,
+        namedCollectionsProfileGeneration: 0,
+        bookRouteGeneration: 0,
+        _catalogueRouteGeneration: 0,
+        _catalogueRouteCancel: null,
+        ShellBackPolicy: {actionFor: action},
+        guardNamedCollectionsNavigation: () => false,
+        restoreNamedCollectionsReturn: () => false,
+        applySeriesEditionProfile(_profile, id) { ctx.seriesLayer.malId = id; },
+        closeOnePieceArc() {},
+        _captureBookReturn: () => null,
+        setGuiStallContext() {},
+        teardownSession() { ctx.bookReaderLayer.active = false; },
+        requestPlayerEscape() { ctx.playerOpen = false; },
+        goHomeTop() {},
+        CatalogDelivery: {
+            wait(_catalog, _read, done) {
+                let canceled = false;
+                deferred.push(() => { if (!canceled) done(); });
+                return () => { canceled = true; };
+            },
+        },
+        Sessions: {
+            activeId: '',
+            openOrSwitch() { this.activeId = 'audio'; ctx.bookReaderLayer.active = true; return this.activeId; },
+            get(id) { return id === this.activeId && id ? { id, contentKind: 'book' } : {}; },
+            close() { this.activeId = ''; },
+        },
+    });
+    ctx.win = ctx;
+    ctx.shellEscapeState = () => ({
+        seriesActive: ctx.seriesLayer.active,
+        comicSeriesActive: ctx.comicSeriesLayer.active,
+        theatreSeriesActive: ctx.theatreSeriesLayer.active,
+        bookActive: ctx.bookLayer.active,
+        universeActive: ctx.universeLayer.active,
+        bookReaderActive: ctx.bookReaderLayer.active,
+        playerOpen: ctx.playerOpen,
+    });
+    ctx.catalogueRouteSnapshot = () => JSON.stringify(ctx.shellEscapeState());
+    for (const name of [
+        'openDockPick', 'handleEscape', 'openSeries', 'closeSeries', 'openComicSeries',
+        '_openComicSeriesReady', 'closeComicSeries', 'openTheatreSeries', 'closeTheatreSeries',
+        'openBook', 'closeBook', 'openRosterUniverse', 'openArchivedUniverse', 'openTribute', 'openUniverse', 'closeUniverse',
+        'requestUniverseEscape', 'routeDownloadedAudiobook', 'openBookSession', 'closeBookReaderSession',
+        'requestBookReaderEscape', 'closeSession', 'cancelCatalogueRoute', 'returnDockComicDetail',
+        'backFromMangaReader', 'closeComicReader', 'snapshotDockPickDetail', 'prepareDockPickDetail',
+        'attachDockPickDetail', 'takeDockPickDetail', 'restoreDockPickDetail', 'canReturnToDockPick',
+        'finishDockPickDetail',
+    ]) {
+        const fn = new RegExp(`^    function ${name}\\([^\\n]*\\)\\s*\\{[\\s\\S]*?^    \\}`, 'm').exec(main);
+        if (!fn) fail('Missing Main route function ' + name);
+        vm.runInContext(fn[0], ctx);
+    }
+    vm.runInContext(`function launchFromPicker(medium, entry, returnState) { ${pickerHandler[1]} }`, ctx);
+    return { ctx, restored, deferred };
+}
+
+for (const [medium, rootClose] of [
+    ['anime', 'closeTheatreSeries'], ['tv', 'closeTheatreSeries'], ['movies', 'closeTheatreSeries'],
+    ['manga', 'closeSeries'], ['comics', 'closeComicSeries'], ['manhwa', 'closeSeries'],
+    ['books', 'closeBook'], ['audiobooks', 'closeBookReaderSession'], ['universes', 'closeUniverse'], ['tributes', 'closeUniverse'],
+]) {
+    const signal = rootClose === 'closeBookReaderSession' ? 'closed' : 'backRequested';
+    if (!main.includes(`item.${signal}.connect(win.${rootClose})`)) fail(medium + ' Page Back has no route-owner binding');
+    const { ctx, restored, deferred } = dockRouteFixture();
+    const entry = { id: 'demo', title: 'Demo', name: 'Demo', page: 'shelves', bookPath: 'test.epub', extensionId: 'tribute.demo' };
+    const state = { medium, key: 'demo', slide: 2, column: 0 };
+    ctx.launchFromPicker(medium, entry, state);
+    if (medium === 'tributes') {
+        eq(ctx.universeLayer.extensionId, entry.extensionId, 'Tribute opens by its installed ID');
+        eq(ctx.universeLayer.templatePage, '', 'Tribute bypasses the standard Universe template');
+        eq(ctx.universeLayer.plain, false, 'Tribute selects its bespoke page');
+    }
+    deferred.splice(0).forEach(deliver => deliver());
+    ctx.handleEscape();
+    eq(restored.length, 1, medium + ' shell Back restores the picker once');
+    eq(restored[0], state, medium + ' restores the exact picker snapshot');
+    ctx.handleEscape();
+    eq(restored.length, 1, medium + ' later ordinary Back cannot resurrect the picker');
+}
+
+{
+    const { ctx, restored } = dockRouteFixture();
+    const prior = { id: 'tt1', title: 'Previous title' };
+    ctx.openTheatreSeries(prior);
+    const pickerState = { medium: 'tv', key: 'tt2' };
+    ctx.launchFromPicker('tv', { id: 'tt2', title: 'Picker title' }, pickerState);
+    ctx.playerOpen = true;
+    ctx.handleEscape();
+    eq(ctx.playerOpen, false, 'The nested player session handles Back on its own');
+    eq(restored.length, 0, 'The nested player Back cannot consume the picker return');
+    ctx.theatreSeriesLayer.item = { requestEscape: () => true };
+    ctx.handleEscape();
+    eq(restored.length, 0, 'Theatre transient consumes Back before the picker return');
+    ctx.theatreSeriesLayer.item.requestEscape = () => false;
+    ctx.smartPickPlayerPending = true;
+    ctx.closePlayer = () => {
+        eq(ctx.theatreSeriesLayer.active, true, 'Smart Pick cancels before the Theatre loader closes');
+        ctx.smartPickPlayerPending = false;
+    };
+    ctx.closeTheatreSeries();
+    eq(ctx.smartPickPlayerPending, false, 'Closing a Theatre title cancels pending Smart Pick');
+    eq(ctx.theatreSeriesLayer.pendingItem, prior, 'Page Back restores the invoker title on a reused loader');
+    eq(restored[0], pickerState, 'Page Back returns to the picker on the invoker title');
+}
+
+{
+    const { ctx, restored, deferred } = dockRouteFixture();
+    ctx.guardNamedCollectionsNavigation = () => true;
+    ctx.launchFromPicker('tv', { id: 'tt1', title: 'Canceled' }, {});
+    eq(ctx.theatreSeriesLayer.active, false, 'A canceled guarded open leaves no picker route');
+    ctx.guardNamedCollectionsNavigation = () => false;
+    ctx.launchFromPicker('comics', { id: '1', title: 'Pending' }, {});
+    ctx.cancelCatalogueRoute();
+    deferred[0]();
+    eq(ctx.comicSeriesLayer.active, false, 'A canceled catalogue delivery cannot arm a picker return');
+    ctx.theatreSeriesLayer.status = ctx.Loader.Error;
+    ctx.launchFromPicker('tv', { id: 'tt1', title: 'Failed detail' }, {});
+    ctx.closeTheatreSeries();
+    eq(restored.length, 0, 'A failed loader has no picker return');
+    ctx.theatreSeriesLayer.status = 1;
+    ctx.launchFromPicker('tv', { id: 'tt2', title: 'Picker title' }, {});
+    ctx.openTheatreSeries({ id: 'tt3', title: 'Ordinary title' });
+    ctx.closeTheatreSeries();
+    eq(restored.length, 0, 'An ordinary route replacement disarms the old picker return');
+}
+
+{
+    const { ctx, restored } = dockRouteFixture();
+    const pickerState = { medium: 'manga', key: '123' };
+    ctx.launchFromPicker('manga', { id: '123', title: 'Series' }, pickerState);
+    ctx.seriesLayer.item = { openChapterId: 'chapter-1' };
+    ctx.backFromMangaReader();
+    eq(restored.length, 0, 'Manga reader Back returns to its series before the picker');
+    eq(ctx.seriesLayer.active, true, 'The series owner is still active');
+    ctx.closeSeries();
+    eq(restored[0], pickerState, 'The next root Back restores the picker');
+}
 
 console.log('PASS shell back policy matrix');
 process.exit(0);

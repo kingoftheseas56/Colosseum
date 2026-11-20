@@ -1,7 +1,4 @@
-# Update topbar notification P0: static contract for the home topbar Update glyph.
-# The Update button no longer lives in the taskbar dock — it took the retired
-# search slot on the home topbar. This test verifies the new single entry point
-# and the full-bleed Update page's on-page status strip.
+# Verify the home Update button, its badge and the full-bleed Update page.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $topbar = Get-Content (Join-Path $root 'qml/TopBar.qml') -Raw
@@ -46,7 +43,7 @@ if ($bar -match 'colosseumUpdateBadge') { throw 'Taskbar still has the Update ba
 if ($bar -match 'signal updateClicked|property bool updateActive|updatePresentation') {
     throw 'Taskbar retains dead update plumbing'
 }
-if ($bar -notmatch 'closedWidth:\s*190') { throw 'closed taskbar must fit Colosseum, Feria and Vault' }
+if ($bar -notmatch 'pickerUtilityShortcuts') { throw 'taskbar must forward utility shortcuts to the picker' }
 
 # ---- Main.qml: home TopBar wired + taskbar has no update bindings ----
 if ($main -notmatch 'onUpdateClicked:\s*!updateLayer\.active') {
@@ -56,10 +53,8 @@ if ($main -notmatch 'updateAvailable:\s*typeof Updates' -or
     $main -notmatch 'updateUnseen:\s*typeof Updates') {
     throw 'Main.qml does not bind Updates service to the home TopBar'
 }
-# The taskbar instance must NOT carry update bindings anymore.
-$taskbarBlock = [regex]::Match($main, '(?ms)Taskbar\s*\{[\s\S]*?^\s*\}').Value
-if ($taskbarBlock -match 'updateActive|updateAvailable|updateUnseen|updatePresentation|onUpdateClicked|onUpdatePrimaryActionRequested') {
-    throw 'Main.qml Taskbar instance still carries dead update bindings'
+if ($main -match 'key:\s*"updates"') {
+    throw 'Updates must use the Home top bar'
 }
 if ($main -notmatch 'function openUpdatePage\(\)[\s\S]*?updateLayer\.active\s*=\s*true') {
     throw 'Main.qml has no openUpdatePage route'
@@ -138,4 +133,4 @@ if ($gallery -notmatch 'automationPresentedFrames\s*>?=\s*2[\s\S]*?automationVis
     throw 'gallery visual-readiness contract does not require two completed frame swaps'
 }
 
-Write-Host 'test_update_taskbar_p0: PASS (topbar glyph + badge, no taskbar Update button, full-bleed page status strip, and shell route contract)'
+Write-Host 'test_update_taskbar_p0: PASS (home glyph and badge, and Update page route)'

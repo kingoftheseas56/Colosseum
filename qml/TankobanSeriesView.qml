@@ -1367,9 +1367,6 @@ Item {
                         sourceSize.width: 40; sourceSize.height: 40
                         opacity: 0.92
                     }
-                    ToolTip.visible: libraryAction.hovered
-                    ToolTip.text: page.librarySaved ? "In your Library · remove" : "Add to Library"
-                    ToolTip.delay: 350
                     KeyboardAction {
                         id: libraryAction
                         anchors.fill: parent

@@ -372,9 +372,6 @@ Item {
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested()
-                ToolTip.visible: containsMouse
-                ToolTip.text: qsTr("Minimize")
-                ToolTip.delay: 350
             }
         }
         Item {
@@ -400,9 +397,6 @@ Item {
                 anchors.fill: parent
                 pointerEnabled: false
                 accessibleName: "Toggle fullscreen"
-                tooltipText: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
-                             ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                tooltipHovered: fullMa.containsMouse
                 onTriggered: root.fullscreenRequested()
             }
         }
@@ -413,9 +407,6 @@ Item {
                 opacity: powerMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: powerMa; anchors.fill: parent; hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested()
-                ToolTip.visible: containsMouse
-                ToolTip.text: qsTr("Close Colosseum")
-                ToolTip.delay: 350
             }
         }
     }

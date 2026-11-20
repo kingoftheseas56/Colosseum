@@ -14,6 +14,7 @@ import ".."
 Item {
     id: hero
 
+    property bool controlsOnly: false
     property int revision: 0                 // bump when Extensions changes
     signal universesRequested()
     signal searchRequested()
@@ -41,7 +42,8 @@ Item {
     property int universeIndex: 0
 
     width: parent ? parent.width : 1400
-    height: phoneLayout ? mobileHouseList.y + mobileHouseList.implicitHeight + 8 : 330
+    height: phoneLayout ? mobileHouseList.y + mobileHouseList.implicitHeight + 8
+                        : controlsOnly ? 220 : 330
 
     Theme { id: theme }
 
@@ -65,7 +67,7 @@ Item {
 
     Timer {
         interval: 7500; repeat: true
-        running: hero.visible && !hero.phoneLayout
+        running: hero.visible && !hero.phoneLayout && !hero.controlsOnly
         onTriggered: hero.universeIndex = (hero.universeIndex + 1) % banners.count
     }
 
@@ -88,7 +90,7 @@ Item {
             anchors.fill: parent
             Repeater {
                 id: banners
-                model: ["../../assets/extensions/house/starwars-banner.jpg",
+                model: hero.controlsOnly ? [] : ["../../assets/extensions/house/starwars-banner.jpg",
                         "../../assets/extensions/house/dcau.jpg",
                         "../../assets/extensions/house/cosmere.jpg"]
                 delegate: Image {
@@ -123,6 +125,7 @@ Item {
 
     // ---- Search: the Store's add-on search ----
     Rectangle {
+        visible: !hero.controlsOnly
         anchors.right: parent.right; anchors.top: parent.top
         anchors.rightMargin: 26; anchors.topMargin: 20
         width: searchRow.implicitWidth + 36; height: 34
@@ -150,7 +153,7 @@ Item {
         }
         KeyboardAction {
             id: searchAction
-            objectName: "extensionsSearchButton"
+            objectName: hero.controlsOnly ? "" : "extensionsSearchButton"
             anchors.fill: parent
             accessibleName: "Search add-ons"
             focusRadius: 17
@@ -162,7 +165,7 @@ Item {
     Column {
         id: mobileHouseList
         visible: hero.phoneLayout
-        y: 58
+        y: hero.controlsOnly ? 0 : 58
         width: parent.width
         spacing: 0
 
@@ -189,7 +192,6 @@ Item {
                              || mobileRow.modelData.id === "colosseum.well.tankoyomi"
                     accessibleName: mobileRow.modelData.kind === "universes"
                                     ? "Open Universes" : mobileRow.modelData.name + " settings"
-                    tooltipText: mobileRow.modelData.id === "colosseum.well.tankoyomi" ? accessibleName : ""
                     focusRadius: 8
                     onTriggered: mobileRow.modelData.kind === "universes"
                                  ? hero.universesRequested()
@@ -241,7 +243,6 @@ Item {
                             anchors.fill: parent
                             accessibleName: (mobileRow.installed ? "Turn off " : "Turn on ")
                                             + mobileRow.modelData.name
-                            tooltipText: accessibleName
                             enabled: hero.canToggle(mobileRow.modelData.id)
                             focusRadius: 14
                             onTriggered: hero.toggle(mobileRow.modelData.id)
@@ -328,7 +329,6 @@ Item {
                             enabled: tile.modelData.kind === "universes" || tile.modelData.id === "colosseum.well.tankoyomi"
                             accessibleName: tile.modelData.kind === "universes" ? tile.modelData.name
                                                                                  : tile.modelData.name + " settings"
-                            tooltipText: tile.modelData.id === "colosseum.well.tankoyomi" ? accessibleName : ""
                             focusRadius: 19
                             onTriggered: tile.modelData.kind === "universes" ? hero.universesRequested()
                                                                              : hero.configureRequested(tile.modelData.id)
@@ -383,7 +383,6 @@ Item {
                                 focusInset: Qt.platform.os === "android" ? (width - parent.width) / 2 - 2 : -2
                                 enabled: hero.canToggle(tile.modelData.id)
                                 accessibleName: (tile.installed ? "Turn off " : "Add ") + tile.modelData.name
-                                tooltipText: accessibleName
                                 focusRadius: 14
                                 onTriggered: hero.toggle(tile.modelData.id)
                             }

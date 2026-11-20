@@ -295,17 +295,6 @@ Item {
             wait(0)
             findChild(frontToggle, "smartPickSwitch").forceActiveFocus()
             mouseMove(info, 22, 22)
-            var tooltip = findChild(frontToggle, "smartPickHoverExplanation")
-            verify(tooltip !== null)
-            tryCompare(tooltip, "visible", true)
-            verify(tooltip.width <= 296)
-            verify(tooltip.x >= 0)
-            verify(tooltip.x + tooltip.width <= tooltip.parent.width)
-            for (var i = 0; i < 5; ++i) {
-                compare(info.hovered, true)
-                compare(tooltip.visible, true)
-                wait(100)
-            }
             mouseClick(info, 22, 22)
             tryCompare(explanation, "visible", true)
             compare(frontToggle.checked, true)
@@ -332,16 +321,9 @@ Item {
             tryCompare(info, "hovered", true)
             wait(450)
             compare(popover.visible, false, "Hover must not open the interactive popover")
-            var tooltip = findChild(frontToggle, "smartPickHoverExplanation")
-            verify(tooltip !== null)
-            for (var i = 0; i < 10; ++i) {
-                compare(info.hovered, true)
-                compare(tooltip.visible, true)
-                compare(popover.visible, false)
-                wait(100)
-            }
+            compare(findChild(frontToggle, "smartPickHoverExplanation"), null)
             mouseMove(fixture, 10, 650)
-            tryCompare(tooltip, "visible", false)
+            tryCompare(info, "hovered", false)
         }
         function test_control_clickedExplanation_survivesPointerLeaving() {
             var info = findChild(frontToggle, "smartPickInfo")
@@ -358,24 +340,17 @@ Item {
         function test_control_keyboardExplanation_staysSeparateFromHover() {
             var info = findChild(frontToggle, "smartPickInfo")
             var popover = findChild(frontToggle, "smartPickExplanation")
-            var tooltip = findChild(frontToggle, "smartPickHoverExplanation")
             mouseMove(fixture, 10, 650)
             info.forceActiveFocus()
-            wait(450)
             compare(info.hovered, false)
-            compare(tooltip.visible, false)
             keyClick(Qt.Key_Return)
             tryCompare(popover, "visible", true)
             keyClick(Qt.Key_Escape)
             tryCompare(popover, "visible", false)
-            wait(450)
-            compare(tooltip.visible, false)
             keyClick(Qt.Key_Return)
             tryCompare(popover, "visible", true)
             mouseClick(fixture, 10, 650)
             tryCompare(popover, "visible", false)
-            wait(450)
-            compare(tooltip.visible, false)
         }
         function test_titlePages_compileWithControl() {
             for (var name of ["TheatreSeries.qml", "TheatreSeriesView.qml"]) {

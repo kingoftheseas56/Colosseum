@@ -208,7 +208,8 @@ Item {
             const trackers = findChild(bar, "topBarTrackersButton_Theatre");
             const wallpaper = findChild(bar, "topBarWallpaperButton");
             verify(trackers && trackers.visible, "Trackers is available from the world top bar");
-            verify(wallpaper && wallpaper.visible, "Wallpaper is back in the top bar");
+            verify(wallpaper, "Wallpaper action exists");
+            compare(wallpaper.visible, data.tag === "android");
             verify(findChild(bar, "feedbackEntry") === null, "Feedback is reached through the taskbar");
             trackerSpy.target = bar; trackerSpy.clear();
             bar.focusTrackersButton();

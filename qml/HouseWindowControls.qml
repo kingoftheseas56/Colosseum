@@ -32,7 +32,6 @@ Row {
             id: action
             anchors.fill: parent
             accessibleName: icon.accessibleName
-            tooltipText: accessibleName
             focusRadius: 6
             onTriggered: icon.triggered()
         }

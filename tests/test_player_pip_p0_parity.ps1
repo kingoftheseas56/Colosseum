@@ -82,7 +82,7 @@ Assert-Contains $player "Qt.Key_P" `
     "PlayerPage must support the Harbor-style PiP keyboard shortcut."
 Assert-Contains $player "icon: `"pip`"" `
     "PlayerPage transport controls must expose a PiP action."
-Assert-Contains $player "tooltip: root.pipMode ? `"Exit PiP`" : `"Picture in picture`"" `
+Assert-Contains $player "actionLabel: root.pipMode ? `"Exit PiP`" : `"Picture in picture`"" `
     "PlayerPage PiP control must show enter/exit intent."
 Assert-Contains $player "visible: !root.pipMode" `
     "PlayerPage must suppress heavy chrome while in PiP."

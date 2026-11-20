@@ -33,7 +33,7 @@ Rectangle {
     Theme { id: theme }
     implicitHeight: body.height + 2 * card.inset
     radius: card.compact ? 12 : 16
-    color: "#cc141820"
+    color: card.management ? theme.glassTint : "#cc141820"
     border.width: 1
     border.color: openAction.interactionActive && !management ? theme.gold : theme.edge
 
@@ -47,6 +47,7 @@ Rectangle {
             spacing: card.compact ? 10 : 14
             AddonLogo {
                 size: card.logoSize
+                showPlate: !card.management
                 addonId: String(card.entry.id || "")
                 addonName: card.addonName
                 manifestLogo: String(card.manifest.logo || "")
@@ -61,11 +62,14 @@ Rectangle {
                     textFormat: Text.PlainText
                     elide: Text.ElideRight
                     color: theme.ink
-                    font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                    font.family: card.management ? theme.display : theme.ui
+                    font.pixelSize: theme.fontSize(card.management ? 18 : 15)
+                    font.weight: card.management ? Font.Medium : Font.DemiBold
+                    font.letterSpacing: card.management ? -0.2 : 0
                 }
                 Text {
                     width: parent.width
-                    text: (card.core ? qsTr("Core · Always on") : card.isEnabled ? qsTr("Enabled") : qsTr("Disabled"))
+                    text: (card.core ? qsTr("Built in") : card.isEnabled ? qsTr("Enabled") : qsTr("Disabled"))
                           + (card.instanceLabel.length ? " · " + card.instanceLabel : "")
                     elide: Text.ElideRight
                     color: card.isEnabled ? theme.gold : theme.inkDimmer
@@ -104,9 +108,10 @@ Rectangle {
             }
             ExtensionsActionButton {
                 id: removeAction
-                text: qsTr("Remove")
+                text: qsTr("Uninstall")
                 destructive: true
-                enabled: !card.core
+                visible: !card.core
+                enabled: visible
                 tabNavigationExit: !card.core
                 onClicked: card.removeRequested()
                 onKeyboardFocusReceived: card.keyboardFocusReceived()
