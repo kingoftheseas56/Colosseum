@@ -126,6 +126,7 @@ Item {
     property bool topBarTrackersEnabled: true
     property bool topBarUtilityActionsInPicker: false
     property string topBarTitle: ""
+    property string topBarTitleFont: ""
     property string topBarSubtitle: ""
     property string initialFocusName: ""
     // Main binds this to the current world. Bare page harnesses keep the default true, while
@@ -253,6 +254,7 @@ Item {
         activeMedium: world.medium
         backOnly: world.topBarBackOnly
         pageTitle: world.topBarTitle
+        pageTitleFont: world.topBarTitleFont
         pageSubtitle: world.topBarSubtitle
         lifecycleActive: world.lifecycleActive
         androidHost: world.androidHost

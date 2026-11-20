@@ -44,7 +44,7 @@ TestCase {
     function test_section_index_and_installed_return() {
         page = pageComponent.createObject(host.contentItem, {width: host.width, height: host.height})
         verify(page !== null)
-        const heading = findChild(page, "extensionsHeading")
+        const heading = findChild(page, "topBarPageTitle")
         compare(heading.text, "Extensions")
         const world = findChild(page, "extensionsStoreWorld")
         const index = findChild(page, "extensionsRowIndexSidebar")
@@ -92,11 +92,34 @@ TestCase {
             {extensionId: "second", name: "Second Tribute"}
         ]
         page = pageComponent.createObject(host.contentItem, {
-            width: host.width, height: host.height, tributes: tributes, reducedMotion: true
+            width: host.width, height: host.height, tributes: tributes, reducedMotion: true,
+            nuvioRepositoryStore: repositoryStore
         })
         verify(page !== null)
         const carousel = findChild(page, "extensionsTributeCarousel")
-        verify(carousel && carousel.visible)
+        const heading = findChild(page, "topBarPageTitle")
+        const nuvio = findChild(page, "extensionsNuvioRepositoriesButton")
+        const install = findChild(page, "extensionsInstallUrlButton")
+        const world = findChild(page, "extensionsStoreWorld")
+        verify(carousel && heading && nuvio && install && world)
+        tryVerify(() => carousel.visible && carousel.width > 0)
+        compare(carousel.width, page.width - 2 * world.outerPageMargin)
+        tryVerify(() => heading.font.family === "Cinzel")
+        tryVerify(() => {
+            const bannerBottom = carousel.mapToItem(page, 0, carousel.height).y
+            return nuvio.mapToItem(page, 0, 0).y > bannerBottom
+                && install.mapToItem(page, 0, 0).y > bannerBottom
+        })
+        const topLeft = carousel.mapToItem(page, 0, 0)
+        const bottomRight = carousel.mapToItem(page, carousel.width, carousel.height)
+        verify(heading.mapToItem(page, 0, heading.height).y < topLeft.y)
+        const nuvioPosition = nuvio.mapToItem(page, 0, 0)
+        const installPosition = install.mapToItem(page, install.width, 0)
+        compare(nuvioPosition.x, topLeft.x)
+        compare(installPosition.x, bottomRight.x)
+        install.clicked()
+        compare(page.installUrlOpen, true)
+        verify(page.requestEscape())
         carousel.setCurrentIndex(1)
         tryVerify(() => {
             const action = findChild(carousel, "extensionsFeaturedTribute")
@@ -149,7 +172,7 @@ TestCase {
         const drawer = findChild(page, "extensionsNuvioRepositoryDrawer")
         const scrollbar = findChild(page, "extensionsWorldScrollBar")
         verify(trigger && drawer && scrollbar)
-        compare(trigger.height, 74)
+        compare(trigger.height, 60)
         host.requestActivate()
         tryCompare(host, "active", true)
         verify(scrollbar.prominent && !scrollbar.glassStyle)
@@ -157,7 +180,7 @@ TestCase {
         verify(trigger.activate())
         tryCompare(drawer, "opened", true)
         compare(drawer.y, trigger.mapToItem(page, 0, trigger.height).y + 12)
-        compare(drawer.x + drawer.width, trigger.mapToItem(page, trigger.width, 0).x)
+        compare(drawer.x, trigger.mapToItem(page, 0, 0).x)
         verify(drawer.y + drawer.height <= host.height - 76)
         const repoBar = findChild(drawer.contentItem, "nuvioRepositoriesBar")
         const address = findChild(repoBar, "nuvioRepositoryAddress")

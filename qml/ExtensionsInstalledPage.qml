@@ -9,6 +9,7 @@ Item {
     required property var instanceLabelFor
     required property var configurableFor
     property Item backdrop: null
+    property string titleFont: ""
     property int initialIndex: 0
     property real bottomInset: 24
     readonly property bool wide: width >= 950
@@ -33,10 +34,6 @@ Item {
     signal configureRequested(var entry)
     signal removeRequested(var entry)
     Theme { id: theme }
-    FontLoader {
-        id: installedTitleFont
-        source: "../assets/fonts/cinzel/Cinzel-Variable.ttf"
-    }
     readonly property int sideMargin: width < 840 ? 16 : theme.margin
     function takeKeyboardFocus() { back.focusControl() }
     function focusInstalledIndex(index) {
@@ -130,8 +127,7 @@ Item {
             width: parent.width
             text: qsTr("Installed")
             color: theme.ink
-            font.family: installedTitleFont.status === FontLoader.Ready
-                ? installedTitleFont.name : theme.display
+            font.family: page.titleFont || theme.display
             font.pixelSize: theme.fontSize(page.width < 840 ? 28 : 35)
             font.weight: Font.DemiBold
             fontSizeMode: Text.HorizontalFit

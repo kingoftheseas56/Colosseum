@@ -79,6 +79,10 @@ Item {
     readonly property var setup: setupLoader.item
 
     Theme { id: theme }
+    FontLoader {
+        id: extensionsTitleFont
+        source: "../assets/fonts/cinzel/Cinzel-Variable.ttf"
+    }
     function rowArtworkActive(row) {
         if (!root.limitArtworkToViewport) return true
         if (!storeWorld.visible) return false
@@ -624,22 +628,20 @@ Item {
         prominentScrollBar: true
         contentBottomInset: root.bottomInset
         topBarBackOnly: true
+        topBarTitle: qsTr("Extensions")
+        topBarTitleFont: extensionsTitleFont.name
         onVisibleChanged: if (!visible) nuvioDrawer.close()
         backdrop: storeBackdrop
         onHomeRequested: root.backRequested()
 
-        Item {
+        Column {
             id: header
             width: parent.width
-            readonly property bool stacked: width < 520
-            height: stacked ? 224 : Math.round(Math.max(220, Math.min(270, width * 0.20)))
-            clip: true
+            spacing: 12
 
             FeaturedCarousel {
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                anchors.right: parent.right
-                width: header.stacked ? parent.width : parent.width * 0.76
+                width: parent.width
+                height: Math.round(Math.max(width < 520 ? 160 : 220, Math.min(270, width * 0.20)))
                 visible: slides.length > 0
                 automationId: "extensionsTributeCarousel"
                 androidHost: root.phoneLayout
@@ -657,75 +659,77 @@ Item {
                 }
             }
 
-            Text {
-                objectName: "extensionsHeading"
-                anchors.left: parent.left
-                y: header.stacked ? 20 : (header.height - height) / 2
-                width: header.stacked || !nuvioTrigger.visible
-                    ? parent.width : parent.width - nuvioTrigger.width - 20
-                text: qsTr("Extensions")
-                font.family: theme.display
-                font.pixelSize: theme.fontSize(header.stacked ? 39 : 49)
-                font.weight: Font.DemiBold
-                fontSizeMode: Text.HorizontalFit
-                minimumPixelSize: 26
-                color: theme.ink
-                Accessible.role: Accessible.Heading
-            }
+            Item {
+                id: headerActions
+                width: parent.width
+                height: nuvioTrigger.visible ? nuvioTrigger.height : installUrlButton.height
 
-            KeyboardAction {
-                id: nuvioTrigger
-                objectName: "extensionsNuvioRepositoriesButton"
-                visible: root.nuvioRepositoryStore !== null
-                anchors.right: parent.right
-                y: header.stacked ? header.height - height - 12 : (header.height - height) / 2
-                width: header.stacked ? parent.width : Math.min(272, parent.width * 0.43)
-                height: 74
-                accessibleName: nuvioDrawer.visible ? qsTr("Hide Nuvio repositories") : qsTr("Show Nuvio repositories")
-                onTriggered: if (nuvioDrawer.visible) nuvioDrawer.close(); else nuvioDrawer.open()
+                KeyboardAction {
+                    id: nuvioTrigger
+                    objectName: "extensionsNuvioRepositoriesButton"
+                    visible: root.nuvioRepositoryStore !== null
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.max(0, Math.min(272, parent.width - installUrlButton.width - 12))
+                    height: 60
+                    readonly property bool compact: width < 222
+                    accessibleName: nuvioDrawer.visible ? qsTr("Hide Nuvio repositories") : qsTr("Show Nuvio repositories")
+                    onTriggered: if (nuvioDrawer.visible) nuvioDrawer.close(); else nuvioDrawer.open()
 
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 16
-                    color: nuvioTrigger.interactionActive ? "#cf202839" : "#b8141923"
-                    border.width: 1
-                    border.color: nuvioTrigger.interactionActive ? theme.gold : "#8f829bc2"
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 16
+                        color: nuvioTrigger.interactionActive ? "#cf202839" : "#b8141923"
+                        border.width: 1
+                        border.color: nuvioTrigger.interactionActive ? theme.gold : "#8f829bc2"
+                    }
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 11
+                        spacing: 9
+                        Image {
+                            Layout.preferredWidth: 28
+                            Layout.preferredHeight: 32
+                            source: "../assets/icons/nuvio-official.png"
+                            sourceSize.width: 68
+                            fillMode: Image.PreserveAspectFit
+                        }
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: 4
+                            Text {
+                                text: nuvioTrigger.compact ? qsTr("Nuvio") : qsTr("Nuvio repositories")
+                                color: theme.ink
+                                font.family: theme.ui
+                                font.pixelSize: theme.fontSize(15)
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                visible: !nuvioTrigger.compact
+                                text: qsTr("Add a repository link")
+                                color: "#b2c8ec"
+                                font.family: theme.ui
+                                font.pixelSize: theme.fontSize(12)
+                            }
+                        }
+                        Image {
+                            Layout.preferredWidth: 15
+                            Layout.preferredHeight: 15
+                            source: "../assets/icons/lucide/chevron-right.svg"
+                            sourceSize.width: 30
+                            rotation: nuvioDrawer.visible ? -90 : 90
+                        }
+                    }
                 }
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 12
-                    Image {
-                        Layout.preferredWidth: 28
-                        Layout.preferredHeight: 32
-                        source: "../assets/icons/nuvio-official.png"
-                        sourceSize.width: 68
-                        fillMode: Image.PreserveAspectFit
-                    }
-                    Column {
-                        Layout.fillWidth: true
-                        spacing: 4
-                        Text {
-                            text: qsTr("Nuvio repositories")
-                            color: theme.ink
-                            font.family: theme.ui
-                            font.pixelSize: theme.fontSize(15)
-                            font.weight: Font.DemiBold
-                        }
-                        Text {
-                            text: qsTr("Add a repository link")
-                            color: "#b2c8ec"
-                            font.family: theme.ui
-                            font.pixelSize: theme.fontSize(12)
-                        }
-                    }
-                    Image {
-                        Layout.preferredWidth: 15
-                        Layout.preferredHeight: 15
-                        source: "../assets/icons/lucide/chevron-right.svg"
-                        sourceSize.width: 30
-                        rotation: nuvioDrawer.visible ? -90 : 90
-                    }
+
+                ExtensionsActionButton {
+                    id: installUrlButton
+                    objectName: "extensionsInstallUrlButton"
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 44
+                    text: qsTr("Install from URL")
+                    onClicked: root.openUrlInstaller()
                 }
             }
         }
@@ -795,11 +799,6 @@ Item {
                 color: "#f217181e"
                 radius: 14
             }
-        }
-
-        ExtensionsActionButton {
-            text: qsTr("Install from URL")
-            onClicked: root.openUrlInstaller()
         }
 
         RowLayout {
@@ -882,9 +881,9 @@ Item {
         readonly property real viewportTop: storeWorld.pageFlickable.y + 8
         readonly property real viewportBottom: root.height - root.bottomInset
         readonly property real triggerBottom: storeWorld.pageFlickable.y + header.y
-            + nuvioTrigger.y + nuvioTrigger.height - storeWorld.viewportContentY
+            + headerActions.y + nuvioTrigger.y + nuvioTrigger.height - storeWorld.viewportContentY
         readonly property real anchorY: Math.max(viewportTop, triggerBottom + 12)
-        x: root.width - storeWorld.outerPageMargin - width
+        x: storeWorld.outerPageMargin
         y: Math.max(viewportTop, Math.min(anchorY, viewportBottom - height))
         width: Math.max(0, Math.min(640, root.width - 2 * storeWorld.outerPageMargin))
         height: Math.min(nuvioBar.implicitHeight, Math.max(160, viewportBottom - anchorY),
@@ -957,6 +956,7 @@ Item {
         z: 10
         visible: root.managingInstalled && !tankoyomiConfiguration.visible
         backdrop: root.shellWallpaper
+        titleFont: extensionsTitleFont.name
         bottomInset: root.bottomInset
         entries: root.installedEntries
         capabilitiesFor: root.manifestResources

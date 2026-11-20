@@ -25,6 +25,7 @@ Item {
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // With backOnly, the page names itself beside the arrow (as Your Colosseum does).
     property string pageTitle: ""
+    property string pageTitleFont: ""
     property string pageSubtitle: ""
     // Retained world pages stay instantiated for state preservation, but hidden bars must not
     // keep their live clock timer waking the GUI every second.
@@ -294,7 +295,15 @@ Item {
             visible: bar.backOnly && bar.pageTitle.length > 0
             spacing: 2
             anchors.verticalCenter: parent.verticalCenter
-            Text { text: bar.pageTitle; color: theme.ink; font.family: theme.display; font.pixelSize: 24 }
+            Text {
+                objectName: "topBarPageTitle"
+                text: bar.pageTitle
+                color: theme.ink
+                font.family: bar.pageTitleFont || theme.display
+                font.pixelSize: 24
+                font.weight: bar.pageTitleFont ? Font.DemiBold : Font.Normal
+                Accessible.role: Accessible.Heading
+            }
             Text {
                 visible: bar.pageSubtitle.length > 0
                 text: bar.pageSubtitle; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
