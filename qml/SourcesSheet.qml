@@ -47,11 +47,11 @@ Item {
     readonly property real sourceRowHeight: 150
     readonly property real minResultBudget: sheet.sourceRowHeight + 40
     readonly property real desktopChromeReserve: (topBar.visible ? 20 + 64 : 0)
-        + (pills.visible ? 14 + pills.height : 0) + 16 + Math.max(26, sheet.dockClearance) + (tableHead.visible ? 52 : 0) + 12
-    readonly property bool compactHeight: !sheet.phoneLayout && sheet.androidDesktopPresentation
+        + (pills.visible ? 14 + pills.height : 0) + 16 + 26 + (tableHead.visible ? 52 : 0) + 12
+    readonly property bool compactHeight: !sheet.phoneLayout
         && sheet.height - 300 - sheet.desktopChromeReserve < sheet.minResultBudget
     readonly property real compactChromeReserve: (topBar.visible ? 10 + 52 : 0)
-        + (pills.visible ? 8 + pills.height : 0) + 10 + Math.max(12, sheet.dockClearance) + (tableHead.visible ? 44 : 0) + 12
+        + (pills.visible ? 8 + pills.height : 0) + 10 + 12 + (tableHead.visible ? 44 : 0) + 12
     readonly property real compactBannerMin: 76
     readonly property real dockClearance: sheet.dockBottomInset > 0 ? sheet.dockBottomInset + 8 : 0
     // Keep space for two direct rows on short desktop windows while Nuvio is in use.
@@ -62,8 +62,10 @@ Item {
     readonly property bool compactControls: sheet.compactHeight
         || (!sheet.phoneLayout && sheet.nuvioAsked
             && sheet.height - sheet.bannerHeight - sheet.desktopChromeReserve < 2 * sheet.sourceRowHeight + 2)
-    readonly property real tableBottomMargin: Math.max(
-        sheet.phoneLayout ? 16 : (sheet.compactControls ? 12 : 26), sheet.dockClearance)
+    // The dock floats over the bottom-left corner only, so the table runs to the window
+    // bottom; the list keeps dockClearance as scroll padding (list.bottomMargin) so the last
+    // row can scroll clear of the dock instead of the table stopping above it.
+    readonly property real tableBottomMargin: sheet.phoneLayout ? 16 : (sheet.compactControls ? 12 : 26)
 
     property Item backdrop
     property string label: ""
@@ -1000,6 +1002,7 @@ Item {
             anchors.left: parent.left; anchors.right: parent.right
             anchors.top: tableHead.bottom; anchors.bottom: parent.bottom
             anchors.topMargin: 4; anchors.bottomMargin: 8
+            bottomMargin: Math.max(0, sheet.dockClearance - sheet.tableBottomMargin - 8)
             clip: true
             visible: !sheet.smartPicking && sheet.visibleRows.length > 0
             enabled: !sheet.smartPicking
