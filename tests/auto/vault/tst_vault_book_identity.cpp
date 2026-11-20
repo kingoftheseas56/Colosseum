@@ -913,16 +913,31 @@ void VaultBookIdentityTest::onlyActiveSnapshotIsRead()
 {
     QTemporaryDir dir;
     BiblioCatalogStore store;
-    QVERIFY(store.open(dir.filePath(QStringLiteral("books.sqlite"))));
+    const auto path = dir.filePath(QStringLiteral("books.sqlite"));
+    QVERIFY(store.open(path));
     QVERIFY(store.publish(snapshot({work(QStringLiteral("old"))})));
     const auto old = store.exactWorkMatches(QStringLiteral("The Example"), QStringLiteral("Jane A Writer"));
+    auto indexed = BiblioCatalogStore::readIdentityTitleIndex(path);
+    const auto indexedOld = store.exactWorkMatches(QStringLiteral("THE EXAMPLE"), QString(), &indexed);
+    QCOMPARE(indexedOld.status, BiblioIdentityLookup::Status::Available);
+    QCOMPARE(indexedOld.candidates.size(), 1);
+    QCOMPARE(indexedOld.candidates.first().canonicalId, old.candidates.first().canonicalId);
+    QCOMPARE(indexedOld.candidates.first().sources.size(), old.candidates.first().sources.size());
     QVERIFY(store.publish(snapshot({work(QStringLiteral("new"), QStringLiteral("Another Title"))})));
+    QCOMPARE(store.exactWorkMatches(QStringLiteral("Another Title"), QString(), &indexed).status,
+        BiblioIdentityLookup::Status::Unavailable);
     const auto absent = store.exactWorkMatches(QStringLiteral("The Example"), QStringLiteral("Jane A Writer"));
     QCOMPARE(absent.status, BiblioIdentityLookup::Status::Available);
     QVERIFY(absent.candidates.isEmpty());
     QVERIFY(absent.snapshotId > old.snapshotId);
     QCOMPARE(store.exactWorkMatches(QStringLiteral("Another Title"), QStringLiteral("Jane A Writer"))
         .candidates.first().canonicalId, QStringLiteral("new"));
+    QVERIFY(store.retainVaultWork(old.candidates.first()));
+    indexed = BiblioCatalogStore::readIdentityTitleIndex(path);
+    const auto retained = store.exactWorkMatches(QStringLiteral("The Example"), QStringLiteral("Jane A Writer"), &indexed);
+    QCOMPARE(retained.candidates.size(), 1);
+    QCOMPARE(retained.candidates.first().canonicalId, QStringLiteral("old"));
+    QCOMPARE(retained.candidates.first().sources.first().sourceId, old.candidates.first().sources.first().sourceId);
 }
 
 void VaultBookIdentityTest::filenameEvidence_data()

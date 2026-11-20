@@ -5998,7 +5998,7 @@ Window {
         anchors.fill: parent
         z: 56
         active: false
-        visible: active && !win.immersiveSurfaceOpen
+        visible: active && status === Loader.Ready && !win.immersiveSurfaceOpen
         // VaultPage is a large, taskbar-only surface. Spread component creation across
         // frames so opening the folder door does not synchronously block the world underneath.
         // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
@@ -6583,7 +6583,15 @@ Window {
         collectionsActive: collectionsPanel.showing
         onCollectionsClicked: collectionsPanel.showing ? win.closeNamedCollectionsPage() : win.openNamedCollectionsPage()
         vaultActive: vaultLayer.active
-        onVaultClicked: !vaultLayer.active ? win.openVaultPage() : win.closeVaultPage()
+        onVaultClicked: {
+            if (vaultLayer.visible && vaultLayer.status === Loader.Ready) {
+                win.closeVaultPage()
+            } else if (!vaultLayer.active || vaultLayer.status !== Loader.Loading) {
+                if (vaultLayer.status === Loader.Error)
+                    vaultLayer.active = false
+                win.openVaultPage()
+            }
+        }
         extensionsActive: extensionsLayer.active
         onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
         historyStatsActive: historyStatsLayer.active || yourFeriaLayer.active

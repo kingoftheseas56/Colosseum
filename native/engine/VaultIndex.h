@@ -28,6 +28,7 @@
 #include <QVariantMap>
 
 namespace VaultKit { struct CancellationToken; }
+class QSqlQuery;
 
 class VaultIndex : public QObject
 {
@@ -213,7 +214,9 @@ private:
     // caller closes the DB) when the file was created by a newer schema owner — never downgrade.
     bool ensureSchema();
     QVariantList projectFiles(const QString& key, const QString& kind, bool exactGroup) const;
-    bool insertRow(const FileRow& row); // prepared INSERT OR REPLACE
+    bool insertRow(const FileRow& row);
+    static bool prepareRowInsert(QSqlQuery& query);
+    bool insertRow(QSqlQuery& query, const FileRow& row);
 
     VaultLocation::PersonalPaths m_personalPaths;
     VaultLocation::PersonalPaths m_requestedPersonalPaths;

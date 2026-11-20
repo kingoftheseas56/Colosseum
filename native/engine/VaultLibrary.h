@@ -128,6 +128,9 @@ public:
     // browse callers; an existing group of another kind never falls through to that route.
     Q_INVOKABLE QVariantList series(const QString& kind) const;
     Q_INVOKABLE QVariantList items(const QString& kind, const QString& seriesKey) const;
+    Q_INVOKABLE QVariantList shelfItems(const QString& kind, const QString& seriesKey) const;
+    Q_INVOKABLE QVariantMap shelfEpisode(const QString& seriesKey, const QString& id) const;
+    void refreshBookCatalog();
     Q_INVOKABLE bool attachExtrasToShow(const QString& groupKey, const QString& showGroupKey);
     Q_INVOKABLE QVariantList extrasForShow(const QString& showGroupKey) const;
     Q_INVOKABLE bool detachExtras(const QString& fileId);
@@ -348,6 +351,7 @@ signals:
     void browseArtworkReady(const QString& rowKey, const QString& coverUrl);
 
 private:
+    QVariantList projectItems(const QString& kind, const QString& seriesKey, bool shelf) const;
     std::function<QVariantMap(const QString&, const QString&)> m_bookIdentityDisplay;
     void setScanning(bool scanning);
     void setFirstFolderIndexing(bool first);
@@ -409,6 +413,8 @@ private:
     std::shared_ptr<FolderCursor> m_folderCursor;
     QString m_selectionRoot;
     QString m_selectionDirectory;
+    QVariantMap m_selectionLocation;
+    QVariantMap m_selectionRootLocation;
     QString m_selectionError;
     QVariantList m_selectionEntries;
     QList<QVariantList> m_selectionPages;

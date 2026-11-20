@@ -18,7 +18,7 @@ function videoGenres(value) {
     return out
 }
 function fraction(value) { return Math.max(0, Math.min(1, Number(value) || 0)) }
-function normalize(group, items, structure, hidden, detail) {
+function normalize(group, items, structure, hidden, detail, shelf) {
     detail = detail || {}
     items = items || []
     var first = items[0] || {}, identityId = String(group.identityId || "")
@@ -57,6 +57,9 @@ function normalize(group, items, structure, hidden, detail) {
         var mainPaths = {}
         for (var cp = 0; cp < detail.copies.length; ++cp) mainPaths[detail.copies[cp].path] = true
         progressItems = items.filter(function(file) { return !!mainPaths[file.path] })
+    } else if (kind === "movie" && shelf) {
+        var mainFiles = items.filter(function(file) { return !file.extra })
+        if (mainFiles.length) progressItems = mainFiles
     }
     var identity = { world: group.identityWorld || (group.kind === "video" ? "Theatre" : group.kind === "book" ? "Biblio" : "Tankoban"),
         identityId: identityId, source: group.identSource || first.identitySource || "", title: title,
@@ -66,7 +69,9 @@ function normalize(group, items, structure, hidden, detail) {
         year: group.identityYear || first.identityYear || detail.year || 0, subtitle: first.author || "",
         poster: cover, cover: cover, coverUrl: cover, backdrop: group.backdropUrl || "", logo: group.logoUrl || "", synopsis: identity.synopsis,
         blurb: identity.synopsis, runtimeText: detail.runtimeText || runtime(first.durationSec),
-        genres: detail.genresLine || first.identityGenres || group.identityGenres || "", imdbRating: /^IMDb ([0-9]+(?:\.[0-9]+)?)$/.test(detail.ratingText || "") ? Number(String(detail.ratingText).slice(5)) : 0,
+        genres: detail.genresLine || first.identityGenres || group.identityGenres || "",
+        imdbRating: /^IMDb ([0-9]+(?:\.[0-9]+)?)$/.test(detail.ratingText || "") ? Number(String(detail.ratingText).slice(5))
+            : identity.source === "IMDB" ? Number(first.identityRating) || 0 : 0,
         progress: 0, progressFraction: 0, progressText: "", addedAt: addedAt, isNew: addedAt > 0 && Date.now() - addedAt >= 0 && Date.now() - addedAt < 7 * 86400000, completed: false, lastReadMs: 0, finished: false, hidden: !!hidden,
         offline: offline, identified: identified, payload: group, items: items, progressItems: progressItems, copies: [group],
         identity: identity, path: path, route: group.kind === "video" ? "theatre" : group.kind,
@@ -91,11 +96,12 @@ function episodeFor(row, file, record) {
     if (row.serverId && context.episode !== undefined) return {season:context.season, episode:context.episode}
     return null
 }
-function progressLabel(row, file, record) {
+function progressLabel(row, file, record, episodeLookup) {
     var resume = record.resume || {}, parts = [], percent = Math.round(fraction(record.progress) * 100) + "%"
     if (row.nativeKind === "video") {
         var ep = episodeFor(row, file, record)
-        if (ep) parts.push("S" + ep.season + " E" + ep.episode)
+        if (!ep && row.kind === "show" && episodeLookup) ep = episodeLookup(file)
+        if (ep && ep.episode > 0) parts.push("S" + ep.season + " E" + ep.episode)
         var duration = Number(record.duration) || Number(file.durationSec)
         var position = Number(resume.position)
         if (duration > 0 && isFinite(position) && position >= 0 && position < duration)
@@ -140,7 +146,7 @@ function deduplicate(rows) {
     }
     return out
 }
-function joinProgress(row, progress, admission) {
+function joinProgress(row, progress, admission, episodeLookup) {
     var out = copy(row), best = null, target = null, completed = {}, completionKeys = {}, completionUpdated = {}
     if (progress && typeof progress.get === "function") {
         var candidates = row.serverId ? [{id: row.id, kind: "video"}] : row.progressItems || row.items
@@ -200,7 +206,7 @@ function joinProgress(row, progress, admission) {
     if (best) {
         out.progress = fraction(best.progress); out.progressFraction = out.progress
         out.lastReadMs = Number(best.updatedAt) || 0
-        out.progressText = progressLabel(row, target, best)
+        out.progressText = progressLabel(row, target, best, episodeLookup)
         out.progressRecord = best
         out.resumePath = target.path || ""
         out.resumeOffline = !!target.away

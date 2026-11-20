@@ -19,15 +19,6 @@ Item {
         if (cardVisible) { library.dismissCard(); return true }
         return false
     }
-    VaultFolderSelection {
-        id: picker
-        anchors.centerIn: parent
-        width: Math.min(568, root.width - 36)
-        height: Math.min(500, root.height - 32)
-        visible: !!root.selection.root
-        selection: root.selection
-        library: root.library
-    }
     VaultConfirmCard {
         objectName: "vaultCard"; anchors.fill: parent; visible: root.cardVisible
         model: root.library ? root.library.candidate || [] : []

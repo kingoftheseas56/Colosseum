@@ -28,6 +28,7 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QStandardPaths>
+#include <QStorageInfo>
 #include <QTimer>
 #include <QUrl>
 #include <algorithm>
@@ -301,6 +302,13 @@ void VaultLibrary::scheduleAutoIdentify()
     QTimer::singleShot(0, this, &VaultLibrary::runAutoIdentifySlice);
 }
 
+void VaultLibrary::refreshBookCatalog()
+{
+    scheduleAutoIdentify();
+    ++m_revision;
+    emit changed();
+}
+
 void VaultLibrary::runAutoIdentifySlice()
 {
     if (!m_identifier) {
@@ -349,9 +357,9 @@ void VaultLibrary::runAutoIdentifySlice()
             // instead of looking merely unscanned (browse-face execution plan, Slice 2).
             m_identifier->recordAmbiguous(groupKey, match.candidateCount);
     }
-    // One group per event-loop turn keeps the pass progressive and lets the immersive gate,
-    // watcher, and normal QML input continue to breathe between identities.
-    QTimer::singleShot(0, this, &VaultLibrary::runAutoIdentifySlice);
+    // Give QML incubation and rendering a frame between groups even when a
+    // long queue of unmatched titles is ready to inspect.
+    QTimer::singleShot(16, this, &VaultLibrary::runAutoIdentifySlice);
 }
 
 void VaultLibrary::fileFolderExtras()
@@ -640,6 +648,16 @@ QVariantMap VaultLibrary::admissionById() const
 
 QVariantList VaultLibrary::items(const QString& kind, const QString& seriesKey) const
 {
+    return projectItems(kind, seriesKey, false);
+}
+
+QVariantList VaultLibrary::shelfItems(const QString& kind, const QString& seriesKey) const
+{
+    return projectItems(kind, seriesKey, true);
+}
+
+QVariantList VaultLibrary::projectItems(const QString& kind, const QString& seriesKey, bool shelf) const
+{
     if (!m_index)
         return {};
     // Decorate each row with a ready-to-bind per-file cover URL, now through the SAME resolver
@@ -676,7 +694,7 @@ QVariantList VaultLibrary::items(const QString& kind, const QString& seriesKey) 
         const QString identityCover = m.value(QStringLiteral("identityCoverUrl")).toString();
         const QString identityId = m.value(QStringLiteral("identityId")).toString();
         QString resolvedCover = localRef;
-        if (m_artworkResolver) {
+        if (m_artworkResolver && !shelf) {
             VaultArtworkResolver::RowFacts facts;
             facts.rowKey = m.value(QStringLiteral("id")).toString();
             facts.kind = rowKind;
@@ -690,6 +708,11 @@ QVariantList VaultLibrary::items(const QString& kind, const QString& seriesKey) 
             resolvedCover = m_artworkResolver->resolve(facts);
         }
         m.insert(QStringLiteral("coverUrl"), resolvedCover);
+        if (shelf && rowKind == QLatin1String("video")) {
+            const QString topFolder = m.value(QStringLiteral("subfolder")).toString().section(QLatin1Char('/'), 0, 0);
+            m.insert(QStringLiteral("extra"), VaultKit::isExtrasDirName(topFolder));
+            m.insert(QStringLiteral("seriesKey"), seriesKey);
+        }
         const QString identityTitle = m.value(QStringLiteral("identityTitle")).toString();
         if (kind == QLatin1String("book") && m_bookIdentityDisplay && !identityId.isEmpty()) {
             const auto display = m_bookIdentityDisplay(identityId, identityTitle);
@@ -1496,6 +1519,33 @@ QVariantMap VaultLibrary::browseDetail(const QString& key) const
     return VaultBrowseDetail::detailFor(m_index, key, scanIgnore);
 }
 
+QVariantMap VaultLibrary::shelfEpisode(const QString& seriesKey, const QString& id) const
+{
+    if (!m_index)
+        return {};
+    const auto rows = m_index->rowsForGroup(seriesKey);
+    QStringList siblings;
+    const VaultIndex::FileRow* selected = nullptr;
+    for (const auto& row : rows) {
+        siblings.append(row.path);
+        if (row.id == id)
+            selected = &row;
+    }
+    if (!selected)
+        return {};
+    const auto episode = VaultKit::videoEpisodeContext(selected->path, siblings).number;
+    if (!episode.matched || episode.episode <= 0)
+        return {};
+    const auto parts = selected->subfolder.split(QLatin1Char('/'), Qt::SkipEmptyParts);
+    const auto seasonFolder = std::find_if(parts.cbegin(), parts.cend(), VaultKit::isSeasonLikeDirName);
+    if (seasonFolder == parts.cend() && std::any_of(parts.cbegin(), parts.cend(), VaultKit::isExtrasDirName))
+        return {};
+    const int season = episode.season ? episode.season
+        : seasonFolder == parts.cend() ? (episode.absolute ? 1 : 0)
+                                       : VaultKit::seasonOrdinalFromDirName(*seasonFolder);
+    return {{QStringLiteral("season"), season}, {QStringLiteral("episode"), episode.episode}};
+}
+
 QVariantMap VaultLibrary::presentationDetail(const QString& key) const
 {
     return VaultBrowseDetail::presentationFor(m_index, key);
@@ -1709,8 +1759,35 @@ void VaultLibrary::setFirstFolderIndexing(bool first)
 namespace {
 constexpr int kFolderSelectionPageSize = 96;
 
+QVariantMap folderSelectionLocation(const QFileInfo& info)
+{
+    const QString absolute = info.absoluteFilePath();
+    const QString canonical = info.canonicalFilePath();
+    const QString path = !canonical.isEmpty() && normPath(canonical) == normPath(absolute)
+        ? canonical : absolute;
+    const QStorageInfo storage(path);
+    QString mount = QDir::fromNativeSeparators(storage.rootPath());
+    QString volume = storage.name().trimmed();
+#ifdef Q_OS_WIN
+    if (path.size() >= 3 && path.at(1) == QLatin1Char(':')) {
+        mount = path.left(3);
+        const QString drive = path.left(2).toUpper();
+        volume = volume.isEmpty() ? drive : VaultLibrary::tr("%1 (%2)").arg(volume, drive);
+    }
+#endif
+    if (mount.isEmpty())
+        mount = QStringLiteral("/");
+    if (volume.isEmpty())
+        volume = QDir::toNativeSeparators(mount);
+    const auto segments = QDir(mount).relativeFilePath(path).split(QLatin1Char('/'), Qt::SkipEmptyParts);
+    return {{QStringLiteral("volume"), volume},
+            {QStringLiteral("segments"), segments == QStringList{QStringLiteral(".")} ? QStringList{} : segments},
+            {QStringLiteral("nativePath"), QDir::toNativeSeparators(path)}};
+}
+
 struct FolderSelectionPage {
     QVariantList entries;
+    QVariantMap location;
     bool more = false;
     QString error;
 };
@@ -1728,20 +1805,32 @@ QVariantMap VaultLibrary::folderSelection() const
     if (m_selectionRoot.isEmpty())
         return {};
     QVariantList entries = m_selectionEntries;
+    qsizetype includedCount = 0;
     for (QVariant& value : entries) {
         auto entry = value.toMap();
         const QString path = entry.value(QStringLiteral("path")).toString();
         const bool dir = entry.value(QStringLiteral("directory")).toBool();
         const QString normalized = normPath(path);
         const auto& explicitPaths = dir ? m_selectionDraft.directories : m_selectionDraft.files;
-        entry.insert(QStringLiteral("included"), !m_selectionDraft.excludes(path, dir));
-        entry.insert(QStringLiteral("inherited"), m_selectionDraft.excludes(path, dir)
-                     && !explicitPaths.contains(normalized));
+        const bool excluded = m_selectionDraft.excludes(path, dir);
+        entry.insert(QStringLiteral("included"), !excluded);
+        entry.insert(QStringLiteral("inherited"), excluded && !explicitPaths.contains(normalized));
+        if (!excluded)
+            ++includedCount;
         value = entry;
     }
+    auto belongsToRoot = [this](const QString& path) {
+        return path != m_selectionRoot && VaultLocation::containsPath(m_selectionRoot, path);
+    };
+    const auto excludedCount = std::count_if(m_selectionDraft.directories.cbegin(), m_selectionDraft.directories.cend(), belongsToRoot)
+        + std::count_if(m_selectionDraft.files.cbegin(), m_selectionDraft.files.cend(), belongsToRoot);
     return {{QStringLiteral("root"), m_selectionRoot},
             {QStringLiteral("directory"), m_selectionDirectory},
+            {QStringLiteral("location"), m_selectionPersonalView ? m_selectionRootLocation : m_selectionLocation},
             {QStringLiteral("entries"), entries},
+            {QStringLiteral("includedCount"), includedCount},
+            {QStringLiteral("excludedCount"), excludedCount},
+            {QStringLiteral("canGoUp"), normPath(m_selectionDirectory) != m_selectionRoot},
             {QStringLiteral("busy"), m_selectionBusy},
             {QStringLiteral("more"), m_selectionMore},
             {QStringLiteral("previous"), m_selectionPersonalView ? m_selectionOffset > 0 : m_selectionPage > 0},
@@ -1766,7 +1855,7 @@ void VaultLibrary::openFolderSelection(const QString& pathOrUrl)
         dismissCard();
     m_selectionRoot = normPath(path);
     m_selectionDraft = m_config->personalPaths();
-    readFolderSelection(m_selectionRoot);
+    readFolderSelection(QDir::cleanPath(path));
 }
 
 void VaultLibrary::readFolderSelection(const QString& path)
@@ -1774,6 +1863,7 @@ void VaultLibrary::readFolderSelection(const QString& path)
     if (m_folderCursor) m_folderCursor->cancelled.store(true);
     m_folderCursor = std::make_shared<FolderCursor>(path);
     m_selectionDirectory = path;
+    m_selectionLocation = normPath(path) == m_selectionRoot ? m_selectionRootLocation : QVariantMap{};
     m_selectionError.clear();
     m_selectionEntries.clear();
     m_selectionPages.clear();
@@ -1782,7 +1872,7 @@ void VaultLibrary::readFolderSelection(const QString& path)
     m_selectionMore = false;
     m_selectionCursorMore = false;
     if (m_selectionDraft.excludes(path, true)) {
-        m_selectionError = tr("An enclosing folder marks this location Personal. Open that source to restore it.");
+        m_selectionError = tr("An enclosing folder excludes this location. Open that source to include it again.");
         emit folderSelectionChanged();
         return;
     }
@@ -1804,6 +1894,7 @@ void VaultLibrary::fetchFolderSelectionPage()
                 page.error = VaultLibrary::tr("This folder is unavailable or cannot be read.");
                 return page;
             }
+            page.location = folderSelectionLocation(info);
             cursor->entries = std::make_unique<QDirIterator>(cursor->directory,
                 QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks);
         }
@@ -1826,8 +1917,12 @@ void VaultLibrary::fetchFolderSelectionPage()
         if (m_folderCursor != cursor || m_selectionPersonalView)
             return;
         m_selectionBusy = false;
-        if (normPath(cursor->directory) == m_selectionRoot)
+        if (!page.location.isEmpty())
+            m_selectionLocation = std::move(page.location);
+        if (normPath(cursor->directory) == m_selectionRoot) {
+            m_selectionRootLocation = m_selectionLocation;
             m_selectionRootReady = page.error.isEmpty();
+        }
         m_selectionEntries = std::move(page.entries);
         m_selectionPage = m_selectionPages.size();
         m_selectionPages.append(m_selectionEntries);
@@ -1968,7 +2063,7 @@ bool VaultLibrary::confirmFolderSelection()
         || !folderSelection().value(QStringLiteral("canSave")).toBool())
         return false;
     if (DownloadMediaPaths::moving() && m_selectionDraft != m_config->personalPaths()) {
-        m_selectionError = tr("Finish moving downloads before saving Personal choices.");
+        m_selectionError = tr("Finish moving downloads before saving exclusions.");
         emit folderSelectionChanged();
         return false;
     }
@@ -1991,6 +2086,8 @@ void VaultLibrary::cancelFolderSelection()
     m_folderCursor.reset();
     m_selectionRoot.clear();
     m_selectionDirectory.clear();
+    m_selectionLocation.clear();
+    m_selectionRootLocation.clear();
     m_selectionEntries.clear();
     m_selectionPages.clear();
     m_selectionDraft = {};

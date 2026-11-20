@@ -32,12 +32,16 @@ TestCase {
             function rootsDetail() { count("roots"); return [{path:"/fixture",fileCount:2,itemCount:2,available:true}] }
             function series(kind) {
                 count("series")
-                return kind === "video" ? [{key:"film",kind:"video",identityId:"imdb:tt1234",identityTitle:movieTitle,identityType:"movie",identityYear:2020,coverUrl:movieCover,synopsis:"Synopsis"}]
+                return kind === "video" ? [{key:"film",kind:"video",identityId:"imdb:tt1234",identSource:"IMDB",identityTitle:movieTitle,identityType:"movie",identityYear:2020,coverUrl:movieCover,synopsis:"Synopsis"}]
                     : kind === "book" ? [{key:"book",kind:"book",identityId:"book:1",identityTitle:"A book",coverUrl:"file:///book.jpg"}] : []
             }
-            function items(kind,key) {
-                count("items")
-                return [{id:key+"-file",kind:kind,path:"/fixture/"+key,size:10,mtimeMs:1000,durationSec:600,identityId:key==="film"?"imdb:tt1234":"book:1",identityTitle:key==="film"?movieTitle:"A book"}]
+            function shelfItems(kind,key) {
+                count("shelfItems")
+                var rows = [{id:key+"-file",kind:kind,path:"/fixture/"+key,size:10,mtimeMs:1000,durationSec:600,
+                             identityRating:8.2,identityGenres:"Drama",identityId:key==="film"?"imdb:tt1234":"book:1",
+                             identityTitle:key==="film"?movieTitle:"A book"}]
+                if (key === "film") rows.push({id:"extra-file",kind:kind,path:"/fixture/Extra",extra:true})
+                return rows
             }
             function seasonFactsForShow(key) { count("seasons"); return {} }
             function browseDetail(key) { count("physical"); return {runtimeText:"10m",ratingText:"IMDb 8.2",genresLine:"Drama",copies:[{path:"/fixture/film"}]} }
@@ -150,7 +154,11 @@ TestCase {
         for(let i=0;i<20;++i) library.changed()
         tryVerify(function() { return adapter.movies[0].title === "Updated film" })
         compare(library.reads.roots,1); compare(library.reads.series,3)
+        compare(library.reads.shelfItems,2)
+        compare(library.reads.seasons,undefined)
+        compare(library.reads.presentation,undefined)
         compare(library.reads.physical,undefined)
+        compare(adapter.movies[0].progressItems.length,1)
         compare(adapter.movies[0].imdbRating,8.2)
     }
     function test_artworkCannotPublishAheadOfPendingRevision() {

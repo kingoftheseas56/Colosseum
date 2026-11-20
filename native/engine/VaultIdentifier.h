@@ -112,6 +112,10 @@ private:
     void retryNextBookCatalog(quint64 generation);
     bool automaticOnlineBook(const VaultIndex::FileRow& row) const;
     bool snapshotBook(const VaultIndex::FileRow& row) const;
+    const QList<VaultIndex::FileRow>& bookRowsAtRevision() const;
+    mutable quint64 m_bookRowsRevision = static_cast<quint64>(-1);
+    mutable QList<VaultIndex::FileRow> m_bookRows;
+    mutable QString m_bookRowsFingerprint;
     QHash<QString, QString> m_epubAttempts; // one automatic migration probe per evidence fingerprint/session
     mutable QHash<QString, QString> m_pendingBookGroups; // group -> unchanged file evidence
     QStringList m_bookRetryKeys;

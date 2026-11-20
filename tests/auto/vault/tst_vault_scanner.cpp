@@ -657,6 +657,16 @@ void tst_vault_scanner::large_publish_keeps_owner_event_loop_active()
     VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite")));
     QVERIFY(index.isOpen());
     VaultIdentity identity(tmp.path());
+    // The old root has been forgotten, while its progress identities remain.
+    QList<VaultIdentity::FileFacts> previous;
+    for (int i = 0; i < 3111; ++i)
+        previous.append({tmp.filePath(QStringLiteral("Old library/Volume %1.cbz").arg(i)), i + 1, 1});
+    QCOMPARE(identity.reconcile(previous).fresh.size(), previous.size());
+    const auto first = previous.constFirst();
+    const QString oldId = VaultIdentity::computeId(first.path, first.size, first.mtimeMs);
+    VaultLocation::PersonalPaths personal;
+    personal.files.insert(VaultLocation::normalize(root + QStringLiteral("/.DS_Store")));
+    identity.setPersonalPaths(personal);
     VaultScanner scanner(&index, &identity);
     QSignalSpy activity(&scanner, &VaultScanner::scanActivity);
     QSignalSpy finished(&scanner, &VaultScanner::publicationFinished);
@@ -691,6 +701,7 @@ void tst_vault_scanner::large_publish_keeps_owner_event_loop_active()
     QCOMPARE(finished.first().at(0).toBool(), true);
     QVERIFY(publishing);
     QCOMPARE(index.itemCount(), kDirectories * kFiles);
+    QVERIFY(identity.knows(oldId));
     QVERIFY(activity.size() > 2);
     QCOMPARE(activity.last().at(1).toInt(), kDirectories * kFiles);
     qInfo() << "Vault scan heartbeat for" << kDirectories * kFiles << "media files:"

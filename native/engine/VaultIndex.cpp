@@ -499,10 +499,13 @@ QString VaultIndex::naturalSortKey(const QString& s)
 
 bool VaultIndex::insertRow(const FileRow& row)
 {
-    if (m_personalPaths.excludes(row.path))
-        return true;
     QSqlQuery q(m_db);
-    q.prepare(QStringLiteral(
+    return prepareRowInsert(q) && insertRow(q, row);
+}
+
+bool VaultIndex::prepareRowInsert(QSqlQuery& q)
+{
+    return q.prepare(QStringLiteral(
         "INSERT OR REPLACE INTO files ("
         "id, rootPath, subtreePath, groupKey, groupTitle, kind, path, "
         "displayTitle, realName, subfolder, sortKey, size, mtimeMs, pages, "
@@ -517,6 +520,12 @@ bool VaultIndex::insertRow(const FileRow& row)
         ":admissionVerdict, :admissionDetail, :synopsis, :metadataSource, :identityId, :identityTitle, "
         ":identitySource, :identitySynopsis, :identityCoverUrl, :identityWorld, :identityYear, :identitySuppressed, "
         ":identityState, :identityCandidateCount, :parsedYear, :identityRating, :identityGenres, :embeddedTitle, :identityType)"));
+}
+
+bool VaultIndex::insertRow(QSqlQuery& q, const FileRow& row)
+{
+    if (m_personalPaths.excludes(row.path))
+        return true;
 
     q.bindValue(QStringLiteral(":id"), row.id);
     q.bindValue(QStringLiteral(":rootPath"), row.rootPath);
@@ -593,6 +602,9 @@ bool VaultIndex::publish(const QList<FileRow>& rows,
     if (!clear.exec(QStringLiteral("DELETE FROM files")))
         return rollback();
 
+    QSqlQuery insert(m_db);
+    if (!rows.isEmpty() && !prepareRowInsert(insert))
+        return rollback();
     for (const FileRow& source : rows) {
         if (cancel && cancel->isCancelled())
             return rollback();
@@ -601,12 +613,13 @@ bool VaultIndex::publish(const QList<FileRow>& rows,
 
         carryUnchangedFacts(row, durable);
 
-        if (!insertRow(row))
+        if (!insertRow(insert, row))
             return rollback();
     }
 
+    insert.finish();
     if (!m_db.commit())
-        return false;
+        return rollback();
 
     ++m_revision;
     emit changed();
@@ -1370,7 +1383,7 @@ QVariantList VaultIndex::projectFiles(const QString& key, const QString& kind, b
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, embeddedTitle, identityType"
+        " identityState, identityCandidateCount, embeddedTitle, identityType, identityRating, identityGenres"
         " FROM files WHERE %1"
         " ORDER BY subfolder COLLATE NOCASE, sortKey").arg(exactGroup
             ? QStringLiteral("groupKey = ? AND kind = ?") : QStringLiteral("subtreePath = ?")));
@@ -1412,6 +1425,8 @@ QVariantList VaultIndex::projectFiles(const QString& key, const QString& kind, b
             m[QStringLiteral("identityCandidateCount")] = q.value(30).toInt();
             m[QStringLiteral("embeddedTitle")] = q.value(31).toString();
             m[QStringLiteral("identityType")] = q.value(32).toString();
+            m[QStringLiteral("identityRating")] = q.value(33).toDouble();
+            m[QStringLiteral("identityGenres")] = q.value(34).toString();
             out.append(m);
         }
     }

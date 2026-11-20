@@ -23,7 +23,14 @@ FocusScope {
     readonly property bool cardVisible: admission.modalOpen
     readonly property bool sourcesOpen: sources.open
     readonly property bool searchViewActive: bar.query.trim().length > 0
-    readonly property bool firstScanOnHome: adapter.firstFolderIndexing && currentView === "home" && !searchViewActive
+    readonly property bool hasHomeShelves: itemCount > 0 || adapter.heroItems.length > 0 || adapter.continueItems.length > 0
+    readonly property bool updatingEmptyShelves: !hasHomeShelves
+        && adapter.roots.length > 0 && adapter.localShelvesUpdating
+    readonly property string localScanStatus: adapter.indexingStatus
+        || (updatingEmptyShelves ? qsTr("Updating shelves") : "")
+    readonly property bool scanOnHome: currentView === "home" && !searchViewActive
+        && localScanStatus.length > 0 && (adapter.firstFolderIndexing || !hasHomeShelves)
+    readonly property bool scanAboveContent: localScanStatus.length > 0 && !scanOnHome && !folderPicker.active
     readonly property var searchRows: adapter.search(bar.query, "all", currentView === "server" ? currentServer : "")
     readonly property var selectedServer: adapter.providers.find(s => s.id === currentServer) || ({})
     signal backRequested()
@@ -177,15 +184,62 @@ FocusScope {
     ShaderEffectSource { anchors.fill: parent; sourceItem: root.backdrop; live: true; hideSource: false }
     Rectangle { anchors.fill: parent; gradient: Gradient { GradientStop { position: 0; color: theme.vaultVeilTop } GradientStop { position: 1; color: theme.vaultVeilBottom } } }
     MouseArea { anchors.fill: parent }
+    Glass {
+        id: scanStrip
+        objectName: "vaultScanStrip"
+        x: content.x
+        y: theme.vaultSidebarTop + 12
+        width: content.width
+        height: scanStripRow.implicitHeight + 24
+        visible: root.scanAboveContent
+        backdrop: root.backdrop
+        radius: theme.vaultRadius
+        RowLayout {
+            id: scanStripRow
+            anchors.fill: parent
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            anchors.topMargin: 12
+            anchors.bottomMargin: 12
+            spacing: 16
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 7
+                Text {
+                    Layout.fillWidth: true
+                    text: root.localScanStatus
+                    color: theme.ink
+                    font.family: theme.ui
+                    font.pixelSize: theme.vaultBody
+                    wrapMode: Text.Wrap
+                    Accessible.ignored: true
+                }
+                VaultScanProgress {
+                    objectName: "vaultScanStripProgress"
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: 360
+                    Accessible.name: root.localScanStatus
+                }
+            }
+            VaultLibraryButton {
+                objectName: "vaultScanStripStop"
+                text: qsTr("Stop scan")
+                visible: root.adapter.indexingCancellable
+                onClicked: root.adapter.cancelScan()
+            }
+        }
+    }
     Loader {
         id: content
         objectName: "vaultLibraryContent"
-        x: sidebar.x + sidebar.width + (theme.vaultContentLeft - theme.vaultSidebarInset - theme.vaultSidebarWidth); y: theme.vaultSidebarTop
+        x: sidebar.x + sidebar.width + (theme.vaultContentLeft - theme.vaultSidebarInset - theme.vaultSidebarWidth)
+        y: scanStrip.visible ? scanStrip.y + scanStrip.height + 12 : theme.vaultSidebarTop
         width: Math.max(240, root.width - x - theme.vaultContentRight)
         height: Math.max(100, root.height - y - 24)
+        visible: !folderPicker.active
         sourceComponent: {
             if (root.searchViewActive) return searchComponent
-            if (root.firstScanOnHome) return firstScanComponent
+            if (root.scanOnHome) return scanComponent
             if (root.currentView === "home") return root.adapter.empty ? emptyComponent : homeComponent
             if (root.currentView === "server") return serverComponent
             if (root.currentView === "match" || root.currentView === "hidden") return listComponent
@@ -193,26 +247,46 @@ FocusScope {
         }
         NumberAnimation { id: viewReveal; target: content; property: "opacity"; from: 0; to: 1; duration: theme.vaultMotionDuration; easing.type: Easing.OutCubic }
     }
+    Loader {
+        id: folderPicker
+        active: !!admission.selection.root
+        x: content.x
+        y: Math.max(theme.vaultSidebarTop, bar.y + bar.height) + 14
+        width: content.width
+        height: Math.max(0, root.height - y - Math.max(24, root.desktopDockInset + 8))
+        sourceComponent: VaultFolderSelection {
+            backdrop: root.backdrop
+            selection: admission.selection
+            library: admission.library
+        }
+        onLoaded: item.forceActiveFocus(Qt.OtherFocusReason)
+        onActiveChanged: {
+            if (!active)
+                Qt.callLater(function() {
+                    if (!folderPicker.active && content.item) content.item.forceActiveFocus(Qt.OtherFocusReason)
+                })
+        }
+    }
     VaultLibrarySidebar {
         id: sidebar
         x: theme.vaultSidebarInset; y: bar.y + bar.height
         height: Math.max(0, root.height - y - (root.desktopDockInset > 0 ? root.desktopDockInset + 8 : 4))
         expanded: root.sidebarSettings.railExpanded
+        enabled: !folderPicker.active
         backdrop: root.backdrop; counts: root.adapter.counts; servers: root.adapter.providers; currentView: root.currentView; currentServer: root.currentServer
-        unmatchedCount: root.adapter.unmatchedItems.length; status: root.adapter.status; busy: root.adapter.busy
-        scanStatus: root.firstScanOnHome ? "" : root.adapter.indexingStatus
-        scanCanCancel: root.adapter.indexingCancellable
+        unmatchedCount: root.adapter.unmatchedItems.length; status: root.localScanStatus || root.adapter.status; busy: root.adapter.busy
+        showingScanProgress: root.localScanStatus.length > 0
         onSelected: (view, serverId) => view === "server" ? root.selectProvider(serverId) : root.showView(view, serverId)
         onSourcesRequested: sources.show(sidebar)
         onAddFolderRequested: root.addFolderRequested()
         onToggleRequested: root.sidebarSettings.railExpanded = !root.sidebarSettings.railExpanded
         onRescanRequested: { if (!root.adapter.rescan()) sources.show(sidebar) }
-        onStopScanRequested: root.adapter.cancelScan()
     }
     VaultLibraryBar {
         id: bar; objectName: "vaultHeader"
         x: 16; y: 12; width: parent.width - 32; z: 10
         backdrop: root.backdrop; contentBackdrop: content
+        searchEnabled: !folderPicker.active
         scrollOffset: content.status === Loader.Ready && (content.item as Flickable) ? (content.item as Flickable).contentY : 0
         onBackRequested: root.handleBack()
         onMinimizeRequested: root.minimizeRequested()
@@ -296,7 +370,7 @@ FocusScope {
     }
     Timer { id: noticeTimer; interval: 5000; onTriggered: root.notice = "" }
     Component {
-        id: firstScanComponent
+        id: scanComponent
         Flickable {
             id: firstScan
             objectName: "vaultFirstScan"
@@ -320,7 +394,7 @@ FocusScope {
                     Text {
                         objectName: "vaultFirstScanHeading"
                         Layout.fillWidth: true
-                        text: qsTr("Vault is scanning your folders")
+                        text: root.adapter.indexing ? qsTr("Vault is scanning your folders") : qsTr("Getting your library ready")
                         color: theme.ink
                         font.family: theme.display
                         font.pixelSize: theme.vaultPageTitle
@@ -329,30 +403,22 @@ FocusScope {
                     Text {
                         objectName: "vaultFirstScanStage"
                         Layout.fillWidth: true
-                        text: root.adapter.indexingStatus
+                        text: root.localScanStatus
                         color: theme.ink
                         font.family: theme.ui
                         font.pixelSize: theme.vaultBody
                         wrapMode: Text.Wrap
                         Accessible.ignored: true
                     }
-                    ProgressBar {
+                    VaultScanProgress {
                         objectName: "vaultFirstScanProgress"
                         Layout.fillWidth: true
-                        indeterminate: true
-                        Accessible.name: root.adapter.indexingStatus
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: qsTr("You can keep using Vault while the scan runs.")
-                        color: theme.inkDimmer
-                        font.family: theme.ui
-                        font.pixelSize: theme.vaultBody
-                        wrapMode: Text.Wrap
+                        Accessible.name: root.localScanStatus
                     }
                     VaultLibraryButton {
                         objectName: "vaultCancelIndexing"
                         text: qsTr("Stop scan")
+                        visible: root.adapter.indexingCancellable
                         enabled: root.adapter.indexingCancellable
                         onClicked: root.adapter.cancelScan()
                     }

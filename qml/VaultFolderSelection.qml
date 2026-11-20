@@ -4,17 +4,23 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import QtQuick.Shapes
 
-Popup {
+FocusScope {
     id: picker
 
     objectName: "vaultFolderSelection"
     required property var selection
     required property var library
+    property Item backdrop: null
+    readonly property bool compact: width < 540
+    readonly property var location: selection.location || ({})
+    readonly property string displayPath: (selection.personalView ? selection.root : selection.directory) || ""
+    readonly property string volumeLabel: location.volume
+        || (/^[A-Za-z]:/.test(displayPath) ? displayPath.slice(0, 2).toUpperCase() : "/")
+    readonly property string relativeLocation: location.segments
+        ? location.segments.join("  ›  ")
+        : displayPath.replace(/^(?:[A-Za-z]:)?\/+/, "").split("/").join("  ›  ")
 
-    modal: true
     focus: true
-    closePolicy: Popup.NoAutoClose
-    padding: 22
 
     // Keep stable delegates and scroll position when one checkbox changes.
     function syncEntries() {
@@ -44,73 +50,126 @@ Popup {
     ListModel { id: entryModel }
     Theme { id: theme }
 
-    background: Rectangle {
-        color: theme.vaultSurface
+    Glass {
+        anchors.fill: parent
+        backdrop: picker.backdrop
         radius: theme.vaultRadius
-        border.color: theme.edge
+        scrim: 0.38
+    }
+    Rectangle {
+        anchors.fill: parent
+        radius: theme.vaultRadius
         gradient: Gradient {
-            GradientStop { position: 0; color: Qt.lighter(theme.vaultSurfaceHi, 1.2) }
-            GradientStop { position: 1; color: theme.vaultSurface }
+            GradientStop { position: 0; color: Qt.rgba(theme.vaultSurfaceHi.r, theme.vaultSurfaceHi.g, theme.vaultSurfaceHi.b, 0.91) }
+            GradientStop { position: 1; color: Qt.rgba(theme.vaultSurface.r, theme.vaultSurface.g, theme.vaultSurface.b, 0.94) }
         }
+        border.color: theme.edge
     }
 
-    contentItem: ColumnLayout {
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: picker.compact ? 12 : 22
         spacing: 12
         Keys.onEscapePressed: event => {
             event.accepted = true
             picker.library.cancelFolderSelection()
         }
-        Text {
+        RowLayout {
             Layout.fillWidth: true
-            text: picker.selection.editing ? qsTr("Choose files for Vault") : qsTr("Add a folder to Vault")
-            color: theme.ink
-            font.family: theme.display
-            font.pixelSize: theme.vaultSectionTitle
-            wrapMode: Text.Wrap
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("Choose what to index")
+                color: theme.ink
+                font.family: theme.display
+                font.pixelSize: picker.compact ? theme.vaultSectionTitle : theme.vaultPageTitle
+                wrapMode: Text.Wrap
+            }
+            VaultLibraryButton {
+                text: "×"
+                accessibleName: qsTr("Close folder picker")
+                onClicked: picker.library.cancelFolderSelection()
+            }
         }
         Text {
             Layout.fillWidth: true
             text: picker.selection.personalView
                   ? qsTr("Select an item to include it in Vault.")
-                  : qsTr("Uncheck files or folders to keep them Personal.")
+                  : qsTr("Uncheck any files or folders you want Vault to skip.")
             color: theme.inkDim
             font.family: theme.ui
             font.pixelSize: theme.vaultBody
             wrapMode: Text.Wrap
         }
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 40
+            color: theme.vaultSurface
+            border.color: theme.edge
+            radius: theme.vaultControlRadius
+            objectName: "vaultFolderBreadcrumb"
+            Accessible.role: Accessible.StaticText
+            Accessible.name: picker.relativeLocation
+                ? qsTr("%1, %2").arg(picker.volumeLabel, picker.relativeLocation) : picker.volumeLabel
+            HoverHandler { id: breadcrumbHover }
+            ToolTip.text: picker.location.nativePath || ""
+            ToolTip.delay: 450
+            ToolTip.visible: breadcrumbHover.hovered && ToolTip.text.length > 0
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                spacing: 9
+                VaultAction {
+                    objectName: "vaultFolderSelectionUp"
+                    visible: !picker.selection.personalView && !!picker.selection.canGoUp
+                    enabled: !picker.selection.busy
+                    Layout.preferredWidth: 34
+                    Layout.preferredHeight: 34
+                    quiet: true
+                    accessibleName: qsTr("Up one folder")
+                    tooltipText: accessibleName
+                    Image {
+                        anchors.centerIn: parent
+                        width: 16; height: 16
+                        source: "../assets/icons/lucide/arrow-left.svg"
+                    }
+                    onTriggered: picker.library.folderSelectionUp()
+                }
+                Image {
+                    Layout.preferredWidth: 18
+                    Layout.preferredHeight: 18
+                    source: "../assets/icons/lucide/folder-open.svg"
+                    opacity: 0.75
+                }
+                Text {
+                    objectName: "vaultFolderVolumeLabel"
+                    Layout.maximumWidth: picker.relativeLocation ? Math.max(64, picker.width * 0.39) : picker.width - 70
+                    text: picker.volumeLabel
+                    color: theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: theme.vaultCaption
+                    elide: Text.ElideRight
+                }
+                Text {
+                    visible: picker.relativeLocation.length > 0
+                    text: "›"
+                    color: theme.inkDim
+                }
+                Text {
+                    objectName: "vaultFolderLocationLabel"
+                    Layout.fillWidth: true
+                    text: picker.relativeLocation
+                    color: theme.ink
+                    font.family: theme.ui
+                    font.pixelSize: theme.vaultCaption
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideLeft
+                }
+            }
+        }
         RowLayout {
             Layout.fillWidth: true
-            spacing: 6
-            VaultAction {
-                objectName: "vaultFolderSelectionUp"
-                visible: !picker.selection.personalView && picker.selection.directory !== picker.selection.root
-                enabled: !picker.selection.busy
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 34
-                quiet: true
-                accessibleName: qsTr("Up one folder")
-                tooltipText: accessibleName
-                Image {
-                    anchors.centerIn: parent
-                    width: 16; height: 16
-                    source: "../assets/icons/lucide/arrow-left.svg"
-                }
-                onTriggered: picker.library.folderSelectionUp()
-            }
-            Image {
-                Layout.preferredWidth: 18
-                Layout.preferredHeight: 18
-                source: "../assets/icons/lucide/folder-open.svg"
-                opacity: 0.75
-            }
-            Text {
-                Layout.fillWidth: true
-                text: picker.selection.personalView ? picker.selection.root || "" : picker.selection.directory || ""
-                color: theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: theme.vaultCaption
-                elide: Text.ElideMiddle
-            }
+            spacing: 16
             Rectangle {
                 implicitWidth: views.implicitWidth + 6
                 implicitHeight: views.implicitHeight + 6
@@ -129,16 +188,31 @@ Popup {
                         onClicked: if (!selected) picker.library.showPersonalFolderChoices(false)
                     }
                     VaultLibraryButton {
-                        objectName: "vaultFolderPersonalChoices"
+                        objectName: "vaultFolderExcludedChoices"
                         implicitHeight: 32
-                        text: qsTr("Personal")
+                        text: picker.selection.excludedCount > 0
+                            ? qsTr("Excluded (%L1)").arg(picker.selection.excludedCount) : qsTr("Excluded")
                         quiet: true
                         selected: !!picker.selection.personalView
                         onClicked: if (!selected) picker.library.showPersonalFolderChoices(true)
                     }
                 }
             }
+            Text {
+                Layout.fillWidth: true
+                visible: !picker.compact && !picker.selection.busy && !picker.selection.personalView
+                    && (picker.selection.entries || []).length > 0
+                horizontalAlignment: Text.AlignRight
+                text: picker.selection.more || picker.selection.previous
+                    ? qsTr("%L1 of %L2 selected on this page").arg(picker.selection.includedCount || 0).arg(picker.selection.entries.length)
+                    : qsTr("%L1 of %L2 selected").arg(picker.selection.includedCount || 0).arg(picker.selection.entries.length)
+                elide: Text.ElideRight
+                color: theme.inkDim
+                font.family: theme.ui
+                font.pixelSize: theme.vaultCaption
+            }
         }
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: theme.edge }
         ListView {
             id: entries
             objectName: "vaultFolderSelectionEntries"
@@ -149,14 +223,6 @@ Popup {
             reuseItems: true
             model: entryModel
             ScrollBar.vertical: HouseScrollBar { id: entryBar; flick: entries; glassStyle: true }
-            Rectangle {
-                parent: entries
-                anchors.fill: parent
-                z: -1
-                radius: theme.vaultControlRadius
-                color: theme.vaultSurface
-                border.color: theme.edge
-            }
             delegate: Rectangle {
                 id: entry
                 required property string entryPath
@@ -168,6 +234,12 @@ Popup {
                 height: theme.vaultRowHeight
                 radius: theme.vaultControlRadius
                 color: include.hovered || disclosure.keyboardAction.hovered ? theme.glassTint : "transparent"
+                Rectangle {
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    height: 1
+                    color: theme.edge
+                    opacity: 0.45
+                }
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: 8
@@ -183,7 +255,8 @@ Popup {
                         checked: entry.included
                         enabled: !picker.selection.busy && !entry.inherited
                         Accessible.name: entry.entryName
-                        Accessible.description: entry.included ? qsTr("Included in Vault") : qsTr("Personal")
+                        Accessible.description: entry.included ? qsTr("Included in Vault")
+                            : entry.inherited ? qsTr("Excluded by a parent folder") : qsTr("Excluded")
                         // Native selection state owns the check, including rejected toggles.
                         nextCheckState: function() { return checkState }
                         onClicked: picker.library.toggleFolderSelectionEntry(entry.entryPath, entry.directory)
@@ -250,8 +323,8 @@ Popup {
                     }
                     Text {
                         Layout.rightMargin: 8
-                        visible: !entry.included
-                        text: qsTr("Personal")
+                        visible: !picker.compact || !entry.included
+                        text: entry.included ? qsTr("Included") : qsTr("Excluded")
                         color: theme.inkDim
                         font.family: theme.ui
                         font.pixelSize: theme.vaultCaption
@@ -265,7 +338,7 @@ Popup {
                 wrapMode: Text.Wrap
                 visible: entries.count === 0
                 text: picker.selection.error || (picker.selection.busy ? qsTr("Opening folder…")
-                    : picker.selection.personalView ? qsTr("No Personal choices yet.")
+                    : picker.selection.personalView ? qsTr("No excluded files or folders.")
                     : picker.selection.more ? qsTr("More entries are available.") : qsTr("This folder is empty."))
                 color: theme.inkDim
                 font.family: theme.ui
@@ -301,9 +374,19 @@ Popup {
                 onClicked: picker.library.nextFolderSelectionPage()
             }
         }
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: theme.edge }
         RowLayout {
             Layout.fillWidth: true
-            Item { Layout.fillWidth: true }
+            Text {
+                Layout.fillWidth: true
+                visible: !picker.compact
+                text: qsTr("Excluded files and folders stay on your drive.")
+                color: theme.inkDim
+                font.family: theme.ui
+                font.pixelSize: theme.vaultCaption
+                wrapMode: Text.Wrap
+            }
+            Item { Layout.fillWidth: true; visible: picker.compact }
             VaultLibraryButton {
                 objectName: "vaultCancelFolderSelection"
                 text: qsTr("Cancel")

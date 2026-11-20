@@ -10,6 +10,8 @@
 #include <QSet>
 #include <QVariantMap>
 
+#include <utility>
+
 VaultIdentity::VaultIdentity(QString vaultDir, QObject* parent)
     : QObject(parent), m_dir(std::move(vaultDir))
 {
@@ -545,23 +547,32 @@ VaultIdentity::ReconcileResult VaultIdentity::reconcile(const QList<FileFacts>& 
     for (int i = 0; i < missing.size(); ++i)
         missingBySignature[signature(missing.at(i).size, missing.at(i).mtimeMs)].append(i);
 
+    // Compare a fresh path only to its registered location. Forgotten roots
+    // remain in the registry for progress continuity, even after a new source replaces them.
+    QHash<QString, QString> firstIdByPath;
+    QList<QString> presentIds;
+    if (!fresh.isEmpty()) {
+        firstIdByPath.reserve(m_byId.size());
+        presentIds.reserve(canonicalsPresent.size());
+        for (const Entry& entry : std::as_const(m_byId)) {
+            const QString path = normalizePath(entry.path);
+            if (!firstIdByPath.contains(path))
+                firstIdByPath.insert(path, entry.id);
+            if (canonicalsPresent.contains(entry.id))
+                presentIds.append(entry.id);
+        }
+    }
+
     QSet<int> migratedFresh;
     // A known path whose facts changed materially is not a rename. Likewise, a fresh path
     // with an identical signature while its old canonical remains present is only a likely copy.
     // Both relationships are explicit ceremonies; an unambiguous rename below remains silent.
     for (int i = 0; i < fresh.size(); ++i) {
         const Item& candidate = fresh.at(i);
-        Entry pathEntry;
-        bool hasPathEntry = false;
-        for (const Entry& e : m_byId) {
-            if (e.id != candidate.cid
-                && normalizePath(e.path) == normalizePath(candidate.f.path)) {
-                pathEntry = e;
-                hasPathEntry = true;
-                break;
-            }
-        }
-        if (hasPathEntry) {
+        const QString normalized = normalizePath(candidate.f.path);
+        const auto knownPath = firstIdByPath.constFind(normalized);
+        if (knownPath != firstIdByPath.cend()) {
+            const Entry pathEntry = m_byId.value(knownPath.value());
             const QString relationship = relationshipKey(QStringLiteral("changed-content"),
                                                           pathEntry.id, candidate.f.path);
             const QString choice = m_decisions.value(relationship);
@@ -590,14 +601,13 @@ VaultIdentity::ReconcileResult VaultIdentity::reconcile(const QList<FileFacts>& 
 
         Entry copyEntry;
         int copyMatches = 0;
-        for (const Entry& e : m_byId) {
-            if (e.id == candidate.cid || m_personalPaths.excludes(e.path) || !canonicalsPresent.contains(e.id)
-                || normalizePath(e.path) == normalizePath(candidate.f.path))
+        for (const QString& id : std::as_const(presentIds)) {
+            const Entry& entry = *m_byId.constFind(id);
+            if (entry.size != candidate.f.size || entry.mtimeMs != candidate.f.mtimeMs
+                || m_personalPaths.excludes(entry.path) || normalizePath(entry.path) == normalized)
                 continue;
-            if (e.size == candidate.f.size && e.mtimeMs == candidate.f.mtimeMs) {
-                copyEntry = e;
-                ++copyMatches;
-            }
+            copyEntry = entry;
+            ++copyMatches;
         }
         if (copyMatches != 1)
             continue;

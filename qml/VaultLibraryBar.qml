@@ -5,13 +5,14 @@ Item {
     property Item backdrop: null
     property Item contentBackdrop: null
     property real scrollOffset: 0
+    property bool searchEnabled: true
     property alias query: searchInput.text
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
     signal accepted()
-    function focusSearch() { searchInput.forceActiveFocus(Qt.ShortcutFocusReason) }
+    function focusSearch() { if (searchEnabled) searchInput.forceActiveFocus(Qt.ShortcutFocusReason) }
     Theme { id: theme }
     height: width < 600 ? 104 : 56
     readonly property bool stackedSearch: width < 600
@@ -50,6 +51,7 @@ Item {
     }
     Rectangle {
         objectName: "vaultBrowseSearchField"; anchors.horizontalCenter: parent.horizontalCenter
+        enabled: root.searchEnabled
         y: root.stackedSearch ? 56 : (root.height - height) / 2
         width: root.stackedSearch ? parent.width - 32 : Math.min(400, parent.width - 2 * root.sideWidth)
         height: 36; radius: height / 2; color: theme.glassTint; border.width: 1; border.color: searchInput.activeFocus ? theme.gold : theme.edge

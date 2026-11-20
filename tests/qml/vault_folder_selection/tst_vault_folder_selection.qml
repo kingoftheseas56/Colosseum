@@ -12,7 +12,7 @@ TestCase {
 
     QtObject {
         id: library
-        readonly property string root: "/fixture"
+        readonly property string root: "d:/windows back up latest"
         readonly property string comics: root + "/Comics"
         property var selection: ({})
         property bool comicIncluded: true
@@ -27,7 +27,11 @@ TestCase {
                           included: true, inherited: false}
             const rows = personal ? (comicIncluded ? [] : [folder]) : (directory === root ? [folder] : [file])
             selection = {root: root, directory: directory, personalView: personal,
-                         canSave: true, entries: rows}
+                         canSave: true, canGoUp: directory !== root, entries: rows,
+                         includedCount: rows.filter(row => row.included).length,
+                         excludedCount: comicIncluded ? 0 : 1,
+                         location: {volume: "Seagate Backup Plus Drive (D:)",
+                           segments: directory === root || personal ? ["windows back up latest"] : ["windows back up latest", "Comics"]}}
         }
 
         function browseFolderSelection(path) { show(path, false) }
@@ -59,21 +63,24 @@ TestCase {
         library.confirmations = 0
         library.cancellations = 0
         library.show(library.root, false)
-        tryCompare(picker, "opened", true)
+        tryCompare(picker, "visible", true)
     }
 
-    function list() { return findChild(picker.contentItem, "vaultFolderSelectionEntries") }
+    function list() { return findChild(picker, "vaultFolderSelectionEntries") }
     function firstRow() {
         tryVerify(() => list().itemAtIndex(0) !== null)
         return list().itemAtIndex(0)
     }
 
-    function test_browsePersonalRestoreAndConfirm() {
+    function test_browseExcludeRestoreAndConfirm() {
+        compare(findChild(picker, "vaultFolderVolumeLabel").text, "Seagate Backup Plus Drive (D:)")
+        compare(findChild(picker, "vaultFolderLocationLabel").text, "windows back up latest")
         const disclosure = findChild(firstRow(), "vaultBrowseFolderEntry")
         mouseClick(disclosure)
         tryCompare(library.selection, "directory", library.comics)
         compare(findChild(firstRow(), "vaultFolderIncludeEntry").text, "Story.cbz")
-        mouseClick(findChild(picker.contentItem, "vaultFolderSelectionUp"))
+        verify(findChild(picker, "vaultFolderLocationLabel").text.endsWith("Comics"))
+        mouseClick(findChild(picker, "vaultFolderSelectionUp"))
 
         const check = findChild(firstRow(), "vaultFolderIncludeEntry")
         compare(check.checked, true)
@@ -85,24 +92,27 @@ TestCase {
         tryCompare(check, "checked", false)
         verify(!findChild(firstRow(), "vaultBrowseFolderEntry").visible)
 
-        mouseClick(findChild(picker.contentItem, "vaultFolderPersonalChoices"))
+        compare(check.Accessible.description, "Excluded")
+        const excludedTab = findChild(picker, "vaultFolderExcludedChoices")
+        compare(excludedTab.text, "Excluded (1)")
+        mouseClick(excludedTab)
         verify(library.selection.personalView)
         const restore = findChild(firstRow(), "vaultFolderIncludeEntry")
         restore.forceActiveFocus()
         keyClick(Qt.Key_Space)
         tryCompare(list(), "count", 0)
-        mouseClick(findChild(picker.contentItem, "vaultFolderBrowseFiles"))
+        mouseClick(findChild(picker, "vaultFolderBrowseFiles"))
         verify(!library.selection.personalView)
         compare(findChild(firstRow(), "vaultFolderIncludeEntry").checked, true)
-        mouseClick(findChild(picker.contentItem, "vaultConfirmFolderSelection"))
+        mouseClick(findChild(picker, "vaultConfirmFolderSelection"))
         compare(library.confirmations, 1)
-        tryCompare(picker, "opened", false)
+        tryCompare(picker, "visible", false)
     }
 
     function test_escapeCancelsSelection() {
         findChild(firstRow(), "vaultFolderIncludeEntry").forceActiveFocus()
         keyClick(Qt.Key_Escape)
         compare(library.cancellations, 1)
-        tryCompare(picker, "opened", false)
+        tryCompare(picker, "visible", false)
     }
 }

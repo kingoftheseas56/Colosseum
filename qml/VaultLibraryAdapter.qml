@@ -27,12 +27,12 @@ QtObject {
     readonly property bool indexing: !!(library && library.scanning)
     readonly property bool firstFolderIndexing: indexing && !!library.firstFolderIndexing
     readonly property bool indexingCancellable: indexing && !!library.scanCanCancel
-    readonly property bool busy: projectionBuild !== null || !!(metadataTimer && metadataTimer.running)
-        || indexing || !!(homeServers && homeServers.busy)
+    readonly property bool localShelvesUpdating: projectionBuild !== null || !!(metadataTimer && metadataTimer.running)
+    readonly property bool busy: localShelvesUpdating || indexing || !!(homeServers && homeServers.busy)
     readonly property bool empty: roots.length === 0 && servers.length === 0 && allItems.length === 0 && unmatchedItems.length === 0
     readonly property string indexingPhase: indexing ? (library.scanPhase || "discovering") : ""
     readonly property string indexingStage: {
-        if (indexingPhase === "privacy") return qsTr("Applying Personal choices")
+        if (indexingPhase === "privacy") return qsTr("Applying exclusions")
         if (indexingPhase === "publishing") return qsTr("Updating shelves")
         if (indexingPhase === "processing") return qsTr("Preparing files")
         return indexing ? qsTr("Finding media") : ""
@@ -65,7 +65,7 @@ QtObject {
     property var projectionBuild: null
     property int projectionGeneration: 0
     property var metadataTimer: Timer { interval: 0; onTriggered: adapter.refreshLocal() }
-    property var buildTimer: Timer { interval: 0; onTriggered: adapter.buildNext() }
+    property var buildTimer: Timer { interval: 16; onTriggered: adapter.buildNext() }
     property var artworkTimer: Timer { interval: 0; onTriggered: adapter.flushArtwork() }
     property var progressTimer: Timer { interval: 0; onTriggered: adapter.rejoinProgress() }
     property var libraryConnection: Connections {
@@ -151,20 +151,25 @@ QtObject {
         if (!buildIsCurrent(build)) { rejectBuild(build); return }
         var total = build.groups.length + build.hidden.length
         var end = Math.min(total, build.cursor + 8)
+        var useShelfItems = !!library && typeof library.shelfItems === "function"
+        var deadline = Date.now() + 8
         for (; build.cursor < end; ++build.cursor) {
             var hidden = build.cursor >= build.groups.length
             var group = hidden ? build.hidden[build.cursor - build.groups.length] : build.groups[build.cursor]
-            var files = call("items", [group.kind, group.key], [])
+            var files = call(useShelfItems ? "shelfItems" : "items", [group.kind, group.key], [])
             if (!buildIsCurrent(build)) { rejectBuild(build); return }
-            var structure = group.kind === "video" ? call("seasonFactsForShow", [group.key], {}) : {}
+            var legacyVideoIdentity = !group.identityType && !!group.identityId
+            var structure = group.kind === "video" && (!useShelfItems || legacyVideoIdentity)
+                ? call("seasonFactsForShow", [group.key], {}) : {}
             if (!buildIsCurrent(build)) { rejectBuild(build); return }
-            var detail = group.kind === "video" ? call("presentationDetail", [group.key], {}) : {}
+            var detail = group.kind === "video" && !useShelfItems ? call("presentationDetail", [group.key], {}) : {}
             if (!buildIsCurrent(build)) { rejectBuild(build); return }
-            var row = Data.normalize(group, files, structure, hidden, detail)
+            var row = Data.normalize(group, files, structure, hidden, detail, useShelfItems)
             row.supplementalCount = Number(group.supplementalCount) || 0
             if (hidden) build.hiddenRows.push(row)
             else if (row.identified && row.kind !== "unknown") build.local.push(row)
             else build.unmatched.push(row)
+            if (Date.now() >= deadline) { ++build.cursor; break }
         }
         if (build.cursor < total) { buildTimer.start(); return }
         const local = Data.deduplicate(build.local).map(joinProgress)
@@ -178,7 +183,9 @@ QtObject {
     function joinProgress(row) {
         var clean = Object.assign({}, row, {progress:0, progressFraction:0, progressText:"", lastReadMs:0,
             finished:false, completed:false, hasProgress:false, progressRecord:null, resumePath:"", resumeOffline:false})
-        return Data.joinProgress(clean, progressStore, admission)
+        return Data.joinProgress(clean, progressStore, admission, function(file) {
+            return file.seriesKey ? call("shelfEpisode", [file.seriesKey, file.id], {}) : {}
+        })
     }
     function publishLocal(rows) {
         allItems = rows

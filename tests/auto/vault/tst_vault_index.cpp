@@ -109,6 +109,7 @@ private slots:
     void publish_and_query_round_trip();
     void folder_listing_is_natural_order();
     void publish_is_atomic_when_cancelled();
+    void publish_rolls_back_after_insert_failure();
     void incremental_upsert_lands_without_republish();
     void root_away_state_keeps_rows_and_progress();
     void error_state_round_trips_and_groups_surface_it();
@@ -480,7 +481,7 @@ void tst_vault_index::publish_is_atomic_when_cancelled()
     }));
     QCOMPARE(idx.itemCount(), 2);
 
-    // A cancelled republish must roll back the DELETE and leave set A intact.
+    // A cancelled republish must leave set A intact.
     VaultKit::CancellationToken tok;
     tok.cancel();
     const QList<VaultIndex::FileRow> setB = {
@@ -490,6 +491,53 @@ void tst_vault_index::publish_is_atomic_when_cancelled()
     QVERIFY(!idx.publish(setB, &tok));
     QCOMPARE(idx.itemCount(), 2);
     QCOMPARE(idx.itemCountForKind(QStringLiteral("comic")), 2);
+}
+
+void tst_vault_index::publish_rolls_back_after_insert_failure()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString path = tmp.filePath(QStringLiteral("index.sqlite"));
+    VaultIndex index(path);
+    QVERIFY(index.isOpen());
+
+    const QString kind = QStringLiteral("comic");
+    const QString subtree = QStringLiteral("D:/lib/Comics");
+    const QString title = QStringLiteral("Comics");
+    const auto original = mk(QStringLiteral("vault:original"), subtree, title, kind, QStringLiteral("Original.cbz"));
+    const auto first = mk(QStringLiteral("vault:first"), subtree, title, kind, QStringLiteral("First.cbz"));
+    const auto blocked = mk(QStringLiteral("vault:blocked"), subtree, title, kind, QStringLiteral("Blocked.cbz"));
+    QVERIFY(index.publish({original}));
+    const auto revision = index.revision();
+    QSignalSpy changed(&index, &VaultIndex::changed);
+
+    const QString connection = QUuid::createUuid().toString();
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+        db.setDatabaseName(path);
+        QVERIFY(db.open());
+        QSqlQuery query(db);
+        // Fail only after the replacement transaction has actually written its first row.
+        QVERIFY(query.exec(QStringLiteral(
+            "CREATE TRIGGER block_second BEFORE INSERT ON files "
+            "WHEN NEW.id = 'vault:blocked' AND EXISTS (SELECT 1 FROM files WHERE id = 'vault:first') "
+            "BEGIN SELECT RAISE(ABORT, 'second insert blocked'); END")));
+    }
+    QSqlDatabase::removeDatabase(connection);
+
+    QVERIFY(!index.publish({first, blocked}));
+    QCOMPARE(index.revision(), revision);
+    QCOMPARE(changed.count(), 0);
+    const auto restored = index.rowsForKind(kind);
+    QCOMPARE(restored.size(), 1);
+    QCOMPARE(restored.constFirst().id, original.id);
+    QCOMPARE(restored.constFirst().path, original.path);
+
+    QVERIFY(index.publish({first}));
+    QCOMPARE(changed.count(), 1);
+    const auto retried = index.rowsForKind(kind);
+    QCOMPARE(retried.size(), 1);
+    QCOMPARE(retried.constFirst().id, first.id);
 }
 
 void tst_vault_index::incremental_upsert_lands_without_republish()

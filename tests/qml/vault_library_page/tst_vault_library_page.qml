@@ -18,6 +18,7 @@ TestCase {
         id: admissionLibraryComponent
         QtObject {
             property bool cardVisible: true
+            property var folderSelection: ({})
             property var candidate: [{subtreePath:"/fixture/new",groupTitle:"New books",kind:"book",count:2}]
             property string candidateRoot: "/fixture/new"
             property var identityCeremonies: []
@@ -31,6 +32,7 @@ TestCase {
             function rescanDegradedRoots() { degraded++ }
             function confirmRoot(path, overrides) { confirmed++; cardVisible=false }
             function dismissCard() { dismissed++; cardVisible=false }
+            function cancelFolderSelection() { folderSelection = ({}) }
             function attachExtrasToShow(from, to) { attached = [from, to]; return true }
             function extrasForShow(key) {
                 return supplementalByShow
@@ -251,6 +253,29 @@ TestCase {
         verify(pane.y+pane.height <= 676)
         verify(content().heroRows === undefined)
     }
+    function test_folderPickerUsesContentPaneAndBackRestoresTheShelf() {
+        const library = createTemporaryObject(admissionLibraryComponent, suite, { cardVisible: false })
+        model.library = library
+        model.books = [book]
+        page.showView("books", "")
+        const loader = findChild(page, "vaultLibraryContent")
+        const previous = loader.item
+        const sidebar = findChild(page, "vaultLibrarySidebar")
+        library.folderSelection = {root:"d:/collection", directory:"d:/collection", canSave:true,
+                                   location:{volume:"Backup Drive (D:)",segments:["Collection"]}, entries:[]}
+        tryVerify(() => !!findChild(page, "vaultFolderSelection"))
+        const picker = findChild(page, "vaultFolderSelection")
+        verify(picker.visible)
+        verify(sidebar.visible)
+        verify(!sidebar.enabled)
+        compare(picker.mapToItem(page, 0, 0).x, loader.x)
+        verify(!loader.visible)
+        mouseClick(findChild(page, "vaultHeaderBack"))
+        tryCompare(loader, "visible", true)
+        verify(sidebar.enabled)
+        compare(loader.item, previous)
+        compare(page.currentView, "books")
+    }
     function test_firstConfirmedScanUsesHomeAndFollowsNavigation() {
         clearLibrary()
         const library = createTemporaryObject(scanLibraryComponent, suite)
@@ -259,13 +284,13 @@ TestCase {
         library.cardVisible = true
         compare(page.cardVisible, true)
         verify(!!findChild(content(), "vaultEmptyHeading"))
-        verify(!findChild(page, "vaultSidebarScan").visible)
+        verify(!findChild(page, "vaultScanStrip").visible)
         findChild(page, "vaultCard").shelveRequested({})
         compare(library.confirmed, true)
         compare(page.cardVisible, false)
         compare(page.vaultState, "scanning")
         tryCompare(content(), "objectName", "vaultFirstScan")
-        verify(!findChild(page, "vaultSidebarScan").visible)
+        verify(!findChild(page, "vaultScanStrip").visible)
         const progress = findChild(content(), "vaultFirstScanProgress")
         verify(progress.indeterminate)
         compare(progress.Accessible.name, "Finding media")
@@ -276,10 +301,10 @@ TestCase {
         mouseClick(findChild(page, "vaultNav_books"))
         compare(page.currentView, "books")
         compare(content().title, "Books")
-        verify(findChild(page, "vaultSidebarScan").visible)
+        verify(findChild(page, "vaultScanStrip").visible)
         library.scanPhase = "processing"
         library.scanDone = 2
-        compare(findChild(page, "vaultSidebarScanProgress").Accessible.name, "Preparing files · 2 files prepared")
+        compare(findChild(page, "vaultScanStripProgress").Accessible.name, "Preparing files · 2 files prepared")
         mouseClick(findChild(page, "vaultNav_home"))
         tryCompare(content(), "objectName", "vaultFirstScan")
         compare(findChild(content(), "vaultFirstScanStage").text, "Preparing files · 2 files prepared")
@@ -292,7 +317,7 @@ TestCase {
         library.finishIndexing()
         compare(page.vaultState, "populated")
         compare(content().kindRows.book[0], book)
-        verify(!findChild(page, "vaultSidebarScan").visible)
+        verify(!findChild(page, "vaultScanStrip").visible)
     }
     function test_scanCancellationAndFailedRetry() {
         clearLibrary()
@@ -311,26 +336,49 @@ TestCase {
         library.indexingFailed()
         verify(page.notice.indexOf("Select Rescan in Sources") >= 0)
         verify(!findChild(content(), "vaultFirstScanProgress"))
-        verify(!findChild(page, "vaultSidebarScan").visible)
+        verify(!findChild(page, "vaultScanStrip").visible)
     }
-    function test_subsequentScanUsesSidebarEvenWhenEmptyOrReopened() {
+    function test_rescanWithNoShelvesUsesHomeUntilProjectionFinishes() {
+        clearLibrary()
+        const library = createTemporaryObject(scanLibraryComponent, suite)
+        model.library = library
+        model.roots = [{ path: "/private/stories", available: true }]
+        library.startIndexing(false)
+        library.scanDone = 852
+        tryCompare(content(), "objectName", "vaultFirstScan")
+        compare(findChild(content(), "vaultFirstScanStage").text, "Finding media · 852 files found")
+        verify(!findChild(page, "vaultScanStrip").visible)
+
+        model.projectionBuild = ({})
+        library.finishIndexing()
+        compare(content().objectName, "vaultFirstScan")
+        compare(findChild(content(), "vaultFirstScanStage").text, "Updating shelves")
+        verify(!findChild(content(), "vaultCancelIndexing").visible)
+        model.books = [book]
+        model.allItems = [book]
+        model.projectionBuild = null
+        compare(content().kindRows.book[0], book)
+    }
+    function test_populatedRescanKeepsControlsAboveShelvesWhenReopened() {
         clearLibrary()
         const server = createTemporaryObject(serverComponent, suite, { busy: true })
         model.homeServers = server
         compare(model.busy, true)
         compare(page.vaultState, "empty")
-        verify(!findChild(page, "vaultSidebarScan").visible)
+        verify(!findChild(page, "vaultScanStrip").visible)
         verify(!!findChild(content(), "vaultEmptyHeading"))
 
         const library = createTemporaryObject(scanLibraryComponent, suite)
         model.library = library
+        model.books = [book]
+        model.allItems = [book]
         library.startIndexing(false)
-        const sidebarProgress = findChild(page, "vaultSidebarScanProgress")
-        verify(sidebarProgress.visible)
-        verify(!!findChild(content(), "vaultEmptyHeading"))
-        verify(sidebarProgress.indeterminate)
+        const progress = findChild(page, "vaultScanStripProgress")
+        verify(progress.visible)
+        compare(content().kindRows.book[0], book)
+        verify(progress.indeterminate)
         library.scanDone = 1
-        compare(sidebarProgress.Accessible.name, "Finding media · 1 file found")
+        compare(progress.Accessible.name, "Finding media · 1 file found")
 
         page.destroy()
         wait(0)
@@ -338,25 +386,28 @@ TestCase {
         page.sidebarSettings.railExpanded = false
         const sidebar = findChild(page, "vaultLibrarySidebar")
         tryCompare(sidebar, "width", sidebar.collapsedWidth)
-        verify(findChild(page, "vaultSidebarScanLabel").visible)
-        const collapsedProgress = findChild(page, "vaultSidebarScanProgress")
-        verify(collapsedProgress.visible)
-        compare(collapsedProgress.Accessible.name, "Finding media · 1 file found")
-        verify(collapsedProgress.mapToItem(sidebar, 0, collapsedProgress.height).y <= sidebar.height)
+        const reopenedProgress = findChild(page, "vaultScanStripProgress")
+        const strip = findChild(page, "vaultScanStrip")
+        const loader = findChild(page, "vaultLibraryContent")
+        verify(reopenedProgress.visible)
+        compare(reopenedProgress.Accessible.name, "Finding media · 1 file found")
+        verify(strip.x >= sidebar.x + sidebar.width)
+        verify(strip.y + strip.height < loader.y)
+        verify(loader.height > 100)
         library.scanPhase = "privacy"
-        compare(collapsedProgress.Accessible.name, "Applying Personal choices")
-        const stop = findChild(page, "vaultSidebarStopScan")
-        compare(stop.Accessible.name, "Stop scan")
+        compare(reopenedProgress.Accessible.name, "Applying exclusions")
+        const stop = findChild(page, "vaultScanStripStop")
+        compare(stop.text, "Stop scan")
         mouseClick(stop)
         compare(library.stops, 1)
-        verify(!collapsedProgress.visible)
+        verify(!reopenedProgress.visible)
 
         library.startIndexing(false)
         library.scanCanCancel = false
         verify(!stop.visible)
         library.finishIndexing()
         compare(model.busy, true)
-        verify(!collapsedProgress.visible)
+        verify(!reopenedProgress.visible)
     }
     function findButton(item, text) {
         if (item.text === text && typeof item.clicked === "function") return item

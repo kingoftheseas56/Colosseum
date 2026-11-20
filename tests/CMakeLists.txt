@@ -1349,9 +1349,14 @@ target_sources(biblio_catalog_store_harness PRIVATE
 
 add_executable(tst_vault_book_identity
     auto/vault/tst_vault_book_identity.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioCanonicalizer.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/BiblioCatalogStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/BiblioProviders.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioTaxonomy.cpp")
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioRanking.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioTaxonomy.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp")
 target_include_directories(tst_vault_book_identity PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_vault_book_identity PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
 set_target_properties(tst_vault_book_identity PROPERTIES AUTOMOC ON

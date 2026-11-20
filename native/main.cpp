@@ -1679,14 +1679,16 @@ int main(int argc, char *argv[]) {
 #if !defined(Q_OS_ANDROID)
     vaultIdentifier->setBookCatalogLookup(biblioCatalog,
         [biblioCatalog](const QString &title, const QString &author) {
-            return biblioCatalog->exactWorkMatches(title, author);
+            return biblioCatalog->vaultWorkMatches(title, author);
         }, [biblioCatalog](const QString &title, const QString &author, const QString &filenameTitle) {
             return biblioCatalog->onlineWorkMatches(title, author, filenameTitle);
         }, [biblioCatalog](const BiblioIdentityCandidate &candidate) {
             return biblioCatalog->retainVaultWork(candidate);
         });
     vaultLibrary->setBookIdentityDisplay([biblioCatalog](const QString &id, const QString &title) {
-        for (const auto &work : biblioCatalog->exactWorkMatches(title, QString()).candidates)
+        if (!id.startsWith(QLatin1String("biblio:")))
+            return QVariantMap{};
+        for (const auto &work : biblioCatalog->vaultWorkMatches(title, QString()).candidates)
             if (QStringLiteral("biblio:") + work.canonicalId == id)
                 return QVariantMap{{QStringLiteral("author"), work.author}};
         return QVariantMap{};
@@ -1695,6 +1697,10 @@ int main(int argc, char *argv[]) {
                      vaultIdentifier, &VaultIdentifier::retryBookCatalog);
     QObject::connect(biblioCatalog, &BiblioCatalog::revisionChanged,
                      vaultIdentifier, &VaultIdentifier::retryBookCatalog);
+    QObject::connect(biblioCatalog, &BiblioCatalog::vaultIdentityIndexReady,
+                     vaultIdentifier, &VaultIdentifier::retryBookCatalog);
+    QObject::connect(biblioCatalog, &BiblioCatalog::vaultIdentityIndexReady,
+                     vaultLibrary, &VaultLibrary::refreshBookCatalog);
 #endif
 
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &backendServices);
