@@ -2435,6 +2435,9 @@ add_executable(manga_downloader_cancel_harness
     ../tests/manga_downloader_cancel_harness.cpp
     # unity-compiled into the harness TU (see its include note): engine/MangaDownloader.cpp
     engine/MangaDownloader.h
+    engine/CbzArchive.cpp
+    engine/ComicCoverId.cpp
+    third_party/miniz/miniz.c
     engine/MangaPageTransport.cpp
     engine/MangaPageTransport.h
     engine/DownloadFileOps.h
@@ -2474,6 +2477,9 @@ add_executable(tankoyomi_page_security_harness
     ../tests/tankoyomi_page_security_harness.cpp
     # unity-compiled into the harness TU (see its include note): engine/MangaDownloader.cpp
     engine/MangaDownloader.h
+    engine/CbzArchive.cpp
+    engine/ComicCoverId.cpp
+    third_party/miniz/miniz.c
     engine/MangaPageTransport.cpp
     engine/MangaPageTransport.h
     engine/DownloadFileOps.h

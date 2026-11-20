@@ -239,14 +239,15 @@ bool CbzArchive::writeImagesAtomic(const QString& archivePath,
         return false;
     }
     QString partPath = archivePath + QStringLiteral(".part");
-    QTemporaryFile temporary(archivePath + QStringLiteral(".XXXXXX.part"));
     if (DownloadMediaPaths::enabled() && DownloadMediaPaths::isWithin(DownloadMediaPaths::root(), archivePath)) {
+        QTemporaryFile temporary(archivePath + QStringLiteral(".XXXXXX.part"));
         if (!temporary.open()) {
             setError(error, QStringLiteral("cannot reserve temporary CBZ path"));
             return false;
         }
         partPath = temporary.fileName();
-        temporary.close();
+        // Let the temporary file object release its Windows handle before miniz opens the path.
+        temporary.setAutoRemove(false);
     } else {
         QFile::remove(partPath);
     }
@@ -255,6 +256,7 @@ bool CbzArchive::writeImagesAtomic(const QString& archivePath,
     const QByteArray part = nativePath(partPath);
     if (!mz_zip_writer_init_file(&zip, part.constData(), 0)) {
         setError(error, QStringLiteral("cannot create CBZ: %1").arg(zipError(zip)));
+        QFile::remove(partPath);
         return false;
     }
 

@@ -119,7 +119,7 @@ int main(int argc, char **argv)
                 job->seriesTitle = QStringLiteral("One Piece");
                 job->chapterLabel = QStringLiteral("Fixture");
                 job->pages = {page}; job->files = QStringList{QString()}; job->total = 1;
-                job->dir = directory.filePath("chapter-" + rawId);
+                job->dir = downloader.chapterDir(job->seriesId, job->chapterId);
                 QDir().mkpath(job->dir);
                 downloader.m_active.insert(chapter, job);
                 observedJob = job;
