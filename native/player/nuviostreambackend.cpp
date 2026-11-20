@@ -142,8 +142,23 @@ std::string sessionIdentity(const std::string &diagnostic) {
 }
 
 #endif
+// A bare-infohash magnet makes a cold engine find the swarm through DHT alone. On a phone
+// that bootstrap routinely takes minutes (the player sits on "Starting stream..."); the
+// public UDP trackers answer in seconds. A Smart Pick has no browse-time head start, so it
+// paid that full cold cost on every play. Same tracker set as qml/Magnet.js.
 QString magnetForInfoHash(const QString &infoHash) {
-    return QStringLiteral("magnet:?xt=urn:btih:") + infoHash;
+    static const char *const kTrackers[] = {
+        "udp://tracker.opentrackr.org:1337/announce",
+        "udp://open.demonii.com:1337/announce",
+        "udp://tracker.torrent.eu.org:451/announce",
+        "udp://exodus.desync.com:6969/announce",
+        "udp://tracker.openbittorrent.com:6969/announce",
+    };
+    QString magnet = QStringLiteral("magnet:?xt=urn:btih:") + infoHash;
+    for (const char *tracker : kTrackers)
+        magnet += QStringLiteral("&tr=")
+            + QString::fromLatin1(QUrl::toPercentEncoding(QString::fromLatin1(tracker)));
+    return magnet;
 }
 
 } // namespace

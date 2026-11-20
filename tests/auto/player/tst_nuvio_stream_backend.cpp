@@ -275,9 +275,13 @@ nuvio_engine_status fake_add_torrent(
     QString magnet = QString::fromUtf8(request->magnet_uri ? request->magnet_uri : "");
     fake().receivedSourceTypes.push_back(static_cast<int>(request->source_type));
     fake().receivedMagnets << magnet;
-    const auto mark = magnet.lastIndexOf(QLatin1Char(':'));
+    // The id is the btih value; trackers may follow it, so do not take the text after the last ':'.
+    const auto btih = magnet.indexOf(QLatin1String("urn:btih:"));
+    const auto idStart = btih < 0 ? magnet.lastIndexOf(QLatin1Char(':')) + 1 : btih + 9;
+    const auto idEnd = magnet.indexOf(QLatin1Char('&'), idStart);
     const auto id = request->source_type == NUVIO_ENGINE_TORRENT_SOURCE_DATA
-        ? std::string(kInfoHashA) : magnet.mid(mark + 1).toStdString();
+        ? std::string(kInfoHashA)
+        : magnet.mid(idStart, idEnd < 0 ? -1 : idEnd - idStart).toStdString();
     auto event = fake().makeEvent(NUVIO_ENGINE_EVENT_TORRENT_METADATA_READY, id.c_str());
     event.request_id = ++fake().nextRequestId;
     if (requestId != nullptr) {
@@ -449,6 +453,7 @@ private slots:
     // Task014: a demand deferred behind a pending removal keeps its input.
     void heldRemovalReplayKeepsExplicitMetadata();
     void heldRemovalReplayKeepsCustomMagnet();
+    void plainPlayMagnetCarriesPublicTrackers();
     void heldRemovalPrefetchUsesFetchGeneration();
     void playerOwnedRoutesDoNotIdleExpire();
     void engineStoppedActiveRouteIsNotReused();
@@ -729,6 +734,20 @@ void TestNuvioStreamBackend::heldRemovalReplayKeepsCustomMagnet() {
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 10000);
     QCOMPARE(fake().receivedMagnets.size(), qsizetype(2));
     QCOMPARE(fake().receivedMagnets.at(1), custom);
+}
+
+void TestNuvioStreamBackend::plainPlayMagnetCarriesPublicTrackers() {
+    // Bare-DHT metadata made a cold Smart Pick sit on "Starting stream..." for minutes.
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    backend.play(QString::fromLatin1(kInfoHashA), 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    QCOMPARE(fake().receivedMagnets.size(), qsizetype(1));
+    const auto magnet = fake().receivedMagnets.at(0);
+    QVERIFY(magnet.startsWith(QStringLiteral("magnet:?xt=urn:btih:") + QString::fromLatin1(kInfoHashA)));
+    QVERIFY(magnet.count(QStringLiteral("&tr=")) >= 3);
+    QVERIFY(magnet.contains(QStringLiteral("tracker.opentrackr.org")));
 }
 
 void TestNuvioStreamBackend::heldRemovalPrefetchUsesFetchGeneration() {
