@@ -58,6 +58,7 @@ TestCase {
     }
 
     function init() {
+        picker.width = 568
         library.comicIncluded = true
         library.rejectToggle = false
         library.confirmations = 0
@@ -114,5 +115,75 @@ TestCase {
         keyClick(Qt.Key_Escape)
         compare(library.cancellations, 1)
         tryCompare(picker, "visible", false)
+    }
+
+    function test_paginatedLayout_data() {
+        return [{tag: "wide", width: 742}, {tag: "compact", width: 460}]
+    }
+
+    function test_paginatedLayout(data) {
+        picker.width = data.width
+        const rows = Array.from({length: 96}, (_, i) => ({
+            path: library.root + "/File " + i + ".cbz",
+            name: "File " + i + ".cbz",
+            directory: false,
+            included: true,
+            inherited: false
+        }))
+        library.selection = Object.assign({}, library.selection, {
+            entries: rows, includedCount: rows.length, page: 2, previous: true, more: true
+        })
+        const viewport = list()
+        const row = firstRow()
+        tryCompare(viewport, "count", rows.length)
+        const previous = findChild(picker, "vaultFolderSelectionPreviousPage")
+        tryVerify(() => previous.mapToItem(picker, 0, 0).y
+                     - viewport.mapToItem(picker, 0, viewport.height).y >= 12, 1000,
+                  "The list and pagination should have a visible gap")
+
+        const close = findChild(picker, "vaultCloseFolderSelection")
+        const header = findChild(picker, "vaultFolderSelectionTitle").parent
+        const closeCenter = close.mapToItem(header, close.width / 2, close.height / 2)
+        fuzzyCompare(closeCenter.y, header.height / 2, 1)
+        const icon = close.contentItem.children[0].children[0]
+        tryCompare(icon, "status", Image.Ready)
+        verify(icon.width >= 24)
+
+        const names = ["vaultCloseFolderSelection", "vaultFolderBrowseFiles",
+            "vaultFolderExcludedChoices", "vaultFolderSelectionPreviousPage",
+            "vaultFolderSelectionNextPage", "vaultCancelFolderSelection",
+            "vaultConfirmFolderSelection"]
+        for (const name of names) {
+            const button = findChild(picker, name)
+            const content = button.contentItem.children[0]
+            const center = content.mapToItem(button, content.width / 2, content.height / 2)
+            fuzzyCompare(center.x, button.width / 2, 1)
+            fuzzyCompare(center.y, button.height / 2, 1)
+        }
+
+        const firstTop = row.mapToItem(viewport, 0, 0).y
+        fuzzyCompare(firstTop, 0, 1)
+        verify(viewport.height >= row.height)
+        compare(viewport.height % row.height, 0)
+
+        const count = findChild(picker, "vaultFolderSelectionCount")
+        const note = findChild(picker, "vaultFolderSelectionFooterNote")
+        if (picker.compact) {
+            verify(!count.visible)
+            verify(!note.visible)
+        } else {
+            const status = findChild(row, "vaultFolderEntryStatus")
+            fuzzyCompare(count.mapToItem(picker, count.width, 0).x,
+                         status.mapToItem(picker, status.width, 0).x, 1)
+            const cancel = findChild(picker, "vaultCancelFolderSelection")
+            fuzzyCompare(note.mapToItem(cancel, 0, note.height / 2).y, cancel.height / 2, 1)
+        }
+
+        viewport.positionViewAtEnd()
+        tryVerify(() => viewport.itemAtIndex(rows.length - 1) !== null)
+        const last = viewport.itemAtIndex(rows.length - 1)
+        fuzzyCompare(last.mapToItem(viewport, 0, last.height).y, viewport.height, 1)
+        mouseClick(close)
+        compare(library.cancellations, 1)
     }
 }
