@@ -117,7 +117,9 @@ QString VaultThumbnailer::requestThumb(const QString& path, qint64 size, qint64 
 
 void VaultThumbnailer::startJob(const QString& key, const QString& sourcePath, double offsetSec)
 {
-    const QString ffmpeg = findFfmpeg();
+    // Discovery can walk the Windows PATH. Reuse the executable selected for
+    // this process when the queue starts another frame grab.
+    static const QString ffmpeg = findFfmpeg();
     if (ffmpeg.isEmpty()) {
         m_activeKeys.remove(key); // silent fallback: no thumb, same contract as SeekThumbnailer
         return;

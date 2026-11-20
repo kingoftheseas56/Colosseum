@@ -695,6 +695,23 @@ set_tests_properties(colosseum.qttest.local_downloads_projection PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+add_executable(tst_download_location
+    auto/downloads/tst_download_location.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/DownloadLocation.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/DownloadMoveController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/DownloadMoveController.h")
+target_include_directories(tst_download_location PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_download_location PRIVATE Qt6::Core Qt6::Concurrent Qt6::Test)
+set_target_properties(tst_download_location PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_download_location POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.download_location COMMAND tst_download_location)
+set_tests_properties(colosseum.qttest.download_location PROPERTIES
+    LABELS "unit;qttest;downloads" TIMEOUT 120)
+
 # ── Vault kit (execution plan Slice 1, 2026-08-08) ───────────────────────────
 # The Vault's pure-logic kit (VaultKit): census classifier (kind inference,
 # mixed-leaf flag, loose capture, scanIgnore needles), the ported title cleaner,
@@ -1219,9 +1236,15 @@ add_custom_command(TARGET tst_vault_enricher POST_BUILD
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.vault_enricher
          COMMAND tst_vault_enricher)
+set(_vault_enricher_environment "QT_FORCE_STDERR_LOGGING=1")
+if(TARGET Qt6::QJpegPlugin)
+    # The build tree does not deploy imageformats. Use the matching codec from this Qt kit.
+    list(APPEND _vault_enricher_environment
+        "QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::QJpegPlugin>/..")
+endif()
 set_tests_properties(colosseum.qttest.vault_enricher PROPERTIES
     LABELS "unit;qttest"
-    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    ENVIRONMENT "${_vault_enricher_environment}"
     TIMEOUT 120)
 
 # ── Vault browse artwork: persistent frame-grab producer (browse-artwork execution
@@ -1326,9 +1349,14 @@ target_sources(biblio_catalog_store_harness PRIVATE
 
 add_executable(tst_vault_book_identity
     auto/vault/tst_vault_book_identity.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioCanonicalizer.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/BiblioCatalogStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/BiblioProviders.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioTaxonomy.cpp")
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioRanking.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioTaxonomy.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp")
 target_include_directories(tst_vault_book_identity PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_vault_book_identity PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
 set_target_properties(tst_vault_book_identity PROPERTIES AUTOMOC ON

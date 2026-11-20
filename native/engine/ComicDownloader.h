@@ -40,6 +40,8 @@
 
 #pragma once
 
+#include "DownloadLocation.h"
+
 #include "DownloadFileOps.h"
 #include "engine/CbzArchive.h"
 
@@ -174,6 +176,9 @@ public:
 
     // Bulk views for the Downloads page facade.
     Q_INVOKABLE QVariantList downloadedIssues() const;
+    QList<DownloadLocation::Item> managedDownloadItems() const;
+    void refreshDownloadPaths();
+    Q_SIGNAL void downloadPathsChanged();
     Q_INVOKABLE QVariantList activeIssueJobs() const;
     // Slice 4: ordered-volumes read API. Returns {mains: [...], extras: [...]}
     // for a given seriesId, filtered to rows with a non-empty packRole and
@@ -289,6 +294,7 @@ private:
         QPointer<QNetworkReply> reply;
         QFile* file = nullptr;
         QString archivePath;       // final archive path (pre-extract)
+        QString publicationPath;
         QString partPath;
         qint64 receivedBytes = 0;
         bool sanityChecked = false;
@@ -430,6 +436,7 @@ private:
     // Task 7's migration can have both `archive` and `dir` populated for one
     // boot without a path collision.
     QString issueArchivePath(const QString& seriesId, const QString& label, const QString& id) const;
+    QString publicationPath(InFlight &flight) const;
 
     // Crash-recovery adoption: a canonical archive from an interrupted prior
     // attempt (a safe-move or repack that completed on disk but never reached

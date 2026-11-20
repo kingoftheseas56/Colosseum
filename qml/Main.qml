@@ -2377,6 +2377,11 @@ Window {
     function openMissingDownloadSources(entry, r, presentation, title, cover) {
         if (typeof Download === "undefined" || !Download || typeof Download.localFileAvailable !== "function")
             return false
+        var location = typeof LocalDownloads !== "undefined" && LocalDownloads ? LocalDownloads.location : null
+        if (location && location.pathWaitingForDrive(String(r.localPath))) {
+            localLaunchToast.flash(qsTr("Reconnect the download drive to play this video."), false)
+            return true
+        }
         if (Download.localFileAvailable(String(r.localPath)))
             return false
         var sourceId = String(r.subId || entry.id || "")
@@ -3930,12 +3935,16 @@ Window {
     // A downloaded video's session: dedup key = target.id (the stream id, e.g. "tt123:1:2"),
     // so re-opening the same episode reuses its tile. `position` rides along for first-open
     // resume; a fresher captured position (minimize) wins via restoreState.
+    function resolvedDownloadPath(path) {
+        var location = typeof LocalDownloads !== "undefined" && LocalDownloads ? LocalDownloads.location : null
+        return location ? location.resolveLocalPath(String(path || "")) : path
+    }
     function openLocalVideoSession(v) {
         setGuiStallContext("open", "Player")
         Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": v.title || "Video",
             "target": { "showKey": EpisodeBrowser.seriesRootId(v.id || ""),
-                        "localPath": v.path, "id": v.id || "", "title": v.title || "",
+                        "localPath": win.resolvedDownloadPath(v.path), "id": v.id || "", "title": v.title || "",
                         "playbackContext": v.playbackContext || ({}),
                         "art": v.art || "", "kind": v.kind || "", "position": v.position || 0 }
         })
@@ -3953,6 +3962,7 @@ Window {
     function openBookSession(path, book) {
         if (!path) return
         win.dockPickAudiobookReturn = null
+        path = win.resolvedDownloadPath(path)
         setGuiStallContext("open", "Reader")
         var b = book || ({})
         return Sessions.openOrSwitch({
@@ -4284,9 +4294,10 @@ Window {
             playerLayer.item.resumeFromMinimize()
         } else {
             win.requestTheatreAudio()
-            if (t.localPath && String(t.localPath).length)
+            if (t.localPath && String(t.localPath).length) {
+                t.localPath = win.resolvedDownloadPath(t.localPath)
                 playerLayer.item.playLocalFile(t)
-            else if (t.streamUrl && String(t.streamUrl).length) {
+            } else if (t.streamUrl && String(t.streamUrl).length) {
                 var landed = win.downloadedVideoPath(t.id || "")
                 if (landed.length) {
                     t.localPath = landed
@@ -6258,7 +6269,7 @@ Window {
         anchors.fill: parent
         z: 56
         active: false
-        visible: active && !win.immersiveSurfaceOpen
+        visible: active && status === Loader.Ready && !win.immersiveSurfaceOpen
         // VaultPage is a large, taskbar-only surface. Spread component creation across
         // frames so opening the folder door does not synchronously block the world underneath.
         // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
@@ -6935,8 +6946,13 @@ Window {
         vaultActive: vaultLayer.active
         onVaultClicked: {
             if (taskbar.pickerShown) taskbar.open = false
-            if (!vaultLayer.active) win.openVaultPage()
-            else win.closeVaultPage()
+            if (vaultLayer.visible && vaultLayer.status === Loader.Ready) {
+                win.closeVaultPage()
+            } else if (!vaultLayer.active || vaultLayer.status !== Loader.Loading) {
+                if (vaultLayer.status === Loader.Error)
+                    vaultLayer.active = false
+                win.openVaultPage()
+            }
         }
         extensionsActive: extensionsLayer.active
         onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
@@ -7057,8 +7073,7 @@ Window {
         title: "Add a folder to your Vault"
         onAccepted: {
             vaultState.lastAddedFolder = "" + selectedFolder
-            // C++ owns it: add the folder as an unconfirmed root and census it off-thread; the
-            // confirmation card rises on scanFinished (Slice 11).
+            // Open the source selector. Indexing starts after the user confirms what to include.
             if (typeof VaultLibrary !== "undefined")
                 VaultLibrary.addFolder("" + selectedFolder)
         }

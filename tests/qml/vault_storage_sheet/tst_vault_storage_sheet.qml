@@ -37,7 +37,6 @@ TestCase {
         id: sheetComponent
         App.VaultStorageSheet {
             anchors.fill: parent
-            backdrop: testBackdrop
         }
     }
     SignalSpy { id: addSpy; signalName: "addFolderRequested" }
@@ -99,9 +98,7 @@ TestCase {
         verify(pathText !== null && statusText !== null)
         verify(panel.x >= 0 && panel.x + panel.width <= 1280)
         verify(panel.y + panel.height <= 720)
-        // QColor stores the requested 0.98 alpha at limited precision; allow the
-        // nearest representable value while still enforcing the intended opaque backing.
-        verify(surface.color.a > 0.97)
+        compare(surface.color.a, 1)
         verify(Math.abs(surface.color.r - theme.vaultSurface.r) < 0.001)
         compare(title.color, theme.ink)
         compare(subtitle.color, theme.inkDimmer)
@@ -197,19 +194,36 @@ TestCase {
         verify(sheet.open)
 
         mouseClick(forget)
-        const forgetDialog = findChild(sheet, "vaultForgetSourceDialog")
-        verify(forgetDialog.opened)
-        compare(forgetDialog.path, roots[0].path)
-        forgetDialog.close()
+        const confirmation = findChild(sheet, "vaultForgetSourceConfirmation")
+        const confirm = findChild(sheet, "vaultConfirmForgetSource")
+        const cancel = findChild(sheet, "vaultCancelForgetSource")
+        const selectedPath = findChild(sheet, "vaultForgetSourcePath")
+        verify(confirmation.visible)
+        verify(!folders.visible)
+        compare(selectedPath.text, roots[0].path)
+        tryCompare(cancel, "activeFocus", true)
+        keyClick(Qt.Key_Escape)
+        verify(!confirmation.visible)
+        verify(folders.visible)
+        compare(adapter.calls.length, 1)
+
+        mouseClick(forget)
+        verify(confirmation.visible)
+        mouseClick(confirm)
+        verify(!confirmation.visible)
+        verify(folders.visible)
+        compare(adapter.calls.length, 2)
+        compare(adapter.calls[1].action, "forget")
+        compare(adapter.calls[1].path, roots[0].path)
 
         const edit = findChild(sheet, "vaultEditIgnorePatterns")
         const input = findChild(sheet, "vaultIgnorePatterns")
         mouseClick(edit)
         compare(sheet.editingIgnore, true)
-        compare(edit.primary, true)
+        const save = findChild(sheet, "vaultSaveIgnorePatterns")
         compare(input.text, "*.tmp")
         input.text += "\nfixture-rule"
-        mouseClick(edit)
+        mouseClick(save)
         compare(sheet.editingIgnore, false)
         compare(adapter.patterns.join("\n"), "*.tmp\nfixture-rule")
 

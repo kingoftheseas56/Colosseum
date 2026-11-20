@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include "DownloadLocation.h"
+
 #include "DownloadFileOps.h"
 
 #include "MangaResult.h"
@@ -113,6 +115,10 @@ public:
     // whole index (missing:true when the first file vanished outside the app);
     // activeChapterJobs() lists in-flight + queued jobs with live page counts.
     Q_INVOKABLE QVariantList downloadedChapters() const;
+    QList<DownloadLocation::Item> managedDownloadItems() const;
+    void refreshDownloadPaths();
+    void downloadLocationAvailable() { pumpQueue(); }
+    Q_SIGNAL void downloadPathsChanged();
     Q_INVOKABLE QVariantList activeChapterJobs() const;
 
     // Resolve a chapter's THUMBNAIL = its first page. Downloaded -> local file (instant);

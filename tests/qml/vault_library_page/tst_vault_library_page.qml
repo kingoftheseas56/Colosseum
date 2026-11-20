@@ -18,6 +18,7 @@ TestCase {
         id: admissionLibraryComponent
         QtObject {
             property bool cardVisible: true
+            property var folderSelection: ({})
             property var candidate: [{subtreePath:"/fixture/new",groupTitle:"New books",kind:"book",count:2}]
             property string candidateRoot: "/fixture/new"
             property var identityCeremonies: []
@@ -31,6 +32,7 @@ TestCase {
             function rescanDegradedRoots() { degraded++ }
             function confirmRoot(path, overrides) { confirmed++; cardVisible=false }
             function dismissCard() { dismissed++; cardVisible=false }
+            function cancelFolderSelection() { folderSelection = ({}) }
             function attachExtrasToShow(from, to) { attached = [from, to]; return true }
             function extrasForShow(key) {
                 return supplementalByShow
@@ -42,12 +44,64 @@ TestCase {
     Component {
         id: serverComponent
         QtObject {
+            property bool busy: false
             property int profileGeneration: 4
             property var serverTabs: []
             function serverLibraries(id) { return [] }
         }
     }
-    Component { id: pageComponent; App.VaultLibraryPage { width:1280; height:700 } }
+    Component {
+        id: pageComponent
+        App.VaultLibraryPage {
+            width: 1280; height: 700
+            sidebarSettings: QtObject { property bool railExpanded: true }
+        }
+    }
+    Component {
+        id: scanLibraryComponent
+        QtObject {
+            signal indexingFailed()
+            signal indexingCancelled()
+            property bool cardVisible: false
+            property var candidate: [{ subtreePath: "/private/stories", groupTitle: "Stories", kind: "book", count: 2 }]
+            property string candidateRoot: "/private/stories"
+            property bool confirmed: false
+            property bool scanning: false
+            property bool firstFolderIndexing: false
+            property bool scanCanCancel: false
+            property string scanPhase: "discovering"
+            property int scanDone: 0
+            property string scanningRoot: "/private/stories"
+            property int stops: 0
+            property int retries: 0
+            function startIndexing(first) {
+                firstFolderIndexing = first
+                scanPhase = "discovering"
+                scanDone = 0
+                scanCanCancel = true
+                scanning = true
+            }
+            function confirmRoot(path, overrides) {
+                confirmed = true
+                cardVisible = false
+                startIndexing(true)
+            }
+            function cancelScan() {
+                ++stops
+                finishIndexing()
+                indexingCancelled()
+            }
+            function rescanRoot(path) {
+                ++retries
+                startIndexing(true)
+            }
+            function finishIndexing() {
+                scanning = false
+                scanCanCancel = false
+                firstFolderIndexing = false
+            }
+        }
+    }
     Component {
         id: projectionLibraryComponent
         QtObject {
@@ -113,6 +167,33 @@ TestCase {
     }
     function cleanup() { playback.clear(); world.clear(); connect.clear(); addFolder.clear(); page.destroy(); wait(0) }
     function content() { return findChild(page,"vaultLibraryContent").item }
+    function countMatchButtons(item) {
+        if (item.objectName === "vaultMatchTitle") return 1
+        return (item.children || []).reduce((count, child) => count + countMatchButtons(child), 0)
+    }
+    function test_largeUnmatchedListKeepsOnlyNearbyRows() {
+        model.unmatchedItems = Array.from({length: 158}, (_, index) => ({
+            seriesKey: "fixture-" + index, path: "/fixture/title-" + index + ".mkv",
+            nativeKind: "video"
+        }))
+        page.showView("match", "")
+        tryVerify(() => !!findChild(content(), "vaultMatchTitle"))
+        tryVerify(() => countMatchButtons(content()) < 30)
+
+        const firstButton = findChild(content(), "vaultMatchTitle")
+        const rows = model.unmatchedItems.slice()
+        rows[100] = Object.assign({}, rows[100], {cover: "file:///fixture/new-cover.jpg"})
+        model.unmatchedItems = rows
+        wait(0)
+        compare(findChild(content(), "vaultMatchTitle"), firstButton)
+
+        content().positionViewAtEnd()
+        tryVerify(() => content().itemAtIndex(157) !== null)
+        const lastButton = findChild(content().itemAtIndex(157), "vaultMatchTitle")
+        verify(lastButton.visible)
+        mouseClick(lastButton)
+        tryCompare(findChild(page, "vaultIdentifyDialog"), "groupKey", "fixture-157")
+    }
     function test_navigationAllViewsAndEscape() {
         compare(page.currentView,"home")
         compare(content().heroRows[0].title,"Dunkirk")
@@ -138,7 +219,7 @@ TestCase {
             const panel = findChild(page,"vaultSourcesPanel")
             verify(panel.x >= 0 && panel.x+panel.width <= page.width)
             verify(panel.y+panel.height <= page.height)
-            compare(panel.track, panel.x) // The blur crop follows the sliding panel.
+            tryVerify(() => Math.abs(panel.x + panel.width + 24 - page.width) < 0.5)
             compare(findChild(page,"vaultSourcesFolderList").count,1)
             keyClick(Qt.Key_Escape); compare(page.sourcesOpen,false); wait(260)
         }
@@ -157,9 +238,12 @@ TestCase {
         compare(page.connectionProvider,"jellyfin")
         page.handleBack(); compare(page.providerConnectionOpen,false)
     }
-    function test_emptyAndSourceBounds() {
+    function clearLibrary() {
         model.movies=[]; model.shows=[]; model.books=[]; model.comics=[]; model.allItems=[]
-        model.roots=[]; model.servers=[]; model.unmatchedItems=[]; model.heroItems=[]; model.continueItems=[]
+        model.roots=[]; model.servers=[]; model.unmatchedItems=[]; model.heroItems=[]; model.continueItems=[]; model.hiddenItems=[]
+    }
+    function test_emptyAndSourceBounds() {
+        clearLibrary()
         tryCompare(page,"vaultState","empty")
         const sidebar=findChild(page,"vaultLibrarySidebar")
         const pane=findChild(page,"vaultLibraryContent")
@@ -168,6 +252,162 @@ TestCase {
         verify(pane.x+pane.width <= 1240)
         verify(pane.y+pane.height <= 676)
         verify(content().heroRows === undefined)
+    }
+    function test_folderPickerUsesContentPaneAndBackRestoresTheShelf() {
+        const library = createTemporaryObject(admissionLibraryComponent, suite, { cardVisible: false })
+        model.library = library
+        model.books = [book]
+        page.showView("books", "")
+        const loader = findChild(page, "vaultLibraryContent")
+        const previous = loader.item
+        const sidebar = findChild(page, "vaultLibrarySidebar")
+        library.folderSelection = {root:"d:/collection", directory:"d:/collection", canSave:true,
+                                   location:{volume:"Backup Drive (D:)",segments:["Collection"]}, entries:[]}
+        tryVerify(() => !!findChild(page, "vaultFolderSelection"))
+        const picker = findChild(page, "vaultFolderSelection")
+        verify(picker.visible)
+        verify(sidebar.visible)
+        verify(!sidebar.enabled)
+        compare(picker.mapToItem(page, 0, 0).x, loader.x)
+        verify(!loader.visible)
+        mouseClick(findChild(page, "vaultHeaderBack"))
+        tryCompare(loader, "visible", true)
+        verify(sidebar.enabled)
+        compare(loader.item, previous)
+        compare(page.currentView, "books")
+    }
+    function test_firstConfirmedScanUsesHomeAndFollowsNavigation() {
+        clearLibrary()
+        const library = createTemporaryObject(scanLibraryComponent, suite)
+        model.library = library
+        compare(findChild(content(), "vaultEmptyHeading").text, "A place for your stories")
+        library.cardVisible = true
+        compare(page.cardVisible, true)
+        verify(!!findChild(content(), "vaultEmptyHeading"))
+        verify(!findChild(page, "vaultScanStrip").visible)
+        findChild(page, "vaultCard").shelveRequested({})
+        compare(library.confirmed, true)
+        compare(page.cardVisible, false)
+        compare(page.vaultState, "scanning")
+        tryCompare(content(), "objectName", "vaultFirstScan")
+        verify(!findChild(page, "vaultScanStrip").visible)
+        const progress = findChild(content(), "vaultFirstScanProgress")
+        verify(progress.indeterminate)
+        compare(progress.Accessible.name, "Finding media")
+        library.scanDone = 7
+        compare(findChild(content(), "vaultFirstScanStage").text, "Finding media · 7 files found")
+        compare(progress.Accessible.name, "Finding media · 7 files found")
+
+        mouseClick(findChild(page, "vaultNav_books"))
+        compare(page.currentView, "books")
+        compare(content().title, "Books")
+        verify(findChild(page, "vaultScanStrip").visible)
+        library.scanPhase = "processing"
+        library.scanDone = 2
+        compare(findChild(page, "vaultScanStripProgress").Accessible.name, "Preparing files · 2 files prepared")
+        mouseClick(findChild(page, "vaultNav_home"))
+        tryCompare(content(), "objectName", "vaultFirstScan")
+        compare(findChild(content(), "vaultFirstScanStage").text, "Preparing files · 2 files prepared")
+        library.scanPhase = "publishing"
+        library.scanCanCancel = false
+        compare(findChild(content(), "vaultFirstScanStage").text, "Updating shelves")
+        verify(!findChild(content(), "vaultCancelIndexing").enabled)
+        model.books = [book]
+        model.allItems = [book]
+        library.finishIndexing()
+        compare(page.vaultState, "populated")
+        compare(content().kindRows.book[0], book)
+        verify(!findChild(page, "vaultScanStrip").visible)
+    }
+    function test_scanCancellationAndFailedRetry() {
+        clearLibrary()
+        const library = createTemporaryObject(scanLibraryComponent, suite)
+        model.library = library
+        model.roots = [{ path: "/private/stories", available: true }]
+        library.startIndexing(true)
+        mouseClick(findChild(content(), "vaultCancelIndexing"))
+        compare(library.stops, 1)
+        verify(page.notice.indexOf("Scan stopped") >= 0)
+        verify(!findChild(content(), "vaultFirstScanProgress"))
+        mouseClick(findChild(page, "vaultrescanTile"))
+        compare(library.retries, 1)
+        tryCompare(content(), "objectName", "vaultFirstScan")
+        library.finishIndexing()
+        library.indexingFailed()
+        verify(page.notice.indexOf("Select Rescan in Sources") >= 0)
+        verify(!findChild(content(), "vaultFirstScanProgress"))
+        verify(!findChild(page, "vaultScanStrip").visible)
+    }
+    function test_rescanWithNoShelvesUsesHomeUntilProjectionFinishes() {
+        clearLibrary()
+        const library = createTemporaryObject(scanLibraryComponent, suite)
+        model.library = library
+        model.roots = [{ path: "/private/stories", available: true }]
+        library.startIndexing(false)
+        library.scanDone = 852
+        tryCompare(content(), "objectName", "vaultFirstScan")
+        compare(findChild(content(), "vaultFirstScanStage").text, "Finding media · 852 files found")
+        verify(!findChild(page, "vaultScanStrip").visible)
+
+        model.projectionBuild = ({})
+        library.finishIndexing()
+        compare(content().objectName, "vaultFirstScan")
+        compare(findChild(content(), "vaultFirstScanStage").text, "Updating shelves")
+        verify(!findChild(content(), "vaultCancelIndexing").visible)
+        model.books = [book]
+        model.allItems = [book]
+        model.projectionBuild = null
+        compare(content().kindRows.book[0], book)
+    }
+    function test_populatedRescanKeepsControlsAboveShelvesWhenReopened() {
+        clearLibrary()
+        const server = createTemporaryObject(serverComponent, suite, { busy: true })
+        model.homeServers = server
+        compare(model.busy, true)
+        compare(page.vaultState, "empty")
+        verify(!findChild(page, "vaultScanStrip").visible)
+        verify(!!findChild(content(), "vaultEmptyHeading"))
+
+        const library = createTemporaryObject(scanLibraryComponent, suite)
+        model.library = library
+        model.books = [book]
+        model.allItems = [book]
+        library.startIndexing(false)
+        const progress = findChild(page, "vaultScanStripProgress")
+        verify(progress.visible)
+        compare(content().kindRows.book[0], book)
+        verify(progress.indeterminate)
+        library.scanDone = 1
+        compare(progress.Accessible.name, "Finding media · 1 file found")
+
+        page.destroy()
+        wait(0)
+        page = createTemporaryObject(pageComponent, suite, { adapter: model, height: 420, desktopDockInset: 80 })
+        page.sidebarSettings.railExpanded = false
+        const sidebar = findChild(page, "vaultLibrarySidebar")
+        tryCompare(sidebar, "width", sidebar.collapsedWidth)
+        const reopenedProgress = findChild(page, "vaultScanStripProgress")
+        const strip = findChild(page, "vaultScanStrip")
+        const loader = findChild(page, "vaultLibraryContent")
+        verify(reopenedProgress.visible)
+        compare(reopenedProgress.Accessible.name, "Finding media · 1 file found")
+        verify(strip.x >= sidebar.x + sidebar.width)
+        verify(strip.y + strip.height < loader.y)
+        verify(loader.height > 100)
+        library.scanPhase = "privacy"
+        compare(reopenedProgress.Accessible.name, "Applying exclusions")
+        const stop = findChild(page, "vaultScanStripStop")
+        compare(stop.text, "Stop scan")
+        mouseClick(stop)
+        compare(library.stops, 1)
+        verify(!reopenedProgress.visible)
+
+        library.startIndexing(false)
+        library.scanCanCancel = false
+        verify(!stop.visible)
+        library.finishIndexing()
+        compare(model.busy, true)
+        verify(!reopenedProgress.visible)
     }
     function findButton(item, text) {
         if (item.text === text && typeof item.clicked === "function") return item
@@ -180,24 +420,34 @@ TestCase {
     function test_sourceAddConnectAndIgnoreCancel() {
         mouseClick(findChild(page,"vaultsourcesTile")); wait(260)
         const sheet=findChild(page,"vaultStorageSheet")
-        mouseClick(findButton(sheet,"+ Add folder")); compare(addFolder.count,1)
-        mouseClick(findButton(sheet,"Ignore patterns ›")); compare(sheet.editingIgnore,true)
+        const panel=findChild(sheet,"vaultSourcesPanel")
+        tryVerify(() => Math.abs(panel.x + panel.width + 24 - page.width) < 0.5)
+        mouseClick(findChild(sheet,"vaultSourcesAddFolder"))
+        compare(addFolder.count,1)
+        compare(page.sourcesOpen,false)
+        tryCompare(sheet, "visible", false)
+        mouseClick(findChild(page,"vaultsourcesTile"))
+        tryVerify(() => Math.abs(panel.x + panel.width + 24 - page.width) < 0.5)
+        mouseClick(findChild(sheet,"vaultEditIgnorePatterns")); compare(sheet.editingIgnore,true)
         const input=findChild(page,"vaultIgnorePatterns")
         input.text="*.tmp"
-        mouseClick(findButton(sheet,"Cancel")); compare(sheet.editingIgnore,false)
-        mouseClick(findButton(sheet,"Connect a server ›")); compare(connect.count,1); compare(page.sourcesOpen,false)
+        mouseClick(findChild(sheet,"vaultCancelIgnorePatterns")); compare(sheet.editingIgnore,false)
+        mouseClick(findChild(sheet,"vaultSourcesConnectServer")); compare(connect.count,1); compare(page.sourcesOpen,false)
     }
-    function test_forgetDialogEscapeStaysInSources() {
+    function test_forgetConfirmationEscapeStaysInSources() {
         mouseClick(findChild(page,"vaultsourcesTile")); wait(260)
         const sheet=findChild(page,"vaultStorageSheet")
-        const dialog=findChild(page,"vaultForgetSourceDialog")
-        dialog.path="/fixture/media"; dialog.open(); wait(30)
-        verify(dialog.opened)
-        keyClick(Qt.Key_Escape); wait(30)
-        compare(dialog.opened,false); compare(page.sourcesOpen,true)
+        const confirmation=findChild(page,"vaultForgetSourceConfirmation")
+        sheet.pendingSource={name:"Media",path:"/fixture/media"}
+        findChild(sheet,"vaultCancelForgetSource").forceActiveFocus()
+        verify(confirmation.visible)
+        keyClick(Qt.Key_Escape)
+        compare(confirmation.visible,false); compare(page.sourcesOpen,true)
         keyClick(Qt.Key_Escape); compare(page.sourcesOpen,false)
-        sheet.show(null); wait(260); dialog.open(); wait(30)
-        sheet.open=false; wait(30); compare(dialog.opened,false)
+        sheet.show(null); wait(260)
+        sheet.pendingSource={name:"Media",path:"/fixture/media"}
+        verify(confirmation.visible)
+        sheet.open=false; compare(confirmation.visible,false)
     }
     function test_folderAdmissionConfirmationAndDismiss() {
         page.destroy(); wait(0)

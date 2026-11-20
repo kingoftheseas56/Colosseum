@@ -18,6 +18,8 @@
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
+#include <QThreadPool>
+#include <QTimer>
 #include <functional>
 #include <memory>
 
@@ -33,6 +35,8 @@ public:
     explicit VaultScanner(VaultIndex* index, VaultIdentity* identity,
                           QObject* parent = nullptr);
 
+    ~VaultScanner() override;
+
     bool isScanning() const { return m_scanning; }
 
     // ── Async API ──
@@ -40,6 +44,7 @@ public:
     // scan requested while one runs BUFFERS and runs after — never dropped.
     Q_INVOKABLE void scanRoot(const QString& root, const QStringList& scanIgnore = {});
     Q_INVOKABLE void cancel();
+    void invalidate();
     // Keep off-thread census work running, but park GUI-side candidate/publish commits
     // while an immersive reader/player owns the frame budget.
     void setApplySuspended(bool on);
@@ -59,13 +64,15 @@ public:
     void publishConfirmed(const QStringList& confirmedRoots,
                           const QStringList& scanIgnore,
                           const QMap<QString, QString>& kindOverrides,
-                          const QList<VaultIndex::FileRow>& extraRows);
+                          const QList<VaultIndex::FileRow>& extraRows,
+                          const VaultLocation::PersonalPaths& personal = {});
 
     // ── Testable seams (also the internal scan lifecycle) ──
     struct RawResult {
         QString root;
         quint64 generation = 0;
         bool cancelled = false;
+        bool scanned = false;
         QVariantList sliceModel;                 // confirmation-card rows
         QList<VaultIndex::FileRow> rows;         // index rows (ids filled in applyResult)
         QList<VaultIdentity::FileFacts> facts;   // for identity reconcile
@@ -77,7 +84,9 @@ public:
     static RawResult buildScan(QString root, QStringList scanIgnore, quint64 generation,
                                std::shared_ptr<VaultKit::CancellationToken> cancel,
                                const QMap<QString, QString>& kindOverrides = {},
-                               const std::function<void(int, int, const QString&)>& onProgress = {});
+                               const std::function<void(int, int, const QString&)>& onProgress = {},
+                               const VaultLocation::PersonalPaths& personal = {},
+                               const std::function<void(bool processing, int files)>& onWork = {});
     // Deliver a candidate census: dropped if its generation is stale; otherwise
     // emits scanFinished with the confirmation-card model. Does NOT publish — a
     // single root's census must never reach VaultIndex::publish() alone. GUI thread.
@@ -113,9 +122,27 @@ public:
 signals:
     void progress(const QString& root, int done, int total, const QString& currentName);
     void scanFinished(const QString& root, const QVariantList& slices, bool cancelled);
+    void scanActivity(const QString& root, int done, int discovered, const QString& phase);
+    void publicationFinished(bool published, bool cancelled, bool scannedUserRoot);
     void indexPublished(const QString& root, int itemCount);
 
 private:
+    struct Publication {
+        QList<RawResult> roots;
+        QList<VaultIndex::FileRow> extraRows;
+    };
+    struct Activity {
+        std::atomic<int> rootIndex{0};
+        std::atomic<int> discovered{0};
+        std::atomic<int> processed{0};
+        std::atomic<bool> processing{false};
+    };
+    std::shared_ptr<Activity> beginActivity(const QStringList& roots);
+    void reportActivity(bool publishing = false);
+    QStringList m_activityRoots;
+    std::shared_ptr<Activity> m_activity;
+    QTimer m_activityTimer;
+    QThreadPool m_scanPool;
     VaultIndex* m_index;
     VaultIdentity* m_identity;
     enum class DeferredApplyKind { None, Result, Publish };
@@ -127,6 +154,7 @@ private:
     quint64 m_deferredPublishGeneration = 0;
     QList<VaultIndex::FileRow> m_deferredPublishExtraRows;
     quint64 m_generation = 0;
+    quint64 m_asyncGeneration = 0;
     std::shared_ptr<VaultKit::CancellationToken> m_cancel;
     QList<QPair<QString, QStringList>> m_pending; // buffered scans (never dropped)
 };

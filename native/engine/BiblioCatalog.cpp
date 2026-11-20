@@ -245,6 +245,8 @@ BiblioCatalog::BiblioCatalog(const QString &dbPath, IBiblioTransport *transport,
     if (m_lastSuccessfulRefresh.isValid())
         m_lastAttemptDate = m_lastSuccessfulRefresh.toLocalTime().date();
     recomputeStale();
+    if (m_store.identitySnapshotId() >= 0)
+        prepareVaultIdentityIndex();
 }
 
 BiblioIdentityLookup BiblioCatalog::onlineWorkMatches(const QString &title, const QString &author,
@@ -501,9 +503,51 @@ void BiblioCatalog::recomputeStale()
 
 // --- read-only invokables: pure proxies onto the store --------------------
 
+void BiblioCatalog::prepareVaultIdentityIndex()
+{
+    if (m_vaultIdentityIndexLoading)
+        return;
+    m_vaultIdentityIndexLoading = true;
+    auto *watcher = new QFutureWatcher<BiblioCatalogStore::IdentityTitleIndex>(this);
+    connect(watcher, &QFutureWatcherBase::finished, this, [this, watcher] {
+        m_vaultIdentityIndexLoading = false;
+        auto index = watcher->result();
+        watcher->deleteLater();
+        if (index.error.isEmpty() && index.snapshotId != m_store.identitySnapshotId()) {
+            if (m_store.identitySnapshotId() >= 0)
+                prepareVaultIdentityIndex();
+            return;
+        }
+        m_vaultIdentityIndex = std::move(index);
+        if (m_vaultIdentityIndex.error.isEmpty())
+            emit vaultIdentityIndexReady();
+    });
+    watcher->setFuture(QtConcurrent::run(&m_cpuPool, [path = m_dbPath] {
+        return BiblioCatalogStore::readIdentityTitleIndex(path);
+    }));
+}
+
 BiblioIdentityLookup BiblioCatalog::exactWorkMatches(const QString &title, const QString &author) const
 {
     return m_store.exactWorkMatches(title, author);
+}
+
+BiblioIdentityLookup BiblioCatalog::vaultWorkMatches(const QString &title, const QString &author)
+{
+    const qint64 snapshotId = m_store.identitySnapshotId();
+    if (snapshotId >= 0 && m_vaultIdentityIndex.snapshotId == snapshotId)
+        return m_store.exactWorkMatches(title, author, &m_vaultIdentityIndex);
+
+    BiblioIdentityLookup result;
+    if (!m_vaultIdentityIndex.error.isEmpty() || snapshotId < 0) {
+        result.status = BiblioIdentityLookup::Status::ReadError;
+        result.warning = m_vaultIdentityIndex.error.isEmpty()
+            ? QStringLiteral("Biblio catalogue is unavailable") : m_vaultIdentityIndex.error;
+        return result;
+    }
+    prepareVaultIdentityIndex();
+    result.warning = QStringLiteral("Biblio identity index is loading");
+    return result;
 }
 
 QVariantMap BiblioCatalog::discoverPage(const QString &catalogId, const QString &facetAxis,
@@ -1421,6 +1465,7 @@ void BiblioCatalog::finishGeneration(int generation, bool success,
         setReady(true);
         recomputeStale();
         ++m_revision;
+        prepareVaultIdentityIndex();
         emit revisionChanged();
     } else {
         setLastError(failureReason);

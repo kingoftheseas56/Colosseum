@@ -9,6 +9,8 @@
 // (by infoHash). Multi-file packs keep their torrent-relative subfolders under the hash dir.
 #pragma once
 
+#include "engine/DownloadLocation.h"
+
 #include <QObject>
 #include <QHash>
 #include <QJsonArray>
@@ -30,6 +32,13 @@ public:
     Q_INVOKABLE QVariantMap statusOf(const QString& infoHash) const; // {state,received,total}
     Q_INVOKABLE void cancelDownload(const QString& infoHash);
     Q_INVOKABLE void deleteDownload(const QString& infoHash);   // remove the copy + files (one-per-book replace)
+    bool busy() const { return !m_active.isEmpty() || !m_deleting.isEmpty(); }
+    QList<DownloadLocation::Item> managedDownloadItems() const;
+    void refreshDownloadPaths();
+    void downloadLocationAvailable();
+    QVariantList downloadedBooks() const;
+    QVariantList activeBookJobs() const;
+    QVariantMap removeCompletedBook(const QString &infoHash);
 
     void selfTest(const QString& infoHash, const QString& title); // COLOSSEUM_TORRENT_DLTEST
 
@@ -45,6 +54,10 @@ private:
         QString infoHash, title, author;
         int     pickedIdx = -1;
         QString fileName;              // torrent-relative path from metadata (forward-slashed)
+        QString settlementToken;
+        QString destinationPath;
+        bool released = false;
+        bool copying = false;
         qint64  totalBytes = 0, received = 0;
         qint64  lastProgressEmit = 0;
         bool    picked = false;        // metadata resolved + priorities set
@@ -62,6 +75,8 @@ private:
     void onEngineFailed(const QString& infoHash, const QString& message);
     void applyMetadata(Job* job, const QJsonArray& files);   // pick+priorities+record (signal or synthesize)
     void finalizeJob(Job* job);
+    void publishReleasedJob(Job* job);
+    void indexFinishedJob(Job* job, const QString &path);
     void failJob(Job* job, const QString& reason);
     Job* jobForHash(const QString& infoHash) const;
     bool alive(Job* job) const;          // job is still the active entry for its hash
@@ -69,7 +84,7 @@ private:
     QString baseDir() const;
     QString dirFor(const QString& infoHash) const;
     void loadIndex();
-    void saveIndex() const;
+    bool saveIndex() const;
 
     struct Entry { QString path, title, author; qint64 bytes = 0, addedAt = 0; };
 

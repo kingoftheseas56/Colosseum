@@ -8,10 +8,14 @@
 #include "engine/VaultIndex.h"
 #include "engine/VaultKit.h" // CancellationToken
 
+#include <QDir>
+#include <QFile>
 #include <QSet>
+#include <QSignalSpy>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QTemporaryDir>
+#include <QUrl>
 #include <QUuid>
 #include <QVariantMap>
 #include <QtTest>
@@ -105,6 +109,7 @@ private slots:
     void publish_and_query_round_trip();
     void folder_listing_is_natural_order();
     void publish_is_atomic_when_cancelled();
+    void publish_rolls_back_after_insert_failure();
     void incremental_upsert_lands_without_republish();
     void root_away_state_keeps_rows_and_progress();
     void error_state_round_trips_and_groups_surface_it();
@@ -122,13 +127,176 @@ private slots:
     void adopted_type_round_trips_and_carries_only_exact_tuple();
     // ── browse-face execution plan, Slice 2 ──
     void identity_state_round_trips_and_survives_a_republish_that_still_carries_it();
+    void downloaded_identity_does_not_overwrite_a_manual_match();
     void publish_carries_admission_only_for_exact_identity_tuple();
     void publish_explicit_new_verdict_wins_over_carried_verdict();
     void admission_projection_is_video_only_and_omits_unprobed_rows();
     // ── Arc 14: live reconciliation + stale async write barriers ──
     void reconcile_root_removes_obsolete_and_preserves_unchanged_facts();
     void stale_revision_write_cannot_resurrect_removed_row();
+    void personal_paths_hide_and_remove_rows_across_roots();
+    void personal_purge_failure_keeps_index_private_until_retry();
+    void personal_cover_urls_are_cleared_without_removing_the_media();
 };
+
+void tst_vault_index::personal_cover_urls_are_cleared_without_removing_the_media()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString dbPath = tmp.filePath("vault.sqlite");
+    VaultIndex index(dbPath);
+    const QString movies = tmp.filePath("movies");
+    const QString cover = tmp.filePath("Personal cover #1.png");
+    auto movie = mk("private-cover", movies + "/a", "A", "video", "a.mp4");
+    movie.coverRef = QUrl::fromLocalFile(cover).toString(QUrl::FullyEncoded);
+    auto shared = mk("public-cover", movies + "/b", "B", "video", "b.mp4");
+    shared.coverRef = QUrl::fromLocalFile(tmp.filePath("Public cover.png")).toString();
+    QList<VaultIndex::FileRow> rows{movie, shared};
+#ifndef Q_OS_WIN
+    {
+        QFile image(cover);
+        QVERIFY(image.open(QIODevice::WriteOnly));
+    }
+    const QString linkedCover = tmp.filePath("poster.png");
+    QVERIFY(QFile::link(cover, linkedCover));
+    auto alias = mk("private-cover-alias", movies + "/c", "C", "video", "c.mp4");
+    alias.coverRef = QUrl::fromLocalFile(linkedCover).toString();
+    rows.append(alias);
+#endif
+    QVERIFY(index.publish(rows));
+    const quint64 before = index.revision();
+    QCOMPARE(index.rowsForPath(movie.path).first().coverRef, movie.coverRef);
+
+    QSignalSpy ready(&index, &VaultIndex::personalPathsPrepared);
+    QVERIFY(index.setPersonalPaths({{VaultLocation::normalize(cover)}, {}}));
+    QVERIFY(index.groupsForKind("video").isEmpty());
+    QTRY_COMPARE(ready.size(), 1);
+    QVERIFY(ready.at(0).at(0).toBool());
+    QCOMPARE(index.itemCount(), rows.size());
+    QVERIFY(index.rowsForPath(movie.path).first().coverRef.isEmpty());
+    QCOMPARE(index.rowsForPath(shared.path).first().coverRef, shared.coverRef);
+    QVERIFY(index.filesForGroup("video", movie.groupKey).first().toMap()
+                .value(QStringLiteral("coverRef")).toString().isEmpty());
+#ifndef Q_OS_WIN
+    QVERIFY(index.rowsForPath(alias.path).first().coverRef.isEmpty());
+#endif
+    VaultIndex reopened(dbPath);
+    QVERIFY(reopened.rowsForPath(movie.path).first().coverRef.isEmpty());
+    QVERIFY(!index.upsertManyIfRevision(rows, before));
+    QVERIFY(index.publish(rows));
+    QVERIFY(index.rowsForPath(movie.path).first().coverRef.isEmpty());
+#ifndef Q_OS_WIN
+    QVERIFY(index.rowsForPath(alias.path).first().coverRef.isEmpty());
+#endif
+}
+
+void tst_vault_index::personal_paths_hide_and_remove_rows_across_roots()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex index(tmp.filePath("vault.sqlite"));
+    const QString path = tmp.filePath("media");
+    auto personal = mk("secret", path + "/personal", "Private", "video", "secret.mp4");
+    personal.admissionVerdict = QStringLiteral("Unsupported");
+    auto duplicate = personal;
+    duplicate.id = QStringLiteral("other-root-secret");
+    duplicate.rootPath = path;
+    const auto individual = mk("individual", path, "Private File", "book", "personal.epub");
+    const auto allowed = mk("allowed", path + "/personalized", "Allowed", "video", "keep.mp4");
+    QList<VaultIndex::FileRow> existing{personal, duplicate, individual, allowed};
+#ifndef Q_OS_WIN
+    // QFile::link creates a real symlink on Unix; the Windows variant creates a shortcut.
+    QVERIFY(QDir().mkpath(personal.subtreePath));
+    {
+        QFile source(personal.path);
+        QVERIFY(source.open(QIODevice::WriteOnly));
+        QVERIFY(source.write("test") > 0);
+    }
+    const auto alias = mk("legacy-alias", path, "Alias", "video", "linked.mp4");
+    QVERIFY(QFile::link(personal.path, alias.path));
+    existing.append(alias);
+#endif
+    QVERIFY(index.publish(existing));
+    const quint64 old = index.revision();
+    const VaultLocation::PersonalPaths choices{{VaultLocation::normalize(individual.path)},
+        {VaultLocation::normalize(personal.subtreePath)}};
+    QSignalSpy ready(&index, &VaultIndex::personalPathsPrepared);
+    QVERIFY(index.setPersonalPaths(choices));
+    QVERIFY(index.isPreparingPersonalPaths());
+    QVERIFY(index.rowsMatching("secret", 10).isEmpty());
+    QVERIFY(index.recentGroups(10).isEmpty());
+    QVERIFY(!index.upsert(duplicate));
+    QTRY_COMPARE(ready.size(), 1);
+    QVERIFY(ready.at(0).at(0).toBool());
+    QCOMPARE(index.itemCount(), 1);
+    QVERIFY(index.rowsForPath(individual.path).isEmpty());
+    QVERIFY(index.admissionById().isEmpty());
+    QVERIFY(!index.upsertManyIfRevision({personal, duplicate}, old));
+    QVERIFY(index.publish(existing));
+    QCOMPARE(index.itemCount(), 1);
+    QCOMPARE(index.rowsForKind("video").first().id, allowed.id);
+}
+
+void tst_vault_index::personal_purge_failure_keeps_index_private_until_retry()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString dbPath = tmp.filePath("vault.sqlite");
+    VaultIndex index(dbPath);
+    const auto personal = mk("secret", tmp.filePath("media"), "Private", "video", "secret.mp4");
+    QVERIFY(index.publish({personal}));
+    const auto connection = QUuid::createUuid().toString();
+    auto sql = [&connection, &dbPath](const QString& statement) {
+        bool ok = false;
+        {
+            auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+            db.setDatabaseName(dbPath);
+            if (db.open()) {
+                QSqlQuery openedQuery(db);
+                ok = openedQuery.exec(statement);
+            }
+        }
+        QSqlDatabase::removeDatabase(connection);
+        return ok;
+    };
+    QVERIFY(sql(QStringLiteral("CREATE TRIGGER block_prune BEFORE DELETE ON files "
+                               "BEGIN SELECT RAISE(FAIL, 'blocked'); END")));
+    QSignalSpy ready(&index, &VaultIndex::personalPathsPrepared);
+    const VaultLocation::PersonalPaths choices{{VaultLocation::normalize(personal.path)}, {}};
+    QVERIFY(index.setPersonalPaths(choices));
+    QTRY_COMPARE(ready.size(), 1);
+    QVERIFY(!ready.at(0).at(0).toBool());
+    QVERIFY(index.isPreparingPersonalPaths());
+    QVERIFY(index.rowsForKind("video").isEmpty());
+    QVERIFY(!index.publish({personal}));
+    QVERIFY(sql(QStringLiteral("DROP TRIGGER block_prune")));
+    QVERIFY(index.setPersonalPaths(choices));
+    QTRY_COMPARE(ready.size(), 2);
+    QVERIFY(ready.at(1).at(0).toBool());
+    QVERIFY(index.isOpen());
+    QCOMPARE(index.itemCount(), 0);
+}
+
+void tst_vault_index::downloaded_identity_does_not_overwrite_a_manual_match()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex index(tmp.filePath("vault.sqlite"));
+    auto download = mk("volume", "D:/lib", "Downloaded Manga", "comic", "vol-1-8675309.cbz");
+    download.identityId = "mal:13";
+    download.identitySource = "MAL";
+    download.identityState = "adopted";
+    auto manual = download;
+    manual.identityId = "mal:14";
+    manual.identityState = "manual";
+    manual.progressed = true;
+    QVERIFY(index.publish({manual}));
+    QVERIFY(index.publish({download}));
+    const auto row = index.rowsForKind("comic").value(0);
+    QCOMPARE(row.identityId, QStringLiteral("mal:14"));
+    QCOMPARE(row.identityState, QStringLiteral("manual"));
+    QVERIFY(row.progressed);
+}
 
 void tst_vault_index::embedded_title_round_trips_all_row_queries_and_exact_tuple_carry()
 {
@@ -313,7 +481,7 @@ void tst_vault_index::publish_is_atomic_when_cancelled()
     }));
     QCOMPARE(idx.itemCount(), 2);
 
-    // A cancelled republish must roll back the DELETE and leave set A intact.
+    // A cancelled republish must leave set A intact.
     VaultKit::CancellationToken tok;
     tok.cancel();
     const QList<VaultIndex::FileRow> setB = {
@@ -323,6 +491,53 @@ void tst_vault_index::publish_is_atomic_when_cancelled()
     QVERIFY(!idx.publish(setB, &tok));
     QCOMPARE(idx.itemCount(), 2);
     QCOMPARE(idx.itemCountForKind(QStringLiteral("comic")), 2);
+}
+
+void tst_vault_index::publish_rolls_back_after_insert_failure()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString path = tmp.filePath(QStringLiteral("index.sqlite"));
+    VaultIndex index(path);
+    QVERIFY(index.isOpen());
+
+    const QString kind = QStringLiteral("comic");
+    const QString subtree = QStringLiteral("D:/lib/Comics");
+    const QString title = QStringLiteral("Comics");
+    const auto original = mk(QStringLiteral("vault:original"), subtree, title, kind, QStringLiteral("Original.cbz"));
+    const auto first = mk(QStringLiteral("vault:first"), subtree, title, kind, QStringLiteral("First.cbz"));
+    const auto blocked = mk(QStringLiteral("vault:blocked"), subtree, title, kind, QStringLiteral("Blocked.cbz"));
+    QVERIFY(index.publish({original}));
+    const auto revision = index.revision();
+    QSignalSpy changed(&index, &VaultIndex::changed);
+
+    const QString connection = QUuid::createUuid().toString();
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+        db.setDatabaseName(path);
+        QVERIFY(db.open());
+        QSqlQuery query(db);
+        // Fail only after the replacement transaction has actually written its first row.
+        QVERIFY(query.exec(QStringLiteral(
+            "CREATE TRIGGER block_second BEFORE INSERT ON files "
+            "WHEN NEW.id = 'vault:blocked' AND EXISTS (SELECT 1 FROM files WHERE id = 'vault:first') "
+            "BEGIN SELECT RAISE(ABORT, 'second insert blocked'); END")));
+    }
+    QSqlDatabase::removeDatabase(connection);
+
+    QVERIFY(!index.publish({first, blocked}));
+    QCOMPARE(index.revision(), revision);
+    QCOMPARE(changed.count(), 0);
+    const auto restored = index.rowsForKind(kind);
+    QCOMPARE(restored.size(), 1);
+    QCOMPARE(restored.constFirst().id, original.id);
+    QCOMPARE(restored.constFirst().path, original.path);
+
+    QVERIFY(index.publish({first}));
+    QCOMPARE(changed.count(), 1);
+    const auto retried = index.rowsForKind(kind);
+    QCOMPARE(retried.size(), 1);
+    QCOMPARE(retried.constFirst().id, first.id);
 }
 
 void tst_vault_index::incremental_upsert_lands_without_republish()

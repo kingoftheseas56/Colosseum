@@ -13,6 +13,7 @@ FocusScope {
     property int unmatchedCount: 0
     property string status: ""
     property bool busy: false
+    property bool showingScanProgress: false
     property bool expanded: true
     readonly property int collapsedWidth: 62
     readonly property bool compactFooter: height < 620
@@ -245,7 +246,7 @@ FocusScope {
                         Text { visible: root.expanded && !root.compactFooter; anchors.horizontalCenter: parent.horizontalCenter; y: 25; text: tile.modelData.title; color: tile.hovered ? theme.ink : theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultSmall }
                         Rectangle {
                             objectName: "vaultRescanStatusDot"
-                            visible: tile.modelData.key === "rescan" && root.compactFooter && root.status.length > 0
+                            visible: tile.modelData.key === "rescan" && root.compactFooter && !root.scanStatus && root.status.length > 0
                             x: parent.width - width - 2; y: parent.height - height - 2
                             width: 6; height: 6; radius: 3
                             color: root.status === qsTr("No sources connected") ? theme.inkDimmer
@@ -259,7 +260,7 @@ FocusScope {
         }
         Item {
             objectName: "vaultLibrarySourcesStatus"
-            visible: root.expanded && !root.compactFooter && root.status.length > 0
+            visible: root.expanded && !root.compactFooter && !root.showingScanProgress && root.status.length > 0
             width: parent.width; height: 15
             activeFocusOnTab: true
             Accessible.role: Accessible.StaticText

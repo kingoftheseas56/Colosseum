@@ -170,6 +170,7 @@ public:
 
     // Local-only identity evidence for Vault; this never schedules a refresh.
     BiblioIdentityLookup exactWorkMatches(const QString &title, const QString &author) const;
+    BiblioIdentityLookup vaultWorkMatches(const QString &title, const QString &author);
 
     // Nonblocking Vault fallback. Pending/transient failures are Unavailable;
     // completed negatives and ambiguity are session-cached. No snapshot writes.
@@ -219,6 +220,7 @@ public:
 
 signals:
     void vaultLookupFinished();
+    void vaultIdentityIndexReady();
     void readyChanged();
     void refreshingChanged();
     void staleChanged();
@@ -323,6 +325,9 @@ private:
         const QList<BiblioRankSnapshot> &priorHistory, const QDateTime &capturedAt);
 
     BiblioCatalogStore m_store;
+    void prepareVaultIdentityIndex();
+    BiblioCatalogStore::IdentityTitleIndex m_vaultIdentityIndex;
+    bool m_vaultIdentityIndexLoading = false;
     QString m_dbPath; // immutable DB identity used by worker-owned SQLite publisher connections
     IBiblioTransport *m_transport = nullptr;
     BiblioNetworkTransport *m_ownedTransport = nullptr; // non-null only when we own it

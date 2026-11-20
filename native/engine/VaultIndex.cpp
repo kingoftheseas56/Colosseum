@@ -2,12 +2,16 @@
 
 #include "VaultKit.h" // CancellationToken
 
+#include <QFutureWatcher>
 #include <QHash>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QPromise>
 #include <QSet>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <QThreadPool>
+#include <QUrl>
 #include <QVariant>
 #include <QVariantMap>
 
@@ -186,6 +190,10 @@ void carryUnchangedFacts(VaultIndex::FileRow& row, const QHash<QString, DurableF
         row.author = prior.author;
     if (row.synopsis.isEmpty() && row.metadataSource.isEmpty())
         row.synopsis = prior.synopsis;
+    // A downloaded identity can fill an unmatched row. An exact-file manual
+    // match wins, and same-identity rescans retain existing catalogue facts.
+    const bool keepPriorMatch = row.identityState == QLatin1String("adopted")
+        && (prior.identityState == QLatin1String("manual") || prior.identityId == row.identityId);
     if (!row.identitySuppressed && prior.identitySuppressed) {
         row.identityId.clear();
         row.identityTitle.clear();
@@ -200,7 +208,7 @@ void carryUnchangedFacts(VaultIndex::FileRow& row, const QHash<QString, DurableF
         row.identityState = prior.identityState;
         row.identityCandidateCount = prior.identityCandidateCount;
         row.identitySuppressed = true;
-    } else if (!row.identitySuppressed && row.identitySource.isEmpty()
+    } else if (!row.identitySuppressed && (row.identitySource.isEmpty() || keepPriorMatch)
                && !prior.identitySuppressed && !prior.identitySource.isEmpty()) {
         row.identityId = prior.identityId;
         row.identityTitle = prior.identityTitle;
@@ -212,6 +220,10 @@ void carryUnchangedFacts(VaultIndex::FileRow& row, const QHash<QString, DurableF
         row.identityYear = prior.identityYear;
         row.identityRating = prior.identityRating;
         row.identityGenres = prior.identityGenres;
+        if (keepPriorMatch && !prior.identityState.isEmpty()) {
+            row.identityState = prior.identityState;
+            row.identityCandidateCount = prior.identityCandidateCount;
+        }
     }
     if (row.identityState.isEmpty() && row.identitySource == prior.identitySource) {
         row.identityState = prior.identityState;
@@ -243,7 +255,7 @@ VaultIndex::~VaultIndex()
 
 bool VaultIndex::isOpen() const
 {
-    return m_db.isOpen();
+    return m_db.isOpen() && !m_preparingPersonalPaths;
 }
 
 bool VaultIndex::ensureSchema()
@@ -488,7 +500,12 @@ QString VaultIndex::naturalSortKey(const QString& s)
 bool VaultIndex::insertRow(const FileRow& row)
 {
     QSqlQuery q(m_db);
-    q.prepare(QStringLiteral(
+    return prepareRowInsert(q) && insertRow(q, row);
+}
+
+bool VaultIndex::prepareRowInsert(QSqlQuery& q)
+{
+    return q.prepare(QStringLiteral(
         "INSERT OR REPLACE INTO files ("
         "id, rootPath, subtreePath, groupKey, groupTitle, kind, path, "
         "displayTitle, realName, subfolder, sortKey, size, mtimeMs, pages, "
@@ -503,6 +520,12 @@ bool VaultIndex::insertRow(const FileRow& row)
         ":admissionVerdict, :admissionDetail, :synopsis, :metadataSource, :identityId, :identityTitle, "
         ":identitySource, :identitySynopsis, :identityCoverUrl, :identityWorld, :identityYear, :identitySuppressed, "
         ":identityState, :identityCandidateCount, :parsedYear, :identityRating, :identityGenres, :embeddedTitle, :identityType)"));
+}
+
+bool VaultIndex::insertRow(QSqlQuery& q, const FileRow& row)
+{
+    if (m_personalPaths.excludes(row.path))
+        return true;
 
     q.bindValue(QStringLiteral(":id"), row.id);
     q.bindValue(QStringLiteral(":rootPath"), row.rootPath);
@@ -540,7 +563,10 @@ bool VaultIndex::insertRow(const FileRow& row)
     q.bindValue(QStringLiteral(":identityRating"), row.identityRating);
     q.bindValue(QStringLiteral(":identityGenres"), row.identityGenres);
     q.bindValue(QStringLiteral(":progressed"), row.progressed ? 1 : 0);
-    q.bindValue(QStringLiteral(":coverRef"), row.coverRef);
+    const bool privateCover = row.kind == QLatin1String("video")
+        && !m_personalPaths.isEmpty() && !row.coverRef.isEmpty()
+        && m_personalPaths.excludes(QUrl(row.coverRef).toLocalFile());
+    q.bindValue(QStringLiteral(":coverRef"), privateCover ? QString() : row.coverRef);
     q.bindValue(QStringLiteral(":away"), row.away ? 1 : 0);
     q.bindValue(QStringLiteral(":errorState"), row.errorState);
     q.bindValue(QStringLiteral(":errorDetail"),
@@ -555,7 +581,7 @@ bool VaultIndex::insertRow(const FileRow& row)
 bool VaultIndex::publish(const QList<FileRow>& rows,
                          const VaultKit::CancellationToken* cancel)
 {
-    if (!m_db.isOpen() || !m_db.transaction())
+    if (!isOpen() || !m_db.transaction())
         return false;
 
     auto rollback = [this]() {
@@ -576,6 +602,9 @@ bool VaultIndex::publish(const QList<FileRow>& rows,
     if (!clear.exec(QStringLiteral("DELETE FROM files")))
         return rollback();
 
+    QSqlQuery insert(m_db);
+    if (!rows.isEmpty() && !prepareRowInsert(insert))
+        return rollback();
     for (const FileRow& source : rows) {
         if (cancel && cancel->isCancelled())
             return rollback();
@@ -584,21 +613,134 @@ bool VaultIndex::publish(const QList<FileRow>& rows,
 
         carryUnchangedFacts(row, durable);
 
-        if (!insertRow(row))
+        if (!insertRow(insert, row))
             return rollback();
     }
 
+    insert.finish();
     if (!m_db.commit())
-        return false;
+        return rollback();
 
     ++m_revision;
     emit changed();
     return true;
 }
 
+bool VaultIndex::setPersonalPaths(const VaultLocation::PersonalPaths& paths)
+{
+    if (m_requestedPersonalPaths == paths && (!m_preparingPersonalPaths || m_personalCheckRunning))
+        return m_db.isOpen();
+    m_requestedPersonalPaths = paths;
+    m_personalPaths = paths;
+    const quint64 generation = ++m_personalCheckGeneration;
+    m_personalCheckRunning = false;
+    m_preparingPersonalPaths = !paths.isEmpty();
+    auto notify = [this](bool ok) {
+        ++m_revision;
+        emit changed();
+        return ok;
+    };
+    if (!m_db.isOpen())
+        return notify(false);
+    if (paths.isEmpty())
+        return notify(true);
+
+    // Older rows can reach the same bytes through a link. Keep the index unavailable
+    // while the disk lookups run off-thread, and reject writes from older revisions.
+    struct RowPaths {
+        QString id;
+        QString path;
+        QString coverRef;
+    };
+    using PathsById = QList<QPair<QString, QString>>;
+    struct CheckedPaths {
+        PathsById removedFiles;
+        PathsById clearedCovers;
+    };
+    QSqlQuery existing(m_db);
+    if (!existing.exec(QStringLiteral(
+            "SELECT id, path, CASE WHEN kind = 'video' THEN coverRef END FROM files")))
+        return notify(false);
+    QList<RowPaths> rows;
+    while (existing.next())
+        rows.append({existing.value(0).toString(), existing.value(1).toString(),
+                     existing.value(2).toString()});
+    if (existing.lastError().isValid())
+        return notify(false);
+    existing.finish();
+    if (rows.isEmpty()) {
+        m_preparingPersonalPaths = false;
+        return notify(true);
+    }
+
+    auto* watcher = new QFutureWatcher<CheckedPaths>(this);
+    connect(watcher, &QFutureWatcher<CheckedPaths>::finished, this, [this, watcher, generation] {
+        watcher->deleteLater();
+        if (generation != m_personalCheckGeneration)
+            return;
+        m_personalCheckRunning = false;
+        const auto checked = watcher->result();
+        const bool changedRows = !checked.removedFiles.isEmpty() || !checked.clearedCovers.isEmpty();
+        bool ok = !changedRows || m_db.transaction();
+        if (ok && changedRows) {
+            const auto updateRows = [this](const QString& statement, const PathsById& rows) {
+                if (rows.isEmpty())
+                    return true;
+                QSqlQuery query(m_db);
+                if (!query.prepare(statement))
+                    return false;
+                for (const auto& row : rows) {
+                    query.bindValue(0, row.first);
+                    if (!query.exec())
+                        return false;
+                    query.finish();
+                }
+                return true;
+            };
+            ok = updateRows(QStringLiteral("DELETE FROM files WHERE id = ?"), checked.removedFiles)
+                && updateRows(QStringLiteral("UPDATE files SET coverRef = '' WHERE id = ?"), checked.clearedCovers)
+                && m_db.commit();
+            if (!ok)
+                m_db.rollback();
+        }
+        if (ok) {
+            for (const auto* paths : {&checked.removedFiles, &checked.clearedCovers}) {
+                for (const auto& row : *paths) {
+                    if (!m_personalPaths.excludes(row.second))
+                        m_personalPaths.files.insert(VaultLocation::normalize(row.second));
+                }
+            }
+            m_preparingPersonalPaths = false;
+            ++m_revision;
+            emit changed();
+        }
+        emit personalPathsPrepared(ok);
+    });
+    QPromise<CheckedPaths> promise;
+    promise.start();
+    watcher->setFuture(promise.future());
+    m_personalCheckRunning = true;
+    QThreadPool::globalInstance()->start(
+        [rows = std::move(rows), paths, promise = std::move(promise)]() mutable {
+            CheckedPaths checked;
+            for (const auto& row : rows) {
+                if (paths.excludesPhysical(row.path)) {
+                    checked.removedFiles.append({row.id, row.path});
+                    continue;
+                }
+                const QString localCover = QUrl(row.coverRef).toLocalFile();
+                if (paths.excludesPhysical(localCover))
+                    checked.clearedCovers.append({row.id, localCover});
+            }
+            promise.addResult(std::move(checked));
+            promise.finish();
+        });
+    return notify(true);
+}
+
 bool VaultIndex::upsert(const FileRow& row)
 {
-    if (!m_db.isOpen())
+    if (!isOpen())
         return false;
     if (!insertRow(row))
         return false;
@@ -609,7 +751,7 @@ bool VaultIndex::upsert(const FileRow& row)
 
 bool VaultIndex::upsertMany(const QList<FileRow>& rows)
 {
-    if (!m_db.isOpen())
+    if (!isOpen())
         return false;
     if (rows.isEmpty())
         return true;
@@ -642,7 +784,7 @@ bool VaultIndex::reconcileRoot(const QString& rootPath, const QSet<QString>& cur
 {
     if (removedCount)
         *removedCount = 0;
-    if (!m_db.isOpen() || !m_db.transaction())
+    if (!isOpen() || !m_db.transaction())
         return false;
 
     auto rollback = [this]() {
@@ -698,6 +840,8 @@ bool VaultIndex::reconcileRoot(const QString& rootPath, const QSet<QString>& cur
 QList<VaultIndex::FileRow> VaultIndex::rowsForKind(const QString& kind) const
 {
     QList<FileRow> out;
+    if (!isOpen())
+        return out;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
         "SELECT id, rootPath, subtreePath, groupKey, groupTitle, kind, path,"
@@ -762,6 +906,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForKind(const QString& kind) const
 QList<VaultIndex::FileRow> VaultIndex::rowsForRoot(const QString& rootPath) const
 {
     QList<FileRow> out;
+    if (!isOpen())
+        return out;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
         "SELECT id, rootPath, subtreePath, groupKey, groupTitle, kind, path,"
@@ -826,6 +972,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForRoot(const QString& rootPath) cons
 QList<VaultIndex::FileRow> VaultIndex::rowsForGroup(const QString& groupKey) const
 {
     QList<FileRow> out;
+    if (!isOpen())
+        return out;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
         "SELECT id, rootPath, subtreePath, groupKey, groupTitle, kind, path,"
@@ -890,7 +1038,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForGroup(const QString& groupKey) con
 QList<VaultIndex::FileRow> VaultIndex::rowsForPath(const QString& path) const
 {
     QList<FileRow> out;
-    if (path.isEmpty())
+    if (path.isEmpty() || !isOpen())
         return out;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
@@ -957,7 +1105,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsMatching(const QString& needle, int l
 {
     QList<FileRow> out;
     const QString trimmed = needle.trimmed();
-    if (trimmed.isEmpty() || limit <= 0 || !m_db.isOpen())
+    if (trimmed.isEmpty() || limit <= 0 || !isOpen())
         return out;
     // Escape the needle's own wildcards so a literal "100%" or "S_E" never widens the match,
     // then wrap in %…% for the substring search. ESCAPE '\' names the escape char.
@@ -1039,7 +1187,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsMatching(const QString& needle, int l
 QList<VaultIndex::FileRow> VaultIndex::rowsForIdentity(const QString& identityId) const
 {
     QList<FileRow> out;
-    if (identityId.isEmpty())
+    if (identityId.isEmpty() || !isOpen())
         return out;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
@@ -1104,7 +1252,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForIdentity(const QString& identityId
 
 bool VaultIndex::markRootAway(const QString& rootPath, bool away)
 {
-    if (!m_db.isOpen())
+    if (!isOpen())
         return false;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral("UPDATE files SET away = ? WHERE rootPath = ? AND away <> ?"));
@@ -1120,6 +1268,8 @@ bool VaultIndex::markRootAway(const QString& rootPath, bool away)
 
 int VaultIndex::itemCount() const
 {
+    if (!isOpen())
+        return 0;
     QSqlQuery q(m_db);
     if (q.exec(QStringLiteral("SELECT COUNT(*) FROM files")) && q.next())
         return q.value(0).toInt();
@@ -1128,6 +1278,8 @@ int VaultIndex::itemCount() const
 
 int VaultIndex::itemCountForKind(const QString& kind) const
 {
+    if (!isOpen())
+        return 0;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral("SELECT COUNT(*) FROM files WHERE kind = ?"));
     q.addBindValue(kind);
@@ -1139,6 +1291,8 @@ int VaultIndex::itemCountForKind(const QString& kind) const
 QStringList VaultIndex::kinds() const
 {
     QStringList out;
+    if (!isOpen())
+        return out;
     QSqlQuery q(m_db);
     if (q.exec(QStringLiteral("SELECT DISTINCT kind FROM files ORDER BY kind")))
         while (q.next())
@@ -1149,6 +1303,8 @@ QStringList VaultIndex::kinds() const
 QVariantList VaultIndex::groupsForKind(const QString& kind) const
 {
     QVariantList out;
+    if (!isOpen())
+        return out;
     QSqlQuery q(m_db);
     // A representative cover for the shelf tile: the first enriched file (lowest sortKey
     // with a coverRef) in the group — comics carry a CBZ cover entry; books/video have none
@@ -1218,6 +1374,8 @@ QVariantList VaultIndex::filesInSubtree(const QString& subtreePath) const
 QVariantList VaultIndex::projectFiles(const QString& key, const QString& kind, bool exactGroup) const
 {
     QVariantList out;
+    if (!isOpen())
+        return out;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
         "SELECT id, path, displayTitle, realName, subfolder, kind, size, mtimeMs,"
@@ -1225,7 +1383,7 @@ QVariantList VaultIndex::projectFiles(const QString& key, const QString& kind, b
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, embeddedTitle, identityType"
+        " identityState, identityCandidateCount, embeddedTitle, identityType, identityRating, identityGenres"
         " FROM files WHERE %1"
         " ORDER BY subfolder COLLATE NOCASE, sortKey").arg(exactGroup
             ? QStringLiteral("groupKey = ? AND kind = ?") : QStringLiteral("subtreePath = ?")));
@@ -1267,6 +1425,8 @@ QVariantList VaultIndex::projectFiles(const QString& key, const QString& kind, b
             m[QStringLiteral("identityCandidateCount")] = q.value(30).toInt();
             m[QStringLiteral("embeddedTitle")] = q.value(31).toString();
             m[QStringLiteral("identityType")] = q.value(32).toString();
+            m[QStringLiteral("identityRating")] = q.value(33).toDouble();
+            m[QStringLiteral("identityGenres")] = q.value(34).toString();
             out.append(m);
         }
     }
@@ -1276,7 +1436,7 @@ QVariantList VaultIndex::projectFiles(const QString& key, const QString& kind, b
 QVariantList VaultIndex::recentGroups(int limit) const
 {
     QVariantList out;
-    if (limit <= 0 || !m_db.isOpen())
+    if (limit <= 0 || !isOpen())
         return out;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
@@ -1304,7 +1464,7 @@ bool VaultIndex::subtreeFacts(const QString& subtreePath,
         *newestMtimeMs = 0;
     if (totalSizeBytes)
         *totalSizeBytes = 0;
-    if (!m_db.isOpen() || subtreePath.isEmpty())
+    if (!isOpen() || subtreePath.isEmpty())
         return false;
     // Prefix-bound on the separator so "Movies" never matches "Movies 2/…". The exact-match
     // arm covers a group's own rows when the caller hands a group path (harmless when it is
@@ -1328,6 +1488,8 @@ bool VaultIndex::subtreeFacts(const QString& subtreePath,
 QSet<QString> VaultIndex::fileIdsInRoot(const QString& rootPath) const
 {
     QSet<QString> out;
+    if (!isOpen())
+        return out;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral("SELECT id FROM files WHERE rootPath = ?"));
     q.addBindValue(rootPath);
@@ -1340,6 +1502,8 @@ QSet<QString> VaultIndex::fileIdsInRoot(const QString& rootPath) const
 
 QString VaultIndex::dominantKindForSubtree(const QString& subtreePath) const
 {
+    if (!isOpen())
+        return {};
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
         "SELECT kind FROM files WHERE subtreePath = ?"
@@ -1353,7 +1517,7 @@ QString VaultIndex::dominantKindForSubtree(const QString& subtreePath) const
 QVariantMap VaultIndex::admissionById() const
 {
     QVariantMap out;
-    if (!m_db.isOpen())
+    if (!isOpen())
         return out;
 
     // Video-only, verdict-bearing rows: unprobed ("" verdict) and non-video rows are omitted, so

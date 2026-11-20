@@ -98,6 +98,11 @@
 #include "engine/ColosseumTitleIdentityRegistry.h"
 #include "engine/RatingsReviewsProviderReadProjection.h"
 #include "engine/LocalDownloads.h"
+#include "engine/DownloadLocation.h"
+#include "engine/DownloadMediaPaths.h"
+#include "engine/DownloadMoveController.h"
+#include "engine/VaultBookStateMigrator.h"
+#include "reader/BookStores.h"
 #include "engine/AppLog.h"
 #include "bootstrap/AppDataMigration.h"
 #include "bootstrap/InstanceLock.h"
@@ -527,6 +532,17 @@ int main(int argc, char *argv[]) {
     // Backend stores and workers must finish while Qt and its event dispatcher
     // still exist. QML goes first so its destruction handlers can flush activity.
     QObject backendServices(&app);
+#ifndef Q_OS_ANDROID
+    std::unique_ptr<DownloadLocation> downloadLocation;
+    if (!isolatedAppData && !QStandardPaths::isTestModeEnabled()) {
+        downloadLocation = std::make_unique<DownloadLocation>(
+            QDir(instanceAppData).filePath(QStringLiteral("download-location.json")));
+        DownloadMediaPaths::install(downloadLocation->root(), downloadLocation->marker(),
+                                    downloadLocation->aliases(), downloadLocation->knownLocations());
+        DownloadMediaPaths::loadJobPaths(QDir(instanceAppData).filePath(QStringLiteral("download-job-paths.json")));
+        DownloadMediaPaths::setMoving(!downloadLocation->pending().id.isEmpty());
+    }
+#endif
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("SmartPlay"), new SmartPlayBridge(&engine));
     engine.rootContext()->setContextProperty(QStringLiteral("FeedbackRequests"),
@@ -1062,16 +1078,39 @@ int main(int argc, char *argv[]) {
     // not rejected); the work condition is the missing fact itself. Immersive gate
     // (VaultWatcher's debounceExpired pattern): never start while a player/reader is
     // open, cancel an in-flight pass between files, rerun the remainder on close.
+    // Build both passes from owner-thread snapshots. Roots and file paths may point to
+    // unplugged, sleeping, or network drives, so probe their eligibility on the worker.
+    auto vaultSyntheticRoots = [vaultConfig] {
+        QSet<QString> paths;
+        for (const auto& value : vaultConfig->roots()) {
+            const auto root = value.toMap();
+            if (root.value(QStringLiteral("synthetic")).toBool())
+                paths.insert(root.value(QStringLiteral("path")).toString());
+        }
+        return paths;
+    };
+    auto isVaultRootAvailable = [](const QString& path, const QSet<QString>& syntheticRoots,
+                                   QHash<QString, bool>& availableRoots) {
+        const QString root = VaultLocation::normalize(path);
+        auto found = availableRoots.find(root);
+        if (found == availableRoots.end())
+            found = availableRoots.insert(root, syntheticRoots.contains(root) || QDir(path).exists());
+        return found.value();
+    };
+
     bool vaultVideoEnrichInFlight = false;
     bool vaultVideoEnrichRerun = false;
     std::shared_ptr<VaultKit::CancellationToken> vaultVideoEnrichCancel;
-    auto runVaultVideoEnrichment = [vaultIndex, vaultConfig, vaultEnricher, vaultLibrary,
+    auto runVaultVideoEnrichment = [vaultIndex, vaultEnricher, vaultLibrary, vaultSyntheticRoots,
+                                    isVaultRootAvailable,
                                     &vaultVideoEnrichInFlight, &vaultVideoEnrichRerun,
                                     &vaultVideoEnrichCancel]() {
         if (vaultVideoEnrichInFlight) {
             vaultVideoEnrichRerun = true; // one pass at a time; coalesce the later trigger
             return;
         }
+        if (vaultIndex->isPreparingPersonalPaths())
+            return; // the current policy's completion restarts enrichment
         if (vaultLibrary->immersive()) {
             vaultVideoEnrichRerun = true; // deferred until the immersive surface closes
             return;
@@ -1080,8 +1119,7 @@ int main(int argc, char *argv[]) {
         QList<VaultIndex::FileRow> todo;
 #if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
-            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
-                && r.errorState != QLatin1String("rejected")
+            if (!r.away && r.errorState != QLatin1String("rejected")
                 && (r.durationSec <= 0.0 || r.coverRef.isEmpty()))
                 todo.append(r);
         }
@@ -1089,41 +1127,46 @@ int main(int argc, char *argv[]) {
             return;
         vaultVideoEnrichInFlight = true;
         vaultVideoEnrichCancel = std::make_shared<VaultKit::CancellationToken>();
-        const VaultKit::CancellationToken* cancel = vaultVideoEnrichCancel.get();
-        // ffprobe (kill-on-timeout, per file) and artwork header sniffs stay off the
-        // GUI thread; enrich() hops its own single-batch write-back to the index owner.
-        (void)QtConcurrent::run([vaultEnricher, todo, cancel]() {
-            vaultEnricher->enrich(todo, cancel);
+        const auto cancel = vaultVideoEnrichCancel;
+        const auto personal = vaultIndex->personalPaths();
+        const auto syntheticRoots = vaultSyntheticRoots();
+        const quint64 baseRevision = vaultIndex->revision();
+        (void)QtConcurrent::run([vaultEnricher, rows = std::move(todo), cancel, personal,
+                                syntheticRoots, baseRevision, isVaultRootAvailable]() {
+            QList<VaultIndex::FileRow> present;
+            QHash<QString, bool> availableRoots;
+            for (const auto& row : rows) {
+                if (cancel->isCancelled())
+                    break;
+                if (!personal.excludes(row.path)
+                    && isVaultRootAvailable(row.rootPath, syntheticRoots, availableRoots))
+                    present.append(row);
+            }
+            vaultEnricher->enrichSnapshot(present, baseRevision, personal, cancel.get());
         });
 #endif
     };
-    // An immersive surface opening mid-pass cancels the pass between files (the probe
-    // itself admits no cancellation; the enrich loop guard does) and reruns on close.
-    QObject::connect(
-        vaultEnricher, &VaultEnricher::progress, vaultLibrary,
-        [&vaultVideoEnrichInFlight, &vaultVideoEnrichRerun, &vaultVideoEnrichCancel,
-         vaultLibrary](int, int) {
-            if (!vaultVideoEnrichInFlight || !vaultLibrary->immersive())
-                return;
-            vaultVideoEnrichRerun = true;
-            if (vaultVideoEnrichCancel)
-                vaultVideoEnrichCancel->cancel();
-        });
     QObject::connect(
         vaultEnricher, &VaultEnricher::enrichmentFinished, vaultLibrary,
-        [&vaultVideoEnrichInFlight, &vaultVideoEnrichRerun,
+        [&vaultVideoEnrichInFlight, &vaultVideoEnrichRerun, &vaultVideoEnrichCancel,
          &runVaultVideoEnrichment]() {
             vaultVideoEnrichInFlight = false;
+            vaultVideoEnrichCancel.reset();
             if (vaultVideoEnrichRerun)
                 runVaultVideoEnrichment();
         });
     QObject::connect(
         vaultLibrary, &VaultLibrary::immersiveChanged, vaultLibrary,
         [vaultLibrary, &vaultVideoEnrichInFlight, &vaultVideoEnrichRerun,
-         &runVaultVideoEnrichment]() {
-            if (vaultLibrary->immersive() || vaultVideoEnrichInFlight || !vaultVideoEnrichRerun)
-                return;
-            runVaultVideoEnrichment();
+         &vaultVideoEnrichCancel, &runVaultVideoEnrichment]() {
+            if (vaultLibrary->immersive()) {
+                if (vaultVideoEnrichCancel) {
+                    vaultVideoEnrichRerun = true;
+                    vaultVideoEnrichCancel->cancel();
+                }
+            } else if (!vaultVideoEnrichInFlight && vaultVideoEnrichRerun) {
+                runVaultVideoEnrichment();
+            }
         });
 
     // Vault cover enrichment (execution plan Slice 12): after a publish, read each comic's
@@ -1139,12 +1182,16 @@ int main(int argc, char *argv[]) {
     vaultCoverRetry->setInterval(250);
     bool vaultCoverInFlight = false;
     bool vaultCoverRerun = false;
-    auto runVaultCoverEnrichment = [vaultIndex, vaultConfig, runVaultVideoEnrichment,
-                                    vaultCoverRetry, &vaultCoverInFlight, &vaultCoverRerun]() {
+    std::shared_ptr<VaultKit::CancellationToken> vaultCoverCancel;
+    auto runVaultCoverEnrichment = [vaultIndex, runVaultVideoEnrichment, vaultSyntheticRoots,
+                                    isVaultRootAvailable, vaultCoverRetry, &vaultCoverInFlight,
+                                    &vaultCoverRerun, &vaultCoverCancel]() {
         if (vaultCoverInFlight) {
             vaultCoverRerun = true;
             return;
         }
+        if (vaultIndex->isPreparingPersonalPaths())
+            return;
         vaultCoverRerun = false;
         // Capture the exact index snapshot this async work is derived from. Any successful
         // scanner publish, watcher reconciliation, away-state change, or other mutation advances
@@ -1154,21 +1201,18 @@ int main(int argc, char *argv[]) {
         // enriched library does no redundant CBZ reads (this returns nothing after the first pass).
         QList<VaultIndex::FileRow> todo;
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("comic"))) {
-            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
-                && r.errorState.isEmpty() && r.coverRef.isEmpty())
+            if (!r.away && r.errorState.isEmpty() && r.coverRef.isEmpty())
                 todo.append(r);
         }
 #if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
-            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
-                && r.errorState != QLatin1String("rejected")
+            if (!r.away && r.errorState != QLatin1String("rejected")
                 && r.admissionVerdict.isEmpty())
                 todo.append(r);
         }
 #endif
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("book"))) {
-            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
-                && QFileInfo(r.path).suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) == 0
+            if (!r.away && r.path.endsWith(QLatin1String(".epub"), Qt::CaseInsensitive)
                 && r.errorState.isEmpty()
                 && (r.metadataSource.isEmpty()
                     || (r.embeddedTitle.isEmpty() && r.identitySource == QLatin1String("EPUB")
@@ -1182,27 +1226,44 @@ int main(int argc, char *argv[]) {
             return;
         }
         vaultCoverInFlight = true;
+        const auto personal = vaultIndex->personalPaths();
+        const auto syntheticRoots = vaultSyntheticRoots();
+        const auto cancel = std::make_shared<VaultKit::CancellationToken>();
+        vaultCoverCancel = cancel;
         auto *watcher = new QFutureWatcher<QList<VaultIndex::FileRow>>(vaultIndex);
         QObject::connect(
             watcher, &QFutureWatcher<QList<VaultIndex::FileRow>>::finished, vaultIndex,
             [vaultIndex, watcher, baseRevision, runVaultVideoEnrichment, vaultCoverRetry,
-             &vaultCoverInFlight, &vaultCoverRerun]() {
+             cancel, &vaultCoverInFlight, &vaultCoverRerun, &vaultCoverCancel]() {
                 const QList<VaultIndex::FileRow> enriched = watcher->result();
                 watcher->deleteLater();
                 // Conditional write-back is the resurrection barrier: stale workers cannot
                 // reinsert rows after a scanner publish OR a live watcher deletion/replacement.
-                const bool committed = vaultIndex->upsertManyIfRevision(enriched, baseRevision);
+                const bool committed = !cancel->isCancelled()
+                    && vaultIndex->upsertManyIfRevision(enriched, baseRevision);
                 vaultCoverInFlight = false;
+                vaultCoverCancel.reset();
                 if (!committed || vaultCoverRerun)
                     vaultCoverRetry->start();
                 // S5: video durations + local artwork run only after this census commit
                 // landed, so admission verdicts are durable before the enricher re-reads.
                 if (committed) runVaultVideoEnrichment();
             });
-        watcher->setFuture(QtConcurrent::run([todo]() {
+        watcher->setFuture(QtConcurrent::run([rows = std::move(todo), personal, syntheticRoots,
+                                             cancel, isVaultRootAvailable]() {
             QList<VaultIndex::FileRow> out;
-            out.reserve(todo.size());
-            for (VaultIndex::FileRow r : todo) {
+            out.reserve(rows.size());
+            QHash<QString, bool> availableRoots;
+            for (VaultIndex::FileRow r : rows) {
+                if (cancel->isCancelled())
+                    break;
+                if (personal.excludes(r.path)
+                    || !isVaultRootAvailable(r.rootPath, syntheticRoots, availableRoots)
+                    || cancel->isCancelled() || personal.excludesPhysical(r.path)
+                    || !QFileInfo::exists(r.path))
+                    continue;
+                if (cancel->isCancelled())
+                    break;
                 if (r.kind == QLatin1String("comic")) {
                     const VaultEnricher::ComicFacts cf = VaultEnricher::readComicFacts(r.path);
                     if (cf.ok) {
@@ -1252,6 +1313,17 @@ int main(int argc, char *argv[]) {
             return out;
         }));
     };
+    QObject::connect(vaultLibrary, &VaultLibrary::personalPathsChanging, vaultCoverRetry,
+                     [&vaultCoverCancel, &vaultVideoEnrichCancel]() {
+        if (vaultCoverCancel) vaultCoverCancel->cancel();
+        if (vaultVideoEnrichCancel) vaultVideoEnrichCancel->cancel();
+    });
+    QObject::connect(vaultLibrary, &VaultLibrary::personalPathsChanged, vaultCoverRetry,
+                     [vaultCoverRetry]() { vaultCoverRetry->start(); });
+    QObject::connect(vaultIndex, &VaultIndex::personalPathsPrepared, vaultCoverRetry,
+                     [vaultCoverRetry](bool success) {
+        if (success) vaultCoverRetry->start();
+    });
     QObject::connect(vaultScanner, &VaultScanner::indexPublished, vaultLibrary,
                      [runVaultCoverEnrichment]() { runVaultCoverEnrichment(); });
     QObject::connect(vaultCoverRetry, &QTimer::timeout, vaultLibrary, runVaultCoverEnrichment);
@@ -1609,14 +1681,16 @@ int main(int argc, char *argv[]) {
 #if !defined(Q_OS_ANDROID)
     vaultIdentifier->setBookCatalogLookup(biblioCatalog,
         [biblioCatalog](const QString &title, const QString &author) {
-            return biblioCatalog->exactWorkMatches(title, author);
+            return biblioCatalog->vaultWorkMatches(title, author);
         }, [biblioCatalog](const QString &title, const QString &author, const QString &filenameTitle) {
             return biblioCatalog->onlineWorkMatches(title, author, filenameTitle);
         }, [biblioCatalog](const BiblioIdentityCandidate &candidate) {
             return biblioCatalog->retainVaultWork(candidate);
         });
     vaultLibrary->setBookIdentityDisplay([biblioCatalog](const QString &id, const QString &title) {
-        for (const auto &work : biblioCatalog->exactWorkMatches(title, QString()).candidates)
+        if (!id.startsWith(QLatin1String("biblio:")))
+            return QVariantMap{};
+        for (const auto &work : biblioCatalog->vaultWorkMatches(title, QString()).candidates)
             if (QStringLiteral("biblio:") + work.canonicalId == id)
                 return QVariantMap{{QStringLiteral("author"), work.author}};
         return QVariantMap{};
@@ -1625,6 +1699,10 @@ int main(int argc, char *argv[]) {
                      vaultIdentifier, &VaultIdentifier::retryBookCatalog);
     QObject::connect(biblioCatalog, &BiblioCatalog::revisionChanged,
                      vaultIdentifier, &VaultIdentifier::retryBookCatalog);
+    QObject::connect(biblioCatalog, &BiblioCatalog::vaultIdentityIndexReady,
+                     vaultIdentifier, &VaultIdentifier::retryBookCatalog);
+    QObject::connect(biblioCatalog, &BiblioCatalog::vaultIdentityIndexReady,
+                     vaultLibrary, &VaultLibrary::refreshBookCatalog);
 #endif
 
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &backendServices);
@@ -2197,6 +2275,121 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("Sessions"), sessions);
     if (qEnvironmentVariableIsSet("COLOSSEUM_SESSION_SELFTEST"))
         sessions->selfTest();
+
+#ifndef Q_OS_ANDROID
+    if (downloadLocation) {
+        localDownloads->setBookTorrentSource(bookTorrents);
+        QObject::connect(bookTorrents, &BookTorrents::resolving, localDownloads, &LocalDownloads::refreshLocation);
+        QObject::connect(bookTorrents, &BookTorrents::progress, localDownloads, &LocalDownloads::refreshLocation);
+        QObject::connect(bookTorrents, &BookTorrents::finished, localDownloads, &LocalDownloads::refreshLocation);
+        QObject::connect(bookTorrents, &BookTorrents::failed, localDownloads, &LocalDownloads::refreshLocation);
+        QObject::connect(bookTorrents, &BookTorrents::removed, localDownloads, &LocalDownloads::refreshLocation);
+        const auto inventory = [downloads, books, bookTorrents, comics, download, tankobanVolumes, audiobooks] {
+            auto items = downloads->managedDownloadItems();
+            items.append(books->managedDownloadItems());
+            items.append(bookTorrents->managedDownloadItems());
+            items.append(comics->managedDownloadItems());
+            items.append(download->managedDownloadItems());
+            items.append(audiobooks->managedDownloadItems());
+            if (tankobanVolumes)
+                items.append(tankobanVolumes->managedDownloadItems());
+            return items;
+        };
+        const auto busy = [localDownloads, tankobanVolumes, audiobooks, bookTorrents, sessions, torrentEngine, inventory] {
+            if (tankobanVolumes && !tankobanVolumes->recoveryReady())
+                return QObject::tr("Wait for the manga download index to finish loading.");
+            for (const QVariant &value : localDownloads->activeJobs()) {
+                const QString state = value.toMap().value(QStringLiteral("state")).toString();
+                if (state != QStringLiteral("done") && state != QStringLiteral("failed"))
+                    return QObject::tr("Wait for active and paused downloads to finish before moving their files.");
+            }
+            if (audiobooks->activeCount() > 0)
+                return QObject::tr("Wait for the audiobook downloads to finish.");
+            if (bookTorrents->busy())
+                return QObject::tr("Wait for ebook torrent downloads to finish.");
+            const auto items = inventory();
+            for (const TorrentStatus &torrent : torrentEngine->allStatuses()) {
+                for (const auto &item : items) {
+                    if (DownloadMediaPaths::pathKey(torrent.savePath) == DownloadMediaPaths::pathKey(item.source)
+                        || DownloadMediaPaths::isWithin(torrent.savePath, item.source)) {
+                        return QObject::tr("A torrent is using these files. Wait for it to release them before moving.");
+                    }
+                }
+            }
+            for (const QVariant &value : sessions->list()) {
+                const auto target = value.toMap().value(QStringLiteral("target")).toMap();
+                if (target.contains(QStringLiteral("chapterId")) || target.contains(QStringLiteral("vaultPath"))
+                    || target.contains(QStringLiteral("localPath")) || target.contains(QStringLiteral("book"))) {
+                    return QObject::tr("Close open local reader and player sessions before moving downloads.");
+                }
+            }
+            return QString();
+        };
+        const auto apply = [downloads, books, bookTorrents, comics, download, tankobanVolumes, audiobooks,
+                            audioPairing, localDownloads, vaultLibrary, vaultIdentity](const DownloadLocation::Plan &plan) {
+            QList<QPair<QString, QString>> verifiedPaths;
+            for (const auto &file : plan.files) {
+                verifiedPaths.append({file.source, file.destination});
+                if (QFileInfo(file.source).suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) == 0
+                    || QFileInfo(file.source).suffix().compare(QStringLiteral("pdf"), Qt::CaseInsensitive) == 0)
+                    VaultBookStateMigrator::migrate(file.source, file.destination);
+            }
+            vaultIdentity->relocateVerifiedDownloads(verifiedPaths);
+            for (const QVariant &value : audioPairing->allPairings()) {
+                auto record = value.toMap();
+                const QString bookPath = record.value(QStringLiteral("bookPath")).toString();
+                const QString audioDir = record.value(QStringLiteral("audioDir")).toString();
+                const QString newBook = DownloadMediaPaths::resolved(bookPath);
+                const QString newAudio = DownloadMediaPaths::resolved(audioDir);
+                if (newBook == bookPath && newAudio == audioDir)
+                    continue;
+                const QString oldId = record.value(QStringLiteral("bookId")).toString();
+                const QString newId = newBook != bookPath && oldId == BookStores::keyFor(bookPath)
+                    ? BookStores::keyFor(newBook) : oldId;
+                record.insert(QStringLiteral("bookPath"), newBook);
+                record.insert(QStringLiteral("audioDir"), newAudio);
+                if (newId == oldId || audioPairing->getPairing(newId).isEmpty())
+                    audioPairing->savePairing(newId, record);
+            }
+            downloads->refreshDownloadPaths();
+            books->refreshDownloadPaths();
+            bookTorrents->refreshDownloadPaths();
+            comics->refreshDownloadPaths();
+            download->refreshDownloadPaths();
+            audiobooks->refreshDownloadPaths();
+            if (tankobanVolumes)
+                tankobanVolumes->refreshDownloadPaths();
+            localDownloads->refreshLocation();
+            vaultLibrary->republishAtBoot();
+        };
+        const auto guardPersonalDownloads = [vaultConfig, vaultIndex](const DownloadLocation::Plan &plan) {
+            const auto choices = vaultConfig->personalPaths();
+            const auto prepared = vaultIndex->personalPaths();
+            if (std::any_of(plan.files.cbegin(), plan.files.cend(), [&](const DownloadLocation::File &file) {
+                    return choices.excludes(file.source) || choices.excludes(file.canonicalSource)
+                        || prepared.excludes(file.source) || prepared.excludes(file.canonicalSource);
+                })) {
+                return QObject::tr("This move includes downloads excluded from Vault.");
+            }
+            return QString();
+        };
+        auto *moveController = new DownloadMoveController(std::move(*downloadLocation), inventory, busy,
+                                                          apply, guardPersonalDownloads, &backendServices);
+        localDownloads->setLocation(moveController);
+        QObject::connect(moveController, &DownloadMoveController::locationAvailableChanged, download,
+                         [download, localDownloads, bookTorrents, downloads, books, audiobooks, vaultLibrary](bool available) {
+            localDownloads->refreshLocation();
+            if (available) {
+                download->downloadLocationAvailable();
+                bookTorrents->downloadLocationAvailable();
+                downloads->downloadLocationAvailable();
+                books->downloadLocationAvailable();
+                audiobooks->downloadLocationAvailable();
+                vaultLibrary->republishAtBoot();
+            }
+        });
+    }
+#endif
 
     // Keyless anime ordering (spec 2026-07-15): downloads two community mapping
     // datasets at runtime, caches immutable generations, and hands Theatre/player

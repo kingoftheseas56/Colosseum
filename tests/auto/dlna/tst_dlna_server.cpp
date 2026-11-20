@@ -1428,6 +1428,22 @@ void tst_dlna_server::subtitleServing()
     SoapReply meta1 = browseMetadata(m_fx.ep1Id);
     QVERIFY(meta1.ok);
     QVERIFY(!meta1.arg(QStringLiteral("Result")).contains(QStringLiteral("CaptionInfoEx")));
+
+    // A cached subtitle URL is revoked even though the episode remains shared.
+    const auto original = m_provider.snapshot();
+    auto privateSubtitle = std::make_shared<DlnaSnapshot>(*original);
+    privateSubtitle->items[m_fx.ep2Id].subtitlePersonal = true;
+    m_provider.publish(privateSubtitle);
+    const auto updated = browseMetadata(m_fx.ep2Id);
+    const auto privateHeader = http(QStringLiteral("HEAD"), ep2Url,
+        {{QByteArrayLiteral("getCaptionInfo.sec"), QByteArrayLiteral("1")}});
+    const auto cached = http(QStringLiteral("GET"), QUrl(m_baseUrl + "/sub/" + m_fx.ep2Id + ".srt"));
+    m_provider.publish(original);
+    QVERIFY(updated.ok);
+    QVERIFY(!updated.arg(QStringLiteral("Result")).contains(QStringLiteral("CaptionInfoEx")));
+    QCOMPARE(privateHeader.status, 200);
+    QVERIFY(!privateHeader.headers.contains("captioninfo.sec"));
+    QCOMPARE(cached.status, 404);
 }
 
 // A file that no longer matches the snapshot's size+mtime must be refused BEFORE the headers go

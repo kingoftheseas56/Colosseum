@@ -150,7 +150,63 @@ private slots:
     void cover_hook_results_are_limited_to_servable_images();
     void owner_change_during_build_triggers_one_more_build();
     void stop_discards_a_build_in_flight();
+    void personal_choices_revoke_live_and_in_flight_publications();
 };
+
+void tst_dlna_library::personal_choices_revoke_live_and_in_flight_publications()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString root = tmp.filePath("media");
+    const QString nested = root + "/private";
+    const QString publicMovie = writeFile(root + "/Movie.mp4", 117);
+    const QString privateMovie = writeFile(nested + "/Secret.mp4", 118);
+    const QString subtitle = writeFile(root + "/Movie.srt", 23);
+    const QString cover = writeFile(nested + "/Cover.png", 26);
+    const QString audiobook = writeFile(nested + "/Personal.mp3", 101);
+    QVERIFY(!publicMovie.isEmpty() && !privateMovie.isEmpty() && !subtitle.isEmpty()
+            && !cover.isEmpty() && !audiobook.isEmpty());
+    VaultConfig config(tmp.filePath("config"));
+    QVERIFY(config.applyFolderSelection(root, {}));
+    QVERIFY(config.applyFolderSelection(nested, {}));
+    VaultIndex index(tmp.filePath("index.sqlite"));
+    QVERIFY(index.publish({row("movie", "video", root, root, "Movie", publicMovie),
+                           row("secret", "video", nested, nested, "Secret", privateMovie)}));
+    FakeAudiobooks audio;
+    audio.books = {QVariantMap{{QStringLiteral("id"), QStringLiteral("audio")},
+                               {QStringLiteral("title"), QStringLiteral("Private audiobook")}}};
+    audio.files.insert(QStringLiteral("audio"), {audiobook});
+
+    DlnaLibrary library(&index, &config, &audio);
+    library.setCoverResolver([cover](const VaultIndex::FileRow&) { return cover; });
+    library.start();
+    REBUILD(library);
+    const auto before = library.snapshot();
+    QCOMPARE(before->itemCount, 3);
+    QCOMPARE(before->items.value(itemId("movie")).coverPath, cover);
+    QVERIFY(!before->items.value(itemId("movie")).subtitlePersonal);
+
+    bool republishedPrivate = false;
+    connect(&library, &DlnaLibrary::snapshotChanged, &library, [&] {
+        const auto current = library.snapshot();
+        const auto movie = current->items.constFind(itemId("movie"));
+        republishedPrivate |= current->items.contains(itemId("secret"))
+            || current->typeOrder.contains(QStringLiteral("Audiobooks"))
+            || (movie != current->items.constEnd() && (!movie->coverPath.isEmpty() || !movie->subtitlePersonal));
+    });
+    library.rebuildNow(); // work already captured the old choices
+    QVERIFY(library.isBuilding());
+    QVERIFY(config.applyFolderSelection(root, {{subtitle}, {nested}}));
+    QCOMPARE(library.snapshot()->itemCount, 0); // old URLs are revoked synchronously
+    QTRY_COMPARE_WITH_TIMEOUT(library.snapshot()->itemCount, 1, 10000);
+    QVERIFY(!republishedPrivate);
+    const auto movie = library.snapshot()->items.value(itemId("movie"));
+    QCOMPARE(movie.filePath, publicMovie);
+    QVERIFY(movie.coverPath.isEmpty());
+    QVERIFY(movie.subtitlePersonal);
+    QVERIFY(QFile::exists(privateMovie));
+    QVERIFY(QFile::exists(audiobook));
+}
 
 void tst_dlna_library::logical_download_root_shares_real_files()
 {

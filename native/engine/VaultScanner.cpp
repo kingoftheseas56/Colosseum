@@ -6,6 +6,7 @@
 #include <QFileInfo>
 #include <QFutureWatcher>
 #include <QSet>
+#include <QThread>
 #include <QRegularExpression>
 #include <QVariantMap>
 #include <QtConcurrent>
@@ -22,6 +23,41 @@ bool genericFilmTitle(const QString& title)
 VaultScanner::VaultScanner(VaultIndex* index, VaultIdentity* identity, QObject* parent)
     : QObject(parent), m_index(index), m_identity(identity)
 {
+    m_scanPool.setMaxThreadCount(1);
+    m_scanPool.setThreadPriority(QThread::LowPriority);
+    m_activityTimer.setInterval(110);
+    connect(&m_activityTimer, &QTimer::timeout, this, [this] { reportActivity(); });
+}
+
+VaultScanner::~VaultScanner()
+{
+    cancel();
+    m_scanPool.waitForDone();
+}
+
+std::shared_ptr<VaultScanner::Activity> VaultScanner::beginActivity(const QStringList& roots)
+{
+    m_activityRoots = roots;
+    const auto activity = std::make_shared<Activity>();
+    m_activity = activity;
+    m_activityTimer.start();
+    reportActivity();
+    return activity;
+}
+
+void VaultScanner::reportActivity(bool publishing)
+{
+    if (!m_activity)
+        return;
+    const int index = m_activity->rootIndex.load();
+    const QString phase = publishing ? QStringLiteral("publishing")
+        : m_activity->processing.load() ? QStringLiteral("processing") : QStringLiteral("discovering");
+    const QString root = m_activityRoots.value(index);
+    const int discovered = m_activity->discovered.load();
+    const bool processing = phase != QLatin1String("discovering");
+    const int done = processing ? m_activity->processed.load() : discovered;
+    emit scanActivity(root, done, processing ? discovered : 0, phase);
+    emit progress(root, done, processing ? discovered : 0, QString());
 }
 
 void VaultScanner::setApplySuspended(bool on)
@@ -127,16 +163,46 @@ VaultScanner::RawResult VaultScanner::buildScan(
     QString root, QStringList scanIgnore, quint64 generation,
     std::shared_ptr<VaultKit::CancellationToken> cancel,
     const QMap<QString, QString>& kindOverrides,
-    const std::function<void(int, int, const QString&)>& onProgress)
+    const std::function<void(int, int, const QString&)>& onProgress,
+    const VaultLocation::PersonalPaths& personal,
+    const std::function<void(bool, int)>& onWork)
 {
     RawResult r;
     r.root = root;
     r.generation = generation;
 
     const VaultKit::CancellationToken* c = cancel.get();
+    if (c && c->isCancelled()) {
+        r.cancelled = true;
+        return r;
+    }
+    if (personal.excludes(root, true))
+        return r;
+    const QFileInfo rootInfo(root);
+    if (!rootInfo.isDir() || !rootInfo.isReadable()
+        || (!personal.isEmpty() && !VaultKit::isDirectDirectory(rootInfo)))
+        return r;
+    r.scanned = true;
+
     const QStringList needles = VaultKit::sanitizeIgnoreNeedles(scanIgnore);
+    int mediaFound = 0;
+    qsizetype work = 0;
+    auto pace = [&work, &onWork]() {
+        // Pause at bounded intervals so a scan on a 1-core system or busy disk
+        // leaves time for interactive work. Limit total concurrent scans too.
+        if (onWork && ++work % 128 == 0)
+            QThread::msleep(1);
+    };
+    auto onEntry = [&](bool media) {
+        if (media) ++mediaFound;
+        if (onWork && (media || work % 128 == 0))
+            onWork(false, mediaFound);
+        pace();
+    };
     auto groups = VaultKit::groupByFirstLevelSubdir(
-        {root}, VaultKit::allMediaFilters(), c, needles, onProgress);
+        {root}, VaultKit::allMediaFilters(), c, needles, onProgress, personal, onEntry);
+    if (onWork)
+        onWork(true, 0);
     // groupByFirstLevelSubdir swallows cancellation and returns early-empty, so
     // check here too: a cancelled scan must report cancelled (NOT an empty
     // result, which applyResult would publish and wipe the previous contents).
@@ -160,17 +226,31 @@ VaultScanner::RawResult VaultScanner::buildScan(
             comicOverrides.insert(override.key().mid(7), override.value());
         else physicalOverrides.insert(override.key(), override.value());
     }
-    for (auto group = groups.constBegin(); group != groups.constEnd(); ++group)
-        for (const QString& file : group.value())
+    for (auto group = groups.constBegin(); group != groups.constEnd(); ++group) {
+        for (const QString& file : group.value()) {
+            if (c && c->isCancelled()) {
+                r.cancelled = true;
+                return r;
+            }
+            pace();
             originalScopes.insert(file, group.key().endsWith(QLatin1String("::LOOSE")) ? root : group.key());
+        }
+    }
 
     // An explicit nested override keeps its scope when an ancestor root is added
     // or removed. Partition before classification so only that scope is relabelled.
+    const QStringList physicalScopes = physicalOverrides.keys();
+    const QStringList comicScopes = comicOverrides.keys();
     if (!physicalOverrides.isEmpty()) {
         QMap<QString, QStringList> scoped;
         for (auto group = groups.constBegin(); group != groups.constEnd(); ++group) {
             for (const QString& file : group.value()) {
-                const QString scope = VaultKit::ownerRootForPath(physicalOverrides.keys(), file);
+                if (c && c->isCancelled()) {
+                    r.cancelled = true;
+                    return r;
+                }
+                pace();
+                const QString scope = VaultKit::ownerRootForPath(physicalScopes, file);
                 scoped[scope.isEmpty() ? group.key() : file.left(scope.size())].append(file);
             }
         }
@@ -239,6 +319,7 @@ VaultScanner::RawResult VaultScanner::buildScan(
                 r.cancelled = true;
                 return r;
             }
+            pace();
             const VaultKit::MediaKind fk = VaultKit::kindForFile(f);
             if (fk == VaultKit::MediaKind::Unknown)
                 continue;
@@ -285,9 +366,9 @@ VaultScanner::RawResult VaultScanner::buildScan(
             row.groupTitle = groupTitle;
             row.parsedYear = VaultKit::parsedTitleYear(groupRaw); // S16
             row.kind = fk == shelveKind ? effectiveKindName : VaultKit::kindName(fk);
-            const QString physicalScope = VaultKit::ownerRootForPath(physicalOverrides.keys(), f);
+            const QString physicalScope = VaultKit::ownerRootForPath(physicalScopes, f);
             const QString comicScope = fk == VaultKit::MediaKind::Comic
-                ? VaultKit::ownerRootForPath(comicOverrides.keys(), f) : QString();
+                ? VaultKit::ownerRootForPath(comicScopes, f) : QString();
             const bool fileOverride = !physicalScope.isEmpty() && normPath(physicalScope) == normPath(f);
             if (!comicScope.isEmpty() && !fileOverride && comicScope.size() >= physicalScope.size()) {
                 const auto declared = VaultKit::kindFromName(comicOverrides.value(comicScope));
@@ -314,6 +395,7 @@ VaultScanner::RawResult VaultScanner::buildScan(
             assignVideoGroup(row, loose, mixedByParent.value(fi.absolutePath()), videosByParent.value(fi.absolutePath()));
             assignBookGroup(row);
             r.rows.append(row);
+            if (onWork) onWork(true, r.rows.size());
         }
 
         if (shelvedCount == 0)
@@ -350,6 +432,7 @@ void VaultScanner::applyResult(const RawResult& result)
         return;
     }
 
+    m_activityTimer.stop();
     m_scanning = false;
 
     // applyResult only DELIVERS the candidate census for the confirmation card
@@ -357,7 +440,9 @@ void VaultScanner::applyResult(const RawResult& result)
     // → applyPublish) that aggregates ALL confirmed roots — so a single root's census
     // never reaches VaultIndex::publish() alone, where the whole-index replace would
     // wipe the other roots.
-    emit scanFinished(result.root, result.sliceModel, result.cancelled);
+    const bool cancelled = result.cancelled
+        || (m_asyncGeneration == result.generation && m_cancel && m_cancel->isCancelled());
+    emit scanFinished(result.root, result.sliceModel, cancelled);
 
     if (!m_pending.isEmpty()) {
         const auto next = m_pending.takeFirst();
@@ -379,13 +464,21 @@ void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generat
         return;
     }
 
+    m_activityTimer.stop();
     m_scanning = false;
+
+    if (m_asyncGeneration == generation && m_cancel && m_cancel->isCancelled()) {
+        emit publicationFinished(false, true, false);
+        return;
+    }
 
     // A cancelled census in the set aborts the WHOLE publish — no partial truth; the
     // previous index generation stands (VaultIndex::publish is atomic regardless).
     for (const RawResult& r : results) {
-        if (r.cancelled)
+        if (r.cancelled) {
+            emit publicationFinished(false, true, false);
             return;
+        }
     }
 
     // Aggregate every confirmed root's facts + rows, reconcile identity ONCE, assign
@@ -393,14 +486,18 @@ void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generat
     // represented by its last indexed rows before reconciliation: it is present-but-away,
     // not an empty census. That prevents an unrelated available file with the same
     // size/mtime from borrowing an absent drive's canonical identity.
+    reportActivity(true);
+    const auto& personal = m_index->personalPaths();
     QStringList roots;
     for (const RawResult& result : results) roots.append(result.root);
     QMap<QString, VaultIndex::FileRow> selected;
     QList<VaultIndex::FileRow> previous;
     bool loadedPrevious = false;
+    bool scannedUserRoot = false;
     for (const RawResult& result : results) {
         QList<VaultIndex::FileRow> candidates = result.rows;
         const bool available = QDir(result.root).exists();
+        scannedUserRoot = scannedUserRoot || (result.scanned && available);
         if (!available) {
             // Upgrade old overlapping indexes too: an absent child may previously have
             // had its ownership overwritten by an ancestor. Recover its path membership.
@@ -413,11 +510,11 @@ void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generat
         QMap<QString, QStringList> videosByParent;
         if (!available) {
             for (const auto& row : candidates)
-                if (row.kind == QLatin1String("video"))
+                if (row.kind == QLatin1String("video") && !personal.excludes(row.path))
                     videosByParent[QFileInfo(row.path).absolutePath()].append(row.path);
         }
         for (VaultIndex::FileRow row : candidates) {
-            if (VaultKit::ownerRootForPath(roots, row.path) != result.root) continue;
+            if (personal.excludes(row.path) || VaultKit::ownerRootForPath(roots, row.path) != result.root) continue;
             if (!available) {
                 assignVideoGroup(row, false,
                     hasMixedVideoTitles(videosByParent.value(QFileInfo(row.path).absolutePath())),
@@ -434,6 +531,7 @@ void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generat
     // Synthetic rows deliberately win over physical imports. Include their unique
     // facts BEFORE reconcile too, so downloaded identities participate in continuity.
     for (VaultIndex::FileRow row : extraRows) {
+        if (personal.excludes(row.path)) continue;
         if (row.kind == QLatin1String("comic") && !row.groupKey.startsWith(QLatin1String("comic::")))
             row.groupKey.prepend(QStringLiteral("comic::"));
         selected.insert(VaultLocation::normalize(row.path), row);
@@ -463,36 +561,87 @@ void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generat
 
     // Emit indexPublished ONLY on a successful publish — a failed/rolled-back publish
     // must NOT tell the shelves "new truth landed"; the previous generation is intact.
-    if (m_index->publish(allRows))
+    const bool published = m_index->publish(allRows);
+    if (published)
         emit indexPublished(QString(), m_index->itemCount());
+    emit publicationFinished(published, false, scannedUserRoot);
 }
 
 void VaultScanner::publishConfirmed(const QStringList& confirmedRoots,
                                     const QStringList& scanIgnore,
                                     const QMap<QString, QString>& kindOverrides,
-                                    const QList<VaultIndex::FileRow>& extraRows)
+                                    const QList<VaultIndex::FileRow>& extraRows,
+                                    const VaultLocation::PersonalPaths& personal)
 {
     // Supersede any in-flight scan/publish, then census EVERY confirmed root fresh
     // off-thread: the index is a rebuildable product, so a confirm rebuilds the whole
     // Vault from all confirmed roots and publishes their union atomically (decision 4 +
     // Preflight §3: preserve multi-root atomicity, never a per-root replace).
+    invalidate();
     m_scanning = true;
-    const quint64 gen = nextGeneration();
+    const quint64 gen = m_asyncGeneration = m_generation;
     m_cancel = std::make_shared<VaultKit::CancellationToken>();
     auto cancel = m_cancel;
+    const auto activity = beginActivity(confirmedRoots);
 
-    auto* watcher = new QFutureWatcher<QList<RawResult>>(this);
-    connect(watcher, &QFutureWatcher<QList<RawResult>>::finished, this,
-        [this, watcher, gen, extraRows]() {
-            const QList<RawResult> results = watcher->result();
+    auto* watcher = new QFutureWatcher<Publication>(this);
+    connect(watcher, &QFutureWatcher<Publication>::finished, this,
+        [this, watcher, gen]() {
+            const Publication result = watcher->result();
             watcher->deleteLater();
-            applyPublish(results, gen, extraRows);
+            if (gen != m_generation)
+                return;
+            m_activityTimer.stop();
+            if (!m_applySuspended && !m_cancel->isCancelled()) {
+                reportActivity(true);
+                // Let Qt Quick present the phase before the owner-thread commit.
+                QTimer::singleShot(16, this, [this, result, gen] {
+                    applyPublish(result.roots, gen, result.extraRows);
+                });
+            } else {
+                applyPublish(result.roots, gen, result.extraRows);
+            }
         });
-    watcher->setFuture(QtConcurrent::run(
-        [confirmedRoots, scanIgnore, gen, cancel, kindOverrides]() {
-            QList<RawResult> out;
-            for (const QString& root : confirmedRoots)
-                out.append(buildScan(root, scanIgnore, gen, cancel, kindOverrides, {}));
+    watcher->setFuture(QtConcurrent::run(&m_scanPool,
+        [confirmedRoots, scanIgnore, gen, cancel, kindOverrides, personal, activity, extraRows]() {
+            Publication out;
+            int completed = 0;
+            for (int i = 0; i < confirmedRoots.size() && !cancel->isCancelled(); ++i) {
+                const QString& root = confirmedRoots.at(i);
+                activity->rootIndex.store(i);
+                activity->processing.store(false);
+                auto skip = personal;
+                const QString normalized = VaultLocation::normalize(root);
+                for (const QString& other : confirmedRoots) {
+                    const QString nested = VaultLocation::normalize(other);
+                    if (nested != normalized && VaultLocation::containsPath(normalized, nested))
+                        skip.directories.insert(nested);
+                }
+                auto onWork = [activity, completed](bool processing, int files) {
+                    activity->processing.store(processing);
+                    if (processing)
+                        activity->processed.store(completed + files);
+                    else
+                        activity->discovered.store(completed + files);
+                };
+                out.roots.append(buildScan(root, scanIgnore, gen, cancel, kindOverrides, {}, skip, onWork));
+                completed += out.roots.last().rows.size();
+            }
+            int checked = 0;
+            for (const auto& row : extraRows) {
+                if (cancel->isCancelled())
+                    break;
+                if (!personal.isEmpty()) {
+                    if (++checked % 128 == 0)
+                        QThread::msleep(1);
+                    if (personal.excludes(row.path))
+                        continue;
+                    const QString resolved = QFileInfo(row.path).canonicalFilePath();
+                    if (personal.excludes(resolved))
+                        continue;
+                }
+                out.extraRows.append(row);
+            }
             return out;
         }));
 }
@@ -504,23 +653,18 @@ void VaultScanner::scanRoot(const QString& root, const QStringList& scanIgnore)
         return;
     }
     m_scanning = true;
-    const quint64 gen = nextGeneration();
+    const quint64 gen = m_asyncGeneration = nextGeneration();
     m_cancel = std::make_shared<VaultKit::CancellationToken>();
     auto cancel = m_cancel;
 
-    // Marshal off-thread census progress back to the GUI thread → the scan pill. Late
-    // progress from a superseded generation is dropped (a newer scan/publish took over).
-    VaultScanner* self = this;
-    auto onProgress = [self, root, gen](int done, int total, const QString& name) {
-        const QString nameCopy = name;
-        QMetaObject::invokeMethod(
-            self,
-            [self, root, done, total, nameCopy, gen]() {
-                if (gen != self->m_generation)
-                    return;
-                emit self->progress(root, done, total, nameCopy);
-            },
-            Qt::QueuedConnection);
+    const auto activity = beginActivity({root});
+    const auto personal = m_index ? m_index->personalPaths() : VaultLocation::PersonalPaths{};
+    auto onWork = [activity](bool processing, int files) {
+        activity->processing.store(processing);
+        if (processing)
+            activity->processed.store(files);
+        else
+            activity->discovered.store(files);
     };
 
     auto* watcher = new QFutureWatcher<RawResult>(this);
@@ -529,8 +673,8 @@ void VaultScanner::scanRoot(const QString& root, const QStringList& scanIgnore)
         watcher->deleteLater();
         applyResult(res);
     });
-    watcher->setFuture(QtConcurrent::run([root, scanIgnore, gen, cancel, onProgress]() {
-        return VaultScanner::buildScan(root, scanIgnore, gen, cancel, {}, onProgress);
+    watcher->setFuture(QtConcurrent::run(&m_scanPool, [root, scanIgnore, gen, cancel, personal, onWork]() {
+        return VaultScanner::buildScan(root, scanIgnore, gen, cancel, {}, {}, personal, onWork);
     }));
 }
 
@@ -538,4 +682,18 @@ void VaultScanner::cancel()
 {
     if (m_cancel)
         m_cancel->cancel();
+}
+
+void VaultScanner::invalidate()
+{
+    cancel();
+    nextGeneration();
+    m_scanning = false;
+    m_activityTimer.stop();
+    m_activity.reset();
+    m_deferredApplyKind = DeferredApplyKind::None;
+    m_deferredResult = RawResult();
+    m_deferredPublishResults.clear();
+    m_deferredPublishExtraRows.clear();
+    m_pending.clear();
 }

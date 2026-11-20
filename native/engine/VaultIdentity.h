@@ -15,6 +15,8 @@
 
 #include <QHash>
 #include <QList>
+#include "VaultLocation.h"
+
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -59,6 +61,7 @@ public:
         QStringList fresh;  // newly registered ids
         QStringList parked; // known ids whose file vanished without a unique match
     };
+    void setPersonalPaths(const VaultLocation::PersonalPaths& paths) { m_personalPaths = paths; }
     ReconcileResult reconcile(const QList<FileFacts>& current);
 
     // Shared launch/Vault observation seam. The returned map always contains `id`; when
@@ -72,6 +75,7 @@ public:
 
     // Path aliases recorded by migrations (the Reader 2 bridge hook).
     Q_INVOKABLE QVariantList pathAliases() const; // [{oldPath, newPath}]
+    void relocateVerifiedDownloads(const QList<QPair<QString, QString>> &paths);
 
 signals:
     void changed();
@@ -94,6 +98,7 @@ private:
 
     QHash<QString, Entry> m_byId;    // canonical id -> current entry
     QHash<QString, QString> m_alias; // computed id -> canonical id
+    VaultLocation::PersonalPaths m_personalPaths;
     QList<QStringList> m_pathAliases; // [oldPath, newPath]
     QHash<QString, QString> m_decisions; // relationship -> same-media/new-media/use-existing-state/separate-copy
     QHash<QString, QStringList> m_pending; // relationship -> [type, relationship, oldId, newId, oldPath, newPath]

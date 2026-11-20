@@ -16,6 +16,12 @@
 
 namespace {
 constexpr int kMaxWatchedDirectoriesPerRoot = 512;
+
+struct ScanActivity {
+    std::atomic<int> discovered{0};
+    std::atomic<int> processed{0};
+    std::atomic<bool> preparing{false};
+};
 }
 
 // Mirror VaultConfig::norm so override keys and the degraded/dirty sets match how the config
@@ -37,6 +43,8 @@ VaultWatcher::VaultWatcher(VaultIndex* index, VaultIdentity* identity, VaultConf
     m_debounce = new QTimer(this);
     m_debounce->setSingleShot(true);
     m_debounce->setInterval(300); // arrival storms coalesce into one pass; "within seconds"
+    m_scanActivityTimer = new QTimer(this);
+    m_scanActivityTimer->setInterval(110);
     m_probe = new QTimer(this);
     m_probe->setInterval(1000); // cheap exists probe; a replug must revive without reopening Vault
 
@@ -46,12 +54,34 @@ VaultWatcher::VaultWatcher(VaultIndex* index, VaultIdentity* identity, VaultConf
             [this](const QString& path) { onDirectoryChanged(path); });
     connect(m_debounce, &QTimer::timeout, this, [this] { debounceExpired(); });
     connect(m_probe, &QTimer::timeout, this, [this] { refreshInternal(false); });
+    if (m_index) {
+        connect(m_index, &VaultIndex::personalPathsPrepared, this, [this](bool success) {
+            if (success && !m_dirty.isEmpty())
+                m_debounce->start();
+        });
+    }
     m_probe->start();
 
     // A confirm (or a root added/removed/re-kind-chip) changes the watch set: reconcile.
     if (m_config) {
         connect(m_config, &VaultConfig::changed, this, [this]() { refresh(); });
     }
+}
+
+VaultWatcher::~VaultWatcher()
+{
+    if (m_arrivalCancel) m_arrivalCancel->cancel();
+}
+
+void VaultWatcher::setPublishing(bool publishing)
+{
+    if (m_publishing == publishing)
+        return;
+    m_publishing = publishing;
+    if (m_publishing && m_arrivalCancel)
+        m_arrivalCancel->cancel();
+    if (!m_publishing && !m_dirty.isEmpty())
+        m_debounce->start();
 }
 
 void VaultWatcher::setImmersive(bool on)
@@ -76,13 +106,23 @@ void VaultWatcher::refreshInternal(bool retryDegradedTree)
     m_watched.clear();
     if (!m_config)
         return;
+    const auto personal = m_config->personalPaths();
+    const auto needles = m_config->scanIgnore();
+    if (personal != m_personal || needles != m_scanIgnore) {
+        m_personal = personal;
+        m_scanIgnore = needles;
+        m_treeInitialized.clear();
+        if (m_arrivalCancel)
+            m_arrivalCancel->cancel();
+    }
     const QVariantList roots = m_config->roots();
     for (const QVariant& r : roots) {
         const QVariantMap m = r.toMap();
-        if (!m.value(QStringLiteral("confirmed")).toBool())
+        if (!m.value(QStringLiteral("confirmed")).toBool() || m.value(QStringLiteral("hidden")).toBool()
+            || m.value(QStringLiteral("synthetic")).toBool())
             continue;
         const QString path = m.value(QStringLiteral("path")).toString();
-        if (path.isEmpty())
+        if (path.isEmpty() || personal.excludes(path, true))
             continue;
         const QString norm = normPath(path);
         configuredRoots.insert(norm, path);
@@ -110,13 +150,12 @@ void VaultWatcher::refreshInternal(bool retryDegradedTree)
         const QString watchedNorm = normPath(watched);
         bool keep = false;
         for (auto it = configuredRoots.constBegin(); it != configuredRoots.constEnd(); ++it) {
-            if (watchedNorm == it.key()
-                || watchedNorm.startsWith(it.key() + QLatin1Char('/'))) {
+            if (VaultLocation::containsPath(it.key(), watchedNorm)) {
                 keep = true;
                 break;
             }
         }
-        if (!keep)
+        if (!keep || personal.excludes(watched, true) || VaultKit::pathHitsNeedle(watched, needles))
             m_watcher->removePath(watched);
     }
     for (auto it = m_treeInitialized.begin(); it != m_treeInitialized.end(); ) {
@@ -190,29 +229,56 @@ void VaultWatcher::scheduleTreeWatch(const QString& root, bool replayIfInFlight)
         return;
     }
 
+    if (!m_treeScansInFlight.isEmpty()) {
+        m_treeQueue.insert(norm);
+        return;
+    }
+    m_treeQueue.remove(norm);
     m_treeScansInFlight.insert(norm);
-    auto future = QtConcurrent::run([root]() {
-        QStringList directories;
-        directories.append(root);
-        QDirIterator it(root, QDir::Dirs | QDir::NoDotAndDotDot,
-                        QDirIterator::Subdirectories);
-        while (it.hasNext()) {
-            if (directories.size() >= kMaxWatchedDirectoriesPerRoot) {
-                // An empty sentinel carries the cap state without a second result type.
-                directories.append(QString());
-                break;
+    const auto personal = m_personal;
+    const auto needles = m_scanIgnore;
+    auto future = QtConcurrent::run([root, personal, needles]() {
+        if (!personal.isEmpty() && !VaultKit::isDirectDirectory(QFileInfo(root)))
+            return QStringList{};
+        QStringList directories{root};
+        // Traverse directory entries lazily and prune before looking inside a directory.
+        for (qsizetype i = 0; i < directories.size(); ++i) {
+            QDirIterator it(directories.at(i), QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks);
+            while (it.hasNext()) {
+                const QString path = it.next();
+                const QFileInfo entry = it.fileInfo();
+                if (entry.isJunction() || VaultKit::isIgnoredDir(entry.fileName())
+                    || personal.excludes(path, true) || VaultKit::pathHitsNeedle(path, needles))
+                    continue;
+                if (directories.size() >= kMaxWatchedDirectoriesPerRoot) {
+                    // An empty sentinel carries the cap state without a second result type.
+                    directories.append(QString());
+                    return directories;
+                }
+                directories.append(path);
             }
-            directories.append(it.next());
         }
         return directories;
     });
-    future.then(this, [this, root, norm](QStringList directories) {
+    future.then(this, [this, root, norm, personal, needles](QStringList directories) {
                 m_treeScansInFlight.remove(norm);
+                QTimer::singleShot(0, this, &VaultWatcher::startNextTreeWatch);
 
-                if (!m_config || !m_config->isRootConfirmed(root) || !QDir(root).exists())
+                if (!m_config || !m_config->isRootConfirmed(root) || !QDir(root).exists()
+                    || m_personal.excludes(root, true))
                     return;
+                if (personal != m_personal || needles != m_scanIgnore) {
+                    scheduleTreeWatch(root);
+                    return;
+                }
 
-                const bool capped = !directories.isEmpty() && directories.constLast().isEmpty();
+                if (directories.isEmpty()) {
+                    m_watcher->removePath(root);
+                    m_degraded.insert(norm);
+                    m_treeDegraded.insert(norm);
+                    return;
+                }
+                const bool capped = directories.constLast().isEmpty();
                 if (capped)
                     directories.removeLast();
 
@@ -249,6 +315,16 @@ void VaultWatcher::scheduleTreeWatch(const QString& root, bool replayIfInFlight)
             });
 }
 
+void VaultWatcher::startNextTreeWatch()
+{
+    while (m_treeScansInFlight.isEmpty() && !m_treeQueue.isEmpty()) {
+        const QString root = *m_treeQueue.constBegin();
+        m_treeQueue.remove(root);
+        if (m_config && m_config->isRootConfirmed(root) && !m_personal.excludes(root, true))
+            scheduleTreeWatch(root);
+    }
+}
+
 void VaultWatcher::onDirectoryChanged(const QString& path)
 {
     QString root = path;
@@ -263,6 +339,8 @@ void VaultWatcher::onDirectoryChanged(const QString& path)
         }
         const QString owner = VaultKit::ownerRootForPath(roots, path);
         if (!owner.isEmpty()) root = owner;
+        if (m_personal.excludes(path, true) || m_personal.excludes(root, true))
+            return;
     }
 
     if (!QDir(root).exists()) {
@@ -293,48 +371,94 @@ void VaultWatcher::debounceExpired()
 
 void VaultWatcher::flushPending()
 {
-    if (m_dirty.isEmpty())
-        return;
-    if (!m_config)
+    if (m_dirty.isEmpty() || !m_config || !m_index || !m_identity
+        || m_arrivalCancel || m_publishing || m_immersive || m_index->isPreparingPersonalPaths())
         return;
     const QStringList needles = m_config->scanIgnore();
-    const QVariantMap overrides = m_config->kindOverrides();
+    const QVariantMap kinds = m_config->kindOverrides();
+    QMap<QString, QString> overrides;
+    for (auto it = kinds.constBegin(); it != kinds.constEnd(); ++it)
+        overrides.insert(it.key(), it.value().toString());
+
+    QStringList roots;
+    for (const auto& value : m_config->roots()) {
+        const auto root = value.toMap();
+        if (root.value(QStringLiteral("confirmed")).toBool()
+            && !root.value(QStringLiteral("hidden")).toBool()
+            && !root.value(QStringLiteral("synthetic")).toBool())
+            roots.append(root.value(QStringLiteral("path")).toString());
+    }
+
     const QSet<QString> dirty = m_dirty;
-    m_dirty.clear();
-    for (const QString& norm : dirty) {
-        if (m_treeScansInFlight.contains(norm)) {
-            // Do not consume the dirty edge before the new directories are registered.
-            // The completion callback restarts this debounce, so a file created during
-            // the walk is included by the subsequent processRoot census.
-            m_dirty.insert(norm);
-            continue;
+    QString root;
+    for (const QString& pending : dirty) {
+        if (m_treeScansInFlight.contains(pending) || m_treeQueue.contains(pending))
+            continue; // the registration callback re-arms the debounce
+        m_dirty.remove(pending);
+        if (roots.contains(pending) && !m_personal.excludes(pending, true) && QDir(pending).exists()) {
+            root = pending;
+            break;
         }
-        // Resolve the normalized dirty key back to a real path: the config is the source of
-        // truth (a root may have been removed while we were dirty — then nothing to do).
-        QString root;
-        const QVariantList roots = m_config->roots();
-        for (const QVariant& r : roots) {
-            const QVariantMap m = r.toMap();
-            if (!m.value(QStringLiteral("confirmed")).toBool())
-                continue;
-            if (normPath(m.value(QStringLiteral("path")).toString()) == norm) {
-                root = m.value(QStringLiteral("path")).toString();
-                break;
+    }
+    if (root.isEmpty())
+        return;
+    if (!m_watched.contains(root))
+        watchRoot(root);
+
+    auto policy = m_personal;
+    policy.files.unite(m_index->personalPaths().files);
+    policy.directories.unite(m_index->personalPaths().directories);
+    for (const QString& other : roots)
+        if (other != root && VaultLocation::containsPath(root, other))
+            policy.directories.insert(other);
+
+    const int configRevision = m_config->revision();
+    const quint64 indexRevision = m_index->revision();
+    auto cancel = std::make_shared<VaultKit::CancellationToken>();
+    m_arrivalCancel = cancel;
+    const auto activity = std::make_shared<ScanActivity>();
+    connect(m_scanActivityTimer, &QTimer::timeout, this, [this, root, activity] {
+        const bool preparing = activity->preparing.load();
+        const int discovered = activity->discovered.load();
+        emit scanActivity(root, preparing ? activity->processed.load() : discovered,
+                          preparing ? discovered : 0,
+                          preparing ? QStringLiteral("processing") : QStringLiteral("discovering"));
+    });
+    m_scanActivityTimer->start();
+    emit scanActivity(root, 0, 0, QStringLiteral("discovering"));
+    auto future = QtConcurrent::run([root, needles, policy, cancel, overrides, activity] {
+        return VaultScanner::buildScan(root, needles, 0, cancel, overrides, {}, policy,
+                                      [activity](bool preparing, int files) {
+            activity->preparing.store(preparing);
+            if (preparing)
+                activity->processed.store(files);
+            else
+                activity->discovered.store(files);
+        });
+    });
+    future.then(this, [this, root, kinds, configRevision, indexRevision, cancel](VaultScanner::RawResult scan) {
+        m_scanActivityTimer->stop();
+        m_scanActivityTimer->disconnect(this);
+        m_arrivalCancel.reset();
+        if (m_config->isRootConfirmed(root) && !m_personal.excludes(root, true)) {
+            if (scan.cancelled || cancel->isCancelled() || m_publishing || m_immersive
+                || m_index->isPreparingPersonalPaths()
+                || m_config->revision() != configRevision || m_index->revision() != indexRevision) {
+                m_dirty.insert(root);
+            } else if (scan.scanned && QDir(root).exists()) {
+                emit scanActivity(root, scan.rows.size(), scan.rows.size(), QStringLiteral("publishing"));
+                const Landing landing = applyRoot(root, kinds, scan.rows);
+                if (landing.landedCount > 0)
+                    emit landed(landing.landedCount);
+                if (!landing.newKindSlices.isEmpty())
+                    emit newKindArrival(root, landing.newKindSlices);
             }
         }
-        if (root.isEmpty())
-            continue;
-        // Re-arm the watch as we go — a root that dropped its watch (drive away) comes back
-        // here, and if it is still unwatchable it stays degraded for the rescan-on-open.
-        if (!m_watched.contains(norm))
-            watchRoot(root);
+        emit scanEnded();
+        if (!m_dirty.isEmpty() && !m_publishing && !m_immersive)
+            m_debounce->start();
+    });
 
-        const Landing landing = processRoot(root, needles, overrides);
-        if (landing.landedCount > 0)
-            emit landed(landing.landedCount);
-        if (!landing.newKindSlices.isEmpty())
-            emit newKindArrival(root, landing.newKindSlices);
-    }
 }
 
 QString VaultWatcher::lawForSubtree(const QString& subtree,
@@ -359,15 +483,22 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
                                                 const QStringList& scanIgnore,
                                                 const QVariantMap& kindOverrides)
 {
-    Landing landing;
     if (!m_index || !m_identity || !QDir(root).exists())
-        return landing; // an away root is availability state, never an empty destructive census
+        return {}; // an away root is availability state, never an empty destructive census
 
     QMap<QString, QString> overrides;
     for (auto it = kindOverrides.constBegin(); it != kindOverrides.constEnd(); ++it)
         overrides.insert(it.key(), it.value().toString());
     // One census implementation owns grouping, actual-kind admission and overrides.
-    const auto scan = VaultScanner::buildScan(root, scanIgnore, 0, {}, overrides);
+    const auto personal = m_config ? m_config->personalPaths() : VaultLocation::PersonalPaths{};
+    const auto scan = VaultScanner::buildScan(root, scanIgnore, 0, {}, overrides, {}, personal);
+    return scan.scanned ? applyRoot(root, kindOverrides, scan.rows) : Landing{};
+}
+
+VaultWatcher::Landing VaultWatcher::applyRoot(const QString& root, const QVariantMap& kindOverrides,
+                                               const QList<VaultIndex::FileRow>& rows)
+{
+    Landing landing;
     QStringList userRoots;
     QSet<QString> syntheticIds;
     QSet<QString> syntheticRoots;
@@ -396,7 +527,7 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
     QMap<QString, QMap<QString, QPair<int, QStringList>>> newKind;
     QMap<QString, QString> subtreeByNorm;
     QMap<QString, bool> looseByNorm;
-    for (VaultIndex::FileRow row : scan.rows) {
+    for (VaultIndex::FileRow row : rows) {
         if (normPath(VaultKit::ownerRootForPath(userRoots, row.path)) != normPath(root)) continue;
         row.id = m_identity->idForFile(row.path, row.size, row.mtimeMs);
         currentIds.insert(row.id);

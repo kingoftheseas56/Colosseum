@@ -20,12 +20,16 @@
 // dependencies — so a Qt Test links it standalone and the production scanners
 // (Slice 4+) #include it the same way. QML paints, C++ decides.
 
+#include "VaultLocation.h"
+
 #include <QString>
 #include <QStringList>
 #include <QMap>
 #include <QList>
 #include <atomic>
 #include <functional>
+
+class QFileInfo;
 
 namespace VaultKit {
 
@@ -47,6 +51,8 @@ constexpr int kMaxWalkDepth = 32;
 // ── Ignore layers ─────────────────────────────────────────────────────
 // Layer 1 (hard-coded): hidden dirs (leading '.') + the system/junk set.
 bool isIgnoredDir(const QString& dirName);
+// Root selection and scanning consistently treat symlinks and junctions as aliases.
+bool isDirectDirectory(const QFileInfo& info);
 
 // Layer 2 (user, Groundworks contract): `scanIgnore` NEEDLES — a
 // case-insensitive SUBSTRING test against a full path, NOT a glob and NOT a
@@ -57,14 +63,16 @@ bool pathHitsNeedle(const QString& path, const QStringList& needles);
 
 // List immediate subdirectories of rootPath, skipping ignored / needle-hit dirs.
 QStringList listImmediateSubdirs(const QString& rootPath,
-                                 const QStringList& needles = {});
+                                 const QStringList& needles = {},
+                                 const VaultLocation::PersonalPaths& personal = {});
 
 // Recursively collect files under dirPath matching nameFilters (e.g. "*.cbz"),
 // skipping ignored / needle-hit dirs and needle-hit files. Depth-bounded and
 // symlink-loop-safe (canonical paths tracked). Returns absolute paths.
 QStringList walkFiles(const QString& dirPath, const QStringList& nameFilters,
                       const CancellationToken* cancel = nullptr,
-                      const QStringList& needles = {});
+                      const QStringList& needles = {},
+                      const VaultLocation::PersonalPaths& personal = {});
 
 // Group discovered files by first-level subdirectory of each root. Key =
 // absolute series/show folder path; loose files directly in a root land under
@@ -75,7 +83,9 @@ QMap<QString, QStringList> groupByFirstLevelSubdir(
     const QStringList& rootFolders, const QStringList& nameFilters,
     const CancellationToken* cancel = nullptr,
     const QStringList& needles = {},
-    const std::function<void(int, int, const QString&)>& onProgress = {});
+    const std::function<void(int, int, const QString&)>& onProgress = {},
+    const VaultLocation::PersonalPaths& personal = {},
+    const std::function<void(bool mediaFound)>& onEntry = {});
 
 // Clean a media folder name for display (underscores/dots → space, bracket
 // noise + quality/release markers stripped, trailing group/year removed,
@@ -256,7 +266,8 @@ struct BrowseNode {
 // alphabetical within each band; a leaf level (episodes/clips) sorts by natural filename order.
 QList<BrowseNode> planBrowseLevel(const QString& levelPath,
                                   const QStringList& scanIgnore = {},
-                                  const CancellationToken* cancel = nullptr);
+                                  const CancellationToken* cancel = nullptr,
+                                  const VaultLocation::PersonalPaths& personal = {});
 
 // ── Film physical facts (Vault browse-face execution plan, Slice 7) ─────────────────────────
 // The detail sheet's structural half: what sits BESIDE a film's one media file in its own
@@ -288,6 +299,7 @@ struct FilmPhysicalFacts {
 // (excluded from companion classification). Honors the same user `scanIgnore` needle layer
 // every other walk does.
 FilmPhysicalFacts describeFilmFolder(const QString& folderPath, const QString& primaryFilePath,
-                                     const QStringList& scanIgnore = {});
+                                     const QStringList& scanIgnore = {},
+                                     const VaultLocation::PersonalPaths& personal = {});
 
 } // namespace VaultKit

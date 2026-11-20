@@ -219,7 +219,7 @@ static QVariantMap composeDetail(VaultIndex* index, const QString& key,
     // user actually opened, honestly, rather than merging facts across drives.
     // A show folder's subtitles/extras are not proven companions of an individual episode.
     const VaultKit::FilmPhysicalFacts physicalFacts = isFileDetail || !physical ? VaultKit::FilmPhysicalFacts{}
-        : VaultKit::describeFilmFolder(primary.subtreePath, primary.path, scanIgnore);
+        : VaultKit::describeFilmFolder(primary.subtreePath, primary.path, scanIgnore, index->personalPaths());
     out.insert(QStringLiteral("companions"), QVariant(physicalFacts.companions));
     QVariantList extras;
     for (const VaultKit::FilmExtra& ex : physicalFacts.extras) {

@@ -6,13 +6,15 @@ Item {
     property bool ceremonyDismissed: false
     readonly property bool cardVisible: !!(library && library.cardVisible)
     readonly property var ceremonies: library ? library.identityCeremonies || [] : []
-    readonly property bool modalOpen: cardVisible || ceremony.opened
+    readonly property var selection: library ? library.folderSelection || ({}) : ({})
+    readonly property bool modalOpen: !!selection.root || cardVisible || ceremony.opened
     function initialize() {
         if (!library) return
         if (typeof library.offerUnconfirmedRoots === "function") library.offerUnconfirmedRoots()
         if (typeof library.rescanDegradedRoots === "function") library.rescanDegradedRoots()
     }
     function handleBack() {
+        if (selection.root) { library.cancelFolderSelection(); return true }
         if (ceremony.opened) { ceremonyDismissed = true; ceremony.close(); return true }
         if (cardVisible) { library.dismissCard(); return true }
         return false
@@ -26,7 +28,7 @@ Item {
     }
     VaultIdentityCeremonyDialog {
         id: ceremony; anchors.centerIn: parent
-        visible: root.ceremonies.length > 0 && !root.ceremonyDismissed
+        visible: !root.selection.root && root.ceremonies.length > 0 && !root.ceremonyDismissed
         ceremony: root.ceremonies.length ? root.ceremonies[0] : ({})
         onChoiceMade: (relationship, choice) => {
             if (root.library && root.library.decideIdentityCeremony(relationship, choice)) {

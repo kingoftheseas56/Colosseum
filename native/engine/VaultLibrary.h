@@ -9,11 +9,13 @@
 //
 // revision bumps ONLY on committed truth (VaultIndex::changed(), emitted after a successful
 // publish/upsert). scanning/scanningRoot drive the scan pill; candidate drives the confirmation
-// card. Commands: addFolder (add an unconfirmed root + census it), confirmRoot (persist the
-// card's chip reassignments, mark confirmed, publish the UNION of all confirmed roots),
-// dismissCard, cancelScan.
+// card for legacy and live-arrival kind decisions. The desktop chooser records
+// a folder selection before the confirmed roots are scanned and published.
+
+#include "VaultLocation.h"
 
 #include <QObject>
+#include <memory>
 #include <functional>
 #include <QHash>
 #include <QPointer>
@@ -40,11 +42,15 @@ class VaultLibrary : public QObject {
 
     Q_PROPERTY(int revision READ revision NOTIFY changed)
     Q_PROPERTY(bool scanning READ scanning NOTIFY scanningChanged)
+    Q_PROPERTY(bool firstFolderIndexing READ firstFolderIndexing NOTIFY firstFolderIndexingChanged)
+    Q_PROPERTY(bool scanCanCancel READ scanCanCancel NOTIFY scanProgressChanged)
     Q_PROPERTY(int itemCount READ itemCount NOTIFY changed)
     // ── scan pill ──
     Q_PROPERTY(QString scanningRoot READ scanningRoot NOTIFY scanProgressChanged)
     Q_PROPERTY(int scanDone READ scanDone NOTIFY scanProgressChanged)
     Q_PROPERTY(int scanTotal READ scanTotal NOTIFY scanProgressChanged)
+    Q_PROPERTY(QString scanPhase READ scanPhase NOTIFY scanProgressChanged)
+    Q_PROPERTY(QVariantMap folderSelection READ folderSelection NOTIFY folderSelectionChanged)
     // ── confirmation card ──
     Q_PROPERTY(QVariantList candidate READ candidate NOTIFY candidateChanged)
     Q_PROPERTY(QString candidateRoot READ candidateRoot NOTIFY candidateChanged)
@@ -81,7 +87,9 @@ public:
     }
 
     int revision() const { return m_revision; }
-    bool scanning() const { return m_scanning; }
+    bool scanning() const { return m_scanning || m_watcherScanning; }
+    bool firstFolderIndexing() const { return m_firstFolderIndexing; }
+    bool scanCanCancel() const { return m_scanning && m_scanPhase != QLatin1String("publishing"); }
     int itemCount() const;
 
     // Slice 18 — wire the synthetic downloads root. `path` is the synthetic root's
@@ -93,6 +101,8 @@ public:
     QString scanningRoot() const { return m_scanningRoot; }
     int scanDone() const { return m_scanDone; }
     int scanTotal() const { return m_scanTotal; }
+    QString scanPhase() const { return m_scanPhase; }
+    QVariantMap folderSelection() const;
 
     QVariantList candidate() const { return m_candidate; }
     QString candidateRoot() const { return m_candidateRoot; }
@@ -118,6 +128,9 @@ public:
     // browse callers; an existing group of another kind never falls through to that route.
     Q_INVOKABLE QVariantList series(const QString& kind) const;
     Q_INVOKABLE QVariantList items(const QString& kind, const QString& seriesKey) const;
+    Q_INVOKABLE QVariantList shelfItems(const QString& kind, const QString& seriesKey) const;
+    Q_INVOKABLE QVariantMap shelfEpisode(const QString& seriesKey, const QString& id) const;
+    void refreshBookCatalog();
     Q_INVOKABLE bool attachExtrasToShow(const QString& groupKey, const QString& showGroupKey);
     Q_INVOKABLE QVariantList extrasForShow(const QString& showGroupKey) const;
     Q_INVOKABLE bool detachExtras(const QString& fileId);
@@ -244,8 +257,17 @@ public:
     Q_INVOKABLE QVariantMap admissionById() const;
 
     // ── commands (C++ owns the multi-step sequences) ──
-    // Add a folder as an UNCONFIRMED root and census it off-thread; scanFinished raises the card.
+    // Desktop opens the folder chooser. Android retains its existing census flow.
     Q_INVOKABLE void addFolder(const QString& pathOrUrl);
+    Q_INVOKABLE void openFolderSelection(const QString& pathOrUrl);
+    Q_INVOKABLE void browseFolderSelection(const QString& childPath);
+    Q_INVOKABLE void folderSelectionUp();
+    Q_INVOKABLE void nextFolderSelectionPage();
+    Q_INVOKABLE void previousFolderSelectionPage();
+    Q_INVOKABLE void showPersonalFolderChoices(bool show);
+    Q_INVOKABLE void toggleFolderSelectionEntry(const QString& path, bool directory);
+    Q_INVOKABLE bool confirmFolderSelection();
+    Q_INVOKABLE void cancelFolderSelection();
     // Called when the Vault opens: if a root was added but never confirmed (a picked-then-
     // abandoned folder, or a crash mid-ceremony), resume its founding card — but only ONCE
     // per app run, so dismissing it and reopening the Vault the same session does not nag.
@@ -302,6 +324,12 @@ signals:
     void scanningChanged();
     void scanProgressChanged();
     void candidateChanged();
+    void folderSelectionChanged();
+    void firstFolderIndexingChanged();
+    void indexingCancelled();
+    void personalPathsChanging();
+    void personalPathsChanged();
+    void indexingFailed();
     // A live-shelf landing (Slice 15) — the door's "arrival" pulse trigger. No payload
     // beyond arrivalTick (spec §3: no counts on the door).
     void liveArrival();
@@ -323,8 +351,15 @@ signals:
     void browseArtworkReady(const QString& rowKey, const QString& coverUrl);
 
 private:
+    QVariantList projectItems(const QString& kind, const QString& seriesKey, bool shelf) const;
     std::function<QVariantMap(const QString&, const QString&)> m_bookIdentityDisplay;
     void setScanning(bool scanning);
+    void setFirstFolderIndexing(bool first);
+    void setScanActivity(const QString& root, int done, int total, const QString& phase);
+    void updatePersonalPaths();
+    void readFolderSelection(const QString& directory);
+    void fetchFolderSelectionPage();
+    void loadPersonalFolderChoices();
     // Kick off an off-thread census of an already-added root and clear any stale candidate
     // (shared by addFolder and offerUnconfirmedRoots).
     void beginCensus(const QString& path);
@@ -369,7 +404,28 @@ private:
     mutable QHash<QString, int> m_supplementalCounts;
     int m_arrivalTick = 0; // bumped on every live-shelf landing (the door's pulse clock)
     bool m_scanning = false;
+    bool m_watcherScanning = false;
+    bool m_firstFolderIndexing = false;
+    bool m_publishAfterPolicy = false;
     QString m_scanningRoot;
+    QString m_scanPhase;
+    struct FolderCursor;
+    std::shared_ptr<FolderCursor> m_folderCursor;
+    QString m_selectionRoot;
+    QString m_selectionDirectory;
+    QVariantMap m_selectionLocation;
+    QVariantMap m_selectionRootLocation;
+    QString m_selectionError;
+    QVariantList m_selectionEntries;
+    QList<QVariantList> m_selectionPages;
+    VaultLocation::PersonalPaths m_selectionDraft;
+    bool m_selectionBusy = false;
+    bool m_selectionRootReady = false;
+    bool m_selectionMore = false;
+    bool m_selectionPersonalView = false;
+    int m_selectionOffset = 0;
+    int m_selectionPage = 0;
+    bool m_selectionCursorMore = false;
     int m_scanDone = 0;
     int m_scanTotal = 0;
     QVariantList m_candidate;

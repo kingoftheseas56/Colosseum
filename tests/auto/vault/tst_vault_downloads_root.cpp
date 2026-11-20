@@ -172,6 +172,7 @@ void tst_vault_downloads_root::derives_container_rows_from_all_backbones()
     bb.setIssuePages(QStringLiteral("issue1"), { pageWithArchive(cbzPath) });
     bb.setVolumeIds({ QVariantMap{
         {QStringLiteral("id"), QStringLiteral("vol1")},
+        {QStringLiteral("seriesId"), QStringLiteral("mal:13")},
         {QStringLiteral("seriesTitle"), QStringLiteral("One Piece")},
         {QStringLiteral("label"), QStringLiteral("Vol. 1")},
         {QStringLiteral("bytes"), qint64(666)},
@@ -201,6 +202,10 @@ void tst_vault_downloads_root::derives_container_rows_from_all_backbones()
     QCOMPARE(rows.at(3).kind, QStringLiteral("comic")); // tankoban volume CBZ
     QCOMPARE(rows.at(3).path, volPath);
     QCOMPARE(rows.at(3).groupTitle, QStringLiteral("One Piece"));
+    QCOMPARE(rows.at(3).identityId, QStringLiteral("mal:13"));
+    QCOMPARE(rows.at(3).identityTitle, QStringLiteral("One Piece"));
+    QCOMPARE(rows.at(3).identityWorld, QStringLiteral("Tankoban"));
+    QCOMPARE(rows.at(3).identityState, QStringLiteral("adopted"));
 }
 
 void tst_vault_downloads_root::loose_downloaded_movies_each_have_own_group()

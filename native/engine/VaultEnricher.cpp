@@ -419,10 +419,16 @@ VaultEnricher::BookFacts VaultEnricher::readBookFacts(const QString& epubPath)
 }
 
 // ── Local artwork adoption ──
-QString VaultEnricher::findLocalArtwork(const QString& folderPath)
+QString VaultEnricher::findLocalArtwork(const QString& folderPath,
+                                         const VaultLocation::PersonalPaths& personal,
+                                         const VaultKit::CancellationToken* cancel)
 {
-    if (folderPath.isEmpty())
+    if (folderPath.isEmpty() || (cancel && cancel->isCancelled()) || personal.excludes(folderPath, true))
         return QString();
+    if (!personal.isEmpty() && personal.excludes(QFileInfo(folderPath).canonicalFilePath(), true))
+        return {};
+    if (cancel && cancel->isCancelled())
+        return {};
     QDir dir(folderPath);
     if (!dir.exists())
         return QString();
@@ -434,8 +440,15 @@ QString VaultEnricher::findLocalArtwork(const QString& folderPath)
                 if (entry.completeBaseName().compare(base, Qt::CaseInsensitive) != 0
                     || entry.suffix().compare(ext, Qt::CaseInsensitive) != 0)
                     continue;
-                if (isReadableImage(entry.absoluteFilePath()))
-                    return QUrl::fromLocalFile(entry.absoluteFilePath()).toString();
+                const QString path = entry.absoluteFilePath();
+                if (cancel && cancel->isCancelled())
+                    return {};
+                if (personal.excludesPhysical(path))
+                    continue;
+                if (cancel && cancel->isCancelled())
+                    return {};
+                if (isReadableImage(path))
+                    return QUrl::fromLocalFile(path).toString();
             }
         }
     }
@@ -558,13 +571,13 @@ void VaultEnricher::applyBookFacts(VaultIndex::FileRow& row, const BookFacts& fa
 void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
                            const VaultKit::CancellationToken* cancel)
 {
-    // Capture the exact index snapshot this row set is derived from, mirroring main.cpp's
-    // inline cover-enrichment guard: any successful scanner publish, watcher reconciliation,
-    // or other authoritative mutation that lands while this (possibly long-running, possibly
-    // off-thread) pass is in flight advances VaultIndex::revision() and makes the eventual
-    // write-back ineligible — the same stale-async-write shape main.cpp already closed.
-    const quint64 baseRevision = m_index ? m_index->revision() : 0;
+    enrichSnapshot(rows, m_index ? m_index->revision() : 0, {}, cancel);
+}
 
+void VaultEnricher::enrichSnapshot(const QList<VaultIndex::FileRow>& rows, quint64 baseRevision,
+                                   const VaultLocation::PersonalPaths& personal,
+                                   const VaultKit::CancellationToken* cancel)
+{
     // Buffer the enriched rows and hand them to the owner thread in ONE batch at the end, instead
     // of an owner-thread DB write per file from this (possibly worker) thread.
     QList<VaultIndex::FileRow> enrichedRows;
@@ -575,6 +588,8 @@ void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
     for (const VaultIndex::FileRow& r0 : rows) {
         if (cancel && cancel->isCancelled())
             break;
+        if (personal.excludesPhysical(r0.path))
+            continue;
         VaultIndex::FileRow row = r0;
         // A drive-away row is a truthful unavailable state, not an extraction failure. The
         // filesystem check also covers the narrow boot race before the watcher emits away=true.
@@ -584,6 +599,8 @@ void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
             emit progress(done, total);
             continue;
         }
+        if (cancel && cancel->isCancelled())
+            break;
         if (row.kind == QLatin1String("comic")) {
             const ComicFacts cf = readComicFacts(row.path);
             if (cf.ok) {
@@ -598,6 +615,8 @@ void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
         } else if (row.kind == QLatin1String("video")) {
             if (row.durationSec < 0.0)
                 row.durationSec = durationForVideo(row.path, row.size, row.mtimeMs);
+            if (cancel && cancel->isCancelled())
+                break;
             if (row.admissionVerdict.isEmpty()) {
                 // Blocking by contract; MediaAdmissionProbe exposes no cancel token, so cancellation
                 // is honored only BETWEEN files (the loop guard), never mid-probe.
@@ -621,7 +640,7 @@ void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
             if (row.coverRef.isEmpty()) {
                 const QString folder = !row.subtreePath.isEmpty()
                     ? row.subtreePath : QFileInfo(row.path).absolutePath();
-                row.coverRef = findLocalArtwork(folder);
+                row.coverRef = findLocalArtwork(folder, personal, cancel);
             }
         } else if (row.kind == QLatin1String("book")) {
             row.format = QFileInfo(row.path).suffix().toLower();
@@ -635,7 +654,8 @@ void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
         if (done % 20 == 0)
             saveDurationCache();
     }
-    saveDurationCache();
+    if (done > 0)
+        saveDurationCache();
     commitRowsOnIndexThread(std::move(enrichedRows), baseRevision);
 }
 

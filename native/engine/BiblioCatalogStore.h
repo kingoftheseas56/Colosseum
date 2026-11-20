@@ -162,7 +162,15 @@ public:
     // returns exact works; an empty author returns all exact-title candidates
     // for Vault's unique-title plus surname check, never identity by itself.
     // Never consults rankings, fetches, or guesses an edition.
-    BiblioIdentityLookup exactWorkMatches(const QString &title, const QString &author) const;
+    struct IdentityTitleIndex {
+        qint64 snapshotId = -1;
+        QHash<QString, QStringList> workIds;
+        QString error;
+    };
+    static IdentityTitleIndex readIdentityTitleIndex(const QString &path);
+    qint64 identitySnapshotId() const;
+    BiblioIdentityLookup exactWorkMatches(const QString &title, const QString &author,
+                                         const IdentityTitleIndex *index = nullptr) const;
 
     // User-adopted work identities are independent of snapshot retention.
     bool retainVaultWork(const BiblioIdentityCandidate &candidate, const QStringList &isbns = {});

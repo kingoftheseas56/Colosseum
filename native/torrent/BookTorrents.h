@@ -1,5 +1,6 @@
 #pragma once
 #include "TorrentResult.h"
+#include "engine/DownloadLocation.h"
 #include <QObject>
 #include <QList>
 #include <QString>
@@ -27,6 +28,14 @@ public:
     Q_INVOKABLE bool    isDownloaded(const QString& infoHash) const;
     Q_INVOKABLE QString localFile(const QString& infoHash) const;
     Q_INVOKABLE QVariantMap statusOf(const QString& infoHash) const;
+    Q_INVOKABLE QVariantList downloadedBooks() const;
+    Q_INVOKABLE QVariantList activeBookJobs() const;
+    Q_INVOKABLE void cancelDownload(const QString &infoHash);
+    Q_INVOKABLE QVariantMap removeCompletedBook(const QString &infoHash);
+    bool busy() const;
+    QList<DownloadLocation::Item> managedDownloadItems() const;
+    void refreshDownloadPaths();
+    void downloadLocationAvailable();
 
 signals:
     void resultsReady(const QVariantList& rankedRows);

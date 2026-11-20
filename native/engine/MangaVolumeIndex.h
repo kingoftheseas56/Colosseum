@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DownloadLocation.h"
+
 // Durable, atomic on-disk index of downloaded Tankoban volumes.
 //
 // One volume = one canonical CBZ plus an atomic recovery sidecar and one row in
@@ -68,6 +70,7 @@ public:
     // volume's pages live.
     QString pagesDirFor(const VolumeProvenance& record) const;
     QString archivePathFor(const VolumeProvenance& record) const;
+    QString newArchivePathFor(const VolumeProvenance& record) const;
 
     // Atomically record a finalized volume. `finalDir` already holds the
     // page_NNN files; `orderedFiles` are those names in natural page order;
@@ -102,6 +105,8 @@ public:
     // MangaDownloader::downloadedChapters so LocalDownloads composes both lanes
     // with one shape.
     Q_INVOKABLE QVariantList downloadedVolumes() const;
+    QList<DownloadLocation::Item> managedDownloadItems() const;
+    void refreshDownloadPaths();
 
     // Delete the CBZ, recovery sidecar, and ledger row. Legacy loose directories
     // remain supported only so pre-migration data can be retired safely.

@@ -1,5 +1,6 @@
 #include "MangaDownloader.h"
 #include "DownloadFileOps.h"
+#include "DownloadMediaPaths.h"
 #include "MangaPageTransport.h"
 #include "WeebCentralScraper.h"
 #include "TankoyomiChapterService.h"
@@ -315,7 +316,7 @@ void MangaDownloader::loadIndex()
         e.seriesId     = o.value(QStringLiteral("seriesId")).toString();
         e.seriesTitle  = o.value(QStringLiteral("seriesTitle")).toString();
         e.chapterLabel = o.value(QStringLiteral("chapterLabel")).toString();
-        e.dir          = o.value(QStringLiteral("dir")).toString();
+        e.dir          = DownloadMediaPaths::resolved(o.value(QStringLiteral("dir")).toString());
         e.bytes        = qint64(o.value(QStringLiteral("bytes")).toDouble());
         e.addedAt      = qint64(o.value(QStringLiteral("addedAt")).toDouble());
         for (const QJsonValue v : o.value(QStringLiteral("files")).toArray())
@@ -326,7 +327,7 @@ void MangaDownloader::loadIndex()
         // Bleach / One Piece entries; caught pre-commit). Re-root the path tail
         // (everything after the last "/manga/") onto the current base; only an entry
         // whose files are missing THERE TOO is a true ghost, and only then dropped.
-        if (!e.dir.isEmpty() && !QDir(e.dir).exists()) {
+        if (!e.dir.isEmpty() && !QDir(e.dir).exists() && !DownloadMediaPaths::waitingForDrive(e.dir)) {
             const QString marker = QStringLiteral("/manga/");
             const int at = e.dir.lastIndexOf(marker);
             QString repairedDir;
@@ -571,6 +572,10 @@ void MangaDownloader::downloadChapter(const QString& chapterId, const QString& s
     if (isDownloaded(chapterId)) { emit finished(chapterId); return; }
     if (m_active.contains(chapterId)) return;
     for (const Job* q : m_queue) if (q->chapterId == chapterId) return;   // already queued
+    if (DownloadMediaPaths::moving()) {
+        emit failed(chapterId, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
 
     Job* job = new Job;
     job->lifetime = std::make_shared<JobLifetime>();
@@ -579,7 +584,8 @@ void MangaDownloader::downloadChapter(const QString& chapterId, const QString& s
     job->seriesId     = seriesId;
     job->seriesTitle  = seriesTitle;
     job->chapterLabel = chapterLabel;
-    job->dir          = chapterDir(seriesId, chapterId);
+    if (!DownloadMediaPaths::enabled())
+        job->dir = chapterDir(seriesId, chapterId);
     m_queue.enqueue(job);
     emit progress(chapterId, 0, 0);    // surfaces "queued" immediately
     pumpQueue();
@@ -591,6 +597,7 @@ QVariantList MangaDownloader::localPages(const QString& chapterId) const
     const auto it = m_index.constFind(chapterId);
     if (it == m_index.constEnd()) return out;
     const Entry& e = it.value();
+    if (DownloadMediaPaths::waitingForDrive(e.dir)) return out;
     for (int i = 0; i < e.files.size(); ++i) {
         if (e.files[i].isEmpty()) continue;
         out.append(QVariantMap{
@@ -637,7 +644,7 @@ QVariantList MangaDownloader::downloadedChapters() const
         const Entry& e = it.value();
         const QString first = e.files.isEmpty()
             ? QString() : e.dir + QStringLiteral("/") + e.files.first();
-        const bool missing = first.isEmpty() || !QFile::exists(first);
+        const bool missing = first.isEmpty() || DownloadMediaPaths::waitingForDrive(e.dir) || !QFile::exists(first);
         out.append(QVariantMap{
             {QStringLiteral("id"), it.key()},
             {QStringLiteral("seriesId"), e.seriesId},
@@ -653,6 +660,29 @@ QVariantList MangaDownloader::downloadedChapters() const
         });
     }
     return out;
+}
+
+QList<DownloadLocation::Item> MangaDownloader::managedDownloadItems() const
+{
+    QList<DownloadLocation::Item> result;
+    for (const Entry &entry : m_index) {
+        QStringList members = entry.files;
+        members.removeAll(QString());
+        if (!members.isEmpty()) {
+            result.append({entry.dir, DownloadMediaPaths::mangaTitlePath(
+                entry.seriesTitle, QStringLiteral("Chapter"), entry.chapterLabel), members});
+        }
+    }
+    return result;
+}
+
+void MangaDownloader::refreshDownloadPaths()
+{
+    for (Entry &entry : m_index)
+        entry.dir = DownloadMediaPaths::resolved(entry.dir);
+    m_thumbCache.clear();
+    saveIndex();
+    emit downloadPathsChanged();
 }
 
 QVariantList MangaDownloader::activeChapterJobs() const
@@ -686,7 +716,25 @@ QVariantMap MangaDownloader::deleteChapter(const QString& chapterId)
     if (it == m_index.constEnd())
         return DownloadFileOps::toMap({true, QString()});
     const QString dir = it.value().dir;
-    const auto result = DownloadFileOps::removeTree(dir);
+    if (DownloadMediaPaths::moving() || DownloadMediaPaths::waitingForDrive(dir))
+        return DownloadFileOps::toMap({false, tr("The download location is unavailable.")});
+    auto result = DownloadFileOps::Result{true, QString()};
+    if (DownloadMediaPaths::enabled() && DownloadMediaPaths::isWithin(DownloadMediaPaths::root(), dir)) {
+        for (const QString &page : it.value().files) {
+            if (page.isEmpty())
+                continue;
+            const QString path = QDir(dir).filePath(page);
+            if (!DownloadMediaPaths::destinationParentsSafe(dir, path))
+                return DownloadFileOps::toMap({false, tr("A download path is no longer safe to remove.")});
+            result = DownloadFileOps::removeFile(path);
+            if (!result.success)
+                break;
+        }
+        if (result.success)
+            QDir().rmdir(dir);
+    } else {
+        result = DownloadFileOps::removeTree(dir);
+    }
     if (!result.success) {
         qWarning() << "[downloads] delete failed" << chapterId << result.message;
         return DownloadFileOps::toMap(result);
@@ -754,11 +802,28 @@ void MangaDownloader::finalizeCancel(Job* job)
     job->cleanupPending = true;
     const QString id = job->chapterId;
     const QString dir = job->dir;
+    const QStringList pages = job->files;
     const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
-    const DownloadFileOps::Remover remover = m_cleanupRemover;
+    const auto remover = [pages, legacyRemover = m_cleanupRemover](const QString &dir) {
+        if (DownloadMediaPaths::enabled() && DownloadMediaPaths::isWithin(DownloadMediaPaths::root(), dir)) {
+            for (const QString &page : pages) {
+                if (page.isEmpty())
+                    continue;
+                const QString path = QDir(dir).filePath(page);
+                if (!DownloadMediaPaths::destinationParentsSafe(dir, path))
+                    return DownloadFileOps::Result{false, QStringLiteral("A partial download path is no longer safe.")};
+                const auto result = DownloadFileOps::removeFile(path);
+                if (!result.success)
+                    return result;
+            }
+            QDir().rmdir(dir);
+            return DownloadFileOps::Result{true, QString()};
+        }
+        return legacyRemover ? DownloadFileOps::removeTree(dir, legacyRemover)
+                             : DownloadFileOps::removeTree(dir);
+    };
     QtConcurrent::run([dir, remover]() {
-        return remover ? DownloadFileOps::removeTree(dir, remover)
-                        : DownloadFileOps::removeTree(dir);
+        return remover(dir);
     }).then(this, [this, lifetime, id](DownloadFileOps::Result result) {
         Job* job = lifetime ? lifetime->job : nullptr;
         if (!job) return;
@@ -1087,9 +1152,18 @@ void MangaDownloader::indexSelfTest()
 // ---------------------------------------------------------------------------
 void MangaDownloader::pumpQueue()
 {
-    if (m_liveJob || !m_stoppingLiveJobs.isEmpty()) return;
+    if (m_liveJob || !m_stoppingLiveJobs.isEmpty() || !DownloadMediaPaths::ready()) return;
     while (m_active.size() < MAX_CONCURRENT_CHAPTERS && !m_queue.isEmpty()) {
         Job* job = m_queue.dequeue();
+        if (job->dir.isEmpty()) {
+            job->dir = DownloadMediaPaths::allocate(DownloadMediaPaths::mangaTitlePath(
+                job->seriesTitle, QStringLiteral("Chapter"), job->chapterLabel), true, {},
+                QStringLiteral("chapter:") + job->chapterId);
+            if (job->dir.isEmpty()) {
+                m_queue.prepend(job);
+                return;
+            }
+        }
         m_active.insert(job->chapterId, job);
         beginJob(job);
     }

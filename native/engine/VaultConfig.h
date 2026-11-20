@@ -11,6 +11,8 @@
 // directory so tests point it at a QTemporaryDir and production passes
 // <appdata>/vault; nothing here touches QStandardPaths directly.
 
+#include "VaultLocation.h"
+
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
@@ -45,6 +47,11 @@ public:
     // truly deletes. The synthetic root carries real files owned by the Downloads
     // lane, so removing it from the Vault must not delete those files.
     Q_INVOKABLE void removeRoot(const QString& path);
+
+    VaultLocation::PersonalPaths personalPaths() const;
+    bool applyFolderSelection(const QString& root, const VaultLocation::PersonalPaths& selection);
+    bool hasCompletedFolderImport() const;
+    bool markFolderImportComplete();
 
     // ── Synthetic / hidden-root mechanics (Slice 18 — downloads root) ──
     // Adds the trusted downloads root pre-confirmed (no card). Idempotent: a
@@ -84,6 +91,7 @@ public:
 
 signals:
     void changed();
+    void personalPathsChanged();
 
 private:
     void load();

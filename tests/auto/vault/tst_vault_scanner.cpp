@@ -15,9 +15,13 @@
 
 #include <QDir>
 #include <QDateTime>
+#include <QElapsedTimer>
+#include <QScopeGuard>
 #include <QFile>
+#include <QFileSystemWatcher>
 #include <QMap>
 #include <QSignalSpy>
+#include <QSignalBlocker>
 #include <QSemaphore>
 #include <QTemporaryDir>
 #include <QThreadPool>
@@ -100,6 +104,9 @@ private slots:
     void generation_guard_drops_stale_publish();
     void scan_root_async_delivers_candidate_only();
     void publish_confirmed_async_populates_index();
+    void large_publish_keeps_owner_event_loop_active();
+    void newer_personal_choices_supersede_a_ready_publication();
+    void watcher_census_waits_off_thread_and_discards_old_choices();
     void buffered_rescan_runs_after();
     void publish_missing_root_preserves_rows_and_revives();
     void scanner_rename_reattaches_same_id_and_progress();
@@ -630,6 +637,177 @@ void tst_vault_scanner::publish_confirmed_async_populates_index()
     sc.publishConfirmed({mixedRoot()}, {}, {}, {});
     QVERIFY(published.wait(10000));
     QCOMPARE(idx.itemCount(), kExpectedItems);
+}
+
+void tst_vault_scanner::large_publish_keeps_owner_event_loop_active()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString root = tmp.filePath(QStringLiteral("Library"));
+    constexpr int kDirectories = 72;
+    constexpr int kFiles = 40;
+    for (int i = 0; i < kDirectories; ++i) {
+        const QString path = root + QStringLiteral("/Collection-%1").arg(i);
+        QVERIFY(QDir().mkpath(path));
+        for (int j = 0; j < kFiles; ++j) {
+            QVERIFY(!writeMediaFile(path, QStringLiteral("Volume %1.cbz").arg(j)).isEmpty());
+            QVERIFY(!writeMediaFile(path, QStringLiteral("Notes %1.txt").arg(j)).isEmpty());
+        }
+    }
+    VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+    VaultIdentity identity(tmp.path());
+    // The old root has been forgotten, while its progress identities remain.
+    QList<VaultIdentity::FileFacts> previous;
+    for (int i = 0; i < 3111; ++i)
+        previous.append({tmp.filePath(QStringLiteral("Old library/Volume %1.cbz").arg(i)), i + 1, 1});
+    QCOMPARE(identity.reconcile(previous).fresh.size(), previous.size());
+    const auto first = previous.constFirst();
+    const QString oldId = VaultIdentity::computeId(first.path, first.size, first.mtimeMs);
+    VaultLocation::PersonalPaths personal;
+    personal.files.insert(VaultLocation::normalize(root + QStringLiteral("/.DS_Store")));
+    identity.setPersonalPaths(personal);
+    VaultScanner scanner(&index, &identity);
+    QSignalSpy activity(&scanner, &VaultScanner::scanActivity);
+    QSignalSpy finished(&scanner, &VaultScanner::publicationFinished);
+
+    QElapsedTimer clock;
+    clock.start();
+    qint64 lastBeat = 0, maxScanGap = 0, maxFullGap = 0;
+    int scanBeats = 0;
+    bool publishing = false;
+    connect(&scanner, &VaultScanner::scanActivity, this,
+            [&](const QString&, int, int, const QString& phase) {
+        if (phase == QLatin1String("publishing")) publishing = true;
+    });
+    QTimer heartbeat;
+    heartbeat.setTimerType(Qt::PreciseTimer);
+    heartbeat.setInterval(8);
+    connect(&heartbeat, &QTimer::timeout, this, [&] {
+        const qint64 now = clock.elapsed();
+        maxFullGap = qMax(maxFullGap, now - lastBeat);
+        if (!publishing) {
+            maxScanGap = qMax(maxScanGap, now - lastBeat);
+            ++scanBeats;
+        }
+        lastBeat = now;
+    });
+    heartbeat.start();
+    scanner.publishConfirmed({root}, {}, {}, {});
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 20000);
+    // Capture the callback-to-callback gap across indexing, including the final atomic commit.
+    QTest::qWait(20);
+    heartbeat.stop();
+    QCOMPARE(finished.first().at(0).toBool(), true);
+    QVERIFY(publishing);
+    QCOMPARE(index.itemCount(), kDirectories * kFiles);
+    QVERIFY(identity.knows(oldId));
+    QVERIFY(activity.size() > 2);
+    QCOMPARE(activity.last().at(1).toInt(), kDirectories * kFiles);
+    qInfo() << "Vault scan heartbeat for" << kDirectories * kFiles << "media files:"
+            << scanBeats << "during discovery/preparation ticks,"
+            << "max discover/prepare gap" << maxScanGap << "ms;"
+            << "max whole operation gap" << maxFullGap << "ms";
+    QVERIFY2(scanBeats >= 3 && maxScanGap < 350, "Discovery/preparation starved the owner event loop");
+    QVERIFY2(maxFullGap < 1500, "The atomic publication stalled the owner event loop");
+}
+
+void tst_vault_scanner::newer_personal_choices_supersede_a_ready_publication()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString root = tmp.filePath(QStringLiteral("Library"));
+    const QString personal = root + QStringLiteral("/Personal");
+    const QString nested = personal + QStringLiteral("/Nested");
+    const QString sibling = root + QStringLiteral("/Personalized");
+    QVERIFY(QDir().mkpath(nested));
+    QVERIFY(QDir().mkpath(sibling));
+    const QString privateFile = writeMediaFile(nested, QStringLiteral("Private.cbz"));
+    const QString publicFile = writeMediaFile(sibling, QStringLiteral("Public.cbz"));
+    QVERIFY(!privateFile.isEmpty() && !publicFile.isEmpty());
+
+    VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite")));
+    VaultIdentity identity(tmp.path());
+    VaultScanner scanner(&index, &identity);
+    QSignalSpy published(&scanner, &VaultScanner::indexPublished);
+    bool superseded = false;
+    connect(&scanner, &VaultScanner::scanActivity, this,
+            [&](const QString&, int, int, const QString& phase) {
+        if (phase != QLatin1String("publishing") || superseded)
+            return;
+        superseded = true;
+        VaultLocation::PersonalPaths paths;
+        paths.directories.insert(normForTest(personal));
+        scanner.publishConfirmed({root, nested}, {}, {}, {}, paths);
+    });
+    scanner.publishConfirmed({root, nested}, {}, {}, {});
+    QTRY_COMPARE_WITH_TIMEOUT(published.count(), 1, 5000);
+    QVERIFY(superseded);
+    QCOMPARE(index.itemCount(), 1);
+    QCOMPARE(index.rowsForPath(publicFile).size(), 1);
+    QVERIFY(index.rowsForPath(privateFile).isEmpty());
+    QVERIFY(QFileInfo::exists(privateFile));
+}
+
+void tst_vault_scanner::watcher_census_waits_off_thread_and_discards_old_choices()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString root = normForTest(tmp.filePath(QStringLiteral("Library")));
+    const QString blocked = root + QStringLiteral("/Private");
+    QVERIFY(QDir().mkpath(blocked));
+    VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite")));
+    VaultIdentity identity(tmp.path());
+    VaultConfig config(tmp.path());
+    config.addRoot(root);
+    config.confirmRoot(root);
+    VaultWatcher watcher(&index, &identity, &config);
+    QSignalSpy treeReady(&watcher, &VaultWatcher::watchTreeReconciled);
+    QSignalSpy activity(&watcher, &VaultWatcher::scanActivity);
+    watcher.refresh();
+    QTRY_VERIFY_WITH_TIMEOUT(treeReady.count() >= 1, 5000);
+
+    QSignalBlocker quiet(watcher.findChild<QFileSystemWatcher*>());
+    const QString privateFile = writeMediaFile(blocked, QStringLiteral("Hidden.cbz"));
+    const QString publicFile = writeMediaFile(root, QStringLiteral("Public.cbz"));
+    QVERIFY(!privateFile.isEmpty() && !publicFile.isEmpty());
+    const int previous = treeReady.count();
+    QVERIFY(QMetaObject::invokeMethod(&watcher, "onDirectoryChanged", Qt::DirectConnection, Q_ARG(QString, root)));
+    QTRY_VERIFY_WITH_TIMEOUT(treeReady.count() > previous, 5000);
+
+    QSemaphore workerStarted;
+    QSemaphore releaseWorker;
+    QThreadPool* pool = QThreadPool::globalInstance();
+    const int oldMaximum = pool->maxThreadCount();
+    pool->setMaxThreadCount(1);
+    QFuture<void> blocker = QtConcurrent::run([&] {
+        workerStarted.release();
+        releaseWorker.acquire();
+    });
+    auto release = qScopeGuard([&] {
+        releaseWorker.release();
+        blocker.waitForFinished();
+        pool->setMaxThreadCount(oldMaximum);
+    });
+    QVERIFY(workerStarted.tryAcquire(1, 5000));
+    QVERIFY(QMetaObject::invokeMethod(&watcher, "flushPending", Qt::DirectConnection));
+    QCOMPARE(index.itemCount(), 0); // a sync census would already have published both files
+    QCOMPARE(activity.count(), 1);
+    VaultLocation::PersonalPaths paths;
+    paths.directories.insert(normForTest(blocked));
+    QVERIFY(config.applyFolderSelection(root, paths));
+    QCOMPARE(index.itemCount(), 0); // older worker result is still queued
+    releaseWorker.release();
+    blocker.waitForFinished();
+    pool->setMaxThreadCount(oldMaximum);
+    release.dismiss();
+
+    QTRY_COMPARE_WITH_TIMEOUT(index.itemCount(), 1, 5000);
+    const auto landed = index.rowsForKind(QStringLiteral("comic"));
+    QCOMPARE(landed.size(), 1);
+    // Qt's directory iterator can uppercase the drive letter of a normalized Windows root.
+    QCOMPARE(VaultLocation::normalize(landed.first().path), VaultLocation::normalize(publicFile));
+    QVERIFY(QFileInfo::exists(privateFile));
 }
 
 void tst_vault_scanner::buffered_rescan_runs_after()

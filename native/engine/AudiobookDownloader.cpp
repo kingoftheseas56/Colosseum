@@ -1,5 +1,6 @@
 #include "AudiobookDownloader.h"
 #include "DownloadFileOps.h"
+#include "DownloadMediaPaths.h"
 #include "AudiobookTorrentTransport.h"
 
 #include "../AudioPairingStore.h"
@@ -170,7 +171,7 @@ void AudiobookDownloader::loadIndex()
     for (auto it = root.begin(); it != root.end(); ++it) {
         const QJsonObject o = it.value().toObject();
         Entry e;
-        e.dir     = o.value(QStringLiteral("dir")).toString();
+        e.dir     = DownloadMediaPaths::resolved(o.value(QStringLiteral("dir")).toString());
         e.title   = o.value(QStringLiteral("title")).toString();
         e.author  = o.value(QStringLiteral("author")).toString();
         e.bookId  = o.value(QStringLiteral("bookId")).toString();
@@ -178,9 +179,9 @@ void AudiobookDownloader::loadIndex()
         e.bytes   = static_cast<qint64>(o.value(QStringLiteral("bytes")).toDouble());
         e.addedAt = static_cast<qint64>(o.value(QStringLiteral("addedAt")).toDouble());
         const QJsonArray fa = o.value(QStringLiteral("files")).toArray();
-        for (const QJsonValue& v : fa) e.files << v.toString();
+        for (const QJsonValue& v : fa) e.files << DownloadMediaPaths::resolved(v.toString());
         // keep only if the directory + at least the first file still exist
-        if (!e.files.isEmpty() && QFileInfo::exists(e.files.first()))
+        if (!e.files.isEmpty() && (QFileInfo::exists(e.files.first()) || DownloadMediaPaths::waitingForDrive(e.dir)))
             m_index.insert(it.key(), e);
     }
 }
@@ -216,6 +217,7 @@ QString AudiobookDownloader::localAudiobook(const QString& pairKey) const
 {
     auto it = m_index.constFind(pairKey);
     if (it == m_index.constEnd() || it.value().files.isEmpty()) return {};
+    if (DownloadMediaPaths::waitingForDrive(it.value().dir)) return {};
     if (!QFileInfo::exists(it.value().files.first())) return {};
     return it.value().dir;
 }
@@ -228,7 +230,7 @@ bool AudiobookDownloader::isDownloaded(const QString& pairKey) const
 QStringList AudiobookDownloader::localFiles(const QString& pairKey) const
 {
     auto it = m_index.constFind(pairKey);
-    if (it == m_index.constEnd()) return {};
+    if (it == m_index.constEnd() || DownloadMediaPaths::waitingForDrive(it.value().dir)) return {};
     QStringList out;
     for (const QString& p : it.value().files)
         if (QFileInfo::exists(p)) out << p;
@@ -295,10 +297,37 @@ QVariantList AudiobookDownloader::downloadedAudiobooks() const
             {QStringLiteral("addedAt"), e.addedAt},
             {QStringLiteral("bookId"), e.bookId},
             {QStringLiteral("bookPath"), e.bookPath},
-            {QStringLiteral("missing"), e.files.isEmpty() || !QFile::exists(e.files.first())}
+            {QStringLiteral("missing"), e.files.isEmpty() || DownloadMediaPaths::waitingForDrive(e.dir)
+                 || !QFile::exists(e.files.first())}
         });
     }
     return out;
+}
+
+QList<DownloadLocation::Item> AudiobookDownloader::managedDownloadItems() const
+{
+    QList<DownloadLocation::Item> result;
+    for (const Entry &entry : m_index) {
+        QStringList members;
+        const QDir source(entry.dir);
+        for (const QString &file : entry.files)
+            members.append(source.relativeFilePath(file));
+        if (!members.isEmpty()) {
+            result.append({entry.dir, DownloadMediaPaths::audiobookPath(entry.title, entry.author), members});
+        }
+    }
+    return result;
+}
+
+void AudiobookDownloader::refreshDownloadPaths()
+{
+    for (Entry &entry : m_index) {
+        entry.dir = DownloadMediaPaths::resolved(entry.dir);
+        for (QString &file : entry.files)
+            file = DownloadMediaPaths::resolved(file);
+    }
+    saveIndex();
+    emit downloadPathsChanged();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -349,6 +378,10 @@ void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QStrin
         return;
     }
     if (isActive(pairKey)) return;
+    if (DownloadMediaPaths::moving()) {
+        emit failed(pairKey, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
     if (m_sourceEnabledCheck && !m_sourceEnabledCheck()) {
         emit failed(pairKey, QStringLiteral("Enable AudioBookBay in Extensions to download this audiobook."));
         return;
@@ -363,6 +396,8 @@ void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QStrin
     Job* job = new Job;
     job->generation = ++m_nextGeneration;
     job->pairKey = pairKey; job->infoHash = infoHash; job->title = title; job->author = author;
+    if (!DownloadMediaPaths::enabled())
+        job->downloadDir = dirFor(pairKey);
     m_queue.append(job);
     QPointer<AudiobookDownloader> guard(this);
     emit resolving(pairKey); // state already visible, including queued jobs
@@ -466,8 +501,11 @@ void AudiobookDownloader::onManifestReply(QNetworkReply* reply, Job* job)
     std::sort(audio.begin(), audio.end(), [](const FileJob& a, const FileJob& b) {
         return naturalLess(a.name, b.name);
     });
-    const QString dir = dirFor(job->pairKey);
-    QDir().mkpath(dir);
+    const QString dir = job->downloadDir;
+    if (DownloadMediaPaths::waitingForDrive(dir) || !QDir().mkpath(dir)) {
+        failJob(job, tr("The download drive is unavailable."));
+        return;
+    }
     job->totalBytes = 0;
     for (int i = 0; i < audio.size(); ++i) {
         FileJob& fj = audio[i];
@@ -509,7 +547,8 @@ void AudiobookDownloader::startNextFile(Job* job)
     const FileJob& fj = job->files[job->current];
 
     // already on disk from a resumed job? skip.
-    if (QFileInfo::exists(fj.finalPath) && QFileInfo(fj.finalPath).size() == fj.bytes && fj.bytes > 0) {
+    if (!DownloadMediaPaths::enabled() && QFileInfo::exists(fj.finalPath)
+        && QFileInfo(fj.finalPath).size() == fj.bytes && fj.bytes > 0) {
         job->doneBytes += fj.bytes;
         job->current += 1;
         startNextFile(job);
@@ -517,7 +556,7 @@ void AudiobookDownloader::startNextFile(Job* job)
     }
 
     job->file = new QFile(fj.partPath);
-    if (!job->file->open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+    if (!job->file->open(QIODevice::WriteOnly | (DownloadMediaPaths::enabled() ? QIODevice::NewOnly : QIODevice::Truncate))) {
         const QString err = job->file->errorString();
         delete job->file; job->file = nullptr;
         failJob(job, QStringLiteral("cannot open .part: %1").arg(err));
@@ -608,7 +647,7 @@ void AudiobookDownloader::onFileFinished()
 void AudiobookDownloader::finalizeJob(Job* job)
 {
     Entry e;
-    e.dir = job->nativeTorrent ? job->completedDir : dirFor(job->pairKey);
+    e.dir = job->nativeTorrent ? job->completedDir : job->downloadDir;
     e.title = job->title; e.author = job->author;
     e.bookId = m_bookIdFor.value(job->pairKey);
     e.bookPath = m_bookPathFor.value(job->pairKey);
@@ -692,7 +731,14 @@ void AudiobookDownloader::rememberFailure(const QString& pairKey, const QString&
 
 void AudiobookDownloader::promoteQueue()
 {
-    if (m_active || m_queue.isEmpty()) return;
+    if (m_active || m_queue.isEmpty() || !DownloadMediaPaths::ready()) return;
+    Job *next = m_queue.first();
+    if (next->downloadDir.isEmpty()) {
+        next->downloadDir = DownloadMediaPaths::allocate(DownloadMediaPaths::audiobookPath(next->title, next->author),
+            true, {}, QStringLiteral("audiobook:") + next->pairKey);
+        if (next->downloadDir.isEmpty())
+            return;
+    }
     m_active = m_queue.takeFirst();
     const quint64 generation = m_active->generation;
     m_active->nativeTorrent = bool(m_torrent);
@@ -701,7 +747,7 @@ void AudiobookDownloader::promoteQueue()
     emit resolving(key);
     if (!guard || !m_active || m_active->generation != generation) return;
     if (m_active->nativeTorrent) {
-        m_torrent->start(generation, m_active->infoHash, dirFor(key));
+        m_torrent->start(generation, m_active->infoHash, m_active->downloadDir);
     } else {
         m_stream->prefetch(m_active->infoHash, 0);
         if (guard && m_active && m_active->generation == generation) pollEngine(m_active);
@@ -739,7 +785,23 @@ QVariantMap AudiobookDownloader::deleteAudiobook(const QString& pairKey)
     auto it = m_index.find(pairKey);
     if (it == m_index.end())
         return DownloadFileOps::toMap({true, QString()});
-    const auto result = DownloadFileOps::removeTree(it.value().dir);
+    const QString dir = it.value().dir;
+    if (DownloadMediaPaths::moving() || DownloadMediaPaths::waitingForDrive(dir))
+        return DownloadFileOps::toMap({false, tr("The download location is unavailable.")});
+    auto result = DownloadFileOps::Result{true, QString()};
+    if (DownloadMediaPaths::enabled() && DownloadMediaPaths::isWithin(DownloadMediaPaths::root(), dir)) {
+        for (const QString &file : it.value().files) {
+            if (!DownloadMediaPaths::destinationParentsSafe(dir, file))
+                return DownloadFileOps::toMap({false, tr("A download path is no longer safe to remove.")});
+            result = DownloadFileOps::removeFile(file);
+            if (!result.success)
+                break;
+        }
+        if (result.success)
+            QDir().rmdir(dir);
+    } else {
+        result = DownloadFileOps::removeTree(dir);
+    }
     if (!result.success) {
         qWarning() << "[downloads] delete failed" << pairKey << result.message;
         return DownloadFileOps::toMap(result);
@@ -773,13 +835,28 @@ void AudiobookDownloader::retireCancelledJob(Job* job)
 {
     cleanupInFlight(job);
     const QString key = job->pairKey;
+    const QString dir = job->downloadDir;
     const bool native = job->nativeTorrent || bool(m_torrent);
+    auto result = DownloadFileOps::Result{true, QString()};
+    if (!native && DownloadMediaPaths::enabled()) {
+        for (int i = 0; i < job->current && i < job->files.size(); ++i) {
+            const QString &path = job->files.at(i).finalPath;
+            if (!DownloadMediaPaths::destinationParentsSafe(dir, path)) {
+                result = {false, tr("A partial download path is no longer safe.")};
+                break;
+            }
+            result = DownloadFileOps::removeFile(path);
+            if (!result.success)
+                break;
+        }
+        if (result.success)
+            QDir().rmdir(dir);
+    } else if (!native) {
+        result = DownloadFileOps::removeTree(dir);
+    }
     if (m_active == job) m_active = nullptr;
     else m_queue.removeAll(job);
     delete job;
-    // Native payload deletion belongs to the engine's asynchronous teardown.
-    const auto result = native ? DownloadFileOps::Result{true, {}}
-                               : DownloadFileOps::removeTree(dirFor(key));
     QPointer<AudiobookDownloader> guard(this);
     if (!result.success) {
         rememberFailure(key, {}, {}, result.message);

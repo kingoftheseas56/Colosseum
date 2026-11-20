@@ -34,6 +34,7 @@ struct Resolved {
     QString dlnaFeatures; // contentFeatures.dlna.org value ("" = omit)
     QString transferMode; // default when the request did not ask for one
     DlnaItem item;       // Media: the snapshot's copy (size + mtime are the identity to match)
+    std::shared_ptr<const DlnaSnapshot> snapshot;
 };
 
 QString stripQuery(const char* filename)
@@ -66,7 +67,8 @@ Resolved resolve(DlnaServerCore* core, const QString& path)
     Resolved out;
     if (!core->serving.load())
         return out;
-    const auto snap = core->provider();
+    out.snapshot = core->provider();
+    const auto& snap = out.snapshot;
     if (path.startsWith(QLatin1String("/m/"))) {
         QString id = path.mid(3);
         const int dot = id.indexOf(QLatin1Char('.'));
@@ -183,6 +185,8 @@ struct MediaFile {
     QByteArray mem;    // non-empty: serve from memory (icons/SCPDs)
     qint64 memPos = 0;
     QString itemId;
+    QString fsPath;
+    Resolved::Kind kind = Resolved::None;
     std::shared_ptr<const DlnaSnapshot> snap;
     uint64_t epoch = 0;
 };
@@ -309,7 +313,9 @@ UpnpWebFileHandle vdir_open(const char* filename, enum UpnpOpenFileMode mode, co
     auto* mf = new MediaFile;
     mf->f = f;
     mf->itemId = r.itemId;
-    mf->snap = core->provider();
+    mf->fsPath = r.fsPath;
+    mf->kind = r.kind;
+    mf->snap = r.snapshot;
     mf->epoch = core->revokeEpoch.load();
     g_activeHandles.fetch_add(1);
     return static_cast<UpnpWebFileHandle>(mf);
@@ -335,8 +341,16 @@ int vdir_read(UpnpWebFileHandle h, char* buf, size_t buflen, const void* cookie,
     if (!core->serving.load() || core->revokeEpoch.load() != mf->epoch)
         return -1;
     const auto snap = core->provider();
-    if (snap != mf->snap && !snap->items.contains(mf->itemId))
-        return -1;
+    if (snap != mf->snap) {
+        const auto item = snap->items.constFind(mf->itemId);
+        if (item == snap->items.constEnd()
+            || (mf->kind == Resolved::Media && item->filePath != mf->fsPath)
+            || (mf->kind == Resolved::Art && item->coverPath != mf->fsPath)
+            || (mf->kind == Resolved::Sub && (item->subtitlePersonal
+                || item->subtitleCandidatePath() != mf->fsPath)))
+            return -1;
+        mf->snap = snap;
+    }
     return int(fread(buf, 1, buflen, mf->f));
 }
 

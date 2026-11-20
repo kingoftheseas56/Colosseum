@@ -21,12 +21,15 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QSet>
 #include <QRegularExpression>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QString>
+#include <QUuid>
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
@@ -117,6 +120,15 @@ QVariant bindStr(const QString &s)
     return QVariant(s);
 }
 
+QString literalIdentityTitle(QString text)
+{
+    text = text.toCaseFolded();
+    text.replace(QLatin1Char('&'), QStringLiteral(" and "));
+    static const QRegularExpression punctuation(QStringLiteral("[^\\p{L}\\p{N}]+"));
+    text.replace(punctuation, QStringLiteral(" "));
+    return text.simplified();
+}
+
 } // namespace
 
 BiblioCatalogStore::BiblioCatalogStore() = default;
@@ -168,7 +180,65 @@ bool BiblioCatalogStore::open(const QString &path)
     return true;
 }
 
-BiblioIdentityLookup BiblioCatalogStore::exactWorkMatches(const QString &title, const QString &author) const
+BiblioCatalogStore::IdentityTitleIndex BiblioCatalogStore::readIdentityTitleIndex(const QString &path)
+{
+    const QString name = QUuid::createUuid().toString();
+    auto read = [&]() {
+        IdentityTitleIndex result;
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+        db.setConnectOptions(QStringLiteral("QSQLITE_OPEN_READONLY"));
+        db.setDatabaseName(path);
+        if (!db.open()) {
+            result.error = db.lastError().text();
+            return result;
+        }
+        QSqlQuery q(db);
+        if (!q.exec(QStringLiteral(
+                "select m.value,w.canonical_id,w.title from sync_meta m "
+                "left join works w on w.snapshot_id=cast(m.value as integer) "
+                "where m.key='active_snapshot_id'"))) {
+            result.error = q.lastError().text();
+            return result;
+        }
+        result.snapshotId = 0;
+        while (q.next()) {
+            bool valid = false;
+            result.snapshotId = q.value(0).toLongLong(&valid);
+            if (!valid || result.snapshotId < 0) {
+                result.error = QStringLiteral("Invalid Biblio active snapshot id");
+                result.snapshotId = -1;
+                return result;
+            }
+            if (!q.value(1).isNull())
+                result.workIds[literalIdentityTitle(q.value(2).toString())].append(q.value(1).toString());
+        }
+        if (q.lastError().isValid()) {
+            result.error = q.lastError().text();
+            result.snapshotId = -1;
+        }
+        return result;
+    };
+    auto result = read();
+    QSqlDatabase::removeDatabase(name);
+    return result;
+}
+
+qint64 BiblioCatalogStore::identitySnapshotId() const
+{
+    if (!m_open)
+        return -1;
+    QSqlQuery q(QSqlDatabase::database(m_connectionName, false));
+    if (!q.exec(QStringLiteral("select value from sync_meta where key='active_snapshot_id'")))
+        return -1;
+    if (!q.next())
+        return q.lastError().isValid() ? -1 : 0;
+    bool valid = false;
+    const auto id = q.value(0).toLongLong(&valid);
+    return valid && id >= 0 ? id : -1;
+}
+
+BiblioIdentityLookup BiblioCatalogStore::exactWorkMatches(const QString &title, const QString &author,
+                                                          const IdentityTitleIndex *index) const
 {
     BiblioIdentityLookup result;
     if (!m_open) {
@@ -194,13 +264,21 @@ BiblioIdentityLookup BiblioCatalogStore::exactWorkMatches(const QString &title, 
     // the unindexed provenance table separately for every work. Edition/ranking
     // rows cannot multiply the work count or imply a physical file's edition.
     QSqlQuery query(db);
+    const QString workFilter = index ? QStringLiteral(
+        " and w.canonical_id in (select value from json_each(?))") : QString();
+    const QString sourceFilter = index ? QStringLiteral(
+        " and s.canonical_id in (select value from json_each(?) union select stable_id from user_matched_works)") : QString();
+    const QString literalTitle = literalIdentityTitle(title);
+    const QByteArray ids = index
+        ? QJsonDocument(QJsonArray::fromStringList(index->workIds.value(literalTitle))).toJson(QJsonDocument::Compact)
+        : QByteArray();
     query.prepare(QStringLiteral(
         "select m.value,0 as row_kind,w.canonical_id,w.title,w.author,w.cover_url,"
         "null as field,null as source,null as source_id,null as observed_at "
-        "from sync_meta m left join works w on w.snapshot_id=cast(m.value as integer) "
+        "from sync_meta m left join works w on w.snapshot_id=cast(m.value as integer)%1 "
         "where m.key=? union all "
         "select m.value,1,s.canonical_id,null,null,null,s.field,s.source,s.source_id,s.observed_at "
-        "from sync_meta m join work_sources s on s.snapshot_id=cast(m.value as integer) "
+        "from sync_meta m join work_sources s on s.snapshot_id=cast(m.value as integer)%2 "
         "where m.key=? union all "
         "select coalesce((select value from sync_meta where key='active_snapshot_id'),0),"
         "0,stable_id,title,author,cover_url,null,null,null,null from user_matched_works union all "
@@ -208,8 +286,10 @@ BiblioIdentityLookup BiblioCatalogStore::exactWorkMatches(const QString &title, 
         "1,stable_id,null,null,null,'title',source,source_id,matched_at from user_matched_works union all "
         "select coalesce((select value from sync_meta where key='active_snapshot_id'),0),"
         "2,stable_id,null,null,null,field,source,source_id,observed_at from user_matched_sources "
-        "order by 2,3,7,8,9"));
+        "order by 2,3,7,8,9").arg(workFilter, sourceFilter));
+    if (index) query.addBindValue(QString::fromUtf8(ids));
     query.addBindValue(QStringLiteral("active_snapshot_id"));
+    if (index) query.addBindValue(QString::fromUtf8(ids));
     query.addBindValue(QStringLiteral("active_snapshot_id"));
     if (!query.exec())
         return fail(query);
@@ -225,6 +305,10 @@ BiblioIdentityLookup BiblioCatalogStore::exactWorkMatches(const QString &title, 
         result.warning = QStringLiteral("Invalid Biblio active snapshot id");
         return result;
     }
+    if (index && result.snapshotId != index->snapshotId) {
+        result.warning = QStringLiteral("Biblio snapshot changed during identity lookup");
+        return result;
+    }
     result.status = BiblioIdentityLookup::Status::Available;
     // Discovery's fold deliberately discards parentheticals. Identity cannot:
     // reject them and substantive edition/collection qualifiers BEFORE folding.
@@ -238,14 +322,6 @@ BiblioIdentityLookup BiblioCatalogStore::exactWorkMatches(const QString &title, 
     // unique title plus surname evidence before adopting the result.
     const QString literalAuthor = MediaTitleNormalization::bookAuthorIdentityKey(author);
     const QString authorKey = BiblioProviders::foldTitleAuthor(literalAuthor);
-    auto literalKey = [](QString text) {
-        text = text.toCaseFolded();
-        text.replace(QLatin1Char('&'), QStringLiteral(" and "));
-        static const QRegularExpression punctuation(QStringLiteral("[^\\p{L}\\p{N}]+"));
-        text.replace(punctuation, QStringLiteral(" "));
-        return text.simplified();
-    };
-    const QString literalTitle = literalKey(title);
     const QStringList authorParts = literalAuthor.split(QLatin1Char(' '), Qt::SkipEmptyParts);
     static const QRegularExpression uncertainAuthor(QStringLiteral(
         "(?i)[()\\[\\]0-9]|\\b(?:unknown|anonymous|unspecified)\\b|\\.\\.\\."));
@@ -264,7 +340,7 @@ BiblioIdentityLookup BiblioCatalogStore::exactWorkMatches(const QString &title, 
             const QString storedAuthor = query.value(4).toString();
             const QString storedAuthorKey = MediaTitleNormalization::bookAuthorIdentityKey(storedAuthor);
             const QStringList storedParts = storedAuthorKey.split(QLatin1Char(' '), Qt::SkipEmptyParts);
-            if (!validPair || literalKey(query.value(3).toString()) != literalTitle
+            if (!validPair || literalIdentityTitle(query.value(3).toString()) != literalTitle
                 || qualified.match(query.value(3).toString()).hasMatch()
                 || uncertainAuthor.match(storedAuthor).hasMatch()
                 || storedParts.size() < 2 || storedParts.last().size() <= 1
@@ -376,6 +452,8 @@ bool BiblioCatalogStore::ensureSchema()
             "  observed_at text not null,"
             "  foreign key (snapshot_id, canonical_id)"
             "    references works(snapshot_id, canonical_id) on delete cascade)"),
+        QStringLiteral(
+            "create index if not exists idx_work_sources_work on work_sources(snapshot_id,canonical_id)"),
         QStringLiteral(
             "create table if not exists work_facets ("
             "  snapshot_id integer not null,"

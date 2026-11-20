@@ -451,7 +451,7 @@ void VaultIdentifier::retryNextBookCatalog(quint64 generation)
         else if (match.candidateCount > 1) recordAmbiguous(group, match.candidateCount);
     }
     // One group per turn, with a hard bounded pending set; no network or refresh.
-    QTimer::singleShot(0, this, [this, generation] { retryNextBookCatalog(generation); });
+    QTimer::singleShot(16, this, [this, generation] { retryNextBookCatalog(generation); });
 }
 
 VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) const
@@ -559,7 +559,8 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
             QHash<QString, VaultIndex::FileRow> existing;
             QHash<QString, int> identityCounts;
             QSet<QString> protectedTargets;
-            for (const auto& sibling : m_index->rowsForKind(QStringLiteral("book"))) {
+            const auto bookRows = bookRowsAtRevision();
+            for (const auto& sibling : bookRows) {
                 if (sibling.id == row.id || sibling.away || !sibling.errorState.isEmpty()
                     || sibling.identitySuppressed || sibling.identityState == QLatin1String("ambiguous")
                     || !sibling.identityId.startsWith(QLatin1String("biblio:"))) continue;
@@ -818,8 +819,13 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
             return match;
         }
         bool episodesOnly = true;
-        for (const auto& member : rows)
-            episodesOnly = episodesOnly && VaultKit::videoEpisodeContext(member.path, siblingPaths).number.matched;
+        int lastAbsoluteEpisode = 0;
+        for (const auto& member : rows) {
+            const auto episode = VaultKit::videoEpisodeContext(member.path, siblingPaths).number;
+            episodesOnly = episodesOnly && episode.matched;
+            if (episode.matched && episode.absolute)
+                lastAbsoluteEpisode = qMax(lastAbsoluteEpisode, episode.episode);
+        }
         QVariantList hits;
         for (const auto& value : m_imdb->matchByTitle(normalizedTitle, lookup.year)) {
             const auto type = value.toMap().value(QStringLiteral("type")).toString();
@@ -827,6 +833,19 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
                 hits.append(value);
         }
         if (m_imdb->remoteWaiting()) { m_pendingGroups.insert(groupKey); return match; }
+        if (episodesOnly && lastAbsoluteEpisode > 0 && hits.size() > 1) {
+            QVariantList fits;
+            bool countsKnown = true;
+            for (const auto& value : std::as_const(hits)) {
+                const int count = value.toMap().value(QStringLiteral("episodes")).toInt();
+                countsKnown = countsKnown && count > 0;
+                if (count >= lastAbsoluteEpisode)
+                    fits.append(value);
+            }
+            // Missing episode counts provide no evidence against a candidate.
+            if (countsKnown && fits.size() == 1)
+                hits = std::move(fits);
+        }
         match.candidateCount = hits.size();
         if (hits.isEmpty()) {
             // Zero candidates is absence, not ambiguity; two narrow, year-bound retries follow, each
@@ -924,6 +943,17 @@ bool VaultIdentifier::automaticPrivateEpub(const VaultIndex::FileRow& row)
         && !row.identitySuppressed;
 }
 
+const QList<VaultIndex::FileRow>& VaultIdentifier::bookRowsAtRevision() const
+{
+    const quint64 revision = m_index->revision();
+    if (m_bookRowsRevision != revision) {
+        m_bookRows = m_index->rowsForKind(QStringLiteral("book"));
+        m_bookRowsRevision = revision;
+        m_bookRowsFingerprint.clear();
+    }
+    return m_bookRows;
+}
+
 bool VaultIdentifier::shouldAutoIdentify(const QList<VaultIndex::FileRow>& rows)
 {
     if (rows.isEmpty()) return false;
@@ -937,10 +967,12 @@ bool VaultIdentifier::shouldAutoIdentify(const QList<VaultIndex::FileRow>& rows)
     }
     if (!migration) return true;
     // Include siblings: new library evidence deserves one new convergence probe.
-    const QString fingerprint = bookFingerprint(m_index->rowsForKind(QStringLiteral("book")));
+    const auto& bookRows = bookRowsAtRevision();
+    if (m_bookRowsFingerprint.isEmpty())
+        m_bookRowsFingerprint = bookFingerprint(bookRows);
     const QString key = rows.first().groupKey;
-    if (m_epubAttempts.value(key) == fingerprint) return false;
-    m_epubAttempts.insert(key, fingerprint);
+    if (m_epubAttempts.value(key) == m_bookRowsFingerprint) return false;
+    m_epubAttempts.insert(key, m_bookRowsFingerprint);
     return true;
 }
 

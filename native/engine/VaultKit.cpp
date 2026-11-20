@@ -4,6 +4,7 @@
 
 #include <QCollator>
 #include <QDir>
+#include <QDirIterator>
 #include <QFileInfo>
 #include <QRegularExpression>
 #include <QSet>
@@ -23,6 +24,12 @@ bool isIgnoredDir(const QString& dirName)
     if (dirName.startsWith('.'))
         return true;
     return kIgnoreDirs.contains(dirName.toLower());
+}
+
+bool isDirectDirectory(const QFileInfo& info)
+{
+    return !info.isSymLink() && !info.isJunction()
+        && VaultLocation::normalize(info.canonicalFilePath()) == VaultLocation::normalize(info.absoluteFilePath());
 }
 
 // ── Ignore layer 2: user scanIgnore needles (Groundworks contract) ────
@@ -58,123 +65,100 @@ bool pathHitsNeedle(const QString& path, const QStringList& needles)
 }
 
 // ── Subdirectory listing ──────────────────────────────────────────────
-QStringList listImmediateSubdirs(const QString& rootPath, const QStringList& needles)
+QStringList listImmediateSubdirs(const QString& rootPath, const QStringList& needles,
+                                 const VaultLocation::PersonalPaths& personal)
 {
     QStringList result;
-    QDir root(rootPath);
-    if (!root.exists())
+    if (personal.excludes(rootPath, true))
         return result;
-
-    const auto entries = root.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+    const auto entries = QDir(rootPath).entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks);
     for (const auto& entry : entries) {
-        if (isIgnoredDir(entry.fileName()))
+        if (entry.isJunction() || isIgnoredDir(entry.fileName()))
             continue;
-        if (pathHitsNeedle(entry.absoluteFilePath(), needles))
+        if (personal.excludes(entry.absoluteFilePath(), true) || pathHitsNeedle(entry.absoluteFilePath(), needles))
             continue;
         result.append(entry.absoluteFilePath());
     }
     return result;
 }
 
-// ── Recursive file walk (depth-bounded + symlink-loop-safe) ───────────
-static void walkFilesRecursive(const QString& dirPath,
-                               const QStringList& nameFilters,
-                               QStringList& out,
-                               const CancellationToken* cancel,
-                               const QStringList& needles,
-                               int depth,
-                               QSet<QString>& seen)
+static QList<QRegularExpression> compileNameFilters(const QStringList& filters)
 {
-    if (cancel && cancel->isCancelled())
-        return;
-    if (depth > kMaxWalkDepth)
-        return;
-    if (pathHitsNeedle(dirPath, needles))
-        return;
-
-    QFileInfo info(dirPath);
-    const QString canonical = info.canonicalFilePath();
-    if (canonical.isEmpty() || seen.contains(canonical))
-        return;
-    seen.insert(canonical);
-
-    QDir dir(dirPath);
-
-    const auto files = dir.entryInfoList(nameFilters, QDir::Files);
-    for (const auto& f : files) {
-        if (cancel && cancel->isCancelled())
-            return;
-        if (pathHitsNeedle(f.absoluteFilePath(), needles))
-            continue;
-        out.append(f.absoluteFilePath());
+    QList<QRegularExpression> compiled;
+    for (const QString& filter : filters) {
+        compiled.append(QRegularExpression(QRegularExpression::wildcardToRegularExpression(filter),
+                                           QRegularExpression::CaseInsensitiveOption));
     }
+    return compiled;
+}
 
-    const auto subdirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
-    for (const auto& sub : subdirs) {
-        if (cancel && cancel->isCancelled())
-            return;
-        if (isIgnoredDir(sub.fileName()))
+static void walkEntries(const QString& directory, const QList<QRegularExpression>& filters,
+                        const CancellationToken* cancel, const QStringList& needles,
+                        const VaultLocation::PersonalPaths& personal,
+                        const std::function<void(bool)>& onEntry, int depth,
+                        const QString& scope, QMap<QString, QStringList>& result,
+                        bool groupAtRoot)
+{
+    if (depth > kMaxWalkDepth || (cancel && cancel->isCancelled())
+        || personal.excludes(directory, true) || pathHitsNeedle(directory, needles))
+        return;
+
+    QDirIterator entries(directory, QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks);
+    while ((!cancel || !cancel->isCancelled()) && entries.hasNext()) {
+        const QString path = entries.next();
+        const QFileInfo entry = entries.fileInfo();
+        const bool dir = entry.isDir();
+        if (entry.isJunction() || personal.excludes(path, dir) || pathHitsNeedle(path, needles)) {
+            if (onEntry) onEntry(false);
             continue;
-        if (pathHitsNeedle(sub.absoluteFilePath(), needles))
-            continue;
-        walkFilesRecursive(sub.absoluteFilePath(), nameFilters, out, cancel,
-                           needles, depth + 1, seen);
+        }
+        if (dir) {
+            if (onEntry) onEntry(false);
+            if (!isIgnoredDir(entry.fileName()))
+                walkEntries(path, filters, cancel, needles, personal, onEntry, depth + 1,
+                            groupAtRoot ? path : scope, result, false);
+        } else {
+            const QString name = entry.fileName();
+            const bool matched = filters.isEmpty() || std::any_of(filters.cbegin(), filters.cend(),
+                [&name](const QRegularExpression& filter) { return filter.match(name).hasMatch(); });
+            if (onEntry) onEntry(matched);
+            if (matched)
+                result[scope].append(entry.absoluteFilePath());
+        }
     }
 }
 
 QStringList walkFiles(const QString& dirPath, const QStringList& nameFilters,
-                      const CancellationToken* cancel, const QStringList& needles)
+                      const CancellationToken* cancel, const QStringList& needles,
+                      const VaultLocation::PersonalPaths& personal)
 {
-    QStringList result;
-    QSet<QString> seen;
-    walkFilesRecursive(dirPath, nameFilters, result, cancel, needles, 0, seen);
-    return result;
+    QMap<QString, QStringList> result;
+    walkEntries(dirPath, compileNameFilters(nameFilters), cancel, needles, personal, {}, 0, dirPath, result, false);
+    auto files = result.value(dirPath);
+    files.sort(Qt::CaseInsensitive);
+    return files;
 }
 
-// ── Group by first-level subdirectory + loose capture ─────────────────
 QMap<QString, QStringList> groupByFirstLevelSubdir(
     const QStringList& rootFolders, const QStringList& nameFilters,
     const CancellationToken* cancel, const QStringList& needles,
-    const std::function<void(int, int, const QString&)>& onProgress)
+    const std::function<void(int, int, const QString&)>& onProgress,
+    const VaultLocation::PersonalPaths& personal, const std::function<void(bool)>& onEntry)
 {
     QMap<QString, QStringList> result;
-
+    const auto filters = compileNameFilters(nameFilters);
     for (const auto& root : rootFolders) {
-        if (cancel && cancel->isCancelled())
-            return result;
-
-        // 1. Each immediate subdirectory becomes a group.
-        const QStringList subdirs = listImmediateSubdirs(root, needles);
-        for (int i = 0; i < subdirs.size(); ++i) {
-            if (cancel && cancel->isCancelled())
-                return result;
-            const QString& subdir = subdirs.at(i);
-            // Live pill signal: (done, total, folder) as each first-level subtree begins
-            // its walk — the walk is the slow part, so report before it, not after.
-            if (onProgress)
-                onProgress(i, subdirs.size(), QFileInfo(subdir).fileName());
-            QStringList files = walkFiles(subdir, nameFilters, cancel, needles);
-            if (!files.isEmpty())
-                result[subdir] = files;
-        }
-        if (onProgress && !subdirs.isEmpty())
-            onProgress(subdirs.size(), subdirs.size(), QString());
-
-        // 2. Loose files directly in the root → "<root>::LOOSE" (spec §5).
-        QDir rootDir(root);
-        const auto looseFiles = rootDir.entryInfoList(nameFilters, QDir::Files);
-        if (!looseFiles.isEmpty()) {
-            const QString looseKey = root + QStringLiteral("::LOOSE");
-            for (const auto& f : looseFiles) {
-                if (pathHitsNeedle(f.absoluteFilePath(), needles))
-                    continue;
-                result[looseKey].append(f.absoluteFilePath());
-            }
-            if (result.contains(looseKey) && result[looseKey].isEmpty())
-                result.remove(looseKey);
-        }
+        walkEntries(root, filters, cancel, needles, personal, onEntry, -1,
+                    root + QStringLiteral("::LOOSE"), result, true);
     }
-
+    int done = 0;
+    for (auto it = result.begin(); it != result.end(); ++it) {
+        if (cancel && cancel->isCancelled())
+            break;
+        it.value().sort(Qt::CaseInsensitive);
+        if (onProgress)
+            onProgress(++done, result.size(), QFileInfo(it.key()).fileName());
+    }
     return result;
 }
 
@@ -767,13 +751,15 @@ static QString stripTrailingSeasonLabel(const QString& cleanedTitle)
     return out.trimmed();
 }
 
-static QStringList videoFilesDirectlyIn(const QString& dirPath, const QStringList& needles)
+static QStringList videoFilesDirectlyIn(const QString& dirPath, const QStringList& needles,
+                                         const VaultLocation::PersonalPaths& personal)
 {
     QStringList out;
     QDir dir(dirPath);
-    const auto files = dir.entryInfoList(videoFilters(), QDir::Files);
+    if (personal.excludes(dirPath, true)) return out;
+    const auto files = dir.entryInfoList(videoFilters(), QDir::Files | QDir::NoSymLinks);
     for (const auto& f : files) {
-        if (pathHitsNeedle(f.absoluteFilePath(), needles))
+        if (personal.excludes(f.absoluteFilePath()) || pathHitsNeedle(f.absoluteFilePath(), needles))
             continue;
         out.append(f.absoluteFilePath());
     }
@@ -793,7 +779,8 @@ struct ChildClassification {
 };
 
 static ChildClassification classifyChildDirectory(const QString& childPath,
-                                                   const QStringList& needles)
+                                                   const QStringList& needles,
+                                         const VaultLocation::PersonalPaths& personal)
 {
     ChildClassification cc;
     const QString rawName = QFileInfo(childPath).fileName();
@@ -804,11 +791,11 @@ static ChildClassification classifyChildDirectory(const QString& childPath,
     // never counted, never a node — the plan's extras-folding requirement).
     QStringList seasonSubdirs;
     QDir dir(childPath);
-    const auto subEntries = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+    const auto subEntries = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks);
     for (const auto& e : subEntries) {
         if (isIgnoredDir(e.fileName()))
             continue;
-        if (pathHitsNeedle(e.absoluteFilePath(), needles))
+        if (e.isJunction() || personal.excludes(e.absoluteFilePath(), e.isDir()) || pathHitsNeedle(e.absoluteFilePath(), needles))
             continue;
         if (isExtrasDirName(e.fileName()))
             continue; // folded: never counted, never a node
@@ -819,10 +806,10 @@ static ChildClassification classifyChildDirectory(const QString& childPath,
     }
 
     QDir mdir(childPath);
-    const auto looseMedia = mdir.entryInfoList(allMediaFilters(), QDir::Files);
+    const auto looseMedia = mdir.entryInfoList(allMediaFilters(), QDir::Files | QDir::NoSymLinks);
     QStringList looseMediaPaths;
     for (const auto& f : looseMedia) {
-        if (pathHitsNeedle(f.absoluteFilePath(), needles) || isSampleVideo(f.absoluteFilePath()))
+        if (personal.excludes(f.absoluteFilePath()) || pathHitsNeedle(f.absoluteFilePath(), needles) || isSampleVideo(f.absoluteFilePath()))
             continue;
         looseMediaPaths.append(f.absoluteFilePath());
     }
@@ -926,9 +913,11 @@ static ChildClassification classifyChildDirectory(const QString& childPath,
 }
 
 QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& scanIgnore,
-                                  const CancellationToken* cancel)
+                                  const CancellationToken* cancel,
+                                 const VaultLocation::PersonalPaths& personal)
 {
     QList<BrowseNode> out;
+    if (personal.excludes(levelPath, true)) return out;
     const QStringList needles = sanitizeIgnoreNeedles(scanIgnore);
 
     // ── A virtual show key spanning separate sibling season folders (the Loki shape): recompute
@@ -942,7 +931,7 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
         const bool seasonLevel = suffix.contains(QStringLiteral("::season::"));
         const int requestedSeason = suffix.section(QStringLiteral("::season::"), 1).toInt();
         QMap<int, QList<QFileInfo>> looseSeasons;
-        const auto siblingFiles = videoFilesDirectlyIn(parentPath, needles);
+        const auto siblingFiles = videoFilesDirectlyIn(parentPath, needles, personal);
         for (const QString& path : siblingFiles) {
             const auto context = videoEpisodeContext(path, siblingFiles);
             if (!context.number.matched || normalizedTitle(context.title) != slug) continue;
@@ -968,14 +957,14 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
             season.physicalFact = QStringLiteral("%1 episodes").arg(season.mediaCount);
             out.append(season);
         }
-        const QStringList siblingDirs = listImmediateSubdirs(parentPath, needles);
+        const QStringList siblingDirs = listImmediateSubdirs(parentPath, needles, personal);
         for (const QString& sib : siblingDirs) {
             if (cancel && cancel->isCancelled())
                 return out;
             const QString name = QFileInfo(sib).fileName();
             if (isExtrasDirName(name) || isSeasonLikeDirName(name))
                 continue;
-            const ChildClassification cc = classifyChildDirectory(sib, needles);
+            const ChildClassification cc = classifyChildDirectory(sib, needles, personal);
             if (!cc.siblingCandidate)
                 continue;
             if (normalizedTitle(stripTrailingSeasonLabel(cc.node.displayTitle)) != slug)
@@ -1002,7 +991,7 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
 
     // Immediate subdirectories, split into bare-season (a show's own seasons), extras (folded,
     // never a node), and everything else worth classifying.
-    const QStringList allChildDirs = listImmediateSubdirs(levelPath, needles);
+    const QStringList allChildDirs = listImmediateSubdirs(levelPath, needles, personal);
     QStringList bareSeasonChildren;
     QStringList qualifyingChildDirs;
     for (const QString& c : allChildDirs) {
@@ -1031,7 +1020,7 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
             season.path = sp;
             season.seasonNumber = seasonOrdinalFromDirName(QFileInfo(sp).fileName());
             season.displayTitle = QStringLiteral("Season %1").arg(season.seasonNumber);
-            const QStringList vids = videoFilesDirectlyIn(sp, needles);
+            const QStringList vids = videoFilesDirectlyIn(sp, needles, personal);
             season.mediaCount = vids.size();
             season.physicalFact = QStringLiteral("%1 episodes").arg(vids.size());
             out.append(season);
@@ -1044,7 +1033,7 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
         for (const QString& child : qualifyingChildDirs) {
             if (cancel && cancel->isCancelled())
                 return out;
-            const QStringList media = walkFiles(child, allMediaFilters(), cancel, needles);
+            const QStringList media = walkFiles(child, allMediaFilters(), cancel, needles, personal);
             if (media.isEmpty())
                 continue;
             BrowseNode folder;
@@ -1072,7 +1061,7 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
     QList<BrowseNode> looseShows;
     QSet<QString> groupedFiles;
     QMap<QString, QStringList> looseGroups;
-    const auto siblingFiles = videoFilesDirectlyIn(levelPath, needles);
+    const auto siblingFiles = videoFilesDirectlyIn(levelPath, needles, personal);
     for (const QString& file : siblingFiles) {
         const auto context = videoEpisodeContext(file, siblingFiles);
         if (context.number.matched && !context.title.isEmpty()) looseGroups[context.title].append(file);
@@ -1102,7 +1091,7 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
         for (const QString& child : qualifyingChildDirs) {
             if (cancel && cancel->isCancelled())
                 return out;
-            classified.append(classifyChildDirectory(child, needles));
+            classified.append(classifyChildDirectory(child, needles, personal));
         }
 
         QList<BrowseNode> folders, shows, films;
@@ -1184,12 +1173,12 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
     // folder level", locked design). ──
     QDir mdir(levelPath);
     out += looseShows;
-    const auto looseVideos = mdir.entryInfoList(videoFilters(), QDir::Files);
+    const auto looseVideos = mdir.entryInfoList(videoFilters(), QDir::Files | QDir::NoSymLinks);
     for (const auto& f : looseVideos) {
         if (isSampleVideo(f.absoluteFilePath()) || groupedFiles.contains(f.absoluteFilePath())) continue;
         if (cancel && cancel->isCancelled())
             return out;
-        if (pathHitsNeedle(f.absoluteFilePath(), needles))
+        if (personal.excludes(f.absoluteFilePath()) || pathHitsNeedle(f.absoluteFilePath(), needles))
             continue;
         BrowseNode n;
         n.key = f.absoluteFilePath();
@@ -1259,18 +1248,19 @@ static QString extraTitleFromFileName(const QString& completeBaseName)
 }
 
 FilmPhysicalFacts describeFilmFolder(const QString& folderPath, const QString& primaryFilePath,
-                                     const QStringList& scanIgnore)
+                                     const QStringList& scanIgnore,
+                                     const VaultLocation::PersonalPaths& personal)
 {
     FilmPhysicalFacts facts;
     const QStringList needles = sanitizeIgnoreNeedles(scanIgnore);
     QDir dir(folderPath);
-    if (!dir.exists())
+    if (personal.excludes(folderPath, true) || !dir.exists())
         return facts;
 
     const QString primaryAbs = QFileInfo(primaryFilePath).absoluteFilePath();
-    const auto entries = dir.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
+    const auto entries = dir.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks);
     for (const auto& e : entries) {
-        if (pathHitsNeedle(e.absoluteFilePath(), needles))
+        if (e.isJunction() || personal.excludes(e.absoluteFilePath(), e.isDir()) || pathHitsNeedle(e.absoluteFilePath(), needles))
             continue;
 
         if (e.isDir()) {
@@ -1278,7 +1268,7 @@ FilmPhysicalFacts describeFilmFolder(const QString& folderPath, const QString& p
             if (isIgnoredDir(name))
                 continue;
             if (isExtrasDirName(name)) {
-                const auto videos = walkFiles(e.absoluteFilePath(), videoFilters(), nullptr, needles);
+                const auto videos = walkFiles(e.absoluteFilePath(), videoFilters(), nullptr, needles, personal);
                 for (const auto& path : videos) {
                     const QFileInfo video(path);
                     facts.extras.append(FilmExtra{
@@ -1288,10 +1278,10 @@ FilmPhysicalFacts describeFilmFolder(const QString& folderPath, const QString& p
             }
             if (isCompanionDirName(name)) {
                 QDir companionDir(e.absoluteFilePath());
-                const auto inner = companionDir.entryInfoList(QDir::Files);
+                const auto inner = companionDir.entryInfoList(QDir::Files | QDir::NoSymLinks);
                 int count = 0;
                 for (const auto& f : inner) {
-                    if (pathHitsNeedle(f.absoluteFilePath(), needles))
+                    if (personal.excludes(f.absoluteFilePath()) || pathHitsNeedle(f.absoluteFilePath(), needles))
                         continue;
                     ++count;
                 }
