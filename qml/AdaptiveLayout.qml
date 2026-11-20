@@ -99,5 +99,10 @@ QtObject {
     function targetInset(size) { return (targetSize(size) - size) / 2 }
     readonly property real heroHeight: shortAndroid ? Math.min(340, availableHeroHeight)
                                                   : phone ? 260 : (tablet ? 300 : 340)
-    readonly property real homeHeroHeight: shortAndroid ? Math.min(360, availableHeroHeight) : 360
+    // On a short landscape phone the hero used to fill the whole viewport above the dock, so the
+    // page looked like one fixed slide with nothing below it. ~58% of the viewport (floored at
+    // 220, enough for the title, Explore button and padding) leaves the pills and the next
+    // section visibly peeking above the dock.
+    readonly property real homeHeroHeight: shortAndroid
+        ? Math.min(360, availableHeroHeight, Math.max(220, viewportHeight * 0.58)) : 360
 }
