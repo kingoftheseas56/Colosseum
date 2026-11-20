@@ -274,7 +274,8 @@ Item {
             var last = list.itemAtIndex(1)
             verify(last.mapToItem(list, 0, last.height).y <= list.height,
                    "Second row ends at " + last.mapToItem(list, 0, last.height).y + " with " + list.height + " available")
-            verify(list.mapToItem(sheet, 0, list.height).y <= dock.mapToItem(sheet, 0, 0).y)
+            // The list runs beneath the floating dock; its scroll padding keeps the last row clear of it.
+            verify(list.mapToItem(sheet, 0, list.height).y - list.bottomMargin <= dock.mapToItem(sheet, 0, 0).y)
         }
 
         function test_replacementAndClosedResults() {

@@ -76,6 +76,7 @@ TestCase {
         sheet = sourcesComponent.createObject(surface)
         verify(sheet !== null)
         sheet.title = "Example film"
+        sheet.smartPlayQuality = "off" // manual list: Smart Play hides the table while it picks
         sheet.rows = rows
         sheet.open = true
         sheet.opacity = 1
