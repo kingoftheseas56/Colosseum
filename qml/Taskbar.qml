@@ -705,6 +705,11 @@ Item {
                                 return "Open " + sessions.length + " sessions"
                             }
                             focusRadius: 23
+                            // Touch (Android): a finger can't hover or hit the 18px shoulder
+                            // close, so press-and-hold opens the fan for one session too; its
+                            // row carries the title and a finger-sized close.
+                            longPressEnabled: touchMetrics.androidHost
+                            onLongPressed: fan.openFor(tile, tile.modelData.sessions || [], tileInput)
                             onTriggered: {
                                 var sessions = tile.modelData.sessions || []
                                 if (sessions.length === 1) {
@@ -727,7 +732,7 @@ Item {
                         // switches, because it sits above tileMa in its corner.
                         Item {
                             id: tileClose
-                            visible: !tile.multi
+                            visible: !tile.multi && !touchMetrics.androidHost
                             anchors.right: parent.right
                             anchors.rightMargin: -3
                             anchors.top: parent.top
@@ -826,7 +831,7 @@ Item {
                     Accessible.role: Accessible.Button
                     Accessible.name: modelData.title || "Session"
                     Accessible.description: "Enter opens this session. Delete closes it."
-                    height: 40
+                    height: touchMetrics.androidHost ? 52 : 40
                     radius: 10
                     color: rowMa.containsMouse || fanRow.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
 
@@ -860,8 +865,8 @@ Item {
                         anchors.rightMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
                         z: 1   // close outranks rowMa (declared later, fills the whole row)
-                        width: 24
-                        height: 24
+                        width: touchMetrics.androidHost ? 44 : 24
+                        height: touchMetrics.androidHost ? 44 : 24
 
                         Rectangle {
                             width: 11; height: 1.4; radius: 1
