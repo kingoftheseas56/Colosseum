@@ -5,6 +5,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Window
+import "ExtensionsStoreApi.js" as StoreApi
 
 Item {
     id: page
@@ -33,29 +34,8 @@ Item {
         if (index >= 0 && card) card.focusActions()
     }
 
-    readonly property var items: {
-        if (!page.searching) return page.row ? (page.row.all || page.row.items || []) : []
-        var words = page.query.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 0 })
-        if (!words.length) return []
-        // Every word must appear somewhere; a hit in the name outranks a category, which
-        // outranks the description. Stars break ties.
-        var hits = []
-        for (var j = 0; j < page.pool.length; j++) {
-            var a = page.pool[j]
-            var name = a.name.toLowerCase(), cats = a.categories.join(" "), desc = a.description.toLowerCase()
-            var score = 0, all = true
-            for (var i = 0; i < words.length && all; i++) {
-                var w = words[i]
-                if (name.indexOf(w) >= 0) score += 100
-                else if (cats.indexOf(w) >= 0) score += 10
-                else if (desc.indexOf(w) >= 0) score += 1
-                else all = false
-            }
-            if (all) hits.push({ a: a, score: score })
-        }
-        hits.sort(function(x, y) { return (y.score - x.score) || (y.a.stars - x.a.stars) })
-        return hits.map(function(h) { return h.a })
-    }
+    readonly property var items: page.searching ? StoreApi.search(page.pool, page.query)
+        : page.row ? (page.row.all || page.row.items || []) : []
     visible: page.row !== null || page.searching
     onSearchingChanged: if (page.searching) { page.query = ""; box.text = "" }
 

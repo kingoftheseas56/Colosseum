@@ -239,6 +239,27 @@ function catalogues() {
     ]
 }
 
+function search(all, query) {
+    var words = query.toLowerCase().trim().split(/\s+/).filter(Boolean)
+    if (!words.length) return []
+    var hits = []
+    all.forEach(function(addon) {
+        var name = addon.name.toLowerCase()
+        var categories = addon.categories.join(" ")
+        var description = addon.description.toLowerCase()
+        var score = 0
+        for (var word of words) {
+            if (name.includes(word)) score += 100
+            else if (categories.includes(word)) score += 10
+            else if (description.includes(word)) score++
+            else return
+        }
+        hits.push({ addon: addon, score: score })
+    })
+    hits.sort(function(a, b) { return b.score - a.score || b.addon.stars - a.addon.stars })
+    return hits.map(function(hit) { return hit.addon })
+}
+
 function supportedCategories(all) {
     var supported = ["anime", "asian drama", "bollywood", "debrid support", "http streams",
                      "metadata", "movies", "subtitles", "torrents", "tv shows"]

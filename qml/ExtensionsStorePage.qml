@@ -37,6 +37,7 @@ Item {
     }
     property var busy: ({})                  // slug -> true while an install is in flight
     property string configuringExtensionId: ""   // a House source whose settings page is open
+    property string categoryName: ""
     property var seeAllRow: null             // a row whose "See all ›" is open
     property bool searching: false           // the Store's own search is open
     property bool installUrlOpen: false
@@ -72,6 +73,7 @@ Item {
         }))
     }
     readonly property var categories: StoreApi.supportedCategories(directoryEntries)
+    readonly property var selectedCategory: root.categories.find(category => category.name === root.categoryName) || null
     readonly property var catalogues: StoreApi.catalogues().concat(enrichment.filter(function(a) {
         return a.title === "Streaming Catalogs"
     }))
@@ -315,12 +317,14 @@ Item {
             configurable: true, setupRequired: false
         }
         root.managingInstalled = false
+        root.categoryName = ""
         root.seeAllRow = null
         root.searching = false
         root.openSetup(addon, null)
     }
     function openPlaySources() {
         root.managingInstalled = false
+        root.categoryName = ""
         root.searching = false
         root.seeAllRow = null
         root.pendingPlaySourcesBrowse = true
@@ -523,6 +527,8 @@ Item {
     function takeKeyboardFocus() {
         if (tankoyomiConfiguration.visible) tankoyomiConfiguration.takeKeyboardFocus()
         else if (management.visible) management.takeKeyboardFocus()
+        else if (categoryLoader.visible && categoryLoader.status === Loader.Ready)
+            categoryLoader.item.takeKeyboardFocus()
         else if (seeAll.visible) seeAll.takeKeyboardFocus()
         else storeWorld.forceActiveFocus()
     }
@@ -535,6 +541,11 @@ Item {
         if (management.dismissRemoval()) return true
         if (nuvioDrawer.visible) { nuvioDrawer.close(); return true }
         if (root.managingInstalled) return management.requestEscape()
+        if (root.categoryName.length) {
+            root.categoryName = ""
+            Qt.callLater(root.takeKeyboardFocus)
+            return true
+        }
         if (root.seeAllRow || root.searching) { root.seeAllRow = null; root.searching = false; return true }
         return false
     }
@@ -616,6 +627,21 @@ Item {
             GradientStop { position: 0.52; color: "#16171c" }
             GradientStop { position: 1; color: "#0b0d12" }
         }
+
+        Loader {
+            objectName: "extensionsWallpaperBlur"
+            anchors.fill: parent
+            active: root.visible && !categoryLoader.visible && root.shellWallpaper !== null
+                && root.GraphicsInfo.api !== GraphicsInfo.Software
+            sourceComponent: Glass {
+                backdrop: root.shellWallpaper
+                radius: 0
+                blurAmount: 0.85
+                tint: 0
+                edge: "transparent"
+                scrim: 0.58
+            }
+        }
     }
 
     WorldPage {
@@ -623,7 +649,8 @@ Item {
         objectName: "extensionsStoreWorld"
         androidHost: root.phoneLayout
         anchors.fill: parent
-        visible: !seeAll.visible && !tankoyomiConfiguration.visible && !management.visible
+        visible: !categoryLoader.visible && !seeAll.visible
+            && !tankoyomiConfiguration.visible && !management.visible
         medium: "Extensions"
         prominentScrollBar: true
         contentBottomInset: root.bottomInset
@@ -641,7 +668,7 @@ Item {
 
             FeaturedCarousel {
                 width: parent.width
-                height: Math.round(Math.max(width < 520 ? 160 : 220, Math.min(270, width * 0.20)))
+                height: Math.round(Math.max(width < 520 ? 160 : 236, Math.min(320, width * 0.24)))
                 visible: slides.length > 0
                 automationId: "extensionsTributeCarousel"
                 androidHost: root.phoneLayout
@@ -651,7 +678,8 @@ Item {
                 slides: root.tributes.map(tribute => ({
                     id: tribute.extensionId,
                     title: tribute.name,
-                    art: tribute.banner
+                    art: tribute.extensionId === "com.colosseum.universe.cosmere"
+                        ? Qt.resolvedUrl("../assets/extensions/house/cosmere.jpg") : tribute.banner
                 }))
                 onPrimaryClicked: index => {
                     const tribute = root.tributes[index]
@@ -769,7 +797,7 @@ Item {
                 genres: root.categories
                 columns: Math.max(1, Math.min(5, Math.floor(width / 158)))
                 navigable: false
-                onGenreClicked: index => root.seeAllRow = root.categories[index]
+                onGenreClicked: index => root.categoryName = root.categories[index].name
             }
         }
 
@@ -928,6 +956,62 @@ Item {
         }
     }
 
+    Loader {
+        id: categoryLoader
+        anchors.fill: parent
+        z: 10
+        active: root.selectedCategory !== null
+        visible: active && !root.managingInstalled && !tankoyomiConfiguration.visible
+        onLoaded: Qt.callLater(root.takeKeyboardFocus)
+        onVisibleChanged: if (visible) Qt.callLater(root.takeKeyboardFocus)
+        sourceComponent: GenrePage {
+            id: categoryPage
+            objectName: "extensionsCategoryPage"
+            backdrop: root.shellWallpaper
+            bottomInset: root.bottomInset
+            genreName: root.categoryName
+            genreTitle: genreName.charAt(0).toUpperCase() + genreName.slice(1)
+            genreContext: qsTr("EXTENSIONS · ")
+            genreKind: qsTr("CATEGORY")
+            siblingGenres: root.categories.map(category => category.name)
+            filterPlaceholder: qsTr("Search this category")
+            readonly property var categoryAddons: root.selectedCategory ? root.selectedCategory.all : []
+            readonly property var results: filterText.trim().length
+                ? StoreApi.search(categoryAddons, filterText) : categoryAddons
+            readonly property var artwork: {
+                var logos = []
+                for (const addon of categoryAddons) {
+                    if (addon.logo && !logos.includes(addon.logo))
+                        logos.push(addon.logo)
+                    if (logos.length === 6) break
+                }
+                return logos
+            }
+            genreData: ({ count: results.length, desc: "", cards: results, montage: artwork })
+            catalogSummary: qsTr("%n add-on(s)", "", results.length)
+            loading: false
+            resultDelegate: ExtensionsStoreCard {
+                id: categoryCard
+                property alias card: categoryCard.addon
+                essentialsLayout: true
+                installed: { root.revision; return root.isInstalled(addon) }
+                disabled: { root.revision; return root.isDisabled(addon) }
+                busy: root.busy[addon.slug] === true
+                onActivated: root.installEssential(addon)
+                onConfigureRequested: root.configureEssential(addon)
+                onRemoveRequested: management.requestRemoval(root.essentialInstanceIndices(addon))
+            }
+            onGenreRequested: name => root.categoryName = name
+            onBackRequested: {
+                root.categoryName = ""
+                Qt.callLater(root.takeKeyboardFocus)
+            }
+            onMinimizeRequested: root.minimizeRequested()
+            onFullscreenRequested: root.fullscreenRequested()
+            onCloseRequested: root.closeRequested()
+        }
+    }
+
     ExtensionsSeeAllPage {
         id: seeAll
         anchors.fill: parent
@@ -955,7 +1039,6 @@ Item {
         anchors.fill: parent
         z: 10
         visible: root.managingInstalled && !tankoyomiConfiguration.visible
-        backdrop: root.shellWallpaper
         titleFont: extensionsTitleFont.name
         bottomInset: root.bottomInset
         entries: root.installedEntries
@@ -982,22 +1065,30 @@ Item {
         spacing: 10
 
         KeyboardAction {
+            id: installedButton
             objectName: "extensionsInstalledButton"
-            width: installedLabel.implicitWidth + 24
+            width: installedLabel.implicitWidth + 30
             height: 44
             accessibleName: qsTr("Installed add-ons")
             onTriggered: {
                 management.initialIndex = 0
                 root.managingInstalled = true
             }
+            Rectangle {
+                anchors.fill: parent
+                radius: 12
+                color: installedButton.interactionActive ? theme.glassHi : theme.glassTint
+                border.width: 1
+                border.color: installedButton.interactionActive ? theme.gold : theme.edge
+            }
             Text {
                 id: installedLabel
                 anchors.centerIn: parent
                 text: qsTr("Installed")
-                font.family: theme.ui
-                font.pixelSize: theme.fontSize(19)
+                font.family: extensionsTitleFont.name || theme.display
+                font.pixelSize: theme.fontSize(17)
                 font.weight: Font.DemiBold
-                color: parent.interactionActive ? theme.gold : theme.ink
+                color: installedButton.interactionActive ? theme.gold : theme.ink
             }
         }
         KeyboardAction {
@@ -1024,7 +1115,7 @@ Item {
         anchors.right: parent.right; anchors.rightMargin: theme.margin
         y: 46
         z: 15
-        visible: Qt.platform.os !== "android" && !tankoyomiConfiguration.visible
+        visible: Qt.platform.os !== "android" && !tankoyomiConfiguration.visible && !categoryLoader.visible
         onMinimizeRequested: root.minimizeRequested()
         onFullscreenRequested: root.fullscreenRequested()
         onQuitRequested: root.closeRequested()

@@ -3,6 +3,7 @@ import QtQuick.Window
 import QtTest
 import "../../qml" as Colosseum
 import "../../qml/ExtensionsStoreApi.js" as StoreApi
+import "../../qml/GenreApi.js" as GenreApi
 
 TestCase {
     id: tests
@@ -11,6 +12,7 @@ TestCase {
     Window { id: host; width: 1280; height: 800; visible: true }
     Component { id: pageComponent; Colosseum.ExtensionsStorePage {} }
     Component { id: houseComponent; Colosseum.ExtensionsHousePage {} }
+    Component { id: genreComponent; Colosseum.GenrePage {} }
     property var page: null
     property var originalFetch: null
     QtObject {
@@ -127,8 +129,66 @@ TestCase {
         })
         let opened = ""
         page.tributeRequested.connect(tribute => { opened = tribute.extensionId })
+        const art = findChild(carousel, "featuredBleedArt_1")
+        verify(art)
+        compare(art.fillMode, Image.PreserveAspectFit)
         verify(findChild(carousel, "extensionsFeaturedTribute").activate())
         compare(opened, "second")
+    }
+
+    function test_categories_reuse_genre_page_and_search_the_selected_category() {
+        function addon(title, category) {
+            const slug = title.replace(" ", "-").toLowerCase()
+            return StoreApi.normalize({
+                slug: slug,
+                manifestUrl: "https://example.test/" + slug + "/manifest.json",
+                categories: [{name: category}],
+                manifest: {name: title, resources: ["catalog"]}
+            })
+        }
+        page = pageComponent.createObject(host.contentItem, {width: host.width, height: host.height})
+        verify(page !== null)
+        page.catalogue = [
+            addon("Northern Lights", "anime"),
+            addon("A Different Title", "anime"),
+            addon("Northern Stories", "movies")
+        ]
+        const mosaic = findChild(page, "extensionsCategoryMosaic")
+        verify(mosaic && mosaic.visible)
+        mosaic.genreClicked(0)
+        tryVerify(() => findChild(page, "extensionsCategoryPage") !== null)
+        const genre = findChild(page, "extensionsCategoryPage")
+        const search = findChild(genre, "genreCategorySearch")
+        verify(search && search.visible)
+        compare(genre.genreTitle, "Anime")
+        compare(genre.results.length, 2)
+        search.text = "northern"
+        compare(genre.results.length, 1)
+        compare(genre.results[0].name, "Northern Lights")
+        genre.genreRequested("movies")
+        compare(genre.genreTitle, "Movies")
+        compare(search.text, "")
+        compare(genre.results[0].name, "Northern Stories")
+        verify(page.requestEscape())
+        verify(mosaic.visible)
+    }
+
+    function test_manga_genre_keeps_its_detailed_cards() {
+        const original = GenreApi.loadGenre
+        GenreApi.loadGenre = (name, sort, done) => done({
+            count: 1, desc: "", cards: [{title: "Fixture manga"}], montage: []
+        })
+        try {
+            page = genreComponent.createObject(host.contentItem, {width: host.width, height: host.height})
+            verify(page !== null)
+            tryVerify(() => findChild(page, "genreDetailCard_1") !== null)
+            const card = findChild(page, "genreDetailCard_1")
+            compare(card.height, 210)
+            compare(card.card.title, "Fixture manga")
+            verify(!findChild(page, "genreCategorySearch").visible)
+        } finally {
+            GenreApi.loadGenre = original
+        }
     }
 
     function test_installed_source_labels_use_the_media() {

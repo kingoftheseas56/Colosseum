@@ -8,7 +8,6 @@ Item {
     required property var capabilitiesFor
     required property var instanceLabelFor
     required property var configurableFor
-    property Item backdrop: null
     property string titleFont: ""
     property int initialIndex: 0
     property real bottomInset: 24
@@ -91,20 +90,6 @@ Item {
         })
     } else removeDialog.close()
     Keys.onEscapePressed: page.requestEscape()
-    Loader {
-        anchors.fill: parent
-        active: page.visible && page.backdrop !== null
-            && page.GraphicsInfo.api !== GraphicsInfo.Software
-        sourceComponent: Glass {
-            backdrop: page.backdrop
-            radius: 0
-            blurAmount: 0.85
-            tint: 0
-            edge: "transparent"
-            scrim: 0.58
-        }
-    }
-
     MouseArea { anchors.fill: parent }
     BackAction {
         id: back
