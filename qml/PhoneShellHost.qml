@@ -81,6 +81,7 @@ Item {
         { key: "colosseum",  label: "Your Colosseum", note: "History, highlights and stats" },
         { key: "trackers",   label: "Trackers",       note: "Connections to other libraries" },
         { key: "stremio",    label: "Stremio",        note: "Bring your Stremio library across" },
+        { key: "wallpaper",  label: "Wallpaper",      note: "Change the background" },
         { key: "account",    label: "Account",        note: "Sign in, devices and security" }
     ]
 
@@ -125,6 +126,7 @@ Item {
         case "colosseum":  host.window.openHistoryStatsPage(); return
         case "trackers":   host.window.openSyncCenterPage(); return
         case "stremio":    host.window.openStremioSyncPanel(); return
+        case "wallpaper":  host.window.openWallpaperSearch(); return
         // the account door the top bar's pill opens: signed out it offers Sign in
         case "account":    host.accountFlyout.toggleAt(host.window.width - 16, 76); return
         }
