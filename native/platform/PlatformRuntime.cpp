@@ -500,6 +500,34 @@ bool Runtime::requestPermission(const QString &permission) {
     return true;
 }
 
+bool Runtime::allFilesAccessGranted() const {
+#if defined(Q_OS_ANDROID)
+    if (m_kind != Kind::Android) return true;
+    const QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (!context.isValid()) return false;
+    return QJniObject::callStaticMethod<jboolean>(
+        "org/colosseum/platform/AllFilesAccess", "isGranted",
+        "(Landroid/content/Context;)Z", context.object<jobject>());
+#else
+    return true;
+#endif
+}
+
+void Runtime::requestAllFilesAccess() {
+#if defined(Q_OS_ANDROID)
+    if (m_kind != Kind::Android) return;
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() -> QVariant {
+        if (!QNativeInterface::QAndroidApplication::isActivityContext()) return false;
+        const QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (activity.isValid())
+            QJniObject::callStaticMethod<void>(
+                "org/colosseum/platform/AllFilesAccess", "request",
+                "(Landroid/app/Activity;)V", activity.object<jobject>());
+        return {};
+    });
+#endif
+}
+
 bool Runtime::eventFilter(QObject *watched, QEvent *event) {
     if (watched != m_window || !event)
         return QObject::eventFilter(watched, event);

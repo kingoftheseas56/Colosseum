@@ -10,7 +10,7 @@ import QtQuick.Controls
 
 Glass {
     id: vault
-    property bool available: Qt.platform.os !== "android"
+    property bool available: typeof VaultLibrary !== "undefined" && VaultLibrary !== null
     objectName: "vaultHomeWidget"
 
     property string heading: "Vault"

@@ -75,9 +75,9 @@ file(GLOB_RECURSE COLOSSEUM_ANDROID_PACKAGE_FILES CONFIGURE_DEPENDS
     LIST_DIRECTORIES false RELATIVE "${COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT}"
     "${COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT}/*")
 list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^AndroidBootstrap[.](cpp|h)$")
-# Admission probing has a neutral Media3 owner; the desktop local-library
-# Java bridge is not part of Android's compiled/package source graph.
-list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^src/org/colosseum/vault/")
+# Vault's JNI thumbnail probe ships; the content:// metadata helper belongs to the
+# abandoned folder-picker route and stays out of the package.
+list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^src/org/colosseum/vault/DocumentMetadata[.]java$")
 if(NOT COLOSSEUM_NUVIO_ANDROID)
     list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^src/org/colosseum/nuvio/")
 endif()
@@ -105,9 +105,9 @@ list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2host/")
 # Desktop browser/player and local-library worlds are not APK runtime code.
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^feria/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^vinyl/")
-list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "(^|/)Vault[^/]*[.](qml|js)$")
-# These are pure presentation components, not the unavailable Vault world/backend.
-list(APPEND COLOSSEUM_ANDROID_QML_FILES VaultDoor.qml VaultHomeWidget.qml VaultLibraryButton.qml)
+# The Vault world ships whole (desktop code, real folder paths via All files access).
+# Only the abandoned folder-picker page is left out: nothing instantiates it.
+list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^[+]android/VaultPage[.]qml$")
 set(_android_desktop_chrome TopBar.qml Taskbar.qml ExtensionsHouseHero.qml)
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^[+]android/(TopBar|Taskbar|ExtensionsHouseHero)[.]qml$")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^(TrackerApprovalWebView|ExtensionsSetupSheet)[.]qml$")

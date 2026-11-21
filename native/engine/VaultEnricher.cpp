@@ -516,6 +516,11 @@ QString VaultEnricher::findFfprobe()
 
 double VaultEnricher::probeDurationSec(const QString& path)
 {
+#ifdef Q_OS_ANDROID
+    // Android ships no ffprobe; admission (Media3) and artwork still run, duration stays unknown.
+    Q_UNUSED(path);
+    return -1.0;
+#endif
     QProcess proc;
     proc.setProcessChannelMode(QProcess::MergedChannels);
     proc.start(findFfprobe(), {QStringLiteral("-v"), QStringLiteral("quiet"),

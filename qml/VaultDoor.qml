@@ -17,7 +17,7 @@ Item {
         id: touchMetrics
         androidHost: Qt.platform.os === "android" || !!(door.Window.window && door.Window.window.androidHost === true)
     }
-    property bool available: Qt.platform.os !== "android"
+    property bool available: typeof VaultLibrary !== "undefined" && VaultLibrary !== null
     objectName: "taskbarVaultDoor"
 
     // ── inputs (wired by Taskbar from VaultLibrary; seeded by tests) ──

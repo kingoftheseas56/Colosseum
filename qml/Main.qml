@@ -1116,7 +1116,7 @@ Window {
             return
         }
         if (ref.route === "vault-film-detail") {
-            if (win.androidHost || typeof VaultLibrary === "undefined") {
+            if (typeof VaultLibrary === "undefined") {
                 collectionsPanel.showMessage("Vault is unavailable on this device. The saved item has been kept.")
                 return
             }
@@ -2883,7 +2883,6 @@ Window {
     function openVaultPage() {
         if (win.guardNamedCollectionsNavigation(function() { win.openVaultPage() })) return
 
-        if (win.androidHost) return
         win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -4150,7 +4149,7 @@ Window {
     // A loose local comic has no series page — open it in the standalone Vault reader host
     // (vaultComicLayer) as a taskbar comic session keyed to its content id.
     function openVaultComic(path, vaultId, title) {
-        if (win.androidHost || !path) return
+        if (!path) return
         Sessions.openOrSwitch({
             "appType": "tankoban", "contentKind": "comic", "title": title || "Comic",
             "target": { "vaultPath": path, "id": vaultId || ("vault-file:" + path), "title": title || "" }
@@ -6137,7 +6136,7 @@ Window {
         property string archivePath: ""
         property string vaultId: ""
         property string title: "Comic"
-        source: win.androidHost ? "" : "comicreader/VaultComicReader.qml"
+        source: "comicreader/VaultComicReader.qml"
         onLoaded: {
             // archivePath opens the reader synchronously. Supply its progress key
             // first so the first load can restore the saved page.
@@ -6282,13 +6281,21 @@ Window {
         // frames so opening the folder door does not synchronously block the world underneath.
         // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
         asynchronous: true
-        source: win.androidHost ? "" : "VaultLibraryPage.qml"
+        source: "VaultLibraryPage.qml"
         onLoaded: {
             item.backdrop = wall
             item.desktopDockInset = Qt.binding(function() { return taskbar.contentBottomInset })
             item.backRequested.connect(win.closeVaultPage)
             win.finishNamedCollectionVaultOpen()
-            item.addFolderRequested.connect(function() { vaultFolderDialog.open() })
+            item.addFolderRequested.connect(function() {
+                // ANDROID VAULT STEP 1 PROOF — replaced by the access card + folder chooser in step 2
+                if (win.androidHost) {
+                    if (!PlatformRuntime.allFilesAccessGranted()) PlatformRuntime.requestAllFilesAccess()
+                    else VaultLibrary.addFolder("/storage/emulated/0/Download/VaultProof")
+                } else {
+                    vaultFolderDialog.open()
+                }
+            })
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
                 item.openMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
             item.viewWorldRequested.connect(win.openVaultIdentity)

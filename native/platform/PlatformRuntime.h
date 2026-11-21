@@ -81,6 +81,10 @@ public:
     Q_INVOKABLE void backgroundApplication();
     Q_INVOKABLE bool requestStorageAccess(const QString &purpose = QString());
     Q_INVOKABLE bool requestPermission(const QString &permission);
+    // "All files access" (MANAGE_EXTERNAL_STORAGE) so the Vault can read real folder paths.
+    // Non-Android: always granted / no-op.
+    Q_INVOKABLE bool allFilesAccessGranted() const;
+    Q_INVOKABLE void requestAllFilesAccess();
 
 signals:
     void applicationStateChanged();

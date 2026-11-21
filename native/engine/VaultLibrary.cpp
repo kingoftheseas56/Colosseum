@@ -236,7 +236,6 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
     // ── live shelves (Slice 15): the watcher owns the per-root QFileSystemWatcher + debounce; ──
     // VaultLibrary relays landings to the door (arrivalTick/liveArrival) and new-kind arrivals
     // to the one-slice confirmation card (S11 law). Watch the confirmed roots present at boot.
-#ifndef Q_OS_ANDROID
     m_watcher = new VaultWatcher(index, identity, config, this);
     connect(m_watcher, &VaultWatcher::landed, this, &VaultLibrary::onWatcherLanded);
     connect(m_watcher, &VaultWatcher::newKindArrival, this, &VaultLibrary::onWatcherNewKind);
@@ -259,7 +258,6 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
         }
     });
     m_watcher->refresh();
-#endif
 }
 
 QVariantList VaultLibrary::identityCeremonies() const
@@ -1710,7 +1708,7 @@ bool VaultLibrary::revealInExplorer(const QString& path) const
         return QProcess::startDetached(QStringLiteral("explorer.exe"), QStringList{native});
     return QProcess::startDetached(QStringLiteral("explorer.exe"),
                                    QStringList{QStringLiteral("/select,"), native});
-#elif defined(Q_OS_LINUX)
+#elif defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
     const QFileInfo fi(path);
     if (path.trimmed().isEmpty() || !fi.exists())
         return false;
@@ -2125,24 +2123,7 @@ void VaultLibrary::updatePersonalPaths()
 
 void VaultLibrary::addFolder(const QString& pathOrUrl)
 {
-#ifndef Q_OS_ANDROID
     openFolderSelection(pathOrUrl);
-#else
-    if (!m_scanner || !m_config)
-        return;
-    QString path = pathOrUrl;
-    const QUrl u(pathOrUrl);
-    if (u.isLocalFile())
-        path = u.toLocalFile();
-    if (path.isEmpty())
-        return;
-
-    // Add the folder as an UNCONFIRMED root (user intent), then census it off-thread. The
-    // candidate card rises on scanFinished; nothing is published until the user confirms.
-    m_config->addRoot(path);
-    m_offeredThisRun.insert(normPath(path)); // an explicit add is this run's offer for it
-    beginCensus(path);
-#endif
 }
 
 void VaultLibrary::beginCensus(const QString& path)
@@ -2183,11 +2164,7 @@ void VaultLibrary::offerUnconfirmedRoots()
         if (path.isEmpty() || m_offeredThisRun.contains(path))
             continue;
         m_offeredThisRun.insert(path);
-#ifdef Q_OS_ANDROID
-        beginCensus(path);
-#else
         openFolderSelection(path);
-#endif
         return; // one founding choice at a time
     }
 }
@@ -2253,9 +2230,7 @@ void VaultLibrary::publishAllConfirmed()
             confirmed.append(m.value(QStringLiteral("path")).toString());
     }
 
-#ifndef Q_OS_ANDROID
     setFirstFolderIndexing(!confirmed.isEmpty() && !m_config->hasCompletedFolderImport());
-#endif
     if (m_index && m_index->isPreparingPersonalPaths()) {
         m_publishAfterPolicy = true;
         setScanActivity(confirmed.value(0), 0, 0, QStringLiteral("privacy"));

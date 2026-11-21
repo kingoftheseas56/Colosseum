@@ -1,4 +1,4 @@
-"""The Android player keeps platform admission without shipping the Vault world."""
+"""The Android player keeps a Vault-independent media admission owner."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,8 +18,6 @@ def test_android_media_admission_is_world_independent() -> None:
     android_cmake = (ROOT / "native/cmake/android.cmake").read_text(encoding="utf-8")
     require(android_cmake, "player/MediaAdmissionProbe_android.cpp",
             "Android must provide admission without desktop libmpv")
-    forbid(android_cmake, "engine/VaultThumbnailer_android.cpp",
-           "Vault thumbnails must not be compiled into Android")
     java = ROOT / "native/platform/android/src/org/colosseum/media/MediaAdmissionProbe.java"
     assert java.is_file(), "Android's neutral media admission bridge is missing"
     java_text = java.read_text(encoding="utf-8")
@@ -42,7 +40,7 @@ def test_android_media_admission_is_world_independent() -> None:
     for text in (java_text, probe_text):
         forbid(text, "Vault", "active media admission must have no Vault dependency")
         forbid(text, "mpv", "Android admission must not link libmpv")
-    forbid(java_text, "writeThumbnail", "Vault's thumbnail writer must not ship with admission")
+    forbid(java_text, "writeThumbnail", "Vault's thumbnail writer must stay out of admission")
     forbid(java_text, "FileOutputStream", "admission must not write Vault artwork")
     require(java_text, 'value.startsWith("content://")', "Android document URIs remain supported")
     require(java_text, 'value.startsWith("file://")', "file URIs remain supported")

@@ -926,33 +926,8 @@ if(ANDROID)
     target_link_libraries(colosseum PRIVATE colosseum_update_crypto)
 endif()
 
-if(NOT ANDROID)
-    # Desktop-only shipping organs: preserved for Windows/Linux, absent from the Android target graph.
-    target_sources(colosseum PRIVATE
-        account/WindowsAccountSensitiveClipboard.cpp
-        account/WindowsAccountCredentialStore.h
-        account/WindowsAccountSensitiveClipboard.h
-        update/UpdateVersion.cpp
-        update/UpdateVersion.h
-        update/UpdateManifest.cpp
-        update/UpdateManifest.h
-        update/UpdateTrust.cpp
-        update/UpdateTrust.h
-        update/UpdatePublicKey.h
-        update/UpdateTestPublicKey.h
-        update/InstalledChronicle.cpp
-        update/InstalledChronicle.h
-        update/UpdateCache.cpp
-        update/UpdateCache.h
-        update/UpdateDownload.cpp
-        update/UpdateDownload.h
-        update/UpdateReleaseClient.cpp
-        update/UpdateReleaseClient.h
-        update/UpdateService.cpp
-        update/UpdateService.h
-        update/UpdateInstallBridge.cpp
-        update/UpdateInstallBridge.h
-        installed_chronicle.qrc
+# Vault engine: built on every platform (Android reads real folder paths after All files access).
+target_sources(colosseum PRIVATE
         engine/VaultBookCoverProvider.cpp # image://vaultbookcover/ -- stateless EPUB cover decode
         engine/VaultBookCoverProvider.h
         # ── Vault: local-media engine organs wired into the app (execution plan Slice 8) ──
@@ -1002,7 +977,41 @@ if(NOT ANDROID)
         engine/VaultBookStateMigrator.h
         engine/VaultForensics.cpp      # bounded read-only Vault projection over VaultLibrary (Agent Visibility Phase 2, F1-Core/F1-Bridge)
         engine/VaultForensics.h
-        engine/VaultThumbnailer.cpp
+)
+if(ANDROID)
+    # Android has no ffmpeg to shell out to; JNI to VaultMediaProbe instead.
+    target_sources(colosseum PRIVATE engine/VaultThumbnailer_android.cpp)
+else()
+    target_sources(colosseum PRIVATE engine/VaultThumbnailer.cpp)
+endif()
+
+if(NOT ANDROID)
+    # Desktop-only shipping organs: preserved for Windows/Linux, absent from the Android target graph.
+    target_sources(colosseum PRIVATE
+        account/WindowsAccountSensitiveClipboard.cpp
+        account/WindowsAccountCredentialStore.h
+        account/WindowsAccountSensitiveClipboard.h
+        update/UpdateVersion.cpp
+        update/UpdateVersion.h
+        update/UpdateManifest.cpp
+        update/UpdateManifest.h
+        update/UpdateTrust.cpp
+        update/UpdateTrust.h
+        update/UpdatePublicKey.h
+        update/UpdateTestPublicKey.h
+        update/InstalledChronicle.cpp
+        update/InstalledChronicle.h
+        update/UpdateCache.cpp
+        update/UpdateCache.h
+        update/UpdateDownload.cpp
+        update/UpdateDownload.h
+        update/UpdateReleaseClient.cpp
+        update/UpdateReleaseClient.h
+        update/UpdateService.cpp
+        update/UpdateService.h
+        update/UpdateInstallBridge.cpp
+        update/UpdateInstallBridge.h
+        installed_chronicle.qrc
         player/MediaAdmissionProbe.cpp
         player/MediaAdmissionProbe.h
         player/livestore.cpp

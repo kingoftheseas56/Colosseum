@@ -1,4 +1,4 @@
-"""Android excludes the Vault world; desktop keeps its native implementation.
+"""Android runs the same Vault engine as desktop (real paths via All files access).
 
 Evaluates the actual CMake source declarations without requiring an Android SDK,
 then preprocesses the native startup/bridge gates without Qt headers. Run directly
@@ -192,11 +192,22 @@ def _assert_shared_audiobook_sources_are_present(sources):
         assert not missing, f"shared audiobook source list was omitted: {missing}"
 
 
-def test_android_excludes_vault_native_sources():
+_VAULT_ENGINE_SOURCES = {
+    "engine/VaultLibrary.cpp", "engine/VaultKit.cpp", "engine/VaultIndex.cpp",
+    "engine/VaultScanner.cpp", "engine/VaultWatcher.cpp", "engine/VaultEnricher.cpp",
+    "engine/VaultForensics.cpp", "engine/VaultBookCoverProvider.cpp",
+    "engine/LocalLaunch.cpp", "engine/VaultPageStore.cpp",
+}
+
+
+def test_android_builds_vault_native_sources():
     sources = _application_sources(True)
     _assert_shared_audiobook_sources_are_present(sources)
-    forbidden = sorted(source for source in sources
-                       if source.startswith(("engine/Vault", "engine/LocalLaunch", "feria/")))
+    assert _VAULT_ENGINE_SOURCES <= sources, sorted(_VAULT_ENGINE_SOURCES - sources)
+    # Android has no ffmpeg: the JNI thumbnailer replaces the process-based one.
+    assert "engine/VaultThumbnailer_android.cpp" in sources
+    assert "engine/VaultThumbnailer.cpp" not in sources
+    forbidden = sorted(source for source in sources if source.startswith("feria/"))
     assert not forbidden, f"desktop-only product code in Android target: {forbidden}"
     # These similarly named services belong to catalog downloads and credentials,
     # not the Vault world, and remain required on Android.
@@ -224,12 +235,15 @@ def _active_source(relative, android):
                           text=True, check=True).stdout
 
 
-def test_android_has_no_vault_startup_or_bridge():
-    for relative in ("main.cpp", "devtools/LanistaServer.cpp", "devtools/LanistaServer.h"):
+def test_android_vault_startup_without_desktop_diagnostics():
+    for relative in ("devtools/LanistaServer.cpp", "devtools/LanistaServer.h"):
         active = _active_source(relative, True)
         assert not re.search(r"\b(?:Vault[A-Z]\w*|vault[A-Z]\w*|LocalLaunch|localLaunch)\b", active), relative
         assert '"vault-forensics"' not in active, relative
     main = _active_source("main.cpp", True)
+    assert 'new VaultLibrary(' in main and 'new LocalLaunch(' in main
+    # DLNA and the ffprobe-based video enrichment stay desktop-only.
+    assert 'new DlnaLibrary(' not in main
     assert '"CatalogVault"' in main
     assert '"[boot] Main.qml loaded"' in main
     desktop = _active_source("main.cpp", False)
@@ -248,8 +262,8 @@ def test_catalog_title_matching_is_independent_of_vault():
 
 
 if __name__ == "__main__":
-    test_android_excludes_vault_native_sources()
+    test_android_builds_vault_native_sources()
     test_desktop_keeps_vault_native_sources()
-    test_android_has_no_vault_startup_or_bridge()
+    test_android_vault_startup_without_desktop_diagnostics()
     test_catalog_title_matching_is_independent_of_vault()
     print("ANDROID_VAULT_CONTRACT_OK")
