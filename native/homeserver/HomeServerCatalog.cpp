@@ -25,6 +25,12 @@ qint64 integer(const QJsonValue &v, qint64 fallback = -1) {
     const double n = v.toDouble();
     return std::isfinite(n) && n >= 0 && n <= 9007199254740991.0 && std::floor(n) == n ? static_cast<qint64>(n) : fallback;
 }
+qint64 paginationHeader(const QByteArray &value) {
+    static const QRegularExpression digits("^[0-9]+$");
+    bool ok = false;
+    const auto number = value.toLongLong(&ok);
+    return ok && digits.match(QString::fromLatin1(value)).hasMatch() ? number : -1;
+}
 qint64 positiveId(const QJsonValue &v) {
     if (v.isString()) {
         const auto s = v.toString();
@@ -301,14 +307,14 @@ void HomeServerRefresh::start(QJsonObject connection,QString token,Callback call
        (provider!="plex" && m_connection.value("userId").toString().isEmpty())) {
         QTimer::singleShot(0,this,[this]{finish("Invalid home-server connection");}); return;
     }
-    if(provider=="jellyfin") request("/System/Info/Public",true,[this](QJsonObject body) {
+    if(provider=="jellyfin") request("/System/Info/Public",true,[this](QJsonObject body, const auto &) {
         const auto match=QRegularExpression("^([0-9]+)(?:\\.|$)").match(body.value("Version").toString());
         bool valid=false; m_major=match.captured(1).toInt(&valid);
         if(!match.hasMatch() || !valid || m_major<10) { finish("Unsupported or missing Jellyfin server version"); return; }
         libraries();
     }); else libraries();
 }
-void HomeServerRefresh::request(const QString &path,bool publicInfo,std::function<void(QJsonObject)> callback) {
+void HomeServerRefresh::request(const QString &path,bool publicInfo,CatalogReply callback) {
     if(m_finished) return;
     QPointer<HomeServerRefresh> guard(this);
     m_client->request(m_connection.value("provider").toString(),QUrl(m_connection.value("origin").toString()),path,"GET",publicInfo?QString():m_token,{},
@@ -316,13 +322,13 @@ void HomeServerRefresh::request(const QString &path,bool publicInfo,std::functio
             if(!guard || guard->m_finished) return;
             if(!response.ok()) { guard->finish(response.error.isEmpty()?QString("Server refresh failed"):response.error,response.expired()); return; }
             if(!response.body.isObject()) { guard->finish("Invalid catalog response"); return; }
-            callback(response.body.toObject());
+            callback(response.body.toObject(), response.headers);
         });
 }
 void HomeServerRefresh::libraries() {
     const auto provider=m_connection.value("provider").toString(); const auto user=encoded(m_connection.value("userId").toString());
     const QString path=provider=="plex"?QString("/library/sections"):(m_major>=12?"/UserViews?userId="+user:"/Users/"+user+"/Views");
-    request(path,false,[this,provider](QJsonObject body) {
+    request(path,false,[this,provider](QJsonObject body, const auto &) {
         const auto container=provider=="plex"?body.value("MediaContainer").toObject():body;
         auto raw=container.value(provider=="plex"?"Directory":"Items");
         if(provider=="plex" && raw.isUndefined() && integer(container.value("size"))==0 &&
@@ -368,14 +374,15 @@ void HomeServerRefresh::page() {
         add("Fields","ProviderIds,MediaSources,RunTimeTicks,UserData,SeriesId,ParentId,IndexNumber,ParentIndexNumber,ProductionYear,ImageTags,DateCreated,DateLastSaved");
         add("StartIndex",QString::number(m_start)); add("Limit",QString::number(PageSize)); add("EnableTotalRecordCount","true"); add("SortBy","SortName");
     }
-    request(path+'?'+query.toString(QUrl::FullyEncoded),false,[this](QJsonObject body){consumePage(body);});
+    request(path+'?'+query.toString(QUrl::FullyEncoded),false,[this](QJsonObject body, const auto &headers){
+        consumePage(body, headers);
+    });
 }
-void HomeServerRefresh::consumePage(const QJsonObject &body) {
+void HomeServerRefresh::consumePage(const QJsonObject &body, const QMap<QByteArray, QByteArray> &headers) {
     const auto provider=m_connection.value("provider").toString(); const bool plex=provider=="plex";
     const auto container=plex?body.value("MediaContainer").toObject():body;
     auto rawValue=container.value(plex?"Metadata":"Items");
-    if(plex && rawValue.isUndefined() && integer(container.value("size"))==0 &&
-       (!container.contains("totalSize") || integer(container.value("totalSize"))==0)) rawValue=QJsonArray{};
+    if(plex && rawValue.isUndefined() && integer(container.value("size"))==0) rawValue=QJsonArray{};
     if(!rawValue.isArray()) { finish("Invalid catalog page"); return; }
     const auto raw=rawValue.toArray();
     if(raw.size()>PageSize) { finish("Server catalog page exceeds requested size"); return; }
@@ -383,8 +390,31 @@ void HomeServerRefresh::consumePage(const QJsonObject &body) {
     if(container.contains(offsetKey) && integer(container.value(offsetKey))!=m_start) { finish("Unexpected server catalog offset"); return; }
     if(plex && container.contains("size") && integer(container.value("size"))!=raw.size()) { finish("Invalid Plex page size"); return; }
     qint64 total=integer(container.value(totalKey));
-    if(total<0 && plex && !container.contains("totalSize") && !container.contains("offset") && m_start==0 && raw.size()<PageSize && integer(container.value("size"))==raw.size()) total=raw.size();
-    if(total<0 || total>MaxItems || total<m_start+raw.size() || (m_total>=0 && total!=m_total)) { finish("Missing or inconsistent catalog total"); return; }
+    bool totalOptional = false;
+    if (plex) {
+        const auto startHeader = headers.constFind("x-plex-container-start");
+        const auto totalHeader = headers.constFind("x-plex-container-total-size");
+        if (startHeader != headers.cend() && paginationHeader(*startHeader) != m_start) {
+            finish("Unexpected Plex catalog offset"); return;
+        }
+        if (totalHeader != headers.cend()) {
+            const auto headerTotal = paginationHeader(*totalHeader);
+            if (headerTotal < 0 || (container.contains(totalKey) && total != headerTotal)) {
+                finish("Invalid or conflicting Plex catalog total"); return;
+            }
+            total = headerTotal;
+        } else if (!container.contains(totalKey)) {
+            const bool paginated = startHeader != headers.cend() || container.contains(offsetKey);
+            if (paginated) {
+                total = m_total;
+                totalOptional = total < 0;
+            } else if (m_start == 0 && raw.size() < PageSize && integer(container.value("size")) == raw.size()) {
+                total = raw.size();
+            }
+        }
+    }
+    if((!totalOptional && (total<0 || total>MaxItems || total<m_start+raw.size() || (m_total>=0 && total!=m_total))) ||
+       m_start+raw.size()>MaxItems) { finish("Missing or inconsistent catalog total"); return; }
     m_total=static_cast<int>(total);
     if(raw.isEmpty() && m_start<m_total) { finish("Incomplete server catalog page"); return; }
     const auto library=m_libraries.at(m_library).toObject();
@@ -412,7 +442,7 @@ void HomeServerRefresh::consumePage(const QJsonObject &body) {
         if(m_items.size()>MaxItems) { finish("Server catalog item limit exceeded"); return; }
     }
     m_start+=static_cast<int>(raw.size());
-    if(m_start<m_total) { page(); return; }
+    if(m_start<m_total || (totalOptional && !raw.isEmpty())) { page(); return; }
     m_start=0; m_total=-1; m_ids.clear();
     if(plex && library.value("kind")=="series" && ++m_stage<3) { page(); return; }
     m_stage=0; ++m_library;

@@ -12,10 +12,16 @@ class ServicePlayer final : public QObject, public PlayerBackendContract {
 public:
     QString url;
     QVariantMap headers;
+    QList<PlayerExternalSubtitle> subtitles;
     int loads = 0, stops = 0;
     std::function<void()> onStop;
     QVariantMap capabilities() const override { return {}; }
     void loadSource(const QString &value, const QVariantMap &fields) override { url = value; headers = fields; ++loads; }
+    void loadSourceWithSubtitles(const QString &value, const QVariantMap &fields,
+                                 const QList<PlayerExternalSubtitle> &tracks) override {
+        loadSource(value, fields);
+        subtitles = tracks;
+    }
     void stopPlayback() override { ++stops; if (onStop) { auto callback = onStop; callback(); } }
     void setHostLifecycleState(const QString &) override {}
     void setAudioFocusState(const QString &) override {}
@@ -108,7 +114,7 @@ class HomeServerServiceTest : public QObject {
             {"TotalRecordCount", partial ? 2 : 1}, {"StartIndex", next ? 1 : 0}}).toJson();
     }
     static QByteArray playbackResponse(const QByteArray &) {
-        return "{\"PlaySessionId\":\"replay-session\",\"MediaSources\":[{\"Id\":\"copy\",\"SupportsDirectPlay\":true,\"Container\":\"mp4\"}]}";
+        return R"({"PlaySessionId":"replay-session","MediaSources":[{"Id":"copy","SupportsDirectPlay":true,"Container":"mp4","MediaStreams":[{"Type":"Subtitle","Codec":"srt","Index":2,"IsExternal":true,"Language":"eng"}]}]})";
     }
     static QString seedCopy(const std::shared_ptr<ServiceSecrets> &secrets, const QString &root, const QUrl &origin) {
         if (!QDir().mkpath(root)) return {};
@@ -432,7 +438,13 @@ private slots:
         QVERIFY(secrets->values.isEmpty());
         QVERIFY(!service.busy());
     }
+    void plexUsesSelectedResourceTokenAndRequiresHttpConsent_data() {
+        QTest::addColumn<bool>("authorized");
+        QTest::newRow("valid-pms-token") << true;
+        QTest::newRow("identity-only-token-rejected") << false;
+    }
     void plexUsesSelectedResourceTokenAndRequiresHttpConsent() {
+        QFETCH(bool, authorized);
         QTemporaryDir dir;
         ServiceHttp server;
         server.response = [&](const QByteArray &request) {
@@ -444,6 +456,10 @@ private slots:
                 return QJsonDocument(QJsonArray{QJsonObject{{"clientIdentifier", "server-id"}, {"name", "Home Plex"},
                     {"provides", "server"}, {"presence", true}, {"accessToken", "REPLAY_PMS_TOKEN"},
                     {"connections", QJsonArray{QJsonObject{{"uri", server.origin().toString()}, {"local", true}}}}}}).toJson();
+            if (request.startsWith("GET / ") && !authorized) {
+                server.status = 401;
+                return QByteArray("{}");
+            }
             return QByteArray("{\"MediaContainer\":{\"machineIdentifier\":\"server-id\"}}");
         };
         auto secrets = std::make_shared<ServiceSecrets>();
@@ -458,6 +474,14 @@ private slots:
         QVERIFY(service.connections().isEmpty());
         QCOMPARE(server.requests.size(), 3);
         service.selectPlexServer("server-id", true);
+        if (!authorized) {
+            QTRY_VERIFY(!service.busy());
+            QCOMPARE(server.requests.size(), 4);
+            QVERIFY(server.requests.last().startsWith("GET / "));
+            QVERIFY(service.connections().isEmpty());
+            QVERIFY(secrets->values.isEmpty());
+            return;
+        }
         QTRY_COMPARE(service.connections().size(), 1);
         QCOMPARE(server.requests.size(), 4);
         QVERIFY(server.requests.last().contains("X-Plex-Token: REPLAY_PMS_TOKEN"));
@@ -573,6 +597,9 @@ private slots:
         QVERIFY(player.url.startsWith(server.origin().toString() + "/Videos/new/stream?"));
         QVERIFY(!player.url.contains("REPLAY_NATIVE_SECRET"));
         QVERIFY(player.headers.value("Authorization").toString().contains("REPLAY_NATIVE_SECRET"));
+        QCOMPARE(player.subtitles.size(), 1);
+        QCOMPARE(player.subtitles.first().url.path(), QString("/Videos/new/copy/Subtitles/2/Stream.srt"));
+        QCOMPARE(player.subtitles.first().language, QString("eng"));
         service.setEnabled(id, false);
         QVERIFY(player.stops > 0);
         QVERIFY(service.sources({{"type", "movie"}, {"id", "tt1234567"}}).isEmpty());

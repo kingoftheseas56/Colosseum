@@ -9,16 +9,20 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSet>
 #include <QThread>
+#include <QTemporaryDir>
 #include <QUuid>
 #include <QStandardPaths>
 #include <QUrl>
 #include <QtMath>
 #include <chrono>
 #include <functional>
+#include <utility>
 
 #include "mpvproperties.h"
 #include "http_header_fields.h"
@@ -285,6 +289,7 @@ void MpvItem::handlePlaybackEvent(const mpv_event &event)
         QMetaObject::invokeMethod(this, [this, generation, reason] {
             if (generation != m_decodeGeneration)
                 return;
+            clearServerSubtitles();
             setDecodedDimensions(0, 0);
             Q_EMIT endFile(reason);
             if (reason == QLatin1String("error"))
@@ -320,8 +325,10 @@ void MpvItem::handlePlaybackEvent(const mpv_event &event)
         state.loaded = true;
         emitNativePlaybackEvent(QStringLiteral("loaded"), state.streamEntry, generation);
         QMetaObject::invokeMethod(this, [this, generation] {
-            if (generation == m_decodeGeneration)
+            if (generation == m_decodeGeneration) {
+                loadServerSubtitles();
                 Q_EMIT fileLoaded();
+            }
         }, Qt::QueuedConnection);
         if (state.reconfigured)
             refreshDecodedDimensions();
@@ -547,8 +554,96 @@ void MpvItem::loadSource(const QString &url, const QVariantMap &headers)
         loadFileWithHeaders(url, headers);
 }
 
+void MpvItem::loadSourceWithSubtitles(const QString &url, const QVariantMap &headers,
+                                      const QList<PlayerExternalSubtitle> &subtitles)
+{
+    loadSource(url, headers);
+    m_pendingServerSubtitles = subtitles;
+    m_serverSubtitleHeaders = subtitles.isEmpty() ? QVariantMap{} : headers;
+}
+
+void MpvItem::clearServerSubtitles()
+{
+    for (auto *reply : std::exchange(m_serverSubtitleReplies, {})) {
+        reply->disconnect(this);
+        reply->abort();
+        reply->deleteLater();
+    }
+    m_pendingServerSubtitles.clear();
+    m_downloadedServerSubtitles.clear();
+    m_serverSubtitleHeaders.clear();
+    m_serverSubtitleDirectory.reset();
+    m_serverSubtitleReady = false;
+}
+
+void MpvItem::loadServerSubtitles()
+{
+    m_serverSubtitleReady = true;
+    // A tracked network seek can reopen the same movie in a new mpv entry.
+    for (auto it = m_downloadedServerSubtitles.cbegin(); it != m_downloadedServerSubtitles.cend(); ++it)
+        addSubtitle(QUrl::fromLocalFile(it.key()).toString(), it->title, it->language, false);
+    if (m_pendingServerSubtitles.isEmpty())
+        return;
+    m_serverSubtitleDirectory = std::make_unique<QTemporaryDir>();
+    const auto tracks = std::exchange(m_pendingServerSubtitles, {});
+    const auto headers = std::exchange(m_serverSubtitleHeaders, {});
+    if (!m_serverSubtitleDirectory->isValid())
+        return;
+    if (!m_serverSubtitleNetwork)
+        m_serverSubtitleNetwork = new QNetworkAccessManager(this);
+    constexpr qint64 maxBytes = 2 * 1024 * 1024;
+    const auto generation = m_decodeGeneration;
+    for (qsizetype i = 0; i < tracks.size(); ++i) {
+        const auto &track = tracks.at(i);
+        if ((track.url.scheme() != "http" && track.url.scheme() != "https")
+            || !track.url.userInfo().isEmpty()
+            || track.url.scheme() != m_currentUrl.scheme() || track.url.host() != m_currentUrl.host()
+            || track.url.port(track.url.scheme() == "https" ? 443 : 80)
+                != m_currentUrl.port(m_currentUrl.scheme() == "https" ? 443 : 80)
+            || !QRegularExpression("^[a-z0-9]{1,8}$").match(track.format).hasMatch())
+            continue;
+        QNetworkRequest request(track.url);
+        request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::SameOriginRedirectPolicy);
+        request.setMaximumRedirectsAllowed(3);
+        request.setAttribute(QNetworkRequest::CookieLoadControlAttribute, QNetworkRequest::Manual);
+        request.setAttribute(QNetworkRequest::CookieSaveControlAttribute, QNetworkRequest::Manual);
+        request.setTransferTimeout(10000);
+        for (auto it = headers.cbegin(); it != headers.cend(); ++it)
+            request.setRawHeader(it.key().toLatin1(), it.value().toString().toUtf8());
+        auto *reply = m_serverSubtitleNetwork->get(request);
+        reply->setReadBufferSize(maxBytes + 1);
+        QTimer::singleShot(15000, reply, [reply] {
+            if (reply->isRunning())
+                reply->abort();
+        });
+        m_serverSubtitleReplies.append(reply);
+        connect(reply, &QNetworkReply::readyRead, this, [reply] {
+            if (reply->bytesAvailable() > maxBytes)
+                reply->abort();
+        });
+        const auto path = m_serverSubtitleDirectory->filePath(QString::number(i) + '.' + track.format);
+        connect(reply, &QNetworkReply::finished, this, [this, reply, generation, track, path] {
+            m_serverSubtitleReplies.removeOne(reply);
+            reply->deleteLater();
+            if (generation != m_decodeGeneration || reply->error() != QNetworkReply::NoError
+                || reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200
+                || reply->bytesAvailable() <= 0 || reply->bytesAvailable() > maxBytes)
+                return;
+            const auto bytes = reply->readAll();
+            QFile file(path);
+            if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.flush())
+                return;
+            file.close();
+            m_downloadedServerSubtitles.insert(path, track);
+            if (m_serverSubtitleReady)
+                addSubtitle(QUrl::fromLocalFile(path).toString(), track.title, track.language, false);
+        });
+    }
+}
+
 void MpvItem::issueLoadFile(const QString &file)
 {
+    clearServerSubtitles();
     const auto generation = ++m_decodeGeneration;
     Q_EMIT playbackGenerationChanged();
     auto url = QUrl::fromUserInput(file);
@@ -592,6 +687,7 @@ void MpvItem::issueLoadFile(const QString &file)
 
 void MpvItem::stopPlayback()
 {
+    clearServerSubtitles();
     command(QStringList() << QStringLiteral("stop"));
 }
 
@@ -652,6 +748,8 @@ void MpvItem::seekExactTracked(double seconds, quint64 requestSerial)
     const double target = qMax(0.0, seconds);
     const bool remote = m_currentUrl.scheme() == QLatin1String("http")
         || m_currentUrl.scheme() == QLatin1String("https");
+    if (remote)
+        m_serverSubtitleReady = false;
     const auto resource = m_currentUrl.toString(QUrl::FullyEncoded);
     QMetaObject::invokeMethod(controller,
         [controller, state, generation, requestSerial, target, remote, resource] {

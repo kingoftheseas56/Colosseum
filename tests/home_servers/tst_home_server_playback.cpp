@@ -200,6 +200,10 @@ private slots:
     QVERIFY(!result.url.contains("REPLAY"));
     QVERIFY(!result.url.contains("api_key"));
     QVERIFY(!result.url.contains("proxy/proxy"));
+    QCOMPARE(result.subtitles.size(), 1);
+    QCOMPARE(result.subtitles.first().url.path(), QString("/proxy/subs/english.srt"));
+    QVERIFY(!result.subtitles.first().url.hasQuery() || result.subtitles.first().url.query().isEmpty());
+    QCOMPARE(result.subtitles.first().title, QString("English CC"));
     if (provider == "jellyfin") {
       QCOMPARE(result.headers.value("Authorization").toString(),
                QString("MediaBrowser Token=\"REPLAY-TOKEN\""));
@@ -520,6 +524,9 @@ private slots:
     QCOMPARE(result.mediaSourceId, selected);
     QCOMPARE(result.transcoded, transcode);
     QVERIFY(!result.url.contains("TOKEN"));
+    QCOMPARE(result.subtitles.size(), 1);
+    QCOMPARE(result.subtitles.first().url.path(), QString("/proxy/library/streams/44"));
+    QCOMPARE(result.subtitles.first().language, QString("eng"));
     QCOMPARE(result.headers.value("X-Plex-Token").toString(),
              QString("REPLAY-PMS-TOKEN"));
     QVERIFY(

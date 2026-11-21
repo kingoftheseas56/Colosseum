@@ -12,6 +12,7 @@ public:
         int status = 0;
         QJsonValue body;
         QString error;
+        QMap<QByteArray, QByteArray> headers;
         bool ok() const { return error.isEmpty() && status >= 200 && status < 300; }
         bool expired() const { return status == 401; }
     };

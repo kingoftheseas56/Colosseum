@@ -560,7 +560,7 @@ bool HomeServerService::loadPlayback(QObject *backend, const QString &sourceKey,
         playback.connection = connection;
         playback.token = token;
         m_playbacks.insert(guard.data(), playback);
-        player->loadSource(result.url, result.headers);
+        player->loadSourceWithSubtitles(result.url, result.headers, result.subtitles);
         if (guard && profileGeneration == m_profileGeneration
             && m_backendGenerations.value(guard.data()) == backendGeneration)
             emit playbackResolved(sourceKey, result.transcoded);

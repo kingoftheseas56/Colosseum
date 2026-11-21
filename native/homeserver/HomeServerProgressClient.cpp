@@ -184,7 +184,18 @@ void HomeServerProgressJob::synchronize() {
         return;
     }
     const auto path=userDataPath();
-    request(path,"GET",{},[this,path](QJsonValue value) {
+    const bool emby = m_connection.value("provider") == "emby";
+    const auto itemId = m_item.value("id").toString();
+    const auto readPath = emby ? "/Users/" + encoded(m_connection.value("userId").toString())
+        + "/Items/" + encoded(itemId) : path;
+    request(readPath,"GET",{},[this,path,emby,itemId](QJsonValue value) {
+        if (emby) {
+            const auto item = value.toObject();
+            if (item.value("Id").toString() != itemId) {
+                finish("Emby progress response does not match the requested item"); return;
+            }
+            value = item.value("UserData");
+        }
         if(!validUserData(value)) {finish("Invalid home-server user data response");return;}
         auto body=value.toObject();
         qint64 remoteTime=0;

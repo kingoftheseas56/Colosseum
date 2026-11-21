@@ -20,6 +20,9 @@
 #include "playerbackendcontract.h"
 
 class QProcess;
+class QNetworkAccessManager;
+class QNetworkReply;
+class QTemporaryDir;
 
 class MpvItem : public MpvAbstractItem, public PlayerBackendContract
 {
@@ -161,6 +164,8 @@ public:
     // same surface without inheriting MpvQt.
     Q_INVOKABLE void loadSource(const QString &url);
     Q_INVOKABLE void loadSource(const QString &url, const QVariantMap &headers) override;
+    void loadSourceWithSubtitles(const QString &url, const QVariantMap &headers,
+                                 const QList<PlayerExternalSubtitle> &subtitles) override;
     Q_INVOKABLE void stopPlayback() override;
     Q_INVOKABLE void setHostLifecycleState(const QString &state) override;
     Q_INVOKABLE void setAudioFocusState(const QString &state) override;
@@ -251,6 +256,15 @@ private:
     void refreshDecodedDimensions();
     // Shared body of loadFile / loadFileWithHeaders: update currentUrl, emit, issue `loadfile`.
     void issueLoadFile(const QString &file);
+    void loadServerSubtitles();
+    void clearServerSubtitles();
+    QNetworkAccessManager *m_serverSubtitleNetwork = nullptr;
+    QList<QNetworkReply *> m_serverSubtitleReplies;
+    QList<PlayerExternalSubtitle> m_pendingServerSubtitles;
+    QMap<QString, PlayerExternalSubtitle> m_downloadedServerSubtitles;
+    QVariantMap m_serverSubtitleHeaders;
+    std::unique_ptr<QTemporaryDir> m_serverSubtitleDirectory;
+    bool m_serverSubtitleReady = false;
     void onPropertyChanged(const QString &property, const QVariant &value);
 
     // Latest values of the properties we already observe, so the QML-facing getters can answer from

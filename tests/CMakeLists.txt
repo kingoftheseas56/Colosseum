@@ -1685,7 +1685,7 @@ target_link_libraries(http_header_channel_harness
 set_target_properties(http_header_channel_harness PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.http_header_channel_harness
-         COMMAND http_header_channel_harness)
+         COMMAND http_header_channel_harness "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault/media/tiny.mp4")
 set_tests_properties(colosseum.http_header_channel_harness PROPERTIES
     LABELS "unit"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"

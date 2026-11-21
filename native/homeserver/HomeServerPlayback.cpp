@@ -220,6 +220,47 @@ QUrl HomeServerPlaybackJob::admittedUrl(QUrl origin, QString path) {
   candidate.setQuery(clean);
   return candidate;
 }
+QList<PlayerExternalSubtitle> HomeServerPlaybackJob::externalSubtitles(
+    const QJsonArray &streams, const QString &item, const QString &source, bool plex) const {
+  QList<PlayerExternalSubtitle> subtitles;
+  QSet<QUrl> seen;
+  for (const auto &value : streams) {
+    const auto stream = value.toObject();
+    const bool external = plex
+        ? (stream.value("streamType").toVariant().toInt() == 3 || stream.value("type") == "subtitle")
+        : stream.value("Type") == "Subtitle" && stream.value("IsExternal").toBool();
+    if (!external)
+      continue;
+    auto path = stream.value(plex ? "key" : "DeliveryUrl").toString();
+    auto format = stream.value(plex ? "codec" : "Codec").toString().toLower();
+    if (format == "subrip") format = "srt";
+    if (format == "webvtt") format = "vtt";
+    if (format == "sami") format = "smi";
+    static const QSet<QString> formats{"srt", "ass", "ssa", "vtt", "smi", "ttml", "sub"};
+    if (format.isEmpty()) format = QUrl(path).path().section('.', -1).toLower();
+    if (!formats.contains(format))
+      continue;
+    if (!plex && path.isEmpty()) {
+      const auto index = stream.value("Index").toInt(-1);
+      if (index < 0)
+        continue;
+      path = "Videos/" + escapedSegment(item) + '/' + escapedSegment(source)
+          + "/Subtitles/" + QString::number(index) + "/Stream." + format;
+    }
+    const auto url = admittedUrl(m_origin, path);
+    if (url.isEmpty() || seen.contains(url))
+      continue;
+    seen.insert(url);
+    auto title = stream.value(plex ? "title" : "DisplayTitle").toString().simplified().left(160);
+    if (title.isEmpty()) title = stream.value(plex ? "displayTitle" : "Title").toString().simplified().left(160);
+    auto language = stream.value(plex ? "languageCode" : "Language").toString().simplified().left(32);
+    if (plex && language.isEmpty()) language = stream.value("language").toString().simplified().left(32);
+    subtitles.append({url, title, language, format});
+    if (subtitles.size() == 32)
+      break;
+  }
+  return subtitles;
+}
 QJsonObject
 HomeServerPlaybackJob::deviceProfile(HomeServerPlaybackOptions options) {
   QJsonArray direct, codecs;
@@ -535,6 +576,7 @@ void HomeServerPlaybackJob::jellyfin() {
         r.playSessionId = playSession;
         r.playMethod = method;
         r.transcoded = transcoded;
+        r.subtitles = externalSubtitles(source.value("MediaStreams").toArray(), id, selected, false);
         finish(std::move(r));
       });
 }
@@ -596,6 +638,7 @@ void HomeServerPlaybackJob::plex() {
             part.value("supportsDirectPlay")
                 .toBool(media.value("supportsDirectPlay").toBool(true)) &&
             supported(media, part.value("Stream").toArray(), true, m_options);
+        const auto subtitles = externalSubtitles(part.value("Stream").toArray(), id, selected, true);
         if (direct) {
           Result r;
           r.url = admittedUrl(m_origin, selected).toString(QUrl::FullyEncoded);
@@ -603,6 +646,7 @@ void HomeServerPlaybackJob::plex() {
           r.mediaSourceId = selected;
           r.playSessionId = m_session;
           r.playMethod = "DirectPlay";
+          r.subtitles = subtitles;
           finish(std::move(r));
           return;
         }
@@ -631,7 +675,7 @@ void HomeServerPlaybackJob::plex() {
           q.addQueryItem(pair.first, pair.second);
         const auto params = q.toString(QUrl::FullyEncoded);
         request("video/:/transcode/universal/decision?" + params, "GET", {},
-                [this, selected, params](QJsonObject decision) {
+                [this, selected, params, subtitles](QJsonObject decision) {
                   const auto c = decision.value("MediaContainer").toObject();
                   if (c.isEmpty()) {
                     fail("Invalid Plex playback decision.");
@@ -668,6 +712,7 @@ void HomeServerPlaybackJob::plex() {
                   r.playSessionId = m_session;
                   r.playMethod = "Transcode";
                   r.transcoded = true;
+                  r.subtitles = subtitles;
                   finish(std::move(r));
                 });
       });

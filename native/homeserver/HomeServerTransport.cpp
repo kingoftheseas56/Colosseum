@@ -42,7 +42,12 @@ public:
         done = true;
         timer.stop();
         HomeServerTransport::Response result;
-        if (reply) result.status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (reply) {
+            result.status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            for (const auto &name : {"x-plex-container-start", "x-plex-container-total-size"})
+                if (reply->hasRawHeader(name))
+                    result.headers.insert(name, reply->rawHeader(name));
+        }
         result.error = error;
         if (error.isEmpty() && result.status >= 200 && result.status < 300 && !bytes.isEmpty()) {
             QJsonParseError parse;

@@ -1,5 +1,6 @@
 #pragma once
 #include "HomeServerClient.h"
+#include "../player/playerbackendcontract.h"
 #include <QJsonObject>
 #include <QPointer>
 #include <QVariantMap>
@@ -23,6 +24,7 @@ public:
     bool transcoded = false;
     QString error;
     bool expired = false;
+    QList<PlayerExternalSubtitle> subtitles;
     bool ok() const { return error.isEmpty() && !url.isEmpty(); }
   };
   using Callback = std::function<void(Result)>;
@@ -44,6 +46,9 @@ private:
   void finish(Result result);
   void fail(QString error, bool expired = false);
   QVariantMap playbackHeaders() const;
+  QList<PlayerExternalSubtitle> externalSubtitles(const QJsonArray &streams,
+                                                  const QString &item, const QString &source,
+                                                  bool plex) const;
   QPointer<HomeServerClient> m_client;
   Callback m_callback;
   QJsonObject m_connection, m_item, m_version;

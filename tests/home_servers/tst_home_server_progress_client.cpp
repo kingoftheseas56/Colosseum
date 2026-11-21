@@ -44,6 +44,9 @@ public:
     static QJsonObject item() { return {{"id","item/a"}}; }
     static HomeServerPlaybackJob::Result playback() { HomeServerPlaybackJob::Result r; r.mediaSourceId="chosen-source";r.playSessionId="chosen-session";r.playMethod="DirectPlay";return r; }
     static QByteArray fixture(const char *name) { QFile f(QStringLiteral(HOME_SERVER_FIXTURE_DIR)+"/progress/"+name);return f.open(QIODevice::ReadOnly)?f.readAll():QByteArray(); }
+    static QJsonObject embyItemDetails(const QJsonObject &userData) {
+        return {{"Id", item().value("id")}, {"UserData", userData}};
+    }
     static QJsonObject body(QByteArray request) { return QJsonDocument::fromJson(request.mid(request.indexOf("\r\n\r\n")+4)).object(); }
     static QUrl target(QByteArray request) { return QUrl::fromEncoded(request.left(request.indexOf("\r\n")).split(' ').value(1)); }
 };
@@ -92,15 +95,25 @@ private slots:
     void syncPreservesUserData_data() {QTest::addColumn<QString>("provider");QTest::addColumn<int>("major");QTest::newRow("jf12")<<QString("jellyfin")<<12;QTest::newRow("jf10")<<QString("jellyfin")<<10;QTest::newRow("emby")<<QString("emby")<<0;}
     void syncPreservesUserData() {
         QFETCH(QString,provider);QFETCH(int,major);ProgressReplay server;
-        const auto fixture=ProgressReplay::fixture(provider=="emby"?"emby-userdata.json":"jellyfin-userdata.json");server.replies.append({200,fixture});
+        const auto fixture=ProgressReplay::fixture(provider=="emby"?"emby-userdata.json":"jellyfin-userdata.json");
+        const auto original = QJsonDocument::fromJson(fixture).object();
+        const auto response = provider == "emby" ? QJsonDocument(ProgressReplay::embyItemDetails(original)).toJson() : fixture;
+        server.replies.append({200,response});
         QTemporaryDir dir;HomeServerClient client(nullptr,dir.path());HomeServerProgressJob job(&client);
         HomeServerProgressState state;state.positionMs=12345;state.durationMs=60000;state.updatedAt=1700000000123;state.played=true;
         bool done=false;HomeServerProgressJob::Result result;
         job.start(server.connection(provider,major),ProgressReplay::item(),{},"REPLAY","sync",state,[&](auto r){result=r;done=true;});
         QTRY_VERIFY(done);QVERIFY2(result.ok(),qPrintable(result.error));QCOMPARE(server.requests.size(),2);QVERIFY(server.requests.first().startsWith("GET "));QVERIFY(server.requests.last().startsWith("POST "));
-        const auto firstTarget=ProgressReplay::target(server.requests.first());QCOMPARE(ProgressReplay::target(server.requests.last()),firstTarget);
-        QCOMPARE(firstTarget.path(QUrl::FullyEncoded),provider=="jellyfin"&&major>=12?QString("/proxy/UserItems/item%2Fa/UserData"):QString("/proxy/Users/user%2Fa/Items/item%2Fa/UserData"));
-        auto original=QJsonDocument::fromJson(fixture).object();auto expected=original;expected.insert("PlaybackPositionTicks",123450000);expected.insert("LastPlayedDate","2023-11-14T22:13:20.123Z");QCOMPARE(ProgressReplay::body(server.requests.last()),expected);
+        const auto firstTarget = ProgressReplay::target(server.requests.first());
+        const auto lastTarget = ProgressReplay::target(server.requests.last());
+        QCOMPARE(lastTarget.path(QUrl::FullyEncoded),provider=="jellyfin"&&major>=12?QString("/proxy/UserItems/item%2Fa/UserData"):QString("/proxy/Users/user%2Fa/Items/item%2Fa/UserData"));
+        if (provider == "emby") {
+            QCOMPARE(firstTarget.path(QUrl::FullyEncoded), QString("/proxy/Users/user%2Fa/Items/item%2Fa"));
+            QVERIFY(!firstTarget.hasQuery());
+        } else {
+            QCOMPARE(firstTarget, lastTarget);
+        }
+        auto expected=original;expected.insert("PlaybackPositionTicks",123450000);expected.insert("LastPlayedDate","2023-11-14T22:13:20.123Z");QCOMPARE(ProgressReplay::body(server.requests.last()),expected);
     }
     void plexEvents_data() {
         QTest::addColumn<QString>("event");QTest::addColumn<bool>("paused");
@@ -156,6 +169,7 @@ private slots:
         if(provider=="plex") {
             body=QJsonDocument::fromJson(ProgressReplay::fixture("plex-metadata.json")).object();auto container=body.value("MediaContainer").toObject();auto metadata=container.value("Metadata").toArray();auto item=metadata.first().toObject();item.insert("viewCount",played?2:0);metadata.replace(0,item);container.insert("Metadata",metadata);body.insert("MediaContainer",container);
         } else {body=QJsonDocument::fromJson(ProgressReplay::fixture(provider=="emby"?"emby-userdata.json":"jellyfin-userdata.json")).object();body.insert("Played",played);}
+        if (provider == "emby") body = ProgressReplay::embyItemDetails(body);
         server.replies.append({200,QJsonDocument(body).toJson(QJsonDocument::Compact)});QTemporaryDir dir;HomeServerClient client(nullptr,dir.path());HomeServerProgressJob job(&client);HomeServerProgressState state;state.updatedAt=1700000000123;state.positionMs=1000;state.played=played;state.writePlayed=true;bool done=false;HomeServerProgressJob::Result result;
         job.start(server.connection(provider),ProgressReplay::item(),{},"REPLAY","sync",state,[&](auto r){result=r;done=true;});QTRY_VERIFY(done);QVERIFY2(result.ok(),qPrintable(result.error));QCOMPARE(server.requests.size(),2);QVERIFY(server.requests.first().startsWith("GET "));QVERIFY(server.requests.last().startsWith("POST "));
         for(const auto &request:server.requests) {QVERIFY(!request.contains("/PlayedItems/"));QVERIFY(!request.contains("/UserPlayedItems/"));QVERIFY(!request.contains("/:/scrobble?"));QVERIFY(!request.contains("/:/unscrobble?"));}
@@ -165,6 +179,7 @@ private slots:
         QFETCH(QString,provider);ProgressReplay server;QJsonObject body;
         if(provider=="plex") body=QJsonDocument::fromJson("{\"MediaContainer\":{\"size\":1,\"Metadata\":[{\"ratingKey\":\"item/a\",\"lastViewedAt\":1700000001}]}}").object();
         else {body=QJsonDocument::fromJson(ProgressReplay::fixture(provider=="emby"?"emby-userdata.json":"jellyfin-userdata.json")).object();body.insert("LastPlayedDate","2023-11-14T22:13:21.000Z");}
+        if (provider == "emby") body = ProgressReplay::embyItemDetails(body);
         server.replies.append({200,QJsonDocument(body).toJson(QJsonDocument::Compact)});QTemporaryDir dir;HomeServerClient client(nullptr,dir.path());HomeServerProgressJob job(&client);HomeServerProgressState state;state.positionMs=1000;state.updatedAt=1700000000123;state.played=false;state.writePlayed=true;bool done=false;HomeServerProgressJob::Result result;
         job.start(server.connection(provider),ProgressReplay::item(),{},"REPLAY","sync",state,[&](auto r){result=r;done=true;});QTRY_VERIFY(done);QVERIFY2(result.ok(),qPrintable(result.error));QCOMPARE(server.requests.size(),1);QVERIFY(server.requests.first().startsWith("GET "));
     }
@@ -180,7 +195,13 @@ private slots:
         QFETCH(QString,provider);ProgressReplay server;server.replies.append({401,"{\"token\":\"DO-NOT-ECHO\"}"});QTemporaryDir dir;HomeServerClient client(nullptr,dir.path());HomeServerProgressJob job(&client);HomeServerProgressState state;state.played=true;state.writePlayed=true;bool done=false;HomeServerProgressJob::Result result;
         job.start(server.connection(provider),ProgressReplay::item(),ProgressReplay::playback(),"REPLAY","stop",state,[&](auto r){result=r;done=true;});QTRY_VERIFY(done);QVERIFY(!result.ok());QVERIFY(result.expired);QCOMPARE(server.requests.size(),1);QVERIFY(!result.error.contains("DO-NOT-ECHO"));
     }
-    void malformedUserDataNeverPosts_data() {QTest::addColumn<QByteArray>("body");QTest::newRow("blank")<<QByteArray("{}");QTest::newRow("bad-types")<<QByteArray("{\"PlaybackPositionTicks\":\"bad\",\"PlayCount\":2,\"IsFavorite\":true,\"Played\":false}");QTest::newRow("array")<<QByteArray("[]");}
+    void malformedUserDataNeverPosts_data() {
+        QTest::addColumn<QByteArray>("body");
+        QTest::newRow("missing-data") << QByteArray(R"({"Id":"item/a"})");
+        QTest::newRow("bad-types") << QByteArray(R"({"Id":"item/a","UserData":{"PlaybackPositionTicks":"bad","PlayCount":2,"IsFavorite":true,"Played":false}})");
+        QTest::newRow("array") << QByteArray(R"({"Id":"item/a","UserData":[]})");
+        QTest::newRow("wrong-item") << QByteArray(R"({"Id":"wrong","UserData":{"PlaybackPositionTicks":1,"PlayCount":2,"IsFavorite":true,"Played":false}})");
+    }
     void malformedUserDataNeverPosts() {
         QFETCH(QByteArray,body);ProgressReplay server;server.replies.append({200,body});QTemporaryDir dir;HomeServerClient client(nullptr,dir.path());HomeServerProgressJob job(&client);HomeServerProgressState state;state.updatedAt=1700000000000;bool done=false;
         job.start(server.connection("emby"),ProgressReplay::item(),{},"REPLAY","sync",state,[&](auto r){done=true;QVERIFY(!r.ok());done=true;});QTRY_VERIFY(done);QCOMPARE(server.requests.size(),1);

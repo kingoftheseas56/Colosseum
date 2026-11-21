@@ -32,10 +32,11 @@ public:
     void start(QJsonObject connection, QString token, Callback callback);
     void cancel();
 private:
-    void request(const QString &path, bool publicInfo, std::function<void(QJsonObject)> callback);
+    using CatalogReply = std::function<void(QJsonObject, const QMap<QByteArray, QByteArray> &)>;
+    void request(const QString &path, bool publicInfo, CatalogReply callback);
     void libraries();
     void page();
-    void consumePage(const QJsonObject &body);
+    void consumePage(const QJsonObject &body, const QMap<QByteArray, QByteArray> &headers);
     void finish(QString error = {}, bool expired = false);
     HomeServerClient *m_client;
     Callback m_callback;

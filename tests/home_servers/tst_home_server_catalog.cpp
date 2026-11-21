@@ -8,7 +8,7 @@
 #include "HomeServerCatalog.h"
 class CatalogReplay final : public QTcpServer {
 public:
- struct Reply { int status=200; QByteArray body; int delay=0; };
+ struct Reply { int status=200; QByteArray body; int delay=0; QByteArray headers; };
  QList<Reply> responses; QList<QByteArray> requests;
  CatalogReplay() { listen(QHostAddress::LocalHost); connect(this,&QTcpServer::newConnection,this,[this] {
   while(auto *socket=nextPendingConnection()) {
@@ -18,7 +18,7 @@ public:
     socket->setProperty("answered",true); requests.append(*bytes);
     const auto response=responses.isEmpty()?Reply{500,"{}",0}:responses.takeFirst();
     QTimer::singleShot(response.delay,socket,[socket,response] {
-     socket->write("HTTP/1.1 "+QByteArray::number(response.status)+" Replay\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: "+QByteArray::number(response.body.size())+"\r\n\r\n"+response.body); socket->disconnectFromHost();
+     socket->write("HTTP/1.1 "+QByteArray::number(response.status)+" Replay\r\nContent-Type: application/json\r\nConnection: close\r\n"+response.headers+"Content-Length: "+QByteArray::number(response.body.size())+"\r\n\r\n"+response.body); socket->disconnectFromHost();
     });
    }); connect(socket,&QTcpSocket::disconnected,socket,&QObject::deleteLater);
   }
@@ -167,7 +167,7 @@ private slots:
   QTest::addColumn<QByteArray>("body"); QTest::addColumn<bool>("success");
   QTest::newRow("unpaginated-with-size")<<QByteArray("{\"MediaContainer\":{\"size\":1,\"Metadata\":[{\"ratingKey\":\"movie\",\"type\":\"movie\",\"title\":\"Movie\"}]}}")<<true;
   QTest::newRow("missing-size-and-total")<<QByteArray("{\"MediaContainer\":{\"Metadata\":[]}}")<<false;
-  QTest::newRow("explicit-zero-offset-missing-total")<<QByteArray("{\"MediaContainer\":{\"size\":0,\"offset\":0,\"Metadata\":[]}}")<<false;
+  QTest::newRow("explicit-zero-offset-missing-total")<<QByteArray("{\"MediaContainer\":{\"size\":0,\"offset\":0,\"Metadata\":[]}}")<<true;
   QTest::newRow("wrong-offset")<<QByteArray("{\"MediaContainer\":{\"size\":0,\"offset\":1,\"totalSize\":0,\"Metadata\":[]}}")<<false;
   QTest::newRow("nonarray-metadata")<<QByteArray("{\"MediaContainer\":{\"size\":0,\"totalSize\":0,\"Metadata\":{}}}")<<false;
   QTest::newRow("explicit-zero-stage-omitted-array")<<QByteArray("{\"MediaContainer\":{\"size\":0,\"totalSize\":0}}")<<true;
@@ -177,6 +177,39 @@ private slots:
   server.responses={{200,"{\"MediaContainer\":{\"Directory\":[{\"key\":\"movies\",\"title\":\"Movies\",\"type\":\"movie\"}]}}"},{200,body}};
   QTemporaryDir dir; HomeServerClient client(nullptr,dir.path()); HomeServerRefresh job(&client); bool done=false; HomeServerRefresh::Result result;
   job.start(server.connection("plex"),"REPLAY",[&](auto r){result=r;done=true;}); QTRY_VERIFY(done); QCOMPARE(result.ok(),success); if(!success) QVERIFY(result.items.isEmpty()); QCOMPARE(server.requests.size(),2);
+ }
+ void plexHeaderPagination_data() {
+  QTest::addColumn<QByteArray>("firstHeaders");
+  QTest::addColumn<QByteArray>("laterHeaders");
+  QTest::addColumn<bool>("valid");
+  QTest::newRow("header-only-total") << QByteArray("X-Plex-Container-Total-Size: 2\r\n") << QByteArray("X-Plex-Container-Total-Size: 2\r\n") << true;
+  QTest::newRow("no-total-through-empty-page") << QByteArray() << QByteArray() << true;
+  QTest::newRow("contradictory-offset") << QByteArray("X-Plex-Container-Start: 9\r\n") << QByteArray() << false;
+ }
+ void plexHeaderPagination() {
+  QFETCH(QByteArray, firstHeaders);
+  QFETCH(QByteArray, laterHeaders);
+  QFETCH(bool, valid);
+  CatalogReplay server;
+  server.responses = {
+    {200, R"({"MediaContainer":{"Directory":[{"key":"movies","title":"Movies","type":"movie"}]}})"},
+    {200, R"({"MediaContainer":{"size":1,"Metadata":[{"ratingKey":"movie-1","type":"movie","title":"First"}]}})", 0, "X-Plex-Container-Start: 0\r\n"+firstHeaders},
+    {200, R"({"MediaContainer":{"size":1,"Metadata":[{"ratingKey":"movie-2","type":"movie","title":"Second"}]}})", 0, "x-plex-container-start: 1\r\n"+laterHeaders},
+    {200, R"({"MediaContainer":{"size":0}})", 0, "X-Plex-Container-Start: 2\r\n"}
+  };
+  QTemporaryDir dir;
+  HomeServerClient client(nullptr, dir.path());
+  HomeServerRefresh job(&client);
+  bool done = false;
+  HomeServerRefresh::Result result;
+  job.start(server.connection("plex"), "REPLAY", [&](auto r) { result = r; done = true; });
+  QTRY_VERIFY(done);
+  QCOMPARE(result.ok(), valid);
+  QCOMPARE(result.items.size(), valid ? 2 : 0);
+  if (valid) {
+    QVERIFY(server.requests.at(2).contains("X-Plex-Container-Start=1"));
+    QCOMPARE(server.requests.size(), firstHeaders.isEmpty() ? 4 : 3);
+  }
  }
  void crossLibraryDuplicates_data() { QTest::addColumn<bool>("contradiction"); QTest::newRow("same-physical-item")<<false; QTest::newRow("conflicting-identity")<<true; }
  void crossLibraryDuplicates() {

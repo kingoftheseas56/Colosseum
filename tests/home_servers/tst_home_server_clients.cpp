@@ -138,7 +138,7 @@ private slots:
   QVERIFY(server.requests.last().contains("includeHttps=1&includeRelay=1&includeIPv6=1"));
   done=false; server.replies.append({200,ReplayServer::fixture("plex-identity.json")}); client.verifyPlexServer(server.origin(),"REPLAY-PLEX-SERVER-TOKEN",true,callback);
   QTRY_VERIFY(done); QVERIFY(response.ok()); QCOMPARE(response.body.toObject().value("id").toString(),QString("plex-machine"));
-  QVERIFY(server.requests.last().startsWith("GET /identity ")); QVERIFY(server.requests.last().contains("X-Plex-Token: REPLAY-PLEX-SERVER-TOKEN"));
+  QVERIFY(server.requests.last().startsWith("GET / ")); QVERIFY(server.requests.last().contains("X-Plex-Token: REPLAY-PLEX-SERVER-TOKEN"));
  }
  void crossOriginRedirectNeverLeaks() {
   ReplayServer first,other; first.replies.append({307,"{}",other.origin().toEncoded()+"/stolen"});

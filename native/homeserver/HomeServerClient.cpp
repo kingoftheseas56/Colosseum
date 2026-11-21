@@ -166,7 +166,9 @@ void HomeServerClient::discoverPlexServers(QString token, Callback cb) {
 void HomeServerClient::verifyPlexServer(QUrl origin, QString token, bool allowHttp, Callback cb) {
     if (origin.scheme() == "http" && !allowHttp) { fail(std::move(cb), "HTTP consent required"); return; }
     if (token.isEmpty()) { fail(std::move(cb), "Plex sign-in required"); return; }
-    request("plex", origin, "/identity", "GET", token, {}, [cb = std::move(cb)](Response r) {
+    // PMS exposes /identity without authentication. The server root returns
+    // the same machine identifier and requires a server access token.
+    request("plex", origin, "/", "GET", token, {}, [cb = std::move(cb)](Response r) {
         if (r.ok()) {
             const auto body = r.body.toObject();
             const auto container = body.value("MediaContainer").toObject();
