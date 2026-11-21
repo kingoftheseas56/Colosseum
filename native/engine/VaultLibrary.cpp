@@ -1198,10 +1198,13 @@ QVariantList VaultLibrary::rootsDetail() const
         row.insert(QStringLiteral("name"), name.isEmpty() ? path : name);
         const QList<VaultIndex::FileRow> rootRows
             = m_index ? m_index->rowsForRoot(path) : QList<VaultIndex::FileRow>();
+        const bool accessOff = VaultScanner::storageAccessDenied()
+            && !m.value(QStringLiteral("synthetic")).toBool() && !VaultLocation::isContentUri(path);
         const bool available = m.value(QStringLiteral("synthetic")).toBool() || (VaultLocation::isContentUri(path)
             ? (rootRows.isEmpty() || !rootRows.first().away)
-            : QDir(path).exists());
+            : (QDir(path).exists() && !accessOff));
         row.insert(QStringLiteral("available"), available);
+        row.insert(QStringLiteral("accessOff"), accessOff);
         row.insert(QStringLiteral("fileCount"), rootRows.size());
         QSet<QString> groupKeys;
         for (const auto& file : rootRows)
@@ -2386,10 +2389,33 @@ void VaultLibrary::maybePublishPendingRevives()
     publishAllConfirmed();
 }
 
+void VaultLibrary::setStorageAccessGranted(bool granted)
+{
+    const bool wasDenied = VaultScanner::storageAccessDenied();
+    VaultScanner::setStorageAccessDenied(!granted);
+    if (!m_index || !m_config || wasDenied == !granted)
+        return;
+    if (!granted) {
+        // Permission off is not "files deleted": keep every row, mark the roots away.
+        for (const QVariant& r : m_config->roots()) {
+            const QVariantMap m = r.toMap();
+            if (m.value(QStringLiteral("synthetic")).toBool() || !m.value(QStringLiteral("confirmed")).toBool())
+                continue;
+            const QString path = m.value(QStringLiteral("path")).toString();
+            if (!VaultLocation::isContentUri(path))
+                m_index->markRootAway(path, true);
+        }
+        return;
+    }
+    rescanDegradedRoots(); // returned roots are still marked away, so this rescans them
+}
+
 void VaultLibrary::rescanDegradedRoots()
 {
     if (!m_scanner || !m_config || !m_watcher)
         return;
+    if (VaultScanner::storageAccessDenied())
+        return; // access is off: roots stay away until it is granted again
     if (m_scanning || cardVisible())
         return; // never interrupt a live scan or a card already up
 

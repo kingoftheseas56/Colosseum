@@ -1,13 +1,13 @@
-package org.colosseum.vault;
+package org.colosseum.platform;
 
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.OpenableColumns;
 
-/** Metadata for a document already authorized by the system picker. */
-public final class DocumentMetadata {
-    private DocumentMetadata() {}
+/** Display name of a single document handed in by Android's system picker (content://). */
+public final class DocumentName {
+    private DocumentName() {}
 
     public static String displayName(Context context, String source) {
         Uri uri = Uri.parse(source);

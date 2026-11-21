@@ -75,9 +75,6 @@ file(GLOB_RECURSE COLOSSEUM_ANDROID_PACKAGE_FILES CONFIGURE_DEPENDS
     LIST_DIRECTORIES false RELATIVE "${COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT}"
     "${COLOSSEUM_ANDROID_PACKAGE_SOURCE_ROOT}/*")
 list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^AndroidBootstrap[.](cpp|h)$")
-# Vault's JNI thumbnail probe ships; the content:// metadata helper belongs to the
-# abandoned folder-picker route and stays out of the package.
-list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^src/org/colosseum/vault/DocumentMetadata[.]java$")
 if(NOT COLOSSEUM_NUVIO_ANDROID)
     list(FILTER COLOSSEUM_ANDROID_PACKAGE_FILES EXCLUDE REGEX "^src/org/colosseum/nuvio/")
 endif()
@@ -106,8 +103,9 @@ list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2host/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^feria/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^vinyl/")
 # The Vault world ships whole (desktop code, real folder paths via All files access).
-# Only the abandoned folder-picker page is left out: nothing instantiates it.
-list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^[+]android/VaultPage[.]qml$")
+# VaultPage.qml is the retired pre-library page: nothing instantiates it (VaultLibraryPage
+# is the Vault), so it stays out of the APK.
+list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^VaultPage[.]qml$")
 set(_android_desktop_chrome TopBar.qml Taskbar.qml ExtensionsHouseHero.qml)
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^[+]android/(TopBar|Taskbar|ExtensionsHouseHero)[.]qml$")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^(TrackerApprovalWebView|ExtensionsSetupSheet)[.]qml$")

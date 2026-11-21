@@ -250,6 +250,34 @@ def test_android_vault_startup_without_desktop_diagnostics():
     assert 'new VaultLibrary(' in desktop and 'new LocalLaunch(' in desktop
 
 
+def test_folder_picker_seam_is_removed():
+    # The content:// folder-picker route is gone: Vault reads real paths (All files access).
+    for relative in ("native/engine/VaultAndroidStorageBridge.cpp", "native/engine/VaultAndroidStorageBridge.h",
+                     "native/engine/VaultAndroidIndexAdapter.cpp", "native/engine/VaultAndroidIndexAdapter.h",
+                     "qml/+android/VaultPage.qml",
+                     "native/platform/android/src/org/colosseum/vault/DocumentMetadata.java"):
+        assert not (ROOT / relative).exists(), relative
+    sources = _application_sources(True)
+    assert not [s for s in sources if s.startswith("engine/VaultAndroid")], sorted(sources)
+    for relative in ("native/engine/LocalLaunch.cpp", "native/cmake/android.cmake", "tests/CMakeLists.txt"):
+        text = (ROOT / relative).read_text(encoding="utf-8-sig")
+        assert "DocumentMetadata" not in text and "VaultAndroid" not in text, relative
+    # The single-document content:// location type and the Media3 probe stay.
+    assert (NATIVE / "engine/VaultLocation.h").is_file()
+    assert (NATIVE / "platform/android/src/org/colosseum/vault/VaultMediaProbe.java").is_file()
+
+
+def test_android_add_folder_uses_access_card_and_own_chooser():
+    main = (ROOT / "qml/Main.qml").read_text(encoding="utf-8-sig")
+    assert "beginAndroidAddFolder()" in main and "VaultProof" not in main
+    page = (ROOT / "qml/VaultLibraryPage.qml").read_text(encoding="utf-8-sig")
+    assert "VaultAccessCard" in page and "VaultFolderChooser" in page
+    chooser = (ROOT / "qml/VaultFolderChooser.qml").read_text(encoding="utf-8-sig")
+    assert "FolderDialog" not in chooser and "content://" not in chooser
+    runtime = (NATIVE / "platform/PlatformRuntime.cpp").read_text(encoding="utf-8-sig")
+    assert "org/colosseum/platform/StorageVolumes" in runtime
+
+
 def test_catalog_title_matching_is_independent_of_vault():
     for relative in ("engine/MalCatalog.cpp", "engine/ImdbCatalog.cpp"):
         source = (NATIVE / relative).read_text(encoding="utf-8-sig")
@@ -265,5 +293,7 @@ if __name__ == "__main__":
     test_android_builds_vault_native_sources()
     test_desktop_keeps_vault_native_sources()
     test_android_vault_startup_without_desktop_diagnostics()
+    test_folder_picker_seam_is_removed()
+    test_android_add_folder_uses_access_card_and_own_chooser()
     test_catalog_title_matching_is_independent_of_vault()
     print("ANDROID_VAULT_CONTRACT_OK")

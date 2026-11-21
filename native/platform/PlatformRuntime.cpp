@@ -528,6 +528,30 @@ void Runtime::requestAllFilesAccess() {
 #endif
 }
 
+QVariantList Runtime::storageVolumes() const {
+    QVariantList volumes;
+#if defined(Q_OS_ANDROID)
+    if (m_kind != Kind::Android) return volumes;
+    const QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (!context.isValid()) return volumes;
+    const QJniObject listing = QJniObject::callStaticObjectMethod(
+        "org/colosseum/platform/StorageVolumes", "list",
+        "(Landroid/content/Context;)Ljava/lang/String;", context.object<jobject>());
+    if (!listing.isValid()) return volumes;
+    const QStringList lines = listing.toString().split(QChar(10), Qt::SkipEmptyParts);
+    for (const QString &line : lines) {
+        const QStringList parts = line.split(QChar(9));
+        if (parts.size() < 3 || parts.at(1).isEmpty()) continue;
+        QVariantMap volume;
+        volume.insert(QStringLiteral("label"), parts.at(0));
+        volume.insert(QStringLiteral("path"), parts.at(1));
+        volume.insert(QStringLiteral("removable"), parts.at(2) == QLatin1String("1"));
+        volumes.append(volume);
+    }
+#endif
+    return volumes;
+}
+
 bool Runtime::eventFilter(QObject *watched, QEvent *event) {
     if (watched != m_window || !event)
         return QObject::eventFilter(watched, event);

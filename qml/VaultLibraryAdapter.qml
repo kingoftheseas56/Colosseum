@@ -130,7 +130,7 @@ QtObject {
             root.offline = r.available === false
             root.count = Number(r.itemCount) || 0
             root.watching = r.available !== false && !r.watcherDegraded
-            root.state = root.offline ? "Drive not connected" : r.watcherDegraded ? "Rescan on open" : "Watching"
+            root.state = r.accessOff ? "All files access is off" : root.offline ? "Drive not connected" : r.watcherDegraded ? "Rescan on open" : "Watching"
             var fileCount = Number(r.fileCount) || 0
             root.subtitle = fileCount + (fileCount === 1 ? " file" : " files")
             return root

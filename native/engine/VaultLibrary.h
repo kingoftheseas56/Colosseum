@@ -292,6 +292,11 @@ public:
     // Watcher-failure fallback (Slice 15): silently rescan any confirmed root whose watcher
     // is degraded, the next time the Vault opens. Publishes the UNION (never one root alone).
     Q_INVOKABLE void rescanDegradedRoots();
+    // Android "All files access" on/off (QML reports PlatformRuntime.allFilesAccessGranted()
+    // when the Vault opens and on resume). Off: every user root keeps its rows and reads as
+    // away — never as an empty folder. On again: the roots rescan and come back untouched.
+    // Always true on desktop, so this is a no-op there.
+    Q_INVOKABLE void setStorageAccessGranted(bool granted);
     // ── storage management (vault ux uplift S10) — the rail overflow menu's verbs ──
     // A user-facing rescan for ONE known root (before S10 only confirm/boot/watcher paths
     // ever re-censused). Silent by design — no card rises; the scan pill shows progress.

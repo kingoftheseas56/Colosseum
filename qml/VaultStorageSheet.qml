@@ -14,6 +14,7 @@ FocusScope {
     property var pendingSource: null
     signal dismissed()
     signal addFolderRequested()
+    signal allowAccessRequested()
     signal connectServerRequested()
     signal editFolderRequested(string path)
 
@@ -217,8 +218,16 @@ FocusScope {
                                 objectName: "vaultSourcesRescan"
                                 text: qsTr("Rescan")
                                 implicitHeight: 34
-                                enabled: !root.adapter.busy
+                                enabled: !root.adapter.busy && !folder.modelData.accessOff
                                 onClicked: root.adapter.rescan(folder.modelData.path)
+                            }
+                            VaultLibraryButton {
+                                objectName: "vaultSourcesAllowAccess"
+                                text: qsTr("Allow access again")
+                                primary: true
+                                implicitHeight: 34
+                                visible: !!folder.modelData.accessOff
+                                onClicked: root.allowAccessRequested()
                             }
                             VaultLibraryButton {
                                 objectName: "vaultSourcesEditFolder"

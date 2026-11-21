@@ -1052,6 +1052,16 @@ int main(int argc, char *argv[]) {
     auto *vaultLibrary =
         new VaultLibrary(vaultIndex, vaultScanner, vaultConfig, vaultIdentity, vaultDir, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("VaultLibrary"), vaultLibrary);
+#ifdef Q_OS_ANDROID
+    // "All files access" off must read as away, never as deleted files: tell the engine at
+    // startup and every time the app returns to the foreground (the user may have flipped it).
+    vaultLibrary->setStorageAccessGranted(platformRuntime->allFilesAccessGranted());
+    QObject::connect(platformRuntime, &Colosseum::Platform::Runtime::applicationStateChanged,
+                     vaultLibrary, [vaultLibrary, platformRuntime]() {
+        if (platformRuntime->foreground())
+            vaultLibrary->setStorageAccessGranted(platformRuntime->allFilesAccessGranted());
+    });
+#endif
 
     // ── VaultEnricher, the instance the app never constructed (UX-uplift S5) ──────
     // main.cpp used the class's static fact helpers only, so durationSec stayed -1 on

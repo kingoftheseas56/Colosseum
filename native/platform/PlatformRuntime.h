@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QVariantList>
 #include <QVariantMap>
 #include <memory>
 
@@ -85,6 +86,9 @@ public:
     // Non-Android: always granted / no-op.
     Q_INVOKABLE bool allFilesAccessGranted() const;
     Q_INVOKABLE void requestAllFilesAccess();
+    // Mounted storage places for the Vault folder chooser: [{label, path, removable}].
+    // Non-Android: empty.
+    Q_INVOKABLE QVariantList storageVolumes() const;
 
 signals:
     void applicationStateChanged();

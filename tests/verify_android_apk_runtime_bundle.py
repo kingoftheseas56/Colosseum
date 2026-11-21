@@ -36,7 +36,7 @@ def qml_policy_failures(files: dict[str, bytes]) -> list[str]:
             continue
         relative = name[len(QML_PREFIX):]
         if (re.search(r"(^|/)(feria|vinyl|player2|player2host)/", relative, re.I)
-                or relative in {"+android/VaultPage.qml"}  # abandoned folder-picker page
+                or relative in {"+android/VaultPage.qml", "VaultPage.qml"}  # retired pages; VaultLibraryPage is the Vault
                 or relative in {"+android/TopBar.qml", "+android/Taskbar.qml", "+android/ExtensionsHouseHero.qml"}
                 or relative in {"reader2/Paper.qml", "TrackerApprovalWebView.qml", "ExtensionsSetupSheet.qml"}):
             failures.append(f"FORBIDDEN_QML_FILE {relative}")

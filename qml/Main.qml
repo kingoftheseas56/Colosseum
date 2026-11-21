@@ -6288,13 +6288,10 @@ Window {
             item.backRequested.connect(win.closeVaultPage)
             win.finishNamedCollectionVaultOpen()
             item.addFolderRequested.connect(function() {
-                // ANDROID VAULT STEP 1 PROOF — replaced by the access card + folder chooser in step 2
-                if (win.androidHost) {
-                    if (!PlatformRuntime.allFilesAccessGranted()) PlatformRuntime.requestAllFilesAccess()
-                    else VaultLibrary.addFolder("/storage/emulated/0/Download/VaultProof")
-                } else {
-                    vaultFolderDialog.open()
-                }
+                // Android: the page shows its own access card, then its own folder chooser
+                // (Android's file dialog hands back content:// addresses the Vault cannot scan).
+                if (win.androidHost) item.beginAndroidAddFolder()
+                else vaultFolderDialog.open()
             })
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
                 item.openMediaRequested.connect(function(path) { win.openLocalMedia([path]) })

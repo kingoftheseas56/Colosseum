@@ -82,7 +82,62 @@ FocusScope {
     }
     function openSearch() { bar.focusSearch() }
     function leaveSearchView() { bar.query = "" }
+    // ── Android: All files access card, folder chooser, away and recovery ──
+    // androidAddStep is "" | "access" | "chooser". Everything below is a no-op on desktop.
+    property string androidAddStep: ""
+    readonly property bool androidHost: typeof PlatformRuntime !== "undefined" && !!PlatformRuntime.android
+    function androidAccessGranted() {
+        return !androidHost || PlatformRuntime.allFilesAccessGranted()
+    }
+    // Tell the engine whether access is on, so an unreadable folder keeps its titles (away)
+    // instead of reading as an empty, deleted one.
+    function syncStorageAccess() {
+        const lib = root.adapter.library
+        if (androidHost && lib && typeof lib.setStorageAccessGranted === "function")
+            lib.setStorageAccessGranted(androidAccessGranted())
+    }
+    function beginAndroidAddFolder() {
+        syncStorageAccess()
+        androidAddStep = androidAccessGranted() ? "chooser" : "access"
+    }
+    function requestAndroidAccess() {
+        if (androidHost) PlatformRuntime.requestAllFilesAccess()
+    }
+    function addAndroidFolder(path) {
+        androidAddStep = ""
+        if (root.adapter.library && path) root.adapter.library.addFolder(path)
+    }
+    // Rescan on open and on return to the foreground: Android's file watching is not relied on.
+    // Skipped while a player/reader is open, while a scan or a card is up, and while access is off.
+    function rescanOnReturn() {
+        const lib = root.adapter.library
+        if (!androidHost || !lib || lib.immersive || lib.scanning || admission.modalOpen
+                || root.androidAddStep !== "" || !androidAccessGranted()
+                || typeof lib.rootsDetail !== "function") return
+        const roots = lib.rootsDetail()
+        if (roots.length) lib.rescanRoot(roots[0].path)
+    }
+    function onAppForeground() {
+        if (!androidHost) return
+        syncStorageAccess()
+        if (androidAddStep === "access" && androidAccessGranted()) androidAddStep = "chooser"
+        rescanOnReturn()
+    }
+    function openRoutine() {
+        syncStorageAccess()
+        admission.initialize()
+        rescanOnReturn()
+    }
+    Connections {
+        target: Qt.application
+        function onStateChanged() { if (Qt.application.state === Qt.ApplicationActive) root.onAppForeground() }
+    }
     function handleBack() {
+        if (root.androidAddStep !== "") {
+            if (!(root.androidAddStep === "chooser" && androidChooser.item && androidChooser.item.handleBack()))
+                root.androidAddStep = ""
+            return
+        }
         if (root.providerConnectionOpen && providerConnection.item) { providerConnection.item.close(); return }
         if (extrasDialog.opened) { extrasDialog.close(); return }
         if (admission.handleBack()) return
@@ -177,7 +232,7 @@ FocusScope {
         } else if (item.path) root.openMediaRequested(item.path)
     }
     Keys.onEscapePressed: event => { handleBack(); event.accepted = true }
-    Component.onCompleted: { forceActiveFocus(); Qt.callLater(admission.initialize) }
+    Component.onCompleted: { forceActiveFocus(); Qt.callLater(root.openRoutine) }
     Item {
     anchors.fill: parent
     Rectangle { anchors.fill: parent; color: theme.vaultBackdrop }
@@ -298,6 +353,7 @@ FocusScope {
     VaultStorageSheet {
         id: sources; anchors.fill: parent; z: 20; adapter: root.adapter
         onAddFolderRequested: { sources.close(); root.addFolderRequested() }
+        onAllowAccessRequested: { sources.close(); root.requestAndroidAccess() }
         onConnectServerRequested: root.connectServerRequested()
         onEditFolderRequested: path => {
             sources.close()
@@ -329,6 +385,38 @@ FocusScope {
         }
     }
     VaultFolderAdmission { id: admission; anchors.fill: parent; z: 25; library: root.adapter.library || null }
+    // Android only: the two pieces that replace the desktop file dialog. Hosted like the
+    // other overlays, so Back and Escape close them through handleBack().
+    Loader {
+        id: androidChooser
+        objectName: "vaultAndroidChooserLoader"
+        active: root.androidAddStep === "chooser"
+        z: 26
+        x: content.x
+        y: Math.max(theme.vaultSidebarTop, bar.y + bar.height) + 14
+        width: content.width
+        height: Math.max(0, root.height - y - Math.max(24, root.desktopDockInset + 8))
+        sourceComponent: VaultFolderChooser {
+            backdrop: root.backdrop
+            volumes: PlatformRuntime.storageVolumes()
+            onAddRequested: path => root.addAndroidFolder(path)
+            onCancelRequested: root.androidAddStep = ""
+        }
+        onLoaded: item.forceActiveFocus(Qt.OtherFocusReason)
+    }
+    Loader {
+        id: androidAccess
+        objectName: "vaultAndroidAccessLoader"
+        active: root.androidAddStep === "access"
+        z: 27
+        anchors.fill: parent
+        sourceComponent: VaultAccessCard {
+            backdrop: root.backdrop
+            onOpenSettingsRequested: root.requestAndroidAccess()
+            onCancelRequested: root.androidAddStep = ""
+        }
+        onLoaded: item.forceActiveFocus(Qt.OtherFocusReason)
+    }
     VaultIdentifyDialog {
         id: identifyDialog; anchors.centerIn: parent; z: 30
         onIdentityChosen: (key, identity) => {

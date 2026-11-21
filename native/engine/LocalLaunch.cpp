@@ -20,11 +20,13 @@ namespace {
 QString sourceFileName(const QString& path)
 {
 #ifdef Q_OS_ANDROID
+    // A single document picked through Android's system picker arrives as an opaque
+    // content:// address with no extension; ask the provider for its display name.
     if (path.startsWith(QLatin1String("content://"))) {
         const auto context = QNativeInterface::QAndroidApplication::context();
         const auto source = QJniObject::fromString(path);
         const auto name = QJniObject::callStaticObjectMethod(
-            "org/colosseum/vault/DocumentMetadata", "displayName",
+            "org/colosseum/platform/DocumentName", "displayName",
             "(Landroid/content/Context;Ljava/lang/String;)Ljava/lang/String;",
             context.object<jobject>(), source.object<jstring>());
         return name.isValid() ? name.toString() : QString();

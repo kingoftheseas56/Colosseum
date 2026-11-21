@@ -39,6 +39,11 @@ public:
 
     bool isScanning() const { return m_scanning; }
 
+    // Android "All files access" switched off: every user root reads as unreadable, so a
+    // scan keeps the old rows (away) instead of publishing an empty folder. Process-wide.
+    static void setStorageAccessDenied(bool denied);
+    static bool storageAccessDenied();
+
     // ── Async API ──
     // Census `root` off-thread (scanIgnore needles usually from VaultConfig). A
     // scan requested while one runs BUFFERS and runs after — never dropped.
@@ -73,6 +78,9 @@ public:
         quint64 generation = 0;
         bool cancelled = false;
         bool scanned = false;
+        // The root exists but cannot be read (permission off, locked card). Its last rows
+        // stay in place and read as away; an unreadable root is never an empty census.
+        bool unreadable = false;
         QVariantList sliceModel;                 // confirmation-card rows
         QList<VaultIndex::FileRow> rows;         // index rows (ids filled in applyResult)
         QList<VaultIdentity::FileFacts> facts;   // for identity reconcile

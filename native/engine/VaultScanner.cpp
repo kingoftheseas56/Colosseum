@@ -3,6 +3,7 @@
 #include "VaultLocation.h"
 
 #include <QDir>
+#include <atomic>
 #include <QFileInfo>
 #include <QFutureWatcher>
 #include <QSet>
@@ -12,6 +13,7 @@
 #include <QtConcurrent>
 
 namespace {
+std::atomic<bool> g_storageAccessDenied{false};
 bool genericFilmTitle(const QString& title)
 {
     static const QRegularExpression generic(QStringLiteral(
@@ -19,6 +21,9 @@ bool genericFilmTitle(const QString& title)
     return generic.match(title).hasMatch();
 }
 }
+
+void VaultScanner::setStorageAccessDenied(bool denied) { g_storageAccessDenied.store(denied); }
+bool VaultScanner::storageAccessDenied() { return g_storageAccessDenied.load(); }
 
 VaultScanner::VaultScanner(VaultIndex* index, VaultIdentity* identity, QObject* parent)
     : QObject(parent), m_index(index), m_identity(identity)
@@ -179,6 +184,11 @@ VaultScanner::RawResult VaultScanner::buildScan(
     if (personal.excludes(root, true))
         return r;
     const QFileInfo rootInfo(root);
+    if ((VaultScanner::storageAccessDenied() && !VaultLocation::isContentUri(root))
+        || (rootInfo.isDir() && !rootInfo.isReadable())) {
+        r.unreadable = true;
+        return r;
+    }
     if (!rootInfo.isDir() || !rootInfo.isReadable()
         || (!personal.isEmpty() && !VaultKit::isDirectDirectory(rootInfo)))
         return r;
@@ -496,7 +506,7 @@ void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generat
     bool scannedUserRoot = false;
     for (const RawResult& result : results) {
         QList<VaultIndex::FileRow> candidates = result.rows;
-        const bool available = QDir(result.root).exists();
+        const bool available = QDir(result.root).exists() && !result.unreadable;
         scannedUserRoot = scannedUserRoot || (result.scanned && available);
         if (!available) {
             // Upgrade old overlapping indexes too: an absent child may previously have
