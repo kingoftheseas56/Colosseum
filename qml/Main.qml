@@ -7412,6 +7412,9 @@ Window {
         controller: typeof AccountController !== "undefined" ? AccountController : null
         accountSettings: accountCenter
         onTheatreSyncRequested: function(invoker) { win.openTheatreSyncFromAccount(invoker) }
+        utilityEntries: win.androidHost
+        onTrackersRequested: win.openSyncCenterPage()
+        onWallpaperRequested: win.openWallpaperSearch()
         initial: {
             const who = (typeof AccountController !== "undefined" && AccountController)
                         ? AccountController.username : "";
