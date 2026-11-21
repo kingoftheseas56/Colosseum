@@ -4,6 +4,7 @@ import QtQuick
 import "CatalogDelivery.js" as CatalogDelivery
 import QtQuick.Controls
 import "TheatreApi.js" as TheatreApi
+import "account" as Account
 
 Popup {
     id: dialog
@@ -11,7 +12,10 @@ Popup {
     modal: true
     focus: true
     width: 590
-    height: 520
+    // Android on-screen keyboard: 0 everywhere else, so desktop geometry is unchanged.
+    readonly property real keyboardOverlap: keyboardLoader.item ? keyboardLoader.item.keyboardOverlap : 0
+    height: keyboardOverlap > 0 && parent ? Math.min(520, parent.height - keyboardOverlap - 24) : 520
+    bottomMargin: keyboardOverlap > 0 ? keyboardOverlap + 12 : -1
     property string groupKey: ""
     property string titleText: ""
     property string kind: ""
@@ -129,6 +133,14 @@ Popup {
         color: theme.panel
         border.width: 1
         border.color: theme.edge
+        Loader {
+            id: keyboardLoader
+            active: dialog.opened && !!Overlay.overlay
+            sourceComponent: Account.AccountKeyboardViewport {
+                container: Overlay.overlay
+                flick: resultList
+            }
+        }
     }
     VaultTheme { id: theme }
 
@@ -170,7 +182,8 @@ Popup {
             id: resultList
             objectName: "vaultIdentifyResults"
             width: parent.width
-            height: 315
+            // 315 at the desktop height; with the Android keyboard up, leave room so Cancel stays inside.
+            height: Math.max(60, dialog.height - 48 - 157 - (dialog.keyboardOverlap > 0 ? 32 : 0))
             clip: true
             spacing: 6
             model: dialog.results

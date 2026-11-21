@@ -21,9 +21,11 @@ Popup {
     signal connected(string id)
     parent: Overlay.overlay
     width: Math.min(520, parent ? parent.width - 24 : 520)
-    height: Math.min(implicitHeight, parent ? parent.height - 24 : implicitHeight)
+    // Android on-screen keyboard: 0 everywhere else, so desktop geometry is unchanged.
+    readonly property real keyboardOverlap: keyboardLoader.item ? keyboardLoader.item.keyboardOverlap : 0
+    height: Math.min(implicitHeight, parent ? parent.height - 24 - keyboardOverlap : implicitHeight)
     x: parent ? (parent.width - width) / 2 : 0
-    y: parent ? (parent.height - height) / 2 : 0
+    y: parent ? Math.max(12, (parent.height - keyboardOverlap - height) / 2) : 0
     padding: 20
     modal: true
     focus: true
@@ -32,7 +34,17 @@ Popup {
     palette.windowText: theme.ink
     palette.buttonText: theme.ink
     palette.highlight: theme.gold
-    background: Rectangle { color: theme.biblioWashTop; radius: 20; border.color: theme.edge }
+    background: Rectangle {
+        color: theme.biblioWashTop; radius: 20; border.color: theme.edge
+        Loader {
+            id: keyboardLoader
+            active: root.opened && !!root.parent
+            sourceComponent: Account.AccountKeyboardViewport {
+                container: root.parent
+                flick: scroll.contentItem
+            }
+        }
+    }
     Theme { id: theme }
 
     component ConsentCheck: CheckBox {
