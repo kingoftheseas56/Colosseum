@@ -2013,7 +2013,7 @@ add_test(NAME colosseum.qml.vault_android_add_folder
          COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_vault_android_add_folder.qml")
 set_tests_properties(colosseum.qml.vault_android_add_folder PROPERTIES
     LABELS "qml;android;vault"
-    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QT_QUICK_BACKEND=software"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QT_QUICK_BACKEND=software;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 60)
 
 add_test(NAME colosseum.qml.native_wallpaper_assets
