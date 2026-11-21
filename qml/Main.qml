@@ -1601,16 +1601,22 @@ Window {
         return item.visible !== true || item.enabled !== true
     }
 
-    // Returning focus to the ignition item keeps the next keypress live without showing a
-    // ring in the meantime. callLater lets a surface that seeds its own focus win the race
-    // rather than fighting it for the same frame.
-    onKeyboardFocusDeadChanged: {
+    function recoverKeyboardFocus() {
         if (!win.keyboardFocusDead)
             return
-        Qt.callLater(function() {
-            if (win.keyboardFocusDead)
-                keyboardIgnition.forceActiveFocus()
-        })
+        // A focused HUD control disappears when the video player hides its chrome.
+        // Keep playback keys in the player until the player itself closes.
+        const player = playerLayer.item
+        if (win.playerOpen && player && player.visible && player.enabled)
+            player.forceActiveFocus(Qt.OtherFocusReason)
+        else
+            keyboardIgnition.forceActiveFocus(Qt.OtherFocusReason)
+    }
+
+    // Let a newly opened surface set its focus before recovering an abandoned one.
+    onKeyboardFocusDeadChanged: {
+        if (win.keyboardFocusDead)
+            Qt.callLater(win.recoverKeyboardFocus)
     }
 
     // The secret developer door: F11 flips the whole shell between fullscreen (Colosseum's
@@ -7310,8 +7316,8 @@ Window {
                 accountHost.focusFirstInside()
             else if (win.televisionMode)
                 Qt.callLater(function() { topbar.focusFirst() })
-            else if (win.keyboardFocusDead)
-                keyboardIgnition.forceActiveFocus()
+            else
+                win.recoverKeyboardFocus()
         }
     }
 
