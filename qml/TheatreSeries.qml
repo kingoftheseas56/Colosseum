@@ -1136,10 +1136,11 @@ Item {
         objectName: "theatreSeriesScroll"
         anchors.fill: parent
         contentWidth: width
-        contentHeight: pageCol.height
+        contentHeight: pageCol.height + (touchMetrics.androidHost && page.Window.window
+            ? (page.Window.window.browseBottomInset || 0) : 0)
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: flick }
+        ScrollBar.vertical: HouseScrollBar { flick: flick; showTrack: !touchMetrics.androidHost }
         opacity: page.loading ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
 
@@ -1483,8 +1484,8 @@ Item {
 
                     // Season chrome (order selector, season tabs/dropdown, ledger header,
                     // jump popover, column headers) is rendered by the floating
-                    // `seasonChromeFloat` item (page-level, pins to the top of the viewport
-                    // once scrolled past this point — see below, after `flick`). This
+                    // `seasonChromeFloat` item (pins to the top of the viewport once
+                    // scrolled past this point — see below, after `flick`). This
                     // placeholder only reserves its layout space inside episodesCol so the
                     // episode list starts at the correct offset.
                     Item {
@@ -1902,13 +1903,12 @@ Item {
         }
     }
 
-    // Sticky season chrome (scroll-UX rework 2026-08-24). Lives at page level (a sibling
-    // of `flick`, not inside pageCol) so it can pin above the scrolled content instead of
-    // scrolling away with it. `seasonChromePlaceholder` (inside episodesCol) reserves the
-    // matching space in the normal flow; this item paints the real content, tracking the
-    // placeholder's content-space Y against flick.contentY.
+    // The placeholder reserves the sticky chrome's space in the page column.
     Item {
         id: seasonChromeFloat
+        // On Android keep it inside the Flickable's clip and gesture hierarchy,
+        // while still pinning it to the same point in viewport coordinates.
+        parent: touchMetrics.androidHost ? flick.contentItem : page
         z: 18
         width: page.width
         visible: page.mediaType === "series" && page.videos.length > 0
@@ -1919,7 +1919,8 @@ Item {
         readonly property real placeholderContentY: (pageCol.height, seasonChromePlaceholder.mapToItem(pageCol, 0, 0).y)
         // 72px clears the fixed Back/window chrome band (Back sits at y 28, height ~34).
         readonly property bool pinned: flick.contentY > (placeholderContentY - 72)
-        y: Math.max(72, placeholderContentY - flick.contentY)
+        readonly property real viewportY: Math.max(72, placeholderContentY - flick.contentY)
+        y: viewportY + (touchMetrics.androidHost ? flick.contentY : 0)
 
         Rectangle {
             id: chromeScrim
@@ -1928,8 +1929,8 @@ Item {
             // 2026-07-20 eyes-on note). Transparent and in-flow-looking when not pinned.
             anchors.left: parent.left
             anchors.right: parent.right
-            y: seasonChromeFloat.pinned ? -seasonChromeFloat.y : 0
-            height: seasonChromeFloat.pinned ? (seasonChromeFloat.y + chromeCol.height) : 0
+            y: seasonChromeFloat.pinned ? -seasonChromeFloat.viewportY : 0
+            height: seasonChromeFloat.pinned ? (seasonChromeFloat.viewportY + chromeCol.height) : 0
             color: page.phoneNarrow ? "#08090d" : Qt.rgba(0.016, 0.02, 0.035, 0.93)
             opacity: seasonChromeFloat.pinned ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
@@ -2186,6 +2187,7 @@ Item {
                                 }
                                 MouseArea {
                                     id: seasonMa
+                                    objectName: touchMetrics.androidHost ? "theatreSeason_" + seasonBtn.modelData : ""
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
@@ -2550,6 +2552,9 @@ Item {
 
     SourcesSheet {
         id: sources
+        // The Android page already fills the window; don't extend the sheet past it.
+        anchors.bottomMargin: !touchMetrics.androidHost && page.Window.window
+            ? -(page.Window.window.browseBottomInset || 0) : 0
         mediaMetadata: page.sourceMetadata
         z: 60
         backdrop: page.backdrop

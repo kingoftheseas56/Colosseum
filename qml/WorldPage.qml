@@ -228,6 +228,10 @@ Item {
     signal continueDetailRequested(var item) // Continue tile elsewhere → host opens its detail view
     signal continueSeeAllRequested()         // Continue row's "See all ›" → host opens the scoped backlog page
     signal searchClicked()
+    signal updateClicked()
+    property alias updateAvailable: topbar.updateAvailable
+    property alias updateUnseen: topbar.updateUnseen
+    property alias updateReducedMotion: topbar.reducedMotion
     signal trackersClicked()                 // topbar third-party trackers door -> host opens the Sync Center
     property bool trackersActive: false
     signal settingsClicked()
@@ -263,6 +267,7 @@ Item {
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
+        onUpdateClicked: world.updateClicked()
         utilityActionsInPicker: world.topBarUtilityActionsInPicker
         trackersEnabled: world.topBarTrackersEnabled
         trackersActive: world.trackersActive
@@ -300,9 +305,9 @@ Item {
         objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "WorldScroll" : "worldPageScroll"
         anchors.left: parent.left; anchors.right: parent.right
         y: topbar.y + topbar.height + (world.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
-        height: Math.max(0, world.height - y - world.contentBottomInset)
+        height: Math.max(0, world.height - y - (world.androidHost ? 0 : world.contentBottomInset))
         contentWidth: width
-        contentHeight: board.implicitHeight + 50
+        contentHeight: board.implicitHeight + 50 + (world.androidHost ? world.contentBottomInset : 0)
         clip: true
         pixelAligned: false
         flickableDirection: Flickable.VerticalFlick
@@ -310,6 +315,7 @@ Item {
         ScrollBar.vertical: HouseScrollBar {
             objectName: world.medium.length ? world.medium.toLowerCase() + "WorldScrollBar" : "worldPageScrollBar"
             flick: page
+            showTrack: !world.androidHost
             prominent: world.prominentScrollBar
             glassStyle: world.glassScrollBar
         }

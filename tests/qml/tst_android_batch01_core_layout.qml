@@ -85,16 +85,37 @@ TestCase {
         const chrome = child(item, "topBarSystemChrome")
         const search = child(item, "topBarSearch_Biblio")
         const wallpaper = child(item, "topBarWallpaperButton")
+        const update = child(item, "colosseumTopbarUpdateButton")
+        compare(update.visible, false)
         tryVerify(function() { return chrome.width > 0 })
         const desktopWidth = chrome.width
         compare(actions(item).length, 3)
         item.androidHost = true
-        tryCompare(chrome, "width", search.width + wallpaper.width + chrome.spacing)
+        tryCompare(chrome, "width", search.width + update.width + wallpaper.width + 2 * chrome.spacing)
+        compare(update.visible, true)
+        compare(search.width, 26)
+        compare(update.width, 26)
         noActiveWindowActions(item)
         compare(search.visible, true)
         compare(wallpaper.visible, true)
         item.androidHost = false
         tryCompare(chrome, "width", desktopWidth)
+    }
+    function test_android_world_clock_leaves_the_back_control_on_the_left() {
+        const worldTop = make(topComponent, { androidHost: true, width: 930 })
+        const clock = child(worldTop, "topBarClock")
+        tryCompare(clock, "x", 46)
+
+        const homeTop = make(topComponent, { androidHost: true, width: 930, activeMedium: "",
+                                             reserveHomeBackSpace: true })
+        const homeClock = child(homeTop, "topBarClock")
+        tryCompare(homeClock, "x", clock.x)
+        compare(homeClock.y, clock.y)
+
+        worldTop.width = 1250
+        homeTop.width = 1250
+        tryVerify(function() { return clock.x > 46 })
+        tryCompare(homeClock, "x", clock.x)
     }
     function test_house_collapses_occupied_size() {
         const item = make(houseComponent, { androidHost: false })
