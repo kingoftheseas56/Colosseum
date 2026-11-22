@@ -23,10 +23,12 @@ Popup {
     width: Math.min(520, parent ? parent.width - 24 : 520)
     // Android on-screen keyboard: 0 everywhere else, so desktop geometry is unchanged.
     readonly property real keyboardOverlap: keyboardLoader.item ? keyboardLoader.item.keyboardOverlap : 0
-    height: Math.min(implicitHeight, parent ? parent.height - 24 - keyboardOverlap : implicitHeight)
+    // With the keyboard up a phone leaves little height, so the margins tighten (nothing is hidden).
+    readonly property real edgeMargin: keyboardOverlap > 0 ? 6 : 12
+    height: Math.min(implicitHeight, parent ? parent.height - 2 * edgeMargin - keyboardOverlap : implicitHeight)
     x: parent ? (parent.width - width) / 2 : 0
-    y: parent ? Math.max(12, (parent.height - keyboardOverlap - height) / 2) : 0
-    padding: 20
+    y: parent ? Math.max(edgeMargin, (parent.height - keyboardOverlap - height) / 2) : 0
+    padding: keyboardOverlap > 0 ? 8 : 20
     modal: true
     focus: true
     closePolicy: Popup.CloseOnEscape
