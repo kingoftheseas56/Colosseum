@@ -8,6 +8,10 @@ on:
         required: false
         default: ''
         type: string
+      expected_version:
+        description: Expected Debian package and installed application version
+        default: '1.4.0'
+        type: string
       receive_run_id:
         description: Existing Linux candidate run to qualify without rebuilding (empty builds normally)
         required: false
@@ -53,6 +57,7 @@ jobs:
     timeout-minutes: 150
     env:
       SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+      VERSION: ${{ inputs.expected_version || '1.4.0' }}
       ECM_VERSION: '6.15.0'
       ECM_SHA256: f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2
       MPVQT_VERSION: '1.2.0'
@@ -65,6 +70,7 @@ jobs:
         run: |
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           # Keep the tagged product tree clean. Only the test driver comes from
           # this workflow revision; it reads the exact tagged PlayerPage.qml.
           git fetch --depth=1 origin "$GITHUB_SHA"
@@ -188,16 +194,19 @@ jobs:
           python3 tools/linux-release/check_package.py "$RUNNER_TEMP/AppDir" --report release-output/package-check.json
           python3 scripts/linux_runtime_dependency_gate.py --appdir "$RUNNER_TEMP/AppDir"
           cp "$RUNNER_TEMP/AppDir/BUILD-IDENTITY.json" release-output/
+          test "$(python3 -c 'import json; print(json.load(open("release-output/BUILD-IDENTITY.json"))["version"])')" = "$VERSION"
           # Preserve this exact checked payload for the post-publication AppImage.
-          tar --zstd -cf release-output/Colosseum-1.3.0-linux-AppDir.tar.zst -C "$RUNNER_TEMP" AppDir
-          (cd release-output && sha256sum Colosseum-1.3.0-linux-AppDir.tar.zst > Colosseum-1.3.0-linux-AppDir.tar.zst.sha256)
-          python3 tools/linux-release/package_deb.py --stage "$RUNNER_TEMP/AppDir" --output release-output/Colosseum-1.3.0-linux-amd64.deb
-          ar t release-output/Colosseum-1.3.0-linux-amd64.deb > release-output/deb-archive-members.txt
+          appdir_archive="Colosseum-$VERSION-linux-AppDir.tar.zst"
+          deb="Colosseum-$VERSION-linux-amd64.deb"
+          tar --zstd -cf "release-output/$appdir_archive" -C "$RUNNER_TEMP" AppDir
+          (cd release-output && sha256sum "$appdir_archive" > "$appdir_archive.sha256")
+          python3 tools/linux-release/package_deb.py --stage "$RUNNER_TEMP/AppDir" --output "release-output/$deb"
+          ar t "release-output/$deb" > release-output/deb-archive-members.txt
           printf 'debian-binary\ncontrol.tar.xz\ndata.tar.xz\n' | diff -u - release-output/deb-archive-members.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Colosseum-1.3.0-linux-deb-candidate
+          name: Colosseum-${{ env.VERSION }}-linux-deb-candidate
           path: release-output/
           if-no-files-found: warn
           retention-days: 7
@@ -217,11 +226,13 @@ jobs:
             image: debian:13
     container: ${{ matrix.image }}
     timeout-minutes: 15
+    env:
+      VERSION: ${{ inputs.expected_version || '1.4.0' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
-          name: Colosseum-1.3.0-linux-deb-candidate
+          name: Colosseum-${{ env.VERSION }}-linux-deb-candidate
           path: package
           run-id: ${{ inputs.receive_run_id || github.run_id }}
           github-token: ${{ github.token }}
@@ -243,6 +254,7 @@ jobs:
           dpkg-query -W -f='${db:Status-Abbrev}' ca-certificates > /tmp/installed-receipts/ca-certificates-before.txt 2>/dev/null || echo 'absent' > /tmp/installed-receipts/ca-certificates-before.txt
           dpkg-query -W -f='${db:Status-Abbrev}' libgtk-3-common > /tmp/installed-receipts/gtk-schemas-before.txt 2>/dev/null || echo 'absent' > /tmp/installed-receipts/gtk-schemas-before.txt
           cd package
+          deb="Colosseum-$VERSION-linux-amd64.deb"
           python3 - <<'PY'
           import json, os, re
           from pathlib import Path
@@ -253,17 +265,17 @@ jobs:
           if received and (not re.fullmatch('[0-9]+', received) or not re.fullmatch('[0-9a-f]{64}', os.environ.get('EXPECTED_DEB_SHA256', ''))):
               raise SystemExit('Receive-only qualification requires exact run ID and DEB digest')
           identity = json.loads(Path('BUILD-IDENTITY.json').read_text())
-          if identity['source_commit'] != expected:
-              raise SystemExit('Received candidate source does not match the requested pin')
+          if identity['source_commit'] != expected or identity['version'] != os.environ['VERSION']:
+              raise SystemExit('Received candidate source or version does not match the requested pin')
           receipt = {'application_source_commit': expected, 'qualification_source_commit': os.environ['QUALIFICATION_SOURCE_SHA'],
                      'received_build_run': received or None, 'expected_deb_sha256': os.environ.get('EXPECTED_DEB_SHA256') or None}
           Path('/tmp/installed-receipts/qualification-identity.json').write_text(json.dumps(receipt, indent=2) + '\n')
           PY
-          sha256sum --check --strict Colosseum-1.3.0-linux-amd64.deb.sha256
+          sha256sum --check --strict "$deb.sha256"
           if [ -n "$RECEIVE_RUN_ID" ]; then
-            printf '%s  %s\n' "$EXPECTED_DEB_SHA256" 'Colosseum-1.3.0-linux-amd64.deb' | sha256sum --check --strict
+            printf '%s  %s\n' "$EXPECTED_DEB_SHA256" "$deb" | sha256sum --check --strict
           fi
-          apt-get install -y --no-install-recommends ./Colosseum-1.3.0-linux-amd64.deb
+          apt-get install -y --no-install-recommends "./$deb"
           python3 -c 'import json,os; from pathlib import Path; assert json.loads(Path("/opt/colosseum/BUILD-IDENTITY.json").read_text())["source_commit"] == os.environ["EXPECTED_SOURCE_SHA"], "Installed source pin mismatch"'
           dpkg-query -W -f='${db:Status-Abbrev}' ca-certificates > /tmp/installed-receipts/ca-certificates-after.txt
           test "$(cat /tmp/installed-receipts/ca-certificates-after.txt)" = 'ii '
@@ -273,7 +285,7 @@ jobs:
           test -f /usr/share/glib-2.0/schemas/org.gtk.Settings.FileChooser.gschema.xml
           test -s /usr/share/glib-2.0/schemas/gschemas.compiled
           desktop-file-validate /usr/share/applications/colosseum.desktop
-          test "$(/usr/bin/colosseum --version)" = 'Colosseum 1.3.0'
+          test "$(/usr/bin/colosseum --version)" = "Colosseum $VERSION"
       - name: Start and quit installed UI as a normal user
         run: |
           useradd --create-home --shell /bin/bash package-test
@@ -311,7 +323,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Colosseum-1.3.0-linux-installed-smoke-${{ matrix.label }}
+          name: Colosseum-${{ env.VERSION }}-linux-installed-smoke-${{ matrix.label }}
           path: /tmp/installed-receipts/
           if-no-files-found: warn
           retention-days: 7

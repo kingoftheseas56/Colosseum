@@ -12,6 +12,8 @@ command -v brew >/dev/null || fail 'Install native Homebrew using https://brew.s
 [[ $(brew --prefix) == /opt/homebrew ]] || fail 'Expected native Apple-silicon Homebrew at /opt/homebrew'
 [[ $(git -C "$repo" rev-parse HEAD) == "$pin" ]] || fail 'Repository HEAD does not match requested source SHA'
 [[ -z $(git -C "$repo" status --porcelain --untracked-files=normal) ]] || fail 'Source changes or untracked files exist; use a separate clean checkout'
+version=$(sed -nE 's/^project\(colosseum VERSION ([0-9]+\.[0-9]+\.[0-9]+)[[:space:]].*/\1/p' "$repo/native/CMakeLists.txt")
+[[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'Project release version missing'
 for tool in cmake ninja pkg-config curl tar shasum lipo; do
     command -v "$tool" >/dev/null || fail "Missing $tool; install prerequisites from the handoff"
 done
@@ -138,7 +140,7 @@ cmake -S "$repo/native" -B "$work/app" -G Ninja \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="$deployment" \
     -DMACOSX_BUNDLE_GUI_IDENTIFIER=world.getcolosseum.Colosseum \
     -DMACOSX_BUNDLE_BUNDLE_NAME=Colosseum \
-    -DMACOSX_BUNDLE_BUNDLE_VERSION=1.3.0 -DMACOSX_BUNDLE_SHORT_VERSION_STRING=1.3.0 \
+    -DMACOSX_BUNDLE_BUNDLE_VERSION="$version" -DMACOSX_BUNDLE_SHORT_VERSION_STRING="$version" \
     -DBUILD_TESTING=OFF -DCOLOSSEUM_BUILD_PLAYER2=OFF \
     -DCMAKE_PREFIX_PATH="$qtbase;$deps;$(brew --prefix libtorrent-rasterbar);$(brew --prefix boost);$(brew --prefix openssl@3)" \
     -DQT_ADDITIONAL_PACKAGES_PREFIX_PATH="$qtbase" \
@@ -160,10 +162,11 @@ fi
 file "$executable"
 otool -L "$executable"
 if [[ -n ${COLOSSEUM_MAC_RECEIPT_PATH:-} ]]; then
-    python3 - "$COLOSSEUM_MAC_RECEIPT_PATH" "$repo" "$pin" "$work" "$qtbase" "$deps" "$executable" "$app_bundle" "$deployment" <<'PY'
+    python3 - "$COLOSSEUM_MAC_RECEIPT_PATH" "$repo" "$pin" "$work" "$qtbase" "$deps" "$executable" "$app_bundle" "$deployment" "$version" <<'PY'
 import json, pathlib, subprocess, sys
-output, source, sha, work, qt, deps, executable, bundle, minimum = sys.argv[1:]
+output, source, sha, work, qt, deps, executable, bundle, minimum, version = sys.argv[1:]
 receipt = dict(schema=1, source=source, source_sha=sha, work=work, build=work+'/app',
+               version=version,
                qt_prefix=qt, dependency_prefix=deps, executable=executable, bundle=bundle,
                deployment_target=minimum, configuration='Release', architecture='arm64',
                qt_version='6.11.1', mpvqt_version='1.2.0', ecm_version='6.15.0',

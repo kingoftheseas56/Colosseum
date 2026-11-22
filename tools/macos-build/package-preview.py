@@ -347,8 +347,17 @@ def select_sqlite_driver(app):
                 omitted=removed, reason='Application SQL stores use SQLite only; unused SDK server drivers are excluded')
 
 
+def release_version(identity):
+    # Versionless receipts belong to the original 1.3.0 workflow.
+    value = identity.get('version', '1.3.0')
+    if not isinstance(value, str) or not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', value):
+        raise RuntimeError('Invalid release version in the build identity')
+    return value
+
+
 def package(receipt_path, output):
     receipt = json.loads(receipt_path.read_text())
+    app_version = release_version(receipt)
     source, original = Path(receipt['source']), Path(receipt['bundle'])
     if not receipt['bundle'] or not original.is_dir():
         raise RuntimeError('Receipt does not describe a built .app')
@@ -367,7 +376,7 @@ def package(receipt_path, output):
         info = plistlib.load(stream)
     info.update(CFBundleName='Colosseum', CFBundleDisplayName='Colosseum',
                 CFBundleIdentifier='world.getcolosseum.Colosseum', CFBundleExecutable='colosseum',
-                CFBundleVersion='1.3.0', CFBundleShortVersionString='1.3.0', LSMinimumSystemVersion='26.1')
+                CFBundleVersion=app_version, CFBundleShortVersionString=app_version, LSMinimumSystemVersion='26.1')
     with info_path.open('wb') as stream:
         plistlib.dump(info, stream)
     notices = app / 'Contents/Resources/licenses'
@@ -420,7 +429,7 @@ def package(receipt_path, output):
     normalize_rpaths(app, macho_files(app))
     report = audit(app)
     (output / 'dependency-audit.json').write_text(json.dumps(report, indent=2))
-    identity = dict(version='1.3.0', source_sha=actual_sha, architecture='arm64',
+    identity = dict(version=app_version, source_sha=actual_sha, architecture='arm64',
                     minimum_macos='26.1', signing='ad-hoc', developer_id=False, notarized=False,
                     runtime_status='UNVERIFIED', receipt=receipt,
                     qml_manifest_sha256=hashlib.sha256((runtime / 'qml-build.manifest').read_bytes()).hexdigest())
@@ -430,7 +439,7 @@ def package(receipt_path, output):
     run('codesign', '--verify', '--deep', '--strict', '--verbose=2', app)
     verify_webengine_entitlements(app, output / 'signing-entitlements.json')
     run('codesign', '--display', '--verbose=4', app)
-    archive = output / 'Colosseum-1.3.0-macOS-arm64-preview.zip'
+    archive = output / f'Colosseum-{app_version}-macOS-arm64-preview.zip'
     if archive.exists():
         raise RuntimeError('Refusing to overwrite archive')
     partial = archive.with_suffix('.zip.partial')
@@ -580,11 +589,13 @@ def smoke(output, *, archive=None, dmg=None):
                   rendered_window='NOT RUN',
                   profile_isolation='NOT RUN', physical_m1_playback_gpu_audio='NOT RUN')
     try:
+        identity_path = output / 'BUILD-IDENTITY.json'
+        app_version = release_version(json.loads(identity_path.read_text()) if identity_path.is_file() else {})
         with tempfile.TemporaryDirectory(prefix='colosseum-smoke-') as directory:
             cwd = Path(directory)
             # Exercise the actual archive from a fresh path outside source/build.
             if archive is None:
-                archive = output / 'Colosseum-1.3.0-macOS-arm64-preview.zip'
+                archive = output / f'Colosseum-{app_version}-macOS-arm64-preview.zip'
             report['archive'] = 'FAIL'
             report['archive_audit'] = verify_archive(archive)
             report['archive'] = 'PASS'
@@ -599,7 +610,7 @@ def smoke(output, *, archive=None, dmg=None):
             report['version'] = 'FAIL'
             result = subprocess.run([str(executable), '--version'], cwd=cwd, env=environment,
                                     capture_output=True, text=True, timeout=30)
-            if result.returncode or result.stdout.strip() != 'Colosseum 1.3.0':
+            if result.returncode or result.stdout.strip() != f'Colosseum {app_version}':
                 raise RuntimeError(f'--version failed: {result}')
             report['version'] = 'PASS'
             # A console user alone does not prove GUI operation, but no console
@@ -685,17 +696,18 @@ def lanista(address, command, payload=None):
 def release_dmg(receipt_path, output):
     """Package only the signed application built from this release's receipt."""
     receipt = json.loads(receipt_path.read_text())
+    app_version = release_version(receipt)
     identity = json.loads((output / 'BUILD-IDENTITY.json').read_text())
     app = output / 'Colosseum.app'
     embedded = json.loads((app / 'Contents/Resources/BUILD-IDENTITY.json').read_text())
     if (not re.fullmatch(r'[0-9a-f]{40}', receipt.get('source_sha', ''))
             or identity.get('source_sha') != receipt['source_sha']
-            or identity.get('version') != '1.3.0' or embedded != identity):
+            or identity.get('version') != app_version or embedded != identity):
         raise RuntimeError('Release application identity does not match the source receipt/version')
-    archive = output / 'Colosseum-1.3.0-macOS-arm64-preview.zip'
+    archive = output / f'Colosseum-{app_version}-macOS-arm64-preview.zip'
     verify_archive(archive)
     run('codesign', '--verify', '--deep', '--strict', '--verbose=2', app)
-    dmg = output / 'Colosseum-1.3.0-macOS-arm64.dmg'
+    dmg = output / f'Colosseum-{app_version}-macOS-arm64.dmg'
     if dmg.exists():
         raise RuntimeError('Refusing to overwrite a release image')
     create_dmg(app, dmg)

@@ -32,28 +32,29 @@ class LinuxReleasePolicyTests(unittest.TestCase):
                     self.assertIn("-D" + flag + "=OFF", source)
                 self.assertIn("-DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev", source)
 
-    def test_linux_candidate_artifact_identity_is_130(self):
+    def test_linux_candidate_artifact_names_use_the_expected_version(self):
         workflow = (ROOT / ".github/workflows/release-linux-deb.yml").read_text()
-        self.assertIn("Colosseum-1.3.0-linux-amd64.deb", workflow)
-        self.assertIn("Colosseum-1.3.0-linux-deb-candidate", workflow)
-        self.assertIn("Colosseum-1.3.0-linux-installed-smoke", workflow)
-        self.assertIn("'Colosseum 1.3.0'", workflow)
+        self.assertIn("default: '1.4.0'", workflow)
+        self.assertIn("Colosseum-$VERSION-linux-amd64.deb", workflow)
+        self.assertIn("Colosseum-${{ env.VERSION }}-linux-deb-candidate", workflow)
+        self.assertIn("Colosseum-${{ env.VERSION }}-linux-installed-smoke", workflow)
+        self.assertIn('"Colosseum $VERSION"', workflow)
         self.assertNotIn("Colosseum-1.1.10-", workflow)
-        self.assertIn("ar t release-output/Colosseum-1.3.0-linux-amd64.deb > release-output/deb-archive-members.txt", workflow)
+        self.assertIn('ar t "release-output/$deb" > release-output/deb-archive-members.txt', workflow)
         self.assertIn("control.tar.xz\\ndata.tar.xz", workflow)
 
-    def test_130_shipping_cache_requires_both_worlds_explicitly_off(self):
+    def test_140_shipping_cache_requires_both_worlds_explicitly_off(self):
         cache = ("CMAKE_BUILD_TYPE:STRING=Release\n"
                  "COLOSSEUM_NO_ACCOUNT_EDITION:BOOL=OFF\n"
                  "COLOSSEUM_FERIA_IN_APP:BOOL=OFF\n"
                  "COLOSSEUM_VINYL_IN_APP:BOOL=OFF\n"
                  "COLOSSEUM_CONTENT_API_URL:STRING=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev\n")
-        assembly.validate_shipping_cache(cache, "1.3.0")
+        assembly.validate_shipping_cache(cache, "1.4.0")
         for flag in ("COLOSSEUM_FERIA_IN_APP", "COLOSSEUM_VINYL_IN_APP"):
             for replacement in (flag + ":BOOL=ON\n", "", flag + ":BOOL=FALSE\n"):
                 with self.subTest(flag=flag, replacement=replacement):
                     with self.assertRaisesRegex(ValueError, "explicitly disabled"):
-                        assembly.validate_shipping_cache(cache.replace(flag + ":BOOL=OFF\n", replacement), "1.3.0")
+                        assembly.validate_shipping_cache(cache.replace(flag + ":BOOL=OFF\n", replacement), "1.4.0")
 
     def test_positioning_keeps_its_matching_serialport_sdk_dependency(self):
         workflow = (ROOT / ".github/workflows/release-linux-deb.yml").read_text()
@@ -72,7 +73,7 @@ class LinuxReleasePolicyTests(unittest.TestCase):
 
     def test_clean_install_proves_the_trust_dependency(self):
         workflow = (ROOT / ".github/workflows/release-linux-deb.yml").read_text()
-        install = next(line for line in workflow.splitlines() if re.search(r"\./Colosseum-\d+\.\d+\.\d+-linux-amd64\.deb", line))
+        install = next(line for line in workflow.splitlines() if '"./$deb"' in line)
         # A recommendation or a preinstalled store would mask a missing Depends
         # entry, so the clean container must install with recommendations off.
         self.assertIn("--no-install-recommends", install)
