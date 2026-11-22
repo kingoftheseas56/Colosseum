@@ -248,6 +248,7 @@ Window {
     readonly property bool feriaAvailable: Qt.platform.os !== "android"
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
+    property var pendingLocalVideoPresentation: null
     // The Biblio detail layer is owned by this shell. Keep one route-local
     // return snapshot so closing it restores the live page item and bounded
     // offsets without introducing a global focus history service.
@@ -3987,9 +3988,11 @@ Window {
     // FIRST file and decides if it can open at all; QML paints the door — the right reader/
     // player as a normal taskbar session, or a categorized "can't open" with NO tile.
     function dispatchLocalRoute(r) {
+        var presentation = win.pendingLocalVideoPresentation
+        win.pendingLocalVideoPresentation = null
         if (!r) return
         if (r.prompt && typeof LocalLaunch !== "undefined") {
-            win.pendingIdentityRoute = r
+            win.pendingIdentityRoute = Object.assign({}, r, { videoPresentation: presentation })
             identityCeremonyDialog.ceremony = r
             identityCeremonyDialog.open()
             return
@@ -4000,7 +4003,7 @@ Window {
         localLaunchState.openCount = localLaunchState.openCount + 1
         if (r.family === "comic")      win.openVaultComic(r.path, r.vaultId, r.title)
         else if (r.family === "book")  win.openBookSession(r.path, { "id": r.vaultId, "title": r.title })
-        else if (r.family === "video") win.openLocalVideoSession(win.videoTargetFor(r.path, r.vaultId, r.title))
+        else if (r.family === "video") win.openLocalVideoSession(win.videoTargetFor(r.path, r.vaultId, r.title, presentation))
     }
     readonly property bool localMediaAvailable: typeof LocalLaunch !== "undefined" && LocalLaunch !== null
     property var dockPickAudiobookReturn: null
@@ -4094,13 +4097,17 @@ Window {
         else win.openLocalMedia(files)
         return true
     }
-    function openLocalMedia(paths) {
+    function openLocalMedia(paths, videoPresentation) {
         if (!paths || !paths.length) return
         if (!win.localMediaAvailable) return
+        // LocalLaunch only delivers the latest async route. Keep its presentation
+        // separately from the native file identity used for progress.
+        win.pendingLocalVideoPresentation = videoPresentation || null
         LocalLaunch.openAsync(paths)
     }
     function openNextToOpen(index) {
         if (typeof LocalLaunch === "undefined") return
+        win.pendingLocalVideoPresentation = null
         LocalLaunch.openNextToOpenAsync(index)
     }
     function removeNextToOpen(index) {
@@ -4118,19 +4125,18 @@ Window {
         if (!LocalLaunch.decideIdentityCeremony(pending.relationship || "", choice)) return
         win.pendingIdentityRoute = null
         identityCeremonyDialog.close()
+        win.pendingLocalVideoPresentation = pending.videoPresentation || null
         LocalLaunch.routeInfoAsync(pending.path || "")
     }
     // Build the player target for a local video, resuming at the saved spot. A finished movie
     // (>=90%) is dropped from Progress, so its lookup is empty → position 0 → restart from the
     // top; an unfinished one carries its resume position (Slice 9 reopen semantics).
-    function videoTargetFor(path, vaultId, title) {
-        var pos = 0
-        if (typeof Progress !== "undefined") {
-            var pg = Progress.get("video", vaultId || "")
-            if (pg && pg.resume && pg.resume.position !== undefined)
-                pos = Number(pg.resume.position) || 0
-        }
-        return { "path": path, "id": vaultId, "title": title, "kind": "video", "position": pos }
+    function videoTargetFor(path, vaultId, title, presentation) {
+        var pg = typeof Progress !== "undefined" ? Progress.get("video", vaultId || "") : null
+        var resume = (pg || {}).resume || ({})
+        return { "path": path, "id": vaultId, "kind": "video", "position": Number(resume.position) || 0,
+            "title": (presentation && presentation.title) || title,
+            "art": (presentation && (presentation.art || (pg || {}).cover)) || "" }
     }
     // One-click reopen from the recent list. A dead file offers nothing. If the file is already
     // open, focus its tile (no duplicate, no re-count); otherwise route it fresh — comics/books
@@ -5962,7 +5968,9 @@ Window {
             item.smartPickStarted.connect(win.beginSmartPickPlayer)
             item.smartPickFailed.connect(win.smartPickNoSource)
             item.playLocalRequested.connect(win.openLocalVideoSession)
-            item.localMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
+            item.localMediaRequested.connect(function(path) {
+                win.openLocalMedia([path], item.mediaType === "movie" ? { title: item.title, art: item.cover } : null)
+            })
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
             item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
@@ -6330,7 +6338,7 @@ Window {
                 else vaultFolderDialog.open()
             })
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
-                item.openMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
+                item.openMediaRequested.connect(function(path, presentation) { win.openLocalMedia([path], presentation) })
             item.viewWorldRequested.connect(win.openVaultIdentity)
             item.connectServerRequested.connect(function() { win.openVaultServerConnections() })
             item.minimizeRequested.connect(win.minimizeShell)
