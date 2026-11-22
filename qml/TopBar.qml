@@ -431,7 +431,7 @@ Item {
                         : bar.activeMedium === "" ? "topBarTrackersButton"
                         : "topBarTrackersButton_" + bar.activeMedium
             width: 22; height: 22
-            visible: !bar.utilityActionsInPicker && bar.trackersEnabled && bar.lifecycleActive
+            visible: !bar.androidHost && !bar.utilityActionsInPicker && bar.trackersEnabled && bar.lifecycleActive
             opacity: trackersInput.interactionActive || bar.trackersActive ? 1.0 : 0.92
             Image {
                 anchors.fill: parent
