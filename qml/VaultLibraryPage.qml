@@ -393,7 +393,8 @@ FocusScope {
         active: root.androidAddStep === "chooser"
         z: 26
         x: content.x
-        y: Math.max(theme.vaultSidebarTop, bar.y + bar.height) + 14
+        // On a short landscape phone the chooser may cover the Vault header (it is modal) to give the list room.
+        y: root.height < 520 ? bar.y : Math.max(theme.vaultSidebarTop, bar.y + bar.height) + 14
         width: content.width
         height: Math.max(0, root.height - y - Math.max(24, root.desktopDockInset + 8))
         sourceComponent: VaultFolderChooser {

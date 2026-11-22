@@ -16,6 +16,8 @@ FocusScope {
     property var volumes: []
     property string currentPath: ""
     readonly property bool compact: width < 540
+    // A landscape phone leaves little height: tighter type and spacing so the folder list gets the room.
+    readonly property bool shortHeight: height > 0 && height < 380
     readonly property bool atPlaces: currentPath === ""
     readonly property var volume: volumeFor(currentPath)
     readonly property string volumeLabel: atPlaces ? qsTr("Storage")
@@ -135,20 +137,20 @@ FocusScope {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: chooser.compact ? 12 : 22
-        spacing: 12
+        anchors.margins: chooser.compact || chooser.shortHeight ? 12 : 22
+        spacing: chooser.shortHeight ? 6 : 12
         RowLayout {
             Layout.fillWidth: true
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: chooser.shortHeight ? 2 : 6
                 Text {
                     objectName: "vaultFolderChooserTitle"
                     Layout.fillWidth: true
                     text: qsTr("Add a folder")
                     color: theme.ink
                     font.family: theme.display
-                    font.pixelSize: chooser.compact ? theme.vaultSectionTitle : theme.vaultPageTitle
+                    font.pixelSize: chooser.compact || chooser.shortHeight ? theme.vaultSectionTitle : theme.vaultPageTitle
                     wrapMode: Text.Wrap
                 }
                 Text {
