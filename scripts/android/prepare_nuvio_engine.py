@@ -376,6 +376,16 @@ def main() -> int:
     install_lib_dir.mkdir(parents=True, exist_ok=True)
     installed = install_lib_dir / "libnuvio_engine.so"
     shutil.copyfile(library, installed)
+    # The APK never needs the engine's DWARF (about 80 MB of the 106 MB library).
+    # Strip it here, before the stamp records the SHA-256, so the shipped bytes
+    # are exactly the stamped bytes. --strip-debug keeps .symtab/.dynsym.
+    host = "windows-x86_64" if sys.platform == "win32" else (
+        "darwin-x86_64" if sys.platform == "darwin" else "linux-x86_64")
+    strip = ndk / "toolchains" / "llvm" / "prebuilt" / host / "bin" / (
+        "llvm-strip.exe" if sys.platform == "win32" else "llvm-strip")
+    if not strip.exists():
+        die(f"NDK llvm-strip missing: {strip}")
+    run([str(strip), "--strip-debug", str(installed)])
 
     stamp = {
         "kind": "colosseum-nuvio-hardened",
@@ -388,6 +398,8 @@ def main() -> int:
         "libtorrent_patch_count": LIBTORRENT_PATCH_COUNT,
         "library": str(installed),
         "build_artifact": str(library.resolve()),
+        "build_artifact_sha256": sha256(library),
+        "debug_stripped": True,
         "source_worktree": str(source),
         "library_sha256": sha256(installed),
         "patch": str(patch),

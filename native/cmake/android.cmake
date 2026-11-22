@@ -145,7 +145,15 @@ foreach(_runtime_dir IN ITEMS assets resources)
         get_filename_component(_runtime_out_dir
             "${COLOSSEUM_ANDROID_RUNTIME_ROOT}/${_runtime_rel}" DIRECTORY)
         file(MAKE_DIRECTORY "${_runtime_out_dir}")
-        configure_file("${CMAKE_CURRENT_SOURCE_DIR}/../${_runtime_rel}"
+        # Large tribute art ships as a same-named WebP copy on Android (see
+        # scripts/android/make_android_image_overrides.py); desktop keeps the PNG.
+        set(_runtime_source "${CMAKE_CURRENT_SOURCE_DIR}/../${_runtime_rel}")
+        set(_runtime_override
+            "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/android/asset-overrides/${_runtime_rel}")
+        if(EXISTS "${_runtime_override}")
+            set(_runtime_source "${_runtime_override}")
+        endif()
+        configure_file("${_runtime_source}"
                        "${COLOSSEUM_ANDROID_RUNTIME_ROOT}/${_runtime_rel}" COPYONLY)
     endforeach()
 endforeach()

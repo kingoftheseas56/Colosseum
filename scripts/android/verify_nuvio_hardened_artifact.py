@@ -228,7 +228,13 @@ def verify(prefix: pathlib.Path, abi: str, patch: pathlib.Path, source_arg=None)
     expected_artifact = source / "build-android" / abi / "libnuvio_engine.so"
     if artifact != expected_artifact or not artifact.exists():
         die("build artifact is not the pinned donor's expected output")
-    if sha256_file(artifact) != actual_library_sha:
+    if stamp.get("debug_stripped") is True:
+        # prepare_nuvio_engine.py strips DWARF after copying: the packaged bytes
+        # are pinned by library_sha256 above, and the build output they came from
+        # is pinned here.
+        if sha256_file(artifact) != stamp.get("build_artifact_sha256"):
+            die("donor build artifact changed since the stripped engine was stamped")
+    elif sha256_file(artifact) != actual_library_sha:
         die("packaged engine does not match the donor's build artifact")
     import importlib.util
     prepare = pathlib.Path(__file__).resolve().with_name("prepare_nuvio_engine.py")
