@@ -283,7 +283,7 @@ Item {
 
     Timer { id: debounce; interval: 220; onTriggered: surf.runSearch() }
 
-    Shortcut { enabled: surf.visible && surf.enabled; sequences: ["Return", "Enter"]; onActivated: { debounce.stop(); surf.runSearch(); surf.commitCurrentQuery(); if (!surf.searchProvider) surf.openTop() } }
+    Shortcut { enabled: !surf.androidHost && surf.visible && surf.enabled; sequences: ["Return", "Enter"]; onActivated: { debounce.stop(); surf.runSearch(); surf.commitCurrentQuery(); if (!surf.searchProvider) surf.openTop() } }
 
     // ── visible exit (audit fix: Esc was the only door out) + the search field ──
     BackAction {
@@ -326,6 +326,15 @@ Item {
             color: theme.ink; font.family: theme.display; font.pixelSize: surf.phoneNarrow ? 18 : 22
             clip: true; focus: true; selectByMouse: true
             onTextChanged: { surf.cancelSearch(); debounce.restart() }
+            onAccepted: {
+                if (!surf.androidHost) return
+                Qt.inputMethod.commit()
+                debounce.stop()
+                surf.runSearch()
+                surf.commitCurrentQuery()
+                Qt.inputMethod.hide()
+                queryInput.focus = false
+            }
             Keys.onEscapePressed: { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.backRequested() }
         }
         Text {

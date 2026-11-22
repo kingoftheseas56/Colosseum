@@ -200,7 +200,7 @@ Item {
 
     Timer { id: debounce; interval: 200; onTriggered: search.runAppleSearch() }
 
-    Shortcut { sequences: ["Return", "Enter"]; onActivated: { debounce.stop(); search.runAppleSearch(); search.commitCurrentQuery(); search.openTop() } }
+    Shortcut { enabled: !search.androidHost; sequences: ["Return", "Enter"]; onActivated: { debounce.stop(); search.runAppleSearch(); search.commitCurrentQuery(); search.openTop() } }
 
     // ── visible exit (audit fix: Esc was the only door out) + the search field ──
     BackAction {
@@ -244,6 +244,15 @@ Item {
             color: theme.ink; font.family: theme.display; font.pixelSize: search.phoneNarrow ? 18 : 22
             clip: true; focus: true; selectByMouse: true
             onTextChanged: { search.cancelAllRequests(); debounce.restart() }
+            onAccepted: {
+                if (!search.androidHost) return
+                Qt.inputMethod.commit()
+                debounce.stop()
+                search.runAppleSearch()
+                search.commitCurrentQuery()
+                Qt.inputMethod.hide()
+                queryInput.focus = false
+            }
             // the field holds keyboard focus, so close on Esc here rather than relying on the
             // window shortcut reaching past it
             Keys.onEscapePressed: { search.cancelAllRequests(); search.commitCurrentQuery(); search.backRequested() }

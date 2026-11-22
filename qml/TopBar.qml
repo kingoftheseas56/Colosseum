@@ -46,6 +46,8 @@ Item {
     property bool androidHost: Qt.platform.os === "android"
     AdaptiveLayout { id: inputMetrics; objectName: "topBarInputMetrics"; androidHost: bar.androidHost; viewportWidth: bar.width }
     readonly property real touchTargetSize: inputMetrics.touchTargetSize
+    readonly property real systemGlyphSize: bar.androidHost
+        ? Math.round(Math.min(inputMetrics.tightAndroidChrome ? 28 : 34, touchTargetSize * 0.7)) : 22
     readonly property real touchHorizontalInset: bar.touchTargetSize > 0
         ? Math.min((bar.touchTargetSize - 22) / 2, Math.floor(systemChrome.spacing / 2)) : 0
     // Wallpaper is available from the desktop app picker.
@@ -114,9 +116,7 @@ Item {
     readonly property bool dlnaVisible: bar.dlnaAvailable && bar.lifecycleActive
         && (bar.activeMedium === "" || bar.dlnaRunning)
 
-    // Update availability flags (home only): drive the silver badge on the home
-    // Update glyph the same way the taskbar badge pulses on updateUnseen. Bound
-    // from Main.qml's Updates singleton; inert on worlds (the glyph is hidden).
+    // Update availability flags from the shell: the silver badge pulses until seen.
     property bool updateAvailable: false
     property bool updateUnseen: false
     property bool reducedMotion: false
@@ -157,18 +157,17 @@ Item {
         property string accessibleName: ""
         property bool showLabel: false
         property bool lit: false      // full-strength (e.g. a running state), regardless of hover
+        property real glyphSize: 22
         signal clicked()
-        // Android: the 22 px glyph rides a 48-unit-tall hit host; horizontally the pointer owner
-        // extends into half of each Row gap so neighbours stay disjoint and the shared
-        // desktop composition (already tight beside the world picker) keeps its widths.
-        width: showLabel ? 82 : 22
-        height: Math.max(22, bar.touchTargetSize)
+        // On Android the glyph rides a touch-height host that shares the neighbouring gaps.
+        width: showLabel ? 82 : glyphSize
+        height: Math.max(glyphSize, bar.touchTargetSize)
         Image {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            width: 22; height: 22
+            width: sysRoot.glyphSize; height: sysRoot.glyphSize
             source: sysRoot.source
-            sourceSize.width: 22; sourceSize.height: 22
+            sourceSize.width: sysRoot.glyphSize; sourceSize.height: sysRoot.glyphSize
             fillMode: Image.PreserveAspectFit
             opacity: (sysRoot.lit || input.interactionActive) ? 1.0 : 0.72
         }
@@ -259,6 +258,8 @@ Item {
         id: leftChrome
         objectName: "topBarLeftChrome"
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+        // Keep the clock at the leading edge in every Android world, beside Back.
+        layoutDirection: bar.androidHost && !bar.backOnly ? Qt.RightToLeft : Qt.LeftToRight
         spacing: bar.androidHost ? inputMetrics.chromeGap : 18
         BackAction {
             id: backAction
@@ -314,7 +315,8 @@ Item {
                 font.pixelSize: bar.androidHost ? inputMetrics.chromeDateSize : 13
                 width: bar.androidHost ? Math.max(clockTime.implicitWidth + 5 + clockPeriod.implicitWidth,
                     Math.min(implicitWidth, bar.clockFreeSpace)) : implicitWidth
-                fontSizeMode: bar.androidHost ? Text.Fit : Text.FixedSize
+                // Don't let the extra world controls change the date's font size.
+                elide: bar.androidHost ? Text.ElideRight : Text.ElideNone
                 minimumPixelSize: inputMetrics.chromeMinimumDateSize
             }
         }
@@ -359,11 +361,8 @@ Item {
     }
 
     // ---- right: system icons ----
-    // Universal search is retired on home; the slot belongs to the Update glyph
-    // there (the release chronicle entry, with a silver availability badge).
-    // Worlds keep search — it is wired and functional in WorldPage.qml. The two
-    // are gated on activeMedium, the same home/world discriminator BackAction
-    // uses above, so only one is ever present in the slot.
+    // Desktop shares a slot between Home Update and world Search. Android
+    // keeps Update beside Account even in worlds that also offer Search.
     Row {
         id: systemChrome
         objectName: "topBarSystemChrome"
@@ -378,22 +377,22 @@ Item {
             objectName: bar.activeMedium === "Theatre" ? "topBarSearch"
                        : bar.activeMedium === "" ? "" : "topBarSearch_" + bar.activeMedium
             source: "../assets/icons/search.svg"
+            glyphSize: bar.systemGlyphSize
             accessibleName: "Search"
             onClicked: bar.searchClicked()
             visible: bar.activeMedium !== "" && bar.activeMedium !== "Universes"
         }
-        // Update — home only. Takes search's throne; the silver badge signals an
-        // available release (pulse on unseen, steady once seen).
+        // The silver badge signals an available release (pulse on unseen, steady once seen).
         Item {
             y: bar.androidHost ? (parent.height - height) / 2 : 0
-            width: 22; height: 22
-            visible: bar.activeMedium === ""
+            width: bar.systemGlyphSize; height: width
+            visible: bar.androidHost || bar.activeMedium === ""
             opacity: updateInput.interactionActive ? 1.0 : 0.92
             objectName: "colosseumTopbarUpdateButton"
             Image {
                 anchors.fill: parent
                 source: "../assets/icons/update.svg"
-                sourceSize.width: 22; sourceSize.height: 22
+                sourceSize.width: parent.width; sourceSize.height: parent.height
                 fillMode: Image.PreserveAspectFit
             }
             Rectangle {
@@ -405,6 +404,7 @@ Item {
                 color: "#f2f2ef"; border.width: 1; border.color: "#15151a"
                 SequentialAnimation on scale {
                     running: bar.updateUnseen && bar.updateAvailable && !bar.reducedMotion
+                        && (!bar.androidHost || bar.visible)
                     loops: Animation.Infinite
                     alwaysRunToEnd: true
                     NumberAnimation { to: 1.22; duration: 700; easing.type: Easing.InOutQuad }
@@ -415,6 +415,10 @@ Item {
             KeyboardAction {
                 id: updateInput
                 anchors.fill: parent
+                anchors.topMargin: -inputMetrics.targetInset(parent.height)
+                anchors.bottomMargin: anchors.topMargin
+                anchors.leftMargin: -bar.touchHorizontalInset
+                anchors.rightMargin: anchors.leftMargin
                 accessibleName: bar.updateAvailable ? "Update available" : "Updates"
                 focusRadius: 6
                 onTriggered: bar.updateClicked()
@@ -464,8 +468,8 @@ Item {
         Item {
             id: accountButton
             y: bar.androidHost ? (parent.height - height) / 2 : 0
-            width: 22
-            height: 22
+            width: bar.systemGlyphSize
+            height: width
             objectName: "colosseumTopbarAccountButton"
             visible: bar.accountEntryAvailable
             opacity: accountInput.interactionActive ? 1.0 : 0.92
@@ -483,6 +487,7 @@ Item {
                     objectName: "colosseumTopbarAccountGlyph"
                     anchors.centerIn: parent
                     width: 14; height: 14
+                    scale: accountButton.width / 22
                     visible: !bar.accountPresent
                     opacity: 0.82
                     Rectangle {
@@ -507,7 +512,7 @@ Item {
                     }
                     color: "#f0df9a"
                     font.family: "Inter"
-                    font.pixelSize: 11
+                    font.pixelSize: Math.round(accountButton.width / 2)
                     font.weight: Font.DemiBold
                 }
             }
@@ -515,6 +520,10 @@ Item {
                 id: accountInput
                 objectName: "colosseumTopbarAccountInput"
                 anchors.fill: parent
+                anchors.topMargin: -inputMetrics.targetInset(parent.height)
+                anchors.bottomMargin: anchors.topMargin
+                anchors.leftMargin: -bar.touchHorizontalInset
+                anchors.rightMargin: anchors.leftMargin
                 focusOnPointer: false
                 accessibleName: bar.accountPresent
                     ? qsTr("Account: %1").arg(bar.accountController.username) : qsTr("Account Centre")
