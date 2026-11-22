@@ -222,29 +222,28 @@ TestCase {
 
     function press(page) { findChild(page, "audiobookPrimaryAction").triggered() }
 
-    function test_download_navigates_before_a_slow_provider() {
+    function test_download_stays_on_detail_during_lookup_and_can_cancel() {
         const view = setup([upload(exactHash)])
         const detail = book(view)
         view.abb.delaySearch = true
         press(detail)
-        compare(view.flow.currentPage.objectName, "audiobookSourcesPage")
-        compare(view.abb.requests, 0)
+        compare(view.flow.currentPage, detail)
+        compare(detail.primary.label, "Finding downloads…")
         compare(view.downloads.requests.length, 0)
         tryCompare(view.abb, "requests", 1)
-        view.flow.back()
+        findChild(detail, "audiobookCancelLookup").clicked()
         compare(view.flow.currentPage, detail)
+        compare(detail.primary.label, "Download")
         compare(view.abb.cancellations, 1)
     }
 
-    function test_single_confident_match_waits_for_choice() {
+    function test_single_confident_match_downloads_from_detail() {
         const view = setup([upload(exactHash)])
         const detail = book(view)
         press(detail)
-        rows(view, 1)
-        compare(view.downloads.requests.length, 0)
-        pick(view)
         compare(view.downloads.requests.length, 1)
         compare(view.downloads.requests[0].recordingKey, recordingKey)
+        compare(view.downloads.requests[0].sourceKind, "abb")
         compare(view.flow.currentPage, detail)
     }
 
@@ -256,6 +255,10 @@ TestCase {
         verify(choices[0].recommended)
         compare(choices[0].verdict, "exact")
         compare(choices.filter(row => row.recommended).length, 1)
+        compare(Object.keys(sources(view).providerStates), ["abb"])
+        verify(!sources(view).showTankorent)
+        sources(view).sourcePicked({ request: { sourceKind: "tankorent", recordingKey: recordingKey } })
+        compare(view.downloads.requests.length, 0)
     }
 
     function test_uncertain_upload_reports_reason_and_requires_a_tap() {
@@ -279,23 +282,21 @@ TestCase {
 
     function test_empty_search_reports_no_matches() {
         const view = setup([])
-        press(book(view))
-        rows(view, 0)
-        compare(sources(view).providerStates.abb.state, "empty")
+        const detail = book(view)
+        press(detail)
+        compare(view.flow.currentPage, detail)
+        compare(findChild(detail, "audiobookLocalStatus").text, "No AudioBookBay matches found.")
+        compare(detail.primary.label, "Download")
         compare(view.downloads.requests.length, 0)
     }
 
-    function test_disabled_source_still_opens_sources() {
+    function test_disabled_audiobookbay_opens_extensions_without_lookup() {
         const view = setup([upload(exactHash)], false)
         const detail = book(view)
-        compare(detail.primary.label, "Download")
+        compare(detail.primary.label, "Enable AudioBookBay in Extensions")
         press(detail)
-        const page = sources(view)
-        compare(page.providerStates.abb.state, "disabled")
-        compare(Object.keys(page.providerStates), ["abb"])
-        compare(extensionsSpy.count, 0)
+        compare(view.flow.currentPage, detail)
         compare(view.abb.requests, 0)
-        findChild(page, "audiobookSourcesExtensions").clicked()
         compare(extensionsSpy.count, 1)
     }
 
@@ -307,18 +308,18 @@ TestCase {
         tryCompare(view.abb, "requests", 1)
         const late = view.abb.onSearchDone
         view.flow.back()
-        compare(view.flow.currentPage, detail)
+        verify(!view.flow.active)
         compare(view.abb.cancellations, 1)
-        press(detail)
+        const retryDetail = book(view)
+        press(retryDetail)
         tryCompare(view.abb, "requests", 2)
         late({ rows: view.abb.rows, page: 1, hasMore: false })
-        compare(sources(view).providerStates.abb.state, "searching")
+        compare(retryDetail.primary.kind, "lookup")
         view.abb.onSearchDone(null, "timeout")
-        tryVerify(() => sources(view).providerStates.abb.state === "error")
-        compare(sources(view).providerStates.abb.error, "timeout")
+        compare(retryDetail.primary.label, "Retry")
+        compare(findChild(retryDetail, "audiobookLocalStatus").text, "AudioBookBay took too long to respond.")
         view.abb.delaySearch = false
-        sources(view).retryRequested("abb")
-        pick(view)
+        press(retryDetail)
         compare(view.downloads.requests.length, 1)
     }
 
@@ -326,7 +327,6 @@ TestCase {
         const view = setup([upload(exactHash)])
         const detail = book(view)
         press(detail)
-        pick(view)
         compare(view.downloads.requests.length, 1)
         view.downloads.move(recordingKey, 43, 100)
         compare(detail.primary.label, "Downloading 43%")
@@ -345,23 +345,19 @@ TestCase {
         compare(view.flow.currentPage, detail)
     }
 
-    function test_double_press_and_failure_retry_require_a_choice() {
+    function test_double_press_and_delivery_retry_reuse_the_chosen_upload() {
         const view = setup([upload(exactHash)])
         const detail = book(view)
         press(detail)
         press(detail)
-        rows(view, 1)
         compare(view.abb.requests, 1)
-        pick(view)
         compare(view.downloads.requests.length, 1)
         view.downloads.fail(recordingKey)
         compare(detail.primary.label, "Retry")
         press(detail)
-        rows(view, 1)
-        compare(view.downloads.requests.length, 1)
-        pick(view)
         compare(view.downloads.requests.length, 2)
-        compare(view.abb.requests, 2)
+        compare(view.abb.requests, 1)
+        compare(view.downloads.requests[1], view.downloads.requests[0])
     }
 
     function test_reopened_detail_uses_native_failure_snapshot() {
@@ -371,7 +367,6 @@ TestCase {
         const detail = book(view)
         compare(detail.primary.label, "Retry")
         press(detail)
-        pick(view)
         compare(view.downloads.requests.length, 1)
         compare(detail.primary.label, "Downloading")
     }

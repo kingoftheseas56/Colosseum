@@ -25,10 +25,7 @@ FocusScope {
     property bool androidHost: Qt.platform.os === "android"
     property real dockClearance: 0
     property bool dockExpanded: true
-    property var tankorent: (typeof AudiobookTorrents !== "undefined") ? AudiobookTorrents : null
     readonly property bool abbEnabled: ExtensionCatalog.sourceEnabled(extensions, "colosseum.well.audiobookbay")
-    readonly property bool tankorentEnabled: !!tankorent && ExtensionCatalog.sourceEnabled(extensions, "colosseum.well.indexers")
-    property int lastLookupToken: 0
     readonly property bool active: routeStack.depth > 0
     readonly property alias currentPage: routeStack.currentItem
 
@@ -115,6 +112,8 @@ FocusScope {
     }
 
     function clear() {
+        if (currentPage && typeof currentPage.cancelSourceLookup === "function")
+            currentPage.cancelSourceLookup()
         returnSessionId = ""
         routeStack.clear(StackView.Immediate)
     }
@@ -184,6 +183,8 @@ FocusScope {
             property var download: null
             property string catalogueStatus
             property var chosenUpload: null
+            property var cancelLookup: null
+            property int lookupGeneration: 0
             property bool submitting: false
             readonly property string collectionId: workId ? "audiobook:" + workId : ""
             readonly property string pairKey: FlowData.pairFor(work)
@@ -192,6 +193,7 @@ FocusScope {
                     .concat(flow.activeDownloads.filter(job => job.workId && job.workId === workId))
                 : [])
             selectedDownloadKey: chosenUpload ? chosenUpload.recordingKey : ""
+            sourceEnabled: flow.abbEnabled
             recordings: FlowData.recordingsFor(work, selectedRecording, chosenUpload || download, ownedSources, !flow.downloads)
             downloadState: {
                 flow.downloadsRevision
@@ -230,7 +232,7 @@ FocusScope {
             }
 
             function submitUpload(request) {
-                if (!request || !flow.downloads || submitting) return
+                if (!request || request.sourceKind !== "abb" || !flow.abbEnabled || !flow.downloads || submitting) return
                 chosenUpload = request
                 const state = flow.downloadStatus(request.recordingKey).state
                 if (state === "done") { flow.openListen(request.recordingKey, request); return }
@@ -238,13 +240,63 @@ FocusScope {
                 const failures = Object.assign({}, flow.failedKeys)
                 delete failures[request.recordingKey]
                 flow.failedKeys = failures
+                lookupError = ""
+                lookupMessage = ""
                 submitting = true
                 flow.downloads.downloadRecording(request)
                 submitting = false
             }
 
+            function cancelSourceLookup() {
+                ++lookupGeneration
+                const cancel = cancelLookup
+                cancelLookup = null
+                lookupPending = false
+                if (cancel) cancel()
+            }
+
+            function findSources() {
+                if (flow.currentPage !== detail || lookupPending || submitting || primary.kind !== "download"
+                        || !primary.enabled || !pairKey) return
+                if (!flow.downloads || !flow.abb || !flow.matcher) {
+                    lookupError = qsTr("AudioBookBay is unavailable right now.")
+                    return
+                }
+                if (chosenUpload && flow.downloadStatus(chosenUpload.recordingKey).state === "failed") {
+                    submitUpload(chosenUpload)
+                    return
+                }
+
+                lookupError = ""
+                lookupMessage = ""
+                lookupPending = true
+                const generation = ++lookupGeneration
+                const cancel = SmartDownload.resolve(flow.abb, flow.matcher, {
+                    workId: workId, title: built.title, author: built.authors, pairKey: pairKey,
+                    targetRecordingId: shownRecording.id, recordings: work.recordings || [], series: work.series || []
+                }, function(result) {
+                    if (generation !== detail.lookupGeneration || flow.currentPage !== detail || !flow.abbEnabled) return
+                    detail.cancelLookup = null
+                    detail.lookupPending = false
+                    if (result.automatic) {
+                        detail.submitUpload(result.automatic.request)
+                    } else if (result.rows.length) {
+                        routeStack.pushItem(sourcesPage, { detail: detail, options: result.rows }, StackView.Immediate)
+                    } else if (result.error) {
+                        detail.lookupError = result.error === "timeout" ? qsTr("AudioBookBay took too long to respond.")
+                            : qsTr("AudioBookBay is unavailable right now.")
+                    } else {
+                        detail.lookupMessage = qsTr("No AudioBookBay matches found.")
+                    }
+                })
+                if (generation === lookupGeneration && lookupPending) cancelLookup = cancel
+            }
+
             Component.onCompleted: refresh()
+            Component.onDestruction: cancelSourceLookup()
             StackView.onActivated: forceActiveFocus()
+            StackView.onDeactivating: cancelSourceLookup()
+            onSourceEnabledChanged: if (!sourceEnabled) cancelSourceLookup()
             Connections {
                 target: flow.catalog && flow.catalog.revisionChanged !== undefined ? flow.catalog : null
                 ignoreUnknownSignals: true
@@ -254,7 +306,10 @@ FocusScope {
             }
             onSeriesBookRequested: (id) => {
                 if (id === detail.workId) return
+                detail.cancelSourceLookup()
                 detail.chosenUpload = null
+                detail.lookupError = ""
+                detail.lookupMessage = ""
                 detail.download = null
                 detail.selectedRecording = ""
                 detail.workId = id
@@ -263,10 +318,9 @@ FocusScope {
             onAuthorRequested: (personId, name) => flow.browse("byPerson", personId, name)
             onSaveRequested: if (canSave) flow.toggleSaved(workId, shownRecording.id, built.title, built.authors, coverUrl)
             onBackRequested: flow.back()
-            onDownloadRequested: {
-                if (flow.currentPage === detail && detail.pairKey)
-                    routeStack.pushItem(sourcesPage, { detail: detail }, StackView.Immediate)
-            }
+            onDownloadRequested: findSources()
+            onEnableSourceRequested: flow.openExtensionsRequested()
+            onCancelLookupRequested: cancelSourceLookup()
             onListenRequested: (key) => flow.openListen(key, detail.chosenUpload || {
                 workId: detail.workId, recordingId: detail.shownRecording.id, title: detail.built.title,
                 author: detail.built.authors, coverUrl: detail.coverUrl
@@ -287,104 +341,19 @@ FocusScope {
         Audiobook.AudiobookSourcesPage {
             id: sources
             required property Item detail
-
-            property bool showing: false
-            property var lookups: ({})
-            readonly property bool abbSearchEnabled: flow.abbEnabled
-            readonly property bool tankorentSearchEnabled: showTankorent && flow.tankorentEnabled
+            required property var options
             workTitle: detail.built.title
             workAuthor: detail.built.authors
             artwork: detail.coverUrl
             backdrop: flow.backdrop
-            showTankorent: !!flow.tankorent && flow.tankorent.isEligible(detail.work)
+            providerStates: ({ abb: flow.abbEnabled ? { state: "results", rows: options }
+                                                   : { state: "disabled", rows: [] } })
             recordingStatus: key => { flow.downloadsRevision; return flow.downloadStatus(key).state }
-
-            function publish(kind, state, rows, error) {
-                const next = Object.assign({}, providerStates)
-                next[kind] = { state: state, rows: rows || [], error: error || "" }
-                providerStates = next
-            }
-
-            function cancel(kind) {
-                const job = lookups[kind]
-                if (!job) return
-                delete lookups[kind]
-                if (job.cancel) job.cancel()
-            }
-
-            function stop() {
-                showing = false
-                Object.keys(lookups).forEach(kind => sources.cancel(kind))
-            }
-
-            function receive(kind, token, rows, error) {
-                if (!showing || lookups[kind]?.token !== token) return
-                delete lookups[kind]
-                const options = Array.prototype.slice.call(rows || [])
-                publish(kind, options.length ? "results" : error ? "error" : "empty", options, error)
-            }
-
-            function isEnabled(kind) {
-                return kind === "abb" ? abbSearchEnabled : kind === "tankorent" && tankorentSearchEnabled
-            }
-
-            function lookup(kind) {
-                if (!showing || (kind !== "abb" && kind !== "tankorent")) return
-                cancel(kind)
-                if (kind === "tankorent" && !showTankorent) return
-                if (!isEnabled(kind)) {
-                    publish(kind, "disabled")
-                    return
-                }
-                if (kind === "abb" && (!flow.abb || !flow.matcher)) {
-                    publish(kind, "error")
-                    return
-                }
-
-                const token = String(++flow.lastLookupToken)
-                const job = { token: token, cancel: null }
-                lookups[kind] = job
-                publish(kind, "searching")
-                Qt.callLater(function() {
-                    if (!sources || !sources.showing || sources.lookups[kind] !== job) return
-                    if (kind === "abb") {
-                        job.cancel = SmartDownload.resolve(flow.abb, flow.matcher, {
-                            workId: detail.workId, title: workTitle, author: workAuthor, pairKey: detail.pairKey,
-                            targetRecordingId: detail.shownRecording.id, recordings: detail.work.recordings || [],
-                            series: detail.work.series || []
-                        }, function(result) {
-                            sources.receive(kind, token, result.rows, result.error)
-                        })
-                    } else {
-                        const service = flow.tankorent
-                        job.cancel = () => service.cancel(token)
-                        service.search(token, detail.work, detail.shownRecording.id, detail.pairKey)
-                    }
-                })
-            }
-
-            Connections {
-                target: flow.tankorent
-                function onSearchFinished(token, rows, error) {
-                    sources.receive("tankorent", token, rows, error)
-                }
-            }
-
-            StackView.onActivated: {
-                showing = true
-                lookup("abb")
-                lookup("tankorent")
-            }
-            StackView.onDeactivating: stop()
-            Component.onDestruction: stop()
-            onAbbSearchEnabledChanged: lookup("abb")
-            onTankorentSearchEnabledChanged: lookup("tankorent")
-            onRetryRequested: kind => lookup(kind)
             onBackRequested: flow.back()
             onExtensionsRequested: flow.openExtensionsRequested()
             onSourcePicked: row => {
                 const request = row.request
-                if (flow.currentPage !== sources || !request || !isEnabled(request.sourceKind)) return
+                if (flow.currentPage !== sources || !request || request.sourceKind !== "abb" || !flow.abbEnabled) return
                 const book = detail
                 flow.back()
                 book.submitUpload(request)

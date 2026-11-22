@@ -17,10 +17,16 @@ FocusScope {
     property var local: ({})
     // {recordingKey (or workId): "none"|"done"|"failed"|{state, progress: 0..1}}
     property var downloadState: ({})
+    property bool sourceEnabled: true
+    property bool lookupPending: false
+    property string lookupError: ""
+    property string lookupMessage: ""
     property bool canSave: false
     property bool saved: false
     property string selectedDownloadKey: ""
     signal downloadRequested(string workId)
+    signal enableSourceRequested()
+    signal cancelLookupRequested()
     signal listenRequested(string recordingKey)
     signal seriesBookRequested(string workId)
     signal authorRequested(string personId, string name)
@@ -39,7 +45,17 @@ FocusScope {
     }
     readonly property var actionRecording: selectedDownloadKey
         ? { key: selectedDownloadKey, local: false } : shownRecording
-    readonly property var primary: BookData.primaryAction(built, actionRecording, local, downloadState)
+    readonly property var primary: {
+        if (lookupPending)
+            return { kind: "lookup", label: qsTr("Finding downloads…"), enabled: false, progress: -1 }
+        const action = BookData.primaryAction(built, actionRecording, local, downloadState)
+        if (action.kind !== "download" || !action.enabled) return action
+        if (!sourceEnabled)
+            return { kind: "extensions", label: qsTr("Enable AudioBookBay in Extensions"), enabled: true, progress: -1 }
+        if (lookupError)
+            return { kind: "download", label: qsTr("Retry"), enabled: true, progress: -1 }
+        return action
+    }
     readonly property bool hasSeries: built.seriesBooks.length > 0
     readonly property bool compact: width < 760
     readonly property real desktopScale: Math.min(1, width / 1280)
@@ -192,6 +208,7 @@ FocusScope {
                         onTriggered: {
                             if (root.primary.kind === "listen") root.listenRequested(root.actionRecording.key)
                             else if (root.primary.kind === "download") root.downloadRequested(root.built.workId)
+                            else if (root.primary.kind === "extensions") root.enableSourceRequested()
                         }
                         Rectangle {
                             anchors.fill: parent; radius: 11
@@ -244,13 +261,21 @@ FocusScope {
                         }
                     }
                 }
+                ExtensionsActionButton {
+                    objectName: "audiobookCancelLookup"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: root.lookupPending
+                    text: qsTr("Cancel")
+                    onClicked: root.cancelLookupRequested()
+                }
                 Text {
                     width: parent.width
                     objectName: "audiobookLocalStatus"
                     topPadding: theme.fontSize(10)
                     visible: text.length > 0
                     text: root.primary.kind === "listen" ? qsTr("Downloaded · Ready to listen")
-                        : root.primary.kind === "progress" ? "" : qsTr("Not downloaded")
+                        : root.primary.kind === "progress" || root.lookupPending ? ""
+                        : root.lookupError || root.lookupMessage || qsTr("Not downloaded")
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
                     color: theme.inkDim

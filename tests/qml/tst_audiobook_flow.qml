@@ -162,23 +162,6 @@ TestCase {
     }
 
     Component {
-        id: sourceFixture
-        QtObject {
-            property var rows: []
-            property var calls: []
-            property var cancellations: []
-            property bool autoReply: true
-            signal searchFinished(string token, var rows, string error)
-            function isEligible(work) { return !!work.id && Array.isArray(work.series) && work.series.length === 0 }
-            function search(token, first, second, third) {
-                calls.push({ token: token, first: first, second: second, third: third })
-                if (autoReply) searchFinished(token, rows, "")
-            }
-            function cancel(token) { cancellations.push(token) }
-        }
-    }
-
-    Component {
         id: sourceExtensionsFixture
         QtObject {
             property var sourceIds: []
@@ -210,125 +193,32 @@ TestCase {
         }
     }
 
-    function test_audiobookbay_search_runs_with_tankorent_disabled() {
-        const view = setup()
-        view.flow.extensions = make(sourceExtensionsFixture, { sourceIds: ["colosseum.well.audiobookbay"] })
-        view.flow.abb = make(stalledAbbFixture)
-        view.flow.matcher = {}
-        view.flow.downloads = make(sourceDownloadsFixture)
-        view.flow.tankorent = make(sourceFixture)
-        view.flow.openWork("the-time-machine")
-        findChild(view.flow.currentPage, "audiobookPrimaryAction").triggered()
-        const sources = view.flow.currentPage
-        compare(sources.objectName, "audiobookSourcesPage")
-        verify(sources.showTankorent)
-        tryCompare(view.flow.abb, "requests", 1)
-        compare(sources.providerStates.abb.state, "searching")
-        compare(sources.providerStates.tankorent.state, "disabled")
-        compare(view.flow.tankorent.calls.length, 0)
-        view.flow.back()
-        compare(view.flow.abb.cancellations, 1)
-    }
-
-    function test_tankorent_is_selectable_while_abb_is_pending() {
-        const view = setup()
-        view.flow.extensions = make(sourceExtensionsFixture, {
-            sourceIds: ["colosseum.well.audiobookbay", "colosseum.well.indexers"]
-        })
-        view.flow.abb = make(stalledAbbFixture)
-        view.flow.matcher = {}
-        view.flow.downloads = make(sourceDownloadsFixture)
-        const key = "the time machine|alex writer#src:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        view.flow.tankorent = make(sourceFixture, { rows: [{
-            title: "The Time Machine upload", narrators: ["Reader Two"],
-            request: { sourceKind: "tankorent", recordingKey: key }
-        }] })
-        view.flow.openWork("the-time-machine")
-        const detail = view.flow.currentPage
-        compare(detail.primary.kind, "download")
-        findChild(detail, "audiobookPrimaryAction").triggered()
-        const sources = view.flow.currentPage
-        compare(sources.objectName, "audiobookSourcesPage")
-        tryVerify(() => sources.providerStates.tankorent.state === "results")
-        compare(Object.keys(sources.providerStates).sort(), ["abb", "tankorent"])
-        compare(sources.providerStates.abb.state, "searching")
-        compare(view.flow.abb.requests, 1)
-        compare(sources.providerStates.tankorent.rows[0].narrators, ["Reader Two"])
-        sources.sourcePicked({ request: { sourceKind: "retired", recordingKey: key } })
-        compare(view.flow.downloads.captured.length, 0)
-        const choice = visualChild(sources, "audiobookSourceOption_tankorent_0")
-        verify(choice !== null)
-        choice.triggered()
-        compare(view.flow.downloads.captured.length, 1)
-        compare(view.flow.downloads.captured[0].recordingKey, key)
-        compare(view.flow.abb.cancellations, 1)
-        compare(view.flow.currentPage, detail)
-    }
-
-    function test_tankorent_excludes_mercy_book_one_and_shows_for_a_standalone() {
-        const view = setup()
-        view.flow.extensions = make(sourceExtensionsFixture, { sourceIds: ["colosseum.well.indexers"] })
-        view.flow.downloads = make(sourceDownloadsFixture)
-        const key = "the time machine|alex writer#src:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        view.flow.tankorent = make(sourceFixture, { rows: [{
-            title: "The Time Machine upload", narrators: [], reason: "Edition unconfirmed",
-            request: { sourceKind: "tankorent", recordingKey: key }
-        }] })
-
-        view.flow.openWork("mercy-book-1")
-        const mercy = view.flow.currentPage
-        compare(mercy.built.title, "Mercy")
-        findChild(mercy, "audiobookPrimaryAction").triggered()
-        const mercySources = view.flow.currentPage
-        compare(mercySources.objectName, "audiobookSourcesPage")
-        verify(!mercySources.showTankorent)
-        verify(!visualChild(mercySources, "audiobookSources_tankorent").visible)
-        compare(mercySources.providerStates.abb.state, "disabled")
-        compare(Object.keys(mercySources.providerStates), ["abb"])
-        compare(view.flow.tankorent.calls.length, 0)
-        view.flow.back()
-        compare(view.flow.currentPage, mercy)
-        view.flow.back()
-
-        view.flow.openWork("the-time-machine")
-        const standalone = view.flow.currentPage
-        findChild(standalone, "audiobookPrimaryAction").triggered()
-        const sources = view.flow.currentPage
-        verify(sources.showTankorent)
-        tryVerify(() => sources.providerStates.tankorent.state === "results")
-        compare(view.flow.tankorent.calls[0].first.id, "the-time-machine")
-        compare(view.flow.tankorent.calls[0].third, "the time machine|alex writer")
-        compare(view.flow.downloads.captured.length, 0)
-        compare(sources.providerStates.tankorent.rows[0].narrators, [])
-        const choice = visualChild(sources, "audiobookSourceOption_tankorent_0")
-        verify(choice !== null)
-        choice.triggered()
-        compare(view.flow.downloads.captured[0].recordingKey, key)
-    }
-
-    function test_disabling_tankorent_cancels_and_rejects_its_late_results() {
+    function test_indexers_do_not_enable_audiobook_downloads() {
         const view = setup()
         const extensions = make(sourceExtensionsFixture, { sourceIds: ["colosseum.well.indexers"] })
         view.flow.extensions = extensions
+        view.flow.abb = make(stalledAbbFixture)
+        view.flow.matcher = {}
         view.flow.downloads = make(sourceDownloadsFixture)
-        const source = make(sourceFixture, { autoReply: false })
-        view.flow.tankorent = source
         view.flow.openWork("the-time-machine")
         const detail = view.flow.currentPage
-        findChild(detail, "audiobookPrimaryAction").triggered()
-        const sources = view.flow.currentPage
-        tryVerify(() => source.calls.length === 1)
-        const token = source.calls[0].token
-        extensions.sourceIds = []
-        ++extensions.revision
-        tryVerify(() => sources.providerStates.tankorent.state === "disabled")
-        compare(source.cancellations, [token])
-        source.searchFinished(token, [{ title: "An old result", request: { sourceKind: "tankorent" } }], "")
-        compare(sources.providerStates.tankorent.state, "disabled")
-        compare(sources.providerStates.tankorent.rows.length, 0)
-        compare(view.flow.downloads.captured.length, 0)
-        findChild(sources, "audiobookSourcesBack").triggered()
+        const action = findChild(detail, "audiobookPrimaryAction")
+        compare(detail.primary.kind, "extensions")
+        action.triggered()
         compare(view.flow.currentPage, detail)
+        compare(view.flow.abb.requests, 0)
+
+        extensions.sourceIds = ["colosseum.well.indexers", "colosseum.well.audiobookbay"]
+        ++extensions.revision
+        action.triggered()
+        compare(detail.primary.kind, "lookup")
+        compare(view.flow.abb.requests, 1)
+
+        extensions.sourceIds = ["colosseum.well.indexers"]
+        ++extensions.revision
+        compare(view.flow.abb.cancellations, 1)
+        compare(detail.primary.kind, "extensions")
+        compare(view.flow.downloads.captured.length, 0)
     }
 
     function test_catalogue_edition_flag_has_a_readable_label() {
