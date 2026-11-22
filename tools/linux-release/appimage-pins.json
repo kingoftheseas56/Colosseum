@@ -1,8 +1,8 @@
 {
-  "version": "1.3.0",
-  "application_source_commit": "1c22f0b3935367073dee1ad3e1e2dc0b16857d53",
-  "appdir_run": "43232636422",
-  "appdir_sha256": "5e562f5c7a32d587e6af2d65bebd72e8ad5208eb98a9df918325cb62e2aaf555",
+  "version": "1.4.0",
+  "application_source_commit": "ab62d156efd2fa4c923de5970704f0860e086f23",
+  "appdir_run": "45015487828",
+  "appdir_sha256": "a451b302d6e0f764594e27ccb1317b0306686b2ea9772fbd70f70627ec5c097b",
   "supported_glibc_floor": "2.39",
   "appimagetool": {
     "version": "1.9.1",

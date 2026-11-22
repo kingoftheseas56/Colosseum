@@ -16,7 +16,7 @@ import smoke_installed_player as player
 import smoke_installed_runtime as runtime
 from package_appimage import assert_audit
 
-TEMP = Path('/tmp/colosseum-appimage-130')
+TEMP = Path(os.environ.get('COLOSSEUM_APPIMAGE_SMOKE_TMP', '/tmp/colosseum-appimage-130'))
 MOUNT_ALIAS = Path('/opt/colosseum')
 LAUNCHER = Path('/usr/bin/colosseum')
 
@@ -57,6 +57,7 @@ def main():
     args = ap.parse_args()
     image, output = args.image.resolve(), args.output.resolve()
     identity = json.loads(args.identity.read_text())
+    expected_version = f'Colosseum {identity["version"]}'
     if player.sha256_file(image) != identity['appimage_sha256']:
         raise RuntimeError('AppImage checksum mismatch')
     if args.prepare:
@@ -88,10 +89,10 @@ def main():
             receipt['default_launch'] = {'returncode': normal.returncode, 'fuse_device_present': Path('/dev/fuse').exists()}
             if normal.returncode and 'fuse' not in normal_text.lower():
                 raise RuntimeError('Default AppImage launch failed for a non-FUSE reason')
-            if normal.returncode == 0 and normal.stdout.strip() != 'Colosseum 1.3.0':
+            if normal.returncode == 0 and normal.stdout.strip() != expected_version:
                 raise RuntimeError('Default AppImage version mismatch')
             version = subprocess.check_output([str(LAUNCHER), '--version'], text=True, timeout=90).strip()
-            if version != 'Colosseum 1.3.0':
+            if version != expected_version:
                 raise RuntimeError('Extract-and-run version mismatch')
             extracted = cache_path(image)
             if MOUNT_ALIAS.resolve() != extracted.resolve():
@@ -107,8 +108,10 @@ def main():
             def image_identity():
                 meta = json.loads((MOUNT_ALIAS / 'BUILD-IDENTITY.json').read_text())
                 binary_sha = player.sha256_file(MOUNT_ALIAS / 'usr/bin/colosseum')
-                if meta['source_commit'] != identity['application_source_commit'] or binary_sha != identity['executable_sha256']:
-                    raise RuntimeError('Actual AppImage payload source/binary mismatch')
+                if (meta['version'] != identity['version']
+                        or meta['source_commit'] != identity['application_source_commit']
+                        or binary_sha != identity['executable_sha256']):
+                    raise RuntimeError('Actual AppImage payload version/source/binary mismatch')
                 return {'format': 'AppImage', 'version': meta['version'], 'architecture': meta['architecture'],
                         'source_commit': meta['source_commit'], 'binary_sha256': binary_sha,
                         'appimage_sha256': identity['appimage_sha256'], 'payload_root': str(extracted)}

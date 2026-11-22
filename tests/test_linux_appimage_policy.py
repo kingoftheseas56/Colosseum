@@ -56,9 +56,11 @@ class AppImageIdentityTests(unittest.TestCase):
 
     def test_pins_keep_same_checked_source_and_floor(self):
         pins = module.PINS
-        self.assertEqual(pins['application_source_commit'], '1c22f0b3935367073dee1ad3e1e2dc0b16857d53')
+        self.assertEqual(pins['version'], '1.4.0')
+        self.assertEqual(pins['application_source_commit'], 'ab62d156efd2fa4c923de5970704f0860e086f23')
+        self.assertEqual(pins['appdir_run'], '45015487828')
         self.assertEqual(pins['supported_glibc_floor'], '2.39')
-        self.assertEqual(pins['appdir_sha256'], '5e562f5c7a32d587e6af2d65bebd72e8ad5208eb98a9df918325cb62e2aaf555')
+        self.assertEqual(pins['appdir_sha256'], 'a451b302d6e0f764594e27ccb1317b0306686b2ea9772fbd70f70627ec5c097b')
         for key in ['appimagetool', 'runtime']:
             self.assertRegex(pins[key]['sha256'], r'^[0-9a-f]{64}$')
 

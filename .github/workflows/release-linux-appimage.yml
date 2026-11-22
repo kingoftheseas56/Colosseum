@@ -1,4 +1,4 @@
-name: Qualify Colosseum 1.3.0 AppImage
+name: Qualify Colosseum AppImage
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
       source_sha:
         description: Existing tagged application identity; no source build occurs
         required: true
-        default: '1c22f0b3935367073dee1ad3e1e2dc0b16857d53'
+        default: 'ab62d156efd2fa4c923de5970704f0860e086f23'
         type: string
 
 permissions:
@@ -18,16 +18,32 @@ jobs:
     name: Package checked AppDir (no rebuild)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    outputs:
+      version: ${{ steps.pin.outputs.version }}
     steps:
       - uses: actions/checkout@v7
       - name: Verify fixed application pin
+        id: pin
         env:
           SOURCE_SHA: ${{ inputs.source_sha }}
-        run: test "$SOURCE_SHA" = 1c22f0b3935367073dee1ad3e1e2dc0b16857d53
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+
+          pins = json.loads(Path("tools/linux-release/appimage-pins.json").read_text())
+          if pins["application_source_commit"] != os.environ["SOURCE_SHA"]:
+              raise SystemExit("Requested source does not match the checked AppDir pin")
+          version, run = pins["version"], pins["appdir_run"]
+          if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version) or not run.isdecimal():
+              raise SystemExit("Invalid AppImage release version or AppDir run ID")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as outputs:
+              outputs.write(f"version={version}\nrun={run}\n")
+          PY
       - uses: actions/download-artifact@v4
         with:
-          name: Colosseum-1.3.0-linux-deb-candidate
-          run-id: '43232636422'
+          name: Colosseum-${{ steps.pin.outputs.version }}-linux-deb-candidate
+          run-id: ${{ steps.pin.outputs.run }}
           github-token: ${{ github.token }}
           path: received
       - name: Install packaging tools and system graphics baseline
@@ -37,17 +53,18 @@ jobs:
       - name: Package the retained checked AppDir and audit extracted contents
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.pin.outputs.version }}
         run: |
           cd received
-          sha256sum --check --strict Colosseum-1.3.0-linux-AppDir.tar.zst.sha256
+          sha256sum --check --strict "Colosseum-$VERSION-linux-AppDir.tar.zst.sha256"
           cd ..
           python3 tools/linux-release/package_appimage.py \
-            --archive received/Colosseum-1.3.0-linux-AppDir.tar.zst \
+            --archive "received/Colosseum-$VERSION-linux-AppDir.tar.zst" \
             --baseline-report received/package-check.json --output candidate
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Colosseum-1.3.0-linux-appimage-candidate
+          name: Colosseum-${{ steps.pin.outputs.version }}-linux-appimage-candidate
           path: candidate/
           if-no-files-found: warn
           retention-days: 14
@@ -57,6 +74,9 @@ jobs:
     name: AppImage (${{ matrix.label }})
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.package.outputs.version }}
+      COLOSSEUM_APPIMAGE_SMOKE_TMP: /tmp/colosseum-appimage
     strategy:
       fail-fast: false
       matrix:
@@ -72,7 +92,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
-          name: Colosseum-1.3.0-linux-appimage-candidate
+          name: Colosseum-${{ env.VERSION }}-linux-appimage-candidate
           path: candidate
       - name: Install desktop system baseline without a Qt SDK
         env:
@@ -104,10 +124,10 @@ jobs:
       - name: Prepare isolated AppImage launch adapter
         run: |
           cd candidate
-          sha256sum --check --strict Colosseum-1.3.0-x86_64.AppImage.sha256
+          sha256sum --check --strict "Colosseum-$VERSION-x86_64.AppImage.sha256"
           cd ..
           python3 tools/linux-release/smoke_appimage.py --prepare \
-            --image "$GITHUB_WORKSPACE/candidate/Colosseum-1.3.0-x86_64.AppImage" \
+            --image "$GITHUB_WORKSPACE/candidate/Colosseum-$VERSION-x86_64.AppImage" \
             --identity candidate/AppImage-identity.json \
             --baseline-report candidate/appimage-package-check.json \
             --fixture "$GITHUB_WORKSPACE/tests/lanista_capture/assets/Colosseum.mp4" \
@@ -117,9 +137,9 @@ jobs:
           cat /etc/os-release > /tmp/appimage-evidence/os-release.txt
           getconf GNU_LIBC_VERSION > /tmp/appimage-evidence/glibc-version.txt
           (dpkg-query -W 2>/dev/null || rpm -qa 2>/dev/null || pacman -Q) > /tmp/appimage-evidence/system-packages.txt
-          runuser -u appimage-test -- env TMPDIR=/tmp/colosseum-appimage-130 \
+          runuser -u appimage-test -- env TMPDIR="$COLOSSEUM_APPIMAGE_SMOKE_TMP" \
             dbus-run-session -- python3 tools/linux-release/smoke_appimage.py \
-            --image "$GITHUB_WORKSPACE/candidate/Colosseum-1.3.0-x86_64.AppImage" \
+            --image "$GITHUB_WORKSPACE/candidate/Colosseum-$VERSION-x86_64.AppImage" \
             --identity candidate/AppImage-identity.json \
             --baseline-report candidate/appimage-package-check.json \
             --fixture "$GITHUB_WORKSPACE/tests/lanista_capture/assets/Colosseum.mp4" \
@@ -127,7 +147,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Colosseum-1.3.0-appimage-evidence-${{ matrix.label }}
+          name: Colosseum-${{ env.VERSION }}-appimage-evidence-${{ matrix.label }}
           path: /tmp/appimage-evidence/
           if-no-files-found: warn
           retention-days: 14
