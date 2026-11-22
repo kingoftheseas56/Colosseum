@@ -14,6 +14,7 @@ ScrollBar {
     property Flickable flick: null
     property bool prominent: false
     property bool glassStyle: false
+    property bool showTrack: true
     readonly property bool alongShelf: orientation === Qt.Horizontal
 
     orientation: Qt.Vertical
@@ -41,7 +42,7 @@ ScrollBar {
                        bar.glassStyle ? (bar.hovered || bar.pressed ? 0.09 : 0.035)
                        : bar.prominent ? (bar.hovered || bar.pressed ? 0.16 : 0.10)
                                      : (bar.hovered || bar.pressed ? 0.06 : 0.03))
-        visible: bar.policy !== ScrollBar.AlwaysOff
+        visible: bar.showTrack && bar.policy !== ScrollBar.AlwaysOff
         Behavior on color { ColorAnimation { duration: 140 } }
     }
 

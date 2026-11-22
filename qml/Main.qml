@@ -4769,13 +4769,14 @@ Window {
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         y: topbar.y + topbar.height + 10
-        height: Math.max(0, win.height - y - win.browseBottomInset)
+        height: Math.max(0, win.height - y)
         contentWidth: width
-        contentHeight: contentCol.implicitHeight + 40
+        // Keep the viewport behind the Android dock, but let the final row clear it.
+        contentHeight: contentCol.implicitHeight + 40 + win.browseBottomInset
         clip: true
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: page }   // gold sliver, same as every page
+        ScrollBar.vertical: HouseScrollBar { flick: page; showTrack: !win.androidHost }
         KeyboardSpatialNavigator {
             id: homePageSpatialNav
             root: page
@@ -5944,8 +5945,8 @@ Window {
     Loader {
         id: theatreSeriesLayer
         parent: dockScene
+        // The series Flickable now reserves the Android dock in its scroll content.
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a film/show opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
