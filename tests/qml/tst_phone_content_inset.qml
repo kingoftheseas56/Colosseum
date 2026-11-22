@@ -51,7 +51,7 @@ TestCase {
         return null
     }
 
-    function test_world_viewport_ends_above_bar() {
+    function test_world_viewport_extends_behind_bar_on_android() {
         var worlds = ["Theatre", "Tankoban", "Biblio"]
         for (var i = 0; i < worlds.length; ++i) {
             var medium = worlds[i]
@@ -59,6 +59,8 @@ TestCase {
             verify(world !== null)
             var scroll = findChild(world, medium.toLowerCase() + "WorldScroll")
             verify(scroll !== null)
+            compare(scroll.y + scroll.height, world.height)
+            world.androidHost = false
             compare(scroll.y + scroll.height, world.height - world.contentBottomInset)
             world.destroy()
         }

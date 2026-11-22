@@ -1113,10 +1113,11 @@ Item {
         objectName: "theatreSeriesScroll"
         anchors.fill: parent
         contentWidth: width
-        contentHeight: pageCol.height
+        contentHeight: pageCol.height + (touchMetrics.androidHost && page.Window.window
+            ? (page.Window.window.browseBottomInset || 0) : 0)
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: flick }
+        ScrollBar.vertical: HouseScrollBar { flick: flick; showTrack: !touchMetrics.androidHost }
         opacity: page.loading ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
@@ -1812,6 +1813,8 @@ Item {
     // ---- the ledger's sticky bar: order · season · Download season · Next · Go to ----
     Item {
         id: ledgerBarFloat
+        // Keep touch drags on the sticky controls in the page Flickable.
+        parent: touchMetrics.androidHost ? flick.contentItem : page
         objectName: "theatreLedgerBar"
         z: 30
         width: page.width
@@ -1823,6 +1826,7 @@ Item {
         readonly property real placeholderContentY: episodesSection.y + episodesCol.y + ledgerPlaceholder.y
         readonly property bool pinned: flick.contentY > (placeholderContentY - titleBar.height)
         y: Math.max(titleBar.height, placeholderContentY - flick.contentY)
+            + (touchMetrics.androidHost ? flick.contentY : 0)
 
         Rectangle {
             anchors.fill: parent
@@ -2197,7 +2201,7 @@ Item {
         id: rangeStrip
         objectName: "theatreLedgerRangeStrip"
         z: 29
-        visible: page.longRun && ledgerBarFloat.visible && ledgerBarFloat.pinned
+        visible: !touchMetrics.androidHost && page.longRun && ledgerBarFloat.visible && ledgerBarFloat.pinned
         x: page.width - theme.margin + 8
         y: titleBar.height + page.ledgerBarHeight + 10
         width: Math.max(34, theme.margin - 16)
@@ -2349,6 +2353,9 @@ Item {
 
     SourcesSheet {
         id: sources
+        // The Android page already fills the window; don't extend the sheet past it.
+        anchors.bottomMargin: !touchMetrics.androidHost && page.Window.window
+            ? -(page.Window.window.browseBottomInset || 0) : 0
         mediaMetadata: page.sourceMetadata
         z: 60
         backdrop: page.backdrop

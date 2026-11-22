@@ -300,9 +300,9 @@ Item {
         objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "WorldScroll" : "worldPageScroll"
         anchors.left: parent.left; anchors.right: parent.right
         y: topbar.y + topbar.height + (world.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
-        height: Math.max(0, world.height - y - world.contentBottomInset)
+        height: Math.max(0, world.height - y - (world.androidHost ? 0 : world.contentBottomInset))
         contentWidth: width
-        contentHeight: board.implicitHeight + 50
+        contentHeight: board.implicitHeight + 50 + (world.androidHost ? world.contentBottomInset : 0)
         clip: true
         pixelAligned: false
         flickableDirection: Flickable.VerticalFlick
@@ -310,6 +310,7 @@ Item {
         ScrollBar.vertical: HouseScrollBar {
             objectName: world.medium.length ? world.medium.toLowerCase() + "WorldScrollBar" : "worldPageScrollBar"
             flick: page
+            showTrack: !world.androidHost
             prominent: world.prominentScrollBar
             glassStyle: world.glassScrollBar
         }
