@@ -71,11 +71,13 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          # Keep the tagged product tree clean. Only the test driver comes from
-          # this workflow revision; it reads the exact tagged PlayerPage.qml.
+          # Keep the tagged product tree clean. The routing fixtures come from
+          # this workflow revision and read QML from the tagged source.
           git fetch --depth=1 origin "$GITHUB_SHA"
-          for driver in player_local_error_retry_test.mjs theatre_terminal_replay_test.mjs; do
-            git show "$GITHUB_SHA:tests/$driver" > "$RUNNER_TEMP/$driver"
+          mkdir -p "$RUNNER_TEMP/release-fixtures/tests"
+          ln -s "$GITHUB_WORKSPACE/qml" "$RUNNER_TEMP/release-fixtures/qml"
+          for driver in continue_local_detail_routing continue_local_comic_routing continue_manga_resume_routing collections_routes player_local_error_retry player_recovery_resume theatre_terminal_replay; do
+            git show "$GITHUB_SHA:tests/${driver}_test.mjs" > "$RUNNER_TEMP/release-fixtures/tests/${driver}_test.mjs"
           done
       - name: Install build and package tools
         run: |
@@ -93,13 +95,9 @@ jobs:
           python3 scripts/check_public_paths.py
       - name: Continue local detail routing regressions
         run: |
-          node tests/continue_local_detail_routing_test.mjs
-          node tests/continue_local_comic_routing_test.mjs
-          node tests/continue_manga_resume_routing_test.mjs
-          node tests/collections_routes_test.mjs
-          node "$RUNNER_TEMP/player_local_error_retry_test.mjs" "$GITHUB_WORKSPACE/qml/PlayerPage.qml"
-          node tests/player_recovery_resume_test.mjs
-          node "$RUNNER_TEMP/theatre_terminal_replay_test.mjs" "$GITHUB_WORKSPACE"
+          for driver in continue_local_detail_routing continue_local_comic_routing continue_manga_resume_routing collections_routes player_local_error_retry player_recovery_resume theatre_terminal_replay; do
+            node "$RUNNER_TEMP/release-fixtures/tests/${driver}_test.mjs"
+          done
       - name: Install Qt 6.11.1
         uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
         with:

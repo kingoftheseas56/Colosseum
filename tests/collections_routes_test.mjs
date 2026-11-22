@@ -135,7 +135,7 @@ function resolveTheatrePage(source,item,metadataById) {
     };
     c.page = c;
     vm.createContext(c);
-    for (const name of ['currentId','collectionEntry','resolve']) vm.runInContext(method(source,name),c);
+    for (const name of ['currentId','collectionEntry','homeServerMetadataFallback','resolve']) vm.runInContext(method(source,name),c);
     c.resolve();
     return {page:c,metaCalls,castCalls};
 }

@@ -321,6 +321,7 @@ for (const legacy of [false, true]) {
         sourceSearchAliases: ["One Piece Digital Colored Comics"], sourceRequiredMarkers: ["colored"],
         legacyWeebCentral: legacy};
     const ctx = {seriesLayer: layer, win: {
+        returnDockComicDetail: () => false,
         closeComicReader() { calls.push("close"); layer.item = null; },
         openSeries(...args) { calls.push({route: "series", args}); },
         openWeebCentralSeries(...args) { calls.push({route: "legacy", args}); }

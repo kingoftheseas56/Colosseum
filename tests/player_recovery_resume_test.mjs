@@ -57,7 +57,7 @@ function session({ paused = false, visible = true, direct = false } = {}) {
     streamRouteRestoreSubtitle: null,
     directStreamUrl: () => '', currentStreamCandidate: () => ({}),
     isStreamDead: () => false, closeMenus: noop, wakeChrome: noop,
-    forceActiveFocus: noop, updateMediaSubtitle: noop,
+    forceActiveFocus: noop, updateMediaSubtitle: noop, refreshSmartPlayQuality: noop,
     maybeAutoSelectTracks: noop, maybeAutoSub: noop, syncPowerInhibit: noop,
     detectStubStream: noop, loadSkipSegments: noop, recordProgress: noop,
     syncWatchPartyPlayerObservation: noop, activityDiscontinuity: noop,

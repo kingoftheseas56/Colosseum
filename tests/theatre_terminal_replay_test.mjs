@@ -30,7 +30,8 @@ function fixture() {
         requestAudioPlayback() { this.audioHandoffPaused = false; events.push('claim'); }};
     for (const name of ['syncPowerInhibit', 'syncWatchPartyPlayerObservation', 'activityNaturalEof',
         'activityDiscontinuity', 'sendTraktPlayback', 'recordProgress', 'wakeChrome', 'healAudio',
-        'closeMenus', 'cancelUpNext', 'cancelTouchInteraction', 'resetRecoveryWatch', 'activityEndSession', 'switchArrivingToStream'])
+        'closeMenus', 'cancelUpNext', 'cancelTouchInteraction', 'resetRecoveryWatch', 'activityEndSession', 'switchArrivingToStream',
+        'refreshSmartPlayQuality'])
         root[name] = () => events.push(name);
     const DirectSourcePolicy = vm.runInNewContext('(function(){' + policySource + '\nreturn {admitProviderUrl, copyHeaders};})()');
     const context = {root, mpv, DirectSourcePolicy, Qt: {platform: {os: 'linux'}}, PlatformRuntime: {android: false}, streamWatchdog: {stop() { events.push('watch-stop'); }, restart() { events.push('watch-start'); }}};
