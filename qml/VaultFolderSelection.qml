@@ -12,6 +12,8 @@ FocusScope {
     required property var library
     property Item backdrop: null
     readonly property bool compact: width < 540
+    // A landscape phone leaves little height: tighter type and spacing so the file list gets the room.
+    readonly property bool shortHeight: height > 0 && height < 380
     readonly property var location: selection.location || ({})
     readonly property string displayPath: (selection.personalView ? selection.root : selection.directory) || ""
     readonly property string volumeLabel: location.volume
@@ -76,8 +78,8 @@ FocusScope {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: picker.compact ? 12 : 22
-        spacing: 12
+        anchors.margins: picker.compact || picker.shortHeight ? 12 : 22
+        spacing: picker.shortHeight ? 6 : 12
         Keys.onEscapePressed: event => {
             event.accepted = true
             picker.library.cancelFolderSelection()
@@ -93,7 +95,7 @@ FocusScope {
                     text: qsTr("Choose what to index")
                     color: theme.ink
                     font.family: theme.display
-                    font.pixelSize: picker.compact ? theme.vaultSectionTitle : theme.vaultPageTitle
+                    font.pixelSize: picker.compact || picker.shortHeight ? theme.vaultSectionTitle : theme.vaultPageTitle
                     wrapMode: Text.Wrap
                 }
                 Text {

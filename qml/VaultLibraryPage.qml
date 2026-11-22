@@ -305,8 +305,10 @@ FocusScope {
     Loader {
         id: folderPicker
         active: !!admission.selection.root
+        z: 26
         x: content.x
-        y: Math.max(theme.vaultSidebarTop, bar.y + bar.height) + 14
+        // As with the Android folder chooser: on a short landscape phone it may cover the Vault header.
+        y: root.height < 520 ? bar.y : Math.max(theme.vaultSidebarTop, bar.y + bar.height) + 14
         width: content.width
         height: Math.max(0, root.height - y - Math.max(24, root.desktopDockInset + 8))
         sourceComponent: VaultFolderSelection {

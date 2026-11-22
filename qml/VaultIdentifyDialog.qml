@@ -14,7 +14,8 @@ Popup {
     width: 590
     // Android on-screen keyboard: 0 everywhere else, so desktop geometry is unchanged.
     readonly property real keyboardOverlap: keyboardLoader.item ? keyboardLoader.item.keyboardOverlap : 0
-    height: keyboardOverlap > 0 && parent ? Math.min(520, parent.height - keyboardOverlap - 24) : 520
+    // Never taller than the window (a landscape phone is ~430 tall), and above the keyboard when it is up.
+    height: parent ? Math.min(520, parent.height - keyboardOverlap - 24) : 520
     bottomMargin: keyboardOverlap > 0 ? keyboardOverlap + 12 : -1
     property string groupKey: ""
     property string titleText: ""
@@ -124,8 +125,11 @@ Popup {
     onOpened: {
         dialog.query = dialog.titleText
         dialog.searchNow()
-        queryField.forceActiveFocus()
-        queryField.selectAll()
+        // Touch: the folder name is already searched, so the results show first; tapping the field opens the keyboard.
+        if (Qt.platform.os !== "android") {
+            queryField.forceActiveFocus()
+            queryField.selectAll()
+        }
     }
 
     background: Rectangle {
@@ -138,15 +142,24 @@ Popup {
             active: dialog.opened && !!Overlay.overlay
             sourceComponent: Account.AccountKeyboardViewport {
                 container: Overlay.overlay
-                flick: resultList
+                flick: contentFlick
             }
         }
     }
     VaultTheme { id: theme }
 
-    contentItem: Column {
-        anchors.fill: parent
-        anchors.margins: 24
+    // The content scrolls as one piece so a short window (or the keyboard) never hides the search field.
+    contentItem: Flickable {
+        id: contentFlick
+        clip: true
+        contentWidth: width
+        contentHeight: contentColumn.implicitHeight + 48
+        interactive: contentHeight > height
+        boundsBehavior: Flickable.StopAtBounds
+    Column {
+        id: contentColumn
+        x: 24; y: 24
+        width: contentFlick.width - 48
         spacing: 10
         Text {
             text: "Identify this Vault folder"
@@ -269,4 +282,5 @@ Popup {
             }
         }
     }
+}
 }
