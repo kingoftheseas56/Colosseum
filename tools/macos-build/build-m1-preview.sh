@@ -41,7 +41,7 @@ xcrun --show-sdk-version
 df -h "$work"
 cmake --version
 brew --version
-formulas=(cmake ninja pkgconf clang-format libtorrent-rasterbar boost openssl@3 mpv ffmpeg)
+formulas=(cmake ninja pkgconf clang-format libtorrent-rasterbar boost openssl@3 mpv ffmpeg libarchive)
 [[ -n ${COLOSSEUM_QT_PREFIX:-} ]] || formulas+=(python)
 for formula in "${formulas[@]}"; do
     installed=$(brew list --versions "$formula") || fail "Missing formula: brew install $formula"
@@ -88,7 +88,10 @@ cmake -S "$work/sdk-probe" -B "$work/sdk-probe-build" -G Ninja \
     -DCMAKE_PREFIX_PATH="$qtbase" -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="$deployment"
 printf 'QT_PREFIX=%s\n' "$qtbase"
-export PKG_CONFIG_PATH="$(brew --prefix mpv)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+# Homebrew's mpv.pc requires libarchive, which is keg-only on macOS.
+libarchive_pc="$(brew --prefix libarchive)/lib/pkgconfig"
+[[ -f "$libarchive_pc/libarchive.pc" ]] || fail "Homebrew libarchive.pc is missing from $libarchive_pc"
+export PKG_CONFIG_PATH="$(brew --prefix mpv)/lib/pkgconfig:$libarchive_pc:$(brew --prefix openssl@3)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 pkg-config --modversion mpv
 # MpvQt 1.2's FindLibmpv discovers include/mpv via <client.h>, but its
 # public headers include <mpv/client.h>. Validate the real installed tree,
