@@ -15,6 +15,7 @@ Item {
     property bool ebookAvailable: false
     property bool saved: false
     property bool saveAvailable: true
+    property bool androidHost: Qt.platform.os === "android"
     // Inset from the top of the viewport to the content below the shell's top bar.
     property real contentTop: 138
     property bool chaptersOpen: false
@@ -24,6 +25,9 @@ Item {
     signal backRequested()
     signal readAlongRequested()
     signal saveToggled()
+    signal minimizeRequested()
+    signal fullscreenRequested()
+    signal quitRequested()
 
     readonly property bool playbackReady: !!session && session.ready
     readonly property var chapterList: session && session.chapterModel ? session.chapterModel : []
@@ -112,6 +116,19 @@ Item {
     VinylBackdrop {
         anchors.fill: parent
         source: root.coverSource
+    }
+
+    HouseWindowControls {
+        objectName: "audiobookListenWindowControls"
+        objectPrefix: "audiobookListenWindow"
+        androidHost: root.androidHost
+        anchors.top: parent.top
+        anchors.topMargin: 12
+        anchors.right: parent.right
+        anchors.rightMargin: root.sideInset
+        onMinimizeRequested: root.minimizeRequested()
+        onFullscreenRequested: root.fullscreenRequested()
+        onQuitRequested: root.quitRequested()
     }
 
     BackAction {

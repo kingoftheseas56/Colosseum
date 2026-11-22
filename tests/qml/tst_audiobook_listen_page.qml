@@ -132,6 +132,29 @@ TestCase {
         compare(fired, 1)
     }
 
+    function test_desktop_window_controls_are_above_the_player_actions() {
+        makePage()
+        page.width = 440
+        page.contentTop = 75
+        page.androidHost = false
+        const controls = find("audiobookListenWindowControls")
+        verify(controls.visible)
+        verify(controls.y + controls.height <= find("audiobookAddToCollections").y)
+        compare(controls.x + controls.width, page.width - page.sideInset)
+
+        const requests = []
+        page.minimizeRequested.connect(() => requests.push("minimize"))
+        page.fullscreenRequested.connect(() => requests.push("fullscreen"))
+        page.quitRequested.connect(() => requests.push("quit"))
+        mouseClick(find("audiobookListenWindowMinimize"))
+        mouseClick(find("audiobookListenWindowFullscreen"))
+        mouseClick(find("audiobookListenWindowQuit"))
+        compare(requests, ["minimize", "fullscreen", "quit"])
+
+        page.androidHost = true
+        verify(!controls.visible)
+    }
+
     function test_playerBarOwnsPlaybackAndSaveStillWorks() {
         makePage({}, {ready: false})
         var playButton = find("abBarPlay")

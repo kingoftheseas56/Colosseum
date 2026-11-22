@@ -567,7 +567,21 @@ void MpvItem::issueLoadFile(const QString &file)
 
     auto *controller = mpvController();
     const auto state = m_decodeEvents;
-    const QString path = m_currentUrl.toString(QUrl::PreferLocalFile);
+    QString path = m_currentUrl.toString(QUrl::PreferLocalFile);
+#ifdef Q_OS_WIN
+    // mpv opens local files outside Qt's long-path handling. Keep the public URL
+    // unchanged and pass an extended-length path for files beyond Win32 MAX_PATH.
+    constexpr qsizetype legacyWindowsMaxPath = 260;
+    if (m_currentUrl.isLocalFile() && path.size() >= legacyWindowsMaxPath) {
+        const QString local = QDir::toNativeSeparators(QDir::cleanPath(m_currentUrl.toLocalFile()));
+        if (local.startsWith(QStringLiteral("\\\\?\\")) || local.startsWith(QStringLiteral("\\\\.\\")))
+            path = local;
+        else if (local.startsWith(QStringLiteral("\\\\")))
+            path = QStringLiteral("\\\\?\\UNC\\") + local.mid(2);
+        else if (local.size() > 2 && local.at(1) == QLatin1Char(':') && local.at(2) == QLatin1Char('\\'))
+            path = QStringLiteral("\\\\?\\") + local;
+    }
+#endif
     QMetaObject::invokeMethod(controller, [controller, state, generation, path] {
         state->generation = generation;
         state->expectedEntry = -1;

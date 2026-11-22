@@ -368,6 +368,7 @@ FocusScope {
             required property var route
             session: flow.session
             contentTop: 75
+            androidHost: flow.androidHost
             readonly property var ebook: Bridge.ownedEbook(Object.assign({}, route, book), flow.ebookLibrary)
             ebookAvailable: !!ebook
             saveAvailable: !!flow.collectionStore && !!route.workId && !route.bundle
@@ -381,6 +382,9 @@ FocusScope {
             StackView.onActivated: forceActiveFocus()
             onBookChanged: if (session && route && session.activePairKey === route.recordingKey) session.book = book
             onBackRequested: flow.back()
+            onMinimizeRequested: flow.minimizeRequested()
+            onFullscreenRequested: flow.fullscreenRequested()
+            onQuitRequested: flow.quitRequested()
             onReadAlongRequested: if (ebookAvailable) {
                 listeningJump = null
                 flow.readAlongRequested(ebook, route.recordingKey)
