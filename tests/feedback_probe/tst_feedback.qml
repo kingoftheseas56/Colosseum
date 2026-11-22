@@ -207,14 +207,19 @@ Item {
             wait(0);
             const trackers = findChild(bar, "topBarTrackersButton_Theatre");
             const wallpaper = findChild(bar, "topBarWallpaperButton");
-            verify(trackers && trackers.visible, "Trackers is available from the world top bar");
-            verify(wallpaper, "Wallpaper action exists");
-            compare(wallpaper.visible, data.tag === "android");
+            if (data.tag === "android") {
+                verify(trackers === null, "Android top bar carries no Trackers button (Profile tab owns it)");
+                verify(wallpaper === null, "Android top bar carries no Wallpaper button (Profile tab owns it)");
+            } else {
+                verify(trackers && trackers.visible, "Trackers is available from the world top bar");
+                verify(wallpaper, "Wallpaper action exists");
+                compare(wallpaper.visible, false);
+                trackerSpy.target = bar; trackerSpy.clear();
+                bar.focusTrackersButton();
+                keyClick(Qt.Key_Return);
+                compare(trackerSpy.count, 1, "The restored Trackers control still opens its owner");
+            }
             verify(findChild(bar, "feedbackEntry") === null, "Feedback is reached through the taskbar");
-            trackerSpy.target = bar; trackerSpy.clear();
-            bar.focusTrackersButton();
-            keyClick(Qt.Key_Return);
-            compare(trackerSpy.count, 1, "The restored Trackers control still opens its owner");
             bar.activeMedium = "";
             wait(0);
             verify(findChild(bar, "colosseumTopbarUpdateButton").visible, "Updates is back on Home");

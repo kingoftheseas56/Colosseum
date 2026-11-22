@@ -2935,8 +2935,12 @@ Window {
             if (!ExtCatalog.isUniverse(e)) continue
             if (e.enabled !== true) continue
             var m = e.manifest || ({})
+            // Cosmere's manifest banner is a Wikimedia hotlink that answers 429/403 to the app's
+            // default user agent, leaving the hero blank; use the bundled copy of the same art.
+            var banner = e.id === "com.colosseum.universe.cosmere"
+                ? Qt.resolvedUrl("../assets/extensions/house/cosmere.jpg") : (m.background || "")
             out.push({ extensionId: e.id, name: m.name || e.id,
-                       banner: m.background || "", logo: m.logo || "" })
+                       banner: banner, logo: m.logo || "" })
         }
         return out
     }
@@ -4861,6 +4865,9 @@ Window {
                         id: heroView
                         anchors.fill: parent
                         clip: true
+                        // The carousel only ever pages sideways; say so, so its inner ListView
+                        // never treats a vertical drag as its own.
+                        Component.onCompleted: if (contentItem) contentItem.flickableDirection = Flickable.HorizontalFlick
                         Repeater {
                             model: win.installedUniverses
                             delegate: Item {
@@ -4967,6 +4974,35 @@ Window {
                         radius: hero.radius
                         shown: heroView.activeFocus
                                && (!heroView.currentItem || !heroView.currentItem.keyboardActionFocused)
+                    }
+
+                    // Touch only: a mostly-vertical finger drag on the hero scrolls the Home page.
+                    // The carousel (and the Explore MouseArea under it) swallowed those drags, so
+                    // on a phone the page could not be scrolled from the hero. The handler only
+                    // activates on Y travel, so a horizontal drag still swipes the carousel;
+                    // the mouse and wheel are untouched (desktop unchanged).
+                    DragHandler {
+                        id: heroVerticalScroll
+                        target: null
+                        xAxis.enabled: false
+                        acceptedDevices: PointerDevice.TouchScreen
+                        grabPermissions: PointerHandler.CanTakeOverFromItems | PointerHandler.CanTakeOverFromHandlersOfDifferentType
+                        property real lastY: 0
+                        onActiveChanged: {
+                            if (active) {
+                                lastY = 0
+                                page.cancelFlick()
+                            } else if (page.contentHeight > page.height) {
+                                page.flick(0, centroid.velocity.y)
+                            }
+                        }
+                        onActiveTranslationChanged: {
+                            if (!active) return
+                            var dy = activeTranslation.y - lastY
+                            lastY = activeTranslation.y
+                            page.contentY = Math.max(0, Math.min(page.contentHeight - page.height,
+                                                                 page.contentY - dy))
+                        }
                     }
 
                     // gentle auto-advance through the collection (not visualized — ratified)
@@ -7388,6 +7424,9 @@ Window {
         controller: typeof AccountController !== "undefined" ? AccountController : null
         accountSettings: accountCenter
         onTheatreSyncRequested: function(invoker) { win.openTheatreSyncFromAccount(invoker) }
+        utilityEntries: win.androidHost
+        onTrackersRequested: win.openSyncCenterPage()
+        onWallpaperRequested: win.openWallpaperSearch()
         initial: {
             const who = (typeof AccountController !== "undefined" && AccountController)
                         ? AccountController.username : "";

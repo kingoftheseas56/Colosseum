@@ -137,10 +137,8 @@ Item {
             return "ok"
         return "pending"
     }
-    function focusTrackersButton() {
-        if (trackersButton.visible)
-            trackersInput.forceActiveFocus(Qt.TabFocusReason)
-    }
+    // Android has no trackers button; Sync lives on the Profile tab. Kept so shared callers stay valid.
+    function focusTrackersButton() {}
 
     // Update availability flags (home only): drive the silver badge on the home
     // Update glyph the same way the taskbar badge pulses on updateUnseen. Bound
@@ -402,44 +400,6 @@ Item {
                 onTriggered: bar.updateClicked()
             }
         }
-        // Third-party trackers — every world and home (Stremio lives inside Trackers);
-        // on home it follows the Update glyph.
-        Item {
-            id: trackersButton
-            // Home and every retained world own a TopBar; suffix world copies so automation
-            // never resolves a hidden sibling.
-            objectName: !bar.lifecycleActive ? ""
-                        : bar.activeMedium === "" ? "topBarTrackersButton"
-                        : "topBarTrackersButton_" + bar.activeMedium
-            width: 22; height: 22
-            visible: bar.trackersEnabled && bar.lifecycleActive
-            opacity: trackersInput.interactionActive || bar.trackersActive ? 1.0 : 0.92
-            Image {
-                anchors.fill: parent
-                source: "../../assets/icons/trackers.svg"
-                sourceSize.width: 44; sourceSize.height: 44
-                fillMode: Image.PreserveAspectFit
-            }
-            Rectangle {
-                objectName: "topBarTrackersStatusDot"
-                visible: bar.trackersDotState !== ""
-                anchors.right: parent.right; anchors.bottom: parent.bottom
-                anchors.rightMargin: -3; anchors.bottomMargin: -3
-                width: 8; height: 8; radius: 4
-                color: bar.trackersDotState === "ok" ? "#5fd18b"
-                     : bar.trackersDotState === "error" ? "#ef6a5a" : theme.gold
-                border.width: 1; border.color: "#15151a"
-            }
-            KeyboardAction {
-                id: trackersInput
-                objectName: bar.activeMedium === "" ? "topBarTrackersInput" : ""
-                anchors.fill: parent
-                accessibleName: bar.trackersDotState === "error"
-                                ? qsTr("Trackers, attention required") : qsTr("Trackers")
-                focusRadius: 6
-                onTriggered: bar.trackersClicked()
-            }
-        }
         // Account identity (Bundle 8C first-light): gold-ringed initial when
         // signed in, quiet outline when not. Sits beside Update + Wallpapers.
         Item {
@@ -504,15 +464,8 @@ Item {
                 }
             }
         }
-        // Automation identity (Lanista): the wallpaper control is a production shell
-        // action, so capture journeys address this button directly instead of replacing
-        // the top bar with a harness-only presentation.
-        SysIcon {
-            objectName: "topBarWallpaperButton"
-            source: "../../assets/icons/settings.svg"
-            accessibleName: "Wallpaper"
-            onClicked: bar.wallpaperClicked()
-        }
+        // Android top bar: Search (worlds), Update (home), Account only. Trackers/Sync and
+        // Wallpaper are reached from the Profile tab rows (PhoneShellHost.profileRows).
         SysIcon { visible: bar.desktopWindowControlsVisible; source: "../../assets/icons/minimize.svg"; accessibleName: "Minimize"; onClicked: bar.minimizeClicked() }
         // Fullscreen toggle (Hemanth 2026-07-16, supersedes the old never-☐ topbar
         // rule): glyph shows the ACTION — expand while windowed, contract while

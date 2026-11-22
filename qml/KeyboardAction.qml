@@ -17,6 +17,7 @@ Item {
     // opt-in for controls whose native/scoped convention actually owns it.
     property bool spaceActivates: false
     property bool contextEnabled: false
+    property bool longPressEnabled: false
     property QtObject command: null
     property bool showFocusFrame: true
     readonly property bool televisionMode: {
@@ -37,6 +38,7 @@ Item {
 
     signal triggered()
     signal contextRequested()
+    signal longPressed()
 
     // Some visible delegates are clipped offscreen or are pointer-only faces.
     // Their explicit focusEnabled contract must also govern the native Tab chain.
@@ -93,6 +95,9 @@ Item {
         acceptedButtons: Qt.LeftButton
         gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: action.activate(Qt.MouseFocusReason)
+        // A press held past the long-press threshold never emits tapped, so a
+        // long press never also triggers.
+        onLongPressed: if (action.longPressEnabled) action.longPressed()
     }
     TapHandler {
         enabled: action.pointerEnabled && action.contextEnabled && action.enabled

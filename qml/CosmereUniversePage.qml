@@ -102,7 +102,7 @@ Item {
 
                 Image {
                     anchors.fill: parent
-                    source: root.guide.banner || ""
+                    source: Qt.resolvedUrl("../assets/extensions/house/cosmere.jpg")  // bundled; the Wikimedia hotlink 429s
                     asynchronous: true
                     cache: true
                     fillMode: Image.PreserveAspectCrop
