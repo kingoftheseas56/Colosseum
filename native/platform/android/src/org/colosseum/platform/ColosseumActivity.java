@@ -13,6 +13,7 @@ public final class ColosseumActivity extends QtActivity {
     private boolean playbackBrightnessOwned;
     private float previousWindowBrightness;
     private QtSurfaceRedrawGate surfaceRedrawGate;
+    private QtLayoutSizeResync layoutSizeResync;
     private static native void nativeBackGesture(long handle, int phase, float progress, int edge);
     private static native void nativePlaybackBrightness(long handle, float value);
     private static native void nativeFontScale(long handle, float value);
@@ -25,6 +26,7 @@ public final class ColosseumActivity extends QtActivity {
 
     @Override public void onResume() {
         super.onResume();
+        if (layoutSizeResync != null) layoutSizeResync.onFocusOrResume();
         if (playerOrientation.active()) setPlayerLandscape(true);
     }
 
@@ -105,6 +107,7 @@ public final class ColosseumActivity extends QtActivity {
         configureDesktopScale();
         super.onCreate(state);
         surfaceRedrawGate = new QtSurfaceRedrawGate(this);
+        layoutSizeResync = new QtLayoutSizeResync(this);
         DownloadService.handleIntent(getIntent());
     }
 
@@ -185,9 +188,15 @@ public final class ColosseumActivity extends QtActivity {
     @Override public void onDestroy() {
         setPlayerLandscape(false);
         if (surfaceRedrawGate != null) surfaceRedrawGate.dispose();
+        if (layoutSizeResync != null) layoutSizeResync.dispose();
         restorePlaybackBrightness();
         setBackBridgeHandle(0);
         super.onDestroy();
+    }
+
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && layoutSizeResync != null) layoutSizeResync.onFocusOrResume();
     }
 
     public void onSurfaceRedrawComplete(long token) {
