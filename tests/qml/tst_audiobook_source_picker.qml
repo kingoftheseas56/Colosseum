@@ -104,6 +104,16 @@ TestCase {
         compare(selected[0].request.recordingKey, "tankorent-source")
     }
 
+    function test_audiobookbay_metadata_omits_seeders() {
+        const page = make([{
+            title: "Catching Fire", format: "mp3", fileCount: 27, size: "636.73 MBs",
+            seeders: 0, reason: "Unconfirmed", request: { sourceKind: "abb" }
+        }])
+        page.showTankorent = false
+        const choice = visual(page, "audiobookSourceOption_abb_0")
+        compare(choice.accessibleDescription, "MP3 · 27 files · 636.73 MBs · Unconfirmed")
+    }
+
     function test_provider_status_and_back() {
         const page = make([])
         compare(visual(page, "audiobookSourcesStatus_abb").text, "No matches found")

@@ -33,6 +33,7 @@ Item {
     signal redownloadRequested(var item)     // file absent here → fetch the same logical item
     signal openWorldRequested(string world)  // empty-lane CTA → host opens that world
     signal playArrivingRequested(var job)    // live theatre job → host streams the same url
+    signal listenAudiobookRequested(var item)
     signal openAudiobookRequested(var item)
 
     Theme { id: theme }
@@ -232,7 +233,7 @@ Item {
     property var coolMap: ({})              // chapterId -> resume-at epoch ms (absent = not cooling)
 
     // ---- audiobooks (A2 lane) ----
-    // The audiobook engine (`Audiobooks`) keys by pairKey ("title|author") and enumerates only
+    // The audiobook engine (`Audiobooks`) keys by recordingKey and enumerates only
     // COMPLETED sets (downloadedAudiobooks). Active jobs are mirrored HERE from its progress
     // signals — a download streams in chunks, so an already-running job repaints within a beat
     // of this page opening. (This closes the 2026-07-18 gap: audiobook downloads ran invisible.)
@@ -1734,10 +1735,6 @@ Item {
                                             if (b) parts.push(b);
                                             var w = root.fmtWhen(abDoneRow.modelData.addedAt || 0);
                                             if (w) parts.push(w);
-                                            if (abDoneRow.modelData.bookPath)
-                                                parts.push("ready to listen");
-                                            else
-                                                parts.push("the paired book is not available locally");
                                             return parts.join(" · ");
                                         }
                                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
@@ -1749,6 +1746,20 @@ Item {
                                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                                     spacing: 20
                                     Text {
+                                        visible: !abDoneRow.modelData.missing && !!abDoneRow.modelData.recordingKey
+                                        text: qsTr("Listen")
+                                        color: abListenInput.interactionActive ? "#ffd968" : theme.gold
+                                        font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                                        KeyboardAction {
+                                            id: abListenInput
+                                            objectName: "downloadsListenAction_" + abDoneRow.modelData.id
+                                            anchors.fill: parent
+                                            accessibleName: qsTr("Listen")
+                                            showFocusFrame: false
+                                            onTriggered: root.listenAudiobookRequested(abDoneRow.modelData)
+                                        }
+                                    }
+                                    Text {
                                         visible: !abDoneRow.modelData.missing
                                                  && String(abDoneRow.modelData.bookPath || "").length > 0
                                         text: "Open book"
@@ -1756,6 +1767,7 @@ Item {
                                         font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
                                         KeyboardAction {
                                             id: abOpenInput
+                                            objectName: "downloadsOpenAudiobookBookAction_" + abDoneRow.modelData.id
                                             anchors.fill: parent
                                             accessibleName: "Open book"
                                             showFocusFrame: false

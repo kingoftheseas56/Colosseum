@@ -3194,6 +3194,18 @@ Window {
             "openAudio": true
         })
     }
+    function routeDownloadListen(item) {
+        const key = item && item.recordingKey
+        const downloads = audiobookFlow.downloads
+        if (key && !item.missing && downloads && downloads.resolveRecordingKey(key) === key
+                && audiobookFlow.openListen(key, item)) {
+            if (worldStack.current !== "Biblio") win.openWorld("Biblio")
+            win.closeDownloadsPage()
+        } else if (downloadsLayer.item) {
+            downloadsLayer.item.abRefresh()
+            downloadsLayer.item.mutationMessage = qsTr("This downloaded recording could not be opened.")
+        }
+    }
 
     function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
         setGuiStallContext("open", "Player")
@@ -6094,6 +6106,7 @@ Window {
             })
             item.openWorldRequested.connect(win.routeDownloadWorld)
             item.playArrivingRequested.connect(win.routeArrivingPlay)
+            item.listenAudiobookRequested.connect(win.routeDownloadListen)
             item.openAudiobookRequested.connect(win.routeDownloadedAudiobook)
         }
     }

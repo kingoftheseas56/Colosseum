@@ -52,14 +52,15 @@ FocusScope {
         }
     }
 
-    function rowDetails(row) {
+    function rowDetails(row, providerId) {
         const parts = []
         if (row.narrators && row.narrators.length) parts.push(qsTr("Narrated by %1").arg(row.narrators.join(", ")))
         if (row.format) parts.push(String(row.format).toUpperCase())
         const count = Number(row.fileCount)
         if (count > 0) parts.push(count === 1 ? qsTr("1 file") : qsTr("%1 files").arg(count))
         if (row.size) parts.push(String(row.size))
-        if (row.seeders !== undefined) parts.push(row.seeders === 1 ? qsTr("1 seeder") : qsTr("%1 seeders").arg(row.seeders))
+        if (providerId !== "abb" && row.seeders !== undefined)
+            parts.push(row.seeders === 1 ? qsTr("1 seeder") : qsTr("%1 seeders").arg(row.seeders))
         if (row.bundle) {
             const books = Number(row.bundleCount)
             parts.push(books === 1 ? qsTr("Bundle · 1 book")
@@ -399,7 +400,7 @@ FocusScope {
                                             id: description
                                             Layout.fillWidth: true
                                             visible: text.length > 0
-                                            text: page.rowDetails(option.modelData)
+                                            text: page.rowDetails(option.modelData, section.modelData.id)
                                             color: theme.inkDim
                                             font.family: theme.ui
                                             font.pixelSize: theme.fontSize(12)
