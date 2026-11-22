@@ -14,7 +14,8 @@ Rectangle {
     property string bookTitle: ""
     property url coverSource
     readonly property bool wideLayout: wide && !compact
-    readonly property bool stackedWide: wideLayout && width < 620
+    // Leave room between the centered chapter controls and the tools when Return appears.
+    readonly property bool stackedWide: wideLayout && width < 656
     readonly property int timelineY: wideLayout ? (stackedWide ? 116 : 70) : 39
     readonly property int wideButtonSize: width < 340 ? 28 : 34
     property bool awake: true

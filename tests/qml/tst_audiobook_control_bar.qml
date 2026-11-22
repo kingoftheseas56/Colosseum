@@ -107,6 +107,18 @@ TestCase {
         compare(stub.volume, 0)
     }
 
+    function test_wideControlsKeepSpaceForReturn() {
+        make(false, true)
+        bar.width = 630
+        wait(0)
+        const next = f("NextChapter")
+        const speed = f("Speed")
+        const nextRight = next.mapToItem(bar, next.width, 0)
+        const speedBottom = speed.mapToItem(bar, 0, speed.height)
+        verify(nextRight.x + 8 <= speedBottom.x || speedBottom.y <= nextRight.y,
+               "Next chapter and playback speed need separate hit targets when Return is visible")
+    }
+
     function test_skip60MarksFirst() { make(); mouseClick(f("Back60")); compare(names(), "markJumpOrigin,skipBook"); compare(stub.calls[1][1], -60) }
     function test_skip10DoesNotMark() { make(); mouseClick(f("Back10")); compare(names(), "skipBook"); compare(stub.calls[0][1], -10) }
     function test_forwardSkips() { make(); mouseClick(f("Fwd10")); mouseClick(f("Fwd60")); compare(names(), "skipBook,markJumpOrigin,skipBook"); compare(stub.calls[0][1], 10); compare(stub.calls[2][1], 60) }

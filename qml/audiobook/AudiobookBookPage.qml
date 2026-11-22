@@ -7,7 +7,8 @@ import "AudiobookBookPageData.js" as BookData
 FocusScope {
     id: root
     objectName: "audiobookBookPage"
-    property Item backdrop: null
+    property real backdropBottomInset: 0
+    property bool androidHost: Qt.platform.os === "android"
     property var work: ({})
     // Enriched catalogue recordings may supply canonical recordingKey/local state.
     property var recordings: work.recordings || []
@@ -25,30 +26,112 @@ FocusScope {
     signal authorRequested(string personId, string name)
     signal saveRequested()
     signal backRequested()
+    signal minimizeRequested()
+    signal fullscreenRequested()
+    signal quitRequested()
 
     readonly property var built: BookData.build(work, seriesWorks, recordings)
     readonly property var shownRecording: BookData.recording(built, local, downloadState)
     readonly property string coverUrl: built.cover || shownRecording.cover || ""
+    readonly property var coverSources: {
+        const seriesCover = built.seriesBooks.find(book => book.current)?.cover || ""
+        return [coverUrl, seriesCover === coverUrl ? "" : seriesCover].filter(Boolean)
+    }
     readonly property var actionRecording: selectedDownloadKey
         ? { key: selectedDownloadKey, local: false } : shownRecording
     readonly property var primary: BookData.primaryAction(built, actionRecording, local, downloadState)
     readonly property bool hasSeries: built.seriesBooks.length > 0
-    readonly property bool compact: width < 1050
+    readonly property bool compact: width < 760
+    readonly property real desktopScale: Math.min(1, width / 1280)
     readonly property real inset: Math.max(0, (width - 1280) / 2)
     function focusBackControl() { back.focusControl(Qt.TabFocusReason); }
     Keys.onEscapePressed: root.backRequested()
     onWorkChanged: scroll.contentY = 0
 
     Theme { id: theme }
-    BackAction {
-        id: back
-        objectName: "audiobookBack"
-        x: root.inset + 54; y: 23
-        label: qsTr("Back")
-        labelSize: theme.fontSize(13)
-        tip: qsTr("Back to Audiobooks")
-        idleColor: theme.inkDim
-        onTriggered: root.backRequested()
+
+    Vinyl.VinylBackdrop {
+        objectName: "audiobookDetailBackdrop"
+        width: root.width
+        height: root.height + root.backdropBottomInset
+        source: coverArtwork.ready ? coverArtwork.activeSource : ""
+        wordsShown: true
+        wallpaperFallbackEnabled: false
+    }
+
+    Rectangle {
+        id: header
+        objectName: "audiobookDetailHeader"
+        x: root.compact ? 16 : root.inset + Math.round(32 * root.desktopScale)
+        y: 14
+        width: root.width - 2 * x
+        height: 61
+        radius: 16
+        color: "#ab141720"
+        border.color: "#2bffffff"
+
+        Row {
+            anchors.left: parent.left
+            anchors.leftMargin: root.compact ? 12 : 21
+            anchors.right: chrome.left
+            anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            height: parent.height
+            spacing: root.compact ? 10 : 20
+            clip: true
+
+            BackAction {
+                id: back
+                objectName: "audiobookBack"
+                anchors.verticalCenter: parent.verticalCenter
+                label: qsTr("Back")
+                labelSize: theme.fontSize(13)
+                tip: qsTr("Back to Audiobooks")
+                idleColor: theme.inkDim
+                onTriggered: root.backRequested()
+            }
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 1; height: 21
+                color: theme.edge
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Biblio")
+                color: theme.ink
+                font.family: theme.display
+                font.pixelSize: theme.fontSize(25)
+            }
+            Row {
+                objectName: "audiobookDetailBreadcrumb"
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 9
+                visible: root.width >= (root.androidHost ? 360 : 500)
+                Repeater {
+                    model: ["/", qsTr("Audiobooks"), "/", qsTr("Details")]
+                    delegate: Text {
+                        required property string modelData
+                        required property int index
+                        text: modelData
+                        color: index === 3 ? theme.inkDim : theme.inkDimmer
+                        font.family: theme.ui
+                        font.pixelSize: theme.fontSize(13)
+                    }
+                }
+            }
+        }
+        HouseWindowControls {
+            id: chrome
+            anchors.right: parent.right
+            anchors.rightMargin: root.compact ? 12 : 21
+            anchors.verticalCenter: parent.verticalCenter
+            objectPrefix: "audiobookDetailWindow"
+            androidHost: root.androidHost
+            spacing: 10
+            onMinimizeRequested: root.minimizeRequested()
+            onFullscreenRequested: root.fullscreenRequested()
+            onQuitRequested: root.quitRequested()
+        }
     }
     Flickable {
         id: scroll
@@ -63,16 +146,18 @@ FocusScope {
         ScrollBar.vertical: ScrollBar {}
         Column {
             id: artColumn
-            x: root.compact ? 24 : root.inset + (root.hasSeries ? 78 : 82)
-            y: root.compact ? 24 : (root.hasSeries ? 37 : 65)
-            width: root.compact ? Math.min(298, root.width - 48) : (root.hasSeries ? 298 : 319)
+            x: root.compact ? 24 : root.inset + Math.round((root.hasSeries ? 78 : 82) * root.desktopScale)
+            y: root.compact ? 24 : Math.max(16, Math.round((root.hasSeries ? 125 : 153) * root.desktopScale) - scroll.y)
+            width: root.compact ? Math.max(0, Math.min(298, root.width - 48))
+                                : Math.max(210, Math.round((root.hasSeries ? 298 : 319) * root.desktopScale))
             spacing: 23
             Item {
                 objectName: "audiobookCover"
                 width: artColumn.width; height: width
                 RoundedPosterImage {
+                    id: coverArtwork
                     anchors.fill: parent
-                    sources: root.coverUrl ? [root.coverUrl] : []
+                    sources: root.coverSources
                     placeholderTitle: root.built.title
                     radius: 13
                 }
@@ -92,15 +177,15 @@ FocusScope {
             Column {
                 width: artColumn.width
                 spacing: 9
-                Row {
+                Item {
                     id: actions
                     width: parent.width
-                    spacing: root.canSave ? 9 : 0
+                    height: primaryAction.height
                     KeyboardAction {
                         id: primaryAction
                         objectName: "audiobookPrimaryAction"
-                        width: actions.width - (root.canSave ? saveAction.width + actions.spacing : 0)
-                        height: 50
+                        width: actions.width
+                        height: Math.max(50, primaryLabel.implicitHeight + 16)
                         accessibleName: root.primary.label
                         enabled: root.primary.enabled
                         focusPrimary: true
@@ -141,27 +226,6 @@ FocusScope {
                             }
                         }
                     }
-                    KeyboardAction {
-                        id: saveAction
-                        objectName: "audiobookSave"
-                        visible: root.canSave
-                        width: 50; height: 50
-                        accessibleName: root.saved ? qsTr("Remove from Library") : qsTr("Save to Library")
-                        focusRadius: 11
-                        onTriggered: root.saveRequested()
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: 11
-                            color: saveAction.interactionActive ? "#30ffffff" : "#12ffffff"
-                            border.color: theme.edge
-                        }
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.saved ? "♥" : "♡"
-                            color: root.saved ? theme.gold : theme.ink
-                            font.pixelSize: 24
-                        }
-                    }
                 }
                 ProgressBar {
                     id: downloadProgress
@@ -183,7 +247,8 @@ FocusScope {
                 Text {
                     width: parent.width
                     objectName: "audiobookLocalStatus"
-                    topPadding: theme.fontSize(11)
+                    topPadding: theme.fontSize(10)
+                    visible: text.length > 0
                     text: root.primary.kind === "listen" ? qsTr("Downloaded · Ready to listen")
                         : root.primary.kind === "progress" ? "" : qsTr("Not downloaded")
                     horizontalAlignment: Text.AlignHCenter
@@ -191,13 +256,34 @@ FocusScope {
                     color: theme.inkDim
                     font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 }
+                KeyboardAction {
+                    id: saveAction
+                    objectName: "audiobookSave"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: root.canSave
+                    width: Math.min(parent.width, saveLabel.implicitWidth + 20)
+                    height: 30
+                    accessibleName: root.saved ? qsTr("Remove from Library") : qsTr("Save to Library")
+                    focusRadius: 6
+                    onTriggered: root.saveRequested()
+                    Text {
+                        id: saveLabel
+                        anchors.centerIn: parent
+                        text: root.saved ? qsTr("Saved to Library") : saveAction.accessibleName
+                        color: saveAction.interactionActive || root.saved ? theme.gold : theme.inkDimmer
+                        font.family: theme.ui
+                        font.pixelSize: theme.fontSize(12)
+                    }
+                }
             }
         }
         Column {
             id: details
-            x: root.compact ? 24 : root.inset + (root.hasSeries ? 431 : 466)
-            y: root.compact ? artColumn.y + artColumn.height + 32 : (root.hasSeries ? 32 : 69)
-            width: Math.max(0, root.width - x - (root.compact ? 24 : root.inset + 67))
+            x: root.compact ? 24
+                            : artColumn.x + artColumn.width + Math.round((root.hasSeries ? 55 : 65) * root.desktopScale)
+            y: root.compact ? artColumn.y + artColumn.height + 32
+                            : Math.max(16, Math.round((root.hasSeries ? 120 : 157) * root.desktopScale) - scroll.y)
+            width: Math.max(0, root.width - x - (root.compact ? 24 : root.inset + Math.round(67 * root.desktopScale)))
             spacing: 0
             Text {
                 width: parent.width
@@ -208,7 +294,7 @@ FocusScope {
                 font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                 font.weight: Font.DemiBold; font.letterSpacing: 2.75
                 elide: Text.ElideRight
-                bottomPadding: 11
+                bottomPadding: 8
             }
             Text {
                 objectName: "audiobookTitle"
@@ -216,10 +302,12 @@ FocusScope {
                 text: root.built.title
                 color: theme.ink
                 font.family: theme.display
-                font.pixelSize: theme.fontSize(root.compact ? 40 : root.hasSeries ? 57 : 60)
-                height: Math.ceil(font.pixelSize * 1.13) + 9
+                font.pixelSize: theme.fontSize(root.compact ? 40
+                    : Math.max(39, Math.round((root.hasSeries ? 57 : 60) * root.desktopScale)))
+                lineHeightMode: Text.FixedHeight
+                lineHeight: Math.ceil(font.pixelSize * 1.13)
                 font.letterSpacing: -1.7
-                elide: Text.ElideRight
+                wrapMode: Text.Wrap
                 bottomPadding: 9
             }
             Text {
@@ -301,7 +389,7 @@ FocusScope {
                 id: facts
                 objectName: "audiobookFacts"
                 visible: root.shownRecording.facts.length > 0
-                width: parent.width
+                width: Math.min(parent.width, 747)
                 topPadding: root.hasSeries ? 18 : 37
                 spacing: 15
                 Rectangle { width: parent.width; height: 1; color: theme.edge }
@@ -335,24 +423,29 @@ FocusScope {
             id: shelf
             objectName: "audiobookSeriesShelf"
             visible: root.hasSeries
-            x: root.compact ? 24 : root.inset + 416
-            y: Math.max(root.compact ? 0 : 372, details.y + details.height + 19)
-            width: Math.max(0, root.width - x - (root.compact ? 24 : root.inset + 49))
-            height: seriesScroll.y + seriesScroll.height + 8
+            x: root.compact ? 24 : details.x - Math.round(15 * root.desktopScale)
+            y: Math.max(root.compact ? 0 : Math.round(506 * root.desktopScale) - scroll.y,
+                        details.y + details.height + 19)
+            width: Math.max(0, root.width - x - (root.compact ? 24 : root.inset + Math.round(49 * root.desktopScale)))
+            height: seriesScroll.y + seriesScroll.height + 4
             radius: 17
             color: "#7a141822"; border.color: "#21ffffff"
             Row {
                 id: shelfHeading
                 x: 18; y: 11
+                width: Math.max(0, parent.width - 36)
                 spacing: 15
                 Text {
+                    id: seriesName
+                    width: Math.min(implicitWidth, shelfHeading.width)
                     text: root.built.seriesName
                     color: theme.ink
                     font.family: theme.display; font.pixelSize: theme.fontSize(20)
+                    elide: Text.ElideRight
                 }
                 Text {
-                    visible: !root.compact
-                    anchors.baseline: parent.children[0].baseline
+                    visible: !root.compact && seriesName.width + shelfHeading.spacing + implicitWidth <= shelfHeading.width
+                    anchors.baseline: seriesName.baseline
                     text: qsTr("In reading order · select a cover to open its audiobook page")
                     color: theme.inkDimmer
                     font.family: theme.ui; font.pixelSize: theme.fontSize(11)
@@ -363,7 +456,7 @@ FocusScope {
                 objectName: "audiobookSeriesScroll"
                 x: 18; y: shelfHeading.y + shelfHeading.height + 4
                 width: parent.width - 36
-                height: 126
+                height: seriesRow.height + (contentWidth > width ? 10 : 0)
                 contentWidth: seriesRow.width
                 contentHeight: height
                 flickableDirection: Flickable.HorizontalFlick
@@ -382,7 +475,7 @@ FocusScope {
                             required property var modelData
                             objectName: "audiobookSeries_" + modelData.workId
                             width: root.compact ? 98 : Math.max(98, Math.floor((seriesScroll.width - 66) / 7))
-                            height: 116
+                            height: 115
                             accessibleName: [modelData.number ? qsTr("Book %1").arg(modelData.number) : "",
                                 modelData.title, modelData.current ? qsTr("Current audiobook") : ""].filter(Boolean).join(", ")
                             onTriggered: root.seriesBookRequested(modelData.workId)
@@ -438,11 +531,13 @@ FocusScope {
                             }
                             Text {
                                 y: 91
-                                width: parent.width; height: 26
+                                width: parent.width; height: 24
                                 text: card.modelData.title
                                 color: card.modelData.current ? "#f8d777" : "#dedde2"
                                 font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                                 font.weight: card.modelData.current ? Font.DemiBold : Font.Normal
+                                lineHeightMode: Text.FixedHeight
+                                lineHeight: font.pixelSize + 1
                                 horizontalAlignment: Text.AlignHCenter
                                 wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                             }

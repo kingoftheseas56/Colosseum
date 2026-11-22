@@ -18,6 +18,7 @@ GridView {
     // "classic" (default; every un-cleared consumer stays pixel-identical) | "gallery" (approved polish).
     property string visualProfile: "classic"
     property bool squareArtwork: false
+    property bool fitArtwork: false
     readonly property bool _gallery: wall.visualProfile === "gallery"
     readonly property var _gm: Metrics.gallery
     signal requestMore()
@@ -82,6 +83,7 @@ GridView {
         height: wall.cellHeight - 14
         visualProfile: wall.visualProfile
         squareArtwork: wall.squareArtwork
+        fitArtwork: wall.fitArtwork
         // AudiobookShelfApi wraps Biblio records in `raw`; IMDb applies to Theatre cards.
         hoverSourceText: wall._gallery && !(wall.items[index] && wall.items[index].raw !== undefined)
                          ? "IMDb" : ""

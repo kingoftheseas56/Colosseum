@@ -43,6 +43,7 @@ Column {
     readonly property bool _gallery: rail.visualProfile === "gallery"
     readonly property int posterWidth: rail._m.posterWidth
     property bool squareArtwork: false
+    property bool fitArtwork: false
     readonly property int posterHeight: rail.squareArtwork ? rail.posterWidth
                                                            : Math.floor(rail.posterWidth * rail._m.posterRatio)
     readonly property int cardGap: rail.ranked ? 30 : rail._m.cardGap
@@ -176,6 +177,7 @@ Column {
                 height: list.height
                 visualProfile: rail.visualProfile
                 squareArtwork: rail.squareArtwork
+                fitArtwork: rail.fitArtwork
                 // AudiobookShelfApi wraps Biblio records in `raw`; IMDb applies to Theatre cards.
                 hoverSourceText: rail._gallery && !(cell.modelData && cell.modelData.raw !== undefined)
                                  ? "IMDb" : ""

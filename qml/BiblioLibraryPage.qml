@@ -423,9 +423,7 @@ Item {
         readonly property int posterH: 222   // posterW × gallery.posterRatio (1.5)
         readonly property int columnCount: Math.max(2, Math.floor((width + 20) / (posterW + 20)))
         cellWidth: Math.floor(width / columnCount)
-        // Mixed rows retain the book grid geometry. An audiobook-only wall can
-        // pack the square cover, two metadata lines and listening state more tightly.
-        cellHeight: root.mediumFilter === "audiobook" ? posterW + 88 : posterH + 72
+        cellHeight: posterH + 72
         cacheBuffer: cellHeight * 2
         ScrollBar.vertical: HouseScrollBar { flick: wall; visible: !root.pageFlow }
         Binding {
@@ -462,7 +460,7 @@ Item {
             width: wall.posterW; height: wall.cellHeight - 18
             x: (wall.cellWidth - width) / 2
             readonly property bool audiobook: modelData.medium === "audiobook"
-            readonly property real coverH: audiobook ? width : wall.posterH
+            readonly property real coverH: wall.posterH
             readonly property bool hovered: cardHover.hovered || root.menuRowId === card.modelData.entry.id
             readonly property bool keyboardSelected: wall.activeFocus && wall.currentIndex === card.index
 
@@ -498,7 +496,8 @@ Item {
                 Image {
                     anchors.fill: parent
                     source: card.modelData.cover || ""
-                    fillMode: Image.PreserveAspectCrop; verticalAlignment: Image.AlignTop
+                    fillMode: card.audiobook ? Image.PreserveAspectFit : Image.PreserveAspectCrop
+                    verticalAlignment: card.audiobook ? Image.AlignVCenter : Image.AlignTop
                     asynchronous: true; cache: true
                     opacity: status === Image.Ready ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: 180 } }

@@ -336,6 +336,17 @@ TestCase {
         compare(page.shownRecording.facts.find(fact => fact.key === "edition").text, "Unabridged")
     }
 
+    function test_desktop_detail_uses_space_beside_collapsed_dock() {
+        const view = setup()
+        const page = openFirst(view)
+        compare(page.height, height - view.flow.dockClearance)
+        view.flow.dockExpanded = false
+        tryCompare(page, "height", height)
+        view.flow.dockExpanded = true
+        tryCompare(page, "height", height - view.flow.dockClearance)
+        compare(findChild(page, "audiobookDetailBackdrop").height, height)
+    }
+
     function test_series_cover_swaps_work() {
         const view = setup()
         const page = openFirst(view)
@@ -391,7 +402,8 @@ TestCase {
         compare(browser.items.map(card => card.title), [data.first, data.second])
         compare(browser.hasMore, false)
         const grid = findChild(browser, "theatreSeeAllPosterWall")
-        verify(grid.squareArtwork)
+        verify(!grid.squareArtwork)
+        verify(grid.fitArtwork)
         grid.itemRequested(grid.items[1])
         tryCompare(findChild(view.flow.currentPage, "audiobookTitle"), "text", data.second)
         view.flow.back()

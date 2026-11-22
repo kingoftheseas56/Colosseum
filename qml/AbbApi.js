@@ -98,8 +98,15 @@ function requestLookup(operation, payload, done) {
 function decode(s) {
     return String(s || "")
         .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&apos;/g, "'")
-        .replace(/&#039;/g, "'").replace(/&#8211;/g, "-").replace(/&#8212;/g, "-")
+        .replace(/&#8211;/g, "-").replace(/&#8212;/g, "-")
         .replace(/&#8230;/g, "...").replace(/&nbsp;/g, " ")
+        .replace(/&#(x[0-9a-f]+|\d+);/gi, function(entity, value) {
+            var hex = value[0].toLowerCase() === "x";
+            var point = parseInt(hex ? value.slice(1) : value, hex ? 16 : 10);
+            if (point <= 0 || point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff))
+                return entity;
+            return String.fromCodePoint(point);
+        })
         .replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
 }
 

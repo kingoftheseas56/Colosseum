@@ -17,6 +17,7 @@ Item {
     property var pageLoader: null            // (pin, offset, limit, options, done) — defaults to the API
     property string emptyMessage: qsTr("This shelf answered with nothing.")
     property bool squareArtwork: false
+    property bool fitArtwork: false
     signal itemRequested(var item)
     signal backRequested()
 
@@ -188,6 +189,7 @@ Item {
         anchors.leftMargin: 6; anchors.rightMargin: 6
         visualProfile: "gallery"
         squareArtwork: seeAll.squareArtwork
+        fitArtwork: seeAll.fitArtwork
         visible: !seeAll.missing
         items: seeAll.items
         loading: seeAll.loading

@@ -22,7 +22,9 @@ FocusScope {
     property var ebookLibrary: []
     property string returnSessionId: ""
     property Item backdrop: null
+    property bool androidHost: Qt.platform.os === "android"
     property real dockClearance: 0
+    property bool dockExpanded: true
     property var tankorent: (typeof AudiobookTorrents !== "undefined") ? AudiobookTorrents : null
     readonly property bool abbEnabled: ExtensionCatalog.sourceEnabled(extensions, "colosseum.well.audiobookbay")
     readonly property bool tankorentEnabled: !!tankorent && ExtensionCatalog.sourceEnabled(extensions, "colosseum.well.indexers")
@@ -33,6 +35,9 @@ FocusScope {
     signal openExtensionsRequested()
     signal readAlongRequested(var ebook, string recordingKey)
     signal returnToReaderRequested(string id)
+    signal minimizeRequested()
+    signal fullscreenRequested()
+    signal quitRequested()
 
     property int downloadsRevision: 0
     property var failedKeys: ({})
@@ -165,7 +170,9 @@ FocusScope {
     StackView {
         id: routeStack
         anchors.fill: parent
-        anchors.bottomMargin: flow.dockClearance
+        // A collapsed dock sits to the left of the series shelf on the desktop layout.
+        anchors.bottomMargin: !flow.dockExpanded && flow.width >= 760 && flow.height >= 700
+            && currentItem && currentItem.objectName === "audiobookBookPage" ? 0 : flow.dockClearance
     }
 
     Component {
@@ -197,7 +204,11 @@ FocusScope {
             }
             canSave: !!flow.collectionStore && collectionId.length > 0 && built.workId === workId
             saved: canSave && (flow.collectionStore.revision, flow.collectionStore.has("biblio", collectionId))
-            backdrop: flow.backdrop
+            backdropBottomInset: routeStack.anchors.bottomMargin
+            androidHost: flow.androidHost
+            onMinimizeRequested: flow.minimizeRequested()
+            onFullscreenRequested: flow.fullscreenRequested()
+            onQuitRequested: flow.quitRequested()
 
             function refresh() {
                 const catalog = flow.catalog
@@ -414,7 +425,7 @@ FocusScope {
         id: cataloguePage
         TheatreSeeAllPage {
             emptyMessage: qsTr("No audiobooks found.")
-            squareArtwork: true
+            fitArtwork: true
             pageLoader: (pin, page, limit, options, done) => ShelfApi.loadPage(flow.catalog, pin, page, done)
             StackView.onActivated: forceActiveFocus()
             onItemRequested: (item) => flow.openWork(item.raw.workId || item.raw.id, item.raw.recordingId)

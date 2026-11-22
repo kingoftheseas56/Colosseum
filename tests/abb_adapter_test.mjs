@@ -155,6 +155,17 @@ check('Worker search reuses the old cache and keeps stale data on provider failu
   assert.equal(values[4].value.rows[0].slug, 'new');
 });
 
+check('search titles decode decimal and hexadecimal character references', () => {
+  const env = environment();
+  const rows = env.api.parseSearch('<div class="post"><h2><a href="/abss/fixture/">'
+    + 'The Lion&#8217;s Gate &#8211; Steven Pressfield</a></h2></div>'
+    + '<div class="post"><h2><a href="/abss/fixture-two/">'
+    + 'Crow&#x2019;s Fortune - Seth Ring</a></h2></div>');
+  assert.equal(rows[0].title, 'The Lion’s Gate');
+  assert.equal(rows[0].author, 'Steven Pressfield');
+  assert.equal(rows[1].title, 'Crow’s Fortune');
+});
+
 check('last page without a next link has hasMore=false', () => {
   const env = environment();
   const final = home.replace(/<div class="wp-pagenavi">[\s\S]*?<\/div>/,

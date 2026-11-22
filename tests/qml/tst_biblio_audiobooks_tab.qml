@@ -98,11 +98,69 @@ TestCase {
     }
     Component { id: worldComponent; Colosseum.BiblioWorld {} }
 
+    Component {
+        id: remoteCatalogComponent
+        QtObject {
+            signal revisionChanged()
+            signal requestFailed(string method, string reason)
+            property string shelfState: "pending"
+            property var retries: []
+
+            function shelves() { return [{ key: "new-releases", title: "New releases" },
+                                         { key: "dramatized", title: "Fully dramatized" }] }
+            function shelf(key, page) {
+                return key === "new-releases" || shelfState === "success"
+                    ? { items: [testCase.item(key === "new-releases" ? 1 : 2)], hasMore: false }
+                    : {}
+            }
+            function genres() { return [] }
+            function remoteQueryState(method, args) {
+                if (method !== "shelf" || args[0] !== "dramatized")
+                    return { cached: true, status: "success" }
+                return { pending: shelfState === "pending", cached: shelfState === "success",
+                         status: shelfState, retryable: shelfState === "failure" }
+            }
+            function retryRemoteQuery(method, args) {
+                retries = retries.concat([{ method: method, args: args }])
+                shelfState = "pending"
+            }
+        }
+    }
+
+    function test_remote_shelf_failure_keeps_loaded_rows_and_retries_only_the_failed_query() {
+        const catalog = createTemporaryObject(remoteCatalogComponent, testCase)
+        const t = make({ catalog: catalog, active: true })
+        const firstRow = find(t, "audiobooksRow_new_releases")
+        const status = find(t, "audiobooksUnavailable")
+        const retry = find(t, "audiobooksRetry")
+        verify(firstRow)
+        verify(!status.visible)
+        verify(!retry.visible)
+
+        catalog.shelfState = "failure"
+        catalog.requestFailed("shelf", "UPSTREAM_ERROR")
+        verify(retry.visible)
+        compare(find(t, "audiobooksRow_new_releases"), firstRow)
+        retry.clicked()
+        compare(catalog.retries, [{ method: "shelf", args: ["dramatized", 0] }])
+        verify(!status.visible)
+
+        catalog.shelfState = "success"
+        catalog.revisionChanged()
+        compare(rowTitles(t), ["New releases", "Fully dramatized"])
+        verify(!status.visible)
+    }
+
     function test_discover_rows_in_contract_order_with_shelf_titles() {
         var t = make({ catalog: fakeCatalog(), active: true })
         compare(t.catalogAvailable, true)
         compare(rowTitles(t), ["New releases", "Fully dramatized", "Narrated by Kate Reading",
                                "Narrated by Michael Kramer", "Narrated by Simon Vance"])
+        for (const row of findAll(t, "audiobooksRow_", [])) {
+            compare(row.posterWidth, 148)
+            compare(row.posterHeight, 222)
+            verify(row.fitArtwork)
+        }
         compare(find(t, "audiobooksUnavailable").visible, false)
     }
 

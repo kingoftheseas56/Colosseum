@@ -14,7 +14,7 @@ TestCase {
     FontLoader { source: "../../assets/fonts/Fraunces-Regular.ttf" }
     Component {
         id: pageComponent
-        Audiobook.AudiobookBookPage { width: 1280; height: 720; backdrop: Item {} }
+        Audiobook.AudiobookBookPage { width: 1280; height: 720 }
     }
     SignalSpy { id: downloadSpy; signalName: "downloadRequested" }
     SignalSpy { id: listenSpy; signalName: "listenRequested" }
@@ -169,6 +169,32 @@ TestCase {
         page.forceActiveFocus(); keyClick(Qt.Key_Escape);
         compare(backSpy.count, 2);
     }
+    function test_mock_header_and_cover_width_primary() {
+        make(Fixtures.series(), Fixtures.seriesWorks());
+        page.canSave = true;
+        const header = item("audiobookDetailHeader");
+        compare(header.x, 32);
+        compare(header.y, 14);
+        compare(header.height, 61);
+        verify(item("audiobookDetailBreadcrumb").visible);
+        verify(item("audiobookDetailWindowMinimize").visible);
+        compare(item("audiobookPrimaryAction").width, item("audiobookCover").width);
+        tryVerify(() => item("audiobookSave").mapToItem(page, 0, 0).y
+                        > item("audiobookPrimaryAction").mapToItem(page, 0, 0).y);
+        page.androidHost = true;
+        verify(!item("audiobookDetailWindowMinimize").visible);
+    }
+    function test_background_follows_loaded_cover() {
+        const work = Fixtures.single();
+        work.cover = Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg");
+        make(work);
+        const background = item("audiobookDetailBackdrop");
+        compare(background.wallpaperFallbackEnabled, false);
+        compare(background.fallbackSource, "");
+        tryCompare(background, "source", work.cover);
+        page.work = { id: "no-art", title: "No artwork" };
+        compare(background.source.toString(), "");
+    }
     function test_desktopFit_data() {
         return [{ tag: "single", work: Fixtures.single(), books: [] },
                 { tag: "series", work: Fixtures.series(), books: Fixtures.seriesWorks() }];
@@ -217,5 +243,39 @@ TestCase {
         verify(at.y >= 88 && at.y + tile.height <= page.height);
         mouseClick(tile);
         compare(seriesSpy.signalArguments[0][0], "dawnshard");
+    }
+    function test_windowedDetailsUseBothColumns() {
+        const work = Fixtures.series();
+        work.title = "House of Pounding Hearts";
+        work.authors = [{ name: "Olivia Wildenstein" }];
+        make(work, Fixtures.seriesWorks());
+        page.width = 1024;
+        page.height = 560;
+        page.canSave = true;
+        const cover = item("audiobookCover");
+        const title = item("audiobookTitle");
+        const narrator = item("audiobookNarrator");
+        const primary = item("audiobookPrimaryAction");
+        const coverBottomRight = cover.mapToItem(page, cover.width, cover.height);
+        const titleTopLeft = title.mapToItem(page, 0, 0);
+        verify(titleTopLeft.x >= coverBottomRight.x + 24, "the title belongs beside the cover in a desktop window");
+        verify(titleTopLeft.y < coverBottomRight.y, "the title is visible above the cover bottom");
+        verify(titleTopLeft.x + title.width <= page.width);
+        verify(narrator.mapToItem(page, 0, narrator.height).y <= page.height);
+        verify(primary.mapToItem(page, 0, primary.height).y <= page.height);
+        compare(cover.width, cover.height);
+        compare(primary.accessibleName, "Download");
+    }
+    function test_longTitleWrapsWithoutTruncating() {
+        const work = Fixtures.single();
+        work.title = "A Very Long Audiobook Title That Needs More Than One Line To Display";
+        make(work);
+        page.width = 1024;
+        page.height = 560;
+        const title = item("audiobookTitle");
+        const author = item("audiobookAuthor");
+        verify(title.lineCount > 1);
+        verify(!title.truncated);
+        verify(author.mapToItem(page, 0, 0).y >= title.mapToItem(page, 0, title.height).y);
     }
 }

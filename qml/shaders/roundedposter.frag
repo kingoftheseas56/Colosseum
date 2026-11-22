@@ -1,6 +1,6 @@
 #version 440
 // RoundedPosterImage's single render pass: the neutral placeholder gradient, the decoded art
-// cropped like Image.PreserveAspectCrop (centred) and faded in by artMix, and the rounded-rect
+// centered to fill or fit the frame and faded in by artMix, and the rounded-rect
 // mask with a 1 px antialiased edge. Replaces a MultiEffect mask over two layer FBOs.
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
@@ -33,7 +33,9 @@ vec3 placeholder(float t) {
 
 void main() {
     float coverage = roundedCoverage(qt_TexCoord0 * itemSize);
-    vec4 art = texture(source, uvOffset + qt_TexCoord0 * uvScale) * artMix;   // premultiplied
+    vec2 uv = uvOffset + qt_TexCoord0 * uvScale;
+    vec2 inside = step(vec2(0.0), uv) * step(uv, vec2(1.0));
+    vec4 art = texture(source, uv) * (artMix * inside.x * inside.y);   // premultiplied
     vec3 rgb = placeholder(qt_TexCoord0.y) * (1.0 - art.a) + art.rgb;
     fragColor = vec4(rgb, 1.0) * (coverage * qt_Opacity);
 }

@@ -13,6 +13,7 @@ Item {
     // ── inputs ──
     property var sources: []                 // ordered candidate URLs from PosterSourcePolicy
     property string placeholderTitle: ""
+    property bool fitArtwork: false
     property real radius: 12
     property int revealDuration: 280
     property bool hovered: false             // drives the cheap depth plates + inset edge accent
@@ -92,7 +93,7 @@ Item {
         anchors.fill: parent
         visible: root.softwareRendering
         source: root.activeSource
-        fillMode: Image.PreserveAspectCrop
+        fillMode: root.fitArtwork ? Image.PreserveAspectFit : Image.PreserveAspectCrop
         asynchronous: true
         cache: true
         smooth: true
@@ -120,8 +121,9 @@ Item {
         property size itemSize: Qt.size(width, height)
         property real radius: root.radius
         property real artMix: art.status === Image.Ready ? art.opacity : 0
-        property point uvScale: _texAspect > _itemAspect ? Qt.point(_itemAspect / _texAspect, 1)
-                                                         : Qt.point(1, _texAspect / _itemAspect)
+        readonly property real _aspectRatio: _itemAspect / _texAspect
+        property point uvScale: (_aspectRatio < 1) !== root.fitArtwork
+            ? Qt.point(_aspectRatio, 1) : Qt.point(1, 1 / _aspectRatio)
         property point uvOffset: Qt.point((1 - uvScale.x) / 2, (1 - uvScale.y) / 2)
         fragmentShader: "shaders/roundedposter.frag.qsb"
     }

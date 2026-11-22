@@ -5877,7 +5877,9 @@ Window {
         anchors.bottomMargin: win.browseBottomInset
         z: 53
         backdrop: wall
+        androidHost: win.androidHost
         dockClearance: win.androidHost ? 0 : taskbar.contentBottomInset
+        dockExpanded: taskbar.open
         session: audioSession
         ebookLibrary: {
             win.ebookDownloadRevision
@@ -5891,6 +5893,9 @@ Window {
         onOpenExtensionsRequested: win.openExtensionsPage("biblio")
         onReadAlongRequested: (ebook, key) => win.openReadAlong(ebook, key)
         onReturnToReaderRequested: (id) => { if (Sessions.get(id).id) Sessions.switchTo(id) }
+        onMinimizeRequested: win.minimizeShell()
+        onFullscreenRequested: win.toggleFullscreenShell()
+        onQuitRequested: win.requestApplicationQuit()
     }
 
     // ---- the ONE audiobook engine (read-along), hoisted at the window root (never in a

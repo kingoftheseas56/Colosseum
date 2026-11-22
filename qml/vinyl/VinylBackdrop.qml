@@ -8,9 +8,11 @@ Item {
     property bool wordsShown: false
     property bool tallFixture: false
     property url source
+    property bool wallpaperFallbackEnabled: true
     property var contentStore: typeof Content !== "undefined" ? Content : null
     readonly property string bundledFallbackSource: Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
     readonly property string fallbackSource: {
+        if (!root.wallpaperFallbackEnabled) return ""
         if (root.contentStore) {
             const remote = (root.contentStore.generation,
                             root.contentStore.assetUrl("assets/wallpaper/cold-ripple.jpg"))
@@ -44,7 +46,8 @@ Item {
         id: standardBackdrop
         anchors.fill: parent
         visible: !root.artistSkinActive
-        readonly property bool useFallback: !root.source.toString() || art.status === Image.Error
+        readonly property bool useFallback: root.wallpaperFallbackEnabled
+            && (!root.source.toString() || art.status === Image.Error)
         readonly property bool softwareRendering: root.GraphicsInfo.api === GraphicsInfo.Software
         readonly property Image shownArt: !useFallback ? art
             : fallbackArt.status === Image.Ready || root.fallbackSource === root.bundledFallbackSource
