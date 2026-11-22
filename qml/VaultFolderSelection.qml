@@ -420,7 +420,7 @@ FocusScope {
             Text {
                 objectName: "vaultFolderSelectionFooterNote"
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                // Footer note: sized to its text so the folder list above gets the free height.
                 visible: !picker.compact
                 text: qsTr("Excluded files and folders stay on your drive.")
                 verticalAlignment: Text.AlignVCenter

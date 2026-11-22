@@ -309,7 +309,7 @@ FocusScope {
             Layout.fillWidth: true
             Text {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                // Footer note: sized to its text so the folder list above gets the free height.
                 visible: !chooser.compact
                 text: qsTr("Colosseum only reads the folders you add.")
                 verticalAlignment: Text.AlignVCenter
