@@ -4635,8 +4635,7 @@ Window {
         onFullscreenClicked: win.toggleFullscreenShell()
         onMinimizeClicked: win.minimizeShell()
         onPowerClicked: win.requestApplicationQuit()
-        // Update glyph (home only, takes the retired search slot). Toggle mirrors
-        // the taskbar launcher: open when closed, close when already front.
+        // Toggle mirrors the taskbar launcher: open when closed, close when already front.
         updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
         updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
         reducedMotion: win.reducedMotion
@@ -5446,6 +5445,12 @@ Window {
                         if (tgiSignal) tgiSignal.connect(win.openTheatreGenreIndex)
                     }
                     item.searchClicked.connect(win.openSearch)
+                    if (win.androidHost && item.updateClicked) {
+                        item.updateAvailable = Qt.binding(() => topbar.updateAvailable)
+                        item.updateUnseen = Qt.binding(() => topbar.updateUnseen)
+                        item.updateReducedMotion = Qt.binding(() => topbar.reducedMotion)
+                        item.updateClicked.connect(() => topbar.updateClicked())
+                    }
                     if (item.stremioClicked) item.stremioClicked.connect(win.openStremioSyncPanel)
                     if (item.topBarUtilityActionsInPicker !== undefined)
                         item.topBarUtilityActionsInPicker = Qt.binding(function() { return win.desktopPickerUtilities })

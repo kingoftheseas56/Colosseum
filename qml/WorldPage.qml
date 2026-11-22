@@ -228,6 +228,10 @@ Item {
     signal continueDetailRequested(var item) // Continue tile elsewhere → host opens its detail view
     signal continueSeeAllRequested()         // Continue row's "See all ›" → host opens the scoped backlog page
     signal searchClicked()
+    signal updateClicked()
+    property alias updateAvailable: topbar.updateAvailable
+    property alias updateUnseen: topbar.updateUnseen
+    property alias updateReducedMotion: topbar.reducedMotion
     signal trackersClicked()                 // topbar third-party trackers door -> host opens the Sync Center
     property bool trackersActive: false
     signal settingsClicked()
@@ -258,11 +262,14 @@ Item {
         pageSubtitle: world.topBarSubtitle
         lifecycleActive: world.lifecycleActive
         androidHost: world.androidHost
-        x: world.headerOuterMargin; y: adaptive.topInset
+        x: world.headerOuterMargin
+        // Match the Android Home bar in the desktop-shaped shell.
+        y: world.androidHost && adaptive.desktopPresentation && !world.topBarBackOnly ? 18 : adaptive.topInset
         width: world.width - world.headerOuterMargin * 2
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
+        onUpdateClicked: world.updateClicked()
         utilityActionsInPicker: world.topBarUtilityActionsInPicker
         trackersEnabled: world.topBarTrackersEnabled
         trackersActive: world.trackersActive
