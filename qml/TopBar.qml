@@ -23,10 +23,11 @@ Item {
     property bool compactBrowserChrome: false
     readonly property bool compactChrome: compactBrowserChrome || width < (androidHost ? 1100 : 1200)
     // Android uses the outer header space to keep every group in one row.
+    property bool reserveHomeBackSpace: false
     readonly property real leftOtherWidth:
-        (backAction.visible ? backAction.implicitWidth : 0)
+        (backSlot.visible ? backSlot.width : 0)
         + (leftTitle.visible ? leftTitle.implicitWidth : 0)
-    readonly property int leftOtherCount: (backAction.visible ? 1 : 0) + (leftTitle.visible ? 1 : 0)
+    readonly property int leftOtherCount: (backSlot.visible ? 1 : 0) + (leftTitle.visible ? 1 : 0)
     readonly property real clockFreeSpace: width - systemChrome.implicitWidth
         - (pillsRow.implicitWidth + 14)
         - 24 - leftOtherWidth - leftOtherCount * (bar.androidHost ? inputMetrics.chromeGap : 18)
@@ -46,10 +47,9 @@ Item {
     property bool androidHost: Qt.platform.os === "android"
     AdaptiveLayout { id: inputMetrics; objectName: "topBarInputMetrics"; androidHost: bar.androidHost; viewportWidth: bar.width }
     readonly property real touchTargetSize: inputMetrics.touchTargetSize
-    readonly property real systemGlyphSize: bar.androidHost
-        ? Math.round(Math.min(inputMetrics.tightAndroidChrome ? 28 : 34, touchTargetSize * 0.7)) : 22
+    readonly property real systemGlyphSize: bar.androidHost ? 26 : 22
     readonly property real touchHorizontalInset: bar.touchTargetSize > 0
-        ? Math.min((bar.touchTargetSize - 22) / 2, Math.floor(systemChrome.spacing / 2)) : 0
+        ? Math.min((bar.touchTargetSize - bar.systemGlyphSize) / 2, Math.floor(systemChrome.spacing / 2)) : 0
     // Wallpaper is available from the desktop app picker.
     property bool wallpaperEnabled: false
     property string clock: "8:29"
@@ -258,20 +258,23 @@ Item {
         id: leftChrome
         objectName: "topBarLeftChrome"
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-        // Keep the clock at the leading edge in every Android world, beside Back.
-        layoutDirection: bar.androidHost && !bar.backOnly ? Qt.RightToLeft : Qt.LeftToRight
         spacing: bar.androidHost ? inputMetrics.chromeGap : 18
-        BackAction {
-            id: backAction
-            // world-root variant: destination label, dim→bright hover (never gold up here)
-            visible: bar.activeMedium !== ""
-            label: bar.compactChrome || (bar.backOnly && bar.pageTitle.length) ? "" : bar.backLabel
-            tip: label.length === 0 ? bar.backLabel : ""
-            labelSize: 14
-            idleColor: theme.inkDim
-            hoverColor: theme.ink
+        Item {
+            id: backSlot
+            visible: bar.activeMedium !== "" || (bar.androidHost && bar.reserveHomeBackSpace && !bar.backOnly)
+            width: backAction.implicitWidth
+            height: backAction.implicitHeight
             anchors.verticalCenter: parent.verticalCenter
-            onTriggered: bar.homeRequested()
+            BackAction {
+                id: backAction
+                visible: bar.activeMedium !== ""
+                label: bar.compactChrome || (bar.backOnly && bar.pageTitle.length) ? "" : bar.backLabel
+                tip: label.length === 0 ? bar.backLabel : ""
+                labelSize: 14
+                idleColor: theme.inkDim
+                hoverColor: theme.ink
+                onTriggered: bar.homeRequested()
+            }
         }
         Column {
             id: leftTitle
@@ -315,8 +318,7 @@ Item {
                 font.pixelSize: bar.androidHost ? inputMetrics.chromeDateSize : 13
                 width: bar.androidHost ? Math.max(clockTime.implicitWidth + 5 + clockPeriod.implicitWidth,
                     Math.min(implicitWidth, bar.clockFreeSpace)) : implicitWidth
-                // Don't let the extra world controls change the date's font size.
-                elide: bar.androidHost ? Text.ElideRight : Text.ElideNone
+                fontSizeMode: bar.androidHost ? Text.Fit : Text.FixedSize
                 minimumPixelSize: inputMetrics.chromeMinimumDateSize
             }
         }
@@ -368,7 +370,10 @@ Item {
         objectName: "topBarSystemChrome"
         visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: bar.androidHost ? inputMetrics.chromeSystemGap : (bar.width < 1000 ? 12 : (bar.width < 1200 ? 20 : 24))
+        // Preserve the Android hit width by sharing the space between smaller glyphs.
+        spacing: bar.androidHost
+            ? Math.max(inputMetrics.chromeSystemGap, (inputMetrics.tightAndroidChrome ? 36 : 46) - bar.systemGlyphSize)
+            : (bar.width < 1000 ? 12 : (bar.width < 1200 ? 20 : 24))
         // Search — worlds only, except Universes (no search behaviour there yet).
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each

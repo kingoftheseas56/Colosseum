@@ -79,6 +79,29 @@ TestCase {
         mouseClick(control("vaultHeaderClose"))
         compare(closeSpy.count, 1)
     }
+    function test_search_done_on_android_keeps_query_and_drops_focus() {
+        const header = createTemporaryObject(libraryBar, testWindow.contentItem, { androidHost: true })
+        verify(header !== null)
+        const input = findChild(header, "vaultBrowseSearchInput")
+        verify(input !== null)
+        const accepted = createTemporaryObject(acceptedSpy, testWindow, { target: header })
+        verify(accepted.valid)
+
+        input.text = "One Piece"
+        input.forceActiveFocus()
+        tryVerify(function() { return input.activeFocus })
+        keyClick(Qt.Key_Return)
+        compare(accepted.count, 0)
+        compare(input.activeFocus, false)
+        compare(header.query, "One Piece")
+
+        header.androidHost = false
+        input.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+        compare(accepted.count, 1)
+    }
+    Component { id: libraryBar; Colosseum.VaultLibraryBar { width: 1280; z: 1 } }
+    Component { id: acceptedSpy; SignalSpy { signalName: "accepted" } }
     function test_search_clear_preserves_geometry() {
         var field = control("vaultBrowseSearchField")
         var input = control("vaultBrowseSearchInput")

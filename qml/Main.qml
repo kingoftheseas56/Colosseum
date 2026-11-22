@@ -4627,7 +4627,9 @@ Window {
         backdrop: wall
         activeMedium: ""
         androidHost: win.androidHost
-        x: win.headerOuterMargin; y: 18
+        reserveHomeBackSpace: true
+        x: win.headerOuterMargin
+        y: win.androidHost ? presentationPolicy.topInset : 18
         width: win.width - win.headerOuterMargin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")

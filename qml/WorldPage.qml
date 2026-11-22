@@ -262,9 +262,7 @@ Item {
         pageSubtitle: world.topBarSubtitle
         lifecycleActive: world.lifecycleActive
         androidHost: world.androidHost
-        x: world.headerOuterMargin
-        // Match the Android Home bar in the desktop-shaped shell.
-        y: world.androidHost && adaptive.desktopPresentation && !world.topBarBackOnly ? 18 : adaptive.topInset
+        x: world.headerOuterMargin; y: adaptive.topInset
         width: world.width - world.headerOuterMargin * 2
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)

@@ -6,6 +6,7 @@ Item {
     property Item contentBackdrop: null
     property real scrollOffset: 0
     property bool searchEnabled: true
+    property bool androidHost: Qt.platform.os === "android"
     property alias query: searchInput.text
     signal backRequested()
     signal minimizeRequested()
@@ -60,7 +61,15 @@ Item {
             id: searchInput; objectName: "vaultBrowseSearchInput"; anchors.fill: parent; anchors.leftMargin: 38; anchors.rightMargin: 36
             color: theme.ink; font.family: theme.ui; font.pixelSize: theme.vaultCaption; verticalAlignment: TextInput.AlignVCenter; clip: true
             selectionColor: theme.gold; selectedTextColor: theme.vaultGoldInk; Accessible.name: "Search titles, people, filenames"
-            onAccepted: root.accepted()
+            onAccepted: {
+                if (!root.androidHost) {
+                    root.accepted()
+                    return
+                }
+                Qt.inputMethod.commit()
+                Qt.inputMethod.hide()
+                searchInput.focus = false
+            }
         }
         Text { anchors.fill: parent; anchors.leftMargin: 38; anchors.rightMargin: 12; verticalAlignment: Text.AlignVCenter; visible: searchInput.length === 0; text: "Search titles, people, filenames"; elide: Text.ElideRight; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.vaultCaption }
         VaultAction { objectName: "vaultHeaderClearSearch"; anchors.right: parent.right; width: 34; height: parent.height; text: "×"; accessibleName: "Clear search"; quiet: true; visible: searchInput.length > 0; onTriggered: { searchInput.text = ""; root.focusSearch() } }
