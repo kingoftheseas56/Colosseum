@@ -35,7 +35,7 @@ FocusScope {
     readonly property var selectedServer: adapter.providers.find(s => s.id === currentServer) || ({})
     signal backRequested()
     signal addFolderRequested()
-    signal openMediaRequested(string path, var videoPresentation)
+    signal openMediaRequested(string path)
     signal viewWorldRequested(var identity)
     signal connectServerRequested()
     signal minimizeRequested()
@@ -158,7 +158,7 @@ FocusScope {
         if (row.kind === "book" || row.kind === "comic") {
             if (row.resumePath && row.resumeOffline) { flash("Drive not connected. Reconnect it to open this title."); return }
             var path = row.resumePath || row.path
-            if (path) openMediaRequested(path, null)
+            if (path) openMediaRequested(path)
             else flash("No readable copy is available. Reconnect its source.")
         } else if (row.identity && row.identity.identityId) viewWorldRequested(row.identity)
         else matchRow(row)
@@ -172,8 +172,7 @@ FocusScope {
             flash("The server connection changed. Choose the title again."); adapter.refresh(); return
         }
         if (!row.serverId && (row.resumePath || row.path)) {
-            openMediaRequested(row.resumePath || row.path, row.identified && row.kind === "movie"
-                               ? { title: row.title, art: row.cover } : null)
+            openMediaRequested(row.resumePath || row.path)
             return
         }
         if (row.serverId && row.progressRecord) {
@@ -230,7 +229,7 @@ FocusScope {
                 extrasDialog.sourceRow = null
                 extrasDialog.show = item
             } else root.flash("These files could not be filed as extras.")
-        } else if (item.path) root.openMediaRequested(item.path, null)
+        } else if (item.path) root.openMediaRequested(item.path)
     }
     Keys.onEscapePressed: event => { handleBack(); event.accepted = true }
     Component.onCompleted: { forceActiveFocus(); Qt.callLater(root.openRoutine) }

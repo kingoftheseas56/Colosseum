@@ -522,8 +522,7 @@ Item {
         // so this binding re-evaluates from memory. It used to call mpv.mpvProperty() — a
         // blocking mpv-core read inside a binding (2026-09-19 drop-burst diagnosis).
         var buf = mpv.cacheBufferingState
-        // A growing .part file can still be waiting on the network; a landed file isn't.
-        if ((!root.mediaLocalPath.length || root.arrivingStreamUrl.length) && !mpv.pause && buf >= 0 && buf < 100)
+        if (!mpv.pause && buf >= 0 && buf < 100)
             return "Buffering " + buf.toFixed(0) + "%"
         if (mpv.pause) return "Paused"
         if (root.seeking) {
