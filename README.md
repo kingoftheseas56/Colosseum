@@ -6,7 +6,7 @@
 <p align="center"><strong>One media app for all art.</strong></p>
 
 <p align="center">
-  <img alt="Version 1.3.0" src="https://img.shields.io/badge/Version-1.3.0-B8872C?style=flat-square&amp;labelColor=3A3023" />
+  <img alt="Version 1.4.0" src="https://img.shields.io/badge/Version-1.4.0-B8872C?style=flat-square&amp;labelColor=3A3023" />
   <img alt="MIT License" src="https://img.shields.io/badge/License-MIT-B86C49?style=flat-square&amp;labelColor=3A2D27" />
   <img alt="Qt" src="https://img.shields.io/badge/Framework-Qt-287F65?style=flat-square&amp;labelColor=253B36" />
   <img alt="QML" src="https://img.shields.io/badge/Interface-QML-287D9F?style=flat-square&amp;labelColor=273C49" />
@@ -20,8 +20,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.3.0/Colosseum-1.3.0-setup.exe"><img src="assets/icons/readme-download-windows.svg" alt="Download Colosseum for Windows" width="154" /></a>
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.3.0/Colosseum-1.3.0-linux-amd64.deb"><img src="assets/icons/readme-download-linux.svg" alt="Download Colosseum for Linux" width="154" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-setup.exe"><img src="assets/icons/readme-download-windows.svg" alt="Download Colosseum for Windows" width="154" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-linux-amd64.deb"><img src="assets/icons/readme-download-linux.svg" alt="Download Colosseum for Linux" width="154" /></a>
 </p>
 
 <p align="center">
@@ -86,25 +86,30 @@ Colosseum is still growing. **Vinyl** is a planned world for music, with songs, 
 
 **Help shape Feria:** What frustrates you about the website versions of your favorite services? Which extensions help, and what problems remain unsolved? [GitHub Discussions](https://github.com/kingoftheseas56/Colosseum/discussions).
 
-## Get Colosseum 1.3.0
+## What's new in 1.4.0
+
+**Vault:** Choose what folders index, track scans, and connect Jellyfin, Emby, or Plex libraries. **Downloads:** Move your Colosseum folder with a preview. Manga chapters save as CBZ, and Theatre keeps fullscreen keyboard shortcuts active.
+
+## Get Colosseum 1.4.0
 
 | Platform | Download |
 | --- | --- |
-| **Windows 10/11** | [Installer (.exe)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.3.0/Colosseum-1.3.0-setup.exe) |
-| **Linux (amd64)** | [Debian package (.deb)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.3.0/Colosseum-1.3.0-linux-amd64.deb) |
-| **macOS (Apple Silicon, M1+)** | [Preview disk image (.dmg)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.3.0/Colosseum-1.3.0-macOS-arm64.dmg) |
+| **Windows 10/11** | [Installer (.exe)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-setup.exe) |
+| **Linux (amd64)** | [Debian package (.deb)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-linux-amd64.deb) |
+| **Linux (x86_64)** | [AppImage](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-x86_64.AppImage) |
+| **macOS (Apple Silicon, M1+)** | [Preview disk image (.dmg)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-macOS-arm64.dmg) |
 
-[All release files and SHA-256 checksums](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.3.0) · [1.3.0 release notes](docs/release-notes/v1.3.0.md)
+[Release notes, all downloads, and SHA-256 checksums](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.4.0)
 
 **Android:** [1.3.0 Beta 1](https://github.com/kingoftheseas56/Colosseum/releases/tag/android-v1.3.0-beta.1) remains a separate release for Android 9+ ARM64. This desktop release does not replace it.
 
-**macOS preview:** Requires macOS 26.1 or newer and Apple Silicon. The DMG is ad-hoc signed and not notarized; see the [release instructions and checksum](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.3.0) before installing.
+**macOS preview:** Requires macOS 26.1 or newer and Apple Silicon. The DMG is ad-hoc signed and not notarized; see the [release instructions and checksum](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.4.0) before installing.
 
 
 ## Build and contribute
 
 [Build on Windows](docs/build/windows.md) · [Linux](docs/build/linux.md) · [macOS](docs/build/macos.md) · [Contributing](CONTRIBUTING.md) · [Documentation](docs/README.md) · [Report an issue](https://github.com/kingoftheseas56/Colosseum/issues/new/choose)
 
-**Notes:** The Linux package targets Ubuntu 24.04 and Debian 13 amd64 and uses manual updates. Vinyl and Feria are not available in the 1.3.0 installers. Colosseum is a client and does not host media; external sources are independent services.
+**Notes:** The Linux package targets Ubuntu 24.04 and Debian 13 amd64 and uses manual updates. Vinyl and Feria are not available in the 1.4.0 installers. Colosseum is a client and does not host media; external sources are independent services.
 
 [Security](SECURITY.md) · [MIT License](LICENSE) © 2026 Hemanth Ganneni
