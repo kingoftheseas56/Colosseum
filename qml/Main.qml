@@ -2570,6 +2570,9 @@ Window {
         || vaultLayer.active
         || continueSeeAllLayer.active
 
+    readonly property bool androidUniverseDetailReady:
+        win.androidHost && universeLayer.active && universeLayer.status === Loader.Ready
+
     readonly property alias wideWorldNavigationLeftInset: phoneShell.wideWorldNavigationLeftInset
 
     // ---- season-download resolver: a promoted queue job carries only the episode's
@@ -4623,7 +4626,8 @@ Window {
         id: topbar
         parent: dockScene
         z: 20
-        visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === ""
+        visible: !win.immersiveSurfaceOpen && !win.androidUniverseDetailReady
+                 && !feriaLayer.open && worldStack.current === ""
         backdrop: wall
         activeMedium: ""
         androidHost: win.androidHost
@@ -4767,7 +4771,8 @@ Window {
         parent: dockScene
         objectName: "homePageFlickable"
         z: 0
-        visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === "" && !collectionsPanel.showing
+        visible: !win.immersiveSurfaceOpen && !win.androidUniverseDetailReady
+                 && !feriaLayer.open && worldStack.current === "" && !collectionsPanel.showing
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         y: topbar.y + topbar.height + 10
@@ -5245,7 +5250,7 @@ Window {
     Item {
         id: worldStack
         parent: dockScene
-        visible: !collectionsPanel.showing
+        visible: !collectionsPanel.showing && !win.androidUniverseDetailReady
         anchors.fill: parent
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         property string current: ""                      // "" = home; else the visible mode
@@ -6381,7 +6386,9 @@ Window {
         parent: dockScene
         objectName: "universeLayer"
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
+        // Standard detail pages reserve dock clearance at the end of their scroll content.
+        anchors.bottomMargin: status === Loader.Ready && item.contentBottomInset !== undefined
+                              ? 0 : win.browseBottomInset
         z: 52
         active: false
         visible: active
@@ -6420,6 +6427,8 @@ Window {
                          ? "CosmereUniversePage.qml"
                          : "UniverseExtensionPage.qml")))
         onLoaded: {
+            if (win.androidHost)
+                phoneShell.attachHostedItem(item)
             if (universeLayer.templatePage.length) {
                 // Template pages share one contract; a page simply lacks the signals it has no use for.
                 item.backdrop = wall

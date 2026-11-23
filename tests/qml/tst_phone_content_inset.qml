@@ -74,4 +74,26 @@ TestCase {
         compare(scroll.height, downloads.height - downloads.contentBottomInset)
         downloads.destroy()
     }
+
+    function test_universe_detail_dock_clearance_data() {
+        return [
+            { tag: "shelves", page: "ShelvesUniversePage", scroll: "shelvesScroll" },
+            { tag: "saga", page: "SagaUniversePage", scroll: "sagaScroll" },
+            { tag: "extension", page: "UniverseExtensionPage", scroll: "universeExtensionScroll" }
+        ]
+    }
+
+    function test_universe_detail_dock_clearance(data) {
+        const component = Qt.createComponent(Qt.resolvedUrl("../../qml/" + data.page + ".qml"))
+        compare(component.status, Component.Ready, component.errorString())
+        const page = createTemporaryObject(component, testWindow.contentItem)
+        verify(page)
+        const scroll = findChild(page, data.scroll)
+        verify(scroll)
+        const unpaddedHeight = scroll.contentHeight
+
+        page.contentBottomInset = 120
+        compare(scroll.height, testWindow.height)
+        compare(scroll.contentHeight, unpaddedHeight + page.contentBottomInset)
+    }
 }
