@@ -28,6 +28,7 @@ FocusScope {
     readonly property bool abbEnabled: ExtensionCatalog.sourceEnabled(extensions, "colosseum.well.audiobookbay")
     readonly property bool active: routeStack.depth > 0
     readonly property alias currentPage: routeStack.currentItem
+    readonly property bool replacingDownload: !!currentPage && currentPage.replacesStalledDownload === true
 
     signal openExtensionsRequested()
     signal readAlongRequested(var ebook, string recordingKey)
@@ -49,6 +50,14 @@ FocusScope {
             routeStack.pushItem(bookPage, { workId: String(workId || ""), selectedRecording: String(recordingId || ""),
                                 download: download },
                                 StackView.Immediate)
+    }
+
+    function openReplacement(key, attempt) {
+        if (!downloads || replacingDownload || !attempt) return false
+        const row = activeDownloads.find(job => job.state === "failed" && job.id === key && job.attempt === attempt)
+        if (!row || !row.pairKey || !row.title || (!row.author && !row.workId)) return false
+        routeStack.pushItem(replacementPage, { stalled: row }, StackView.Immediate)
+        return true
     }
 
     function openListen(recordingKey, item, jump) {
@@ -358,6 +367,92 @@ FocusScope {
                 const book = detail
                 flow.back()
                 book.submitUpload(request)
+            }
+        }
+    }
+
+    Component {
+        id: replacementPage
+        Audiobook.AudiobookSourcesPage {
+            id: replacement
+            required property var stalled
+            readonly property bool replacesStalledDownload: true
+            readonly property bool currentFailure: flow.activeDownloads.some(job => job.state === "failed"
+                && job.id === stalled.id && job.attempt === stalled.attempt)
+            readonly property bool canSearch: currentFailure && flow.abbEnabled
+            readonly property var work: {
+                if (!flow.catalog || !stalled.workId) return {}
+                flow.catalog.revision
+                return flow.catalog.work(stalled.workId) || {}
+            }
+            property var lookup: null
+            property int generation: 0
+            property var result: ({ state: "searching", rows: [] })
+            workTitle: stalled.title
+            workAuthor: stalled.author || FlowData.authorFor(work)
+            artwork: work.coverUrl || work.cover || ""
+            backTip: qsTr("Back to Downloads")
+            backdrop: flow.backdrop
+            providerStates: ({ abb: !currentFailure
+                ? { state: "empty", message: qsTr("This stalled download is no longer in Downloads."), rows: [] }
+                : flow.abbEnabled ? result : { state: "disabled", rows: [] } })
+            recordingStatus: (key) => {
+                flow.downloadsRevision
+                const state = FlowData.status(flow.downloads, key, false).state
+                return state === "done" ? "downloaded" : state === "failed" ? "none" : state
+            }
+
+            function cancelSourceLookup() {
+                ++generation
+                const cancel = lookup
+                lookup = null
+                if (cancel) cancel()
+            }
+
+            function search() {
+                if (!canSearch || lookup) return
+                selectionError = ""
+                if (!flow.abb) {
+                    result = { state: "error", rows: [] }
+                    return
+                }
+                if (!workAuthor) {
+                    result = { state: "empty", message: qsTr("The author is needed to find another release."), rows: [] }
+                    return
+                }
+                result = { state: "searching", rows: [] }
+                const requestGeneration = ++generation
+                const cancel = SmartDownload.resolve(flow.abb, flow.matcher, {
+                    workId: stalled.workId || "", title: workTitle, author: workAuthor, pairKey: stalled.pairKey,
+                    targetRecordingId: stalled.audiosiloRecordingId, recordings: work.recordings || [],
+                    series: work.series || [], alternateTo: stalled
+                }, function(response) {
+                    if (requestGeneration !== replacement.generation || !replacement.canSearch) return
+                    replacement.lookup = null
+                    replacement.result = response.rows.length ? { state: "results", rows: response.rows }
+                        : response.error ? { state: "error", error: response.error, rows: [] }
+                        : { state: "empty", message: qsTr("No other releases found for this audiobook."), rows: [] }
+                })
+                if (requestGeneration === generation && result.state === "searching") lookup = cancel
+            }
+
+            StackView.onActivated: search()
+            StackView.onDeactivating: cancelSourceLookup()
+            Component.onDestruction: cancelSourceLookup()
+            onCanSearchChanged: {
+                if (!canSearch) cancelSourceLookup()
+                else if (StackView.status === StackView.Active) search()
+            }
+            onWorkAuthorChanged: if (workAuthor && StackView.status === StackView.Active
+                                     && result.state === "empty") search()
+            onBackRequested: flow.back()
+            onRetryRequested: search()
+            onExtensionsRequested: flow.openExtensionsRequested()
+            onSourcePicked: row => {
+                if (flow.currentPage !== replacement || !canSearch || !row.request) return
+                if (flow.downloads.replaceStalledDownload(stalled.id, stalled.attempt, row.request))
+                    flow.back()
+                else selectionError = qsTr("This release could not be queued.")
             }
         }
     }

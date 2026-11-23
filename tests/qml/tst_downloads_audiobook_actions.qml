@@ -19,6 +19,41 @@ Item {
         name: "DownloadsAudiobookActions"
         when: windowShown
 
+        function test_stalled_rows_data() {
+            return [
+                { tag: "waiting for file list", phase: "file-list", received: 0, total: 0, width: 1280,
+                  text: "Stalled while waiting for the release’s file list." },
+                { tag: "audio stalled on narrow screen", phase: "audio-data", received: 2097152, total: 4194304,
+                  width: 390, text: "Stopped receiving audio data at 2 MB of 4 MB." },
+                { tag: "unrelated failure", phase: "", received: 0, total: 0, width: 1280,
+                  text: "Audiobook · failed — Drive unavailable" }
+            ]
+        }
+
+        function test_stalled_rows(data) {
+            const page = createTemporaryObject(downloadsPage, parent)
+            verify(page)
+            page.anchors.fill = null
+            page.width = data.width
+            const key = "work|author#src:failed"
+            page.abActive = { [key]: { state: "failed", title: "Test audiobook", author: "Test Author",
+                pairKey: "work|author", attempt: data.phase ? "4" : "", stallPhase: data.phase,
+                received: data.received, total: data.total, error: "Drive unavailable" } }
+            let requested = null
+            page.replaceAudiobookRequested.connect((id, attempt) => requested = [id, attempt])
+            const status = findChild(page, "downloadsAudiobookStatus_" + key)
+            const action = findChild(page, "downloadsReplaceAudiobook_" + key)
+            verify(status)
+            verify(action)
+            compare(status.text, data.text)
+            compare(action.activate(), !!data.phase)
+            compare(requested, data.phase ? [key, "4"] : null)
+            if (data.width < 480) {
+                tryVerify(() => action.mapToItem(status, 0, 0).y >= status.height, 2000,
+                    "The narrow layout keeps the action below the stall message")
+            }
+        }
+
         function test_completed_actions_data() {
             return [
                 { tag: "standalone", key: "work|author#as:edition", bookPath: "", missing: false },

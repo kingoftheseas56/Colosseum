@@ -36,6 +36,7 @@ Item {
     signal playArrivingRequested(var job)    // live theatre job → host streams the same url
     signal listenAudiobookRequested(var item)
     signal openAudiobookRequested(var item)
+    signal replaceAudiobookRequested(string key, string attempt)
 
     Theme { id: theme }
 
@@ -306,6 +307,10 @@ Item {
                     title: item.title || "",
                     author: item.author || "",
                     error: item.error || "",
+                    attempt: item.attempt || "",
+                    pairKey: item.pairKey || "",
+                    workId: item.workId || "",
+                    stallPhase: item.stallPhase || "",
                     received: item.received || 0,
                     total: item.total || 0,
                     pct: item.total > 0 ? item.received / item.total : 0
@@ -313,6 +318,18 @@ Item {
             }
         }
         abActive = m;
+    }
+    function audiobookJobText(job) {
+        const progress = job.total > 0
+            ? qsTr("%1 of %2").arg(job.received > 0 ? fmtBytes(job.received) : qsTr("0 bytes")).arg(fmtBytes(job.total))
+            : job.received > 0 ? fmtBytes(job.received) : ""
+        if (job.stallPhase === "file-list") return qsTr("Stalled while waiting for the release’s file list.")
+        if (job.stallPhase === "audio-data") return progress
+            ? qsTr("Stopped receiving audio data at %1.").arg(progress)
+            : qsTr("Stopped receiving audio data.")
+        if (job.state === "failed") return qsTr("Audiobook · failed — %1").arg(job.error || qsTr("download failed"))
+        if (job.state === "resolving") return qsTr("Audiobook · resolving")
+        return progress ? qsTr("Audiobook · %1").arg(progress) : qsTr("Audiobook · downloading")
     }
     function abTitleOf(key) {          // pairKey → display title (its lowercased "title|author" front half)
         var p = String(key || "").split("|");
@@ -1293,8 +1310,12 @@ Item {
                                 id: managerAudioRow
                                 required property var modelData
                                 readonly property var st: root.abActive[modelData] || ({})
+                                readonly property bool canReplace: st.state === "failed" && !!st.attempt
+                                    && !!st.pairKey && !!st.title && (!!st.author || !!st.workId)
+                                readonly property bool stacked: canReplace && width < 480
                                 width: groupsCol.width
-                                height: 58
+                                height: Math.max(58, managerAudioLabels.implicitHeight
+                                    + (stacked ? managerAudioActions.height + 24 : 16))
 
                                 Rectangle {
                                     anchors.left: parent.left; anchors.right: parent.right
@@ -1302,12 +1323,18 @@ Item {
                                     height: 1; color: Qt.rgba(1, 1, 1, 0.06)
                                 }
                                 Column {
-                                    anchors.left: parent.left; anchors.leftMargin: 52
-                                    anchors.right: managerAudioAction.left; anchors.rightMargin: 18
-                                    anchors.verticalCenter: parent.verticalCenter
+                                    id: managerAudioLabels
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: managerAudioRow.stacked ? 18 : 52
+                                    anchors.right: managerAudioRow.stacked ? parent.right : managerAudioActions.left
+                                    anchors.rightMargin: 18
+                                    anchors.top: managerAudioRow.stacked ? parent.top : undefined
+                                    anchors.topMargin: 8
+                                    anchors.verticalCenter: managerAudioRow.stacked ? undefined : parent.verticalCenter
                                     spacing: 3
                                     Text {
                                         width: parent.width
+                                        textFormat: Text.PlainText
                                         text: managerAudioRow.st.title || root.abTitleOf(managerAudioRow.modelData)
                                         color: theme.ink
                                         font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium
@@ -1315,52 +1342,68 @@ Item {
                                     }
                                     Text {
                                         width: parent.width
-                                        text: {
-                                            if (managerAudioRow.st.state === "failed")
-                                                return "Audiobook · failed — " + (managerAudioRow.st.error || "download failed");
-                                            if (managerAudioRow.st.state === "resolving")
-                                                return "Audiobook · resolving";
-                                            if (managerAudioRow.st.total > 0)
-                                                return "Audiobook · " + root.fmtBytes(managerAudioRow.st.received)
-                                                        + " of " + root.fmtBytes(managerAudioRow.st.total);
-                                            return "Audiobook · downloading";
-                                        }
+                                        objectName: "downloadsAudiobookStatus_" + managerAudioRow.modelData
+                                        text: root.audiobookJobText(managerAudioRow.st)
+                                        textFormat: Text.PlainText
+                                        wrapMode: Text.Wrap
                                         color: managerAudioRow.st.state === "failed" ? "#c98b8b" : theme.inkDimmer
                                         font.family: theme.ui; font.pixelSize: 12
-                                        elide: Text.ElideRight
                                     }
                                 }
-                                Text {
-                                    id: managerAudioAction
-                                    anchors.right: parent.right; anchors.rightMargin: 26
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: managerAudioRow.st.state === "failed" ? "Dismiss" : "Cancel"
-                                    color: managerAudioInput.interactionActive ? theme.ink : theme.inkDimmer
-                                    font.family: theme.ui; font.pixelSize: 12
-                                    KeyboardAction {
-                                        id: managerAudioInput
-                                        anchors.fill: parent
-                                        accessibleName: managerAudioAction.text
-                                        showFocusFrame: false
-                                        onTriggered: {
-                                            if (managerAudioRow.st.state === "failed") {
-                                                root.audiobooksApi.dismissFailure(managerAudioRow.modelData);
-                                                root.abRefresh();
-                                                return;
+                                Row {
+                                    id: managerAudioActions
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 26
+                                    anchors.bottom: managerAudioRow.stacked ? parent.bottom : undefined
+                                    anchors.bottomMargin: 8
+                                    anchors.verticalCenter: managerAudioRow.stacked ? undefined : parent.verticalCenter
+                                    spacing: 18
+
+                                    Text {
+                                        id: replaceAction
+                                        visible: managerAudioRow.canReplace
+                                        text: qsTr("Choose another release")
+                                        color: replaceInput.interactionActive ? theme.ink : theme.gold
+                                        font.family: theme.ui; font.pixelSize: 12
+                                        KeyboardAction {
+                                            id: replaceInput
+                                            objectName: "downloadsReplaceAudiobook_" + managerAudioRow.modelData
+                                            anchors.fill: parent
+                                            accessibleName: replaceAction.text
+                                            onTriggered: root.replaceAudiobookRequested(managerAudioRow.modelData, managerAudioRow.st.attempt)
+                                        }
+                                    }
+
+                                    Text {
+                                        id: managerAudioAction
+                                        text: managerAudioRow.st.state === "failed" ? qsTr("Dismiss") : qsTr("Cancel")
+                                        color: managerAudioInput.interactionActive ? theme.ink : theme.inkDimmer
+                                        font.family: theme.ui; font.pixelSize: 12
+                                        KeyboardAction {
+                                            id: managerAudioInput
+                                            anchors.fill: parent
+                                            accessibleName: managerAudioAction.text
+                                            showFocusFrame: false
+                                            onTriggered: {
+                                                if (managerAudioRow.st.state === "failed") {
+                                                    root.audiobooksApi.dismissFailure(managerAudioRow.modelData);
+                                                    root.abRefresh();
+                                                    return;
+                                                }
+                                                // abActive is reassigned wholesale on every event (Object.assign
+                                                // builds a fresh object each time), so Object.keys(root.abActive)
+                                                // is a new array reference on every refresh and this Repeater's
+                                                // delegates are torn down and rebuilt just like jobGroups' above.
+                                                // Capture the recording key before the dialog opens.
+                                                var abKey = managerAudioRow.modelData;
+                                                root.confirmAction(
+                                                    "Cancel audiobook download?",
+                                                    "The partial files will be deleted.",
+                                                    "Cancel download",
+                                                    function() {
+                                                        root.audiobooksApi.cancelDownload(abKey);
+                                                    });
                                             }
-                                            // abActive is reassigned wholesale on every event (Object.assign
-                                            // builds a fresh object each time), so Object.keys(root.abActive)
-                                            // is a new array reference on every refresh and this Repeater's
-                                            // delegates are torn down and rebuilt just like jobGroups' above.
-                                            // Capture the pairKey primitive before the async dialog.
-                                            var abKey = managerAudioRow.modelData;
-                                            root.confirmAction(
-                                                "Cancel audiobook download?",
-                                                "The partial files will be deleted.",
-                                                "Cancel download",
-                                                function() {
-                                                    root.audiobooksApi.cancelDownload(abKey);
-                                                });
                                         }
                                     }
                                 }

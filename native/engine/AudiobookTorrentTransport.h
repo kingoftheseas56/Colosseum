@@ -7,6 +7,9 @@
 class AudiobookTorrentTransport final : public QObject {
     Q_OBJECT
 public:
+    enum class StallPhase { None, FileList, AudioData };
+    Q_ENUM(StallPhase)
+
     struct Timeouts { int metadataMs=120000; int inactivityMs=120000; int pollMs=250; };
     explicit AudiobookTorrentTransport(IAudiobookTorrentEngine*,QObject* parent=nullptr);
     AudiobookTorrentTransport(IAudiobookTorrentEngine*,Timeouts,QObject* parent=nullptr);
@@ -18,7 +21,7 @@ signals:
     void progress(quint64 generation,qint64 received,qint64 total);
     void completed(quint64 generation,const QString& directory,const QStringList& files,qint64 bytes);
     void cancelled(quint64 generation);
-    void failed(quint64 generation,const QString& reason);
+    void failed(quint64 generation,const QString& reason,StallPhase stallPhase);
 private:
     struct File { int index=0; QString path; qint64 bytes=0; };
     struct Attempt {
@@ -26,6 +29,7 @@ private:
         bool added=false,admitted=false,validManifest=false,inAdd=false;
         bool ending=false,cancelRequested=false,settlementWarned=false;
         QString phase="resolving",token,failure;QStringList manifestPaths,resultFiles;
+        StallPhase stallPhase = StallPhase::None;
         qint64 total=0,received=-1; QElapsedTimer age,activity,settling;
     };
     bool current(quint64 generation) const;
@@ -33,7 +37,8 @@ private:
     bool setPhase(quint64,const QString&);
     void admit(quint64,const QJsonArray&);
     void poll(quint64);
-    void end(quint64,const QString& failure={},bool cancel=false,const QStringList& result={});
+    void end(quint64,const QString& failure={},bool cancel=false,const QStringList& result={},
+             StallPhase stallPhase=StallPhase::None);
     void requestSettlement(quint64);
     void finish(bool success,int errorCode);
     void engineLost();

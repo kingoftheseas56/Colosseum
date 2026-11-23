@@ -127,6 +127,9 @@ function describe(listing, facts, matcher, context, editions, target) {
     const differentEdition = !bundle && !targetMatch && target
         && (confident || (source.abridgement && target.abridgement && source.abridgement !== target.abridgement)
             || (source.language && target.language && source.language !== target.language));
+    // Recovery is scoped to the failed book and needs a genuinely different release.
+    const previous = context.alternateTo;
+    if (previous && (!sameWork || infoHash === previous.infoHash)) return false;
     const pairKey = sameWork ? context.pairKey : Biblio.pairKey(title, author);
     const format = text(facts.format || listing.format).toUpperCase();
     const request = {
@@ -189,9 +192,18 @@ function resolve(abb, matcher, context, done) {
             return b.rank - a.rank || Number(b.fileCount === 1) - Number(a.fileCount === 1)
                 || b.seeders - a.seeders;
         });
+        if (context.alternateTo) {
+            const hashes = new Set();
+            rows = rows.filter(function(row) {
+                const hash = row.request.infoHash;
+                if (hashes.has(hash)) return false;
+                hashes.add(hash);
+                return true;
+            });
+        }
         const confident = rows.filter(function(row) { return row.rank > 0; });
         if (confident.length) confident[0].recommended = true;
-        const automatic = confident.length === 1 && !incomplete && !problem
+        const automatic = !context.alternateTo && confident.length === 1 && !incomplete && !problem
             && !rows.some(function(row) { return row.unresolved; }) ? confident[0] : null;
         done({ rows: rows, automatic: automatic, error: rows.length ? "" : problem });
     }
@@ -218,7 +230,7 @@ function resolve(abb, matcher, context, done) {
             const listing = candidates[index];
             start(function(callback) { return abb.detail(listing.slug, callback); }, function(value, error) {
                 const row = describe(listing, value, matcher, context, editions, target);
-                if (!row || error) problem = problem || error || "unavailable";
+                if (row === null || error) problem = problem || error || "unavailable";
                 rows[index] = row;
                 pump();
             });
@@ -240,7 +252,8 @@ function resolve(abb, matcher, context, done) {
                     incomplete = true;
                     continue;
                 }
-                if (seen[listing.slug]) continue;
+                if (seen[listing.slug] || (context.alternateTo && listing.slug === context.alternateTo.sourceRef))
+                    continue;
                 seen[listing.slug] = true;
                 if (candidates.length < maxCandidates) candidates.push(listing);
                 else incomplete = true;

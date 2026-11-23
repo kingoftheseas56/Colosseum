@@ -1450,7 +1450,10 @@ Window {
             else win.closeFeriaPage()
             return
         case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
-        case "downloads": win.closeDownloadsPage(); return
+        case "downloads":
+            if (audiobookFlow.replacingDownload) audiobookFlow.back()
+            else win.closeDownloadsPage()
+            return
         case "profile": phoneShell.closeProfilePage(); return
         case "book": win.closeBook(); return
         case "audiobook": audiobookFlow.back(); return
@@ -6211,7 +6214,7 @@ Window {
         objectName: "audiobookFlow"
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
-        z: 53
+        z: replacingDownload ? 57 : 53
         backdrop: wall
         androidHost: win.androidHost
         dockClearance: win.androidHost ? 0 : taskbar.contentBottomInset
@@ -6225,6 +6228,10 @@ Window {
             if (bookLayer.item && bookLayer.item.localPath)
                 rows.push(Object.assign({}, bookLayer.book, { path: bookLayer.item.localPath }))
             return rows
+        }
+        onReplacingDownloadChanged: {
+            if (!replacingDownload && downloadsLayer.active && downloadsLayer.item)
+                downloadsLayer.item.forceActiveFocus()
         }
         onOpenExtensionsRequested: win.openExtensionsPage("biblio")
         onReadAlongRequested: (ebook, key) => win.openReadAlong(ebook, key)
@@ -6422,7 +6429,8 @@ Window {
                   // so clicking Downloads always lands on top — below only the immersive surfaces
                   // (book reader 58, player 60). Was 52: any detail page silently covered it.
         active: false
-        visible: active
+        visible: active && !audiobookFlow.replacingDownload
+        onActiveChanged: if (!active && audiobookFlow.replacingDownload) audiobookFlow.back()
         // DownloadsPage is a large, taskbar-only surface. Spread component creation across
         // frames so opening the download ledger does not synchronously block the world underneath.
         // The route handlers only touch the item from onLoaded, after construction completes.
@@ -6445,6 +6453,12 @@ Window {
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.listenAudiobookRequested.connect(win.routeDownloadListen)
             item.openAudiobookRequested.connect(win.routeDownloadedAudiobook)
+            item.replaceAudiobookRequested.connect(function(key, attempt) {
+                if (!audiobookFlow.openReplacement(key, attempt)) {
+                    item.abRefresh()
+                    item.mutationMessage = qsTr("This stalled download is no longer available.")
+                }
+            })
         }
     }
 

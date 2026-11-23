@@ -379,6 +379,94 @@ private slots:
   QCOMPARE(row.value("workId").toString(),"work-456");
   QVERIFY(books.downloadedAudiobooks().isEmpty());
  }
+ void stalledRecordingCanBeReplaced_data() {
+  QTest::addColumn<bool>("catalogue");
+  QTest::newRow("file list, title and author") << false;
+  QTest::newRow("audio bytes, catalogue recording") << true;
+ }
+
+ void stalledRecordingCanBeReplaced() {
+  QFETCH(bool, catalogue);
+  QTemporaryDir root;
+  QVERIFY(root.isValid());
+  AudioPairingStore pairing(root.path()+"/pairs.ini");
+  FakeEngine engine;
+  engine.manifests[B] = engine.manifests[C] = FakeEngine::mixed();
+  if (catalogue) {
+   engine.manifests[A] = FakeEngine::mixed();
+   engine.counts[A] = {0, 2, 0};
+  }
+  QNetworkAccessManager nam;
+  AudiobookDownloader books(&nam, nullptr);
+  books.setPairing(&pairing);
+  books.setTorrentTransport(new AudiobookTorrentTransport(&engine, {60, 60, 5}));
+  bool enabled = true;
+  books.setSourceEnabledCheck([&enabled] { return enabled; });
+  QSignalSpy finished(&books, &AudiobookDownloader::finished);
+  QSignalSpy failed(&books, &AudiobookDownloader::failed);
+  const QString pairKey = "one|author";
+  const QString edition = "recording-123";
+  const QString workId = catalogue ? "work-456" : "";
+  const QString firstKey = pairKey + (catalogue ? "#as:" + edition : "#src:" + A);
+  const QString nextKey = pairKey + (catalogue ? "#as:" + edition : "#src:" + B);
+  if (catalogue) {
+   books.downloadRecording({{"pairKey", pairKey}, {"recordingKey", firstKey}, {"infoHash", A}, {"title", "One"},
+                            {"author", "Author"}, {"workId", workId}, {"sourceKind", "abb"},
+                            {"sourceRef", "original"}, {"bookId", "reader-id"}, {"bookPath", "/fixture/book.epub"}});
+  } else {
+   books.downloadAudiobook(pairKey, A, "One", "Author", "reader-id", "/fixture/book.epub");
+  }
+  QTRY_COMPARE_WITH_TIMEOUT(failed.size(), 1, 1000);
+  QCOMPARE(books.activeDownloads().size(), 1);
+  const QVariantMap stall = books.activeDownloads().first().toMap();
+  const QString attempt = stall.value("attempt").toString();
+  QVERIFY(!attempt.isEmpty());
+  QCOMPARE(stall.value("id").toString(), firstKey);
+  QCOMPARE(stall.value("pairKey").toString(), pairKey);
+  QCOMPARE(stall.value("workId").toString(), workId);
+  QCOMPARE(stall.value("infoHash").toString(), A);
+  QCOMPARE(stall.value("stallPhase").toString(), catalogue ? "audio-data" : "file-list");
+  QCOMPARE(stall.value("received").toInt(), catalogue ? 2 : 0);
+  QCOMPARE(stall.value("total").toInt(), catalogue ? 5 : 0);
+
+  // Add an owned copy before replacing the failed release. Its files must survive.
+  engine.autoComplete = true;
+  const QString ownedKey = pairKey + "#src:" + C;
+  books.downloadAudiobook(pairKey, C, "One", "Author");
+  QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 1000);
+  const QStringList ownedFiles = books.localFiles(ownedKey);
+  QVERIFY(!ownedFiles.isEmpty());
+
+  QVariantMap alternate{{"pairKey", pairKey}, {"workId", workId}, {"recordingKey", nextKey},
+                        {"infoHash", B}, {"title", "One"}, {"author", "Author"},
+                        {"sourceKind", "abb"}, {"sourceRef", "alternate"}};
+  QVERIFY(!books.replaceStalledDownload(firstKey, attempt + "0", alternate));
+  auto wrongBook = alternate;
+  wrongBook["pairKey"] = "two|author";
+  QVERIFY(!books.replaceStalledDownload(firstKey, attempt, wrongBook));
+  auto sameRelease = alternate;
+  sameRelease["infoHash"] = A;
+  QVERIFY(!books.replaceStalledDownload(firstKey, attempt, sameRelease));
+  auto owned = alternate;
+  owned["infoHash"] = C;
+  owned["recordingKey"] = ownedKey;
+  QVERIFY(!books.replaceStalledDownload(firstKey, attempt, owned));
+  enabled = false;
+  QVERIFY(!books.replaceStalledDownload(firstKey, attempt, alternate));
+  QCOMPARE(books.activeDownloads().first().toMap().value("attempt").toString(), attempt);
+  enabled = true;
+
+  QVERIFY(books.replaceStalledDownload(firstKey, attempt, alternate));
+  QVERIFY(!books.replaceStalledDownload(firstKey, attempt, alternate));
+  QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 2, 1000);
+  QCOMPARE(finished.last().first().toString(), nextKey);
+  QVERIFY(books.activeDownloads().isEmpty());
+  QCOMPARE(engine.adds, (QList<QString>{A, C, B}));
+  QCOMPARE(books.localFiles(ownedKey), ownedFiles);
+  QCOMPARE(pairing.getPairing("reader-id").value("recordingKey").toString(), nextKey);
+  QCOMPARE(pairing.getPairing("reader-id").value("bookPath").toString(), "/fixture/book.epub");
+ }
+
  void distinctRecordingsAndDeletion_data() {
   QTest::addColumn<bool>("managed");
   QTest::newRow("profile storage") << false;

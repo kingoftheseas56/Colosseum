@@ -13,6 +13,8 @@ FocusScope {
     property url artwork
     property Item backdrop: null
     property bool showTankorent: false
+    property string backTip: qsTr("Back to audiobook details")
+    property string selectionError
     property var providerStates: ({})
     property var recordingStatus: key => "none"
 
@@ -42,6 +44,7 @@ FocusScope {
     Theme { id: theme }
 
     function statusText(provider) {
+        if (provider.message) return provider.message
         switch (provider.state) {
         case "searching": return qsTr("Searching…")
         case "disabled": return qsTr("Disabled in Extensions")
@@ -139,7 +142,7 @@ FocusScope {
         x: page.sideMargin
         y: page.compactHeight || page.narrow ? 12 : 30
         z: 1
-        tip: qsTr("Back to audiobook details")
+        tip: page.backTip
         onTriggered: page.backRequested()
     }
 
@@ -285,7 +288,7 @@ FocusScope {
                             Text {
                                 Layout.fillWidth: true
                                 objectName: "audiobookSourcesStatus_" + section.modelData.id
-                                text: page.statusText(section.provider)
+                                text: page.selectionError || page.statusText(section.provider)
                                 color: theme.inkDim
                                 font.family: theme.ui
                                 font.pixelSize: theme.fontSize(13)
@@ -310,6 +313,7 @@ FocusScope {
                                 readonly property string status: modelData.request
                                     ? page.recordingStatus(modelData.request.recordingKey) : ""
                                 readonly property string action: !modelData.request ? qsTr("Unavailable")
+                                    : status === "downloaded" ? qsTr("Downloaded")
                                     : status === "done" ? qsTr("Listen") : status === "failed" ? qsTr("Retry")
                                     : enabled ? qsTr("Download") : qsTr("Downloading…")
                                 readonly property string sourceName: modelData.sourceLabel || section.modelData.name

@@ -174,7 +174,10 @@ TestCase {
         id: sourceDownloadsFixture
         QtObject {
             property var captured: []
-            function activeDownloads() { return [] }
+            property var failures: []
+            property var replacements: []
+            function activeDownloads() { return failures }
+            function replaceStalledDownload(key, attempt, request) { replacements.push([key, attempt, request]); return true }
             function recordingsForWork(key) { return [] }
             function statusOf(key) { return { state: "none" } }
             function downloadRecording(request) { captured.push(request) }
@@ -191,6 +194,92 @@ TestCase {
                 return { cancel: () => ++cancellations }
             }
         }
+    }
+
+    function test_replacement_picker_data() {
+        return [{ tag: "catalogue", workId: "first" }, { tag: "title and author", workId: "" }]
+    }
+
+    function test_replacement_picker(data) {
+        const view = setup()
+        const flow = view.flow
+        const original = "a".repeat(40)
+        const alternative = "b".repeat(40)
+        const wrongBook = "c".repeat(40)
+        const pairKey = "first book|alex writer"
+        const key = pairKey + (data.workId ? "#as:edition-first" : "#src:" + original)
+        const failure = { state: "failed", id: key, attempt: "7", pairKey: pairKey, workId: data.workId,
+            title: "First Book", author: "Alex Writer", infoHash: original, sourceRef: "stalled",
+            audiosiloRecordingId: data.workId ? "edition-first" : "" }
+        const downloads = make(sourceDownloadsFixture, { failures: [failure] })
+        flow.downloads = downloads
+        flow.extensions = make(sourceExtensionsFixture, { sourceIds: ["colosseum.well.audiobookbay"] })
+
+        const pending = make(stalledAbbFixture)
+        flow.abb = pending
+        verify(!flow.openReplacement(key, "stale"))
+        verify(flow.openReplacement(key, "7"))
+        verify(flow.replacingDownload)
+        compare(pending.requests, 1)
+        compare(flow.currentPage.providerStates.abb.state, "searching")
+        flow.back()
+        compare(pending.cancellations, 1)
+        verify(!flow.replacingDownload)
+        compare(downloads.replacements.length, 0)
+        compare(downloads.failures.length, 1)
+
+        const stubRows = [
+            { slug: "stalled", title: "First Book", author: "Alex Writer" },
+            { slug: "same-hash", title: "First Book", author: "Alex Writer" },
+            { slug: "different-book", title: "Second Book", author: "Alex Writer" },
+            { slug: "alternate", title: "First Book", author: "Alex Writer" },
+            { slug: "alternate-mirror", title: "First Book", author: "Alex Writer" }
+        ]
+        let seen = []
+        const torrentBySlug = { "same-hash": original, "different-book": wrongBook,
+            "alternate": alternative, "alternate-mirror": alternative }
+        flow.matcher = { matchSource: (source, editions) => {
+            return source.title === "first book" && editions.length
+                ? { verdict: "exact", recordingKey: editions[0].recordingKey } : {}
+        } }
+        flow.abb = {
+            search: (term, page, done) => { done({ rows: stubRows }); return { cancel: () => {} } },
+            detail: (slug, done) => {
+                seen.push(slug)
+                done({ infoHash: torrentBySlug[slug], author: "Alex Writer", narrator: ["Reader One"] })
+                return { cancel: () => {} }
+            }
+        }
+        verify(flow.openReplacement(key, "7"))
+        const picker = flow.currentPage
+        compare(picker.workTitle, "First Book")
+        compare(picker.backTip, "Back to Downloads")
+        compare(picker.providerStates.abb.rows.length, 1)
+        verify(!seen.includes("stalled"))
+        compare(downloads.captured.length, 0)
+        compare(downloads.replacements.length, 0)
+        const option = findChild(picker, "audiobookSourceOption_abb_0")
+        verify(option.activate())
+        compare(downloads.replacements.length, 1)
+        compare(downloads.replacements[0][0], key)
+        compare(downloads.replacements[0][1], "7")
+        compare(downloads.replacements[0][2].infoHash, alternative)
+        compare(downloads.replacements[0][2].workId || "", data.workId)
+        compare(downloads.replacements[0][2].recordingKey, data.workId ? key : pairKey + "#src:" + alternative)
+        verify(!flow.replacingDownload)
+
+        stubRows.splice(1)
+        verify(flow.openReplacement(key, "7"))
+        compare(flow.currentPage.providerStates.abb.state, "empty")
+        compare(flow.currentPage.providerStates.abb.message, "No other releases found for this audiobook.")
+        flow.back()
+        flow.abb = { search: (term, page, done) => { done(null, "timeout"); return { cancel: () => {} } } }
+        verify(flow.openReplacement(key, "7"))
+        compare(flow.currentPage.providerStates.abb.state, "error")
+        compare(flow.currentPage.providerStates.abb.error, "timeout")
+        downloads.failures = []
+        compare(flow.currentPage.providerStates.abb.state, "empty")
+        compare(flow.currentPage.providerStates.abb.message, "This stalled download is no longer in Downloads.")
     }
 
     function test_indexers_do_not_enable_audiobook_downloads() {
