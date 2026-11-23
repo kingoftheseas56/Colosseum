@@ -83,6 +83,24 @@ Item {
         glide._drainFresh = false
     }
 
+    // A layout shift moves the viewport's coordinate system, not the user's scroll target.
+    // Rebase without treating it as an external seek and throwing away pending wheel input.
+    function shiftForLayout(deltaY, updateBounds) {
+        if (!glide.flick || deltaY === 0)
+            return
+        var target = glide.flick.contentY + deltaY
+        glide._draining = true
+        try {
+            // Shrinking the extent can itself clamp contentY. Use the pre-layout offset.
+            updateBounds()
+            var y = Math.max(glide._minY(), Math.min(glide._maxY(), target))
+            glide._smoothY = y
+            glide.flick.contentY = y
+        } finally {
+            glide._draining = false
+        }
+    }
+
     // Public programmatic seam for wheel-equivalent smooth motion.
     // Positive px moves downward; negative px moves upward.
     function smoothScrollBy(px) {

@@ -205,6 +205,53 @@ TestCase {
         gateData.tastePickerOpen=false;tryCompare(shelf,"homePageVisible",true);
         gateData.v1HomeRows=original;
     }
+    function test_05_wheelGlidesThroughHome() {
+        var flick=view.pageFlickable;
+        var tabsTop=view.flowTabs.mapToItem(flick.contentItem,0,0).y;
+        for(var step of [{from:0,delta:168},{from:tabsTop-70,delta:168},
+                         {from:tabsTop+70,delta:-168}]) {
+            flick.contentY=step.from;
+            verify(waitForRendering(view));
+            mouseWheel(flick, flick.width/2, flick.height/2, 0,
+                       step.delta>0 ? -120 : 120, Qt.NoButton, Qt.NoModifier, 0);
+            tryCompare(flick,"contentY",step.from+step.delta);
+        }
+    }
+    function test_06_wheelKeepsVisibleShelfSteadyDuringPublication_data() {
+        return [{tag:"arrival-wheel-up", arrives:true, offset:240, delta:-168},
+                {tag:"removal-wheel-down", arrives:false, offset:420, delta:168}];
+    }
+    function test_06_wheelKeepsVisibleShelfSteadyDuringPublication(data) {
+        var flick=view.pageFlickable;
+        var visibleShelf=findChild(view,"vinylHomeRow_albums-for-you");
+        var earlyShelf=findChild(view,"vinylHomeRow_mixes-radio");
+        var rows=gateData.v1HomeRows;
+        var withoutMixes=rows.filter(row=>row.homeKey!=="mixes-radio");
+        try {
+            // Simulate a new provider result changing the rows on an already usable Home.
+            gateData.v1HomeRows=data.arrives ? withoutMixes : rows;
+            verify(waitForRendering(view));
+            var shelfTop=visibleShelf.mapToItem(flick.contentItem,0,0).y;
+            var start=shelfTop-data.offset;
+            verify(start>0 && start<flick.contentHeight-flick.height);
+            flick.contentY=start;
+            verify(waitForRendering(view));
+            compare(visibleShelf.mapToItem(flick,0,0).y,data.offset);
+            mouseWheel(flick,flick.width/2,130,0,data.delta>0 ? -120 : 120,
+                       Qt.NoButton,Qt.NoModifier,0);
+            gateData.v1HomeRows=data.arrives ? rows : withoutMixes;
+            tryCompare(earlyShelf,"visible",data.arrives);
+            tryVerify(function() {
+                return Math.abs(visibleShelf.mapToItem(flick.contentItem,0,0).y-shelfTop)>200;
+            });
+            var target=visibleShelf.mapToItem(flick.contentItem,0,0).y-data.offset+data.delta;
+            // Flickable can round a half-pixel when it fixes up after an extent change.
+            tryVerify(function() { return Math.abs(flick.contentY-target)<=1; },2000,
+                      "Expected contentY near "+target+"; publication must not add a shelf to the wheel movement");
+        } finally {
+            gateData.v1HomeRows=rows;
+        }
+    }
     function test_zz_lockedTasteGateShowsOnlyThePicker(){
         var hero=findChild(view,"vinylHero"),crate=findChild(view,"vinylCrate"),spin=findChild(view,"vinylSpin");
         var picker=findChild(view,"vinylTastePicker"),tabs=findChild(view,"vinylFlowTabs");

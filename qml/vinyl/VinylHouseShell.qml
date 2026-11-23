@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
+import "../ScrollGlideRegistry.js" as ScrollGlides
 
 WorldPage {
     id: root
@@ -48,6 +49,40 @@ WorldPage {
         }
         position();
         Qt.callLater(function() { if (root && root.pageFlickable) position(); });
+    }
+    // Provider replies can insert, remove or resize sections above a reader.
+    // Preserve the first surviving section at the viewport edge, not the old absolute Y.
+    property var homeLayout: []
+    readonly property bool trackHomeLayout: componentReady && lifecycleActive && visible && contentVisible && !gated
+        && currentTab === "home" && !listKey && !worldData.tastePickerOpen && !homeLoading.visible
+    onTrackHomeLayoutChanged: {
+        homeLayout = [];
+        if (trackHomeLayout) updateHomeLayout();
+    }
+    function updateHomeLayout() {
+        if (!trackHomeLayout) return;
+        var previous = homeLayout;
+        var sections = [hero, crate, spin, flowBar, homeTitle];
+        for (var i = 0; i < homeShelves.count; ++i)
+            sections.push(homeShelves.itemAt(i));
+        homeLayout = sections.filter(item => item && item.visible && item.height > 0).map(function(item) {
+            var y = item.mapToItem(pageFlickable.contentItem, 0, 0).y;
+            return {item: item, y: y, bottom: y + item.height};
+        });
+        var top = pageFlickable.contentY;
+        if (top <= 0) return;
+        for (var old of previous) {
+            if (old.bottom <= top) continue;
+            var section = homeLayout.find(entry => entry.item === old.item);
+            if (!section) continue;
+            var delta = section.y - old.y;
+            if (delta !== 0) {
+                var glide = ScrollGlides.glideFor(pageFlickable);
+                // Update the WorldPage board's extent as part of the same rebase.
+                if (glide) glide.shiftForLayout(delta, function() { surface.parent.forceLayout(); });
+            }
+            break;
+        }
     }
     function enforceHomeGate() {
         if (navigationEnabled) return false;
@@ -169,6 +204,7 @@ WorldPage {
         visible: root.contentVisible
         width: parent.width
         spacing: 30
+        onPositioningComplete: root.updateHomeLayout()
         Column {
             id: homeLoading
             objectName: "vinylHomeLoading"
@@ -297,6 +333,10 @@ WorldPage {
                 width: parent.width
                 visible: !root.listKey && root.currentTab === "home"
                 spacing: 30
+                onPositioningComplete: if (root.trackHomeLayout) {
+                    surface.forceLayout();
+                    root.updateHomeLayout();
+                }
                 Text {
                     id: homeTitle
                     visible: !picker.visible && !homeLoading.visible && !(root.worldData.v1HomeRows || []).length
@@ -314,6 +354,7 @@ WorldPage {
                     pageFlick: root.pageFlickable
                 }
                 Repeater {
+                    id: homeShelves
                     // Stable slots preserve unaffected shelf/card objects as other sources finish.
                     model: ["mixes-radio", "new-from-your-artists", "albums-for-you",
                         "because-you-played", "deep-cuts", "rediscover", "artists-like-yours"]
